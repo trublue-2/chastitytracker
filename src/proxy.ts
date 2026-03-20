@@ -66,6 +66,17 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
+  // Access-Log: nur Seiten-Aufrufe (keine API-Calls, keine statischen Assets)
+  if (isLoggedIn && !pathname.startsWith("/api")) {
+    const user = req.auth?.user as { id?: string; name?: string } | undefined;
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-real-ip") ??
+      "unknown";
+    const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
+    console.log(`[ACCESS] ${ts} | ${user?.name ?? "?"} | ${pathname} | ${ip}`);
+  }
+
   return NextResponse.next();
 });
 

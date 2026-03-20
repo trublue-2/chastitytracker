@@ -1,5 +1,4 @@
 import { auth } from "@/lib/auth";
-import { logAccess } from "@/lib/accessLog";
 import { prisma } from "@/lib/prisma";
 import { formatDuration, formatDateTime, formatHours } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
@@ -83,7 +82,6 @@ function photoStatus(v: Entry): "no-photo" | "exif-mismatch" | "ok" {
 
 export default async function DashboardPage() {
   const session = await auth();
-  logAccess(session!.user.id, session!.user.name ?? "", "/dashboard").catch(() => {});
   const userId = session!.user.id;
 
   const [t, tCommon, ta] = await Promise.all([
