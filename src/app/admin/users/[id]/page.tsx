@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { formatDuration, formatDateTime, formatHours, toDateLocale } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
@@ -78,7 +79,7 @@ function photoStatus(v: Entry): "no-photo" | "exif-mismatch" | "ok" {
 }
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
-  await auth();
+  const session = await auth();
   const { id } = await params;
   const t = await getTranslations("admin");
   const ts = await getTranslations("stats");
@@ -89,6 +90,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-gray-500">{t("userNotFound")}</div>;
 
+  logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
   const [entries, alleAnforderungen, activeVorgabe] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),

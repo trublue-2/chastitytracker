@@ -17,6 +17,14 @@ function isRateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT;
 }
 
+// Cleanup abgelaufener Einträge alle 30 Min – verhindert Memory-Leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of loginBucket.entries()) {
+    if (entry.resetAt < now) loginBucket.delete(ip);
+  }
+}, 30 * 60 * 1000);
+
 export default auth((req) => {
   // Ungültige Server Action IDs (Bots/Scanner) frühzeitig abweisen
   const actionId = req.headers.get("Next-Action");
@@ -67,7 +75,10 @@ export default auth((req) => {
   }
 
   // Access-Log: nur Seiten-Aufrufe (keine API-Calls, keine statischen Assets)
-  if (isLoggedIn && !pathname.startsWith("/api")) {
+  // Admin-User-Detail-Pfade (/admin/users/<id>/...) werden von der jeweiligen
+  // Seite mit aufgelöstem Username geloggt.
+  const isAdminUserDetailPath = /^\/admin\/users\/[a-z0-9]{20,}(\/|$)/.test(pathname);
+  if (isLoggedIn && !pathname.startsWith("/api") && !isAdminUserDetailPath) {
     const user = req.auth?.user as { id?: string; name?: string } | undefined;
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??

@@ -26,6 +26,9 @@ export async function POST(req: NextRequest) {
   const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, aiVerified } = body;
 
   if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
+  if (new Date(startTime) > new Date()) {
+    return NextResponse.json({ error: "Zeitpunkt darf nicht in der Zukunft liegen" }, { status: 400 });
+  }
   if (!type || !VALID_TYPES.includes(type)) {
     return NextResponse.json({ error: "Ungültiger Typ" }, { status: 400 });
   }

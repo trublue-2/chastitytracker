@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { getLocale } from "next-intl/server";
@@ -41,12 +42,14 @@ const statusStyle: Record<string, string> = {
 };
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
-  await auth();
+  const session = await auth();
   const { id } = await params;
   const dl = toDateLocale(await getLocale());
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-gray-500">Benutzer nicht gefunden.</div>;
+
+  logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/kontrollen`);
 
   const [kontrollen, latestEntry] = await Promise.all([
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" } }),
