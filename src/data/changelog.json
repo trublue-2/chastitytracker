@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.3.1",
+    "date": "2026-03-20",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "/api/version vom Auth-Schutz ausgeschlossen – Healthcheck funktioniert wieder"
+      }
+    ]
+  },
+  {
     "version": "1.3.0",
     "date": "2026-03-20",
     "changes": [
