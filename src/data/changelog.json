@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.2.52",
+    "date": "2026-03-20",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Build-Fehler behoben: oeffnenGrund in Entry-Typ und PairRow-Aufrufen ergänzt"
+      }
+    ]
+  },
+  {
     "version": "1.2.51",
     "date": "2026-03-20",
     "changes": [
