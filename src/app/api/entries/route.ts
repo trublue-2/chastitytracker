@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS"];
 const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"];
-const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL"];
+const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"];
 
 export async function GET() {
   const session = await auth();
@@ -45,6 +45,9 @@ export async function POST(req: NextRequest) {
   if (type === "OEFFNEN") {
     if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund)) {
       return NextResponse.json({ error: "Grund der Öffnung ist erforderlich" }, { status: 400 });
+    }
+    if (!note?.trim()) {
+      return NextResponse.json({ error: "Kommentar ist erforderlich" }, { status: 400 });
     }
     const latest = await prisma.entry.findFirst({
       where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },

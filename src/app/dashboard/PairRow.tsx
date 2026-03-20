@@ -10,6 +10,7 @@ const GRUND_LABELS: Record<string, string> = {
   REINIGUNG: "Reinigung",
   KEYHOLDER: "Von Keyholder erlaubt",
   NOTFALL: "Notfall",
+  ANDERES: "Anderes",
 };
 
 interface PairEntry {
