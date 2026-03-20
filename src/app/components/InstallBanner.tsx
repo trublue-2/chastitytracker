@@ -1,0 +1,96 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { X, Download, Share } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+type Platform = "android" | "ios" | null;
+
+declare global {
+  interface WindowEventMap {
+    beforeinstallprompt: BeforeInstallPromptEvent;
+  }
+}
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+export default function InstallBanner() {
+  const t = useTranslations("installBanner");
+  const [platform, setPlatform] = useState<Platform>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
+
+  useEffect(() => {
+    if (localStorage.getItem("pwa-install-dismissed")) return;
+
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+      || ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
+
+    if (isStandalone) return; // already installed
+
+    if (isIos) {
+      setPlatform("ios");
+      setDismissed(false);
+      return;
+    }
+
+    const handler = (e: BeforeInstallPromptEvent) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setPlatform("android");
+      setDismissed(false);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+
+    window.addEventListener("appinstalled", () => setDismissed(true), { once: true });
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  function dismiss() {
+    localStorage.setItem("pwa-install-dismissed", "1");
+    setDismissed(true);
+  }
+
+  async function install() {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") setDismissed(true);
+    else dismiss();
+  }
+
+  if (dismissed || !platform) return null;
+
+  return (
+    <div className="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 bg-gray-900 text-white rounded-xl shadow-xl p-4 flex items-start gap-3">
+      <div className="flex-1">
+        <p className="font-semibold text-sm">{t("title")}</p>
+        {platform === "android" ? (
+          <p className="text-xs text-gray-300 mt-0.5">{t("androidDesc")}</p>
+        ) : (
+          <p className="text-xs text-gray-300 mt-0.5">
+            {t("iosBefore")} <Share size={12} className="inline mb-0.5" /> {t("iosAfter")} <strong>{t("iosHomeScreen")}</strong>.
+          </p>
+        )}
+      </div>
+
+      {platform === "android" && (
+        <button
+          onClick={install}
+          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex-shrink-0"
+        >
+          <Download size={14} />
+          {t("install")}
+        </button>
+      )}
+
+      <button onClick={dismiss} className="text-gray-400 hover:text-white flex-shrink-0 mt-0.5">
+        <X size={16} />
+      </button>
+    </div>
+  );
+}

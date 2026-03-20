@@ -1,0 +1,7 @@
+node_modules
+.next
+.git
+prisma/dev.db
+public/uploads
+.env.local
+*.md

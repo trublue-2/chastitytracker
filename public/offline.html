@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KG Tracker – Offline</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-family: sans-serif;
+      background: #f8f9fb;
+      color: #374151;
+      text-align: center;
+      padding: 24px;
+    }
+    svg { opacity: .4; }
+    h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    p  { margin: 0; font-size: 0.95rem; color: #6b7280; }
+    button {
+      margin-top: 8px;
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: none;
+      background: #111827;
+      color: #fff;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="112" fill="#111827"/>
+    <rect x="138" y="248" width="236" height="176" rx="36" fill="white"/>
+    <path d="M176 248V192a80 80 0 0 1 160 0v56" fill="none" stroke="white" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="256" cy="330" r="26" fill="#111827"/>
+    <rect x="242" y="330" width="28" height="40" rx="10" fill="#111827"/>
+  </svg>
+  <h1>Nicht erreichbar</h1>
+  <p>Der Server ist momentan nicht verfügbar oder es besteht keine Verbindung.</p>
+  <button onclick="location.reload()">Erneut versuchen</button>
+</body>
+</html>

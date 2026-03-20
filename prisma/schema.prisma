@@ -1,0 +1,87 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  username              String                 @unique
+  passwordHash          String
+  role                  String                 @default("user")
+  email                 String?                @unique
+  createdAt             DateTime               @default(now())
+  entries               Entry[]
+  vorgaben              TrainingVorgabe[]
+  passwordResetTokens   PasswordResetToken[]
+  kontrollAnforderungen   KontrollAnforderung[]
+  verschlussAnforderungen VerschlussAnforderung[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model TrainingVorgabe {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gueltigAb     DateTime
+  gueltigBis    DateTime?
+  minProTagH    Float?
+  minProWocheH  Float?
+  minProMonatH  Float?
+  notiz         String?
+  createdAt     DateTime  @default(now())
+}
+
+model KontrollAnforderung {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code               String
+  kommentar          String?
+  deadline           DateTime
+  fulfilledAt        DateTime?
+  withdrawnAt        DateTime?
+  manuallyVerifiedAt DateTime?
+  rejectedAt         DateTime?
+  createdAt          DateTime  @default(now())
+}
+
+model VerschlussAnforderung {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  art         String    // "ANFORDERUNG" | "SPERRZEIT"
+  nachricht   String?
+  endetAt     DateTime? // ANFORDERUNG: Deadline zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
+  dauerH      Float?    // ANFORDERUNG only: Mindestdauer in Stunden nach Einschliessen
+  createdAt   DateTime  @default(now())
+  fulfilledAt DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
+  withdrawnAt DateTime?
+}
+
+model Entry {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String    @default("VERSCHLUSS")
+  startTime     DateTime
+  imageUrl      String?
+  imageExifTime DateTime?
+  note          String?
+  orgasmusArt   String?
+  kontrollCode  String?
+  aiVerified    Boolean?
+  createdAt     DateTime  @default(now())
+}
