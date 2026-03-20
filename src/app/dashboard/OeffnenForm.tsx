@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 
+const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL"] as const;
+type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
+
 interface Props {
-  initial?: { id: string; startTime: string; note?: string | null };
+  initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
   sperrzeitEndetAt?: string | null;
 }
 
@@ -17,6 +20,9 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
   const router = useRouter();
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
+  );
+  const [grund, setGrund] = useState<OeffnenGrund | "">(
+    (initial?.oeffnenGrund as OeffnenGrund) ?? ""
   );
   const [note, setNote] = useState(initial?.note ?? "");
   const [saving, setSaving] = useState(false);
@@ -32,7 +38,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
         {
           method: initial ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "OEFFNEN", startTime: new Date(startTime).toISOString(), note: note.trim() }),
+          body: JSON.stringify({ type: "OEFFNEN", startTime: new Date(startTime).toISOString(), oeffnenGrund: grund, note: note.trim() || null }),
         }
       );
       setSaving(false);
@@ -51,7 +57,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!note.trim()) { setError(t("commentRequired")); return; }
+    if (!grund) { setError(t("grundRequired")); return; }
     if (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date()) {
       setShowWarning(true);
       return;
@@ -134,13 +140,29 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
 
         <div>
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            {tCommon("commentRequired")}
+            {t("grundLabel")}
+          </label>
+          <select
+            value={grund}
+            onChange={(e) => { setGrund(e.target.value as OeffnenGrund | ""); if (e.target.value) setError(""); }}
+            required
+            className={inputCls}
+          >
+            <option value="">–</option>
+            <option value="REINIGUNG">{t("grundReinigung")}</option>
+            <option value="KEYHOLDER">{t("grundKeyholder")}</option>
+            <option value="NOTFALL">{t("grundNotfall")}</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            {tCommon("noteOptional")}
           </label>
           <textarea
             value={note}
-            onChange={(e) => { setNote(e.target.value); if (e.target.value.trim()) setError(""); }}
-            rows={5}
-            required
+            onChange={(e) => setNote(e.target.value)}
+            rows={4}
             placeholder={t("commentPlaceholder")}
             className={`${inputCls} resize-none`}
           />

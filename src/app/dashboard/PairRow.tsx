@@ -6,12 +6,19 @@ import { formatDateTime, toDateLocale } from "@/lib/utils";
 import EntryActions from "./EntryActions";
 import { useTranslations, useLocale } from "next-intl";
 
+const GRUND_LABELS: Record<string, string> = {
+  REINIGUNG: "Reinigung",
+  KEYHOLDER: "Von Keyholder erlaubt",
+  NOTFALL: "Notfall",
+};
+
 interface PairEntry {
   id: string;
   startTime: string;
   imageUrl: string | null;
   imageExifTime: string | null;
   note: string | null;
+  oeffnenGrund: string | null;
   kontrollCode: string | null;
   aiVerified: boolean | null;
 }
@@ -165,6 +172,15 @@ function DetailModal({
           </div>
         )}
 
+        {entry.oeffnenGrund && (
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Grund</p>
+            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
+              {GRUND_LABELS[entry.oeffnenGrund] ?? entry.oeffnenGrund}
+            </span>
+          </div>
+        )}
+
         {entry.note && (
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
@@ -259,6 +275,12 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
                 </button>
                 <EntryActions id={oeffnen.id} editHref={`/dashboard/edit/${oeffnen.id}`} />
               </div>
+              {oeffnen.oeffnenGrund && (
+                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full self-start
+                  bg-blue-50 text-blue-700">
+                  {GRUND_LABELS[oeffnen.oeffnenGrund] ?? oeffnen.oeffnenGrund}
+                </span>
+              )}
               {oeffnen.note && (
                 <p className="text-xs text-gray-400 italic truncate" title={oeffnen.note}>
                   „{oeffnen.note}"

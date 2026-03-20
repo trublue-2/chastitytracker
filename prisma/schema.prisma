@@ -80,6 +80,7 @@ model Entry {
   imageUrl      String?
   imageExifTime DateTime?
   note          String?
+  oeffnenGrund  String?
   orgasmusArt   String?
   kontrollCode  String?
   aiVerified    Boolean?

@@ -35,7 +35,7 @@ export default async function EditEntryPage({
       </h1>
       <div className="max-w-lg">
       {entry.type === "OEFFNEN" && (
-        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note }} />
+        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} />
       )}
       {entry.type === "VERSCHLUSS" && (
         <VerschlussForm initial={{

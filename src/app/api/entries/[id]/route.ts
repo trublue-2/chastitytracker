@@ -18,7 +18,7 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, aiVerified } = body;
+  const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, aiVerified } = body;
 
   const entry = await prisma.entry.update({
     where: { id },
@@ -29,6 +29,7 @@ export async function PATCH(
         imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
       }),
       ...(note !== undefined && { note }),
+      ...(oeffnenGrund !== undefined && { oeffnenGrund }),
       ...(orgasmusArt !== undefined && { orgasmusArt }),
       ...(kontrollCode !== undefined && { kontrollCode }),
       ...(aiVerified !== undefined && { aiVerified: aiVerified !== null ? Boolean(aiVerified) : null }),
