@@ -23,6 +23,7 @@ type Entry = {
   orgasmusArt: string | null;
   aiVerified: boolean | null;
   kontrollCode: string | null;
+  oeffnenGrund: string | null;
 };
 
 type KontrolleItem = {
@@ -285,6 +286,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                     note: verschluss.note,
                     kontrollCode: verschluss.kontrollCode,
                     aiVerified: verschluss.aiVerified,
+                    oeffnenGrund: verschluss.oeffnenGrund,
                   }}
                   oeffnen={oeffnen ? {
                     id: oeffnen.id,
@@ -294,6 +296,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                     note: oeffnen.note,
                     kontrollCode: oeffnen.kontrollCode,
                     aiVerified: oeffnen.aiVerified,
+                    oeffnenGrund: oeffnen.oeffnenGrund,
                   } : null}
                   active={active}
                   duration={duration}
