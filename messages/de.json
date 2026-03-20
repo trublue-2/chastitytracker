@@ -115,7 +115,12 @@
   "openForm": {
     "title": "Öffnung erfassen",
     "saveBtn": "Öffnung speichern",
-    "commentPlaceholder": "Grund / Bemerkung zur Öffnung…",
+    "grundLabel": "Grund der Öffnung *",
+    "grundRequired": "Bitte Grund auswählen",
+    "grundReinigung": "Reinigung",
+    "grundKeyholder": "Von Keyholder erlaubt",
+    "grundNotfall": "Notfall",
+    "commentPlaceholder": "Bemerkung zur Öffnung (optional)…",
     "commentRequired": "Kommentar ist erforderlich",
     "lockedWarningTitle": "KG ist gesperrt",
     "lockedWarningText": "Öffnen nicht erlaubt bis {date}",

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS"];
 const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"];
+const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL"];
 
 export async function GET() {
   const session = await auth();
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { type, startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, aiVerified } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, aiVerified } = body;
 
   if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
   if (!type || !VALID_TYPES.includes(type)) {
@@ -42,8 +43,8 @@ export async function POST(req: NextRequest) {
     }
   }
   if (type === "OEFFNEN") {
-    if (!note?.trim()) {
-      return NextResponse.json({ error: "Kommentar ist erforderlich" }, { status: 400 });
+    if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund)) {
+      return NextResponse.json({ error: "Grund der Öffnung ist erforderlich" }, { status: 400 });
     }
     const latest = await prisma.entry.findFirst({
       where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
       note: note || null,
+      oeffnenGrund: oeffnenGrund || null,
       orgasmusArt: orgasmusArt || null,
       kontrollCode: kontrollCode || null,
       aiVerified: aiVerified !== undefined ? Boolean(aiVerified) : null,

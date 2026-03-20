@@ -302,6 +302,7 @@ export default async function DashboardPage() {
                       imageUrl: oeffnen.imageUrl,
                       imageExifTime: oeffnen.imageExifTime?.toISOString() ?? null,
                       note: oeffnen.note,
+                      oeffnenGrund: oeffnen.oeffnenGrund,
                       kontrollCode: oeffnen.kontrollCode,
                       aiVerified: oeffnen.aiVerified,
                     } : null}
