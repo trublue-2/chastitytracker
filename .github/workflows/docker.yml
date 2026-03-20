@@ -108,7 +108,7 @@ jobs:
               echo "→ Update $INSTANCE ..."
               cd "$DIR"
               docker compose pull
-              docker compose up -d
+              docker compose up -d --force-recreate
             done
 
             docker image prune -f
