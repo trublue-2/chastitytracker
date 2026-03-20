@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 
-const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL"] as const;
+const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
 type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
 interface Props {
@@ -58,6 +58,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!grund) { setError(t("grundRequired")); return; }
+    if (!note.trim()) { setError(t("commentRequired")); return; }
     if (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date()) {
       setShowWarning(true);
       return;
@@ -152,17 +153,19 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
             <option value="REINIGUNG">{t("grundReinigung")}</option>
             <option value="KEYHOLDER">{t("grundKeyholder")}</option>
             <option value="NOTFALL">{t("grundNotfall")}</option>
+            <option value="ANDERES">{t("grundAnderes")}</option>
           </select>
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            {tCommon("noteOptional")}
+            {tCommon("commentRequired")}
           </label>
           <textarea
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(e) => { setNote(e.target.value); if (e.target.value.trim()) setError(""); }}
             rows={4}
+            required
             placeholder={t("commentPlaceholder")}
             className={`${inputCls} resize-none`}
           />
