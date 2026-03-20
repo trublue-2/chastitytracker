@@ -1,0 +1,634 @@
+[
+  {
+    "version": "1.2.51",
+    "date": "2026-03-20",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Öffnungsgrund-Dropdown beim Öffnen: Reinigung / Von Keyholder erlaubt / Notfall / Anderes"
+      },
+      {
+        "type": "fix",
+        "text": "Kommentarfeld beim Öffnen wieder Pflichtfeld"
+      }
+    ]
+  },
+  {
+    "version": "1.2.50",
+    "date": "2026-03-20",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "docker-compose: init: true in allen Services ergänzt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.49",
+    "date": "2026-03-20",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Dashboard: Öffnung-Spalte zeigt 'noch verschlossen' statt 'Aktiv' bei aktivem Einschluss"
+      },
+      {
+        "type": "fix",
+        "text": "Dashboard: Verschluss-Spalte linksbündig; Dauer-Spalte fix 160px ab lg-Breakpoint für konsistente Spaltenausrichtung"
+      }
+    ]
+  },
+  {
+    "version": "1.2.48",
+    "date": "2026-03-18",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Header: Domain der Instanz neben KG-Tracker anzeigen"
+      },
+      {
+        "type": "chore",
+        "text": "Deploy-Workflow: Build-only Option + Multi-Instanz-Deploy"
+      }
+    ]
+  },
+  {
+    "version": "1.2.47",
+    "date": "2026-03-18",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Erster Admin-User wird beim App-Start automatisch angelegt wenn INITIAL_ADMIN_* in der .env gesetzt sind und noch kein Admin existiert"
+      }
+    ]
+  },
+  {
+    "version": "1.2.46",
+    "date": "2026-03-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Dashboard: horizontales Scrollen der Verschluss-Tabelle auf mobilen Geräten behoben"
+      },
+      {
+        "type": "fix",
+        "text": "StatusBanner: Dauer (z. B. 1T4h35min) überlappt nicht mehr mit dem Status-Text"
+      },
+      {
+        "type": "fix",
+        "text": "StatusBanner: 'Seit'-Zeile zeigt jetzt volles Datum mit Uhrzeit ohne Abschneiden"
+      },
+      {
+        "type": "fix",
+        "text": "StatusBanner: Auf kleinen Displays gestapeltes Layout (kein Überlappen), ab 640px nebeneinander"
+      }
+    ]
+  },
+  {
+    "version": "1.2.45",
+    "date": "2026-03-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "ChangeEmailButton: Speichern-Button auf indigo-600 und Close auf X-Icon angeglichen (identisch mit ChangePasswordButton)"
+      }
+    ]
+  },
+  {
+    "version": "1.2.44",
+    "date": "2026-03-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "UI-Konsistenz: focus:ring-indigo-400 auf allen Inputs vereinheitlicht"
+      },
+      {
+        "type": "fix",
+        "text": "UI-Konsistenz: Fehlermeldungen einheitlich mit bg-red-50-Box und text-red-600"
+      },
+      {
+        "type": "fix",
+        "text": "UI-Konsistenz: Formular-Labels überall text-xs uppercase tracking-wider"
+      },
+      {
+        "type": "fix",
+        "text": "UI-Konsistenz: ✕-Symbol durch X-Icon (Lucide) in ChangePasswordButton ersetzt"
+      },
+      {
+        "type": "fix",
+        "text": "UI-Konsistenz: Modal-Overlay bg-black/90 → bg-black/60"
+      }
+    ]
+  },
+  {
+    "version": "1.2.43",
+    "date": "2026-03-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "VorgabeForm: overflow-hidden verhindert iOS date-input-Überlauf am Card-Rand"
+      },
+      {
+        "type": "fix",
+        "text": "ChangePasswordButton/ChangeEmailButton: text-base (16px) verhindert automatischen iOS-Zoom beim Fokussieren"
+      },
+      {
+        "type": "fix",
+        "text": "Admin-Profil-Karte: flex-col auf Mobile – Inline-Edit überläuft nicht mehr horizontal"
+      },
+      {
+        "type": "chore",
+        "text": "CI bumpt Version nicht mehr automatisch – Versionsverwaltung erfolgt lokal via npm run changelog"
+      }
+    ]
+  },
+  {
+    "version": "1.2.41",
+    "date": "2026-03-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Dashboard-Liste: Datum und Uhrzeit werden jetzt zweizeilig angezeigt (kein Abschneiden mehr)"
+      },
+      {
+        "type": "fix",
+        "text": "Dashboard-Liste: Spalten-Header ist jetzt horizontal scrollbar auf kleinen Bildschirmen"
+      },
+      {
+        "type": "fix",
+        "text": "⋮-Button in Eintragszeilen hat weniger Padding (kompakter)"
+      },
+      {
+        "type": "fix",
+        "text": "Admin-User-Tabs (Übersicht/Statistik/Vorgaben/Kontrollen) sind horizontal scrollbar"
+      },
+      {
+        "type": "fix",
+        "text": "StatusBanner: Dauer-Anzeige rechts wird nicht mehr abgeschnitten"
+      }
+    ]
+  },
+  {
+    "version": "1.2.38",
+    "date": "2026-03-16",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Info-Seite zweisprachig: /info/de und /info/en mit Sprachwahl-Button im Header; /info leitet automatisch auf /info/de um"
+      },
+      {
+        "type": "fix",
+        "text": "Dauer-Anzeige in StatusBanner und VorgabeRow locale-abhängig: «2d» statt «2T» bei englischem Locale"
+      },
+      {
+        "type": "fix",
+        "text": "Auth-Logger: CredentialsSignin-Fehler werden jetzt korrekt unterdrückt (Filterung auf error.type statt error.name)"
+      },
+      {
+        "type": "fix",
+        "text": "Datumsformat in KontrolleBanner und AdminUserKontrollenPage verwendet jetzt das korrekte Locale (de-CH / en-US)"
+      }
+    ]
+  },
+  {
+    "version": "1.2.32",
+    "date": "2026-03-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Orgasmus mit Sub-Art (z. B. «Orgasmus – Masturbation») konnte nicht gespeichert werden – Validierung prüft jetzt nur den Basis-Typ"
+      },
+      {
+        "type": "security",
+        "text": "Ungültige Server Action IDs (Bot-Scans) werden in proxy.ts frühzeitig mit 400 abgewiesen und erscheinen nicht mehr im Server-Log"
+      }
+    ]
+  },
+  {
+    "version": "1.2.31",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Mehrsprachigkeit: Datumsformat und Uhrzeiten lokalisiert (de-CH / en-US)"
+      },
+      {
+        "type": "fix",
+        "text": "Mehrsprachigkeit: Dauern verwenden sprachgerechte Einheiten («1T 3h» / «1d 3h»)"
+      },
+      {
+        "type": "fix",
+        "text": "Mehrsprachigkeit: Kalender-Wochentage und Tagesdetail-Modal vollständig übersetzt"
+      },
+      {
+        "type": "fix",
+        "text": "Mehrsprachigkeit: Kontroll-Pill-Labels und alle verbleibenden UI-Strings übersetzt"
+      },
+      {
+        "type": "fix",
+        "text": "i18n: fehlender Key «dashboard.notCaptured» ergänzt (Fehler in en-Locale behoben)"
+      }
+    ]
+  },
+  {
+    "version": "1.2.30",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Mehrsprachigkeit: Admin, Statistik, Forgot/Reset-Password vollständig übersetzt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.29",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Mehrsprachigkeit (de/en): Grundimplementierung mit next-intl, Sprachumschalter auf der Login-Seite (Cookie-basiert)"
+      }
+    ]
+  },
+  {
+    "version": "1.2.27",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Statistik: Mengenangaben vereinheitlicht – überall gleiche Schrift, kein «0T»-Präfix, konsistentes Format (formatMs)"
+      },
+      {
+        "type": "fix",
+        "text": "Orgasmusfreie Zeit: Darstellung entspricht jetzt der Aktuelle-Session-Karte (gleiche Schriftgrösse und -art)"
+      }
+    ]
+  },
+  {
+    "version": "1.2.26",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Admin kann Verschluss anfordern (mit Nachricht, optionaler Deadline oder Mindestdauer) – User erhält E-Mail und sieht Banner auf dem Dashboard"
+      },
+      {
+        "type": "feat",
+        "text": "Admin kann Sperrdauer für bestehenden Verschluss setzen – Öffnen vor Ablauf zeigt Warnmeldung mit Bestätigung"
+      },
+      {
+        "type": "feat",
+        "text": "Statistik: Tabelle «Unerlaubte Öffnungen» zeigt alle Öffnungen während einer aktiven Sperrzeit"
+      },
+      {
+        "type": "feat",
+        "text": "Orgasmusfreie Zeit: Darstellung angepasst (blau, Dauer rechtsbündig)"
+      },
+      {
+        "type": "fix",
+        "text": "Darstellungsprobleme Vorgaben-Formular auf Mobile behoben (Datumsfelder, Edit-Overlay)"
+      }
+    ]
+  },
+  {
+    "version": "1.2.25",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Trainingsvorgaben können inline bearbeitet werden – Bearbeiten-Button pro Eintrag in der Vorgaben-Verwaltung"
+      },
+      {
+        "type": "feat",
+        "text": "Admin-Übersicht pro User entspricht jetzt dem User-Dashboard: StatusBanner, Paare, Kontrollen, Orgasmen, orgasmusfreie Zeit"
+      },
+      {
+        "type": "perf",
+        "text": "Code-Refactoring: gemeinsame Hilfsfunktionen (formatHours, formatMs) und Kontrollen-Status-Pills zentralisiert, KontrolleBanner-Komponente eingeführt, toten Code entfernt"
+      },
+      {
+        "type": "fix",
+        "text": "PWA: bei Server-Fehler (502/503/504) wird die Offline-Seite angezeigt statt weissem Bildschirm"
+      },
+      {
+        "type": "fix",
+        "text": "Link von Admin-Benutzerübersicht zur Vorgaben-Seite korrigiert"
+      }
+    ]
+  },
+  {
+    "version": "1.2.24",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Verschluss-/Öffnungseinträge anklickbar: Detailansicht mit Zeit, EXIF-Datum, Notiz und Kontroll-Code"
+      },
+      {
+        "type": "feat",
+        "text": "Foto-Viewer: Pinch-to-Zoom und Verschieben auf Touch-Geräten"
+      }
+    ]
+  },
+  {
+    "version": "1.2.23",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Dashboard & Admin: Anweisung bei offener Kontrolle im Hinweis-Badge sichtbar"
+      },
+      {
+        "type": "fix",
+        "text": "Fehler bei Kontrolle anfordern werden ins Server-Log geschrieben statt im Interface angezeigt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.22",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontrolle anfordern: optionale Anweisung (z. B. «Schloss-Gravur muss sichtbar sein») – wird per E-Mail und im Prüfungsformular angezeigt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.21",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Changelog-Seite – Versionshistorie über Klick auf Versionsnummer erreichbar"
+      },
+      {
+        "type": "fix",
+        "text": "Admin kann eigenen Account nicht mehr löschen"
+      }
+    ]
+  },
+  {
+    "version": "1.2.19",
+    "date": "2026-03-15",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Fotos (Uploads) sind jetzt auth-geschützt – Abruf erfordert Login"
+      }
+    ]
+  },
+  {
+    "version": "1.2.18",
+    "date": "2026-03-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Screenshots mit Kontrollbanner aktualisiert"
+      },
+      {
+        "type": "fix",
+        "text": "next/image unoptimized für statische Exports"
+      }
+    ]
+  },
+  {
+    "version": "1.2.17",
+    "date": "2026-03-13",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Info-Seite (/info) als One-Pager mit Screenshots und Ankernavigation"
+      },
+      {
+        "type": "fix",
+        "text": "Next.js Dev-Overlay in Screenshots ausgeblendet"
+      }
+    ]
+  },
+  {
+    "version": "1.2.16",
+    "date": "2026-03-12",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Abmelden-Button direkt in der Desktop-Sidebar"
+      },
+      {
+        "type": "feat",
+        "text": "Orgasmus Sub-Art als Dropdown auswählbar"
+      }
+    ]
+  },
+  {
+    "version": "1.2.15",
+    "date": "2026-03-11",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Admin-Kontrollen-Seite: URL vereinheitlicht, offene Kontrollen als Banner, Button oben links"
+      }
+    ]
+  },
+  {
+    "version": "1.2.14",
+    "date": "2026-03-10",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Navigation-Reihenfolge überarbeitet"
+      },
+      {
+        "type": "feat",
+        "text": "StatusBanner erscheint ganz oben"
+      },
+      {
+        "type": "feat",
+        "text": "Trainingsziele werden nach aktiver Session angezeigt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.13",
+    "date": "2026-03-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Dashboard: Kein-Foto-Karte entfernt"
+      },
+      {
+        "type": "feat",
+        "text": "Aktive Trainingsvorgabe auf dem Dashboard sichtbar"
+      }
+    ]
+  },
+  {
+    "version": "1.2.12",
+    "date": "2026-03-08",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Admin-User-Bereich in 4 Seiten aufgeteilt mit Tab-Navigation"
+      }
+    ]
+  },
+  {
+    "version": "1.2.11",
+    "date": "2026-03-07",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Versionsprüfung auf iOS PWA zuverlässiger – pageshow und focus Events ergänzt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.10",
+    "date": "2026-03-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Foto-Vorschau nach Upload auf Server-URL umgestellt"
+      },
+      {
+        "type": "fix",
+        "text": "Fuzzy-Match für 1↔7 bei KI-Verifikation"
+      }
+    ]
+  },
+  {
+    "version": "1.2.9",
+    "date": "2026-03-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Foto-Vorschau mit blob-URL repariert"
+      },
+      {
+        "type": "fix",
+        "text": "Policy-Fehler in KI-Verifikation behandelt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.8",
+    "date": "2026-03-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Grund für nicht erkannten Kontroll-Code wird angezeigt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.7",
+    "date": "2026-03-03",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "VersionChecker: Banner nach neuem Deploy sichtbar"
+      }
+    ]
+  },
+  {
+    "version": "1.2.6",
+    "date": "2026-03-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "KontrollAnforderung vollständig zurücksetzen beim Löschen einer Kontrolle"
+      },
+      {
+        "type": "fix",
+        "text": "KontrollAnforderung zurücksetzen wenn PRUEFUNG-Entry gelöscht wird"
+      }
+    ]
+  },
+  {
+    "version": "1.2.5",
+    "date": "2026-03-01",
+    "changes": [
+      {
+        "type": "security",
+        "text": "HSTS und Content-Security-Policy Header gesetzt"
+      },
+      {
+        "type": "security",
+        "text": "X-Powered-By Header entfernt"
+      },
+      {
+        "type": "security",
+        "text": "Rate-Limiting auf Login-Endpunkt"
+      }
+    ]
+  },
+  {
+    "version": "1.2.3",
+    "date": "2026-02-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontrollen unified: angeforderte und eigenständige Prüfungen zusammengeführt"
+      },
+      {
+        "type": "feat",
+        "text": "Kontrollen in User-Übersicht und Statistik mit Farbkodierung"
+      }
+    ]
+  },
+  {
+    "version": "1.2.2",
+    "date": "2026-02-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "KI-verifizierte Kontrollen können abgelehnt werden"
+      }
+    ]
+  },
+  {
+    "version": "1.2.0",
+    "date": "2026-02-26",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontroll-Verwaltung mit KI-Verifikation und Admin-Interface"
+      },
+      {
+        "type": "feat",
+        "text": "KI-Erkennung des handgeschriebenen Kontroll-Codes im Foto"
+      },
+      {
+        "type": "feat",
+        "text": "Kontrolle anfordern: 5-stelliger Code per E-Mail, 4h Frist"
+      },
+      {
+        "type": "feat",
+        "text": "Kontroll-Foto in Admin-Kontrollen-Liste anzeigen"
+      },
+      {
+        "type": "feat",
+        "text": "Kontrollen ablehnen und manuell verifizieren"
+      }
+    ]
+  },
+  {
+    "version": "1.1.29",
+    "date": "2026-02-20",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Platzhalter anzeigen wenn Foto nicht mehr verfügbar"
+      }
+    ]
+  },
+  {
+    "version": "1.1.28",
+    "date": "2026-02-19",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "PWA-Installation verbessert: Icons, Service Worker, Install-Banner"
+      }
+    ]
+  }
+]
