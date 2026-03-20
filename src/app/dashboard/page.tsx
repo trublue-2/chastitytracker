@@ -22,6 +22,7 @@ type Entry = {
   orgasmusArt: string | null;
   aiVerified: boolean | null;
   kontrollCode: string | null;
+  oeffnenGrund: string | null;
 };
 
 type KontrolleItem = {
@@ -295,6 +296,7 @@ export default async function DashboardPage() {
                       note: verschluss.note,
                       kontrollCode: verschluss.kontrollCode,
                       aiVerified: verschluss.aiVerified,
+                      oeffnenGrund: verschluss.oeffnenGrund,
                     }}
                     oeffnen={oeffnen ? {
                       id: oeffnen.id,
