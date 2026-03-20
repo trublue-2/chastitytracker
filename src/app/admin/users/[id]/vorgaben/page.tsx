@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
@@ -16,13 +17,15 @@ function toDateInput(d: Date): string {
 }
 
 export default async function VorgabenPage({ params }: { params: Promise<{ id: string }> }) {
-  await auth();
+  const session = await auth();
   const { id } = await params;
   const tc = await getTranslations("common");
   const dl = toDateLocale(await getLocale());
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-gray-500">Benutzer nicht gefunden.</div>;
+
+  logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/vorgaben`);
 
   const vorgaben = await prisma.trainingVorgabe.findMany({
     where: { userId: id },
