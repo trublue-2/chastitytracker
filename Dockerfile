@@ -10,18 +10,20 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
 
-# Build-Datum als Build-Arg
-ARG BUILD_DATE
-ENV BUILD_DATE=${BUILD_DATE}
-
-# Prisma Client generieren
+# Prisma Client generieren (eigener Layer – nur bei Schema-Änderung neu)
+COPY prisma ./prisma
 RUN npx prisma generate
+
+COPY . .
 
 # Produktions-Build (standalone output)
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
+
+# Build-Datum erst nach dem Build setzen (sonst Cache-Invalidierung bei jedem Build)
+ARG BUILD_DATE
+ENV BUILD_DATE=${BUILD_DATE}
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
 FROM node:24-alpine AS runner
