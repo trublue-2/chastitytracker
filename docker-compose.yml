@@ -1,0 +1,19 @@
+services:
+  kg-tracker:
+    build: .
+    container_name: kg-tracker
+    init: true
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.production
+    volumes:
+      # SQLite-Datenbank persistent speichern
+      - kg-data:/app/data
+      # Foto-Uploads persistent speichern
+      - kg-uploads:/app/public/uploads
+
+volumes:
+  kg-data:
+  kg-uploads:
