@@ -85,4 +85,7 @@ model Entry {
   kontrollCode  String?
   aiVerified    Boolean?
   createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([userId, type])
 }
