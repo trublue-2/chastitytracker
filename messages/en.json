@@ -115,7 +115,12 @@
   "openForm": {
     "title": "Log opening",
     "saveBtn": "Save opening",
-    "commentPlaceholder": "Reason / note for opening…",
+    "grundLabel": "Reason for opening *",
+    "grundRequired": "Please select a reason",
+    "grundReinigung": "Cleaning",
+    "grundKeyholder": "Allowed by keyholder",
+    "grundNotfall": "Emergency",
+    "commentPlaceholder": "Additional note (optional)…",
     "commentRequired": "Comment is required",
     "lockedWarningTitle": "Device is locked",
     "lockedWarningText": "Opening not allowed until {date}",
