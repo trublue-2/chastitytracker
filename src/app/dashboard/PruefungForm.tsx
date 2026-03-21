@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { Camera, Loader2 } from "lucide-react";
@@ -45,6 +45,36 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
   const [verifyReason, setVerifyReason] = useState<string | null>(null);
   const [aiVerified, setAiVerified] = useState<boolean | null>(initial?.aiVerified ?? null);
+  const lastVerifiedKey = useRef<string>("");
+
+  // Wenn Code manuell auf 5 Zeichen gesetzt wird und Bild vorhanden → Verifikation auslösen
+  useEffect(() => {
+    const key = `${kontrollCode}|${imageUrl}`;
+    if (kontrollCode.length === 5 && imageUrl && key !== lastVerifiedKey.current) {
+      lastVerifiedKey.current = key;
+      setVerifyStatus("pending");
+      setVerifyReason(null);
+      setAiVerified(null);
+      fetch("/api/verify-kontrolle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl, expectedCode: kontrollCode }),
+      })
+        .then((r) => r.json())
+        .then((v) => {
+          if (v.error === "policy") {
+            setVerifyStatus("policy");
+          } else if (v.error) {
+            setVerifyStatus("error");
+          } else {
+            setVerifyStatus(v.match ? "match" : "mismatch");
+            setVerifyReason(v.reason ?? null);
+            setAiVerified(v.match ? true : false);
+          }
+        })
+        .catch(() => setVerifyStatus("error"));
+    }
+  }, [kontrollCode, imageUrl]);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -69,30 +99,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
     setImageUrl(data.url);
     setImagePreview(data.url);
     setImageExifTime(data.exifTime ?? "");
-
-    // Verify handwritten code in image if a kontroll code is present
-    const activeCode = kontrollCode || initialCode;
-    if (data.url && activeCode) {
-      setVerifyStatus("pending");
-      fetch("/api/verify-kontrolle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: data.url, expectedCode: activeCode }),
-      })
-        .then((r) => r.json())
-        .then((v) => {
-          if (v.error === "policy") {
-            setVerifyStatus("policy");
-          } else if (v.error) {
-            setVerifyStatus("error");
-          } else {
-            setVerifyStatus(v.match ? "match" : "mismatch");
-            setVerifyReason(v.reason ?? null);
-            setAiVerified(v.match ? true : false);
-          }
-        })
-        .catch(() => setVerifyStatus("error"));
-    }
+    // Verifikation läuft via useEffect sobald imageUrl und kontrollCode gesetzt sind
 
     if (data.exifTime && startTime) {
       const diff = Math.abs(new Date(data.exifTime).getTime() - new Date(startTime).getTime());
