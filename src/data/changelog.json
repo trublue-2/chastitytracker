@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.5.4",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Zeitzone vollständig korrigiert: alle Zeitanzeigen (Statistiken, Kalender, Kontrollliste, unerlaubte Öffnungen, E-Mails) verwenden jetzt CET/CEST statt UTC"
+      }
+    ]
+  },
+  {
     "version": "1.5.3",
     "date": "2026-03-22",
     "changes": [
