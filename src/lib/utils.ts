@@ -48,16 +48,111 @@ export function toDateLocale(locale: string): string {
 /** App timezone – all server-side date formatting uses this. */
 export const APP_TZ = "Europe/Zurich";
 
+/** dd.mm.yyyy, HH:mm – server-side, always CET/CEST */
 export function formatDateTime(date: Date | string, locale = "de-CH"): string {
-  const d = new Date(date);
-  return d.toLocaleString(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: APP_TZ,
+  return new Date(date).toLocaleString(locale, {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
   });
+}
+
+/** dd.mm.yyyy – server-side, always CET/CEST */
+export function formatDate(date: Date | string, locale = "de-CH"): string {
+  return new Date(date).toLocaleDateString(locale, {
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ,
+  });
+}
+
+/** HH:mm – server-side, always CET/CEST */
+export function formatTime(date: Date | string, locale = "de-CH"): string {
+  return new Date(date).toLocaleTimeString(locale, {
+    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
+  });
+}
+
+/** Today at 00:00:00 local time */
+export function getMidnightToday(now: Date): Date {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Start of the current ISO week (Monday 00:00:00 local time) */
+export function getWeekStart(now: Date): Date {
+  const d = new Date(now);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** First day of the current month at 00:00:00 local time */
+export function getMonthStart(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+/** True if EXIF time differs from entry time by more than 1 hour */
+export function hasExifMismatch(exifTime: Date, startTime: Date): boolean {
+  return Math.abs(exifTime.getTime() - startTime.getTime()) > 3_600_000;
+}
+
+export type KontrolleStatus = "open" | "overdue" | "fulfilled" | "ai" | "manual" | "rejected" | "withdrawn";
+
+/** Derives KontrolleStatus from a KontrollAnforderung and its linked entry's verifikationStatus */
+export function mapKontrolleStatus(
+  k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date },
+  verifikationStatus: string | null,
+  now: Date
+): KontrolleStatus {
+  if (k.withdrawnAt) return "withdrawn";
+  if (!k.entryId) return k.deadline < now ? "overdue" : "open";
+  if (verifikationStatus === "rejected") return "rejected";
+  if (verifikationStatus === "manual") return "manual";
+  if (verifikationStatus === "ai") return "ai";
+  return "fulfilled";
+}
+
+/** Builds Verschluss/Oeffnen pairs with associated Kontrollen, newest first */
+export function buildPairs<
+  E extends { id: string; type: string; startTime: Date },
+  K extends { time: Date }
+>(entries: E[], kontrollen: K[]): { verschluss: E; oeffnen: E | null; active: boolean; kontrollen: K[] }[] {
+  const asc = [...entries]
+    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+  const pairs: { verschluss: E; oeffnen: E | null; active: boolean; kontrollen: K[] }[] = [];
+  let pending: E | null = null;
+
+  for (const e of asc) {
+    if (e.type === "VERSCHLUSS") {
+      if (pending) pairs.push({ verschluss: pending, oeffnen: null, active: false, kontrollen: [] });
+      pending = e;
+    } else if (e.type === "OEFFNEN" && pending) {
+      pairs.push({ verschluss: pending, oeffnen: e, active: false, kontrollen: [] });
+      pending = null;
+    }
+  }
+  if (pending) pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [] });
+
+  for (const k of kontrollen) {
+    const pair = pairs.reduce<{ verschluss: E; oeffnen: E | null; active: boolean; kontrollen: K[] } | null>((best, p) => {
+      const start = p.verschluss.startTime.getTime();
+      const end = p.oeffnen ? p.oeffnen.startTime.getTime() : Infinity;
+      if (k.time.getTime() < start || k.time.getTime() > end) return best;
+      if (!best) return p;
+      return p.verschluss.startTime > best.verschluss.startTime ? p : best;
+    }, null);
+    if (pair) pair.kontrollen.push(k);
+  }
+
+  return pairs.reverse();
+}
+
+/** Returns photo verification status for an entry */
+export function photoStatus(v: { imageUrl: string | null; imageExifTime: Date | null; startTime: Date }): "no-photo" | "exif-mismatch" | "ok" {
+  if (!v.imageUrl) return "no-photo";
+  if (v.imageExifTime && hasExifMismatch(v.imageExifTime, v.startTime)) return "exif-mismatch";
+  return "ok";
 }
 
 /** Berechnet Tragedauer in Stunden innerhalb eines Zeitraums. */

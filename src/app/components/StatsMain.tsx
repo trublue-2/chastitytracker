@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatHours, formatMs, toDateLocale, APP_TZ } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
@@ -287,7 +287,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
           .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
           .map((e) => ({
             type: e.type,
-            time: e.startTime.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }),
+            time: formatTime(e.startTime, dl),
             note: e.note,
             orgasmusArt: e.orgasmusArt,
           }));
@@ -441,8 +441,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                   <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${cls}`}>{label}</span>
                   {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
                   {k.deadline
-                    ? <span className="text-xs text-gray-400 truncate">{t("deadlineLabel")}: {new Date(k.deadline).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
-                    : <span className="text-xs text-gray-400 truncate">{k.time.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
+                    ? <span className="text-xs text-gray-400 truncate">{t("deadlineLabel")}: {formatDateTime(new Date(k.deadline), dl)}</span>
+                    : <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
                   }
                   {k.entryTime && k.status !== "rejected" && (
                     <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{t("fulfilled")}: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
@@ -477,7 +477,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
             {unerlaubteOeffnungen.map((e) => (
               <div key={e.id} className="px-5 py-3 flex items-center gap-3">
                 <span className="text-sm tabular-nums text-red-800 font-medium shrink-0">
-                  {e.startTime.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
+                  {formatDateTime(e.startTime, dl)}
                 </span>
                 {e.note
                   ? <span className="text-sm text-red-600 italic truncate">„{e.note}"</span>
