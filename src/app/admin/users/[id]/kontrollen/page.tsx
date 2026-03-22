@@ -53,6 +53,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
     kommentar: string | null;
     note: string | null;
     kontrolleId: string | null;
+    entryId: string | null;
   };
 
   const pruefungRows: Row[] = pruefungen.map((e) => {
@@ -70,6 +71,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       kommentar: ka?.kommentar ?? null,
       note: e.note,
       kontrolleId: ka?.id ?? null,
+      entryId: e.id,
     };
   });
 
@@ -88,6 +90,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       kommentar: k.kommentar,
       note: null,
       kontrolleId: k.id,
+      entryId: null,
     }));
 
   const sortedOffene = [...offeneRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
@@ -115,17 +118,16 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
             {row.withdrawnAt && <span>Zurückgezogen: {formatDateTime(row.withdrawnAt, dl)}</span>}
           </div>
           {row.kommentar && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-0.5">
-              <span className="font-semibold">Anweisung:</span> {row.kommentar}
-            </p>
+            <p className="text-xs text-gray-400 italic mt-0.5">Anweisung: {row.kommentar}</p>
           )}
           {row.note && (
             <p className="text-xs text-gray-500 italic mt-0.5">„{row.note}"</p>
           )}
         </div>
-        {row.kontrolleId && (
+        {(row.kontrolleId || row.entryId) && (
           <KontrolleActions
-            id={row.kontrolleId}
+            kontrolleId={row.kontrolleId}
+            entryId={row.entryId}
             anforderungStatus={row.anforderungStatus ?? "open"}
             verifikationStatus={row.verifikationStatus}
           />

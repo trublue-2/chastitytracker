@@ -6,12 +6,13 @@ import { MoreVertical, CheckCircle2, X, MinusCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface Props {
-  id: string;
+  kontrolleId: string | null;
+  entryId: string | null;
   anforderungStatus: string;
   verifikationStatus: string | null;
 }
 
-export default function KontrolleActions({ id, anforderungStatus, verifikationStatus }: Props) {
+export default function KontrolleActions({ kontrolleId, entryId, anforderungStatus, verifikationStatus }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -19,10 +20,9 @@ export default function KontrolleActions({ id, anforderungStatus, verifikationSt
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const hasEntry = anforderungStatus === "fulfilled" || anforderungStatus === "late";
-  const canWithdraw = anforderungStatus === "open" || anforderungStatus === "overdue";
-  const canManuallyVerify = hasEntry && verifikationStatus !== "manual" && verifikationStatus !== "ai";
-  const canReject = hasEntry && verifikationStatus !== "rejected";
+  const canWithdraw = !!kontrolleId && (anforderungStatus === "open" || anforderungStatus === "overdue");
+  const canManuallyVerify = !!entryId && verifikationStatus !== "manual" && verifikationStatus !== "ai";
+  const canReject = !!entryId && verifikationStatus !== "rejected";
 
   function openMenu() {
     if (btnRef.current) {
@@ -50,11 +50,25 @@ export default function KontrolleActions({ id, anforderungStatus, verifikationSt
 
   async function doAction(action: string) {
     setOpen(false);
-    await fetch(`/api/admin/kontrollen/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
+    if (action === "withdraw" && kontrolleId) {
+      await fetch(`/api/admin/kontrollen/${kontrolleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "withdraw" }),
+      });
+    } else if (action === "manuallyVerify" && entryId) {
+      await fetch(`/api/entries/${entryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verifikationStatus: "manual" }),
+      });
+    } else if (action === "reject" && entryId) {
+      await fetch(`/api/entries/${entryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verifikationStatus: "rejected" }),
+      });
+    }
     router.refresh();
   }
 
