@@ -45,7 +45,11 @@
     "close": "Schliessen",
     "saved": "✓ Gespeichert",
     "exifDate": "EXIF-Datum",
-    "photoUnavailable": "Foto nicht mehr verfügbar"
+    "photoUnavailable": "Foto nicht mehr verfügbar",
+    "selectCamera": "Kamera auswählen",
+    "chooseFile": "Aus Dateien wählen",
+    "captureBtn": "Foto aufnehmen",
+    "webcamNotAvailable": "Kamera nicht verfügbar"
   },
   "nav": {
     "overview": "Übersicht",
