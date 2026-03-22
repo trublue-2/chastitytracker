@@ -4,6 +4,14 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import { Camera, X, FolderOpen, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(true); // default true = safe for SSR
+  useEffect(() => {
+    setIsMobile(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
+  return isMobile;
+}
+
 interface VideoDevice {
   deviceId: string;
   label: string;
@@ -20,6 +28,7 @@ interface Props {
 
 export default function PhotoCapture({ onFile, uploading, variant = "emerald", compact = false }: Props) {
   const t = useTranslations("common");
+  const isMobile = useIsMobile();
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -118,10 +127,41 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
 
   return (
     <>
-      <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+      {/* Mobile: single file input with camera capture */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        {...(isMobile ? { capture: "environment" } : {})}
+        onChange={handleFileChange}
+        className="hidden"
+      />
 
-      {compact ? (
-        /* ── Compact mode: small inline buttons for "replace" state ── */
+      {isMobile ? (
+        /* ── Mobile: single button, opens camera directly ── */
+        compact ? (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50 transition flex items-center gap-1.5"
+          >
+            {uploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+            {uploading ? t("loading") : t("replacePhoto")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className={`w-full flex flex-col items-center gap-2 border-2 border-dashed rounded-xl py-8 disabled:opacity-50 transition ${accent.border}`}
+          >
+            {uploading ? <Loader2 size={28} className="animate-spin" /> : <Camera size={28} className={accent.icon} />}
+            <span className={`text-sm font-medium ${accent.text}`}>{uploading ? t("uploading") : t("takePhoto")}</span>
+          </button>
+        )
+      ) : compact ? (
+        /* ── Desktop compact: two small inline buttons ── */
         <div className="flex gap-2">
           <button
             type="button"
@@ -143,7 +183,7 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
           </button>
         </div>
       ) : (
-        /* ── Default mode: two side-by-side big buttons ── */
+        /* ── Desktop default: two side-by-side big buttons ── */
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
