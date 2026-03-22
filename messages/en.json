@@ -60,6 +60,7 @@
     "settings": "Settings",
     "admin": "Admin",
     "signOut": "Sign out",
+    "signOutConfirm": "Really sign out?",
     "build": "Build",
     "copyright": "© trublue {year}"
   },
@@ -183,6 +184,7 @@
     "saveBtn": "Change password",
     "saving": "Saving…",
     "signOut": "Sign out",
+    "signOutConfirm": "Really sign out?",
     "language": "Language"
   },
   "changelog": {

@@ -60,6 +60,7 @@
     "settings": "Einstellungen",
     "admin": "Admin",
     "signOut": "Abmelden",
+    "signOutConfirm": "Wirklich abmelden?",
     "build": "Build",
     "copyright": "© trublue {year}"
   },
@@ -183,6 +184,7 @@
     "saveBtn": "Passwort ändern",
     "saving": "Wird gespeichert…",
     "signOut": "Abmelden",
+    "signOutConfirm": "Wirklich abmelden?",
     "language": "Sprache"
   },
   "changelog": {
