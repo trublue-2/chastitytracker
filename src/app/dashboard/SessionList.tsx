@@ -9,6 +9,7 @@ interface KontrolleItem {
   code: string | null;
   deadline: Date | null;
   kommentar: string | null;
+  note: string | null;
   status: string;
   entryId: string | null;
 }
@@ -79,7 +80,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           timeStr: formatTime(k.time, dl),
           imageUrl: k.imageUrl,
           exifStr: null,
-          note: null,
+          note: k.note,
           entryId: k.entryId,
           captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
           deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
