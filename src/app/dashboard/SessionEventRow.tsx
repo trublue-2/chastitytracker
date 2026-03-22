@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Lock, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle } from "lucide-react";
+import { X, Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import EntryActions from "./EntryActions";
 
 export interface SessionEventData {
-  type: "verschluss" | "kontrolle" | "orgasmus";
+  type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
   dateStr: string;
   timeStr: string;
   imageUrl: string | null;
@@ -22,6 +22,7 @@ export interface SessionEventData {
   kombiniertePillLabel: string | null;
   kombiniertePillCls: string | null;
   orgasmusArt: string | null;
+  pauseDurationStr?: string | null;
 }
 
 function PinchZoomImage({ src, onError }: { src: string; onError: () => void }) {
@@ -123,6 +124,37 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const hasImage = !!ev.imageUrl && !imgError;
+
+  // Reinigung → compact inline row (no modal)
+  if (ev.type === "reinigung") {
+    return (
+      <div className="w-full flex items-center gap-4 px-5 py-3 text-left">
+        <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-sky-50 flex items-center justify-center">
+          <LockOpen size={18} className="text-sky-400" />
+        </div>
+        <div className="flex-1 min-w-0 pt-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="mb-0.5 sm:hidden">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                  <LockOpen size={10} />{t("sessionReinigung")}
+                </span>
+              </div>
+              <span className="block text-sm font-semibold text-gray-900 tabular-nums">{ev.dateStr}</span>
+              <span className="block text-xs text-gray-400 tabular-nums">{ev.timeStr}</span>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full shrink-0">
+              <LockOpen size={10} />{t("sessionReinigung")}
+            </span>
+          </div>
+          {ev.pauseDurationStr && (
+            <p className="text-xs text-sky-500 mt-0.5">{ev.pauseDurationStr}</p>
+          )}
+          {ev.note && <p className="text-xs text-gray-400 italic mt-0.5 truncate">„{ev.note}"</p>}
+        </div>
+      </div>
+    );
+  }
 
   const typePill = ev.type === "verschluss" ? (
     <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
