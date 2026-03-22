@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.5.1",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Zeitzone: alle serverseitigen Datumsanzeigen verwenden nun Europe/Zurich – keine Stundendifferenz mehr für CET/CEST-User"
+      },
+      {
+        "type": "improvement",
+        "text": "Sessions-Liste: keine Thumbnails, weichere Trennlinien, Details als weisse Karte mit abgerundeten Ecken"
+      }
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-03-22",
     "changes": [
