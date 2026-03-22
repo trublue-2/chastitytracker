@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   const link = `${baseUrl}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
   const deadlineStr = deadline.toLocaleString("de-CH", {
     day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich",
   });
 
   await sendMail(
