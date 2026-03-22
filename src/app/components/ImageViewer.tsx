@@ -11,9 +11,10 @@ interface Props {
   width: number;
   height: number;
   className?: string;
+  kommentar?: string | null;
 }
 
-export default function ImageViewer({ src, alt, width, height, className }: Props) {
+export default function ImageViewer({ src, alt, width, height, className, kommentar }: Props) {
   const t = useTranslations("common");
   const resolvedAlt = alt ?? t("photo");
   const [open, setOpen] = useState(false);
@@ -75,6 +76,13 @@ export default function ImageViewer({ src, alt, width, height, className }: Prop
               onError={() => setError(true)}
             />
           </div>
+
+          {/* Kommentar footer */}
+          {kommentar && (
+            <div className="flex-shrink-0 bg-white/10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm text-white/90">{kommentar}</p>
+            </div>
+          )}
         </div>
       )}
     </>
