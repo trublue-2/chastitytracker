@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { AlertCircle, Lock } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 
 const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
@@ -77,7 +78,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 flex flex-col gap-5">
             <div className="flex items-start gap-3">
-              <span className="text-3xl leading-none">🚨</span>
+              <AlertCircle size={28} className="flex-shrink-0 text-red-500 mt-0.5" />
               <div className="flex flex-col gap-1.5">
                 <p className="font-bold text-gray-900 text-base leading-snug">
                   {t("modalTitle")}
@@ -117,7 +118,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
         {/* Hinweis im Formular bei aktiver Sperrzeit */}
         {isGesperrt && (
           <div className="flex items-start gap-2.5 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
-            <span className="text-base leading-none mt-0.5">🔒</span>
+            <Lock size={16} className="flex-shrink-0 text-rose-500 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-rose-800">{t("lockedWarningTitle")}</p>
               <p className="text-xs text-rose-600 mt-0.5">

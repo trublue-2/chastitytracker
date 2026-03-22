@@ -1,6 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatHours, wearingHoursInRange, APP_TZ } from "@/lib/utils";
+import {
+  formatDuration, formatDateTime, formatDate, formatHours,
+  wearingHoursInRange, buildPairs, photoStatus, mapKontrolleStatus,
+  getMidnightToday, getWeekStart, getMonthStart, KontrolleStatus, toDateLocale,
+} from "@/lib/utils";
+import { getActiveVorgabe } from "@/lib/queries";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import EntryActions from "./EntryActions";
 import PairRow from "./PairRow";
@@ -11,7 +16,6 @@ import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
 import ImageViewer from "@/app/components/ImageViewer";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale } from "@/lib/utils";
 
 type Entry = {
   id: string;
@@ -33,7 +37,7 @@ type KontrolleItem = {
   code: string | null;
   deadline: Date | null;
   kommentar: string | null;
-  status: "open" | "overdue" | "fulfilled" | "ai" | "manual" | "rejected" | "withdrawn";
+  status: KontrolleStatus;
   entryId: string | null;
 };
 
@@ -43,47 +47,6 @@ type Pair = {
   active: boolean;
   kontrollen: KontrolleItem[];
 };
-
-function buildPairs(entries: Entry[], kontrollen: KontrolleItem[]): Pair[] {
-  const asc = [...entries]
-    .filter((e) => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-
-  const pairs: Pair[] = [];
-  let pending: Entry | null = null;
-
-  for (const e of asc) {
-    if (e.type === "VERSCHLUSS") {
-      if (pending) pairs.push({ verschluss: pending, oeffnen: null, active: false, kontrollen: [] });
-      pending = e;
-    } else if (e.type === "OEFFNEN" && pending) {
-      pairs.push({ verschluss: pending, oeffnen: e, active: false, kontrollen: [] });
-      pending = null;
-    }
-  }
-  if (pending) pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [] });
-
-  for (const k of kontrollen) {
-    // Pick the most-recent (latest verschluss) pair that contains k.time
-    const pair = pairs.reduce<Pair | null>((best, p) => {
-      const start = p.verschluss.startTime.getTime();
-      const end = p.oeffnen ? p.oeffnen.startTime.getTime() : Infinity;
-      if (k.time.getTime() < start || k.time.getTime() > end) return best;
-      if (!best) return p;
-      return p.verschluss.startTime > best.verschluss.startTime ? p : best;
-    }, null);
-    if (pair) pair.kontrollen.push(k);
-  }
-
-  return pairs.reverse();
-}
-
-function photoStatus(v: Entry): "no-photo" | "exif-mismatch" | "ok" {
-  if (!v.imageUrl) return "no-photo";
-  if (v.imageExifTime && Math.abs(v.imageExifTime.getTime() - v.startTime.getTime()) > 3600000)
-    return "exif-mismatch";
-  return "ok";
-}
 
 
 export default async function DashboardPage() {
@@ -105,12 +68,9 @@ export default async function DashboardPage() {
   const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
-    prisma.trainingVorgabe.findFirst({
-      where: { userId, gueltigAb: { lte: now }, OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }] },
-      orderBy: { gueltigAb: "desc" },
-    }),
+    getActiveVorgabe(userId, now),
     prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null }, // VerschlussAnforderung still has fulfilledAt
+      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
@@ -127,13 +87,7 @@ export default async function DashboardPage() {
     // KontrollAnforderungen (mit FK verknüpft)
     ...alleAnforderungen.map(k => {
       const vs = k.entry?.verifikationStatus ?? null;
-      const status: KontrolleItem["status"] =
-        k.withdrawnAt ? "withdrawn" :
-        !k.entryId ? (k.deadline < new Date() ? "overdue" : "open") :
-        vs === "rejected" ? "rejected" :
-        vs === "manual" ? "manual" :
-        vs === "ai" ? "ai" :
-        "fulfilled";
+      const status = mapKontrolleStatus(k, vs, now);
       return {
         id: k.id,
         time: k.entry ? k.entry.startTime : k.createdAt,
@@ -220,12 +174,9 @@ export default async function DashboardPage() {
       ].sort((a, b) => a.time.getTime() - b.time.getTime())
     : [];
 
-  const nowMidnight = new Date(now);
-  nowMidnight.setHours(0, 0, 0, 0);
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  weekStart.setHours(0, 0, 0, 0);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nowMidnight = getMidnightToday(now);
+  const weekStart = getWeekStart(now);
+  const monthStart = getMonthStart(now);
   const tagH = activePair ? wearingHoursInRange(entries, nowMidnight, now) : 0;
   const wocheH = activePair ? wearingHoursInRange(entries, weekStart, now) : 0;
   const monatH = activePair ? wearingHoursInRange(entries, monthStart, now) : 0;
@@ -264,7 +215,7 @@ export default async function DashboardPage() {
             )}
             {offeneVerschlussAnf.endetAt && (
               <p className="text-xs text-indigo-500">
-                {t("lockUntil", { date: new Date(offeneVerschlussAnf.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
+                {t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) })}
               </p>
             )}
           </div>
@@ -282,7 +233,7 @@ export default async function DashboardPage() {
             )}
             {activeSperrzeit.endetAt && (
               <p className="text-xs text-rose-500">
-                {t("openingForbiddenUntil", { date: new Date(activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
+                {t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) })}
               </p>
             )}
           </div>
@@ -319,7 +270,7 @@ export default async function DashboardPage() {
               <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{tCommon("active")}</span>
               <div>
                 <p className="text-sm font-semibold text-gray-700">
-                  {new Date(activeVorgabe.gueltigAb).toLocaleDateString(dl, { timeZone: APP_TZ })} → {activeVorgabe.gueltigBis ? new Date(activeVorgabe.gueltigBis).toLocaleDateString(dl, { timeZone: APP_TZ }) : tCommon("open")}
+                  {formatDate(activeVorgabe.gueltigAb, dl)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl) : tCommon("open")}
                 </p>
                 <div className="flex flex-wrap gap-3 mt-1">
                   {activeVorgabe.minProTagH != null && <span className="text-xs text-gray-600">{t("day")}: <strong>{formatHours(activeVorgabe.minProTagH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProTagH / 24) * 100)}%)</span></span>}
