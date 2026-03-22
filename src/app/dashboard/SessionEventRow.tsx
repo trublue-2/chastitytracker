@@ -19,8 +19,8 @@ export interface SessionEventData {
   isOverdue: boolean;
   kontrolleCode: string | null;
   kontrolleKommentar: string | null;
-  kontrolleAnforderungLabel: string | null;
-  kontrolleVerifikationLabel: string | null;
+  kombiniertePillLabel: string | null;
+  kombiniertePillCls: string | null;
   orgasmusArt: string | null;
 }
 
@@ -129,21 +129,8 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
       <Lock size={10} />{t("lock")}
     </span>
   ) : ev.type === "kontrolle" ? (
-    <span className="inline-flex items-center gap-1.5 flex-wrap">
-      {ev.kontrolleAnforderungLabel ? (
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
-          <CheckCircle2 size={10} />{ev.kontrolleAnforderungLabel}
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
-          <CheckCircle2 size={10} />{t("sessionKontrolle")}
-        </span>
-      )}
-      {ev.kontrolleVerifikationLabel && (
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
-          {ev.kontrolleVerifikationLabel}
-        </span>
-      )}
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${ev.kombiniertePillCls ?? "bg-gray-50 text-gray-500 border-gray-200"}`}>
+      <CheckCircle2 size={10} />{ev.kombiniertePillLabel ?? t("sessionKontrolle")}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">

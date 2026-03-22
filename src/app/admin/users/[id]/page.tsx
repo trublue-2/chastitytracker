@@ -152,7 +152,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           entryId: activePair.verschluss.id,
         },
         ...activePair.kontrollen
-          .filter((k) => k.anforderungStatus !== "withdrawn")
+          .filter((k) => k.entryId !== null)
           .map((k) => ({
             type: "kontrolle" as const,
             time: k.time,
