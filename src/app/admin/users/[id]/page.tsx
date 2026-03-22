@@ -23,7 +23,7 @@ type Entry = {
   imageExifTime: Date | null;
   note: string | null;
   orgasmusArt: string | null;
-  aiVerified: boolean | null;
+  verifikationStatus: string | null;
   kontrollCode: string | null;
   oeffnenGrund: string | null;
 };
@@ -34,6 +34,7 @@ type KontrolleItem = {
   imageUrl: string | null;
   code: string | null;
   deadline: Date | null;
+  kommentar: string | null;
   status: "open" | "overdue" | "fulfilled" | "ai" | "manual" | "rejected" | "withdrawn";
   entryId: string | null;
 };
@@ -62,11 +63,14 @@ function buildPairs(entries: Entry[], kontrollen: KontrolleItem[]): Pair[] {
   }
   if (pending) pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [] });
   for (const k of kontrollen) {
-    const pair = pairs.find((p) => {
+    // Pick the most-recent (latest verschluss) pair that contains k.time
+    const pair = pairs.reduce<Pair | null>((best, p) => {
       const start = p.verschluss.startTime.getTime();
       const end = p.oeffnen ? p.oeffnen.startTime.getTime() : Infinity;
-      return k.time.getTime() >= start && k.time.getTime() <= end;
-    });
+      if (k.time.getTime() < start || k.time.getTime() > end) return best;
+      if (!best) return p;
+      return p.verschluss.startTime > best.verschluss.startTime ? p : best;
+    }, null);
     if (pair) pair.kontrollen.push(k);
   }
   return pairs.reverse();
@@ -95,7 +99,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const now = new Date();
   const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
-    prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" } }),
+    prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.trainingVorgabe.findFirst({
       where: { userId: id, gueltigAb: { lte: now }, OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }] },
       orderBy: { gueltigAb: "desc" },
@@ -105,46 +109,42 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     }),
   ]);
 
-  const offeneKontrolle = alleAnforderungen.find(k => !k.fulfilledAt && !k.withdrawnAt) ?? null;
+  const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
-  const anforderungCodes = new Set(alleAnforderungen.map(k => k.code).filter(Boolean));
+  const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
   const pruefungEntries = entries.filter(e => e.type === "PRUEFUNG");
-  const pruefungByCode = new Map(
-    pruefungEntries.filter(e => e.kontrollCode && anforderungCodes.has(e.kontrollCode))
-      .map(e => [e.kontrollCode!, e])
-  );
-  const usedEntryIds = new Set(Array.from(pruefungByCode.values()).map(e => e.id));
 
   const kontrollItems: KontrolleItem[] = [
     ...alleAnforderungen.map(k => {
-      const pEntry = pruefungByCode.get(k.code ?? "");
-      const aiVerified = pEntry?.aiVerified ?? null;
+      const vs = k.entry?.verifikationStatus ?? null;
       const status: KontrolleItem["status"] =
-        k.rejectedAt ? "rejected" :
-        k.manuallyVerifiedAt ? "manual" :
-        aiVerified === true ? "ai" :
-        k.fulfilledAt ? "fulfilled" :
         k.withdrawnAt ? "withdrawn" :
-        k.deadline < now ? "overdue" : "open";
+        !k.entryId ? (k.deadline < now ? "overdue" : "open") :
+        vs === "rejected" ? "rejected" :
+        vs === "manual" ? "manual" :
+        vs === "ai" ? "ai" :
+        "fulfilled";
       return {
         id: k.id,
-        time: pEntry ? pEntry.startTime : k.createdAt,
-        imageUrl: pEntry?.imageUrl ?? null,
+        time: k.entry ? k.entry.startTime : k.createdAt,
+        imageUrl: k.entry?.imageUrl ?? null,
         code: k.code,
         deadline: k.deadline,
+        kommentar: k.kommentar ?? null,
         status,
-        entryId: pEntry?.id ?? null,
+        entryId: k.entry?.id ?? null,
       };
     }),
     ...pruefungEntries
-      .filter(e => !usedEntryIds.has(e.id))
+      .filter(e => !linkedEntryIds.has(e.id))
       .map(e => ({
         id: e.id,
         time: e.startTime,
         imageUrl: e.imageUrl,
         code: e.kontrollCode,
         deadline: null as Date | null,
-        status: (e.aiVerified === true ? "ai" : "fulfilled") as KontrolleItem["status"],
+        kommentar: null as string | null,
+        status: (e.verifikationStatus === "ai" ? "ai" : "fulfilled") as KontrolleItem["status"],
         entryId: e.id,
       })),
   ];
@@ -185,16 +185,23 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           type: "verschluss" as const,
           time: activePair.verschluss.startTime,
           imageUrl: activePair.verschluss.imageUrl,
+          imageExifTime: activePair.verschluss.imageExifTime,
           note: activePair.verschluss.note,
+          entryId: activePair.verschluss.id,
         },
         ...activePair.kontrollen
-          .filter((k) => ["fulfilled", "ai", "manual"].includes(k.status))
+          .filter((k) => k.status !== "withdrawn")
           .map((k) => ({
             type: "kontrolle" as const,
             time: k.time,
             imageUrl: k.imageUrl,
+            imageExifTime: null,
             note: null,
+            entryId: k.entryId,
+            deadline: k.deadline,
+            kontrolleKommentar: k.kommentar,
             kontrolleCode: k.code,
+            kontrolleStatus: k.status,
           })),
         ...orgasmusEntries
           .filter((e) => e.startTime >= activePair.verschluss.startTime)
@@ -202,7 +209,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             type: "orgasmus" as const,
             time: e.startTime,
             imageUrl: e.imageUrl,
+            imageExifTime: null,
             note: e.note,
+            entryId: e.id,
             orgasmusArt: e.orgasmusArt,
           })),
       ].sort((a, b) => a.time.getTime() - b.time.getTime())
@@ -230,7 +239,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           </div>
           <div>
             <p className="text-lg font-bold text-gray-900">{user.username}</p>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${user.role === "admin" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${user.role === "admin" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
               {user.role}
             </span>
             {user.email
@@ -245,8 +254,22 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      {/* ── Status Banner ── */}
-      <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
+      {/* ── Status / Laufende Session ── */}
+      {activePair ? (
+        <LaufendeSessionCard
+          sessionStart={activePair.verschluss.startTime}
+          now={now}
+          events={sessionEvents}
+          sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+          sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
+          activeVorgabe={activeVorgabe}
+          tagH={tagH}
+          wocheH={wocheH}
+          monatH={monatH}
+        />
+      ) : (
+        <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
+      )}
 
       {/* ── Kontrolle Banner ── */}
       {offeneKontrolle && (
@@ -285,26 +308,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      {/* ── Laufende Session ── */}
-      {activePair && (
-        <LaufendeSessionCard
-          sessionStart={activePair.verschluss.startTime}
-          now={now}
-          events={sessionEvents}
-          sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
-          activeVorgabe={activeVorgabe}
-          tagH={tagH}
-          wocheH={wocheH}
-          monatH={monatH}
-        />
-      )}
-
       {/* ── Trainingsvorgabe ── */}
       {activeVorgabe && !activePair && (
         <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">{ts("trainingGoals")}</p>
           <div className="flex items-start gap-3">
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
+            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
             <div>
               <p className="text-sm font-semibold text-gray-700">
                 {new Date(activeVorgabe.gueltigAb).toLocaleDateString(dl)} → {activeVorgabe.gueltigBis ? new Date(activeVorgabe.gueltigBis).toLocaleDateString(dl) : tc("open")}
@@ -320,7 +329,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </div>
       )}
 
-      {/* ── Einschluss-Liste ── */}
+      {/* ── Einschluss-Liste ── (ausgeblendet)
       {pairs.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
           {t("noEntries")}
@@ -347,7 +356,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                     imageExifTime: verschluss.imageExifTime?.toISOString() ?? null,
                     note: verschluss.note,
                     kontrollCode: verschluss.kontrollCode,
-                    aiVerified: verschluss.aiVerified,
+                    verifikationStatus: verschluss.verifikationStatus,
                     oeffnenGrund: verschluss.oeffnenGrund,
                   }}
                   oeffnen={oeffnen ? {
@@ -357,7 +366,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                     imageExifTime: oeffnen.imageExifTime?.toISOString() ?? null,
                     note: oeffnen.note,
                     kontrollCode: oeffnen.kontrollCode,
-                    aiVerified: oeffnen.aiVerified,
+                    verifikationStatus: oeffnen.verifikationStatus,
                     oeffnenGrund: oeffnen.oeffnenGrund,
                   } : null}
                   active={active}
@@ -373,6 +382,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           </div>
         </div>
       )}
+      */}
 
       {/* ── Kontrollen ── */}
       {kontrollItems.length > 0 && (

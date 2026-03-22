@@ -1,5 +1,27 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Datenmodell Kontrollen: FK-Verknüpfung zwischen KontrollAnforderung und Entry, verifikationStatus ersetzt aiVerified/fulfilledAt/manuallyVerifiedAt/rejectedAt"
+      },
+      {
+        "type": "feat",
+        "text": "Session-Timeline: alle Ereignisse der aktiven Session (Verschluss, Kontrollen, Orgasmen) mit Klick-Detailansicht, Drei-Punkte-Menü und gelbem Banner für offene Kontrollen"
+      },
+      {
+        "type": "feat",
+        "text": "Einschluss-Liste auf Dashboard und Admin-Übersicht ausgeblendet (Code erhalten)"
+      },
+      {
+        "type": "improvement",
+        "text": "Pillen vereinheitlicht: gleiche Höhe, immer Border, konsistente Farben in der gesamten App"
+      }
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-03-22",
     "changes": [

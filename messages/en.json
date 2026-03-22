@@ -103,7 +103,11 @@
     "sessionSince": "Since",
     "sessionLockedUntil": "Locked until",
     "sessionKontrolle": "Inspection",
-    "sessionOrgasmus": "Orgasm"
+    "sessionOrgasmus": "Orgasm",
+    "captureNow": "Capture now",
+    "inspectionOverdue": "Inspection overdue",
+    "overduePrefix": "Overdue since",
+    "untilPrefix": "Until"
   },
   "newEntry": {
     "title": "New entry",

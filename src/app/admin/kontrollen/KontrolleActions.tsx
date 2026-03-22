@@ -7,10 +7,10 @@ import { useTranslations } from "next-intl";
 interface Props {
   id: string;
   status: string;
-  aiVerified: boolean | null;
+  verifikationStatus: string | null;
 }
 
-export default function KontrolleActions({ id, status, aiVerified }: Props) {
+export default function KontrolleActions({ id, status, verifikationStatus }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -26,9 +26,10 @@ export default function KontrolleActions({ id, status, aiVerified }: Props) {
     router.refresh();
   }
 
+  const hasEntry = status !== "open" && status !== "overdue" && status !== "withdrawn";
   const canWithdraw = status === "open" || status === "overdue";
-  const canManuallyVerify = (status === "fulfilled" || status === "overdue" || status === "rejected") && aiVerified !== true;
-  const canReject = status === "fulfilled" || status === "overdue" || status === "ai";
+  const canManuallyVerify = hasEntry && verifikationStatus !== "manual" && verifikationStatus !== "ai";
+  const canReject = hasEntry && verifikationStatus !== "rejected";
 
   if (!canWithdraw && !canManuallyVerify && !canReject) return null;
 
