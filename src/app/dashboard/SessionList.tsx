@@ -1,5 +1,5 @@
 import { getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
@@ -30,6 +30,7 @@ interface Pair {
   oeffnen: Entry | null;
   active: boolean;
   kontrollen: KontrolleItem[];
+  interruptions?: { oeffnen: Entry; verschluss: Entry }[];
 }
 
 interface Props {
@@ -46,7 +47,10 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
 
     const dateStr = formatDate(verschluss.startTime, dl);
     const timeStr = formatTime(verschluss.startTime, dl);
-    const durationStr = oeffnen ? formatDuration(verschluss.startTime, oeffnen.startTime, dl) : null;
+    const pauseMs = interruptionPauseMs(pair.interruptions ?? []);
+    const durationStr = oeffnen
+      ? formatDuration(new Date(verschluss.startTime.getTime()), new Date(oeffnen.startTime.getTime() - pauseMs), dl)
+      : null;
 
     const sessionOrgasmen = orgasmusEntries.filter(
       (e) => e.startTime >= verschluss.startTime && (oeffnen === null || e.startTime < oeffnen.startTime)
