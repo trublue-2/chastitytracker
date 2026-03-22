@@ -7,7 +7,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, toDateLocale,
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
-import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
+import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import EntryActions from "./EntryActions";
 import PairRow from "./PairRow";
 import StatusBanner from "./StatusBanner";
@@ -351,41 +351,77 @@ export default async function DashboardPage() {
         )}
         */}
 
-        {/* ── Kontrollen ── */}
-        {kontrollItems.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-50">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />{t("inspections")}</p>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).map((k) => {
-                const aPill = k.anforderungStatus ? KONTROLLE_PILLS[k.anforderungStatus] : null;
-                const vPill = k.verifikationStatus ? KONTROLLE_PILLS[k.verifikationStatus] : null;
-                return (
-                  <div key={k.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition">
-                    {k.imageUrl && (
-                      <ImageViewer src={k.imageUrl} alt="Kontrolle" width={40} height={40}
-                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
-                    )}
-                    <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                      {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${aPill.cls}`}>{ta(ANFORD_LABEL_KEYS[k.anforderungStatus!] ?? "pillOpen")}</span>}
-                      {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${vPill.cls}`}>{ta(VERIF_LABEL_KEYS[k.verifikationStatus!] ?? "pillUnverified")}</span>}
-                      {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
-                      <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
-                      {k.deadline && (
-                        <span className="text-xs text-gray-300 truncate">{t("deadline")}: {formatDateTime(k.deadline, dl)}</span>
-                      )}
-                      {k.kommentar && (
-                        <span className="text-xs text-amber-700 truncate w-full">{k.kommentar}</span>
-                      )}
+        {/* ── Offene Kontrollanforderungen ── */}
+        {(() => {
+          const offene = kontrollItems.filter(k => k.entryId === null && k.anforderungStatus !== "withdrawn").sort((a, b) => b.time.getTime() - a.time.getTime());
+          if (!offene.length) return null;
+          return (
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-50">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />Offene Anforderungen</p>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {offene.map((k) => {
+                  const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
+                  return (
+                    <div key={k.id} className="px-5 py-4 flex flex-col gap-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(ANFORD_LABEL_KEYS[k.anforderungStatus!] ?? "pillOpen")}</span>}
+                        {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                        {k.deadline && <span>Frist: {formatDateTime(k.deadline, dl)}</span>}
+                        <span>Erstellt: {formatDateTime(k.time, dl)}</span>
+                      </div>
+                      {k.kommentar && <p className="text-xs text-gray-400 italic">{k.kommentar}</p>}
                     </div>
-                    {k.entryId && <EntryActions id={k.entryId} editHref={`/dashboard/edit/${k.entryId}`} />}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+        {/* ── Prüfungen ── */}
+        {(() => {
+          const pruefungen = kontrollItems.filter(k => k.entryId !== null).sort((a, b) => b.time.getTime() - a.time.getTime());
+          if (!pruefungen.length) return null;
+          return (
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-50">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />{t("inspections")} ({pruefungen.length})</p>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {pruefungen.map((k) => {
+                  const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
+                  const vPill = k.verifikationStatus ? VERIFIKATION_PILLS[k.verifikationStatus] : null;
+                  return (
+                    <div key={k.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-start gap-3">
+                      {k.imageUrl && (
+                        <ImageViewer src={k.imageUrl} alt="Kontrolle" width={56} height={56}
+                          className="w-14 h-14 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
+                      )}
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(ANFORD_LABEL_KEYS[k.anforderungStatus!] ?? "pillOpen")}</span>}
+                          {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${vPill.cls}`}>{ta(VERIF_LABEL_KEYS[k.verifikationStatus!] ?? "pillUnverified")}</span>}
+                          {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                          <span>Erfüllt: {formatDateTime(k.time, dl)}</span>
+                          {k.deadline && <span>Frist: {formatDateTime(k.deadline, dl)}</span>}
+                        </div>
+                        {k.kommentar && <p className="text-xs text-gray-400 italic">{k.kommentar}</p>}
+                        {k.note && <p className="text-xs text-gray-400 italic">„{k.note}"</p>}
+                      </div>
+                      {k.entryId && <EntryActions id={k.entryId} editHref={`/dashboard/edit/${k.entryId}`} />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Orgasmus-Einträge ── */}
         {orgasmusEntries.length > 0 && (
