@@ -45,7 +45,13 @@
     "close": "Schliessen",
     "saved": "✓ Gespeichert",
     "exifDate": "EXIF-Datum",
-    "photoUnavailable": "Foto nicht mehr verfügbar"
+    "photoUnavailable": "Foto nicht mehr verfügbar",
+    "selectCamera": "Kamera auswählen",
+    "chooseFile": "Aus Dateien wählen",
+    "captureBtn": "Foto aufnehmen",
+    "webcamNotAvailable": "Kamera nicht verfügbar",
+    "webcam": "Webcam",
+    "signOutConfirm": "Wirklich abmelden?"
   },
   "nav": {
     "overview": "Übersicht",
@@ -54,6 +60,7 @@
     "settings": "Einstellungen",
     "admin": "Admin",
     "signOut": "Abmelden",
+    "signOutConfirm": "Wirklich abmelden?",
     "build": "Build",
     "copyright": "© trublue {year}"
   },
@@ -91,7 +98,12 @@
     "week": "Woche",
     "month": "Monat",
     "notCaptured": "nicht erfasst",
-    "stillLocked": "noch verschlossen"
+    "stillLocked": "noch verschlossen",
+    "sessionTitle": "Laufende Session",
+    "sessionSince": "Seit",
+    "sessionLockedUntil": "Gesperrt bis",
+    "sessionKontrolle": "Kontrolle",
+    "sessionOrgasmus": "Orgasmus"
   },
   "newEntry": {
     "title": "Neu erfassen",
@@ -172,6 +184,7 @@
     "saveBtn": "Passwort ändern",
     "saving": "Wird gespeichert…",
     "signOut": "Abmelden",
+    "signOutConfirm": "Wirklich abmelden?",
     "language": "Sprache"
   },
   "changelog": {

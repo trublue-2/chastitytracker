@@ -1,10 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatHours } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatHours, wearingHoursInRange } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import EntryActions from "./EntryActions";
 import PairRow from "./PairRow";
 import StatusBanner from "./StatusBanner";
+import LaufendeSessionCard from "./LaufendeSessionCard";
 import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
 import ImageViewer from "@/app/components/ImageViewer";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
@@ -177,6 +178,48 @@ export default async function DashboardPage() {
     .filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
+  // ── Laufende Session ──
+  const activePair = pairs.find((p) => p.active) ?? null;
+
+  const sessionEvents: import("./LaufendeSessionCard").SessionEvent[] = activePair
+    ? [
+        {
+          type: "verschluss" as const,
+          time: activePair.verschluss.startTime,
+          imageUrl: activePair.verschluss.imageUrl,
+          note: activePair.verschluss.note,
+        },
+        ...activePair.kontrollen
+          .filter((k) => ["fulfilled", "ai", "manual"].includes(k.status))
+          .map((k) => ({
+            type: "kontrolle" as const,
+            time: k.time,
+            imageUrl: k.imageUrl,
+            note: null,
+            kontrolleCode: k.code,
+          })),
+        ...orgasmusEntries
+          .filter((e) => e.startTime >= activePair.verschluss.startTime)
+          .map((e) => ({
+            type: "orgasmus" as const,
+            time: e.startTime,
+            imageUrl: e.imageUrl,
+            note: e.note,
+            orgasmusArt: e.orgasmusArt,
+          })),
+      ].sort((a, b) => a.time.getTime() - b.time.getTime())
+    : [];
+
+  const nowMidnight = new Date(now);
+  nowMidnight.setHours(0, 0, 0, 0);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  weekStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const tagH = activePair ? wearingHoursInRange(entries, nowMidnight, now) : 0;
+  const wocheH = activePair ? wearingHoursInRange(entries, weekStart, now) : 0;
+  const monatH = activePair ? wearingHoursInRange(entries, monthStart, now) : 0;
+
   return (
     <>
       <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
@@ -244,8 +287,22 @@ export default async function DashboardPage() {
           <StatCard label={t("totalDuration")} value={totalFormatted} />
         </div>
 
+        {/* ── Laufende Session ── */}
+        {activePair && (
+          <LaufendeSessionCard
+            sessionStart={activePair.verschluss.startTime}
+            now={now}
+            events={sessionEvents}
+            sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+            activeVorgabe={activeVorgabe}
+            tagH={tagH}
+            wocheH={wocheH}
+            monatH={monatH}
+          />
+        )}
+
         {/* ── Trainingsvorgabe ── */}
-        {activeVorgabe && (
+        {activeVorgabe && !activePair && (
           <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">{t("trainingGoals")}</p>
             <div className="flex items-start gap-3">

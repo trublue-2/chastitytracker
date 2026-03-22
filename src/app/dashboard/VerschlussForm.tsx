@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
-import { Camera, Loader2 } from "lucide-react";
 import ImageViewer from "@/app/components/ImageViewer";
+import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
 
 interface Props {
@@ -22,8 +22,6 @@ export default function VerschlussForm({ initial }: Props) {
   const tForm = useTranslations("lockForm");
   const dl = toDateLocale(useLocale());
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
-
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
   );
@@ -36,9 +34,7 @@ export default function VerschlussForm({ initial }: Props) {
   const [error, setError] = useState("");
   const [exifWarning, setExifWarning] = useState("");
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handleFile(file: File) {
     setUploading(true);
     setExifWarning("");
     setImagePreview(URL.createObjectURL(file));
@@ -111,8 +107,6 @@ export default function VerschlussForm({ initial }: Props) {
 
       {/* Foto */}
       <Field label={t("photoOptional")}>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
-
         {imagePreview ? (
           <div className="flex items-start gap-4">
             <ImageViewer
@@ -129,26 +123,15 @@ export default function VerschlussForm({ initial }: Props) {
               {exifWarning && !uploading && (
                 <p className="text-xs text-amber-600 font-medium">⚠ {exifWarning}</p>
               )}
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50 transition w-fit">
-                {uploading ? t("loading") : t("replacePhoto")}
-              </button>
-              <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); if (fileRef.current) fileRef.current.value = ""; }}
+              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
+              <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); }}
                 className="text-xs text-red-400 hover:text-red-600 w-fit transition">
                 {t("removePhoto")}
               </button>
             </div>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-8 text-gray-400 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 transition"
-          >
-            {uploading ? <Loader2 size={28} className="animate-spin" /> : <Camera size={28} />}
-            <span className="text-sm font-medium">{uploading ? t("uploading") : t("takePhoto")}</span>
-          </button>
+          <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
         )}
       </Field>
 

@@ -45,7 +45,13 @@
     "close": "Close",
     "saved": "✓ Saved",
     "exifDate": "EXIF date",
-    "photoUnavailable": "Photo no longer available"
+    "photoUnavailable": "Photo no longer available",
+    "selectCamera": "Select camera",
+    "chooseFile": "Choose from files",
+    "captureBtn": "Take photo",
+    "webcamNotAvailable": "Camera not available",
+    "webcam": "Webcam",
+    "signOutConfirm": "Really sign out?"
   },
   "nav": {
     "overview": "Overview",
@@ -54,6 +60,7 @@
     "settings": "Settings",
     "admin": "Admin",
     "signOut": "Sign out",
+    "signOutConfirm": "Really sign out?",
     "build": "Build",
     "copyright": "© trublue {year}"
   },
@@ -91,7 +98,12 @@
     "week": "Week",
     "month": "Month",
     "notCaptured": "Not captured",
-    "stillLocked": "still locked"
+    "stillLocked": "still locked",
+    "sessionTitle": "Active Session",
+    "sessionSince": "Since",
+    "sessionLockedUntil": "Locked until",
+    "sessionKontrolle": "Inspection",
+    "sessionOrgasmus": "Orgasm"
   },
   "newEntry": {
     "title": "New entry",
@@ -172,6 +184,7 @@
     "saveBtn": "Change password",
     "saving": "Saving…",
     "signOut": "Sign out",
+    "signOutConfirm": "Really sign out?",
     "language": "Language"
   },
   "changelog": {

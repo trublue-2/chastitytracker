@@ -3,8 +3,8 @@
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
-import { Camera, Loader2 } from "lucide-react";
-import ImageViewer from "@/app/components/ImageViewer";
+import { Loader2 } from "lucide-react";
+import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
 
 interface Props {
@@ -28,7 +28,6 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
@@ -76,9 +75,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
     }
   }, [kontrollCode, imageUrl]);
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handleFile(file: File) {
     setUploading(true);
     setExifWarning("");
     setImagePreview(URL.createObjectURL(file));
@@ -160,8 +157,6 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
           {tCommon("photoRequired")} <span className="text-red-500">*</span> <span className="text-gray-400 normal-case font-normal">({tCommon("photoMandatory")})</span>
         </label>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
-
         {imagePreview ? (
           <div className="flex items-start gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -169,18 +164,11 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && <p className="text-xs text-gray-400">EXIF: {new Date(imageExifTime).toLocaleString(dl)}</p>}
               {exifWarning && !uploading && <p className="text-xs text-amber-600 font-medium">⚠ {exifWarning}</p>}
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50 transition w-fit">
-                {uploading ? tCommon("loading") : tCommon("replacePhoto")}
-              </button>
+              <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-orange-200 rounded-xl py-8 text-orange-400 hover:border-orange-300 hover:bg-orange-50 disabled:opacity-50 transition">
-            {uploading ? <Loader2 size={28} className="animate-spin" /> : <Camera size={28} />}
-            <span className="text-sm font-medium">{uploading ? tCommon("uploading") : tCommon("takePhoto")}</span>
-          </button>
+          <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" />
         )}
       </div>
 
