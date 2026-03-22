@@ -100,7 +100,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
               <div key={k.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
                 {k.entry?.imageUrl && (
                   <ImageViewer src={k.entry.imageUrl} alt="Kontroll-Foto" width={64} height={64}
-                    className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                    className="w-14 h-14 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
                 )}
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
