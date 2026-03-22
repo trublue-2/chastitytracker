@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Lock, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera } from "lucide-react";
+import { X, Lock, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import EntryActions from "./EntryActions";
@@ -145,7 +145,10 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
       : "bg-amber-50 border-amber-200 text-amber-700";
     return (
       <div className={`px-5 py-3 flex items-center gap-3 border-t border-b ${colorCls}`}>
-        <span className="text-lg flex-shrink-0">{ev.isOverdue ? "🚨" : "⚠️"}</span>
+        {ev.isOverdue
+          ? <AlertCircle size={20} className="flex-shrink-0 text-red-500" />
+          : <AlertTriangle size={20} className="flex-shrink-0 text-amber-500" />
+        }
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold">
             {ev.isOverdue ? t("inspectionOverdue") : t("inspectionRequired")}
