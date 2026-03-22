@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.5.3",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Session-Einträge: Kontrolle-Anweisung (Kommentar) wird in Zeile und Detail-Modal angezeigt"
+      },
+      {
+        "type": "fix",
+        "text": "Session Detail-Modal: Hintergrund stärker abgedunkelt (85% statt 60%)"
+      }
+    ]
+  },
+  {
     "version": "1.5.2",
     "date": "2026-03-22",
     "changes": [
