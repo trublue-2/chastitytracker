@@ -49,7 +49,9 @@
     "selectCamera": "Select camera",
     "chooseFile": "Choose from files",
     "captureBtn": "Take photo",
-    "webcamNotAvailable": "Camera not available"
+    "webcamNotAvailable": "Camera not available",
+    "webcam": "Webcam",
+    "signOutConfirm": "Really sign out?"
   },
   "nav": {
     "overview": "Overview",
