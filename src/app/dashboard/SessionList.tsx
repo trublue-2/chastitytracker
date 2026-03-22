@@ -1,6 +1,6 @@
 import { getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch } from "@/lib/utils";
-import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
+import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
 interface KontrolleItem {
@@ -10,7 +10,8 @@ interface KontrolleItem {
   deadline: Date | null;
   kommentar: string | null;
   note: string | null;
-  status: string;
+  anforderungStatus: string | null;
+  verifikationStatus: string | null;
   entryId: string | null;
 }
 
@@ -68,11 +69,12 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         isOverdue: false,
         kontrolleCode: null,
         kontrolleKommentar: null,
-        kontrolleStatusLabel: null,
+        kontrolleAnforderungLabel: null,
+        kontrolleVerifikationLabel: null,
         orgasmusArt: null,
       },
       ...kontrollen
-        .filter((k) => k.status !== "withdrawn")
+        .filter((k) => k.anforderungStatus !== "withdrawn")
         .map((k) => ({
           type: "kontrolle" as const,
           time: k.time,
@@ -84,10 +86,11 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           entryId: k.entryId,
           captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
           deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
-          isOverdue: k.status === "overdue",
+          isOverdue: k.anforderungStatus === "overdue",
           kontrolleCode: k.code,
           kontrolleKommentar: k.kommentar,
-          kontrolleStatusLabel: KONTROLLE_PILLS[k.status]?.label ?? null,
+          kontrolleAnforderungLabel: k.anforderungStatus ? (ANFORDERUNG_PILLS[k.anforderungStatus]?.label ?? null) : null,
+          kontrolleVerifikationLabel: k.verifikationStatus ? (VERIFIKATION_PILLS[k.verifikationStatus]?.label ?? null) : null,
           orgasmusArt: null,
         })),
       ...sessionOrgasmen.map((e) => ({
@@ -104,7 +107,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         isOverdue: false,
         kontrolleCode: null,
         kontrolleKommentar: null,
-        kontrolleStatusLabel: null,
+        kontrolleAnforderungLabel: null,
+        kontrolleVerifikationLabel: null,
         orgasmusArt: e.orgasmusArt,
       })),
     ].sort((a, b) => a.time.getTime() - b.time.getTime());

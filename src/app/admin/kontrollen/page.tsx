@@ -1,33 +1,12 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
 import Link from "next/link";
 import KontrolleActions from "./KontrolleActions";
 import ImageViewer from "@/app/components/ImageViewer";
 import { getTranslations, getLocale } from "next-intl/server";
-
-function getStatus(ka: {
-  entryId: string | null;
-  withdrawnAt: Date | null;
-  deadline: Date;
-}, verifikationStatus: string | null): string {
-  if (ka.withdrawnAt) return "withdrawn";
-  if (!ka.entryId) return ka.deadline < new Date() ? "overdue" : "open";
-  if (verifikationStatus === "rejected") return "rejected";
-  if (verifikationStatus === "manual") return "manual";
-  if (verifikationStatus === "ai") return "ai";
-  return "fulfilled";
-}
-
-const statusStyle: Record<string, string> = {
-  open:      "bg-amber-50 text-amber-700 border-amber-200",
-  overdue:   "bg-red-50 text-red-700 border-red-200",
-  fulfilled: "bg-gray-100 text-gray-500 border-gray-200",
-  ai:        "bg-green-50 text-green-700 border-green-200",
-  manual:    "bg-blue-50 text-blue-700 border-blue-200",
-  rejected:  "bg-red-50 text-red-700 border-red-200",
-  withdrawn: "bg-gray-100 text-gray-400 border-gray-200",
-};
+import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
+import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 
 export default async function AdminKontrollenPage({
   searchParams,
@@ -38,34 +17,83 @@ export default async function AdminKontrollenPage({
   const { userId } = await searchParams;
   const t = await getTranslations("admin");
   const dl = toDateLocale(await getLocale());
-
-  const statusLabel: Record<string, string> = {
-    open:      t("pillOpen"),
-    overdue:   t("pillOverdue"),
-    fulfilled: t("pillFulfilled"),
-    ai:        t("pillAi"),
-    manual:    t("pillManual"),
-    rejected:  t("pillRejected"),
-    withdrawn: t("pillWithdrawn"),
-  };
+  const now = new Date();
 
   const user = userId
     ? await prisma.user.findUnique({ where: { id: userId }, select: { id: true, username: true } })
     : null;
 
-  const kontrollen = await prisma.kontrollAnforderung.findMany({
-    where: userId ? { userId } : undefined,
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { username: true } },
-      entry: true,
-    },
+  const [pruefungen, alleAnforderungen] = await Promise.all([
+    prisma.entry.findMany({
+      where: { type: "PRUEFUNG", ...(userId ? { userId } : {}) },
+      orderBy: { startTime: "desc" },
+      include: { user: { select: { username: true } } },
+    }),
+    prisma.kontrollAnforderung.findMany({
+      where: userId ? { userId } : undefined,
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { username: true } } },
+    }),
+  ]);
+
+  const kaByEntryId = new Map(alleAnforderungen.filter(k => k.entryId).map(k => [k.entryId!, k]));
+
+  type Row = {
+    sortTime: Date;
+    imageUrl: string | null;
+    username: string;
+    anforderungStatus: AnforderungStatus | null;
+    verifikationStatus: VerifikationStatus | null;
+    code: string | null;
+    deadline: Date | null;
+    createdAt: Date | null;
+    fulfilledAt: Date | null;
+    withdrawnAt: Date | null;
+    kommentar: string | null;
+    note: string | null;
+    kontrolleId: string | null;
+  };
+
+  const pruefungRows: Row[] = pruefungen.map((e) => {
+    const ka = kaByEntryId.get(e.id) ?? null;
+    return {
+      sortTime: e.startTime,
+      imageUrl: e.imageUrl,
+      username: e.user.username,
+      anforderungStatus: ka ? mapAnforderungStatus(ka, e.startTime, now) : null,
+      verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
+      code: ka?.code ?? e.kontrollCode ?? null,
+      deadline: ka?.deadline ?? null,
+      createdAt: ka?.createdAt ?? null,
+      fulfilledAt: e.startTime,
+      withdrawnAt: ka?.withdrawnAt ?? null,
+      kommentar: ka?.kommentar ?? null,
+      note: e.note,
+      kontrolleId: ka?.id ?? null,
+    };
   });
 
-  const rows = kontrollen.map((k) => ({
-    ...k,
-    status: getStatus(k, k.entry?.verifikationStatus ?? null),
-  }));
+  const offeneRows: Row[] = alleAnforderungen
+    .filter((k) => !k.entryId)
+    .map((k) => ({
+      sortTime: k.createdAt,
+      imageUrl: null,
+      username: k.user.username,
+      anforderungStatus: mapAnforderungStatus(k, null, now),
+      verifikationStatus: null,
+      code: k.code,
+      deadline: k.deadline,
+      createdAt: k.createdAt,
+      fulfilledAt: null,
+      withdrawnAt: k.withdrawnAt,
+      kommentar: k.kommentar,
+      note: null,
+      kontrolleId: k.id,
+    }));
+
+  const rows = [...pruefungRows, ...offeneRows].sort(
+    (a, b) => b.sortTime.getTime() - a.sortTime.getTime()
+  );
 
   return (
     <main className="flex-1 w-full max-w-5xl px-6 py-8">
@@ -92,37 +120,49 @@ export default async function AdminKontrollenPage({
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="divide-y divide-gray-50">
-            {rows.map((k) => (
-              <div key={k.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                {k.entry?.imageUrl && (
-                  <ImageViewer src={k.entry.imageUrl} alt={t("kontrollenTitle")} width={64} height={64}
-                    className="w-14 h-14 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
-                )}
-                <div className="flex-1 min-w-0 flex flex-col gap-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {!userId && (
-                      <span className="font-semibold text-gray-900 text-sm">{k.user.username}</span>
+            {rows.map((row, i) => {
+              const aPill = row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
+              const vPill = row.verifikationStatus ? VERIFIKATION_PILLS[row.verifikationStatus] : null;
+              return (
+                <div key={i} className="px-5 py-4 flex flex-col sm:flex-row sm:items-start gap-3">
+                  {row.imageUrl && (
+                    <ImageViewer src={row.imageUrl} alt={t("kontrollenTitle")} width={64} height={64}
+                      className="w-14 h-14 rounded-xl object-cover flex-shrink-0" kommentar={row.kommentar} />
+                  )}
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {!userId && (
+                        <span className="font-semibold text-gray-900 text-sm">{row.username}</span>
+                      )}
+                      {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{aPill.label}</span>}
+                      {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${vPill.cls}`}>{vPill.label}</span>}
+                      {row.code && <span className="font-mono font-bold text-orange-500 text-sm">{row.code}</span>}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                      {row.fulfilledAt && <span>{t("fulfilledLabel")}: {formatDateTime(row.fulfilledAt, dl)}</span>}
+                      {row.deadline && <span>{t("frist")}: {formatDateTime(row.deadline, dl)}</span>}
+                      {row.createdAt && <span>{t("createdLabel")}: {formatDateTime(row.createdAt, dl)}</span>}
+                      {row.withdrawnAt && <span>{t("withdrawnLabel")}: {formatDateTime(row.withdrawnAt, dl)}</span>}
+                    </div>
+                    {row.kommentar && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-0.5">
+                        <span className="font-semibold">{t("instructionLabel")}:</span> {row.kommentar}
+                      </p>
                     )}
-                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${statusStyle[k.status]}`}>
-                      {statusLabel[k.status]}
-                    </span>
-                    <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>
+                    {row.note && (
+                      <p className="text-xs text-gray-500 italic mt-0.5">„{row.note}"</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                    <span>{t("frist")}: {formatDateTime(k.deadline, dl)}</span>
-                    <span>{t("createdLabel")}: {formatDateTime(k.createdAt, dl)}</span>
-                    {k.entry && <span>{t("fulfilledLabel")}: {formatDateTime(k.entry.startTime, dl)}</span>}
-                    {k.withdrawnAt && <span>{t("withdrawnLabel")}: {formatDateTime(k.withdrawnAt, dl)}</span>}
-                  </div>
-                  {k.kommentar && (
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-0.5">
-                      <span className="font-semibold">{t("instructionLabel")}:</span> {k.kommentar}
-                    </p>
+                  {row.kontrolleId && (
+                    <KontrolleActions
+                      id={row.kontrolleId}
+                      anforderungStatus={row.anforderungStatus ?? "open"}
+                      verifikationStatus={row.verifikationStatus}
+                    />
                   )}
                 </div>
-                <KontrolleActions id={k.id} status={k.status} verifikationStatus={k.entry?.verifikationStatus ?? null} />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

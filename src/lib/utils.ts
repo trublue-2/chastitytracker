@@ -95,21 +95,28 @@ export function hasExifMismatch(exifTime: Date, startTime: Date): boolean {
   return Math.abs(exifTime.getTime() - startTime.getTime()) > 3_600_000;
 }
 
-export type KontrolleStatus = "open" | "overdue" | "fulfilled" | "ai" | "manual" | "rejected" | "withdrawn";
+export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn";
+export type VerifikationStatus = "unverified" | "ai" | "manual" | "rejected";
 
-/** Derives KontrolleStatus from a KontrollAnforderung and its linked entry's verifikationStatus */
-export function mapKontrolleStatus(
+/** Derives AnforderungStatus: was the kontrolle submitted, and was it on time? */
+export function mapAnforderungStatus(
   k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date },
-  verifikationStatus: string | null,
+  entryTime: Date | null,
   now: Date
-): KontrolleStatus {
+): AnforderungStatus {
   if (k.withdrawnAt) return "withdrawn";
-  if (!k.entryId) return k.deadline < now ? "overdue" : "open";
-  if (verifikationStatus === "rejected") return "rejected";
-  if (verifikationStatus === "manual") return "manual";
-  if (verifikationStatus === "ai") return "ai";
-  return "fulfilled";
+  if (!k.entryId || !entryTime) return k.deadline < now ? "overdue" : "open";
+  return entryTime > k.deadline ? "late" : "fulfilled";
 }
+
+/** Normalizes a raw verifikationStatus string to VerifikationStatus */
+export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
+  if (vs === "ai") return "ai";
+  if (vs === "manual") return "manual";
+  if (vs === "rejected") return "rejected";
+  return "unverified";
+}
+
 
 /** Builds Verschluss/Oeffnen pairs with associated Kontrollen, newest first */
 export function buildPairs<

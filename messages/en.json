@@ -358,6 +358,8 @@
     "pillOpen": "Open",
     "pillOverdue": "Overdue",
     "pillFulfilled": "Fulfilled",
+    "pillLate": "Fulfilled late",
+    "pillUnverified": "Unverified",
     "pillAi": "AI verified",
     "pillManual": "Manually verified",
     "pillRejected": "Rejected",

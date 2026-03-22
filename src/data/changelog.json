@@ -1,5 +1,27 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontrollen-Seite (Admin): Zwei separate Bereiche – offene Anforderungen oben, alle Prüfungseinträge unten"
+      },
+      {
+        "type": "feat",
+        "text": "Zweistufiger Kontroll-Status: AnforderungStatus (offen/überfällig/erfüllt/zu spät) und VerifikationStatus (unverifiziert/KI/manuell/abgelehnt) werden separat als Pills angezeigt"
+      },
+      {
+        "type": "feat",
+        "text": "Drei-Punkte-Menü bei Kontrollen (Admin): verifizieren, ablehnen, zurückziehen"
+      },
+      {
+        "type": "fix",
+        "text": "Notiz (Eintrag-Note) bei Kontrollen wird in Dashboard und Admin korrekt angezeigt"
+      }
+    ]
+  },
+  {
     "version": "1.5.6",
     "date": "2026-03-22",
     "changes": [

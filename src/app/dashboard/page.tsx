@@ -2,8 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTime, formatDate, formatHours,
-  wearingHoursInRange, buildPairs, photoStatus, mapKontrolleStatus,
-  getMidnightToday, getWeekStart, getMonthStart, KontrolleStatus, toDateLocale,
+  wearingHoursInRange, buildPairs, photoStatus,
+  mapAnforderungStatus, mapVerifikationStatus,
+  getMidnightToday, getWeekStart, getMonthStart, toDateLocale,
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
@@ -38,7 +39,8 @@ type KontrolleItem = {
   deadline: Date | null;
   kommentar: string | null;
   note: string | null;
-  status: KontrolleStatus;
+  anforderungStatus: import("@/lib/utils").AnforderungStatus | null;
+  verifikationStatus: import("@/lib/utils").VerifikationStatus | null;
   entryId: string | null;
 };
 
@@ -60,9 +62,12 @@ export default async function DashboardPage() {
     getTranslations("admin"),
   ]);
 
-  const PILL_LABEL_KEYS: Record<string, Parameters<typeof ta>[0]> = {
+  const ANFORD_LABEL_KEYS: Record<string, Parameters<typeof ta>[0]> = {
     open: "pillOpen", overdue: "pillOverdue", fulfilled: "pillFulfilled",
-    ai: "pillAi", manual: "pillManual", rejected: "pillRejected", withdrawn: "pillWithdrawn",
+    late: "pillLate", withdrawn: "pillWithdrawn",
+  };
+  const VERIF_LABEL_KEYS: Record<string, Parameters<typeof ta>[0]> = {
+    unverified: "pillUnverified", ai: "pillAi", manual: "pillManual", rejected: "pillRejected",
   };
   const dl = toDateLocale(await getLocale());
   const now = new Date();
@@ -86,21 +91,18 @@ export default async function DashboardPage() {
 
   const kontrollItems: KontrolleItem[] = [
     // KontrollAnforderungen (mit FK verknüpft)
-    ...alleAnforderungen.map(k => {
-      const vs = k.entry?.verifikationStatus ?? null;
-      const status = mapKontrolleStatus(k, vs, now);
-      return {
-        id: k.id,
-        time: k.entry ? k.entry.startTime : k.createdAt,
-        imageUrl: k.entry?.imageUrl ?? null,
-        code: k.code,
-        deadline: k.deadline,
-        kommentar: k.kommentar ?? null,
-        note: k.entry?.note ?? null,
-        status,
-        entryId: k.entry?.id ?? null,
-      };
-    }),
+    ...alleAnforderungen.map(k => ({
+      id: k.id,
+      time: k.entry ? k.entry.startTime : k.createdAt,
+      imageUrl: k.entry?.imageUrl ?? null,
+      code: k.code,
+      deadline: k.deadline,
+      kommentar: k.kommentar ?? null,
+      note: k.entry?.note ?? null,
+      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
+      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
+      entryId: k.entry?.id ?? null,
+    })),
     // Standalone PRUEFUNG entries (ohne KontrollAnforderung)
     ...pruefungEntries
       .filter(e => !linkedEntryIds.has(e.id))
@@ -112,7 +114,8 @@ export default async function DashboardPage() {
         deadline: null as Date | null,
         kommentar: null as string | null,
         note: e.note,
-        status: (e.verifikationStatus === "ai" ? "ai" : "fulfilled") as KontrolleItem["status"],
+        anforderungStatus: null,
+        verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
         entryId: e.id,
       })),
   ];
@@ -150,7 +153,7 @@ export default async function DashboardPage() {
           entryId: activePair.verschluss.id,
         },
         ...activePair.kontrollen
-          .filter((k) => k.status !== "withdrawn")
+          .filter((k) => k.anforderungStatus !== "withdrawn")
           .map((k) => ({
             type: "kontrolle" as const,
             time: k.time,
@@ -161,7 +164,8 @@ export default async function DashboardPage() {
             deadline: k.deadline,
             kontrolleKommentar: k.kommentar,
             kontrolleCode: k.code,
-            kontrolleStatus: k.status,
+            kontrolleAnforderungStatus: k.anforderungStatus,
+            kontrolleVerifikationStatus: k.verifikationStatus,
           })),
         ...orgasmusEntries
           .filter((e) => e.startTime >= activePair.verschluss.startTime)
@@ -355,7 +359,8 @@ export default async function DashboardPage() {
             </div>
             <div className="divide-y divide-gray-50">
               {[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).map((k) => {
-                const pill = KONTROLLE_PILLS[k.status];
+                const aPill = k.anforderungStatus ? KONTROLLE_PILLS[k.anforderungStatus] : null;
+                const vPill = k.verifikationStatus ? KONTROLLE_PILLS[k.verifikationStatus] : null;
                 return (
                   <div key={k.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition">
                     {k.imageUrl && (
@@ -363,7 +368,8 @@ export default async function DashboardPage() {
                         className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
                     )}
                     <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                      {pill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${pill.cls}`}>{ta(PILL_LABEL_KEYS[k.status] ?? "pillOpen")}</span>}
+                      {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${aPill.cls}`}>{ta(ANFORD_LABEL_KEYS[k.anforderungStatus!] ?? "pillOpen")}</span>}
+                      {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${vPill.cls}`}>{ta(VERIF_LABEL_KEYS[k.verifikationStatus!] ?? "pillUnverified")}</span>}
                       {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
                       <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
                       {k.deadline && (
