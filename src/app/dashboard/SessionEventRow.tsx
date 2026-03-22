@@ -215,6 +215,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           </div>
           {ev.exifStr && <p className="text-xs text-amber-600 mt-0.5">EXIF: {ev.exifStr}</p>}
           {ev.orgasmusArt && <p className="text-xs text-rose-400 mt-0.5">{ev.orgasmusArt}</p>}
+          {ev.kontrolleKommentar && <p className="text-xs text-amber-700 mt-0.5 truncate">{ev.kontrolleKommentar}</p>}
           {ev.note && <p className="text-xs text-gray-400 italic mt-0.5 truncate">„{ev.note}"</p>}
         </div>
       </div>
@@ -222,7 +223,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
       {/* Detail Modal */}
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 flex flex-col"
+          className="fixed inset-0 z-50 bg-black/85 flex flex-col"
           style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
           onClick={() => setOpen(false)}
         >
@@ -262,6 +263,12 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Art</p>
                 <p className="text-sm text-gray-700">{ev.orgasmusArt}</p>
+              </div>
+            )}
+            {ev.kontrolleKommentar && (
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Anweisung</p>
+                <p className="text-sm text-amber-700">{ev.kontrolleKommentar}</p>
               </div>
             )}
             {ev.note && (
