@@ -1,5 +1,23 @@
 [
   {
+    "version": "1.7.0",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Reinigungsunterbrechungen: Öffnung mit Grund «Reinigung» gefolgt von erneutem Verschluss innerhalb der konfigurierten Zeit gilt als Unterbrechung innerhalb der laufenden Session (kein Sessionende)"
+      },
+      {
+        "type": "feat",
+        "text": "Einstellungen: Checkbox «Reinigungsunterbrechung zulassen» und konfigurierbare maximale Dauer (in Minuten, Standard 15)"
+      },
+      {
+        "type": "feat",
+        "text": "Sessiondauer: Effektive Tragedauer (Reinigungspausen werden von Gesamtdauer abgezogen)"
+      }
+    ]
+  },
+  {
     "version": "1.6.2",
     "date": "2026-03-22",
     "changes": [

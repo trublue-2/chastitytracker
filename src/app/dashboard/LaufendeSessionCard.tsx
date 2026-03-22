@@ -22,6 +22,7 @@ export interface SessionEvent {
 
 interface Props {
   sessionStart: Date;
+  interruptionPausedMs?: number;
   now: Date;
   events: SessionEvent[];
   sperrzeitEndetAt: Date | null;
@@ -53,6 +54,7 @@ function ProgressBar({ actual, target, label }: { actual: number; target: number
 
 export default async function LaufendeSessionCard({
   sessionStart,
+  interruptionPausedMs = 0,
   events,
   sperrzeitEndetAt,
   sperrzeitNachricht,
@@ -90,7 +92,7 @@ export default async function LaufendeSessionCard({
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{tCommon("duration")}:</span>
                 <span className="text-lg font-bold tabular-nums">
-                  <SessionDurationBadge since={sessionStart.toISOString()} />
+                  <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
                 </span>
               </div>
             </div>
@@ -103,7 +105,7 @@ export default async function LaufendeSessionCard({
               <div className="text-right flex-shrink-0">
                 <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{tCommon("duration")}</p>
                 <p className="text-2xl font-bold tabular-nums leading-tight">
-                  <SessionDurationBadge since={sessionStart.toISOString()} />
+                  <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
                 </p>
               </div>
             </div>

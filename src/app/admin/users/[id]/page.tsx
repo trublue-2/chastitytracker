@@ -3,9 +3,10 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTime, formatDate, formatHours, toDateLocale,
-  wearingHoursInRange, buildPairs, photoStatus,
+  wearingHoursInRange, buildPairs, interruptionPauseMs, photoStatus,
   mapAnforderungStatus, mapVerifikationStatus,
   getMidnightToday, getWeekStart, getMonthStart,
+  type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
 import { KONTROLLE_PILLS, ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
@@ -52,6 +53,7 @@ type Pair = {
   oeffnen: Entry | null;
   active: boolean;
   kontrollen: KontrolleItem[];
+  interruptions: { oeffnen: Entry; verschluss: Entry }[];
 };
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -68,14 +70,20 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
-  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, userSettings] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
     }),
+    prisma.user.findUnique({ where: { id }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
   ]);
+
+  const reinigung: ReinigungSettings = {
+    erlaubt: userSettings?.reinigungErlaubt ?? false,
+    maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
+  };
 
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
@@ -118,10 +126,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     ? { type: latest.type as "VERSCHLUSS" | "OEFFNEN", since: latest.startTime.toISOString() }
     : null;
 
-  const pairs = buildPairs(entries, kontrollItems);
+  const pairs = buildPairs(entries, kontrollItems, reinigung);
   const completedPairs = pairs.filter((p) => p.oeffnen);
   const totalMs = completedPairs.reduce(
-    (s, p) => s + p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime(), 0
+    (s, p) => s + (p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime()) - interruptionPauseMs(p.interruptions),
+    0
   );
   const totalFormatted = completedPairs.length ? formatDuration(new Date(0), new Date(totalMs), dl) : "–";
   const orgasmusEntries = entries
@@ -183,9 +192,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const nowMidnight = getMidnightToday(now);
   const weekStart = getWeekStart(now);
   const monthStart = getMonthStart(now);
-  const tagH = activePair ? wearingHoursInRange(entries, nowMidnight, now) : 0;
-  const wocheH = activePair ? wearingHoursInRange(entries, weekStart, now) : 0;
-  const monatH = activePair ? wearingHoursInRange(entries, monthStart, now) : 0;
+  const tagH = activePair ? wearingHoursInRange(entries, nowMidnight, now, reinigung) : 0;
+  const wocheH = activePair ? wearingHoursInRange(entries, weekStart, now, reinigung) : 0;
+  const monatH = activePair ? wearingHoursInRange(entries, monthStart, now, reinigung) : 0;
 
   return (
     <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
@@ -218,6 +227,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
       {activePair ? (
         <LaufendeSessionCard
           sessionStart={activePair.verschluss.startTime}
+          interruptionPausedMs={interruptionPauseMs(activePair.interruptions)}
           now={now}
           events={sessionEvents}
           sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
