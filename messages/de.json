@@ -105,6 +105,7 @@
     "sessionKontrolle": "Kontrolle",
     "sessionSelbstkontrolle": "Selbstkontrolle",
     "sessionOrgasmus": "Orgasmus",
+    "sessionReinigung": "Reinigungspause",
     "captureNow": "Jetzt erfassen",
     "inspectionOverdue": "Kontrolle überfällig",
     "overduePrefix": "Überfällig seit",
@@ -198,7 +199,8 @@
     "reinigungErlaubt": "Reinigungsunterbrechung zulassen",
     "reinigungMaxMinuten": "Maximale Reinigungsdauer",
     "minutes": "Minuten",
-    "saved": "Gespeichert"
+    "saved": "Gespeichert",
+    "saveBtnGeneric": "Speichern"
   },
   "changelog": {
     "title": "Changelog",

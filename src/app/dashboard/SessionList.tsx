@@ -1,5 +1,5 @@
 import { getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
@@ -114,6 +114,25 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
         orgasmusArt: e.orgasmusArt,
+      })),
+      ...(pair.interruptions ?? []).map((intr) => ({
+        type: "reinigung" as const,
+        time: intr.oeffnen.startTime,
+        dateStr: formatDate(intr.oeffnen.startTime, dl),
+        timeStr: formatTime(intr.oeffnen.startTime, dl),
+        imageUrl: null,
+        exifStr: null,
+        note: intr.oeffnen.note,
+        entryId: null,
+        captureHref: null,
+        deadlineStr: null,
+        isOverdue: false,
+        kontrolleCode: null,
+        kontrolleKommentar: null,
+        kombiniertePillLabel: null,
+        kombiniertePillCls: null,
+        orgasmusArt: null,
+        pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
       })),
     ].sort((a, b) => a.time.getTime() - b.time.getTime());
 

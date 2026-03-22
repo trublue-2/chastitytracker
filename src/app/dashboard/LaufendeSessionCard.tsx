@@ -1,4 +1,4 @@
-import { Lock, CheckCircle2, Droplets } from "lucide-react";
+import { Lock, LockOpen, CheckCircle2, Droplets } from "lucide-react";
 import { formatHours, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale } from "@/lib/utils";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getKombinierterPill } from "@/lib/kontrollePills";
@@ -6,7 +6,7 @@ import SessionDurationBadge from "./SessionDurationBadge";
 import SessionEventRow from "./SessionEventRow";
 
 export interface SessionEvent {
-  type: "verschluss" | "kontrolle" | "orgasmus";
+  type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
   time: Date;
   imageUrl: string | null;
   imageExifTime: Date | null;
@@ -18,6 +18,7 @@ export interface SessionEvent {
   kontrolleAnforderungStatus?: string | null;
   kontrolleVerifikationStatus?: string | null;
   orgasmusArt?: string | null;
+  pauseDurationStr?: string | null;
 }
 
 interface Props {
@@ -149,6 +150,7 @@ export default async function LaufendeSessionCard({
           const icon =
             ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
             ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-orange-400" /> :
+            ev.type === "reinigung" ? <LockOpen size={18} className="text-sky-400" /> :
             <Droplets size={18} className="text-rose-400" />;
 
           return (
@@ -173,6 +175,7 @@ export default async function LaufendeSessionCard({
                 kombiniertePillLabel: kombiniertePill?.label ?? null,
                 kombiniertePillCls: kombiniertePill?.cls ?? null,
                 orgasmusArt: ev.orgasmusArt ?? null,
+                pauseDurationStr: ev.pauseDurationStr ?? null,
               }}
             />
           );
