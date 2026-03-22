@@ -6,6 +6,7 @@ import EntryActions from "./EntryActions";
 import PairRow from "./PairRow";
 import StatusBanner from "./StatusBanner";
 import LaufendeSessionCard from "./LaufendeSessionCard";
+import SessionList from "./SessionList";
 import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
 import ImageViewer from "@/app/components/ImageViewer";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
@@ -331,7 +332,11 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Einschluss-Liste ── (ausgeblendet)
+        {/* ── Session-Liste ── */}
+        <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
+
+        {/* ── Einschluss-Liste (alt, ausgeblendet) ── */}
+        {/*
         {pairs.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
             {t("noEntries")}
