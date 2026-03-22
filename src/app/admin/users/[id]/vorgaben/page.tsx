@@ -5,7 +5,7 @@ import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
 import UserNav from "../UserNav";
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, APP_TZ } from "@/lib/utils";
+import { toDateLocale, formatDate } from "@/lib/utils";
 
 function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {
   const now = new Date();
@@ -50,7 +50,7 @@ export default async function VorgabenPage({ params }: { params: Promise<{ id: s
                 userId={id}
                 vorgabeId={v.id}
                 active={isActive(v)}
-                dateLabel={`${new Date(v.gueltigAb).toLocaleDateString(dl, { timeZone: APP_TZ })}${v.gueltigBis ? ` → ${new Date(v.gueltigBis).toLocaleDateString(dl, { timeZone: APP_TZ })}` : ` → ${tc("open")}`}`}
+                dateLabel={`${formatDate(v.gueltigAb, dl)}${v.gueltigBis ? ` → ${formatDate(v.gueltigBis, dl)}` : ` → ${tc("open")}`}`}
                 tagH={v.minProTagH}
                 wocheH={v.minProWocheH}
                 monatH={v.minProMonatH}

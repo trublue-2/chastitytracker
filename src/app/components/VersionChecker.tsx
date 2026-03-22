@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 Minuten
@@ -54,7 +55,7 @@ export default function VersionChecker({ buildDate }: { buildDate: string }) {
   return (
     <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">
       <div className="bg-gray-900 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
-        <span className="text-lg flex-shrink-0">🔄</span>
+        <RefreshCw size={18} className="flex-shrink-0 text-gray-300 animate-spin" style={{ animationDuration: "2s" }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">{t("title")}</p>
           <p className="text-xs text-gray-400">{t("subtitle")}</p>

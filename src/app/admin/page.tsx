@@ -10,7 +10,7 @@ import KontrolleBanner from "@/app/components/KontrolleBanner";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import WithdrawVerschlussButton from "./WithdrawVerschlussButton";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, APP_TZ } from "@/lib/utils";
+import { toDateLocale, formatDateTime, APP_TZ } from "@/lib/utils";
 
 async function getUserStats(userId: string) {
   const entries = await prisma.entry.findMany({
@@ -106,16 +106,7 @@ export default async function AdminPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {usersWithStats.map((u) => {
             const isLocked = u.stats.currentStatus === "VERSCHLUSS";
-            const sinceStr = u.stats.since
-              ? new Date(u.stats.since).toLocaleString(dl, {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: APP_TZ,
-                })
-              : null;
+            const sinceStr = u.stats.since ? formatDateTime(u.stats.since, dl) : null;
 
             return (
               <div key={u.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col gap-4">
