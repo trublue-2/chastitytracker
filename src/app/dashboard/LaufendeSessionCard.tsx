@@ -1,7 +1,7 @@
 import { Lock, CheckCircle2, Droplets } from "lucide-react";
 import { formatHours, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale } from "@/lib/utils";
 import { getTranslations, getLocale } from "next-intl/server";
-import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
+import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
 import SessionEventRow from "./SessionEventRow";
 
@@ -15,7 +15,8 @@ export interface SessionEvent {
   deadline?: Date | null;
   kontrolleKommentar?: string | null;
   kontrolleCode?: string | null;
-  kontrolleStatus?: string | null;
+  kontrolleAnforderungStatus?: string | null;
+  kontrolleVerifikationStatus?: string | null;
   orgasmusArt?: string | null;
 }
 
@@ -139,8 +140,11 @@ export default async function LaufendeSessionCard({
           const exifStr = ev.imageExifTime && hasExifMismatch(ev.imageExifTime, ev.time)
             ? formatDateTime(ev.imageExifTime, dl)
             : null;
-          const statusLabel = ev.kontrolleStatus && KONTROLLE_PILLS[ev.kontrolleStatus]
-            ? KONTROLLE_PILLS[ev.kontrolleStatus].label
+          const anforderungLabel = ev.kontrolleAnforderungStatus
+            ? (ANFORDERUNG_PILLS[ev.kontrolleAnforderungStatus]?.label ?? null)
+            : null;
+          const verifikationLabel = ev.kontrolleVerifikationStatus
+            ? (VERIFIKATION_PILLS[ev.kontrolleVerifikationStatus]?.label ?? null)
             : null;
           const icon =
             ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
@@ -163,10 +167,11 @@ export default async function LaufendeSessionCard({
                   ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
                   : null,
                 deadlineStr: ev.deadline ? formatDateTime(ev.deadline, dl) : null,
-                isOverdue: ev.kontrolleStatus === "overdue",
+                isOverdue: ev.kontrolleAnforderungStatus === "overdue",
                 kontrolleCode: ev.kontrolleCode ?? null,
                 kontrolleKommentar: ev.kontrolleKommentar ?? null,
-                kontrolleStatusLabel: statusLabel,
+                kontrolleAnforderungLabel: anforderungLabel,
+                kontrolleVerifikationLabel: verifikationLabel,
                 orgasmusArt: ev.orgasmusArt ?? null,
               }}
             />

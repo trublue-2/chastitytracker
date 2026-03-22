@@ -169,11 +169,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
       const kNow = new Date();
       const status = k.withdrawnAt ? "withdrawn" :
         !k.entryId ? (k.deadline < kNow ? "overdue" : "open") :
-        vs === "rejected" ? "rejected" : vs === "manual" ? "manual" : vs === "ai" ? "ai" : "fulfilled";
+        vs === "rejected" ? "rejected" : vs === "manual" ? "manual" : vs === "ai" ? "ai" : "unverified";
       return { id: k.id, time: k.entry ? k.entry.startTime : k.createdAt, status, code: k.code, deadline: k.deadline, entryTime: k.entry?.startTime ?? null };
     }),
     ...standalonePruefungen.map(e => ({
-      id: e.id, time: e.startTime, status: e.verifikationStatus === "ai" ? "ai" : "fulfilled",
+      id: e.id, time: e.startTime, status: e.verifikationStatus === "ai" ? "ai" : "unverified",
       code: e.kontrollCode ?? null, deadline: null, entryTime: e.startTime,
     })),
   ].sort((a, b) => b.time.getTime() - a.time.getTime());
@@ -431,11 +431,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
           <div className="divide-y divide-gray-50">
             {unifiedKontrollen.map((k) => {
               const pillLabels: Record<string, string> = {
-                open: ta("pillOpen"), overdue: ta("pillOverdue"), fulfilled: ta("pillFulfilled"),
+                open: ta("pillOpen"), overdue: ta("pillOverdue"), unverified: ta("pillUnverified"),
                 ai: ta("pillAi"), manual: ta("pillManual"), rejected: ta("pillRejected"), withdrawn: ta("pillWithdrawn"),
               };
-              const { cls } = KONTROLLE_PILLS[k.status] ?? KONTROLLE_PILLS["fulfilled"];
-              const label = pillLabels[k.status] ?? pillLabels["fulfilled"];
+              const { cls } = KONTROLLE_PILLS[k.status] ?? KONTROLLE_PILLS["unverified"];
+              const label = pillLabels[k.status] ?? pillLabels["unverified"];
               return (
                 <div key={k.id} className="px-5 py-3 flex items-center gap-3">
                   <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${cls}`}>{label}</span>
@@ -515,7 +515,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                   <span className="text-sm text-gray-900 tabular-nums">{formatDateTime(e.startTime, dl)}</span>
                   {kontrollStatus && (
                     <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${KONTROLLE_PILLS[kontrollStatus].cls}`}>
-                      {({ open: ta("pillOpen"), overdue: ta("pillOverdue"), fulfilled: ta("pillFulfilled"), ai: ta("pillAi"), manual: ta("pillManual"), rejected: ta("pillRejected"), withdrawn: ta("pillWithdrawn") } as Record<string,string>)[kontrollStatus] ?? kontrollStatus}
+                      {({ open: ta("pillOpen"), overdue: ta("pillOverdue"), unverified: ta("pillUnverified"), ai: ta("pillAi"), manual: ta("pillManual"), rejected: ta("pillRejected"), withdrawn: ta("pillWithdrawn") } as Record<string,string>)[kontrollStatus] ?? kontrollStatus}
                     </span>
                   )}
                   {e.note && <span className="text-xs text-gray-400 italic truncate">„{e.note}"</span>}

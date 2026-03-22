@@ -3,11 +3,12 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTime, formatDate, formatHours, toDateLocale,
-  wearingHoursInRange, buildPairs, photoStatus, mapKontrolleStatus,
-  getMidnightToday, getWeekStart, getMonthStart, KontrolleStatus,
+  wearingHoursInRange, buildPairs, photoStatus,
+  mapAnforderungStatus, mapVerifikationStatus,
+  getMidnightToday, getWeekStart, getMonthStart,
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
-import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
+import { KONTROLLE_PILLS, ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import PairRow from "@/app/dashboard/PairRow";
@@ -41,7 +42,8 @@ type KontrolleItem = {
   deadline: Date | null;
   kommentar: string | null;
   note: string | null;
-  status: KontrolleStatus;
+  anforderungStatus: import("@/lib/utils").AnforderungStatus | null;
+  verifikationStatus: import("@/lib/utils").VerifikationStatus | null;
   entryId: string | null;
 };
 
@@ -81,21 +83,18 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const pruefungEntries = entries.filter(e => e.type === "PRUEFUNG");
 
   const kontrollItems: KontrolleItem[] = [
-    ...alleAnforderungen.map(k => {
-      const vs = k.entry?.verifikationStatus ?? null;
-      const status = mapKontrolleStatus(k, vs, now);
-      return {
-        id: k.id,
-        time: k.entry ? k.entry.startTime : k.createdAt,
-        imageUrl: k.entry?.imageUrl ?? null,
-        code: k.code,
-        deadline: k.deadline,
-        kommentar: k.kommentar ?? null,
-        note: k.entry?.note ?? null,
-        status,
-        entryId: k.entry?.id ?? null,
-      };
-    }),
+    ...alleAnforderungen.map(k => ({
+      id: k.id,
+      time: k.entry ? k.entry.startTime : k.createdAt,
+      imageUrl: k.entry?.imageUrl ?? null,
+      code: k.code,
+      deadline: k.deadline,
+      kommentar: k.kommentar ?? null,
+      note: k.entry?.note ?? null,
+      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
+      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
+      entryId: k.entry?.id ?? null,
+    })),
     ...pruefungEntries
       .filter(e => !linkedEntryIds.has(e.id))
       .map(e => ({
@@ -106,7 +105,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         deadline: null as Date | null,
         kommentar: null as string | null,
         note: e.note,
-        status: (e.verifikationStatus === "ai" ? "ai" : "fulfilled") as KontrolleItem["status"],
+        anforderungStatus: null,
+        verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
         entryId: e.id,
       })),
   ];
@@ -152,7 +152,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           entryId: activePair.verschluss.id,
         },
         ...activePair.kontrollen
-          .filter((k) => k.status !== "withdrawn")
+          .filter((k) => k.anforderungStatus !== "withdrawn")
           .map((k) => ({
             type: "kontrolle" as const,
             time: k.time,
@@ -163,7 +163,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             deadline: k.deadline,
             kontrolleKommentar: k.kommentar,
             kontrolleCode: k.code,
-            kontrolleStatus: k.status,
+            kontrolleAnforderungStatus: k.anforderungStatus,
+            kontrolleVerifikationStatus: k.verifikationStatus,
           })),
         ...orgasmusEntries
           .filter((e) => e.startTime >= activePair.verschluss.startTime)
@@ -351,11 +352,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           </div>
           <div className="divide-y divide-gray-50">
             {[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).map((k) => {
-              const pill = KONTROLLE_PILLS[k.status];
-              const pillLabels: Record<string, string> = {
-                open: t("pillOpen"), overdue: t("pillOverdue"), fulfilled: t("pillFulfilled"),
-                ai: t("pillAi"), manual: t("pillManual"), rejected: t("pillRejected"), withdrawn: t("pillWithdrawn"),
-              };
+              const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
+              const vPill = k.verifikationStatus ? VERIFIKATION_PILLS[k.verifikationStatus] : null;
               return (
                 <div key={k.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition">
                   {k.imageUrl && (
@@ -363,7 +361,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                       className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
                   )}
                   <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    {pill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${pill.cls}`}>{pillLabels[k.status] ?? pill.label}</span>}
+                    {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${aPill.cls}`}>{aPill.label}</span>}
+                    {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${vPill.cls}`}>{vPill.label}</span>}
                     {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
                     <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
                     {k.deadline && (
