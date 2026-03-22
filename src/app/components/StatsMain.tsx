@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ } from "@/lib/utils";
-import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
+import { getKombinierterPill } from "@/lib/kontrollePills";
 import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
 import type { DayEntry, DayVorgabe } from "./CalendarContainer";
@@ -162,19 +162,25 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
   const allPruefungen = entries.filter(e => e.type === "PRUEFUNG");
   const standalonePruefungen = allPruefungen.filter(e => !linkedEntryIds.has(e.id));
 
-  type UnifiedKontrolle = { id: string; time: Date; status: string; code: string | null; deadline: Date | null; entryTime: Date | null };
+  type UnifiedKontrolle = { id: string; time: Date; anforderungStatus: string | null; verifikationStatus: string | null; code: string | null; deadline: Date | null; entryTime: Date | null };
   const unifiedKontrollen: UnifiedKontrolle[] = [
-    ...kontrollen.map(k => {
-      const vs = k.entry?.verifikationStatus ?? null;
-      const kNow = new Date();
-      const status = k.withdrawnAt ? "withdrawn" :
-        !k.entryId ? (k.deadline < kNow ? "overdue" : "open") :
-        vs === "rejected" ? "rejected" : vs === "manual" ? "manual" : vs === "ai" ? "ai" : "unverified";
-      return { id: k.id, time: k.entry ? k.entry.startTime : k.createdAt, status, code: k.code, deadline: k.deadline, entryTime: k.entry?.startTime ?? null };
-    }),
+    ...kontrollen.map(k => ({
+      id: k.id,
+      time: k.entry ? k.entry.startTime : k.createdAt,
+      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
+      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
+      code: k.code,
+      deadline: k.deadline,
+      entryTime: k.entry?.startTime ?? null,
+    })),
     ...standalonePruefungen.map(e => ({
-      id: e.id, time: e.startTime, status: e.verifikationStatus === "ai" ? "ai" : "unverified",
-      code: e.kontrollCode ?? null, deadline: null, entryTime: e.startTime,
+      id: e.id,
+      time: e.startTime,
+      anforderungStatus: null,
+      verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
+      code: e.kontrollCode ?? null,
+      deadline: null,
+      entryTime: e.startTime,
     })),
   ].sort((a, b) => b.time.getTime() - a.time.getTime());
 
@@ -430,26 +436,20 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
           </div>
           <div className="divide-y divide-gray-50">
             {unifiedKontrollen.map((k) => {
-              const pillLabels: Record<string, string> = {
-                open: ta("pillOpen"), overdue: ta("pillOverdue"), unverified: ta("pillUnverified"),
-                ai: ta("pillAi"), manual: ta("pillManual"), rejected: ta("pillRejected"), withdrawn: ta("pillWithdrawn"),
-              };
-              const { cls } = KONTROLLE_PILLS[k.status] ?? KONTROLLE_PILLS["unverified"];
-              const label = pillLabels[k.status] ?? pillLabels["unverified"];
+              const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus);
               return (
-                <div key={k.id} className="px-5 py-3 flex items-center gap-3">
-                  <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${cls}`}>{label}</span>
-                  {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
-                  {k.deadline
-                    ? <span className="text-xs text-gray-400 truncate">{t("deadlineLabel")}: {formatDateTime(new Date(k.deadline), dl)}</span>
-                    : <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
-                  }
-                  {k.entryTime && k.status !== "rejected" && (
-                    <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{t("fulfilled")}: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
-                  )}
-                  {k.status === "rejected" && k.entryTime && (
-                    <span className="text-xs text-red-400 ml-auto flex-shrink-0">{t("rejected")}: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
-                  )}
+                <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${kPill.cls}`}>{kPill.label}</span>}
+                    {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                    {k.entryTime
+                      ? <span>Erfüllt: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
+                      : <span>Erstellt: {formatDateTime(k.time, dl)}</span>
+                    }
+                    {k.deadline && <span>Frist: {formatDateTime(new Date(k.deadline), dl)}</span>}
+                  </div>
                 </div>
               );
             })}
@@ -504,18 +504,19 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                 ORGASMUS:   { label: t("orgasm"),     icon: <Droplets size={12} />,       color: "text-rose-500" },
               };
               const cfg = typeConfig[e.type] ?? { label: e.type, icon: null, color: "text-gray-500" };
-              const kontrollStatus = e.type === "PRUEFUNG"
-                ? (unifiedKontrollen.find(k => k.id === e.id || (e.kontrollCode && k.code === e.kontrollCode))?.status ?? null)
+              const kontrollEntry = e.type === "PRUEFUNG"
+                ? (unifiedKontrollen.find(k => k.id === e.id || (e.kontrollCode && k.code === e.kontrollCode)) ?? null)
                 : null;
+              const kontrollPill = kontrollEntry ? getKombinierterPill(kontrollEntry.anforderungStatus, kontrollEntry.verifikationStatus) : null;
               return (
                 <div key={e.id} className="px-5 py-3 flex items-center gap-3">
                   <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${cfg.color}`}>
                     {cfg.icon}{cfg.label}
                   </span>
                   <span className="text-sm text-gray-900 tabular-nums">{formatDateTime(e.startTime, dl)}</span>
-                  {kontrollStatus && (
-                    <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${KONTROLLE_PILLS[kontrollStatus].cls}`}>
-                      {({ open: ta("pillOpen"), overdue: ta("pillOverdue"), unverified: ta("pillUnverified"), ai: ta("pillAi"), manual: ta("pillManual"), rejected: ta("pillRejected"), withdrawn: ta("pillWithdrawn") } as Record<string,string>)[kontrollStatus] ?? kontrollStatus}
+                  {kontrollPill && (
+                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${kontrollPill.cls}`}>
+                      {kontrollPill.label}
                     </span>
                   )}
                   {e.note && <span className="text-xs text-gray-400 italic truncate">„{e.note}"</span>}

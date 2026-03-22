@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.6.2",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Statistik: Kontrollen-Tabelle verwendet jetzt kombinierte Pill (gleiche Logik und Farben wie Dashboard und Admin)"
+      },
+      {
+        "type": "fix",
+        "text": "Session-Timeline: Pill auf Mobile links über dem Datum, auf Desktop rechts neben den Aktionen"
+      }
+    ]
+  },
+  {
     "version": "1.6.1",
     "date": "2026-03-22",
     "changes": [
