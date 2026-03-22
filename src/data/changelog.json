@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.3.3",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Kommentar (Notiz) des Verschluss-Eintrags wird nun in der Übersichtsliste angezeigt"
+      }
+    ]
+  },
+  {
     "version": "1.3.2",
     "date": "2026-03-22",
     "changes": [

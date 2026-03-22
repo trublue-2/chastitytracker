@@ -260,6 +260,11 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
             <p className="text-xs text-amber-600">EXIF: {formatDateTime(new Date(verschluss.imageExifTime), dl)}</p>
           )}
           {photoStatus === "no-photo" && <p className="text-xs text-red-400">{td("noPhoto")}</p>}
+          {verschluss.note && (
+            <p className="text-xs text-gray-400 italic truncate" title={verschluss.note}>
+              „{verschluss.note}"
+            </p>
+          )}
         </div>
 
         {/* Col 3: Öffnung */}
