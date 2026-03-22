@@ -45,6 +45,9 @@ export function toDateLocale(locale: string): string {
   return locale === "en" ? "en-US" : "de-CH";
 }
 
+/** App timezone – all server-side date formatting uses this. */
+export const APP_TZ = "Europe/Zurich";
+
 export function formatDateTime(date: Date | string, locale = "de-CH"): string {
   const d = new Date(date);
   return d.toLocaleString(locale, {
@@ -53,6 +56,7 @@ export function formatDateTime(date: Date | string, locale = "de-CH"): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: APP_TZ,
   });
 }
 
