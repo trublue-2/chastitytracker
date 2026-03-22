@@ -164,12 +164,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && <p className="text-xs text-gray-400">EXIF: {new Date(imageExifTime).toLocaleString(dl)}</p>}
               {exifWarning && !uploading && <p className="text-xs text-amber-600 font-medium">⚠ {exifWarning}</p>}
-              <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange">
-                <button type="button" disabled={uploading}
-                  className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50 transition w-fit">
-                  {uploading ? tCommon("loading") : tCommon("replacePhoto")}
-                </button>
-              </PhotoCapture>
+              <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
             </div>
           </div>
         ) : (
