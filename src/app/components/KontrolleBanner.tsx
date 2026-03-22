@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { getTranslations, getLocale } from "next-intl/server";
 
@@ -50,7 +51,10 @@ export default async function KontrolleBanner({
 
   const inner = (
     <>
-      <span className="text-xl flex-shrink-0">{overdue ? "🚨" : "⚠"}</span>
+      {overdue
+        ? <AlertCircle size={22} className="flex-shrink-0 text-red-500" />
+        : <AlertTriangle size={22} className="flex-shrink-0 text-amber-500" />
+      }
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold">{overdue ? t("overdueTitle") : (openLabel ?? defaultOpenLabel)}</p>
         <p className="text-xs opacity-80">
