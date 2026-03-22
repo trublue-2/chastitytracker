@@ -1,12 +1,13 @@
 import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatHours, toDateLocale } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatHours, toDateLocale, wearingHoursInRange } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import PairRow from "@/app/dashboard/PairRow";
 import StatusBanner from "@/app/dashboard/StatusBanner";
+import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import ImageViewer from "@/app/components/ImageViewer";
 import EntryActions from "@/app/dashboard/EntryActions";
@@ -92,12 +93,15 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
-  const [entries, alleAnforderungen, activeVorgabe] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" } }),
     prisma.trainingVorgabe.findFirst({
       where: { userId: id, gueltigAb: { lte: now }, OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }] },
       orderBy: { gueltigAb: "desc" },
+    }),
+    prisma.verschlussAnforderung.findFirst({
+      where: { userId: id, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
     }),
   ]);
 
@@ -172,6 +176,48 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     return days > 0 ? `${days}T ${hours}h` : `${hours}h`;
   })();
 
+  // ── Laufende Session ──
+  const activePair = pairs.find((p) => p.active) ?? null;
+
+  const sessionEvents: import("@/app/dashboard/LaufendeSessionCard").SessionEvent[] = activePair
+    ? [
+        {
+          type: "verschluss" as const,
+          time: activePair.verschluss.startTime,
+          imageUrl: activePair.verschluss.imageUrl,
+          note: activePair.verschluss.note,
+        },
+        ...activePair.kontrollen
+          .filter((k) => ["fulfilled", "ai", "manual"].includes(k.status))
+          .map((k) => ({
+            type: "kontrolle" as const,
+            time: k.time,
+            imageUrl: k.imageUrl,
+            note: null,
+            kontrolleCode: k.code,
+          })),
+        ...orgasmusEntries
+          .filter((e) => e.startTime >= activePair.verschluss.startTime)
+          .map((e) => ({
+            type: "orgasmus" as const,
+            time: e.startTime,
+            imageUrl: e.imageUrl,
+            note: e.note,
+            orgasmusArt: e.orgasmusArt,
+          })),
+      ].sort((a, b) => a.time.getTime() - b.time.getTime())
+    : [];
+
+  const nowMidnight = new Date(now);
+  nowMidnight.setHours(0, 0, 0, 0);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  weekStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const tagH = activePair ? wearingHoursInRange(entries, nowMidnight, now) : 0;
+  const wocheH = activePair ? wearingHoursInRange(entries, weekStart, now) : 0;
+  const monatH = activePair ? wearingHoursInRange(entries, monthStart, now) : 0;
+
   return (
     <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
       <UserNav userId={id} username={user.username} current="uebersicht" />
@@ -239,8 +285,22 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      {/* ── Laufende Session ── */}
+      {activePair && (
+        <LaufendeSessionCard
+          sessionStart={activePair.verschluss.startTime}
+          now={now}
+          events={sessionEvents}
+          sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+          activeVorgabe={activeVorgabe}
+          tagH={tagH}
+          wocheH={wocheH}
+          monatH={monatH}
+        />
+      )}
+
       {/* ── Trainingsvorgabe ── */}
-      {activeVorgabe && (
+      {activeVorgabe && !activePair && (
         <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">{ts("trainingGoals")}</p>
           <div className="flex items-start gap-3">

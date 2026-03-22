@@ -91,7 +91,12 @@
     "week": "Woche",
     "month": "Monat",
     "notCaptured": "nicht erfasst",
-    "stillLocked": "noch verschlossen"
+    "stillLocked": "noch verschlossen",
+    "sessionTitle": "Laufende Session",
+    "sessionSince": "Seit",
+    "sessionLockedUntil": "Gesperrt bis",
+    "sessionKontrolle": "Kontrolle",
+    "sessionOrgasmus": "Orgasmus"
   },
   "newEntry": {
     "title": "Neu erfassen",
