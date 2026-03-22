@@ -49,7 +49,9 @@
     "selectCamera": "Kamera auswählen",
     "chooseFile": "Aus Dateien wählen",
     "captureBtn": "Foto aufnehmen",
-    "webcamNotAvailable": "Kamera nicht verfügbar"
+    "webcamNotAvailable": "Kamera nicht verfügbar",
+    "webcam": "Webcam",
+    "signOutConfirm": "Wirklich abmelden?"
   },
   "nav": {
     "overview": "Übersicht",

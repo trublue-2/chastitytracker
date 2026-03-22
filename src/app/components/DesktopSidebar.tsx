@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, BarChart2, Plus, Settings, ShieldCheck, LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { signOut } from "next-auth/react";
 
 interface Props {
   isAdmin?: boolean;
@@ -54,10 +55,13 @@ export default function DesktopSidebar({ isAdmin, version, buildDate }: Props) {
 
       {/* Footer info */}
       <div className="px-3 py-4 border-t border-gray-100 flex-shrink-0 flex flex-col gap-3">
-        <a href="/api/auth/signout" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">
+        <button
+          onClick={() => { if (window.confirm(t("signOutConfirm"))) signOut({ callbackUrl: "/login" }); }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors w-full text-left"
+        >
           <LogOut size={18} strokeWidth={1.75} />
           {t("signOut")}
-        </a>
+        </button>
         <div className="px-2 flex flex-col gap-0.5">
           <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-300 hover:text-gray-400 transition">© trublue {new Date().getFullYear()}</a>
           <span className="text-xs text-gray-300">

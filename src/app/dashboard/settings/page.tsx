@@ -123,7 +123,7 @@ export default function SettingsPage() {
       {/* Mobile: Abmelden */}
       <div className="mt-4">
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => { if (window.confirm(t("signOutConfirm"))) signOut({ callbackUrl: "/login" }); }}
           className="w-full text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-2xl py-4 active:scale-[0.98] transition-all"
         >
           {t("signOut")}
