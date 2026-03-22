@@ -1,6 +1,6 @@
 import { getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch } from "@/lib/utils";
-import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
+import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
 interface KontrolleItem {
@@ -69,8 +69,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         isOverdue: false,
         kontrolleCode: null,
         kontrolleKommentar: null,
-        kontrolleAnforderungLabel: null,
-        kontrolleVerifikationLabel: null,
+        kombiniertePillLabel: null,
+        kombiniertePillCls: null,
         orgasmusArt: null,
       },
       ...kontrollen
@@ -89,8 +89,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           isOverdue: k.anforderungStatus === "overdue",
           kontrolleCode: k.code,
           kontrolleKommentar: k.kommentar,
-          kontrolleAnforderungLabel: k.anforderungStatus ? (ANFORDERUNG_PILLS[k.anforderungStatus]?.label ?? null) : null,
-          kontrolleVerifikationLabel: k.verifikationStatus ? (VERIFIKATION_PILLS[k.verifikationStatus]?.label ?? null) : null,
+          kombiniertePillLabel: getKombinierterPill(k.anforderungStatus, k.verifikationStatus)?.label ?? null,
+          kombiniertePillCls: getKombinierterPill(k.anforderungStatus, k.verifikationStatus)?.cls ?? null,
           orgasmusArt: null,
         })),
       ...sessionOrgasmen.map((e) => ({
@@ -107,8 +107,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         isOverdue: false,
         kontrolleCode: null,
         kontrolleKommentar: null,
-        kontrolleAnforderungLabel: null,
-        kontrolleVerifikationLabel: null,
+        kombiniertePillLabel: null,
+        kombiniertePillCls: null,
         orgasmusArt: e.orgasmusArt,
       })),
     ].sort((a, b) => a.time.getTime() - b.time.getTime());
