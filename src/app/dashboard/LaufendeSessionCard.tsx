@@ -1,5 +1,5 @@
 import { Lock, CheckCircle2, Droplets } from "lucide-react";
-import { formatHours, toDateLocale } from "@/lib/utils";
+import { formatHours, toDateLocale, APP_TZ } from "@/lib/utils";
 import { getTranslations, getLocale } from "next-intl/server";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
@@ -70,6 +70,7 @@ export default async function LaufendeSessionCard({
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: APP_TZ,
   });
 
   const sperrzeitStr = sperrzeitEndetAt
@@ -79,6 +80,7 @@ export default async function LaufendeSessionCard({
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: APP_TZ,
       })
     : null;
 
@@ -149,11 +151,11 @@ export default async function LaufendeSessionCard({
       {/* ── Timeline ── */}
       <div className="divide-y divide-gray-50">
         {events.map((ev, i) => {
-          const dateStr = ev.time.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric" });
-          const timeStr = ev.time.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" });
+          const dateStr = ev.time.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ });
+          const timeStr = ev.time.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ });
           const exifMismatch = ev.imageExifTime && Math.abs(ev.imageExifTime.getTime() - ev.time.getTime()) > 3600000;
           const exifStr = exifMismatch
-            ? ev.imageExifTime!.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+            ? ev.imageExifTime!.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })
             : null;
           const statusLabel = ev.kontrolleStatus && KONTROLLE_PILLS[ev.kontrolleStatus]
             ? KONTROLLE_PILLS[ev.kontrolleStatus].label
@@ -179,7 +181,7 @@ export default async function LaufendeSessionCard({
                   ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
                   : null,
                 deadlineStr: ev.deadline
-                  ? ev.deadline.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                  ? ev.deadline.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })
                   : null,
                 isOverdue: ev.kontrolleStatus === "overdue",
                 kontrolleCode: ev.kontrolleCode ?? null,

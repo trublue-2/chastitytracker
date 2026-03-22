@@ -1,5 +1,5 @@
 import { getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration } from "@/lib/utils";
+import { toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
@@ -42,8 +42,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
   const sessions: SessionListData[] = pairs.map((pair) => {
     const { verschluss, oeffnen, active, kontrollen } = pair;
 
-    const dateStr = verschluss.startTime.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric" });
-    const timeStr = verschluss.startTime.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" });
+    const dateStr = verschluss.startTime.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ });
+    const timeStr = verschluss.startTime.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ });
     const durationStr = oeffnen ? formatDuration(verschluss.startTime, oeffnen.startTime, dl) : null;
 
     const sessionOrgasmen = orgasmusEntries.filter(
@@ -61,7 +61,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           if (!verschluss.imageExifTime) return null;
           const diff = Math.abs(verschluss.imageExifTime.getTime() - verschluss.startTime.getTime());
           return diff > 3_600_000
-            ? verschluss.imageExifTime.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+            ? verschluss.imageExifTime.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })
             : null;
         })(),
         note: verschluss.note,
@@ -79,15 +79,15 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         .map((k) => ({
           type: "kontrolle" as const,
           time: k.time,
-          dateStr: k.time.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric" }),
-          timeStr: k.time.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" }),
+          dateStr: k.time.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ }),
+          timeStr: k.time.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }),
           imageUrl: k.imageUrl,
           exifStr: null,
           note: null,
           entryId: k.entryId,
           captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
           deadlineStr: k.deadline
-            ? k.deadline.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+            ? k.deadline.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })
             : null,
           isOverdue: k.status === "overdue",
           kontrolleCode: k.code,
@@ -98,8 +98,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       ...sessionOrgasmen.map((e) => ({
         type: "orgasmus" as const,
         time: e.startTime,
-        dateStr: e.startTime.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric" }),
-        timeStr: e.startTime.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" }),
+        dateStr: e.startTime.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ }),
+        timeStr: e.startTime.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }),
         imageUrl: e.imageUrl,
         exifStr: null,
         note: e.note,
@@ -124,8 +124,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       events,
       oeffnen: oeffnen
         ? {
-            dateStr: oeffnen.startTime.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric" }),
-            timeStr: oeffnen.startTime.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" }),
+            dateStr: oeffnen.startTime.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ }),
+            timeStr: oeffnen.startTime.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }),
             grund: oeffnen.oeffnenGrund,
             note: oeffnen.note,
           }

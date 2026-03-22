@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatHours, toDateLocale, wearingHoursInRange } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatHours, toDateLocale, wearingHoursInRange, APP_TZ } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
@@ -316,7 +316,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
             <div>
               <p className="text-sm font-semibold text-gray-700">
-                {new Date(activeVorgabe.gueltigAb).toLocaleDateString(dl)} → {activeVorgabe.gueltigBis ? new Date(activeVorgabe.gueltigBis).toLocaleDateString(dl) : tc("open")}
+                {new Date(activeVorgabe.gueltigAb).toLocaleDateString(dl, { timeZone: APP_TZ })} → {activeVorgabe.gueltigBis ? new Date(activeVorgabe.gueltigBis).toLocaleDateString(dl, { timeZone: APP_TZ }) : tc("open")}
               </p>
               <div className="flex flex-wrap gap-3 mt-1">
                 {activeVorgabe.minProTagH != null && <span className="text-xs text-gray-600">{td("day")}: <strong>{formatHours(activeVorgabe.minProTagH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProTagH / 24) * 100)}%)</span></span>}
