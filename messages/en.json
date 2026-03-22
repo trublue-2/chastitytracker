@@ -91,7 +91,12 @@
     "week": "Week",
     "month": "Month",
     "notCaptured": "Not captured",
-    "stillLocked": "still locked"
+    "stillLocked": "still locked",
+    "sessionTitle": "Active Session",
+    "sessionSince": "Since",
+    "sessionLockedUntil": "Locked until",
+    "sessionKontrolle": "Inspection",
+    "sessionOrgasmus": "Orgasm"
   },
   "newEntry": {
     "title": "New entry",

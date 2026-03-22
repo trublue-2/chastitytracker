@@ -56,6 +56,38 @@ export function formatDateTime(date: Date | string, locale = "de-CH"): string {
   });
 }
 
+/** Berechnet Tragedauer in Stunden innerhalb eines Zeitraums. */
+export function wearingHoursInRange(
+  entries: { type: string; startTime: Date }[],
+  from: Date,
+  to: Date
+): number {
+  const sorted = [...entries]
+    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+  let total = 0;
+  let wearStart: Date | null = null;
+
+  for (const e of sorted) {
+    if (e.type === "VERSCHLUSS") {
+      wearStart = e.startTime;
+    } else if (e.type === "OEFFNEN" && wearStart) {
+      const s = Math.max(wearStart.getTime(), from.getTime());
+      const end = Math.min(e.startTime.getTime(), to.getTime());
+      if (end > s) total += end - s;
+      wearStart = null;
+    }
+  }
+  if (wearStart) {
+    const s = Math.max(wearStart.getTime(), from.getTime());
+    const end = to.getTime();
+    if (end > s) total += end - s;
+  }
+
+  return total / (1000 * 60 * 60);
+}
+
 export function toDatetimeLocal(date: Date | string | null | undefined): string {
   if (!date) return "";
   const d = new Date(date);

@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.3.4",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Neue Karte «Laufende Session» zeigt alle Ereignisse der aktiven Session (Verschluss, Kontrollen, Orgasmen) mit Timeline, Sperrdauer und Trainingsvorgaben-Fortschritt"
+      }
+    ]
+  },
+  {
     "version": "1.3.3",
     "date": "2026-03-22",
     "changes": [
