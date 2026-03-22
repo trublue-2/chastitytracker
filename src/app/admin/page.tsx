@@ -10,7 +10,7 @@ import KontrolleBanner from "@/app/components/KontrolleBanner";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import WithdrawVerschlussButton from "./WithdrawVerschlussButton";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale } from "@/lib/utils";
+import { toDateLocale, APP_TZ } from "@/lib/utils";
 
 async function getUserStats(userId: string) {
   const entries = await prisma.entry.findMany({
@@ -113,6 +113,7 @@ export default async function AdminPage() {
                   year: "numeric",
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: APP_TZ,
                 })
               : null;
 
@@ -194,7 +195,7 @@ export default async function AdminPage() {
                       <span className="text-xs text-indigo-700 font-medium truncate">{t("lockRequested")}</span>
                       {u.stats.offeneAnforderung.endetAt && (
                         <span className="text-xs text-indigo-400 shrink-0">
-                          {tc("to")} {new Date(u.stats.offeneAnforderung.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          {tc("to")} {new Date(u.stats.offeneAnforderung.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
                         </span>
                       )}
                     </div>
@@ -208,7 +209,7 @@ export default async function AdminPage() {
                       <span className="text-xs text-rose-700 font-medium">{t("lockedUntil")}</span>
                       {u.stats.activeSperrzeit.endetAt && (
                         <span className="text-xs text-rose-600 font-bold shrink-0">
-                          {new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          {new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
                         </span>
                       )}
                     </div>
