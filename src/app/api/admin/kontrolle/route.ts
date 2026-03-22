@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { userId, kommentar } = await req.json();
+  const { userId, kommentar, deadlineH } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
 
   // Neue Anforderung erstellen
   const code = String(Math.floor(10000 + Math.random() * 90000));
-  const deadline = new Date(Date.now() + 4 * 60 * 60 * 1000);
+  const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
+  const deadline = new Date(Date.now() + hours * 60 * 60 * 1000);
 
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
   const kommentarHtml = kommentarTrimmed
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
       <h2 style="color:#1e293b">Kontrolle angefordert</h2>
       <p>Hallo ${user.username},</p>
-      <p>Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten 4 Stunden einen Kontroll-Eintrag mit Foto.</p>
+      <p>Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten ${hours} Stunde${hours === 1 ? "" : "n"} einen Kontroll-Eintrag mit Foto.</p>
       ${kommentarHtml}
       <p><strong>Dein Kontroll-Code (muss auf dem Foto erkennbar sein):</strong></p>
       <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
