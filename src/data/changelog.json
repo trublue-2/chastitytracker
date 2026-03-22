@@ -10,6 +10,10 @@
       {
         "type": "feat",
         "text": "Sessions-Liste: keine Thumbnails, weichere Trennlinien, Details als weisse Karte mit abgerundeten Ecken"
+      },
+      {
+        "type": "fix",
+        "text": "Changelog-Seite: unbekannter Eintragstyp 'improvement' führte zu Absturz (TypeError)"
       }
     ]
   },
