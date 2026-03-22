@@ -45,7 +45,11 @@
     "close": "Close",
     "saved": "✓ Saved",
     "exifDate": "EXIF date",
-    "photoUnavailable": "Photo no longer available"
+    "photoUnavailable": "Photo no longer available",
+    "selectCamera": "Select camera",
+    "chooseFile": "Choose from files",
+    "captureBtn": "Take photo",
+    "webcamNotAvailable": "Camera not available"
   },
   "nav": {
     "overview": "Overview",
