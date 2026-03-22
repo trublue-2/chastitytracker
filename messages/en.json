@@ -107,7 +107,10 @@
     "captureNow": "Capture now",
     "inspectionOverdue": "Inspection overdue",
     "overduePrefix": "Overdue since",
-    "untilPrefix": "Until"
+    "untilPrefix": "Until",
+    "sessions": "Sessions",
+    "noEntries": "No entries yet",
+    "inspectionRequired": "Inspection required"
   },
   "newEntry": {
     "title": "New entry",

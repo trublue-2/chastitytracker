@@ -107,7 +107,10 @@
     "captureNow": "Jetzt erfassen",
     "inspectionOverdue": "Kontrolle überfällig",
     "overduePrefix": "Überfällig seit",
-    "untilPrefix": "Bis"
+    "untilPrefix": "Bis",
+    "sessions": "Sessions",
+    "noEntries": "Keine Einträge vorhanden",
+    "inspectionRequired": "Kontrolle erforderlich"
   },
   "newEntry": {
     "title": "Neu erfassen",
