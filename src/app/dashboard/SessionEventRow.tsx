@@ -200,11 +200,12 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-start justify-between gap-2">
             <div>
+              <div className="mb-0.5 sm:hidden">{typePill}</div>
               <span className="block text-sm font-semibold text-gray-900 tabular-nums">{ev.dateStr}</span>
               <span className="block text-xs text-gray-400 tabular-nums">{ev.timeStr}</span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {typePill}
+              <span className="hidden sm:inline-flex">{typePill}</span>
               {ev.entryId ? (
                 <div onClick={(e) => e.stopPropagation()}>
                   <EntryActions id={ev.entryId} editHref={`/dashboard/edit/${ev.entryId}`} />
