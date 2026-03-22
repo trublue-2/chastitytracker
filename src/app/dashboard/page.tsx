@@ -37,6 +37,7 @@ type KontrolleItem = {
   code: string | null;
   deadline: Date | null;
   kommentar: string | null;
+  note: string | null;
   status: KontrolleStatus;
   entryId: string | null;
 };
@@ -95,6 +96,7 @@ export default async function DashboardPage() {
         code: k.code,
         deadline: k.deadline,
         kommentar: k.kommentar ?? null,
+        note: k.entry?.note ?? null,
         status,
         entryId: k.entry?.id ?? null,
       };
@@ -109,6 +111,7 @@ export default async function DashboardPage() {
         code: e.kontrollCode,
         deadline: null as Date | null,
         kommentar: null as string | null,
+        note: e.note,
         status: (e.verifikationStatus === "ai" ? "ai" : "fulfilled") as KontrolleItem["status"],
         entryId: e.id,
       })),
@@ -153,7 +156,7 @@ export default async function DashboardPage() {
             time: k.time,
             imageUrl: k.imageUrl,
             imageExifTime: null,
-            note: null,
+            note: k.note,
             entryId: k.entryId,
             deadline: k.deadline,
             kontrolleKommentar: k.kommentar,
@@ -357,7 +360,7 @@ export default async function DashboardPage() {
                   <div key={k.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition">
                     {k.imageUrl && (
                       <ImageViewer src={k.imageUrl} alt="Kontrolle" width={40} height={40}
-                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
                     )}
                     <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                       {pill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${pill.cls}`}>{ta(PILL_LABEL_KEYS[k.status] ?? "pillOpen")}</span>}
@@ -365,6 +368,9 @@ export default async function DashboardPage() {
                       <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
                       {k.deadline && (
                         <span className="text-xs text-gray-300 truncate">{t("deadline")}: {formatDateTime(k.deadline, dl)}</span>
+                      )}
+                      {k.kommentar && (
+                        <span className="text-xs text-amber-700 truncate w-full">{k.kommentar}</span>
                       )}
                     </div>
                     {k.entryId && <EntryActions id={k.entryId} editHref={`/dashboard/edit/${k.entryId}`} />}
