@@ -193,7 +193,12 @@
     "saving": "Saving…",
     "signOut": "Sign out",
     "signOutConfirm": "Really sign out?",
-    "language": "Language"
+    "language": "Language",
+    "reinigungTitle": "Cleaning interruption",
+    "reinigungErlaubt": "Allow cleaning interruptions",
+    "reinigungMaxMinuten": "Maximum cleaning duration",
+    "minutes": "minutes",
+    "saved": "Saved"
   },
   "changelog": {
     "title": "Changelog",

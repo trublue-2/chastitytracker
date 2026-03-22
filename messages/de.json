@@ -193,7 +193,12 @@
     "saving": "Wird gespeichert…",
     "signOut": "Abmelden",
     "signOutConfirm": "Wirklich abmelden?",
-    "language": "Sprache"
+    "language": "Sprache",
+    "reinigungTitle": "Reinigungsunterbrechung",
+    "reinigungErlaubt": "Reinigungsunterbrechung zulassen",
+    "reinigungMaxMinuten": "Maximale Reinigungsdauer",
+    "minutes": "Minuten",
+    "saved": "Gespeichert"
   },
   "changelog": {
     "title": "Changelog",
