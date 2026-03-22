@@ -27,22 +27,21 @@ export async function PATCH(
   }
 
   if (action === "manuallyVerify") {
-    if (ka.manuallyVerifiedAt) return NextResponse.json({ error: "Bereits manuell verifiziert" }, { status: 400 });
-    const now = new Date();
-    const updated = await prisma.kontrollAnforderung.update({
-      where: { id },
-      data: { manuallyVerifiedAt: now, fulfilledAt: ka.fulfilledAt ?? now, rejectedAt: null },
+    if (!ka.entryId) return NextResponse.json({ error: "Keine Einreichung vorhanden" }, { status: 400 });
+    await prisma.entry.update({
+      where: { id: ka.entryId },
+      data: { verifikationStatus: "manual" },
     });
-    return NextResponse.json(updated);
+    return NextResponse.json({ ok: true });
   }
 
   if (action === "reject") {
-    if (ka.rejectedAt) return NextResponse.json({ error: "Bereits abgelehnt" }, { status: 400 });
-    const updated = await prisma.kontrollAnforderung.update({
-      where: { id },
-      data: { rejectedAt: new Date(), manuallyVerifiedAt: null },
+    if (!ka.entryId) return NextResponse.json({ error: "Keine Einreichung vorhanden" }, { status: 400 });
+    await prisma.entry.update({
+      where: { id: ka.entryId },
+      data: { verifikationStatus: "rejected" },
     });
-    return NextResponse.json(updated);
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });

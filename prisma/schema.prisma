@@ -45,17 +45,16 @@ model TrainingVorgabe {
 }
 
 model KontrollAnforderung {
-  id                 String    @id @default(cuid())
-  userId             String
-  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code               String
-  kommentar          String?
-  deadline           DateTime
-  fulfilledAt        DateTime?
-  withdrawnAt        DateTime?
-  manuallyVerifiedAt DateTime?
-  rejectedAt         DateTime?
-  createdAt          DateTime  @default(now())
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code        String
+  kommentar   String?
+  deadline    DateTime
+  createdAt   DateTime  @default(now())
+  withdrawnAt DateTime?
+  entryId     String?   @unique
+  entry       Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)
 }
 
 model VerschlussAnforderung {
@@ -72,19 +71,20 @@ model VerschlussAnforderung {
 }
 
 model Entry {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type          String    @default("VERSCHLUSS")
-  startTime     DateTime
-  imageUrl      String?
-  imageExifTime DateTime?
-  note          String?
-  oeffnenGrund  String?
-  orgasmusArt   String?
-  kontrollCode  String?
-  aiVerified    Boolean?
-  createdAt     DateTime  @default(now())
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                String               @default("VERSCHLUSS")
+  startTime           DateTime
+  imageUrl            String?
+  imageExifTime       DateTime?
+  note                String?
+  oeffnenGrund        String?
+  orgasmusArt         String?
+  kontrollCode        String?
+  verifikationStatus  String?
+  createdAt           DateTime             @default(now())
+  kontrollAnforderung KontrollAnforderung? @relation("KontrolleEntry")
 
   @@index([userId])
   @@index([userId, type])

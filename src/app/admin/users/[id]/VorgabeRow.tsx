@@ -51,7 +51,7 @@ export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH,
     <div className={`px-5 py-3 flex items-start justify-between gap-4 ${active ? "bg-indigo-50/40" : ""}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          {active && <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">{t("vorgabeActive")}</span>}
+          {active && <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{t("vorgabeActive")}</span>}
           <span className="text-sm font-semibold text-gray-700">{dateLabel}</span>
         </div>
         <div className="flex flex-wrap gap-3 mt-1.5">

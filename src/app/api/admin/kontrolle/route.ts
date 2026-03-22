@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   // Offene Anforderungen zurückziehen (nicht löschen, um Historie zu bewahren)
   await prisma.kontrollAnforderung.updateMany({
-    where: { userId, fulfilledAt: null, withdrawnAt: null },
+    where: { userId, entryId: null, withdrawnAt: null },
     data: { withdrawnAt: new Date() },
   });
 

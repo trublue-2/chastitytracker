@@ -1,15 +1,21 @@
 import { Lock, CheckCircle2, Droplets } from "lucide-react";
-import ImageViewer from "@/app/components/ImageViewer";
-import { formatDuration, formatHours } from "@/lib/utils";
+import { formatHours, toDateLocale } from "@/lib/utils";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale } from "@/lib/utils";
+import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
+import SessionDurationBadge from "./SessionDurationBadge";
+import SessionEventRow from "./SessionEventRow";
 
 export interface SessionEvent {
   type: "verschluss" | "kontrolle" | "orgasmus";
   time: Date;
   imageUrl: string | null;
+  imageExifTime: Date | null;
   note: string | null;
+  entryId: string | null;
+  deadline?: Date | null;
+  kontrolleKommentar?: string | null;
   kontrolleCode?: string | null;
+  kontrolleStatus?: string | null;
   orgasmusArt?: string | null;
 }
 
@@ -18,6 +24,7 @@ interface Props {
   now: Date;
   events: SessionEvent[];
   sperrzeitEndetAt: Date | null;
+  sperrzeitNachricht?: string | null;
   activeVorgabe: {
     minProTagH: number | null;
     minProWocheH: number | null;
@@ -33,30 +40,29 @@ function ProgressBar({ actual, target, label }: { actual: number; target: number
   const color = pct >= 100 ? "bg-emerald-500" : pct >= 70 ? "bg-indigo-500" : "bg-indigo-400";
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-gray-500 w-12 shrink-0">{label}</span>
-      <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-        <div className={`h-2 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+      <span className="text-xs text-emerald-100/80 w-12 shrink-0">{label}</span>
+      <div className="flex-1 bg-emerald-900/30 rounded-full h-1.5 overflow-hidden">
+        <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-gray-500 w-16 text-right shrink-0">{actual.toFixed(1)}h / {target}h</span>
-      <span className="text-xs font-semibold text-gray-700 w-9 text-right shrink-0">{pct}%</span>
+      <span className="text-xs text-emerald-100/70 w-16 text-right shrink-0">{actual.toFixed(1)}h / {target}h</span>
+      <span className="text-xs font-semibold text-white w-9 text-right shrink-0">{pct}%</span>
     </div>
   );
 }
 
 export default async function LaufendeSessionCard({
   sessionStart,
-  now,
   events,
   sperrzeitEndetAt,
+  sperrzeitNachricht,
   activeVorgabe,
   tagH,
   wocheH,
   monatH,
 }: Props) {
   const t = await getTranslations("dashboard");
+  const tCommon = await getTranslations("common");
   const dl = toDateLocale(await getLocale());
-
-  const duration = formatDuration(sessionStart, now, dl);
 
   const sessionStartStr = sessionStart.toLocaleString(dl, {
     day: "2-digit",
@@ -83,94 +89,50 @@ export default async function LaufendeSessionCard({
       activeVorgabe.minProMonatH != null);
 
   return (
-    <div className="bg-white rounded-2xl border border-indigo-100 overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 bg-indigo-50/60 border-b border-indigo-100">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500 flex items-center gap-1.5">
-            <Lock size={11} />
-            {t("sessionTitle")}
-          </p>
-          <span className="text-xs font-mono text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
-            ⏱ {duration}
-          </span>
-        </div>
-        <p className="text-xs text-gray-500 mt-1">
-          {t("sessionSince")} {sessionStartStr}
-        </p>
-        {sperrzeitStr && (
-          <p className="text-xs text-rose-600 font-medium mt-1 flex items-center gap-1">
-            <Lock size={10} />
-            {t("sessionLockedUntil")} {sperrzeitStr}
-          </p>
-        )}
-      </div>
-
-      {/* Timeline */}
-      <div className="divide-y divide-gray-50">
-        {events.map((ev, i) => {
-          const timeStr = ev.time.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" });
-          return (
-            <div key={i} className="px-5 py-3 flex items-start gap-3">
-              {/* Thumbnail */}
-              <div className="w-10 h-10 shrink-0 flex items-center justify-center">
-                {ev.imageUrl ? (
-                  <ImageViewer
-                    src={ev.imageUrl}
-                    alt=""
-                    width={40}
-                    height={40}
-                    className="w-10 h-10 rounded-xl object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center">
-                    {ev.type === "verschluss" && <Lock size={16} className="text-indigo-400" />}
-                    {ev.type === "kontrolle" && <CheckCircle2 size={16} className="text-emerald-400" />}
-                    {ev.type === "orgasmus" && <Droplets size={16} className="text-rose-400" />}
-                  </div>
-                )}
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-mono text-gray-400">{timeStr}</span>
-                  {ev.type === "verschluss" && (
-                    <span className="text-sm font-medium text-indigo-700">{t("lock")}</span>
-                  )}
-                  {ev.type === "kontrolle" && (
-                    <>
-                      <span className="text-sm font-medium text-emerald-700">{t("sessionKontrolle")}</span>
-                      {ev.kontrolleCode && (
-                        <span className="font-mono font-bold text-orange-500 text-xs">{ev.kontrolleCode}</span>
-                      )}
-                    </>
-                  )}
-                  {ev.type === "orgasmus" && (
-                    <>
-                      <span className="text-sm font-medium text-rose-600">{t("sessionOrgasmus")}</span>
-                      {ev.orgasmusArt && (
-                        <span className="text-xs text-rose-400">{ev.orgasmusArt}</span>
-                      )}
-                    </>
-                  )}
-                </div>
-                {ev.note && (
-                  <p className="text-xs text-gray-400 italic mt-0.5 truncate">„{ev.note}"</p>
-                )}
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+      {/* ── Green status header ── */}
+      <div className="bg-gradient-to-br from-emerald-600 to-emerald-500 text-white px-5 py-4">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10 mt-0.5">
+            <Lock size={24} strokeWidth={2} />
+          </div>
+          <div className="flex-1 min-w-0">
+            {/* Mobile: stacked */}
+            <div className="sm:hidden">
+              <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
+              <p className="text-xl font-bold leading-tight">{t("locked")}</p>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{tCommon("duration")}:</span>
+                <span className="text-lg font-bold tabular-nums">
+                  <SessionDurationBadge since={sessionStart.toISOString()} />
+                </span>
               </div>
             </div>
-          );
-        })}
-      </div>
+            {/* Desktop: side by side */}
+            <div className="hidden sm:flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
+                <p className="text-xl font-bold">{t("locked")}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{tCommon("duration")}</p>
+                <p className="text-2xl font-bold tabular-nums leading-tight">
+                  <SessionDurationBadge since={sessionStart.toISOString()} />
+                </p>
+              </div>
+            </div>
+            <p className="text-xs opacity-60 mt-1">
+              {t("sessionSince")} {sessionStartStr}
+            </p>
+          </div>
+        </div>
 
-      {/* Trainingsvorgaben */}
-      {hasVorgabe && (
-        <div className="px-5 py-4 border-t border-gray-100">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
-            {t("trainingGoals")}
-          </p>
-          <div className="flex flex-col gap-2">
+        {/* Trainingsvorgaben – inside green header */}
+        {hasVorgabe && (
+          <div className="mt-4 pt-3 border-t border-white/20 flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100/70 mb-1">
+              {t("trainingGoals")}
+            </p>
             {activeVorgabe.minProTagH != null && (
               <ProgressBar actual={tagH} target={activeVorgabe.minProTagH} label={t("day")} />
             )}
@@ -181,6 +143,65 @@ export default async function LaufendeSessionCard({
               <ProgressBar actual={monatH} target={activeVorgabe.minProMonatH} label={t("month")} />
             )}
           </div>
+        )}
+      </div>
+
+      {/* ── Timeline ── */}
+      <div className="divide-y divide-gray-50">
+        {events.map((ev, i) => {
+          const dateStr = ev.time.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric" });
+          const timeStr = ev.time.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" });
+          const exifMismatch = ev.imageExifTime && Math.abs(ev.imageExifTime.getTime() - ev.time.getTime()) > 3600000;
+          const exifStr = exifMismatch
+            ? ev.imageExifTime!.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+            : null;
+          const statusLabel = ev.kontrolleStatus && KONTROLLE_PILLS[ev.kontrolleStatus]
+            ? KONTROLLE_PILLS[ev.kontrolleStatus].label
+            : null;
+          const icon =
+            ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
+            ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-orange-400" /> :
+            <Droplets size={18} className="text-rose-400" />;
+
+          return (
+            <SessionEventRow
+              key={i}
+              icon={icon}
+              ev={{
+                type: ev.type,
+                dateStr,
+                timeStr,
+                imageUrl: ev.imageUrl,
+                exifStr,
+                note: ev.note,
+                entryId: ev.entryId,
+                captureHref: !ev.entryId && ev.type === "kontrolle" && ev.kontrolleCode
+                  ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
+                  : null,
+                deadlineStr: ev.deadline
+                  ? ev.deadline.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                  : null,
+                isOverdue: ev.kontrolleStatus === "overdue",
+                kontrolleCode: ev.kontrolleCode ?? null,
+                kontrolleKommentar: ev.kontrolleKommentar ?? null,
+                kontrolleStatusLabel: statusLabel,
+                orgasmusArt: ev.orgasmusArt ?? null,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* ── Sperrzeit footer ── */}
+      {sperrzeitStr && (
+        <div className="bg-rose-50 border-t border-rose-100 px-5 py-3 flex items-center gap-2 rounded-b-2xl">
+          <Lock size={13} className="text-rose-500 shrink-0" />
+          <span className="text-sm font-semibold text-rose-700">
+            {t("sessionLockedUntil")} {sperrzeitStr}
+          </span>
+          {sperrzeitNachricht && (
+            <span className="text-xs text-rose-500 truncate">· {sperrzeitNachricht}</span>
+          )}
         </div>
       )}
     </div>

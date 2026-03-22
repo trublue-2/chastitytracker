@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, aiVerified } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus } = body;
 
   if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
   if (new Date(startTime) > new Date()) {
@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
     if (latest?.type === "VERSCHLUSS") {
       return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
     }
-    // Neue Verschluss-Zeit muss nach der letzten Öffnung liegen
     if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
       return NextResponse.json({ error: "Verschlusszeit muss nach der letzten Öffnungszeit liegen" }, { status: 400 });
     }
@@ -59,7 +58,6 @@ export async function POST(req: NextRequest) {
     if (!latest || latest.type !== "VERSCHLUSS") {
       return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
     }
-    // Neue Öffnungs-Zeit muss nach dem letzten Verschluss liegen
     if (new Date(startTime) <= latest.startTime) {
       return NextResponse.json({ error: "Öffnungszeit muss nach der letzten Verschlusszeit liegen" }, { status: 400 });
     }
@@ -83,15 +81,15 @@ export async function POST(req: NextRequest) {
       oeffnenGrund: oeffnenGrund || null,
       orgasmusArt: orgasmusArt || null,
       kontrollCode: kontrollCode || null,
-      aiVerified: aiVerified !== undefined ? Boolean(aiVerified) : null,
+      verifikationStatus: verifikationStatus || null,
     },
   });
 
-  // Kontroll-Anforderung als erfüllt markieren
+  // KontrollAnforderung verknüpfen (via FK statt fulfilledAt)
   if (type === "PRUEFUNG" && kontrollCode) {
     await prisma.kontrollAnforderung.updateMany({
-      where: { userId: session.user.id, code: kontrollCode, fulfilledAt: null },
-      data: { fulfilledAt: new Date() },
+      where: { userId: session.user.id, code: kontrollCode, entryId: null, withdrawnAt: null },
+      data: { entryId: entry.id },
     });
   }
 
@@ -105,7 +103,6 @@ export async function POST(req: NextRequest) {
         where: { id: offeneAnforderung.id },
         data: { fulfilledAt: new Date() },
       });
-      // Falls Mindestdauer definiert → automatisch SPERRZEIT erstellen
       if (offeneAnforderung.dauerH) {
         await prisma.verschlussAnforderung.create({
           data: {
