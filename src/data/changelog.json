@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.5.5",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Refactoring: Datums-/Zeitformatierung, buildPairs, photoStatus, mapKontrolleStatus, Datumsbereiche und getActiveVorgabe zentral in utils.ts / queries.ts verwaltet – kein duplizierter Code mehr in Page-Komponenten"
+      }
+    ]
+  },
+  {
     "version": "1.5.4",
     "date": "2026-03-22",
     "changes": [
