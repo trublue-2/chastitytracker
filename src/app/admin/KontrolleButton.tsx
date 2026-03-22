@@ -10,6 +10,7 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [kommentar, setKommentar] = useState("");
+  const [deadlineH, setDeadlineH] = useState("4");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -22,7 +23,11 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
       const res = await fetch("/api/admin/kontrolle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, kommentar: kommentar.trim() || undefined }),
+        body: JSON.stringify({
+          userId,
+          kommentar: kommentar.trim() || undefined,
+          deadlineH: parseFloat(deadlineH) || 4,
+        }),
       });
       const data = await res.json();
       setLoading(false);
@@ -30,6 +35,7 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
         setMsg(t("requestedSuccess"));
         setOpen(false);
         setKommentar("");
+        setDeadlineH("4");
         router.refresh();
       } else {
         setMsg(data.error || t("kontrolleTitle"));
@@ -60,7 +66,7 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
     <div className="flex flex-col gap-2 p-3 bg-orange-50 border border-orange-200 rounded-xl">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-semibold text-orange-700">{t("kontrolleTitle")}</span>
-        <button type="button" onClick={() => { setOpen(false); setMsg(""); setKommentar(""); }}
+        <button type="button" onClick={() => { setOpen(false); setMsg(""); setKommentar(""); setDeadlineH("4"); }}
           className="text-orange-400 hover:text-orange-600 transition">
           <X size={14} />
         </button>
@@ -72,6 +78,18 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
         rows={2}
         className="w-full text-xs bg-white border border-orange-200 rounded-lg px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
       />
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-orange-700 font-medium whitespace-nowrap">{t("kontrolleHours")}</label>
+        <input
+          type="number"
+          value={deadlineH}
+          onChange={(e) => setDeadlineH(e.target.value)}
+          min={0.5}
+          step={0.5}
+          className="w-20 text-xs bg-white border border-orange-200 rounded-lg px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+        />
+        <span className="text-xs text-orange-600">h</span>
+      </div>
       <div className="flex items-center gap-2">
         <button
           onClick={handleSubmit}

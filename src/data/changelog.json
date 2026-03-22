@@ -1,5 +1,23 @@
 [
   {
+    "version": "1.5.2",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontrolle anfordern: Fristdauer konfigurierbar (Stunden-Input, Standard 4h)"
+      },
+      {
+        "type": "fix",
+        "text": "Sperrdauer setzen: 'Keine Dauer' entfernt, Standard ist nun 'Bis Datum'"
+      },
+      {
+        "type": "fix",
+        "text": "Sperrdauer: Zeitzonenkorrektur – eingegebenes Datum wird korrekt als Lokalzeit (CET/CEST) gespeichert"
+      }
+    ]
+  },
+  {
     "version": "1.5.1",
     "date": "2026-03-22",
     "changes": [
