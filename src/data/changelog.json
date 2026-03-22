@@ -8,7 +8,7 @@
         "text": "Zeitzone: alle serverseitigen Datumsanzeigen verwenden nun Europe/Zurich – keine Stundendifferenz mehr für CET/CEST-User"
       },
       {
-        "type": "improvement",
+        "type": "feat",
         "text": "Sessions-Liste: keine Thumbnails, weichere Trennlinien, Details als weisse Karte mit abgerundeten Ecken"
       }
     ]
@@ -30,7 +30,7 @@
         "text": "Einschluss-Liste auf Dashboard und Admin-Übersicht ausgeblendet (Code erhalten)"
       },
       {
-        "type": "improvement",
+        "type": "feat",
         "text": "Pillen vereinheitlicht: gleiche Höhe, immer Border, konsistente Farben in der gesamten App"
       }
     ]
