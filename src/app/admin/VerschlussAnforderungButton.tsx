@@ -20,7 +20,7 @@ export default function VerschlussAnforderungButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nachricht, setNachricht] = useState("");
-  const [dauerTyp, setDauerTyp] = useState<"keine" | "datum" | "dauer">("keine");
+  const [dauerTyp, setDauerTyp] = useState<"datum" | "dauer">("datum");
   const [endetAt, setEndetAt] = useState("");
   const [dauerH, setDauerH] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,14 +33,14 @@ export default function VerschlussAnforderungButton({
 
   function reset() {
     setOpen(false); setMsg(""); setNachricht("");
-    setDauerTyp("keine"); setEndetAt(""); setDauerH("");
+    setDauerTyp("datum"); setEndetAt(""); setDauerH("");
   }
 
   async function handleSubmit() {
     setLoading(true); setMsg("");
     try {
       const payload: Record<string, unknown> = { userId, art, nachricht: nachricht.trim() || undefined };
-      if (dauerTyp === "datum" && endetAt) payload.endetAt = endetAt;
+      if (dauerTyp === "datum" && endetAt) payload.endetAt = new Date(endetAt).toISOString();
       if (dauerTyp === "dauer" && dauerH) payload.dauerH = parseFloat(dauerH);
 
       const res = await fetch("/api/admin/verschluss-anforderung", {
@@ -107,14 +107,14 @@ export default function VerschlussAnforderungButton({
       />
 
       <div className="flex gap-2">
-        {(["keine", "datum", "dauer"] as const).map((typ) => (
+        {(["datum", "dauer"] as const).map((typ) => (
           <button
             key={typ}
             type="button"
             onClick={() => setDauerTyp(typ)}
             className={`text-xs px-2.5 py-1 rounded-lg border transition ${dauerTyp === typ ? activeTab : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
           >
-            {typ === "keine" ? t("noDuration") : typ === "datum" ? t("untilDate") : t("durationHours")}
+            {typ === "datum" ? t("untilDate") : t("durationHours")}
           </button>
         ))}
       </div>
