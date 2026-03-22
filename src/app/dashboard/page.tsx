@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatHours, wearingHoursInRange } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatHours, wearingHoursInRange, APP_TZ } from "@/lib/utils";
 import { KONTROLLE_PILLS } from "@/lib/kontrollePills";
 import EntryActions from "./EntryActions";
 import PairRow from "./PairRow";
@@ -264,7 +264,7 @@ export default async function DashboardPage() {
             )}
             {offeneVerschlussAnf.endetAt && (
               <p className="text-xs text-indigo-500">
-                {t("lockUntil", { date: new Date(offeneVerschlussAnf.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}
+                {t("lockUntil", { date: new Date(offeneVerschlussAnf.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
               </p>
             )}
           </div>
@@ -282,7 +282,7 @@ export default async function DashboardPage() {
             )}
             {activeSperrzeit.endetAt && (
               <p className="text-xs text-rose-500">
-                {t("openingForbiddenUntil", { date: new Date(activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}
+                {t("openingForbiddenUntil", { date: new Date(activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
               </p>
             )}
           </div>
@@ -319,7 +319,7 @@ export default async function DashboardPage() {
               <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{tCommon("active")}</span>
               <div>
                 <p className="text-sm font-semibold text-gray-700">
-                  {new Date(activeVorgabe.gueltigAb).toLocaleDateString(dl)} → {activeVorgabe.gueltigBis ? new Date(activeVorgabe.gueltigBis).toLocaleDateString(dl) : tCommon("open")}
+                  {new Date(activeVorgabe.gueltigAb).toLocaleDateString(dl, { timeZone: APP_TZ })} → {activeVorgabe.gueltigBis ? new Date(activeVorgabe.gueltigBis).toLocaleDateString(dl, { timeZone: APP_TZ }) : tCommon("open")}
                 </p>
                 <div className="flex flex-wrap gap-3 mt-1">
                   {activeVorgabe.minProTagH != null && <span className="text-xs text-gray-600">{t("day")}: <strong>{formatHours(activeVorgabe.minProTagH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProTagH / 24) * 100)}%)</span></span>}
