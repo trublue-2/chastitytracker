@@ -37,6 +37,7 @@ type KontrolleItem = {
   code: string | null;
   deadline: Date | null;
   kommentar: string | null;
+  note: string | null;
   status: KontrolleStatus;
   entryId: string | null;
 };
@@ -95,6 +96,7 @@ export default async function DashboardPage() {
         code: k.code,
         deadline: k.deadline,
         kommentar: k.kommentar ?? null,
+        note: k.entry?.note ?? null,
         status,
         entryId: k.entry?.id ?? null,
       };
@@ -109,6 +111,7 @@ export default async function DashboardPage() {
         code: e.kontrollCode,
         deadline: null as Date | null,
         kommentar: null as string | null,
+        note: e.note,
         status: (e.verifikationStatus === "ai" ? "ai" : "fulfilled") as KontrolleItem["status"],
         entryId: e.id,
       })),
@@ -153,7 +156,7 @@ export default async function DashboardPage() {
             time: k.time,
             imageUrl: k.imageUrl,
             imageExifTime: null,
-            note: null,
+            note: k.note,
             entryId: k.entryId,
             deadline: k.deadline,
             kontrolleKommentar: k.kommentar,
