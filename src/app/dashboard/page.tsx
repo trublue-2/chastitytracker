@@ -7,7 +7,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, toDateLocale,
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
-import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
+import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import EntryActions from "./EntryActions";
 import PairRow from "./PairRow";
 import StatusBanner from "./StatusBanner";
@@ -153,7 +153,7 @@ export default async function DashboardPage() {
           entryId: activePair.verschluss.id,
         },
         ...activePair.kontrollen
-          .filter((k) => k.anforderungStatus !== "withdrawn")
+          .filter((k) => k.entryId !== null)
           .map((k) => ({
             type: "kontrolle" as const,
             time: k.time,
@@ -364,7 +364,7 @@ export default async function DashboardPage() {
                 {offene.map((k) => {
                   const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
                   return (
-                    <div key={k.id} className="px-5 py-4 flex flex-col gap-1">
+                    <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(ANFORD_LABEL_KEYS[k.anforderungStatus!] ?? "pillOpen")}</span>}
                         {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
@@ -393,18 +393,16 @@ export default async function DashboardPage() {
               </div>
               <div className="divide-y divide-gray-50">
                 {pruefungen.map((k) => {
-                  const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
-                  const vPill = k.verifikationStatus ? VERIFIKATION_PILLS[k.verifikationStatus] : null;
+                  const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus);
                   return (
-                    <div key={k.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-start gap-3">
+                    <div key={k.id} className="px-4 py-3 flex items-start gap-3">
                       {k.imageUrl && (
-                        <ImageViewer src={k.imageUrl} alt="Kontrolle" width={56} height={56}
-                          className="w-14 h-14 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
+                        <ImageViewer src={k.imageUrl} alt="Kontrolle" width={40} height={40}
+                          className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
                       )}
                       <div className="flex-1 min-w-0 flex flex-col gap-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(ANFORD_LABEL_KEYS[k.anforderungStatus!] ?? "pillOpen")}</span>}
-                          {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${vPill.cls}`}>{ta(VERIF_LABEL_KEYS[k.verifikationStatus!] ?? "pillUnverified")}</span>}
+                          {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${kPill.cls}`}>{kPill.label}</span>}
                           {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
@@ -431,13 +429,13 @@ export default async function DashboardPage() {
             </div>
             <div className="divide-y divide-gray-50">
               {orgasmusEntries.map((e) => (
-                <div key={e.id} className="px-5 py-3 hover:bg-gray-50/60 transition">
-                  <div className="flex items-center gap-1 min-w-0">
+                <div key={e.id} className="px-5 py-3 flex items-start gap-3 hover:bg-gray-50/60 transition">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{formatDateTime(e.startTime, dl)}</p>
-                    <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}`} />
+                    <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
+                    {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
                   </div>
-                  <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
-                  {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
+                  <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}`} />
                 </div>
               ))}
             </div>

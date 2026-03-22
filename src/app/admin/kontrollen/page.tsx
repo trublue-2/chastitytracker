@@ -5,7 +5,7 @@ import Link from "next/link";
 import KontrolleActions from "./KontrolleActions";
 import ImageViewer from "@/app/components/ImageViewer";
 import { getTranslations, getLocale } from "next-intl/server";
-import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
+import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 
 export default async function AdminKontrollenPage({
@@ -124,21 +124,21 @@ export default async function AdminKontrollenPage({
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="divide-y divide-gray-50">
             {rows.map((row, i) => {
-              const aPill = row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
-              const vPill = row.verifikationStatus ? VERIFIKATION_PILLS[row.verifikationStatus] : null;
+              const kPill = row.entryId
+                ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus)
+                : (row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null);
               return (
-                <div key={i} className="px-5 py-4 flex flex-col sm:flex-row sm:items-start gap-3">
+                <div key={i} className="px-4 py-3 flex items-start gap-3">
                   {row.imageUrl && (
-                    <ImageViewer src={row.imageUrl} alt={t("kontrollenTitle")} width={64} height={64}
-                      className="w-14 h-14 rounded-xl object-cover flex-shrink-0" kommentar={row.kommentar} />
+                    <ImageViewer src={row.imageUrl} alt={t("kontrollenTitle")} width={40} height={40}
+                      className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={row.kommentar} />
                   )}
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       {!userId && (
                         <span className="font-semibold text-gray-900 text-sm">{row.username}</span>
                       )}
-                      {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{aPill.label}</span>}
-                      {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${vPill.cls}`}>{vPill.label}</span>}
+                      {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${kPill.cls}`}>{kPill.label}</span>}
                       {row.code && <span className="font-mono font-bold text-orange-500 text-sm">{row.code}</span>}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">

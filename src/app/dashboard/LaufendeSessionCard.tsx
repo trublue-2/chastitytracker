@@ -1,7 +1,7 @@
 import { Lock, CheckCircle2, Droplets } from "lucide-react";
 import { formatHours, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale } from "@/lib/utils";
 import { getTranslations, getLocale } from "next-intl/server";
-import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
+import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
 import SessionEventRow from "./SessionEventRow";
 
@@ -140,12 +140,10 @@ export default async function LaufendeSessionCard({
           const exifStr = ev.imageExifTime && hasExifMismatch(ev.imageExifTime, ev.time)
             ? formatDateTime(ev.imageExifTime, dl)
             : null;
-          const anforderungLabel = ev.kontrolleAnforderungStatus
-            ? (ANFORDERUNG_PILLS[ev.kontrolleAnforderungStatus]?.label ?? null)
-            : null;
-          const verifikationLabel = ev.kontrolleVerifikationStatus
-            ? (VERIFIKATION_PILLS[ev.kontrolleVerifikationStatus]?.label ?? null)
-            : null;
+          const kombiniertePill = getKombinierterPill(
+            ev.kontrolleAnforderungStatus ?? null,
+            ev.kontrolleVerifikationStatus ?? null,
+          );
           const icon =
             ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
             ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-orange-400" /> :
@@ -170,8 +168,8 @@ export default async function LaufendeSessionCard({
                 isOverdue: ev.kontrolleAnforderungStatus === "overdue",
                 kontrolleCode: ev.kontrolleCode ?? null,
                 kontrolleKommentar: ev.kontrolleKommentar ?? null,
-                kontrolleAnforderungLabel: anforderungLabel,
-                kontrolleVerifikationLabel: verifikationLabel,
+                kombiniertePillLabel: kombiniertePill?.label ?? null,
+                kombiniertePillCls: kombiniertePill?.cls ?? null,
                 orgasmusArt: ev.orgasmusArt ?? null,
               }}
             />

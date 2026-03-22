@@ -1,5 +1,35 @@
 [
   {
+    "version": "1.6.1",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontrollen: beide Stati (Anforderung + Verifikation) werden in einer einzigen kombinierten Pill angezeigt (z.B. «Erfüllt – KI-verifiziert»), Farbe nach Kombinationslogik"
+      },
+      {
+        "type": "feat",
+        "text": "Einträge ohne Kontrollanforderung als «Selbstkontrolle» gekennzeichnet"
+      },
+      {
+        "type": "fix",
+        "text": "Kontrollen: Verifizieren/Ablehnen wirkt auf den Eintrag (Entry), Zurückziehen auf die Anforderung"
+      },
+      {
+        "type": "fix",
+        "text": "Mobile-Optimierung Kontrolllisten: immer horizontales Layout mit Thumbnail links, Aktionen rechts"
+      },
+      {
+        "type": "fix",
+        "text": "Dashboard Kontrollliste entspricht jetzt der Admin-Ansicht (offene Anforderungen + Prüfungen getrennt)"
+      },
+      {
+        "type": "fix",
+        "text": "Orgasmusliste: Drei-Punkte-Menü rechtsbündig"
+      }
+    ]
+  },
+  {
     "version": "1.6.0",
     "date": "2026-03-22",
     "changes": [
