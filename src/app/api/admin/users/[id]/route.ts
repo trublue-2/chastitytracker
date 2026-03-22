@@ -30,6 +30,14 @@ export async function PATCH(
     return NextResponse.json({ id: user.id, email: user.email });
   }
 
+  if (body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined) {
+    const data: { reinigungErlaubt?: boolean; reinigungMaxMinuten?: number } = {};
+    if (body.reinigungErlaubt !== undefined) data.reinigungErlaubt = Boolean(body.reinigungErlaubt);
+    if (body.reinigungMaxMinuten !== undefined) data.reinigungMaxMinuten = Math.max(1, Math.min(120, Number(body.reinigungMaxMinuten) || 15));
+    await prisma.user.update({ where: { id }, data });
+    return NextResponse.json({ ok: true });
+  }
+
   if (!["admin", "user"].includes(body.role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }

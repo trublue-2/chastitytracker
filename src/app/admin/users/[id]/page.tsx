@@ -12,6 +12,7 @@ import { getActiveVorgabe } from "@/lib/queries";
 import { KONTROLLE_PILLS, ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
+import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import PairRow from "@/app/dashboard/PairRow";
 import StatusBanner from "@/app/dashboard/StatusBanner";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
@@ -70,19 +71,18 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
-  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, userSettings] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
     }),
-    prisma.user.findUnique({ where: { id }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
   ]);
 
   const reinigung: ReinigungSettings = {
-    erlaubt: userSettings?.reinigungErlaubt ?? false,
-    maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
+    erlaubt: user.reinigungErlaubt,
+    maxMinuten: user.reinigungMaxMinuten,
   };
 
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
@@ -186,6 +186,15 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             entryId: e.id,
             orgasmusArt: e.orgasmusArt,
           })),
+        ...activePair.interruptions.map((intr) => ({
+          type: "reinigung" as const,
+          time: intr.oeffnen.startTime,
+          imageUrl: null,
+          imageExifTime: null,
+          note: intr.oeffnen.note,
+          entryId: null,
+          pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
+        })),
       ].sort((a, b) => a.time.getTime() - b.time.getTime())
     : [];
 
@@ -217,9 +226,16 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             }
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ChangeEmailButton userId={user.id} currentEmail={user.email ?? null} />
-          <ChangePasswordButton userId={user.id} />
+        <div className="flex flex-col gap-2 items-end">
+          <div className="flex items-center gap-2">
+            <ChangeEmailButton userId={user.id} currentEmail={user.email ?? null} />
+            <ChangePasswordButton userId={user.id} />
+          </div>
+          <ReinigungToggle
+            userId={user.id}
+            initialErlaubt={user.reinigungErlaubt}
+            initialMaxMinuten={user.reinigungMaxMinuten}
+          />
         </div>
       </div>
 

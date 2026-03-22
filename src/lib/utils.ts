@@ -183,17 +183,12 @@ export function buildPairs<
     }
   }
 
-  // Handle open session (still wearing or in reinigung pause)
+  // Handle open session (still wearing or pending reinigung)
   if (pending) {
     if (pendingReinigung && reinigung?.erlaubt) {
-      const dt = (Date.now() - pendingReinigung.startTime.getTime()) / 60000;
-      if (dt > reinigung.maxMinuten) {
-        // Reinigung timed out – session ended at reinigung OEFFNEN
-        pairs.push({ verschluss: pending, oeffnen: pendingReinigung, active: false, kontrollen: [], interruptions: currentInterruptions });
-      } else {
-        // Still in valid reinigung window – treat as active
-        pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [], interruptions: currentInterruptions });
-      }
+      // Device is currently open for cleaning – show session as ended at reinigung OEFFNEN.
+      // If user re-locks within maxMinuten, the next page load will merge it as an interruption.
+      pairs.push({ verschluss: pending, oeffnen: pendingReinigung, active: false, kontrollen: [], interruptions: currentInterruptions });
     } else {
       pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [], interruptions: currentInterruptions });
     }
@@ -225,14 +220,15 @@ export function photoStatus(v: { imageUrl: string | null; imageExifTime: Date | 
   return "ok";
 }
 
-/** Berechnet Tragedauer in Stunden innerhalb eines Zeitraums.
- *  Reinigungspausen (OEFFNEN mit oeffnenGrund=REINIGUNG gefolgt von VERSCHLUSS
- *  innerhalb maxMinuten) werden von der Tragedauer abgezogen. */
+/** Berechnet effektive Tragedauer in Stunden innerhalb eines Zeitraums.
+ *  Jedes OEFFNEN (inkl. REINIGUNG) stoppt die Tragedauer – Pausen werden
+ *  dadurch automatisch ausgeschlossen. Das reinigung-Param wird für die
+ *  Signatur-Kompatibilität beibehalten, ändert aber die Berechnung nicht. */
 export function wearingHoursInRange(
   entries: { type: string; startTime: Date; oeffnenGrund?: string | null }[],
   from: Date,
   to: Date,
-  reinigung?: ReinigungSettings
+  _reinigung?: ReinigungSettings
 ): number {
   const sorted = [...entries]
     .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
@@ -240,69 +236,21 @@ export function wearingHoursInRange(
 
   let total = 0;
   let wearStart: Date | null = null;
-  let pendingReinigung: Date | null = null;
 
   for (const e of sorted) {
     if (e.type === "VERSCHLUSS") {
-      if (pendingReinigung && reinigung?.erlaubt) {
-        const dt = (e.startTime.getTime() - pendingReinigung.getTime()) / 60000;
-        if (dt <= reinigung.maxMinuten) {
-          // Valid interruption – subtract pause, continue wearing
-          const pauseS = Math.max(pendingReinigung.getTime(), from.getTime());
-          const pauseE = Math.min(e.startTime.getTime(), to.getTime());
-          if (pauseE > pauseS) total -= pauseE - pauseS;
-          pendingReinigung = null;
-        } else {
-          // Timeout – close wear at pendingReinigung, start new
-          const s = Math.max(wearStart!.getTime(), from.getTime());
-          const end = Math.min(pendingReinigung.getTime(), to.getTime());
-          if (end > s) total += end - s;
-          wearStart = e.startTime;
-          pendingReinigung = null;
-        }
-      } else {
-        wearStart = e.startTime;
-      }
+      wearStart = e.startTime;
     } else if (e.type === "OEFFNEN" && wearStart) {
-      if (reinigung?.erlaubt && e.oeffnenGrund === "REINIGUNG") {
-        pendingReinigung = e.startTime;
-        // Add wear up to this point (will subtract pause later if re-lock in time)
-        const s = Math.max(wearStart.getTime(), from.getTime());
-        const end = Math.min(e.startTime.getTime(), to.getTime());
-        if (end > s) total += end - s;
-        wearStart = null;
-      } else {
-        if (pendingReinigung) {
-          // Pending reinigung, then another regular open – close at pendingReinigung
-          const s = Math.max(wearStart.getTime(), from.getTime());
-          const end = Math.min(pendingReinigung.getTime(), to.getTime());
-          if (end > s) total += end - s;
-          wearStart = null;
-          pendingReinigung = null;
-        } else {
-          const s = Math.max(wearStart.getTime(), from.getTime());
-          const end = Math.min(e.startTime.getTime(), to.getTime());
-          if (end > s) total += end - s;
-          wearStart = null;
-        }
-      }
+      const s = Math.max(wearStart.getTime(), from.getTime());
+      const end = Math.min(e.startTime.getTime(), to.getTime());
+      if (end > s) total += end - s;
+      wearStart = null;
     }
   }
-
   if (wearStart) {
     const s = Math.max(wearStart.getTime(), from.getTime());
     const end = to.getTime();
     if (end > s) total += end - s;
-  } else if (pendingReinigung && reinigung?.erlaubt) {
-    // In reinigung pause at end of range – check timeout
-    const dt = (to.getTime() - pendingReinigung.getTime()) / 60000;
-    if (dt <= reinigung.maxMinuten) {
-      // Still within window – add pause time back (session is still active)
-      const s = Math.max(pendingReinigung.getTime(), from.getTime());
-      const end = to.getTime();
-      if (end > s) total += end - s;
-    }
-    // else: timed out – wear already accounted for up to pendingReinigung
   }
 
   return total / (1000 * 60 * 60);

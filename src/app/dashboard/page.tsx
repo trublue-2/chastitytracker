@@ -187,6 +187,15 @@ export default async function DashboardPage() {
             entryId: e.id,
             orgasmusArt: e.orgasmusArt,
           })),
+        ...activePair.interruptions.map((intr) => ({
+          type: "reinigung" as const,
+          time: intr.oeffnen.startTime,
+          imageUrl: null,
+          imageExifTime: null,
+          note: intr.oeffnen.note,
+          entryId: null,
+          pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
+        })),
       ].sort((a, b) => a.time.getTime() - b.time.getTime())
     : [];
 
