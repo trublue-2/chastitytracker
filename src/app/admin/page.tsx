@@ -39,7 +39,7 @@ async function getUserStats(userId: string) {
 
   const now = new Date();
   const offeneKontrolle = await prisma.kontrollAnforderung.findFirst({
-    where: { userId, fulfilledAt: null, withdrawnAt: null },
+    where: { userId, entryId: null, withdrawnAt: null },
     orderBy: { createdAt: "desc" },
   });
 

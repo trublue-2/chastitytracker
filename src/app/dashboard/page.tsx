@@ -20,7 +20,7 @@ type Entry = {
   imageExifTime: Date | null;
   note: string | null;
   orgasmusArt: string | null;
-  aiVerified: boolean | null;
+  verifikationStatus: string | null;
   kontrollCode: string | null;
   oeffnenGrund: string | null;
 };
@@ -31,6 +31,7 @@ type KontrolleItem = {
   imageUrl: string | null;
   code: string | null;
   deadline: Date | null;
+  kommentar: string | null;
   status: "open" | "overdue" | "fulfilled" | "ai" | "manual" | "rejected" | "withdrawn";
   entryId: string | null;
 };
@@ -62,11 +63,14 @@ function buildPairs(entries: Entry[], kontrollen: KontrolleItem[]): Pair[] {
   if (pending) pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [] });
 
   for (const k of kontrollen) {
-    const pair = pairs.find((pair) => {
-      const start = pair.verschluss.startTime.getTime();
-      const end = pair.oeffnen ? pair.oeffnen.startTime.getTime() : Infinity;
-      return k.time.getTime() >= start && k.time.getTime() <= end;
-    });
+    // Pick the most-recent (latest verschluss) pair that contains k.time
+    const pair = pairs.reduce<Pair | null>((best, p) => {
+      const start = p.verschluss.startTime.getTime();
+      const end = p.oeffnen ? p.oeffnen.startTime.getTime() : Infinity;
+      if (k.time.getTime() < start || k.time.getTime() > end) return best;
+      if (!best) return p;
+      return p.verschluss.startTime > best.verschluss.startTime ? p : best;
+    }, null);
     if (pair) pair.kontrollen.push(k);
   }
 
@@ -99,62 +103,58 @@ export default async function DashboardPage() {
   const now = new Date();
   const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
-    prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.trainingVorgabe.findFirst({
       where: { userId, gueltigAb: { lte: now }, OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }] },
       orderBy: { gueltigAb: "desc" },
     }),
     prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null }, // VerschlussAnforderung still has fulfilledAt
     }),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
     }),
   ]);
 
-  const offeneKontrolle = alleAnforderungen.find(k => !k.fulfilledAt && !k.withdrawnAt) ?? null;
+  const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
   // Build unified KontrolleItems
-  const anforderungCodes = new Set(alleAnforderungen.map(k => k.code).filter(Boolean));
+  const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
   const pruefungEntries = entries.filter(e => e.type === "PRUEFUNG");
-  const pruefungByCode = new Map(
-    pruefungEntries.filter(e => e.kontrollCode && anforderungCodes.has(e.kontrollCode))
-      .map(e => [e.kontrollCode!, e])
-  );
-  const usedEntryIds = new Set(Array.from(pruefungByCode.values()).map(e => e.id));
 
   const kontrollItems: KontrolleItem[] = [
-    // KontrollAnforderungen (requested)
+    // KontrollAnforderungen (mit FK verknüpft)
     ...alleAnforderungen.map(k => {
-      const pEntry = pruefungByCode.get(k.code ?? "");
-      const aiVerified = pEntry?.aiVerified ?? null;
+      const vs = k.entry?.verifikationStatus ?? null;
       const status: KontrolleItem["status"] =
-        k.rejectedAt ? "rejected" :
-        k.manuallyVerifiedAt ? "manual" :
-        aiVerified === true ? "ai" :
-        k.fulfilledAt ? "fulfilled" :
         k.withdrawnAt ? "withdrawn" :
-        k.deadline < new Date() ? "overdue" : "open";
+        !k.entryId ? (k.deadline < new Date() ? "overdue" : "open") :
+        vs === "rejected" ? "rejected" :
+        vs === "manual" ? "manual" :
+        vs === "ai" ? "ai" :
+        "fulfilled";
       return {
         id: k.id,
-        time: pEntry ? pEntry.startTime : k.createdAt,
-        imageUrl: pEntry?.imageUrl ?? null,
+        time: k.entry ? k.entry.startTime : k.createdAt,
+        imageUrl: k.entry?.imageUrl ?? null,
         code: k.code,
         deadline: k.deadline,
+        kommentar: k.kommentar ?? null,
         status,
-        entryId: pEntry?.id ?? null,
+        entryId: k.entry?.id ?? null,
       };
     }),
-    // Standalone PRUEFUNG entries (self-submitted, no matching KontrollAnforderung)
+    // Standalone PRUEFUNG entries (ohne KontrollAnforderung)
     ...pruefungEntries
-      .filter(e => !usedEntryIds.has(e.id))
+      .filter(e => !linkedEntryIds.has(e.id))
       .map(e => ({
         id: e.id,
         time: e.startTime,
         imageUrl: e.imageUrl,
         code: e.kontrollCode,
         deadline: null as Date | null,
-        status: (e.aiVerified === true ? "ai" : "fulfilled") as KontrolleItem["status"],
+        kommentar: null as string | null,
+        status: (e.verifikationStatus === "ai" ? "ai" : "fulfilled") as KontrolleItem["status"],
         entryId: e.id,
       })),
   ];
@@ -187,16 +187,23 @@ export default async function DashboardPage() {
           type: "verschluss" as const,
           time: activePair.verschluss.startTime,
           imageUrl: activePair.verschluss.imageUrl,
+          imageExifTime: activePair.verschluss.imageExifTime,
           note: activePair.verschluss.note,
+          entryId: activePair.verschluss.id,
         },
         ...activePair.kontrollen
-          .filter((k) => ["fulfilled", "ai", "manual"].includes(k.status))
+          .filter((k) => k.status !== "withdrawn")
           .map((k) => ({
             type: "kontrolle" as const,
             time: k.time,
             imageUrl: k.imageUrl,
+            imageExifTime: null,
             note: null,
+            entryId: k.entryId,
+            deadline: k.deadline,
+            kontrolleKommentar: k.kommentar,
             kontrolleCode: k.code,
+            kontrolleStatus: k.status,
           })),
         ...orgasmusEntries
           .filter((e) => e.startTime >= activePair.verschluss.startTime)
@@ -204,7 +211,9 @@ export default async function DashboardPage() {
             type: "orgasmus" as const,
             time: e.startTime,
             imageUrl: e.imageUrl,
+            imageExifTime: null,
             note: e.note,
+            entryId: e.id,
             orgasmusArt: e.orgasmusArt,
           })),
       ].sort((a, b) => a.time.getTime() - b.time.getTime())
@@ -225,8 +234,22 @@ export default async function DashboardPage() {
       <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
         <h1 className="text-xl font-bold text-gray-900">{t("title")}</h1>
 
-        {/* ── Status Banner ── */}
-        <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
+        {/* ── Status / Laufende Session ── */}
+        {activePair ? (
+          <LaufendeSessionCard
+            sessionStart={activePair.verschluss.startTime}
+            now={now}
+            events={sessionEvents}
+            sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+            sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
+            activeVorgabe={activeVorgabe}
+            tagH={tagH}
+            wocheH={wocheH}
+            monatH={monatH}
+          />
+        ) : (
+          <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
+        )}
 
         {/* ── Verschluss-Anforderung Banner ── */}
         {offeneVerschlussAnf && (
@@ -246,8 +269,8 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Sperrzeit Banner ── */}
-        {activeSperrzeit && currentStatus?.type === "VERSCHLUSS" && (
+        {/* ── Sperrzeit Banner (nur wenn nicht verschlossen, da dann im Session-Header) ── */}
+        {activeSperrzeit && !activePair && currentStatus?.type === "VERSCHLUSS" && (
           <div className="flex flex-col gap-1.5 bg-rose-50 border border-rose-200 rounded-2xl px-5 py-4">
             <div className="flex items-center gap-2">
               <Lock size={15} className="text-rose-600 shrink-0" />
@@ -287,26 +310,12 @@ export default async function DashboardPage() {
           <StatCard label={t("totalDuration")} value={totalFormatted} />
         </div>
 
-        {/* ── Laufende Session ── */}
-        {activePair && (
-          <LaufendeSessionCard
-            sessionStart={activePair.verschluss.startTime}
-            now={now}
-            events={sessionEvents}
-            sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
-            activeVorgabe={activeVorgabe}
-            tagH={tagH}
-            wocheH={wocheH}
-            monatH={monatH}
-          />
-        )}
-
         {/* ── Trainingsvorgabe ── */}
         {activeVorgabe && !activePair && (
           <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">{t("trainingGoals")}</p>
             <div className="flex items-start gap-3">
-              <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{tCommon("active")}</span>
+              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{tCommon("active")}</span>
               <div>
                 <p className="text-sm font-semibold text-gray-700">
                   {new Date(activeVorgabe.gueltigAb).toLocaleDateString(dl)} → {activeVorgabe.gueltigBis ? new Date(activeVorgabe.gueltigBis).toLocaleDateString(dl) : tCommon("open")}
@@ -322,7 +331,7 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Einschluss-Liste ── */}
+        {/* ── Einschluss-Liste ── (ausgeblendet)
         {pairs.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
             {t("noEntries")}
@@ -350,7 +359,7 @@ export default async function DashboardPage() {
                       imageExifTime: verschluss.imageExifTime?.toISOString() ?? null,
                       note: verschluss.note,
                       kontrollCode: verschluss.kontrollCode,
-                      aiVerified: verschluss.aiVerified,
+                      verifikationStatus: verschluss.verifikationStatus,
                       oeffnenGrund: verschluss.oeffnenGrund,
                     }}
                     oeffnen={oeffnen ? {
@@ -361,7 +370,7 @@ export default async function DashboardPage() {
                       note: oeffnen.note,
                       oeffnenGrund: oeffnen.oeffnenGrund,
                       kontrollCode: oeffnen.kontrollCode,
-                      aiVerified: oeffnen.aiVerified,
+                      verifikationStatus: oeffnen.verifikationStatus,
                     } : null}
                     active={active}
                     duration={duration}
@@ -377,6 +386,7 @@ export default async function DashboardPage() {
             </div>
           </div>
         )}
+        */}
 
         {/* ── Kontrollen ── */}
         {kontrollItems.length > 0 && (

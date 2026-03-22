@@ -21,7 +21,7 @@ interface PairEntry {
   note: string | null;
   oeffnenGrund: string | null;
   kontrollCode: string | null;
-  aiVerified: boolean | null;
+  verifikationStatus: string | null;
 }
 
 interface Props {
@@ -176,7 +176,7 @@ function DetailModal({
         {entry.oeffnenGrund && (
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Grund</p>
-            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
+            <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700">
               {GRUND_LABELS[entry.oeffnenGrund] ?? entry.oeffnenGrund}
             </span>
           </div>
@@ -282,8 +282,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
                 <EntryActions id={oeffnen.id} editHref={`/dashboard/edit/${oeffnen.id}`} />
               </div>
               {oeffnen.oeffnenGrund && (
-                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full self-start
-                  bg-blue-50 text-blue-700">
+                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 self-start">
                   {GRUND_LABELS[oeffnen.oeffnenGrund] ?? oeffnen.oeffnenGrund}
                 </span>
               )}
@@ -294,7 +293,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
               )}
             </>
           ) : active ? (
-            <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full self-start">
+            <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full self-start">
               {td("stillLocked")}
             </span>
           ) : (

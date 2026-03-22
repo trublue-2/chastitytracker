@@ -15,7 +15,7 @@ interface Props {
     imageExifTime?: string | null;
     note?: string | null;
     kontrollCode?: string | null;
-    aiVerified?: boolean | null;
+    verifikationStatus?: string | null;
   };
   initialCode?: string;
   initialKommentar?: string;
@@ -43,7 +43,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
   const [exifWarning, setExifWarning] = useState("");
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
   const [verifyReason, setVerifyReason] = useState<string | null>(null);
-  const [aiVerified, setAiVerified] = useState<boolean | null>(initial?.aiVerified ?? null);
+  const [aiMatch, setAiMatch] = useState<boolean | null>(null);
   const lastVerifiedKey = useRef<string>("");
 
   // Wenn Code manuell auf 5 Zeichen gesetzt wird und Bild vorhanden → Verifikation auslösen
@@ -53,7 +53,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
       lastVerifiedKey.current = key;
       setVerifyStatus("pending");
       setVerifyReason(null);
-      setAiVerified(null);
+      setAiMatch(null);
       fetch("/api/verify-kontrolle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,7 +68,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
           } else {
             setVerifyStatus(v.match ? "match" : "mismatch");
             setVerifyReason(v.reason ?? null);
-            setAiVerified(v.match ? true : false);
+            setAiMatch(v.match ? true : false);
           }
         })
         .catch(() => setVerifyStatus("error"));
@@ -82,7 +82,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
     setError("");
     setVerifyStatus(null);
     setVerifyReason(null);
-    setAiVerified(null);
+    setAiMatch(null);
 
     // iOS Safari strips EXIF — use file.lastModified as capture time (accurate for camera shots)
     const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
@@ -125,7 +125,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
           imageExifTime: imageExifTime || null,
           note: note || null,
           kontrollCode: kontrollCode || null,
-          aiVerified: aiVerified,
+          verifikationStatus: aiMatch === true ? "ai" : null,
         }),
       }
     );

@@ -64,7 +64,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-semibold text-gray-700 capitalize">{m.label}</p>
               {m.monthGoalMet !== null && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.monthGoalMet ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${m.monthGoalMet ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
                   {m.monthGoalMet ? "✓ Monatsziel" : `${m.monthGoalPct}%`}
                 </span>
               )}

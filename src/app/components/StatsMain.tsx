@@ -11,7 +11,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; aiVerified?: boolean | null };
+type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null };
 type WearPair = { start: Date; end: Date };
 type CompletedPair = { verschluss: Entry; oeffnen: Entry; durationMs: number };
 type Vorgabe = {
@@ -154,26 +154,27 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
   const [entries, vorgaben, kontrollen, sperrzeiten] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "asc" } }),
     prisma.trainingVorgabe.findMany({ where: { userId }, orderBy: { gueltigAb: "desc" } }),
-    prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
   ]);
 
-  const anforderungCodes = new Set(kontrollen.map(k => k.code).filter(Boolean));
+  const linkedEntryIds = new Set(kontrollen.map(k => k.entryId).filter(Boolean));
   const allPruefungen = entries.filter(e => e.type === "PRUEFUNG");
-  const pruefungByCode = new Map(allPruefungen.filter(e => e.kontrollCode && anforderungCodes.has(e.kontrollCode)).map(e => [e.kontrollCode!, e]));
-  const standalonePruefungen = allPruefungen.filter(e => !e.kontrollCode || !anforderungCodes.has(e.kontrollCode));
+  const standalonePruefungen = allPruefungen.filter(e => !linkedEntryIds.has(e.id));
 
-  type UnifiedKontrolle = { id: string; time: Date; status: string; code: string | null; deadline: Date | null; fulfilledAt: Date | null; rejectedAt: Date | null };
+  type UnifiedKontrolle = { id: string; time: Date; status: string; code: string | null; deadline: Date | null; entryTime: Date | null };
   const unifiedKontrollen: UnifiedKontrolle[] = [
     ...kontrollen.map(k => {
-      const pEntry = pruefungByCode.get(k.code ?? "");
+      const vs = k.entry?.verifikationStatus ?? null;
       const kNow = new Date();
-      const status = k.rejectedAt ? "rejected" : k.manuallyVerifiedAt ? "manual" : pEntry?.aiVerified === true ? "ai" : k.fulfilledAt ? "fulfilled" : k.withdrawnAt ? "withdrawn" : k.deadline < kNow ? "overdue" : "open";
-      return { id: k.id, time: pEntry?.startTime ?? k.createdAt, status, code: k.code, deadline: k.deadline, fulfilledAt: k.fulfilledAt, rejectedAt: k.rejectedAt };
+      const status = k.withdrawnAt ? "withdrawn" :
+        !k.entryId ? (k.deadline < kNow ? "overdue" : "open") :
+        vs === "rejected" ? "rejected" : vs === "manual" ? "manual" : vs === "ai" ? "ai" : "fulfilled";
+      return { id: k.id, time: k.entry ? k.entry.startTime : k.createdAt, status, code: k.code, deadline: k.deadline, entryTime: k.entry?.startTime ?? null };
     }),
     ...standalonePruefungen.map(e => ({
-      id: e.id, time: e.startTime, status: e.aiVerified === true ? "ai" : "fulfilled",
-      code: e.kontrollCode ?? null, deadline: null, fulfilledAt: e.startTime, rejectedAt: null,
+      id: e.id, time: e.startTime, status: e.verifikationStatus === "ai" ? "ai" : "fulfilled",
+      code: e.kontrollCode ?? null, deadline: null, entryTime: e.startTime,
     })),
   ].sort((a, b) => b.time.getTime() - a.time.getTime());
 
@@ -359,7 +360,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
         <section className="bg-white rounded-2xl border border-indigo-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-indigo-50 flex items-center justify-between">
             <p className="text-sm font-bold text-gray-900">{t("trainingGoals")}</p>
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">{tc("active")}</span>
+            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{tc("active")}</span>
           </div>
           <div className="px-6 py-4 flex flex-col gap-4">
             {activeVorgabe.minProTagH && (
@@ -437,17 +438,17 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
               const label = pillLabels[k.status] ?? pillLabels["fulfilled"];
               return (
                 <div key={k.id} className="px-5 py-3 flex items-center gap-3">
-                  <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${cls}`}>{label}</span>
+                  <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${cls}`}>{label}</span>
                   {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
                   {k.deadline
                     ? <span className="text-xs text-gray-400 truncate">{t("deadlineLabel")}: {new Date(k.deadline).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                     : <span className="text-xs text-gray-400 truncate">{k.time.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                   }
-                  {k.fulfilledAt && !k.rejectedAt && (
-                    <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{t("fulfilled")}: {new Date(k.fulfilledAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                  {k.entryTime && k.status !== "rejected" && (
+                    <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{t("fulfilled")}: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                   )}
-                  {k.rejectedAt && (
-                    <span className="text-xs text-red-400 ml-auto flex-shrink-0">{t("rejected")}: {new Date(k.rejectedAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                  {k.status === "rejected" && k.entryTime && (
+                    <span className="text-xs text-red-400 ml-auto flex-shrink-0">{t("rejected")}: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                   )}
                 </div>
               );
@@ -513,7 +514,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                   </span>
                   <span className="text-sm text-gray-900 tabular-nums">{formatDateTime(e.startTime, dl)}</span>
                   {kontrollStatus && (
-                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${KONTROLLE_PILLS[kontrollStatus].cls}`}>
+                    <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${KONTROLLE_PILLS[kontrollStatus].cls}`}>
                       {({ open: ta("pillOpen"), overdue: ta("pillOverdue"), fulfilled: ta("pillFulfilled"), ai: ta("pillAi"), manual: ta("pillManual"), rejected: ta("pillRejected"), withdrawn: ta("pillWithdrawn") } as Record<string,string>)[kontrollStatus] ?? kontrollStatus}
                     </span>
                   )}
@@ -560,7 +561,7 @@ function GoalBar({ label, actual, target, sub, reachedLabel }: { label: string; 
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-sm font-semibold text-gray-700">{label}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${reached ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${reached ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
           {reached ? reachedLabel : `${Math.round(pct)}%`}
         </span>
       </div>

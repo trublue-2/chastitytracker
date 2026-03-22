@@ -10,25 +10,11 @@ export async function GET() {
 
   const kontrollen = await prisma.kontrollAnforderung.findMany({
     orderBy: { createdAt: "desc" },
-    include: { user: { select: { username: true } } },
+    include: {
+      user: { select: { username: true } },
+      entry: true,
+    },
   });
 
-  // Fetch associated PRUEFUNG entries for fulfilled kontrollen
-  const fulfilled = kontrollen.filter((k) => k.fulfilledAt && k.code);
-  const entries = fulfilled.length > 0
-    ? await prisma.entry.findMany({
-        where: {
-          type: "PRUEFUNG",
-          OR: fulfilled.map((k) => ({ userId: k.userId, kontrollCode: k.code })),
-        },
-        select: { userId: true, kontrollCode: true, aiVerified: true, id: true },
-      })
-    : [];
-
-  const result = kontrollen.map((k) => {
-    const entry = entries.find((e) => e.userId === k.userId && e.kontrollCode === k.code) ?? null;
-    return { ...k, entry };
-  });
-
-  return NextResponse.json(result);
+  return NextResponse.json(kontrollen);
 }

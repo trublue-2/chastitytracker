@@ -78,7 +78,7 @@
     "title": "KG Tracker",
     "lockRequested": "Einschliessen angefordert",
     "lockUntil": "Bitte bis {date} einschliessen",
-    "locked": "KG gesperrt",
+    "locked": "Verschlossen",
     "openingForbiddenUntil": "Öffnen nicht erlaubt bis {date}",
     "inspectionRequired": "Kontrolle erforderlich",
     "entries": "Einschlüsse",
@@ -103,7 +103,11 @@
     "sessionSince": "Seit",
     "sessionLockedUntil": "Gesperrt bis",
     "sessionKontrolle": "Kontrolle",
-    "sessionOrgasmus": "Orgasmus"
+    "sessionOrgasmus": "Orgasmus",
+    "captureNow": "Jetzt erfassen",
+    "inspectionOverdue": "Kontrolle überfällig",
+    "overduePrefix": "Überfällig seit",
+    "untilPrefix": "Bis"
   },
   "newEntry": {
     "title": "Neu erfassen",

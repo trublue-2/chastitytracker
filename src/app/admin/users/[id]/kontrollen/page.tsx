@@ -9,20 +9,17 @@ import KontrolleButton from "@/app/admin/KontrolleButton";
 import UserNav from "../UserNav";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 
-function getStatus(k: {
-  fulfilledAt: Date | null;
+function getStatus(ka: {
+  entryId: string | null;
   withdrawnAt: Date | null;
-  manuallyVerifiedAt: Date | null;
-  rejectedAt: Date | null;
   deadline: Date;
-}, aiVerified: boolean | null) {
-  if (k.withdrawnAt) return "withdrawn";
-  if (k.rejectedAt) return "rejected";
-  if (k.manuallyVerifiedAt) return "manual";
-  if (aiVerified === true) return "ai";
-  if (k.fulfilledAt) return "fulfilled";
-  if (k.deadline < new Date()) return "overdue";
-  return "open";
+}, verifikationStatus: string | null): string {
+  if (ka.withdrawnAt) return "withdrawn";
+  if (!ka.entryId) return ka.deadline < new Date() ? "overdue" : "open";
+  if (verifikationStatus === "rejected") return "rejected";
+  if (verifikationStatus === "manual") return "manual";
+  if (verifikationStatus === "ai") return "ai";
+  return "fulfilled";
 }
 
 const statusLabel: Record<string, string> = {
@@ -52,7 +49,11 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/kontrollen`);
 
   const [kontrollen, latestEntry] = await Promise.all([
-    prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" } }),
+    prisma.kontrollAnforderung.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: "desc" },
+      include: { entry: true },
+    }),
     prisma.entry.findFirst({
       where: { userId: id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
       orderBy: { startTime: "desc" },
@@ -61,21 +62,10 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
 
   const isLocked = latestEntry?.type === "VERSCHLUSS";
 
-  const fulfilled = kontrollen.filter((k) => k.fulfilledAt && k.code);
-  const entries = fulfilled.length > 0
-    ? await prisma.entry.findMany({
-        where: {
-          type: "PRUEFUNG",
-          OR: fulfilled.map((k) => ({ userId: k.userId, kontrollCode: k.code })),
-        },
-        select: { userId: true, kontrollCode: true, aiVerified: true, imageUrl: true },
-      })
-    : [];
-
-  const rows = kontrollen.map((k) => {
-    const entry = entries.find((e) => e.userId === k.userId && e.kontrollCode === k.code) ?? null;
-    return { ...k, entry, status: getStatus(k, entry?.aiVerified ?? null) };
-  });
+  const rows = kontrollen.map((k) => ({
+    ...k,
+    status: getStatus(k, k.entry?.verifikationStatus ?? null),
+  }));
 
   return (
     <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
@@ -87,7 +77,6 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
         </div>
       )}
 
-      {/* Offene / überfällige Kontrolle – prominenter Banner */}
       {rows.filter(r => r.status === "open" || r.status === "overdue").map(k => (
         <KontrolleBanner
           key={k.id}
@@ -96,10 +85,9 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
           kommentar={k.kommentar}
           overdue={k.status === "overdue"}
           variant="large"
-          actions={<KontrolleActions id={k.id} status={k.status} aiVerified={null} />}
+          actions={<KontrolleActions id={k.id} status={k.status} verifikationStatus={k.entry?.verifikationStatus ?? null} />}
         />
       ))}
-
 
       {rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
@@ -124,10 +112,8 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
                   <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
                     <span>Frist: {formatDateTime(k.deadline, dl)}</span>
                     <span>Erstellt: {formatDateTime(k.createdAt, dl)}</span>
-                    {k.fulfilledAt && !k.rejectedAt && <span>Erfüllt: {formatDateTime(k.fulfilledAt, dl)}</span>}
+                    {k.entry && <span>Erfüllt: {formatDateTime(k.entry.startTime, dl)}</span>}
                     {k.withdrawnAt && <span>Zurückgezogen: {formatDateTime(k.withdrawnAt, dl)}</span>}
-                    {k.manuallyVerifiedAt && <span>Verifiziert: {formatDateTime(k.manuallyVerifiedAt, dl)}</span>}
-                    {k.rejectedAt && <span>Abgelehnt: {formatDateTime(k.rejectedAt, dl)}</span>}
                   </div>
                   {k.kommentar && (
                     <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-0.5">
@@ -135,7 +121,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
                     </p>
                   )}
                 </div>
-                <KontrolleActions id={k.id} status={k.status} aiVerified={k.entry?.aiVerified ?? null} />
+                <KontrolleActions id={k.id} status={k.status} verifikationStatus={k.entry?.verifikationStatus ?? null} />
               </div>
             ))}
           </div>

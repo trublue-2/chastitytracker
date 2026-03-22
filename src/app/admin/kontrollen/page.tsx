@@ -6,20 +6,17 @@ import KontrolleActions from "./KontrolleActions";
 import ImageViewer from "@/app/components/ImageViewer";
 import { getTranslations, getLocale } from "next-intl/server";
 
-function getStatus(k: {
-  fulfilledAt: Date | null;
+function getStatus(ka: {
+  entryId: string | null;
   withdrawnAt: Date | null;
-  manuallyVerifiedAt: Date | null;
-  rejectedAt: Date | null;
   deadline: Date;
-}, aiVerified: boolean | null) {
-  if (k.withdrawnAt) return "withdrawn";
-  if (k.rejectedAt) return "rejected";
-  if (k.manuallyVerifiedAt) return "manual";
-  if (aiVerified === true) return "ai";
-  if (k.fulfilledAt) return "fulfilled";
-  if (k.deadline < new Date()) return "overdue";
-  return "open";
+}, verifikationStatus: string | null): string {
+  if (ka.withdrawnAt) return "withdrawn";
+  if (!ka.entryId) return ka.deadline < new Date() ? "overdue" : "open";
+  if (verifikationStatus === "rejected") return "rejected";
+  if (verifikationStatus === "manual") return "manual";
+  if (verifikationStatus === "ai") return "ai";
+  return "fulfilled";
 }
 
 const statusStyle: Record<string, string> = {
@@ -59,24 +56,16 @@ export default async function AdminKontrollenPage({
   const kontrollen = await prisma.kontrollAnforderung.findMany({
     where: userId ? { userId } : undefined,
     orderBy: { createdAt: "desc" },
-    include: { user: { select: { username: true } } },
+    include: {
+      user: { select: { username: true } },
+      entry: true,
+    },
   });
 
-  const fulfilled = kontrollen.filter((k) => k.fulfilledAt && k.code);
-  const entries = fulfilled.length > 0
-    ? await prisma.entry.findMany({
-        where: {
-          type: "PRUEFUNG",
-          OR: fulfilled.map((k) => ({ userId: k.userId, kontrollCode: k.code })),
-        },
-        select: { userId: true, kontrollCode: true, aiVerified: true, imageUrl: true },
-      })
-    : [];
-
-  const rows = kontrollen.map((k) => {
-    const entry = entries.find((e) => e.userId === k.userId && e.kontrollCode === k.code) ?? null;
-    return { ...k, entry, status: getStatus(k, entry?.aiVerified ?? null) };
-  });
+  const rows = kontrollen.map((k) => ({
+    ...k,
+    status: getStatus(k, k.entry?.verifikationStatus ?? null),
+  }));
 
   return (
     <main className="flex-1 w-full max-w-5xl px-6 py-8">
@@ -117,15 +106,13 @@ export default async function AdminKontrollenPage({
                     <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${statusStyle[k.status]}`}>
                       {statusLabel[k.status]}
                     </span>
+                    <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                    <span>{t("codeLabel")}: <span className="font-mono font-bold text-orange-500">{k.code}</span></span>
                     <span>{t("frist")}: {formatDateTime(k.deadline, dl)}</span>
                     <span>{t("createdLabel")}: {formatDateTime(k.createdAt, dl)}</span>
-                    {k.fulfilledAt && !k.rejectedAt && <span>{t("fulfilledLabel")}: {formatDateTime(k.fulfilledAt, dl)}</span>}
+                    {k.entry && <span>{t("fulfilledLabel")}: {formatDateTime(k.entry.startTime, dl)}</span>}
                     {k.withdrawnAt && <span>{t("withdrawnLabel")}: {formatDateTime(k.withdrawnAt, dl)}</span>}
-                    {k.manuallyVerifiedAt && <span>{t("verifiedLabel")}: {formatDateTime(k.manuallyVerifiedAt, dl)}</span>}
-                    {k.rejectedAt && <span>{t("rejectedLabel")}: {formatDateTime(k.rejectedAt, dl)}</span>}
                   </div>
                   {k.kommentar && (
                     <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-0.5">
@@ -133,7 +120,7 @@ export default async function AdminKontrollenPage({
                     </p>
                   )}
                 </div>
-                <KontrolleActions id={k.id} status={k.status} aiVerified={k.entry?.aiVerified ?? null} />
+                <KontrolleActions id={k.id} status={k.status} verifikationStatus={k.entry?.verifikationStatus ?? null} />
               </div>
             ))}
           </div>

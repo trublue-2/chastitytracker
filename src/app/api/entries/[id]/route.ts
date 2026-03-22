@@ -18,7 +18,7 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, aiVerified } = body;
+  const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus } = body;
 
   const entry = await prisma.entry.update({
     where: { id },
@@ -32,7 +32,7 @@ export async function PATCH(
       ...(oeffnenGrund !== undefined && { oeffnenGrund }),
       ...(orgasmusArt !== undefined && { orgasmusArt }),
       ...(kontrollCode !== undefined && { kontrollCode }),
-      ...(aiVerified !== undefined && { aiVerified: aiVerified !== null ? Boolean(aiVerified) : null }),
+      ...(verifikationStatus !== undefined && { verifikationStatus }),
     },
   });
 
@@ -54,15 +54,15 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await prisma.entry.delete({ where: { id } });
-
-  // Wenn eine Kontrolle gelöscht wird, KontrollAnforderung vollständig zurücksetzen
-  if (existing.type === "PRUEFUNG" && existing.kontrollCode) {
+  // Wenn eine Kontrolle gelöscht wird, KontrollAnforderung-Verknüpfung lösen
+  if (existing.type === "PRUEFUNG") {
     await prisma.kontrollAnforderung.updateMany({
-      where: { userId: existing.userId, code: existing.kontrollCode },
-      data: { fulfilledAt: null, manuallyVerifiedAt: null, rejectedAt: null },
+      where: { entryId: id },
+      data: { entryId: null },
     });
   }
+
+  await prisma.entry.delete({ where: { id } });
 
   return new NextResponse(null, { status: 204 });
 }
