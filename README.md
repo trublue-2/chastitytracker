@@ -4,19 +4,24 @@ Web-Applikation zur Erfassung von Keuschheitsgürtel-Einschlusszeiten. Benutzer 
 
 ## Stack
 
-- **Next.js 14** (App Router)
+- **Next.js 16** (App Router)
 - **NextAuth.js v5** (Credentials-Authentifizierung)
 - **Prisma 5** + SQLite
 - **Tailwind CSS**
+- **Lucide React** (Icons)
 - **Docker** (Produktion)
 - **Traefik** (Reverse-Proxy, SSL via Let's Encrypt)
 
 ## Features
 
 - Einträge erfassen: Verschluss, Öffnen, Prüfung, Orgasmus – mit Foto (EXIF-Zeitauswertung), Notiz und Zeitstempel
+- **Laufende Session**: Karte mit Echtzeit-Dauer, Ereignis-Timeline und Trainingsvorgaben-Fortschritt
+- **Kontrollanforderungen**: Admin sendet 5-stelligen Code per E-Mail → User macht Foto mit sichtbarem Code → Claude Vision wertet aus
+- **Sperrzeiten**: Admin kann Zeitraum setzen, in dem das Öffnen gesperrt ist
+- **Verschlussanforderungen**: Admin kann Verschluss einfordern
 - Statistik-Seite mit Kalenderansicht und Monatsübersicht
-- Trainingsvorgaben (min. Tragedauer pro Tag/Woche/Monat)
-- Admin-Bereich: Benutzerverwaltung, Vorgaben, User-Statistiken, Demo-User
+- Trainingsvorgaben (min. Tragedauer pro Tag/Woche/Monat) mit Fortschrittsbalken
+- Admin-Bereich: Benutzerverwaltung, Vorgaben, User-Statistiken, Demo-User, Kontrollen-Übersicht
 - Passwort-Reset via E-Mail (SMTP)
 - Mobile-optimiertes UI
 - Multi-Instanz-Betrieb: mehrere unabhängige Instanzen auf einem Server
@@ -138,10 +143,11 @@ Der Workflow **Build, Push & Deploy** wird manuell via `workflow_dispatch` anges
 | Modell | Felder |
 |--------|--------|
 | `User` | username, email, passwordHash, role (`user`/`admin`) |
-| `Entry` | type (`VERSCHLUSS`/`OEFFNEN`/`PRUEFUNG`/`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt |
-| `TrainingVorgabe` | userId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH |
+| `Entry` | type (`VERSCHLUSS`/`OEFFNEN`/`PRUEFUNG`/`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, verifikationStatus, oeffnenGrund |
+| `TrainingVorgabe` | userId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz |
 | `PasswordResetToken` | token, userId, expiresAt (1h) |
-| `KontrollAnforderung` | code (5-stellig), deadline (4h), userId, fulfilledAt, withdrawnAt, manuallyVerifiedAt |
+| `KontrollAnforderung` | code (5-stellig), deadline (4h), userId, kommentar, fulfilledAt, withdrawnAt, manuallyVerifiedAt, rejectedAt |
+| `VerschlussAnforderung` | art (`ANFORDERUNG`/`SPERRZEIT`), userId, kommentar, endetAt, fulfilledAt, withdrawnAt |
 
 ## API-Übersicht
 
@@ -159,5 +165,9 @@ Der Workflow **Build, Push & Deploy** wird manuell via `workflow_dispatch` anges
 | POST | `/api/auth/reset-password` | Passwort mit Token zurücksetzen |
 | POST | `/api/admin/demo` | Demo-User anlegen (nur Admin) |
 | POST | `/api/admin/kontrolle` | Kontrolle anfordern (5-stelliger Code per E-Mail) |
+| GET | `/api/admin/kontrollen` | Alle Kontrollanforderungen (Admin) |
+| PATCH | `/api/admin/kontrollen/[id]` | Kontrolle zurückziehen / manuell verifizieren |
+| GET/POST | `/api/admin/verschluss-anforderung` | Verschlussanforderung / Sperrzeit anlegen |
+| PATCH | `/api/admin/verschluss-anforderung/[id]` | Verschlussanforderung zurückziehen |
 | POST | `/api/verify-kontrolle` | Kontrollfoto per Claude Vision auswerten |
 | GET | `/api/version` | Version + Build-Datum |
