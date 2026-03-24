@@ -1,5 +1,23 @@
 [
   {
+    "version": "1.7.2",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Sperrung bei zu vielen Fehlversuchen wird im Login angezeigt"
+      },
+      {
+        "type": "feat",
+        "text": "Vorgaben: Enddatum kann geleert werden (offen)"
+      },
+      {
+        "type": "feat",
+        "text": "Vorgaben: neue Vorgabe schliesst vorherige automatisch"
+      }
+    ]
+  },
+  {
     "version": "1.7.1",
     "date": "2026-03-24",
     "changes": [
