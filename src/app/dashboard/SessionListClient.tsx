@@ -23,6 +23,7 @@ export interface SessionListData {
   id: string;
   dateStr: string;
   timeStr: string;
+  vonBisStr: string;
   durationStr: string | null;
   active: boolean;
   thumbnailUrl: string | null;
@@ -30,9 +31,14 @@ export interface SessionListData {
   oeffnen: OeffnenFooter | null;
 }
 
+const PAGE_SIZE = 10;
+
 export default function SessionListClient({ sessions }: { sessions: SessionListData[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
   const t = useTranslations("dashboard");
+  const totalPages = Math.ceil(sessions.length / PAGE_SIZE);
+  const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -45,7 +51,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
       {sessions.length === 0 && (
         <div className="py-20 text-center text-gray-400 text-sm">{t("noEntries")}</div>
       )}
-      {sessions.map((session) => {
+      {paginated.map((session) => {
         const isOpen = openId === session.id;
         return (
           <div key={session.id} className={isOpen ? "bg-gray-50" : undefined}>
@@ -55,10 +61,9 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
               onClick={() => setOpenId(isOpen ? null : session.id)}
               className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100/60 transition text-left"
             >
-              {/* Date / time */}
+              {/* Von–Bis */}
               <div className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.dateStr}</span>
-                <span className="block text-xs text-gray-400 tabular-nums">{session.timeStr}</span>
+                <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.vonBisStr}</span>
               </div>
 
               {/* Duration / active badge + chevron */}
@@ -133,6 +138,31 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
         );
       })}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={() => { setPage(p => p - 1); setOpenId(null); }}
+            disabled={page === 0}
+            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition"
+          >
+            ← Zurück
+          </button>
+          <span className="text-xs text-gray-400 tabular-nums">
+            {page + 1} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => { setPage(p => p + 1); setOpenId(null); }}
+            disabled={page >= totalPages - 1}
+            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition"
+          >
+            Weiter →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
