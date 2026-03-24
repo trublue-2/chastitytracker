@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.7.4",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "perf",
+        "text": "Bilder werden client- und serverseitig auf max. 1920px / JPEG 85% komprimiert"
+      }
+    ]
+  },
+  {
     "version": "1.7.3",
     "date": "2026-03-24",
     "changes": [
