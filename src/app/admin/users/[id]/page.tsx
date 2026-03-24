@@ -76,7 +76,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     prisma.verschlussAnforderung.findFirst({
-      where: { userId: id, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
+      where: { userId: id, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
     }),
   ]);
 
@@ -247,6 +247,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           now={now}
           events={sessionEvents}
           sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+          sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
           sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
           activeVorgabe={activeVorgabe}
           tagH={tagH}

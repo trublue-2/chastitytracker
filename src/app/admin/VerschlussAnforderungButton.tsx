@@ -20,7 +20,7 @@ export default function VerschlussAnforderungButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nachricht, setNachricht] = useState("");
-  const [dauerTyp, setDauerTyp] = useState<"datum" | "dauer">("datum");
+  const [dauerTyp, setDauerTyp] = useState<"datum" | "dauer" | "unbefristet">("datum");
   const [endetAt, setEndetAt] = useState("");
   const [dauerH, setDauerH] = useState("");
   const [loading, setLoading] = useState(false);
@@ -106,15 +106,15 @@ export default function VerschlussAnforderungButton({
         className={`w-full text-xs bg-white border rounded-lg px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 resize-none ${textareaCls}`}
       />
 
-      <div className="flex gap-2">
-        {(["datum", "dauer"] as const).map((typ) => (
+      <div className="flex gap-2 flex-wrap">
+        {(isAnforderung ? ["datum", "dauer"] as const : ["datum", "dauer", "unbefristet"] as const).map((typ) => (
           <button
             key={typ}
             type="button"
             onClick={() => setDauerTyp(typ)}
             className={`text-xs px-2.5 py-1 rounded-lg border transition ${dauerTyp === typ ? activeTab : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
           >
-            {typ === "datum" ? t("untilDate") : t("durationHours")}
+            {typ === "datum" ? t("untilDate") : typ === "dauer" ? t("durationHours") : t("indefinite")}
           </button>
         ))}
       </div>
