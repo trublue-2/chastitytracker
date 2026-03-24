@@ -64,23 +64,19 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
               {/* Von–Bis */}
               <div className="flex-1 min-w-0">
                 {session.durationUnder24h ? (
-                  <span className="text-sm tabular-nums">
-                    <span className="font-semibold text-gray-900">{session.dateStr}</span>
-                    {" "}
-                    <span className="text-gray-400">{session.timeStr}{session.oeffnen ? ` – ${session.oeffnen.timeStr}` : ""}</span>
-                  </span>
+                  <>
+                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.dateStr}</span>
+                    <span className="block text-xs text-gray-400 tabular-nums">{session.timeStr}{session.oeffnen ? ` – ${session.oeffnen.timeStr}` : ""}</span>
+                  </>
                 ) : session.oeffnen ? (
-                  <span className="text-sm tabular-nums">
-                    <span className="font-semibold text-gray-900">{session.dateStr}</span>
-                    <span className="text-gray-400"> – </span>
-                    <span className="font-semibold text-gray-900">{session.oeffnen.dateStr}</span>
-                  </span>
+                  <>
+                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.dateStr} – {session.oeffnen.dateStr}</span>
+                  </>
                 ) : (
-                  <span className="text-sm tabular-nums">
-                    <span className="font-semibold text-gray-900">{session.dateStr}</span>
-                    {" "}
-                    <span className="text-gray-400">{session.timeStr}</span>
-                  </span>
+                  <>
+                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.dateStr}</span>
+                    <span className="block text-xs text-gray-400 tabular-nums">{session.timeStr}</span>
+                  </>
                 )}
               </div>
 
