@@ -9,14 +9,13 @@ import {
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
-import EntryActions from "./EntryActions";
-import PairRow from "./PairRow";
 import StatusBanner from "./StatusBanner";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
-import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
-import ImageViewer from "@/app/components/ImageViewer";
+import { Lock, ClipboardList, Droplets } from "lucide-react";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
+import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
+import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import { getTranslations, getLocale } from "next-intl/server";
 
 type Entry = {
@@ -403,32 +402,29 @@ export default async function DashboardPage() {
               <div className="px-5 py-3 border-b border-gray-50">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />{t("inspections")} ({pruefungen.length})</p>
               </div>
-              <div className="divide-y divide-gray-50">
-                {pruefungen.map((k) => {
+              <KontrolleItemListClient
+                imageAlt={t("inspections")}
+                items={pruefungen.map((k): KontrolleItemData => {
                   const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
-                  return (
-                    <div key={k.id} className="px-4 py-3 flex items-start gap-3">
-                      {k.imageUrl && (
-                        <ImageViewer src={k.imageUrl} alt="Kontrolle" width={40} height={40}
-                          className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
-                      )}
-                      <div className="flex-1 min-w-0 flex flex-col gap-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${kPill.cls}`}>{kPill.label}</span>}
-                          {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                          <span>Erfüllt: {formatDateTime(k.time, dl)}</span>
-                          {k.deadline && <span>Frist: {formatDateTime(k.deadline, dl)}</span>}
-                        </div>
-                        {k.kommentar && <p className="text-xs text-gray-400 italic">{k.kommentar}</p>}
-                        {k.note && <p className="text-xs text-gray-400 italic">„{k.note}"</p>}
-                      </div>
-                      {k.entryId && <EntryActions id={k.entryId} editHref={`/dashboard/edit/${k.entryId}`} />}
-                    </div>
-                  );
+                  return {
+                    id: k.id,
+                    imageUrl: k.imageUrl,
+                    kommentar: k.kommentar,
+                    pill1Label: kPill?.label ?? null,
+                    pill1Cls: kPill?.cls ?? null,
+                    pill2Label: null,
+                    pill2Cls: null,
+                    code: k.code,
+                    dateTimeStr: formatDateTime(k.time, dl),
+                    dateTimePrefix: ta("fulfilledLabel"),
+                    deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
+                    deadlinePrefix: ta("frist"),
+                    note: k.note,
+                    entryId: k.entryId,
+                    editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
+                  };
                 })}
-              </div>
+              />
             </div>
           );
         })()}
@@ -439,18 +435,15 @@ export default async function DashboardPage() {
             <div className="px-5 py-3 border-b border-gray-50">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><Droplets size={12} />{t("orgasms")}</p>
             </div>
-            <div className="divide-y divide-gray-50">
-              {orgasmusEntries.map((e) => (
-                <div key={e.id} className="px-5 py-3 flex items-start gap-3 hover:bg-gray-50/60 transition">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{formatDateTime(e.startTime, dl)}</p>
-                    <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
-                    {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
-                  </div>
-                  <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}`} />
-                </div>
-              ))}
-            </div>
+            <OrgasmenListClient
+              items={orgasmusEntries.map((e): OrgasmusItemData => ({
+                id: e.id,
+                dateTimeStr: formatDateTime(e.startTime, dl),
+                orgasmusArt: e.orgasmusArt,
+                note: e.note,
+                editHref: `/dashboard/edit/${e.id}`,
+              }))}
+            />
           </div>
         )}
 
