@@ -369,7 +369,7 @@
     "pillLate": "Fulfilled late",
     "pillUnverified": "Unverified",
     "pillAi": "AI verified",
-    "pillManual": "Manually verified",
+    "pillManual": "Confirmed",
     "pillRejected": "Rejected",
     "pillWithdrawn": "Withdrawn",
     "pillSelfcontrol": "Self-inspection",
