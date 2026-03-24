@@ -54,6 +54,7 @@ model KontrollAnforderung {
   kommentar   String?
   deadline    DateTime
   createdAt   DateTime  @default(now())
+  fulfilledAt DateTime? // Server-seitig gesetzt beim Erstellen des PRUEFUNG-Eintrags – nie editierbar
   withdrawnAt DateTime?
   entryId     String?   @unique
   entry       Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)

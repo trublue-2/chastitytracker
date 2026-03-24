@@ -98,15 +98,18 @@ export function hasExifMismatch(exifTime: Date, startTime: Date): boolean {
 export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn";
 export type VerifikationStatus = "unverified" | "ai" | "manual" | "rejected";
 
-/** Derives AnforderungStatus: was the kontrolle submitted, and was it on time? */
+/** Derives AnforderungStatus: was the kontrolle submitted, and was it on time?
+ *  fulfilledAt is server-set at submission time and immutable – never use entryTime for deadline comparison. */
 export function mapAnforderungStatus(
-  k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date },
-  entryTime: Date | null,
+  k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date; fulfilledAt?: Date | null },
+  _entryTime: Date | null,
   now: Date
 ): AnforderungStatus {
   if (k.withdrawnAt) return "withdrawn";
-  if (!k.entryId || !entryTime) return k.deadline < now ? "overdue" : "open";
-  return entryTime > k.deadline ? "late" : "fulfilled";
+  if (!k.entryId) return k.deadline < now ? "overdue" : "open";
+  const submittedAt = k.fulfilledAt ?? null;
+  if (!submittedAt) return k.deadline < now ? "late" : "fulfilled"; // Fallback für alte Daten ohne fulfilledAt
+  return submittedAt > k.deadline ? "late" : "fulfilled";
 }
 
 /** Normalizes a raw verifikationStatus string to VerifikationStatus */

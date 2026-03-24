@@ -85,11 +85,11 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // KontrollAnforderung verknüpfen (via FK statt fulfilledAt)
+  // KontrollAnforderung verknüpfen + fulfilledAt server-seitig setzen (unveränderlich)
   if (type === "PRUEFUNG" && kontrollCode) {
     await prisma.kontrollAnforderung.updateMany({
       where: { userId: session.user.id, code: kontrollCode, entryId: null, withdrawnAt: null },
-      data: { entryId: entry.id },
+      data: { entryId: entry.id, fulfilledAt: new Date() },
     });
   }
 
