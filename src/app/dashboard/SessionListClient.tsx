@@ -23,7 +23,7 @@ export interface SessionListData {
   id: string;
   dateStr: string;
   timeStr: string;
-  vonBisStr: string;
+  durationUnder24h: boolean;
   durationStr: string | null;
   active: boolean;
   thumbnailUrl: string | null;
@@ -63,7 +63,25 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
             >
               {/* Von–Bis */}
               <div className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.vonBisStr}</span>
+                {session.durationUnder24h ? (
+                  <span className="text-sm tabular-nums">
+                    <span className="font-semibold text-gray-900">{session.dateStr}</span>
+                    {" "}
+                    <span className="text-gray-400">{session.timeStr}{session.oeffnen ? ` – ${session.oeffnen.timeStr}` : ""}</span>
+                  </span>
+                ) : session.oeffnen ? (
+                  <span className="text-sm tabular-nums">
+                    <span className="font-semibold text-gray-900">{session.dateStr}</span>
+                    <span className="text-gray-400"> – </span>
+                    <span className="font-semibold text-gray-900">{session.oeffnen.dateStr}</span>
+                  </span>
+                ) : (
+                  <span className="text-sm tabular-nums">
+                    <span className="font-semibold text-gray-900">{session.dateStr}</span>
+                    {" "}
+                    <span className="text-gray-400">{session.timeStr}</span>
+                  </span>
+                )}
               </div>
 
               {/* Duration / active badge + chevron */}
