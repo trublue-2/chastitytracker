@@ -1,4 +1,4 @@
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
@@ -41,6 +41,7 @@ interface Props {
 export default async function SessionList({ pairs, orgasmusEntries }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
+  const ta = await getTranslations("admin");
 
   const sessions: SessionListData[] = pairs.map((pair) => {
     const { verschluss, oeffnen, active, kontrollen } = pair;
@@ -93,8 +94,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           isOverdue: k.anforderungStatus === "overdue",
           kontrolleCode: k.code,
           kontrolleKommentar: k.kommentar,
-          kombiniertePillLabel: getKombinierterPill(k.anforderungStatus, k.verifikationStatus)?.label ?? null,
-          kombiniertePillCls: getKombinierterPill(k.anforderungStatus, k.verifikationStatus)?.cls ?? null,
+          kombiniertePillLabel: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.label ?? null,
+          kombiniertePillCls: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.cls ?? null,
           orgasmusArt: null,
         })),
       ...sessionOrgasmen.map((e) => ({
