@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.7.3",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Sperrdauer: neue Option «Unbefristet» – Benutzer bleibt ohne Enddatum gesperrt"
+      },
+      {
+        "type": "feat",
+        "text": "Öffnen-Formular: Warnung und Modal erscheinen auch bei unbefristeter Sperre"
+      }
+    ]
+  },
+  {
     "version": "1.7.2",
     "date": "2026-03-24",
     "changes": [

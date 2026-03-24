@@ -27,6 +27,7 @@ interface Props {
   now: Date;
   events: SessionEvent[];
   sperrzeitEndetAt: Date | null;
+  sperrzeitUnbefristet?: boolean;
   sperrzeitNachricht?: string | null;
   activeVorgabe: {
     minProTagH: number | null;
@@ -58,6 +59,7 @@ export default async function LaufendeSessionCard({
   interruptionPausedMs = 0,
   events,
   sperrzeitEndetAt,
+  sperrzeitUnbefristet = false,
   sperrzeitNachricht,
   activeVorgabe,
   tagH,
@@ -71,6 +73,7 @@ export default async function LaufendeSessionCard({
 
   const sessionStartStr = formatDateTime(sessionStart, dl);
   const sperrzeitStr = sperrzeitEndetAt ? formatDateTime(sperrzeitEndetAt, dl) : null;
+  const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet;
 
   const hasVorgabe =
     activeVorgabe &&
@@ -185,11 +188,11 @@ export default async function LaufendeSessionCard({
       </div>
 
       {/* ── Sperrzeit footer ── */}
-      {sperrzeitStr && (
+      {showSperrzeit && (
         <div className="bg-rose-50 border-t border-rose-100 px-5 py-3 flex items-center gap-2 rounded-b-2xl">
           <Lock size={13} className="text-rose-500 shrink-0" />
           <span className="text-sm font-semibold text-rose-700">
-            {t("sessionLockedUntil")} {sperrzeitStr}
+            {sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
           </span>
           {sperrzeitNachricht && (
             <span className="text-xs text-rose-500 truncate">· {sperrzeitNachricht}</span>

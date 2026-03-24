@@ -20,7 +20,7 @@ export default async function NewOeffnenPage() {
 
   const now = new Date();
   const activeSperrzeit = await prisma.verschlussAnforderung.findFirst({
-    where: { userId, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
+    where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
   });
 
   const tn = await getTranslations("newEntry");
@@ -31,7 +31,10 @@ export default async function NewOeffnenPage() {
       <Link href="/dashboard/new" className="text-sm text-gray-400 hover:text-gray-600 transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-gray-900 mt-1 mb-8">{tf("title")}</h1>
       <div className="max-w-lg">
-        <OeffnenForm sperrzeitEndetAt={activeSperrzeit?.endetAt?.toISOString() ?? null} />
+        <OeffnenForm
+          sperrzeitEndetAt={activeSperrzeit?.endetAt?.toISOString() ?? null}
+          sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
+        />
       </div>
     </div>
   );

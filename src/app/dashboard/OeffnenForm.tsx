@@ -12,9 +12,10 @@ type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
   sperrzeitEndetAt?: string | null;
+  sperrzeitUnbefristet?: boolean;
 }
 
-export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
+export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefristet = false }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
@@ -60,7 +61,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
     e.preventDefault();
     if (!grund) { setError(t("grundRequired")); return; }
     if (!note.trim()) { setError(t("commentRequired")); return; }
-    if (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date()) {
+    if (sperrzeitUnbefristet || (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date())) {
       setShowWarning(true);
       return;
     }
@@ -69,7 +70,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
 
   const inputCls = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition";
 
-  const isGesperrt = !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
+  const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
 
   return (
     <>
@@ -86,11 +87,13 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
                 <p className="text-sm text-gray-600">
                   {t("modalSubtext")}
                 </p>
-                {sperrzeitEndetAt && (
-                  <p className="text-xs text-rose-600 font-semibold mt-1">
-                    {t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}
-                  </p>
-                )}
+                <p className="text-xs text-rose-600 font-semibold mt-1">
+                  {sperrzeitUnbefristet
+                    ? t("modalLockedIndefinite")
+                    : sperrzeitEndetAt
+                      ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })
+                      : null}
+                </p>
               </div>
             </div>
             <div className="flex flex-col gap-2">
@@ -122,7 +125,9 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt }: Props) {
             <div>
               <p className="text-sm font-bold text-rose-800">{t("lockedWarningTitle")}</p>
               <p className="text-xs text-rose-600 mt-0.5">
-                {t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}
+                {sperrzeitUnbefristet
+                  ? t("lockedWarningTextIndefinite")
+                  : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}
               </p>
             </div>
           </div>

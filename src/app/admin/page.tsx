@@ -47,7 +47,7 @@ async function getUserStats(userId: string) {
     where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
   });
   const activeSperrzeit = await prisma.verschlussAnforderung.findFirst({
-    where: { userId, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
+    where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
   });
 
   return {
@@ -197,11 +197,15 @@ export default async function AdminPage() {
                   <div className="flex items-center justify-between gap-2 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Lock size={11} className="text-rose-500 shrink-0" />
-                      <span className="text-xs text-rose-700 font-medium">{t("lockedUntil")}</span>
-                      {u.stats.activeSperrzeit.endetAt && (
-                        <span className="text-xs text-rose-600 font-bold shrink-0">
-                          {new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
-                        </span>
+                      {u.stats.activeSperrzeit.endetAt ? (
+                        <>
+                          <span className="text-xs text-rose-700 font-medium">{t("lockedUntil")}</span>
+                          <span className="text-xs text-rose-600 font-bold shrink-0">
+                            {new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-rose-700 font-medium">{t("lockedIndefinite")}</span>
                       )}
                     </div>
                     <WithdrawVerschlussButton id={u.stats.activeSperrzeit.id} />

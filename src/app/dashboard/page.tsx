@@ -73,7 +73,7 @@ export default async function DashboardPage() {
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
     prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "SPERRZEIT", withdrawnAt: null, endetAt: { gt: now } },
+      where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
     }),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
   ]);
@@ -211,6 +211,7 @@ export default async function DashboardPage() {
             now={now}
             events={sessionEvents}
             sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+            sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
             sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
             activeVorgabe={activeVorgabe}
             tagH={tagH}
