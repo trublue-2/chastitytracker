@@ -62,9 +62,11 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       const sMonth = verschluss.startTime.getMonth();
       const eMonth = oeffnen.startTime.getMonth();
       if (sYear === eYear && sMonth === eMonth) {
-        startAbbrevStr = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", timeZone: APP_TZ });
+        const s = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", timeZone: APP_TZ });
+        startAbbrevStr = s.endsWith(".") ? s : s + ".";
       } else if (sYear === eYear) {
-        startAbbrevStr = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", month: "numeric", timeZone: APP_TZ });
+        const s = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", month: "numeric", timeZone: APP_TZ });
+        startAbbrevStr = s.endsWith(".") ? s : s + ".";
       }
       // different year: null → use full dateStr
     }
