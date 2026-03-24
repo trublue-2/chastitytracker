@@ -40,6 +40,10 @@ export default async function KontrolleBanner({
     return (
       <div className={`rounded-xl px-3 py-2 text-xs font-medium flex flex-col gap-1 border ${colorCls}`}>
         <div className="flex items-center gap-1.5">
+          {overdue
+            ? <AlertCircle size={13} className="flex-shrink-0 text-red-500" />
+            : <AlertTriangle size={13} className="flex-shrink-0 text-amber-500" />
+          }
           {overdue ? t("overdue") : t("until")}
           {" "}{formatDateTime(deadline, dl)}
           <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>

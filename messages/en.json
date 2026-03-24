@@ -225,8 +225,8 @@
     "since": "since"
   },
   "kontrolleBanner": {
-    "overdue": "🚨 Inspection overdue since",
-    "until": "⚠ Inspection due by",
+    "overdue": "Inspection overdue since",
+    "until": "Inspection due by",
     "overdueTitle": "Inspection overdue!",
     "openTitle": "Inspection open",
     "overduePrefix": "Overdue since",
