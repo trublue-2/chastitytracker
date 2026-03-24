@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import exifr from "exifr";
+import sharp from "sharp";
 
 function isAllowedImageBuffer(buf: Buffer): boolean {
   // JPEG: FF D8 FF
@@ -57,11 +58,15 @@ export async function POST(req: NextRequest) {
   const uploadsDir = join(process.cwd(), "data", "uploads");
   await mkdir(uploadsDir, { recursive: true });
 
-  const ext = rawExt;
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
   const filepath = join(uploadsDir, filename);
 
-  await writeFile(filepath, buffer);
+  const compressed = await sharp(buffer)
+    .resize({ width: 1920, withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+
+  await writeFile(filepath, compressed);
 
   // Prefer client-provided EXIF time (survives iOS Safari stripping)
   let exifTime: string | null = clientExifTime || null;

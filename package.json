@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,7 +20,8 @@
     "nodemailer": "^7.0.13",
     "prisma": "^5.22.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

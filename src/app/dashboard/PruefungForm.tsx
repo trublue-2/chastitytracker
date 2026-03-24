@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { compressImage } from "@/lib/compressImage";
 import { Loader2 } from "lucide-react";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
@@ -84,11 +85,13 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
     setVerifyReason(null);
     setAiMatch(null);
 
-    // iOS Safari strips EXIF — use file.lastModified as capture time (accurate for camera shots)
+    // iOS Safari strips EXIF — read lastModified BEFORE compression (metadata stays intact)
     const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
 
+    const compressed = await compressImage(file).catch(() => file);
+
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", compressed);
     if (clientExifTime) fd.append("clientExifTime", clientExifTime);
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     const data = await res.json();
