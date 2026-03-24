@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.7.5",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Kontrolle-Banner: Emoji-Icons durch lucide-Icons ersetzt (kein fehlerhaftes Rendering mehr)"
+      }
+    ]
+  },
+  {
     "version": "1.7.4",
     "date": "2026-03-24",
     "changes": [
