@@ -49,9 +49,15 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
     const dateStr = formatDate(verschluss.startTime, dl);
     const timeStr = formatTime(verschluss.startTime, dl);
     const pauseMs = interruptionPauseMs(pair.interruptions ?? []);
-    const durationStr = oeffnen
-      ? formatDuration(new Date(verschluss.startTime.getTime()), new Date(oeffnen.startTime.getTime() - pauseMs), dl)
+    const durationMs = oeffnen ? oeffnen.startTime.getTime() - verschluss.startTime.getTime() - pauseMs : null;
+    const durationStr = durationMs !== null
+      ? formatDuration(new Date(0), new Date(durationMs), dl)
       : null;
+    const vonBisStr = !oeffnen
+      ? `${dateStr} ${timeStr}`
+      : durationMs !== null && durationMs < 24 * 60 * 60 * 1000
+        ? `${dateStr} ${timeStr} – ${formatTime(oeffnen.startTime, dl)}`
+        : `${dateStr} – ${formatDate(oeffnen.startTime, dl)}`;
 
     const sessionOrgasmen = orgasmusEntries.filter(
       (e) => e.startTime >= verschluss.startTime && (oeffnen === null || e.startTime < oeffnen.startTime)
@@ -141,6 +147,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       id: verschluss.id,
       dateStr,
       timeStr,
+      vonBisStr,
       durationStr,
       active,
       thumbnailUrl: verschluss.imageUrl,
