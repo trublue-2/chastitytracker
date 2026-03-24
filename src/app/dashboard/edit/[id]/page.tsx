@@ -47,6 +47,7 @@ export default async function EditEntryPage({
         <PruefungForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
+          kontrollCode: entry.kontrollCode,
         }} />
       )}
       {entry.type === "ORGASMUS" && (
