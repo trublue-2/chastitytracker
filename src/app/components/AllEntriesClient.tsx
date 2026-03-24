@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
+import EntryActions from "@/app/dashboard/EntryActions";
 
 export interface AllEntryData {
   id: string;
@@ -14,6 +15,7 @@ export interface AllEntryData {
   pillCls: string | null;
   note: string | null;
   orgasmusArt: string | null;
+  editHref: string;
 }
 
 const PAGE_SIZE = 10;
@@ -47,8 +49,11 @@ export default function AllEntriesClient({ entries, title }: { entries: AllEntry
                 {e.pillLabel}
               </span>
             )}
-            {e.note && <span className="text-xs text-gray-400 italic truncate">„{e.note}"</span>}
+            {e.note && <span className="text-xs text-gray-400 italic truncate min-w-0">„{e.note}"</span>}
             {e.orgasmusArt && <span className="text-xs text-rose-400 font-medium">{e.orgasmusArt}</span>}
+            <div className="ml-auto flex-shrink-0">
+              <EntryActions id={e.id} editHref={e.editHref} />
+            </div>
           </div>
         ))}
       </div>

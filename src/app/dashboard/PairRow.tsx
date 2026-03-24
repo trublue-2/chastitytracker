@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { X, Lock, LockOpen, Timer, ImageOff } from "lucide-react";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
-import EntryActions from "./EntryActions";
 import { useTranslations, useLocale } from "next-intl";
 
 const GRUND_LABELS: Record<string, string> = {
@@ -158,12 +157,9 @@ function DetailModal({
         className="flex-shrink-0 bg-white rounded-t-2xl px-5 py-5 flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
-            <p className="text-sm font-semibold text-gray-900">{formatDateTime(new Date(entry.startTime), dl)}</p>
-          </div>
-          <EntryActions id={entry.id} editHref={`/dashboard/edit/${entry.id}`} />
+        <div>
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
+          <p className="text-sm font-semibold text-gray-900">{formatDateTime(new Date(entry.startTime), dl)}</p>
         </div>
 
         {entry.imageExifTime && (
@@ -254,7 +250,6 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
             >
               {(() => { const dt = splitDT(verschluss.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-gray-400 font-normal">{dt.time}</span></>); })()}
             </button>
-            <EntryActions id={verschluss.id} editHref={`/dashboard/edit/${verschluss.id}`} />
           </div>
           {verschluss.imageExifTime && photoStatus === "exif-mismatch" && (
             <p className="text-xs text-amber-600">EXIF: {formatDateTime(new Date(verschluss.imageExifTime), dl)}</p>
@@ -279,7 +274,6 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
                 >
                   {(() => { const dt = splitDT(oeffnen.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-gray-400 font-normal">{dt.time}</span></>); })()}
                 </button>
-                <EntryActions id={oeffnen.id} editHref={`/dashboard/edit/${oeffnen.id}`} />
               </div>
               {oeffnen.oeffnenGrund && (
                 <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 self-start">
