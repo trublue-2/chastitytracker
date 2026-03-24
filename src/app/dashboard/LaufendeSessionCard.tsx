@@ -66,6 +66,7 @@ export default async function LaufendeSessionCard({
 }: Props) {
   const t = await getTranslations("dashboard");
   const tCommon = await getTranslations("common");
+  const ta = await getTranslations("admin");
   const dl = toDateLocale(await getLocale());
 
   const sessionStartStr = formatDateTime(sessionStart, dl);
@@ -146,6 +147,7 @@ export default async function LaufendeSessionCard({
           const kombiniertePill = getKombinierterPill(
             ev.kontrolleAnforderungStatus ?? null,
             ev.kontrolleVerifikationStatus ?? null,
+            ta,
           );
           const icon =
             ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
