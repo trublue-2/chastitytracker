@@ -6,7 +6,8 @@ import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
 import type { DayEntry, DayVorgabe } from "./CalendarContainer";
 import MonthStats, { type MonthStat } from "./MonthStats";
-import { Lock, LockOpen, ClipboardList, Droplets, ShieldAlert } from "lucide-react";
+import AllEntriesClient, { type AllEntryData } from "./AllEntriesClient";
+import { ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -490,43 +491,41 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
       )}
 
       {/* Alle Einträge */}
-      {entries.length > 0 && (
-        <section className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-50">
-            <p className="text-sm font-bold text-gray-900">{t("allEntries")}</p>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {[...entries].sort((a, b) => b.startTime.getTime() - a.startTime.getTime()).map((e) => {
-              const typeConfig: Record<string, { label: string; icon: ReactNode; color: string }> = {
-                VERSCHLUSS: { label: t("lock"),       icon: <Lock size={12} />,          color: "text-gray-700" },
-                OEFFNEN:    { label: t("opening"),    icon: <LockOpen size={12} />,       color: "text-gray-700" },
-                PRUEFUNG:   { label: t("inspection"), icon: <ClipboardList size={12} />,  color: "text-orange-600" },
-                ORGASMUS:   { label: t("orgasm"),     icon: <Droplets size={12} />,       color: "text-rose-500" },
-              };
-              const cfg = typeConfig[e.type] ?? { label: e.type, icon: null, color: "text-gray-500" };
-              const kontrollEntry = e.type === "PRUEFUNG"
-                ? (unifiedKontrollen.find(k => k.id === e.id || (e.kontrollCode && k.code === e.kontrollCode)) ?? null)
-                : null;
-              const kontrollPill = kontrollEntry ? getKombinierterPill(kontrollEntry.anforderungStatus, kontrollEntry.verifikationStatus, ta) : null;
-              return (
-                <div key={e.id} className="px-5 py-3 flex items-center gap-3">
-                  <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${cfg.color}`}>
-                    {cfg.icon}{cfg.label}
-                  </span>
-                  <span className="text-sm text-gray-900 tabular-nums">{formatDateTime(e.startTime, dl)}</span>
-                  {kontrollPill && (
-                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${kontrollPill.cls}`}>
-                      {kontrollPill.label}
-                    </span>
-                  )}
-                  {e.note && <span className="text-xs text-gray-400 italic truncate">„{e.note}"</span>}
-                  {e.orgasmusArt && <span className="text-xs text-rose-400 font-medium">{e.orgasmusArt}</span>}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {entries.length > 0 && (() => {
+        const typeIconMap: Record<string, AllEntryData["typeIcon"]> = {
+          VERSCHLUSS: "lock", OEFFNEN: "lockopen", PRUEFUNG: "clipboard", ORGASMUS: "droplets",
+        };
+        const typeColorMap: Record<string, string> = {
+          VERSCHLUSS: "text-gray-700", OEFFNEN: "text-gray-700",
+          PRUEFUNG: "text-orange-600", ORGASMUS: "text-rose-500",
+        };
+        const typeLabelMap: Record<string, string> = {
+          VERSCHLUSS: t("lock"), OEFFNEN: t("opening"), PRUEFUNG: t("inspection"), ORGASMUS: t("orgasm"),
+        };
+        const allEntries: AllEntryData[] = [...entries]
+          .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
+          .map((e) => {
+            const kontrollEntry = e.type === "PRUEFUNG"
+              ? (unifiedKontrollen.find(k => k.id === e.id || (e.kontrollCode && k.code === e.kontrollCode)) ?? null)
+              : null;
+            const kontrollPill = kontrollEntry
+              ? getKombinierterPill(kontrollEntry.anforderungStatus, kontrollEntry.verifikationStatus, ta)
+              : null;
+            return {
+              id: e.id,
+              type: e.type,
+              dateTimeStr: formatDateTime(e.startTime, dl),
+              typeLabel: typeLabelMap[e.type] ?? e.type,
+              typeColor: typeColorMap[e.type] ?? "text-gray-500",
+              typeIcon: typeIconMap[e.type] ?? "lock",
+              pillLabel: kontrollPill?.label ?? null,
+              pillCls: kontrollPill?.cls ?? null,
+              note: e.note,
+              orgasmusArt: e.orgasmusArt ?? null,
+            };
+          });
+        return <AllEntriesClient entries={allEntries} title={t("allEntries")} />;
+      })()}
     </main>
   );
 }
