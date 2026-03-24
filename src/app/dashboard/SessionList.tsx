@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, type ReinigungSettings } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, APP_TZ, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
@@ -54,6 +54,20 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       ? formatDuration(new Date(0), new Date(durationMs), dl)
       : null;
     const durationUnder24h = durationMs !== null && durationMs < 24 * 60 * 60 * 1000;
+
+    let startAbbrevStr: string | null = null;
+    if (!durationUnder24h && oeffnen) {
+      const sYear = verschluss.startTime.getFullYear();
+      const eYear = oeffnen.startTime.getFullYear();
+      const sMonth = verschluss.startTime.getMonth();
+      const eMonth = oeffnen.startTime.getMonth();
+      if (sYear === eYear && sMonth === eMonth) {
+        startAbbrevStr = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", timeZone: APP_TZ });
+      } else if (sYear === eYear) {
+        startAbbrevStr = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", month: "numeric", timeZone: APP_TZ });
+      }
+      // different year: null → use full dateStr
+    }
 
     const sessionOrgasmen = orgasmusEntries.filter(
       (e) => e.startTime >= verschluss.startTime && (oeffnen === null || e.startTime < oeffnen.startTime)
@@ -148,6 +162,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       active,
       thumbnailUrl: verschluss.imageUrl,
       events,
+      startAbbrevStr,
       oeffnen: oeffnen
         ? {
             dateStr: formatDate(oeffnen.startTime, dl),

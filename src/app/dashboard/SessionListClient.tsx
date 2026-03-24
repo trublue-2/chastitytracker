@@ -29,6 +29,7 @@ export interface SessionListData {
   thumbnailUrl: string | null;
   events: SessionEventData[];
   oeffnen: OeffnenFooter | null;
+  startAbbrevStr: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -70,7 +71,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                   </>
                 ) : session.oeffnen ? (
                   <>
-                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.dateStr} – {session.oeffnen.dateStr}</span>
+                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.startAbbrevStr ?? session.dateStr} – {session.oeffnen.dateStr}</span>
                   </>
                 ) : (
                   <>
