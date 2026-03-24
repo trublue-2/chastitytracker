@@ -116,14 +116,16 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
             {row.code && <span className="font-mono font-bold text-orange-500 text-sm">{row.code}</span>}
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-            {row.fulfilledAt && <span>Erfüllt: {formatDateTime(row.fulfilledAt, dl)}</span>}
-            {row.submittedAt && row.fulfilledAt && Math.abs(row.submittedAt.getTime() - row.fulfilledAt.getTime()) > 60_000 && (
-              <span className="text-amber-500 font-medium">Eingereicht: {formatDateTime(row.submittedAt, dl)}</span>
-            )}
+            {row.fulfilledAt && <span>Zeitpunkt: {formatDateTime(row.fulfilledAt, dl)}</span>}
             {row.deadline && <span>Frist: {formatDateTime(row.deadline, dl)}</span>}
             {row.createdAt && <span>Erstellt: {formatDateTime(row.createdAt, dl)}</span>}
             {row.withdrawnAt && <span>Zurückgezogen: {formatDateTime(row.withdrawnAt, dl)}</span>}
           </div>
+          {row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000 && (
+            <p className="text-xs text-amber-500 font-medium mt-0.5">
+              Zeit korrigiert – Angegeben: {formatDateTime(row.fulfilledAt, dl)} · System: {formatDateTime(row.submittedAt, dl)}
+            </p>
+          )}
           {row.kommentar && (
             <p className="text-xs text-gray-400 italic mt-0.5">Anweisung: {row.kommentar}</p>
           )}

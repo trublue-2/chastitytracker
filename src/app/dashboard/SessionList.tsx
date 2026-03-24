@@ -13,6 +13,7 @@ interface KontrolleItem {
   anforderungStatus: string | null;
   verifikationStatus: string | null;
   entryId: string | null;
+  submittedAt: Date | null;
 }
 
 interface Entry {
@@ -95,6 +96,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
         orgasmusArt: null,
+        timeCorrected: false,
       },
       ...kontrollen
         .filter((k) => k.anforderungStatus !== "withdrawn")
@@ -115,6 +117,9 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           kombiniertePillLabel: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.label ?? null,
           kombiniertePillCls: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.cls ?? null,
           orgasmusArt: null,
+          timeCorrected: !!(k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000),
+          timeCorrectedSystemStr: k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000
+            ? formatDateTime(k.submittedAt, dl) : null,
         })),
       ...sessionOrgasmen.map((e) => ({
         type: "orgasmus" as const,
@@ -133,6 +138,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
         orgasmusArt: e.orgasmusArt,
+        timeCorrected: false,
       })),
       ...(pair.interruptions ?? []).map((intr) => ({
         type: "reinigung" as const,
@@ -151,6 +157,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
         orgasmusArt: null,
+        timeCorrected: false,
         pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
       })),
     ].sort((a, b) => a.time.getTime() - b.time.getTime());

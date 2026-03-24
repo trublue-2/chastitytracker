@@ -42,6 +42,7 @@ type KontrolleItem = {
   anforderungStatus: import("@/lib/utils").AnforderungStatus | null;
   verifikationStatus: import("@/lib/utils").VerifikationStatus | null;
   entryId: string | null;
+  submittedAt: Date | null;
 };
 
 type Pair = {
@@ -102,6 +103,7 @@ export default async function DashboardPage() {
       anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
       entryId: k.entry?.id ?? null,
+      submittedAt: k.fulfilledAt ?? null,
     })),
     // Standalone PRUEFUNG entries (ohne KontrollAnforderung)
     ...pruefungEntries
@@ -117,6 +119,7 @@ export default async function DashboardPage() {
         anforderungStatus: null,
         verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
         entryId: e.id,
+        submittedAt: null as Date | null,
       })),
   ];
 
@@ -167,6 +170,7 @@ export default async function DashboardPage() {
             kontrolleCode: k.code,
             kontrolleAnforderungStatus: k.anforderungStatus,
             kontrolleVerifikationStatus: k.verifikationStatus,
+            submittedAt: k.submittedAt,
           })),
         ...orgasmusEntries
           .filter((e) => e.startTime >= activePair.verschluss.startTime)
@@ -407,6 +411,7 @@ export default async function DashboardPage() {
                 imageAlt={t("inspections")}
                 items={pruefungen.map((k): KontrolleItemData => {
                   const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
+                  const timeCorrected = k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000;
                   return {
                     id: k.id,
                     imageUrl: k.imageUrl,
@@ -423,6 +428,9 @@ export default async function DashboardPage() {
                     note: k.note,
                     entryId: k.entryId,
                     editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
+                    timeCorrectedStr: timeCorrected
+                      ? `${ta("timeCorrected")} – ${ta("givenLabel")}: ${formatDateTime(k.time, dl)} · ${ta("systemLabel")}: ${formatDateTime(k.submittedAt!, dl)}`
+                      : null,
                   };
                 })}
               />

@@ -47,6 +47,7 @@ type KontrolleItem = {
   anforderungStatus: import("@/lib/utils").AnforderungStatus | null;
   verifikationStatus: import("@/lib/utils").VerifikationStatus | null;
   entryId: string | null;
+  submittedAt: Date | null;
 };
 
 type Pair = {
@@ -102,6 +103,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
       anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
       entryId: k.entry?.id ?? null,
+      submittedAt: k.fulfilledAt ?? null,
     })),
     ...pruefungEntries
       .filter(e => !linkedEntryIds.has(e.id))
@@ -116,6 +118,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         anforderungStatus: null,
         verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
         entryId: e.id,
+        submittedAt: null as Date | null,
       })),
   ];
 
@@ -346,6 +349,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 note: null,
                 entryId: k.entryId,
                 editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
+                timeCorrectedStr: k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000
+                  ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(k.time, dl)} · ${t("systemLabel")}: ${formatDateTime(k.submittedAt, dl)}`
+                  : null,
               };
             })}
           />

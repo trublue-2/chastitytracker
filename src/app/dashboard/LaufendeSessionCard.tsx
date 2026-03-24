@@ -19,6 +19,7 @@ export interface SessionEvent {
   kontrolleVerifikationStatus?: string | null;
   orgasmusArt?: string | null;
   pauseDurationStr?: string | null;
+  submittedAt?: Date | null;
 }
 
 interface Props {
@@ -181,6 +182,9 @@ export default async function LaufendeSessionCard({
                 kombiniertePillCls: kombiniertePill?.cls ?? null,
                 orgasmusArt: ev.orgasmusArt ?? null,
                 pauseDurationStr: ev.pauseDurationStr ?? null,
+                timeCorrected: !!(ev.submittedAt && ev.time.getTime() < ev.submittedAt.getTime() - 60_000),
+                timeCorrectedSystemStr: ev.submittedAt && ev.time.getTime() < ev.submittedAt.getTime() - 60_000
+                  ? formatDateTime(ev.submittedAt, dl) : null,
               }}
             />
           );

@@ -61,10 +61,15 @@ export async function POST(req: NextRequest) {
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
   const filepath = join(uploadsDir, filename);
 
-  const compressed = await sharp(buffer)
-    .resize({ width: 1920, withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer();
+  let compressed: Buffer;
+  try {
+    compressed = await sharp(buffer)
+      .resize({ width: 1920, withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+  } catch {
+    compressed = buffer;
+  }
 
   await writeFile(filepath, compressed);
 

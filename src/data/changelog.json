@@ -1,5 +1,27 @@
 [
   {
+    "version": "1.7.8",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Zeitkorrektur-Warnung: rote Zeitangabe in Session-Liste & laufender Session; Details im Foto-Modal"
+      },
+      {
+        "type": "feat",
+        "text": "Kontrollen: Warnung 'Zeit korrigiert' auch im User-Dashboard sichtbar"
+      },
+      {
+        "type": "fix",
+        "text": "Kontroll-Code beim Bearbeiten einer Prüfung nicht mehr veränderbar (nur Anzeige)"
+      },
+      {
+        "type": "fix",
+        "text": "Bild-Upload: Sharp-Fehler (z.B. HEIC) führt nicht mehr zu leerem Response"
+      }
+    ]
+  },
+  {
     "version": "1.7.7",
     "date": "2026-03-24",
     "changes": [
