@@ -9,7 +9,7 @@ export const ANFORDERUNG_PILLS: Record<string, { label: string; cls: string }> =
 export const VERIFIKATION_PILLS: Record<string, { label: string; cls: string }> = {
   unverified: { label: "Unverifiziert",       cls: "bg-gray-100 text-gray-400 border-gray-200" },
   ai:         { label: "KI-verifiziert",      cls: "bg-green-50 text-green-700 border-green-200" },
-  manual:     { label: "Manuell verifiziert", cls: "bg-green-50 text-green-700 border-green-200" },
+  manual:     { label: "Bestätigt",           cls: "bg-green-50 text-green-700 border-green-200" },
   rejected:   { label: "Abgelehnt",           cls: "bg-red-50 text-red-700 border-red-200" },
 };
 
@@ -36,7 +36,7 @@ const ANFORDERUNG_LABELS: Record<string, string> = {
 const VERIFIKATION_LABELS: Record<string, string> = {
   unverified: "Unverifiziert",
   ai:         "KI-verifiziert",
-  manual:     "Manuell verifiziert",
+  manual:     "Bestätigt",
   rejected:   "Abgelehnt",
 };
 
