@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import ImageViewer from "@/app/components/ImageViewer";
 import KontrolleActions from "@/app/admin/kontrollen/KontrolleActions";
 import KontrolleButton from "@/app/admin/KontrolleButton";
@@ -14,7 +14,7 @@ import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
-  const dl = toDateLocale(await getLocale());
+  const [ta, dl] = [await getTranslations("admin"), toDateLocale(await getLocale())];
   const now = new Date();
 
   const user = await prisma.user.findUnique({ where: { id } });
@@ -97,9 +97,10 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const sortedPruefungen = [...pruefungRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
   function KontrolleRow({ row, i }: { row: (typeof offeneRows)[0]; i: number }) {
+    const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
     const kPill = row.entryId
-      ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus)
-      : (row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null);
+      ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, ta)
+      : anfPill ? { label: ta(anfPill.labelKey), cls: anfPill.cls } : null;
     return (
       <div key={i} className="px-4 py-3 flex items-start gap-3">
         {row.imageUrl && (

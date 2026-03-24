@@ -436,7 +436,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
           </div>
           <div className="divide-y divide-gray-50">
             {unifiedKontrollen.map((k) => {
-              const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus);
+              const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
               return (
                 <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -507,7 +507,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
               const kontrollEntry = e.type === "PRUEFUNG"
                 ? (unifiedKontrollen.find(k => k.id === e.id || (e.kontrollCode && k.code === e.kontrollCode)) ?? null)
                 : null;
-              const kontrollPill = kontrollEntry ? getKombinierterPill(kontrollEntry.anforderungStatus, kontrollEntry.verifikationStatus) : null;
+              const kontrollPill = kontrollEntry ? getKombinierterPill(kontrollEntry.anforderungStatus, kontrollEntry.verifikationStatus, ta) : null;
               return (
                 <div key={e.id} className="px-5 py-3 flex items-center gap-3">
                   <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${cfg.color}`}>

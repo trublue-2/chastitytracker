@@ -336,8 +336,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                       className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
                   )}
                   <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${aPill.cls}`}>{aPill.label}</span>}
-                    {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${vPill.cls}`}>{vPill.label}</span>}
+                    {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${aPill.cls}`}>{t(aPill.labelKey)}</span>}
+                    {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${vPill.cls}`}>{t(vPill.labelKey)}</span>}
                     {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
                     <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
                     {k.deadline && (

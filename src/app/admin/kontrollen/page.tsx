@@ -124,9 +124,10 @@ export default async function AdminKontrollenPage({
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="divide-y divide-gray-50">
             {rows.map((row, i) => {
+              const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
               const kPill = row.entryId
-                ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus)
-                : (row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null);
+                ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
+                : anfPill ? { label: t(anfPill.labelKey), cls: anfPill.cls } : null;
               return (
                 <div key={i} className="px-4 py-3 flex items-start gap-3">
                   {row.imageUrl && (

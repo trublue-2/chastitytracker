@@ -64,13 +64,6 @@ export default async function DashboardPage() {
     getTranslations("admin"),
   ]);
 
-  const ANFORD_LABEL_KEYS: Record<string, Parameters<typeof ta>[0]> = {
-    open: "pillOpen", overdue: "pillOverdue", fulfilled: "pillFulfilled",
-    late: "pillLate", withdrawn: "pillWithdrawn",
-  };
-  const VERIF_LABEL_KEYS: Record<string, Parameters<typeof ta>[0]> = {
-    unverified: "pillUnverified", ai: "pillAi", manual: "pillManual", rejected: "pillRejected",
-  };
   const dl = toDateLocale(await getLocale());
   const now = new Date();
   const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings] = await Promise.all([
@@ -385,7 +378,7 @@ export default async function DashboardPage() {
                   return (
                     <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(ANFORD_LABEL_KEYS[k.anforderungStatus!] ?? "pillOpen")}</span>}
+                        {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(aPill.labelKey)}</span>}
                         {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
@@ -412,7 +405,7 @@ export default async function DashboardPage() {
               </div>
               <div className="divide-y divide-gray-50">
                 {pruefungen.map((k) => {
-                  const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus);
+                  const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
                   return (
                     <div key={k.id} className="px-4 py-3 flex items-start gap-3">
                       {k.imageUrl && (
