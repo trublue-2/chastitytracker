@@ -71,6 +71,7 @@
     "submit": "Sign in",
     "submitting": "Signing in…",
     "invalidCredentials": "Invalid credentials",
+    "accountLocked": "Too many failed attempts. Please try again in 15 minutes.",
     "forgotPassword": "Forgot password?",
     "language": "Language"
   },
@@ -341,6 +342,8 @@
     "vorgabeEditTitle": "Edit goal",
     "vorgabeFromRequired": "Valid from *",
     "vorgabeToOptional": "Valid to (optional)",
+    "vorgabeClearDate": "Clear date",
+    "vorgabeDateOpen": "open",
     "vorgabeSaveChanges": "Save changes",
     "vorgabeSaving": "Saving…",
     "vorgabeActive": "Active",

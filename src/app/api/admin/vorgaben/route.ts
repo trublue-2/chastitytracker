@@ -18,16 +18,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mindestens ein Zeitwert ist erforderlich" }, { status: 400 });
   }
 
+  const newGueltigAb = new Date(gueltigAb);
+
   const vorgabe = await prisma.trainingVorgabe.create({
     data: {
       userId,
-      gueltigAb: new Date(gueltigAb),
+      gueltigAb: newGueltigAb,
       gueltigBis: gueltigBis ? new Date(gueltigBis) : null,
       minProTagH: minProTagH ?? null,
       minProWocheH: minProWocheH ?? null,
       minProMonatH: minProMonatH ?? null,
       notiz: notiz || null,
     },
+  });
+
+  // Vorangegangene offene Vorgaben automatisch mit dem neuen Startdatum schliessen
+  await prisma.trainingVorgabe.updateMany({
+    where: { userId, id: { not: vorgabe.id }, gueltigBis: null },
+    data: { gueltigBis: newGueltigAb },
   });
 
   return NextResponse.json(vorgabe, { status: 201 });

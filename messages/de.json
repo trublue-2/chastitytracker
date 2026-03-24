@@ -71,6 +71,7 @@
     "submit": "Anmelden",
     "submitting": "Anmelden…",
     "invalidCredentials": "Ungültige Anmeldedaten",
+    "accountLocked": "Zu viele Fehlversuche. Bitte versuche es in 15 Minuten erneut.",
     "forgotPassword": "Passwort vergessen?",
     "language": "Sprache"
   },
@@ -341,6 +342,8 @@
     "vorgabeEditTitle": "Vorgabe bearbeiten",
     "vorgabeFromRequired": "Gültig ab *",
     "vorgabeToOptional": "Gültig bis (optional)",
+    "vorgabeClearDate": "Datum löschen",
+    "vorgabeDateOpen": "offen",
     "vorgabeSaveChanges": "Änderungen speichern",
     "vorgabeSaving": "Speichern…",
     "vorgabeActive": "Aktiv",

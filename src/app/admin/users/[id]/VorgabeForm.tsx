@@ -144,7 +144,17 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{t("vorgabeToOptional")}</label>
-          <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} className={inputDate} />
+          <div className="flex gap-2 items-center">
+            <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} className={inputDate} />
+            {gueltigBis && (
+              <button type="button" onClick={() => setGueltigBis("")}
+                title={t("vorgabeClearDate")}
+                className="text-gray-400 hover:text-red-500 transition text-lg leading-none flex-shrink-0">
+                ×
+              </button>
+            )}
+          </div>
+          {!gueltigBis && <p className="text-xs text-gray-400 mt-1">{t("vorgabeDateOpen")}</p>}
         </div>
       </div>
 

@@ -24,7 +24,9 @@ export default function LoginPage() {
     const result = await signIn("credentials", { username, password, redirect: false });
     setLoading(false);
     if (result?.error) {
-      setError(t("invalidCredentials"));
+      const lockRes = await fetch(`/api/auth/lockout?username=${encodeURIComponent(username)}`);
+      const lockData = await lockRes.json();
+      setError(lockData.locked ? t("accountLocked") : t("invalidCredentials"));
     } else {
       router.push("/dashboard");
       router.refresh();
