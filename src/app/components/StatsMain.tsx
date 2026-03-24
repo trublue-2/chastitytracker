@@ -522,6 +522,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
               pillCls: kontrollPill?.cls ?? null,
               note: e.note,
               orgasmusArt: e.orgasmusArt ?? null,
+              editHref: `/dashboard/edit/${e.id}`,
             };
           });
         return <AllEntriesClient entries={allEntries} title={t("allEntries")} />;

@@ -189,7 +189,7 @@ export default async function DashboardPage() {
           imageUrl: null,
           imageExifTime: null,
           note: intr.oeffnen.note,
-          entryId: null,
+          entryId: intr.oeffnen.id,
           pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
         })),
       ].sort((a, b) => a.time.getTime() - b.time.getTime())

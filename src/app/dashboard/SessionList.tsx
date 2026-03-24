@@ -148,7 +148,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         imageUrl: null,
         exifStr: null,
         note: intr.oeffnen.note,
-        entryId: null,
+        entryId: intr.oeffnen.id,
         captureHref: null,
         deadlineStr: null,
         isOverdue: false,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import EntryActions from "@/app/dashboard/EntryActions";
 
 export interface OrgasmusItemData {
   id: string;
@@ -30,7 +29,6 @@ export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[
               <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
               {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
             </div>
-            <EntryActions id={e.id} editHref={e.editHref} />
           </div>
         ))}
       </div>

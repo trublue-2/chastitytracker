@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import ImageViewer from "@/app/components/ImageViewer";
-import EntryActions from "@/app/dashboard/EntryActions";
 
 export interface KontrolleItemData {
   id: string;
@@ -73,9 +72,6 @@ export default function KontrolleItemListClient({
               {k.kommentar && <p className="text-xs text-amber-700 truncate">{k.kommentar}</p>}
               {k.note && <p className="text-xs text-gray-400 italic truncate">„{k.note}"</p>}
             </div>
-            {k.entryId && k.editHref && (
-              <EntryActions id={k.entryId} editHref={k.editHref} />
-            )}
           </div>
         ))}
       </div>

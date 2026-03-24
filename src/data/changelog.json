@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.7.9",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Bearbeiten-Menü nur noch in 'Alle Einträge' sichtbar – entfernt aus Sessions, Kontrollen, Orgasmen und laufender Session"
+      }
+    ]
+  },
+  {
     "version": "1.7.8",
     "date": "2026-03-24",
     "changes": [

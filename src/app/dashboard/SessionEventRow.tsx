@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { X, Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import EntryActions from "./EntryActions";
 
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -240,15 +239,11 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="hidden sm:inline-flex">{typePill}</span>
-              {ev.entryId ? (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <EntryActions id={ev.entryId} editHref={`/dashboard/edit/${ev.entryId}`} />
-                </div>
-              ) : ev.captureHref ? (
+              {ev.captureHref && (
                 <div onClick={(e) => e.stopPropagation()}>
                   <CaptureButton href={ev.captureHref} />
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
           {ev.exifStr && <p className="text-xs text-amber-600 mt-0.5">EXIF: {ev.exifStr}</p>}
