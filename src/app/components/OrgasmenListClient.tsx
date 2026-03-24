@@ -5,7 +5,8 @@ import EntryActions from "@/app/dashboard/EntryActions";
 
 export interface OrgasmusItemData {
   id: string;
-  dateTimeStr: string;
+  dateStr: string;
+  timeStr: string;
   orgasmusArt: string | null;
   note: string | null;
   editHref: string;
@@ -24,7 +25,8 @@ export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[
         {paginated.map((e) => (
           <div key={e.id} className="px-5 py-3 flex items-start gap-3 hover:bg-gray-50/60 transition">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{e.dateTimeStr}</p>
+              <span className="text-sm font-semibold text-gray-900 tabular-nums">{e.dateStr}</span>
+              {" "}<span className="text-xs text-gray-400 tabular-nums">{e.timeStr}</span>
               <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
               {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
             </div>
