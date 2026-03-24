@@ -9,18 +9,17 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
-import { KONTROLLE_PILLS, ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
+import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
-import PairRow from "@/app/dashboard/PairRow";
 import StatusBanner from "@/app/dashboard/StatusBanner";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
-import ImageViewer from "@/app/components/ImageViewer";
-import EntryActions from "@/app/dashboard/EntryActions";
+import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
+import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import SessionList from "@/app/dashboard/SessionList";
-import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
+import { ClipboardList, Droplets } from "lucide-react";
 import UserNav from "./UserNav";
 import { getTranslations, getLocale } from "next-intl/server";
 
@@ -325,33 +324,30 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           <div className="px-5 py-3 border-b border-gray-50">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />{ts("inspections")}</p>
           </div>
-          <div className="divide-y divide-gray-50">
-            {[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).map((k) => {
+          <KontrolleItemListClient
+            imageAlt={ts("inspections")}
+            items={[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).map((k): KontrolleItemData => {
               const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
               const vPill = k.verifikationStatus ? VERIFIKATION_PILLS[k.verifikationStatus] : null;
-              return (
-                <div key={k.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition">
-                  {k.imageUrl && (
-                    <ImageViewer src={k.imageUrl} alt={ts("inspections")} width={40} height={40}
-                      className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={k.kommentar} />
-                  )}
-                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${aPill.cls}`}>{t(aPill.labelKey)}</span>}
-                    {vPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${vPill.cls}`}>{t(vPill.labelKey)}</span>}
-                    {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
-                    <span className="text-xs text-gray-400 truncate">{formatDateTime(k.time, dl)}</span>
-                    {k.deadline && (
-                      <span className="text-xs text-gray-300 truncate">{t("frist")}: {formatDateTime(k.deadline, dl)}</span>
-                    )}
-                    {k.kommentar && (
-                      <span className="text-xs text-amber-700 truncate w-full">{k.kommentar}</span>
-                    )}
-                  </div>
-                  {k.entryId && <EntryActions id={k.entryId} editHref={`/dashboard/edit/${k.entryId}`} />}
-                </div>
-              );
+              return {
+                id: k.id,
+                imageUrl: k.imageUrl,
+                kommentar: k.kommentar,
+                pill1Label: aPill ? t(aPill.labelKey) : null,
+                pill1Cls: aPill?.cls ?? null,
+                pill2Label: vPill ? t(vPill.labelKey) : null,
+                pill2Cls: vPill?.cls ?? null,
+                code: k.code,
+                dateTimeStr: formatDateTime(k.time, dl),
+                dateTimePrefix: null,
+                deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
+                deadlinePrefix: t("frist"),
+                note: null,
+                entryId: k.entryId,
+                editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
+              };
             })}
-          </div>
+          />
         </div>
       )}
 
@@ -361,18 +357,15 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           <div className="px-5 py-3 border-b border-gray-50">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><Droplets size={12} />{td("orgasms")}</p>
           </div>
-          <div className="divide-y divide-gray-50">
-            {orgasmusEntries.map((e) => (
-              <div key={e.id} className="px-5 py-3 flex items-start gap-3 hover:bg-gray-50/60 transition">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{formatDateTime(e.startTime, dl)}</p>
-                  <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
-                  {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
-                </div>
-                <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}`} />
-              </div>
-            ))}
-          </div>
+          <OrgasmenListClient
+            items={orgasmusEntries.map((e): OrgasmusItemData => ({
+              id: e.id,
+              dateTimeStr: formatDateTime(e.startTime, dl),
+              orgasmusArt: e.orgasmusArt,
+              note: e.note,
+              editHref: `/dashboard/edit/${e.id}`,
+            }))}
+          />
         </div>
       )}
     </main>
