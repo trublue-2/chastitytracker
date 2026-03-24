@@ -3,13 +3,11 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
-import ImageViewer from "@/app/components/ImageViewer";
-import KontrolleActions from "@/app/admin/kontrollen/KontrolleActions";
 import KontrolleButton from "@/app/admin/KontrolleButton";
 import UserNav from "../UserNav";
-import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
+import AdminKontrolleListClient, { type AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -48,8 +46,8 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
     code: string | null;
     deadline: Date | null;
     createdAt: Date | null;
-    fulfilledAt: Date | null;   // entry.startTime (vom User eingetragener Zeitpunkt)
-    submittedAt: Date | null;   // ka.fulfilledAt (server-gesetzt, unveränderlich)
+    fulfilledAt: Date | null;
+    submittedAt: Date | null;
     withdrawnAt: Date | null;
     kommentar: string | null;
     note: string | null;
@@ -99,51 +97,41 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const sortedOffene = [...offeneRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
   const sortedPruefungen = [...pruefungRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
-  function KontrolleRow({ row, i }: { row: (typeof offeneRows)[0]; i: number }) {
+  function toItem(row: Row): AdminKontrolleRowData {
     const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
     const kPill = row.entryId
       ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, ta)
       : anfPill ? { label: ta(anfPill.labelKey), cls: anfPill.cls } : null;
-    return (
-      <div key={i} className="px-4 py-3 flex items-start gap-3">
-        {row.imageUrl && (
-          <ImageViewer src={row.imageUrl} alt="Kontroll-Foto" width={40} height={40}
-            className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={row.kommentar} />
-        )}
-        <div className="flex-1 min-w-0 flex flex-col gap-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${kPill.cls}`}>{kPill.label}</span>}
-            {row.code && <span className="font-mono font-bold text-orange-500 text-sm">{row.code}</span>}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-            {row.fulfilledAt && <span>Zeitpunkt: {formatDateTime(row.fulfilledAt, dl)}</span>}
-            {row.deadline && <span>Frist: {formatDateTime(row.deadline, dl)}</span>}
-            {row.createdAt && <span>Erstellt: {formatDateTime(row.createdAt, dl)}</span>}
-            {row.withdrawnAt && <span>Zurückgezogen: {formatDateTime(row.withdrawnAt, dl)}</span>}
-          </div>
-          {row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000 && (
-            <p className="text-xs text-amber-500 font-medium mt-0.5">
-              Zeit korrigiert – Angegeben: {formatDateTime(row.fulfilledAt, dl)} · System: {formatDateTime(row.submittedAt, dl)}
-            </p>
-          )}
-          {row.kommentar && (
-            <p className="text-xs text-gray-400 italic mt-0.5">Anweisung: {row.kommentar}</p>
-          )}
-          {row.note && (
-            <p className="text-xs text-gray-500 italic mt-0.5">„{row.note}"</p>
-          )}
-        </div>
-        {(row.kontrolleId || row.entryId) && (
-          <KontrolleActions
-            kontrolleId={row.kontrolleId}
-            entryId={row.entryId}
-            anforderungStatus={row.anforderungStatus ?? "open"}
-            verifikationStatus={row.verifikationStatus}
-          />
-        )}
-      </div>
-    );
+    const timeCorrected = row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000;
+    return {
+      imageUrl: row.imageUrl,
+      kommentar: row.kommentar,
+      pillLabel: kPill?.label ?? null,
+      pillCls: kPill?.cls ?? null,
+      code: row.code,
+      fulfilledAtStr: row.fulfilledAt ? formatDateTime(row.fulfilledAt, dl) : null,
+      deadlineStr: row.deadline ? formatDateTime(row.deadline, dl) : null,
+      createdAtStr: row.createdAt ? formatDateTime(row.createdAt, dl) : null,
+      withdrawnAtStr: row.withdrawnAt ? formatDateTime(row.withdrawnAt, dl) : null,
+      timeCorrectedStr: timeCorrected
+        ? `Zeit korrigiert – Angegeben: ${formatDateTime(row.fulfilledAt!, dl)} · System: ${formatDateTime(row.submittedAt!, dl)}`
+        : null,
+      note: row.note,
+      kontrolleId: row.kontrolleId,
+      entryId: row.entryId,
+      anforderungStatus: row.anforderungStatus ?? "open",
+      verifikationStatus: row.verifikationStatus,
+    };
   }
+
+  const labels = {
+    fulfilledLabel: ta("fulfilledLabel"),
+    fristLabel: ta("frist"),
+    createdLabel: ta("createdLabel"),
+    withdrawnLabel: ta("withdrawnLabel"),
+    instructionLabel: ta("instructionLabel"),
+    imageAlt: "Kontroll-Foto",
+  };
 
   return (
     <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
@@ -157,23 +145,19 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
           <div className="px-5 py-3 border-b border-gray-50">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Offene Anforderungen</p>
           </div>
-          <div className="divide-y divide-gray-50">
-            {sortedOffene.map((row, i) => <KontrolleRow key={i} row={row} i={i} />)}
-          </div>
+          <AdminKontrolleListClient items={sortedOffene.map(toItem)} labels={labels} />
         </div>
       )}
 
-      {/* Prüfungen */}
+      {/* Kontrollen */}
       {sortedPruefungen.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-50">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Prüfungen ({sortedPruefungen.length})
+              Kontrollen ({sortedPruefungen.length})
             </p>
           </div>
-          <div className="divide-y divide-gray-50">
-            {sortedPruefungen.map((row, i) => <KontrolleRow key={i} row={row} i={i} />)}
-          </div>
+          <AdminKontrolleListClient items={sortedPruefungen.map(toItem)} labels={labels} />
         </div>
       )}
 

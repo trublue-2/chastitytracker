@@ -6,7 +6,7 @@ export default async function UserNav({
 }: {
   userId: string;
   username: string;
-  current: "uebersicht" | "statistik" | "vorgaben" | "kontrollen";
+  current: "uebersicht" | "statistik" | "vorgaben" | "kontrollen" | "strafbuch";
 }) {
   const t = await getTranslations("admin");
 
@@ -15,6 +15,7 @@ export default async function UserNav({
     { label: t("statsTitle"), key: "statistik",   path: `/admin/users/${userId}/stats` },
     { label: t("vorgaben"),   key: "vorgaben",    path: `/admin/users/${userId}/vorgaben` },
     { label: t("kontrollen"), key: "kontrollen",  path: `/admin/users/${userId}/kontrollen` },
+    { label: t("strafbuch"),  key: "strafbuch",   path: `/admin/users/${userId}/strafbuch` },
   ];
 
   return (
