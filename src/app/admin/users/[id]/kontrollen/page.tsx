@@ -48,7 +48,8 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
     code: string | null;
     deadline: Date | null;
     createdAt: Date | null;
-    fulfilledAt: Date | null;
+    fulfilledAt: Date | null;   // entry.startTime (vom User eingetragener Zeitpunkt)
+    submittedAt: Date | null;   // ka.fulfilledAt (server-gesetzt, unveränderlich)
     withdrawnAt: Date | null;
     kommentar: string | null;
     note: string | null;
@@ -67,6 +68,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       deadline: ka?.deadline ?? null,
       createdAt: ka?.createdAt ?? null,
       fulfilledAt: e.startTime,
+      submittedAt: ka?.fulfilledAt ?? null,
       withdrawnAt: ka?.withdrawnAt ?? null,
       kommentar: ka?.kommentar ?? null,
       note: e.note,
@@ -86,6 +88,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       deadline: k.deadline,
       createdAt: k.createdAt,
       fulfilledAt: null,
+      submittedAt: null,
       withdrawnAt: k.withdrawnAt,
       kommentar: k.kommentar,
       note: null,
@@ -114,6 +117,9 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
             {row.fulfilledAt && <span>Erfüllt: {formatDateTime(row.fulfilledAt, dl)}</span>}
+            {row.submittedAt && row.fulfilledAt && Math.abs(row.submittedAt.getTime() - row.fulfilledAt.getTime()) > 60_000 && (
+              <span className="text-amber-500 font-medium">Eingereicht: {formatDateTime(row.submittedAt, dl)}</span>
+            )}
             {row.deadline && <span>Frist: {formatDateTime(row.deadline, dl)}</span>}
             {row.createdAt && <span>Erstellt: {formatDateTime(row.createdAt, dl)}</span>}
             {row.withdrawnAt && <span>Zurückgezogen: {formatDateTime(row.withdrawnAt, dl)}</span>}
