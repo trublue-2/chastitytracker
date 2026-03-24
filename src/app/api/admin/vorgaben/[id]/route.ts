@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { reorderVorgabenDates } from "@/lib/vorgaben";
 
 export async function PATCH(
   req: NextRequest,
@@ -23,6 +24,7 @@ export async function PATCH(
       notiz: notiz ?? null,
     },
   });
+  await reorderVorgabenDates(vorgabe.userId);
   return NextResponse.json(vorgabe);
 }
 
@@ -36,6 +38,7 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  await prisma.trainingVorgabe.delete({ where: { id } });
+  const deleted = await prisma.trainingVorgabe.delete({ where: { id }, select: { userId: true } });
+  await reorderVorgabenDates(deleted.userId);
   return new NextResponse(null, { status: 204 });
 }
