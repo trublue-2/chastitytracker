@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.7.1",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Admin / Benutzer-Übersicht: Session-Liste (identisch mit /dashboard) wird unterhalb der Navigation angezeigt"
+      },
+      {
+        "type": "fix",
+        "text": "Admin / Benutzer-Übersicht: Orgasmus-Einträge zeigen Aktionsmenü rechtsbündig"
+      }
+    ]
+  },
+  {
     "version": "1.7.0",
     "date": "2026-03-22",
     "changes": [

@@ -19,6 +19,7 @@ import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import ImageViewer from "@/app/components/ImageViewer";
 import EntryActions from "@/app/dashboard/EntryActions";
+import SessionList from "@/app/dashboard/SessionList";
 import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
 import UserNav from "./UserNav";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -315,60 +316,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </div>
       )}
 
-      {/* ── Einschluss-Liste ── (ausgeblendet)
-      {pairs.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
-          {t("noEntries")}
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="grid grid-cols-[80px_1fr_1fr] sm:grid-cols-[96px_1fr_1fr_auto] border-b border-gray-100 px-5 py-3 gap-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{td("photo")}</span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><Lock size={11} />{td("lock")}</span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><LockOpen size={11} />{td("opening")}</span>
-            <span className="hidden sm:block text-xs font-semibold uppercase tracking-wider text-gray-400">{tc("duration")}</span>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {pairs.map(({ verschluss, oeffnen, active }) => {
-              const ps = photoStatus(verschluss);
-              const duration = oeffnen ? formatDuration(verschluss.startTime, oeffnen.startTime, dl) : null;
-              return (
-                <PairRow
-                  key={verschluss.id}
-                  verschluss={{
-                    id: verschluss.id,
-                    startTime: verschluss.startTime.toISOString(),
-                    imageUrl: verschluss.imageUrl,
-                    imageExifTime: verschluss.imageExifTime?.toISOString() ?? null,
-                    note: verschluss.note,
-                    kontrollCode: verschluss.kontrollCode,
-                    verifikationStatus: verschluss.verifikationStatus,
-                    oeffnenGrund: verschluss.oeffnenGrund,
-                  }}
-                  oeffnen={oeffnen ? {
-                    id: oeffnen.id,
-                    startTime: oeffnen.startTime.toISOString(),
-                    imageUrl: oeffnen.imageUrl,
-                    imageExifTime: oeffnen.imageExifTime?.toISOString() ?? null,
-                    note: oeffnen.note,
-                    kontrollCode: oeffnen.kontrollCode,
-                    verifikationStatus: oeffnen.verifikationStatus,
-                    oeffnenGrund: oeffnen.oeffnenGrund,
-                  } : null}
-                  active={active}
-                  duration={duration}
-                  photoStatus={ps}
-                />
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-4 px-5 py-3 border-t border-gray-50 text-xs text-gray-400">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" /> {ts("noPhoto")}</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> {td("exifDeviation")}</span>
-          </div>
-        </div>
-      )}
-      */}
+      {/* ── Session-Liste ── */}
+      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
 
       {/* ── Kontrollen ── */}
       {kontrollItems.length > 0 && (
@@ -414,13 +363,13 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           </div>
           <div className="divide-y divide-gray-50">
             {orgasmusEntries.map((e) => (
-              <div key={e.id} className="px-5 py-3 hover:bg-gray-50/60 transition">
-                <div className="flex items-center gap-1 min-w-0">
+              <div key={e.id} className="px-5 py-3 flex items-start gap-3 hover:bg-gray-50/60 transition">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{formatDateTime(e.startTime, dl)}</p>
-                  <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}`} />
+                  <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
+                  {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
                 </div>
-                <p className="text-xs text-rose-500 font-medium mt-0.5">{e.orgasmusArt}</p>
-                {e.note && <p className="text-xs text-gray-400 italic mt-0.5">„{e.note}"</p>}
+                <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}`} />
               </div>
             ))}
           </div>
