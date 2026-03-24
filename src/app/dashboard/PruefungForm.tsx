@@ -201,14 +201,20 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
           {t("controlCode")} <span className="text-orange-500 normal-case font-normal">({t("controlCodeHint")})</span>
         </label>
-        <input
-          type="text"
-          value={kontrollCode}
-          onChange={(e) => setKontrollCode(e.target.value.slice(0, 5))}
-          maxLength={5}
-          placeholder="–"
-          className={`${inputCls} font-mono tracking-widest text-orange-600 font-bold text-xl`}
-        />
+        {initial?.kontrollCode ? (
+          <div className={`${inputCls} font-mono tracking-widest text-orange-600 font-bold text-xl bg-gray-100 cursor-default`}>
+            {kontrollCode || "–"}
+          </div>
+        ) : (
+          <input
+            type="text"
+            value={kontrollCode}
+            onChange={(e) => setKontrollCode(e.target.value.slice(0, 5))}
+            maxLength={5}
+            placeholder="–"
+            className={`${inputCls} font-mono tracking-widest text-orange-600 font-bold text-xl`}
+          />
+        )}
       </div>
 
       <div>

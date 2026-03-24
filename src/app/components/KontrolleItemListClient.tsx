@@ -20,6 +20,7 @@ export interface KontrolleItemData {
   note: string | null;
   entryId: string | null;
   editHref: string | null;
+  timeCorrectedStr?: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -68,6 +69,7 @@ export default function KontrolleItemListClient({
                 <span>{k.dateTimePrefix ? `${k.dateTimePrefix} ` : ""}{k.dateTimeStr}</span>
                 {k.deadlineStr && <span>{k.deadlinePrefix} {k.deadlineStr}</span>}
               </div>
+              {k.timeCorrectedStr && <p className="text-xs text-amber-500 font-medium">{k.timeCorrectedStr}</p>}
               {k.kommentar && <p className="text-xs text-amber-700 truncate">{k.kommentar}</p>}
               {k.note && <p className="text-xs text-gray-400 italic truncate">„{k.note}"</p>}
             </div>

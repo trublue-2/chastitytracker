@@ -23,6 +23,8 @@ export interface SessionEventData {
   kombiniertePillCls: string | null;
   orgasmusArt: string | null;
   pauseDurationStr?: string | null;
+  timeCorrected?: boolean;
+  timeCorrectedSystemStr?: string | null;
 }
 
 function PinchZoomImage({ src, onError }: { src: string; onError: () => void }) {
@@ -234,7 +236,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             <div>
               <div className="mb-0.5 sm:hidden">{typePill}</div>
               <span className="block text-sm font-semibold text-gray-900 tabular-nums">{ev.dateStr}</span>
-              <span className="block text-xs text-gray-400 tabular-nums">{ev.timeStr}</span>
+              <span className={`block text-xs tabular-nums ${ev.timeCorrected ? "text-red-500 font-medium" : "text-gray-400"}`}>{ev.timeStr}</span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="hidden sm:inline-flex">{typePill}</span>
@@ -299,6 +301,19 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Art</p>
                 <p className="text-sm text-gray-700">{ev.orgasmusArt}</p>
+              </div>
+            )}
+            {ev.deadlineStr && (
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Frist</p>
+                <p className="text-sm text-gray-700">{ev.deadlineStr}</p>
+              </div>
+            )}
+            {ev.timeCorrectedSystemStr && (
+              <div>
+                <p className="text-xs text-amber-500 uppercase tracking-wider font-semibold mb-0.5">Zeit korrigiert</p>
+                <p className="text-sm text-amber-500">Angegeben: {ev.dateStr}, {ev.timeStr}</p>
+                <p className="text-sm text-amber-500">System: {ev.timeCorrectedSystemStr}</p>
               </div>
             )}
             {ev.kontrolleKommentar && (
