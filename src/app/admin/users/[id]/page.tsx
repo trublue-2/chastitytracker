@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDuration, formatDateTime, formatDate, formatHours, toDateLocale,
+  formatDuration, formatDateTime, formatDate, formatTime, formatHours, toDateLocale,
   wearingHoursInRange, buildPairs, interruptionPauseMs, photoStatus,
   mapAnforderungStatus, mapVerifikationStatus,
   getMidnightToday, getWeekStart, getMonthStart,
@@ -360,7 +360,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           <OrgasmenListClient
             items={orgasmusEntries.map((e): OrgasmusItemData => ({
               id: e.id,
-              dateTimeStr: formatDateTime(e.startTime, dl),
+              dateStr: formatDate(e.startTime, dl),
+              timeStr: formatTime(e.startTime, dl),
               orgasmusArt: e.orgasmusArt,
               note: e.note,
               editHref: `/dashboard/edit/${e.id}`,
