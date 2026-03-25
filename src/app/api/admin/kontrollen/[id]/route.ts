@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { trackEvent } from "@/lib/telemetry";
 
 export async function PATCH(
   req: NextRequest,
@@ -23,6 +24,7 @@ export async function PATCH(
       where: { id },
       data: { withdrawnAt: new Date() },
     });
+    trackEvent("kontrolle.withdrawn");
     return NextResponse.json(updated);
   }
 
@@ -32,6 +34,7 @@ export async function PATCH(
       where: { id: ka.entryId },
       data: { verifikationStatus: "manual" },
     });
+    trackEvent("kontrolle.verified");
     return NextResponse.json({ ok: true });
   }
 
@@ -41,6 +44,7 @@ export async function PATCH(
       where: { id: ka.entryId },
       data: { verifikationStatus: "rejected" },
     });
+    trackEvent("kontrolle.rejected");
     return NextResponse.json({ ok: true });
   }
 
