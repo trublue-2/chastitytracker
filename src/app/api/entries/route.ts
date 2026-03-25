@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { trackEvent } from "@/lib/telemetry";
 
 const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS"];
 const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"];
@@ -91,6 +92,9 @@ export async function POST(req: NextRequest) {
       where: { userId: session.user.id, code: kontrollCode, entryId: null, withdrawnAt: null },
       data: { entryId: entry.id, fulfilledAt: new Date() },
     });
+    trackEvent("kontrolle.fulfilled", { type });
+  } else {
+    trackEvent("entry.created", { type });
   }
 
   // VerschlussAnforderung (ANFORDERUNG) als erfüllt markieren + ggf. SPERRZEIT erstellen

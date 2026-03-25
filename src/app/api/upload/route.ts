@@ -4,6 +4,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import exifr from "exifr";
 import sharp from "sharp";
+import { trackEvent } from "@/lib/telemetry";
 
 function isAllowedImageBuffer(buf: Buffer): boolean {
   // JPEG: FF D8 FF
@@ -95,5 +96,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  trackEvent("upload.success");
   return NextResponse.json({ url: `/api/uploads/${filename}`, exifTime });
 }
