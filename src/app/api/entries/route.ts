@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     });
     trackEvent("kontrolle.fulfilled", { type });
   } else {
-    trackEvent("entry.created", { type });
+    trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
   }
 
   // VerschlussAnforderung (ANFORDERUNG) als erfüllt markieren + ggf. SPERRZEIT erstellen
