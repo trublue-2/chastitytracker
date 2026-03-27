@@ -3,7 +3,6 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
-import UserNav from "../UserNav";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, formatDate } from "@/lib/utils";
 
@@ -33,9 +32,7 @@ export default async function VorgabenPage({ params }: { params: Promise<{ id: s
   });
 
   return (
-    <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
-      <UserNav userId={id} username={user.username} current="vorgaben" />
-
+    <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-6">
       <VorgabeForm userId={id} />
 
       {vorgaben.length > 0 && (

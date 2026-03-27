@@ -2,15 +2,14 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import DeleteUserButton from "./DeleteUserButton";
-import RoleSelect from "./RoleSelect";
 import CreateDemoUserButton from "./CreateDemoUserButton";
 import KontrolleButton from "./KontrolleButton";
-import { Lock, LockOpen } from "lucide-react";
-import KontrolleBanner from "@/app/components/KontrolleBanner";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import WithdrawVerschlussButton from "./WithdrawVerschlussButton";
+import KontrolleBanner from "@/app/components/KontrolleBanner";
+import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, formatDateTime, APP_TZ } from "@/lib/utils";
+import { toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
 
 async function getUserStats(userId: string) {
   const entries = await prisma.entry.findMany({
@@ -21,28 +20,12 @@ async function getUserStats(userId: string) {
   const latest = [...entries]
     .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
-  const currentStatus = latest?.type ?? null;
-  const since = latest?.startTime ?? null;
-
-  let totalPairs = 0;
-  let pending: (typeof entries)[0] | null = null;
-  for (const e of entries) {
-    if (e.type === "VERSCHLUSS") {
-      if (pending) totalPairs++;
-      pending = e;
-    } else if (e.type === "OEFFNEN" && pending) {
-      totalPairs++;
-      pending = null;
-    }
-  }
-  if (pending) totalPairs++;
 
   const now = new Date();
   const offeneKontrolle = await prisma.kontrollAnforderung.findFirst({
     where: { userId, entryId: null, withdrawnAt: null },
     orderBy: { createdAt: "desc" },
   });
-
   const offeneVerschlussAnforderung = await prisma.verschlussAnforderung.findFirst({
     where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
   });
@@ -51,9 +34,8 @@ async function getUserStats(userId: string) {
   });
 
   return {
-    currentStatus,
-    since,
-    totalPairs,
+    currentStatus: latest?.type ?? null,
+    since: latest?.startTime ?? null,
     offeneKontrolle: offeneKontrolle
       ? { deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
       : null,
@@ -72,104 +54,116 @@ export default async function AdminPage() {
   const session = await auth();
   const currentUserId = session?.user?.id;
   const t = await getTranslations("admin");
-  const tc = await getTranslations("common");
   const dl = toDateLocale(await getLocale());
 
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
+  // Feature flag: when USE_ADMIN_RELATIONSHIPS=true, admins only see their assigned users.
+  const useRelationships = process.env.USE_ADMIN_RELATIONSHIPS === "true";
+  let users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
+  if (useRelationships && currentUserId) {
+    const rels = await prisma.adminUserRelationship.findMany({ where: { adminId: currentUserId } });
+    const assignedIds = new Set(rels.map(r => r.userId));
+    users = users.filter(u => u.role === "admin" || assignedIds.has(u.id));
+  }
   const demoExists = users.some((u) => u.username === "DemoUser");
 
   const usersWithStats = await Promise.all(
     users.map(async (u) => ({ ...u, stats: await getUserStats(u.id) }))
   );
 
+  const now = new Date();
+  const lockedCount = usersWithStats.filter(u => u.stats.currentStatus === "VERSCHLUSS").length;
+  const alarmCount = usersWithStats.filter(u => u.stats.offeneKontrolle || u.stats.hasOffeneAnforderung).length;
+
   return (
-    <main className="flex-1 w-full max-w-5xl px-6 py-8">
+    <main className="flex-1 w-full max-w-5xl px-4 sm:px-6 py-6">
+
+      {/* ── Summary Header ── */}
       <div className="flex items-start justify-between mb-6 gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-gray-900">{t("title")}</h1>
-          <p className="text-sm text-gray-400 mt-1">{t("usersRegistered", { count: users.length })}</p>
+          <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+          <div className="flex items-center gap-4 mt-2">
+            <span className="flex items-center gap-1.5 text-sm text-foreground-muted">
+              <Users size={14} strokeWidth={1.75} />
+              <span className="font-semibold text-foreground">{users.length}</span> {t("usersRegistered", { count: users.length }).replace(/\d+\s*/, "")}
+            </span>
+            <span className={`flex items-center gap-1.5 text-sm ${lockedCount > 0 ? "text-lock" : "text-foreground-faint"}`}>
+              <Lock size={14} strokeWidth={1.75} />
+              <span className="font-semibold">{lockedCount}</span> {t("locked")}
+            </span>
+            {alarmCount > 0 && (
+              <span className="flex items-center gap-1.5 text-sm text-warn">
+                <ShieldAlert size={14} strokeWidth={1.75} />
+                <span className="font-semibold">{alarmCount}</span> Alarm{alarmCount !== 1 ? "e" : ""}
+              </span>
+            )}
+          </div>
         </div>
         <Link
           href="/admin/users/new"
-          className="inline-flex items-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold px-3 py-2 rounded-xl hover:bg-indigo-500 active:scale-95 transition-all flex-shrink-0 whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 bg-btn-primary text-btn-primary-text text-sm font-semibold px-3 py-2 rounded-xl hover:opacity-90 active:scale-95 transition-all flex-shrink-0"
         >
-          + {t("newUser")}
+          <UserPlus size={15} strokeWidth={2} />
+          {t("newUser")}
         </Link>
       </div>
 
       {!demoExists && (
-        <div className="mb-6">
+        <div className="mb-5">
           <CreateDemoUserButton />
         </div>
       )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {usersWithStats.map((u) => {
-            const isLocked = u.stats.currentStatus === "VERSCHLUSS";
-            const sinceStr = u.stats.since ? formatDateTime(u.stats.since, dl) : null;
+      {/* ── User cards grid ── */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {usersWithStats.map((u) => {
+          const isLocked = u.stats.currentStatus === "VERSCHLUSS";
+          const sinceDisplay = u.stats.since
+            ? formatDuration(u.stats.since, now, dl)
+            : null;
 
-            return (
-              <div key={u.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-gray-900">{u.username}</p>
-                    <DeleteUserButton id={u.id} username={u.username} isSelf={u.id === currentUserId} />
-                  </div>
-                  <div><RoleSelect id={u.id} currentRole={u.role} /></div>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <Link
-                      href={`/admin/users/${u.id}`}
-                      className="text-xs font-medium text-gray-400 hover:text-gray-800 border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-50 transition"
-                    >
-                      {t("overview")}
-                    </Link>
-                    <Link
-                      href={`/admin/users/${u.id}/stats`}
-                      className="text-xs font-medium text-gray-400 hover:text-gray-800 border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-50 transition"
-                    >
-                      {t("statsTitle")}
-                    </Link>
-                    <Link
-                      href={`/admin/users/${u.id}/vorgaben`}
-                      className="text-xs font-medium text-gray-400 hover:text-gray-800 border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-50 transition"
-                    >
-                      {t("vorgaben")}
-                    </Link>
-                    <Link
-                      href={`/admin/users/${u.id}/kontrollen`}
-                      className="text-xs font-medium text-gray-400 hover:text-gray-800 border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-50 transition"
-                    >
-                      {t("kontrollen")}
-                    </Link>
-                    {isLocked && (
-                      <KontrolleButton userId={u.id} hasEmail={!!u.email} />
-                    )}
-                    <VerschlussAnforderungButton
-                      userId={u.id}
-                      hasEmail={!!u.email}
-                      isLocked={isLocked}
-                      hasOffeneAnforderung={u.stats.hasOffeneAnforderung}
-                      hasActiveSperrzeit={u.stats.hasActiveSperrzeit}
-                    />
-                  </div>
-                </div>
+          const hasAlarm = !!u.stats.offeneKontrolle || u.stats.hasOffeneAnforderung;
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-gray-50 px-3 py-2">
-                    <p className="text-xs text-gray-400 mb-0.5">{tc("status")}</p>
-                    <p className={`text-sm font-bold flex items-center gap-1 ${isLocked ? "text-emerald-600" : u.stats.currentStatus ? "text-gray-900" : "text-gray-400"}`}>
-                      {isLocked ? <><Lock size={13} />{t("locked")}</> : u.stats.currentStatus ? <><LockOpen size={13} />{t("opened")}</> : "–"}
+          return (
+            <div key={u.id} className="relative bg-surface rounded-2xl border border-border hover:border-border-strong transition-colors overflow-hidden">
+              {/* Stretched link — covers whole card for navigation */}
+              <Link
+                href={`/admin/users/${u.id}`}
+                className="absolute inset-0 z-0"
+                aria-label={`${u.username} öffnen`}
+              />
+
+              <div className="relative z-10 p-5 flex flex-col gap-3">
+                {/* Header: avatar + name + status icon */}
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                    isLocked ? "bg-lock-bg text-lock" : "bg-surface-raised text-foreground-muted"
+                  }`}>
+                    {u.username[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-foreground">{u.username}</p>
+                      {hasAlarm && (
+                        <span className="w-2 h-2 rounded-full bg-warn flex-shrink-0" title="Alarm" />
+                      )}
+                    </div>
+                    <p className={`text-xs mt-0.5 font-medium ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+                      {isLocked
+                        ? `GESPERRT${sinceDisplay ? ` · ${sinceDisplay}` : ""}`
+                        : u.stats.currentStatus
+                          ? `OFFEN${sinceDisplay ? ` · seit ${sinceDisplay}` : ""}`
+                          : "Kein Eintrag"}
                     </p>
-                    {sinceStr && (
-                      <p className="text-xs text-gray-400 mt-0.5">{tc("since")} {sinceStr}</p>
-                    )}
                   </div>
-                  <div className="rounded-xl bg-gray-50 px-3 py-2">
-                    <p className="text-xs text-gray-400 mb-0.5">{t("entries")}</p>
-                    <p className="text-2xl font-bold text-gray-900">{u.stats.totalPairs}</p>
+                  <div className={`flex-shrink-0 mt-1 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+                    {isLocked
+                      ? <Lock size={18} strokeWidth={1.75} />
+                      : <LockOpen size={18} strokeWidth={1.75} />
+                    }
                   </div>
                 </div>
 
+                {/* Alarm banners */}
                 {u.stats.offeneKontrolle && (
                   <KontrolleBanner
                     deadline={u.stats.offeneKontrolle.deadline}
@@ -180,47 +174,71 @@ export default async function AdminPage() {
                   />
                 )}
                 {u.stats.offeneAnforderung && (
-                  <div className="flex items-center justify-between gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
+                  <div className="flex items-center justify-between gap-2 bg-request-bg border border-request-border rounded-xl px-3 py-2">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <Lock size={11} className="text-indigo-500 shrink-0" />
-                      <span className="text-xs text-indigo-700 font-medium truncate">{t("lockRequested")}</span>
+                      <Lock size={11} className="text-request flex-shrink-0" />
+                      <span className="text-xs text-request-text font-medium truncate">{t("lockRequested")}</span>
                       {u.stats.offeneAnforderung.endetAt && (
-                        <span className="text-xs text-indigo-400 shrink-0">
-                          {tc("to")} {new Date(u.stats.offeneAnforderung.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
+                        <span className="text-xs text-request opacity-70 flex-shrink-0">
+                          bis {new Date(u.stats.offeneAnforderung.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
                         </span>
                       )}
                     </div>
-                    <WithdrawVerschlussButton id={u.stats.offeneAnforderung.id} />
+                    {/* z-20 so button is above stretched link */}
+                    <div className="relative z-20">
+                      <WithdrawVerschlussButton id={u.stats.offeneAnforderung.id} />
+                    </div>
                   </div>
                 )}
                 {u.stats.activeSperrzeit && (
-                  <div className="flex items-center justify-between gap-2 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
+                  <div className="flex items-center justify-between gap-2 bg-sperrzeit-bg border border-sperrzeit-border rounded-xl px-3 py-2">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <Lock size={11} className="text-rose-500 shrink-0" />
+                      <Lock size={11} className="text-sperrzeit flex-shrink-0" />
                       {u.stats.activeSperrzeit.endetAt ? (
-                        <>
-                          <span className="text-xs text-rose-700 font-medium">{t("lockedUntil")}</span>
-                          <span className="text-xs text-rose-600 font-bold shrink-0">
+                        <span className="text-xs text-sperrzeit-text font-medium">
+                          {t("lockedUntil")}{" "}
+                          <span className="font-bold">
                             {new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
                           </span>
-                        </>
+                        </span>
                       ) : (
-                        <span className="text-xs text-rose-700 font-medium">{t("lockedIndefinite")}</span>
+                        <span className="text-xs text-sperrzeit-text font-medium">{t("lockedIndefinite")}</span>
                       )}
                     </div>
-                    <WithdrawVerschlussButton id={u.stats.activeSperrzeit.id} />
+                    <div className="relative z-20">
+                      <WithdrawVerschlussButton id={u.stats.activeSperrzeit.id} />
+                    </div>
                   </div>
                 )}
-              </div>
-            );
-          })}
-        </div>
 
-        {users.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
-            {t("noUsers")}
-          </div>
-        )}
+                {/* Quick actions — z-20 so they're above the stretched link */}
+                <div className="relative z-20 flex gap-2 flex-wrap">
+                  {isLocked && (
+                    <KontrolleButton userId={u.id} hasEmail={!!u.email} />
+                  )}
+                  <VerschlussAnforderungButton
+                    userId={u.id}
+                    hasEmail={!!u.email}
+                    isLocked={isLocked}
+                    hasOffeneAnforderung={u.stats.hasOffeneAnforderung}
+                    hasActiveSperrzeit={u.stats.hasActiveSperrzeit}
+                  />
+                  {u.id !== currentUserId && (
+                    <DeleteUserButton id={u.id} username={u.username} isSelf={false} />
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {users.length === 0 && (
+        <div className="bg-surface rounded-2xl border border-border py-20 text-center">
+          <p className="text-foreground-faint text-sm">Noch keine Benutzer.</p>
+          <p className="text-foreground-faint text-xs mt-1">Lege den ersten Benutzer an, um mit der Betreuung zu beginnen.</p>
+        </div>
+      )}
     </main>
   );
 }

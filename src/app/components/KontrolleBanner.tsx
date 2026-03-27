@@ -33,16 +33,16 @@ export default async function KontrolleBanner({
   const defaultOpenLabel = t("openTitle");
 
   const colorCls = overdue
-    ? "bg-red-50 border-red-200 text-red-700"
-    : "bg-amber-50 border-amber-200 text-amber-700";
+    ? "bg-warn-bg border-warn-border text-warn-text"
+    : "bg-inspect-bg border-inspect-border text-inspect-text";
 
   if (variant === "compact") {
     return (
       <div className={`rounded-xl px-3 py-2 text-xs font-medium flex flex-col gap-1 border ${colorCls}`}>
         <div className="flex items-center gap-1.5">
           {overdue
-            ? <AlertCircle size={13} className="flex-shrink-0 text-red-500" />
-            : <AlertTriangle size={13} className="flex-shrink-0 text-amber-500" />
+            ? <AlertCircle size={13} className="flex-shrink-0 text-warn" />
+            : <AlertTriangle size={13} className="flex-shrink-0 text-inspect" />
           }
           {overdue ? t("overdue") : t("until")}
           {" "}{formatDateTime(deadline, dl)}
@@ -56,8 +56,8 @@ export default async function KontrolleBanner({
   const inner = (
     <>
       {overdue
-        ? <AlertCircle size={22} className="flex-shrink-0 text-red-500" />
-        : <AlertTriangle size={22} className="flex-shrink-0 text-amber-500" />
+        ? <AlertCircle size={22} className="flex-shrink-0 text-warn" />
+        : <AlertTriangle size={22} className="flex-shrink-0 text-inspect" />
       }
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold">{overdue ? t("overdueTitle") : (openLabel ?? defaultOpenLabel)}</p>
