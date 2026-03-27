@@ -16,6 +16,7 @@ export default function UserSubNav({ userId }: Props) {
   const tabs = [
     { href: base, label: t("overview"), exact: true },
     { href: `${base}/aktionen`, label: t("aktionen"), exact: false },
+    { href: `${base}/eintraege`, label: "Einträge", exact: false },
     { href: `${base}/kontrollen`, label: t("kontrollen"), exact: false },
     { href: `${base}/einstellungen`, label: t("einstellungen"), exact: false },
     { href: `${base}/stats`, label: t("statsTitle"), exact: false },
@@ -34,7 +35,7 @@ export default function UserSubNav({ userId }: Props) {
               href={tab.href}
               className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
                 active
-                  ? "border-[var(--color-lock)] text-[var(--color-lock)]"
+                  ? "border-foreground text-foreground"
                   : "border-transparent text-foreground-faint hover:text-foreground-muted"
               }`}
             >

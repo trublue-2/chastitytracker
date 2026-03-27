@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Loader2 } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
+import { compressImage } from "@/lib/compressImage";
+import ImageViewer from "@/app/components/ImageViewer";
+import PhotoCapture from "@/app/components/PhotoCapture";
 
 const inputCls = "text-sm bg-surface-raised border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted";
 
@@ -12,8 +15,27 @@ export default function VerschlussForm({ userId }: { userId: string }) {
   const router = useRouter();
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [note, setNote] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageExifTime, setImageExifTime] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    setImagePreview(URL.createObjectURL(file));
+    const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
+    const compressed = await compressImage(file).catch(() => file);
+    const fd = new FormData();
+    fd.append("file", compressed);
+    if (clientExifTime) fd.append("clientExifTime", clientExifTime);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    setImageUrl(data.url);
+    setImageExifTime(data.exifTime ?? "");
+    setUploading(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,6 +49,8 @@ export default function VerschlussForm({ userId }: { userId: string }) {
         type: "VERSCHLUSS",
         startTime: new Date(startTime).toISOString(),
         note: note.trim() || undefined,
+        imageUrl: imageUrl || undefined,
+        imageExifTime: imageExifTime || undefined,
       }),
     });
     setLoading(false);
@@ -65,6 +89,27 @@ export default function VerschlussForm({ userId }: { userId: string }) {
           </div>
 
           <div className="flex flex-col gap-1">
+            <label className="text-xs text-foreground-faint">Foto (optional)</label>
+            {imagePreview ? (
+              <div className="flex items-start gap-4">
+                <ImageViewer src={imagePreview} alt="Vorschau" width={80} height={80} className="w-20 h-20 rounded-xl object-cover" />
+                <div className="flex flex-col gap-2 flex-1 pt-1">
+                  {imageExifTime && (
+                    <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>
+                  )}
+                  <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
+                  <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); }}
+                    className="text-xs text-warn hover:opacity-80 w-fit transition">
+                    Foto entfernen
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-foreground-faint">Notiz (optional)</label>
             <textarea
               value={note}
@@ -79,7 +124,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || uploading}
             className="flex items-center justify-center gap-2 text-sm font-medium text-[var(--btn-primary-text)] bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-hover)] rounded-xl px-4 py-3 disabled:opacity-50 transition"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}

@@ -49,16 +49,13 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
 
   if (!open) {
     return (
-      <div className="flex flex-col gap-1">
-        <button
-          onClick={() => { setOpen(true); setMsg(""); }}
-          className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-inspect)] border border-[var(--color-inspect-border)] bg-[var(--color-inspect-bg)] rounded-lg px-2.5 py-1 hover:opacity-80 transition"
-        >
-          <Bell size={11} />
-          {t("requestInspection")}
-        </button>
-        {msg && <p className="text-xs text-foreground-faint">{msg}</p>}
-      </div>
+      <button
+        onClick={() => { setOpen(true); setMsg(""); }}
+        className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-inspect)] border border-[var(--color-inspect-border)] bg-[var(--color-inspect-bg)] rounded-lg px-2.5 py-2 hover:opacity-80 transition"
+      >
+        <Bell size={11} />
+        {t("requestInspection")}
+      </button>
     );
   }
 

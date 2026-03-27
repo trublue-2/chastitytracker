@@ -1,11 +1,11 @@
-import { ArrowLeft, Zap, Bug, Lock, Wrench, Sparkles } from "lucide-react";
+import { ArrowLeft, Zap, Bug, Lock, Wrench, Sparkles, Palette } from "lucide-react";
 import Link from "next/link";
 import pkg from "../../../../package.json";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 
-type EntryType = "feat" | "fix" | "security" | "perf" | "chore";
+type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
 interface ChangeEntry {
   type: EntryType;
@@ -30,6 +30,7 @@ const TYPE_STYLE: Record<EntryType, { icon: React.ElementType; color: string; do
   security: { icon: Lock, color: "text-[var(--color-warn)]", dot: "bg-[var(--color-warn)]" },
   perf: { icon: Zap, color: "text-[var(--color-lock)]", dot: "bg-[var(--color-lock)]" },
   chore: { icon: Wrench, color: "text-foreground-muted", dot: "bg-foreground-faint" },
+  ui: { icon: Palette, color: "text-foreground-muted", dot: "bg-foreground-faint" },
 };
 
 export default async function ChangelogPage() {
@@ -43,6 +44,7 @@ export default async function ChangelogPage() {
     security: { ...TYPE_STYLE.security, label: t("security") },
     perf: { ...TYPE_STYLE.perf, label: t("perf") },
     chore: { ...TYPE_STYLE.chore, label: t("chore") },
+    ui: { ...TYPE_STYLE.ui, label: "UI" },
   };
 
   return (

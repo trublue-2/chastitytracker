@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, Settings, LogOut, Plus, X, ChevronRight, Loader2 } from "lucide-react";
+import { LayoutDashboard, User, LogOut, Plus, X, ChevronRight, Loader2 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import pkg from "../../../package.json";
@@ -30,8 +30,8 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
   const [loading, setLoading] = useState(false);
 
   const navItems = [
-    { href: "/admin", icon: Users, label: tAdmin("users"), exact: true },
-    { href: "/admin/settings", icon: Settings, label: tNav("settings"), exact: false },
+    { href: "/admin", icon: LayoutDashboard, label: "Übersicht", exact: true },
+    { href: "/dashboard", icon: User, label: "Benutzer", exact: false },
   ];
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
@@ -84,18 +84,15 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
       )}
 
       <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-60 bg-surface border-r border-border flex-col z-20">
-        <div className="px-3 pt-4 pb-2">
+        <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">
           <button
             onClick={handleNeu}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 transition disabled:opacity-50"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-nav-inactive-text hover:bg-surface-raised hover:text-foreground-muted w-full text-left disabled:opacity-50"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} strokeWidth={2.5} />}
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} strokeWidth={1.75} />}
             {tNav("new")}
           </button>
-        </div>
-
-        <nav className="flex-1 flex flex-col gap-0.5 p-3 overflow-y-auto">
           {navItems.map((item) => {
             const active = item.exact
               ? pathname === item.href
@@ -107,7 +104,7 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   active
-                    ? "bg-nav-active-bg text-[var(--color-request)] border-l-2 border-[var(--color-request)]"
+                    ? "bg-nav-active-bg text-foreground"
                     : "text-nav-inactive-text hover:bg-surface-raised hover:text-foreground-muted"
                 }`}
               >
@@ -127,10 +124,9 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
             {tNav("signOut")}
           </button>
           <div className="px-2 flex flex-col gap-0.5">
+            <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-xs text-foreground-faint hover:text-foreground-muted transition">© trublue {new Date().getFullYear()}</a>
             <span className="text-xs text-foreground-faint">
-              <Link href="/dashboard/changelog" className="font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
-                v{version}
-              </Link>
+              <Link href="/dashboard/changelog" className="font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">v{version}</Link>
               <span className="ml-2">Build {buildDate}</span>
             </span>
           </div>

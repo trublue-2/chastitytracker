@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart2, Plus, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, BarChart2, Plus, ShieldCheck, LogOut, ClipboardList } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 
@@ -12,29 +12,21 @@ interface Props {
   buildDate: string;
 }
 
-export default function DesktopSidebar({ isAdmin: _isAdmin, version, buildDate }: Props) {
+export default function DesktopSidebar({ isAdmin, version, buildDate }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
   const navItems = [
+    { href: "/dashboard/new", icon: Plus, label: t("new"), exact: false },
     { href: "/dashboard", icon: LayoutDashboard, label: t("overview"), exact: true },
+    { href: "/dashboard/eintraege", icon: ClipboardList, label: "Einträge", exact: false },
     { href: "/dashboard/stats", icon: BarChart2, label: t("stats"), exact: false },
-    { href: "/dashboard/settings", icon: Settings, label: t("settings"), exact: false },
+    ...(isAdmin ? [{ href: "/admin", icon: ShieldCheck, label: "Admin", exact: false }] : []),
   ];
 
   return (
     <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-60 bg-surface border-r border-border flex-col z-20">
-      <div className="px-3 pt-4 pb-2">
-        <Link
-          href="/dashboard/new"
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-foreground text-background hover:opacity-90 transition"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          {t("new")}
-        </Link>
-      </div>
-
-      <nav className="flex-1 flex flex-col gap-0.5 p-3 overflow-y-auto">
+      <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">
         {navItems.map((item) => {
           const active = item.exact
             ? pathname === item.href
@@ -46,7 +38,7 @@ export default function DesktopSidebar({ isAdmin: _isAdmin, version, buildDate }
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 active
-                  ? "bg-nav-active-bg text-[var(--color-lock)] border-l-2 border-[var(--color-lock)]"
+                  ? "bg-nav-active-bg text-foreground"
                   : "text-nav-inactive-text hover:bg-surface-raised hover:text-foreground-muted"
               }`}
             >

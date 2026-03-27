@@ -98,22 +98,19 @@ export default function AdminFAB() {
         </div>
       )}
 
-      {/* FAB Button */}
+      {/* Nav Tab Button */}
       <button
         onClick={sheet === "closed" ? handleOpen : close}
-        className={`flex items-center justify-center w-14 h-14 -mt-6 rounded-full shadow-lg transition-all ${
-          sheet !== "closed"
-            ? "bg-foreground-muted text-background"
-            : "bg-foreground text-background hover:opacity-90"
-        }`}
+        className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full text-nav-inactive-text hover:text-foreground-muted"
         aria-label={sheet === "closed" ? t("aktionen") : tc("close")}
       >
         {loading && sheet === "closed"
           ? <Loader2 size={22} className="animate-spin" />
           : sheet !== "closed"
-            ? <X size={22} />
-            : <Plus size={22} strokeWidth={2} />
+            ? <X size={22} strokeWidth={1.75} />
+            : <Plus size={22} strokeWidth={1.75} />
         }
+        <span className="text-[10px] font-medium">Neu</span>
       </button>
     </>
   );

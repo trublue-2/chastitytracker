@@ -20,9 +20,7 @@ export default function VerschlussAnforderungButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nachricht, setNachricht] = useState("");
-  const [dauerTyp, setDauerTyp] = useState<"datum" | "dauer" | "unbefristet">("datum");
-  const [endetAt, setEndetAt] = useState("");
-  const [dauerH, setDauerH] = useState("");
+  const [deadlineH, setDeadlineH] = useState("24");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -32,16 +30,17 @@ export default function VerschlussAnforderungButton({
   if (art === "SPERRZEIT" && (!isLocked || hasActiveSperrzeit)) return null;
 
   function reset() {
-    setOpen(false); setMsg(""); setNachricht("");
-    setDauerTyp("datum"); setEndetAt(""); setDauerH("");
+    setOpen(false); setMsg(""); setNachricht(""); setDeadlineH("24");
   }
 
   async function handleSubmit() {
     setLoading(true); setMsg("");
     try {
-      const payload: Record<string, unknown> = { userId, art, nachricht: nachricht.trim() || undefined };
-      if (dauerTyp === "datum" && endetAt) payload.endetAt = new Date(endetAt).toISOString();
-      if (dauerTyp === "dauer" && dauerH) payload.dauerH = parseFloat(dauerH);
+      const payload: Record<string, unknown> = {
+        userId, art,
+        nachricht: nachricht.trim() || undefined,
+        dauerH: parseFloat(deadlineH) || 24,
+      };
 
       const res = await fetch("/api/admin/verschluss-anforderung", {
         method: "POST",
@@ -73,9 +72,6 @@ export default function VerschlussAnforderungButton({
   const textareaCls = isAnforderung
     ? "border-[var(--color-request-border)] focus:ring-[var(--color-request)]"
     : "border-[var(--color-sperrzeit-border)] focus:ring-[var(--color-sperrzeit)]";
-  const activeTab = isAnforderung
-    ? "bg-[var(--color-request)] text-foreground-invert border-[var(--color-request)]"
-    : "bg-[var(--color-sperrzeit)] text-foreground-invert border-[var(--color-sperrzeit)]";
   const inputCls = isAnforderung
     ? "border-[var(--color-request-border)] focus:ring-[var(--color-request)]"
     : "border-[var(--color-sperrzeit-border)] focus:ring-[var(--color-sperrzeit)]";
@@ -87,7 +83,7 @@ export default function VerschlussAnforderungButton({
     return (
       <button
         onClick={() => { setOpen(true); setMsg(""); }}
-        className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-2.5 py-1 transition ${btnBase}`}
+        className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-2.5 py-2 transition ${btnBase}`}
       >
         <Lock size={11} />
         {label}
@@ -112,40 +108,17 @@ export default function VerschlussAnforderungButton({
         className={`w-full text-xs bg-surface border rounded-lg px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 resize-none ${textareaCls}`}
       />
 
-      <div className="flex gap-2 flex-wrap">
-        {(isAnforderung ? ["datum", "dauer"] as const : ["datum", "dauer", "unbefristet"] as const).map((typ) => (
-          <button
-            key={typ}
-            type="button"
-            onClick={() => setDauerTyp(typ)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition ${dauerTyp === typ ? activeTab : "bg-surface text-foreground-muted border-border hover:border-border-strong"}`}
-          >
-            {typ === "datum" ? t("untilDate") : typ === "dauer" ? t("durationHours") : t("indefinite")}
-          </button>
-        ))}
-      </div>
-
-      {dauerTyp === "datum" && (
+      <div className="flex items-center gap-2">
+        <label className={`text-xs font-medium whitespace-nowrap ${titleCls}`}>{t("kontrolleHours")}</label>
         <input
-          type="datetime-local"
-          value={endetAt}
-          onChange={(e) => setEndetAt(e.target.value)}
-          className={`text-xs bg-surface border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 ${inputCls}`}
+          type="number"
+          value={deadlineH}
+          onChange={(e) => setDeadlineH(e.target.value)}
+          min={0.5} step={0.5}
+          className={`w-20 text-xs bg-surface border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-2 ${inputCls}`}
         />
-      )}
-      {dauerTyp === "dauer" && (
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            value={dauerH}
-            onChange={(e) => setDauerH(e.target.value)}
-            min={0.5} step={0.5}
-            placeholder="z. B. 24"
-            className={`w-28 text-xs bg-surface border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 ${inputCls}`}
-          />
-          <span className="text-xs text-foreground-faint">{t("kontrolleHours")}</span>
-        </div>
-      )}
+        <span className={`text-xs ${titleCls}`}>h</span>
+      </div>
 
       <div className="flex items-center gap-2">
         <button

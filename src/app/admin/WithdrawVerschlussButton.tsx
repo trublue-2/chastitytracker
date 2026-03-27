@@ -26,7 +26,7 @@ export default function WithdrawVerschlussButton({ id }: { id: string }) {
       onClick={handle}
       disabled={loading}
       title={t("withdrawLockTitle")}
-      className="text-[var(--color-sperrzeit)] hover:opacity-80 disabled:opacity-50 transition"
+      className="p-0 flex items-center text-[var(--color-sperrzeit)] hover:opacity-80 disabled:opacity-50 transition"
     >
       <X size={13} />
     </button>

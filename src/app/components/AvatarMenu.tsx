@@ -2,19 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Settings, LogOut, FileText } from "lucide-react";
+import { Settings, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 
 interface Props {
   username: string;
   settingsHref: string;
-  changelogHref: string;
   /** dark = admin theme, light = user theme */
   theme: "user" | "admin";
+  version?: string;
 }
 
-export default function AvatarMenu({ username, settingsHref, changelogHref, theme }: Props) {
+export default function AvatarMenu({ username, settingsHref, theme, version }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("nav");
@@ -65,10 +65,6 @@ export default function AvatarMenu({ username, settingsHref, changelogHref, them
             <Link href={settingsHref} onClick={() => setOpen(false)} className={itemNormal}>
               <Settings size={16} strokeWidth={1.75} />
               {t("settings")}
-            </Link>
-            <Link href={changelogHref} onClick={() => setOpen(false)} className={itemNormal}>
-              <FileText size={16} strokeWidth={1.75} />
-              Changelog
             </Link>
             <div className="border-t border-border-subtle" />
             <button

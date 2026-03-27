@@ -56,7 +56,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {children}
       </div>
 
-      <UserBottomNav fabState={fabState} isLocked={isLocked} />
+      <UserBottomNav fabState={fabState} isLocked={isLocked} isAdmin={user?.role === "admin"} version={pkg.version} buildDate={buildDate} />
       <InstallBanner />
     </div>
   );
