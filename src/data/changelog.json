@@ -5,19 +5,51 @@
     "changes": [
       {
         "type": "feat",
+        "text": "Dual-Theme: User-Bereich hell, Admin-Bereich dunkel — via data-theme CSS-Tokens"
+      },
+      {
+        "type": "feat",
+        "text": "Vollständige CSS-Design-Token-Migration: alle Farben über --color-* Variablen, keine hardcodierten Tailwind-Farben mehr"
+      },
+      {
+        "type": "feat",
+        "text": "Admin-Aktionen als dedizierte Unterseiten: Verschluss, Öffnen, Prüfung, Orgasmus, Kontrolle, Sperrdauer"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: Einstellungen-Seite pro User (Konto, Reinigung, Vorgaben, Gefahrenbereich)"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: User-Kontextleiste mit Live-Timer (tickt jede Sekunde)"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: Übersichtsseite mit 8 Abschnitten (Status, Kontrolle, Statistik, Vorgabe, Einträge, Kontrollen, Orgasmen)"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: Alarm-Dot bei offener Kontrolle oder VerschlussAnforderung"
+      },
+      {
+        "type": "feat",
+        "text": "AdminUserRelationship-Modell + Feature-Flag USE_ADMIN_RELATIONSHIPS für gefilterte Benutzerliste"
+      },
+      {
+        "type": "feat",
+        "text": "NewEntrySheet: Bottom-Sheet für neuen Eintrag (Verschluss, Öffnen, Prüfung, Orgasmus)"
+      },
+      {
+        "type": "feat",
+        "text": "API POST /api/admin/entries: admingesteuerte Eintragserfassung mit imageUrl + imageExifTime"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: Verschluss- und Prüfung-Formulare mit Foto-Upload (PhotoCapture + compressImage)"
+      },
+      {
+        "type": "feat",
         "text": "Navigation: Einträge-Tab in User-Nav (Desktop & Mobile) und Admin-Benutzer-Subnav"
-      },
-      {
-        "type": "feat",
-        "text": "Navigation: Neu-Button als regulärer Tab (kein FAB mehr), zentriert in der mobilen Bottom-Nav"
-      },
-      {
-        "type": "feat",
-        "text": "Admin: Aktionen-Seite zeigt Einträge (Verschluss, Prüfung) jetzt mit Foto-Upload"
-      },
-      {
-        "type": "feat",
-        "text": "Admin: Einträge-Tab im Benutzer-Subnav – read-only Übersicht aller Einträge"
       },
       {
         "type": "feat",
@@ -25,11 +57,27 @@
       },
       {
         "type": "feat",
-        "text": "Admin API /api/admin/entries: imageUrl und imageExifTime werden gespeichert"
+        "text": "E-Mail bei Neuanlage eines Benutzers ist Pflichtfeld"
       },
       {
         "type": "feat",
-        "text": "E-Mail bei Neuanlage eines Benutzers ist Pflichtfeld"
+        "text": "BottomNav: ©/Build/Version-Zeile unter den Tabs — Changelog via Versions-Link erreichbar"
+      },
+      {
+        "type": "ui",
+        "text": "Glasmorphism BottomNavs: bg-white/80 (User) und bg-[#151821]/85 (Admin) mit backdrop-blur-xl"
+      },
+      {
+        "type": "ui",
+        "text": "StatusBanner + LaufendeSessionCard: grössere Typografie, ProgressBar mit opacity-Tokens"
+      },
+      {
+        "type": "ui",
+        "text": "Navigation: Neu-Button als regulärer Tab zentriert in Mobile-Nav (kein FAB mehr)"
+      },
+      {
+        "type": "ui",
+        "text": "Navigation: aktive Elemente ohne linken Rand-Akzent, schwarze Akzentfarbe"
       },
       {
         "type": "ui",
@@ -38,14 +86,6 @@
       {
         "type": "ui",
         "text": "Admin-Übersicht: Buttons (Löschen, Kontrolle anfordern, Verschluss anfordern) gleiche Höhe wie Pills"
-      },
-      {
-        "type": "ui",
-        "text": "Navigation: aktive Elemente ohne linken Rand-Akzent, schwarze Akzentfarbe"
-      },
-      {
-        "type": "ui",
-        "text": "Changelog aus AvatarMenu entfernt"
       },
       {
         "type": "ui",
