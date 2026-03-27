@@ -107,7 +107,7 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   active
-                    ? "bg-nav-active-bg text-nav-active-text border-l-2 border-[var(--color-request)]"
+                    ? "bg-nav-active-bg text-[var(--color-request)] border-l-2 border-[var(--color-request)]"
                     : "text-nav-inactive-text hover:bg-surface-raised hover:text-foreground-muted"
                 }`}
               >

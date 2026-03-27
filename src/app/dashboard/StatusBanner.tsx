@@ -49,7 +49,7 @@ export default function StatusBanner({ type, since }: Props) {
 
   const bg = isVerschlossen
     ? "bg-gradient-to-br from-[var(--color-lock)] to-[var(--color-lock-muted)]"
-    : "bg-foreground";
+    : "bg-gradient-to-br from-slate-700 to-slate-600";
 
   return (
     <div className={`${bg} rounded-2xl text-background px-4 py-4 flex items-start gap-3`}>
@@ -60,21 +60,21 @@ export default function StatusBanner({ type, since }: Props) {
         {/* Mobile: gestapelt */}
         <div className="sm:hidden">
           <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("status")}</p>
-          <p className="text-xl font-bold leading-tight">{isVerschlossen ? t("locked") : t("opened")}</p>
+          <p className="text-2xl font-bold leading-tight">{isVerschlossen ? t("locked") : t("opened")}</p>
           <div className="flex items-baseline gap-1.5 mt-1">
             <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{t("duration")}:</span>
-            <span className="text-lg font-bold tabular-nums" suppressHydrationWarning>{display}</span>
+            <span className="text-xl font-bold tabular-nums" suppressHydrationWarning>{display}</span>
           </div>
         </div>
         {/* Desktop: nebeneinander */}
         <div className="hidden sm:flex items-start justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("status")}</p>
-            <p className="text-xl font-bold">{isVerschlossen ? t("locked") : t("opened")}</p>
+            <p className="text-2xl font-bold">{isVerschlossen ? t("locked") : t("opened")}</p>
           </div>
           <div className="text-right flex-shrink-0">
             <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("duration")}</p>
-            <p className="text-2xl font-bold tabular-nums leading-tight" suppressHydrationWarning>{display}</p>
+            <p className="text-3xl font-bold tabular-nums leading-tight" suppressHydrationWarning>{display}</p>
           </div>
         </div>
         <p className="text-xs opacity-60 mt-1">

@@ -21,7 +21,7 @@
 
   /* Text */
   --foreground:        #111827;
-  --foreground-muted:  #6b7280;
+  --foreground-muted:  #4b5563;
   --foreground-faint:  #9ca3af;
   --foreground-invert: #ffffff;
 
@@ -33,10 +33,10 @@
   --color-lock-text:   #065f46;
 
   /* Semantic: OEFFNEN (unlocked) */
-  --color-unlock:      #374151;
-  --color-unlock-bg:   #f9fafb;
-  --color-unlock-border:#e5e7eb;
-  --color-unlock-text: #111827;
+  --color-unlock:      #0284c7;
+  --color-unlock-bg:   #f0f9ff;
+  --color-unlock-border:#bae6fd;
+  --color-unlock-text: #0c4a6e;
 
   /* Semantic: PRUEFUNG / Inspection */
   --color-inspect:     #ea580c;
@@ -157,10 +157,10 @@
   --color-warn-text:   #fca5a5;
 
   /* Semantic: SPERRZEIT */
-  --color-sperrzeit:   #fb7185;
-  --color-sperrzeit-bg:#1c0f13;
-  --color-sperrzeit-border:#881337;
-  --color-sperrzeit-text:#fda4af;
+  --color-sperrzeit:   #c084fc;
+  --color-sperrzeit-bg:#160f1f;
+  --color-sperrzeit-border:#6b21a8;
+  --color-sperrzeit-text:#e9d5ff;
 
   /* Semantic: OK / compliant */
   --color-ok:          #34d399;
@@ -292,5 +292,5 @@ body {
   to   { transform: translateY(0);    opacity: 1; }
 }
 .animate-slide-up {
-  animation: slide-up 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: slide-up 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 }
