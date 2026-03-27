@@ -15,8 +15,9 @@ export default function UserSubNav({ userId }: Props) {
 
   const tabs = [
     { href: base, label: t("overview"), exact: true },
+    { href: `${base}/aktionen`, label: t("aktionen"), exact: false },
     { href: `${base}/kontrollen`, label: t("kontrollen"), exact: false },
-    { href: `${base}/vorgaben`, label: t("vorgaben"), exact: false },
+    { href: `${base}/einstellungen`, label: t("einstellungen"), exact: false },
     { href: `${base}/stats`, label: t("statsTitle"), exact: false },
   ];
 

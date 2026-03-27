@@ -23,7 +23,7 @@ export default function ImageViewer({ src, alt, width, height, className, kommen
   if (error) {
     return (
       <div
-        className={`${className} flex items-center justify-center bg-gray-100 text-gray-400 rounded-xl`}
+        className={`${className} flex items-center justify-center bg-surface-raised text-foreground-faint rounded-xl`}
         title={t("photoUnavailable")}
       >
         <ImageOff size={Math.min(width, height) / 2.5} />

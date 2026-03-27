@@ -93,7 +93,7 @@ export default function SettingsForm({ username, email, version, buildDate }: Se
               {expandPassword && (
                 <div className="px-5 pb-5">
                   {pwSuccess ? (
-                    <p className="text-sm text-emerald-700 bg-emerald-50 rounded-xl px-4 py-3">{t("passwordChanged")}</p>
+                    <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("passwordChanged")}</p>
                   ) : (
                     <form onSubmit={handlePassword} className="flex flex-col gap-4">
                       <div className="flex flex-col gap-1.5">
@@ -108,7 +108,7 @@ export default function SettingsForm({ username, email, version, buildDate }: Se
                         <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider">{t("confirmPassword")}</label>
                         <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password" className={inputCls} />
                       </div>
-                      {pwError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{pwError}</p>}
+                      {pwError && <p className="text-sm text-warn-text bg-warn-bg border border-warn-border rounded-xl px-4 py-3">{pwError}</p>}
                       <button
                         type="submit"
                         disabled={pwLoading}

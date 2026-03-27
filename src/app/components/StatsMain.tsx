@@ -285,10 +285,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
         const pct = data ? Math.min(data.hours / 24, 1) : 0;
         const dailyGoalMet = vorgabe?.minProTagH != null && data != null ? data.hours >= vorgabe.minProTagH : null;
         const colorClass = pct === 0 ? "bg-surface-raised text-foreground-faint"
-          : pct < 0.2 ? "bg-blue-100 text-blue-700"
-          : pct < 0.4 ? "bg-blue-200 text-blue-800"
-          : pct < 0.65 ? "bg-blue-400 text-white"
-          : "bg-blue-600 text-white";
+          : pct < 0.2 ? "bg-lock-bg text-lock-text"
+          : pct < 0.4 ? "bg-lock-border text-lock-text"
+          : pct < 0.65 ? "bg-[var(--color-lock-muted)] text-white"
+          : "bg-lock text-white";
         const dayEntries: DayEntry[] = entries
           .filter((e) => e.startTime.getFullYear() === year && e.startTime.getMonth() === month && e.startTime.getDate() === day)
           .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
@@ -331,21 +331,21 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
       {/* Orgasmusfreie Zeit */}
       {orgasmusFreiMs !== null ? (
-        <section className="bg-blue-50 border border-blue-200 rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-2">{t("orgasmFreeTime")}</p>
+        <section className="bg-orgasm-bg border border-orgasm-border rounded-2xl px-6 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-orgasm)] mb-2">{t("orgasmFreeTime")}</p>
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-blue-800">
+            <p className="text-sm text-orgasm-text">
               {t("lastOrgasm")}: <span className="font-semibold">{formatDateTime(lastOrgasmus!.startTime, dl)}</span>
             </p>
-            <span className="text-xl sm:text-2xl font-bold text-blue-700 whitespace-nowrap">
+            <span className="text-xl sm:text-2xl font-bold text-[var(--color-orgasm)] whitespace-nowrap">
               {formatMs(orgasmusFreiMs, dl)}
             </span>
           </div>
         </section>
       ) : (
-        <section className="bg-blue-50 border border-blue-100 rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-400 mb-2">{t("orgasmFreeTime")}</p>
-          <p className="text-sm text-blue-300 font-semibold">{t("noEntry")}</p>
+        <section className="bg-surface-raised border border-border rounded-2xl px-6 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">{t("orgasmFreeTime")}</p>
+          <p className="text-sm text-foreground-faint font-semibold">{t("noEntry")}</p>
         </section>
       )}
 
@@ -397,10 +397,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
             <p className="text-sm font-bold text-foreground mb-3">{t("wearCalendar")}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
               <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />{t("notWorn")}</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-100 inline-block" />&lt;25%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 inline-block" />25–40%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-400 inline-block" />40–65%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-600 inline-block" />&gt;65%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock-bg inline-block" />&lt;25%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock-border inline-block" />25–40%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--color-lock-muted)] inline-block" />40–65%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock inline-block" />&gt;65%</span>
               <span className="flex items-center gap-1.5">
                 <span className="relative inline-flex w-4 h-4 items-center justify-center">
                   <span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />
@@ -408,7 +408,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                 </span>
                 {t("orgasm")}
               </span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 ring-2 ring-[var(--color-lock)] inline-block" />{t("dailyGoalReached")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock-border ring-2 ring-[var(--color-lock)] inline-block" />{t("dailyGoalReached")}</span>
               <span className="flex items-center gap-1.5"><span className="font-bold text-[var(--color-lock)]">✓</span>{t("weeklyGoalReached")}</span>
             </div>
           </div>

@@ -87,7 +87,7 @@ export default function NewUserPage() {
               <option value="admin">{t("roleAdmin")}</option>
             </select>
           </div>
-          {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+          {error && <p className="text-sm text-warn-text bg-warn-bg border border-warn-border rounded-xl px-4 py-3">{error}</p>}
           <button
             type="submit" disabled={loading}
             className="w-full bg-foreground text-background font-semibold py-3 rounded-xl hover:opacity-80 active:scale-95 transition-all disabled:opacity-50"
