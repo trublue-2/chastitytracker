@@ -1,16 +1,272 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8f9fb;
-  --foreground: #111827;
+/* ─────────────────────────────────────────────
+   USER THEME  (light, personal, safe)
+   Applied to: [data-theme="user"] or :root default
+   ───────────────────────────────────────────── */
+:root,
+[data-theme="user"] {
+
+  /* Canvas */
+  --background:        #f8f9fb;
+  --background-subtle: #f1f3f7;
+  --surface:           #ffffff;
+  --surface-raised:    #ffffff;
+  --surface-overlay:   #ffffffcc;
+
+  /* Borders */
+  --border:            #e5e7eb;
+  --border-subtle:     #f3f4f6;
+  --border-strong:     #d1d5db;
+
+  /* Text */
+  --foreground:        #111827;
+  --foreground-muted:  #6b7280;
+  --foreground-faint:  #9ca3af;
+  --foreground-invert: #ffffff;
+
+  /* Semantic: VERSCHLUSS (locked) */
+  --color-lock:        #059669;
+  --color-lock-bg:     #ecfdf5;
+  --color-lock-border: #a7f3d0;
+  --color-lock-muted:  #6ee7b7;
+  --color-lock-text:   #065f46;
+
+  /* Semantic: OEFFNEN (unlocked) */
+  --color-unlock:      #374151;
+  --color-unlock-bg:   #f9fafb;
+  --color-unlock-border:#e5e7eb;
+  --color-unlock-text: #111827;
+
+  /* Semantic: PRUEFUNG / Inspection */
+  --color-inspect:     #ea580c;
+  --color-inspect-bg:  #fff7ed;
+  --color-inspect-border:#fed7aa;
+  --color-inspect-text:#9a3412;
+
+  /* Semantic: ORGASMUS */
+  --color-orgasm:      #e11d48;
+  --color-orgasm-bg:   #fff1f2;
+  --color-orgasm-border:#fecdd3;
+  --color-orgasm-text: #9f1239;
+
+  /* Semantic: VERSCHLUSS-ANFORDERUNG */
+  --color-request:     #4f46e5;
+  --color-request-bg:  #eef2ff;
+  --color-request-border:#c7d2fe;
+  --color-request-text:#3730a3;
+
+  /* Semantic: WARNING / overdue */
+  --color-warn:        #d97706;
+  --color-warn-bg:     #fffbeb;
+  --color-warn-border: #fde68a;
+  --color-warn-text:   #92400e;
+
+  /* Semantic: SPERRZEIT */
+  --color-sperrzeit:   #be123c;
+  --color-sperrzeit-bg:#fff1f2;
+  --color-sperrzeit-border:#fecdd3;
+  --color-sperrzeit-text:#9f1239;
+
+  /* Semantic: OK / compliant */
+  --color-ok:          #059669;
+  --color-ok-bg:       #ecfdf5;
+  --color-ok-border:   #a7f3d0;
+  --color-ok-text:     #065f46;
+
+  /* Navigation */
+  --nav-bg:            #ffffff;
+  --nav-border:        #f3f4f6;
+  --nav-active-bg:     #f3f4f6;
+  --nav-active-text:   #111827;
+  --nav-inactive-text: #9ca3af;
+  --nav-inactive-hover:#374151;
+
+  /* Interactive */
+  --focus-ring:        #6366f1;
+  --btn-primary-bg:    #059669;
+  --btn-primary-hover: #047857;
+  --btn-primary-text:  #ffffff;
+
+  /* Elevation */
+  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-overlay:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.07);
 }
 
+
+/* ─────────────────────────────────────────────
+   ADMIN THEME  (dark, authoritative, controlled)
+   Applied to: [data-theme="admin"]
+   ───────────────────────────────────────────── */
+[data-theme="admin"] {
+
+  /* Canvas */
+  --background:        #0d0f14;
+  --background-subtle: #151821;
+  --surface:           #1c1f2a;
+  --surface-raised:    #232737;
+  --surface-overlay:   #1c1f2acc;
+
+  /* Borders */
+  --border:            #2d3144;
+  --border-subtle:     #222535;
+  --border-strong:     #3d4257;
+
+  /* Text */
+  --foreground:        #f1f5f9;
+  --foreground-muted:  #94a3b8;
+  --foreground-faint:  #64748b;
+  --foreground-invert: #0d0f14;
+
+  /* Semantic: INSPECTION / Kontrolle */
+  --color-inspect:     #f59e0b;
+  --color-inspect-bg:  #1c1a0f;
+  --color-inspect-border:#78350f;
+  --color-inspect-text:#fde68a;
+
+  /* Semantic: LOCK REQUEST */
+  --color-request:     #818cf8;
+  --color-request-bg:  #13152a;
+  --color-request-border:#312e81;
+  --color-request-text:#c7d2fe;
+
+  /* Semantic: LOCKED */
+  --color-lock:        #34d399;
+  --color-lock-bg:     #0f1c17;
+  --color-lock-border: #064e3b;
+  --color-lock-muted:  #6ee7b7;
+  --color-lock-text:   #6ee7b7;
+
+  /* Semantic: UNLOCKED */
+  --color-unlock:      #94a3b8;
+  --color-unlock-bg:   #151821;
+  --color-unlock-border:#2d3144;
+  --color-unlock-text: #cbd5e1;
+
+  /* Semantic: ORGASMUS */
+  --color-orgasm:      #fb7185;
+  --color-orgasm-bg:   #1c0f13;
+  --color-orgasm-border:#881337;
+  --color-orgasm-text: #fda4af;
+
+  /* Semantic: WARNING / overdue */
+  --color-warn:        #f87171;
+  --color-warn-bg:     #1c0f0f;
+  --color-warn-border: #7f1d1d;
+  --color-warn-text:   #fca5a5;
+
+  /* Semantic: SPERRZEIT */
+  --color-sperrzeit:   #fb7185;
+  --color-sperrzeit-bg:#1c0f13;
+  --color-sperrzeit-border:#881337;
+  --color-sperrzeit-text:#fda4af;
+
+  /* Semantic: OK / compliant */
+  --color-ok:          #34d399;
+  --color-ok-bg:       #0f1c17;
+  --color-ok-border:   #064e3b;
+  --color-ok-text:     #6ee7b7;
+
+  /* Navigation */
+  --nav-bg:            #151821;
+  --nav-border:        #222535;
+  --nav-active-bg:     #232737;
+  --nav-active-text:   #f1f5f9;
+  --nav-inactive-text: #64748b;
+  --nav-inactive-hover:#94a3b8;
+
+  /* Interactive */
+  --focus-ring:        #818cf8;
+  --btn-primary-bg:    #4f46e5;
+  --btn-primary-hover: #4338ca;
+  --btn-primary-text:  #ffffff;
+
+  /* Elevation — glowing inner edges on dark surfaces */
+  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-raised: 0 4px 12px 0 rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --shadow-overlay:0 16px 32px 0 rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+
+/* ─────────────────────────────────────────────
+   TAILWIND v4 THEME BRIDGE
+   Exposes CSS vars as Tailwind design tokens
+   ───────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-background:         var(--background);
+  --color-background-subtle:  var(--background-subtle);
+  --color-surface:            var(--surface);
+  --color-surface-raised:     var(--surface-raised);
+
+  --color-border:             var(--border);
+  --color-border-subtle:      var(--border-subtle);
+  --color-border-strong:      var(--border-strong);
+
+  --color-foreground:         var(--foreground);
+  --color-foreground-muted:   var(--foreground-muted);
+  --color-foreground-faint:   var(--foreground-faint);
+  --color-foreground-invert:  var(--foreground-invert);
+
+  --color-lock:               var(--color-lock);
+  --color-lock-bg:            var(--color-lock-bg);
+  --color-lock-border:        var(--color-lock-border);
+  --color-lock-text:          var(--color-lock-text);
+
+  --color-unlock:             var(--color-unlock);
+  --color-unlock-bg:          var(--color-unlock-bg);
+  --color-unlock-border:      var(--color-unlock-border);
+  --color-unlock-text:        var(--color-unlock-text);
+
+  --color-inspect:            var(--color-inspect);
+  --color-inspect-bg:         var(--color-inspect-bg);
+  --color-inspect-border:     var(--color-inspect-border);
+  --color-inspect-text:       var(--color-inspect-text);
+
+  --color-orgasm:             var(--color-orgasm);
+  --color-orgasm-bg:          var(--color-orgasm-bg);
+  --color-orgasm-border:      var(--color-orgasm-border);
+  --color-orgasm-text:        var(--color-orgasm-text);
+
+  --color-request:            var(--color-request);
+  --color-request-bg:         var(--color-request-bg);
+  --color-request-border:     var(--color-request-border);
+  --color-request-text:       var(--color-request-text);
+
+  --color-warn:               var(--color-warn);
+  --color-warn-bg:            var(--color-warn-bg);
+  --color-warn-border:        var(--color-warn-border);
+  --color-warn-text:          var(--color-warn-text);
+
+  --color-sperrzeit:          var(--color-sperrzeit);
+  --color-sperrzeit-bg:       var(--color-sperrzeit-bg);
+  --color-sperrzeit-border:   var(--color-sperrzeit-border);
+  --color-sperrzeit-text:     var(--color-sperrzeit-text);
+
+  --color-ok:                 var(--color-ok);
+  --color-ok-bg:              var(--color-ok-bg);
+  --color-ok-border:          var(--color-ok-border);
+  --color-ok-text:            var(--color-ok-text);
+
+  --color-nav-bg:             var(--nav-bg);
+  --color-nav-border:         var(--nav-border);
+  --color-nav-active-bg:      var(--nav-active-bg);
+  --color-nav-active-text:    var(--nav-active-text);
+  --color-nav-inactive-text:  var(--nav-inactive-text);
+
+  --color-btn-primary:        var(--btn-primary-bg);
+  --color-btn-primary-text:   var(--btn-primary-text);
+
+  --font-sans:      var(--font-geist-sans);
+  --shadow-card:    var(--shadow-card);
+  --shadow-raised:  var(--shadow-raised);
+  --shadow-overlay: var(--shadow-overlay);
 }
 
+
+/* ─────────────────────────────────────────────
+   BASE STYLES
+   ───────────────────────────────────────────── */
 body {
   background: var(--background);
   color: var(--foreground);
@@ -28,4 +284,13 @@ body {
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top);
+}
+
+/* Bottom sheet slide-up animation */
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.25s cubic-bezier(0.32, 0.72, 0, 1);
 }
