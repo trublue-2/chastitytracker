@@ -10,13 +10,6 @@ import {
 } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
-import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
-import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
-import ReinigungToggle from "@/app/admin/ReinigungToggle";
-import RoleSelect from "@/app/admin/RoleSelect";
-import KontrolleButton from "@/app/admin/KontrolleButton";
-import VerschlussAnforderungButton from "@/app/admin/VerschlussAnforderungButton";
-import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
@@ -87,9 +80,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     })),
   ];
 
-  const latest = [...entries]
-    .filter(e => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
-    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
+  const latest = entries.find(e => ["VERSCHLUSS", "OEFFNEN"].includes(e.type)) ?? null;
   const currentStatus = latest
     ? { type: latest.type as "VERSCHLUSS" | "OEFFNEN", since: latest.startTime.toISOString() }
     : null;
@@ -175,28 +166,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         />
       )}
 
-      {/* ── Section 3: Schnellaktionen ── */}
+      {/* ── Section 3: Compliance (Statistik kompakt) ── */}
       <div className="bg-surface rounded-2xl border border-border px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">Schnellaktionen</p>
-        <div className="flex flex-wrap gap-2">
-          {isLocked && <KontrolleButton userId={id} hasEmail={!!user.email} />}
-          <VerschlussAnforderungButton
-            userId={id}
-            hasEmail={!!user.email}
-            isLocked={isLocked}
-            hasOffeneAnforderung={false}
-            hasActiveSperrzeit={!!activeSperrzeit}
-          />
-          <ChangeEmailButton userId={user.id} currentEmail={user.email ?? null} />
-          <ChangePasswordButton userId={user.id} />
-          <RoleSelect id={user.id} currentRole={user.role} />
-          <ReinigungToggle userId={user.id} initialErlaubt={user.reinigungErlaubt} initialMaxMinuten={user.reinigungMaxMinuten} />
-        </div>
-      </div>
-
-      {/* ── Section 4: Compliance (Statistik kompakt) ── */}
-      <div className="bg-surface rounded-2xl border border-border px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">Statistik</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("statsTitle")}</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-surface-raised px-4 py-3">
             <p className="text-xs text-foreground-faint mb-0.5">{ts("entries")}</p>
@@ -221,7 +193,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         <div className="bg-surface rounded-2xl border border-border px-5 py-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ts("trainingGoals")}</p>
-            <Link href={`/admin/users/${id}/vorgaben`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
+            <Link href={`/admin/users/${id}/einstellungen`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
               Alle <ChevronRight size={12} />
             </Link>
           </div>
@@ -295,11 +267,6 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </div>
       )}
 
-      {/* ── Danger zone ── */}
-      <div className="bg-surface rounded-2xl border border-border px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">Account</p>
-        <DeleteUserButton id={user.id} username={user.username} isSelf={session?.user?.id === user.id} />
-      </div>
 
     </main>
   );

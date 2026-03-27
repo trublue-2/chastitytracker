@@ -84,7 +84,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
               {/* Duration / active badge + chevron */}
               <div className="flex items-center gap-2 shrink-0">
                 {session.active ? (
-                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-semibold text-lock-text bg-lock-bg border border-lock-border px-2 py-0.5 rounded-full">
                     {t("stillLocked")}
                   </span>
                 ) : session.durationStr ? (
@@ -112,9 +112,9 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                   <div className="divide-y divide-border-subtle">
                     {session.events.map((ev, i) => {
                       const icon =
-                        ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
-                        ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-orange-400" /> :
-                        <Droplets size={18} className="text-rose-400" />;
+                        ev.type === "verschluss" ? <Lock size={18} className="text-lock" /> :
+                        ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-[var(--color-inspect)]" /> :
+                        <Droplets size={18} className="text-[var(--color-orgasm)]" />;
                       return <SessionEventRow key={i} ev={ev} icon={icon} />;
                     })}
                   </div>
@@ -131,7 +131,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                           {session.oeffnen.dateStr}, {session.oeffnen.timeStr}
                         </span>
                         {session.oeffnen.grund && (
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                          <span className="text-xs font-semibold text-unlock-text bg-unlock-bg border border-unlock-border px-2 py-0.5 rounded-full">
                             {GRUND_LABELS[session.oeffnen.grund] ?? session.oeffnen.grund}
                           </span>
                         )}

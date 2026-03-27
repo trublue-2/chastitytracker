@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, ShieldAlert, Settings } from "lucide-react";
+import { Users, Settings } from "lucide-react";
 import pkg from "../../../package.json";
 import AdminFAB from "./AdminFAB";
 
@@ -15,7 +15,6 @@ const leftTabs = [
 ];
 
 const rightTabs = [
-  { href: "/admin/kontrollen", icon: ShieldAlert, label: "Alarme", exact: false },
   { href: "/admin/settings", icon: Settings, label: "Einstellungen", exact: false },
 ];
 
@@ -31,7 +30,7 @@ export default function AdminBottomNav({ buildDate }: Props) {
         key={tab.href}
         href={tab.href}
         className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full ${
-          active ? "text-nav-active-text" : "text-nav-inactive-text hover:text-foreground-muted"
+          active ? "text-[var(--color-request)]" : "text-nav-inactive-text hover:text-foreground-muted"
         }`}
       >
         <Icon size={22} strokeWidth={1.75} />

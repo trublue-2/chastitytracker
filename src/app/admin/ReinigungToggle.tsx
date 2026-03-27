@@ -49,7 +49,7 @@ export default function ReinigungToggle({
           checked={erlaubt}
           onChange={(e) => handleToggle(e.target.checked)}
           disabled={saving}
-          className="w-4 h-4 rounded accent-indigo-600"
+          className="w-4 h-4 rounded accent-[var(--color-request)]"
         />
         <span className="text-xs font-medium text-foreground-faint">Reinigung</span>
       </label>

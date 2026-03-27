@@ -33,24 +33,24 @@ export default function AllEntriesClient({ entries, title }: { entries: AllEntry
   const paginated = entries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-50">
-        <p className="text-sm font-bold text-gray-900">{title}</p>
+    <section className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <div className="px-6 py-4 border-b border-border-subtle">
+        <p className="text-sm font-bold text-foreground">{title}</p>
       </div>
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-border-subtle">
         {paginated.map((e) => (
           <div key={e.id} className="px-5 py-3 flex items-center gap-3">
             <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${e.typeColor}`}>
               {ICONS[e.typeIcon]}{e.typeLabel}
             </span>
-            <span className="text-sm text-gray-900 tabular-nums">{e.dateTimeStr}</span>
+            <span className="text-sm text-foreground tabular-nums">{e.dateTimeStr}</span>
             {e.pillLabel && (
               <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${e.pillCls}`}>
                 {e.pillLabel}
               </span>
             )}
-            {e.note && <span className="text-xs text-gray-400 italic truncate min-w-0">„{e.note}"</span>}
-            {e.orgasmusArt && <span className="text-xs text-rose-400 font-medium">{e.orgasmusArt}</span>}
+            {e.note && <span className="text-xs text-foreground-faint italic truncate min-w-0">„{e.note}"</span>}
+            {e.orgasmusArt && <span className="text-xs text-[var(--color-orgasm)] font-medium">{e.orgasmusArt}</span>}
             <div className="ml-auto flex-shrink-0">
               <EntryActions id={e.id} editHref={e.editHref} />
             </div>
@@ -58,23 +58,23 @@ export default function AllEntriesClient({ entries, title }: { entries: AllEntry
         ))}
       </div>
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border">
           <button
             type="button"
             onClick={() => setPage(p => p - 1)}
             disabled={page === 0}
-            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition"
+            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
           >
             ← Zurück
           </button>
-          <span className="text-xs text-gray-400 tabular-nums">
+          <span className="text-xs text-foreground-faint tabular-nums">
             {page + 1} / {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setPage(p => p + 1)}
             disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition"
+            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
           >
             Weiter →
           </button>

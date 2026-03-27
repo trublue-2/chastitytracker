@@ -154,10 +154,10 @@ export default async function LaufendeSessionCard({
             ta,
           );
           const icon =
-            ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
-            ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-orange-400" /> :
-            ev.type === "reinigung" ? <LockOpen size={18} className="text-sky-400" /> :
-            <Droplets size={18} className="text-rose-400" />;
+            ev.type === "verschluss" ? <Lock size={18} className="text-lock" /> :
+            ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-[var(--color-inspect)]" /> :
+            ev.type === "reinigung" ? <LockOpen size={18} className="text-[var(--color-unlock)]" /> :
+            <Droplets size={18} className="text-[var(--color-orgasm)]" />;
 
           return (
             <SessionEventRow

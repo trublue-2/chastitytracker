@@ -29,8 +29,8 @@ export default async function EditEntryPage({
 
   return (
     <div className="w-full max-w-5xl px-6 py-8">
-      <Link href="/dashboard" className="text-sm text-gray-400 hover:text-gray-600 transition">← {t("overview")}</Link>
-      <h1 className="text-xl font-bold text-gray-900 mt-1 mb-8">
+      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">← {t("overview")}</Link>
+      <h1 className="text-xl font-bold text-foreground mt-1 mb-8">
         {LABELS[entry.type] ?? entry.type} bearbeiten
       </h1>
       <div className="max-w-lg">

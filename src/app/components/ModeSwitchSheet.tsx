@@ -55,7 +55,7 @@ export default function ModeSwitchSheet({ currentMode, label }: Props) {
             onClick={() => setOpen(false)}
           />
           {/* Sheet */}
-          <div className="relative w-full sm:w-96 bg-surface rounded-t-3xl sm:rounded-2xl px-6 pt-5 pb-10 sm:pb-6 shadow-overlay animate-slide-up">
+          <div className="relative w-full sm:w-96 bg-surface rounded-t-3xl sm:rounded-2xl px-6 pt-5 sm:pb-6 shadow-overlay animate-slide-up pb-safe" style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}>
             {/* Drag handle (mobile) */}
             <div className="sm:hidden w-10 h-1 bg-border-strong rounded-full mx-auto mb-5" />
 

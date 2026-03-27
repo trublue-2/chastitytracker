@@ -172,7 +172,7 @@ function DetailModal({
         {entry.oeffnenGrund && (
           <div>
             <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Grund</p>
-            <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700">
+            <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
               {GRUND_LABELS[entry.oeffnenGrund] ?? entry.oeffnenGrund}
             </span>
           </div>
@@ -276,7 +276,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
                 </button>
               </div>
               {oeffnen.oeffnenGrund && (
-                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 self-start">
+                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text self-start">
                   {GRUND_LABELS[oeffnen.oeffnenGrund] ?? oeffnen.oeffnenGrund}
                 </span>
               )}

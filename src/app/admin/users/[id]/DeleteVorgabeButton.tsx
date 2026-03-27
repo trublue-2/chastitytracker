@@ -17,7 +17,7 @@ export default function DeleteVorgabeButton({ id }: { id: string }) {
 
   return (
     <button onClick={handle} disabled={loading}
-      className="text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg px-2 py-1 transition disabled:opacity-50">
+      className="text-xs font-medium text-warn-text bg-warn-bg border border-warn-border hover:opacity-80 rounded-lg px-2 py-1 transition disabled:opacity-50">
       {loading ? "…" : "Löschen"}
     </button>
   );
