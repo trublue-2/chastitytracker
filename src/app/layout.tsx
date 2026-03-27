@@ -45,7 +45,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <body className={`${geistSans.variable} antialiased bg-gray-50 text-gray-900`}>
+      <body className={`${geistSans.variable} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
           <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
