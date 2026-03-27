@@ -1,12 +1,11 @@
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import AvatarMenu from "@/app/components/AvatarMenu";
-import ModeSwitchSheet from "@/app/components/ModeSwitchSheet";
+import pkg from "../../package.json";
 
 export default async function Header() {
   const session = await auth();
   const user = session?.user;
-  const isAdmin = user?.role === "admin";
 
   const hostname = process.env.NEXTAUTH_URL
     ? (() => { try { return new URL(process.env.NEXTAUTH_URL!).hostname; } catch { return null; } })()
@@ -28,17 +27,12 @@ export default async function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Admin chip — only for dual-role users in user mode */}
-          {isAdmin && (
-            <ModeSwitchSheet currentMode="user" label="Admin" />
-          )}
-
           {user && (
             <AvatarMenu
               username={user.name ?? ""}
               settingsHref="/dashboard/settings"
-              changelogHref="/dashboard/changelog"
               theme="user"
+              version={pkg.version}
             />
           )}
         </div>

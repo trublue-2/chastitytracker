@@ -285,10 +285,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
         const pct = data ? Math.min(data.hours / 24, 1) : 0;
         const dailyGoalMet = vorgabe?.minProTagH != null && data != null ? data.hours >= vorgabe.minProTagH : null;
         const colorClass = pct === 0 ? "bg-surface-raised text-foreground-faint"
-          : pct < 0.2 ? "bg-lock-bg text-lock-text"
-          : pct < 0.4 ? "bg-lock-border text-lock-text"
-          : pct < 0.65 ? "bg-[var(--color-lock-muted)] text-white"
-          : "bg-lock text-white";
+          : pct < 0.2 ? "bg-blue-100 text-blue-900"
+          : pct < 0.4 ? "bg-blue-200 text-blue-900"
+          : pct < 0.65 ? "bg-blue-400 text-white"
+          : "bg-blue-600 text-white";
         const dayEntries: DayEntry[] = entries
           .filter((e) => e.startTime.getFullYear() === year && e.startTime.getMonth() === month && e.startTime.getDate() === day)
           .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
@@ -397,10 +397,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
             <p className="text-sm font-bold text-foreground mb-3">{t("wearCalendar")}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
               <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />{t("notWorn")}</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock-bg inline-block" />&lt;25%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock-border inline-block" />25–40%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--color-lock-muted)] inline-block" />40–65%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock inline-block" />&gt;65%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-100 inline-block" />&lt;25%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 inline-block" />25–40%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-400 inline-block" />40–65%</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-600 inline-block" />&gt;65%</span>
               <span className="flex items-center gap-1.5">
                 <span className="relative inline-flex w-4 h-4 items-center justify-center">
                   <span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />
@@ -408,8 +408,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                 </span>
                 {t("orgasm")}
               </span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-lock-border ring-2 ring-[var(--color-lock)] inline-block" />{t("dailyGoalReached")}</span>
-              <span className="flex items-center gap-1.5"><span className="font-bold text-[var(--color-lock)]">✓</span>{t("weeklyGoalReached")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 ring-2 ring-emerald-400 inline-block" />{t("dailyGoalReached")}</span>
+              <span className="flex items-center gap-1.5"><span className="font-bold text-emerald-500">✓</span>{t("weeklyGoalReached")}</span>
             </div>
           </div>
           <CalendarExpand months={calMonthsData} />
@@ -490,43 +490,6 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
         </section>
       )}
 
-      {/* Alle Einträge */}
-      {entries.length > 0 && (() => {
-        const typeIconMap: Record<string, AllEntryData["typeIcon"]> = {
-          VERSCHLUSS: "lock", OEFFNEN: "lockopen", PRUEFUNG: "clipboard", ORGASMUS: "droplets",
-        };
-        const typeColorMap: Record<string, string> = {
-          VERSCHLUSS: "text-foreground-muted", OEFFNEN: "text-foreground-muted",
-          PRUEFUNG: "text-[var(--color-inspect)]", ORGASMUS: "text-[var(--color-orgasm)]",
-        };
-        const typeLabelMap: Record<string, string> = {
-          VERSCHLUSS: t("lock"), OEFFNEN: t("opening"), PRUEFUNG: t("inspection"), ORGASMUS: t("orgasm"),
-        };
-        const allEntries: AllEntryData[] = [...entries]
-          .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
-          .map((e) => {
-            const kontrollEntry = e.type === "PRUEFUNG"
-              ? (unifiedKontrollen.find(k => k.id === e.id || (e.kontrollCode && k.code === e.kontrollCode)) ?? null)
-              : null;
-            const kontrollPill = kontrollEntry
-              ? getKombinierterPill(kontrollEntry.anforderungStatus, kontrollEntry.verifikationStatus, ta)
-              : null;
-            return {
-              id: e.id,
-              type: e.type,
-              dateTimeStr: formatDateTime(e.startTime, dl),
-              typeLabel: typeLabelMap[e.type] ?? e.type,
-              typeColor: typeColorMap[e.type] ?? "text-foreground-muted",
-              typeIcon: typeIconMap[e.type] ?? "lock",
-              pillLabel: kontrollPill?.label ?? null,
-              pillCls: kontrollPill?.cls ?? null,
-              note: e.note,
-              orgasmusArt: e.orgasmusArt ?? null,
-              editHref: `/dashboard/edit/${e.id}`,
-            };
-          });
-        return <AllEntriesClient entries={allEntries} title={t("allEntries")} />;
-      })()}
     </main>
   );
 }

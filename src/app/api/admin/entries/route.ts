@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { userId, type, startTime, note, oeffnenGrund, orgasmusArt } = body;
+  const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime } = body;
 
   if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
   if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
       note: note?.trim() || null,
       oeffnenGrund: oeffnenGrund || null,
       orgasmusArt: orgasmusArt || null,
+      imageUrl: imageUrl || null,
+      imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
     },
   });
 

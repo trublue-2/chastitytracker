@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AvatarMenu from "@/app/components/AvatarMenu";
-import ModeSwitchSheet from "@/app/components/ModeSwitchSheet";
+import pkg from "../../package.json";
 
 interface Props {
   username: string;
@@ -21,14 +21,11 @@ export default function AdminHeader({ username }: Props) {
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* User-mode button — navigate to /dashboard */}
-          <ModeSwitchSheet currentMode="admin" label="Benutzer" />
-
           <AvatarMenu
             username={username}
             settingsHref="/admin/settings"
-            changelogHref="/dashboard/changelog"
             theme="admin"
+            version={pkg.version}
           />
         </div>
       </div>

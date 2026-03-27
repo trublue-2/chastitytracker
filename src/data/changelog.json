@@ -1,5 +1,63 @@
 [
   {
+    "version": "2.0.0",
+    "date": "2026-03-27",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Navigation: Einträge-Tab in User-Nav (Desktop & Mobile) und Admin-Benutzer-Subnav"
+      },
+      {
+        "type": "feat",
+        "text": "Navigation: Neu-Button als regulärer Tab (kein FAB mehr), zentriert in der mobilen Bottom-Nav"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: Aktionen-Seite zeigt Einträge (Verschluss, Prüfung) jetzt mit Foto-Upload"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: Einträge-Tab im Benutzer-Subnav – read-only Übersicht aller Einträge"
+      },
+      {
+        "type": "feat",
+        "text": "User: Einträge-Seite mit Editier-Link (⋮) pro Eintrag"
+      },
+      {
+        "type": "feat",
+        "text": "Admin API /api/admin/entries: imageUrl und imageExifTime werden gespeichert"
+      },
+      {
+        "type": "feat",
+        "text": "E-Mail bei Neuanlage eines Benutzers ist Pflichtfeld"
+      },
+      {
+        "type": "ui",
+        "text": "Aktionen-Seite: alle Icon-Container einheitlich auf w-10 h-10 / size-20"
+      },
+      {
+        "type": "ui",
+        "text": "Admin-Übersicht: Buttons (Löschen, Kontrolle anfordern, Verschluss anfordern) gleiche Höhe wie Pills"
+      },
+      {
+        "type": "ui",
+        "text": "Navigation: aktive Elemente ohne linken Rand-Akzent, schwarze Akzentfarbe"
+      },
+      {
+        "type": "ui",
+        "text": "Changelog aus AvatarMenu entfernt"
+      },
+      {
+        "type": "ui",
+        "text": "VerschlussAnforderung-Formular vereinfacht: nur Anweisung + Frist"
+      },
+      {
+        "type": "ui",
+        "text": "Tragekalender: blaue Farbpalette (bg-blue-100/200/400/600)"
+      }
+    ]
+  },
+  {
     "version": "1.7.9",
     "date": "2026-03-24",
     "changes": [

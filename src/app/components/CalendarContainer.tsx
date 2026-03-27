@@ -122,9 +122,9 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             </div>
 
             {selected.wearHours > 0 && (
-              <div className="flex items-center justify-between bg-lock-bg rounded-xl px-4 py-3">
-                <span className="text-sm text-lock-text font-medium">{t("wearTime")}</span>
-                <span className="text-sm font-bold text-lock-text tabular-nums">{formatHours(selected.wearHours, locale)}</span>
+              <div className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-3">
+                <span className="text-sm text-blue-700 font-medium">{t("wearTime")}</span>
+                <span className="text-sm font-bold text-blue-900 tabular-nums">{formatHours(selected.wearHours, locale)}</span>
               </div>
             )}
 

@@ -19,12 +19,11 @@ export default function NewUserPage() {
     setLoading(true);
 
     const fd = new FormData(e.currentTarget);
-    const email = fd.get("email") as string;
     const payload = {
       username: fd.get("username") as string,
       password: fd.get("password") as string,
+      email: fd.get("email") as string,
       role: fd.get("role") as string,
-      ...(email ? { email } : {}),
     };
 
     const res = await fetch("/api/admin/users", {
@@ -71,9 +70,9 @@ export default function NewUserPage() {
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider" htmlFor="email">{t("emailLabel")} <span className="text-foreground-faint font-normal normal-case">{t("emailOptional")}</span></label>
+            <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider" htmlFor="email">{t("emailLabel")}</label>
             <input
-              id="email" name="email" type="email" autoComplete="off"
+              id="email" name="email" type="email" required autoComplete="off"
               className="w-full border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted bg-surface-raised"
             />
           </div>
