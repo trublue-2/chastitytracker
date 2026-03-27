@@ -61,21 +61,27 @@ export default function VerschlussAnforderungButton({
   const isAnforderung = art === "ANFORDERUNG";
   const label = isAnforderung ? t("requestLock") : t("setLockDuration");
 
-  // Tailwind-Klassen vollständig (kein dynamisches Zusammenbauen)
+  // Token-based class strings (no dynamic Tailwind class building)
   const btnBase = isAnforderung
-    ? "text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"
-    : "text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100";
+    ? "text-[var(--color-request)] border-[var(--color-request-border)] bg-[var(--color-request-bg)] hover:opacity-80"
+    : "text-[var(--color-sperrzeit)] border-[var(--color-sperrzeit-border)] bg-[var(--color-sperrzeit-bg)] hover:opacity-80";
   const panelBase = isAnforderung
-    ? "bg-indigo-50 border-indigo-200"
-    : "bg-rose-50 border-rose-200";
-  const titleCls = isAnforderung ? "text-indigo-700" : "text-rose-700";
-  const closeCls = isAnforderung ? "text-indigo-400 hover:text-indigo-600" : "text-rose-400 hover:text-rose-600";
+    ? "bg-[var(--color-request-bg)] border-[var(--color-request-border)]"
+    : "bg-[var(--color-sperrzeit-bg)] border-[var(--color-sperrzeit-border)]";
+  const titleCls = isAnforderung ? "text-[var(--color-request-text)]" : "text-[var(--color-sperrzeit-text)]";
+  const closeCls = isAnforderung ? "text-[var(--color-request)] hover:opacity-70" : "text-[var(--color-sperrzeit)] hover:opacity-70";
   const textareaCls = isAnforderung
-    ? "border-indigo-200 focus:ring-indigo-400"
-    : "border-rose-200 focus:ring-rose-400";
-  const activeTab = isAnforderung ? "bg-indigo-600 text-white border-indigo-600" : "bg-rose-600 text-white border-rose-600";
-  const inputCls = isAnforderung ? "border-indigo-200 focus:ring-indigo-400" : "border-rose-200 focus:ring-rose-400";
-  const sendCls = isAnforderung ? "bg-indigo-500 hover:bg-indigo-400" : "bg-rose-500 hover:bg-rose-400";
+    ? "border-[var(--color-request-border)] focus:ring-[var(--color-request)]"
+    : "border-[var(--color-sperrzeit-border)] focus:ring-[var(--color-sperrzeit)]";
+  const activeTab = isAnforderung
+    ? "bg-[var(--color-request)] text-foreground-invert border-[var(--color-request)]"
+    : "bg-[var(--color-sperrzeit)] text-foreground-invert border-[var(--color-sperrzeit)]";
+  const inputCls = isAnforderung
+    ? "border-[var(--color-request-border)] focus:ring-[var(--color-request)]"
+    : "border-[var(--color-sperrzeit-border)] focus:ring-[var(--color-sperrzeit)]";
+  const sendCls = isAnforderung
+    ? "bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-hover)]"
+    : "bg-[var(--color-sperrzeit)] hover:opacity-80";
 
   if (!open) {
     return (
@@ -103,7 +109,7 @@ export default function VerschlussAnforderungButton({
         onChange={(e) => setNachricht(e.target.value)}
         placeholder={t("messageLabel")}
         rows={2}
-        className={`w-full text-xs bg-white border rounded-lg px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 resize-none ${textareaCls}`}
+        className={`w-full text-xs bg-surface border rounded-lg px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 resize-none ${textareaCls}`}
       />
 
       <div className="flex gap-2 flex-wrap">
@@ -112,7 +118,7 @@ export default function VerschlussAnforderungButton({
             key={typ}
             type="button"
             onClick={() => setDauerTyp(typ)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition ${dauerTyp === typ ? activeTab : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+            className={`text-xs px-2.5 py-1 rounded-lg border transition ${dauerTyp === typ ? activeTab : "bg-surface text-foreground-muted border-border hover:border-border-strong"}`}
           >
             {typ === "datum" ? t("untilDate") : typ === "dauer" ? t("durationHours") : t("indefinite")}
           </button>
@@ -124,7 +130,7 @@ export default function VerschlussAnforderungButton({
           type="datetime-local"
           value={endetAt}
           onChange={(e) => setEndetAt(e.target.value)}
-          className={`text-xs bg-white border rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 ${inputCls}`}
+          className={`text-xs bg-surface border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 ${inputCls}`}
         />
       )}
       {dauerTyp === "dauer" && (
@@ -135,9 +141,9 @@ export default function VerschlussAnforderungButton({
             onChange={(e) => setDauerH(e.target.value)}
             min={0.5} step={0.5}
             placeholder="z. B. 24"
-            className={`w-28 text-xs bg-white border rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 ${inputCls}`}
+            className={`w-28 text-xs bg-surface border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 ${inputCls}`}
           />
-          <span className="text-xs text-gray-500">{t("kontrolleHours")}</span>
+          <span className="text-xs text-foreground-faint">{t("kontrolleHours")}</span>
         </div>
       )}
 
@@ -145,12 +151,12 @@ export default function VerschlussAnforderungButton({
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className={`flex items-center gap-1.5 text-xs font-medium text-white rounded-lg px-3 py-1.5 disabled:opacity-50 transition ${sendCls}`}
+          className={`flex items-center gap-1.5 text-xs font-medium text-[var(--btn-primary-text)] rounded-lg px-3 py-1.5 disabled:opacity-50 transition ${sendCls}`}
         >
           <Lock size={11} />
           {loading ? t("sending") : t("submit")}
         </button>
-        {msg && <p className="text-xs text-red-500">{msg}</p>}
+        {msg && <p className="text-xs text-warn">{msg}</p>}
       </div>
     </div>
   );

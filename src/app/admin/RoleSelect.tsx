@@ -25,10 +25,10 @@ export default function RoleSelect({ id, currentRole }: { id: string; currentRol
       defaultValue={currentRole}
       onChange={handleChange}
       disabled={loading}
-      className={`text-xs font-semibold px-2 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer transition ${
+      className={`text-xs font-semibold px-2 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-foreground-muted cursor-pointer transition ${
         currentRole === "admin"
-          ? "bg-indigo-100 text-indigo-700"
-          : "bg-gray-100 text-gray-500"
+          ? "bg-[var(--color-request-bg)] text-[var(--color-request-text)]"
+          : "bg-surface-raised text-foreground-faint"
       } disabled:opacity-50`}
     >
       <option value="user">{t("roleUser")}</option>

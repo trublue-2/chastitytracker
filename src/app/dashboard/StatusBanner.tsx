@@ -36,9 +36,9 @@ export default function StatusBanner({ type, since }: Props) {
 
   if (!type || !since) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white px-6 py-5 flex items-center gap-3">
-        <HelpCircle size={24} className="text-gray-300 flex-shrink-0" />
-        <p className="text-sm text-gray-400">{t("noEntry")}</p>
+      <div className="rounded-2xl border border-border bg-surface px-6 py-5 flex items-center gap-3">
+        <HelpCircle size={24} className="text-foreground-faint flex-shrink-0" />
+        <p className="text-sm text-foreground-faint">{t("noEntry")}</p>
       </div>
     );
   }
@@ -48,11 +48,11 @@ export default function StatusBanner({ type, since }: Props) {
   const isVerschlossen = type === "VERSCHLUSS";
 
   const bg = isVerschlossen
-    ? "bg-gradient-to-br from-emerald-600 to-emerald-500"
-    : "bg-gradient-to-br from-gray-900 to-gray-700";
+    ? "bg-gradient-to-br from-[var(--color-lock)] to-[var(--color-lock-muted)]"
+    : "bg-foreground";
 
   return (
-    <div className={`${bg} rounded-2xl text-white px-4 py-4 flex items-start gap-3`}>
+    <div className={`${bg} rounded-2xl text-background px-4 py-4 flex items-start gap-3`}>
       <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10 mt-0.5">
         {isVerschlossen ? <Lock size={24} strokeWidth={2} /> : <LockOpen size={24} strokeWidth={2} />}
       </div>

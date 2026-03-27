@@ -37,7 +37,7 @@ export default function KontrolleItemListClient({
 
   return (
     <>
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-border-subtle">
         {paginated.map((k) => (
           <div key={k.id} className="px-4 py-3 flex items-start gap-3">
             {k.imageUrl && (
@@ -62,28 +62,28 @@ export default function KontrolleItemListClient({
                     {k.pill2Label}
                   </span>
                 )}
-                {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
+                {k.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>}
               </div>
-              <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+              <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                 <span>{k.dateTimePrefix ? `${k.dateTimePrefix} ` : ""}{k.dateTimeStr}</span>
                 {k.deadlineStr && <span>{k.deadlinePrefix} {k.deadlineStr}</span>}
               </div>
-              {k.timeCorrectedStr && <p className="text-xs text-amber-500 font-medium">{k.timeCorrectedStr}</p>}
-              {k.kommentar && <p className="text-xs text-amber-700 truncate">{k.kommentar}</p>}
-              {k.note && <p className="text-xs text-gray-400 italic truncate">„{k.note}"</p>}
+              {k.timeCorrectedStr && <p className="text-xs text-[var(--color-warn)] font-medium">{k.timeCorrectedStr}</p>}
+              {k.kommentar && <p className="text-xs text-[var(--color-warn-text)] truncate">{k.kommentar}</p>}
+              {k.note && <p className="text-xs text-foreground-faint italic truncate">„{k.note}"</p>}
             </div>
           </div>
         ))}
       </div>
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border">
           <button type="button" onClick={() => setPage(p => p - 1)} disabled={page === 0}
-            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition">
+            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
             ← Zurück
           </button>
-          <span className="text-xs text-gray-400 tabular-nums">{page + 1} / {totalPages}</span>
+          <span className="text-xs text-foreground-faint tabular-nums">{page + 1} / {totalPages}</span>
           <button type="button" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition">
+            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
             Weiter →
           </button>
         </div>

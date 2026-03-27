@@ -23,7 +23,7 @@ interface Props {
   initial?: { id: string; startTime: string; note?: string | null; orgasmusArt?: string | null };
 }
 
-const inputCls = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition";
+const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
 export default function OrgasmusForm({ initial }: Props) {
   const t = useTranslations("orgasmForm");
@@ -86,21 +86,21 @@ export default function OrgasmusForm({ initial }: Props) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{tCommon("dateTimeRequired")}</label>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("dateTimeRequired")}</label>
         <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className={inputCls} />
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t("type")} *</label>
-        <select value={art} onChange={(e) => handleArtChange(e.target.value)} required className={`${inputCls} bg-white`}>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{t("type")} *</label>
+        <select value={art} onChange={(e) => handleArtChange(e.target.value)} required className={`${inputCls}`}>
           {ARTEN.map((a) => <option key={a} value={a}>{ARTEN_LABELS[a] ?? a}</option>)}
         </select>
       </div>
 
       {SUB_ARTEN[art] && (
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t("subType")}</label>
-          <select value={subArt} onChange={(e) => setSubArt(e.target.value)} className={`${inputCls} bg-white`}>
+          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{t("subType")}</label>
+          <select value={subArt} onChange={(e) => setSubArt(e.target.value)} className={`${inputCls}`}>
             <option value="">{t("noSubType")}</option>
             {SUB_ARTEN[art].map((s) => <option key={s} value={s}>{SUB_ARTEN_LABELS[s] ?? s}</option>)}
           </select>
@@ -108,21 +108,21 @@ export default function OrgasmusForm({ initial }: Props) {
       )}
 
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{tCommon("commentOptional")}</label>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("commentOptional")}</label>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3}
           placeholder="Bemerkung…"
           className={`${inputCls} resize-none`} />
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+      {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
 
       <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
         <button type="button" onClick={() => router.push("/dashboard")}
-          className="flex-1 text-sm text-gray-600 border border-gray-200 rounded-xl py-3.5 hover:bg-gray-50 active:scale-[0.98] transition-all">
+          className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
           {tCommon("cancel")}
         </button>
         <button type="submit" disabled={saving}
-          className="flex-1 bg-rose-500 text-white text-base font-semibold py-3.5 rounded-xl hover:bg-rose-400 active:scale-[0.98] disabled:opacity-50 transition-all">
+          className="flex-1 bg-[var(--color-orgasm)] text-white text-base font-semibold py-3.5 rounded-xl hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all">
           {saving ? tCommon("saving") : initial ? tCommon("update") : t("saveBtn")}
         </button>
       </div>

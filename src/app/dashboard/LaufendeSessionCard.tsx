@@ -83,7 +83,7 @@ export default async function LaufendeSessionCard({
       activeVorgabe.minProMonatH != null);
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">
       {/* ── Green status header ── */}
       <div className="bg-gradient-to-br from-emerald-600 to-emerald-500 text-white px-5 py-4">
         <div className="flex items-start gap-3">
@@ -141,7 +141,7 @@ export default async function LaufendeSessionCard({
       </div>
 
       {/* ── Timeline ── */}
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-border-subtle">
         {events.map((ev, i) => {
           const dateStr = formatDate(ev.time, dl);
           const timeStr = formatTime(ev.time, dl);
@@ -193,13 +193,13 @@ export default async function LaufendeSessionCard({
 
       {/* ── Sperrzeit footer ── */}
       {showSperrzeit && (
-        <div className="bg-rose-50 border-t border-rose-100 px-5 py-3 flex items-center gap-2 rounded-b-2xl">
-          <Lock size={13} className="text-rose-500 shrink-0" />
-          <span className="text-sm font-semibold text-rose-700">
+        <div className="bg-sperrzeit-bg border-t border-sperrzeit-border px-5 py-3 flex items-center gap-2 rounded-b-2xl">
+          <Lock size={13} className="text-sperrzeit shrink-0" />
+          <span className="text-sm font-semibold text-sperrzeit-text">
             {sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
           </span>
           {sperrzeitNachricht && (
-            <span className="text-xs text-rose-500 truncate">· {sperrzeitNachricht}</span>
+            <span className="text-xs text-sperrzeit truncate">· {sperrzeitNachricht}</span>
           )}
         </div>
       )}

@@ -112,7 +112,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
         <div className="flex-1 min-w-0 flex flex-col gap-1">
           <div className="flex items-center gap-2 flex-wrap">
             {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${kPill.cls}`}>{kPill.label}</span>}
-            {row.code && <span className="font-mono font-bold text-orange-500 text-sm">{row.code}</span>}
+            {row.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{row.code}</span>}
           </div>
           <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
             {row.fulfilledAt && <span>Zeitpunkt: {formatDateTime(row.fulfilledAt, dl)}</span>}

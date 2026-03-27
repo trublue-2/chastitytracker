@@ -284,7 +284,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
         const data = dailyData.get(key);
         const pct = data ? Math.min(data.hours / 24, 1) : 0;
         const dailyGoalMet = vorgabe?.minProTagH != null && data != null ? data.hours >= vorgabe.minProTagH : null;
-        const colorClass = pct === 0 ? "bg-gray-50 text-gray-400"
+        const colorClass = pct === 0 ? "bg-surface-raised text-foreground-faint"
           : pct < 0.2 ? "bg-blue-100 text-blue-700"
           : pct < 0.4 ? "bg-blue-200 text-blue-800"
           : pct < 0.65 ? "bg-blue-400 text-white"
@@ -316,9 +316,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
     <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
       <div>
         {backHref && (
-          <a href={backHref} className="text-sm text-gray-400 hover:text-gray-600 transition">{backLabel ?? "← Zurück"}</a>
+          <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel ?? "← Zurück"}</a>
         )}
-        <h1 className={`text-xl font-bold text-gray-900 ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
+        <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
       </div>
 
       {/* Gesamtübersicht */}
@@ -351,23 +351,23 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
       {/* Aktive Session */}
       {activeEntry && (
-        <section className="bg-emerald-50 border border-emerald-200 rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-2">{t("currentSession")}</p>
+        <section className="bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] rounded-2xl px-6 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock)] mb-2">{t("currentSession")}</p>
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-emerald-800">
+            <p className="text-sm text-[var(--color-lock-text)]">
               {t("lockedSince")} <span className="font-semibold">{formatDateTime(activeEntry.startTime, dl)}</span>
             </p>
-            <span className="text-xl sm:text-2xl font-bold text-emerald-700 whitespace-nowrap">{formatMs(activeDurationMs, dl)}</span>
+            <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap">{formatMs(activeDurationMs, dl)}</span>
           </div>
         </section>
       )}
 
       {/* Trainingsziele */}
       {activeVorgabe && (
-        <section className="bg-white rounded-2xl border border-indigo-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-indigo-50 flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-900">{t("trainingGoals")}</p>
-            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{tc("active")}</span>
+        <section className="bg-surface rounded-2xl border border-[var(--color-request-border)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between">
+            <p className="text-sm font-bold text-foreground">{t("trainingGoals")}</p>
+            <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full">{tc("active")}</span>
           </div>
           <div className="px-6 py-4 flex flex-col gap-4">
             {activeVorgabe.minProTagH && (
@@ -385,31 +385,31 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                 sub={`${formatHours(hoursMonth, dl)} ${tc("of")} ${formatHours(activeVorgabe.minProMonatH, dl)}`}
                 reachedLabel={t("reached")} />
             )}
-            {activeVorgabe.notiz && <p className="text-xs text-indigo-400 italic">{activeVorgabe.notiz}</p>}
+            {activeVorgabe.notiz && <p className="text-xs text-[var(--color-request)] italic">{activeVorgabe.notiz}</p>}
           </div>
         </section>
       )}
 
       {/* Kalender */}
       {wearPairs.length > 0 && (
-        <section className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-50">
-            <p className="text-sm font-bold text-gray-900 mb-3">{t("wearCalendar")}</p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block" />{t("notWorn")}</span>
+        <section className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+          <div className="px-6 py-4 border-b border-border-subtle">
+            <p className="text-sm font-bold text-foreground mb-3">{t("wearCalendar")}</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />{t("notWorn")}</span>
               <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-100 inline-block" />&lt;25%</span>
               <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 inline-block" />25–40%</span>
               <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-400 inline-block" />40–65%</span>
               <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-600 inline-block" />&gt;65%</span>
               <span className="flex items-center gap-1.5">
                 <span className="relative inline-flex w-4 h-4 items-center justify-center">
-                  <span className="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block" />
-                  <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-rose-400 rounded-full" />
+                  <span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />
+                  <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-[var(--color-orgasm)] rounded-full" />
                 </span>
                 {t("orgasm")}
               </span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 ring-2 ring-emerald-400 inline-block" />{t("dailyGoalReached")}</span>
-              <span className="flex items-center gap-1.5"><span className="font-bold text-emerald-500">✓</span>{t("weeklyGoalReached")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 ring-2 ring-[var(--color-lock)] inline-block" />{t("dailyGoalReached")}</span>
+              <span className="flex items-center gap-1.5"><span className="font-bold text-[var(--color-lock)]">✓</span>{t("weeklyGoalReached")}</span>
             </div>
           </div>
           <CalendarExpand months={calMonthsData} />
@@ -418,11 +418,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
       {/* Rekorde */}
       {completed.length > 0 && (
-        <section className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-50">
-            <p className="text-sm font-bold text-gray-900">{t("records")}</p>
+        <section className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+          <div className="px-6 py-4 border-b border-border-subtle">
+            <p className="text-sm font-bold text-foreground">{t("records")}</p>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border-subtle">
             <RecordRow label={t("longestSession")} value={formatMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl)} />
             <RecordRow label={t("shortestSession")} value={formatMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl)} />
           </div>
@@ -431,20 +431,20 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
       {/* Kontrollen */}
       {unifiedKontrollen.length > 0 && (
-        <section className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-50">
-            <p className="text-sm font-bold text-gray-900">{t("inspections")}</p>
+        <section className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+          <div className="px-6 py-4 border-b border-border-subtle">
+            <p className="text-sm font-bold text-foreground">{t("inspections")}</p>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border-subtle">
             {unifiedKontrollen.map((k) => {
               const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
               return (
                 <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${kPill.cls}`}>{kPill.label}</span>}
-                    {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
+                    {k.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                  <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                     {k.entryTime
                       ? <span>Erfüllt: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
                       : <span>Erstellt: {formatDateTime(k.time, dl)}</span>
@@ -462,27 +462,27 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
       {monthStats.length > 0 && <MonthStats months={monthStats} />}
 
       {entries.length === 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
+        <div className="bg-surface rounded-2xl border border-border-subtle py-20 text-center text-foreground-faint text-sm">
           {t("noEntries")}
         </div>
       )}
 
       {/* Unerlaubte Öffnungen */}
       {unerlaubteOeffnungen.length > 0 && (
-        <section className="bg-red-50 rounded-2xl border border-red-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-red-200 flex items-center gap-2">
-            <ShieldAlert size={15} className="text-red-600 shrink-0" />
-            <p className="text-sm font-bold text-red-700">{t("unlawfulOpenings")} ({unerlaubteOeffnungen.length})</p>
+        <section className="bg-warn-bg rounded-2xl border border-[var(--color-warn-border)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--color-warn-border)] flex items-center gap-2">
+            <ShieldAlert size={15} className="text-warn shrink-0" />
+            <p className="text-sm font-bold text-warn-text">{t("unlawfulOpenings")} ({unerlaubteOeffnungen.length})</p>
           </div>
-          <div className="divide-y divide-red-200">
+          <div className="divide-y divide-[var(--color-warn-border)]">
             {unerlaubteOeffnungen.map((e) => (
               <div key={e.id} className="px-5 py-3 flex items-center gap-3">
-                <span className="text-sm tabular-nums text-red-800 font-medium shrink-0">
+                <span className="text-sm tabular-nums text-warn-text font-medium shrink-0">
                   {formatDateTime(e.startTime, dl)}
                 </span>
                 {e.note
-                  ? <span className="text-sm text-red-600 italic truncate">„{e.note}"</span>
-                  : <span className="text-sm text-red-300">–</span>
+                  ? <span className="text-sm text-warn italic truncate">„{e.note}"</span>
+                  : <span className="text-sm text-foreground-faint">–</span>
                 }
               </div>
             ))}
@@ -496,8 +496,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
           VERSCHLUSS: "lock", OEFFNEN: "lockopen", PRUEFUNG: "clipboard", ORGASMUS: "droplets",
         };
         const typeColorMap: Record<string, string> = {
-          VERSCHLUSS: "text-gray-700", OEFFNEN: "text-gray-700",
-          PRUEFUNG: "text-orange-600", ORGASMUS: "text-rose-500",
+          VERSCHLUSS: "text-foreground-muted", OEFFNEN: "text-foreground-muted",
+          PRUEFUNG: "text-[var(--color-inspect)]", ORGASMUS: "text-[var(--color-orgasm)]",
         };
         const typeLabelMap: Record<string, string> = {
           VERSCHLUSS: t("lock"), OEFFNEN: t("opening"), PRUEFUNG: t("inspection"), ORGASMUS: t("orgasm"),
@@ -516,7 +516,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
               type: e.type,
               dateTimeStr: formatDateTime(e.startTime, dl),
               typeLabel: typeLabelMap[e.type] ?? e.type,
-              typeColor: typeColorMap[e.type] ?? "text-gray-500",
+              typeColor: typeColorMap[e.type] ?? "text-foreground-muted",
               typeIcon: typeIconMap[e.type] ?? "lock",
               pillLabel: kontrollPill?.label ?? null,
               pillCls: kontrollPill?.cls ?? null,
@@ -535,10 +535,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
 function StatCard({ label, value, sub, warn }: { label: string; value: string; sub?: string; warn?: boolean }) {
   return (
-    <div className={`rounded-2xl border px-5 py-4 ${warn ? "bg-red-50 border-red-200" : "bg-white border-gray-100"}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{label}</p>
-      <p className={`text-2xl font-bold tracking-tight leading-none ${warn ? "text-red-500" : "text-gray-900"}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className={`rounded-2xl border px-5 py-4 ${warn ? "bg-warn-bg border-[var(--color-warn-border)]" : "bg-surface border-border-subtle"}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-1">{label}</p>
+      <p className={`text-2xl font-bold tracking-tight leading-none ${warn ? "text-warn" : "text-foreground"}`}>{value}</p>
+      {sub && <p className="text-xs text-foreground-faint mt-1">{sub}</p>}
     </div>
   );
 }
@@ -547,10 +547,10 @@ function RecordRow({ label, value, sub }: { label: string; value: string; sub: s
   return (
     <div className="flex items-center justify-between gap-4 px-6 py-4">
       <div>
-        <p className="text-sm font-semibold text-gray-700">{label}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
+        <p className="text-sm font-semibold text-foreground-muted">{label}</p>
+        <p className="text-xs text-foreground-faint mt-0.5">{sub}</p>
       </div>
-      <span className="font-mono text-sm font-bold text-gray-900 whitespace-nowrap">{value}</span>
+      <span className="font-mono text-sm font-bold text-foreground whitespace-nowrap">{value}</span>
     </div>
   );
 }
@@ -561,15 +561,15 @@ function GoalBar({ label, actual, target, sub, reachedLabel }: { label: string; 
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-semibold text-gray-700">{label}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${reached ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
+        <span className="text-sm font-semibold text-foreground-muted">{label}</span>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${reached ? "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" : "bg-surface-raised text-foreground-muted border-border"}`}>
           {reached ? reachedLabel : `${Math.round(pct)}%`}
         </span>
       </div>
-      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${reached ? "bg-emerald-400" : "bg-indigo-400"}`} style={{ width: `${pct}%` }} />
+      <div className="h-2.5 bg-surface-raised rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${reached ? "bg-[var(--color-lock)]" : "bg-[var(--color-request)]"}`} style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-xs text-gray-400 mt-1">{sub}</p>
+      <p className="text-xs text-foreground-faint mt-1">{sub}</p>
     </div>
   );
 }
