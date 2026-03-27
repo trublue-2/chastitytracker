@@ -30,20 +30,14 @@ export default function AvatarMenu({ username, settingsHref, changelogHref, them
   const initial = username?.[0]?.toUpperCase() ?? "?";
 
   const avatarBg = theme === "admin"
-    ? "bg-indigo-500 text-white"
-    : "bg-gray-900 text-white";
+    ? "bg-request text-white"
+    : "bg-foreground text-foreground-invert";
 
-  const menuBg = theme === "admin"
-    ? "bg-surface border border-border shadow-overlay"
-    : "bg-white border border-border shadow-overlay";
+  const menuBg = "bg-surface border border-border shadow-overlay";
 
   const itemBase = "flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors w-full text-left";
-  const itemNormal = theme === "admin"
-    ? `${itemBase} text-foreground-muted hover:text-foreground hover:bg-surface-raised`
-    : `${itemBase} text-gray-600 hover:text-gray-900 hover:bg-gray-50`;
-  const itemDanger = theme === "admin"
-    ? `${itemBase} text-color-warn hover:bg-color-warn-bg`
-    : `${itemBase} text-red-500 hover:bg-red-50`;
+  const itemNormal = `${itemBase} text-foreground-muted hover:text-foreground hover:bg-surface-raised`;
+  const itemDanger = `${itemBase} text-warn hover:bg-warn-bg`;
 
   return (
     <div ref={ref} className="relative">
@@ -65,7 +59,7 @@ export default function AvatarMenu({ username, settingsHref, changelogHref, them
           {/* Dropdown */}
           <div className={`absolute right-0 top-10 z-50 w-52 rounded-2xl overflow-hidden ${menuBg}`}>
             {/* Username */}
-            <div className={`px-4 py-3 border-b border-border ${theme === "admin" ? "text-foreground-muted" : "text-gray-400"} text-xs font-semibold uppercase tracking-wider`}>
+            <div className="px-4 py-3 border-b border-border text-foreground-faint text-xs font-semibold uppercase tracking-wider">
               {username}
             </div>
             <Link href={settingsHref} onClick={() => setOpen(false)} className={itemNormal}>
@@ -76,7 +70,7 @@ export default function AvatarMenu({ username, settingsHref, changelogHref, them
               <FileText size={16} strokeWidth={1.75} />
               Changelog
             </Link>
-            <div className={`border-t ${theme === "admin" ? "border-border-subtle" : "border-gray-100"}`} />
+            <div className="border-t border-border-subtle" />
             <button
               onClick={() => { setOpen(false); if (window.confirm(t("signOutConfirm"))) signOut({ callbackUrl: "/login" }); }}
               className={itemDanger}

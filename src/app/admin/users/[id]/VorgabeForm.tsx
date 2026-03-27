@@ -23,7 +23,7 @@ function InputWithUnit({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{label}</label>
+      <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{label}</label>
       <div className="flex gap-2">
         <input
           type="number"
@@ -33,19 +33,19 @@ function InputWithUnit({
           max={unit === "%" ? 100 : max}
           step={unit === "%" ? 1 : 0.5}
           placeholder="–"
-          className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+          className="flex-1 bg-surface-raised border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted transition"
         />
         <select
           value={unit}
           onChange={(e) => onUnit(e.target.value)}
-          className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+          className="bg-surface-raised border border-border rounded-xl px-3 py-3 text-sm text-foreground-muted focus:outline-none focus:ring-2 focus:ring-foreground-muted transition"
         >
           <option value="h">h</option>
           <option value="%">%</option>
         </select>
       </div>
       {value && (
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-foreground-faint mt-1">
           {unit === "%" && !isNaN(parseFloat(value))
             ? `≈ ${((parseFloat(value) / 100) * basis).toFixed(1)} h`
             : !isNaN(parseFloat(value))
@@ -129,32 +129,32 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
     }
   }
 
-  const inputDate = "bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition w-full";
+  const inputDate = "bg-surface-raised border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted transition w-full";
 
   return (
-    <form onSubmit={handleSubmit} className={`flex flex-col gap-4 p-5 border rounded-2xl overflow-hidden ${isEdit ? "bg-amber-50 border-amber-100" : "bg-indigo-50 border-indigo-100"}`}>
-      <p className={`text-sm font-bold ${isEdit ? "text-amber-800" : "text-indigo-800"}`}>
+    <form onSubmit={handleSubmit} className={`flex flex-col gap-4 p-5 border rounded-2xl overflow-hidden ${isEdit ? "bg-warn-bg border-[var(--color-warn-border)]" : "bg-[var(--color-request-bg)] border-[var(--color-request-border)]"}`}>
+      <p className={`text-sm font-bold ${isEdit ? "text-[var(--color-warn-text)]" : "text-[var(--color-request-text)]"}`}>
         {isEdit ? t("vorgabeEditTitle") : t("vorgabeAddTitle")}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{t("vorgabeFromRequired")}</label>
+          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeFromRequired")}</label>
           <input type="date" required value={gueltigAb} onChange={(e) => setGueltigAb(e.target.value)} className={inputDate} />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{t("vorgabeToOptional")}</label>
+          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeToOptional")}</label>
           <div className="flex gap-2 items-center">
             <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} className={inputDate} />
             {gueltigBis && (
               <button type="button" onClick={() => setGueltigBis("")}
                 title={t("vorgabeClearDate")}
-                className="text-gray-400 hover:text-red-500 transition text-lg leading-none flex-shrink-0">
+                className="text-foreground-faint hover:text-warn transition text-lg leading-none flex-shrink-0">
                 ×
               </button>
             )}
           </div>
-          {!gueltigBis && <p className="text-xs text-gray-400 mt-1">{t("vorgabeDateOpen")}</p>}
+          {!gueltigBis && <p className="text-xs text-foreground-faint mt-1">{t("vorgabeDateOpen")}</p>}
         </div>
       </div>
 
@@ -168,22 +168,22 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{t("vorgabeNoteOptional")}</label>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeNoteOptional")}</label>
         <input type="text" value={notiz} onChange={(e) => setNotiz(e.target.value)}
           placeholder="z.B. Trainingsstufe 2"
-          className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition w-full" />
+          className="bg-surface-raised border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted transition w-full" />
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-warn">{error}</p>}
 
       <div className="flex gap-2">
         <button type="submit" disabled={saving}
-          className={`flex-1 text-white font-semibold py-3 rounded-xl active:scale-[0.98] disabled:opacity-50 transition-all text-sm ${isEdit ? "bg-amber-600 hover:bg-amber-500" : "bg-indigo-600 hover:bg-indigo-500"}`}>
+          className="flex-1 text-background bg-foreground font-semibold py-3 rounded-xl active:scale-[0.98] disabled:opacity-50 hover:opacity-80 transition-all text-sm">
           {saving ? t("vorgabeSaving") : isEdit ? t("vorgabeSaveChanges") : t("vorgabeSave")}
         </button>
         {isEdit && onCancel && (
           <button type="button" onClick={onCancel}
-            className="px-5 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition">
+            className="px-5 py-3 rounded-xl border border-border text-foreground-muted text-sm font-medium hover:bg-surface-raised transition">
             {tc("cancel")}
           </button>
         )}

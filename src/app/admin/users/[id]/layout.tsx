@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import UserContextBar from "./UserContextBar";
+import UserSubNav from "./UserSubNav";
 
 export default async function AdminUserLayout({
   children,
@@ -51,6 +52,7 @@ export default async function AdminUserLayout({
         since={latestLockEntry?.type === "VERSCHLUSS" ? latestLockEntry.startTime.toISOString() : null}
         users={userLockStatuses}
       />
+      <UserSubNav userId={id} />
       {children}
     </>
   );

@@ -37,7 +37,7 @@ export default function DesktopSidebar({ isAdmin: _isAdmin, version, buildDate }
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 active
-                  ? "bg-nav-active-bg text-nav-active-text"
+                  ? "bg-nav-active-bg text-[var(--color-lock)]"
                   : "text-nav-inactive-text hover:bg-background-subtle hover:text-foreground"
               }`}
             >

@@ -14,10 +14,10 @@ export default function CalendarExpand({ months }: { months: CalendarMonthData[]
     <>
       <CalendarContainer months={visible} />
       {!showAll && remaining > 0 && (
-        <div className="px-6 py-4 border-t border-gray-50">
+        <div className="px-6 py-4 border-t border-border-subtle">
           <button
             onClick={() => setShowAll(true)}
-            className="w-full text-sm text-indigo-500 hover:text-indigo-700 font-medium transition"
+            className="w-full text-sm text-[var(--color-request)] hover:text-[var(--color-request-text)] font-medium transition"
           >
             {t("showMore", { count: remaining })}
           </button>

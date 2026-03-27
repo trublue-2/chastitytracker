@@ -30,7 +30,7 @@ export default function ModeSwitchSheet({ currentMode, label }: Props) {
         // Admin chip — shown in user header for dual-role users
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 bg-gray-900 text-gray-100 text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-gray-700 transition-colors"
+          className="flex items-center gap-1.5 bg-foreground text-background text-xs font-semibold px-3 py-1.5 rounded-full hover:opacity-80 transition-colors"
         >
           <ShieldCheck size={12} strokeWidth={2} />
           {label}
@@ -55,25 +55,25 @@ export default function ModeSwitchSheet({ currentMode, label }: Props) {
             onClick={() => setOpen(false)}
           />
           {/* Sheet */}
-          <div className="relative w-full sm:w-96 bg-white rounded-t-3xl sm:rounded-2xl px-6 pt-5 pb-10 sm:pb-6 shadow-overlay animate-slide-up">
+          <div className="relative w-full sm:w-96 bg-surface rounded-t-3xl sm:rounded-2xl px-6 pt-5 pb-10 sm:pb-6 shadow-overlay animate-slide-up">
             {/* Drag handle (mobile) */}
-            <div className="sm:hidden w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+            <div className="sm:hidden w-10 h-1 bg-border-strong rounded-full mx-auto mb-5" />
 
             <div className="flex items-center gap-3 mb-4">
               {isGoingToAdmin ? (
-                <div className="w-10 h-10 rounded-2xl bg-gray-900 flex items-center justify-center">
-                  <ShieldCheck size={20} strokeWidth={1.75} className="text-indigo-400" />
+                <div className="w-10 h-10 rounded-2xl bg-surface-raised border border-border flex items-center justify-center">
+                  <ShieldCheck size={20} strokeWidth={1.75} className="text-request" />
                 </div>
               ) : (
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                  <User size={20} strokeWidth={1.75} className="text-emerald-600" />
+                <div className="w-10 h-10 rounded-2xl bg-surface-raised border border-border flex items-center justify-center">
+                  <User size={20} strokeWidth={1.75} className="text-lock" />
                 </div>
               )}
               <div>
-                <div className="text-sm font-bold text-gray-900">
+                <div className="text-sm font-bold text-foreground">
                   {isGoingToAdmin ? "Zu Admin wechseln" : "Zu Benutzer wechseln"}
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">
+                <div className="text-xs text-foreground-muted mt-0.5">
                   {isGoingToAdmin
                     ? "Du siehst die Verwaltungsansicht"
                     : "Du siehst deine persönliche Ansicht"}
@@ -86,15 +86,15 @@ export default function ModeSwitchSheet({ currentMode, label }: Props) {
                 onClick={handleSwitch}
                 className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors ${
                   isGoingToAdmin
-                    ? "bg-gray-900 text-white hover:bg-gray-800"
-                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                    ? "bg-foreground text-background hover:opacity-80"
+                    : "bg-[var(--color-lock)] text-white hover:opacity-90"
                 }`}
               >
                 {isGoingToAdmin ? "Admin-Bereich öffnen" : "Benutzer-Dashboard öffnen"}
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="w-full py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+                className="w-full py-3 rounded-xl text-sm font-medium text-foreground-muted hover:bg-surface-raised transition-colors"
               >
                 Abbrechen
               </button>

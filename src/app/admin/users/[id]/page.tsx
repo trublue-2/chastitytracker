@@ -24,7 +24,7 @@ import KontrolleItemListClient, { type KontrolleItemData } from "@/app/component
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import SessionList from "@/app/dashboard/SessionList";
 import Link from "next/link";
-import { Lock, ClipboardList, Droplets, BarChart2, Target, History, ChevronRight } from "lucide-react";
+import { Lock, ClipboardList, Droplets, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 
 type Entry = {
@@ -294,24 +294,6 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           />
         </div>
       )}
-
-      {/* ── Subpage navigation links ── */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { href: `/admin/users/${id}/stats`, icon: BarChart2, label: t("statsTitle") },
-          { href: `/admin/users/${id}/vorgaben`, icon: Target, label: t("vorgaben") },
-          { href: `/admin/users/${id}/kontrollen`, icon: ClipboardList, label: t("kontrollen") },
-        ].map(({ href, icon: Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="bg-surface border border-border rounded-2xl px-4 py-4 flex flex-col items-center gap-2 text-center hover:border-border-strong hover:bg-surface-raised transition-colors group"
-          >
-            <Icon size={20} strokeWidth={1.75} className="text-foreground-faint group-hover:text-foreground-muted transition-colors" />
-            <span className="text-xs font-semibold text-foreground-muted group-hover:text-foreground transition-colors">{label}</span>
-          </Link>
-        ))}
-      </div>
 
       {/* ── Danger zone ── */}
       <div className="bg-surface rounded-2xl border border-border px-5 py-4">

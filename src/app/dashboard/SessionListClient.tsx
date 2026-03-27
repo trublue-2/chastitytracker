@@ -42,41 +42,41 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
   const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div className="bg-surface rounded-2xl border border-border overflow-hidden">
       {/* Title */}
-      <div className="px-5 py-3 border-b border-gray-100">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t("sessions")}</p>
+      <div className="px-5 py-3 border-b border-border-subtle">
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sessions")}</p>
       </div>
 
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-border-subtle">
       {sessions.length === 0 && (
-        <div className="py-20 text-center text-gray-400 text-sm">{t("noEntries")}</div>
+        <div className="py-20 text-center text-foreground-faint text-sm">{t("noEntries")}</div>
       )}
       {paginated.map((session) => {
         const isOpen = openId === session.id;
         return (
-          <div key={session.id} className={isOpen ? "bg-gray-50" : undefined}>
+          <div key={session.id} className={isOpen ? "bg-surface-raised" : undefined}>
             {/* ── Collapsed header ── */}
             <button
               type="button"
               onClick={() => setOpenId(isOpen ? null : session.id)}
-              className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100/60 transition text-left"
+              className="w-full flex items-center gap-3 px-5 py-3 hover:bg-surface-raised transition text-left"
             >
               {/* Von–Bis */}
               <div className="flex-1 min-w-0">
                 {session.durationUnder24h ? (
                   <>
-                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.dateStr}</span>
-                    <span className="block text-xs text-gray-400 tabular-nums">{session.timeStr}{session.oeffnen ? ` – ${session.oeffnen.timeStr}` : ""}</span>
+                    <span className="block text-sm font-semibold text-foreground tabular-nums">{session.dateStr}</span>
+                    <span className="block text-xs text-foreground-faint tabular-nums">{session.timeStr}{session.oeffnen ? ` – ${session.oeffnen.timeStr}` : ""}</span>
                   </>
                 ) : session.oeffnen ? (
                   <>
-                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.startAbbrevStr ?? session.dateStr} – {session.oeffnen.dateStr}</span>
+                    <span className="block text-sm font-semibold text-foreground tabular-nums">{session.startAbbrevStr ?? session.dateStr} – {session.oeffnen.dateStr}</span>
                   </>
                 ) : (
                   <>
-                    <span className="block text-sm font-semibold text-gray-900 tabular-nums">{session.dateStr}</span>
-                    <span className="block text-xs text-gray-400 tabular-nums">{session.timeStr}</span>
+                    <span className="block text-sm font-semibold text-foreground tabular-nums">{session.dateStr}</span>
+                    <span className="block text-xs text-foreground-faint tabular-nums">{session.timeStr}</span>
                   </>
                 )}
               </div>
@@ -88,28 +88,28 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                     {t("stillLocked")}
                   </span>
                 ) : session.durationStr ? (
-                  <span className="text-xs font-mono text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="text-xs font-mono text-foreground-muted bg-surface-raised border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Timer size={10} />{session.durationStr}
                   </span>
                 ) : null}
                 {isOpen
-                  ? <ChevronUp size={16} className="text-gray-400" />
-                  : <ChevronDown size={16} className="text-gray-400" />}
+                  ? <ChevronUp size={16} className="text-foreground-faint" />
+                  : <ChevronDown size={16} className="text-foreground-faint" />}
               </div>
             </button>
 
             {/* ── Expanded content ── */}
             {isOpen && (
               <div className="px-2 pb-2">
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-surface rounded-xl border border-border shadow-card overflow-hidden">
                   {/* Start marker */}
-                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border-b border-emerald-100">
-                    <Lock size={11} className="text-emerald-600 shrink-0" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Start</span>
-                    <span className="text-xs text-emerald-500 tabular-nums">{session.dateStr}, {session.timeStr}</span>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-lock-bg border-b border-lock-border">
+                    <Lock size={11} className="text-lock shrink-0" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-lock">Start</span>
+                    <span className="text-xs text-lock tabular-nums opacity-70">{session.dateStr}, {session.timeStr}</span>
                   </div>
 
-                  <div className="divide-y divide-gray-50">
+                  <div className="divide-y divide-border-subtle">
                     {session.events.map((ev, i) => {
                       const icon =
                         ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
@@ -121,13 +121,13 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
 
                   {/* ── Öffnung footer (Ende) ── */}
                   {session.oeffnen ? (
-                    <div className="border-t-2 border-gray-200 bg-gray-50">
-                      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
-                        <LockOpen size={11} className="text-gray-500 shrink-0" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Ende</span>
+                    <div className="border-t-2 border-border bg-surface-raised">
+                      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle">
+                        <LockOpen size={11} className="text-foreground-faint shrink-0" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-foreground-faint">Ende</span>
                       </div>
                       <div className="px-4 py-3 flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-gray-700">
+                        <span className="text-sm font-semibold text-foreground-muted">
                           {session.oeffnen.dateStr}, {session.oeffnen.timeStr}
                         </span>
                         {session.oeffnen.grund && (
@@ -136,14 +136,14 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                           </span>
                         )}
                         {session.oeffnen.note && (
-                          <span className="text-xs text-gray-400 italic truncate">„{session.oeffnen.note}"</span>
+                          <span className="text-xs text-foreground-faint italic truncate">„{session.oeffnen.note}"</span>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="border-t border-emerald-100 flex items-center gap-2 px-4 py-2 bg-emerald-50/60">
-                      <Lock size={11} className="text-emerald-500 shrink-0" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">{t("stillLocked")}</span>
+                    <div className="border-t border-lock-border flex items-center gap-2 px-4 py-2 bg-lock-bg">
+                      <Lock size={11} className="text-lock shrink-0" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-lock">{t("stillLocked")}</span>
                     </div>
                   )}
                 </div>
@@ -156,23 +156,23 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
           <button
             type="button"
             onClick={() => { setPage(p => p - 1); setOpenId(null); }}
             disabled={page === 0}
-            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition"
+            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
           >
             ← Zurück
           </button>
-          <span className="text-xs text-gray-400 tabular-nums">
+          <span className="text-xs text-foreground-faint tabular-nums">
             {page + 1} / {totalPages}
           </span>
           <button
             type="button"
             onClick={() => { setPage(p => p + 1); setOpenId(null); }}
             disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-gray-500 disabled:text-gray-300 hover:text-gray-800 transition"
+            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
           >
             Weiter →
           </button>

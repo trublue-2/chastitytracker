@@ -1,85 +1,120 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart2, Lock, LockOpen, ClipboardList } from "lucide-react";
+import { LayoutDashboard, BarChart2, Lock, LockOpen, ClipboardList, X, Plus } from "lucide-react";
 import pkg from "../../../package.json";
+import NewEntrySheet from "./NewEntrySheet";
 
 export type FabState = "none" | "unlocked" | "locked" | "kontrolle";
 
 interface Props {
   fabState: FabState;
+  isLocked?: boolean;
   buildDate?: string;
 }
 
-const tabs = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Übersicht", exact: true },
-  { href: "/dashboard/stats", icon: BarChart2, label: "Statistik", exact: false },
-];
-
-function Fab({ state }: { state: FabState }) {
-  const fabMap: Record<FabState, { href: string; icon: React.ReactNode; cls: string }> = {
-    none:      { href: "/dashboard/new/verschluss", icon: <Lock    size={22} strokeWidth={2} />, cls: "bg-emerald-600 hover:bg-emerald-700" },
-    unlocked:  { href: "/dashboard/new/verschluss", icon: <Lock    size={22} strokeWidth={2} />, cls: "bg-emerald-600 hover:bg-emerald-700" },
-    locked:    { href: "/dashboard/new/oeffnen",    icon: <LockOpen size={22} strokeWidth={2} />, cls: "bg-gray-900 hover:bg-gray-800" },
-    kontrolle: { href: "/dashboard/new/pruefung",  icon: <ClipboardList size={22} strokeWidth={2} />, cls: "bg-amber-500 hover:bg-amber-600 animate-pulse" },
+function Fab({ state, isSheetOpen, onClick }: { state: FabState; isSheetOpen: boolean; onClick: () => void }) {
+  const clsMap: Record<FabState, string> = {
+    none:      "bg-[var(--color-lock)] hover:opacity-90",
+    unlocked:  "bg-[var(--color-lock)] hover:opacity-90",
+    locked:    "bg-foreground hover:opacity-90",
+    kontrolle: "bg-[var(--color-inspect)] hover:opacity-90 animate-pulse",
   };
 
-  const { href, icon, cls } = fabMap[state];
+  const iconMap: Record<FabState, React.ReactNode> = {
+    none:      <Lock size={22} strokeWidth={2} />,
+    unlocked:  <Lock size={22} strokeWidth={2} />,
+    locked:    <LockOpen size={22} strokeWidth={2} />,
+    kontrolle: <ClipboardList size={22} strokeWidth={2} />,
+  };
 
   return (
-    <Link
-      href={href}
-      className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-raised transition-colors -mt-6 flex-shrink-0 ${cls}`}
-      aria-label="Neue Erfassung"
+    <button
+      onClick={onClick}
+      className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-raised transition-all -mt-6 flex-shrink-0 ${clsMap[state]}`}
+      aria-label="Neuer Eintrag"
     >
-      {icon}
-    </Link>
+      {isSheetOpen ? <X size={22} strokeWidth={2} /> : iconMap[state]}
+    </button>
   );
 }
 
-export default function UserBottomNav({ fabState, buildDate }: Props) {
+export default function UserBottomNav({ fabState, isLocked, buildDate }: Props) {
   const pathname = usePathname();
   const year = new Date().getFullYear();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const overviewActive = pathname === "/dashboard";
+  const statsActive = pathname.startsWith("/dashboard/stats");
 
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
-      <div className="flex h-16 items-center">
-        {/* Left tabs */}
-        {tabs.map((tab) => {
-          const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
-          const Icon = tab.icon;
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full ${
-                active ? "text-nav-active-text" : "text-nav-inactive-text hover:text-foreground-muted"
-              }`}
-            >
-              <Icon size={22} strokeWidth={1.75} />
-              <span className="text-[10px] font-medium">{tab.label}</span>
-            </Link>
-          );
-        })}
+    <>
+      <NewEntrySheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        isLocked={isLocked}
+      />
 
-        {/* FAB slot */}
-        <div className="flex-1 flex items-center justify-center">
-          <Fab state={fabState} />
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
+        <div className="flex h-16 items-center">
+          {/* Left tab: Übersicht */}
+          <Link
+            href="/dashboard"
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full ${
+              overviewActive
+                ? "text-[var(--color-lock)]"
+                : "text-nav-inactive-text hover:text-foreground-muted"
+            }`}
+          >
+            <LayoutDashboard size={22} strokeWidth={1.75} />
+            <span className="text-[10px] font-medium">Übersicht</span>
+          </Link>
+
+          {/* FAB center */}
+          <div className="flex-1 flex items-center justify-center">
+            <Fab
+              state={fabState}
+              isSheetOpen={isSheetOpen}
+              onClick={() => setIsSheetOpen((v) => !v)}
+            />
+          </div>
+
+          {/* Right tab: Statistik */}
+          <Link
+            href="/dashboard/stats"
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full ${
+              statsActive
+                ? "text-[var(--color-lock)]"
+                : "text-nav-inactive-text hover:text-foreground-muted"
+            }`}
+          >
+            <BarChart2 size={22} strokeWidth={1.75} />
+            <span className="text-[10px] font-medium">Statistik</span>
+          </Link>
         </div>
 
-        {/* Right spacers (reserved for future features) */}
-        <div className="flex-1" />
-        <div className="flex-1" />
-      </div>
-
-      <div className="flex items-center justify-between text-[8px] text-nav-inactive-text pb-1 px-4">
-        <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="hover:text-foreground-faint transition">© trublue {year}</a>
-        <span className="flex items-center gap-2">
-          <span>Build {buildDate ?? "local"}</span>
-          <Link href="/dashboard/changelog" className="font-mono bg-background-subtle text-foreground-faint px-1 py-0.5 rounded hover:text-foreground-muted transition">{pkg.version}</Link>
-        </span>
-      </div>
-    </nav>
+        <div className="flex items-center justify-between text-[8px] text-nav-inactive-text pb-1 px-4">
+          <a
+            href="https://fetlife.com/trublue_2"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground-faint transition"
+          >
+            © trublue {year}
+          </a>
+          <span className="flex items-center gap-2">
+            <span>Build {buildDate ?? "local"}</span>
+            <Link
+              href="/dashboard/changelog"
+              className="font-mono bg-background-subtle text-foreground-faint px-1 py-0.5 rounded hover:text-foreground-muted transition"
+            >
+              {pkg.version}
+            </Link>
+          </span>
+        </div>
+      </nav>
+    </>
   );
 }

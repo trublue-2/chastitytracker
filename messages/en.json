@@ -343,6 +343,9 @@
     "noEntries": "No entries yet.",
     "userNotFound": "User not found.",
     "noEmail": "No email address on file",
+    "selectUser": "Select user",
+    "alreadyHasSperrzeit": "Lock duration already active",
+    "alreadyHasAnforderung": "Open request already exists",
     "vorgabeAddTitle": "Add new goal",
     "vorgabeEditTitle": "Edit goal",
     "vorgabeFromRequired": "Valid from *",
@@ -382,7 +385,7 @@
     "pillWithdrawn": "Withdrawn",
     "pillSelfcontrol": "Self-inspection",
     "noKontrollenYet": "No inspections requested yet.",
-    "kontrolleCount": "{count, plural, one {# request} other {# requests}}",
+    "alarmeCount": "{count, plural, one {# alarm} other {# alarms}}",
     "codeLabel": "Code",
     "createdLabel": "Created",
     "fulfilledLabel": "Time",
@@ -396,7 +399,7 @@
     "kontrolleVerifyBtn": "Verify",
     "kontrolleRejectBtn": "Reject",
     "kontrolleWithdrawBtn": "Withdraw",
-    "kontrollenTitle": "Inspections"
+    "alarmeTitle": "Alarms"
   },
   "forgotPassword": {
     "title": "Forgot password",

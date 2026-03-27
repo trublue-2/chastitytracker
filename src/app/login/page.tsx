@@ -34,24 +34,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-[#f8f9fb]">
+    <div data-theme="user" className="min-h-screen flex flex-col items-center justify-center px-4 bg-background">
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gray-900 text-white">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground text-background">
             <Lock size={32} strokeWidth={2} />
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900 tracking-tight">KG Tracker</h1>
-          <p className="mt-1 text-sm text-gray-500">{t("subtitle")}</p>
+          <h1 className="mt-4 text-2xl font-bold text-foreground tracking-tight">KG Tracker</h1>
+          <p className="mt-1 text-sm text-foreground-muted">{t("subtitle")}</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+        <div className="bg-surface rounded-3xl shadow-sm border border-border p-8">
           <div className="flex justify-center mb-6">
             <LocaleSwitcher current={locale} />
           </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
                 {t("username")}
               </label>
               <input
@@ -61,11 +61,11 @@ export default function LoginPage() {
                 required
                 autoComplete="username"
                 autoCapitalize="none"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
+                className="w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
                 {t("password")}
               </label>
               <input
@@ -74,7 +74,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
+                className="w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition"
               />
             </div>
 
@@ -87,14 +87,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 w-full bg-gray-900 text-white rounded-xl py-3.5 text-base font-semibold hover:bg-gray-700 active:scale-[0.98] disabled:opacity-50 transition-all"
+              className="mt-1 w-full bg-foreground text-background rounded-xl py-3.5 text-base font-semibold hover:opacity-80 active:scale-[0.98] disabled:opacity-50 transition-all"
             >
               {loading ? t("submitting") : t("submit")}
             </button>
           </form>
         </div>
         <div className="mt-4 px-1">
-          <Link href="/forgot-password" className="text-sm text-gray-400 hover:text-gray-600 transition">
+          <Link href="/forgot-password" className="text-sm text-foreground-faint hover:text-foreground-muted transition">
             {t("forgotPassword")}
           </Link>
         </div>

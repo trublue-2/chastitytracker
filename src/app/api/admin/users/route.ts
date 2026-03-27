@@ -3,6 +3,32 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+export async function GET() {
+  const session = await auth();
+  if (!session || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const users = await prisma.user.findMany({
+    where: { role: "user" },
+    orderBy: { username: "asc" },
+    select: { id: true, username: true },
+  });
+
+  const usersWithStatus = await Promise.all(
+    users.map(async (u) => {
+      const latest = await prisma.entry.findFirst({
+        where: { userId: u.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+        orderBy: { startTime: "desc" },
+        select: { type: true },
+      });
+      return { id: u.id, username: u.username, isLocked: latest?.type === "VERSCHLUSS" };
+    })
+  );
+
+  return NextResponse.json(usersWithStatus);
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || session.user.role !== "admin") {

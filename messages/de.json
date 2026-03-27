@@ -343,6 +343,9 @@
     "noEntries": "Noch keine Einträge vorhanden.",
     "userNotFound": "Benutzer nicht gefunden.",
     "noEmail": "Keine E-Mail hinterlegt",
+    "selectUser": "Benutzer auswählen",
+    "alreadyHasSperrzeit": "Sperrdauer bereits aktiv",
+    "alreadyHasAnforderung": "Offene Anforderung vorhanden",
     "vorgabeAddTitle": "Neue Vorgabe hinzufügen",
     "vorgabeEditTitle": "Vorgabe bearbeiten",
     "vorgabeFromRequired": "Gültig ab *",
@@ -382,7 +385,7 @@
     "pillWithdrawn": "Zurückgezogen",
     "pillSelfcontrol": "Selbstkontrolle",
     "noKontrollenYet": "Noch keine Kontrollen angefordert.",
-    "kontrolleCount": "{count, plural, one {# Anforderung} other {# Anforderungen}}",
+    "alarmeCount": "{count, plural, one {# Alarm} other {# Alarme}}",
     "codeLabel": "Code",
     "createdLabel": "Erstellt",
     "fulfilledLabel": "Zeitpunkt",
@@ -396,7 +399,7 @@
     "kontrolleVerifyBtn": "Verifizieren",
     "kontrolleRejectBtn": "Ablehnen",
     "kontrolleWithdrawBtn": "Zurückziehen",
-    "kontrollenTitle": "Kontrollen"
+    "alarmeTitle": "Alarme"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

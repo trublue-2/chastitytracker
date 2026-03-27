@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, Droplets } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
@@ -13,75 +13,104 @@ export default async function NewEntryPage() {
   const isLocked = latest?.type === "VERSCHLUSS";
 
   return (
-    <div className="w-full max-w-5xl px-6 py-8"><div className="max-w-lg">
-      <h1 className="text-xl font-bold text-gray-900 mb-8">{t("title")}</h1>
+    <main className="flex-1 w-full max-w-lg px-4 py-8">
+      <h1 className="text-xl font-bold text-foreground mb-6">{t("title")}</h1>
 
-      <div className="flex flex-col gap-3">
+      <div className="bg-surface rounded-2xl border border-border-subtle divide-y divide-border-subtle">
+
+        {/* Verschluss */}
         {isLocked ? (
-          <div className="flex items-center gap-4 bg-gray-100 text-gray-400 rounded-2xl px-6 py-5 cursor-not-allowed">
-            <Lock size={28} strokeWidth={2} />
+          <div className="flex items-center gap-4 px-5 py-4 rounded-t-2xl opacity-40 cursor-not-allowed">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
+              <Lock size={22} strokeWidth={2} className="text-foreground-faint" />
+            </div>
             <div>
-              <p className="font-bold text-lg">{t("lock")}</p>
-              <p className="text-xs text-gray-400/80">{t("lockDisabled")}</p>
+              <p className="text-sm font-semibold text-foreground-muted">Verschluss</p>
+              <p className="text-xs text-foreground-faint">Nur möglich wenn offen</p>
             </div>
           </div>
         ) : (
           <Link
             href="/dashboard/new/verschluss"
-            className="flex items-center gap-4 bg-emerald-600 text-white rounded-2xl px-6 py-5 hover:bg-emerald-500 active:scale-[0.98] transition-all"
+            className="flex items-center gap-4 px-5 py-4 rounded-t-2xl hover:bg-surface-raised transition active:scale-[0.98]"
           >
-            <Lock size={28} strokeWidth={2} />
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: "var(--color-lock-bg)" }}
+            >
+              <Lock size={22} strokeWidth={2} style={{ color: "var(--color-lock)" }} />
+            </div>
             <div>
-              <p className="font-bold text-lg">{t("lock")}</p>
-              <p className="text-xs text-white/60">{t("lockSubtitle")}</p>
+              <p className="text-sm font-semibold text-foreground">Verschluss</p>
+              <p className="text-xs text-foreground-faint">Gürtel angelegt</p>
             </div>
           </Link>
         )}
 
+        {/* Öffnen */}
         {isLocked ? (
           <Link
             href="/dashboard/new/oeffnen"
-            className="flex items-center gap-4 bg-gray-900 text-white rounded-2xl px-6 py-5 hover:bg-gray-700 active:scale-[0.98] transition-all"
+            className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
           >
-            <LockOpen size={28} strokeWidth={2} />
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: "var(--color-unlock-bg)" }}
+            >
+              <LockOpen size={22} strokeWidth={2} style={{ color: "var(--color-unlock)" }} />
+            </div>
             <div>
-              <p className="font-bold text-lg">{t("open")}</p>
-              <p className="text-xs text-white/60">{t("openSubtitle")}</p>
+              <p className="text-sm font-semibold text-foreground">Öffnen</p>
+              <p className="text-xs text-foreground-faint">Gürtel abgelegt</p>
             </div>
           </Link>
         ) : (
-          <div className="flex items-center gap-4 bg-gray-100 text-gray-400 rounded-2xl px-6 py-5 cursor-not-allowed">
-            <LockOpen size={28} strokeWidth={2} />
+          <div className="flex items-center gap-4 px-5 py-4 opacity-40 cursor-not-allowed">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
+              <LockOpen size={22} strokeWidth={2} className="text-foreground-faint" />
+            </div>
             <div>
-              <p className="font-bold text-lg">{t("open")}</p>
-              <p className="text-xs text-gray-400/80">{t("openDisabled")}</p>
+              <p className="text-sm font-semibold text-foreground-muted">Öffnen</p>
+              <p className="text-xs text-foreground-faint">Nur möglich wenn verschlossen</p>
             </div>
           </div>
         )}
 
-        <div className="border-t border-gray-100 my-1" />
-
+        {/* Prüfung */}
         <Link
           href="/dashboard/new/pruefung"
-          className="flex items-center gap-4 bg-orange-500 text-white rounded-2xl px-6 py-5 hover:bg-orange-400 active:scale-[0.98] transition-all"
+          className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
         >
-          <ClipboardList size={28} strokeWidth={2} />
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: "var(--color-inspect-bg)" }}
+          >
+            <ClipboardCheck size={22} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
+          </div>
           <div>
-            <p className="font-bold text-lg">{t("inspection")}</p>
-            <p className="text-xs text-white/60">{t("inspectionSubtitle")}</p>
+            <p className="text-sm font-semibold text-foreground">Prüfung</p>
+            <p className="text-xs text-foreground-faint">Kontrolle durchgeführt</p>
           </div>
         </Link>
+
+        {/* Orgasmus */}
         <Link
           href="/dashboard/new/orgasmus"
-          className="flex items-center gap-4 bg-rose-500 text-white rounded-2xl px-6 py-5 hover:bg-rose-400 active:scale-[0.98] transition-all"
+          className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
         >
-          <Droplets size={28} strokeWidth={2} />
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: "var(--color-orgasm-bg)" }}
+          >
+            <Droplets size={22} strokeWidth={2} style={{ color: "var(--color-orgasm)" }} />
+          </div>
           <div>
-            <p className="font-bold text-lg">{t("orgasm")}</p>
-            <p className="text-xs text-white/60">{t("orgasmSubtitle")}</p>
+            <p className="text-sm font-semibold text-foreground">Orgasmus</p>
+            <p className="text-xs text-foreground-faint">Orgasmus erfasst</p>
           </div>
         </Link>
+
       </div>
-    </div></div>
+    </main>
   );
 }

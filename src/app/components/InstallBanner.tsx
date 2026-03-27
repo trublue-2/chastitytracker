@@ -66,13 +66,13 @@ export default function InstallBanner() {
   if (dismissed || !platform) return null;
 
   return (
-    <div className="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 bg-gray-900 text-white rounded-xl shadow-xl p-4 flex items-start gap-3">
+    <div className="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 bg-foreground text-background rounded-xl shadow-xl p-4 flex items-start gap-3">
       <div className="flex-1">
         <p className="font-semibold text-sm">{t("title")}</p>
         {platform === "android" ? (
-          <p className="text-xs text-gray-300 mt-0.5">{t("androidDesc")}</p>
+          <p className="text-xs text-foreground-invert opacity-70 mt-0.5">{t("androidDesc")}</p>
         ) : (
-          <p className="text-xs text-gray-300 mt-0.5">
+          <p className="text-xs text-foreground-invert opacity-70 mt-0.5">
             {t("iosBefore")} <Share size={12} className="inline mb-0.5" /> {t("iosAfter")} <strong>{t("iosHomeScreen")}</strong>.
           </p>
         )}
@@ -81,14 +81,14 @@ export default function InstallBanner() {
       {platform === "android" && (
         <button
           onClick={install}
-          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex-shrink-0"
+          className="flex items-center gap-1.5 bg-[var(--color-inspect)] hover:opacity-90 text-white text-xs font-semibold px-3 py-2 rounded-lg flex-shrink-0"
         >
           <Download size={14} />
           {t("install")}
         </button>
       )}
 
-      <button onClick={dismiss} className="text-gray-400 hover:text-white flex-shrink-0 mt-0.5">
+      <button onClick={dismiss} className="text-foreground-invert opacity-50 hover:opacity-100 flex-shrink-0 mt-0.5">
         <X size={16} />
       </button>
     </div>

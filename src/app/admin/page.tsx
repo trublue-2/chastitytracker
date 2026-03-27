@@ -128,11 +128,11 @@ export default async function AdminPage() {
               {/* Stretched link — covers whole card for navigation */}
               <Link
                 href={`/admin/users/${u.id}`}
-                className="absolute inset-0 z-0"
+                className="absolute inset-0 z-10"
                 aria-label={`${u.username} öffnen`}
               />
 
-              <div className="relative z-10 p-5 flex flex-col gap-3">
+              <div className="relative p-5 flex flex-col gap-3">
                 {/* Header: avatar + name + status icon */}
                 <div className="flex items-start gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${

@@ -55,7 +55,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
   return (
     <>
       {/* Context bar */}
-      <div className="sticky top-14 z-20 bg-surface border-b border-border px-4 sm:px-6 h-13 flex items-center gap-3">
+      <div className="sticky top-14 z-20 bg-surface border-b border-border px-4 sm:px-6 h-[52px] flex items-center gap-3">
         <Link
           href="/admin"
           className="flex items-center gap-1 text-foreground-faint hover:text-foreground-muted transition-colors text-sm flex-shrink-0"
