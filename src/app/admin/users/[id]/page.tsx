@@ -3,7 +3,7 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTime, formatDate, formatTime, formatHours, toDateLocale,
-  wearingHoursInRange, buildPairs, interruptionPauseMs, photoStatus,
+  wearingHoursInRange, buildPairs, interruptionPauseMs,
   mapAnforderungStatus, mapVerifikationStatus,
   getMidnightToday, getWeekStart, getMonthStart,
   type ReinigungSettings,
@@ -13,49 +13,31 @@ import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
-import StatusBanner from "@/app/dashboard/StatusBanner";
+import RoleSelect from "@/app/admin/RoleSelect";
+import KontrolleButton from "@/app/admin/KontrolleButton";
+import VerschlussAnforderungButton from "@/app/admin/VerschlussAnforderungButton";
+import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
+import StatusBanner from "@/app/dashboard/StatusBanner";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import SessionList from "@/app/dashboard/SessionList";
-import { ClipboardList, Droplets } from "lucide-react";
-import UserNav from "./UserNav";
+import Link from "next/link";
+import { Lock, ClipboardList, Droplets, BarChart2, Target, History, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 
 type Entry = {
-  id: string;
-  type: string;
-  startTime: Date;
-  imageUrl: string | null;
-  imageExifTime: Date | null;
-  note: string | null;
-  orgasmusArt: string | null;
-  verifikationStatus: string | null;
-  kontrollCode: string | null;
-  oeffnenGrund: string | null;
+  id: string; type: string; startTime: Date; imageUrl: string | null;
+  imageExifTime: Date | null; note: string | null; orgasmusArt: string | null;
+  verifikationStatus: string | null; kontrollCode: string | null; oeffnenGrund: string | null;
 };
-
 type KontrolleItem = {
-  id: string;
-  time: Date;
-  imageUrl: string | null;
-  code: string | null;
-  deadline: Date | null;
-  kommentar: string | null;
-  note: string | null;
+  id: string; time: Date; imageUrl: string | null; code: string | null;
+  deadline: Date | null; kommentar: string | null; note: string | null;
   anforderungStatus: import("@/lib/utils").AnforderungStatus | null;
   verifikationStatus: import("@/lib/utils").VerifikationStatus | null;
-  entryId: string | null;
-  submittedAt: Date | null;
-};
-
-type Pair = {
-  verschluss: Entry;
-  oeffnen: Entry | null;
-  active: boolean;
-  kontrollen: KontrolleItem[];
-  interruptions: { oeffnen: Entry; verschluss: Entry }[];
+  entryId: string | null; submittedAt: Date | null;
 };
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -68,10 +50,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const dl = toDateLocale(await getLocale());
 
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) return <div className="p-8 text-gray-500">{t("userNotFound")}</div>;
+  if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
+
   const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
@@ -81,11 +64,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     }),
   ]);
 
-  const reinigung: ReinigungSettings = {
-    erlaubt: user.reinigungErlaubt,
-    maxMinuten: user.reinigungMaxMinuten,
-  };
-
+  const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
   const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
@@ -93,110 +72,65 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   const kontrollItems: KontrolleItem[] = [
     ...alleAnforderungen.map(k => ({
-      id: k.id,
-      time: k.entry ? k.entry.startTime : k.createdAt,
-      imageUrl: k.entry?.imageUrl ?? null,
-      code: k.code,
-      deadline: k.deadline,
-      kommentar: k.kommentar ?? null,
-      note: k.entry?.note ?? null,
+      id: k.id, time: k.entry ? k.entry.startTime : k.createdAt,
+      imageUrl: k.entry?.imageUrl ?? null, code: k.code, deadline: k.deadline,
+      kommentar: k.kommentar ?? null, note: k.entry?.note ?? null,
       anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
-      entryId: k.entry?.id ?? null,
-      submittedAt: k.fulfilledAt ?? null,
+      entryId: k.entry?.id ?? null, submittedAt: k.fulfilledAt ?? null,
     })),
-    ...pruefungEntries
-      .filter(e => !linkedEntryIds.has(e.id))
-      .map(e => ({
-        id: e.id,
-        time: e.startTime,
-        imageUrl: e.imageUrl,
-        code: e.kontrollCode,
-        deadline: null as Date | null,
-        kommentar: null as string | null,
-        note: e.note,
-        anforderungStatus: null,
-        verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
-        entryId: e.id,
-        submittedAt: null as Date | null,
-      })),
+    ...pruefungEntries.filter(e => !linkedEntryIds.has(e.id)).map(e => ({
+      id: e.id, time: e.startTime, imageUrl: e.imageUrl, code: e.kontrollCode,
+      deadline: null as Date | null, kommentar: null as string | null, note: e.note,
+      anforderungStatus: null, verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
+      entryId: e.id, submittedAt: null as Date | null,
+    })),
   ];
 
   const latest = [...entries]
-    .filter((e) => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
+    .filter(e => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
   const currentStatus = latest
     ? { type: latest.type as "VERSCHLUSS" | "OEFFNEN", since: latest.startTime.toISOString() }
     : null;
+  const isLocked = currentStatus?.type === "VERSCHLUSS";
 
   const pairs = buildPairs(entries, kontrollItems, reinigung);
-  const completedPairs = pairs.filter((p) => p.oeffnen);
+  const completedPairs = pairs.filter(p => p.oeffnen);
   const totalMs = completedPairs.reduce(
     (s, p) => s + (p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime()) - interruptionPauseMs(p.interruptions),
     0
   );
   const totalFormatted = completedPairs.length ? formatDuration(new Date(0), new Date(totalMs), dl) : "–";
-  const orgasmusEntries = entries
-    .filter((e) => e.type === "ORGASMUS")
-    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
+  const orgasmusEntries = entries
+    .filter(e => e.type === "ORGASMUS")
+    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
   const lastOrgasmus = orgasmusEntries[0] ?? null;
   const orgasmusFreiMs = lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null;
   const orgasmusFreiDisplay = (() => {
     if (!orgasmusFreiMs) return null;
-    const totalMinutes = Math.floor(orgasmusFreiMs / 60000);
-    const days = Math.floor(totalMinutes / 1440);
-    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const days = Math.floor(orgasmusFreiMs / 86_400_000);
+    const hours = Math.floor((orgasmusFreiMs % 86_400_000) / 3_600_000);
     return days > 0 ? `${days}T ${hours}h` : `${hours}h`;
   })();
 
-  // ── Laufende Session ──
-  const activePair = pairs.find((p) => p.active) ?? null;
-
+  const activePair = pairs.find(p => p.active) ?? null;
   const sessionEvents: import("@/app/dashboard/LaufendeSessionCard").SessionEvent[] = activePair
     ? [
-        {
-          type: "verschluss" as const,
-          time: activePair.verschluss.startTime,
-          imageUrl: activePair.verschluss.imageUrl,
-          imageExifTime: activePair.verschluss.imageExifTime,
-          note: activePair.verschluss.note,
-          entryId: activePair.verschluss.id,
-        },
-        ...activePair.kontrollen
-          .filter((k) => k.entryId !== null)
-          .map((k) => ({
-            type: "kontrolle" as const,
-            time: k.time,
-            imageUrl: k.imageUrl,
-            imageExifTime: null,
-            note: k.note,
-            entryId: k.entryId,
-            deadline: k.deadline,
-            kontrolleKommentar: k.kommentar,
-            kontrolleCode: k.code,
-            kontrolleAnforderungStatus: k.anforderungStatus,
-            kontrolleVerifikationStatus: k.verifikationStatus,
-          })),
-        ...orgasmusEntries
-          .filter((e) => e.startTime >= activePair.verschluss.startTime)
-          .map((e) => ({
-            type: "orgasmus" as const,
-            time: e.startTime,
-            imageUrl: e.imageUrl,
-            imageExifTime: null,
-            note: e.note,
-            entryId: e.id,
-            orgasmusArt: e.orgasmusArt,
-          })),
-        ...activePair.interruptions.map((intr) => ({
-          type: "reinigung" as const,
-          time: intr.oeffnen.startTime,
-          imageUrl: null,
-          imageExifTime: null,
-          note: intr.oeffnen.note,
-          entryId: null,
-          pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
+        { type: "verschluss" as const, time: activePair.verschluss.startTime, imageUrl: activePair.verschluss.imageUrl, imageExifTime: activePair.verschluss.imageExifTime, note: activePair.verschluss.note, entryId: activePair.verschluss.id },
+        ...activePair.kontrollen.filter(k => k.entryId !== null).map(k => ({
+          type: "kontrolle" as const, time: k.time, imageUrl: k.imageUrl, imageExifTime: null, note: k.note,
+          entryId: k.entryId, deadline: k.deadline, kontrolleKommentar: k.kommentar, kontrolleCode: k.code,
+          kontrolleAnforderungStatus: k.anforderungStatus, kontrolleVerifikationStatus: k.verifikationStatus,
+        })),
+        ...orgasmusEntries.filter(e => e.startTime >= activePair.verschluss.startTime).map(e => ({
+          type: "orgasmus" as const, time: e.startTime, imageUrl: e.imageUrl, imageExifTime: null,
+          note: e.note, entryId: e.id, orgasmusArt: e.orgasmusArt,
+        })),
+        ...activePair.interruptions.map(intr => ({
+          type: "reinigung" as const, time: intr.oeffnen.startTime, imageUrl: null, imageExifTime: null,
+          note: intr.oeffnen.note, entryId: null, pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
         })),
       ].sort((a, b) => a.time.getTime() - b.time.getTime())
     : [];
@@ -209,40 +143,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const monatH = activePair ? wearingHoursInRange(entries, monthStart, now, reinigung) : 0;
 
   return (
-    <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
-      <UserNav userId={id} username={user.username} current="uebersicht" />
+    <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-4">
 
-      {/* ── Profil / Email / Passwort ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
-            {user.username[0].toUpperCase()}
-          </div>
-          <div>
-            <p className="text-lg font-bold text-gray-900">{user.username}</p>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${user.role === "admin" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
-              {user.role}
-            </span>
-            {user.email
-              ? <p className="text-xs text-gray-400 mt-1">{user.email}</p>
-              : <p className="text-xs text-amber-500 mt-1">{t("noEmail")}</p>
-            }
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 items-end">
-          <div className="flex items-center gap-2">
-            <ChangeEmailButton userId={user.id} currentEmail={user.email ?? null} />
-            <ChangePasswordButton userId={user.id} />
-          </div>
-          <ReinigungToggle
-            userId={user.id}
-            initialErlaubt={user.reinigungErlaubt}
-            initialMaxMinuten={user.reinigungMaxMinuten}
-          />
-        </div>
-      </div>
-
-      {/* ── Status / Laufende Session ── */}
+      {/* ── Section 1: Status ── */}
       {activePair ? (
         <LaufendeSessionCard
           sessionStart={activePair.verschluss.startTime}
@@ -261,7 +164,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
       )}
 
-      {/* ── Kontrolle Banner ── */}
+      {/* ── Section 2: Offene Kontrolle ── */}
       {offeneKontrolle && (
         <KontrolleBanner
           deadline={offeneKontrolle.deadline}
@@ -272,82 +175,99 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         />
       )}
 
-      {/* ── Orgasmusfreie Zeit ── */}
-      {orgasmusFreiDisplay !== null ? (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-rose-500 mb-1">{ts("orgasmFreeTime")}</p>
-          <p className="text-3xl font-bold text-rose-700 tracking-tight">{orgasmusFreiDisplay}</p>
-          <p className="text-xs text-rose-400 mt-1">{ts("lastOrgasm")}: {formatDateTime(lastOrgasmus!.startTime, dl)}</p>
-        </div>
-      ) : (
-        <div className="bg-rose-50 border border-rose-100 rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-rose-400 mb-1">{ts("orgasmFreeTime")}</p>
-          <p className="text-2xl font-bold text-rose-300">{ts("noEntry")}</p>
-        </div>
-      )}
-
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl border bg-white border-gray-100 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{ts("entries")}</p>
-          <p className="text-2xl font-bold tracking-tight text-gray-900">{pairs.length}</p>
-        </div>
-        <div className="rounded-2xl border bg-white border-gray-100 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{ts("totalDuration")}</p>
-          <p className="text-2xl font-bold tracking-tight text-gray-900">{totalFormatted}</p>
+      {/* ── Section 3: Schnellaktionen ── */}
+      <div className="bg-surface rounded-2xl border border-border px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">Schnellaktionen</p>
+        <div className="flex flex-wrap gap-2">
+          {isLocked && <KontrolleButton userId={id} hasEmail={!!user.email} />}
+          <VerschlussAnforderungButton
+            userId={id}
+            hasEmail={!!user.email}
+            isLocked={isLocked}
+            hasOffeneAnforderung={false}
+            hasActiveSperrzeit={!!activeSperrzeit}
+          />
+          <ChangeEmailButton userId={user.id} currentEmail={user.email ?? null} />
+          <ChangePasswordButton userId={user.id} />
+          <RoleSelect id={user.id} currentRole={user.role} />
+          <ReinigungToggle userId={user.id} initialErlaubt={user.reinigungErlaubt} initialMaxMinuten={user.reinigungMaxMinuten} />
         </div>
       </div>
 
-      {/* ── Trainingsvorgabe ── */}
-      {activeVorgabe && !activePair && (
-        <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">{ts("trainingGoals")}</p>
+      {/* ── Section 4: Compliance (Statistik kompakt) ── */}
+      <div className="bg-surface rounded-2xl border border-border px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">Statistik</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-surface-raised px-4 py-3">
+            <p className="text-xs text-foreground-faint mb-0.5">{ts("entries")}</p>
+            <p className="text-2xl font-bold text-foreground tracking-tight">{pairs.length}</p>
+          </div>
+          <div className="rounded-xl bg-surface-raised px-4 py-3">
+            <p className="text-xs text-foreground-faint mb-0.5">{ts("totalDuration")}</p>
+            <p className="text-2xl font-bold text-foreground tracking-tight">{totalFormatted}</p>
+          </div>
+          {orgasmusFreiDisplay !== null && (
+            <div className="rounded-xl bg-orgasm-bg border border-orgasm-border px-4 py-3 col-span-2 sm:col-span-1">
+              <p className="text-xs text-orgasm-text font-semibold mb-0.5 uppercase tracking-wider">{ts("orgasmFreeTime")}</p>
+              <p className="text-2xl font-bold text-orgasm tracking-tight">{orgasmusFreiDisplay}</p>
+              {lastOrgasmus && <p className="text-xs text-orgasm-text opacity-60 mt-0.5">{ts("lastOrgasm")}: {formatDateTime(lastOrgasmus.startTime, dl)}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Section 5: Aktive Vorgabe ── */}
+      {activeVorgabe && (
+        <div className="bg-surface rounded-2xl border border-border px-5 py-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ts("trainingGoals")}</p>
+            <Link href={`/admin/users/${id}/vorgaben`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
+              Alle <ChevronRight size={12} />
+            </Link>
+          </div>
           <div className="flex items-start gap-3">
-            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
+            <span className="text-xs font-bold text-request-text bg-request-bg border border-request-border px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
             <div>
-              <p className="text-sm font-semibold text-gray-700">
+              <p className="text-sm font-semibold text-foreground">
                 {formatDate(activeVorgabe.gueltigAb, dl)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl) : tc("open")}
               </p>
               <div className="flex flex-wrap gap-3 mt-1">
-                {activeVorgabe.minProTagH != null && <span className="text-xs text-gray-600">{td("day")}: <strong>{formatHours(activeVorgabe.minProTagH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProTagH / 24) * 100)}%)</span></span>}
-                {activeVorgabe.minProWocheH != null && <span className="text-xs text-gray-600">{td("week")}: <strong>{formatHours(activeVorgabe.minProWocheH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProWocheH / 168) * 100)}%)</span></span>}
-                {activeVorgabe.minProMonatH != null && <span className="text-xs text-gray-600">{td("month")}: <strong>{formatHours(activeVorgabe.minProMonatH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProMonatH / 730) * 100)}%)</span></span>}
+                {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{td("day")}: <strong className="text-foreground">{formatHours(activeVorgabe.minProTagH, dl)}</strong></span>}
+                {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{td("week")}: <strong className="text-foreground">{formatHours(activeVorgabe.minProWocheH, dl)}</strong></span>}
+                {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{td("month")}: <strong className="text-foreground">{formatHours(activeVorgabe.minProMonatH, dl)}</strong></span>}
               </div>
-              {activeVorgabe.notiz && <p className="text-xs text-gray-400 italic mt-0.5">{activeVorgabe.notiz}</p>}
+              {activeVorgabe.notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Session-Liste ── */}
+      {/* ── Section 6: Letzte Einträge ── */}
       <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
 
-      {/* ── Kontrollen ── */}
+      {/* ── Section 7: Kontrollen ── */}
       {kontrollItems.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-50">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />{ts("inspections")}</p>
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
+              <ClipboardList size={12} />{ts("inspections")}
+            </p>
+            <Link href={`/admin/users/${id}/kontrollen`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
+              Alle <ChevronRight size={12} />
+            </Link>
           </div>
           <KontrolleItemListClient
             imageAlt={ts("inspections")}
-            items={[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).map((k): KontrolleItemData => {
+            items={[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 5).map((k): KontrolleItemData => {
               const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
               const vPill = k.verifikationStatus ? VERIFIKATION_PILLS[k.verifikationStatus] : null;
               return {
-                id: k.id,
-                imageUrl: k.imageUrl,
-                kommentar: k.kommentar,
-                pill1Label: aPill ? t(aPill.labelKey) : null,
-                pill1Cls: aPill?.cls ?? null,
-                pill2Label: vPill ? t(vPill.labelKey) : null,
-                pill2Cls: vPill?.cls ?? null,
-                code: k.code,
-                dateTimeStr: formatDateTime(k.time, dl),
-                dateTimePrefix: null,
+                id: k.id, imageUrl: k.imageUrl, kommentar: k.kommentar,
+                pill1Label: aPill ? t(aPill.labelKey) : null, pill1Cls: aPill?.cls ?? null,
+                pill2Label: vPill ? t(vPill.labelKey) : null, pill2Cls: vPill?.cls ?? null,
+                code: k.code, dateTimeStr: formatDateTime(k.time, dl), dateTimePrefix: null,
                 deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
-                deadlinePrefix: t("frist"),
-                note: null,
-                entryId: k.entryId,
+                deadlinePrefix: t("frist"), note: null, entryId: k.entryId,
                 editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
                 timeCorrectedStr: k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000
                   ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(k.time, dl)} · ${t("systemLabel")}: ${formatDateTime(k.submittedAt, dl)}`
@@ -358,24 +278,47 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </div>
       )}
 
-      {/* ── Orgasmus-Einträge ── */}
+      {/* ── Section 8: Orgasmus-Einträge ── */}
       {orgasmusEntries.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-50">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><Droplets size={12} />{td("orgasms")}</p>
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
+              <Droplets size={12} />{td("orgasms")}
+            </p>
           </div>
           <OrgasmenListClient
-            items={orgasmusEntries.map((e): OrgasmusItemData => ({
-              id: e.id,
-              dateStr: formatDate(e.startTime, dl),
-              timeStr: formatTime(e.startTime, dl),
-              orgasmusArt: e.orgasmusArt,
-              note: e.note,
-              editHref: `/dashboard/edit/${e.id}`,
+            items={orgasmusEntries.slice(0, 5).map((e): OrgasmusItemData => ({
+              id: e.id, dateStr: formatDate(e.startTime, dl), timeStr: formatTime(e.startTime, dl),
+              orgasmusArt: e.orgasmusArt, note: e.note, editHref: `/dashboard/edit/${e.id}`,
             }))}
           />
         </div>
       )}
+
+      {/* ── Subpage navigation links ── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { href: `/admin/users/${id}/stats`, icon: BarChart2, label: t("statsTitle") },
+          { href: `/admin/users/${id}/vorgaben`, icon: Target, label: t("vorgaben") },
+          { href: `/admin/users/${id}/kontrollen`, icon: ClipboardList, label: t("kontrollen") },
+        ].map(({ href, icon: Icon, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className="bg-surface border border-border rounded-2xl px-4 py-4 flex flex-col items-center gap-2 text-center hover:border-border-strong hover:bg-surface-raised transition-colors group"
+          >
+            <Icon size={20} strokeWidth={1.75} className="text-foreground-faint group-hover:text-foreground-muted transition-colors" />
+            <span className="text-xs font-semibold text-foreground-muted group-hover:text-foreground transition-colors">{label}</span>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Danger zone ── */}
+      <div className="bg-surface rounded-2xl border border-border px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">Account</p>
+        <DeleteUserButton id={user.id} username={user.username} isSelf={session?.user?.id === user.id} />
+      </div>
+
     </main>
   );
 }
