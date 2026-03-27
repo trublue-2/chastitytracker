@@ -42,14 +42,14 @@ interface Props {
 
 function ProgressBar({ actual, target, label }: { actual: number; target: number; label: string }) {
   const pct = Math.min(100, Math.round((actual / target) * 100));
-  const color = pct >= 100 ? "bg-emerald-500" : pct >= 70 ? "bg-indigo-500" : "bg-indigo-400";
+  const color = pct >= 100 ? "bg-white" : pct >= 70 ? "bg-white/70" : "bg-white/40";
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-emerald-100/80 w-12 shrink-0">{label}</span>
-      <div className="flex-1 bg-emerald-900/30 rounded-full h-1.5 overflow-hidden">
+      <span className="text-xs text-white/70 w-12 shrink-0">{label}</span>
+      <div className="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">
         <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-emerald-100/70 w-16 text-right shrink-0">{actual.toFixed(1)}h / {target}h</span>
+      <span className="text-xs text-white/60 w-16 text-right shrink-0">{actual.toFixed(1)}h / {target}h</span>
       <span className="text-xs font-semibold text-white w-9 text-right shrink-0">{pct}%</span>
     </div>
   );
@@ -94,10 +94,10 @@ export default async function LaufendeSessionCard({
             {/* Mobile: stacked */}
             <div className="sm:hidden">
               <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
-              <p className="text-xl font-bold leading-tight">{t("locked")}</p>
+              <p className="text-2xl font-bold leading-tight">{t("locked")}</p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{tCommon("duration")}:</span>
-                <span className="text-lg font-bold tabular-nums">
+                <span className="text-xl font-bold tabular-nums">
                   <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
                 </span>
               </div>
@@ -106,11 +106,11 @@ export default async function LaufendeSessionCard({
             <div className="hidden sm:flex items-start justify-between gap-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
-                <p className="text-xl font-bold">{t("locked")}</p>
+                <p className="text-2xl font-bold">{t("locked")}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{tCommon("duration")}</p>
-                <p className="text-2xl font-bold tabular-nums leading-tight">
+                <p className="text-3xl font-bold tabular-nums leading-tight">
                   <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
                 </p>
               </div>

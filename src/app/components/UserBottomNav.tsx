@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, BarChart2, Lock, LockOpen, ClipboardList, X, Plus } from "lucide-react";
-import pkg from "../../../package.json";
 import NewEntrySheet from "./NewEntrySheet";
 
 export type FabState = "none" | "unlocked" | "locked" | "kontrolle";
@@ -12,7 +11,6 @@ export type FabState = "none" | "unlocked" | "locked" | "kontrolle";
 interface Props {
   fabState: FabState;
   isLocked?: boolean;
-  buildDate?: string;
 }
 
 function Fab({ state, isSheetOpen, onClick }: { state: FabState; isSheetOpen: boolean; onClick: () => void }) {
@@ -33,7 +31,7 @@ function Fab({ state, isSheetOpen, onClick }: { state: FabState; isSheetOpen: bo
   return (
     <button
       onClick={onClick}
-      className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-raised transition-all -mt-6 flex-shrink-0 ${clsMap[state]}`}
+      className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl transition-all -mt-6 flex-shrink-0 active:scale-95 ${clsMap[state]}`}
       aria-label="Neuer Eintrag"
     >
       {isSheetOpen ? <X size={22} strokeWidth={2} /> : iconMap[state]}
@@ -41,9 +39,8 @@ function Fab({ state, isSheetOpen, onClick }: { state: FabState; isSheetOpen: bo
   );
 }
 
-export default function UserBottomNav({ fabState, isLocked, buildDate }: Props) {
+export default function UserBottomNav({ fabState, isLocked }: Props) {
   const pathname = usePathname();
-  const year = new Date().getFullYear();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const overviewActive = pathname === "/dashboard";
@@ -57,7 +54,7 @@ export default function UserBottomNav({ fabState, isLocked, buildDate }: Props) 
         isLocked={isLocked}
       />
 
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-black/5 z-40 pb-safe">
         <div className="flex h-16 items-center">
           {/* Left tab: Übersicht */}
           <Link
@@ -69,7 +66,7 @@ export default function UserBottomNav({ fabState, isLocked, buildDate }: Props) 
             }`}
           >
             <LayoutDashboard size={22} strokeWidth={1.75} />
-            <span className="text-[10px] font-medium">Übersicht</span>
+            <span className="text-[11px] font-medium">Übersicht</span>
           </Link>
 
           {/* FAB center */}
@@ -91,28 +88,8 @@ export default function UserBottomNav({ fabState, isLocked, buildDate }: Props) 
             }`}
           >
             <BarChart2 size={22} strokeWidth={1.75} />
-            <span className="text-[10px] font-medium">Statistik</span>
+            <span className="text-[11px] font-medium">Statistik</span>
           </Link>
-        </div>
-
-        <div className="flex items-center justify-between text-[8px] text-nav-inactive-text pb-1 px-4">
-          <a
-            href="https://fetlife.com/trublue_2"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground-faint transition"
-          >
-            © trublue {year}
-          </a>
-          <span className="flex items-center gap-2">
-            <span>Build {buildDate ?? "local"}</span>
-            <Link
-              href="/dashboard/changelog"
-              className="font-mono bg-background-subtle text-foreground-faint px-1 py-0.5 rounded hover:text-foreground-muted transition"
-            >
-              {pkg.version}
-            </Link>
-          </span>
         </div>
       </nav>
     </>
