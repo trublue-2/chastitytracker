@@ -1,0 +1,5 @@
+-- CreateTable
+CREATE TABLE "PortalTokenUsed" (
+    "jti" TEXT NOT NULL PRIMARY KEY,
+    "usedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
