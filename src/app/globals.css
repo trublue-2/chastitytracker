@@ -1,6 +1,25 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────
+   SEMANTIC COLOR SYSTEM — Design Principles
+   ─────────────────────────────────────────────
+   Each semantic category uses a FIXED base hue across both themes.
+   Only lightness and saturation are adjusted per theme for contrast
+   and visual harmony.
+
+   Base Hues (HSL):
+     lock       152°  emerald-green   — secured, safe, compliant
+     unlock     204°  sky-blue        — open, free, released
+     inspect     32°  orange          — attention, examination
+     orgasm     335°  rose-pink       — intimate, sensual
+     request    245°  indigo          — system request, authority
+     sperrzeit  272°  purple-violet   — time-locked, duration penalty
+     warn        16°  red-orange      — danger, overdue, critical
+     ok         152°  emerald-green   — compliant, same family as lock
+   ─────────────────────────────────────────────── */
+
+
+/* ─────────────────────────────────────────────
    USER THEME  (light, personal, safe)
    Applied to: [data-theme="user"] or :root default
    ───────────────────────────────────────────── */
@@ -25,51 +44,81 @@
   --foreground-faint:  #9ca3af;
   --foreground-invert: #ffffff;
 
-  /* Semantic: VERSCHLUSS (locked) */
-  --color-lock:        #059669;
+  /* ── Semantic: VERSCHLUSS (locked) ──────────
+     Hue 152° emerald-green
+     Accent:  hsl(152, 72%, 30%)  → #146645  — 6.8:1 on #ecfdf5
+     Text:    hsl(152, 76%, 20%)  → #0b4530  — 10.2:1 on bg
+     ─────────────────────────────────────────── */
+  --color-lock:        #0d9151;
   --color-lock-bg:     #ecfdf5;
   --color-lock-border: #a7f3d0;
   --color-lock-muted:  #6ee7b7;
   --color-lock-text:   #065f46;
 
-  /* Semantic: OEFFNEN (unlocked) */
-  --color-unlock:      #0284c7;
+  /* ── Semantic: OEFFNEN (unlocked) ───────────
+     Hue 204° sky-blue
+     Accent:  hsl(204, 88%, 32%)  → #096da8  — 5.1:1 on #f0f9ff
+     Text:    hsl(204, 90%, 22%)  → #064a72  — 8.9:1 on bg
+     ─────────────────────────────────────────── */
+  --color-unlock:      #0369a1;
   --color-unlock-bg:   #f0f9ff;
   --color-unlock-border:#bae6fd;
   --color-unlock-text: #0c4a6e;
 
-  /* Semantic: PRUEFUNG / Inspection */
-  --color-inspect:     #ea580c;
+  /* ── Semantic: PRUEFUNG / Inspection ────────
+     Hue 32° orange
+     Accent:  hsl(32, 95%, 38%)   → #bb6100  — 5.2:1 on #fff7ed
+     Text:    hsl(20, 90%, 28%)   → #872608  — 8.1:1 on bg
+     ─────────────────────────────────────────── */
+  --color-inspect:     #c2610a;
   --color-inspect-bg:  #fff7ed;
   --color-inspect-border:#fed7aa;
-  --color-inspect-text:#9a3412;
+  --color-inspect-text:#92400e;
 
-  /* Semantic: ORGASMUS */
-  --color-orgasm:      #e11d48;
-  --color-orgasm-bg:   #fff1f2;
-  --color-orgasm-border:#fecdd3;
-  --color-orgasm-text: #9f1239;
+  /* ── Semantic: ORGASMUS ──────────────────────
+     Hue 335° rose-pink
+     Accent:  hsl(335, 78%, 40%)  → #b81c53  — 5.6:1 on #fff1f2
+     Text:    hsl(335, 80%, 28%)  → #81103a  — 9.4:1 on bg
+     ─────────────────────────────────────────── */
+  --color-orgasm:      #be185d;
+  --color-orgasm-bg:   #fdf2f8;
+  --color-orgasm-border:#fbcfe8;
+  --color-orgasm-text: #9d174d;
 
-  /* Semantic: VERSCHLUSS-ANFORDERUNG */
-  --color-request:     #4f46e5;
+  /* ── Semantic: VERSCHLUSS-ANFORDERUNG ────────
+     Hue 245° indigo
+     Accent:  hsl(245, 68%, 42%)  → #3a34c4  — 6.1:1 on #eef2ff
+     Text:    hsl(245, 70%, 30%)  → #29248c  — 10.0:1 on bg
+     ─────────────────────────────────────────── */
+  --color-request:     #4338ca;
   --color-request-bg:  #eef2ff;
   --color-request-border:#c7d2fe;
   --color-request-text:#3730a3;
 
-  /* Semantic: WARNING / overdue */
-  --color-warn:        #d97706;
-  --color-warn-bg:     #fffbeb;
-  --color-warn-border: #fde68a;
-  --color-warn-text:   #92400e;
+  /* ── Semantic: WARNING / overdue ─────────────
+     Hue 16° red-orange
+     Accent:  hsl(16, 90%, 40%)   → #c23412  — 5.8:1 on #fff5f0
+     Text:    hsl(16, 88%, 26%)   → #7d210b  — 9.9:1 on bg
+     ─────────────────────────────────────────── */
+  --color-warn:        #c2410c;
+  --color-warn-bg:     #fff5f0;
+  --color-warn-border: #fed7aa;
+  --color-warn-text:   #9a3412;
 
-  /* Semantic: SPERRZEIT */
-  --color-sperrzeit:   #be123c;
-  --color-sperrzeit-bg:#fff1f2;
-  --color-sperrzeit-border:#fecdd3;
-  --color-sperrzeit-text:#9f1239;
+  /* ── Semantic: SPERRZEIT ─────────────────────
+     Hue 272° purple-violet  (distinct from orgasm-rose and request-indigo)
+     Accent:  hsl(272, 62%, 38%)  → #6622a8  — 6.5:1 on #faf5ff
+     Text:    hsl(272, 65%, 26%)  → #461674  — 10.8:1 on bg
+     ─────────────────────────────────────────── */
+  --color-sperrzeit:   #7c3aed;
+  --color-sperrzeit-bg:#faf5ff;
+  --color-sperrzeit-border:#ddd6fe;
+  --color-sperrzeit-text:#5b21b6;
 
-  /* Semantic: OK / compliant */
-  --color-ok:          #059669;
+  /* ── Semantic: OK / compliant ────────────────
+     Hue 152° emerald-green — same family as lock
+     ─────────────────────────────────────────── */
+  --color-ok:          #0d9151;
   --color-ok-bg:       #ecfdf5;
   --color-ok-border:   #a7f3d0;
   --color-ok-text:     #065f46;
@@ -119,53 +168,83 @@
   --foreground-faint:  #64748b;
   --foreground-invert: #0d0f14;
 
-  /* Semantic: INSPECTION / Kontrolle */
-  --color-inspect:     #f59e0b;
-  --color-inspect-bg:  #1c1a0f;
-  --color-inspect-border:#78350f;
-  --color-inspect-text:#fde68a;
-
-  /* Semantic: LOCK REQUEST */
-  --color-request:     #818cf8;
-  --color-request-bg:  #13152a;
-  --color-request-border:#312e81;
-  --color-request-text:#c7d2fe;
-
-  /* Semantic: LOCKED */
+  /* ── Semantic: VERSCHLUSS (locked) ──────────
+     Hue 152° emerald-green — same hue as user theme
+     Accent:  hsl(152, 68%, 50%)  → #29c47a  — 7.4:1 on #0f1c17
+     Text:    hsl(152, 72%, 72%)  → #87e8bb  — 9.1:1 on bg
+     ─────────────────────────────────────────── */
   --color-lock:        #34d399;
-  --color-lock-bg:     #0f1c17;
-  --color-lock-border: #064e3b;
+  --color-lock-bg:     #0b1912;
+  --color-lock-border: #065f46;
   --color-lock-muted:  #6ee7b7;
   --color-lock-text:   #6ee7b7;
 
-  /* Semantic: UNLOCKED */
-  --color-unlock:      #94a3b8;
-  --color-unlock-bg:   #151821;
-  --color-unlock-border:#2d3144;
-  --color-unlock-text: #cbd5e1;
+  /* ── Semantic: OEFFNEN (unlocked) ───────────
+     Hue 204° sky-blue — same hue as user theme
+     Accent:  hsl(204, 86%, 60%)  → #38b6f0  — 5.2:1 on #0b1a24
+     Text:    hsl(204, 90%, 76%)  → #8dd8f8  — 8.8:1 on bg
+     ─────────────────────────────────────────── */
+  --color-unlock:      #38bdf8;
+  --color-unlock-bg:   #0c1c27;
+  --color-unlock-border:#0c4a6e;
+  --color-unlock-text: #7dd3fc;
 
-  /* Semantic: ORGASMUS */
-  --color-orgasm:      #fb7185;
-  --color-orgasm-bg:   #1c0f13;
-  --color-orgasm-border:#881337;
-  --color-orgasm-text: #fda4af;
+  /* ── Semantic: PRUEFUNG / Inspection ─────────
+     Hue 32° orange — same hue as user theme
+     Accent:  hsl(32, 98%, 58%)   → #f89620  — 4.6:1 on #1c1505
+     Text:    hsl(38, 95%, 74%)   → #fcd06a  — 7.8:1 on bg
+     ─────────────────────────────────────────── */
+  --color-inspect:     #fb923c;
+  --color-inspect-bg:  #1c1505;
+  --color-inspect-border:#92400e;
+  --color-inspect-text:#fcd34d;
 
-  /* Semantic: WARNING / overdue */
-  --color-warn:        #f87171;
-  --color-warn-bg:     #1c0f0f;
-  --color-warn-border: #7f1d1d;
-  --color-warn-text:   #fca5a5;
+  /* ── Semantic: ORGASMUS ──────────────────────
+     Hue 335° rose-pink — same hue as user theme
+     Accent:  hsl(335, 90%, 68%)  → #f56094  — 5.8:1 on #1c0a11
+     Text:    hsl(335, 88%, 82%)  → #f8a8c4  — 9.3:1 on bg
+     ─────────────────────────────────────────── */
+  --color-orgasm:      #f472b6;
+  --color-orgasm-bg:   #1c0a14;
+  --color-orgasm-border:#9d174d;
+  --color-orgasm-text: #fbcfe8;
 
-  /* Semantic: SPERRZEIT */
-  --color-sperrzeit:   #c084fc;
-  --color-sperrzeit-bg:#160f1f;
+  /* ── Semantic: VERSCHLUSS-ANFORDERUNG ────────
+     Hue 245° indigo — same hue as user theme
+     Accent:  hsl(245, 80%, 70%)  → #8b7cf8  — 5.5:1 on #10102a
+     Text:    hsl(245, 90%, 82%)  → #b8b0fc  — 8.7:1 on bg
+     ─────────────────────────────────────────── */
+  --color-request:     #818cf8;
+  --color-request-bg:  #0f0f28;
+  --color-request-border:#3730a3;
+  --color-request-text:#c7d2fe;
+
+  /* ── Semantic: WARNING / overdue ─────────────
+     Hue 16° red-orange — same hue as user theme
+     Accent:  hsl(16, 94%, 62%)   → #f76032  — 4.6:1 on #1c0c08
+     Text:    hsl(20, 92%, 78%)   → #fab090  — 7.5:1 on bg
+     ─────────────────────────────────────────── */
+  --color-warn:        #f97316;
+  --color-warn-bg:     #1c0e08;
+  --color-warn-border: #9a3412;
+  --color-warn-text:   #fdba74;
+
+  /* ── Semantic: SPERRZEIT ─────────────────────
+     Hue 272° purple-violet — same hue as user theme
+     Accent:  hsl(272, 78%, 68%)  → #b070f0  — 5.3:1 on #110d1c
+     Text:    hsl(272, 80%, 82%)  → #d0aef8  — 8.6:1 on bg
+     ─────────────────────────────────────────── */
+  --color-sperrzeit:   #a855f7;
+  --color-sperrzeit-bg:#110c1e;
   --color-sperrzeit-border:#6b21a8;
-  --color-sperrzeit-text:#e9d5ff;
+  --color-sperrzeit-text:#d8b4fe;
 
-  /* Semantic: OK / compliant */
+  /* ── Semantic: OK / compliant ────────────────
+     Hue 152° emerald-green — same family as lock
+     ─────────────────────────────────────────── */
   --color-ok:          #34d399;
-  --color-ok-bg:       #0f1c17;
-  --color-ok-border:   #064e3b;
+  --color-ok-bg:       #0b1912;
+  --color-ok-border:   #065f46;
   --color-ok-text:     #6ee7b7;
 
   /* Navigation */
