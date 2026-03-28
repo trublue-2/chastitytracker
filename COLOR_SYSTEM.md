@@ -166,4 +166,46 @@ The `--color-lock-muted` token (carried over from the original design) is preser
 
 ---
 
+## Kontroll-Pillen
+
+Kontroll-Pillen communicate the combined state of a `KontrollAnforderung` (admin request) and its `VerifikationStatus` (photo verification result). All pill styles live in `src/lib/kontrollePills.ts` and use the same semantic tokens as the rest of the system — no hardcoded Tailwind color classes.
+
+### Pill color mapping
+
+| Semantic state | Token family | Meaning |
+|----------------|--------------|---------|
+| Fulfilled / verified (AI or manual) | `--color-lock-*` | Compliant — same green as a locked entry |
+| Open / pending | `--color-inspect-*` | Attention required — same orange as an inspection badge |
+| Late + verified | `--color-inspect-*` | Fulfilled but delayed — orange signals "note this" |
+| Overdue / rejected | `--color-warn-*` | Critical / failed — same red-orange as a warning |
+| Withdrawn / unverified | `--surface-raised` + `--foreground-muted` + `--border` | Neutral / inactive — no semantic hue |
+
+### Combined pill logic (`getKombinierterPill`)
+
+| `anforderungStatus` | `verifikationStatus` | Pill color |
+|---------------------|----------------------|------------|
+| `open`              | —                    | inspect (orange) |
+| `overdue`           | —                    | warn (red-orange) |
+| `withdrawn`         | —                    | neutral (gray) |
+| `null` (Selbstkontrolle) | `ai` / `manual` | lock (green) |
+| `null` (Selbstkontrolle) | `rejected` | inspect (orange) |
+| `null` (Selbstkontrolle) | `unverified` | neutral (gray) |
+| `fulfilled`         | `ai` / `manual` | lock (green) |
+| `fulfilled`         | `rejected` | warn (red-orange) |
+| `fulfilled`         | `unverified` | neutral (gray) |
+| `late`              | `ai` / `manual` | inspect (orange) |
+| `late`              | `rejected` | warn (red-orange) |
+| `late`              | `unverified` | inspect (orange) |
+
+### Why these mappings
+
+- **Green = lock** reinforces the mental model: a verified kontrolle proves the device is locked and the user is compliant, just like the locked state.
+- **Orange = inspect** is reused for "pending" and "late but verified" because both states require attention without signalling failure.
+- **Red-orange = warn** is reserved for genuine failures (overdue, rejected) — states that indicate non-compliance or conflict.
+- **Neutral** (surface/border/muted tokens) intentionally carries no hue so that withdrawn and unverified states don't compete visually with actionable states.
+
+Both themes (user/light, admin/dark) automatically pick the correct lightness and saturation for each token — no theme-specific overrides needed in the component.
+
+---
+
 _Last updated: 2026-03-27_

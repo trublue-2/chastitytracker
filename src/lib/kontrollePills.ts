@@ -1,16 +1,16 @@
 export const ANFORDERUNG_PILLS: Record<string, { labelKey: string; cls: string }> = {
-  open:      { labelKey: "pillOpen",      cls: "bg-orange-50 text-orange-700 border-orange-200" },
-  overdue:   { labelKey: "pillOverdue",   cls: "bg-red-50 text-red-600 border-red-200" },
-  fulfilled: { labelKey: "pillFulfilled", cls: "bg-green-50 text-green-700 border-green-200" },
-  late:      { labelKey: "pillLate",      cls: "bg-red-50 text-red-600 border-red-200" },
-  withdrawn: { labelKey: "pillWithdrawn", cls: "bg-gray-100 text-gray-400 border-gray-200" },
+  open:      { labelKey: "pillOpen",      cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
+  overdue:   { labelKey: "pillOverdue",   cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
+  fulfilled: { labelKey: "pillFulfilled", cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
+  late:      { labelKey: "pillLate",      cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
+  withdrawn: { labelKey: "pillWithdrawn", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
 };
 
 export const VERIFIKATION_PILLS: Record<string, { labelKey: string; cls: string }> = {
-  unverified: { labelKey: "pillUnverified", cls: "bg-gray-100 text-gray-400 border-gray-200" },
-  ai:         { labelKey: "pillAi",         cls: "bg-green-50 text-green-700 border-green-200" },
-  manual:     { labelKey: "pillManual",     cls: "bg-green-50 text-green-700 border-green-200" },
-  rejected:   { labelKey: "pillRejected",   cls: "bg-red-50 text-red-700 border-red-200" },
+  unverified: { labelKey: "pillUnverified", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
+  ai:         { labelKey: "pillAi",         cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
+  manual:     { labelKey: "pillManual",     cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
+  rejected:   { labelKey: "pillRejected",   cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
 };
 
 // Combined for backwards compatibility
@@ -19,10 +19,10 @@ export const KONTROLLE_PILLS: Record<string, { labelKey: string; cls: string }> 
   ...VERIFIKATION_PILLS,
 };
 
-const GREEN  = "bg-green-50 text-green-700 border-green-200";
-const ORANGE = "bg-orange-50 text-orange-700 border-orange-200";
-const RED    = "bg-red-50 text-red-600 border-red-200";
-const GRAY   = "bg-gray-100 text-gray-400 border-gray-200";
+const GREEN  = "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]";
+const ORANGE = "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]";
+const RED    = "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]";
+const GRAY   = "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]";
 
 const ANFORDERUNG_KEYS: Record<string, string> = {
   open:        "pillOpen",
