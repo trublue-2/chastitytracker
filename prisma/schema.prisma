@@ -87,6 +87,13 @@ model AdminUserRelationship {
   @@index([userId])
 }
 
+// Tracks consumed portal-login JTIs to prevent replay attacks.
+// Rows older than 1h are pruned automatically by the portal-login endpoint.
+model PortalTokenUsed {
+  jti    String   @id
+  usedAt DateTime @default(now())
+}
+
 model Entry {
   id                  String               @id @default(cuid())
   userId              String
