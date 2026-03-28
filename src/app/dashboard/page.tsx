@@ -205,7 +205,7 @@ export default async function DashboardPage() {
   return (
     <>
       <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
-        <h1 className="text-xl font-bold text-gray-900">{t("title")}</h1>
+        <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
 
         {/* ── Status / Laufende Session ── */}
         {activePair ? (
@@ -228,16 +228,16 @@ export default async function DashboardPage() {
 
         {/* ── Verschluss-Anforderung Banner ── */}
         {offeneVerschlussAnf && (
-          <div className="flex flex-col gap-1.5 bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-4">
+          <div className="flex flex-col gap-1.5 bg-[var(--color-request-bg)] border border-[var(--color-request-border)] rounded-2xl px-5 py-4">
             <div className="flex items-center gap-2">
-              <Lock size={15} className="text-indigo-600 shrink-0" />
-              <p className="text-sm font-bold text-indigo-800">{t("lockRequested")}</p>
+              <Lock size={15} className="text-[var(--color-request)] shrink-0" />
+              <p className="text-sm font-bold text-[var(--color-request-text)]">{t("lockRequested")}</p>
             </div>
             {offeneVerschlussAnf.nachricht && (
-              <p className="text-sm text-indigo-700">{offeneVerschlussAnf.nachricht}</p>
+              <p className="text-sm text-[var(--color-request)]">{offeneVerschlussAnf.nachricht}</p>
             )}
             {offeneVerschlussAnf.endetAt && (
-              <p className="text-xs text-indigo-500">
+              <p className="text-xs text-[var(--color-request)]">
                 {t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) })}
               </p>
             )}
@@ -246,16 +246,16 @@ export default async function DashboardPage() {
 
         {/* ── Sperrzeit Banner (nur wenn nicht verschlossen, da dann im Session-Header) ── */}
         {activeSperrzeit && !activePair && currentStatus?.type === "VERSCHLUSS" && (
-          <div className="flex flex-col gap-1.5 bg-rose-50 border border-rose-200 rounded-2xl px-5 py-4">
+          <div className="flex flex-col gap-1.5 bg-[var(--color-sperrzeit-bg)] border border-[var(--color-sperrzeit-border)] rounded-2xl px-5 py-4">
             <div className="flex items-center gap-2">
-              <Lock size={15} className="text-rose-600 shrink-0" />
-              <p className="text-sm font-bold text-rose-800">{t("locked")}</p>
+              <Lock size={15} className="text-[var(--color-sperrzeit)] shrink-0" />
+              <p className="text-sm font-bold text-[var(--color-sperrzeit)]">{t("locked")}</p>
             </div>
             {activeSperrzeit.nachricht && (
-              <p className="text-sm text-rose-700">{activeSperrzeit.nachricht}</p>
+              <p className="text-sm text-[var(--color-sperrzeit)]">{activeSperrzeit.nachricht}</p>
             )}
             {activeSperrzeit.endetAt && (
-              <p className="text-xs text-rose-500">
+              <p className="text-xs text-[var(--color-sperrzeit)]">
                 {t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) })}
               </p>
             )}
@@ -287,20 +287,20 @@ export default async function DashboardPage() {
 
         {/* ── Trainingsvorgabe ── */}
         {activeVorgabe && !activePair && (
-          <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">{t("trainingGoals")}</p>
+          <div className="bg-surface rounded-2xl border border-border-subtle px-5 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("trainingGoals")}</p>
             <div className="flex items-start gap-3">
-              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{tCommon("active")}</span>
+              <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{tCommon("active")}</span>
               <div>
-                <p className="text-sm font-semibold text-gray-700">
+                <p className="text-sm font-semibold text-foreground-muted">
                   {formatDate(activeVorgabe.gueltigAb, dl)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl) : tCommon("open")}
                 </p>
                 <div className="flex flex-wrap gap-3 mt-1">
-                  {activeVorgabe.minProTagH != null && <span className="text-xs text-gray-600">{t("day")}: <strong>{formatHours(activeVorgabe.minProTagH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProTagH / 24) * 100)}%)</span></span>}
-                  {activeVorgabe.minProWocheH != null && <span className="text-xs text-gray-600">{t("week")}: <strong>{formatHours(activeVorgabe.minProWocheH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProWocheH / 168) * 100)}%)</span></span>}
-                  {activeVorgabe.minProMonatH != null && <span className="text-xs text-gray-600">{t("month")}: <strong>{formatHours(activeVorgabe.minProMonatH, dl)}</strong> <span className="text-gray-400">({Math.round((activeVorgabe.minProMonatH / 730) * 100)}%)</span></span>}
+                  {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{t("day")}: <strong>{formatHours(activeVorgabe.minProTagH, dl)}</strong> <span className="text-foreground-faint">({Math.round((activeVorgabe.minProTagH / 24) * 100)}%)</span></span>}
+                  {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{t("week")}: <strong>{formatHours(activeVorgabe.minProWocheH, dl)}</strong> <span className="text-foreground-faint">({Math.round((activeVorgabe.minProWocheH / 168) * 100)}%)</span></span>}
+                  {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{t("month")}: <strong>{formatHours(activeVorgabe.minProMonatH, dl)}</strong> <span className="text-foreground-faint">({Math.round((activeVorgabe.minProMonatH / 730) * 100)}%)</span></span>}
                 </div>
-                {activeVorgabe.notiz && <p className="text-xs text-gray-400 italic mt-0.5">{activeVorgabe.notiz}</p>}
+                {activeVorgabe.notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
               </div>
             </div>
           </div>
@@ -372,24 +372,24 @@ export default async function DashboardPage() {
           const offene = kontrollItems.filter(k => k.entryId === null && k.anforderungStatus !== "withdrawn").sort((a, b) => b.time.getTime() - a.time.getTime());
           if (!offene.length) return null;
           return (
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-50">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />Offene Anforderungen</p>
+            <div className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+              <div className="px-5 py-3 border-b border-border-subtle">
+                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1"><ClipboardList size={12} />Offene Anforderungen</p>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-border-subtle">
                 {offene.map((k) => {
                   const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
                   return (
                     <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(aPill.labelKey)}</span>}
-                        {k.code && <span className="font-mono font-bold text-orange-500 text-sm">{k.code}</span>}
+                        {k.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                      <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                         {k.deadline && <span>Frist: {formatDateTime(k.deadline, dl)}</span>}
                         <span>Erstellt: {formatDateTime(k.time, dl)}</span>
                       </div>
-                      {k.kommentar && <p className="text-xs text-gray-400 italic">{k.kommentar}</p>}
+                      {k.kommentar && <p className="text-xs text-foreground-faint italic">{k.kommentar}</p>}
                     </div>
                   );
                 })}
@@ -403,9 +403,9 @@ export default async function DashboardPage() {
           const pruefungen = kontrollItems.filter(k => k.entryId !== null).sort((a, b) => b.time.getTime() - a.time.getTime());
           if (!pruefungen.length) return null;
           return (
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-50">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><ClipboardList size={12} />{t("inspections")} ({pruefungen.length})</p>
+            <div className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+              <div className="px-5 py-3 border-b border-border-subtle">
+                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1"><ClipboardList size={12} />{t("inspections")} ({pruefungen.length})</p>
               </div>
               <KontrolleItemListClient
                 imageAlt={t("inspections")}
@@ -440,9 +440,9 @@ export default async function DashboardPage() {
 
         {/* ── Orgasmus-Einträge ── */}
         {orgasmusEntries.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-50">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><Droplets size={12} />{t("orgasms")}</p>
+          <div className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+            <div className="px-5 py-3 border-b border-border-subtle">
+              <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1"><Droplets size={12} />{t("orgasms")}</p>
             </div>
             <OrgasmenListClient
               items={orgasmusEntries.map((e): OrgasmusItemData => ({
@@ -464,9 +464,9 @@ export default async function DashboardPage() {
 
 function StatCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <div className={`rounded-2xl border px-5 py-4 ${warn ? "bg-red-50 border-red-200" : "bg-white border-gray-100"}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{label}</p>
-      <p className={`text-2xl font-bold tracking-tight ${warn ? "text-red-500" : "text-gray-900"}`}>{value}</p>
+    <div className={`rounded-2xl border px-5 py-4 ${warn ? "bg-warn-bg border-[var(--color-warn-border)]" : "bg-surface border-border-subtle"}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-1">{label}</p>
+      <p className={`text-2xl font-bold tracking-tight ${warn ? "text-warn" : "text-foreground"}`}>{value}</p>
     </div>
   );
 }

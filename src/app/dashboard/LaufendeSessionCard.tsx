@@ -42,14 +42,14 @@ interface Props {
 
 function ProgressBar({ actual, target, label }: { actual: number; target: number; label: string }) {
   const pct = Math.min(100, Math.round((actual / target) * 100));
-  const color = pct >= 100 ? "bg-emerald-500" : pct >= 70 ? "bg-indigo-500" : "bg-indigo-400";
+  const color = pct >= 100 ? "bg-white" : pct >= 70 ? "bg-white/70" : "bg-white/40";
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-emerald-100/80 w-12 shrink-0">{label}</span>
-      <div className="flex-1 bg-emerald-900/30 rounded-full h-1.5 overflow-hidden">
+      <span className="text-xs text-white/70 w-12 shrink-0">{label}</span>
+      <div className="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">
         <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-emerald-100/70 w-16 text-right shrink-0">{actual.toFixed(1)}h / {target}h</span>
+      <span className="text-xs text-white/60 w-16 text-right shrink-0">{actual.toFixed(1)}h / {target}h</span>
       <span className="text-xs font-semibold text-white w-9 text-right shrink-0">{pct}%</span>
     </div>
   );
@@ -83,7 +83,7 @@ export default async function LaufendeSessionCard({
       activeVorgabe.minProMonatH != null);
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">
       {/* ── Green status header ── */}
       <div className="bg-gradient-to-br from-emerald-600 to-emerald-500 text-white px-5 py-4">
         <div className="flex items-start gap-3">
@@ -94,10 +94,10 @@ export default async function LaufendeSessionCard({
             {/* Mobile: stacked */}
             <div className="sm:hidden">
               <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
-              <p className="text-xl font-bold leading-tight">{t("locked")}</p>
+              <p className="text-2xl font-bold leading-tight">{t("locked")}</p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{tCommon("duration")}:</span>
-                <span className="text-lg font-bold tabular-nums">
+                <span className="text-xl font-bold tabular-nums">
                   <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
                 </span>
               </div>
@@ -106,11 +106,11 @@ export default async function LaufendeSessionCard({
             <div className="hidden sm:flex items-start justify-between gap-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
-                <p className="text-xl font-bold">{t("locked")}</p>
+                <p className="text-2xl font-bold">{t("locked")}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{tCommon("duration")}</p>
-                <p className="text-2xl font-bold tabular-nums leading-tight">
+                <p className="text-3xl font-bold tabular-nums leading-tight">
                   <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
                 </p>
               </div>
@@ -141,7 +141,7 @@ export default async function LaufendeSessionCard({
       </div>
 
       {/* ── Timeline ── */}
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-border-subtle">
         {events.map((ev, i) => {
           const dateStr = formatDate(ev.time, dl);
           const timeStr = formatTime(ev.time, dl);
@@ -154,10 +154,10 @@ export default async function LaufendeSessionCard({
             ta,
           );
           const icon =
-            ev.type === "verschluss" ? <Lock size={18} className="text-emerald-500" /> :
-            ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-orange-400" /> :
-            ev.type === "reinigung" ? <LockOpen size={18} className="text-sky-400" /> :
-            <Droplets size={18} className="text-rose-400" />;
+            ev.type === "verschluss" ? <Lock size={18} className="text-lock" /> :
+            ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-[var(--color-inspect)]" /> :
+            ev.type === "reinigung" ? <LockOpen size={18} className="text-[var(--color-unlock)]" /> :
+            <Droplets size={18} className="text-[var(--color-orgasm)]" />;
 
           return (
             <SessionEventRow
@@ -193,13 +193,13 @@ export default async function LaufendeSessionCard({
 
       {/* ── Sperrzeit footer ── */}
       {showSperrzeit && (
-        <div className="bg-rose-50 border-t border-rose-100 px-5 py-3 flex items-center gap-2 rounded-b-2xl">
-          <Lock size={13} className="text-rose-500 shrink-0" />
-          <span className="text-sm font-semibold text-rose-700">
+        <div className="bg-sperrzeit-bg border-t border-sperrzeit-border px-5 py-3 flex items-center gap-2 rounded-b-2xl">
+          <Lock size={13} className="text-sperrzeit shrink-0" />
+          <span className="text-sm font-semibold text-sperrzeit-text">
             {sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
           </span>
           {sperrzeitNachricht && (
-            <span className="text-xs text-rose-500 truncate">· {sperrzeitNachricht}</span>
+            <span className="text-xs text-sperrzeit truncate">· {sperrzeitNachricht}</span>
           )}
         </div>
       )}

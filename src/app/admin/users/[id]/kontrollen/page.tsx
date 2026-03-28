@@ -6,7 +6,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import ImageViewer from "@/app/components/ImageViewer";
 import KontrolleActions from "@/app/admin/kontrollen/KontrolleActions";
 import KontrolleButton from "@/app/admin/KontrolleButton";
-import UserNav from "../UserNav";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
@@ -18,7 +17,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const now = new Date();
 
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) return <div className="p-8 text-gray-500">Benutzer nicht gefunden.</div>;
+  if (!user) return <div className="p-8 text-foreground-faint">Benutzer nicht gefunden.</div>;
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/kontrollen`);
 
@@ -113,24 +112,24 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
         <div className="flex-1 min-w-0 flex flex-col gap-1">
           <div className="flex items-center gap-2 flex-wrap">
             {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${kPill.cls}`}>{kPill.label}</span>}
-            {row.code && <span className="font-mono font-bold text-orange-500 text-sm">{row.code}</span>}
+            {row.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{row.code}</span>}
           </div>
-          <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+          <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
             {row.fulfilledAt && <span>Zeitpunkt: {formatDateTime(row.fulfilledAt, dl)}</span>}
             {row.deadline && <span>Frist: {formatDateTime(row.deadline, dl)}</span>}
             {row.createdAt && <span>Erstellt: {formatDateTime(row.createdAt, dl)}</span>}
             {row.withdrawnAt && <span>Zurückgezogen: {formatDateTime(row.withdrawnAt, dl)}</span>}
           </div>
           {row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000 && (
-            <p className="text-xs text-amber-500 font-medium mt-0.5">
+            <p className="text-xs text-warn font-medium mt-0.5">
               Zeit korrigiert – Angegeben: {formatDateTime(row.fulfilledAt, dl)} · System: {formatDateTime(row.submittedAt, dl)}
             </p>
           )}
           {row.kommentar && (
-            <p className="text-xs text-gray-400 italic mt-0.5">Anweisung: {row.kommentar}</p>
+            <p className="text-xs text-foreground-faint italic mt-0.5">Anweisung: {row.kommentar}</p>
           )}
           {row.note && (
-            <p className="text-xs text-gray-500 italic mt-0.5">„{row.note}"</p>
+            <p className="text-xs text-foreground-muted italic mt-0.5">„{row.note}"</p>
           )}
         </div>
         {(row.kontrolleId || row.entryId) && (
@@ -146,39 +145,35 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   }
 
   return (
-    <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
-      <UserNav userId={id} username={user.username} current="kontrollen" />
-
+    <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-4">
       {isLocked && <KontrolleButton userId={id} hasEmail={!!user.email} />}
 
-      {/* Offene Anforderungen */}
       {sortedOffene.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-50">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Offene Anforderungen</p>
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">Offene Anforderungen</p>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border-subtle">
             {sortedOffene.map((row, i) => <KontrolleRow key={i} row={row} i={i} />)}
           </div>
         </div>
       )}
 
-      {/* Prüfungen */}
       {sortedPruefungen.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-50">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
               Prüfungen ({sortedPruefungen.length})
             </p>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border-subtle">
             {sortedPruefungen.map((row, i) => <KontrolleRow key={i} row={row} i={i} />)}
           </div>
         </div>
       )}
 
       {sortedOffene.length === 0 && sortedPruefungen.length === 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
+        <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
           Noch keine Kontrollen.
         </div>
       )}

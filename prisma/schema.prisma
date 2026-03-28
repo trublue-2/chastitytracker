@@ -73,6 +73,27 @@ model VerschlussAnforderung {
   withdrawnAt DateTime?
 }
 
+// n:m relationship between admins and the users they supervise.
+// Additive migration — no existing data is changed.
+// Only active when USE_ADMIN_RELATIONSHIPS=true (feature flag).
+model AdminUserRelationship {
+  id        String   @id @default(cuid())
+  adminId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([adminId, userId])
+  @@index([adminId])
+  @@index([userId])
+}
+
+// Tracks consumed portal-login JTIs to prevent replay attacks.
+// Rows older than 1h are pruned automatically by the portal-login endpoint.
+model PortalTokenUsed {
+  jti    String   @id
+  usedAt DateTime @default(now())
+}
+
 model Entry {
   id                  String               @id @default(cuid())
   userId              String

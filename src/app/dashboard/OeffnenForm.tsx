@@ -68,7 +68,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
     await doSave();
   }
 
-  const inputCls = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition";
+  const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
   const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
 
@@ -77,17 +77,17 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
       {/* Warnmeldung bei aktiver Sperrzeit */}
       {showWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 flex flex-col gap-5">
+          <div className="bg-surface rounded-2xl shadow-2xl max-w-sm w-full p-6 flex flex-col gap-5">
             <div className="flex items-start gap-3">
-              <AlertCircle size={28} className="flex-shrink-0 text-red-500 mt-0.5" />
+              <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
               <div className="flex flex-col gap-1.5">
-                <p className="font-bold text-gray-900 text-base leading-snug">
+                <p className="font-bold text-foreground text-base leading-snug">
                   {t("modalTitle")}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-foreground-muted">
                   {t("modalSubtext")}
                 </p>
-                <p className="text-xs text-rose-600 font-semibold mt-1">
+                <p className="text-xs text-[var(--color-sperrzeit)] font-semibold mt-1">
                   {sperrzeitUnbefristet
                     ? t("modalLockedIndefinite")
                     : sperrzeitEndetAt
@@ -100,7 +100,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
               <button
                 type="button"
                 onClick={() => setShowWarning(false)}
-                className="w-full text-sm font-semibold text-white bg-gray-900 rounded-xl py-3 hover:bg-gray-700 transition"
+                className="w-full text-sm font-semibold text-background bg-foreground rounded-xl py-3 hover:opacity-80 transition"
               >
                 {t("modalStay")}
               </button>
@@ -108,7 +108,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
                 type="button"
                 onClick={() => { setShowWarning(false); doSave(); }}
                 disabled={saving}
-                className="w-full text-sm font-semibold text-red-600 border border-red-200 bg-red-50 rounded-xl py-3 hover:bg-red-100 active:scale-[0.98] disabled:opacity-50 transition"
+                className="w-full text-sm font-semibold text-[var(--color-sperrzeit)] border border-[var(--color-sperrzeit-border)] bg-[var(--color-sperrzeit-bg)] rounded-xl py-3 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition"
               >
                 {saving ? tCommon("saving") : t("modalOpenAnyway")}
               </button>
@@ -120,11 +120,11 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Hinweis im Formular bei aktiver Sperrzeit */}
         {isGesperrt && (
-          <div className="flex items-start gap-2.5 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
-            <Lock size={16} className="flex-shrink-0 text-rose-500 mt-0.5" />
+          <div className="flex items-start gap-2.5 bg-[var(--color-sperrzeit-bg)] border border-[var(--color-sperrzeit-border)] rounded-xl px-4 py-3">
+            <Lock size={16} className="flex-shrink-0 text-[var(--color-sperrzeit)] mt-0.5" />
             <div>
-              <p className="text-sm font-bold text-rose-800">{t("lockedWarningTitle")}</p>
-              <p className="text-xs text-rose-600 mt-0.5">
+              <p className="text-sm font-bold text-[var(--color-sperrzeit-text)]">{t("lockedWarningTitle")}</p>
+              <p className="text-xs text-[var(--color-sperrzeit)] mt-0.5">
                 {sperrzeitUnbefristet
                   ? t("lockedWarningTextIndefinite")
                   : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}
@@ -133,7 +133,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
           </div>
         )}
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
             {tCommon("dateTimeRequired")}
           </label>
           <input
@@ -146,7 +146,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
             {t("grundLabel")}
           </label>
           <select
@@ -164,7 +164,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
             {tCommon("commentRequired")}
           </label>
           <textarea
@@ -177,15 +177,15 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
           />
         </div>
 
-        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+        {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
 
         <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
           <button type="button" onClick={() => router.push("/dashboard")}
-            className="flex-1 text-sm text-gray-600 border border-gray-200 rounded-xl py-3.5 hover:bg-gray-50 active:scale-[0.98] transition-all">
+            className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
             {tCommon("cancel")}
           </button>
           <button type="submit" disabled={saving}
-            className="flex-1 bg-gray-900 text-white text-base font-semibold py-3.5 rounded-xl hover:bg-gray-700 active:scale-[0.98] disabled:opacity-50 transition-all">
+            className="flex-1 bg-foreground text-background text-base font-semibold py-3.5 rounded-xl hover:opacity-80 active:scale-[0.98] disabled:opacity-50 transition-all">
             {saving ? tCommon("saving") : initial ? tCommon("update") : t("saveBtn")}
           </button>
         </div>

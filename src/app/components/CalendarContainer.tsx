@@ -62,9 +62,9 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
         {months.map((m, mi) => (
           <div key={mi}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-semibold text-gray-700 capitalize">{m.label}</p>
+              <p className="text-sm font-semibold text-foreground capitalize">{m.label}</p>
               {m.monthGoalMet !== null && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${m.monthGoalMet ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${m.monthGoalMet ? "bg-ok-bg text-ok-text border-ok-border" : "bg-surface-raised text-foreground-faint border-border"}`}>
                   {m.monthGoalMet ? "✓ Monatsziel" : `${m.monthGoalPct}%`}
                 </span>
               )}
@@ -72,7 +72,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             <div className="grid grid-cols-8 gap-0.5">
               {/* Header */}
               {DAY_NAMES.map((d) => (
-                <div key={d} className="text-center text-xs text-gray-400 font-medium pb-1">{d}</div>
+                <div key={d} className="text-center text-xs text-foreground-faint font-medium pb-1">{d}</div>
               ))}
               <div className="pb-1" />
 
@@ -90,15 +90,15 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                         title={dayData.wearHours > 0 ? `${Math.round(dayData.wearHours * 10) / 10}h` : undefined}
                       >
                         <span className="text-xs font-medium leading-none">{dayData.day}</span>
-                        {dayData.hasOrgasm && <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-rose-400 rounded-full" />}
+                        {dayData.hasOrgasm && <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-[var(--color-orgasm)] rounded-full" />}
                       </button>
                     );
                   })}
                   {/* Weekly goal indicator */}
                   <div className="flex items-center justify-center aspect-square">
-                    {m.weekGoalMet[wi] === true && <span className="text-emerald-500 text-xs font-bold leading-none">✓</span>}
+                    {m.weekGoalMet[wi] === true && <span className="text-ok text-xs font-bold leading-none">✓</span>}
                     {m.weekGoalMet[wi] === false && m.weekGoalPct[wi] !== null && (
-                      <span className="text-gray-300 text-[10px] font-medium leading-none">{m.weekGoalPct[wi]}%</span>
+                      <span className="text-foreground-faint text-[10px] font-medium leading-none">{m.weekGoalPct[wi]}%</span>
                     )}
                   </div>
                 </Fragment>
@@ -113,12 +113,12 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setSelected(null)}>
           <div className="absolute inset-0 bg-black/30" />
           <div
-            className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-4"
+            className="relative bg-surface rounded-2xl shadow-overlay border border-border w-full max-w-sm p-5 flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <p className="font-bold text-gray-900">{selected.dateLabel}</p>
-              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-700 text-lg leading-none px-1">✕</button>
+              <p className="font-bold text-foreground">{selected.dateLabel}</p>
+              <button onClick={() => setSelected(null)} className="text-foreground-faint hover:text-foreground-muted text-lg leading-none px-1 transition">✕</button>
             </div>
 
             {selected.wearHours > 0 && (
@@ -129,43 +129,43 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             )}
 
             {selected.vorgabe && (
-              <div className="bg-indigo-50 rounded-xl px-4 py-3 flex flex-col gap-1.5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">{t("validGoal")}</p>
+              <div className="bg-request-bg rounded-xl px-4 py-3 flex flex-col gap-1.5 border border-request-border">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-request)] mb-0.5">{t("validGoal")}</p>
                 {selected.vorgabe.minProTagH != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-indigo-700">{t("minPerDay")}</span>
-                    <span className={`text-xs font-bold ${selected.wearHours >= selected.vorgabe.minProTagH ? "text-emerald-600" : "text-indigo-500"}`}>
+                    <span className="text-xs text-request-text">{t("minPerDay")}</span>
+                    <span className={`text-xs font-bold ${selected.wearHours >= selected.vorgabe.minProTagH ? "text-ok" : "text-[var(--color-request)]"}`}>
                       {selected.wearHours >= selected.vorgabe.minProTagH ? "✓ " : ""}{formatHours(selected.vorgabe.minProTagH, locale)}
                     </span>
                   </div>
                 )}
                 {selected.vorgabe.minProWocheH != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-indigo-700">{t("minPerWeek")}</span>
-                    <span className="text-xs font-bold text-indigo-500">{formatHours(selected.vorgabe.minProWocheH, locale)}</span>
+                    <span className="text-xs text-request-text">{t("minPerWeek")}</span>
+                    <span className="text-xs font-bold text-[var(--color-request)]">{formatHours(selected.vorgabe.minProWocheH, locale)}</span>
                   </div>
                 )}
                 {selected.vorgabe.minProMonatH != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-indigo-700">{t("minPerMonth")}</span>
-                    <span className="text-xs font-bold text-indigo-500">{formatHours(selected.vorgabe.minProMonatH, locale)}</span>
+                    <span className="text-xs text-request-text">{t("minPerMonth")}</span>
+                    <span className="text-xs font-bold text-[var(--color-request)]">{formatHours(selected.vorgabe.minProMonatH, locale)}</span>
                   </div>
                 )}
-                {selected.vorgabe.notiz && <p className="text-xs text-indigo-400 italic mt-0.5">{selected.vorgabe.notiz}</p>}
+                {selected.vorgabe.notiz && <p className="text-xs text-request-text italic mt-0.5 opacity-70">{selected.vorgabe.notiz}</p>}
               </div>
             )}
 
             {selected.entries.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{t("entries")}</p>
-                <div className="flex flex-col divide-y divide-gray-50">
+                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">{t("entries")}</p>
+                <div className="flex flex-col divide-y divide-border-subtle">
                   {selected.entries.map((e, i) => (
                     <div key={i} className="flex items-start justify-between gap-2 py-2">
-                      <span className="text-sm text-gray-700">{TYPE_LABELS[e.type] ?? e.type}</span>
+                      <span className="text-sm text-foreground-muted">{TYPE_LABELS[e.type] ?? e.type}</span>
                       <div className="text-right">
-                        <span className="text-gray-500 font-mono text-xs tabular-nums whitespace-nowrap">{e.time}</span>
-                        {e.orgasmusArt && <p className="text-xs text-rose-400">{e.orgasmusArt}</p>}
-                        {e.note && <p className="text-xs text-gray-400 italic">{e.note}</p>}
+                        <span className="text-foreground-muted font-mono text-xs tabular-nums whitespace-nowrap">{e.time}</span>
+                        {e.orgasmusArt && <p className="text-xs text-[var(--color-orgasm)]">{e.orgasmusArt}</p>}
+                        {e.note && <p className="text-xs text-foreground-faint italic">{e.note}</p>}
                       </div>
                     </div>
                   ))}

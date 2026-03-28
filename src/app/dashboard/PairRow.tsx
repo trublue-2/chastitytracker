@@ -127,14 +127,14 @@ function DetailModal({
         className="flex items-center justify-between px-4 py-3 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-white/70 text-sm font-medium flex items-center gap-1.5">
+        <span className="text-background/70 text-sm font-medium flex items-center gap-1.5">
           {type === "VERSCHLUSS"
             ? <><Lock size={14} /> {td("lock")}</>
             : <><LockOpen size={14} /> {td("opening")}</>}
         </span>
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-white/80 active:text-white transition p-2 -m-2"
+          className="flex items-center gap-1.5 text-background/80 active:text-background transition p-2 -m-2"
         >
           <X size={22} />
           <span className="text-sm font-medium">{tc("close")}</span>
@@ -154,25 +154,25 @@ function DetailModal({
 
       {/* Details panel */}
       <div
-        className="flex-shrink-0 bg-white rounded-t-2xl px-5 py-5 flex flex-col gap-3"
+        className="flex-shrink-0 bg-surface rounded-t-2xl px-5 py-5 flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
-          <p className="text-sm font-semibold text-gray-900">{formatDateTime(new Date(entry.startTime), dl)}</p>
+          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
+          <p className="text-sm font-semibold text-foreground">{formatDateTime(new Date(entry.startTime), dl)}</p>
         </div>
 
         {entry.imageExifTime && (
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
-            <p className="text-sm text-gray-700">{formatDateTime(new Date(entry.imageExifTime), dl)}</p>
+            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
+            <p className="text-sm text-foreground-muted">{formatDateTime(new Date(entry.imageExifTime), dl)}</p>
           </div>
         )}
 
         {entry.oeffnenGrund && (
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Grund</p>
-            <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700">
+            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Grund</p>
+            <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
               {GRUND_LABELS[entry.oeffnenGrund] ?? entry.oeffnenGrund}
             </span>
           </div>
@@ -180,15 +180,15 @@ function DetailModal({
 
         {entry.note && (
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
-            <p className="text-sm text-gray-700 italic">„{entry.note}"</p>
+            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
+            <p className="text-sm text-foreground-muted italic">„{entry.note}"</p>
           </div>
         )}
 
         {entry.kontrollCode && (
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">{ti("controlCode")}</p>
-            <p className="text-sm font-mono font-bold text-orange-500">{entry.kontrollCode}</p>
+            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{ti("controlCode")}</p>
+            <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">{entry.kontrollCode}</p>
           </div>
         )}
       </div>
@@ -213,13 +213,13 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
   }
 
   const accentBorder =
-    photoStatus === "no-photo" ? "border-l-4 border-l-red-400" :
-    photoStatus === "exif-mismatch" ? "border-l-4 border-l-amber-400" :
+    photoStatus === "no-photo" ? "border-l-4 border-l-warn" :
+    photoStatus === "exif-mismatch" ? "border-l-4 border-l-[var(--color-warn)]" :
     "border-l-4 border-l-transparent";
 
   return (
     <>
-      <div className={`grid grid-cols-[80px_1fr_1fr] sm:grid-cols-[96px_1fr_1fr] lg:grid-cols-[96px_1fr_1fr_160px] gap-4 px-5 py-4 hover:bg-gray-50/60 transition ${accentBorder}`}>
+      <div className={`grid grid-cols-[80px_1fr_1fr] sm:grid-cols-[96px_1fr_1fr] lg:grid-cols-[96px_1fr_1fr_160px] gap-4 px-5 py-4 hover:bg-surface-raised/60 transition ${accentBorder}`}>
 
         {/* Col 1: Photo */}
         <div className="flex items-start pt-0.5">
@@ -234,7 +234,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
               />
             </button>
           ) : imgError ? (
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-raised flex items-center justify-center text-foreground-faint">
               <ImageOff size={20} />
             </div>
           ) : null}
@@ -246,17 +246,17 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
             <button
               type="button"
               onClick={() => setShowVerschluss(true)}
-              className="font-semibold text-gray-900 hover:text-orange-600 transition text-left"
+              className="font-semibold text-foreground hover:text-[var(--color-inspect)] transition text-left"
             >
-              {(() => { const dt = splitDT(verschluss.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-gray-400 font-normal">{dt.time}</span></>); })()}
+              {(() => { const dt = splitDT(verschluss.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-foreground-faint font-normal">{dt.time}</span></>); })()}
             </button>
           </div>
           {verschluss.imageExifTime && photoStatus === "exif-mismatch" && (
-            <p className="text-xs text-amber-600">EXIF: {formatDateTime(new Date(verschluss.imageExifTime), dl)}</p>
+            <p className="text-xs text-[var(--color-warn)]">EXIF: {formatDateTime(new Date(verschluss.imageExifTime), dl)}</p>
           )}
-          {photoStatus === "no-photo" && <p className="text-xs text-red-400">{td("noPhoto")}</p>}
+          {photoStatus === "no-photo" && <p className="text-xs text-warn">{td("noPhoto")}</p>}
           {verschluss.note && (
-            <p className="text-xs text-gray-400 italic truncate" title={verschluss.note}>
+            <p className="text-xs text-foreground-faint italic truncate" title={verschluss.note}>
               „{verschluss.note}"
             </p>
           )}
@@ -270,39 +270,39 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
                 <button
                   type="button"
                   onClick={() => setShowOeffnen(true)}
-                  className="font-semibold text-gray-900 hover:text-orange-600 transition text-left"
+                  className="font-semibold text-foreground hover:text-[var(--color-inspect)] transition text-left"
                 >
-                  {(() => { const dt = splitDT(oeffnen.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-gray-400 font-normal">{dt.time}</span></>); })()}
+                  {(() => { const dt = splitDT(oeffnen.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-foreground-faint font-normal">{dt.time}</span></>); })()}
                 </button>
               </div>
               {oeffnen.oeffnenGrund && (
-                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 self-start">
+                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text self-start">
                   {GRUND_LABELS[oeffnen.oeffnenGrund] ?? oeffnen.oeffnenGrund}
                 </span>
               )}
               {oeffnen.note && (
-                <p className="text-xs text-gray-400 italic truncate" title={oeffnen.note}>
+                <p className="text-xs text-foreground-faint italic truncate" title={oeffnen.note}>
                   „{oeffnen.note}"
                 </p>
               )}
             </>
           ) : active ? (
-            <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full self-start">
+            <span className="inline-flex items-center text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full self-start">
               {td("stillLocked")}
             </span>
           ) : (
-            <p className="text-sm text-gray-300">{td("notCaptured")}</p>
+            <p className="text-sm text-foreground-faint">{td("notCaptured")}</p>
           )}
         </div>
 
         {/* Col 4: Duration */}
         <div className="hidden lg:flex items-start pt-0.5">
           {duration ? (
-            <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg whitespace-nowrap flex items-center gap-1">
+            <span className="text-xs font-mono text-foreground-muted bg-surface-raised px-2.5 py-1 rounded-lg whitespace-nowrap flex items-center gap-1">
               <Timer size={11} />{duration}
             </span>
           ) : (
-            <span className="text-gray-200 text-sm">–</span>
+            <span className="text-foreground-faint text-sm">–</span>
           )}
         </div>
       </div>

@@ -97,35 +97,41 @@ export default async function AdminKontrollenPage({
       entryId: null,
     }));
 
-  const rows = [...pruefungRows, ...offeneRows].sort(
-    (a, b) => b.sortTime.getTime() - a.sortTime.getTime()
-  );
+  const rows = [...pruefungRows, ...offeneRows]
+    .filter((row) => {
+      if (!row.entryId) return true; // offene Anforderung — immer Alarm
+      if (row.verifikationStatus === "unverified") return true; // nicht verifiziert
+      if (row.verifikationStatus === "rejected") return true; // abgelehnt
+      if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
+      return false;
+    })
+    .sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
   return (
     <main className="flex-1 w-full max-w-5xl px-6 py-8">
       <div className="mb-6">
         {user ? (
-          <Link href={`/admin/users/${user.id}`} className="text-sm text-gray-400 hover:text-gray-600 transition">
+          <Link href={`/admin/users/${user.id}`} className="text-sm text-foreground-faint hover:text-foreground-muted transition">
             ← {user.username}
           </Link>
         ) : (
-          <Link href="/admin" className="text-sm text-gray-400 hover:text-gray-600 transition">
+          <Link href="/admin" className="text-sm text-foreground-faint hover:text-foreground-muted transition">
             {t("backToUsers")}
           </Link>
         )}
-        <h1 className="text-xl font-bold text-gray-900 mt-1">
-          {t("kontrollenTitle")}{user ? ` – ${user.username}` : ""}
+        <h1 className="text-xl font-bold text-foreground mt-1">
+          {t("alarmeTitle")}{user ? ` – ${user.username}` : ""}
         </h1>
-        <p className="text-sm text-gray-400 mt-0.5">{t("kontrolleCount", { count: rows.length })}</p>
+        <p className="text-sm text-foreground-faint mt-0.5">{t("alarmeCount", { count: rows.length })}</p>
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
+        <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
           {t("noKontrollenYet")}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="divide-y divide-gray-50">
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="divide-y divide-border-subtle">
             {rows.map((row, i) => {
               const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
               const kPill = row.entryId
@@ -134,33 +140,33 @@ export default async function AdminKontrollenPage({
               return (
                 <div key={i} className="px-4 py-3 flex items-start gap-3">
                   {row.imageUrl && (
-                    <ImageViewer src={row.imageUrl} alt={t("kontrollenTitle")} width={40} height={40}
+                    <ImageViewer src={row.imageUrl} alt={t("alarmeTitle")} width={40} height={40}
                       className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={row.kommentar} />
                   )}
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       {!userId && (
-                        <span className="font-semibold text-gray-900 text-sm">{row.username}</span>
+                        <span className="font-semibold text-foreground text-sm">{row.username}</span>
                       )}
                       {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${kPill.cls}`}>{kPill.label}</span>}
-                      {row.code && <span className="font-mono font-bold text-orange-500 text-sm">{row.code}</span>}
+                      {row.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{row.code}</span>}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                    <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                       {row.fulfilledAt && <span>{t("fulfilledLabel")}: {formatDateTime(row.fulfilledAt, dl)}</span>}
                       {row.deadline && <span>{t("frist")}: {formatDateTime(row.deadline, dl)}</span>}
                       {row.createdAt && <span>{t("createdLabel")}: {formatDateTime(row.createdAt, dl)}</span>}
                       {row.withdrawnAt && <span>{t("withdrawnLabel")}: {formatDateTime(row.withdrawnAt, dl)}</span>}
                     </div>
                     {row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000 && (
-                      <p className="text-xs text-amber-500 font-medium mt-0.5">
+                      <p className="text-xs text-warn font-medium mt-0.5">
                         {t("timeCorrected")} – {t("givenLabel")}: {formatDateTime(row.fulfilledAt, dl)} · {t("systemLabel")}: {formatDateTime(row.submittedAt, dl)}
                       </p>
                     )}
                     {row.kommentar && (
-                      <p className="text-xs text-gray-400 italic mt-0.5">{t("instructionLabel")}: {row.kommentar}</p>
+                      <p className="text-xs text-foreground-faint italic mt-0.5">{t("instructionLabel")}: {row.kommentar}</p>
                     )}
                     {row.note && (
-                      <p className="text-xs text-gray-500 italic mt-0.5">„{row.note}"</p>
+                      <p className="text-xs text-foreground-muted italic mt-0.5">„{row.note}"</p>
                     )}
                   </div>
                   {(row.kontrolleId || row.entryId) && (

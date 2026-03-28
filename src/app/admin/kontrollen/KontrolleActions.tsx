@@ -78,7 +78,7 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
         ref={btnRef}
         type="button"
         onClick={openMenu}
-        className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+        className="w-6 h-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground-muted hover:bg-surface-raised active:bg-surface-raised transition"
       >
         <MoreVertical size={16} />
       </button>
@@ -87,13 +87,13 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
         <div
           ref={menuRef}
           style={{ top: pos.top, right: pos.right }}
-          className="fixed w-44 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden"
+          className="fixed w-44 bg-surface border border-border rounded-xl shadow-overlay z-50 overflow-hidden"
         >
           {canManuallyVerify && (
             <button
               type="button"
               onClick={() => doAction("manuallyVerify")}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 transition"
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-[var(--color-ok)] hover:bg-ok-bg transition"
             >
               <CheckCircle2 size={14} />
               {t("kontrolleVerifyBtn")}
@@ -101,11 +101,11 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
           )}
           {canReject && (
             <>
-              {canManuallyVerify && <div className="border-t border-gray-50" />}
+              {canManuallyVerify && <div className="border-t border-border-subtle" />}
               <button
                 type="button"
                 onClick={() => doAction("reject")}
-                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition"
+                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-warn hover:bg-warn-bg transition"
               >
                 <X size={14} />
                 {t("kontrolleRejectBtn")}
@@ -116,7 +116,7 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
             <button
               type="button"
               onClick={() => doAction("withdraw")}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-500 hover:bg-gray-50 transition"
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted hover:bg-surface-raised transition"
             >
               <MinusCircle size={14} />
               {t("kontrolleWithdrawBtn")}

@@ -1,11 +1,11 @@
-import { ArrowLeft, Zap, Bug, Lock, Wrench, Sparkles } from "lucide-react";
+import { ArrowLeft, Zap, Bug, Lock, Wrench, Sparkles, Palette } from "lucide-react";
 import Link from "next/link";
 import pkg from "../../../../package.json";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 
-type EntryType = "feat" | "fix" | "security" | "perf" | "chore";
+type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
 interface ChangeEntry {
   type: EntryType;
@@ -25,11 +25,12 @@ function formatDate(iso: string, locale: string) {
 }
 
 const TYPE_STYLE: Record<EntryType, { icon: React.ElementType; color: string; dot: string }> = {
-  feat: { icon: Sparkles, color: "text-blue-600", dot: "bg-blue-500" },
-  fix: { icon: Bug, color: "text-amber-600", dot: "bg-amber-400" },
-  security: { icon: Lock, color: "text-red-600", dot: "bg-red-500" },
-  perf: { icon: Zap, color: "text-purple-600", dot: "bg-purple-500" },
-  chore: { icon: Wrench, color: "text-gray-500", dot: "bg-gray-400" },
+  feat: { icon: Sparkles, color: "text-[var(--color-request)]", dot: "bg-[var(--color-request)]" },
+  fix: { icon: Bug, color: "text-[var(--color-inspect)]", dot: "bg-[var(--color-inspect)]" },
+  security: { icon: Lock, color: "text-[var(--color-warn)]", dot: "bg-[var(--color-warn)]" },
+  perf: { icon: Zap, color: "text-[var(--color-lock)]", dot: "bg-[var(--color-lock)]" },
+  chore: { icon: Wrench, color: "text-foreground-muted", dot: "bg-foreground-faint" },
+  ui: { icon: Palette, color: "text-foreground-muted", dot: "bg-foreground-faint" },
 };
 
 export default async function ChangelogPage() {
@@ -43,6 +44,7 @@ export default async function ChangelogPage() {
     security: { ...TYPE_STYLE.security, label: t("security") },
     perf: { ...TYPE_STYLE.perf, label: t("perf") },
     chore: { ...TYPE_STYLE.chore, label: t("chore") },
+    ui: { ...TYPE_STYLE.ui, label: "UI" },
   };
 
   return (
@@ -51,13 +53,13 @@ export default async function ChangelogPage() {
       <div className="flex items-center gap-3 mb-6">
         <Link
           href="/dashboard"
-          className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+          className="p-2 rounded-xl text-foreground-faint hover:text-foreground-muted hover:bg-surface-raised transition"
         >
           <ArrowLeft size={18} />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t("title")}</h1>
-          <p className="text-sm text-gray-400">{t("currentVersion")}: <span className="font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-xs">v{currentVersion}</span></p>
+          <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+          <p className="text-sm text-foreground-faint">{t("currentVersion")}: <span className="font-mono bg-surface-raised text-foreground-muted px-1.5 py-0.5 rounded text-xs">v{currentVersion}</span></p>
         </div>
       </div>
 
@@ -84,33 +86,33 @@ export default async function ChangelogPage() {
             <div key={release.version} className="relative flex gap-4">
               {/* Timeline line */}
               {i < releases.length - 1 && (
-                <div className="absolute left-[11px] top-7 bottom-[-1.5rem] w-px bg-gray-100" />
+                <div className="absolute left-[11px] top-7 bottom-[-1.5rem] w-px bg-border-subtle" />
               )}
 
               {/* Dot */}
-              <div className={`relative mt-1 w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center ${isCurrent ? "bg-gray-900" : "bg-gray-100"}`}>
-                <div className={`w-2 h-2 rounded-full ${isCurrent ? "bg-white" : "bg-gray-400"}`} />
+              <div className={`relative mt-1 w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center ${isCurrent ? "bg-foreground" : "bg-surface-raised border border-border"}`}>
+                <div className={`w-2 h-2 rounded-full ${isCurrent ? "bg-background" : "bg-foreground-faint"}`} />
               </div>
 
               {/* Content */}
               <div className="flex-1 pb-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`font-mono font-bold text-sm ${isCurrent ? "text-gray-900" : "text-gray-600"}`}>
+                  <span className={`font-mono font-bold text-sm ${isCurrent ? "text-foreground" : "text-foreground-muted"}`}>
                     v{release.version}
                   </span>
                   {isCurrent && (
-                    <span className="text-[10px] font-semibold bg-gray-900 text-white px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] font-semibold bg-foreground text-background px-1.5 py-0.5 rounded-full">
                       {t("currentBadge")}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400">{formatDate(release.date, dl)}</span>
+                  <span className="text-xs text-foreground-faint">{formatDate(release.date, dl)}</span>
                 </div>
                 <ul className="flex flex-col gap-1.5">
                   {release.changes.map((change, j) => {
                     const cfg = typeConfig[change.type];
                     const Icon = cfg.icon;
                     return (
-                      <li key={j} className="flex items-start gap-2 text-sm text-gray-700">
+                      <li key={j} className="flex items-start gap-2 text-sm text-foreground-muted">
                         <Icon size={14} strokeWidth={2} className={`mt-0.5 flex-shrink-0 ${cfg.color}`} />
                         {change.text}
                       </li>

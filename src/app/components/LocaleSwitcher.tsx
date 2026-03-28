@@ -16,7 +16,7 @@ export default function LocaleSwitcher({ current }: { current: string }) {
   }
 
   return (
-    <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+    <div className="flex items-center gap-1 bg-background-subtle rounded-xl p-1">
       {LOCALES.map((l) => (
         <button
           key={l.value}
@@ -24,8 +24,8 @@ export default function LocaleSwitcher({ current }: { current: string }) {
           onClick={() => setLocale(l.value)}
           className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
             current === l.value
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-400 hover:text-gray-600"
+              ? "bg-surface text-foreground shadow-sm"
+              : "text-foreground-faint hover:text-foreground-muted"
           }`}
         >
           {l.label}

@@ -22,7 +22,7 @@ interface Props {
   initialKommentar?: string;
 }
 
-const inputCls = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition";
+const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
 export default function PruefungForm({ initial, initialCode, initialKommentar }: Props) {
   const t = useTranslations("inspectionForm");
@@ -146,27 +146,27 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {initialKommentar && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-          <p className="text-xs font-semibold text-yellow-800 uppercase tracking-wider mb-1">{t("instruction")}</p>
-          <p className="text-sm text-yellow-900">{initialKommentar}</p>
+        <div className="bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-[var(--color-warn-text)] uppercase tracking-wider mb-1">{t("instruction")}</p>
+          <p className="text-sm text-[var(--color-warn-text)]">{initialKommentar}</p>
         </div>
       )}
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{tCommon("dateTimeRequired")}</label>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("dateTimeRequired")}</label>
         <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className={inputCls} />
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-          {tCommon("photoRequired")} <span className="text-red-500">*</span> <span className="text-gray-400 normal-case font-normal">({tCommon("photoMandatory")})</span>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
+          {tCommon("photoRequired")} <span className="text-warn">*</span> <span className="text-foreground-faint normal-case font-normal">({tCommon("photoMandatory")})</span>
         </label>
         {imagePreview ? (
           <div className="flex items-start gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={imagePreview} alt="Vorschau" className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
             <div className="flex flex-col gap-2 flex-1 pt-1">
-              {imageExifTime && <p className="text-xs text-gray-400">EXIF: {new Date(imageExifTime).toLocaleString(dl)}</p>}
-              {exifWarning && !uploading && <p className="text-xs text-amber-600 font-medium">⚠ {exifWarning}</p>}
+              {imageExifTime && <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString(dl)}</p>}
+              {exifWarning && !uploading && <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
             </div>
           </div>
@@ -176,33 +176,33 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
       </div>
 
       {verifyStatus === "pending" && (
-        <p className="text-sm text-gray-500 flex items-center gap-2">
+        <p className="text-sm text-foreground-muted flex items-center gap-2">
           <Loader2 size={14} className="animate-spin" /> {t("verifying")}
         </p>
       )}
       {verifyStatus === "match" && (
-        <p className="text-sm text-green-600 font-medium">{t("codeMatch")}</p>
+        <p className="text-sm text-[var(--color-ok)] font-medium">{t("codeMatch")}</p>
       )}
       {verifyStatus === "policy" && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-          <p className="text-sm text-gray-600 font-medium">{t("policyError")}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{t("policyErrorHint")}</p>
+        <div className="bg-surface-raised border border-border rounded-xl px-4 py-3">
+          <p className="text-sm text-foreground-muted font-medium">{t("policyError")}</p>
+          <p className="text-xs text-foreground-faint mt-0.5">{t("policyErrorHint")}</p>
         </div>
       )}
       {verifyStatus === "mismatch" && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-          <p className="text-sm text-amber-700 font-medium">{t("codeMismatch")}</p>
-          {verifyReason && <p className="text-xs text-amber-600 mt-0.5">{verifyReason}</p>}
-          <p className="text-xs text-amber-500 mt-1">{t("codeMismatchHint")}</p>
+        <div className="bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
+          <p className="text-sm text-[var(--color-warn-text)] font-medium">{t("codeMismatch")}</p>
+          {verifyReason && <p className="text-xs text-[var(--color-warn)] mt-0.5">{verifyReason}</p>}
+          <p className="text-xs text-[var(--color-warn)] mt-1">{t("codeMismatchHint")}</p>
         </div>
       )}
 
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-          {t("controlCode")} <span className="text-orange-500 normal-case font-normal">({t("controlCodeHint")})</span>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
+          {t("controlCode")} <span className="text-[var(--color-inspect)] normal-case font-normal">({t("controlCodeHint")})</span>
         </label>
         {initial?.kontrollCode ? (
-          <div className={`${inputCls} font-mono tracking-widest text-orange-600 font-bold text-xl bg-gray-100 cursor-default`}>
+          <div className={`${inputCls} font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl bg-surface-raised cursor-default`}>
             {kontrollCode || "–"}
           </div>
         ) : (
@@ -212,25 +212,25 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
             onChange={(e) => setKontrollCode(e.target.value.slice(0, 5))}
             maxLength={5}
             placeholder="–"
-            className={`${inputCls} font-mono tracking-widest text-orange-600 font-bold text-xl`}
+            className={`${inputCls} font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl`}
           />
         )}
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{tCommon("noteOptional")}</label>
+        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("noteOptional")}</label>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={`${inputCls} resize-none`} />
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+      {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
 
       <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
         <button type="button" onClick={() => router.push("/dashboard")}
-          className="flex-1 text-sm text-gray-600 border border-gray-200 rounded-xl py-3.5 hover:bg-gray-50 active:scale-[0.98] transition-all">
+          className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
           {tCommon("cancel")}
         </button>
         <button type="submit" disabled={saving || uploading}
-          className="flex-1 bg-orange-500 text-white text-base font-semibold py-3.5 rounded-xl hover:bg-orange-400 active:scale-[0.98] disabled:opacity-50 transition-all">
+          className="flex-1 bg-[var(--color-inspect)] text-white text-base font-semibold py-3.5 rounded-xl hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all">
           {saving ? tCommon("saving") : initial ? tCommon("update") : t("saveBtn")}
         </button>
       </div>
