@@ -70,7 +70,10 @@ export async function GET(req: NextRequest) {
   });
 
   // ── 5. Set session cookie and redirect ──────────────────────────────────────
-  const response = NextResponse.redirect(new URL("/admin", req.url));
+  // Use NEXTAUTH_URL as base — req.url resolves to the internal Docker address
+  // (0.0.0.0:3000) which browsers can't reach.
+  const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
+  const response = NextResponse.redirect(new URL("/admin", base));
   response.cookies.set(cookieName, sessionToken, {
     httpOnly: true,
     secure: useSecureCookies,
