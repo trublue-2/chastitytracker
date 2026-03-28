@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart2, Plus, Settings, ShieldCheck, LogOut } from "lucide-react";
+import { LayoutDashboard, BarChart2, Plus, ShieldCheck, LogOut, ClipboardList } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 
@@ -17,21 +17,17 @@ export default function DesktopSidebar({ isAdmin, version, buildDate }: Props) {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/dashboard", icon: LayoutDashboard, label: t("overview"), exact: true },
-    { href: "/dashboard/stats", icon: BarChart2, label: t("stats"), exact: false },
     { href: "/dashboard/new", icon: Plus, label: t("new"), exact: false },
-    { href: "/dashboard/settings", icon: Settings, label: t("settings"), exact: false },
+    { href: "/dashboard", icon: LayoutDashboard, label: t("overview"), exact: true },
+    { href: "/dashboard/eintraege", icon: ClipboardList, label: "Einträge", exact: false },
+    { href: "/dashboard/stats", icon: BarChart2, label: t("stats"), exact: false },
+    ...(isAdmin ? [{ href: "/admin", icon: ShieldCheck, label: "Admin", exact: false }] : []),
   ];
-  const adminItem = { href: "/admin", icon: ShieldCheck, label: t("admin"), exact: false };
-  const items = isAdmin
-    ? [navItems[0], navItems[1], navItems[2], adminItem, navItems[3]]
-    : navItems;
 
   return (
-    <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-52 bg-white border-r border-gray-100 flex-col z-20">
-      {/* Nav */}
+    <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-60 bg-surface border-r border-border flex-col z-20">
       <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">
-        {items.map((item) => {
+        {navItems.map((item) => {
           const active = item.exact
             ? pathname === item.href
             : pathname.startsWith(item.href);
@@ -42,8 +38,8 @@ export default function DesktopSidebar({ isAdmin, version, buildDate }: Props) {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 active
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                  ? "bg-nav-active-bg text-foreground"
+                  : "text-nav-inactive-text hover:bg-surface-raised hover:text-foreground-muted"
               }`}
             >
               <Icon size={18} strokeWidth={1.75} />
@@ -53,19 +49,18 @@ export default function DesktopSidebar({ isAdmin, version, buildDate }: Props) {
         })}
       </nav>
 
-      {/* Footer info */}
-      <div className="px-3 py-4 border-t border-gray-100 flex-shrink-0 flex flex-col gap-3">
+      <div className="px-3 py-4 border-t border-border flex-shrink-0 flex flex-col gap-3">
         <button
           onClick={() => { if (window.confirm(t("signOutConfirm"))) signOut({ callbackUrl: "/login" }); }}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors w-full text-left"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-nav-inactive-text hover:bg-surface-raised hover:text-foreground-muted transition-colors w-full text-left"
         >
           <LogOut size={18} strokeWidth={1.75} />
           {t("signOut")}
         </button>
         <div className="px-2 flex flex-col gap-0.5">
-          <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-300 hover:text-gray-400 transition">© trublue {new Date().getFullYear()}</a>
-          <span className="text-xs text-gray-300">
-            <Link href="/dashboard/changelog" className="font-mono bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded hover:bg-gray-200 hover:text-gray-600 transition">v{version}</Link>
+          <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-xs text-foreground-faint hover:text-foreground-muted transition">© trublue {new Date().getFullYear()}</a>
+          <span className="text-xs text-foreground-faint">
+            <Link href="/dashboard/changelog" className="font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">v{version}</Link>
             <span className="ml-2">{t("build")} {buildDate}</span>
           </span>
         </div>

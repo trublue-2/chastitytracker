@@ -56,7 +56,7 @@ export default function EntryActions({ id, editHref }: Props) {
         ref={btnRef}
         type="button"
         onClick={openMenu}
-        className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+        className="w-6 h-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground hover:bg-surface-raised active:bg-border transition"
         aria-label={t("ariaActions")}
       >
         <MoreVertical size={16} />
@@ -66,21 +66,21 @@ export default function EntryActions({ id, editHref }: Props) {
         <div
           ref={menuRef}
           style={{ top: pos.top, right: pos.right }}
-          className="fixed w-36 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden"
+          className="fixed w-36 bg-surface border border-border-subtle rounded-xl shadow-lg z-50 overflow-hidden"
         >
           <Link
             href={editHref}
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition"
+            className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted hover:bg-surface-raised transition"
           >
-            <Pencil size={14} className="text-gray-400" />
+            <Pencil size={14} className="text-foreground-faint" />
             {t("edit")}
           </Link>
-          <div className="border-t border-gray-50" />
+          <div className="border-t border-border-subtle" />
           <button
             type="button"
             onClick={handleDelete}
-            className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition"
+            className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-warn hover:bg-warn-bg transition"
           >
             <Trash2 size={14} />
             {t("delete")}

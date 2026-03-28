@@ -49,9 +49,9 @@ export default function ReinigungToggle({
           checked={erlaubt}
           onChange={(e) => handleToggle(e.target.checked)}
           disabled={saving}
-          className="w-4 h-4 rounded accent-indigo-600"
+          className="w-4 h-4 rounded accent-[var(--color-request)]"
         />
-        <span className="text-xs font-medium text-gray-500">Reinigung</span>
+        <span className="text-xs font-medium text-foreground-faint">Reinigung</span>
       </label>
       {erlaubt && (
         <div className="flex items-center gap-1">
@@ -63,12 +63,12 @@ export default function ReinigungToggle({
             onChange={handleMinuten}
             onBlur={() => save(erlaubt, maxMin)}
             disabled={saving}
-            className="w-14 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50"
+            className="w-14 border border-border rounded-lg px-2 py-1 text-sm text-foreground-muted focus:outline-none focus:ring-2 focus:ring-foreground-muted bg-surface-raised"
           />
-          <span className="text-xs text-gray-400">min</span>
+          <span className="text-xs text-foreground-faint">min</span>
         </div>
       )}
-      {saved && <span className="text-xs text-emerald-600">✓</span>}
+      {saved && <span className="text-xs text-[var(--color-ok)]">✓</span>}
     </div>
   );
 }

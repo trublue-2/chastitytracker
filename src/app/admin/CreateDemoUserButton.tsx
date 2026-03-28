@@ -20,12 +20,12 @@ export default function CreateDemoUserButton() {
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
+    <div className="bg-warn-bg border border-[var(--color-warn-border)] rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
       <div>
-        <p className="text-sm font-semibold text-amber-800">{t("demoTitle")}</p>
-        <p className="text-xs text-amber-600 mt-0.5">
+        <p className="text-sm font-semibold text-[var(--color-warn-text)]">{t("demoTitle")}</p>
+        <p className="text-xs text-[var(--color-warn)] mt-0.5">
           {t("demoDesc")}{" "}
-          <code className="font-mono bg-amber-100 px-1.5 py-0.5 rounded text-amber-900">
+          <code className="font-mono bg-[var(--color-warn-bg)] px-1.5 py-0.5 rounded text-[var(--color-warn-text)]">
             demo1234
           </code>
         </p>
@@ -33,7 +33,7 @@ export default function CreateDemoUserButton() {
       <button
         onClick={handleClick}
         disabled={loading}
-        className="flex-shrink-0 inline-flex items-center gap-1.5 bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-amber-500 active:scale-95 transition-all disabled:opacity-50"
+        className="flex-shrink-0 inline-flex items-center gap-1.5 bg-foreground text-background text-sm font-semibold px-4 py-2 rounded-xl hover:opacity-80 active:scale-95 transition-all disabled:opacity-50"
       >
         {loading ? t("creatingUser") : t("demoCreateBtn")}
       </button>

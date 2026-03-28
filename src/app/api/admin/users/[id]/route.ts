@@ -3,6 +3,47 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const now = new Date();
+
+  const [user, latestLockEntry, offeneAnforderung, activeSperrzeit] = await Promise.all([
+    prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
+    prisma.entry.findFirst({
+      where: { userId: id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+      orderBy: { startTime: "desc" },
+      select: { type: true },
+    }),
+    prisma.verschlussAnforderung.findFirst({
+      where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
+    }),
+    prisma.verschlussAnforderung.findFirst({
+      where: {
+        userId: id, art: "SPERRZEIT", withdrawnAt: null,
+        OR: [{ endetAt: null }, { endetAt: { gt: now } }],
+      },
+    }),
+  ]);
+
+  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({
+    username: user.username,
+    email: user.email,
+    isLocked: latestLockEntry?.type === "VERSCHLUSS",
+    hasOffeneAnforderung: !!offeneAnforderung,
+    hasActiveSperrzeit: !!activeSperrzeit,
+  });
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

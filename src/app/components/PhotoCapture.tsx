@@ -41,8 +41,8 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
   const [camError, setCamError] = useState<string | null>(null);
 
   const accent = variant === "orange"
-    ? { border: "border-orange-200 hover:border-orange-300 hover:bg-orange-50", icon: "text-orange-400", text: "text-orange-400" }
-    : { border: "border-gray-200 hover:border-gray-300 hover:bg-gray-50", icon: "text-gray-400", text: "text-gray-400" };
+    ? { border: "border-[var(--color-inspect-border)] hover:border-[var(--color-inspect)] hover:bg-[var(--color-inspect-bg)]", icon: "text-[var(--color-inspect)]", text: "text-[var(--color-inspect)]" }
+    : { border: "border-border hover:border-border-strong hover:bg-surface-raised", icon: "text-foreground-faint", text: "text-foreground-faint" };
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -144,7 +144,7 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50 transition flex items-center gap-1.5"
+            className="text-xs text-foreground-muted border border-border rounded-lg px-3 py-2 hover:bg-surface-raised disabled:opacity-50 transition flex items-center gap-1.5"
           >
             {uploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
             {uploading ? t("loading") : t("replacePhoto")}
@@ -167,7 +167,7 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50 transition flex items-center gap-1.5"
+            className="text-xs text-foreground-muted border border-border rounded-lg px-3 py-2 hover:bg-surface-raised disabled:opacity-50 transition flex items-center gap-1.5"
           >
             <FolderOpen size={12} />
             {t("replacePhoto")}
@@ -176,7 +176,7 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
             type="button"
             onClick={() => setModalOpen(true)}
             disabled={uploading}
-            className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50 transition flex items-center gap-1.5"
+            className="text-xs text-foreground-muted border border-border rounded-lg px-3 py-2 hover:bg-surface-raised disabled:opacity-50 transition flex items-center gap-1.5"
           >
             <Camera size={12} />
             {t("webcam")}
@@ -209,23 +209,23 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
       {/* ── Webcam modal ── */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+          <div className="bg-surface rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
               {devices.length > 1 ? (
                 <select
                   value={selectedDeviceId}
                   onChange={(e) => handleDeviceChange(e.target.value)}
-                  className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none"
+                  className="text-sm text-foreground-muted bg-surface-raised border border-border rounded-lg px-3 py-1.5 focus:outline-none"
                 >
                   {devices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
                   ))}
                 </select>
               ) : (
-                <span className="text-sm font-medium text-gray-700">{t("selectCamera")}</span>
+                <span className="text-sm font-medium text-foreground-muted">{t("selectCamera")}</span>
               )}
-              <button type="button" onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition p-1">
+              <button type="button" onClick={closeModal} className="text-foreground-faint hover:text-foreground-muted transition p-1">
                 <X size={20} />
               </button>
             </div>
@@ -250,7 +250,7 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
                 type="button"
                 onClick={capturePhoto}
                 disabled={!!camError || capturing}
-                className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white font-semibold rounded-xl py-3 hover:bg-gray-700 disabled:opacity-40 transition"
+                className="w-full flex items-center justify-center gap-2 bg-foreground text-background font-semibold rounded-xl py-3 hover:opacity-80 disabled:opacity-40 transition"
               >
                 {capturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
                 {t("captureBtn")}

@@ -48,38 +48,38 @@ export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH,
   }
 
   return (
-    <div className={`px-5 py-3 flex items-start justify-between gap-4 ${active ? "bg-indigo-50/40" : ""}`}>
+    <div className={`px-5 py-3 flex items-start justify-between gap-4 ${active ? "bg-[var(--color-request-bg)]/40" : ""}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          {active && <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{t("vorgabeActive")}</span>}
-          <span className="text-sm font-semibold text-gray-700">{dateLabel}</span>
+          {active && <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full">{t("vorgabeActive")}</span>}
+          <span className="text-sm font-semibold text-foreground-muted">{dateLabel}</span>
         </div>
         <div className="flex flex-wrap gap-3 mt-1.5">
           {tagH != null && (
-            <span className="text-xs text-gray-600">
+            <span className="text-xs text-foreground-muted">
               {td("day")}: <strong>{formatHoursLocal(tagH, locale)}</strong>
-              <span className="text-gray-400"> ({Math.round((tagH / 24) * 100)}%)</span>
+              <span className="text-foreground-faint"> ({Math.round((tagH / 24) * 100)}%)</span>
             </span>
           )}
           {wocheH != null && (
-            <span className="text-xs text-gray-600">
+            <span className="text-xs text-foreground-muted">
               {td("week")}: <strong>{formatHoursLocal(wocheH, locale)}</strong>
-              <span className="text-gray-400"> ({Math.round((wocheH / 168) * 100)}%)</span>
+              <span className="text-foreground-faint"> ({Math.round((wocheH / 168) * 100)}%)</span>
             </span>
           )}
           {monatH != null && (
-            <span className="text-xs text-gray-600">
+            <span className="text-xs text-foreground-muted">
               {td("month")}: <strong>{formatHoursLocal(monatH, locale)}</strong>
-              <span className="text-gray-400"> ({Math.round((monatH / 730) * 100)}%)</span>
+              <span className="text-foreground-faint"> ({Math.round((monatH / 730) * 100)}%)</span>
             </span>
           )}
         </div>
-        {notiz && <p className="text-xs text-gray-400 italic mt-0.5">{notiz}</p>}
+        {notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{notiz}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={() => setEditing(true)}
-          className="text-xs text-amber-600 font-medium px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 transition"
+          className="text-xs text-[var(--color-warn-text)] font-medium px-2.5 py-1 rounded-lg border border-[var(--color-warn-border)] bg-warn-bg hover:opacity-90 transition"
         >
           {t("vorgabeEdit")}
         </button>
