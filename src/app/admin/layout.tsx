@@ -17,7 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminDesktopSidebar version={pkg.version} buildDate={buildDate} />
 
       {/* Content */}
-      <div className="sm:ml-60 flex flex-col min-h-[calc(100vh-3.5rem)] pb-16 sm:pb-0">
+      <div className="sm:ml-60 min-h-[calc(100vh-3.5rem)] pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
         {children}
       </div>
 
