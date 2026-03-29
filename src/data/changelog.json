@@ -1,5 +1,23 @@
 [
   {
+    "version": "2.0.2",
+    "date": "2026-03-29",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Zeitkorrektur-Warnung: Toleranz von 60 Sekunden auf 5 Minuten erhöht"
+      },
+      {
+        "type": "chore",
+        "text": "Refactoring: isTimeCorrected(), buildKontrolleItems(), buildSessionEvents(), calculateWearingHoursByRange(), formatElapsedMs() in lib/utils.ts und lib/sessionHelpers.ts zentralisiert"
+      },
+      {
+        "type": "fix",
+        "text": "Admin Kontrollen-Seite (pro User): alle hartkodiert deutschen Texte durch i18n-Keys ersetzt"
+      }
+    ]
+  },
+  {
     "version": "2.0.1",
     "date": "2026-03-28",
     "changes": [

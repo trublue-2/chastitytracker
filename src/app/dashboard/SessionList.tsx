@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, APP_TZ, type ReinigungSettings } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, APP_TZ, isTimeCorrected, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
@@ -117,9 +117,9 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           kombiniertePillLabel: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.label ?? null,
           kombiniertePillCls: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.cls ?? null,
           orgasmusArt: null,
-          timeCorrected: !!(k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000),
-          timeCorrectedSystemStr: k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000
-            ? formatDateTime(k.submittedAt, dl) : null,
+          timeCorrected: isTimeCorrected(k.time, k.submittedAt),
+          timeCorrectedSystemStr: isTimeCorrected(k.time, k.submittedAt)
+            ? formatDateTime(k.submittedAt!, dl) : null,
         })),
       ...sessionOrgasmen.map((e) => ({
         type: "orgasmus" as const,

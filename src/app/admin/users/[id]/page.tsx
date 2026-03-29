@@ -3,11 +3,11 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTime, formatDate, formatTime, formatHours, toDateLocale,
-  wearingHoursInRange, buildPairs, interruptionPauseMs,
-  mapAnforderungStatus, mapVerifikationStatus,
-  getMidnightToday, getWeekStart, getMonthStart,
+  buildPairs, interruptionPauseMs, isTimeCorrected,
+  buildKontrolleItems, calculateWearingHoursByRange,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe } from "@/lib/queries";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
@@ -24,13 +24,6 @@ type Entry = {
   id: string; type: string; startTime: Date; imageUrl: string | null;
   imageExifTime: Date | null; note: string | null; orgasmusArt: string | null;
   verifikationStatus: string | null; kontrollCode: string | null; oeffnenGrund: string | null;
-};
-type KontrolleItem = {
-  id: string; time: Date; imageUrl: string | null; code: string | null;
-  deadline: Date | null; kommentar: string | null; note: string | null;
-  anforderungStatus: import("@/lib/utils").AnforderungStatus | null;
-  verifikationStatus: import("@/lib/utils").VerifikationStatus | null;
-  entryId: string | null; submittedAt: Date | null;
 };
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -60,25 +53,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
-  const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
-  const pruefungEntries = entries.filter(e => e.type === "PRUEFUNG");
-
-  const kontrollItems: KontrolleItem[] = [
-    ...alleAnforderungen.map(k => ({
-      id: k.id, time: k.entry ? k.entry.startTime : k.createdAt,
-      imageUrl: k.entry?.imageUrl ?? null, code: k.code, deadline: k.deadline,
-      kommentar: k.kommentar ?? null, note: k.entry?.note ?? null,
-      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
-      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
-      entryId: k.entry?.id ?? null, submittedAt: k.fulfilledAt ?? null,
-    })),
-    ...pruefungEntries.filter(e => !linkedEntryIds.has(e.id)).map(e => ({
-      id: e.id, time: e.startTime, imageUrl: e.imageUrl, code: e.kontrollCode,
-      deadline: null as Date | null, kommentar: null as string | null, note: e.note,
-      anforderungStatus: null, verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
-      entryId: e.id, submittedAt: null as Date | null,
-    })),
-  ];
+  const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
 
   const latest = entries.find(e => ["VERSCHLUSS", "OEFFNEN"].includes(e.type)) ?? null;
   const currentStatus = latest
@@ -107,31 +82,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   })();
 
   const activePair = pairs.find(p => p.active) ?? null;
-  const sessionEvents: import("@/app/dashboard/LaufendeSessionCard").SessionEvent[] = activePair
-    ? [
-        { type: "verschluss" as const, time: activePair.verschluss.startTime, imageUrl: activePair.verschluss.imageUrl, imageExifTime: activePair.verschluss.imageExifTime, note: activePair.verschluss.note, entryId: activePair.verschluss.id },
-        ...activePair.kontrollen.filter(k => k.entryId !== null).map(k => ({
-          type: "kontrolle" as const, time: k.time, imageUrl: k.imageUrl, imageExifTime: null, note: k.note,
-          entryId: k.entryId, deadline: k.deadline, kontrolleKommentar: k.kommentar, kontrolleCode: k.code,
-          kontrolleAnforderungStatus: k.anforderungStatus, kontrolleVerifikationStatus: k.verifikationStatus,
-        })),
-        ...orgasmusEntries.filter(e => e.startTime >= activePair.verschluss.startTime).map(e => ({
-          type: "orgasmus" as const, time: e.startTime, imageUrl: e.imageUrl, imageExifTime: null,
-          note: e.note, entryId: e.id, orgasmusArt: e.orgasmusArt,
-        })),
-        ...activePair.interruptions.map(intr => ({
-          type: "reinigung" as const, time: intr.oeffnen.startTime, imageUrl: null, imageExifTime: null,
-          note: intr.oeffnen.note, entryId: null, pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
-        })),
-      ].sort((a, b) => a.time.getTime() - b.time.getTime())
-    : [];
-
-  const nowMidnight = getMidnightToday(now);
-  const weekStart = getWeekStart(now);
-  const monthStart = getMonthStart(now);
-  const tagH = activePair ? wearingHoursInRange(entries, nowMidnight, now, reinigung) : 0;
-  const wocheH = activePair ? wearingHoursInRange(entries, weekStart, now, reinigung) : 0;
-  const monatH = activePair ? wearingHoursInRange(entries, monthStart, now, reinigung) : 0;
+  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
+  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, !!activePair, now, reinigung);
 
   return (
     <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-4">
@@ -241,8 +193,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
                 deadlinePrefix: t("frist"), note: null, entryId: k.entryId,
                 editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
-                timeCorrectedStr: k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000
-                  ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(k.time, dl)} · ${t("systemLabel")}: ${formatDateTime(k.submittedAt, dl)}`
+                timeCorrectedStr: isTimeCorrected(k.time, k.submittedAt)
+                  ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(k.time, dl)} · ${t("systemLabel")}: ${formatDateTime(k.submittedAt!, dl)}`
                   : null,
               };
             })}

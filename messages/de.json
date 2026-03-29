@@ -385,6 +385,8 @@
     "pillWithdrawn": "Zurückgezogen",
     "pillSelfcontrol": "Selbstkontrolle",
     "noKontrollenYet": "Noch keine Kontrollen angefordert.",
+    "openRequests": "Offene Anforderungen",
+    "inspectionsCount": "Prüfungen ({count})",
     "alarmeCount": "{count, plural, one {# Alarm} other {# Alarme}}",
     "codeLabel": "Code",
     "createdLabel": "Erstellt",

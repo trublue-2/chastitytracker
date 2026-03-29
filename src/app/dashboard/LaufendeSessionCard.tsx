@@ -1,26 +1,12 @@
 import { Lock, LockOpen, CheckCircle2, Droplets } from "lucide-react";
-import { formatHours, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale } from "@/lib/utils";
+import { formatHours, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected } from "@/lib/utils";
+export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
 import SessionEventRow from "./SessionEventRow";
 
-export interface SessionEvent {
-  type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
-  time: Date;
-  imageUrl: string | null;
-  imageExifTime: Date | null;
-  note: string | null;
-  entryId: string | null;
-  deadline?: Date | null;
-  kontrolleKommentar?: string | null;
-  kontrolleCode?: string | null;
-  kontrolleAnforderungStatus?: string | null;
-  kontrolleVerifikationStatus?: string | null;
-  orgasmusArt?: string | null;
-  pauseDurationStr?: string | null;
-  submittedAt?: Date | null;
-}
+import type { SessionEvent } from "@/lib/sessionHelpers";
 
 interface Props {
   sessionStart: Date;
@@ -182,9 +168,9 @@ export default async function LaufendeSessionCard({
                 kombiniertePillCls: kombiniertePill?.cls ?? null,
                 orgasmusArt: ev.orgasmusArt ?? null,
                 pauseDurationStr: ev.pauseDurationStr ?? null,
-                timeCorrected: !!(ev.submittedAt && ev.time.getTime() < ev.submittedAt.getTime() - 60_000),
-                timeCorrectedSystemStr: ev.submittedAt && ev.time.getTime() < ev.submittedAt.getTime() - 60_000
-                  ? formatDateTime(ev.submittedAt, dl) : null,
+                timeCorrected: isTimeCorrected(ev.time, ev.submittedAt),
+                timeCorrectedSystemStr: isTimeCorrected(ev.time, ev.submittedAt)
+                  ? formatDateTime(ev.submittedAt!, dl) : null,
               }}
             />
           );

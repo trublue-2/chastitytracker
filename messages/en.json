@@ -385,6 +385,8 @@
     "pillWithdrawn": "Withdrawn",
     "pillSelfcontrol": "Self-inspection",
     "noKontrollenYet": "No inspections requested yet.",
+    "openRequests": "Open Requests",
+    "inspectionsCount": "Inspections ({count})",
     "alarmeCount": "{count, plural, one {# alarm} other {# alarms}}",
     "codeLabel": "Code",
     "createdLabel": "Created",

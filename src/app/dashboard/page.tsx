@@ -2,11 +2,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTime, formatDate, formatTime, formatHours,
-  wearingHoursInRange, buildPairs, interruptionPauseMs, photoStatus,
-  mapAnforderungStatus, mapVerifikationStatus,
-  getMidnightToday, getWeekStart, getMonthStart, toDateLocale,
+  buildPairs, interruptionPauseMs, photoStatus,
+  toDateLocale, isTimeCorrected, buildKontrolleItems, calculateWearingHoursByRange,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe } from "@/lib/queries";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import StatusBanner from "./StatusBanner";
@@ -29,28 +29,6 @@ type Entry = {
   verifikationStatus: string | null;
   kontrollCode: string | null;
   oeffnenGrund: string | null;
-};
-
-type KontrolleItem = {
-  id: string;
-  time: Date;
-  imageUrl: string | null;
-  code: string | null;
-  deadline: Date | null;
-  kommentar: string | null;
-  note: string | null;
-  anforderungStatus: import("@/lib/utils").AnforderungStatus | null;
-  verifikationStatus: import("@/lib/utils").VerifikationStatus | null;
-  entryId: string | null;
-  submittedAt: Date | null;
-};
-
-type Pair = {
-  verschluss: Entry;
-  oeffnen: Entry | null;
-  active: boolean;
-  kontrollen: KontrolleItem[];
-  interruptions: { oeffnen: Entry; verschluss: Entry }[];
 };
 
 
@@ -86,42 +64,7 @@ export default async function DashboardPage() {
 
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
-  // Build unified KontrolleItems
-  const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
-  const pruefungEntries = entries.filter(e => e.type === "PRUEFUNG");
-
-  const kontrollItems: KontrolleItem[] = [
-    // KontrollAnforderungen (mit FK verknüpft)
-    ...alleAnforderungen.map(k => ({
-      id: k.id,
-      time: k.entry ? k.entry.startTime : k.createdAt,
-      imageUrl: k.entry?.imageUrl ?? null,
-      code: k.code,
-      deadline: k.deadline,
-      kommentar: k.kommentar ?? null,
-      note: k.entry?.note ?? null,
-      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
-      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
-      entryId: k.entry?.id ?? null,
-      submittedAt: k.fulfilledAt ?? null,
-    })),
-    // Standalone PRUEFUNG entries (ohne KontrollAnforderung)
-    ...pruefungEntries
-      .filter(e => !linkedEntryIds.has(e.id))
-      .map(e => ({
-        id: e.id,
-        time: e.startTime,
-        imageUrl: e.imageUrl,
-        code: e.kontrollCode,
-        deadline: null as Date | null,
-        kommentar: null as string | null,
-        note: e.note,
-        anforderungStatus: null,
-        verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
-        entryId: e.id,
-        submittedAt: null as Date | null,
-      })),
-  ];
+  const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
 
   const latest = [...entries]
     .filter((e) => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
@@ -145,62 +88,8 @@ export default async function DashboardPage() {
 
   // ── Laufende Session ──
   const activePair = pairs.find((p) => p.active) ?? null;
-
-  const sessionEvents: import("./LaufendeSessionCard").SessionEvent[] = activePair
-    ? [
-        {
-          type: "verschluss" as const,
-          time: activePair.verschluss.startTime,
-          imageUrl: activePair.verschluss.imageUrl,
-          imageExifTime: activePair.verschluss.imageExifTime,
-          note: activePair.verschluss.note,
-          entryId: activePair.verschluss.id,
-        },
-        ...activePair.kontrollen
-          .filter((k) => k.entryId !== null)
-          .map((k) => ({
-            type: "kontrolle" as const,
-            time: k.time,
-            imageUrl: k.imageUrl,
-            imageExifTime: null,
-            note: k.note,
-            entryId: k.entryId,
-            deadline: k.deadline,
-            kontrolleKommentar: k.kommentar,
-            kontrolleCode: k.code,
-            kontrolleAnforderungStatus: k.anforderungStatus,
-            kontrolleVerifikationStatus: k.verifikationStatus,
-            submittedAt: k.submittedAt,
-          })),
-        ...orgasmusEntries
-          .filter((e) => e.startTime >= activePair.verschluss.startTime)
-          .map((e) => ({
-            type: "orgasmus" as const,
-            time: e.startTime,
-            imageUrl: e.imageUrl,
-            imageExifTime: null,
-            note: e.note,
-            entryId: e.id,
-            orgasmusArt: e.orgasmusArt,
-          })),
-        ...activePair.interruptions.map((intr) => ({
-          type: "reinigung" as const,
-          time: intr.oeffnen.startTime,
-          imageUrl: null,
-          imageExifTime: null,
-          note: intr.oeffnen.note,
-          entryId: intr.oeffnen.id,
-          pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
-        })),
-      ].sort((a, b) => a.time.getTime() - b.time.getTime())
-    : [];
-
-  const nowMidnight = getMidnightToday(now);
-  const weekStart = getWeekStart(now);
-  const monthStart = getMonthStart(now);
-  const tagH = activePair ? wearingHoursInRange(entries, nowMidnight, now, reinigung) : 0;
-  const wocheH = activePair ? wearingHoursInRange(entries, weekStart, now, reinigung) : 0;
-  const monatH = activePair ? wearingHoursInRange(entries, monthStart, now, reinigung) : 0;
+  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
+  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, !!activePair, now, reinigung);
 
   return (
     <>
@@ -411,7 +300,7 @@ export default async function DashboardPage() {
                 imageAlt={t("inspections")}
                 items={pruefungen.map((k): KontrolleItemData => {
                   const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
-                  const timeCorrected = k.submittedAt && k.time.getTime() < k.submittedAt.getTime() - 60_000;
+                  const timeCorrected = k.submittedAt && isTimeCorrected(k.time, k.submittedAt);
                   return {
                     id: k.id,
                     imageUrl: k.imageUrl,

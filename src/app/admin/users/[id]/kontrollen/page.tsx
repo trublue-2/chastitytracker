@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
+import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
 import ImageViewer from "@/app/components/ImageViewer";
 import KontrolleActions from "@/app/admin/kontrollen/KontrolleActions";
@@ -17,7 +17,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const now = new Date();
 
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) return <div className="p-8 text-foreground-faint">Benutzer nicht gefunden.</div>;
+  if (!user) return <div className="p-8 text-foreground-faint">{ta("userNotFound")}</div>;
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/kontrollen`);
 
@@ -115,18 +115,18 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
             {row.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{row.code}</span>}
           </div>
           <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-            {row.fulfilledAt && <span>Zeitpunkt: {formatDateTime(row.fulfilledAt, dl)}</span>}
-            {row.deadline && <span>Frist: {formatDateTime(row.deadline, dl)}</span>}
-            {row.createdAt && <span>Erstellt: {formatDateTime(row.createdAt, dl)}</span>}
-            {row.withdrawnAt && <span>Zurückgezogen: {formatDateTime(row.withdrawnAt, dl)}</span>}
+            {row.fulfilledAt && <span>{ta("fulfilledLabel")}: {formatDateTime(row.fulfilledAt, dl)}</span>}
+            {row.deadline && <span>{ta("frist")}: {formatDateTime(row.deadline, dl)}</span>}
+            {row.createdAt && <span>{ta("createdLabel")}: {formatDateTime(row.createdAt, dl)}</span>}
+            {row.withdrawnAt && <span>{ta("withdrawnLabel")}: {formatDateTime(row.withdrawnAt, dl)}</span>}
           </div>
-          {row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000 && (
+          {row.submittedAt && row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt) && (
             <p className="text-xs text-warn font-medium mt-0.5">
-              Zeit korrigiert – Angegeben: {formatDateTime(row.fulfilledAt, dl)} · System: {formatDateTime(row.submittedAt, dl)}
+              {ta("timeCorrected")} – {ta("givenLabel")}: {formatDateTime(row.fulfilledAt, dl)} · {ta("systemLabel")}: {formatDateTime(row.submittedAt, dl)}
             </p>
           )}
           {row.kommentar && (
-            <p className="text-xs text-foreground-faint italic mt-0.5">Anweisung: {row.kommentar}</p>
+            <p className="text-xs text-foreground-faint italic mt-0.5">{ta("instructionLabel")}: {row.kommentar}</p>
           )}
           {row.note && (
             <p className="text-xs text-foreground-muted italic mt-0.5">„{row.note}"</p>
@@ -151,7 +151,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       {sortedOffene.length > 0 && (
         <div className="bg-surface rounded-2xl border border-border overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">Offene Anforderungen</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ta("openRequests")}</p>
           </div>
           <div className="divide-y divide-border-subtle">
             {sortedOffene.map((row, i) => <KontrolleRow key={i} row={row} i={i} />)}
@@ -163,7 +163,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
         <div className="bg-surface rounded-2xl border border-border overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
-              Prüfungen ({sortedPruefungen.length})
+              {ta("inspectionsCount", { count: sortedPruefungen.length })}
             </p>
           </div>
           <div className="divide-y divide-border-subtle">
@@ -174,7 +174,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
 
       {sortedOffene.length === 0 && sortedPruefungen.length === 0 && (
         <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
-          Noch keine Kontrollen.
+          {ta("noKontrollenYet")}
         </div>
       )}
     </main>
