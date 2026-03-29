@@ -204,7 +204,9 @@
     "reinigungMaxMinuten": "Maximum cleaning duration",
     "minutes": "minutes",
     "saved": "Saved",
-    "saveBtnGeneric": "Save"
+    "saveBtnGeneric": "Save",
+    "mobileUploadTitle": "File picker on mobile",
+    "mobileUploadDesc": "Shows file picker on mobile instead of opening camera directly"
   },
   "changelog": {
     "title": "Changelog",

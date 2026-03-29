@@ -17,6 +17,7 @@ model User {
   createdAt             DateTime               @default(now())
   reinigungErlaubt      Boolean                @default(false)
   reinigungMaxMinuten   Int                    @default(15)
+  mobileDesktopUpload   Boolean                @default(false)
   entries               Entry[]
   vorgaben              TrainingVorgabe[]
   passwordResetTokens   PasswordResetToken[]
