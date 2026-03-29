@@ -45,6 +45,8 @@ model TrainingVorgabe {
   minProMonatH  Float?
   notiz         String?
   createdAt     DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model KontrollAnforderung {
@@ -59,6 +61,9 @@ model KontrollAnforderung {
   withdrawnAt DateTime?
   entryId     String?   @unique
   entry       Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, withdrawnAt])
+  @@index([userId, entryId])
 }
 
 model VerschlussAnforderung {
@@ -72,6 +77,8 @@ model VerschlussAnforderung {
   createdAt   DateTime  @default(now())
   fulfilledAt DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt DateTime?
+
+  @@index([userId, art, withdrawnAt])
 }
 
 // n:m relationship between admins and the users they supervise.
