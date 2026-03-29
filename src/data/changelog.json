@@ -38,7 +38,7 @@
         "text": "Admin: mobileDesktopUpload-Einstellung in /admin/users/[id]/einstellungen ergänzt"
       },
       {
-        "type": "ux",
+        "type": "ui",
         "text": "Admin UserSubNav: auf Mobile Dropdown statt horizontalem Scrollen"
       },
       {
