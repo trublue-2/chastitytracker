@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
 export default function UserSubNav({ userId }: Props) {
   const t = useTranslations("admin");
   const pathname = usePathname();
+  const router = useRouter();
   const base = `/admin/users/${userId}`;
 
   const tabs = [
@@ -22,19 +23,35 @@ export default function UserSubNav({ userId }: Props) {
     { href: `${base}/stats`, label: t("statsTitle"), exact: false },
   ];
 
+  const active = tabs.find((tab) =>
+    tab.exact ? pathname === tab.href : pathname.startsWith(tab.href)
+  );
+
   return (
     <div className="sticky top-[108px] z-10 bg-surface border-b border-border-subtle">
-      <div className="flex overflow-x-auto px-4 sm:px-6">
+      {/* Mobile: select dropdown */}
+      <div className="sm:hidden px-4 py-2">
+        <select
+          value={active?.href ?? base}
+          onChange={(e) => router.push(e.target.value)}
+          className="w-full border border-border rounded-xl px-3 py-2 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20"
+        >
+          {tabs.map((tab) => (
+            <option key={tab.href} value={tab.href}>{tab.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Desktop: tab bar */}
+      <div className="hidden sm:flex px-4 sm:px-6">
         {tabs.map((tab) => {
-          const active = tab.exact
-            ? pathname === tab.href
-            : pathname.startsWith(tab.href);
+          const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
           return (
             <Link
               key={tab.href}
               href={tab.href}
               className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                active
+                isActive
                   ? "border-foreground text-foreground"
                   : "border-transparent text-foreground-faint hover:text-foreground-muted"
               }`}

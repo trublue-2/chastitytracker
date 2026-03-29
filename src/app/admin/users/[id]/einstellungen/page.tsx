@@ -5,6 +5,7 @@ import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
+import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
@@ -99,6 +100,20 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             initialErlaubt={user.reinigungErlaubt}
             initialMaxMinuten={user.reinigungMaxMinuten}
           />
+        </div>
+      </div>
+
+      {/* ── App ── */}
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">App</p>
+        </div>
+        <div className="flex items-center justify-between px-5 py-4 gap-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Dateiauswahl auf Mobile</p>
+            <p className="text-xs text-foreground-faint mt-0.5">Dateiauswahl statt direkter Kamera beim Foto-Upload</p>
+          </div>
+          <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
         </div>
       </div>
 
