@@ -50,9 +50,15 @@ RUN mkdir -p ./data/uploads
 # Seed-Script für initiale Benutzerverwaltung
 COPY --from=builder /app/scripts ./scripts
 
+RUN addgroup -g 33 -S www-data 2>/dev/null || true \
+ && adduser -u 33 -S -G www-data -H www-data 2>/dev/null || true \
+ && chown -R www-data:www-data /app
+
 # Entrypoint-Script
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --chown=www-data:www-data docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
+
+USER www-data
 
 EXPOSE 3000
 ENV PORT=3000

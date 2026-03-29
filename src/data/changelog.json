@@ -1,5 +1,15 @@
 [
   {
+    "version": "2.0.5",
+    "date": "2026-03-29",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Docker-Image: Container läuft als www-data (uid=33) statt root"
+      }
+    ]
+  },
+  {
     "version": "2.0.4",
     "date": "2026-03-29",
     "changes": [
