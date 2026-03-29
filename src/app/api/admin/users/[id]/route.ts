@@ -79,6 +79,11 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
+  if (body.mobileDesktopUpload !== undefined) {
+    await prisma.user.update({ where: { id }, data: { mobileDesktopUpload: Boolean(body.mobileDesktopUpload) } });
+    return NextResponse.json({ ok: true });
+  }
+
   if (!["admin", "user"].includes(body.role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
