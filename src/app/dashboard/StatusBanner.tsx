@@ -3,26 +3,13 @@
 import { useEffect, useState } from "react";
 import { HelpCircle, Lock, LockOpen } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { toDateLocale } from "@/lib/utils";
+import { toDateLocale, formatElapsedMs } from "@/lib/utils";
 
 interface Props {
   type: "VERSCHLUSS" | "OEFFNEN" | null;
   since: string | null;
 }
 
-function elapsed(from: Date, locale: string): { display: string; totalMinutes: number } {
-  const ms = Date.now() - from.getTime();
-  const totalMinutes = Math.floor(ms / 60000);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  const dayUnit = locale === "en" ? "d" : "T";
-  const parts: string[] = [];
-  if (days > 0) parts.push(`${days}${dayUnit}`);
-  if (hours > 0) parts.push(`${hours}h`);
-  parts.push(`${minutes}min`);
-  return { display: parts.join(" "), totalMinutes };
-}
 
 export default function StatusBanner({ type, since }: Props) {
   const t = useTranslations("statusBanner");
@@ -44,7 +31,7 @@ export default function StatusBanner({ type, since }: Props) {
   }
 
   const sinceDate = new Date(since);
-  const { display } = elapsed(sinceDate, locale);
+  const display = formatElapsedMs(Date.now() - sinceDate.getTime(), locale);
   const isVerschlossen = type === "VERSCHLUSS";
 
   const bg = isVerschlossen

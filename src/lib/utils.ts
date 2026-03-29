@@ -90,9 +90,32 @@ export function getMonthStart(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
+/** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
+export function formatElapsedMs(ms: number, locale: string): string {
+  const totalMinutes = Math.floor(Math.max(0, ms) / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const d = locale === "en" ? "d" : "T";
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}${d}`);
+  if (hours > 0) parts.push(`${hours}h`);
+  parts.push(`${minutes}min`);
+  return parts.join(" ");
+}
+
 /** True if EXIF time differs from entry time by more than 1 hour */
 export function hasExifMismatch(exifTime: Date, startTime: Date): boolean {
   return Math.abs(exifTime.getTime() - startTime.getTime()) > 3_600_000;
+}
+
+/** Tolerance for "Zeit korrigiert" detection: 5 minutes */
+export const TIME_CORRECTION_THRESHOLD_MS = 300_000;
+
+/** True if the user-provided time is more than 5 minutes before the server submission time */
+export function isTimeCorrected(time: Date, submittedAt: Date | null | undefined): boolean {
+  if (!submittedAt) return false;
+  return time.getTime() < submittedAt.getTime() - TIME_CORRECTION_THRESHOLD_MS;
 }
 
 export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn";
@@ -257,6 +280,76 @@ export function wearingHoursInRange(
   }
 
   return total / (1000 * 60 * 60);
+}
+
+/** Wearing hours for today / current week / current month. Returns zeros when not active. */
+export function calculateWearingHoursByRange(
+  entries: { type: string; startTime: Date; oeffnenGrund?: string | null }[],
+  active: boolean,
+  now: Date,
+  reinigung: ReinigungSettings
+): { tagH: number; wocheH: number; monatH: number } {
+  if (!active) return { tagH: 0, wocheH: 0, monatH: 0 };
+  return {
+    tagH: wearingHoursInRange(entries, getMidnightToday(now), now, reinigung),
+    wocheH: wearingHoursInRange(entries, getWeekStart(now), now, reinigung),
+    monatH: wearingHoursInRange(entries, getMonthStart(now), now, reinigung),
+  };
+}
+
+type KontrollAnforderungIn = {
+  id: string; code: string; deadline: Date; kommentar: string | null;
+  fulfilledAt: Date | null; createdAt: Date; withdrawnAt: Date | null; entryId: string | null;
+  entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null } | null;
+};
+type PruefungEntryIn = {
+  id: string; startTime: Date; imageUrl: string | null; note: string | null;
+  kontrollCode: string | null; verifikationStatus: string | null;
+};
+export type KontrolleItem = {
+  id: string; time: Date; imageUrl: string | null; code: string | null;
+  deadline: Date | null; kommentar: string | null; note: string | null;
+  anforderungStatus: AnforderungStatus | null; verifikationStatus: VerifikationStatus | null;
+  entryId: string | null; submittedAt: Date | null;
+};
+
+/** Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries. */
+export function buildKontrolleItems(
+  alleAnforderungen: KontrollAnforderungIn[],
+  pruefungEntries: PruefungEntryIn[],
+  now: Date
+): KontrolleItem[] {
+  const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
+  return [
+    ...alleAnforderungen.map(k => ({
+      id: k.id,
+      time: k.entry ? k.entry.startTime : k.createdAt,
+      imageUrl: k.entry?.imageUrl ?? null,
+      code: k.code,
+      deadline: k.deadline,
+      kommentar: k.kommentar ?? null,
+      note: k.entry?.note ?? null,
+      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
+      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
+      entryId: k.entry?.id ?? null,
+      submittedAt: k.fulfilledAt ?? null,
+    })),
+    ...pruefungEntries
+      .filter(e => !linkedEntryIds.has(e.id))
+      .map(e => ({
+        id: e.id,
+        time: e.startTime,
+        imageUrl: e.imageUrl,
+        code: e.kontrollCode,
+        deadline: null as Date | null,
+        kommentar: null as string | null,
+        note: e.note,
+        anforderungStatus: null,
+        verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
+        entryId: e.id,
+        submittedAt: null as Date | null,
+      })),
+  ];
 }
 
 export function toDatetimeLocal(date: Date | string | null | undefined): string {

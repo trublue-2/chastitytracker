@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
+import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected } from "@/lib/utils";
 import Link from "next/link";
 import KontrolleActions from "./KontrolleActions";
 import ImageViewer from "@/app/components/ImageViewer";
@@ -157,7 +157,7 @@ export default async function AdminKontrollenPage({
                       {row.createdAt && <span>{t("createdLabel")}: {formatDateTime(row.createdAt, dl)}</span>}
                       {row.withdrawnAt && <span>{t("withdrawnLabel")}: {formatDateTime(row.withdrawnAt, dl)}</span>}
                     </div>
-                    {row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000 && (
+                    {row.submittedAt && row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt) && (
                       <p className="text-xs text-warn font-medium mt-0.5">
                         {t("timeCorrected")} – {t("givenLabel")}: {formatDateTime(row.fulfilledAt, dl)} · {t("systemLabel")}: {formatDateTime(row.submittedAt, dl)}
                       </p>
