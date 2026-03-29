@@ -9,15 +9,17 @@ export default async function SettingsPage() {
 
   let username = session?.user?.name ?? "";
   let email: string | null = null;
+  let mobileDesktopUpload = false;
 
   if (userId) {
     const dbUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, email: true },
+      select: { username: true, email: true, mobileDesktopUpload: true },
     });
     if (dbUser) {
       username = dbUser.username;
       email = dbUser.email ?? null;
+      mobileDesktopUpload = dbUser.mobileDesktopUpload;
     }
   }
 
@@ -30,6 +32,7 @@ export default async function SettingsPage() {
       email={email}
       version={version}
       buildDate={buildDate}
+      mobileDesktopUpload={mobileDesktopUpload}
     />
   );
 }

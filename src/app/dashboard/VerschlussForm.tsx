@@ -16,9 +16,10 @@ interface Props {
     imageExifTime?: string | null;
     note?: string | null;
   };
+  mobileDesktopMode?: boolean;
 }
 
-export default function VerschlussForm({ initial }: Props) {
+export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
   const dl = toDateLocale(useLocale());
@@ -126,7 +127,7 @@ export default function VerschlussForm({ initial }: Props) {
               {exifWarning && !uploading && (
                 <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>
               )}
-              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
+              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact mobileDesktopMode={mobileDesktopMode} />
               <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); }}
                 className="text-xs text-warn hover:opacity-80 w-fit transition">
                 {t("removePhoto")}
@@ -134,7 +135,7 @@ export default function VerschlussForm({ initial }: Props) {
             </div>
           </div>
         ) : (
-          <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
+          <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
         )}
       </Field>
 

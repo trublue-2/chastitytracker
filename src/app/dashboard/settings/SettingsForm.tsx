@@ -11,15 +11,30 @@ interface SettingsFormProps {
   email: string | null;
   version: string;
   buildDate?: string;
+  mobileDesktopUpload?: boolean;
 }
 
 const inputCls =
   "w-full border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 bg-surface-raised";
 
-export default function SettingsForm({ username, email, version, buildDate }: SettingsFormProps) {
+export default function SettingsForm({ username, email, version, buildDate, mobileDesktopUpload: initialMobileDesktopUpload = false }: SettingsFormProps) {
   const t = useTranslations("settings");
   const locale = useLocale();
   const router = useRouter();
+
+  const [mobileDesktopUpload, setMobileDesktopUpload] = useState(initialMobileDesktopUpload);
+  const [uploadSaving, setUploadSaving] = useState(false);
+
+  async function handleMobileDesktopUpload(value: boolean) {
+    setMobileDesktopUpload(value);
+    setUploadSaving(true);
+    await fetch("/api/settings/upload", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobileDesktopUpload: value }),
+    });
+    setUploadSaving(false);
+  }
 
   function setLocale(value: string) {
     document.cookie = `locale=${value}; path=/; max-age=31536000; SameSite=Lax`;
@@ -180,6 +195,22 @@ export default function SettingsForm({ username, email, version, buildDate }: Se
             App
           </p>
           <div className="divide-y divide-border-subtle">
+            <div className="flex items-center justify-between px-5 py-4 gap-4">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm text-foreground">{t("mobileUploadTitle")}</span>
+                <span className="text-xs text-foreground-faint">{t("mobileUploadDesc")}</span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={mobileDesktopUpload}
+                disabled={uploadSaving}
+                onClick={() => handleMobileDesktopUpload(!mobileDesktopUpload)}
+                className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 disabled:opacity-50 ${mobileDesktopUpload ? "bg-foreground" : "bg-border"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-background rounded-full shadow transition-transform duration-200 ${mobileDesktopUpload ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
             <div className="flex items-center justify-between px-5 py-4">
               <span className="text-sm text-foreground">Version</span>
               <span className="text-sm text-foreground-faint font-mono">{version}</span>

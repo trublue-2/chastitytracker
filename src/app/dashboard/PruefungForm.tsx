@@ -20,11 +20,12 @@ interface Props {
   };
   initialCode?: string;
   initialKommentar?: string;
+  mobileDesktopMode?: boolean;
 }
 
 const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
-export default function PruefungForm({ initial, initialCode, initialKommentar }: Props) {
+export default function PruefungForm({ initial, initialCode, initialKommentar, mobileDesktopMode }: Props) {
   const t = useTranslations("inspectionForm");
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
@@ -167,11 +168,11 @@ export default function PruefungForm({ initial, initialCode, initialKommentar }:
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString(dl)}</p>}
               {exifWarning && !uploading && <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>}
-              <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
+              <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact mobileDesktopMode={mobileDesktopMode} />
             </div>
           </div>
         ) : (
-          <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" />
+          <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" mobileDesktopMode={mobileDesktopMode} />
         )}
       </div>
 

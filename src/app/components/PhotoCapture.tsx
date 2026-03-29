@@ -24,11 +24,14 @@ interface Props {
   variant?: "emerald" | "orange";
   /** compact = small inline buttons for "replace photo" state */
   compact?: boolean;
+  /** when true, mobile behaves like desktop (file picker + webcam) */
+  mobileDesktopMode?: boolean;
 }
 
-export default function PhotoCapture({ onFile, uploading, variant = "emerald", compact = false }: Props) {
+export default function PhotoCapture({ onFile, uploading, variant = "emerald", compact = false, mobileDesktopMode = false }: Props) {
   const t = useTranslations("common");
   const isMobile = useIsMobile();
+  const showMobileUI = isMobile && !mobileDesktopMode;
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -132,12 +135,12 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
         ref={fileRef}
         type="file"
         accept="image/*"
-        {...(isMobile ? { capture: "environment" } : {})}
+        {...(showMobileUI ? { capture: "environment" } : {})}
         onChange={handleFileChange}
         className="hidden"
       />
 
-      {isMobile ? (
+      {showMobileUI ? (
         /* ── Mobile: single button, opens camera directly ── */
         compact ? (
           <button

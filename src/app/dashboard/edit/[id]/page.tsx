@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import VerschlussForm from "../../VerschlussForm";
@@ -12,12 +13,18 @@ export default async function EditEntryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [{ id }, t, tStats] = await Promise.all([
+  const [{ id }, session, t, tStats] = await Promise.all([
     params,
+    auth(),
     getTranslations("nav"),
     getTranslations("stats"),
   ]);
-  const entry = await prisma.entry.findUnique({ where: { id } });
+  const userId = session?.user?.id;
+  const [entry, dbUser] = await Promise.all([
+    prisma.entry.findUnique({ where: { id } }),
+    userId ? prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }) : null,
+  ]);
+  const mobileDesktopMode = dbUser?.mobileDesktopUpload ?? false;
   if (!entry) notFound();
 
   const LABELS: Record<string, string> = {
@@ -41,14 +48,14 @@ export default async function EditEntryPage({
         <VerschlussForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
-        }} />
+        }} mobileDesktopMode={mobileDesktopMode} />
       )}
       {entry.type === "PRUEFUNG" && (
         <PruefungForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
           kontrollCode: entry.kontrollCode,
-        }} />
+        }} mobileDesktopMode={mobileDesktopMode} />
       )}
       {entry.type === "ORGASMUS" && (
         <OrgasmusForm initial={{
