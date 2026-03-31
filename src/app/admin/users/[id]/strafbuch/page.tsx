@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
-import { toDateLocale, mapAnforderungStatus } from "@/lib/utils";
+import { toDateLocale, mapAnforderungStatus, formatDateTime, formatDate } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
 import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData } from "./StrafbuchClient";
 
@@ -10,8 +10,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const [t, dl] = [await getTranslations("admin"), toDateLocale(await getLocale())];
   const now = new Date();
-
-  void dl; // dl not needed here — client handles formatting
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
@@ -48,9 +46,9 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       });
       return {
         id: o.id,
-        startTime: o.startTime.toISOString(),
+        startTimeStr: formatDateTime(o.startTime, dl),
         note: o.note,
-        sperrzetEndetAt: aktiveSperrzeit?.endetAt?.toISOString() ?? null,
+        sperrzetEndetAtStr: aktiveSperrzeit?.endetAt ? formatDateTime(aktiveSperrzeit.endetAt, dl) : null,
         sperrzetUnbefristet: !!aktiveSperrzeit && aktiveSperrzeit.endetAt === null,
       };
     });
@@ -65,9 +63,9 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       return {
         id: k.id,
         code: k.code,
-        deadline: k.deadline.toISOString(),
-        fulfilledAt: k.fulfilledAt?.toISOString() ?? null,
-        entryStartTime: k.entry?.startTime.toISOString() ?? null,
+        deadlineStr: formatDateTime(k.deadline, dl),
+        fulfilledAtStr: k.fulfilledAt ? formatDateTime(k.fulfilledAt, dl) : null,
+        entryStartTimeStr: k.entry?.startTime ? formatDateTime(k.entry.startTime, dl) : null,
         backdated,
         kommentar: k.kommentar,
         entryNote: k.entry?.note ?? null,
@@ -80,9 +78,9 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     .map((k) => ({
       id: k.id,
       code: k.code,
-      deadline: k.deadline.toISOString(),
-      fulfilledAt: k.fulfilledAt?.toISOString() ?? null,
-      entryStartTime: k.entry?.startTime.toISOString() ?? null,
+      deadlineStr: formatDateTime(k.deadline, dl),
+      fulfilledAtStr: k.fulfilledAt ? formatDateTime(k.fulfilledAt, dl) : null,
+      entryStartTimeStr: k.entry?.startTime ? formatDateTime(k.entry.startTime, dl) : null,
       backdated: false,
       kommentar: k.kommentar,
       entryNote: k.entry?.note ?? null,
@@ -90,7 +88,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const strafeRecords: StrafeRecordData[] = strafeRecordsRaw.map((r) => ({
     refId: r.refId,
-    bestraftDatum: r.bestraftDatum.toISOString(),
+    bestraftDatumStr: formatDate(r.bestraftDatum, dl),
     notiz: r.notiz,
   }));
 
