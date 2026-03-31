@@ -63,6 +63,9 @@ export default async function EintraegePage() {
                 {e.orgasmusArt && (
                   <span className="text-xs text-[var(--color-orgasm)] font-medium">{e.orgasmusArt}</span>
                 )}
+                {e.type === "VERSCHLUSS" && e.kontrollCode && (
+                  <span className="text-xs text-[var(--color-lock)] font-mono tabular-nums">#{e.kontrollCode}</span>
+                )}
                 {e.note && (
                   <span className="text-xs text-foreground-faint italic truncate min-w-0">„{e.note}"</span>
                 )}

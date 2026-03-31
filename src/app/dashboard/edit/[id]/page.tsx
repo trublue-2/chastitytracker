@@ -47,7 +47,8 @@ export default async function EditEntryPage({
       {entry.type === "VERSCHLUSS" && (
         <VerschlussForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
-          imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
+          imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null,
+          note: entry.note, kontrollCode: entry.kontrollCode,
         }} mobileDesktopMode={mobileDesktopMode} />
       )}
       {entry.type === "PRUEFUNG" && (
