@@ -133,7 +133,12 @@
   },
   "lockForm": {
     "title": "Verschluss erfassen",
-    "saveBtn": "Verschluss speichern"
+    "saveBtn": "Verschluss speichern",
+    "sealNumber": "Siegel-Nummer (optional)",
+    "sealNumberHint": "5–8 Ziffern",
+    "sealDetecting": "Nummer wird erkannt…",
+    "sealDetected": "Erkannt: {code}",
+    "sealNotDetected": "Nicht erkannt"
   },
   "openForm": {
     "title": "Öffnung erfassen",

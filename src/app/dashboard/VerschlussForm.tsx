@@ -15,6 +15,7 @@ interface Props {
     imageUrl?: string | null;
     imageExifTime?: string | null;
     note?: string | null;
+    kontrollCode?: string | null;
   };
   mobileDesktopMode?: boolean;
 }
@@ -31,6 +32,8 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [imageExifTime, setImageExifTime] = useState(initial?.imageExifTime ?? "");
   const [imagePreview, setImagePreview] = useState(initial?.imageUrl ?? "");
+  const [sealNumber, setSealNumber] = useState(initial?.kontrollCode ?? "");
+  const [sealState, setSealState] = useState<"idle" | "detecting" | "detected" | "not-detected">("idle");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -39,11 +42,10 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
   async function handleFile(file: File) {
     setUploading(true);
     setExifWarning("");
+    setSealState("idle");
     setImagePreview(URL.createObjectURL(file));
 
-    // iOS Safari strips EXIF — read lastModified BEFORE compression (metadata stays intact)
     const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
-
     const compressed = await compressImage(file).catch(() => file);
 
     const fd = new FormData();
@@ -64,6 +66,29 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
       setExifWarning(t("exifMissing"));
     }
     setUploading(false);
+
+    // Auto-detect seal number from photo
+    setSealState("detecting");
+    try {
+      const detectRes = await fetch("/api/detect-seal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: data.url }),
+      });
+      if (detectRes.ok) {
+        const { detected } = await detectRes.json() as { detected: string | null };
+        if (detected) {
+          setSealNumber(detected);
+          setSealState("detected");
+        } else {
+          setSealState("not-detected");
+        }
+      } else {
+        setSealState("not-detected");
+      }
+    } catch {
+      setSealState("not-detected");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -82,6 +107,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
           imageUrl: imageUrl || null,
           imageExifTime: imageExifTime || null,
           note: note || null,
+          kontrollCode: sealNumber.trim() || null,
         }),
       }
     );
@@ -128,7 +154,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
                 <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>
               )}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact mobileDesktopMode={mobileDesktopMode} />
-              <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); }}
+              <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); setSealState("idle"); }}
                 className="text-xs text-warn hover:opacity-80 w-fit transition">
                 {t("removePhoto")}
               </button>
@@ -137,6 +163,31 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
         ) : (
           <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
         )}
+      </Field>
+
+      {/* Siegel-Nummer */}
+      <Field label={tForm("sealNumber")}>
+        <div className="flex flex-col gap-1.5">
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="\d{5,8}"
+            maxLength={8}
+            value={sealNumber}
+            onChange={(e) => { setSealNumber(e.target.value.replace(/\D/g, "")); setSealState("idle"); }}
+            placeholder={tForm("sealNumberHint")}
+            className={inputCls}
+          />
+          {sealState === "detecting" && (
+            <p className="text-xs text-foreground-faint">{tForm("sealDetecting")}</p>
+          )}
+          {sealState === "detected" && (
+            <p className="text-xs text-[var(--color-lock)]">{tForm("sealDetected", { code: sealNumber })}</p>
+          )}
+          {sealState === "not-detected" && !sealNumber && (
+            <p className="text-xs text-foreground-faint">{tForm("sealNotDetected")}</p>
+          )}
+        </div>
       </Field>
 
       {/* Notiz */}

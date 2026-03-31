@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
     data: { withdrawnAt: new Date() },
   });
 
-  // Neue Anforderung erstellen
-  const code = String(Math.floor(10000 + Math.random() * 90000));
+  // Siegel-Nummer des aktiven Verschlusses verwenden, sonst Zufallscode
+  const sealCode = latest.kontrollCode && /^\d{5,8}$/.test(latest.kontrollCode) ? latest.kontrollCode : null;
+  const code = sealCode ?? String(Math.floor(10000 + Math.random() * 90000));
   const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
   const deadline = new Date(Date.now() + hours * 60 * 60 * 1000);
 
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
     hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich",
   });
 
+  const codeLabel = sealCode
+    ? "Deine Siegel-Nummer (muss auf dem Foto erkennbar sein):"
+    : "Dein Kontroll-Code (muss auf dem Foto erkennbar sein):";
+
   await sendMail(
     user.email,
     "KG-Tracker – Kontrolle angefordert",
@@ -62,7 +67,7 @@ export async function POST(req: NextRequest) {
       <p>Hallo ${user.username},</p>
       <p>Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten ${hours} Stunde${hours === 1 ? "" : "n"} einen Kontroll-Eintrag mit Foto.</p>
       ${kommentarHtml}
-      <p><strong>Dein Kontroll-Code (muss auf dem Foto erkennbar sein):</strong></p>
+      <p><strong>${codeLabel}</strong></p>
       <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
       <p><strong>Frist:</strong> ${deadlineStr}</p>
       <p>
