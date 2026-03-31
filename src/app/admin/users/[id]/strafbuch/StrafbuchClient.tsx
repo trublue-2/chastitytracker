@@ -2,31 +2,30 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { CheckCircle, ChevronDown } from "lucide-react";
 
 const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
 export interface StrafeRecordData {
   refId: string;
-  bestraftDatum: string; // ISO string
+  bestraftDatumStr: string; // pre-formatted on server
   notiz: string | null;
 }
 
 export interface UnerlaubteOeffnungRow {
   id: string;
-  startTime: string;
+  startTimeStr: string;
   note: string | null;
-  sperrzetEndetAt: string | null;
+  sperrzetEndetAtStr: string | null;
   sperrzetUnbefristet: boolean;
 }
 
 export interface KontrollRow {
   id: string;
   code: string;
-  deadline: string;
-  fulfilledAt: string | null;
-  entryStartTime: string | null;
+  deadlineStr: string;
+  fulfilledAtStr: string | null;
+  entryStartTimeStr: string | null;
   backdated: boolean;
   kommentar: string | null;
   entryNote: string | null;
@@ -65,19 +64,11 @@ interface Props {
 }
 
 function todayLocal(): string {
-  return new Date().toLocaleDateString("en-CA");
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, safe for <input type="date">
 }
 
 export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, strafeRecords, labels }: Props) {
   const router = useRouter();
-  const t = useTranslations("admin");
 
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
@@ -136,11 +127,9 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     return (
       <form onSubmit={submit} className="mt-2 bg-surface-raised rounded-xl border border-border p-3 flex flex-col gap-2">
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="block text-xs text-foreground-faint mb-1">{labels.strafbuchBestraftDatum}</label>
-            <input type="date" value={datum} onChange={e => setDatum(e.target.value)} required className={inputCls} />
-          </div>
+        <div>
+          <label className="block text-xs text-foreground-faint mb-1">{labels.strafbuchBestraftDatum}</label>
+          <input type="date" value={datum} onChange={e => setDatum(e.target.value)} required className={inputCls} />
         </div>
         <div>
           <label className="block text-xs text-foreground-faint mb-1">{labels.strafbuchNotiz}</label>
@@ -176,8 +165,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     if (!record) return null;
     return (
       <div className="mt-1.5 flex items-start gap-2 flex-wrap">
-        <span className="text-xs font-semibold text-[var(--color-ok)] bg-[var(--color-ok-bg,color-mix(in_srgb,var(--color-ok)_15%,transparent))] border border-[var(--color-ok)] px-2 py-0.5 rounded-lg flex items-center gap-1">
-          <CheckCircle size={10} /> {labels.strafbuchBestraftBadge} {fmtDate(record.bestraftDatum)}
+        <span className="text-xs font-semibold text-[var(--color-ok)] border border-[var(--color-ok)] px-2 py-0.5 rounded-lg flex items-center gap-1">
+          <CheckCircle size={10} /> {labels.strafbuchBestraftBadge} {record.bestraftDatumStr}
         </span>
         {record.notiz && <span className="text-xs text-foreground-faint italic">„{record.notiz}"</span>}
         <button type="button" onClick={() => handleUndo(refId)}
@@ -218,7 +207,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
       {!hasOpen && !showAll && (
         <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
-          {hasAny ? labels.strafbuchAlleAnzeigen + " →" : labels.strafbuchNoEntries}
+          {hasAny ? `${labels.strafbuchAlleAnzeigen} →` : labels.strafbuchNoEntries}
         </div>
       )}
 
@@ -233,14 +222,12 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               return (
                 <div key={o.id} className={`px-5 py-3 flex flex-col gap-0.5 ${punished ? "opacity-50" : ""}`}>
                   <span className={`text-sm font-semibold text-foreground ${punished ? "line-through" : ""}`}>
-                    {fmtDateTime(o.startTime)}
+                    {o.startTimeStr}
                   </span>
-                  {o.sperrzetEndetAt && (
-                    <span className="text-xs text-warn">
-                      {labels.lockedUntil}: {fmtDateTime(o.sperrzetEndetAt)}
-                    </span>
+                  {o.sperrzetEndetAtStr && (
+                    <span className="text-xs text-warn">{labels.lockedUntil}: {o.sperrzetEndetAtStr}</span>
                   )}
-                  {o.sperrzetUnbefristet && (
+                  {o.sperrzetUnbefristet && !o.sperrzetEndetAtStr && (
                     <span className="text-xs text-warn">{labels.lockedUntil}: {labels.lockedIndefinite}</span>
                   )}
                   {o.note && <span className="text-xs text-foreground-faint italic">„{o.note}"</span>}
@@ -266,12 +253,12 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
                     <span className={`font-mono font-bold text-[var(--color-inspect)] text-sm ${punished ? "line-through" : ""}`}>{k.code}</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-                    <span>{labels.frist}: {fmtDateTime(k.deadline)}</span>
-                    {k.fulfilledAt && <span className="text-warn">{labels.systemLabel}: {fmtDateTime(k.fulfilledAt)}</span>}
+                    <span>{labels.frist}: {k.deadlineStr}</span>
+                    {k.fulfilledAtStr && <span className="text-warn">{labels.systemLabel}: {k.fulfilledAtStr}</span>}
                   </div>
-                  {k.backdated && k.entryStartTime && (
+                  {k.backdated && k.entryStartTimeStr && (
                     <span className="text-xs text-warn font-medium">
-                      {labels.timeCorrected} – {labels.givenLabel}: {fmtDateTime(k.entryStartTime)}
+                      {labels.timeCorrected} – {labels.givenLabel}: {k.entryStartTimeStr}
                     </span>
                   )}
                   {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
@@ -297,8 +284,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
                     <span className={`font-mono font-bold text-[var(--color-inspect)] text-sm ${punished ? "line-through" : ""}`}>{k.code}</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-                    {k.entryStartTime && <span>{labels.fulfilledLabel}: {fmtDateTime(k.entryStartTime)}</span>}
-                    <span>{labels.frist}: {fmtDateTime(k.deadline)}</span>
+                    {k.entryStartTimeStr && <span>{labels.fulfilledLabel}: {k.entryStartTimeStr}</span>}
+                    <span>{labels.frist}: {k.deadlineStr}</span>
                   </div>
                   {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
                   {k.entryNote && <span className="text-xs text-foreground-faint italic">„{k.entryNote}"</span>}
