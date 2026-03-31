@@ -51,7 +51,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
   // Wenn Code manuell auf 5 Zeichen gesetzt wird und Bild vorhanden → Verifikation auslösen
   useEffect(() => {
     const key = `${kontrollCode}|${imageUrl}`;
-    if (kontrollCode.length === 5 && imageUrl && key !== lastVerifiedKey.current) {
+    if (kontrollCode.length >= 5 && imageUrl && key !== lastVerifiedKey.current) {
       lastVerifiedKey.current = key;
       setVerifyStatus("pending");
       setVerifyReason(null);
@@ -210,8 +210,8 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
           <input
             type="text"
             value={kontrollCode}
-            onChange={(e) => setKontrollCode(e.target.value.slice(0, 5))}
-            maxLength={5}
+            onChange={(e) => setKontrollCode(e.target.value.slice(0, 8))}
+            maxLength={8}
             placeholder="–"
             className={`${inputCls} font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl`}
           />
