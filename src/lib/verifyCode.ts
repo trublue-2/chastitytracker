@@ -87,3 +87,48 @@ export async function verifyKontrolleCode(
   const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode);
   return result?.match ? "ai" : null;
 }
+
+/**
+ * Tries to detect a 5–8 digit numbered seal from an image.
+ * Returns the detected number string, or null if none found.
+ */
+export async function detectSealNumber(imageUrl: string): Promise<string | null> {
+  try {
+    const filename = basename(imageUrl);
+    if (!filename || filename.includes("..") || filename.includes("/")) return null;
+
+    const buffer = await readFile(join(process.cwd(), "data", "uploads", filename));
+    const base64 = buffer.toString("base64");
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
+
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 50,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            {
+              type: "text",
+              text: `Look for a numbered seal, security seal, or any label with a printed or stamped number in this image. Report the 5–8 digit number if you find one.\nReply with JSON only: {"detected": "<5-8 digit number or null>"}. If no clear number is found, use null.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const result = JSON.parse(jsonMatch[0]);
+    const detected = result.detected;
+    if (!detected || typeof detected !== "string") return null;
+    if (!/^\d{5,8}$/.test(detected)) return null;
+    return detected;
+  } catch {
+    return null;
+  }
+}
