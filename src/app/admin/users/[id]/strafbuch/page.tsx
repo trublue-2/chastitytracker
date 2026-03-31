@@ -3,7 +3,6 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, toDateLocale, mapAnforderungStatus } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
-import UserNav from "../UserNav";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -77,8 +76,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   return (
     <main className="w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
-      <UserNav userId={id} username={user.username} current="strafbuch" />
-
       {!hasAny && (
         <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
           {t("strafbuchNoEntries")}
