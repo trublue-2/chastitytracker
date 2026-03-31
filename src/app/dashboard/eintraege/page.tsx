@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Lock, LockOpen, ClipboardList, Droplets, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { getLocale } from "next-intl/server";
+import { formatDateTime } from "@/lib/utils";
 
 const TYPE_LABELS: Record<string, string> = {
   VERSCHLUSS: "Verschluss",
@@ -57,7 +58,7 @@ export default async function EintraegePage() {
                   {TYPE_LABELS[e.type] ?? e.type}
                 </span>
                 <span className="text-sm text-foreground tabular-nums">
-                  {e.startTime.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  {formatDateTime(e.startTime, dl)}
                 </span>
                 {e.orgasmusArt && (
                   <span className="text-xs text-[var(--color-orgasm)] font-medium">{e.orgasmusArt}</span>

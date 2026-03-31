@@ -70,24 +70,50 @@ export function formatTime(date: Date | string, locale = "de-CH"): string {
   });
 }
 
-/** Today at 00:00:00 local time */
+/** Returns { year, 0-based month, day } of `d` in APP_TZ. */
+export function tzDateParts(d: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TZ,
+    year: "numeric", month: "numeric", day: "numeric",
+  }).formatToParts(d);
+  const get = (type: string) => +(parts.find(p => p.type === type)?.value ?? "0");
+  return { year: get("year"), month: get("month") - 1, day: get("day") };
+}
+
+/** Returns the Date representing 00:00:00 in APP_TZ on the same calendar date as `d`. */
+export function midnightInTZ(d: Date): Date {
+  const { year, month, day } = tzDateParts(d);
+  // Compute TZ offset at noon of that calendar day (safe from DST edge cases)
+  const noonUTC = Date.UTC(year, month, day, 12);
+  const p = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TZ,
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric",
+    hour12: false,
+  }).formatToParts(new Date(noonUTC));
+  const g = (type: string) => +(p.find(x => x.type === type)?.value ?? "0");
+  const h = g("hour");
+  const tzNoonMs = Date.UTC(g("year"), g("month") - 1, g("day"), h === 24 ? 0 : h, g("minute"), g("second"));
+  return new Date(Date.UTC(year, month, day) + (noonUTC - tzNoonMs));
+}
+
+/** Today at 00:00:00 in APP_TZ */
 export function getMidnightToday(now: Date): Date {
-  const d = new Date(now);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return midnightInTZ(now);
 }
 
-/** Start of the current ISO week (Monday 00:00:00 local time) */
+/** Start of the current ISO week (Monday 00:00:00 in APP_TZ) */
 export function getWeekStart(now: Date): Date {
-  const d = new Date(now);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" }).formatToParts(now);
+  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const dow = ((map[p.find(x => x.type === "weekday")!.value] ?? 0) + 6) % 7;
+  return new Date(midnightInTZ(now).getTime() - dow * 86_400_000);
 }
 
-/** First day of the current month at 00:00:00 local time */
+/** First day of the current month at 00:00:00 in APP_TZ */
 export function getMonthStart(now: Date): Date {
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+  const { year, month } = tzDateParts(now);
+  return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)));
 }
 
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */

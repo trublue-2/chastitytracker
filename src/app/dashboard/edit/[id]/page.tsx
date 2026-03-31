@@ -25,7 +25,7 @@ export default async function EditEntryPage({
     userId ? prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }) : null,
   ]);
   const mobileDesktopMode = dbUser?.mobileDesktopUpload ?? false;
-  if (!entry) notFound();
+  if (!entry || entry.userId !== userId) notFound();
 
   const LABELS: Record<string, string> = {
     VERSCHLUSS: tStats("lock"),
