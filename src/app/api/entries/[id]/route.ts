@@ -32,7 +32,8 @@ export async function PATCH(
       ...(oeffnenGrund !== undefined && { oeffnenGrund }),
       ...(orgasmusArt !== undefined && { orgasmusArt }),
       ...(kontrollCode !== undefined && { kontrollCode }),
-      ...(verifikationStatus !== undefined && { verifikationStatus }),
+      // verifikationStatus only settable by admins
+      ...(verifikationStatus !== undefined && session.user.role === "admin" && { verifikationStatus }),
     },
   });
 
@@ -54,11 +55,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Wenn eine Kontrolle gelöscht wird, KontrollAnforderung-Verknüpfung lösen
+  // Wenn eine Kontrolle gelöscht wird, KontrollAnforderung-Verknüpfung lösen (inkl. fulfilledAt)
   if (existing.type === "PRUEFUNG") {
     await prisma.kontrollAnforderung.updateMany({
       where: { entryId: id },
-      data: { entryId: null },
+      data: { entryId: null, fulfilledAt: null },
     });
   }
 
