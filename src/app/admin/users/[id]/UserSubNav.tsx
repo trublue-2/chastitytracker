@@ -21,6 +21,7 @@ export default function UserSubNav({ userId }: Props) {
     { href: `${base}/kontrollen`, label: t("kontrollen"), exact: false },
     { href: `${base}/einstellungen`, label: t("einstellungen"), exact: false },
     { href: `${base}/stats`, label: t("statsTitle"), exact: false },
+    { href: `${base}/strafbuch`, label: t("strafbuch"), exact: false },
   ];
 
   const active = tabs.find((tab) =>
