@@ -8,7 +8,7 @@ const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 
 
 export interface StrafeRecordData {
   refId: string;
-  bestraftDatumStr: string; // pre-formatted on server
+  bestraftDatumStr: string;
   notiz: string | null;
 }
 
@@ -31,75 +31,90 @@ export interface KontrollRow {
   entryNote: string | null;
 }
 
+interface Labels {
+  frist: string;
+  systemLabel: string;
+  givenLabel: string;
+  timeCorrected: string;
+  fulfilledLabel: string;
+  instructionLabel: string;
+  strafbuchUnerlaubteOeffnungen: string;
+  strafbuchZuSpaet: string;
+  strafbuchAbgelehnt: string;
+  strafbuchNoEntries: string;
+  strafbuchWurdeBestraft: string;
+  strafbuchBestraftMarkieren: string;
+  strafbuchBestraftDatum: string;
+  strafbuchNotiz: string;
+  strafbuchBestraftBadge: string;
+  strafbuchAbbrechen: string;
+  strafbuchRueckgaengig: string;
+  strafbuchGeoeffnetAm: string;
+  strafbuchTrotzUnbefristet: string;
+  strafbuchSperreLiefBis: string;
+  strafbuchKontrollePrefix: string;
+  strafbuchEingereicht: string;
+  strafbuchFristWar: string;
+  strafbuchVordatiert: string;
+  strafbuchAbgelehntAm: string;
+  strafbuchAblehnungsgrund: string;
+  strafbuchAlleVergehenBestraft: string;
+  strafbuchAlleAnzeigen: string;
+  strafbuchOffeneAnzeigen: string;
+  strafbuchOffen: string;
+  strafbuchGesamt: string;
+}
+
 interface Props {
   userId: string;
   unerlaubteOeffnungen: UnerlaubteOeffnungRow[];
   zuSpaet: KontrollRow[];
   abgelehnt: KontrollRow[];
   strafeRecords: StrafeRecordData[];
-  labels: {
-    lockedUntil: string;
-    lockedIndefinite: string;
-    frist: string;
-    systemLabel: string;
-    givenLabel: string;
-    timeCorrected: string;
-    fulfilledLabel: string;
-    instructionLabel: string;
-    strafbuchUnerlaubteOeffnungen: string;
-    strafbuchZuSpaet: string;
-    strafbuchAbgelehnt: string;
-    strafbuchEmpty: string;
-    strafbuchNoEntries: string;
-    strafbuchWurdeBestraft: string;
-    strafbuchBestraftMarkieren: string;
-    strafbuchBestraftDatum: string;
-    strafbuchNotiz: string;
-    strafbuchBestraftBadge: string;
-    strafbuchAlleAnzeigen: string;
-    strafbuchOffeneAnzeigen: string;
-    strafbuchAbbrechen: string;
-    strafbuchRueckgaengig: string;
-  };
+  labels: Labels;
 }
 
 function todayLocal(): string {
-  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, safe for <input type="date">
+  return new Date().toLocaleDateString("en-CA");
 }
 
 export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, strafeRecords, labels }: Props) {
   const router = useRouter();
-
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
 
   const punishedIds = new Set(strafeRecords.map(r => r.refId));
 
-  const hasOpen = [
-    ...unerlaubteOeffnungen.filter(o => !punishedIds.has(o.id)),
-    ...zuSpaet.filter(k => !punishedIds.has(k.id)),
-    ...abgelehnt.filter(k => !punishedIds.has(k.id)),
-  ].length > 0;
+  const openOeffnungen = unerlaubteOeffnungen.filter(o => !punishedIds.has(o.id));
+  const openZuSpaet = zuSpaet.filter(k => !punishedIds.has(k.id));
+  const openAbgelehnt = abgelehnt.filter(k => !punishedIds.has(k.id));
 
+  const hasAnyOpen = openOeffnungen.length > 0 || openZuSpaet.length > 0 || openAbgelehnt.length > 0;
   const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0;
   const hasPunished = strafeRecords.length > 0;
 
-  function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+  // Section component with open/total count display
+  function Section({ title, openCount, totalCount, children }: {
+    title: string; openCount: number; totalCount: number; children: React.ReactNode;
+  }) {
+    const showBoth = totalCount > openCount && totalCount > 0;
     return (
       <div className="bg-surface rounded-2xl border border-border overflow-hidden">
         <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{title}</p>
-          <span className="text-xs font-semibold text-foreground-faint tabular-nums">{count}</span>
+          <span className="text-xs tabular-nums text-foreground-faint">
+            {showBoth
+              ? <><span className="font-semibold">{openCount} {labels.strafbuchOffen}</span><span className="opacity-50"> / {totalCount} {labels.strafbuchGesamt}</span></>
+              : <span className="font-semibold">{totalCount}</span>
+            }
+          </span>
         </div>
-        {count === 0 ? (
-          <p className="px-5 py-4 text-sm text-foreground-faint">{labels.strafbuchEmpty}</p>
-        ) : (
-          <div className="divide-y divide-border-subtle">{children}</div>
-        )}
+        <div className="divide-y divide-border-subtle">{children}</div>
       </div>
     );
   }
 
+  // Inline form for marking an offense as punished
   function BestrafenForm({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" }) {
     const [datum, setDatum] = useState(todayLocal());
     const [notiz, setNotiz] = useState("");
@@ -164,13 +179,13 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     const record = strafeRecords.find(r => r.refId === refId);
     if (!record) return null;
     return (
-      <div className="mt-1.5 flex items-start gap-2 flex-wrap">
+      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
         <span className="text-xs font-semibold text-[var(--color-ok)] border border-[var(--color-ok)] px-2 py-0.5 rounded-lg flex items-center gap-1">
           <CheckCircle size={10} /> {labels.strafbuchBestraftBadge} {record.bestraftDatumStr}
         </span>
         {record.notiz && <span className="text-xs text-foreground-faint italic">„{record.notiz}"</span>}
         <button type="button" onClick={() => handleUndo(refId)}
-          className="text-xs text-foreground-faint hover:text-warn transition ml-auto">
+          className="text-xs text-foreground-faint underline hover:text-warn transition ml-auto">
           {labels.strafbuchRueckgaengig}
         </button>
       </div>
@@ -180,10 +195,10 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   function WurdeBestraftButton({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" }) {
     const isOpen = openFormId === refId;
     return (
-      <div className="mt-1.5">
+      <div className="mt-2">
         <button type="button"
           onClick={() => setOpenFormId(isOpen ? null : refId)}
-          className="text-xs text-foreground-faint hover:text-[var(--color-ok)] border border-border hover:border-[var(--color-ok)] transition px-2.5 py-1 rounded-lg flex items-center gap-1">
+          className="text-xs font-medium text-[var(--color-ok)] border border-[var(--color-ok)] bg-[color-mix(in_srgb,var(--color-ok)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-ok)_15%,transparent)] transition px-2.5 py-1 rounded-lg flex items-center gap-1">
           <CheckCircle size={11} />
           {labels.strafbuchWurdeBestraft}
           <ChevronDown size={11} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -193,109 +208,119 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const oeffnungDisplay = showAll ? unerlaubteOeffnungen : openOeffnungen;
+  const zuSpaetDisplay  = showAll ? zuSpaet : openZuSpaet;
+  const abgelehntDisplay = showAll ? abgelehnt : openAbgelehnt;
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Toggle */}
-      {hasPunished && (
-        <div className="flex justify-end">
-          <button type="button" onClick={() => setShowAll(v => !v)}
-            className="text-xs text-foreground-faint hover:text-foreground-muted transition border border-border rounded-xl px-3 py-1.5">
-            {showAll ? labels.strafbuchOffeneAnzeigen : labels.strafbuchAlleAnzeigen}
-          </button>
+
+      {/* All-punished empty state */}
+      {!hasAnyOpen && !showAll && hasAny && (
+        <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
+          {labels.strafbuchAlleVergehenBestraft}
         </div>
       )}
-
-      {!hasOpen && !showAll && (
+      {!hasAny && (
         <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
-          {hasAny ? `${labels.strafbuchAlleAnzeigen} →` : labels.strafbuchNoEntries}
+          {labels.strafbuchNoEntries}
         </div>
       )}
 
       {/* Unerlaubte Öffnungen */}
-      {(() => {
-        const rows = showAll ? unerlaubteOeffnungen : unerlaubteOeffnungen.filter(o => !punishedIds.has(o.id));
-        if (rows.length === 0 && !showAll) return null;
-        return (
-          <Section title={labels.strafbuchUnerlaubteOeffnungen} count={showAll ? unerlaubteOeffnungen.length : rows.length}>
-            {rows.map((o) => {
-              const punished = punishedIds.has(o.id);
-              return (
-                <div key={o.id} className={`px-5 py-3 flex flex-col gap-0.5 ${punished ? "opacity-50" : ""}`}>
-                  <span className={`text-sm font-semibold text-foreground ${punished ? "line-through" : ""}`}>
-                    {o.startTimeStr}
-                  </span>
-                  {o.sperrzetEndetAtStr && (
-                    <span className="text-xs text-warn">{labels.lockedUntil}: {o.sperrzetEndetAtStr}</span>
+      {oeffnungDisplay.length > 0 && (
+        <Section title={labels.strafbuchUnerlaubteOeffnungen}
+          openCount={openOeffnungen.length}
+          totalCount={unerlaubteOeffnungen.length}>
+          {oeffnungDisplay.map((o) => {
+            const punished = punishedIds.has(o.id);
+            const qualifier = o.sperrzetUnbefristet
+              ? labels.strafbuchTrotzUnbefristet
+              : o.sperrzetEndetAtStr
+                ? `${labels.strafbuchSperreLiefBis} ${o.sperrzetEndetAtStr}`
+                : null;
+            return (
+              <div key={o.id} className={`px-5 py-3 flex flex-col gap-0.5 ${punished ? "opacity-50" : ""}`}>
+                <p className={`text-sm font-semibold text-foreground ${punished ? "line-through" : ""}`}>
+                  {labels.strafbuchGeoeffnetAm} {o.startTimeStr}
+                  {qualifier && (
+                    <> — <span className="text-warn font-normal">{qualifier}</span></>
                   )}
-                  {o.sperrzetUnbefristet && !o.sperrzetEndetAtStr && (
-                    <span className="text-xs text-warn">{labels.lockedUntil}: {labels.lockedIndefinite}</span>
-                  )}
-                  {o.note && <span className="text-xs text-foreground-faint italic">„{o.note}"</span>}
-                  {punished ? <PunishedBadge refId={o.id} /> : <WurdeBestraftButton refId={o.id} offenseType="OEFFNEN_ENTRY" />}
-                </div>
-              );
-            })}
-          </Section>
-        );
-      })()}
+                </p>
+                {o.note && <span className="text-xs text-foreground-faint italic">„{o.note}"</span>}
+                {punished ? <PunishedBadge refId={o.id} /> : <WurdeBestraftButton refId={o.id} offenseType="OEFFNEN_ENTRY" />}
+              </div>
+            );
+          })}
+        </Section>
+      )}
 
       {/* Zu spät erfüllte Kontrollen */}
-      {(() => {
-        const rows = showAll ? zuSpaet : zuSpaet.filter(k => !punishedIds.has(k.id));
-        if (rows.length === 0 && !showAll) return null;
-        return (
-          <Section title={labels.strafbuchZuSpaet} count={showAll ? zuSpaet.length : rows.length}>
-            {rows.map((k) => {
-              const punished = punishedIds.has(k.id);
-              return (
-                <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${punished ? "opacity-50" : ""}`}>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`font-mono font-bold text-[var(--color-inspect)] text-sm ${punished ? "line-through" : ""}`}>{k.code}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-                    <span>{labels.frist}: {k.deadlineStr}</span>
-                    {k.fulfilledAtStr && <span className="text-warn">{labels.systemLabel}: {k.fulfilledAtStr}</span>}
-                  </div>
-                  {k.backdated && k.entryStartTimeStr && (
-                    <span className="text-xs text-warn font-medium">
-                      {labels.timeCorrected} – {labels.givenLabel}: {k.entryStartTimeStr}
-                    </span>
-                  )}
-                  {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
-                  {punished ? <PunishedBadge refId={k.id} /> : <WurdeBestraftButton refId={k.id} offenseType="KONTROLLANFORDERUNG" />}
-                </div>
-              );
-            })}
-          </Section>
-        );
-      })()}
+      {zuSpaetDisplay.length > 0 && (
+        <Section title={labels.strafbuchZuSpaet}
+          openCount={openZuSpaet.length}
+          totalCount={zuSpaet.length}>
+          {zuSpaetDisplay.map((k) => {
+            const punished = punishedIds.has(k.id);
+            return (
+              <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${punished ? "opacity-50" : ""}`}>
+                <p className={`text-sm font-semibold text-foreground ${punished ? "line-through" : ""}`}>
+                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix} {k.code}</span>
+                  {" — "}
+                  <span className="text-warn font-normal">
+                    {labels.strafbuchEingereicht} {k.fulfilledAtStr}
+                    {k.backdated && k.entryStartTimeStr && (
+                      <> ({labels.strafbuchVordatiert} {k.entryStartTimeStr})</>
+                    )}
+                  </span>
+                </p>
+                <p className="text-xs text-foreground-faint">
+                  {labels.strafbuchFristWar} {k.deadlineStr}
+                </p>
+                {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
+                {punished ? <PunishedBadge refId={k.id} /> : <WurdeBestraftButton refId={k.id} offenseType="KONTROLLANFORDERUNG" />}
+              </div>
+            );
+          })}
+        </Section>
+      )}
 
       {/* Abgelehnte Kontrollen */}
-      {(() => {
-        const rows = showAll ? abgelehnt : abgelehnt.filter(k => !punishedIds.has(k.id));
-        if (rows.length === 0 && !showAll) return null;
-        return (
-          <Section title={labels.strafbuchAbgelehnt} count={showAll ? abgelehnt.length : rows.length}>
-            {rows.map((k) => {
-              const punished = punishedIds.has(k.id);
-              return (
-                <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${punished ? "opacity-50" : ""}`}>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`font-mono font-bold text-[var(--color-inspect)] text-sm ${punished ? "line-through" : ""}`}>{k.code}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-                    {k.entryStartTimeStr && <span>{labels.fulfilledLabel}: {k.entryStartTimeStr}</span>}
-                    <span>{labels.frist}: {k.deadlineStr}</span>
-                  </div>
-                  {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
-                  {k.entryNote && <span className="text-xs text-foreground-faint italic">„{k.entryNote}"</span>}
-                  {punished ? <PunishedBadge refId={k.id} /> : <WurdeBestraftButton refId={k.id} offenseType="KONTROLLANFORDERUNG" />}
-                </div>
-              );
-            })}
-          </Section>
-        );
-      })()}
+      {abgelehntDisplay.length > 0 && (
+        <Section title={labels.strafbuchAbgelehnt}
+          openCount={openAbgelehnt.length}
+          totalCount={abgelehnt.length}>
+          {abgelehntDisplay.map((k) => {
+            const punished = punishedIds.has(k.id);
+            return (
+              <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${punished ? "opacity-50" : ""}`}>
+                <p className={`text-sm font-semibold text-foreground ${punished ? "line-through" : ""}`}>
+                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix} {k.code}</span>
+                  {" — "}
+                  <span className="text-warn font-normal">
+                    {labels.strafbuchAbgelehntAm} {k.entryStartTimeStr ?? k.deadlineStr}
+                  </span>
+                </p>
+                <p className="text-xs text-foreground-faint">{labels.frist}: {k.deadlineStr}</p>
+                {k.entryNote && <span className="text-xs text-foreground-faint italic">{labels.strafbuchAblehnungsgrund}: „{k.entryNote}"</span>}
+                {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
+                {punished ? <PunishedBadge refId={k.id} /> : <WurdeBestraftButton refId={k.id} offenseType="KONTROLLANFORDERUNG" />}
+              </div>
+            );
+          })}
+        </Section>
+      )}
+
+      {/* Toggle — bottom, full width */}
+      {hasPunished && (
+        <button type="button" onClick={() => setShowAll(v => !v)}
+          className="w-full text-xs text-foreground-faint hover:text-foreground-muted transition border border-border rounded-xl px-3 py-2.5">
+          {showAll ? labels.strafbuchOffeneAnzeigen : labels.strafbuchAlleAnzeigen}
+        </button>
+      )}
+
     </div>
   );
 }

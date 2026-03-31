@@ -115,6 +115,18 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
     strafbuchRueckgaengig: t("strafbuchRueckgaengig"),
+    strafbuchGeoeffnetAm: t("strafbuchGeoeffnetAm"),
+    strafbuchTrotzUnbefristet: t("strafbuchTrotzUnbefristet"),
+    strafbuchSperreLiefBis: t("strafbuchSperreLiefBis"),
+    strafbuchKontrollePrefix: t("strafbuchKontrollePrefix"),
+    strafbuchEingereicht: t("strafbuchEingereicht"),
+    strafbuchFristWar: t("strafbuchFristWar"),
+    strafbuchVordatiert: t("strafbuchVordatiert"),
+    strafbuchAbgelehntAm: t("strafbuchAbgelehntAm"),
+    strafbuchAblehnungsgrund: t("strafbuchAblehnungsgrund"),
+    strafbuchAlleVergehenBestraft: t("strafbuchAlleVergehenBestraft"),
+    strafbuchOffen: t("strafbuchOffen"),
+    strafbuchGesamt: t("strafbuchGesamt"),
   };
 
   return (
