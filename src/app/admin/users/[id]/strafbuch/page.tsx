@@ -50,13 +50,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     (k) => k.entry?.verifikationStatus === "rejected"
   );
 
-  // 4. Kontrollen mit veränderten Zeitdaten
-  const zeitKorrigiert = kontrollAnforderungen.filter(
-    (k) => k.fulfilledAt && k.entry?.startTime &&
-      k.entry.startTime.getTime() < k.fulfilledAt.getTime() - 60_000
-  );
-
-  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0 || zeitKorrigiert.length > 0;
+  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0;
 
   function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
     return (
@@ -107,18 +101,28 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
       {/* Zu spät erfüllte Kontrollen */}
       <Section title={t("strafbuchZuSpaet")} count={zuSpaet.length}>
-        {zuSpaet.map((k) => (
-          <div key={k.id} className="px-5 py-3 flex flex-col gap-0.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>
+        {zuSpaet.map((k) => {
+          const backdated = k.fulfilledAt && k.entry?.startTime &&
+            k.entry.startTime.getTime() < k.deadline.getTime() &&
+            k.fulfilledAt.getTime() > k.deadline.getTime();
+          return (
+            <div key={k.id} className="px-5 py-3 flex flex-col gap-0.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
+                <span>{t("frist")}: {formatDateTime(k.deadline, dl)}</span>
+                {k.fulfilledAt && <span className="text-warn">{t("systemLabel")}: {formatDateTime(k.fulfilledAt, dl)}</span>}
+              </div>
+              {backdated && (
+                <span className="text-xs text-warn font-medium">
+                  {t("timeCorrected")} – {t("givenLabel")}: {formatDateTime(k.entry!.startTime, dl)}
+                </span>
+              )}
+              {k.kommentar && <span className="text-xs text-foreground-faint italic">{t("instructionLabel")}: {k.kommentar}</span>}
             </div>
-            <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-              <span>{t("frist")}: {formatDateTime(k.deadline, dl)}</span>
-              {k.fulfilledAt && <span className="text-warn">Eingereicht: {formatDateTime(k.fulfilledAt, dl)}</span>}
-            </div>
-            {k.kommentar && <span className="text-xs text-foreground-faint italic">{t("instructionLabel")}: {k.kommentar}</span>}
-          </div>
-        ))}
+          );
+        })}
       </Section>
 
       {/* Abgelehnte Kontrollen */}
@@ -138,23 +142,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
         ))}
       </Section>
 
-      {/* Kontrollen mit veränderten Zeitdaten */}
-      <Section title={t("strafbuchZeitKorrigiert")} count={zeitKorrigiert.length}>
-        {zeitKorrigiert.map((k) => (
-          <div key={k.id} className="px-5 py-3 flex flex-col gap-0.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-              <span>{t("frist")}: {formatDateTime(k.deadline, dl)}</span>
-            </div>
-            <span className="text-xs text-warn font-medium">
-              {t("timeCorrected")} – {t("givenLabel")}: {formatDateTime(k.entry!.startTime, dl)} · {t("systemLabel")}: {formatDateTime(k.fulfilledAt!, dl)}
-            </span>
-            {k.kommentar && <span className="text-xs text-foreground-faint italic">{t("instructionLabel")}: {k.kommentar}</span>}
-          </div>
-        ))}
-      </Section>
     </main>
   );
 }
