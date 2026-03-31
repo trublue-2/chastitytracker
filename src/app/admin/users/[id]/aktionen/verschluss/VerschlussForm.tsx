@@ -18,12 +18,15 @@ export default function VerschlussForm({ userId }: { userId: string }) {
   const [imageUrl, setImageUrl] = useState("");
   const [imageExifTime, setImageExifTime] = useState("");
   const [imagePreview, setImagePreview] = useState("");
+  const [sealNumber, setSealNumber] = useState("");
+  const [sealState, setSealState] = useState<"idle" | "detecting" | "detected" | "not-detected">("idle");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleFile(file: File) {
     setUploading(true);
+    setSealState("idle");
     setImagePreview(URL.createObjectURL(file));
     const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
     const compressed = await compressImage(file).catch(() => file);
@@ -35,6 +38,29 @@ export default function VerschlussForm({ userId }: { userId: string }) {
     setImageUrl(data.url);
     setImageExifTime(data.exifTime ?? "");
     setUploading(false);
+
+    // Auto-detect seal number
+    setSealState("detecting");
+    try {
+      const detectRes = await fetch("/api/detect-seal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: data.url }),
+      });
+      if (detectRes.ok) {
+        const { detected } = await detectRes.json() as { detected: string | null };
+        if (detected) {
+          setSealNumber(detected);
+          setSealState("detected");
+        } else {
+          setSealState("not-detected");
+        }
+      } else {
+        setSealState("not-detected");
+      }
+    } catch {
+      setSealState("not-detected");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -51,6 +77,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
         note: note.trim() || undefined,
         imageUrl: imageUrl || undefined,
         imageExifTime: imageExifTime || undefined,
+        kontrollCode: sealNumber.trim() || undefined,
       }),
     });
     setLoading(false);
@@ -98,7 +125,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
                     <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>
                   )}
                   <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
-                  <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); }}
+                  <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setSealState("idle"); }}
                     className="text-xs text-warn hover:opacity-80 w-fit transition">
                     Foto entfernen
                   </button>
@@ -107,6 +134,23 @@ export default function VerschlussForm({ userId }: { userId: string }) {
             ) : (
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
             )}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-foreground-faint">Siegel-Nummer (optional)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="\d{5,8}"
+              maxLength={8}
+              value={sealNumber}
+              onChange={(e) => { setSealNumber(e.target.value.replace(/\D/g, "")); setSealState("idle"); }}
+              placeholder="5–8 Ziffern"
+              className={inputCls}
+            />
+            {sealState === "detecting" && <p className="text-xs text-foreground-faint">Nummer wird erkannt…</p>}
+            {sealState === "detected" && <p className="text-xs text-[var(--color-lock)]">Erkannt: {sealNumber}</p>}
+            {sealState === "not-detected" && !sealNumber && <p className="text-xs text-foreground-faint">Nicht erkannt</p>}
           </div>
 
           <div className="flex flex-col gap-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ClipboardCheck, Loader2 } from "lucide-react";
@@ -9,22 +9,63 @@ import { compressImage } from "@/lib/compressImage";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 
-const inputCls = "text-sm bg-surface-raised border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted";
+const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
 export default function PruefungForm({ userId }: { userId: string }) {
   const router = useRouter();
+
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [note, setNote] = useState("");
+  const [kontrollCode, setKontrollCode] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [imageExifTime, setImageExifTime] = useState("");
   const [imagePreview, setImagePreview] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [exifWarning, setExifWarning] = useState("");
+  const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
+  const [verifyReason, setVerifyReason] = useState<string | null>(null);
+  const [aiMatch, setAiMatch] = useState<boolean | null>(null);
+  const lastVerifiedKey = useRef<string>("");
+
+  useEffect(() => {
+    const key = `${kontrollCode}|${imageUrl}`;
+    if (kontrollCode.length >= 5 && kontrollCode.length <= 8 && imageUrl && key !== lastVerifiedKey.current) {
+      lastVerifiedKey.current = key;
+      setVerifyStatus("pending");
+      setVerifyReason(null);
+      setAiMatch(null);
+      fetch("/api/verify-kontrolle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl, expectedCode: kontrollCode }),
+      })
+        .then((r) => r.json())
+        .then((v) => {
+          if (v.error === "policy") {
+            setVerifyStatus("policy");
+          } else if (v.error) {
+            setVerifyStatus("error");
+          } else {
+            setVerifyStatus(v.match ? "match" : "mismatch");
+            setVerifyReason(v.reason ?? null);
+            setAiMatch(v.match ? true : false);
+          }
+        })
+        .catch(() => setVerifyStatus("error"));
+    }
+  }, [kontrollCode, imageUrl]);
 
   async function handleFile(file: File) {
     setUploading(true);
+    setExifWarning("");
     setImagePreview(URL.createObjectURL(file));
+    setError("");
+    setVerifyStatus(null);
+    setVerifyReason(null);
+    setAiMatch(null);
+
     const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
     const compressed = await compressImage(file).catch(() => file);
     const fd = new FormData();
@@ -33,12 +74,21 @@ export default function PruefungForm({ userId }: { userId: string }) {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     const data = await res.json();
     setImageUrl(data.url);
+    setImagePreview(data.url);
     setImageExifTime(data.exifTime ?? "");
+
+    if (data.exifTime && startTime) {
+      const diff = Math.abs(new Date(data.exifTime).getTime() - new Date(startTime).getTime());
+      if (diff > 3600000) setExifWarning(`EXIF-Zeit weicht ${Math.round(diff / 3600000)}h ab`);
+    } else if (!data.exifTime) {
+      setExifWarning("Foto enthält keine EXIF-Zeitangabe");
+    }
     setUploading(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!imageUrl) { setError("Foto ist bei Kontrolle zwingend"); return; }
     setLoading(true);
     setError("");
     const res = await fetch("/api/admin/entries", {
@@ -51,6 +101,8 @@ export default function PruefungForm({ userId }: { userId: string }) {
         note: note.trim() || undefined,
         imageUrl: imageUrl || undefined,
         imageExifTime: imageExifTime || undefined,
+        kontrollCode: kontrollCode || undefined,
+        verifikationStatus: aiMatch === true ? "ai" : undefined,
       }),
     });
     setLoading(false);
@@ -76,29 +128,26 @@ export default function PruefungForm({ userId }: { userId: string }) {
           <h1 className="text-base font-semibold text-foreground">Prüfung erfassen</h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Zeitpunkt</label>
-            <input
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className={inputCls}
-              required
-            />
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-5 py-5">
+          {/* Datum / Zeit */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">Datum / Zeit *</label>
+            <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className={inputCls} />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Foto (optional)</label>
+          {/* Foto (zwingend) */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
+              Foto <span className="text-warn">*</span> <span className="text-foreground-faint normal-case font-normal">(zwingend)</span>
+            </label>
             {imagePreview ? (
               <div className="flex items-start gap-4">
-                <ImageViewer src={imagePreview} alt="Vorschau" width={80} height={80} className="w-20 h-20 rounded-xl object-cover" />
+                <ImageViewer src={imagePreview} alt="Vorschau" width={80} height={80} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
                 <div className="flex flex-col gap-2 flex-1 pt-1">
-                  {imageExifTime && (
-                    <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>
-                  )}
+                  {imageExifTime && <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>}
+                  {exifWarning && !uploading && <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>}
                   <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
-                  <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); }}
+                  <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); setVerifyStatus(null); setAiMatch(null); }}
                     className="text-xs text-warn hover:opacity-80 w-fit transition">
                     Foto entfernen
                   </button>
@@ -109,27 +158,63 @@ export default function PruefungForm({ userId }: { userId: string }) {
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Notiz (optional)</label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Notiz (optional)"
-              rows={2}
-              className={`${inputCls} w-full resize-none`}
+          {/* Verifikationsstatus */}
+          {verifyStatus === "pending" && (
+            <p className="text-sm text-foreground-muted flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Code wird im Bild geprüft…
+            </p>
+          )}
+          {verifyStatus === "match" && (
+            <p className="text-sm text-[var(--color-ok)] font-medium">✅ Code erkannt</p>
+          )}
+          {verifyStatus === "policy" && (
+            <div className="bg-surface-raised border border-border rounded-xl px-4 py-3">
+              <p className="text-sm text-foreground-muted font-medium">Bild konnte nicht geprüft werden</p>
+              <p className="text-xs text-foreground-faint mt-0.5">Das Bild entspricht nicht den Inhaltsrichtlinien – kann trotzdem gespeichert werden.</p>
+            </div>
+          )}
+          {verifyStatus === "mismatch" && (
+            <div className="bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
+              <p className="text-sm text-[var(--color-warn-text)] font-medium">⚠ Code nicht erkannt</p>
+              {verifyReason && <p className="text-xs text-[var(--color-warn)] mt-0.5">{verifyReason}</p>}
+              <p className="text-xs text-[var(--color-warn)] mt-1">Code deutlich sichtbar im Foto zeigen – kann trotzdem gespeichert werden.</p>
+            </div>
+          )}
+
+          {/* Kontroll-Code */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
+              Kontroll-Code <span className="text-[var(--color-inspect)] normal-case font-normal">(muss im Foto erkennbar sein)</span>
+            </label>
+            <input
+              type="text"
+              value={kontrollCode}
+              onChange={(e) => { setKontrollCode(e.target.value.replace(/\D/g, "").slice(0, 8)); setVerifyStatus(null); setAiMatch(null); }}
+              maxLength={8}
+              placeholder="–"
+              className={`${inputCls} font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl`}
             />
           </div>
 
-          {error && <p className="text-xs text-warn">{error}</p>}
+          {/* Notiz */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">Notiz (optional)</label>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={`${inputCls} resize-none`} />
+          </div>
 
-          <button
-            type="submit"
-            disabled={loading || uploading}
-            className="flex items-center justify-center gap-2 text-sm font-medium text-[var(--btn-primary-text)] bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-hover)] rounded-xl px-4 py-3 disabled:opacity-50 transition"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <ClipboardCheck size={16} />}
-            {loading ? "Sende…" : "Prüfung erfassen"}
-          </button>
+          {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
+
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
+            <button type="button" onClick={() => router.push(`/admin/users/${userId}/aktionen`)}
+              className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
+              Abbrechen
+            </button>
+            <button type="submit" disabled={loading || uploading}
+              className="flex-1 bg-[var(--color-inspect)] text-white text-base font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <ClipboardCheck size={16} />}
+              {loading ? "Sende…" : "Prüfung erfassen"}
+            </button>
+          </div>
         </form>
       </div>
     </main>
