@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { toDatetimeLocal, toDateLocale, APP_TZ } from "@/lib/utils";
 import { AlertCircle, Lock } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 
@@ -91,7 +91,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
                   {sperrzeitUnbefristet
                     ? t("modalLockedIndefinite")
                     : sperrzeitEndetAt
-                      ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })
+                      ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })
                       : null}
                 </p>
               </div>
@@ -127,7 +127,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
               <p className="text-xs text-[var(--color-sperrzeit)] mt-0.5">
                 {sperrzeitUnbefristet
                   ? t("lockedWarningTextIndefinite")
-                  : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) })}
+                  : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
               </p>
             </div>
           </div>
