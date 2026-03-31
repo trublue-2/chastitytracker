@@ -1,5 +1,13 @@
 [
   {
+    "version": "2.2.3",
+    "date": "2026-03-31",
+    "changes": [
+      { "type": "fix", "text": "KI-Verifikation bei Siegel-Nummern (6–8 Stellen) wird nun vor dem Speichern korrekt angezeigt" },
+      { "type": "feat", "text": "Reinigungshinweis im Sperrzeit-Modal: bei Grund 'Reinigung' erscheint die erlaubte Reinigungszeit statt der generischen Warnung" }
+    ]
+  },
+  {
     "version": "2.2.1",
     "date": "2026-03-31",
     "changes": [
