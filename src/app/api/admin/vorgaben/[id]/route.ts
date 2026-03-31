@@ -12,6 +12,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
+  const existing = await prisma.trainingVorgabe.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const { gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz } = await req.json();
   const vorgabe = await prisma.trainingVorgabe.update({
     where: { id },
@@ -38,6 +41,9 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const toDelete = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+  if (!toDelete) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const deleted = await prisma.trainingVorgabe.delete({ where: { id }, select: { userId: true } });
   await reorderVorgabenDates(deleted.userId);
   return new NextResponse(null, { status: 204 });
