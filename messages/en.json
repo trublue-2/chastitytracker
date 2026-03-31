@@ -157,7 +157,9 @@
     "modalLockedUntil": "Locked until {date}",
     "modalLockedIndefinite": "Locked indefinitely",
     "modalStay": "Understood – stay locked",
-    "modalOpenAnyway": "Open anyway"
+    "modalOpenAnyway": "Open anyway",
+    "modalTitleReinigung": "You are not permitted to remove the device right now.",
+    "modalSubtextReinigung": "But you have {minutes} minutes for cleaning."
   },
   "inspectionForm": {
     "title": "Log inspection",

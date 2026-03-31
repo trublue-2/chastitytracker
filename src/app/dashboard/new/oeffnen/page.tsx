@@ -19,9 +19,12 @@ export default async function NewOeffnenPage() {
   }
 
   const now = new Date();
-  const activeSperrzeit = await prisma.verschlussAnforderung.findFirst({
-    where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
-  });
+  const [activeSperrzeit, user] = await Promise.all([
+    prisma.verschlussAnforderung.findFirst({
+      where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
+    }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+  ]);
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("openForm");
@@ -34,6 +37,8 @@ export default async function NewOeffnenPage() {
         <OeffnenForm
           sperrzeitEndetAt={activeSperrzeit?.endetAt?.toISOString() ?? null}
           sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
+          reinigungErlaubt={user?.reinigungErlaubt ?? false}
+          reinigungMaxMinuten={user?.reinigungMaxMinuten ?? 15}
         />
       </div>
     </div>

@@ -13,9 +13,11 @@ interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
   sperrzeitEndetAt?: string | null;
   sperrzeitUnbefristet?: boolean;
+  reinigungErlaubt?: boolean;
+  reinigungMaxMinuten?: number;
 }
 
-export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefristet = false }: Props) {
+export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15 }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
@@ -82,10 +84,14 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
               <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
               <div className="flex flex-col gap-1.5">
                 <p className="font-bold text-foreground text-base leading-snug">
-                  {t("modalTitle")}
+                  {grund === "REINIGUNG" && reinigungErlaubt
+                    ? t("modalTitleReinigung")
+                    : t("modalTitle")}
                 </p>
                 <p className="text-sm text-foreground-muted">
-                  {t("modalSubtext")}
+                  {grund === "REINIGUNG" && reinigungErlaubt
+                    ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
+                    : t("modalSubtext")}
                 </p>
                 <p className="text-xs text-[var(--color-sperrzeit)] font-semibold mt-1">
                   {sperrzeitUnbefristet
