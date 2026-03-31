@@ -1,5 +1,21 @@
 [
   {
+    "version": "2.2.1",
+    "date": "2026-03-31",
+    "changes": [
+      { "type": "feat", "text": "Strafbuch: Vergehen-Beschreibungen klarer — unerlaubte Öffnungen zeigen Sperrzeit-Kontext, Kontrollen zeigen Code und Einreichzeitpunkt" },
+      { "type": "feat", "text": "Strafbuch: Section-Header zeigt offene vs. Gesamtzahl; Toggle an Seitenende; sanft-grüner 'Wurde bestraft'-Button" }
+    ]
+  },
+  {
+    "version": "2.2.0",
+    "date": "2026-03-31",
+    "changes": [
+      { "type": "feat", "text": "Strafbuch pro User: unerlaubte Öffnungen, zu spät erfüllte und abgelehnte Kontrollen in eigenem Tab" },
+      { "type": "feat", "text": "Bestraft-Funktion: Verfehlungen können mit Datum und Notiz als 'bestraft' markiert werden; bestrafte Einträge werden ausgeblendet (Alle-anzeigen-Toggle)" }
+    ]
+  },
+  {
     "version": "2.1.0",
     "date": "2026-03-31",
     "changes": [

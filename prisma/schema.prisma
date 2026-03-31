@@ -23,6 +23,7 @@ model User {
   passwordResetTokens   PasswordResetToken[]
   kontrollAnforderungen   KontrollAnforderung[]
   verschlussAnforderungen VerschlussAnforderung[]
+  strafeRecords           StrafeRecord[]
 }
 
 model PasswordResetToken {
@@ -100,6 +101,19 @@ model AdminUserRelationship {
 model PortalTokenUsed {
   jti    String   @id
   usedAt DateTime @default(now())
+}
+
+model StrafeRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offenseType   String   // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY"
+  refId         String   @unique
+  bestraftDatum DateTime
+  notiz         String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Entry {
