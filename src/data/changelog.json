@@ -1,5 +1,13 @@
 [
   {
+    "version": "2.2.1",
+    "date": "2026-03-31",
+    "changes": [
+      { "type": "feat", "text": "Strafbuch: Vergehen-Beschreibungen klarer — unerlaubte Öffnungen zeigen Sperrzeit-Kontext, Kontrollen zeigen Code und Einreichzeitpunkt" },
+      { "type": "feat", "text": "Strafbuch: Section-Header zeigt offene vs. Gesamtzahl; Toggle an Seitenende; sanft-grüner 'Wurde bestraft'-Button" }
+    ]
+  },
+  {
     "version": "2.2.0",
     "date": "2026-03-31",
     "changes": [
