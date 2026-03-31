@@ -1,5 +1,13 @@
 [
   {
+    "version": "2.1.0",
+    "date": "2026-03-31",
+    "changes": [
+      { "type": "feat", "text": "Numbered Seal: Beim Verschluss kann eine Siegel-Nummer (5–8 Ziffern) hinterlegt werden – wird automatisch aus dem Foto erkannt (Claude Vision)" },
+      { "type": "feat", "text": "Numbered Seal: Kontrollanforderungen verwenden die Siegel-Nummer des aktiven Verschlusses als Kontroll-Code (statt Zufallscode)" }
+    ]
+  },
+  {
     "version": "2.0.8",
     "date": "2026-03-31",
     "changes": [

@@ -133,7 +133,12 @@
   },
   "lockForm": {
     "title": "Log lock",
-    "saveBtn": "Save lock"
+    "saveBtn": "Save lock",
+    "sealNumber": "Seal number (optional)",
+    "sealNumberHint": "5–8 digits",
+    "sealDetecting": "Detecting number…",
+    "sealDetected": "Detected: {code}",
+    "sealNotDetected": "Not detected"
   },
   "openForm": {
     "title": "Log opening",
