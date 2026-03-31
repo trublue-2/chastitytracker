@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { HelpCircle, Lock, LockOpen } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { toDateLocale, formatElapsedMs } from "@/lib/utils";
+import { toDateLocale, formatElapsedMs, APP_TZ } from "@/lib/utils";
 
 interface Props {
   type: "VERSCHLUSS" | "OEFFNEN" | null;
@@ -65,7 +65,7 @@ export default function StatusBanner({ type, since }: Props) {
           </div>
         </div>
         <p className="text-xs opacity-60 mt-1">
-          {t("since")} {sinceDate.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          {t("since")} {sinceDate.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
         </p>
       </div>
     </div>

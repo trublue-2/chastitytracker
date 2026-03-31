@@ -11,45 +11,6 @@ import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
 
-async function getUserStats(userId: string) {
-  const entries = await prisma.entry.findMany({
-    where: { userId },
-    orderBy: { startTime: "asc" },
-  });
-
-  const latest = [...entries]
-    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
-    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
-
-  const now = new Date();
-  const offeneKontrolle = await prisma.kontrollAnforderung.findFirst({
-    where: { userId, entryId: null, withdrawnAt: null },
-    orderBy: { createdAt: "desc" },
-  });
-  const offeneVerschlussAnforderung = await prisma.verschlussAnforderung.findFirst({
-    where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
-  });
-  const activeSperrzeit = await prisma.verschlussAnforderung.findFirst({
-    where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
-  });
-
-  return {
-    currentStatus: latest?.type ?? null,
-    since: latest?.startTime ?? null,
-    offeneKontrolle: offeneKontrolle
-      ? { deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
-      : null,
-    hasOffeneAnforderung: !!offeneVerschlussAnforderung,
-    hasActiveSperrzeit: !!activeSperrzeit,
-    offeneAnforderung: offeneVerschlussAnforderung
-      ? { id: offeneVerschlussAnforderung.id, nachricht: offeneVerschlussAnforderung.nachricht, endetAt: offeneVerschlussAnforderung.endetAt }
-      : null,
-    activeSperrzeit: activeSperrzeit
-      ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt }
-      : null,
-  };
-}
-
 export default async function AdminPage() {
   const session = await auth();
   const currentUserId = session?.user?.id;
@@ -66,11 +27,53 @@ export default async function AdminPage() {
   }
   const demoExists = users.some((u) => u.username === "DemoUser");
 
-  const usersWithStats = await Promise.all(
-    users.map(async (u) => ({ ...u, stats: await getUserStats(u.id) }))
-  );
-
+  const userIds = users.map(u => u.id);
   const now = new Date();
+
+  // Bulk-fetch all data in 4 queries instead of 4×N
+  const [allEntries, allKontrolle, allVerschlussAnf, allSperrzeiten] = await Promise.all([
+    prisma.entry.findMany({ where: { userId: { in: userIds } }, orderBy: { startTime: "asc" } }),
+    prisma.kontrollAnforderung.findMany({
+      where: { userId: { in: userIds }, entryId: null, withdrawnAt: null },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.verschlussAnforderung.findMany({
+      where: { userId: { in: userIds }, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+    }),
+    prisma.verschlussAnforderung.findMany({
+      where: { userId: { in: userIds }, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
+    }),
+  ]);
+
+  function getUserStats(userId: string) {
+    const entries = allEntries.filter(e => e.userId === userId);
+    const latest = [...entries]
+      .filter(e => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
+      .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
+
+    const offeneKontrolle = allKontrolle.find(k => k.userId === userId) ?? null;
+    const offeneVerschlussAnforderung = allVerschlussAnf.find(v => v.userId === userId) ?? null;
+    const activeSperrzeit = allSperrzeiten.find(s => s.userId === userId) ?? null;
+
+    return {
+      currentStatus: latest?.type ?? null,
+      since: latest?.startTime ?? null,
+      offeneKontrolle: offeneKontrolle
+        ? { deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
+        : null,
+      hasOffeneAnforderung: !!offeneVerschlussAnforderung,
+      hasActiveSperrzeit: !!activeSperrzeit,
+      offeneAnforderung: offeneVerschlussAnforderung
+        ? { id: offeneVerschlussAnforderung.id, nachricht: offeneVerschlussAnforderung.nachricht, endetAt: offeneVerschlussAnforderung.endetAt }
+        : null,
+      activeSperrzeit: activeSperrzeit
+        ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt }
+        : null,
+    };
+  }
+
+  const usersWithStats = users.map(u => ({ ...u, stats: getUserStats(u.id) }));
+
   const lockedCount = usersWithStats.filter(u => u.stats.currentStatus === "VERSCHLUSS").length;
   const alarmCount = usersWithStats.filter(u => u.stats.offeneKontrolle || u.stats.hasOffeneAnforderung).length;
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { X, Lock, LockOpen, Timer, ImageOff } from "lucide-react";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 
 const GRUND_LABELS: Record<string, string> = {
@@ -207,8 +207,8 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
   function splitDT(iso: string) {
     const d = new Date(iso);
     return {
-      date: d.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric" }),
-      time: d.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit" }),
+      date: d.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ }),
+      time: d.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }),
     };
   }
 

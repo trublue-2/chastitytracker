@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
@@ -73,19 +73,20 @@ function wearingHoursInRange(pairs: WearPair[], rangeStart: Date, rangeEnd: Date
 function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>): Map<string, { hours: number; hasOrgasm: boolean }> {
   const map = new Map<string, { hours: number; hasOrgasm: boolean }>();
   for (const pair of wearPairs) {
-    let d = new Date(pair.start.getFullYear(), pair.start.getMonth(), pair.start.getDate());
-    const endDay = new Date(pair.end.getFullYear(), pair.end.getMonth(), pair.end.getDate());
-    while (d <= endDay) {
-      const dayBegin = new Date(d);
-      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-      const overlap = Math.min(pair.end.getTime(), dayEnd.getTime()) - Math.max(pair.start.getTime(), dayBegin.getTime());
+    // Start from midnight of pair.start in APP_TZ; advance by 24h steps
+    let d = midnightInTZ(pair.start);
+    while (d.getTime() < pair.end.getTime()) {
+      const nextD = new Date(d.getTime() + 86_400_000);
+      const overlap = Math.min(pair.end.getTime(), nextD.getTime()) - Math.max(pair.start.getTime(), d.getTime());
       if (overlap > 0) {
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        // Use midpoint of the 24h slice to reliably get the correct APP_TZ date
+        const { year, month, day } = tzDateParts(new Date(d.getTime() + 43_200_000));
+        const key = `${year}-${month}-${day}`;
         const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
-        existing.hours += overlap / 3600000;
+        existing.hours += overlap / 3_600_000;
         map.set(key, existing);
       }
-      d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      d = nextD;
     }
   }
   for (const key of orgasmDates) {
@@ -97,12 +98,19 @@ function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>): Map<st
 }
 
 
+function tzYearMonth(d: Date): string {
+  const parts = new Intl.DateTimeFormat("de-CH", { year: "numeric", month: "2-digit", timeZone: APP_TZ }).formatToParts(d);
+  const y = parts.find(p => p.type === "year")!.value;
+  const m = parts.find(p => p.type === "month")!.value;
+  return `${y}-${m}`;
+}
+
 function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben: Vorgabe[], dl = "de-CH"): MonthStat[] {
   const map = new Map<string, Omit<MonthStat, "wearHours" | "targetH">>();
   for (const p of pairs) {
     const d = p.verschluss.startTime;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleString(dl, { month: "long", year: "numeric" });
+    const key = tzYearMonth(d);
+    const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
     const existing = map.get(key) ?? { key, label, count: 0, totalMs: 0, longestMs: 0 };
     existing.count++;
     existing.totalMs += p.durationMs;
@@ -111,9 +119,9 @@ function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben
   }
   for (const wp of wearPairs) {
     for (const d of [wp.start, wp.end]) {
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const key = tzYearMonth(d);
       if (!map.has(key)) {
-        const label = d.toLocaleString(dl, { month: "long", year: "numeric" });
+        const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
         map.set(key, { key, label, count: 0, totalMs: 0, longestMs: 0 });
       }
     }
@@ -122,8 +130,8 @@ function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben
     .sort((a, b) => b[0].localeCompare(a[0]))
     .map(([, v]) => {
       const [y, m] = v.key.split("-").map(Number);
-      const monthStart = new Date(y, m - 1, 1);
-      const monthEnd = new Date(y, m, 1);
+      const monthStart = midnightInTZ(new Date(Date.UTC(y, m - 1, 1, 12)));
+      const monthEnd = midnightInTZ(new Date(Date.UTC(y, m, 1, 12)));
       const wearHours = wearingHoursInRange(wearPairs, monthStart, monthEnd);
       const applicableVorgabe = vorgaben.find(
         (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
@@ -219,10 +227,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
   const wearPairs = buildWearPairs(entries, now);
   const monthStats = buildMonthStats(completed, wearPairs, vorgaben, dl);
 
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekStart = new Date(todayStart);
-  weekStart.setDate(todayStart.getDate() - ((todayStart.getDay() + 6) % 7));
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const todayStart = getMidnightToday(now);
+  const weekStart = getWeekStart(now);
+  const monthStart = getMonthStart(now);
 
   const hoursToday = wearingHoursInRange(wearPairs, todayStart, now);
   const hoursWeek = wearingHoursInRange(wearPairs, weekStart, now);
@@ -230,23 +237,27 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
   const orgasmDateSet = new Set<string>(
     entries.filter((e) => e.type === "ORGASMUS")
-      .map((e) => `${e.startTime.getFullYear()}-${e.startTime.getMonth()}-${e.startTime.getDate()}`)
+      .map((e) => { const { year, month, day } = tzDateParts(e.startTime); return `${year}-${month}-${day}`; })
   );
   const dailyData = buildDailyData(wearPairs, orgasmDateSet);
 
   // Build serializable calendar data for CalendarContainer
+  const { year: nowYear, month: nowMonth } = tzDateParts(now);
+  const jsWeekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
   const calMonthsData: CalendarMonthData[] = [];
   for (let i = 0; i <= 3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const startOffset = (firstDay.getDay() + 6) % 7;
-    const label = firstDay.toLocaleString(dl, { month: "long", year: "numeric" });
+    // Compute calendar year/month in APP_TZ by stepping back i months
+    const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)));
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const firstDayNoon = new Date(Date.UTC(year, month, 1, 12));
+    const firstDayWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
+      .formatToParts(firstDayNoon).find(p => p.type === "weekday")!.value;
+    const startOffset = (jsWeekdayMap[firstDayWd] + 6) % 7;
+    const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
 
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 1);
+    const monthStart = midnightInTZ(firstDayNoon);
+    const monthEnd = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)));
     const vorgabe = vorgaben.find(
       (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
     ) ?? null;
@@ -269,10 +280,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
       const firstDayOfRow = weekCells.find((x) => x != null);
       let weekH = 0;
       if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
-        const anchor = new Date(year, month, firstDayOfRow);
-        const dow = (anchor.getDay() + 6) % 7;
-        const wkStart = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - dow);
-        const wkEnd = new Date(wkStart.getFullYear(), wkStart.getMonth(), wkStart.getDate() + 7);
+        const anchorNoon = new Date(Date.UTC(year, month, firstDayOfRow, 12));
+        const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
+          .formatToParts(anchorNoon).find(p => p.type === "weekday")!.value;
+        const dow = (jsWeekdayMap[anchorWd] + 6) % 7;
+        const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)));
+        const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
         weekH = wearingHoursInRange(wearPairs, wkStart, wkEnd);
       }
       weekGoalMet.push(vorgabe?.minProWocheH != null && firstDayOfRow != null ? weekH >= vorgabe.minProWocheH : null);
@@ -290,7 +303,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
           : pct < 0.65 ? "bg-blue-400 text-white"
           : "bg-blue-600 text-white";
         const dayEntries: DayEntry[] = entries
-          .filter((e) => e.startTime.getFullYear() === year && e.startTime.getMonth() === month && e.startTime.getDate() === day)
+          .filter((e) => { const p = tzDateParts(e.startTime); return p.year === year && p.month === month && p.day === day; })
           .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
           .map((e) => ({
             type: e.type,
@@ -302,7 +315,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
           minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
           minProMonatH: vorgabe.minProMonatH, notiz: vorgabe.notiz,
         } : null;
-        const dateLabel = new Date(year, month, day).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: APP_TZ });
+        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: APP_TZ });
         return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
       }));
     }
