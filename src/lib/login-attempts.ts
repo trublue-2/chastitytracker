@@ -2,6 +2,14 @@
 
 const loginAttempts = new Map<string, { failures: number; blockedUntil: Date | null }>();
 
+// Evict expired entries every 30 min to prevent unbounded memory growth
+setInterval(() => {
+  const now = new Date();
+  for (const [key, entry] of loginAttempts) {
+    if (!entry.blockedUntil || entry.blockedUntil <= now) loginAttempts.delete(key);
+  }
+}, 30 * 60 * 1000);
+
 export function checkRateLimit(username: string): boolean {
   const entry = loginAttempts.get(username);
   if (!entry) return true;

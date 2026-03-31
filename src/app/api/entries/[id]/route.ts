@@ -20,22 +20,49 @@ export async function PATCH(
   const body = await req.json();
   const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus } = body;
 
-  const entry = await prisma.entry.update({
-    where: { id },
-    data: {
-      ...(startTime && { startTime: new Date(startTime) }),
-      ...(imageUrl !== undefined && { imageUrl }),
-      ...(imageExifTime !== undefined && {
-        imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
-      }),
-      ...(note !== undefined && { note }),
-      ...(oeffnenGrund !== undefined && { oeffnenGrund }),
-      ...(orgasmusArt !== undefined && { orgasmusArt }),
-      ...(kontrollCode !== undefined && { kontrollCode }),
-      // verifikationStatus only settable by admins
-      ...(verifikationStatus !== undefined && session.user.role === "admin" && { verifikationStatus }),
-    },
-  });
+  let entry;
+  try {
+    entry = await prisma.$transaction(async (tx) => {
+      // Re-validate temporal ordering when startTime is changed on a VERSCHLUSS/OEFFNEN entry
+      if (startTime && (existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN")) {
+        const newTime = new Date(startTime);
+        if (newTime > new Date()) throw Object.assign(new Error(), { _code: "FUTURE" });
+        const allVO = await tx.entry.findMany({
+          where: { userId: existing.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, id: { not: id } },
+          orderBy: { startTime: "asc" },
+          select: { type: true, startTime: true },
+        });
+        const insertIdx = allVO.findIndex(e => e.startTime > newTime);
+        const prev = insertIdx === -1 ? allVO[allVO.length - 1] : allVO[insertIdx - 1];
+        const next = insertIdx === -1 ? null : allVO[insertIdx];
+        if ((prev && prev.type === existing.type) || (next && next.type === existing.type)) {
+          throw Object.assign(new Error(), { _code: "INVALID_ORDER" });
+        }
+      }
+
+      return tx.entry.update({
+        where: { id },
+        data: {
+          ...(startTime && { startTime: new Date(startTime) }),
+          ...(imageUrl !== undefined && { imageUrl }),
+          ...(imageExifTime !== undefined && {
+            imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
+          }),
+          ...(note !== undefined && { note }),
+          ...(oeffnenGrund !== undefined && { oeffnenGrund }),
+          ...(orgasmusArt !== undefined && { orgasmusArt }),
+          ...(kontrollCode !== undefined && { kontrollCode }),
+          // verifikationStatus only settable by admins
+          ...(verifikationStatus !== undefined && session.user.role === "admin" && { verifikationStatus }),
+        },
+      });
+    });
+  } catch (e: unknown) {
+    const code = (e as { _code?: string })?._code;
+    if (code === "FUTURE") return NextResponse.json({ error: "Zeitpunkt darf nicht in der Zukunft liegen" }, { status: 400 });
+    if (code === "INVALID_ORDER") return NextResponse.json({ error: "Zeitpunkt verletzt die chronologische Reihenfolge" }, { status: 400 });
+    throw e;
+  }
 
   return NextResponse.json(entry);
 }
@@ -55,15 +82,16 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Wenn eine Kontrolle gelöscht wird, KontrollAnforderung-Verknüpfung lösen (inkl. fulfilledAt)
-  if (existing.type === "PRUEFUNG") {
-    await prisma.kontrollAnforderung.updateMany({
-      where: { entryId: id },
-      data: { entryId: null, fulfilledAt: null },
-    });
-  }
-
-  await prisma.entry.delete({ where: { id } });
+  // Atomares Unlink + Delete in einer Transaktion
+  await prisma.$transaction(async (tx) => {
+    if (existing.type === "PRUEFUNG") {
+      await tx.kontrollAnforderung.updateMany({
+        where: { entryId: id },
+        data: { entryId: null, fulfilledAt: null },
+      });
+    }
+    await tx.entry.delete({ where: { id } });
+  });
 
   return new NextResponse(null, { status: 204 });
 }

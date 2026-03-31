@@ -17,15 +17,21 @@ function fuzzyMatch(a: string, b: string): boolean {
   return a.split("").every((ch, i) => ch === b[i] || similar[ch] === b[i]);
 }
 
+export type VerifyDetailedResult = {
+  detected: string | null;
+  match: boolean;
+  reason: string | null;
+  error?: "policy" | true;
+};
+
 /**
- * Runs the Claude Vision check for a handwritten Kontrolle code.
- * Returns "ai" if the code matches, null otherwise (or on any error).
- * Reads the image from the local uploads directory.
+ * Runs the Claude Vision check and returns the full result (detected code, match, reason).
+ * Returns null on read/API errors.
  */
-export async function verifyKontrolleCode(
+export async function verifyKontrolleCodeDetailed(
   imageUrl: string,
   expectedCode: string
-): Promise<"ai" | null> {
+): Promise<VerifyDetailedResult | null> {
   try {
     const filename = basename(imageUrl);
     if (!filename || filename.includes("..") || filename.includes("/")) return null;
@@ -56,17 +62,28 @@ export async function verifyKontrolleCode(
     const text = response.content[0].type === "text" ? response.content[0].text : "";
     const policyKeywords = ["I'm unable", "I cannot", "I can't", "inappropriate", "violates", "policy", "explicit", "sorry, I"];
     if (!text.includes("{") && policyKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()))) {
-      return null;
+      return { detected: null, match: false, reason: null, error: "policy" };
     }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    if (!jsonMatch) return { detected: null, match: false, reason: null };
 
     const result = JSON.parse(jsonMatch[0]);
     const detected: string | null = result.detected ?? null;
     const isMatch = result.match === true || (detected !== null && fuzzyMatch(detected, expectedCode));
-    return isMatch ? "ai" : null;
+    return { detected, match: isMatch, reason: isMatch ? null : (result.reason ?? null) };
   } catch {
     return null;
   }
+}
+
+/**
+ * Convenience wrapper: returns "ai" if match, null otherwise.
+ */
+export async function verifyKontrolleCode(
+  imageUrl: string,
+  expectedCode: string
+): Promise<"ai" | null> {
+  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode);
+  return result?.match ? "ai" : null;
 }

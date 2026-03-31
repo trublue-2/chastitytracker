@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
@@ -12,7 +12,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null };
+type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null; oeffnenGrund?: string | null };
 type WearPair = { start: Date; end: Date };
 type CompletedPair = { verschluss: Entry; oeffnen: Entry; durationMs: number };
 type Vorgabe = {
@@ -26,21 +26,6 @@ type Vorgabe = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function buildCompletedPairs(entries: Entry[]): CompletedPair[] {
-  const asc = [...entries].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-  const pairs: CompletedPair[] = [];
-  let pending: Entry | null = null;
-  for (const e of asc) {
-    if (e.type === "VERSCHLUSS") {
-      if (pending) pairs.push({ verschluss: pending, oeffnen: { ...pending, type: "SYNTHETIC" }, durationMs: 0 });
-      pending = e;
-    } else if (e.type === "OEFFNEN" && pending) {
-      pairs.push({ verschluss: pending, oeffnen: e, durationMs: e.startTime.getTime() - pending.startTime.getTime() });
-      pending = null;
-    }
-  }
-  return pairs;
-}
 
 function buildWearPairs(entries: Entry[], now: Date): WearPair[] {
   const asc = [...entries]
@@ -160,12 +145,18 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
-  const [entries, vorgaben, kontrollen, sperrzeiten] = await Promise.all([
+  const [entries, vorgaben, kontrollen, sperrzeiten, userSettings] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "asc" } }),
     prisma.trainingVorgabe.findMany({ where: { userId }, orderBy: { gueltigAb: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
   ]);
+
+  const reinigung: ReinigungSettings = {
+    erlaubt: userSettings?.reinigungErlaubt ?? false,
+    maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
+  };
 
   const linkedEntryIds = new Set(kontrollen.map(k => k.entryId).filter(Boolean));
   const allPruefungen = entries.filter(e => e.type === "PRUEFUNG");
@@ -193,7 +184,13 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
     })),
   ].sort((a, b) => b.time.getTime() - a.time.getTime());
 
-  const allPairs = buildCompletedPairs(entries);
+  const allPairs = buildPairs(entries, [], reinigung)
+    .filter(p => p.oeffnen !== null)
+    .map(p => ({
+      verschluss: p.verschluss,
+      oeffnen: p.oeffnen!,
+      durationMs: p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime() - interruptionPauseMs(p.interruptions),
+    }));
   const completed = allPairs.filter((p) => p.durationMs > 0);
   const totalMs = completed.reduce((s, p) => s + p.durationMs, 0);
 
