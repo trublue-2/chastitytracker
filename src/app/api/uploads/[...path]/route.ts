@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { readFile } from "fs/promises";
-import { join, extname } from "path";
+import { join, extname, resolve, sep } from "path";
 
 const MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -22,13 +23,22 @@ export async function GET(
   const { path } = await params;
   const filename = path.join("/");
 
-  // Prevent path traversal
-  if (filename.includes("..")) {
+  // Prevent path traversal via resolve + prefix check
+  const uploadsDir = resolve(join(process.cwd(), "data", "uploads"));
+  const filepath = resolve(join(uploadsDir, filename));
+  if (!filepath.startsWith(uploadsDir + sep)) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  const uploadsDir = join(process.cwd(), "data", "uploads");
-  const filepath = join(uploadsDir, filename);
+  // Ownership: only the entry owner or an admin may access the file
+  const imageUrlInDb = `/api/uploads/${filename}`;
+  const ownedEntry = await prisma.entry.findFirst({
+    where: { imageUrl: imageUrlInDb, userId: session.user.id },
+    select: { id: true },
+  });
+  if (!ownedEntry && session.user.role !== "admin") {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
 
   try {
     const buffer = await readFile(filepath);
