@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { X, Lock, LockOpen, Timer, ImageOff } from "lucide-react";
+import { useState } from "react";
+import { Lock, LockOpen, Timer, ImageOff } from "lucide-react";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
+import { FullscreenImageModal } from "@/app/components/ImageViewer";
 
 const GRUND_LABELS: Record<string, string> = {
   REINIGUNG: "Reinigung",
@@ -31,167 +32,47 @@ interface Props {
   photoStatus: "no-photo" | "exif-mismatch" | "ok";
 }
 
-function PinchZoomImage({ src, alt, onError }: { src: string; alt: string; onError: () => void }) {
-  const [tf, setTf] = useState({ scale: 1, x: 0, y: 0 });
-  const tfRef = useRef(tf);
-  tfRef.current = tf;
-  const lastDistRef = useRef<number | null>(null);
-  const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
-
-  function pinchDist(t: React.TouchList) {
-    return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-  }
-
-  function handleTouchStart(e: React.TouchEvent) {
-    e.stopPropagation();
-    if (e.touches.length === 2) {
-      lastDistRef.current = pinchDist(e.touches);
-      lastTouchRef.current = null;
-    } else {
-      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    e.stopPropagation();
-    if (e.touches.length === 2 && lastDistRef.current !== null) {
-      const d = pinchDist(e.touches);
-      const ratio = d / lastDistRef.current;
-      lastDistRef.current = d;
-      setTf(prev => {
-        const scale = Math.min(Math.max(prev.scale * ratio, 1), 5);
-        return { scale, x: scale === 1 ? 0 : prev.x, y: scale === 1 ? 0 : prev.y };
-      });
-    } else if (e.touches.length === 1 && lastTouchRef.current && tfRef.current.scale > 1) {
-      const dx = e.touches[0].clientX - lastTouchRef.current.x;
-      const dy = e.touches[0].clientY - lastTouchRef.current.y;
-      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      setTf(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
-    } else {
-      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-  }
-
-  function handleTouchEnd(e: React.TouchEvent) {
-    e.stopPropagation();
-    lastDistRef.current = null;
-    lastTouchRef.current = null;
-  }
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      className="max-w-full max-h-full object-contain rounded-lg select-none"
-      style={{
-        transform: `scale(${tf.scale}) translate(${tf.x / tf.scale}px, ${tf.y / tf.scale}px)`,
-        touchAction: "none",
-        willChange: "transform",
-        cursor: tf.scale > 1 ? "grab" : "default",
-      }}
-      draggable={false}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onClick={(e) => e.stopPropagation()}
-      onError={onError}
-    />
-  );
-}
-
-function DetailModal({
-  entry,
-  type,
-  onClose,
-}: {
-  entry: PairEntry;
-  type: "VERSCHLUSS" | "OEFFNEN";
-  onClose: () => void;
-}) {
+function EntryPanel({ entry, type }: { entry: PairEntry; type: "VERSCHLUSS" | "OEFFNEN" }) {
   const tc = useTranslations("common");
-  const td = useTranslations("dashboard");
   const ti = useTranslations("inspectionForm");
   const dl = toDateLocale(useLocale());
-  const [imgError, setImgError] = useState(false);
-  const hasImage = !!entry.imageUrl && !imgError;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex flex-col"
-      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
-      onClick={onClose}
-    >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 flex-shrink-0"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <span className="text-background/70 text-sm font-medium flex items-center gap-1.5">
-          {type === "VERSCHLUSS"
-            ? <><Lock size={14} /> {td("lock")}</>
-            : <><LockOpen size={14} /> {td("opening")}</>}
-        </span>
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 text-background/80 active:text-background transition p-2 -m-2"
-        >
-          <X size={22} />
-          <span className="text-sm font-medium">{tc("close")}</span>
-        </button>
+    <div className="flex flex-col gap-3">
+      <div>
+        <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
+        <p className="text-sm font-semibold text-foreground">{formatDateTime(new Date(entry.startTime), dl)}</p>
       </div>
 
-      {/* Image */}
-      {hasImage && (
-        <div
-          className="flex-1 min-h-0 flex items-center justify-center px-4 pb-4 overflow-hidden"
-          onClick={onClose}
-        >
-          <PinchZoomImage src={entry.imageUrl!} alt={tc("photo")} onError={() => setImgError(true)} />
+      {entry.imageExifTime && (
+        <div>
+          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
+          <p className="text-sm text-foreground-muted">{formatDateTime(new Date(entry.imageExifTime), dl)}</p>
         </div>
       )}
-      {!hasImage && <div className="flex-1" />}
 
-      {/* Details panel */}
-      <div
-        className="flex-shrink-0 bg-surface rounded-t-2xl px-5 py-5 flex flex-col gap-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+      {entry.oeffnenGrund && (
         <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
-          <p className="text-sm font-semibold text-foreground">{formatDateTime(new Date(entry.startTime), dl)}</p>
+          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Grund</p>
+          <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
+            {GRUND_LABELS[entry.oeffnenGrund] ?? entry.oeffnenGrund}
+          </span>
         </div>
+      )}
 
-        {entry.imageExifTime && (
-          <div>
-            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
-            <p className="text-sm text-foreground-muted">{formatDateTime(new Date(entry.imageExifTime), dl)}</p>
-          </div>
-        )}
+      {entry.note && (
+        <div>
+          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
+          <p className="text-sm text-foreground-muted italic">„{entry.note}"</p>
+        </div>
+      )}
 
-        {entry.oeffnenGrund && (
-          <div>
-            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Grund</p>
-            <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
-              {GRUND_LABELS[entry.oeffnenGrund] ?? entry.oeffnenGrund}
-            </span>
-          </div>
-        )}
-
-        {entry.note && (
-          <div>
-            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
-            <p className="text-sm text-foreground-muted italic">„{entry.note}"</p>
-          </div>
-        )}
-
-        {entry.kontrollCode && (
-          <div>
-            <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{ti("controlCode")}</p>
-            <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">{entry.kontrollCode}</p>
-          </div>
-        )}
-      </div>
+      {entry.kontrollCode && (
+        <div>
+          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{ti("controlCode")}</p>
+          <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">{entry.kontrollCode}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -308,10 +189,22 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
       </div>
 
       {showVerschluss && (
-        <DetailModal entry={verschluss} type="VERSCHLUSS" onClose={() => setShowVerschluss(false)} />
+        <FullscreenImageModal
+          src={verschluss.imageUrl ?? ""}
+          alt={tc("photo")}
+          onClose={() => setShowVerschluss(false)}
+          title={<span className="flex items-center gap-1.5"><Lock size={14} />{td("lock")}</span>}
+          panel={<EntryPanel entry={verschluss} type="VERSCHLUSS" />}
+        />
       )}
       {showOeffnen && oeffnen && (
-        <DetailModal entry={oeffnen} type="OEFFNEN" onClose={() => setShowOeffnen(false)} />
+        <FullscreenImageModal
+          src={oeffnen.imageUrl ?? ""}
+          alt={tc("photo")}
+          onClose={() => setShowOeffnen(false)}
+          title={<span className="flex items-center gap-1.5"><LockOpen size={14} />{td("opening")}</span>}
+          panel={<EntryPanel entry={oeffnen} type="OEFFNEN" />}
+        />
       )}
     </>
   );

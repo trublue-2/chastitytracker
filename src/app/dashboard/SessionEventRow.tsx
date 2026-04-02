@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle } from "lucide-react";
+import { Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { FullscreenImageModal } from "@/app/components/ImageViewer";
 
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -26,47 +27,6 @@ export interface SessionEventData {
   timeCorrectedSystemStr?: string | null;
 }
 
-function PinchZoomImage({ src, onError }: { src: string; onError: () => void }) {
-  const [tf, setTf] = useState({ scale: 1, x: 0, y: 0 });
-  const tfRef = useRef(tf);
-  tfRef.current = tf;
-  const lastDistRef = useRef<number | null>(null);
-  const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
-
-  function pinchDist(t: React.TouchList) {
-    return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-  }
-  function handleTouchStart(e: React.TouchEvent) {
-    e.stopPropagation();
-    if (e.touches.length === 2) { lastDistRef.current = pinchDist(e.touches); lastTouchRef.current = null; }
-    else { lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
-  }
-  function handleTouchMove(e: React.TouchEvent) {
-    e.stopPropagation();
-    if (e.touches.length === 2 && lastDistRef.current !== null) {
-      const d = pinchDist(e.touches);
-      const ratio = d / lastDistRef.current;
-      lastDistRef.current = d;
-      setTf(prev => { const scale = Math.min(Math.max(prev.scale * ratio, 1), 5); return { scale, x: scale === 1 ? 0 : prev.x, y: scale === 1 ? 0 : prev.y }; });
-    } else if (e.touches.length === 1 && lastTouchRef.current && tfRef.current.scale > 1) {
-      const dx = e.touches[0].clientX - lastTouchRef.current.x;
-      const dy = e.touches[0].clientY - lastTouchRef.current.y;
-      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      setTf(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
-    } else { lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
-  }
-  function handleTouchEnd(e: React.TouchEvent) {
-    e.stopPropagation(); lastDistRef.current = null; lastTouchRef.current = null;
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" className="max-w-full max-h-full object-contain rounded-lg select-none"
-      style={{ transform: `scale(${tf.scale}) translate(${tf.x / tf.scale}px, ${tf.y / tf.scale}px)`, touchAction: "none", willChange: "transform", cursor: tf.scale > 1 ? "grab" : "default" }}
-      draggable={false} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-      onClick={(e) => e.stopPropagation()} onError={onError}
-    />
-  );
-}
 
 function CaptureButton({ href }: { href: string }) {
   const t = useTranslations("dashboard");
@@ -124,7 +84,6 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
-  const hasImage = !!ev.imageUrl && !imgError;
 
   // Reinigung → compact inline row (no modal)
   if (ev.type === "reinigung") {
@@ -253,78 +212,58 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
         </div>
       </div>
 
-      {/* Detail Modal */}
       {open && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 flex flex-col"
-          style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
-          onClick={() => setOpen(false)}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <span className="text-background/70 text-sm font-medium flex items-center gap-1.5">
-              {typePill}
-            </span>
-            <button onClick={() => setOpen(false)} className="flex items-center gap-1.5 text-background/80 active:text-background transition p-2 -m-2">
-              <X size={22} />
-              <span className="text-sm font-medium">{tc("close")}</span>
-            </button>
-          </div>
-
-          {/* Image */}
-          {hasImage ? (
-            <div className="flex-1 min-h-0 flex items-center justify-center px-4 pb-4 overflow-hidden" onClick={() => setOpen(false)}>
-              <PinchZoomImage src={ev.imageUrl!} onError={() => setImgError(true)} />
+        <FullscreenImageModal
+          src={ev.imageUrl ?? ""}
+          alt=""
+          onClose={() => setOpen(false)}
+          title={typePill}
+          panel={
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
+                <p className="text-sm font-semibold text-foreground">{ev.dateStr}, {ev.timeStr}</p>
+              </div>
+              {ev.exifStr && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
+                  <p className="text-sm text-[var(--color-warn)]">{ev.exifStr}</p>
+                </div>
+              )}
+              {ev.orgasmusArt && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Art</p>
+                  <p className="text-sm text-foreground-muted">{ev.orgasmusArt}</p>
+                </div>
+              )}
+              {ev.deadlineStr && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Frist</p>
+                  <p className="text-sm text-foreground-muted">{ev.deadlineStr}</p>
+                </div>
+              )}
+              {ev.timeCorrectedSystemStr && (
+                <div>
+                  <p className="text-xs text-[var(--color-warn)] uppercase tracking-wider font-semibold mb-0.5">Zeit korrigiert</p>
+                  <p className="text-sm text-[var(--color-warn)]">Angegeben: {ev.dateStr}, {ev.timeStr}</p>
+                  <p className="text-sm text-[var(--color-warn)]">System: {ev.timeCorrectedSystemStr}</p>
+                </div>
+              )}
+              {ev.kontrolleKommentar && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Anweisung</p>
+                  <p className="text-sm text-[var(--color-warn)]">{ev.kontrolleKommentar}</p>
+                </div>
+              )}
+              {ev.note && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
+                  <p className="text-sm text-foreground-muted italic">„{ev.note}"</p>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="flex-1" />
-          )}
-
-          {/* Details panel */}
-          <div className="flex-shrink-0 bg-surface rounded-t-2xl px-5 py-5 flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-            <div>
-              <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
-              <p className="text-sm font-semibold text-foreground">{ev.dateStr}, {ev.timeStr}</p>
-            </div>
-            {ev.exifStr && (
-              <div>
-                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
-                <p className="text-sm text-[var(--color-warn)]">{ev.exifStr}</p>
-              </div>
-            )}
-            {ev.orgasmusArt && (
-              <div>
-                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Art</p>
-                <p className="text-sm text-foreground-muted">{ev.orgasmusArt}</p>
-              </div>
-            )}
-            {ev.deadlineStr && (
-              <div>
-                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Frist</p>
-                <p className="text-sm text-foreground-muted">{ev.deadlineStr}</p>
-              </div>
-            )}
-            {ev.timeCorrectedSystemStr && (
-              <div>
-                <p className="text-xs text-[var(--color-warn)] uppercase tracking-wider font-semibold mb-0.5">Zeit korrigiert</p>
-                <p className="text-sm text-[var(--color-warn)]">Angegeben: {ev.dateStr}, {ev.timeStr}</p>
-                <p className="text-sm text-[var(--color-warn)]">System: {ev.timeCorrectedSystemStr}</p>
-              </div>
-            )}
-            {ev.kontrolleKommentar && (
-              <div>
-                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Anweisung</p>
-                <p className="text-sm text-[var(--color-warn)]">{ev.kontrolleKommentar}</p>
-              </div>
-            )}
-            {ev.note && (
-              <div>
-                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
-                <p className="text-sm text-foreground-muted italic">„{ev.note}"</p>
-              </div>
-            )}
-          </div>
-        </div>
+          }
+        />
       )}
     </>
   );
