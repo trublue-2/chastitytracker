@@ -75,21 +75,47 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
             </div>
           )}
 
-          {/* Verschluss/Sperrzeit */}
-          {canVerschlussAnforderung ? (
+          {/* Verschluss anfordern */}
+          {!isLocked && hasEmail && !hasOffeneAnforderung ? (
+            <Link
+              href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
+              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-request-bg)" }}>
+                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-request)" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">Verschluss anfordern</p>
+                <p className="text-xs text-foreground-faint">Anforderung per E-Mail</p>
+              </div>
+              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
+            </Link>
+          ) : (
+            <div className="flex items-center gap-4 px-5 py-4 opacity-40 cursor-not-allowed">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
+                <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground-muted">Verschluss anfordern</p>
+                <p className="text-xs text-foreground-faint">
+                  {isLocked ? "Bereits verschlossen" : hasOffeneAnforderung ? "Offene Anforderung vorhanden" : "Keine E-Mail hinterlegt"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Sperrdauer setzen */}
+          {isLocked && !hasActiveSperrzeit ? (
             <Link
               href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
               className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
             >
-              <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: art === "SPERRZEIT" ? "var(--color-sperrzeit-bg)" : "var(--color-request-bg)" }}
-              >
-                <Lock size={20} strokeWidth={2} style={{ color: art === "SPERRZEIT" ? "var(--color-sperrzeit)" : "var(--color-request)" }} />
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-sperrzeit-bg)" }}>
+                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{art === "SPERRZEIT" ? "Sperrdauer setzen" : "Verschluss anfordern"}</p>
-                <p className="text-xs text-foreground-faint">{art === "SPERRZEIT" ? "Sperrzeit festlegen" : "Anforderung per E-Mail"}</p>
+                <p className="text-sm font-semibold text-foreground">Sperrdauer setzen</p>
+                <p className="text-xs text-foreground-faint">Sperrzeit festlegen</p>
               </div>
               <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
             </Link>
@@ -99,11 +125,9 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground-muted">{art === "SPERRZEIT" ? "Sperrdauer setzen" : "Verschluss anfordern"}</p>
+                <p className="text-sm font-semibold text-foreground-muted">Sperrdauer setzen</p>
                 <p className="text-xs text-foreground-faint">
-                  {isLocked && hasActiveSperrzeit ? "Sperrdauer bereits aktiv" :
-                   !isLocked && hasOffeneAnforderung ? "Offene Anforderung vorhanden" :
-                   !hasEmail ? "Keine E-Mail hinterlegt" : ""}
+                  {hasActiveSperrzeit ? "Sperrdauer bereits aktiv" : "Nur möglich wenn verschlossen"}
                 </p>
               </div>
             </div>

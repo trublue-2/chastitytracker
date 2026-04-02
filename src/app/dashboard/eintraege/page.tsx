@@ -1,10 +1,10 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Lock, LockOpen, ClipboardList, Droplets, MoreVertical } from "lucide-react";
-import Link from "next/link";
+import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
 import { getLocale } from "next-intl/server";
 import { formatDateTime } from "@/lib/utils";
+import EntryActions from "../EntryActions";
 
 const TYPE_LABELS: Record<string, string> = {
   VERSCHLUSS: "Verschluss",
@@ -69,12 +69,9 @@ export default async function EintraegePage() {
                 {e.note && (
                   <span className="text-xs text-foreground-faint italic truncate min-w-0">„{e.note}"</span>
                 )}
-                <Link
-                  href={`/dashboard/edit/${e.id}`}
-                  className="ml-auto flex-shrink-0 text-foreground-faint hover:text-foreground-muted transition p-1 -mr-1 rounded-lg hover:bg-surface-raised"
-                >
-                  <MoreVertical size={16} />
-                </Link>
+                <div className="ml-auto flex-shrink-0">
+                  <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=eintraege`} showDelete={false} />
+                </div>
               </div>
             ))}
           </div>

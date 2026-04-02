@@ -11,7 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const buildDate = formatBuildDate();
 
   return (
-    <div data-theme="admin" className="min-h-screen bg-background text-foreground">
+    <div id="admin-root" data-theme="admin" className="min-h-screen bg-background text-foreground">
       <AdminHeader username={user?.name ?? ""} />
       <AdminDesktopSidebar version={pkg.version} buildDate={buildDate} />
 

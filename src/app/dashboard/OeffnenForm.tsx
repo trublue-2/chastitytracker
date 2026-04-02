@@ -15,9 +15,10 @@ interface Props {
   sperrzeitUnbefristet?: boolean;
   reinigungErlaubt?: boolean;
   reinigungMaxMinuten?: number;
+  redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15 }: Props) {
+export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15, redirectTo }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
@@ -51,7 +52,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
         setError(err.error || tCommon("savingError"));
         return;
       }
-      router.push("/dashboard");
+      router.push(redirectTo ?? "/dashboard");
     } catch {
       setSaving(false);
       setError(tCommon("networkError"));

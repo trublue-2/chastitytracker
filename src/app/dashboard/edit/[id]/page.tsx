@@ -10,11 +10,14 @@ import { getTranslations } from "next-intl/server";
 
 export default async function EditEntryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
-  const [{ id }, session, t, tStats] = await Promise.all([
+  const [{ id }, { from }, session, t, tStats] = await Promise.all([
     params,
+    searchParams,
     auth(),
     getTranslations("nav"),
     getTranslations("stats"),
@@ -34,35 +37,39 @@ export default async function EditEntryPage({
     ORGASMUS: tStats("orgasm"),
   };
 
+  const redirectTo = from === "eintraege" ? "/dashboard/eintraege" : "/dashboard";
+  const backHref = redirectTo;
+  const backLabel = from === "eintraege" ? "Einträge" : t("overview");
+
   return (
     <div className="w-full max-w-5xl px-6 py-8">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">← {t("overview")}</Link>
+      <Link href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">← {backLabel}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-8">
         {LABELS[entry.type] ?? entry.type} bearbeiten
       </h1>
       <div className="max-w-lg">
       {entry.type === "OEFFNEN" && (
-        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} />
+        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} redirectTo={redirectTo} />
       )}
       {entry.type === "VERSCHLUSS" && (
         <VerschlussForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null,
           note: entry.note, kontrollCode: entry.kontrollCode,
-        }} mobileDesktopMode={mobileDesktopMode} />
+        }} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
       )}
       {entry.type === "PRUEFUNG" && (
         <PruefungForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
           kontrollCode: entry.kontrollCode,
-        }} mobileDesktopMode={mobileDesktopMode} />
+        }} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
       )}
       {entry.type === "ORGASMUS" && (
         <OrgasmusForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           note: entry.note, orgasmusArt: entry.orgasmusArt,
-        }} />
+        }} redirectTo={redirectTo} />
       )}
       </div>
     </div>

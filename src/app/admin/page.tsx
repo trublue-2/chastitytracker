@@ -6,6 +6,7 @@ import CreateDemoUserButton from "./CreateDemoUserButton";
 import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import WithdrawVerschlussButton from "./WithdrawVerschlussButton";
+import WithdrawKontrolleButton from "./WithdrawKontrolleButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -59,7 +60,7 @@ export default async function AdminPage() {
       currentStatus: latest?.type ?? null,
       since: latest?.startTime ?? null,
       offeneKontrolle: offeneKontrolle
-        ? { deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
+        ? { id: offeneKontrolle.id, deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
         : null,
       hasOffeneAnforderung: !!offeneVerschlussAnforderung,
       hasActiveSperrzeit: !!activeSperrzeit,
@@ -152,7 +153,7 @@ export default async function AdminPage() {
                     </div>
                     <p className={`text-xs mt-0.5 font-medium ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
                       {isLocked
-                        ? `GESPERRT${sinceDisplay ? ` · ${sinceDisplay}` : ""}`
+                        ? `VERSCHLOSSEN${sinceDisplay ? ` · ${sinceDisplay}` : ""}`
                         : u.stats.currentStatus
                           ? `OFFEN${sinceDisplay ? ` · seit ${sinceDisplay}` : ""}`
                           : "Kein Eintrag"}
@@ -174,6 +175,7 @@ export default async function AdminPage() {
                     kommentar={u.stats.offeneKontrolle.kommentar}
                     overdue={u.stats.offeneKontrolle.overdue}
                     variant="compact"
+                    withdrawAction={<WithdrawKontrolleButton id={u.stats.offeneKontrolle.id} />}
                   />
                 )}
                 {u.stats.offeneAnforderung && (

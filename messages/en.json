@@ -382,6 +382,7 @@
     "requestedSuccess": "✓ Inspection requested",
     "frist": "Deadline",
     "withdrawLockTitle": "Lift lock",
+    "withdrawKontrolleTitle": "Withdraw inspection request",
     "sending": "Sending…",
     "roleUser": "User",
     "roleAdmin": "Administrator",
@@ -493,7 +494,7 @@
   "entryActions": {
     "deleteConfirm": "Really delete this entry?",
     "ariaActions": "Actions",
-    "edit": "Edit",
+    "edit": "Edit entry",
     "delete": "Delete"
   },
   "moreMenu": {

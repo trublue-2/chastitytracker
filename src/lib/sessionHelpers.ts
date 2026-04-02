@@ -24,7 +24,7 @@ type ActivePair = {
     deadline: Date | null; kommentar: string | null; code: string | null;
     anforderungStatus: string | null; verifikationStatus: string | null; submittedAt: Date | null;
   }[];
-  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date } }[];
+  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date; imageUrl: string | null } }[];
 };
 
 type OrgasmusEntry = { id: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt: string | null };
@@ -74,7 +74,7 @@ export function buildSessionEvents(
     ...activePair.interruptions.map(intr => ({
       type: "reinigung" as const,
       time: intr.oeffnen.startTime,
-      imageUrl: null,
+      imageUrl: intr.verschluss.imageUrl,
       imageExifTime: null,
       note: intr.oeffnen.note,
       entryId: intr.oeffnen.id,
