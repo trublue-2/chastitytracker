@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Loader2 } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
-import { compressImage } from "@/lib/compressImage";
+import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 
@@ -15,53 +15,17 @@ export default function VerschlussForm({ userId }: { userId: string }) {
   const router = useRouter();
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [note, setNote] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageExifTime, setImageExifTime] = useState("");
-  const [imagePreview, setImagePreview] = useState("");
-  const [sealNumber, setSealNumber] = useState("");
-  const [sealState, setSealState] = useState<"idle" | "detecting" | "detected" | "not-detected">("idle");
-  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleFile(file: File) {
-    setUploading(true);
-    setSealState("idle");
-    setImagePreview(URL.createObjectURL(file));
-    const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
-    const compressed = await compressImage(file).catch(() => file);
-    const fd = new FormData();
-    fd.append("file", compressed);
-    if (clientExifTime) fd.append("clientExifTime", clientExifTime);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    setImageUrl(data.url);
-    setImageExifTime(data.exifTime ?? "");
-    setUploading(false);
-
-    // Auto-detect seal number
-    setSealState("detecting");
-    try {
-      const detectRes = await fetch("/api/detect-seal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: data.url }),
-      });
-      if (detectRes.ok) {
-        const { detected } = await detectRes.json() as { detected: string | null };
-        if (detected) {
-          setSealNumber(detected);
-          setSealState("detected");
-        } else {
-          setSealState("not-detected");
-        }
-      } else {
-        setSealState("not-detected");
-      }
-    } catch {
-      setSealState("not-detected");
-    }
-  }
+  const {
+    imageUrl, imageExifTime, imagePreview, uploading,
+    sealNumber, setSealNumber, sealState, setSealState,
+    handleFile, clearPhoto,
+  } = usePhotoUpload({
+    startTime,
+    enableSealDetection: true,
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -125,7 +89,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
                     <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>
                   )}
                   <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
-                  <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setSealState("idle"); }}
+                  <button type="button" onClick={clearPhoto}
                     className="text-xs text-warn hover:opacity-80 w-fit transition">
                     Foto entfernen
                   </button>

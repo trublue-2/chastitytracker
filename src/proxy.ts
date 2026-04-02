@@ -35,7 +35,7 @@ export default auth((req) => {
   // Rate-Limit auf Login-Endpunkt
   if (req.method === "POST" && req.nextUrl.pathname === "/api/auth/callback/credentials") {
     const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
       req.headers.get("x-real-ip") ??
       "unknown";
     if (isRateLimited(ip)) {
@@ -81,7 +81,7 @@ export default auth((req) => {
   if (isLoggedIn && !pathname.startsWith("/api") && !isAdminUserDetailPath) {
     const user = req.auth?.user as { id?: string; name?: string } | undefined;
     const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
       req.headers.get("x-real-ip") ??
       "unknown";
     const ts = new Date().toISOString().replace("T", " ").slice(0, 19);

@@ -26,7 +26,7 @@ export async function PATCH(
   }
   if (orgasmusArt !== undefined && orgasmusArt !== null) {
     const base = (orgasmusArt as string).split(" – ")[0];
-    if (!ORGASMUS_ARTEN.includes(base)) {
+    if (!(ORGASMUS_ARTEN as readonly string[]).includes(base)) {
       return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
     }
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { requireAdminApi } from "@/lib/authGuards";
+import { APP_TZ } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   const link = `${baseUrl}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
   const deadlineStr = deadline.toLocaleString("de-CH", {
     day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich",
+    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
   });
 
   const codeLabel = sealCode

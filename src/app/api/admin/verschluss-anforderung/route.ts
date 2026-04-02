@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { requireAdminApi } from "@/lib/authGuards";
 import { getIsLocked } from "@/lib/queries";
+import { APP_TZ } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     if (art === "ANFORDERUNG" && user.email) {
       const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
       const deadlineHtml = endetAtDate
-        ? `<p><strong>Bitte einschliessen bis:</strong> ${endetAtDate.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })}</p>`
+        ? `<p><strong>Bitte einschliessen bis:</strong> ${endetAtDate.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</p>`
         : "";
       const dauerHtml = dauerH && !endetAt
         ? `<p><strong>Mindestdauer nach Einschliessen:</strong> ${dauerH >= 24 ? `${Math.floor(dauerH / 24)}T ${dauerH % 24 > 0 ? `${dauerH % 24}h` : ""}`.trim() : `${dauerH}h`}</p>`

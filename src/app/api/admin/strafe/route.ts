@@ -43,8 +43,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const err = await requireAdminApi();
+  if (err) return err;
 
   const { refId } = await req.json();
   if (!refId) return NextResponse.json({ error: "Missing refId" }, { status: 400 });

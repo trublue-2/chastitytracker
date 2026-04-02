@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ClipboardCheck, Loader2 } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
-import { compressImage } from "@/lib/compressImage";
+import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 
@@ -17,17 +17,29 @@ export default function PruefungForm({ userId }: { userId: string }) {
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [note, setNote] = useState("");
   const [kontrollCode, setKontrollCode] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageExifTime, setImageExifTime] = useState("");
-  const [imagePreview, setImagePreview] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [exifWarning, setExifWarning] = useState("");
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
   const [verifyReason, setVerifyReason] = useState<string | null>(null);
   const [aiMatch, setAiMatch] = useState<boolean | null>(null);
   const lastVerifiedKey = useRef<string>("");
+
+  const {
+    imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
+    handleFile: uploadFile, clearPhoto,
+  } = usePhotoUpload({
+    startTime,
+    exifWarningText: (type, hours) =>
+      type === "deviation" ? `EXIF-Zeit weicht ${hours}h ab` : "Foto enthält keine EXIF-Zeitangabe",
+  });
+
+  function handleFile(file: File) {
+    setError("");
+    setVerifyStatus(null);
+    setVerifyReason(null);
+    setAiMatch(null);
+    uploadFile(file);
+  }
 
   useEffect(() => {
     const key = `${kontrollCode}|${imageUrl}`;
@@ -56,35 +68,6 @@ export default function PruefungForm({ userId }: { userId: string }) {
         .catch(() => setVerifyStatus("error"));
     }
   }, [kontrollCode, imageUrl]);
-
-  async function handleFile(file: File) {
-    setUploading(true);
-    setExifWarning("");
-    setImagePreview(URL.createObjectURL(file));
-    setError("");
-    setVerifyStatus(null);
-    setVerifyReason(null);
-    setAiMatch(null);
-
-    const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
-    const compressed = await compressImage(file).catch(() => file);
-    const fd = new FormData();
-    fd.append("file", compressed);
-    if (clientExifTime) fd.append("clientExifTime", clientExifTime);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    setImageUrl(data.url);
-    setImagePreview(data.url);
-    setImageExifTime(data.exifTime ?? "");
-
-    if (data.exifTime && startTime) {
-      const diff = Math.abs(new Date(data.exifTime).getTime() - new Date(startTime).getTime());
-      if (diff > 3600000) setExifWarning(`EXIF-Zeit weicht ${Math.round(diff / 3600000)}h ab`);
-    } else if (!data.exifTime) {
-      setExifWarning("Foto enthält keine EXIF-Zeitangabe");
-    }
-    setUploading(false);
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -147,7 +130,7 @@ export default function PruefungForm({ userId }: { userId: string }) {
                   {imageExifTime && <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>}
                   {exifWarning && !uploading && <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>}
                   <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
-                  <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); setVerifyStatus(null); setAiMatch(null); }}
+                  <button type="button" onClick={() => { clearPhoto(); setVerifyStatus(null); setAiMatch(null); }}
                     className="text-xs text-warn hover:opacity-80 w-fit transition">
                     Foto entfernen
                   </button>
