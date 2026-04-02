@@ -1,8 +1,6 @@
 name: Build, Push & Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       deploy:
@@ -87,7 +85,7 @@ jobs:
   # ── Deploy auf Server ──────────────────────────────────────────────────────
   deploy:
     needs: [build-and-push, typecheck]
-    if: ${{ github.event_name == 'push' || github.event.inputs.deploy != 'false' }}
+    if: ${{ github.event.inputs.deploy != 'false' }}
     runs-on: ubuntu-latest
 
     env:
