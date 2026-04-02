@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import ImageViewer from "@/app/components/ImageViewer";
+import { ImageOff, CheckCircle2 } from "lucide-react";
+import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import KontrolleActions from "./KontrolleActions";
 
 export interface AdminKontrolleRowData {
@@ -34,6 +35,83 @@ interface Labels {
 
 const PAGE_SIZE = 10;
 
+function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labels: Labels }) {
+  const [open, setOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  if (!row.imageUrl) return null;
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="flex-shrink-0">
+        {imgError ? (
+          <div className="w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
+            <ImageOff size={16} className="text-foreground-faint" />
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={row.imageUrl} alt={labels.imageAlt} className="w-10 h-10 rounded-xl object-cover"
+            onError={() => setImgError(true)} />
+        )}
+      </button>
+      {open && (
+        <FullscreenImageModal
+          src={row.imageUrl}
+          alt={labels.imageAlt}
+          onClose={() => setOpen(false)}
+          title={
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 size={14} />
+              {row.username && <span className="font-semibold">{row.username}</span>}
+              {row.code && <span className="font-mono font-bold text-[var(--color-inspect)]">{row.code}</span>}
+            </span>
+          }
+          panel={
+            <div className="flex flex-col gap-3">
+              {row.pillLabel && (
+                <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
+              )}
+              {row.fulfilledAtStr && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.fulfilledLabel}</p>
+                  <p className="text-sm text-foreground-muted">{row.fulfilledAtStr}</p>
+                </div>
+              )}
+              {row.deadlineStr && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.fristLabel}</p>
+                  <p className="text-sm text-foreground-muted">{row.deadlineStr}</p>
+                </div>
+              )}
+              {row.createdAtStr && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.createdLabel}</p>
+                  <p className="text-sm text-foreground-muted">{row.createdAtStr}</p>
+                </div>
+              )}
+              {row.timeCorrectedStr && (
+                <p className="text-xs text-warn font-medium">{row.timeCorrectedStr}</p>
+              )}
+              {row.kommentar && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.instructionLabel}</p>
+                  <p className="text-sm text-foreground-muted">{row.kommentar}</p>
+                </div>
+              )}
+              {row.note && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Notiz</p>
+                  <p className="text-sm text-foreground-muted italic">„{row.note}"</p>
+                </div>
+              )}
+            </div>
+          }
+        />
+      )}
+    </>
+  );
+}
+
 export default function AdminKontrolleListClient({ items, labels }: { items: AdminKontrolleRowData[]; labels: Labels }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(items.length / PAGE_SIZE);
@@ -44,10 +122,7 @@ export default function AdminKontrolleListClient({ items, labels }: { items: Adm
       <div className="divide-y divide-border-subtle">
         {paginated.map((row, i) => (
           <div key={i} className="px-4 py-3 flex items-start gap-3">
-            {row.imageUrl && (
-              <ImageViewer src={row.imageUrl} alt={labels.imageAlt} width={40} height={40}
-                className="w-10 h-10 rounded-xl object-cover flex-shrink-0" kommentar={row.kommentar} />
-            )}
+            <AdminKontrolleThumb row={row} labels={labels} />
             <div className="flex-1 min-w-0 flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">
                 {row.username && <span className="font-semibold text-foreground text-sm">{row.username}</span>}

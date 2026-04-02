@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import ImageViewer from "@/app/components/ImageViewer";
+import { ImageOff, CheckCircle2 } from "lucide-react";
+import { FullscreenImageModal } from "@/app/components/ImageViewer";
 
 export interface KontrolleItemData {
   id: string;
@@ -24,6 +25,81 @@ export interface KontrolleItemData {
 
 const PAGE_SIZE = 10;
 
+function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: string }) {
+  const [open, setOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  if (!k.imageUrl) return null;
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="flex-shrink-0">
+        {imgError ? (
+          <div className="w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
+            <ImageOff size={16} className="text-foreground-faint" />
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={k.imageUrl} alt={imageAlt} className="w-10 h-10 rounded-xl object-cover"
+            onError={() => setImgError(true)} />
+        )}
+      </button>
+      {open && (
+        <FullscreenImageModal
+          src={k.imageUrl}
+          alt={imageAlt}
+          onClose={() => setOpen(false)}
+          title={
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 size={14} />
+              {k.code && <span className="font-mono font-bold text-[var(--color-inspect)]">{k.code}</span>}
+            </span>
+          }
+          panel={
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Datum / Zeit</p>
+                <p className="text-sm font-semibold text-foreground">{k.dateTimeStr}</p>
+              </div>
+              {(k.pill1Label || k.pill2Label) && (
+                <div className="flex gap-2 flex-wrap">
+                  {k.pill1Label && (
+                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${k.pill1Cls}`}>{k.pill1Label}</span>
+                  )}
+                  {k.pill2Label && (
+                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${k.pill2Cls}`}>{k.pill2Label}</span>
+                  )}
+                </div>
+              )}
+              {k.deadlineStr && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{k.deadlinePrefix}</p>
+                  <p className="text-sm text-foreground-muted">{k.deadlineStr}</p>
+                </div>
+              )}
+              {k.timeCorrectedStr && (
+                <p className="text-xs text-[var(--color-warn)] font-medium">{k.timeCorrectedStr}</p>
+              )}
+              {k.kommentar && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Anweisung</p>
+                  <p className="text-sm text-foreground-muted">{k.kommentar}</p>
+                </div>
+              )}
+              {k.note && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Notiz</p>
+                  <p className="text-sm text-foreground-muted italic">„{k.note}"</p>
+                </div>
+              )}
+            </div>
+          }
+        />
+      )}
+    </>
+  );
+}
+
 export default function KontrolleItemListClient({
   items,
   imageAlt,
@@ -40,16 +116,7 @@ export default function KontrolleItemListClient({
       <div className="divide-y divide-border-subtle">
         {paginated.map((k) => (
           <div key={k.id} className="px-4 py-3 flex items-start gap-3">
-            {k.imageUrl && (
-              <ImageViewer
-                src={k.imageUrl}
-                alt={imageAlt}
-                width={40}
-                height={40}
-                className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
-                kommentar={k.kommentar}
-              />
-            )}
+            <KontrolleThumb k={k} imageAlt={imageAlt} />
             <div className="flex-1 min-w-0 flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">
                 {k.pill1Label && (
