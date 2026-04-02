@@ -4,7 +4,15 @@ self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.open('offline-v1').then((cache) => cache.add(OFFLINE_URL)).then(() => self.clients.claim())
+    caches.open('offline-v1')
+      .then((cache) => cache.add(OFFLINE_URL))
+      .then(() => self.clients.claim())
+      .catch((err) => {
+        // Cache add can fail when network is unavailable on first install.
+        // Still claim clients so the SW controls existing pages.
+        console.warn('[SW] offline page cache failed, claiming anyway:', err);
+        return self.clients.claim();
+      })
   );
 });
 
