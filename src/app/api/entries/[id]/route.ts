@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE } from "@/lib/constants";
+import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
 
 export async function PATCH(
   req: NextRequest,
@@ -21,6 +21,9 @@ export async function PATCH(
   const body = await req.json();
   const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus } = body;
 
+  if (!isValidImageUrl(imageUrl)) {
+    return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
+  }
   if (oeffnenGrund !== undefined && oeffnenGrund !== null && !OEFFNEN_GRUENDE.includes(oeffnenGrund)) {
     return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
   }

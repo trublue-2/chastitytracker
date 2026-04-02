@@ -30,12 +30,12 @@ export async function GET(req: NextRequest) {
 
   // ── 2. Enforce single-use (replay protection) ───────────────────────────────
   try {
-    // Prune expired tokens while we're here
-    await prisma.portalTokenUsed.deleteMany({
-      where: { usedAt: { lt: new Date(Date.now() - CLEANUP_AGE_MS) } },
-    });
-    // create() throws P2002 (unique constraint) if JTI already exists
-    await prisma.portalTokenUsed.create({ data: { jti } });
+    await prisma.$transaction([
+      prisma.portalTokenUsed.deleteMany({
+        where: { usedAt: { lt: new Date(Date.now() - CLEANUP_AGE_MS) } },
+      }),
+      prisma.portalTokenUsed.create({ data: { jti } }),
+    ]);
   } catch {
     return new NextResponse("Token already used", { status: 401 });
   }
@@ -57,6 +57,9 @@ export async function GET(req: NextRequest) {
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
 
+  // Short-lived session: portal only needs this for immediate redirect, not long-term access
+  const PORTAL_SESSION_MAX_AGE = 5 * 60; // 5 minutes
+
   const sessionToken = await encode({
     token: {
       sub: admin.id,
@@ -65,9 +68,11 @@ export async function GET(req: NextRequest) {
       id: admin.id,
     },
     secret: process.env.NEXTAUTH_SECRET!,
-    maxAge: 30 * 24 * 60 * 60, // 30 days – same as NextAuth default
+    maxAge: PORTAL_SESSION_MAX_AGE,
     salt: cookieName,
   });
+
+  console.log(`[PORTAL-LOGIN] Portal login as "${admin.username}" (${admin.id}) via JTI ${jti}`);
 
   // ── 5. Set session cookie and redirect ──────────────────────────────────────
   // Use NEXTAUTH_URL as base — req.url resolves to the internal Docker address
@@ -79,7 +84,7 @@ export async function GET(req: NextRequest) {
     secure: useSecureCookies,
     sameSite: "lax",
     path: "/",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: PORTAL_SESSION_MAX_AGE,
   });
   return response;
 }
