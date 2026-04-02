@@ -1,5 +1,13 @@
 [
   {
+    "version": "2.2.4",
+    "date": "2026-04-02",
+    "changes": [
+      { "type": "fix", "text": "Grossansicht (Vollbild-Modal) ist jetzt überall identisch: Session-Events, Kontrollen in der Übersicht und im Kontrollen-Tab verwenden alle denselben FullscreenImageModal mit solidem schwarzen Hintergrund und erreichbarem Schliessen-Button unten" },
+      { "type": "refactor", "text": "SessionEventRow, KontrolleItemListClient und AdminKontrolleListClient nutzen jetzt den gemeinsamen FullscreenImageModal via React Portal (zIndex 99999, backgroundColor #000) – kein Drift mehr zwischen den Views möglich" }
+    ]
+  },
+  {
     "version": "2.2.3",
     "date": "2026-03-31",
     "changes": [
