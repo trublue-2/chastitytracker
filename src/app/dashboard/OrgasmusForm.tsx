@@ -21,11 +21,12 @@ function parseArt(stored: string | null | undefined): { art: string; subArt: str
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; orgasmusArt?: string | null };
+  redirectTo?: string;
 }
 
 const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
-export default function OrgasmusForm({ initial }: Props) {
+export default function OrgasmusForm({ initial, redirectTo }: Props) {
   const t = useTranslations("orgasmForm");
   const tCommon = useTranslations("common");
 
@@ -79,7 +80,7 @@ export default function OrgasmusForm({ initial }: Props) {
 
     setSaving(false);
     if (!res.ok) { setError(tCommon("savingError")); return; }
-    router.push("/dashboard");
+    router.push(redirectTo ?? "/dashboard");
   }
 
   return (

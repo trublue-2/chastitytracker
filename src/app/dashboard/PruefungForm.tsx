@@ -21,11 +21,12 @@ interface Props {
   initialCode?: string;
   initialKommentar?: string;
   mobileDesktopMode?: boolean;
+  redirectTo?: string;
 }
 
 const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
-export default function PruefungForm({ initial, initialCode, initialKommentar, mobileDesktopMode }: Props) {
+export default function PruefungForm({ initial, initialCode, initialKommentar, mobileDesktopMode, redirectTo }: Props) {
   const t = useTranslations("inspectionForm");
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
@@ -123,7 +124,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
       setError(err.error || tCommon("savingError"));
       return;
     }
-    router.push("/dashboard");
+    router.push(redirectTo ?? "/dashboard");
   }
 
   return (

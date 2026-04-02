@@ -18,9 +18,10 @@ interface Props {
     kontrollCode?: string | null;
   };
   mobileDesktopMode?: boolean;
+  redirectTo?: string;
 }
 
-export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
+export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo }: Props) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
   const dl = toDateLocale(useLocale());
@@ -71,7 +72,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
       setError(err.error || t("savingError"));
       return;
     }
-    router.push("/dashboard");
+    router.push(redirectTo ?? "/dashboard");
   }
 
   return (

@@ -145,7 +145,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         time: intr.oeffnen.startTime,
         dateStr: formatDate(intr.oeffnen.startTime, dl),
         timeStr: formatTime(intr.oeffnen.startTime, dl),
-        imageUrl: null,
+        imageUrl: intr.verschluss.imageUrl,
         exifStr: null,
         note: intr.oeffnen.note,
         entryId: intr.oeffnen.id,
