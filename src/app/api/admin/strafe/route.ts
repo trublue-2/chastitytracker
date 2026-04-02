@@ -25,21 +25,24 @@ export async function POST(req: Request) {
     if (!entry || entry.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Duplicate check
-  const existing = await prisma.strafeRecord.findUnique({ where: { refId } });
-  if (existing) return NextResponse.json({ error: "Already punished" }, { status: 409 });
-
-  const record = await prisma.strafeRecord.create({
-    data: {
-      userId,
-      offenseType,
-      refId,
-      bestraftDatum: new Date(bestraftDatum + "T12:00:00Z"),
-      notiz: notiz?.trim() || null,
-    },
-  });
-
-  return NextResponse.json(record, { status: 201 });
+  // Rely on @unique constraint on refId — catch P2002 for clean error
+  try {
+    const record = await prisma.strafeRecord.create({
+      data: {
+        userId,
+        offenseType,
+        refId,
+        bestraftDatum: new Date(bestraftDatum + "T12:00:00Z"),
+        notiz: notiz?.trim() || null,
+      },
+    });
+    return NextResponse.json(record, { status: 201 });
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "P2002") {
+      return NextResponse.json({ error: "Already punished" }, { status: 409 });
+    }
+    throw e;
+  }
 }
 
 export async function DELETE(req: Request) {

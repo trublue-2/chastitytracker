@@ -19,23 +19,9 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return NextResponse.json({ error: "User nicht gefunden" }, { status: 404 });
 
-    const isLocked = await getIsLocked(userId);
-
-    if (art === "ANFORDERUNG" && isLocked) {
-      return NextResponse.json({ error: "User ist bereits verschlossen" }, { status: 400 });
-    }
-    if (art === "SPERRZEIT" && !isLocked) {
-      return NextResponse.json({ error: "User ist nicht verschlossen" }, { status: 400 });
-    }
     if (art === "ANFORDERUNG" && !user.email) {
       return NextResponse.json({ error: "User hat keine E-Mail-Adresse" }, { status: 400 });
     }
-
-    // Bestehende offene Anforderungen gleicher Art zurückziehen
-    await prisma.verschlussAnforderung.updateMany({
-      where: { userId, art, fulfilledAt: null, withdrawnAt: null },
-      data: { withdrawnAt: new Date() },
-    });
 
     // endetAt berechnen: entweder direkt übergeben oder jetzt + dauerH
     let endetAtDate: Date | null = null;
@@ -45,15 +31,40 @@ export async function POST(req: NextRequest) {
       endetAtDate = new Date(Date.now() + dauerH * 60 * 60 * 1000);
     }
 
-    const anforderung = await prisma.verschlussAnforderung.create({
-      data: {
-        userId,
-        art,
-        nachricht: nachricht?.trim() || null,
-        endetAt: endetAtDate,
-        dauerH: art === "ANFORDERUNG" ? (dauerH ?? null) : null,
-      },
-    });
+    // Wrap state-check + withdraw + create in transaction to prevent TOCTOU race
+    let anforderung;
+    try {
+      anforderung = await prisma.$transaction(async (tx) => {
+        const latest = await tx.entry.findFirst({
+          where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+          orderBy: { startTime: "desc" },
+        });
+        const isLocked = latest?.type === "VERSCHLUSS";
+
+        if (art === "ANFORDERUNG" && isLocked) throw Object.assign(new Error(), { _code: "ALREADY_LOCKED" });
+        if (art === "SPERRZEIT" && !isLocked) throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
+
+        await tx.verschlussAnforderung.updateMany({
+          where: { userId, art, fulfilledAt: null, withdrawnAt: null },
+          data: { withdrawnAt: new Date() },
+        });
+
+        return tx.verschlussAnforderung.create({
+          data: {
+            userId,
+            art,
+            nachricht: nachricht?.trim() || null,
+            endetAt: endetAtDate,
+            dauerH: art === "ANFORDERUNG" ? (dauerH ?? null) : null,
+          },
+        });
+      });
+    } catch (e: unknown) {
+      const code = (e as { _code?: string })?._code;
+      if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "User ist bereits verschlossen" }, { status: 400 });
+      if (code === "NOT_LOCKED") return NextResponse.json({ error: "User ist nicht verschlossen" }, { status: 400 });
+      throw e;
+    }
 
     // E-Mail nur für ANFORDERUNG
     if (art === "ANFORDERUNG" && user.email) {
@@ -74,7 +85,7 @@ export async function POST(req: NextRequest) {
         `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
           <h2 style="color:#1e293b">Einschliessen angefordert</h2>
-          <p>Hallo ${user.username},</p>
+          <p>Hallo ${escHtml(user.username)},</p>
           <p>Der Admin hat dich aufgefordert, dich einzuschliessen.</p>
           ${nachrichtHtml}
           ${deadlineHtml}

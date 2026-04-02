@@ -72,7 +72,6 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
       return;
     }
     router.push("/dashboard");
-    router.refresh();
   }
 
   return (

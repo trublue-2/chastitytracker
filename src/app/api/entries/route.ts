@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE } from "@/lib/constants";
+import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
 
 export async function GET() {
   const session = await auth();
@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
   // verifikationStatus is never accepted from client – set server-side only
   const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode } = body;
 
+  if (!isValidImageUrl(imageUrl)) {
+    return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
+  }
   if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
   if (new Date(startTime) > new Date()) {
     return NextResponse.json({ error: "Zeitpunkt darf nicht in der Zukunft liegen" }, { status: 400 });

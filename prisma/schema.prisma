@@ -24,6 +24,8 @@ model User {
   kontrollAnforderungen   KontrollAnforderung[]
   verschlussAnforderungen VerschlussAnforderung[]
   strafeRecords           StrafeRecord[]
+  adminRelationships      AdminUserRelationship[] @relation("AdminRelationships")
+  userRelationships       AdminUserRelationship[] @relation("UserRelationships")
 }
 
 model PasswordResetToken {
@@ -88,7 +90,9 @@ model VerschlussAnforderung {
 model AdminUserRelationship {
   id        String   @id @default(cuid())
   adminId   String
+  admin     User     @relation("AdminRelationships", fields: [adminId], references: [id], onDelete: Cascade)
   userId    String
+  user      User     @relation("UserRelationships", fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([adminId, userId])
@@ -133,5 +137,5 @@ model Entry {
   kontrollAnforderung KontrollAnforderung? @relation("KontrolleEntry")
 
   @@index([userId])
-  @@index([userId, type])
+  @@index([userId, type, startTime(sort: Desc)])
 }
