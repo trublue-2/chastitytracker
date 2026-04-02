@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
-import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE } from "@/lib/constants";
+import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   const err = await requireAdminApi();
@@ -10,6 +10,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode } = body;
 
+  if (!isValidImageUrl(imageUrl)) {
+    return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
+  }
   if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
   if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
   if (new Date(startTime) > new Date()) {

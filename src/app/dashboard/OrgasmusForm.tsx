@@ -80,7 +80,6 @@ export default function OrgasmusForm({ initial }: Props) {
     setSaving(false);
     if (!res.ok) { setError(tCommon("savingError")); return; }
     router.push("/dashboard");
-    router.refresh();
   }
 
   return (

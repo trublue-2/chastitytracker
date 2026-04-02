@@ -1,9 +1,34 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendMail } from "@/lib/mail";
+import { sendMail, escHtml } from "@/lib/mail";
 import crypto from "crypto";
 
-export async function POST(req: Request) {
+// IP-based rate limit: max 5 requests per hour
+const resetBucket = new Map<string, { count: number; resetAt: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of resetBucket) if (v.resetAt < now) resetBucket.delete(k);
+}, 30 * 60 * 1000);
+
+function isResetRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = resetBucket.get(ip);
+  if (!entry || entry.resetAt < now) {
+    resetBucket.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return false;
+  }
+  entry.count++;
+  return entry.count > 5;
+}
+
+export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
+    req.headers.get("x-real-ip") ?? "unknown";
+  if (isResetRateLimited(ip)) {
+    return NextResponse.json({ ok: true }); // silent — don't reveal rate limiting
+  }
+
   const { username } = await req.json();
   if (!username) return NextResponse.json({ error: "Username fehlt" }, { status: 400 });
 
@@ -31,7 +56,7 @@ export async function POST(req: Request) {
     user.email,
     "KG-Tracker – Passwort zurücksetzen",
     `
-    <p>Hallo ${user.username},</p>
+    <p>Hallo ${escHtml(user.username)},</p>
     <p>du hast eine Passwort-Zurücksetzung angefordert.</p>
     <p><a href="${resetUrl}">Passwort jetzt zurücksetzen</a></p>
     <p>Der Link ist 1 Stunde gültig.</p>

@@ -16,34 +16,49 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "User nicht gefunden" }, { status: 404 });
   if (!user.email) return NextResponse.json({ error: "User hat keine E-Mail-Adresse" }, { status: 400 });
 
-  // Prüfen ob User verschlossen ist
-  const latest = await prisma.entry.findFirst({
-    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-    orderBy: { startTime: "desc" },
-  });
-  if (!latest || latest.type !== "VERSCHLUSS") {
-    return NextResponse.json({ error: "User ist nicht verschlossen" }, { status: 400 });
-  }
-
-  // Offene Anforderungen zurückziehen (nicht löschen, um Historie zu bewahren)
-  await prisma.kontrollAnforderung.updateMany({
-    where: { userId, entryId: null, withdrawnAt: null },
-    data: { withdrawnAt: new Date() },
-  });
-
-  // Siegel-Nummer des aktiven Verschlusses verwenden, sonst Zufallscode
-  const sealCode = latest.kontrollCode && /^\d{5,8}$/.test(latest.kontrollCode) ? latest.kontrollCode : null;
-  const code = sealCode ?? String(Math.floor(10000 + Math.random() * 90000));
+  const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
   const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
   const deadline = new Date(Date.now() + hours * 60 * 60 * 1000);
 
-  const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
+  // Wrap state-check + withdraw + create in transaction to prevent TOCTOU race
+  let code: string;
+  let sealCode: string | null;
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const latest = await tx.entry.findFirst({
+        where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+        orderBy: { startTime: "desc" },
+      });
+      if (!latest || latest.type !== "VERSCHLUSS") {
+        throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
+      }
+
+      await tx.kontrollAnforderung.updateMany({
+        where: { userId, entryId: null, withdrawnAt: null },
+        data: { withdrawnAt: new Date() },
+      });
+
+      const seal = latest.kontrollCode && /^\d{5,8}$/.test(latest.kontrollCode) ? latest.kontrollCode : null;
+      const c = seal ?? String(Math.floor(10000 + Math.random() * 90000));
+
+      await tx.kontrollAnforderung.create({
+        data: { userId, code: c, deadline, kommentar: kommentarTrimmed || null },
+      });
+
+      return { code: c, sealCode: seal };
+    });
+    code = result.code;
+    sealCode = result.sealCode;
+  } catch (e: unknown) {
+    if ((e as { _code?: string })?._code === "NOT_LOCKED") {
+      return NextResponse.json({ error: "User ist nicht verschlossen" }, { status: 400 });
+    }
+    throw e;
+  }
+
   const kommentarHtml = kommentarTrimmed
     ? '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Anweisung des Admins:</p><p style="margin:0;font-size:15px;color:#422006">' + escHtml(kommentarTrimmed) + '</p></div>'
     : "";
-  await prisma.kontrollAnforderung.create({
-    data: { userId, code, deadline, kommentar: kommentarTrimmed || null },
-  });
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const kommentarParam = kommentarTrimmed ? `&kommentar=${encodeURIComponent(kommentarTrimmed)}` : "";
@@ -63,7 +78,7 @@ export async function POST(req: NextRequest) {
     `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
       <h2 style="color:#1e293b">Kontrolle angefordert</h2>
-      <p>Hallo ${user.username},</p>
+      <p>Hallo ${escHtml(user.username)},</p>
       <p>Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten ${hours} Stunde${hours === 1 ? "" : "n"} einen Kontroll-Eintrag mit Foto.</p>
       ${kommentarHtml}
       <p><strong>${codeLabel}</strong></p>

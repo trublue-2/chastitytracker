@@ -52,7 +52,6 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
         return;
       }
       router.push("/dashboard");
-      router.refresh();
     } catch {
       setSaving(false);
       setError(tCommon("networkError"));

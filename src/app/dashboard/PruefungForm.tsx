@@ -70,10 +70,12 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
       setVerifyStatus("pending");
       setVerifyReason(null);
       setAiMatch(null);
+      const controller = new AbortController();
       fetch("/api/verify-kontrolle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl, expectedCode: kontrollCode }),
+        signal: controller.signal,
       })
         .then((r) => r.json())
         .then((v) => {
@@ -87,7 +89,8 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
             setAiMatch(v.match ? true : false);
           }
         })
-        .catch(() => setVerifyStatus("error"));
+        .catch((err) => { if (err.name !== "AbortError") setVerifyStatus("error"); });
+      return () => controller.abort();
     }
   }, [kontrollCode, imageUrl]);
 
@@ -121,7 +124,6 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
       return;
     }
     router.push("/dashboard");
-    router.refresh();
   }
 
   return (

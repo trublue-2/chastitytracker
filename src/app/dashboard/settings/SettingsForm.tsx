@@ -26,13 +26,19 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
   const [uploadSaving, setUploadSaving] = useState(false);
 
   async function handleMobileDesktopUpload(value: boolean) {
-    setMobileDesktopUpload(value);
+    const previous = mobileDesktopUpload;
+    setMobileDesktopUpload(value); // optimistic
     setUploadSaving(true);
-    await fetch("/api/settings/upload", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobileDesktopUpload: value }),
-    });
+    try {
+      const res = await fetch("/api/settings/upload", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobileDesktopUpload: value }),
+      });
+      if (!res.ok) setMobileDesktopUpload(previous); // rollback on failure
+    } catch {
+      setMobileDesktopUpload(previous); // rollback on network error
+    }
     setUploadSaving(false);
   }
 
