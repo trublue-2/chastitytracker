@@ -18,8 +18,10 @@ export default function VerschlussAnforderungForm({ userId, art }: Props) {
 
   const [nachricht, setNachricht] = useState("");
   const [mode, setMode] = useState<"duration" | "datetime">("duration");
-  const [deadlineH, setDeadlineH] = useState("24");
+  const [deadlineH, setDeadlineH] = useState(isSperrzeit ? "24" : "4");
   const [endetAt, setEndetAt] = useState("");
+  const [withMinDauer, setWithMinDauer] = useState(false);
+  const [minDauerH, setMinDauerH] = useState("24");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,10 +38,15 @@ export default function VerschlussAnforderungForm({ userId, art }: Props) {
       art,
       nachricht: nachricht.trim() || undefined,
     };
+    // Frist (zum Einschliessen bei ANFORDERUNG, Sperrdauer-Ende bei SPERRZEIT)
     if (mode === "datetime" && endetAt) {
       payload.endetAt = new Date(endetAt).toISOString();
     } else {
-      payload.dauerH = parseFloat(deadlineH) || 24;
+      payload.fristH = parseFloat(deadlineH) || (isSperrzeit ? 24 : 4);
+    }
+    // Mindest-Tragedauer (nur bei ANFORDERUNG, optional)
+    if (!isSperrzeit && withMinDauer) {
+      payload.dauerH = parseFloat(minDauerH) || 24;
     }
 
     const res = await fetch("/api/admin/verschluss-anforderung", {
@@ -129,6 +136,29 @@ export default function VerschlussAnforderungForm({ userId, art }: Props) {
               <span className="text-xs text-foreground-faint">
                 {isSperrzeit ? "Sperrdauer endet am gewählten Zeitpunkt" : "Frist zum Einschliessen"}
               </span>
+            </div>
+          )}
+
+          {/* Mindest-Tragedauer (nur bei ANFORDERUNG) */}
+          {!isSperrzeit && (
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={withMinDauer} onChange={(e) => setWithMinDauer(e.target.checked)}
+                  className="accent-[var(--color-request)] w-4 h-4" />
+                <span className="text-xs text-foreground-faint">Mindest-Tragedauer festlegen</span>
+              </label>
+              {withMinDauer && (
+                <div className="flex flex-col gap-1.5 pl-6">
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={minDauerH}
+                      onChange={(e) => setMinDauerH(e.target.value)}
+                      min={1} step={1}
+                      className={`w-24 ${inputCls}`} />
+                    <span className="text-xs text-foreground-faint">h</span>
+                  </div>
+                  <span className="text-xs text-foreground-faint">Nach dem Einschliessen wird automatisch eine Sperrdauer erstellt.</span>
+                </div>
+              )}
             </div>
           )}
 
