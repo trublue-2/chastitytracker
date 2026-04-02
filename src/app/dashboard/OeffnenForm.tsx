@@ -6,6 +6,7 @@ import { toDatetimeLocal, toDateLocale, APP_TZ } from "@/lib/utils";
 import { OEFFNEN_GRUENDE } from "@/lib/constants";
 import { AlertCircle, Lock } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
+import FormError from "@/app/components/FormError";
 
 type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
@@ -183,7 +184,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
           />
         </div>
 
-        {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
+        <FormError message={error} />
 
         <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
           <button type="button" onClick={() => router.push("/dashboard")}

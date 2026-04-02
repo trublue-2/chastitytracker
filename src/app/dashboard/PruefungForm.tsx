@@ -7,6 +7,7 @@ import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { Loader2 } from "lucide-react";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
+import FormError from "@/app/components/FormError";
 
 interface Props {
   initial?: {
@@ -206,7 +207,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={`${inputCls} resize-none`} />
       </div>
 
-      {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
+      <FormError message={error} />
 
       <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
         <button type="button" onClick={() => router.push("/dashboard")}

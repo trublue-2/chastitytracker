@@ -12,8 +12,9 @@ import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import StatusBanner from "./StatusBanner";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
-import { Lock, ClipboardList, Droplets } from "lucide-react";
+import { ClipboardList, Droplets } from "lucide-react";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
+import LockRequestBanner from "@/app/components/LockRequestBanner";
 import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -117,38 +118,24 @@ export default async function DashboardPage() {
 
         {/* ── Verschluss-Anforderung Banner ── */}
         {offeneVerschlussAnf && (
-          <div className="flex flex-col gap-1.5 bg-[var(--color-request-bg)] border border-[var(--color-request-border)] rounded-2xl px-5 py-4">
-            <div className="flex items-center gap-2">
-              <Lock size={15} className="text-[var(--color-request)] shrink-0" />
-              <p className="text-sm font-bold text-[var(--color-request-text)]">{t("lockRequested")}</p>
-            </div>
-            {offeneVerschlussAnf.nachricht && (
-              <p className="text-sm text-[var(--color-request)]">{offeneVerschlussAnf.nachricht}</p>
-            )}
-            {offeneVerschlussAnf.endetAt && (
-              <p className="text-xs text-[var(--color-request)]">
-                {t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) })}
-              </p>
-            )}
-          </div>
+          <LockRequestBanner
+            variant="large"
+            colorScheme="request"
+            label={t("lockRequested")}
+            nachricht={offeneVerschlussAnf.nachricht}
+            endetAtLabel={offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) }) : null}
+          />
         )}
 
         {/* ── Sperrzeit Banner (nur wenn nicht verschlossen, da dann im Session-Header) ── */}
         {activeSperrzeit && !activePair && currentStatus?.type === "VERSCHLUSS" && (
-          <div className="flex flex-col gap-1.5 bg-[var(--color-sperrzeit-bg)] border border-[var(--color-sperrzeit-border)] rounded-2xl px-5 py-4">
-            <div className="flex items-center gap-2">
-              <Lock size={15} className="text-[var(--color-sperrzeit)] shrink-0" />
-              <p className="text-sm font-bold text-[var(--color-sperrzeit)]">{t("locked")}</p>
-            </div>
-            {activeSperrzeit.nachricht && (
-              <p className="text-sm text-[var(--color-sperrzeit)]">{activeSperrzeit.nachricht}</p>
-            )}
-            {activeSperrzeit.endetAt && (
-              <p className="text-xs text-[var(--color-sperrzeit)]">
-                {t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) })}
-              </p>
-            )}
-          </div>
+          <LockRequestBanner
+            variant="large"
+            colorScheme="sperrzeit"
+            label={t("locked")}
+            nachricht={activeSperrzeit.nachricht}
+            endetAtLabel={activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) }) : null}
+          />
         )}
 
         {/* ── Kontrolle Banner ── */}
