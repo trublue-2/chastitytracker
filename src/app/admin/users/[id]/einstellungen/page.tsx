@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { assertAdmin } from "@/lib/authGuards";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import RoleSelect from "@/app/admin/RoleSelect";
@@ -22,8 +22,7 @@ function toDateInput(d: Date): string {
 }
 
 export default async function EinstellungenPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") redirect("/login");
+  await assertAdmin();
 
   const { id } = await params;
 

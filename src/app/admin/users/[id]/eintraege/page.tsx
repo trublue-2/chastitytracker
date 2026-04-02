@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Lock, LockOpen, ClipboardList, Droplets, ChevronLeft, ChevronRight } from "lucide-react";
 import { getLocale } from "next-intl/server";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { assertAdmin } from "@/lib/authGuards";
 import Link from "next/link";
 
 const PAGE_SIZE = 100;
@@ -36,8 +36,7 @@ export default async function AdminUserEintraegePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ page?: string }>;
 }) {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") redirect("/login");
+  await assertAdmin();
 
   const { id } = await params;
   const { page: pageStr } = await searchParams;
@@ -46,8 +45,7 @@ export default async function AdminUserEintraegePage({
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
 
-  const locale = await getLocale();
-  const dl = locale === "de" ? "de-CH" : "en-GB";
+  const dl = toDateLocale(await getLocale());
 
   const [total, entries] = await Promise.all([
     prisma.entry.count({ where: { userId: id } }),

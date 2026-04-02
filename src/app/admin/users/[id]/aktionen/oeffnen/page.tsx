@@ -1,11 +1,9 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
+import { assertAdmin } from "@/lib/authGuards";
 import OeffnenForm from "./OeffnenForm";
 
 export default async function AdminOeffnenPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") redirect("/login");
+  await assertAdmin();
 
   const { id } = await params;
 

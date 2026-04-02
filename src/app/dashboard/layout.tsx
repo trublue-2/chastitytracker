@@ -4,6 +4,7 @@ import DesktopSidebar from "@/app/components/DesktopSidebar";
 import InstallBanner from "@/app/components/InstallBanner";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { formatBuildDate } from "@/lib/utils";
 import pkg from "../../../package.json";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -11,9 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = session?.user;
   const userId = user?.id;
 
-  const buildDate = process.env.BUILD_DATE
-    ? new Date(process.env.BUILD_DATE).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })
-    : "local";
+  const buildDate = formatBuildDate();
 
   const [latestLock, openKontrolle] = userId ? await Promise.all([
     prisma.entry.findFirst({

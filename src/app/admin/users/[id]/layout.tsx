@@ -25,17 +25,19 @@ export default async function AdminUserLayout({
     select: { type: true, startTime: true },
   });
 
-  // Get lock status for all users (for switch sheet)
-  const userLockStatuses = await Promise.all(
-    allUsers.map(async (u) => {
-      const latest = await prisma.entry.findFirst({
-        where: { userId: u.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-        orderBy: { startTime: "desc" },
-        select: { type: true },
-      });
-      return { id: u.id, username: u.username, isLocked: latest?.type === "VERSCHLUSS" };
-    })
-  );
+  // Get lock status for all users (for switch sheet) — two aggregate queries instead of one per user
+  const userIds = allUsers.map((u) => u.id);
+  const [lastVerschluss, lastOeffnen] = await Promise.all([
+    prisma.entry.groupBy({ by: ["userId"], where: { userId: { in: userIds }, type: "VERSCHLUSS" }, _max: { startTime: true } }),
+    prisma.entry.groupBy({ by: ["userId"], where: { userId: { in: userIds }, type: "OEFFNEN" }, _max: { startTime: true } }),
+  ]);
+  const vMap = new Map(lastVerschluss.map((r) => [r.userId, r._max.startTime]));
+  const oMap = new Map(lastOeffnen.map((r) => [r.userId, r._max.startTime]));
+  const userLockStatuses = allUsers.map((u) => {
+    const vTime = vMap.get(u.id);
+    const oTime = oMap.get(u.id);
+    return { id: u.id, username: u.username, isLocked: !!vTime && (!oTime || vTime > oTime) };
+  });
 
   const currentStatus = latestLockEntry?.type === "VERSCHLUSS"
     ? "VERSCHLUSS" as const

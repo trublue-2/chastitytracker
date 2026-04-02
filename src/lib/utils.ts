@@ -48,6 +48,15 @@ export function toDateLocale(locale: string): string {
 /** App timezone – all server-side date formatting uses this. */
 export const APP_TZ = "Europe/Zurich";
 
+/** Formats the BUILD_DATE env var as "dd.mm.yyyy, HH:mm" in APP_TZ, or "local" if unset. */
+export function formatBuildDate(): string {
+  if (!process.env.BUILD_DATE) return "local";
+  return new Date(process.env.BUILD_DATE).toLocaleString("de-CH", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
+  });
+}
+
 /** dd.mm.yyyy, HH:mm – server-side, always CET/CEST */
 export function formatDateTime(date: Date | string, locale = "de-CH"): string {
   return new Date(date).toLocaleString(locale, {

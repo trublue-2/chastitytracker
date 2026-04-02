@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 
 export const DEMO_USERNAME = "DemoUser";
 export const DEMO_PASSWORD = "demo1234";
 
 export async function POST() {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const err = await requireAdminApi();
+  if (err) return err;
 
   const existing = await prisma.user.findUnique({ where: { username: DEMO_USERNAME } });
   if (existing) {

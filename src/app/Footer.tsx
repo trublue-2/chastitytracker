@@ -1,16 +1,9 @@
 import pkg from "../../package.json";
+import { formatBuildDate } from "@/lib/utils";
 
 export default function Footer({ className }: { className?: string }) {
   const year = new Date().getFullYear();
-  const buildDate = process.env.BUILD_DATE
-    ? new Date(process.env.BUILD_DATE).toLocaleString("de-CH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "local";
+  const buildDate = formatBuildDate();
 
   return (
     <footer className={`hidden sm:block border-t border-border-subtle mt-auto py-4 px-6 bg-background ${className ?? ""}`}>

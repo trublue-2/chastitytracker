@@ -1,5 +1,18 @@
 [
   {
+    "version": "2.2.6",
+    "date": "2026-04-02",
+    "changes": [
+      { "type": "refactor", "text": "Neue lib/constants.ts: VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE an einem Ort statt 3× kopiert" },
+      { "type": "refactor", "text": "Neue lib/authGuards.ts: requireAdminApi() und assertAdmin() ersetzen 23 identische auth()-Blöcke in API-Routes und Page-Komponenten" },
+      { "type": "refactor", "text": "lib/queries.ts: getIsLocked(userId) als zentraler Helper; N+1 in admin/users/[id]/layout.tsx durch groupBy-Muster behoben" },
+      { "type": "refactor", "text": "lib/mail.ts: escHtml() exportiert und aus zwei API-Routes dedupliziert" },
+      { "type": "refactor", "text": "lib/utils.ts: formatBuildDate() exportiert; dashboard/layout.tsx, admin/layout.tsx und Footer.tsx verwenden denselben Helper – inkl. korrekter Europe/Zurich-Zeitzone im Footer" },
+      { "type": "fix", "text": "Prisma dev-Log: Branch zeigte beide Male [\"error\"] statt [\"query\", \"error\"] in development" },
+      { "type": "fix", "text": "Admin Einträge-Tab: Datumsformat nutzt toDateLocale() statt hartkodiertem \"en-GB\"" }
+    ]
+  },
+  {
     "version": "2.2.5",
     "date": "2026-04-02",
     "changes": [
