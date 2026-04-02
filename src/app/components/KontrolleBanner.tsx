@@ -16,6 +16,8 @@ interface Props {
   actions?: ReactNode;
   /** large only – label when not overdue; pass translated string */
   openLabel?: string;
+  /** compact only – slot for withdraw X button */
+  withdrawAction?: ReactNode;
 }
 
 export default async function KontrolleBanner({
@@ -27,6 +29,7 @@ export default async function KontrolleBanner({
   href,
   actions,
   openLabel,
+  withdrawAction,
 }: Props) {
   const t = await getTranslations("kontrolleBanner");
   const dl = toDateLocale(await getLocale());
@@ -47,6 +50,7 @@ export default async function KontrolleBanner({
           {overdue ? t("overdue") : t("until")}
           {" "}{formatDateTime(deadline, dl)}
           <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>
+          {withdrawAction && <div className="relative z-20 flex-shrink-0">{withdrawAction}</div>}
         </div>
         {kommentar && <p className="opacity-80">{t("instruction")}: {kommentar}</p>}
       </div>

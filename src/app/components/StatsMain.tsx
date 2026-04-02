@@ -6,7 +6,6 @@ import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
 import type { DayEntry, DayVorgabe } from "./CalendarContainer";
 import MonthStats, { type MonthStat } from "./MonthStats";
-import AllEntriesClient, { type AllEntryData } from "./AllEntriesClient";
 import { ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 

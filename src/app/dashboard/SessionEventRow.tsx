@@ -89,8 +89,15 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   if (ev.type === "reinigung") {
     return (
       <div className="w-full flex items-center gap-4 px-5 py-3 text-left">
-        <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-sky-50 flex items-center justify-center">
-          <LockOpen size={18} className="text-sky-400" />
+        <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden">
+          {ev.imageUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={ev.imageUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+          ) : (
+            <div className="w-full h-full bg-sky-50 flex items-center justify-center rounded-xl">
+              <LockOpen size={18} className="text-sky-400" />
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-start justify-between gap-2">

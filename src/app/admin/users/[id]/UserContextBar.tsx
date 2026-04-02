@@ -71,7 +71,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
           <span className="font-bold text-foreground text-sm truncate">{username}</span>
           <span className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
             {isLocked
-              ? <><Lock size={11} strokeWidth={2} /> {since ? <LiveTimer since={since} /> : "GESPERRT"}</>
+              ? <><Lock size={11} strokeWidth={2} /> {since ? <LiveTimer since={since} /> : "VERSCHLOSSEN"}</>
               : currentStatus
                 ? <><LockOpen size={11} strokeWidth={2} /> OFFEN</>
                 : <span className="text-foreground-faint">–</span>
