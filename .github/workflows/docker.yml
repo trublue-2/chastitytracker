@@ -1,6 +1,8 @@
 name: Build, Push & Deploy
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       deploy:
@@ -19,6 +21,20 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ── Typecheck (parallel zum Docker-Build) ──────────────────────────────────
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+
+  # ── Docker Image bauen & pushen ────────────────────────────────────────────
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
@@ -31,14 +47,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-
       - name: Read version from package.json
         run: |
-          NEW_VERSION=$(node -p "require('./package.json').version")
+          NEW_VERSION=$(jq -r .version package.json)
           echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
 
       - name: Log in to GitHub Container Registry
@@ -73,23 +84,31 @@ jobs:
           build-args: |
             BUILD_DATE=${{ github.run_started_at }}
 
+  # ── Deploy auf Server ──────────────────────────────────────────────────────
   deploy:
-    needs: build-and-push
-    if: ${{ github.event.inputs.deploy != 'false' }}
+    needs: [build-and-push, typecheck]
+    if: ${{ github.event_name == 'push' || github.event.inputs.deploy != 'false' }}
     runs-on: ubuntu-latest
+
+    env:
+      INSTANCES_INPUT: ${{ github.event.inputs.instances }}
 
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          INSTANCES_INPUT: ${{ env.INSTANCES_INPUT }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: INSTANCES_INPUT
           script: |
-            INSTANCES_INPUT="${{ github.event.inputs.instances }}"
             INSTANCES_DIR="$HOME/instances"
+            IMAGE="ghcr.io/trublue-2/chastitytracker:latest"
 
+            # Targets bestimmen
             if [ -n "$INSTANCES_INPUT" ]; then
               IFS=',' read -ra TARGETS <<< "$INSTANCES_INPUT"
             else
@@ -99,16 +118,37 @@ jobs:
               done
             fi
 
+            # Image einmal pullen (statt pro Instanz)
+            echo "→ Image pullen..."
+            docker pull "$IMAGE"
+
+            # Instanzen parallel updaten
+            PIDS=()
             for INSTANCE in "${TARGETS[@]}"; do
               DIR="$INSTANCES_DIR/$INSTANCE"
               if [ ! -f "$DIR/docker-compose.yml" ]; then
                 echo "⚠ Instanz '$INSTANCE' nicht gefunden, übersprungen."
                 continue
               fi
-              echo "→ Update $INSTANCE ..."
-              cd "$DIR"
-              docker compose pull
-              docker compose up -d --force-recreate
+              (
+                echo "→ Update $INSTANCE ..."
+                cd "$DIR"
+                docker compose up -d --force-recreate
+                echo "✓ $INSTANCE aktualisiert."
+              ) &
+              PIDS+=($!)
+            done
+
+            # Auf alle parallelen Deploys warten
+            FAILED=0
+            for pid in "${PIDS[@]}"; do
+              wait "$pid" || FAILED=$((FAILED + 1))
             done
 
             docker image prune -f
+
+            if [ "$FAILED" -gt 0 ]; then
+              echo "⚠ $FAILED Instanz(en) fehlgeschlagen!"
+              exit 1
+            fi
+            echo "✓ Alle ${#TARGETS[@]} Instanzen aktualisiert."
