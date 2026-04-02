@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/mail";
 
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export async function POST(req: NextRequest) {
   try {
   const session = await auth();
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
   const kommentarHtml = kommentarTrimmed
-    ? '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Anweisung des Admins:</p><p style="margin:0;font-size:15px;color:#422006">' + kommentarTrimmed + '</p></div>'
+    ? '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Anweisung des Admins:</p><p style="margin:0;font-size:15px;color:#422006">' + escHtml(kommentarTrimmed) + '</p></div>'
     : "";
   await prisma.kontrollAnforderung.create({
     data: { userId, code, deadline, kommentar: kommentarTrimmed || null },
