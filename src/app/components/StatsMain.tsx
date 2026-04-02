@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, type ReinigungSettings } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, buildWearPairs, wearingHoursFromPairs, type WearPair, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
@@ -13,7 +13,6 @@ import { getTranslations, getLocale } from "next-intl/server";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null; oeffnenGrund?: string | null };
-type WearPair = { start: Date; end: Date };
 type CompletedPair = { verschluss: Entry; oeffnen: Entry; durationMs: number };
 type Vorgabe = {
   gueltigAb: Date;
@@ -27,33 +26,7 @@ type Vorgabe = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-function buildWearPairs(entries: Entry[], now: Date): WearPair[] {
-  const asc = [...entries]
-    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-  const pairs: WearPair[] = [];
-  let pending: Entry | null = null;
-  for (const e of asc) {
-    if (e.type === "VERSCHLUSS") {
-      if (pending) pairs.push({ start: pending.startTime, end: now });
-      pending = e;
-    } else if (e.type === "OEFFNEN" && pending) {
-      pairs.push({ start: pending.startTime, end: e.startTime });
-      pending = null;
-    }
-  }
-  if (pending) pairs.push({ start: pending.startTime, end: now });
-  return pairs;
-}
-
-function wearingHoursInRange(pairs: WearPair[], rangeStart: Date, rangeEnd: Date): number {
-  let totalMs = 0;
-  for (const p of pairs) {
-    const overlap = Math.min(p.end.getTime(), rangeEnd.getTime()) - Math.max(p.start.getTime(), rangeStart.getTime());
-    if (overlap > 0) totalMs += overlap;
-  }
-  return totalMs / 3600000;
-}
+// buildWearPairs + wearingHoursFromPairs imported from @/lib/utils
 
 function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>): Map<string, { hours: number; hasOrgasm: boolean }> {
   const map = new Map<string, { hours: number; hasOrgasm: boolean }>();
@@ -117,7 +90,7 @@ function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben
       const [y, m] = v.key.split("-").map(Number);
       const monthStart = midnightInTZ(new Date(Date.UTC(y, m - 1, 1, 12)));
       const monthEnd = midnightInTZ(new Date(Date.UTC(y, m, 1, 12)));
-      const wearHours = wearingHoursInRange(wearPairs, monthStart, monthEnd);
+      const wearHours = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
       const applicableVorgabe = vorgaben.find(
         (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
       );
@@ -228,9 +201,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
   const weekStart = getWeekStart(now);
   const monthStart = getMonthStart(now);
 
-  const hoursToday = wearingHoursInRange(wearPairs, todayStart, now);
-  const hoursWeek = wearingHoursInRange(wearPairs, weekStart, now);
-  const hoursMonth = wearingHoursInRange(wearPairs, monthStart, now);
+  const hoursToday = wearingHoursFromPairs(wearPairs, todayStart, now);
+  const hoursWeek = wearingHoursFromPairs(wearPairs, weekStart, now);
+  const hoursMonth = wearingHoursFromPairs(wearPairs, monthStart, now);
 
   const orgasmDateSet = new Set<string>(
     entries.filter((e) => e.type === "ORGASMUS")
@@ -258,7 +231,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
     const vorgabe = vorgaben.find(
       (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
     ) ?? null;
-    const monthTotalH = wearingHoursInRange(wearPairs, monthStart, monthEnd);
+    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
     const monthGoalMet = vorgabe?.minProMonatH != null ? monthTotalH >= vorgabe.minProMonatH : null;
     const monthGoalPct = vorgabe?.minProMonatH ? Math.round((monthTotalH / vorgabe.minProMonatH) * 100) : null;
 
@@ -283,7 +256,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
         const dow = (jsWeekdayMap[anchorWd] + 6) % 7;
         const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)));
         const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
-        weekH = wearingHoursInRange(wearPairs, wkStart, wkEnd);
+        weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
       }
       weekGoalMet.push(vorgabe?.minProWocheH != null && firstDayOfRow != null ? weekH >= vorgabe.minProWocheH : null);
       weekGoalPct.push(vorgabe?.minProWocheH && firstDayOfRow != null ? Math.round((weekH / vorgabe.minProWocheH) * 100) : null);

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale, APP_TZ } from "@/lib/utils";
+import { OEFFNEN_GRUENDE } from "@/lib/constants";
 import { AlertCircle, Lock } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 
-const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
 type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
 interface Props {

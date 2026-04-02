@@ -281,6 +281,45 @@ export function photoStatus(v: { imageUrl: string | null; imageExifTime: Date | 
   return "ok";
 }
 
+// ── Pair-based wearing hours (for batch range queries like StatsMain) ────────
+
+export type WearPair = { start: Date; end: Date };
+
+/** Builds VERSCHLUSS→OEFFNEN pairs from entries. Open sessions end at `now`. */
+export function buildWearPairs(
+  entries: { type: string; startTime: Date }[],
+  now: Date
+): WearPair[] {
+  const asc = [...entries]
+    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  const pairs: WearPair[] = [];
+  let pending: { startTime: Date } | null = null;
+  for (const e of asc) {
+    if (e.type === "VERSCHLUSS") {
+      if (pending) pairs.push({ start: pending.startTime, end: now });
+      pending = e;
+    } else if (e.type === "OEFFNEN" && pending) {
+      pairs.push({ start: pending.startTime, end: e.startTime });
+      pending = null;
+    }
+  }
+  if (pending) pairs.push({ start: pending.startTime, end: now });
+  return pairs;
+}
+
+/** Calculates wearing hours from pre-built pairs within a date range. */
+export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, rangeEnd: Date): number {
+  let totalMs = 0;
+  for (const p of pairs) {
+    const overlap = Math.min(p.end.getTime(), rangeEnd.getTime()) - Math.max(p.start.getTime(), rangeStart.getTime());
+    if (overlap > 0) totalMs += overlap;
+  }
+  return totalMs / 3600000;
+}
+
+// ── Entry-based wearing hours (single-shot calculations) ─────────────────────
+
 /** Berechnet effektive Tragedauer in Stunden innerhalb eines Zeitraums.
  *  Jedes OEFFNEN (inkl. REINIGUNG) stoppt die Tragedauer – Pausen werden
  *  dadurch automatisch ausgeschlossen. Das reinigung-Param wird für die
