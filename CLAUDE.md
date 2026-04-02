@@ -80,6 +80,40 @@ ANTHROPIC_API_KEY=<key>
 ```
 
 
+## Architektur-Konventionen
+
+Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert werden. **Vor jeder neuen Komponente oder Form: grep nach bestehendem Pattern.**
+
+### Wiederverwendung vor Neubau
+- **Bevor du eine Komponente, einen Hook oder eine Utility-Funktion schreibst:** Durchsuche `src/app/components/`, `src/app/hooks/`, `src/lib/` nach bestehenden Lösungen.
+- **Gleicher JSX in >1 Datei → sofort extrahieren** nach `src/app/components/`. Keine Ausnahme für "kleine" Blöcke — auch 10-Zeilen-Banner werden zu Komponenten wenn sie an 2+ Stellen vorkommen.
+- **Gleiche Lookup-Maps** (TYPE_LABELS, STATUS_COLOR, etc.) gehören in `src/lib/constants.ts`, nicht lokal in Seiten-Dateien.
+
+### Form-Konventionen
+- **Loading-State** heisst immer `saving` (nicht `loading`)
+- **Fehler-Anzeige** immer über styled Card: `text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3`
+- **Network-Errors** immer via `try/catch` mit User-Feedback — kein unhandled Promise
+- **Nach Submit:** `router.push(redirectTo ?? "/dashboard")` — kein `router.refresh()` nach `router.push()`
+- **Validierung** über zentrale Konstanten (`src/lib/constants.ts`), nicht inline
+
+### i18n — keine Ausnahmen
+- **Jeder sichtbare String** in JSX muss aus `useTranslations()` / `getTranslations()` kommen
+- **Admin-Seiten** nutzen `useTranslations("admin")` — auch die `/aktionen/` Forms
+- **Keine hardcoded German Strings** — auch nicht in "internen" Admin-Pages
+- Wenn ein i18n-Key fehlt: anlegen in `messages/de.json` UND `messages/en.json`
+
+### Shared Abstractions (bestehend)
+- `src/app/hooks/usePhotoUpload.ts` — Upload + EXIF + Seal-Detect (für alle Foto-Forms)
+- `src/lib/authGuards.ts` — `requireAdminApi()`, `assertAdmin()`
+- `src/lib/constants.ts` — VALID_TYPES, OEFFNEN_GRUENDE, ORGASMUS_ARTEN, `isValidImageUrl()`
+- `src/app/components/KontrolleBanner.tsx` — Kontroll-Status-Banner (compact + large)
+- `src/app/dashboard/EntryActions.tsx` — Drei-Punkte-Menü (Edit + optional Delete)
+- `src/lib/utils.ts` — `buildWearPairs()`, `wearingHoursFromPairs()`, Formatierungs-Helpers
+
+### Changelog
+- Erlaubte `type`-Werte: `feat`, `fix`, `security`, `perf`, `chore`, `ui` — **nicht** `refactor`
+- Version bump + Changelog immer im **gleichen Commit** wie die Änderung
+
 ## Interaktionsmuster & Verhaltensrichtlinien
 
 ### Immer klärende Fragen stellen, wenn:
