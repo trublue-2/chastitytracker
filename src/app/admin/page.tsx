@@ -65,7 +65,7 @@ export default async function AdminPage() {
       hasOffeneAnforderung: !!offeneVerschlussAnforderung,
       hasActiveSperrzeit: !!activeSperrzeit,
       offeneAnforderung: offeneVerschlussAnforderung
-        ? { id: offeneVerschlussAnforderung.id, nachricht: offeneVerschlussAnforderung.nachricht, endetAt: offeneVerschlussAnforderung.endetAt }
+        ? { id: offeneVerschlussAnforderung.id, nachricht: offeneVerschlussAnforderung.nachricht, endetAt: offeneVerschlussAnforderung.endetAt, overdue: !!offeneVerschlussAnforderung.endetAt && offeneVerschlussAnforderung.endetAt < now }
         : null,
       activeSperrzeit: activeSperrzeit
         ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt }
@@ -178,23 +178,27 @@ export default async function AdminPage() {
                     withdrawAction={<WithdrawKontrolleButton id={u.stats.offeneKontrolle.id} />}
                   />
                 )}
-                {u.stats.offeneAnforderung && (
-                  <div className="flex items-center justify-between gap-2 bg-request-bg border border-request-border rounded-xl px-3 py-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Lock size={11} className="text-request flex-shrink-0" />
-                      <span className="text-xs text-request-text font-medium truncate">{t("lockRequested")}</span>
-                      {u.stats.offeneAnforderung.endetAt && (
-                        <span className="text-xs text-request opacity-70 flex-shrink-0">
-                          bis {new Date(u.stats.offeneAnforderung.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
+                {u.stats.offeneAnforderung && (() => {
+                  const overdue = u.stats.offeneAnforderung.overdue;
+                  return (
+                    <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${overdue ? "bg-warn-bg border border-warn-border" : "bg-request-bg border border-request-border"}`}>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Lock size={11} className={`flex-shrink-0 ${overdue ? "text-warn" : "text-request"}`} />
+                        <span className={`text-xs font-medium truncate ${overdue ? "text-warn-text" : "text-request-text"}`}>
+                          {overdue ? t("lockOverdue") : t("lockRequested")}
                         </span>
-                      )}
+                        {u.stats.offeneAnforderung.endetAt && (
+                          <span className={`text-xs opacity-70 flex-shrink-0 ${overdue ? "text-warn" : "text-request"}`}>
+                            bis {new Date(u.stats.offeneAnforderung.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative z-20">
+                        <WithdrawVerschlussButton id={u.stats.offeneAnforderung.id} />
+                      </div>
                     </div>
-                    {/* z-20 so button is above stretched link */}
-                    <div className="relative z-20">
-                      <WithdrawVerschlussButton id={u.stats.offeneAnforderung.id} />
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {u.stats.activeSperrzeit && (
                   <div className="flex items-center justify-between gap-2 bg-sperrzeit-bg border border-sperrzeit-border rounded-xl px-3 py-2">
                     <div className="flex items-center gap-1.5 min-w-0">

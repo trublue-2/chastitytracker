@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const err = await requireAdminApi();
     if (err) return err;
 
-    const { userId, art, nachricht, endetAt, dauerH } = await req.json();
+    const { userId, art, nachricht, endetAt, fristH, dauerH } = await req.json();
     if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
     if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
       return NextResponse.json({ error: "art muss ANFORDERUNG oder SPERRZEIT sein" }, { status: 400 });
@@ -23,12 +23,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User hat keine E-Mail-Adresse" }, { status: 400 });
     }
 
-    // endetAt berechnen: entweder direkt übergeben oder jetzt + dauerH
+    // endetAt berechnen (Frist zum Einschliessen / Sperrzeit-Ende)
     let endetAtDate: Date | null = null;
     if (endetAt) {
       endetAtDate = new Date(endetAt);
-    } else if (dauerH && art === "SPERRZEIT") {
-      endetAtDate = new Date(Date.now() + dauerH * 60 * 60 * 1000);
+    } else if (fristH && art === "ANFORDERUNG") {
+      // fristH = Frist in Stunden zum Einschliessen
+      endetAtDate = new Date(Date.now() + fristH * 60 * 60 * 1000);
+    } else if (fristH && art === "SPERRZEIT") {
+      endetAtDate = new Date(Date.now() + fristH * 60 * 60 * 1000);
+    }
+
+    if (art === "ANFORDERUNG" && !endetAtDate) {
+      return NextResponse.json({ error: "Frist zum Einschliessen ist erforderlich" }, { status: 400 });
     }
 
     // Wrap state-check + withdraw + create in transaction to prevent TOCTOU race
@@ -55,7 +62,7 @@ export async function POST(req: NextRequest) {
             art,
             nachricht: nachricht?.trim() || null,
             endetAt: endetAtDate,
-            dauerH: art === "ANFORDERUNG" ? (dauerH ?? null) : null,
+            dauerH: art === "ANFORDERUNG" ? (dauerH || null) : null,  // Mindest-Tragedauer (optional)
           },
         });
       });
@@ -72,8 +79,8 @@ export async function POST(req: NextRequest) {
       const deadlineHtml = endetAtDate
         ? `<p><strong>Bitte einschliessen bis:</strong> ${endetAtDate.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</p>`
         : "";
-      const dauerHtml = dauerH && !endetAt
-        ? `<p><strong>Mindestdauer nach Einschliessen:</strong> ${dauerH >= 24 ? `${Math.floor(dauerH / 24)}T ${dauerH % 24 > 0 ? `${dauerH % 24}h` : ""}`.trim() : `${dauerH}h`}</p>`
+      const dauerHtml = dauerH
+        ? `<p><strong>Mindest-Tragedauer nach Einschliessen:</strong> ${dauerH >= 24 ? `${Math.floor(dauerH / 24)}T ${dauerH % 24 > 0 ? `${dauerH % 24}h` : ""}`.trim() : `${dauerH}h`}</p>`
         : "";
       const nachrichtHtml = nachricht?.trim()
         ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Nachricht des Admins:</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`

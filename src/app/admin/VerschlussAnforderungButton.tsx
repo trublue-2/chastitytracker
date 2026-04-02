@@ -21,7 +21,9 @@ export default function VerschlussAnforderungButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nachricht, setNachricht] = useState("");
-  const [deadlineH, setDeadlineH] = useState("24");
+  const [deadlineH, setDeadlineH] = useState(isLocked ? "24" : "4");
+  const [withMinDauer, setWithMinDauer] = useState(false);
+  const [minDauerH, setMinDauerH] = useState("24");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -37,7 +39,7 @@ export default function VerschlussAnforderungButton({
   if (art === "SPERRZEIT" && (!isLocked || hasActiveSperrzeit)) return null;
 
   function reset() {
-    setOpen(false); setMsg(""); setNachricht(""); setDeadlineH("24");
+    setOpen(false); setMsg(""); setNachricht(""); setDeadlineH(isLocked ? "24" : "4"); setWithMinDauer(false); setMinDauerH("24");
   }
 
   async function handleSubmit() {
@@ -46,8 +48,11 @@ export default function VerschlussAnforderungButton({
       const payload: Record<string, unknown> = {
         userId, art,
         nachricht: nachricht.trim() || undefined,
-        dauerH: parseFloat(deadlineH) || 24,
+        fristH: parseFloat(deadlineH) || (isAnforderung ? 4 : 24),
       };
+      if (isAnforderung && withMinDauer) {
+        payload.dauerH = parseFloat(minDauerH) || 24;
+      }
 
       const res = await fetch("/api/admin/verschluss-anforderung", {
         method: "POST",
@@ -126,6 +131,29 @@ export default function VerschlussAnforderungButton({
             />
             <span className="text-xs text-foreground-faint">h</span>
           </div>
+
+          {/* Mindest-Tragedauer (nur bei ANFORDERUNG) */}
+          {isAnforderung && (
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={withMinDauer} onChange={(e) => setWithMinDauer(e.target.checked)}
+                  className="accent-[var(--color-request)] w-4 h-4" />
+                <span className="text-xs text-foreground-faint">{t("minDurationLabel")}</span>
+              </label>
+              {withMinDauer && (
+                <div className="flex flex-col gap-1.5 pl-6">
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={minDauerH}
+                      onChange={(e) => setMinDauerH(e.target.value)}
+                      min={1} step={1}
+                      className={`w-24 ${formInputCls}`} />
+                    <span className="text-xs text-foreground-faint">h</span>
+                  </div>
+                  <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {msg && <p className="text-xs text-warn">{msg}</p>}
 

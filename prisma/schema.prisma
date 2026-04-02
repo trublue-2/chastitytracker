@@ -75,8 +75,8 @@ model VerschlussAnforderung {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   art         String    // "ANFORDERUNG" | "SPERRZEIT"
   nachricht   String?
-  endetAt     DateTime? // ANFORDERUNG: Deadline zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
-  dauerH      Float?    // ANFORDERUNG only: Mindestdauer in Stunden nach Einschliessen
+  endetAt     DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
+  dauerH      Float?    // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT
   createdAt   DateTime  @default(now())
   fulfilledAt DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt DateTime?

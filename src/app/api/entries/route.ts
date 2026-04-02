@@ -74,6 +74,20 @@ export async function POST(req: NextRequest) {
         if (new Date(startTime) <= latest.startTime) throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
       }
 
+      // Trotziges Öffnen während aktiver SPERRZEIT → Sperrzeit aufheben (Strafbuch greift separat)
+      if (type === "OEFFNEN") {
+        const now = new Date();
+        await tx.verschlussAnforderung.updateMany({
+          where: {
+            userId: session.user.id,
+            art: "SPERRZEIT",
+            withdrawnAt: null,
+            OR: [{ endetAt: { gt: now } }, { endetAt: null }],
+          },
+          data: { withdrawnAt: now },
+        });
+      }
+
       const created = await tx.entry.create({
         data: {
           userId: session.user.id,
