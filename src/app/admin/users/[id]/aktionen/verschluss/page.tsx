@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/authGuards";
 import VerschlussForm from "./VerschlussForm";

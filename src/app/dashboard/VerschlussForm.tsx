@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
-import { compressImage } from "@/lib/compressImage";
+import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
@@ -29,67 +29,20 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
   );
   const [note, setNote] = useState(initial?.note ?? "");
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [imageExifTime, setImageExifTime] = useState(initial?.imageExifTime ?? "");
-  const [imagePreview, setImagePreview] = useState(initial?.imageUrl ?? "");
-  const [sealNumber, setSealNumber] = useState(initial?.kontrollCode ?? "");
-  const [sealState, setSealState] = useState<"idle" | "detecting" | "detected" | "not-detected">("idle");
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [exifWarning, setExifWarning] = useState("");
 
-  async function handleFile(file: File) {
-    setUploading(true);
-    setExifWarning("");
-    setSealState("idle");
-    setImagePreview(URL.createObjectURL(file));
-
-    const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
-    const compressed = await compressImage(file).catch(() => file);
-
-    const fd = new FormData();
-    fd.append("file", compressed);
-    if (clientExifTime) fd.append("clientExifTime", clientExifTime);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-
-    setImageUrl(data.url);
-    setImageExifTime(data.exifTime ?? "");
-
-    if (data.exifTime && startTime) {
-      const diff = Math.abs(new Date(data.exifTime).getTime() - new Date(startTime).getTime());
-      if (diff > 3600000) {
-        setExifWarning(t("exifDeviation", { hours: Math.round(diff / 3600000) }));
-      }
-    } else if (!data.exifTime) {
-      setExifWarning(t("exifMissing"));
-    }
-    setUploading(false);
-
-    // Auto-detect seal number from photo
-    setSealState("detecting");
-    try {
-      const detectRes = await fetch("/api/detect-seal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: data.url }),
-      });
-      if (detectRes.ok) {
-        const { detected } = await detectRes.json() as { detected: string | null };
-        if (detected) {
-          setSealNumber(detected);
-          setSealState("detected");
-        } else {
-          setSealState("not-detected");
-        }
-      } else {
-        setSealState("not-detected");
-      }
-    } catch {
-      setSealState("not-detected");
-    }
-  }
+  const {
+    imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
+    sealNumber, setSealNumber, sealState, setSealState,
+    handleFile, clearPhoto,
+  } = usePhotoUpload({
+    startTime,
+    enableSealDetection: true,
+    exifWarningText: (type, hours) =>
+      type === "deviation" ? t("exifDeviation", { hours: hours ?? 0 }) : t("exifMissing"),
+    initial,
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -154,7 +107,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode }: Props) {
                 <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>
               )}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact mobileDesktopMode={mobileDesktopMode} />
-              <button type="button" onClick={() => { setImageUrl(""); setImagePreview(""); setImageExifTime(""); setExifWarning(""); setSealState("idle"); }}
+              <button type="button" onClick={clearPhoto}
                 className="text-xs text-warn hover:opacity-80 w-fit transition">
                 {t("removePhoto")}
               </button>

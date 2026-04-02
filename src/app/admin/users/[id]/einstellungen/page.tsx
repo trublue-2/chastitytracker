@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { assertAdmin } from "@/lib/authGuards";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
@@ -23,6 +24,7 @@ function toDateInput(d: Date): string {
 
 export default async function EinstellungenPage({ params }: { params: Promise<{ id: string }> }) {
   await assertAdmin();
+  const session = await auth();
 
   const { id } = await params;
 

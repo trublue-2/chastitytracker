@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
-import { compressImage } from "@/lib/compressImage";
+import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { Loader2 } from "lucide-react";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
@@ -36,17 +36,31 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
   );
   const [note, setNote] = useState(initial?.note ?? "");
   const [kontrollCode, setKontrollCode] = useState(initial?.kontrollCode ?? initialCode ?? "");
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [imageExifTime, setImageExifTime] = useState(initial?.imageExifTime ?? "");
-  const [imagePreview, setImagePreview] = useState(initial?.imageUrl ?? "");
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [exifWarning, setExifWarning] = useState("");
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
   const [verifyReason, setVerifyReason] = useState<string | null>(null);
   const [aiMatch, setAiMatch] = useState<boolean | null>(null);
   const lastVerifiedKey = useRef<string>("");
+
+  const {
+    imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
+    handleFile: uploadFile,
+  } = usePhotoUpload({
+    startTime,
+    exifWarningText: (type, hours) =>
+      type === "deviation" ? tCommon("exifDeviation", { hours: hours ?? 0 }) : tCommon("exifMissing"),
+    initial,
+  });
+
+  // Reset verification state when a new file is uploaded
+  function handleFile(file: File) {
+    setError("");
+    setVerifyStatus(null);
+    setVerifyReason(null);
+    setAiMatch(null);
+    uploadFile(file);
+  }
 
   // Wenn Code manuell auf 5 Zeichen gesetzt wird und Bild vorhanden → Verifikation auslösen
   useEffect(() => {
@@ -76,40 +90,6 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
         .catch(() => setVerifyStatus("error"));
     }
   }, [kontrollCode, imageUrl]);
-
-  async function handleFile(file: File) {
-    setUploading(true);
-    setExifWarning("");
-    setImagePreview(URL.createObjectURL(file));
-    setError("");
-    setVerifyStatus(null);
-    setVerifyReason(null);
-    setAiMatch(null);
-
-    // iOS Safari strips EXIF — read lastModified BEFORE compression (metadata stays intact)
-    const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
-
-    const compressed = await compressImage(file).catch(() => file);
-
-    const fd = new FormData();
-    fd.append("file", compressed);
-    if (clientExifTime) fd.append("clientExifTime", clientExifTime);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-
-    setImageUrl(data.url);
-    setImagePreview(data.url);
-    setImageExifTime(data.exifTime ?? "");
-    // Verifikation läuft via useEffect sobald imageUrl und kontrollCode gesetzt sind
-
-    if (data.exifTime && startTime) {
-      const diff = Math.abs(new Date(data.exifTime).getTime() - new Date(startTime).getTime());
-      if (diff > 3600000) setExifWarning(tCommon("exifDeviation", { hours: Math.round(diff / 3600000) }));
-    } else if (!data.exifTime) {
-      setExifWarning(tCommon("exifMissing"));
-    }
-    setUploading(false);
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
