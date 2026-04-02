@@ -1,10 +1,8 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { assertAdmin } from "@/lib/authGuards";
 import PruefungForm from "./PruefungForm";
 
 export default async function AdminPruefungPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") redirect("/login");
+  await assertAdmin();
 
   const { id } = await params;
 
