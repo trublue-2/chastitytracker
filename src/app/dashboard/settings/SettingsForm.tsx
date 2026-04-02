@@ -117,7 +117,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider">{t("newPassword")}</label>
-                        <input type="password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={4} autoComplete="new-password" className={inputCls} />
+                        <input type="password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} autoComplete="new-password" className={inputCls} />
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider">{t("confirmPassword")}</label>

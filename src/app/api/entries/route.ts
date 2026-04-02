@@ -136,12 +136,17 @@ export async function POST(req: NextRequest) {
     trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
   }
 
-  // Server-side AI verification for PRUEFUNG entries — never trusted from client
+  // Server-side AI verification for PRUEFUNG entries — never trusted from client.
+  // Runs after the transaction; failure leaves verifikationStatus: null (admin can manually verify).
   if (type === "PRUEFUNG" && imageUrl && kontrollCode) {
-    const status = await verifyKontrolleCode(imageUrl, kontrollCode);
-    if (status) {
-      await prisma.entry.update({ where: { id: entry.id }, data: { verifikationStatus: status } });
-      entry = { ...entry, verifikationStatus: status };
+    try {
+      const status = await verifyKontrolleCode(imageUrl, kontrollCode);
+      if (status) {
+        await prisma.entry.update({ where: { id: entry.id }, data: { verifikationStatus: status } });
+        entry = { ...entry, verifikationStatus: status };
+      }
+    } catch (err) {
+      console.error("[POST /api/entries] AI verification failed for entry", entry.id, err);
     }
   }
 

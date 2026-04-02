@@ -51,7 +51,9 @@ export default async function RootLayout({
           <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
           <Script id="sw-register" strategy="afterInteractive">{`
             if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.register('/sw.js');
+              navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                console.warn('[SW] registration failed:', err);
+              });
             }
           `}</Script>
         </NextIntlClientProvider>

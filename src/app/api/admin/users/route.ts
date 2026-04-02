@@ -14,16 +14,27 @@ export async function GET() {
     select: { id: true, username: true },
   });
 
-  const usersWithStatus = await Promise.all(
-    users.map(async (u) => {
-      const latest = await prisma.entry.findFirst({
-        where: { userId: u.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-        orderBy: { startTime: "desc" },
-        select: { type: true },
-      });
-      return { id: u.id, username: u.username, isLocked: latest?.type === "VERSCHLUSS" };
-    })
-  );
+  // Two aggregate queries instead of one per user.
+  const userIds = users.map((u) => u.id);
+  const [lastVerschluss, lastOeffnen] = await Promise.all([
+    prisma.entry.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds }, type: "VERSCHLUSS" },
+      _max: { startTime: true },
+    }),
+    prisma.entry.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds }, type: "OEFFNEN" },
+      _max: { startTime: true },
+    }),
+  ]);
+  const vMap = new Map(lastVerschluss.map((r) => [r.userId, r._max.startTime]));
+  const oMap = new Map(lastOeffnen.map((r) => [r.userId, r._max.startTime]));
+  const usersWithStatus = users.map((u) => {
+    const vTime = vMap.get(u.id);
+    const oTime = oMap.get(u.id);
+    return { id: u.id, username: u.username, isLocked: !!vTime && (!oTime || vTime > oTime) };
+  });
 
   return NextResponse.json(usersWithStatus);
 }

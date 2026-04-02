@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"];
+const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"];
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,6 +22,16 @@ export async function PATCH(
 
   const body = await req.json();
   const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus } = body;
+
+  if (oeffnenGrund !== undefined && oeffnenGrund !== null && !OEFFNEN_GRUENDE.includes(oeffnenGrund)) {
+    return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
+  }
+  if (orgasmusArt !== undefined && orgasmusArt !== null) {
+    const base = (orgasmusArt as string).split(" – ")[0];
+    if (!ORGASMUS_ARTEN.includes(base)) {
+      return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
+    }
+  }
 
   let entry;
   try {
