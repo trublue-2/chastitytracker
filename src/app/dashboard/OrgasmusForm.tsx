@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import FormError from "@/app/components/FormError";
 
 const ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"];
 
@@ -114,7 +115,7 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
           className={`${inputCls} resize-none`} />
       </div>
 
-      {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
+      <FormError message={error} />
 
       <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
         <button type="button" onClick={() => router.push("/dashboard")}

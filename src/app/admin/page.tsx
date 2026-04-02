@@ -8,6 +8,7 @@ import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import WithdrawVerschlussButton from "./WithdrawVerschlussButton";
 import WithdrawKontrolleButton from "./WithdrawKontrolleButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
+import LockRequestBanner from "@/app/components/LockRequestBanner";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
@@ -178,46 +179,27 @@ export default async function AdminPage() {
                     withdrawAction={<WithdrawKontrolleButton id={u.stats.offeneKontrolle.id} />}
                   />
                 )}
-                {u.stats.offeneAnforderung && (() => {
-                  const overdue = u.stats.offeneAnforderung.overdue;
-                  return (
-                    <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${overdue ? "bg-warn-bg border border-warn-border" : "bg-request-bg border border-request-border"}`}>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Lock size={11} className={`flex-shrink-0 ${overdue ? "text-warn" : "text-request"}`} />
-                        <span className={`text-xs font-medium truncate ${overdue ? "text-warn-text" : "text-request-text"}`}>
-                          {overdue ? t("lockOverdue") : t("lockRequested")}
-                        </span>
-                        {u.stats.offeneAnforderung.endetAt && (
-                          <span className={`text-xs opacity-70 flex-shrink-0 ${overdue ? "text-warn" : "text-request"}`}>
-                            bis {new Date(u.stats.offeneAnforderung.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
-                          </span>
-                        )}
-                      </div>
-                      <div className="relative z-20">
-                        <WithdrawVerschlussButton id={u.stats.offeneAnforderung.id} />
-                      </div>
-                    </div>
-                  );
-                })()}
+                {u.stats.offeneAnforderung && (
+                  <LockRequestBanner
+                    variant="compact"
+                    colorScheme="request"
+                    label={u.stats.offeneAnforderung.overdue ? t("lockOverdue") : t("lockRequested")}
+                    overdue={u.stats.offeneAnforderung.overdue}
+                    endetAt={u.stats.offeneAnforderung.endetAt}
+                    locale={dl}
+                    withdrawAction={<WithdrawVerschlussButton id={u.stats.offeneAnforderung.id} />}
+                  />
+                )}
                 {u.stats.activeSperrzeit && (
-                  <div className="flex items-center justify-between gap-2 bg-sperrzeit-bg border border-sperrzeit-border rounded-xl px-3 py-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Lock size={11} className="text-sperrzeit flex-shrink-0" />
-                      {u.stats.activeSperrzeit.endetAt ? (
-                        <span className="text-xs text-sperrzeit-text font-medium">
-                          {t("lockedUntil")}{" "}
-                          <span className="font-bold">
-                            {new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-xs text-sperrzeit-text font-medium">{t("lockedIndefinite")}</span>
-                      )}
-                    </div>
-                    <div className="relative z-20">
-                      <WithdrawVerschlussButton id={u.stats.activeSperrzeit.id} />
-                    </div>
-                  </div>
+                  <LockRequestBanner
+                    variant="compact"
+                    colorScheme="sperrzeit"
+                    label={u.stats.activeSperrzeit.endetAt
+                      ? `${t("lockedUntil")} ${new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}`
+                      : t("lockedIndefinite")}
+                    locale={dl}
+                    withdrawAction={<WithdrawVerschlussButton id={u.stats.activeSperrzeit.id} />}
+                  />
                 )}
 
                 {/* Quick actions — z-20 so they're above the stretched link */}
