@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendMail } from "@/lib/mail";
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+import { sendMail, escHtml } from "@/lib/mail";
+import { requireAdminApi } from "@/lib/authGuards";
+import { getIsLocked } from "@/lib/queries";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const err = await requireAdminApi();
+    if (err) return err;
 
     const { userId, art, nachricht, endetAt, dauerH } = await req.json();
     if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
@@ -23,11 +18,7 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return NextResponse.json({ error: "User nicht gefunden" }, { status: 404 });
 
-    const latest = await prisma.entry.findFirst({
-      where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-      orderBy: { startTime: "desc" },
-    });
-    const isLocked = latest?.type === "VERSCHLUSS";
+    const isLocked = await getIsLocked(userId);
 
     if (art === "ANFORDERUNG" && isLocked) {
       return NextResponse.json({ error: "User ist bereits verschlossen" }, { status: 400 });

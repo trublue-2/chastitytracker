@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendMail } from "@/lib/mail";
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+import { sendMail, escHtml } from "@/lib/mail";
+import { requireAdminApi } from "@/lib/authGuards";
 
 export async function POST(req: NextRequest) {
   try {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const err = await requireAdminApi();
+  if (err) return err;
 
   const { userId, kommentar, deadlineH } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });

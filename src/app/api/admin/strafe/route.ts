@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/authGuards";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const err = await requireAdminApi();
+  if (err) return err;
 
   const body = await req.json();
   const { userId, offenseType, refId, bestraftDatum, notiz } = body;

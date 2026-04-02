@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const err = await requireAdminApi();
+  if (err) return err;
 
   const users = await prisma.user.findMany({
     orderBy: { username: "asc" },
@@ -40,10 +38,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const err = await requireAdminApi();
+  if (err) return err;
 
   const { username, password, role, email } = await req.json();
 
