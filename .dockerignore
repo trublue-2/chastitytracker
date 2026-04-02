@@ -1,7 +1,11 @@
 node_modules
 .next
 .git
+.claude
 prisma/dev.db
+data/
 public/uploads
 .env.local
 *.md
+playwright-report
+test-results
