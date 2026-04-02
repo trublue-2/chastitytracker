@@ -7,6 +7,8 @@ import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
+import FormError from "@/app/components/FormError";
+import FormField from "@/app/components/FormField";
 
 interface Props {
   initial?: {
@@ -78,7 +80,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {/* Datum / Zeit */}
-      <Field label={t("dateTimeRequired")}>
+      <FormField label={t("dateTimeRequired")}>
         <input
           type="datetime-local"
           value={startTime}
@@ -86,10 +88,10 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
           required
           className={inputCls}
         />
-      </Field>
+      </FormField>
 
       {/* Foto */}
-      <Field label={t("photoOptional")}>
+      <FormField label={t("photoOptional")}>
         {imagePreview ? (
           <div className="flex items-start gap-4">
             <ImageViewer
@@ -116,10 +118,10 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
         ) : (
           <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
         )}
-      </Field>
+      </FormField>
 
       {/* Siegel-Nummer */}
-      <Field label={tForm("sealNumber")}>
+      <FormField label={tForm("sealNumber")}>
         <div className="flex flex-col gap-1.5">
           <input
             type="text"
@@ -141,19 +143,19 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
             <p className="text-xs text-foreground-faint">{tForm("sealNotDetected")}</p>
           )}
         </div>
-      </Field>
+      </FormField>
 
       {/* Notiz */}
-      <Field label={t("noteOptional")}>
+      <FormField label={t("noteOptional")}>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           className={`${inputCls} resize-none`}
         />
-      </Field>
+      </FormField>
 
-      {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
+      <FormError message={error} />
 
       <FormActions saving={saving || uploading} label={initial ? t("update") : tForm("saveBtn")} color="emerald" />
     </form>
@@ -162,14 +164,6 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
 
 const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{label}</label>
-      {children}
-    </div>
-  );
-}
 
 function FormActions({ saving, label, color }: { saving: boolean; label: string; color: "gray" | "emerald" }) {
   const t = useTranslations("common");

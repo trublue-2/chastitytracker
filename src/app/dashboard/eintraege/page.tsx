@@ -1,31 +1,9 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
 import { getLocale } from "next-intl/server";
-import { formatDateTime } from "@/lib/utils";
+import EntryRow from "@/app/components/EntryRow";
 import EntryActions from "../EntryActions";
-
-const TYPE_LABELS: Record<string, string> = {
-  VERSCHLUSS: "Verschluss",
-  OEFFNEN: "Öffnen",
-  PRUEFUNG: "Prüfung",
-  ORGASMUS: "Orgasmus",
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  VERSCHLUSS: "text-foreground-muted",
-  OEFFNEN: "text-foreground-muted",
-  PRUEFUNG: "text-[var(--color-inspect)]",
-  ORGASMUS: "text-[var(--color-orgasm)]",
-};
-
-const ICONS: Record<string, React.ReactNode> = {
-  VERSCHLUSS: <Lock size={12} />,
-  OEFFNEN: <LockOpen size={12} />,
-  PRUEFUNG: <ClipboardList size={12} />,
-  ORGASMUS: <Droplets size={12} />,
-};
 
 export default async function EintraegePage() {
   const session = await auth();
@@ -52,27 +30,12 @@ export default async function EintraegePage() {
         <div className="bg-surface rounded-2xl border border-border overflow-hidden">
           <div className="divide-y divide-border-subtle">
             {entries.map((e) => (
-              <div key={e.id} className="px-5 py-3 flex items-center gap-3">
-                <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${TYPE_COLORS[e.type] ?? "text-foreground-muted"}`}>
-                  {ICONS[e.type]}
-                  {TYPE_LABELS[e.type] ?? e.type}
-                </span>
-                <span className="text-sm text-foreground tabular-nums">
-                  {formatDateTime(e.startTime, dl)}
-                </span>
-                {e.orgasmusArt && (
-                  <span className="text-xs text-[var(--color-orgasm)] font-medium">{e.orgasmusArt}</span>
-                )}
-                {e.type === "VERSCHLUSS" && e.kontrollCode && (
-                  <span className="text-xs text-[var(--color-lock)] font-mono tabular-nums">#{e.kontrollCode}</span>
-                )}
-                {e.note && (
-                  <span className="text-xs text-foreground-faint italic truncate min-w-0">„{e.note}"</span>
-                )}
-                <div className="ml-auto flex-shrink-0">
-                  <EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=eintraege`} showDelete={false} />
-                </div>
-              </div>
+              <EntryRow
+                key={e.id}
+                entry={e}
+                locale={dl}
+                actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=eintraege`} showDelete={false} />}
+              />
             ))}
           </div>
         </div>
