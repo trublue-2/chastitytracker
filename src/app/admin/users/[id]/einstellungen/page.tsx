@@ -7,6 +7,7 @@ import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
+import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import Card from "@/app/components/Card";
 import VorgabeForm from "../VorgabeForm";
@@ -114,6 +115,25 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           </div>
           <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
         </div>
+      </Card>
+
+      {/* Benachrichtigungen */}
+      <Card padding="none" className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notificationsTitle")}</p>
+          <p className="text-[11px] text-foreground-faint mt-0.5">{t("notificationsDesc")}</p>
+        </div>
+        <NotificationToggles
+          userId={user.id}
+          initial={{
+            notifyVerschluss: user.notifyVerschluss,
+            notifyOeffnungImmer: user.notifyOeffnungImmer,
+            notifyOeffnungVerboten: user.notifyOeffnungVerboten,
+            notifyOrgasmus: user.notifyOrgasmus,
+            notifyKontrolleFreiwillig: user.notifyKontrolleFreiwillig,
+            notifyKontrolleAngefordert: user.notifyKontrolleAngefordert,
+          }}
+        />
       </Card>
 
       {/* Trainingsvorgaben */}

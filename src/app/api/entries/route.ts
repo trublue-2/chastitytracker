@@ -151,14 +151,47 @@ export async function POST(req: NextRequest) {
     trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
   }
 
-  // Notify admins about the new entry (fire-and-forget — never block response)
-  const username = session.user.name ?? "User";
-  const typeLabels: Record<string, string> = { VERSCHLUSS: "Verschluss", OEFFNEN: "Öffnen", PRUEFUNG: "Prüfung", ORGASMUS: "Orgasmus" };
-  sendPushToAdmins(
-    username,
-    typeLabels[type] ?? type,
-    `/admin/users/${session.user.id}`
-  ).catch(() => { /* ignore push errors */ });
+  // Notify admins based on per-user notification flags (fire-and-forget)
+  const userFlags = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      username: true,
+      notifyVerschluss: true,
+      notifyOeffnungImmer: true,
+      notifyOeffnungVerboten: true,
+      notifyOrgasmus: true,
+      notifyKontrolleFreiwillig: true,
+      notifyKontrolleAngefordert: true,
+    },
+  });
+  if (userFlags) {
+    let shouldNotify = false;
+    if (type === "VERSCHLUSS" && userFlags.notifyVerschluss) shouldNotify = true;
+    if (type === "OEFFNEN" && userFlags.notifyOeffnungImmer) shouldNotify = true;
+    // "Öffnung verboten" — Sperrzeit was active (just withdrawn in the transaction above)
+    if (type === "OEFFNEN" && userFlags.notifyOeffnungVerboten) {
+      // Check if a Sperrzeit was just withdrawn (= user opened despite restriction)
+      const justWithdrawn = await prisma.verschlussAnforderung.findFirst({
+        where: { userId: session.user.id, art: "SPERRZEIT", withdrawnAt: { not: null } },
+        orderBy: { withdrawnAt: "desc" },
+      });
+      if (justWithdrawn && justWithdrawn.withdrawnAt && Date.now() - justWithdrawn.withdrawnAt.getTime() < 5000) {
+        shouldNotify = true;
+      }
+    }
+    if (type === "ORGASMUS" && userFlags.notifyOrgasmus) shouldNotify = true;
+    if (type === "PRUEFUNG" && kontrollCode && userFlags.notifyKontrolleAngefordert) shouldNotify = true;
+    if (type === "PRUEFUNG" && !kontrollCode && userFlags.notifyKontrolleFreiwillig) shouldNotify = true;
+
+    if (shouldNotify) {
+      const typeLabels: Record<string, string> = { VERSCHLUSS: "Verschluss", OEFFNEN: "Öffnen", PRUEFUNG: "Prüfung", ORGASMUS: "Orgasmus" };
+      sendPushToAdmins(
+        userFlags.username,
+        typeLabels[type] ?? type,
+        `/admin/users/${session.user.id}`
+      ).catch(() => { /* ignore push errors */ });
+    }
+  }
 
   // Server-side AI verification for PRUEFUNG entries — never trusted from client.
   // Runs after the transaction; failure leaves verifikationStatus: null (admin can manually verify).

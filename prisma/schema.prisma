@@ -18,6 +18,13 @@ model User {
   reinigungErlaubt      Boolean                @default(false)
   reinigungMaxMinuten   Int                    @default(15)
   mobileDesktopUpload   Boolean                @default(false)
+  // Admin notification preferences (per user — admin decides which events trigger push)
+  notifyVerschluss            Boolean          @default(false)
+  notifyOeffnungImmer         Boolean          @default(false)
+  notifyOeffnungVerboten      Boolean          @default(false)
+  notifyOrgasmus              Boolean          @default(false)
+  notifyKontrolleFreiwillig   Boolean          @default(false)
+  notifyKontrolleAngefordert  Boolean          @default(false)
   entries               Entry[]
   vorgaben              TrainingVorgabe[]
   passwordResetTokens   PasswordResetToken[]
