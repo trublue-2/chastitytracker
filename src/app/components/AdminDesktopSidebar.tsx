@@ -115,9 +115,14 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
             {t("signOut")}
           </button>
           <div className="px-2 flex flex-col gap-0.5">
-            <Link href="/admin/changelog" className="text-xs text-foreground-faint hover:text-foreground-muted transition font-mono">
-              v{version}
-            </Link>
+            <div className="flex items-center justify-between">
+              <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
+                &copy; trublue {new Date().getFullYear()}
+              </a>
+              <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
+                {version}
+              </Link>
+            </div>
             <span className="text-[10px] text-foreground-faint">
               Build {buildDate}
             </span>
