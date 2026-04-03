@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { detectSealNumber } from "@/lib/verifyCode";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isValidImageUrl } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { imageUrl } = await req.json();
-  if (!imageUrl) return NextResponse.json({ error: "imageUrl required" }, { status: 400 });
+  if (!imageUrl || !isValidImageUrl(imageUrl)) return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
 
   const detected = await detectSealNumber(imageUrl);
   return NextResponse.json({ detected });

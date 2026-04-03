@@ -12,7 +12,7 @@ export default async function AdminUserLayout({
   const { id } = await params;
 
   // Parallelize all queries — select only needed fields for user-switcher
-  const [user, allUsers, latestLockEntry, lastVerschluss, lastOeffnen] = await Promise.all([
+  const [user, allUsers, latestLockEntry] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { id: true, username: true } }),
     prisma.user.findMany({ orderBy: { username: "asc" }, select: { id: true, username: true } }),
     prisma.entry.findFirst({
@@ -20,8 +20,12 @@ export default async function AdminUserLayout({
       orderBy: { startTime: "desc" },
       select: { type: true, startTime: true },
     }),
-    prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS" }, _max: { startTime: true } }),
-    prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN" }, _max: { startTime: true } }),
+  ]);
+
+  const userIds = allUsers.map(u => u.id);
+  const [lastVerschluss, lastOeffnen] = await Promise.all([
+    prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
+    prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
   ]);
 
   if (!user) return <>{children}</>;

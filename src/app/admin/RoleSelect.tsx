@@ -7,24 +7,24 @@ import { useTranslations } from "next-intl";
 export default function RoleSelect({ id, currentRole }: { id: string; currentRole: string }) {
   const t = useTranslations("admin");
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    setLoading(true);
+    setSaving(true);
     await fetch(`/api/admin/users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: e.target.value }),
     });
     router.refresh();
-    setLoading(false);
+    setSaving(false);
   }
 
   return (
     <select
       defaultValue={currentRole}
       onChange={handleChange}
-      disabled={loading}
+      disabled={saving}
       className={`text-xs font-semibold px-2 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-foreground-muted cursor-pointer transition ${
         currentRole === "admin"
           ? "bg-[var(--color-request-bg)] text-[var(--color-request-text)]"

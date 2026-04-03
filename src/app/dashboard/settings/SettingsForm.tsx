@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { User, ChevronRight } from "lucide-react";
+import { setLocaleCookie } from "@/lib/locale";
 import Card from "@/app/components/Card";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
@@ -49,7 +50,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
   }
 
   function setLocale(value: string) {
-    document.cookie = `locale=${value}; path=/; max-age=31536000; SameSite=Lax`;
+    setLocaleCookie(value);
     router.refresh();
   }
 

@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   formatDateTime, formatHours,
-  buildPairs, interruptionPauseMs,
+  buildPairs, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
   type ReinigungSettings,
 } from "@/lib/utils";
@@ -52,7 +52,6 @@ export default async function DashboardPage() {
     : null;
 
   // ── Build kontroll items for session events ──
-  const { buildKontrolleItems } = await import("@/lib/utils");
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
   const pairs = buildPairs(entries, kontrollItems, reinigung);
   const activePair = pairs.find((p) => p.active) ?? null;
