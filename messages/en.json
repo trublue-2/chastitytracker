@@ -273,6 +273,8 @@
     "account": "Account",
     "app": "App",
     "changeEmail": "Change email",
+    "emailLabel": "Email address",
+    "emailSaved": "Email has been saved.",
     "emailNotAvailable": "Email changes are currently not available.",
     "version": "Version",
     "buildDate": "Build date",

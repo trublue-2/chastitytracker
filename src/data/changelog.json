@@ -1,5 +1,19 @@
 [
   {
+    "version": "3.2.0",
+    "date": "2026-04-03",
+    "changes": [
+      { "type": "feat", "text": "Benachrichtigungen normalisiert: NotificationPreference-Modell (Mail + Push pro Event-Typ), zwei separate Kacheln in Admin-User-Einstellungen" },
+      { "type": "feat", "text": "E-Mail-Änderung für Benutzer freigeschaltet (neuer API-Endpunkt /api/settings/email)" },
+      { "type": "ui", "text": "Admin-Einstellungen vereinheitlicht: gleicher Accordion-Stil wie User-Settings (Passwort, E-Mail, Abmelden)" },
+      { "type": "ui", "text": "Push-Texte verbessert: beschreibende Nachrichten bei Verschluss/Öffnung/Orgasmus/Kontrolle" },
+      { "type": "fix", "text": "Admin-Settings: E-Mail wird jetzt aus der DB geladen (Session enthält kein email-Feld)" },
+      { "type": "fix", "text": "Toggle iOS-kompatibel: div role=switch statt label+input, behebt Hydration-Mismatch" },
+      { "type": "fix", "text": "Passwort ändern: altes Passwort wird nicht mehr benötigt" },
+      { "type": "fix", "text": "Timer-Kontrast: weisser Text auf blauem Offen-seit-Banner" }
+    ]
+  },
+  {
     "version": "3.1.0",
     "date": "2026-04-03",
     "changes": [
