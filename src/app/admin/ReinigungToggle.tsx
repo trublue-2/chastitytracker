@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import Toggle from "@/app/components/Toggle";
 
 export default function ReinigungToggle({
   userId,
@@ -12,11 +14,11 @@ export default function ReinigungToggle({
   initialErlaubt: boolean;
   initialMaxMinuten: number;
 }) {
+  const t = useTranslations("admin");
   const router = useRouter();
   const [erlaubt, setErlaubt] = useState(initialErlaubt);
   const [maxMin, setMaxMin] = useState(initialMaxMinuten);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   async function save(newErlaubt: boolean, newMaxMin: number) {
     setSaving(true);
@@ -26,8 +28,6 @@ export default function ReinigungToggle({
       body: JSON.stringify({ reinigungErlaubt: newErlaubt, reinigungMaxMinuten: newMaxMin }),
     });
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
     router.refresh();
   }
 
@@ -42,19 +42,17 @@ export default function ReinigungToggle({
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <label className="flex items-center gap-1.5 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={erlaubt}
-          onChange={(e) => handleToggle(e.target.checked)}
-          disabled={saving}
-          className="w-4 h-4 rounded accent-[var(--color-request)]"
-        />
-        <span className="text-xs font-medium text-foreground-faint">Reinigung</span>
-      </label>
+    <div className="flex flex-col gap-3">
+      <Toggle
+        label={t("reinigungPausenLabel")}
+        description={t("reinigungPausenDesc")}
+        checked={erlaubt}
+        disabled={saving}
+        onChange={handleToggle}
+      />
       {erlaubt && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2 pl-1">
+          <span className="text-xs text-foreground-faint">{t("reinigungMaxLabel")}</span>
           <input
             type="number"
             min={1}
@@ -63,12 +61,11 @@ export default function ReinigungToggle({
             onChange={handleMinuten}
             onBlur={() => save(erlaubt, maxMin)}
             disabled={saving}
-            className="w-14 border border-border rounded-lg px-2 py-1 text-sm text-foreground-muted focus:outline-none focus:ring-2 focus:ring-foreground-muted bg-surface-raised"
+            className="w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20"
           />
           <span className="text-xs text-foreground-faint">min</span>
         </div>
       )}
-      {saved && <span className="text-xs text-[var(--color-ok)]">✓</span>}
     </div>
   );
 }

@@ -476,6 +476,7 @@
     "sectionReinigung": "Reinigung",
     "reinigungPausenLabel": "Reinigungspausen erlauben",
     "reinigungPausenDesc": "Kurzes Öffnen ohne Eintrag",
+    "reinigungMaxLabel": "Max. Dauer",
     "sectionApp": "App",
     "mobileUploadAdminTitle": "Dateiauswahl auf Mobile",
     "mobileUploadAdminDesc": "Dateiauswahl statt direkter Kamera beim Foto-Upload",
