@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isValidEmail } from "@/lib/constants";
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
@@ -12,8 +13,7 @@ export async function PATCH(req: NextRequest) {
   const trimmed = typeof email === "string" ? email.trim() : "";
   const value = trimmed || null;
 
-  // Basic email format check (if provided)
-  if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+  if (!isValidEmail(value)) {
     return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
   }
 

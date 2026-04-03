@@ -1,14 +1,12 @@
 "use client";
 
-import type { ChangeEvent } from "react";
-
 interface ToggleProps {
   label: string;
   description?: string;
   checked?: boolean;
   disabled?: boolean;
   className?: string;
-  onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (checked: boolean) => void;
 }
 
 export default function Toggle({
@@ -21,8 +19,7 @@ export default function Toggle({
 }: ToggleProps) {
   function handleClick() {
     if (disabled || !onChange) return;
-    const fakeEvent = { target: { checked: !checked } } as ChangeEvent<HTMLInputElement>;
-    onChange(fakeEvent);
+    onChange(!checked);
   }
 
   return (

@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
-import { sendPushToAdmins } from "@/lib/push";
+import { sendPushToUser } from "@/lib/push";
 import { sendMail } from "@/lib/mail";
+import { formatDateTime } from "@/lib/utils";
 
 export async function GET() {
   const session = await auth();
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;
+  let withdrawnSperrzeit = false;
   try {
     entry = await prisma.$transaction(async (tx) => {
       if (type === "VERSCHLUSS") {
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
       // Trotziges Öffnen während aktiver SPERRZEIT → Sperrzeit aufheben (Strafbuch greift separat)
       if (type === "OEFFNEN") {
         const now = new Date();
-        await tx.verschlussAnforderung.updateMany({
+        const result = await tx.verschlussAnforderung.updateMany({
           where: {
             userId: session.user.id,
             art: "SPERRZEIT",
@@ -88,6 +90,7 @@ export async function POST(req: NextRequest) {
           },
           data: { withdrawnAt: now },
         });
+        if (result.count > 0) withdrawnSperrzeit = true;
       }
 
       const created = await tx.entry.create({
@@ -155,19 +158,11 @@ export async function POST(req: NextRequest) {
   // Notify admins based on per-user NotificationPreference (fire-and-forget)
   (async () => {
     try {
-      // Determine which eventType(s) match this entry
       const eventTypes: string[] = [];
       if (type === "VERSCHLUSS") eventTypes.push("VERSCHLUSS");
       if (type === "OEFFNEN") {
         eventTypes.push("OEFFNUNG_IMMER");
-        // Check if opened during active Sperrzeit (just withdrawn in the transaction above)
-        const justWithdrawn = await prisma.verschlussAnforderung.findFirst({
-          where: { userId: session.user.id, art: "SPERRZEIT", withdrawnAt: { not: null } },
-          orderBy: { withdrawnAt: "desc" },
-        });
-        if (justWithdrawn?.withdrawnAt && Date.now() - justWithdrawn.withdrawnAt.getTime() < 5000) {
-          eventTypes.push("OEFFNUNG_VERBOTEN");
-        }
+        if (withdrawnSperrzeit) eventTypes.push("OEFFNUNG_VERBOTEN");
       }
       if (type === "ORGASMUS") eventTypes.push("ORGASMUS");
       if (type === "PRUEFUNG" && kontrollCode) eventTypes.push("KONTROLLE_ANGEFORDERT");
@@ -185,7 +180,7 @@ export async function POST(req: NextRequest) {
 
       // Build descriptive message
       const username = session.user.name ?? "User";
-      const time = new Date(startTime).toLocaleString("de-CH", { timeZone: "Europe/Zurich", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      const time = formatDateTime(new Date(startTime));
       let title = "";
       let body = "";
 
@@ -205,12 +200,18 @@ export async function POST(req: NextRequest) {
 
       const url = `/admin/users/${session.user.id}`;
 
+      // Fetch admins once for both channels
+      const admins = await prisma.user.findMany({
+        where: { role: "admin" },
+        select: { id: true, email: true },
+      });
+
       if (shouldPush) {
-        sendPushToAdmins(title, body, url).catch(() => {});
+        await Promise.allSettled(
+          admins.map((a) => sendPushToUser(a.id, title, body, url))
+        );
       }
       if (shouldMail) {
-        // Send email to all admins with email
-        const admins = await prisma.user.findMany({ where: { role: "admin", email: { not: null } }, select: { email: true } });
         for (const admin of admins) {
           if (admin.email) {
             sendMail(admin.email, `KG-Tracker – ${title}`, `<p>${body}</p>`).catch(() => {});

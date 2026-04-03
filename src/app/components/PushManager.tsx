@@ -98,7 +98,7 @@ export default function PushManager() {
         description={t("pushDesc")}
         checked={subscribed}
         disabled={saving}
-        onChange={(e) => toggle(e.target.checked)}
+        onChange={(checked) => toggle(checked)}
       />
     </div>
   );
