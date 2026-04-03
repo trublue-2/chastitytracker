@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminFAB from "./AdminFAB";
 
@@ -20,6 +20,7 @@ export default function AdminBottomNav({ version, buildDate }: Props) {
   ];
 
   const rightTabs = [
+    { href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false },
     { href: "/dashboard", icon: Users, label: t("users"), exact: true },
   ];
 
