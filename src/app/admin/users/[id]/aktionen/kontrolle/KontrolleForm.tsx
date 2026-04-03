@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Loader2 } from "lucide-react";
+import { Bell } from "lucide-react";
+import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import FormField from "@/app/components/FormField";
 import FormError from "@/app/components/FormError";
-
-const inputCls = "text-sm bg-surface-raised border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted";
+import Button from "@/app/components/Button";
+import Input from "@/app/components/Input";
 
 export default function KontrolleForm({ userId }: { userId: string }) {
+  const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [kommentar, setKommentar] = useState("");
   const [deadlineH, setDeadlineH] = useState("4");
@@ -35,11 +38,11 @@ export default function KontrolleForm({ userId }: { userId: string }) {
       if (res.ok) {
         router.push(`/admin/users/${userId}/aktionen`);
       } else {
-        setError(data.error || "Fehler");
+        setError(data.error || tc("error"));
       }
     } catch {
       setSaving(false);
-      setError("Netzwerkfehler");
+      setError(tc("networkError"));
     }
   }
 
@@ -47,35 +50,34 @@ export default function KontrolleForm({ userId }: { userId: string }) {
     <ActionModal
       open={true}
       onClose={() => router.push(`/admin/users/${userId}/aktionen`)}
-      title="Kontrolle anfordern"
+      title={t("kontrolleTitle")}
       icon={<Bell size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />}
       iconBg="var(--color-inspect-bg)"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Anweisung (optional)">
+        <FormField label={t("kontrolleInstruction")}>
           <textarea
             value={kommentar}
             onChange={(e) => setKommentar(e.target.value)}
-            placeholder="Anweisung (optional)"
+            placeholder={t("kontrolleInstruction")}
             rows={2}
-            className={`${inputCls} w-full resize-none`}
+            className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
           />
         </FormField>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs text-foreground-faint whitespace-nowrap">Frist (Stunden)</label>
-          <input type="number" value={deadlineH} onChange={(e) => setDeadlineH(e.target.value)}
-            min={0.5} step={0.5} className={`w-24 ${inputCls}`} />
+          <label className="text-xs text-foreground-faint whitespace-nowrap">{t("kontrolleHours")}</label>
+          <div className="w-24">
+            <Input type="number" value={deadlineH} onChange={(e) => setDeadlineH(e.target.value)} min={0.5} step={0.5} />
+          </div>
           <span className="text-xs text-foreground-faint">h</span>
         </div>
 
         <FormError message={error} variant="compact" />
 
-        <button type="submit" disabled={saving}
-          className="flex items-center justify-center gap-2 text-sm font-medium text-[var(--btn-primary-text)] bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-hover)] rounded-xl px-4 py-3 disabled:opacity-50 transition">
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
-          {saving ? "Sende…" : "Anfordern"}
-        </button>
+        <Button variant="primary" fullWidth loading={saving} type="submit" icon={<Bell size={16} />}>
+          {t("kontrolleRequest")}
+        </Button>
       </form>
     </ActionModal>
   );

@@ -40,7 +40,7 @@ function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: strin
           </div>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={k.imageUrl} alt={imageAlt} className="w-10 h-10 rounded-xl object-cover"
+          <img src={k.imageUrl} alt={imageAlt} loading="lazy" className="w-10 h-10 rounded-xl object-cover"
             onError={() => setImgError(true)} />
         )}
       </button>

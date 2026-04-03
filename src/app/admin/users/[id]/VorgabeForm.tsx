@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
 
 const HOURS_PER_DAY = 24;
 const HOURS_PER_WEEK = 168;
@@ -13,6 +15,8 @@ function toHours(value: string, unit: string, basis: number): number | null {
   if (isNaN(n) || n <= 0) return null;
   return unit === "%" ? (n / 100) * basis : n;
 }
+
+const fieldCls = "bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
 function InputWithUnit({
   label, value, unit, onValue, onUnit, basis, max,
@@ -33,12 +37,12 @@ function InputWithUnit({
           max={unit === "%" ? 100 : max}
           step={unit === "%" ? 1 : 0.5}
           placeholder="–"
-          className="flex-1 bg-surface-raised border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted transition"
+          className={`flex-1 ${fieldCls}`}
         />
         <select
           value={unit}
           onChange={(e) => onUnit(e.target.value)}
-          className="bg-surface-raised border border-border rounded-xl px-3 py-3 text-sm text-foreground-muted focus:outline-none focus:ring-2 focus:ring-foreground-muted transition"
+          className={`${fieldCls} px-3 py-2`}
         >
           <option value="h">h</option>
           <option value="%">%</option>
@@ -115,7 +119,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
     setSaving(false);
     if (!res.ok) {
       const d = await res.json();
-      setError(d.error ?? t("vorgabeSave"));
+      setError(d.error ?? tc("error"));
       return;
     }
 
@@ -129,8 +133,6 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
     }
   }
 
-  const inputDate = "bg-surface-raised border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted transition w-full";
-
   return (
     <form onSubmit={handleSubmit} className={`flex flex-col gap-4 p-5 border rounded-2xl overflow-hidden ${isEdit ? "bg-warn-bg border-[var(--color-warn-border)]" : "bg-[var(--color-request-bg)] border-[var(--color-request-border)]"}`}>
       <p className={`text-sm font-bold ${isEdit ? "text-[var(--color-warn-text)]" : "text-[var(--color-request-text)]"}`}>
@@ -140,12 +142,12 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeFromRequired")}</label>
-          <input type="date" required value={gueltigAb} onChange={(e) => setGueltigAb(e.target.value)} className={inputDate} />
+          <input type="date" required value={gueltigAb} onChange={(e) => setGueltigAb(e.target.value)} className={`w-full ${fieldCls}`} />
         </div>
         <div>
           <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeToOptional")}</label>
           <div className="flex gap-2 items-center">
-            <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} className={inputDate} />
+            <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} className={`w-full ${fieldCls}`} />
             {gueltigBis && (
               <button type="button" onClick={() => setGueltigBis("")}
                 title={t("vorgabeClearDate")}
@@ -171,21 +173,19 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
         <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeNoteOptional")}</label>
         <input type="text" value={notiz} onChange={(e) => setNotiz(e.target.value)}
           placeholder="z.B. Trainingsstufe 2"
-          className="bg-surface-raised border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted transition w-full" />
+          className={`w-full ${fieldCls}`} />
       </div>
 
-      {error && <p className="text-sm text-warn">{error}</p>}
+      <FormError message={error || null} />
 
       <div className="flex gap-2">
-        <button type="submit" disabled={saving}
-          className="flex-1 text-background bg-foreground font-semibold py-3 rounded-xl active:scale-[0.98] disabled:opacity-50 hover:opacity-80 transition-all text-sm">
-          {saving ? t("vorgabeSaving") : isEdit ? t("vorgabeSaveChanges") : t("vorgabeSave")}
-        </button>
+        <Button type="submit" variant="primary" loading={saving} className="flex-1">
+          {isEdit ? t("vorgabeSaveChanges") : t("vorgabeSave")}
+        </Button>
         {isEdit && onCancel && (
-          <button type="button" onClick={onCancel}
-            className="px-5 py-3 rounded-xl border border-border text-foreground-muted text-sm font-medium hover:bg-surface-raised transition">
+          <Button type="button" variant="secondary" onClick={onCancel}>
             {tc("cancel")}
-          </button>
+          </Button>
         )}
       </div>
     </form>

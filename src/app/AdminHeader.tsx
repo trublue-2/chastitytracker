@@ -9,7 +9,7 @@ interface Props {
 export default function AdminHeader({ username }: Props) {
   return (
     <header className="bg-surface border-b border-border sticky top-0 z-30 pt-safe">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+      <div className="px-4 h-14 flex items-center justify-between gap-3">
         <Link
           href="/admin"
           className="font-bold text-foreground hover:text-foreground-muted transition text-lg tracking-tight flex items-baseline gap-2"

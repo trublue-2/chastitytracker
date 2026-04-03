@@ -8,6 +8,7 @@ import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
+import Card from "@/app/components/Card";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -28,9 +29,10 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { id } = await params;
 
-  const [user, vorgaben, tc, dl] = await Promise.all([
+  const [user, vorgaben, t, tc, dl] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id }, orderBy: { gueltigAb: "desc" } }),
+    getTranslations("admin"),
     getTranslations("common"),
     getLocale().then(toDateLocale),
   ]);
@@ -40,28 +42,26 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
   return (
     <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-6">
 
-      {/* ── Konto ── */}
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      {/* Konto */}
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">Konto</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionAccount")}</p>
         </div>
         <div className="divide-y divide-border-subtle">
 
-          {/* Benutzername */}
           <div className="flex items-center justify-between px-5 py-4">
             <div>
-              <p className="text-sm font-medium text-foreground">Benutzername</p>
+              <p className="text-sm font-medium text-foreground">{t("usernameLabel")}</p>
               <p className="text-xs text-foreground-faint font-mono mt-0.5">{user.username}</p>
             </div>
           </div>
 
-          {/* E-Mail */}
           <div className="flex items-start justify-between px-5 py-4 gap-4">
             <div className="pt-0.5">
-              <p className="text-sm font-medium text-foreground">E-Mail</p>
+              <p className="text-sm font-medium text-foreground">{t("emailLabel")}</p>
               {user.email
                 ? <p className="text-xs text-foreground-faint mt-0.5">{user.email}</p>
-                : <p className="text-xs text-foreground-faint mt-0.5 italic">Keine E-Mail hinterlegt</p>
+                : <p className="text-xs text-foreground-faint mt-0.5 italic">{t("noEmail")}</p>
               }
             </div>
             <div className="flex-shrink-0">
@@ -69,32 +69,30 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             </div>
           </div>
 
-          {/* Passwort */}
           <div className="flex items-center justify-between px-5 py-4 gap-4">
-            <p className="text-sm font-medium text-foreground">Passwort</p>
+            <p className="text-sm font-medium text-foreground">{t("passwordLabel")}</p>
             <div className="flex-shrink-0">
               <ChangePasswordButton userId={user.id} />
             </div>
           </div>
 
-          {/* Rolle */}
           <div className="flex items-center justify-between px-5 py-4 gap-4">
-            <p className="text-sm font-medium text-foreground">Rolle</p>
+            <p className="text-sm font-medium text-foreground">{t("roleLabel")}</p>
             <RoleSelect id={user.id} currentRole={user.role} />
           </div>
 
         </div>
-      </div>
+      </Card>
 
-      {/* ── Reinigung ── */}
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      {/* Reinigung */}
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">Reinigung</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionReinigung")}</p>
         </div>
         <div className="flex items-center justify-between px-5 py-4 gap-4">
           <div>
-            <p className="text-sm font-medium text-foreground">Reinigungspausen erlauben</p>
-            <p className="text-xs text-foreground-faint mt-0.5">Kurzes Öffnen ohne Eintrag</p>
+            <p className="text-sm font-medium text-foreground">{t("reinigungPausenLabel")}</p>
+            <p className="text-xs text-foreground-faint mt-0.5">{t("reinigungPausenDesc")}</p>
           </div>
           <ReinigungToggle
             userId={user.id}
@@ -102,26 +100,26 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             initialMaxMinuten={user.reinigungMaxMinuten}
           />
         </div>
-      </div>
+      </Card>
 
-      {/* ── App ── */}
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      {/* App */}
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">App</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionApp")}</p>
         </div>
         <div className="flex items-center justify-between px-5 py-4 gap-4">
           <div>
-            <p className="text-sm font-medium text-foreground">Dateiauswahl auf Mobile</p>
-            <p className="text-xs text-foreground-faint mt-0.5">Dateiauswahl statt direkter Kamera beim Foto-Upload</p>
+            <p className="text-sm font-medium text-foreground">{t("mobileUploadAdminTitle")}</p>
+            <p className="text-xs text-foreground-faint mt-0.5">{t("mobileUploadAdminDesc")}</p>
           </div>
           <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
         </div>
-      </div>
+      </Card>
 
-      {/* ── Trainingsvorgaben ── */}
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      {/* Trainingsvorgaben */}
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">Trainingsvorgaben</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionVorgaben")}</p>
         </div>
         <div className="flex flex-col gap-4 px-5 py-4">
           <VorgabeForm userId={id} />
@@ -151,13 +149,13 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* ── Gefahrenbereich ── */}
-      <div className="bg-surface rounded-2xl border border-border px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">Gefahrenbereich</p>
+      {/* Gefahrenbereich */}
+      <Card>
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("sectionDanger")}</p>
         <DeleteUserButton id={user.id} username={user.username} isSelf={session?.user?.id === user.id} />
-      </div>
+      </Card>
 
     </main>
   );

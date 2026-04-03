@@ -26,6 +26,7 @@ model User {
   strafeRecords           StrafeRecord[]
   adminRelationships      AdminUserRelationship[] @relation("AdminRelationships")
   userRelationships       AdminUserRelationship[] @relation("UserRelationships")
+  pushSubscriptions       PushSubscription[]
 }
 
 model PasswordResetToken {
@@ -105,6 +106,29 @@ model AdminUserRelationship {
 model PortalTokenUsed {
   jti    String   @id
   usedAt DateTime @default(now())
+}
+
+// Web Push subscriptions for PWA push notifications.
+// One row per browser/device per user; endpoint is the unique push endpoint URL.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Persistent rate limiting — replaces in-memory Maps across all API routes.
+// key format: "ip:<ip>" | "user:<userId>" | "login:<username>" | "fp:<ip>"
+// Expired rows are deleted on each check (no background job needed for SQLite).
+model RateLimit {
+  key     String   @id
+  count   Int      @default(1)
+  resetAt DateTime
 }
 
 model StrafeRecord {

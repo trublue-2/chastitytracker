@@ -1,7 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+import { toDateLocale } from "@/lib/utils";
+import { ClipboardList } from "lucide-react";
+import Card from "@/app/components/Card";
+import EmptyState from "@/app/components/EmptyState";
 import EntryRow from "@/app/components/EntryRow";
 import EntryActions from "../EntryActions";
 
@@ -10,8 +14,8 @@ export default async function EintraegePage() {
   if (!session) redirect("/login");
 
   const userId = session.user.id;
-  const locale = await getLocale();
-  const dl = locale === "de" ? "de-CH" : "en-GB";
+  const [locale, t] = await Promise.all([getLocale(), getTranslations("settings")]);
+  const dl = toDateLocale(locale);
 
   const entries = await prisma.entry.findMany({
     where: { userId },
@@ -19,15 +23,19 @@ export default async function EintraegePage() {
   });
 
   return (
-    <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-4">
-      <h2 className="text-lg font-bold text-foreground">Einträge</h2>
+    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
+      <h2 className="text-lg font-bold text-foreground">{t("entriesTitle")}</h2>
 
       {entries.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-border py-12 text-center">
-          <p className="text-foreground-faint text-sm">Noch keine Einträge vorhanden.</p>
-        </div>
+        <Card padding="none">
+          <EmptyState
+            icon={<ClipboardList size={36} />}
+            title={t("entriesTitle")}
+            description={t("entriesEmpty")}
+          />
+        </Card>
       ) : (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <Card padding="none">
           <div className="divide-y divide-border-subtle">
             {entries.map((e) => (
               <EntryRow
@@ -38,7 +46,7 @@ export default async function EintraegePage() {
               />
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </main>
   );

@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, buildWearPairs, wearingHoursFromPairs, type WearPair, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
@@ -6,7 +5,10 @@ import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
 import type { DayEntry, DayVorgabe } from "./CalendarContainer";
 import MonthStats, { type MonthStat } from "./MonthStats";
-import { ShieldAlert } from "lucide-react";
+import Card from "./Card";
+import StatsCard from "./StatsCard";
+import EmptyState from "./EmptyState";
+import { ShieldAlert, BarChart2 } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -24,19 +26,16 @@ type Vorgabe = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-
 // buildWearPairs + wearingHoursFromPairs imported from @/lib/utils
 
 function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>): Map<string, { hours: number; hasOrgasm: boolean }> {
   const map = new Map<string, { hours: number; hasOrgasm: boolean }>();
   for (const pair of wearPairs) {
-    // Start from midnight of pair.start in APP_TZ; advance by 24h steps
     let d = midnightInTZ(pair.start);
     while (d.getTime() < pair.end.getTime()) {
       const nextD = new Date(d.getTime() + 86_400_000);
       const overlap = Math.min(pair.end.getTime(), nextD.getTime()) - Math.max(pair.start.getTime(), d.getTime());
       if (overlap > 0) {
-        // Use midpoint of the 24h slice to reliably get the correct APP_TZ date
         const { year, month, day } = tzDateParts(new Date(d.getTime() + 43_200_000));
         const key = `${year}-${month}-${day}`;
         const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
@@ -53,7 +52,6 @@ function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>): Map<st
   }
   return map;
 }
-
 
 function tzYearMonth(d: Date): string {
   const parts = new Intl.DateTimeFormat("de-CH", { year: "numeric", month: "2-digit", timeZone: APP_TZ }).formatToParts(d);
@@ -181,7 +179,6 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
   const orgasmusFreiMs = lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null;
 
-  // Unerlaubte Öffnungen: ÖFFNEN-Einträge während einer aktiven Sperrzeit
   const oeffnungen = entries.filter(e => e.type === "OEFFNEN");
   const unerlaubteOeffnungen = oeffnungen.filter(o =>
     sperrzeiten.some(s =>
@@ -216,7 +213,6 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
   const calMonthsData: CalendarMonthData[] = [];
   for (let i = 0; i <= 3; i++) {
-    // Compute calendar year/month in APP_TZ by stepping back i months
     const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)));
     const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
     const firstDayNoon = new Date(Date.UTC(year, month, 1, 12));
@@ -225,12 +221,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
     const startOffset = (jsWeekdayMap[firstDayWd] + 6) % 7;
     const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
 
-    const monthStart = midnightInTZ(firstDayNoon);
-    const monthEnd = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)));
+    const monthStartDate = midnightInTZ(firstDayNoon);
+    const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)));
     const vorgabe = vorgaben.find(
-      (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
+      (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
     ) ?? null;
-    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
+    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
     const monthGoalMet = vorgabe?.minProMonatH != null ? monthTotalH >= vorgabe.minProMonatH : null;
     const monthGoalPct = vorgabe?.minProMonatH ? Math.round((monthTotalH / vorgabe.minProMonatH) * 100) : null;
 
@@ -294,59 +290,84 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
   const pageHeading = heading ?? t("title");
 
+  if (entries.length === 0) {
+    return (
+      <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
+        {backHref && (
+          <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
+        )}
+        <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
+        <Card padding="default">
+          <EmptyState
+            icon={<BarChart2 size={32} />}
+            title={t("noEntries")}
+          />
+        </Card>
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
       <div>
         {backHref && (
-          <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel ?? "← Zurück"}</a>
+          <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
         <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
       </div>
 
       {/* Gesamtübersicht */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label={t("entries")} value={String(allPairs.length)} />
-        <StatCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
-        <StatCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
-        <StatCard label={t("noPhoto")} value={String(missingPhotos)} warn={missingPhotos > 0} />
+        <StatsCard label={t("entries")} value={String(allPairs.length)} />
+        <StatsCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
+        <StatsCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
+        <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
       </section>
 
       {/* Orgasmusfreie Zeit */}
       {orgasmusFreiMs !== null ? (
-        <section className="bg-orgasm-bg border border-orgasm-border rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-orgasm)] mb-2">{t("orgasmFreeTime")}</p>
-          <div className="flex items-center justify-between gap-4">
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-6 py-4 border-b border-orgasm-border">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-orgasm)]">{t("orgasmFreeTime")}</p>
+          </div>
+          <div className="px-6 py-4 flex items-center justify-between gap-4">
             <p className="text-sm text-orgasm-text">
               {t("lastOrgasm")}: <span className="font-semibold">{formatDateTime(lastOrgasmus!.startTime, dl)}</span>
             </p>
-            <span className="text-xl sm:text-2xl font-bold text-[var(--color-orgasm)] whitespace-nowrap">
+            <span className="text-xl sm:text-2xl font-bold text-[var(--color-orgasm)] whitespace-nowrap tabular-nums">
               {formatMs(orgasmusFreiMs, dl)}
             </span>
           </div>
-        </section>
+        </Card>
       ) : (
-        <section className="bg-surface-raised border border-border rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">{t("orgasmFreeTime")}</p>
-          <p className="text-sm text-foreground-faint font-semibold">{t("noEntry")}</p>
-        </section>
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-6 py-4 border-b border-border-subtle">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("orgasmFreeTime")}</p>
+          </div>
+          <div className="px-6 py-4">
+            <p className="text-sm text-foreground-faint font-semibold">{t("noEntry")}</p>
+          </div>
+        </Card>
       )}
 
       {/* Aktive Session */}
       {activeEntry && (
-        <section className="bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] rounded-2xl px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock)] mb-2">{t("currentSession")}</p>
-          <div className="flex items-center justify-between gap-4">
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-6 py-4 border-b border-lock-border">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock)]">{t("currentSession")}</p>
+          </div>
+          <div className="px-6 py-4 flex items-center justify-between gap-4">
             <p className="text-sm text-[var(--color-lock-text)]">
               {t("lockedSince")} <span className="font-semibold">{formatDateTime(activeEntry.startTime, dl)}</span>
             </p>
-            <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap">{formatMs(activeDurationMs, dl)}</span>
+            <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap tabular-nums">{formatMs(activeDurationMs, dl)}</span>
           </div>
-        </section>
+        </Card>
       )}
 
       {/* Trainingsziele */}
       {activeVorgabe && (
-        <section className="bg-surface rounded-2xl border border-[var(--color-request-border)] overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between">
             <p className="text-sm font-bold text-foreground">{t("trainingGoals")}</p>
             <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full">{tc("active")}</span>
@@ -369,12 +390,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
             )}
             {activeVorgabe.notiz && <p className="text-xs text-[var(--color-request)] italic">{activeVorgabe.notiz}</p>}
           </div>
-        </section>
+        </Card>
       )}
 
       {/* Kalender */}
       {wearPairs.length > 0 && (
-        <section className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-border-subtle">
             <p className="text-sm font-bold text-foreground mb-3">{t("wearCalendar")}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
@@ -395,12 +416,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
             </div>
           </div>
           <CalendarExpand months={calMonthsData} />
-        </section>
+        </Card>
       )}
 
       {/* Rekorde */}
       {completed.length > 0 && (
-        <section className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-border-subtle">
             <p className="text-sm font-bold text-foreground">{t("records")}</p>
           </div>
@@ -408,12 +429,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
             <RecordRow label={t("longestSession")} value={formatMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl)} />
             <RecordRow label={t("shortestSession")} value={formatMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl)} />
           </div>
-        </section>
+        </Card>
       )}
 
       {/* Kontrollen */}
       {unifiedKontrollen.length > 0 && (
-        <section className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-border-subtle">
             <p className="text-sm font-bold text-foreground">{t("inspections")}</p>
           </div>
@@ -428,30 +449,24 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
                   </div>
                   <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                     {k.entryTime
-                      ? <span>Erfüllt: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
-                      : <span>Erstellt: {formatDateTime(k.time, dl)}</span>
+                      ? <span>{t("fulfilled")}: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
+                      : <span>{t("created")}: {formatDateTime(k.time, dl)}</span>
                     }
-                    {k.deadline && <span>Frist: {formatDateTime(new Date(k.deadline), dl)}</span>}
+                    {k.deadline && <span>{t("deadlineLabel")}: {formatDateTime(new Date(k.deadline), dl)}</span>}
                   </div>
                 </div>
               );
             })}
           </div>
-        </section>
+        </Card>
       )}
 
       {/* Monatsübersicht */}
       {monthStats.length > 0 && <MonthStats months={monthStats} />}
 
-      {entries.length === 0 && (
-        <div className="bg-surface rounded-2xl border border-border-subtle py-20 text-center text-foreground-faint text-sm">
-          {t("noEntries")}
-        </div>
-      )}
-
       {/* Unerlaubte Öffnungen */}
       {unerlaubteOeffnungen.length > 0 && (
-        <section className="bg-warn-bg rounded-2xl border border-[var(--color-warn-border)] overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--color-warn-border)] flex items-center gap-2">
             <ShieldAlert size={15} className="text-warn shrink-0" />
             <p className="text-sm font-bold text-warn-text">{t("unlawfulOpenings")} ({unerlaubteOeffnungen.length})</p>
@@ -469,24 +484,13 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
               </div>
             ))}
           </div>
-        </section>
+        </Card>
       )}
-
     </main>
   );
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, warn }: { label: string; value: string; sub?: string; warn?: boolean }) {
-  return (
-    <div className={`rounded-2xl border px-5 py-4 ${warn ? "bg-warn-bg border-[var(--color-warn-border)]" : "bg-surface border-border-subtle"}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-1">{label}</p>
-      <p className={`text-2xl font-bold tracking-tight leading-none ${warn ? "text-warn" : "text-foreground"}`}>{value}</p>
-      {sub && <p className="text-xs text-foreground-faint mt-1">{sub}</p>}
-    </div>
-  );
-}
 
 function RecordRow({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (

@@ -16,11 +16,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminDesktopSidebar version={pkg.version} buildDate={buildDate} />
 
       {/* Content */}
-      <div className="sm:ml-60 min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-0">
+      <div className="lg:ml-64 min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
         {children}
       </div>
 
-      <AdminBottomNav version={pkg.version} buildDate={buildDate} />
+      <AdminBottomNav />
     </div>
   );
 }

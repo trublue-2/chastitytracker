@@ -3,39 +3,32 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import Button from "@/app/components/Button";
 
 export default function DeleteUserButton({ id, username, isSelf }: { id: string; username: string; isSelf?: boolean }) {
   const t = useTranslations("admin");
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function handleDelete() {
     if (!confirm(t("deleteConfirm", { name: username }))) return;
-    setLoading(true);
+    setSaving(true);
     await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
     router.refresh();
-    setLoading(false);
+    setSaving(false);
   }
 
   if (isSelf) {
     return (
-      <button
-        disabled
-        title={t("cannotDeleteSelf")}
-        className="text-xs font-medium text-white bg-warn rounded-lg px-2.5 py-2 cursor-not-allowed opacity-50"
-      >
+      <Button variant="danger" size="sm" disabled title={t("cannotDeleteSelf")}>
         {t("deleteUser")}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <button
-      onClick={handleDelete}
-      disabled={loading}
-      className="text-xs font-medium text-white bg-warn hover:opacity-90 rounded-lg px-2.5 py-2 transition disabled:opacity-50"
-    >
-      {loading ? "…" : t("deleteUser")}
-    </button>
+    <Button variant="danger" size="sm" loading={saving} onClick={handleDelete}>
+      {t("deleteUser")}
+    </Button>
   );
 }

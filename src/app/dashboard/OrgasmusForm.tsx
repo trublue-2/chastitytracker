@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { toDatetimeLocal } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import FormError from "@/app/components/FormError";
+import DateTimePicker from "@/app/components/DateTimePicker";
+import Select from "@/app/components/Select";
+import Textarea from "@/app/components/Textarea";
+import Button from "@/app/components/Button";
+import useToast from "@/app/hooks/useToast";
 
 const ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"];
 
@@ -25,11 +30,12 @@ interface Props {
   redirectTo?: string;
 }
 
-const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
-
 export default function OrgasmusForm({ initial, redirectTo }: Props) {
   const t = useTranslations("orgasmForm");
   const tCommon = useTranslations("common");
+  const tDash = useTranslations("dashboard");
+  const router = useRouter();
+  const toast = useToast();
 
   const ARTEN_LABELS: Record<string, string> = {
     "Orgasmus":          t("artOrgasmus"),
@@ -44,7 +50,7 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
     "Verschlossen":       t("subVerschlossen"),
     "Anal":               t("subAnal"),
   };
-  const router = useRouter();
+
   const parsed = parseArt(initial?.orgasmusArt);
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
@@ -65,67 +71,81 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
     setSaving(true);
     setError("");
 
-    const res = await fetch(
-      initial ? `/api/entries/${initial.id}` : "/api/entries",
-      {
-        method: initial ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "ORGASMUS",
-          startTime: new Date(startTime).toISOString(),
-          orgasmusArt: subArt ? `${art} – ${subArt}` : art,
-          note: note || null,
-        }),
-      }
-    );
+    try {
+      const res = await fetch(
+        initial ? `/api/entries/${initial.id}` : "/api/entries",
+        {
+          method: initial ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "ORGASMUS",
+            startTime: new Date(startTime).toISOString(),
+            orgasmusArt: subArt ? `${art} – ${subArt}` : art,
+            note: note || null,
+          }),
+        }
+      );
 
-    setSaving(false);
-    if (!res.ok) { setError(tCommon("savingError")); return; }
-    router.push(redirectTo ?? "/dashboard");
+      setSaving(false);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || tCommon("savingError"));
+        return;
+      }
+      toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
+      router.push(redirectTo ?? "/dashboard");
+    } catch {
+      setSaving(false);
+      setError(tCommon("networkError"));
+    }
   }
+
+  const artOptions = ARTEN.map(a => ({ value: a, label: ARTEN_LABELS[a] ?? a }));
+  const subArtOptions = (SUB_ARTEN[art] ?? []).map(s => ({ value: s, label: SUB_ARTEN_LABELS[s] ?? s }));
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("dateTimeRequired")}</label>
-        <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className={inputCls} />
-      </div>
+      <DateTimePicker
+        label={tCommon("dateTimeRequired")}
+        value={startTime}
+        onChange={(e) => setStartTime(e.target.value)}
+        required
+      />
 
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{t("type")} *</label>
-        <select value={art} onChange={(e) => handleArtChange(e.target.value)} required className={`${inputCls}`}>
-          {ARTEN.map((a) => <option key={a} value={a}>{ARTEN_LABELS[a] ?? a}</option>)}
-        </select>
-      </div>
+      <Select
+        label={`${t("type")} *`}
+        value={art}
+        onChange={(e) => handleArtChange(e.target.value)}
+        required
+        options={artOptions}
+      />
 
-      {SUB_ARTEN[art] && (
-        <div>
-          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{t("subType")}</label>
-          <select value={subArt} onChange={(e) => setSubArt(e.target.value)} className={`${inputCls}`}>
-            <option value="">{t("noSubType")}</option>
-            {SUB_ARTEN[art].map((s) => <option key={s} value={s}>{SUB_ARTEN_LABELS[s] ?? s}</option>)}
-          </select>
-        </div>
+      {subArtOptions.length > 0 && (
+        <Select
+          label={t("subType")}
+          value={subArt}
+          onChange={(e) => setSubArt(e.target.value)}
+          placeholder={t("noSubType")}
+          options={subArtOptions}
+        />
       )}
 
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("commentOptional")}</label>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3}
-          placeholder="Bemerkung…"
-          className={`${inputCls} resize-none`} />
-      </div>
+      <Textarea
+        label={tCommon("commentOptional")}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={3}
+      />
 
       <FormError message={error} />
 
       <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-        <button type="button" onClick={() => router.push("/dashboard")}
-          className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
+        <Button type="button" variant="secondary" fullWidth onClick={() => router.push("/dashboard")}>
           {tCommon("cancel")}
-        </button>
-        <button type="submit" disabled={saving}
-          className="flex-1 bg-[var(--color-orgasm)] text-white text-base font-semibold py-3.5 rounded-xl hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all">
-          {saving ? tCommon("saving") : initial ? tCommon("update") : t("saveBtn")}
-        </button>
+        </Button>
+        <Button type="submit" variant="semantic" semantic="orgasm" fullWidth loading={saving}>
+          {initial ? tCommon("update") : t("saveBtn")}
+        </Button>
       </div>
     </form>
   );
