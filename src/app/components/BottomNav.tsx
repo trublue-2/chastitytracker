@@ -9,9 +9,11 @@ interface BottomNavProps {
   isAdmin?: boolean;
   isLocked?: boolean;
   onNewEntry?: () => void;
+  version?: string;
+  buildDate?: string;
 }
 
-export default function BottomNav({ isAdmin, onNewEntry }: BottomNavProps) {
+export default function BottomNav({ isAdmin, onNewEntry, version, buildDate }: BottomNavProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
@@ -64,6 +66,21 @@ export default function BottomNav({ isAdmin, onNewEntry }: BottomNavProps) {
           );
         })}
       </div>
+      {(version || buildDate) && (
+        <div className="flex items-center justify-between px-4 pb-1">
+          <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
+            &copy; trublue {new Date().getFullYear()}
+          </a>
+          <div className="flex items-center gap-2">
+            {buildDate && <span className="text-[10px] text-foreground-faint">Build {buildDate}</span>}
+            {version && (
+              <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
+                {version}
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

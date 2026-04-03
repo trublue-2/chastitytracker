@@ -42,6 +42,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DashboardBottomNav
         isAdmin={user?.role === "admin"}
         isLocked={isLocked}
+        version={pkg.version}
+        buildDate={buildDate}
       />
       <InstallBanner />
     </div>

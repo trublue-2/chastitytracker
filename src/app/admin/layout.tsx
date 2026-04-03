@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         {children}
       </div>
 
-      <AdminBottomNav />
+      <AdminBottomNav version={pkg.version} buildDate={buildDate} />
     </div>
   );
 }

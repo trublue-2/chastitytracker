@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import DeleteUserButton from "./DeleteUserButton";
+
 import CreateDemoUserButton from "./CreateDemoUserButton";
 import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
@@ -108,11 +108,6 @@ export default async function AdminPage() {
             )}
           </div>
         </div>
-        <Link href="/admin/users/new" className="flex-shrink-0">
-          <Button variant="primary" icon={<UserPlus size={15} strokeWidth={2} />}>
-            {t("newUser")}
-          </Button>
-        </Link>
       </div>
 
       {!demoExists && (
@@ -231,9 +226,6 @@ export default async function AdminPage() {
                         hasOffeneAnforderung={u.stats.hasOffeneAnforderung}
                         hasActiveSperrzeit={u.stats.hasActiveSperrzeit}
                       />
-                      {u.id !== currentUserId && (
-                        <DeleteUserButton id={u.id} username={u.username} isSelf={false} />
-                      )}
                     </div>
                   </div>
                 </Card>
@@ -242,6 +234,14 @@ export default async function AdminPage() {
           })}
         </div>
       )}
+
+      <div className="mt-4">
+        <Link href="/admin/users/new">
+          <Button variant="secondary" icon={<UserPlus size={15} strokeWidth={2} />} fullWidth>
+            {t("newUser")}
+          </Button>
+        </Link>
+      </div>
     </main>
   );
 }
