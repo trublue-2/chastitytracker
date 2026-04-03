@@ -109,9 +109,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Notify user via push (fire-and-forget)
-    const pushTitle = art === "ANFORDERUNG" ? "Einschliessen angefordert" : "Sperrzeit gesetzt";
-    const pushBody = nachricht?.trim() || (art === "ANFORDERUNG" ? "Der Admin fordert dich auf, dich einzuschliessen." : "Eine Sperrzeit wurde gesetzt.");
-    sendPushToUser(userId, pushTitle, pushBody, "/dashboard").catch(() => { /* ignore push errors */ });
+    const pushTitle = art === "ANFORDERUNG" ? "Bitte einschliessen" : "Sperrzeit gesetzt";
+    const pushParts: string[] = [];
+    if (art === "ANFORDERUNG") {
+      pushParts.push("Der Admin fordert dich auf, dich einzuschliessen.");
+      if (endetAt) pushParts.push(`Frist: ${new Date(endetAt).toLocaleString("de-CH", { timeZone: APP_TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+    } else {
+      if (endetAt) pushParts.push(`Bis: ${new Date(endetAt).toLocaleString("de-CH", { timeZone: APP_TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+      else pushParts.push("Unbefristet");
+    }
+    if (nachricht?.trim()) pushParts.push(nachricht.trim());
+    sendPushToUser(userId, pushTitle, pushParts.join(" · "), "/dashboard").catch(() => { /* ignore push errors */ });
 
     return NextResponse.json({ ok: true, id: anforderung.id });
   } catch (err) {
