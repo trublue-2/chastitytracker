@@ -40,7 +40,13 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  if (!row.imageUrl) return null;
+  if (!row.imageUrl) {
+    return (
+      <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
+        <ImageOff size={16} className="text-foreground-faint" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -113,11 +119,21 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
   );
 }
 
-export default function AdminKontrolleListClient({ items, labels }: { items: AdminKontrolleRowData[]; labels: Labels }) {
+export default function AdminKontrolleListClient({ items, allItems, labels }: { items: AdminKontrolleRowData[]; allItems: AdminKontrolleRowData[]; labels: Labels }) {
   const [page, setPage] = useState(0);
+  const [showAll, setShowAll] = useState(false);
+  const t = useTranslations("admin");
   const tc = useTranslations("common");
-  const totalPages = Math.ceil(items.length / PAGE_SIZE);
-  const paginated = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const activeItems = showAll ? allItems : items;
+  const totalPages = Math.ceil(activeItems.length / PAGE_SIZE);
+  const safePage = Math.min(page, Math.max(0, totalPages - 1));
+  const paginated = activeItems.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  function toggleShowAll() {
+    setShowAll(v => !v);
+    setPage(0);
+  }
 
   return (
     <>
@@ -158,16 +174,29 @@ export default function AdminKontrolleListClient({ items, labels }: { items: Adm
           </div>
         ))}
       </div>
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-          <button type="button" onClick={() => setPage(p => p - 1)} disabled={page === 0}
-            className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
-            ← {tc("back")}
-          </button>
-          <span className="text-xs text-foreground-faint tabular-nums">{page + 1} / {totalPages}</span>
-          <button type="button" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
-            {tc("next")} →
+      <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
+        {totalPages > 1 ? (
+          <>
+            <button type="button" onClick={() => setPage(p => p - 1)} disabled={safePage === 0}
+              className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
+              ← {tc("back")}
+            </button>
+            <span className="text-xs text-foreground-faint tabular-nums">{safePage + 1} / {totalPages}</span>
+            <button type="button" onClick={() => setPage(p => p + 1)} disabled={safePage >= totalPages - 1}
+              className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
+              {tc("next")} →
+            </button>
+          </>
+        ) : <span />}
+      </div>
+      {allItems.length > items.length && (
+        <div className="px-5 pb-3">
+          <button
+            type="button"
+            onClick={toggleShowAll}
+            className="w-full text-xs font-medium text-foreground-muted hover:text-foreground py-2 rounded-lg hover:bg-surface-raised transition"
+          >
+            {showAll ? t("alarmeShowAlarmsOnly") : t("alarmeShowAll", { count: allItems.length })}
           </button>
         </div>
       )}

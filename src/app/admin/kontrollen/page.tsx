@@ -99,17 +99,19 @@ export default async function AdminKontrollenPage({
       entryId: null,
     }));
 
-  const rows = [...pruefungRows, ...offeneRows]
-    .filter((row) => {
-      if (!row.entryId) return true;
-      if (row.verifikationStatus === "unverified") return true;
-      if (row.verifikationStatus === "rejected") return true;
-      if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
-      return false;
-    })
+  const allRows = [...pruefungRows, ...offeneRows]
     .sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
-  const items: AdminKontrolleRowData[] = rows.map((row) => {
+  const rows = allRows
+    .filter((row) => {
+      if (row.anforderungStatus === "withdrawn") return false;
+      if (!row.entryId) return true;
+      if (row.verifikationStatus === "unverified") return true;
+      if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
+      return false;
+    });
+
+  function mapRow(row: Row): AdminKontrolleRowData {
     const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
     const kPill = row.entryId
       ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
@@ -135,7 +137,10 @@ export default async function AdminKontrollenPage({
       anforderungStatus: row.anforderungStatus ?? "open",
       verifikationStatus: row.verifikationStatus,
     };
-  });
+  }
+
+  const items = rows.map(mapRow);
+  const allItems = allRows.map(mapRow);
 
   const labels = {
     fulfilledLabel: t("fulfilledLabel"),
@@ -173,7 +178,7 @@ export default async function AdminKontrollenPage({
         </Card>
       ) : (
         <Card padding="none" className="overflow-hidden">
-          <AdminKontrolleListClient items={items} labels={labels} />
+          <AdminKontrolleListClient items={items} allItems={allItems} labels={labels} />
         </Card>
       )}
     </main>

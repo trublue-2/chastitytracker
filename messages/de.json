@@ -531,6 +531,8 @@
     "kontrolleRejectBtn": "Ablehnen",
     "kontrolleWithdrawBtn": "Zurückziehen",
     "alarmeTitle": "Alarme",
+    "alarmeShowAll": "Alle {count} Einträge anzeigen",
+    "alarmeShowAlarmsOnly": "Nur Alarme anzeigen",
     "aktionen": "Aktionen",
     "einstellungen": "Einstellungen",
     "addEntry": "Eintrag erfassen",

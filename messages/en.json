@@ -531,6 +531,8 @@
     "kontrolleRejectBtn": "Reject",
     "kontrolleWithdrawBtn": "Withdraw",
     "alarmeTitle": "Alarms",
+    "alarmeShowAll": "Show all {count} entries",
+    "alarmeShowAlarmsOnly": "Show alarms only",
     "aktionen": "Actions",
     "einstellungen": "Settings",
     "addEntry": "Add entry",
