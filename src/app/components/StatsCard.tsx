@@ -40,7 +40,7 @@ export default function StatsCard({
   const valueColor = color ? `text-${color}` : "text-foreground";
 
   return (
-    <div className={`rounded-xl border border-border bg-surface shadow-card p-4 sm:p-5 ${className}`}>
+    <div className={`rounded-xl border border-border bg-surface p-4 sm:p-5 ${className}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col min-w-0">
           <span className={`text-2xl font-bold tabular-nums ${valueColor}`}>

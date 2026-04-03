@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X, ImageOff } from "lucide-react";
+import { X, ImageOff, Maximize2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 // ─── Pinch-zoom image ────────────────────────────────────────────────────────
@@ -230,9 +230,11 @@ interface Props {
   height: number;
   className?: string;
   kommentar?: string | null;
+  modalTitle?: React.ReactNode;
+  modalPanel?: React.ReactNode;
 }
 
-export default function ImageViewer({ src, alt, width, height, className, kommentar }: Props) {
+export default function ImageViewer({ src, alt, width, height, className, kommentar, modalTitle, modalPanel }: Props) {
   const t = useTranslations("common");
   const resolvedAlt = alt ?? t("photo");
   const [open, setOpen] = useState(false);
@@ -251,7 +253,7 @@ export default function ImageViewer({ src, alt, width, height, className, kommen
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="block">
+      <button type="button" onClick={() => setOpen(true)} className="relative block group">
         <Image
           src={src}
           alt={resolvedAlt}
@@ -261,6 +263,9 @@ export default function ImageViewer({ src, alt, width, height, className, kommen
           unoptimized
           onError={() => setThumbError(true)}
         />
+        <span className="absolute bottom-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-md bg-black/50 text-white opacity-70 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <Maximize2 size={11} strokeWidth={2.5} />
+        </span>
       </button>
 
       {open && (
@@ -268,10 +273,11 @@ export default function ImageViewer({ src, alt, width, height, className, kommen
           src={src}
           alt={resolvedAlt}
           onClose={() => setOpen(false)}
+          title={modalTitle}
           panel={
-            kommentar ? (
+            modalPanel ?? (kommentar ? (
               <p className="text-sm text-foreground-muted">{kommentar}</p>
-            ) : undefined
+            ) : undefined)
           }
         />
       )}

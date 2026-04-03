@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import Link from "next/link";
 import Button from "./Button";
 
 interface EmptyStateAction {
@@ -33,9 +34,9 @@ export default function EmptyState({
       )}
       {action && (
         action.href ? (
-          <a href={action.href}>
+          <Link href={action.href}>
             <Button variant="primary" size="default">{action.label}</Button>
-          </a>
+          </Link>
         ) : (
           <Button variant="primary" size="default" onClick={action.onClick}>
             {action.label}

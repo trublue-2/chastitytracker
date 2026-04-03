@@ -15,7 +15,7 @@ export default function AdminBottomNav() {
   ];
 
   const rightTabs = [
-    { href: "/dashboard", icon: Users, label: t("users"), exact: false },
+    { href: "/dashboard", icon: Users, label: t("users"), exact: true },
     { href: "/admin/settings", icon: Settings, label: t("settings"), exact: false },
   ];
 

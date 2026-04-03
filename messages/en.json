@@ -59,7 +59,16 @@
     "notifications": "Notifications",
     "remove": "Remove",
     "remaining": "Remaining",
-    "elapsed": "Elapsed"
+    "elapsed": "Elapsed",
+    "total": "total",
+    "noEntriesYet": "No entries yet.",
+    "previous": "Back",
+    "type": "Type",
+    "deadline": "Deadline",
+    "timeCorrected": "Time corrected",
+    "specified": "Specified",
+    "systemTime": "System",
+    "instruction": "Instruction"
   },
   "adminNav": {
     "overview": "Overview",
@@ -142,6 +151,7 @@
     "untilPrefix": "Until",
     "sessions": "Sessions",
     "allStats": "All statistics",
+    "statsTitle": "Statistics",
     "welcomeTitle": "Welcome!",
     "welcomeDesc": "Create your first entry to start tracking.",
     "welcomeCta": "Lock up",
@@ -377,6 +387,7 @@
     "vorgaben": "Goals",
     "kontrollen": "Inspections",
     "statsTitle": "Statistics",
+    "allStats": "All statistics",
     "strafbuch": "Punishment Log",
     "strafbuchUnerlaubteOeffnungen": "Unauthorized Openings",
     "strafbuchZuSpaet": "Late Inspections",

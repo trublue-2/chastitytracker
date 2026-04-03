@@ -48,7 +48,7 @@ export default function Card({
       );
       break;
     default:
-      baseClasses.push("border-border bg-surface shadow-card");
+      baseClasses.push("border-border bg-surface");
       break;
   }
 

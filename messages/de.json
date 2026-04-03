@@ -59,7 +59,16 @@
     "notifications": "Benachrichtigungen",
     "remove": "Entfernen",
     "remaining": "Verbleibend",
-    "elapsed": "Vergangen"
+    "elapsed": "Vergangen",
+    "total": "total",
+    "noEntriesYet": "Noch keine Einträge vorhanden.",
+    "previous": "Zurück",
+    "type": "Art",
+    "deadline": "Frist",
+    "timeCorrected": "Zeit korrigiert",
+    "specified": "Angegeben",
+    "systemTime": "System",
+    "instruction": "Anweisung"
   },
   "adminNav": {
     "overview": "Übersicht",
@@ -142,6 +151,7 @@
     "untilPrefix": "Bis",
     "sessions": "Sessions",
     "allStats": "Alle Statistiken",
+    "statsTitle": "Statistik",
     "welcomeTitle": "Willkommen!",
     "welcomeDesc": "Erstelle deinen ersten Eintrag, um das Tracking zu starten.",
     "welcomeCta": "Einschliessen",
@@ -377,6 +387,7 @@
     "vorgaben": "Vorgaben",
     "kontrollen": "Kontrollen",
     "statsTitle": "Statistik",
+    "allStats": "Alle Statistiken",
     "strafbuch": "Strafbuch",
     "strafbuchUnerlaubteOeffnungen": "Unerlaubte Öffnungen",
     "strafbuchZuSpaet": "Zu spät erfüllte Kontrollen",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Plus, Settings, ShieldCheck } from "lucide-react";
+import { Home, ClipboardList, Plus, BarChart2, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface BottomNavProps {
@@ -16,12 +16,13 @@ export default function BottomNav({ isAdmin, onNewEntry }: BottomNavProps) {
   const pathname = usePathname();
 
   const tabs = [
-    { href: "/dashboard", icon: Home, label: t("dashboard"), exact: true },
+    { href: "/dashboard", icon: Home, label: t("overview"), exact: true },
+    { href: "/dashboard/eintraege", icon: ClipboardList, label: t("entries"), exact: false },
     { href: "#new", icon: Plus, label: t("new"), action: true },
+    { href: "/dashboard/stats", icon: BarChart2, label: t("stats"), exact: false },
     ...(isAdmin
       ? [{ href: "/admin", icon: ShieldCheck, label: t("admin"), exact: false }]
       : []),
-    { href: "/dashboard/settings", icon: Settings, label: t("settings"), exact: false },
   ];
 
   return (

@@ -10,10 +10,11 @@ interface Props {
   title: string;
   icon: ReactNode;
   iconBg: string;  // CSS value, e.g. "var(--color-inspect-bg)"
+  theme?: "admin" | "user";
   children: ReactNode;
 }
 
-export default function ActionModal({ open, onClose, title, icon, iconBg, children }: Props) {
+export default function ActionModal({ open, onClose, title, icon, iconBg, theme = "admin", children }: Props) {
   useEffect(() => {
     if (!open) return;
     document.body.style.overflow = "hidden";
@@ -23,7 +24,7 @@ export default function ActionModal({ open, onClose, title, icon, iconBg, childr
   if (!open) return null;
 
   const modal = (
-    <div data-theme="admin" className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[9999]">
+    <div data-theme={theme} className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[9999]">
       <div className="bg-background rounded-2xl border border-border overflow-hidden w-full max-w-md shadow-2xl">
         <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">

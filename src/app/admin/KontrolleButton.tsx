@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
-import FormField from "@/app/components/FormField";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Input from "@/app/components/Input";
+import Textarea from "@/app/components/Textarea";
 
 export default function KontrolleButton({ userId, hasEmail }: { userId: string; hasEmail: boolean }) {
   const t = useTranslations("admin");
@@ -69,15 +69,13 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
         icon={<Bell size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />}
         iconBg="var(--color-inspect-bg)"
       >
-        <FormField label={t("kontrolleInstruction")}>
-          <textarea
-            value={kommentar}
-            onChange={(e) => setKommentar(e.target.value)}
-            placeholder={t("kontrolleInstruction")}
-            rows={2}
-            className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-          />
-        </FormField>
+        <Textarea
+          label={t("kontrolleInstruction")}
+          value={kommentar}
+          onChange={(e) => setKommentar(e.target.value)}
+          placeholder={t("kontrolleInstruction")}
+          rows={2}
+        />
 
         <div className="flex items-center gap-2">
           <label className="text-xs text-foreground-faint whitespace-nowrap">{t("kontrolleHours")}</label>
