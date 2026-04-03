@@ -63,6 +63,7 @@
   --color-unlock:      #0369a1;
   --color-unlock-bg:   #f0f9ff;
   --color-unlock-border:#bae6fd;
+  --color-unlock-muted:#7dd3fc;
   --color-unlock-text: #0c4a6e;
 
   /* ── Semantic: PRUEFUNG / Inspection ────────
@@ -73,6 +74,7 @@
   --color-inspect:     #c2610a;
   --color-inspect-bg:  #fff7ed;
   --color-inspect-border:#fed7aa;
+  --color-inspect-muted:#fdba74;
   --color-inspect-text:#92400e;
 
   /* ── Semantic: ORGASMUS ──────────────────────
@@ -83,6 +85,7 @@
   --color-orgasm:      #be185d;
   --color-orgasm-bg:   #fdf2f8;
   --color-orgasm-border:#fbcfe8;
+  --color-orgasm-muted:#f9a8d4;
   --color-orgasm-text: #9d174d;
 
   /* ── Semantic: VERSCHLUSS-ANFORDERUNG ────────
@@ -93,6 +96,7 @@
   --color-request:     #4338ca;
   --color-request-bg:  #eef2ff;
   --color-request-border:#c7d2fe;
+  --color-request-muted:#a5b4fc;
   --color-request-text:#3730a3;
 
   /* ── Semantic: WARNING / overdue ─────────────
@@ -103,6 +107,7 @@
   --color-warn:        #c2410c;
   --color-warn-bg:     #fff5f0;
   --color-warn-border: #fed7aa;
+  --color-warn-muted:  #fdba74;
   --color-warn-text:   #9a3412;
 
   /* ── Semantic: SPERRZEIT ─────────────────────
@@ -113,6 +118,7 @@
   --color-sperrzeit:   #7c3aed;
   --color-sperrzeit-bg:#faf5ff;
   --color-sperrzeit-border:#ddd6fe;
+  --color-sperrzeit-muted:#c4b5fd;
   --color-sperrzeit-text:#5b21b6;
 
   /* ── Semantic: OK / compliant ────────────────
@@ -121,6 +127,7 @@
   --color-ok:          #0d9151;
   --color-ok-bg:       #ecfdf5;
   --color-ok-border:   #a7f3d0;
+  --color-ok-muted:    #6ee7b7;
   --color-ok-text:     #065f46;
 
   /* Navigation */
@@ -187,6 +194,7 @@
   --color-unlock:      #38bdf8;
   --color-unlock-bg:   #0c1c27;
   --color-unlock-border:#0c4a6e;
+  --color-unlock-muted:#7dd3fc;
   --color-unlock-text: #7dd3fc;
 
   /* ── Semantic: PRUEFUNG / Inspection ─────────
@@ -197,6 +205,7 @@
   --color-inspect:     #fb923c;
   --color-inspect-bg:  #1c1505;
   --color-inspect-border:#92400e;
+  --color-inspect-muted:#fcd34d;
   --color-inspect-text:#fcd34d;
 
   /* ── Semantic: ORGASMUS ──────────────────────
@@ -207,6 +216,7 @@
   --color-orgasm:      #f472b6;
   --color-orgasm-bg:   #1c0a14;
   --color-orgasm-border:#9d174d;
+  --color-orgasm-muted:#fbcfe8;
   --color-orgasm-text: #fbcfe8;
 
   /* ── Semantic: VERSCHLUSS-ANFORDERUNG ────────
@@ -217,6 +227,7 @@
   --color-request:     #818cf8;
   --color-request-bg:  #0f0f28;
   --color-request-border:#3730a3;
+  --color-request-muted:#c7d2fe;
   --color-request-text:#c7d2fe;
 
   /* ── Semantic: WARNING / overdue ─────────────
@@ -227,6 +238,7 @@
   --color-warn:        #f97316;
   --color-warn-bg:     #1c0e08;
   --color-warn-border: #9a3412;
+  --color-warn-muted:  #fdba74;
   --color-warn-text:   #fdba74;
 
   /* ── Semantic: SPERRZEIT ─────────────────────
@@ -237,6 +249,7 @@
   --color-sperrzeit:   #a855f7;
   --color-sperrzeit-bg:#110c1e;
   --color-sperrzeit-border:#6b21a8;
+  --color-sperrzeit-muted:#d8b4fe;
   --color-sperrzeit-text:#d8b4fe;
 
   /* ── Semantic: OK / compliant ────────────────
@@ -245,6 +258,7 @@
   --color-ok:          #34d399;
   --color-ok-bg:       #0b1912;
   --color-ok-border:   #065f46;
+  --color-ok-muted:    #6ee7b7;
   --color-ok-text:     #6ee7b7;
 
   /* Navigation */
@@ -269,15 +283,58 @@
 
 
 /* ─────────────────────────────────────────────
+   SPACING TOKENS (4px base grid)
+   Applied globally, theme-independent
+   ───────────────────────────────────────────── */
+:root {
+  --space-0\.5: 0.125rem; /* 2px */
+  --space-1:    0.25rem;  /* 4px */
+  --space-1\.5: 0.375rem; /* 6px */
+  --space-2:    0.5rem;   /* 8px */
+  --space-3:    0.75rem;  /* 12px */
+  --space-4:    1rem;     /* 16px */
+  --space-5:    1.25rem;  /* 20px */
+  --space-6:    1.5rem;   /* 24px */
+  --space-8:    2rem;     /* 32px */
+  --space-10:   2.5rem;   /* 40px */
+  --space-12:   3rem;     /* 48px */
+  --space-16:   4rem;     /* 64px */
+}
+
+
+/* ─────────────────────────────────────────────
+   ANIMATION TOKENS
+   ───────────────────────────────────────────── */
+:root {
+  /* Durations */
+  --duration-instant:  100ms;
+  --duration-fast:     150ms;
+  --duration-normal:   300ms;
+  --duration-slow:     500ms;
+  --duration-emphasis: 800ms;
+
+  /* Easing curves */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:      cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring:  cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+
+/* ─────────────────────────────────────────────
    TAILWIND v4 THEME BRIDGE
    Exposes CSS vars as Tailwind design tokens
    ───────────────────────────────────────────── */
 @theme inline {
+  /* Canvas */
   --color-background:         var(--background);
   --color-background-subtle:  var(--background-subtle);
   --color-surface:            var(--surface);
   --color-surface-raised:     var(--surface-raised);
+  --color-surface-overlay:    var(--surface-overlay);
 
+  /* Content */
   --color-border:             var(--border);
   --color-border-subtle:      var(--border-subtle);
   --color-border-strong:      var(--border-strong);
@@ -287,59 +344,98 @@
   --color-foreground-faint:   var(--foreground-faint);
   --color-foreground-invert:  var(--foreground-invert);
 
+  /* Semantic: Lock */
   --color-lock:               var(--color-lock);
   --color-lock-bg:            var(--color-lock-bg);
   --color-lock-border:        var(--color-lock-border);
+  --color-lock-muted:         var(--color-lock-muted);
   --color-lock-text:          var(--color-lock-text);
 
+  /* Semantic: Unlock */
   --color-unlock:             var(--color-unlock);
   --color-unlock-bg:          var(--color-unlock-bg);
   --color-unlock-border:      var(--color-unlock-border);
+  --color-unlock-muted:       var(--color-unlock-muted);
   --color-unlock-text:        var(--color-unlock-text);
 
+  /* Semantic: Inspect */
   --color-inspect:            var(--color-inspect);
   --color-inspect-bg:         var(--color-inspect-bg);
   --color-inspect-border:     var(--color-inspect-border);
+  --color-inspect-muted:      var(--color-inspect-muted);
   --color-inspect-text:       var(--color-inspect-text);
 
+  /* Semantic: Orgasm */
   --color-orgasm:             var(--color-orgasm);
   --color-orgasm-bg:          var(--color-orgasm-bg);
   --color-orgasm-border:      var(--color-orgasm-border);
+  --color-orgasm-muted:       var(--color-orgasm-muted);
   --color-orgasm-text:        var(--color-orgasm-text);
 
+  /* Semantic: Request */
   --color-request:            var(--color-request);
   --color-request-bg:         var(--color-request-bg);
   --color-request-border:     var(--color-request-border);
+  --color-request-muted:      var(--color-request-muted);
   --color-request-text:       var(--color-request-text);
 
+  /* Semantic: Warn */
   --color-warn:               var(--color-warn);
   --color-warn-bg:            var(--color-warn-bg);
   --color-warn-border:        var(--color-warn-border);
+  --color-warn-muted:         var(--color-warn-muted);
   --color-warn-text:          var(--color-warn-text);
 
+  /* Semantic: Sperrzeit */
   --color-sperrzeit:          var(--color-sperrzeit);
   --color-sperrzeit-bg:       var(--color-sperrzeit-bg);
   --color-sperrzeit-border:   var(--color-sperrzeit-border);
+  --color-sperrzeit-muted:    var(--color-sperrzeit-muted);
   --color-sperrzeit-text:     var(--color-sperrzeit-text);
 
+  /* Semantic: OK */
   --color-ok:                 var(--color-ok);
   --color-ok-bg:              var(--color-ok-bg);
   --color-ok-border:          var(--color-ok-border);
+  --color-ok-muted:           var(--color-ok-muted);
   --color-ok-text:            var(--color-ok-text);
 
+  /* Navigation */
   --color-nav-bg:             var(--nav-bg);
   --color-nav-border:         var(--nav-border);
   --color-nav-active-bg:      var(--nav-active-bg);
   --color-nav-active-text:    var(--nav-active-text);
   --color-nav-inactive-text:  var(--nav-inactive-text);
+  --color-nav-inactive-hover: var(--nav-inactive-hover);
 
+  /* Interactive */
   --color-btn-primary:        var(--btn-primary-bg);
+  --color-btn-primary-hover:  var(--btn-primary-hover);
   --color-btn-primary-text:   var(--btn-primary-text);
+  --color-focus-ring:         var(--focus-ring);
 
+  /* Typography */
   --font-sans:      var(--font-geist-sans);
+  --font-mono:      var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Elevation */
   --shadow-card:    var(--shadow-card);
   --shadow-raised:  var(--shadow-raised);
   --shadow-overlay: var(--shadow-overlay);
+
+  /* Animation durations */
+  --duration-instant:  var(--duration-instant);
+  --duration-fast:     var(--duration-fast);
+  --duration-normal:   var(--duration-normal);
+  --duration-slow:     var(--duration-slow);
+  --duration-emphasis: var(--duration-emphasis);
+
+  /* Animation easing */
+  --ease-default:  var(--ease-default);
+  --ease-in:       var(--ease-in);
+  --ease-out:      var(--ease-out);
+  --ease-spring:   var(--ease-spring);
+  --ease-bounce:   var(--ease-bounce);
 }
 
 
@@ -357,6 +453,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Focus-visible: keyboard-only focus ring */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* Safe area for iOS standalone PWA */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
@@ -365,11 +467,98 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
-/* Bottom sheet slide-up animation */
+
+/* ─────────────────────────────────────────────
+   KEYFRAME ANIMATIONS
+   ───────────────────────────────────────────── */
+
+/* Bottom sheet slide-up */
 @keyframes slide-up {
   from { transform: translateY(100%); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 .animate-slide-up {
   animation: slide-up 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Modal dialog enter */
+@keyframes modal-enter {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-modal-enter {
+  animation: modal-enter 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Backdrop fade */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 300ms ease;
+}
+
+/* Toast enter (slide down from top) */
+@keyframes toast-enter {
+  from { transform: translateY(-16px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes toast-exit {
+  from { transform: translateY(0);     opacity: 1; }
+  to   { transform: translateY(-8px);  opacity: 0; }
+}
+.animate-toast-enter {
+  animation: toast-enter 300ms cubic-bezier(0, 0, 0.2, 1);
+}
+.animate-toast-exit {
+  animation: toast-exit 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Success checkmark */
+@keyframes checkmark-circle {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+@keyframes checkmark-draw {
+  from { stroke-dashoffset: 100; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Spinner rotation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+
+/* ─────────────────────────────────────────────
+   REDUCED MOTION
+   ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

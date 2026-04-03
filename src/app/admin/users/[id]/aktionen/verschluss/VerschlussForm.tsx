@@ -3,19 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, Loader2 } from "lucide-react";
+import { Lock } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
+import Card from "@/app/components/Card";
+import Input from "@/app/components/Input";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 
-const inputCls = "text-sm bg-surface-raised border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted";
-
 export default function VerschlussForm({ userId }: { userId: string }) {
+  const t = useTranslations("admin");
+  const tLock = useTranslations("lockForm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const {
@@ -29,7 +35,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     setError("");
     const res = await fetch("/api/admin/entries", {
       method: "POST",
@@ -44,43 +50,40 @@ export default function VerschlussForm({ userId }: { userId: string }) {
         kontrollCode: sealNumber.trim() || undefined,
       }),
     });
-    setLoading(false);
+    setSaving(false);
     if (res.ok) {
       router.push(`/admin/users/${userId}/aktionen`);
     } else {
       const d = await res.json();
-      setError(d.error || "Fehler");
+      setError(d.error || tc("error"));
     }
   }
 
   return (
-    <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
       <Link href={`/admin/users/${userId}/aktionen`} className="text-sm text-foreground-faint hover:text-foreground transition">
-        ← Aktionen
+        ← {t("aktionen")}
       </Link>
 
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-lock-bg)" }}>
             <Lock size={20} strokeWidth={2} style={{ color: "var(--color-lock)" }} />
           </div>
-          <h1 className="text-base font-semibold text-foreground">Verschluss erfassen</h1>
+          <h1 className="text-base font-semibold text-foreground">{tLock("title")}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Zeitpunkt</label>
-            <input
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className={inputCls}
-              required
-            />
-          </div>
+          <Input
+            label={tc("dateTime")}
+            type="datetime-local"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            required
+          />
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Foto (optional)</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("photoOptional")}</label>
             {imagePreview ? (
               <div className="flex items-start gap-4">
                 <ImageViewer src={imagePreview} alt="Vorschau" width={80} height={80} className="w-20 h-20 rounded-xl object-cover" />
@@ -91,7 +94,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
                   <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
                   <button type="button" onClick={clearPhoto}
                     className="text-xs text-warn hover:opacity-80 w-fit transition">
-                    Foto entfernen
+                    {tc("removePhoto")}
                   </button>
                 </div>
               </div>
@@ -100,8 +103,8 @@ export default function VerschlussForm({ userId }: { userId: string }) {
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Siegel-Nummer (optional)</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tLock("sealNumber")}</label>
             <input
               type="text"
               inputMode="numeric"
@@ -109,37 +112,32 @@ export default function VerschlussForm({ userId }: { userId: string }) {
               maxLength={8}
               value={sealNumber}
               onChange={(e) => { setSealNumber(e.target.value.replace(/\D/g, "")); setSealState("idle"); }}
-              placeholder="5–8 Ziffern"
-              className={inputCls}
+              placeholder={tLock("sealNumberHint")}
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
             />
-            {sealState === "detecting" && <p className="text-xs text-foreground-faint">Nummer wird erkannt…</p>}
-            {sealState === "detected" && <p className="text-xs text-[var(--color-lock)]">Erkannt: {sealNumber}</p>}
-            {sealState === "not-detected" && !sealNumber && <p className="text-xs text-foreground-faint">Nicht erkannt</p>}
+            {sealState === "detecting" && <p className="text-xs text-foreground-faint">{tLock("sealDetecting")}</p>}
+            {sealState === "detected" && <p className="text-xs text-[var(--color-lock)]">{tLock("sealDetected", { code: sealNumber })}</p>}
+            {sealState === "not-detected" && !sealNumber && <p className="text-xs text-foreground-faint">{tLock("sealNotDetected")}</p>}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Notiz (optional)</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("noteOptional")}</label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Notiz (optional)"
+              placeholder={tc("note")}
               rows={2}
-              className={`${inputCls} w-full resize-none`}
+              className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
             />
           </div>
 
-          {error && <p className="text-xs text-warn">{error}</p>}
+          <FormError message={error || null} />
 
-          <button
-            type="submit"
-            disabled={loading || uploading}
-            className="flex items-center justify-center gap-2 text-sm font-medium text-[var(--btn-primary-text)] bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-hover)] rounded-xl px-4 py-3 disabled:opacity-50 transition"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
-            {loading ? "Sende…" : "Verschluss erfassen"}
-          </button>
+          <Button type="submit" variant="primary" fullWidth loading={saving || uploading} icon={<Lock size={16} />}>
+            {tLock("saveBtn")}
+          </Button>
         </form>
-      </div>
+      </Card>
     </main>
   );
 }

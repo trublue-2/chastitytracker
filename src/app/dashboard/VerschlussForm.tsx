@@ -9,6 +9,11 @@ import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
 import FormField from "@/app/components/FormField";
+import DateTimePicker from "@/app/components/DateTimePicker";
+import Input from "@/app/components/Input";
+import Textarea from "@/app/components/Textarea";
+import Button from "@/app/components/Button";
+import useToast from "@/app/hooks/useToast";
 
 interface Props {
   initial?: {
@@ -26,8 +31,10 @@ interface Props {
 export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo }: Props) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
+  const tDash = useTranslations("dashboard");
   const dl = toDateLocale(useLocale());
   const router = useRouter();
+  const toast = useToast();
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
   );
@@ -52,45 +59,47 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
     setSaving(true);
     setError("");
 
-    const res = await fetch(
-      initial ? `/api/entries/${initial.id}` : "/api/entries",
-      {
-        method: initial ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "VERSCHLUSS",
-          startTime: new Date(startTime).toISOString(),
-          imageUrl: imageUrl || null,
-          imageExifTime: imageExifTime || null,
-          note: note || null,
-          kontrollCode: sealNumber.trim() || null,
-        }),
-      }
-    );
+    try {
+      const res = await fetch(
+        initial ? `/api/entries/${initial.id}` : "/api/entries",
+        {
+          method: initial ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "VERSCHLUSS",
+            startTime: new Date(startTime).toISOString(),
+            imageUrl: imageUrl || null,
+            imageExifTime: imageExifTime || null,
+            note: note || null,
+            kontrollCode: sealNumber.trim() || null,
+          }),
+        }
+      );
 
-    setSaving(false);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      setError(err.error || t("savingError"));
-      return;
+      setSaving(false);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || t("savingError"));
+        return;
+      }
+      toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
+      router.push(redirectTo ?? "/dashboard");
+    } catch {
+      setSaving(false);
+      setError(t("networkError"));
     }
-    router.push(redirectTo ?? "/dashboard");
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      {/* Datum / Zeit */}
-      <FormField label={t("dateTimeRequired")}>
-        <input
-          type="datetime-local"
-          value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
-          required
-          className={inputCls}
-        />
-      </FormField>
+      <DateTimePicker
+        label={t("dateTimeRequired")}
+        value={startTime}
+        onChange={(e) => setStartTime(e.target.value)}
+        required
+      />
 
-      {/* Foto */}
+      {/* Photo */}
       <FormField label={t("photoOptional")}>
         {imagePreview ? (
           <div className="flex items-start gap-4">
@@ -103,10 +112,10 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
             />
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && (
-                <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString(dl)}</p>
+                <p className="text-xs text-foreground-faint">{t("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>
               )}
               {exifWarning && !uploading && (
-                <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>
+                <p className="text-xs text-warn font-medium">{exifWarning}</p>
               )}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact mobileDesktopMode={mobileDesktopMode} />
               <button type="button" onClick={clearPhoto}
@@ -120,67 +129,57 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
         )}
       </FormField>
 
-      {/* Siegel-Nummer */}
-      <FormField label={tForm("sealNumber")}>
-        <div className="flex flex-col gap-1.5">
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="\d{5,8}"
-            maxLength={8}
-            value={sealNumber}
-            onChange={(e) => { setSealNumber(e.target.value.replace(/\D/g, "")); setSealState("idle"); }}
-            placeholder={tForm("sealNumberHint")}
-            className={inputCls}
-          />
-          {sealState === "detecting" && (
-            <p className="text-xs text-foreground-faint">{tForm("sealDetecting")}</p>
-          )}
-          {sealState === "detected" && (
-            <p className="text-xs text-[var(--color-lock)]">{tForm("sealDetected", { code: sealNumber })}</p>
-          )}
-          {sealState === "not-detected" && !sealNumber && (
-            <p className="text-xs text-foreground-faint">{tForm("sealNotDetected")}</p>
-          )}
-        </div>
-      </FormField>
-
-      {/* Notiz */}
-      <FormField label={t("noteOptional")}>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          rows={3}
-          className={`${inputCls} resize-none`}
+      {/* Seal number */}
+      <div className="flex flex-col gap-1.5">
+        <Input
+          label={tForm("sealNumber")}
+          type="text"
+          inputMode="numeric"
+          maxLength={8}
+          value={sealNumber}
+          onChange={(e) => { setSealNumber(e.target.value.replace(/\D/g, "")); setSealState("idle"); }}
+          placeholder={tForm("sealNumberHint")}
+          className="font-mono"
         />
-      </FormField>
+        {sealState === "detecting" && (
+          <p className="text-xs text-foreground-faint">{tForm("sealDetecting")}</p>
+        )}
+        {sealState === "detected" && (
+          <p className="text-xs text-lock">{tForm("sealDetected", { code: sealNumber })}</p>
+        )}
+        {sealState === "not-detected" && !sealNumber && (
+          <p className="text-xs text-foreground-faint">{tForm("sealNotDetected")}</p>
+        )}
+      </div>
+
+      <Textarea
+        label={t("noteOptional")}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={3}
+      />
 
       <FormError message={error} />
 
-      <FormActions saving={saving || uploading} label={initial ? t("update") : tForm("saveBtn")} color="emerald" />
+      <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
+        <Button
+          type="button"
+          variant="secondary"
+          fullWidth
+          onClick={() => router.push("/dashboard")}
+        >
+          {t("cancel")}
+        </Button>
+        <Button
+          type="submit"
+          variant="semantic"
+          semantic="lock"
+          fullWidth
+          loading={saving || uploading}
+        >
+          {initial ? t("update") : tForm("saveBtn")}
+        </Button>
+      </div>
     </form>
-  );
-}
-
-const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
-
-
-function FormActions({ saving, label, color }: { saving: boolean; label: string; color: "gray" | "emerald" }) {
-  const t = useTranslations("common");
-  const router = useRouter();
-  const btnCls = color === "emerald"
-    ? "bg-[var(--color-lock)] hover:opacity-90 text-white"
-    : "bg-foreground hover:opacity-80 text-background";
-  return (
-    <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-      <button type="button" onClick={() => router.push("/dashboard")}
-        className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
-        {t("cancel")}
-      </button>
-      <button type="submit" disabled={saving}
-        className={`flex-1 text-base font-semibold py-3.5 rounded-xl active:scale-[0.98] disabled:opacity-50 transition-all ${btnCls}`}>
-        {saving ? t("saving") : label}
-      </button>
-    </div>
   );
 }

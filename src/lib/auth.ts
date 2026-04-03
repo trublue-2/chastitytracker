@@ -27,23 +27,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const username = credentials?.username as string;
         const password = credentials?.password as string;
 
-        if (!checkRateLimit(username)) return null;
+        if (!await checkRateLimit(username)) return null;
 
         const user = await prisma.user.findUnique({ where: { username } });
         if (!user) {
-          recordFailure(username);
+          await recordFailure(username);
           console.warn(`${ts()} [auth] Fehlgeschlagener Login-Versuch für "${username}" (unbekannter Benutzer)`);
           return null;
         }
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) {
-          recordFailure(username);
+          await recordFailure(username);
           console.warn(`${ts()} [auth] Fehlgeschlagener Login-Versuch für "${username}" (falsches Passwort)`);
           return null;
         }
 
-        recordSuccess(username);
+        await recordSuccess(username);
         return { id: user.id, name: user.username, role: user.role };
       },
     }),

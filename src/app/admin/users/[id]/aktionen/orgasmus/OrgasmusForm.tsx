@@ -3,22 +3,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Droplets, Loader2 } from "lucide-react";
+import { Droplets } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
-
-const inputCls = "text-sm bg-surface-raised border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted";
+import { useTranslations } from "next-intl";
+import Card from "@/app/components/Card";
+import Input from "@/app/components/Input";
+import Select from "@/app/components/Select";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
 
 export default function OrgasmusForm({ userId }: { userId: string }) {
+  const t = useTranslations("admin");
+  const tOrgasm = useTranslations("orgasmForm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [orgasmusArt, setOrgasmusArt] = useState("Orgasmus");
   const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     setError("");
     const res = await fetch("/api/admin/entries", {
       method: "POST",
@@ -31,77 +38,67 @@ export default function OrgasmusForm({ userId }: { userId: string }) {
         note: note.trim() || undefined,
       }),
     });
-    setLoading(false);
+    setSaving(false);
     if (res.ok) {
       router.push(`/admin/users/${userId}/aktionen`);
     } else {
       const d = await res.json();
-      setError(d.error || "Fehler");
+      setError(d.error || tc("error"));
     }
   }
 
+  const artOptions = [
+    { value: "Orgasmus", label: tOrgasm("artOrgasmus") },
+    { value: "ruinierter Orgasmus", label: tOrgasm("artRuiniert") },
+    { value: "feuchter Traum", label: tOrgasm("artTraum") },
+  ];
+
   return (
-    <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
       <Link href={`/admin/users/${userId}/aktionen`} className="text-sm text-foreground-faint hover:text-foreground transition">
-        ← Aktionen
+        ← {t("aktionen")}
       </Link>
 
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-orgasm-bg)" }}>
             <Droplets size={20} strokeWidth={2} style={{ color: "var(--color-orgasm)" }} />
           </div>
-          <h1 className="text-base font-semibold text-foreground">Orgasmus erfassen</h1>
+          <h1 className="text-base font-semibold text-foreground">{tOrgasm("title")}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Zeitpunkt</label>
-            <input
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className={inputCls}
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Art</label>
-            <select
-              value={orgasmusArt}
-              onChange={(e) => setOrgasmusArt(e.target.value)}
-              className={inputCls}
-            >
-              <option value="Orgasmus">Orgasmus</option>
-              <option value="ruinierter Orgasmus">Ruinierter Orgasmus</option>
-              <option value="feuchter Traum">Feuchter Traum</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-foreground-faint">Notiz (optional)</label>
+          <Input
+            label={tc("dateTime")}
+            type="datetime-local"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            required
+          />
+          <Select
+            label={t("entryOrgasmusArt")}
+            value={orgasmusArt}
+            onChange={(e) => setOrgasmusArt(e.target.value)}
+            options={artOptions}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
+              {tc("noteOptional")}
+            </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Notiz (optional)"
+              placeholder={tc("note")}
               rows={2}
-              className={`${inputCls} w-full resize-none`}
+              className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
             />
           </div>
-
-          {error && <p className="text-xs text-warn">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex items-center justify-center gap-2 text-sm font-medium text-[var(--btn-primary-text)] bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-hover)] rounded-xl px-4 py-3 disabled:opacity-50 transition"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Droplets size={16} />}
-            {loading ? "Sende…" : "Orgasmus erfassen"}
-          </button>
+          <FormError message={error || null} />
+          <Button type="submit" variant="primary" fullWidth loading={saving} icon={<Droplets size={16} />}>
+            {tOrgasm("title")}
+          </Button>
         </form>
-      </div>
+      </Card>
     </main>
   );
 }

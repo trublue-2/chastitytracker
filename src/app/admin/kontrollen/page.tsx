@@ -2,7 +2,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected } from "@/lib/utils";
 import Link from "next/link";
+import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
+import Card from "@/app/components/Card";
+import EmptyState from "@/app/components/EmptyState";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import AdminKontrolleListClient, { type AdminKontrolleRowData } from "./AdminKontrolleListClient";
@@ -98,9 +101,9 @@ export default async function AdminKontrollenPage({
 
   const rows = [...pruefungRows, ...offeneRows]
     .filter((row) => {
-      if (!row.entryId) return true; // offene Anforderung — immer Alarm
-      if (row.verifikationStatus === "unverified") return true; // nicht verifiziert
-      if (row.verifikationStatus === "rejected") return true; // abgelehnt
+      if (!row.entryId) return true;
+      if (row.verifikationStatus === "unverified") return true;
+      if (row.verifikationStatus === "rejected") return true;
       if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
       return false;
     })
@@ -162,13 +165,16 @@ export default async function AdminKontrollenPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
-          {t("noKontrollenYet")}
-        </div>
+        <Card padding="none">
+          <EmptyState
+            icon={<ClipboardCheck size={32} />}
+            title={t("noKontrollenYet")}
+          />
+        </Card>
       ) : (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <AdminKontrolleListClient items={items} labels={labels} />
-        </div>
+        </Card>
       )}
     </main>
   );

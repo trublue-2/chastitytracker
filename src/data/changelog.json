@@ -1,5 +1,22 @@
 [
   {
+    "version": "3.0.0",
+    "date": "2026-04-03",
+    "changes": [
+      { "type": "feat", "text": "Push-Benachrichtigungen (PWA/VAPID): Admins erhalten Benachrichtigungen bei neuen Einträgen, Benutzer bei Kontrollanforderungen und Verschluss-Anforderungen" },
+      { "type": "feat", "text": "Push-Opt-in in den Einstellungen: Toggle zum Aktivieren/Deaktivieren von Push-Benachrichtigungen pro Browser/Gerät" },
+      { "type": "security", "text": "DB-basiertes Rate Limiting: alle 4 In-Memory-Maps (Login-Fehlversuche, Passwort-Reset, AI-Verifikation, Siegel-Erkennung) durch persistentes SQLite-Modell ersetzt" },
+      { "type": "security", "text": "bcrypt DoS-Schutz: Passwörter über 72 Bytes werden an allen Endpunkten abgewiesen (Passwort setzen, ändern, zurücksetzen)" },
+      { "type": "security", "text": "Benutzername-Validierung: Länge 3–50 Zeichen beim Anlegen neuer Benutzer" },
+      { "type": "ui", "text": "Skeleton-Loading für 5 weitere Seiten: Einträge, Admin-Dashboard, Admin-Benutzerdetail, Admin-Einstellungen, Admin-Kontrollen" },
+      { "type": "ui", "text": "Kalender-Modal: ARIA role=dialog, aria-modal, aria-labelledby, Escape-Taste zum Schliessen, Fokus-Management" },
+      { "type": "ui", "text": "Pagination und Passwort-Toggle haben jetzt korrekte aria-label Attribute" },
+      { "type": "ui", "text": "Thumbnail-Bilder in Listen laden lazy (loading=lazy)" },
+      { "type": "fix", "text": "DeleteVorgabeButton: Bestätigungsdialog und Schaltflächentext sind jetzt i18n-fähig" },
+      { "type": "fix", "text": "AdminKontrolleListClient: Paginierungsbuttons nutzen i18n statt hartkodiertem Deutsch" }
+    ]
+  },
+  {
     "version": "2.2.7",
     "date": "2026-04-02",
     "changes": [

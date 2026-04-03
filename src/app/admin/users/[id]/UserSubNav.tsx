@@ -9,19 +9,19 @@ interface Props {
 }
 
 export default function UserSubNav({ userId }: Props) {
-  const t = useTranslations("admin");
+  const t = useTranslations("adminNav");
   const pathname = usePathname();
   const router = useRouter();
   const base = `/admin/users/${userId}`;
 
   const tabs = [
-    { href: base, label: t("overview"), exact: true },
-    { href: `${base}/aktionen`, label: t("aktionen"), exact: false },
-    { href: `${base}/eintraege`, label: "Einträge", exact: false },
-    { href: `${base}/kontrollen`, label: t("kontrollen"), exact: false },
-    { href: `${base}/einstellungen`, label: t("einstellungen"), exact: false },
-    { href: `${base}/stats`, label: t("statsTitle"), exact: false },
-    { href: `${base}/strafbuch`, label: t("strafbuch"), exact: false },
+    { href: base, label: t("overview_tab"), exact: true },
+    { href: `${base}/aktionen`, label: t("actions_tab"), exact: false },
+    { href: `${base}/eintraege`, label: t("entries_tab"), exact: false },
+    { href: `${base}/kontrollen`, label: t("inspections_tab"), exact: false },
+    { href: `${base}/einstellungen`, label: t("user_settings_tab"), exact: false },
+    { href: `${base}/stats`, label: t("stats_tab"), exact: false },
+    { href: `${base}/strafbuch`, label: t("strafbuch_tab"), exact: false },
   ];
 
   const active = tabs.find((tab) =>
@@ -31,7 +31,7 @@ export default function UserSubNav({ userId }: Props) {
   return (
     <div className="sticky top-[108px] z-10 bg-surface border-b border-border-subtle">
       {/* Mobile: select dropdown */}
-      <div className="sm:hidden px-4 py-2">
+      <div className="lg:hidden px-4 py-2">
         <select
           value={active?.href ?? base}
           onChange={(e) => router.push(e.target.value)}
@@ -44,7 +44,7 @@ export default function UserSubNav({ userId }: Props) {
       </div>
 
       {/* Desktop: tab bar */}
-      <div className="hidden sm:flex px-4 sm:px-6">
+      <div className="hidden lg:flex px-4 lg:px-6">
         {tabs.map((tab) => {
           const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
           return (

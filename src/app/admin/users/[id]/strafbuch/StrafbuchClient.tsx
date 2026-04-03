@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown } from "lucide-react";
 
-const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
-
 export interface StrafeRecordData {
   refId: string;
   bestraftDatumStr: string;
@@ -78,6 +76,8 @@ function todayLocal(): string {
   return new Date().toLocaleDateString("en-CA");
 }
 
+const fieldCls = "w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
+
 export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, strafeRecords, labels }: Props) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
@@ -93,7 +93,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0;
   const hasPunished = strafeRecords.length > 0;
 
-  // Section component with open/total count display
   function Section({ title, openCount, totalCount, children }: {
     title: string; openCount: number; totalCount: number; children: React.ReactNode;
   }) {
@@ -114,23 +113,22 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  // Inline form for marking an offense as punished
   function BestrafenForm({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" }) {
     const [datum, setDatum] = useState(todayLocal());
     const [notiz, setNotiz] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
     async function submit(e: React.FormEvent) {
       e.preventDefault();
-      setLoading(true);
+      setSaving(true);
       setError("");
       const res = await fetch("/api/admin/strafe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, offenseType, refId, bestraftDatum: datum, notiz }),
       });
-      setLoading(false);
+      setSaving(false);
       if (res.ok) {
         setOpenFormId(null);
         router.refresh();
@@ -144,11 +142,11 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       <form onSubmit={submit} className="mt-2 bg-surface-raised rounded-xl border border-border p-3 flex flex-col gap-2">
         <div>
           <label className="block text-xs text-foreground-faint mb-1">{labels.strafbuchBestraftDatum}</label>
-          <input type="date" value={datum} onChange={e => setDatum(e.target.value)} required className={inputCls} />
+          <input type="date" value={datum} onChange={e => setDatum(e.target.value)} required className={fieldCls} />
         </div>
         <div>
           <label className="block text-xs text-foreground-faint mb-1">{labels.strafbuchNotiz}</label>
-          <textarea value={notiz} onChange={e => setNotiz(e.target.value)} rows={2} className={`${inputCls} resize-none`} />
+          <textarea value={notiz} onChange={e => setNotiz(e.target.value)} rows={2} className={`${fieldCls} resize-none`} />
         </div>
         {error && <p className="text-xs text-warn">{error}</p>}
         <div className="flex gap-2 justify-end">
@@ -156,10 +154,10 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             className="text-xs text-foreground-faint hover:text-foreground-muted transition px-3 py-1.5 rounded-lg border border-border">
             {labels.strafbuchAbbrechen}
           </button>
-          <button type="submit" disabled={loading}
+          <button type="submit" disabled={saving}
             className="text-xs font-semibold bg-[var(--color-ok)] text-white px-3 py-1.5 rounded-lg disabled:opacity-50 flex items-center gap-1 transition hover:opacity-90">
             <CheckCircle size={12} />
-            {loading ? "…" : labels.strafbuchBestraftMarkieren}
+            {saving ? "…" : labels.strafbuchBestraftMarkieren}
           </button>
         </div>
       </form>
@@ -208,8 +206,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   const oeffnungDisplay = showAll ? unerlaubteOeffnungen : openOeffnungen;
   const zuSpaetDisplay  = showAll ? zuSpaet : openZuSpaet;
   const abgelehntDisplay = showAll ? abgelehnt : openAbgelehnt;
@@ -217,7 +213,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   return (
     <div className="flex flex-col gap-6">
 
-      {/* All-punished empty state */}
       {!hasAnyOpen && !showAll && hasAny && (
         <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
           {labels.strafbuchAlleVergehenBestraft}
@@ -229,7 +224,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         </div>
       )}
 
-      {/* Unerlaubte Öffnungen */}
       {oeffnungDisplay.length > 0 && (
         <Section title={labels.strafbuchUnerlaubteOeffnungen}
           openCount={openOeffnungen.length}
@@ -257,7 +251,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         </Section>
       )}
 
-      {/* Zu spät erfüllte Kontrollen */}
       {zuSpaetDisplay.length > 0 && (
         <Section title={labels.strafbuchZuSpaet}
           openCount={openZuSpaet.length}
@@ -287,7 +280,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         </Section>
       )}
 
-      {/* Abgelehnte Kontrollen */}
       {abgelehntDisplay.length > 0 && (
         <Section title={labels.strafbuchAbgelehnt}
           openCount={openAbgelehnt.length}
@@ -313,7 +305,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         </Section>
       )}
 
-      {/* Toggle — bottom, full width */}
       {hasPunished && (
         <button type="button" onClick={() => setShowAll(v => !v)}
           className="w-full text-xs text-foreground-faint hover:text-foreground-muted transition border border-border rounded-xl px-3 py-2.5">

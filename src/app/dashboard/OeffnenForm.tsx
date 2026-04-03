@@ -7,6 +7,13 @@ import { OEFFNEN_GRUENDE } from "@/lib/constants";
 import { AlertCircle, Lock } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
+import DateTimePicker from "@/app/components/DateTimePicker";
+import Select from "@/app/components/Select";
+import Textarea from "@/app/components/Textarea";
+import Button from "@/app/components/Button";
+import Card from "@/app/components/Card";
+import Sheet from "@/app/components/Sheet";
+import useToast from "@/app/hooks/useToast";
 
 type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
@@ -22,8 +29,10 @@ interface Props {
 export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15, redirectTo }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
+  const tDash = useTranslations("dashboard");
   const dl = toDateLocale(useLocale());
   const router = useRouter();
+  const toast = useToast();
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
   );
@@ -53,6 +62,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
         setError(err.error || tCommon("savingError"));
         return;
       }
+      toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
       router.push(redirectTo ?? "/dashboard");
     } catch {
       setSaving(false);
@@ -71,130 +81,120 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
     await doSave();
   }
 
-  const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
-
   const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
+
+  const grundOptions = OEFFNEN_GRUENDE.map((g) => ({
+    value: g,
+    label: g === "REINIGUNG" ? t("grundReinigung")
+         : g === "KEYHOLDER" ? t("grundKeyholder")
+         : g === "NOTFALL" ? t("grundNotfall")
+         : t("grundAnderes"),
+    disabled: g === "REINIGUNG" && !reinigungErlaubt,
+  }));
 
   return (
     <>
-      {/* Warnmeldung bei aktiver Sperrzeit */}
-      {showWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
-          <div className="bg-surface rounded-2xl shadow-2xl max-w-sm w-full p-6 flex flex-col gap-5">
-            <div className="flex items-start gap-3">
-              <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
-              <div className="flex flex-col gap-1.5">
-                <p className="font-bold text-foreground text-base leading-snug">
-                  {grund === "REINIGUNG" && reinigungErlaubt
-                    ? t("modalTitleReinigung")
-                    : t("modalTitle")}
-                </p>
-                <p className="text-sm text-foreground-muted">
-                  {grund === "REINIGUNG" && reinigungErlaubt
-                    ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
-                    : t("modalSubtext")}
-                </p>
-                <p className="text-xs text-[var(--color-sperrzeit)] font-semibold mt-1">
-                  {sperrzeitUnbefristet
-                    ? t("modalLockedIndefinite")
-                    : sperrzeitEndetAt
-                      ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })
-                      : null}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setShowWarning(false)}
-                className="w-full text-sm font-semibold text-background bg-foreground rounded-xl py-3 hover:opacity-80 transition"
-              >
-                {t("modalStay")}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowWarning(false); doSave(); }}
-                disabled={saving}
-                className="w-full text-sm font-semibold text-[var(--color-sperrzeit)] border border-[var(--color-sperrzeit-border)] bg-[var(--color-sperrzeit-bg)] rounded-xl py-3 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition"
-              >
-                {saving ? tCommon("saving") : t("modalOpenAnyway")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* Hinweis im Formular bei aktiver Sperrzeit */}
-        {isGesperrt && (
-          <div className="flex items-start gap-2.5 bg-[var(--color-sperrzeit-bg)] border border-[var(--color-sperrzeit-border)] rounded-xl px-4 py-3">
-            <Lock size={16} className="flex-shrink-0 text-[var(--color-sperrzeit)] mt-0.5" />
-            <div>
-              <p className="text-sm font-bold text-[var(--color-sperrzeit-text)]">{t("lockedWarningTitle")}</p>
-              <p className="text-xs text-[var(--color-sperrzeit)] mt-0.5">
+      {/* Sperrzeit-Warnung als Sheet */}
+      <Sheet open={showWarning} onClose={() => setShowWarning(false)} title="">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
+            <div className="flex flex-col gap-1.5">
+              <p className="font-bold text-foreground text-base leading-snug">
+                {grund === "REINIGUNG" && reinigungErlaubt
+                  ? t("modalTitleReinigung")
+                  : t("modalTitle")}
+              </p>
+              <p className="text-sm text-foreground-muted">
+                {grund === "REINIGUNG" && reinigungErlaubt
+                  ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
+                  : t("modalSubtext")}
+              </p>
+              <p className="text-xs text-sperrzeit font-semibold mt-1">
                 {sperrzeitUnbefristet
-                  ? t("lockedWarningTextIndefinite")
-                  : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
+                  ? t("modalLockedIndefinite")
+                  : sperrzeitEndetAt
+                    ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })
+                    : null}
               </p>
             </div>
           </div>
+          <div className="flex flex-col gap-2">
+            <Button variant="primary" fullWidth onClick={() => setShowWarning(false)}>
+              {t("modalStay")}
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              loading={saving}
+              onClick={() => { setShowWarning(false); doSave(); }}
+            >
+              {t("modalOpenAnyway")}
+            </Button>
+          </div>
+        </div>
+      </Sheet>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* Sperrzeit info banner */}
+        {isGesperrt && (
+          <Card variant="semantic" semantic="sperrzeit">
+            <div className="flex items-start gap-2.5">
+              <Lock size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-sperrzeit-text">{t("lockedWarningTitle")}</p>
+                <p className="text-xs text-sperrzeit mt-0.5">
+                  {sperrzeitUnbefristet
+                    ? t("lockedWarningTextIndefinite")
+                    : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
+                </p>
+              </div>
+            </div>
+          </Card>
         )}
-        <div>
-          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-            {tCommon("dateTimeRequired")}
-          </label>
-          <input
-            type="datetime-local"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            required
-            className={inputCls}
-          />
-        </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-            {t("grundLabel")}
-          </label>
-          <select
-            value={grund}
-            onChange={(e) => { setGrund(e.target.value as OeffnenGrund | ""); if (e.target.value) setError(""); }}
-            required
-            className={inputCls}
-          >
-            <option value="">–</option>
-            <option value="REINIGUNG">{t("grundReinigung")}</option>
-            <option value="KEYHOLDER">{t("grundKeyholder")}</option>
-            <option value="NOTFALL">{t("grundNotfall")}</option>
-            <option value="ANDERES">{t("grundAnderes")}</option>
-          </select>
-        </div>
+        <DateTimePicker
+          label={tCommon("dateTimeRequired")}
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+          required
+        />
 
-        <div>
-          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-            {tCommon("commentRequired")}
-          </label>
-          <textarea
-            value={note}
-            onChange={(e) => { setNote(e.target.value); if (e.target.value.trim()) setError(""); }}
-            rows={4}
-            required
-            placeholder={t("commentPlaceholder")}
-            className={`${inputCls} resize-none`}
-          />
-        </div>
+        <Select
+          label={t("grundLabel")}
+          value={grund}
+          onChange={(e) => { setGrund(e.target.value as OeffnenGrund | ""); if (e.target.value) setError(""); }}
+          required
+          placeholder="–"
+          options={grundOptions}
+        />
+
+        {grund === "REINIGUNG" && reinigungErlaubt && (
+          <Card variant="semantic" semantic="inspect" padding="compact">
+            <p className="text-xs text-inspect-text">
+              {t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })}
+            </p>
+          </Card>
+        )}
+
+        <Textarea
+          label={tCommon("commentRequired")}
+          value={note}
+          onChange={(e) => { setNote(e.target.value); if (e.target.value.trim()) setError(""); }}
+          rows={4}
+          required
+          placeholder={t("commentPlaceholder")}
+        />
 
         <FormError message={error} />
 
         <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-          <button type="button" onClick={() => router.push("/dashboard")}
-            className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
+          <Button type="button" variant="secondary" fullWidth onClick={() => router.push("/dashboard")}>
             {tCommon("cancel")}
-          </button>
-          <button type="submit" disabled={saving}
-            className="flex-1 bg-foreground text-background text-base font-semibold py-3.5 rounded-xl hover:opacity-80 active:scale-[0.98] disabled:opacity-50 transition-all">
-            {saving ? tCommon("saving") : initial ? tCommon("update") : t("saveBtn")}
-          </button>
+          </Button>
+          <Button type="submit" variant="secondary" fullWidth loading={saving}>
+            {initial ? tCommon("update") : t("saveBtn")}
+          </Button>
         </div>
       </form>
     </>

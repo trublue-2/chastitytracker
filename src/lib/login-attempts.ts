@@ -1,39 +1,57 @@
-// In-memory rate limiting: max 5 failures per username, 15 min lockout
+import { prisma } from "@/lib/prisma";
 
-const loginAttempts = new Map<string, { failures: number; blockedUntil: Date | null }>();
+const KEY = (username: string) => `login:${username}`;
+const MAX_FAILURES = 5;
+const LOCKOUT_MS = 15 * 60 * 1000;
 
-// Evict expired entries every 30 min to prevent unbounded memory growth
-setInterval(() => {
-  const now = new Date();
-  for (const [key, entry] of loginAttempts) {
-    if (!entry.blockedUntil || entry.blockedUntil <= now) loginAttempts.delete(key);
-  }
-}, 30 * 60 * 1000);
-
-export function checkRateLimit(username: string): boolean {
-  const entry = loginAttempts.get(username);
-  if (!entry) return true;
-  if (entry.blockedUntil && entry.blockedUntil > new Date()) return false;
+/** Returns true if the user is allowed to attempt login. */
+export async function checkRateLimit(username: string): Promise<boolean> {
+  const row = await prisma.rateLimit.findUnique({ where: { key: KEY(username) } });
+  if (!row) return true;
+  if (row.count >= MAX_FAILURES && row.resetAt > new Date()) return false;
   return true;
 }
 
-export function recordFailure(username: string): void {
-  const entry = loginAttempts.get(username) ?? { failures: 0, blockedUntil: null };
-  entry.failures += 1;
-  if (entry.failures >= 5) {
-    entry.blockedUntil = new Date(Date.now() + 15 * 60 * 1000);
-    console.warn(`${new Date().toISOString()} [auth] Login für "${username}" für 15 min gesperrt (zu viele Fehlversuche)`);
+/** Record a failed login attempt. Triggers a 15-min lockout after 5 failures. */
+export async function recordFailure(username: string): Promise<void> {
+  const key = KEY(username);
+  const lockoutEnd = new Date(Date.now() + LOCKOUT_MS);
+
+  const existing = await prisma.rateLimit.findUnique({ where: { key } });
+
+  if (!existing || (existing.count >= MAX_FAILURES && existing.resetAt <= new Date())) {
+    // No record or expired lockout — start fresh
+    await prisma.rateLimit.upsert({
+      where: { key },
+      create: { key, count: 1, resetAt: lockoutEnd },
+      update: { count: 1, resetAt: lockoutEnd },
+    });
+    return;
   }
-  loginAttempts.set(username, entry);
+
+  const newCount = existing.count + 1;
+  if (newCount >= MAX_FAILURES) {
+    await prisma.rateLimit.update({
+      where: { key },
+      data: { count: newCount, resetAt: lockoutEnd },
+    });
+    console.warn(
+      `${new Date().toISOString()} [auth] Login für "${username}" für 15 min gesperrt (zu viele Fehlversuche)`
+    );
+  } else {
+    await prisma.rateLimit.update({ where: { key }, data: { count: newCount } });
+  }
 }
 
-export function recordSuccess(username: string): void {
-  loginAttempts.delete(username);
+/** Clear failure record on successful login. */
+export async function recordSuccess(username: string): Promise<void> {
+  await prisma.rateLimit.deleteMany({ where: { key: KEY(username) } });
 }
 
-export function getBlockedUntil(username: string): Date | null {
-  const entry = loginAttempts.get(username);
-  if (!entry?.blockedUntil) return null;
-  if (entry.blockedUntil <= new Date()) return null;
-  return entry.blockedUntil;
+/** Returns the lockout expiry date, or null if not locked. */
+export async function getBlockedUntil(username: string): Promise<Date | null> {
+  const row = await prisma.rateLimit.findUnique({ where: { key: KEY(username) } });
+  if (!row || row.count < MAX_FAILURES) return null;
+  if (row.resetAt <= new Date()) return null;
+  return row.resetAt;
 }

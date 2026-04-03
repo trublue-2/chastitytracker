@@ -4,10 +4,18 @@ import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
-import { Loader2 } from "lucide-react";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
+import FormField from "@/app/components/FormField";
+import DateTimePicker from "@/app/components/DateTimePicker";
+import Input from "@/app/components/Input";
+import Textarea from "@/app/components/Textarea";
+import Button from "@/app/components/Button";
+import Card from "@/app/components/Card";
+import Badge from "@/app/components/Badge";
+import Spinner from "@/app/components/Spinner";
+import useToast from "@/app/hooks/useToast";
 
 interface Props {
   initial?: {
@@ -25,13 +33,13 @@ interface Props {
   redirectTo?: string;
 }
 
-const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
-
 export default function PruefungForm({ initial, initialCode, initialKommentar, mobileDesktopMode, redirectTo }: Props) {
   const t = useTranslations("inspectionForm");
   const tCommon = useTranslations("common");
+  const tDash = useTranslations("dashboard");
   const dl = toDateLocale(useLocale());
   const router = useRouter();
+  const toast = useToast();
 
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
@@ -55,7 +63,6 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
     initial,
   });
 
-  // Reset verification state when a new file is uploaded
   function handleFile(file: File) {
     setError("");
     setVerifyStatus(null);
@@ -64,7 +71,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
     uploadFile(file);
   }
 
-  // Wenn Code manuell auf 5 Zeichen gesetzt wird und Bild vorhanden → Verifikation auslösen
+  // Auto-verify when code + image are ready
   useEffect(() => {
     const key = `${kontrollCode}|${imageUrl}`;
     if (kontrollCode.length >= 5 && imageUrl && key !== lastVerifiedKey.current) {
@@ -102,122 +109,137 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
     setSaving(true);
     setError("");
 
-    const res = await fetch(
-      initial ? `/api/entries/${initial.id}` : "/api/entries",
-      {
-        method: initial ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "PRUEFUNG",
-          startTime: new Date(startTime).toISOString(),
-          imageUrl: imageUrl || null,
-          imageExifTime: imageExifTime || null,
-          note: note || null,
-          kontrollCode: kontrollCode || null,
-          verifikationStatus: aiMatch === true ? "ai" : null,
-        }),
-      }
-    );
+    try {
+      const res = await fetch(
+        initial ? `/api/entries/${initial.id}` : "/api/entries",
+        {
+          method: initial ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "PRUEFUNG",
+            startTime: new Date(startTime).toISOString(),
+            imageUrl: imageUrl || null,
+            imageExifTime: imageExifTime || null,
+            note: note || null,
+            kontrollCode: kontrollCode || null,
+            verifikationStatus: aiMatch === true ? "ai" : null,
+          }),
+        }
+      );
 
-    setSaving(false);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      setError(err.error || tCommon("savingError"));
-      return;
+      setSaving(false);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || tCommon("savingError"));
+        return;
+      }
+      toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
+      router.push(redirectTo ?? "/dashboard");
+    } catch {
+      setSaving(false);
+      setError(tCommon("networkError"));
     }
-    router.push(redirectTo ?? "/dashboard");
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Instruction from admin */}
       {initialKommentar && (
-        <div className="bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
-          <p className="text-xs font-semibold text-[var(--color-warn-text)] uppercase tracking-wider mb-1">{t("instruction")}</p>
-          <p className="text-sm text-[var(--color-warn-text)]">{initialKommentar}</p>
-        </div>
+        <Card variant="semantic" semantic="warn">
+          <p className="text-xs font-semibold text-warn-text uppercase tracking-wider mb-1">{t("instruction")}</p>
+          <p className="text-sm text-warn-text">{initialKommentar}</p>
+        </Card>
       )}
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("dateTimeRequired")}</label>
-        <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className={inputCls} />
-      </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-          {tCommon("photoRequired")} <span className="text-warn">*</span> <span className="text-foreground-faint normal-case font-normal">({tCommon("photoMandatory")})</span>
-        </label>
+      {/* Control code display */}
+      {(initialCode || initial?.kontrollCode) && (
+        <Card padding="compact">
+          <div className="flex items-center gap-3">
+            <Badge variant="inspect" label={t("controlCode")} size="sm" />
+            <span className="font-mono font-bold text-xl text-inspect tracking-widest">
+              {kontrollCode || "–"}
+            </span>
+          </div>
+        </Card>
+      )}
+
+      <DateTimePicker
+        label={tCommon("dateTimeRequired")}
+        value={startTime}
+        onChange={(e) => setStartTime(e.target.value)}
+        required
+      />
+
+      {/* Photo (required) */}
+      <FormField label={`${tCommon("photoRequired")} *`}>
         {imagePreview ? (
           <div className="flex items-start gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={imagePreview} alt="Vorschau" className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
             <div className="flex flex-col gap-2 flex-1 pt-1">
-              {imageExifTime && <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString(dl)}</p>}
-              {exifWarning && !uploading && <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>}
+              {imageExifTime && <p className="text-xs text-foreground-faint">{tCommon("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>}
+              {exifWarning && !uploading && <p className="text-xs text-warn font-medium">{exifWarning}</p>}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact mobileDesktopMode={mobileDesktopMode} />
             </div>
           </div>
         ) : (
           <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" mobileDesktopMode={mobileDesktopMode} />
         )}
-      </div>
+      </FormField>
 
+      {/* Verification status */}
       {verifyStatus === "pending" && (
-        <p className="text-sm text-foreground-muted flex items-center gap-2">
-          <Loader2 size={14} className="animate-spin" /> {t("verifying")}
-        </p>
+        <div className="flex items-center gap-2 text-sm text-foreground-muted">
+          <Spinner size="sm" /> {t("verifying")}
+        </div>
       )}
       {verifyStatus === "match" && (
-        <p className="text-sm text-[var(--color-ok)] font-medium">{t("codeMatch")}</p>
-      )}
-      {verifyStatus === "policy" && (
-        <div className="bg-surface-raised border border-border rounded-xl px-4 py-3">
-          <p className="text-sm text-foreground-muted font-medium">{t("policyError")}</p>
-          <p className="text-xs text-foreground-faint mt-0.5">{t("policyErrorHint")}</p>
-        </div>
+        <Badge variant="ok" label={t("codeMatch")} />
       )}
       {verifyStatus === "mismatch" && (
-        <div className="bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
-          <p className="text-sm text-[var(--color-warn-text)] font-medium">{t("codeMismatch")}</p>
-          {verifyReason && <p className="text-xs text-[var(--color-warn)] mt-0.5">{verifyReason}</p>}
-          <p className="text-xs text-[var(--color-warn)] mt-1">{t("codeMismatchHint")}</p>
-        </div>
+        <Card variant="semantic" semantic="warn">
+          <p className="text-sm text-warn-text font-medium">{t("codeMismatch")}</p>
+          {verifyReason && <p className="text-xs text-warn mt-0.5">{verifyReason}</p>}
+          <p className="text-xs text-warn mt-1">{t("codeMismatchHint")}</p>
+        </Card>
+      )}
+      {verifyStatus === "policy" && (
+        <Card padding="compact">
+          <p className="text-sm text-foreground-muted font-medium">{t("policyError")}</p>
+          <p className="text-xs text-foreground-faint mt-0.5">{t("policyErrorHint")}</p>
+        </Card>
       )}
 
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-          {t("controlCode")} <span className="text-[var(--color-inspect)] normal-case font-normal">({t("controlCodeHint")})</span>
-        </label>
-        {initial?.kontrollCode ? (
-          <div className={`${inputCls} font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl bg-surface-raised cursor-default`}>
-            {kontrollCode || "–"}
-          </div>
-        ) : (
-          <input
-            type="text"
-            value={kontrollCode}
-            onChange={(e) => setKontrollCode(e.target.value.slice(0, 8))}
-            maxLength={8}
-            placeholder="–"
-            className={`${inputCls} font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl`}
-          />
-        )}
-      </div>
+      {/* Code input (only if not pre-filled from request) */}
+      {!initialCode && !initial?.kontrollCode && (
+        <Input
+          label={t("controlCode")}
+          hint={t("controlCodeHint")}
+          type="text"
+          value={kontrollCode}
+          onChange={(e) => setKontrollCode(e.target.value.slice(0, 8))}
+          maxLength={8}
+          placeholder="–"
+          className="font-mono tracking-widest text-inspect font-bold text-xl"
+        />
+      )}
 
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">{tCommon("noteOptional")}</label>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={`${inputCls} resize-none`} />
-      </div>
+      <Textarea
+        label={tCommon("noteOptional")}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={3}
+      />
 
       <FormError message={error} />
 
       <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-        <button type="button" onClick={() => router.push("/dashboard")}
-          className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
+        <Button type="button" variant="secondary" fullWidth onClick={() => router.push("/dashboard")}>
           {tCommon("cancel")}
-        </button>
-        <button type="submit" disabled={saving || uploading}
-          className="flex-1 bg-[var(--color-inspect)] text-white text-base font-semibold py-3.5 rounded-xl hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all">
-          {saving ? tCommon("saving") : initial ? tCommon("update") : t("saveBtn")}
-        </button>
+        </Button>
+        <Button type="submit" variant="semantic" semantic="inspect" fullWidth loading={saving || uploading}>
+          {initial ? tCommon("update") : t("saveBtn")}
+        </Button>
       </div>
     </form>
   );

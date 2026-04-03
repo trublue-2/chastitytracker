@@ -17,6 +17,10 @@ export async function PATCH(req: NextRequest) {
   if (newPassword.length < 8) {
     return NextResponse.json({ error: "Neues Passwort zu kurz (min. 8 Zeichen)" }, { status: 400 });
   }
+  // Prevent bcrypt silent truncation at 72 bytes
+  if (Buffer.byteLength(newPassword, "utf8") > 72) {
+    return NextResponse.json({ error: "Neues Passwort zu lang (max. 72 Zeichen)" }, { status: 400 });
+  }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) {

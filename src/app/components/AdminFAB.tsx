@@ -2,8 +2,10 @@
 
 import { useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Plus, X, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, X, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Sheet from "./Sheet";
+import Spinner from "./Spinner";
 
 interface UserListItem {
   id: string;
@@ -11,29 +13,17 @@ interface UserListItem {
   isLocked: boolean;
 }
 
-type Sheet = "closed" | "picking";
-
 export default function AdminFAB() {
-  const t = useTranslations("admin");
-  const tc = useTranslations("common");
+  const t = useTranslations("adminNav");
+  const tAdmin = useTranslations("admin");
   const router = useRouter();
   const pathname = usePathname();
 
-  const [sheet, setSheet] = useState<Sheet>("closed");
+  const [open, setOpen] = useState(false);
   const [userList, setUserList] = useState<UserListItem[] | null>(null);
   const [loading, setLoading] = useState(false);
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
-
-  function close() {
-    setSheet("closed");
-  }
-
-  async function fetchUserList(): Promise<UserListItem[]> {
-    const res = await fetch("/api/admin/users");
-    if (!res.ok) return [];
-    return res.json();
-  }
 
   const handleOpen = useCallback(async () => {
     if (userIdFromPath) {
@@ -42,75 +32,50 @@ export default function AdminFAB() {
     }
     setLoading(true);
     if (!userList) {
-      const list = await fetchUserList();
+      const res = await fetch("/api/admin/users");
+      const list = res.ok ? await res.json() : [];
       setUserList(list);
     }
     setLoading(false);
-    setSheet("picking");
+    setOpen(true);
   }, [userIdFromPath, userList, router]);
-
-  function handleSelectUser(userId: string) {
-    close();
-    router.push(`/admin/users/${userId}/aktionen`);
-  }
 
   return (
     <>
-      {/* Backdrop */}
-      {sheet !== "closed" && (
-        <div className="fixed inset-0 bg-black/40 z-40 sm:hidden" onClick={close} />
-      )}
-
-      {/* Bottom Sheet */}
-      {sheet !== "closed" && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 sm:hidden bg-surface rounded-t-2xl border-t border-border shadow-xl pb-safe">
-          <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <h2 className="text-sm font-semibold text-foreground">
-              {sheet === "picking" && t("selectUser")}
-            </h2>
-            <button onClick={close} className="text-foreground-faint hover:text-foreground-muted transition p-1">
-              <X size={18} />
-            </button>
-          </div>
-
-          {sheet === "picking" && (
-            <div className="overflow-y-auto max-h-72 divide-y divide-border-subtle px-2 pb-4">
-              {loading && (
-                <div className="flex justify-center py-8">
-                  <Loader2 size={20} className="animate-spin text-foreground-faint" />
+      <Sheet open={open} onClose={() => setOpen(false)} title={t("selectUser")}>
+        {loading ? (
+          <div className="flex justify-center py-8"><Spinner /></div>
+        ) : (
+          <div className="divide-y divide-border-subtle">
+            {userList?.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => { setOpen(false); router.push(`/admin/users/${u.id}/aktionen`); }}
+                className="w-full flex items-center justify-between px-3 py-3 hover:bg-surface-raised transition rounded-xl text-left"
+              >
+                <span className="text-sm font-medium text-foreground">{u.username}</span>
+                <div className="flex items-center gap-2">
+                  {u.isLocked && <span className="text-xs text-lock font-medium">{tAdmin("locked")}</span>}
+                  <ChevronRight size={16} className="text-foreground-faint" />
                 </div>
-              )}
-              {!loading && userList?.map((u) => (
-                <button
-                  key={u.id}
-                  onClick={() => handleSelectUser(u.id)}
-                  className="w-full flex items-center justify-between px-3 py-3 hover:bg-surface-raised transition rounded-xl text-left"
-                >
-                  <span className="text-sm font-medium text-foreground">{u.username}</span>
-                  <div className="flex items-center gap-2">
-                    {u.isLocked && <span className="text-xs text-lock font-medium">{t("locked")}</span>}
-                    <ChevronRight size={16} className="text-foreground-faint" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              </button>
+            ))}
+          </div>
+        )}
+      </Sheet>
 
-      {/* Nav Tab Button */}
       <button
-        onClick={sheet === "closed" ? handleOpen : close}
-        className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full text-nav-inactive-text hover:text-foreground-muted"
-        aria-label={sheet === "closed" ? t("aktionen") : tc("close")}
+        onClick={open ? () => setOpen(false) : handleOpen}
+        className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full text-nav-inactive-text hover:text-nav-inactive-hover"
+        aria-label={open ? t("new") : t("selectUser")}
       >
-        {loading && sheet === "closed"
-          ? <Loader2 size={22} className="animate-spin" />
-          : sheet !== "closed"
+        {loading
+          ? <Spinner size="sm" />
+          : open
             ? <X size={22} strokeWidth={1.75} />
             : <Plus size={22} strokeWidth={1.75} />
         }
-        <span className="text-[10px] font-medium">Neu</span>
+        <span className="text-[10px] font-medium">{t("new")}</span>
       </button>
     </>
   );
