@@ -29,6 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Header />
       <DesktopSidebar
         isAdmin={user?.role === "admin"}
+        isLocked={isLocked}
         version={pkg.version}
         buildDate={buildDate}
       />
