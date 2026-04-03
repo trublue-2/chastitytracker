@@ -153,7 +153,7 @@ export function CheckboxToggleDemo() {
         label="Reinigung erlauben"
         description="Benutzer darf fuer Reinigung oeffnen"
         checked={toggled}
-        onChange={(e) => setToggled(e.target.checked)}
+        onChange={(v) => setToggled(v)}
       />
       <Toggle label="Deaktiviert" checked={false} disabled onChange={() => {}} />
     </div>

@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
-
-const VALID_EVENT_TYPES = [
-  "VERSCHLUSS",
-  "OEFFNUNG_IMMER",
-  "OEFFNUNG_VERBOTEN",
-  "ORGASMUS",
-  "KONTROLLE_FREIWILLIG",
-  "KONTROLLE_ANGEFORDERT",
-] as const;
+import { NOTIFICATION_EVENT_TYPES } from "@/lib/constants";
 
 /** GET /api/admin/notifications?userId=xxx — get all preferences for a user */
 export async function GET(req: NextRequest) {
@@ -23,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   // Return a map: { VERSCHLUSS: { mail: false, push: true }, ... }
   const map: Record<string, { mail: boolean; push: boolean }> = {};
-  for (const et of VALID_EVENT_TYPES) {
+  for (const et of NOTIFICATION_EVENT_TYPES) {
     const p = prefs.find((x) => x.eventType === et);
     map[et] = { mail: p?.mail ?? false, push: p?.push ?? false };
   }
@@ -39,7 +31,7 @@ export async function PATCH(req: NextRequest) {
   if (!userId || !eventType || !channel) {
     return NextResponse.json({ error: "userId, eventType, channel erforderlich" }, { status: 400 });
   }
-  if (!VALID_EVENT_TYPES.includes(eventType)) {
+  if (!NOTIFICATION_EVENT_TYPES.includes(eventType)) {
     return NextResponse.json({ error: "Ungültiger eventType" }, { status: 400 });
   }
   if (channel !== "mail" && channel !== "push") {

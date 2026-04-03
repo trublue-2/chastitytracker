@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Toggle from "@/app/components/Toggle";
+import { useTranslations } from "next-intl";
 
 export default function MobileUploadToggle({
   userId,
@@ -9,6 +11,7 @@ export default function MobileUploadToggle({
   userId: string;
   initialValue: boolean;
 }) {
+  const t = useTranslations("admin");
   const [value, setValue] = useState(initialValue);
   const [saving, setSaving] = useState(false);
 
@@ -24,15 +27,12 @@ export default function MobileUploadToggle({
   }
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={value}
+    <Toggle
+      label={t("mobileUploadAdminTitle")}
+      description={t("mobileUploadAdminDesc")}
+      checked={value}
       disabled={saving}
-      onClick={() => handleToggle(!value)}
-      className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 disabled:opacity-50 ${value ? "bg-foreground" : "bg-border"}`}
-    >
-      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-background rounded-full shadow transition-transform duration-200 ${value ? "translate-x-5" : "translate-x-0"}`} />
-    </button>
+      onChange={handleToggle}
+    />
   );
 }
