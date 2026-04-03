@@ -2,63 +2,35 @@
 
 import { useState } from "react";
 import { signOut } from "next-auth/react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { User, ChevronRight } from "lucide-react";
 import Card from "@/app/components/Card";
 import Input from "@/app/components/Input";
-import Select from "@/app/components/Select";
-import Toggle from "@/app/components/Toggle";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
 import PushManager from "@/app/components/PushManager";
 
-interface SettingsFormProps {
+interface Props {
+  userId: string;
   username: string;
   email: string | null;
   version: string;
   buildDate?: string;
-  mobileDesktopUpload?: boolean;
 }
 
-export default function SettingsForm({ username, email, version, buildDate, mobileDesktopUpload: initialMobileDesktopUpload = false }: SettingsFormProps) {
+export default function AdminSettingsForm({ userId, username, email, version, buildDate }: Props) {
   const t = useTranslations("settings");
+  const ta = useTranslations("admin");
   const tc = useTranslations("common");
-  const locale = useLocale();
   const router = useRouter();
-
-  const [mobileDesktopUpload, setMobileDesktopUpload] = useState(initialMobileDesktopUpload);
-  const [uploadSaving, setUploadSaving] = useState(false);
-
-  async function handleMobileDesktopUpload(value: boolean) {
-    const previous = mobileDesktopUpload;
-    setMobileDesktopUpload(value);
-    setUploadSaving(true);
-    try {
-      const res = await fetch("/api/settings/upload", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobileDesktopUpload: value }),
-      });
-      if (!res.ok) setMobileDesktopUpload(previous);
-    } catch {
-      setMobileDesktopUpload(previous);
-    }
-    setUploadSaving(false);
-  }
-
-  function setLocale(value: string) {
-    document.cookie = `locale=${value}; path=/; max-age=31536000; SameSite=Lax`;
-    router.refresh();
-  }
 
   const [expandPassword, setExpandPassword] = useState(false);
   const [expandEmail, setExpandEmail] = useState(false);
-  const [expandLanguage, setExpandLanguage] = useState(false);
 
-  const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
+  // Password
+  const [password, setPassword] = useState("");
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
@@ -66,17 +38,16 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
   async function handlePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwError(null);
-    if (next !== confirm) { setPwError(t("passwordMismatch")); return; }
     setPwSaving(true);
-    const res = await fetch("/api/settings/password", {
+    const res = await fetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newPassword: next }),
+      body: JSON.stringify({ password }),
     });
     setPwSaving(false);
     if (res.ok) {
       setPwSuccess(true);
-      setNext(""); setConfirm("");
+      setPassword("");
     } else {
       const data = await res.json();
       setPwError(data.error ?? tc("error"));
@@ -93,7 +64,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
     e.preventDefault();
     setEmailError(null);
     setEmailSaving(true);
-    const res = await fetch("/api/settings/email", {
+    const res = await fetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: emailValue }),
@@ -101,16 +72,11 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
     setEmailSaving(false);
     if (res.ok) {
       setEmailSuccess(true);
+      router.refresh();
     } else {
-      const data = await res.json();
-      setEmailError(data.error ?? tc("error"));
+      setEmailError(tc("error"));
     }
   }
-
-  const langOptions = [
-    { value: "de", label: "Deutsch" },
-    { value: "en", label: "English" },
-  ];
 
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
@@ -122,6 +88,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
         </div>
         <p className="text-sm font-semibold text-foreground">{username}</p>
         {email && <p className="text-xs text-foreground-faint">{email}</p>}
+        <span className="text-xs font-semibold text-foreground-faint bg-surface-raised px-2 py-0.5 rounded-full">{ta("roleAdmin")}</span>
       </div>
 
       {/* Account section */}
@@ -131,11 +98,11 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
         </p>
         <div className="divide-y divide-border-subtle">
 
-          {/* Password change */}
+          {/* Password */}
           <div>
             <button
               className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-raised transition text-left"
-              onClick={() => { setExpandPassword(!expandPassword); setExpandEmail(false); setExpandLanguage(false); }}
+              onClick={() => { setExpandPassword(!expandPassword); setExpandEmail(false); }}
             >
               <span className="text-sm text-foreground">{t("changePassword")}</span>
               <ChevronRight
@@ -152,23 +119,15 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
                     <Input
                       label={t("newPassword")}
                       type="password"
-                      value={next}
-                      onChange={(e) => setNext(e.target.value)}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
                       autoComplete="new-password"
                     />
-                    <Input
-                      label={t("confirmPassword")}
-                      type="password"
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                    />
                     <FormError message={pwError} />
                     <Button type="submit" variant="primary" fullWidth loading={pwSaving}>
-                      {t("saveBtn")}
+                      {tc("save")}
                     </Button>
                   </form>
                 )}
@@ -176,11 +135,11 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
             )}
           </div>
 
-          {/* Email change */}
+          {/* Email */}
           <div>
             <button
               className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-raised transition text-left"
-              onClick={() => { setExpandEmail(!expandEmail); setExpandPassword(false); setExpandLanguage(false); }}
+              onClick={() => { setExpandEmail(!expandEmail); setExpandPassword(false); }}
             >
               <span className="text-sm text-foreground">{t("changeEmail")}</span>
               <ChevronRight
@@ -199,7 +158,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
                       type="email"
                       value={emailValue}
                       onChange={(e) => setEmailValue(e.target.value)}
-                      placeholder="name@example.com"
+                      placeholder="admin@example.com"
                     />
                     <FormError message={emailError} />
                     <Button type="submit" variant="primary" fullWidth loading={emailSaving}>
@@ -207,29 +166,6 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
                     </Button>
                   </form>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* Language */}
-          <div>
-            <button
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-raised transition text-left"
-              onClick={() => { setExpandLanguage(!expandLanguage); setExpandPassword(false); setExpandEmail(false); }}
-            >
-              <span className="text-sm text-foreground">{t("language")}</span>
-              <ChevronRight
-                size={16}
-                className={`text-foreground-faint transition-transform duration-200 ${expandLanguage ? "rotate-90" : ""}`}
-              />
-            </button>
-            {expandLanguage && (
-              <div className="px-5 pb-5">
-                <Select
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value)}
-                  options={langOptions}
-                />
               </div>
             )}
           </div>
@@ -247,21 +183,12 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
 
       <Divider />
 
-      {/* App section */}
+      {/* Notifications */}
       <Card padding="none">
         <p className="px-5 pt-4 pb-1 text-[10px] font-semibold text-foreground-faint uppercase tracking-widest">
-          {t("app")}
+          {ta("notificationsTitle")}
         </p>
         <div className="divide-y divide-border-subtle">
-          <div className="px-5 py-4">
-            <Toggle
-              label={t("mobileUploadTitle")}
-              description={t("mobileUploadDesc")}
-              checked={mobileDesktopUpload}
-              disabled={uploadSaving}
-              onChange={(e) => handleMobileDesktopUpload(e.target.checked)}
-            />
-          </div>
           <PushManager />
           <div className="flex items-center justify-between px-5 py-4">
             <span className="text-sm text-foreground">{t("version")}</span>
