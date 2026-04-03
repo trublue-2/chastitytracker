@@ -41,9 +41,9 @@ export default function UserContextBar({ userId, username, currentStatus, since,
       <div className="sticky top-14 z-20 bg-surface border-b border-border px-4 h-[52px] flex items-center gap-3">
         <Link
           href="/admin"
-          className="flex items-center gap-1 text-foreground-faint hover:text-foreground-muted transition-colors text-sm flex-shrink-0"
+          className="flex items-center gap-1 text-foreground-faint hover:text-foreground-muted transition-colors text-sm flex-shrink-0 min-h-12 min-w-12 justify-center sm:justify-start sm:min-w-0"
         >
-          <ChevronLeft size={16} strokeWidth={2} />
+          <ChevronLeft size={18} strokeWidth={2} />
           <span className="hidden sm:inline">{t("allUsers")}</span>
         </Link>
 
