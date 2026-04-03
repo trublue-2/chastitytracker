@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Settings } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminFAB from "./AdminFAB";
 
@@ -11,7 +11,7 @@ export default function AdminBottomNav() {
   const pathname = usePathname();
 
   const leftTabs = [
-    { href: "/admin", icon: LayoutDashboard, label: t("overview"), exact: true },
+    { href: "/admin", icon: Users, label: t("users"), exact: true },
   ];
 
   const rightTabs = [

@@ -18,9 +18,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm:      "h-9 px-4 text-sm gap-1.5",
-  default: "h-11 px-5 text-sm gap-2",
-  lg:      "h-13 px-6 text-base gap-2",
+  sm:      "min-h-12 px-4 text-sm gap-1.5",
+  default: "min-h-12 px-5 text-sm gap-2",
+  lg:      "min-h-14 px-6 text-base gap-2",
 };
 
 const spinnerSize: Record<ButtonSize, "sm" | "default"> = {

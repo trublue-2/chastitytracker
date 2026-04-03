@@ -51,6 +51,7 @@ export interface DashboardProps {
     time: string;
     label?: string;
     note?: string;
+    imageUrl?: string;
   }[];
   sessionActive: boolean;
 
@@ -243,18 +244,21 @@ export default function DashboardClient(props: DashboardProps) {
           color="lock"
         />
       </div>
+      <Link href="/dashboard/stats" className="text-xs text-foreground-faint hover:text-foreground-muted transition text-center">
+        {t("allStats")} →
+      </Link>
 
       {/* ── Secondary Action (Orgasm) ── */}
       <div className="flex gap-2">
         {isLocked && !offeneKontrolle && (
           <Link href="/dashboard/new/pruefung" className="flex-1">
-            <Button variant="ghost" size="sm" fullWidth icon={<ClipboardCheck size={16} />}>
+            <Button variant="secondary" size="sm" fullWidth icon={<ClipboardCheck size={16} />}>
               {t("ctaInspectionOrUnlock")}
             </Button>
           </Link>
         )}
         <Link href="/dashboard/new/orgasmus" className="flex-1">
-          <Button variant="ghost" size="sm" fullWidth icon={<Droplets size={16} />}>
+          <Button variant="secondary" size="sm" fullWidth icon={<Droplets size={16} />}>
             {t("ctaOrgasm")}
           </Button>
         </Link>
@@ -288,11 +292,12 @@ export default function DashboardClient(props: DashboardProps) {
 // ── Recent Entry Row ─────────────────────────
 function RecentEntry({ entry }: { entry: DashboardProps["recentEntries"][number] }) {
   const date = new Date(entry.startTime);
+  const tStats = useTranslations("stats");
   const typeConfig: Record<string, { icon: typeof Lock; variant: "lock" | "unlock" | "inspect" | "orgasm"; label: string }> = {
-    VERSCHLUSS: { icon: Lock, variant: "lock", label: "Verschluss" },
-    OEFFNEN: { icon: LockOpen, variant: "unlock", label: "Öffnen" },
-    PRUEFUNG: { icon: ClipboardCheck, variant: "inspect", label: "Prüfung" },
-    ORGASMUS: { icon: Droplets, variant: "orgasm", label: "Orgasmus" },
+    VERSCHLUSS: { icon: Lock, variant: "lock", label: tStats("lock") },
+    OEFFNEN: { icon: LockOpen, variant: "unlock", label: tStats("opening") },
+    PRUEFUNG: { icon: ClipboardCheck, variant: "inspect", label: tStats("inspection") },
+    ORGASMUS: { icon: Droplets, variant: "orgasm", label: tStats("orgasm") },
   };
   const cfg = typeConfig[entry.type] ?? typeConfig.VERSCHLUSS;
 

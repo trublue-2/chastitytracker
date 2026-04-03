@@ -1,5 +1,6 @@
 import { Lock, LockOpen, ClipboardCheck, Droplets, PauseCircle } from "lucide-react";
 import Badge from "./Badge";
+import ImageViewer from "./ImageViewer";
 
 type EventType = "VERSCHLUSS" | "OEFFNEN" | "PRUEFUNG" | "ORGASMUS" | "REINIGUNG";
 
@@ -9,6 +10,7 @@ interface TimelineEvent {
   time: Date | string;
   label?: string;
   note?: string;
+  imageUrl?: string | null;
 }
 
 interface SessionTimelineProps {
@@ -78,6 +80,19 @@ export default function SessionTimeline({
                   <Icon size={14} className="text-white" strokeWidth={2.5} />
                 </div>
               </div>
+
+              {/* Thumbnail */}
+              {event.imageUrl && (
+                <div className="shrink-0">
+                  <ImageViewer
+                    src={event.imageUrl}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                </div>
+              )}
 
               {/* Content */}
               <div className="flex-1 min-w-0 pb-1">
