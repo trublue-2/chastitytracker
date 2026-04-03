@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ImageOff, CheckCircle2 } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 
@@ -107,6 +108,7 @@ export default function KontrolleItemListClient({
   items: KontrolleItemData[];
   imageAlt: string;
 }) {
+  const tc = useTranslations("common");
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(items.length / PAGE_SIZE);
   const paginated = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -146,12 +148,12 @@ export default function KontrolleItemListClient({
         <div className="flex items-center justify-between px-5 py-3 border-t border-border">
           <button type="button" onClick={() => setPage(p => p - 1)} disabled={page === 0}
             className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            ← Zurück
+            ← {tc("previous")}
           </button>
           <span className="text-xs text-foreground-faint tabular-nums">{page + 1} / {totalPages}</span>
           <button type="button" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
             className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            Weiter →
+            {tc("next")} →
           </button>
         </div>
       )}

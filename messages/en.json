@@ -68,7 +68,8 @@
     "timeCorrected": "Time corrected",
     "specified": "Specified",
     "systemTime": "System",
-    "instruction": "Instruction"
+    "instruction": "Instruction",
+    "preview": "Preview"
   },
   "adminNav": {
     "overview": "Overview",

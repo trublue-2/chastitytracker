@@ -6,7 +6,7 @@ import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   const ip =
-    req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ?? "unknown";
 
   const rl = await checkRateLimit(`fp:${ip}`, 5, 60 * 60 * 1000);

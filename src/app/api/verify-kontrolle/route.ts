@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isValidImageUrl } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
 
   if (!imageUrl || !expectedCode) {
     return NextResponse.json({ error: "imageUrl and expectedCode required" }, { status: 400 });
+  }
+  if (!isValidImageUrl(imageUrl)) {
+    return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
   }
 
   const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode);

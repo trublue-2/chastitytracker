@@ -11,6 +11,7 @@ import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import Textarea from "@/app/components/Textarea";
 
 export default function OrgasmusForm({ userId }: { userId: string }) {
   const t = useTranslations("admin");
@@ -81,18 +82,13 @@ export default function OrgasmusForm({ userId }: { userId: string }) {
             onChange={(e) => setOrgasmusArt(e.target.value)}
             options={artOptions}
           />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
-              {tc("noteOptional")}
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={tc("note")}
-              rows={2}
-              className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-            />
-          </div>
+          <Textarea
+            label={tc("noteOptional")}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={tc("note")}
+            rows={2}
+          />
           <FormError message={error || null} />
           <Button type="submit" variant="primary" fullWidth loading={saving} icon={<Droplets size={16} />}>
             {tOrgasm("title")}

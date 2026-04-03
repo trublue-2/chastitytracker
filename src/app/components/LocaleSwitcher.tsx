@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { setLocaleCookie } from "@/lib/locale";
 
 const LOCALES = [
   { value: "de", label: "DE" },
@@ -11,7 +12,7 @@ export default function LocaleSwitcher({ current }: { current: string }) {
   const router = useRouter();
 
   function setLocale(value: string) {
-    document.cookie = `locale=${value}; path=/; max-age=31536000; SameSite=Lax`;
+    setLocaleCookie(value);
     router.refresh();
   }
 

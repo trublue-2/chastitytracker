@@ -6,21 +6,21 @@ import { useTranslations } from "next-intl";
 
 export default function DeleteVorgabeButton({ id }: { id: string }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const t = useTranslations("admin");
 
   async function handle() {
     if (!confirm(t("vorgabeDeleteConfirm"))) return;
-    setLoading(true);
+    setSaving(true);
     await fetch(`/api/admin/vorgaben/${id}`, { method: "DELETE" });
     router.refresh();
-    setLoading(false);
+    setSaving(false);
   }
 
   return (
-    <button onClick={handle} disabled={loading}
+    <button onClick={handle} disabled={saving}
       className="text-xs font-medium text-warn-text bg-warn-bg border border-warn-border hover:opacity-80 rounded-lg px-2 py-1 transition disabled:opacity-50">
-      {loading ? "…" : t("vorgabeDelete")}
+      {saving ? "…" : t("vorgabeDelete")}
     </button>
   );
 }

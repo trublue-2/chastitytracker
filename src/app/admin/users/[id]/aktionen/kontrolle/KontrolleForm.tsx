@@ -9,6 +9,7 @@ import FormField from "@/app/components/FormField";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Input from "@/app/components/Input";
+import Textarea from "@/app/components/Textarea";
 
 export default function KontrolleForm({ userId }: { userId: string }) {
   const t = useTranslations("admin");
@@ -55,15 +56,13 @@ export default function KontrolleForm({ userId }: { userId: string }) {
       iconBg="var(--color-inspect-bg)"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label={t("kontrolleInstruction")}>
-          <textarea
-            value={kommentar}
-            onChange={(e) => setKommentar(e.target.value)}
-            placeholder={t("kontrolleInstruction")}
-            rows={2}
-            className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-          />
-        </FormField>
+        <Textarea
+          label={t("kontrolleInstruction")}
+          value={kommentar}
+          onChange={(e) => setKommentar(e.target.value)}
+          placeholder={t("kontrolleInstruction")}
+          rows={2}
+        />
 
         <div className="flex items-center gap-2">
           <label className="text-xs text-foreground-faint whitespace-nowrap">{t("kontrolleHours")}</label>

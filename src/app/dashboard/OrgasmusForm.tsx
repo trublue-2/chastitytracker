@@ -10,8 +10,7 @@ import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import useToast from "@/app/hooks/useToast";
-
-const ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"];
+import { ORGASMUS_ARTEN } from "@/lib/constants";
 
 const SUB_ARTEN: Record<string, string[]> = {
   "Orgasmus": ["Masturbation", "Geschlechtsverkehr", "durch andere Person", "durch Technik"],
@@ -19,7 +18,7 @@ const SUB_ARTEN: Record<string, string[]> = {
 };
 
 function parseArt(stored: string | null | undefined): { art: string; subArt: string } {
-  if (!stored) return { art: ARTEN[0], subArt: "" };
+  if (!stored) return { art: ORGASMUS_ARTEN[0], subArt: "" };
   const sep = stored.indexOf(" – ");
   if (sep === -1) return { art: stored, subArt: "" };
   return { art: stored.slice(0, sep), subArt: stored.slice(sep + 3) };
@@ -100,7 +99,7 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
     }
   }
 
-  const artOptions = ARTEN.map(a => ({ value: a, label: ARTEN_LABELS[a] ?? a }));
+  const artOptions = ORGASMUS_ARTEN.map(a => ({ value: a, label: ARTEN_LABELS[a] ?? a }));
   const subArtOptions = (SUB_ARTEN[art] ?? []).map(s => ({ value: s, label: SUB_ARTEN_LABELS[s] ?? s }));
 
   return (

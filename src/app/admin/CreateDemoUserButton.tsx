@@ -9,7 +9,7 @@ const DISMISS_KEY = "demo_banner_dismissed";
 
 export default function CreateDemoUserButton() {
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
   const router = useRouter();
 
@@ -23,12 +23,12 @@ export default function CreateDemoUserButton() {
   }
 
   async function handleClick() {
-    setLoading(true);
+    setSaving(true);
     const res = await fetch("/api/admin/demo", { method: "POST" });
     if (res.ok) {
       router.refresh();
     } else {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
@@ -48,10 +48,10 @@ export default function CreateDemoUserButton() {
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
           onClick={handleClick}
-          disabled={loading}
+          disabled={saving}
           className="inline-flex items-center gap-1.5 bg-foreground text-background text-sm font-semibold px-4 py-2 rounded-xl hover:opacity-80 active:scale-95 transition-all disabled:opacity-50"
         >
-          {loading ? t("creatingUser") : t("demoCreateBtn")}
+          {saving ? t("creatingUser") : t("demoCreateBtn")}
         </button>
         <button
           onClick={handleDismiss}

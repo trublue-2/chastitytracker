@@ -11,6 +11,7 @@ import Card from "@/app/components/Card";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import Textarea from "@/app/components/Textarea";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 
@@ -86,7 +87,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
             <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("photoOptional")}</label>
             {imagePreview ? (
               <div className="flex items-start gap-4">
-                <ImageViewer src={imagePreview} alt="Vorschau" width={80} height={80} className="w-20 h-20 rounded-xl object-cover" />
+                <ImageViewer src={imagePreview} alt={tc("preview")} width={80} height={80} className="w-20 h-20 rounded-xl object-cover" />
                 <div className="flex flex-col gap-2 flex-1 pt-1">
                   {imageExifTime && (
                     <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>
@@ -120,16 +121,13 @@ export default function VerschlussForm({ userId }: { userId: string }) {
             {sealState === "not-detected" && !sealNumber && <p className="text-xs text-foreground-faint">{tLock("sealNotDetected")}</p>}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("noteOptional")}</label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={tc("note")}
-              rows={2}
-              className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-            />
-          </div>
+          <Textarea
+            label={tc("noteOptional")}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={tc("note")}
+            rows={2}
+          />
 
           <FormError message={error || null} />
 

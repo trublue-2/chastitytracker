@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export interface OrgasmusItemData {
   id: string;
@@ -14,6 +15,7 @@ export interface OrgasmusItemData {
 const PAGE_SIZE = 10;
 
 export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[] }) {
+  const tc = useTranslations("common");
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(items.length / PAGE_SIZE);
   const paginated = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -36,12 +38,12 @@ export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[
         <div className="flex items-center justify-between px-5 py-3 border-t border-border">
           <button type="button" onClick={() => setPage(p => p - 1)} disabled={page === 0}
             className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            ← Zurück
+            ← {tc("previous")}
           </button>
           <span className="text-xs text-foreground-faint tabular-nums">{page + 1} / {totalPages}</span>
           <button type="button" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
             className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            Weiter →
+            {tc("next")} →
           </button>
         </div>
       )}

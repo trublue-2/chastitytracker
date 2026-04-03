@@ -11,6 +11,7 @@ import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import Textarea from "@/app/components/Textarea";
 
 export default function OeffnenForm({ userId }: { userId: string }) {
   const t = useTranslations("admin");
@@ -82,19 +83,14 @@ export default function OeffnenForm({ userId }: { userId: string }) {
             onChange={(e) => setOeffnenGrund(e.target.value)}
             options={grundOptions}
           />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
-              {tc("comment")}<span className="text-warn ml-0.5">*</span>
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={tc("comment")}
-              rows={2}
-              required
-              className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-            />
-          </div>
+          <Textarea
+            label={tc("comment")}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={tc("comment")}
+            rows={2}
+            required
+          />
           <FormError message={error || null} />
           <Button type="submit" variant="primary" fullWidth loading={saving} icon={<LockOpen size={16} />}>
             {tOffen("saveBtn")}
