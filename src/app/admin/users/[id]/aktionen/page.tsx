@@ -3,9 +3,11 @@ import Link from "next/link";
 import { Lock, LockOpen, ClipboardCheck, Droplets, Bell, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/authGuards";
+import { getTranslations } from "next-intl/server";
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
   await assertAdmin();
+  const t = await getTranslations("admin");
 
   const { id } = await params;
 
@@ -34,18 +36,14 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const hasActiveSperrzeit = !!activeSperrzeit;
 
   const canKontrolle = hasEmail && isLocked;
-  const art = isLocked ? "SPERRZEIT" : "ANFORDERUNG";
-  const canVerschlussAnforderung = art === "ANFORDERUNG"
-    ? (!isLocked && hasEmail && !hasOffeneAnforderung)
-    : (isLocked && !hasActiveSperrzeit);
 
   return (
-    <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
       <h1 className="text-2xl font-bold text-foreground">{user.username}</h1>
 
       {/* Anforderungen */}
       <div>
-        <p className="text-xs font-semibold text-foreground-faint uppercase tracking-wider px-1 mb-2">Anforderungen</p>
+        <p className="text-xs font-semibold text-foreground-faint uppercase tracking-wider px-1 mb-2">{t("aktionenAnforderungen")}</p>
         <div className="bg-surface rounded-2xl border border-border-subtle divide-y divide-border-subtle">
 
           {/* Kontrolle anfordern */}
@@ -58,8 +56,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Bell size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Kontrolle anfordern</p>
-                <p className="text-xs text-foreground-faint">Prüfanforderung per E-Mail</p>
+                <p className="text-sm font-semibold text-foreground">{t("requestInspection")}</p>
+                <p className="text-xs text-foreground-faint">{t("requestInspectionHint")}</p>
               </div>
               <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
             </Link>
@@ -69,8 +67,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Bell size={20} strokeWidth={2} className="text-foreground-faint" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground-muted">Kontrolle anfordern</p>
-                <p className="text-xs text-foreground-faint">{!hasEmail ? "Keine E-Mail hinterlegt" : "Nur möglich wenn verschlossen"}</p>
+                <p className="text-sm font-semibold text-foreground-muted">{t("requestInspection")}</p>
+                <p className="text-xs text-foreground-faint">{!hasEmail ? t("noEmail") : t("entryOnlyIfLocked")}</p>
               </div>
             </div>
           )}
@@ -85,8 +83,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Lock size={20} strokeWidth={2} style={{ color: "var(--color-request)" }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Verschluss anfordern</p>
-                <p className="text-xs text-foreground-faint">Anforderung per E-Mail</p>
+                <p className="text-sm font-semibold text-foreground">{t("requestLock")}</p>
+                <p className="text-xs text-foreground-faint">{t("requestLockHint")}</p>
               </div>
               <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
             </Link>
@@ -96,9 +94,9 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground-muted">Verschluss anfordern</p>
+                <p className="text-sm font-semibold text-foreground-muted">{t("requestLock")}</p>
                 <p className="text-xs text-foreground-faint">
-                  {isLocked ? "Bereits verschlossen" : hasOffeneAnforderung ? "Offene Anforderung vorhanden" : "Keine E-Mail hinterlegt"}
+                  {isLocked ? t("alreadyLocked") : hasOffeneAnforderung ? t("alreadyHasAnforderung") : t("noEmail")}
                 </p>
               </div>
             </div>
@@ -114,8 +112,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Sperrdauer setzen</p>
-                <p className="text-xs text-foreground-faint">Sperrzeit festlegen</p>
+                <p className="text-sm font-semibold text-foreground">{t("setLockDuration")}</p>
+                <p className="text-xs text-foreground-faint">{t("setLockDurationHint")}</p>
               </div>
               <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
             </Link>
@@ -125,9 +123,9 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground-muted">Sperrdauer setzen</p>
+                <p className="text-sm font-semibold text-foreground-muted">{t("setLockDuration")}</p>
                 <p className="text-xs text-foreground-faint">
-                  {hasActiveSperrzeit ? "Sperrdauer bereits aktiv" : "Nur möglich wenn verschlossen"}
+                  {hasActiveSperrzeit ? t("alreadyHasSperrzeit") : t("entryOnlyIfLocked")}
                 </p>
               </div>
             </div>
@@ -138,7 +136,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
 
       {/* Items */}
       <div>
-        <p className="text-xs font-semibold text-foreground-faint uppercase tracking-wider px-1 mb-2">Items</p>
+        <p className="text-xs font-semibold text-foreground-faint uppercase tracking-wider px-1 mb-2">{t("aktionenItems")}</p>
         <div className="bg-surface rounded-2xl border border-border-subtle divide-y divide-border-subtle">
 
           {/* Verschluss */}
@@ -148,8 +146,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground-muted">Verschluss</p>
-                <p className="text-xs text-foreground-faint">Nur möglich wenn offen</p>
+                <p className="text-sm font-semibold text-foreground-muted">{t("entryVerschluss")}</p>
+                <p className="text-xs text-foreground-faint">{t("entryOnlyIfOpen")}</p>
               </div>
             </div>
           ) : (
@@ -161,8 +159,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <Lock size={20} strokeWidth={2} style={{ color: "var(--color-lock)" }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Verschluss</p>
-                <p className="text-xs text-foreground-faint">Gürtel angelegt</p>
+                <p className="text-sm font-semibold text-foreground">{t("entryVerschluss")}</p>
+                <p className="text-xs text-foreground-faint">{t("entryVerschlussDesc")}</p>
               </div>
               <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
             </Link>
@@ -178,8 +176,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <LockOpen size={20} strokeWidth={2} style={{ color: "var(--color-unlock)" }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Öffnen</p>
-                <p className="text-xs text-foreground-faint">Gürtel abgelegt</p>
+                <p className="text-sm font-semibold text-foreground">{t("entryOeffnen")}</p>
+                <p className="text-xs text-foreground-faint">{t("entryOeffnenDesc")}</p>
               </div>
               <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
             </Link>
@@ -189,8 +187,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
                 <LockOpen size={20} strokeWidth={2} className="text-foreground-faint" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground-muted">Öffnen</p>
-                <p className="text-xs text-foreground-faint">Nur möglich wenn verschlossen</p>
+                <p className="text-sm font-semibold text-foreground-muted">{t("entryOeffnen")}</p>
+                <p className="text-xs text-foreground-faint">{t("entryOnlyIfLocked")}</p>
               </div>
             </div>
           )}
@@ -204,8 +202,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               <ClipboardCheck size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Prüfung</p>
-              <p className="text-xs text-foreground-faint">Kontrolle durchgeführt</p>
+              <p className="text-sm font-semibold text-foreground">{t("entryPruefung")}</p>
+              <p className="text-xs text-foreground-faint">{t("entryPruefungDesc")}</p>
             </div>
             <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
           </Link>
@@ -219,8 +217,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               <Droplets size={20} strokeWidth={2} style={{ color: "var(--color-orgasm)" }} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Orgasmus</p>
-              <p className="text-xs text-foreground-faint">Orgasmus erfasst</p>
+              <p className="text-sm font-semibold text-foreground">{t("entryOrgasmus")}</p>
+              <p className="text-xs text-foreground-faint">{t("entryOrgasmusDesc")}</p>
             </div>
             <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
           </Link>

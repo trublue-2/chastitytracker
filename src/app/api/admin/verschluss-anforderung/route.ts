@@ -4,6 +4,7 @@ import { sendMail, escHtml } from "@/lib/mail";
 import { requireAdminApi } from "@/lib/authGuards";
 import { getIsLocked } from "@/lib/queries";
 import { APP_TZ } from "@/lib/utils";
+import { sendPushToUser } from "@/lib/push";
 
 export async function POST(req: NextRequest) {
   try {
@@ -106,6 +107,11 @@ export async function POST(req: NextRequest) {
         `
       );
     }
+
+    // Notify user via push (fire-and-forget)
+    const pushTitle = art === "ANFORDERUNG" ? "Einschliessen angefordert" : "Sperrzeit gesetzt";
+    const pushBody = nachricht?.trim() || (art === "ANFORDERUNG" ? "Der Admin fordert dich auf, dich einzuschliessen." : "Eine Sperrzeit wurde gesetzt.");
+    sendPushToUser(userId, pushTitle, pushBody, "/dashboard").catch(() => { /* ignore push errors */ });
 
     return NextResponse.json({ ok: true, id: anforderung.id });
   } catch (err) {

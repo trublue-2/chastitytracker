@@ -1,50 +1,25 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDuration, formatDateTime, formatDate, formatTime, formatHours,
-  buildPairs, interruptionPauseMs, photoStatus,
-  toDateLocale, isTimeCorrected, buildKontrolleItems, calculateWearingHoursByRange,
+  formatDateTime, formatHours,
+  buildPairs, interruptionPauseMs,
+  toDateLocale, calculateWearingHoursByRange,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe } from "@/lib/queries";
-import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
-import StatusBanner from "./StatusBanner";
-import LaufendeSessionCard from "./LaufendeSessionCard";
-import SessionList from "./SessionList";
-import { ClipboardList, Droplets } from "lucide-react";
-import KontrolleBanner from "@/app/components/KontrolleBanner";
-import LockRequestBanner from "@/app/components/LockRequestBanner";
-import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
-import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import { getTranslations, getLocale } from "next-intl/server";
-
-type Entry = {
-  id: string;
-  type: string;
-  startTime: Date;
-  imageUrl: string | null;
-  imageExifTime: Date | null;
-  note: string | null;
-  orgasmusArt: string | null;
-  verifikationStatus: string | null;
-  kontrollCode: string | null;
-  oeffnenGrund: string | null;
-};
-
+import DashboardClient, { type DashboardProps } from "./DashboardClient";
 
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [t, tCommon, ta] = await Promise.all([
-    getTranslations("dashboard"),
-    getTranslations("common"),
-    getTranslations("admin"),
-  ]);
-
+  const t = await getTranslations("dashboard");
   const dl = toDateLocale(await getLocale());
   const now = new Date();
+
+  // ── Parallel data fetch ──
   const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
@@ -63,9 +38,8 @@ export default async function DashboardPage() {
     maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
   };
 
+  // ── Compute derived state ──
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
-
-  const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
 
   const latest = [...entries]
     .filter((e) => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
@@ -75,274 +49,78 @@ export default async function DashboardPage() {
     ? { type: latest.type as "VERSCHLUSS" | "OEFFNEN", since: latest.startTime.toISOString() }
     : null;
 
+  // ── Build kontroll items for session events ──
+  const { buildKontrolleItems } = await import("@/lib/utils");
+  const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
   const pairs = buildPairs(entries, kontrollItems, reinigung);
-  const verschluesse = entries.filter((e) => e.type === "VERSCHLUSS");
-  const completedPairs = pairs.filter((p) => p.oeffnen);
-  const totalMs = completedPairs.reduce(
-    (s, p) => s + (p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime()) - interruptionPauseMs(p.interruptions),
-    0
-  );
-  const totalFormatted = completedPairs.length ? formatDuration(new Date(0), new Date(totalMs), dl) : "–";
+  const activePair = pairs.find((p) => p.active) ?? null;
+
   const orgasmusEntries = entries
     .filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
-  // ── Laufende Session ──
-  const activePair = pairs.find((p) => p.active) ?? null;
-  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
+  const rawSessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
+
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, !!activePair, now, reinigung);
 
-  return (
-    <>
-      <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
-        <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+  // ── Serialize for client ──
+  const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
+  const kontrolleHref = offeneKontrolle
+    ? `/dashboard/new/pruefung?code=${offeneKontrolle.code}${offeneKontrolle.kommentar ? `&kommentar=${encodeURIComponent(offeneKontrolle.kommentar)}` : ""}`
+    : "";
 
-        {/* ── Status / Laufende Session ── */}
-        {activePair ? (
-          <LaufendeSessionCard
-            sessionStart={activePair.verschluss.startTime}
-            interruptionPausedMs={interruptionPauseMs(activePair.interruptions)}
-            now={now}
-            events={sessionEvents}
-            sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
-            sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
-            sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
-            activeVorgabe={activeVorgabe}
-            tagH={tagH}
-            wocheH={wocheH}
-            monatH={monatH}
-          />
-        ) : (
-          <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
-        )}
+  const anfOverdue = offeneVerschlussAnf ? (offeneVerschlussAnf.endetAt ? offeneVerschlussAnf.endetAt < now : false) : false;
 
-        {/* ── Verschluss-Anforderung Banner ── */}
-        {offeneVerschlussAnf && (
-          <LockRequestBanner
-            variant="large"
-            colorScheme="request"
-            label={t("lockRequested")}
-            nachricht={offeneVerschlussAnf.nachricht}
-            endetAtLabel={offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) }) : null}
-          />
-        )}
+  const clientProps: DashboardProps = {
+    currentStatus,
+    hasEntries: entries.length > 0,
 
-        {/* ── Sperrzeit Banner (nur wenn nicht verschlossen, da dann im Session-Header) ── */}
-        {activeSperrzeit && !activePair && currentStatus?.type === "VERSCHLUSS" && (
-          <LockRequestBanner
-            variant="large"
-            colorScheme="sperrzeit"
-            label={t("locked")}
-            nachricht={activeSperrzeit.nachricht}
-            endetAtLabel={activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) }) : null}
-          />
-        )}
+    offeneKontrolle: offeneKontrolle ? {
+      deadline: offeneKontrolle.deadline.toISOString(),
+      code: offeneKontrolle.code,
+      kommentar: offeneKontrolle.kommentar,
+      overdue: kontrolleOverdue,
+      href: kontrolleHref,
+    } : null,
 
-        {/* ── Kontrolle Banner ── */}
-        {offeneKontrolle && (() => {
-          const overdue = offeneKontrolle.deadline < new Date();
-          const kommentarParam = offeneKontrolle.kommentar ? `&kommentar=${encodeURIComponent(offeneKontrolle.kommentar)}` : "";
-          return (
-            <KontrolleBanner
-              deadline={offeneKontrolle.deadline}
-              code={offeneKontrolle.code}
-              kommentar={offeneKontrolle.kommentar}
-              overdue={overdue}
-              variant="large"
-              href={`/dashboard/new/pruefung?code=${offeneKontrolle.code}${kommentarParam}`}
-              openLabel={t("inspectionRequired")}
-            />
-          );
-        })()}
+    offeneVerschlussAnf: offeneVerschlussAnf ? {
+      endetAt: offeneVerschlussAnf.endetAt?.toISOString() ?? null,
+      nachricht: offeneVerschlussAnf.nachricht,
+      overdue: anfOverdue,
+      endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) }) : null,
+    } : null,
 
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 gap-4">
-          <StatCard label={t("entries")} value={String(pairs.length)} />
-          <StatCard label={t("totalDuration")} value={totalFormatted} />
-        </div>
+    activeSperrzeit: activeSperrzeit ? {
+      endetAt: activeSperrzeit.endetAt?.toISOString() ?? null,
+      nachricht: activeSperrzeit.nachricht,
+      endetAtLabel: activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) }) : null,
+    } : null,
 
-        {/* ── Trainingsvorgabe ── */}
-        {activeVorgabe && !activePair && (
-          <div className="bg-surface rounded-2xl border border-border-subtle px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("trainingGoals")}</p>
-            <div className="flex items-start gap-3">
-              <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{tCommon("active")}</span>
-              <div>
-                <p className="text-sm font-semibold text-foreground-muted">
-                  {formatDate(activeVorgabe.gueltigAb, dl)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl) : tCommon("open")}
-                </p>
-                <div className="flex flex-wrap gap-3 mt-1">
-                  {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{t("day")}: <strong>{formatHours(activeVorgabe.minProTagH, dl)}</strong> <span className="text-foreground-faint">({Math.round((activeVorgabe.minProTagH / 24) * 100)}%)</span></span>}
-                  {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{t("week")}: <strong>{formatHours(activeVorgabe.minProWocheH, dl)}</strong> <span className="text-foreground-faint">({Math.round((activeVorgabe.minProWocheH / 168) * 100)}%)</span></span>}
-                  {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{t("month")}: <strong>{formatHours(activeVorgabe.minProMonatH, dl)}</strong> <span className="text-foreground-faint">({Math.round((activeVorgabe.minProMonatH / 730) * 100)}%)</span></span>}
-                </div>
-                {activeVorgabe.notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
-              </div>
-            </div>
-          </div>
-        )}
+    sessionEvents: rawSessionEvents.map(e => ({
+      id: e.entryId ?? `event-${e.time.getTime()}`,
+      type: (e.type === "kontrolle" ? "PRUEFUNG" : e.type.toUpperCase()) as DashboardProps["sessionEvents"][number]["type"],
+      time: e.time.toISOString(),
+      note: e.note ?? undefined,
+    })),
+    sessionActive: !!activePair,
 
-        {/* ── Session-Liste ── */}
-        <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
+    tagH,
+    wocheH,
+    monatH,
 
-        {/* ── Einschluss-Liste (alt, ausgeblendet) ── */}
-        {/*
-        {pairs.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400 text-sm">
-            {t("noEntries")}
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="grid grid-cols-[80px_1fr_1fr] sm:grid-cols-[96px_1fr_1fr] lg:grid-cols-[96px_1fr_1fr_160px] border-b border-gray-100 px-5 py-3 gap-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t("photo")}</span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><Lock size={11} />{t("lock")}</span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1"><LockOpen size={11} />{t("opening")}</span>
-              <span className="hidden lg:block text-xs font-semibold uppercase tracking-wider text-gray-400">{t("duration")}</span>
-            </div>
+    activeVorgabe: activeVorgabe ? {
+      minProTagH: activeVorgabe.minProTagH,
+      minProWocheH: activeVorgabe.minProWocheH,
+      minProMonatH: activeVorgabe.minProMonatH,
+    } : null,
 
-            <div className="divide-y divide-gray-50">
-              {pairs.map(({ verschluss, oeffnen, active }) => {
-                const ps = photoStatus(verschluss);
-                const duration = oeffnen ? formatDuration(verschluss.startTime, oeffnen.startTime, dl) : null;
-                return (
-                  <PairRow
-                    key={verschluss.id}
-                    verschluss={{
-                      id: verschluss.id,
-                      startTime: verschluss.startTime.toISOString(),
-                      imageUrl: verschluss.imageUrl,
-                      imageExifTime: verschluss.imageExifTime?.toISOString() ?? null,
-                      note: verschluss.note,
-                      kontrollCode: verschluss.kontrollCode,
-                      verifikationStatus: verschluss.verifikationStatus,
-                      oeffnenGrund: verschluss.oeffnenGrund,
-                    }}
-                    oeffnen={oeffnen ? {
-                      id: oeffnen.id,
-                      startTime: oeffnen.startTime.toISOString(),
-                      imageUrl: oeffnen.imageUrl,
-                      imageExifTime: oeffnen.imageExifTime?.toISOString() ?? null,
-                      note: oeffnen.note,
-                      oeffnenGrund: oeffnen.oeffnenGrund,
-                      kontrollCode: oeffnen.kontrollCode,
-                      verifikationStatus: oeffnen.verifikationStatus,
-                    } : null}
-                    active={active}
-                    duration={duration}
-                    photoStatus={ps}
-                  />
-                );
-              })}
-            </div>
+    recentEntries: entries.slice(0, 5).map(e => ({
+      id: e.id,
+      type: e.type,
+      startTime: e.startTime.toISOString(),
+      note: e.note,
+    })),
+  };
 
-            <div className="flex items-center gap-4 px-5 py-3 border-t border-gray-50 text-xs text-gray-400">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" /> {t("noPhoto")}</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> {t("exifDeviation")}</span>
-            </div>
-          </div>
-        )}
-        */}
-
-        {/* ── Offene Kontrollanforderungen ── */}
-        {(() => {
-          const offene = kontrollItems.filter(k => k.entryId === null && k.anforderungStatus !== "withdrawn").sort((a, b) => b.time.getTime() - a.time.getTime());
-          if (!offene.length) return null;
-          return (
-            <div className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
-              <div className="px-5 py-3 border-b border-border-subtle">
-                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1"><ClipboardList size={12} />Offene Anforderungen</p>
-              </div>
-              <div className="divide-y divide-border-subtle">
-                {offene.map((k) => {
-                  const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
-                  return (
-                    <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {aPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${aPill.cls}`}>{ta(aPill.labelKey)}</span>}
-                        {k.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-                        {k.deadline && <span>Frist: {formatDateTime(k.deadline, dl)}</span>}
-                        <span>Erstellt: {formatDateTime(k.time, dl)}</span>
-                      </div>
-                      {k.kommentar && <p className="text-xs text-foreground-faint italic">{k.kommentar}</p>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ── Prüfungen ── */}
-        {(() => {
-          const pruefungen = kontrollItems.filter(k => k.entryId !== null).sort((a, b) => b.time.getTime() - a.time.getTime());
-          if (!pruefungen.length) return null;
-          return (
-            <div className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
-              <div className="px-5 py-3 border-b border-border-subtle">
-                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1"><ClipboardList size={12} />{t("inspections")} ({pruefungen.length})</p>
-              </div>
-              <KontrolleItemListClient
-                imageAlt={t("inspections")}
-                items={pruefungen.map((k): KontrolleItemData => {
-                  const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
-                  const timeCorrected = k.submittedAt && isTimeCorrected(k.time, k.submittedAt);
-                  return {
-                    id: k.id,
-                    imageUrl: k.imageUrl,
-                    kommentar: k.kommentar,
-                    pill1Label: kPill?.label ?? null,
-                    pill1Cls: kPill?.cls ?? null,
-                    pill2Label: null,
-                    pill2Cls: null,
-                    code: k.code,
-                    dateTimeStr: formatDateTime(k.time, dl),
-                    dateTimePrefix: ta("fulfilledLabel"),
-                    deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
-                    deadlinePrefix: ta("frist"),
-                    note: k.note,
-                    entryId: k.entryId,
-                    editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
-                    timeCorrectedStr: timeCorrected
-                      ? `${ta("timeCorrected")} – ${ta("givenLabel")}: ${formatDateTime(k.time, dl)} · ${ta("systemLabel")}: ${formatDateTime(k.submittedAt!, dl)}`
-                      : null,
-                  };
-                })}
-              />
-            </div>
-          );
-        })()}
-
-        {/* ── Orgasmus-Einträge ── */}
-        {orgasmusEntries.length > 0 && (
-          <div className="bg-surface rounded-2xl border border-border-subtle overflow-hidden">
-            <div className="px-5 py-3 border-b border-border-subtle">
-              <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1"><Droplets size={12} />{t("orgasms")}</p>
-            </div>
-            <OrgasmenListClient
-              items={orgasmusEntries.map((e): OrgasmusItemData => ({
-                id: e.id,
-                dateStr: formatDate(e.startTime, dl),
-                timeStr: formatTime(e.startTime, dl),
-                orgasmusArt: e.orgasmusArt,
-                note: e.note,
-                editHref: `/dashboard/edit/${e.id}`,
-              }))}
-            />
-          </div>
-        )}
-
-      </main>
-    </>
-  );
-}
-
-function StatCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div className={`rounded-2xl border px-5 py-4 ${warn ? "bg-warn-bg border-[var(--color-warn-border)]" : "bg-surface border-border-subtle"}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-1">{label}</p>
-      <p className={`text-2xl font-bold tracking-tight ${warn ? "text-warn" : "text-foreground"}`}>{value}</p>
-    </div>
-  );
+  return <DashboardClient {...clientProps} />;
 }

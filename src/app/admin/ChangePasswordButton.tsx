@@ -3,26 +3,28 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
 
 export default function ChangePasswordButton({ userId }: { userId: string }) {
   const ts = useTranslations("settings");
   const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setSaving(true);
     const res = await fetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
     });
-    setLoading(false);
+    setSaving(false);
     if (res.ok) {
       setSuccess(true);
       setPassword("");
@@ -35,12 +37,9 @@ export default function ChangePasswordButton({ userId }: { userId: string }) {
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="text-xs font-medium text-foreground-faint hover:text-foreground border border-border rounded-lg px-2.5 py-1.5 hover:bg-surface-raised transition"
-      >
+      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
         {ts("changePassword")}
-      </button>
+      </Button>
     );
   }
 
@@ -54,15 +53,11 @@ export default function ChangePasswordButton({ userId }: { userId: string }) {
         required
         minLength={4}
         autoFocus
-        className="border border-border rounded-lg px-3 py-1.5 text-base text-foreground bg-surface focus:outline-none focus:ring-2 focus:ring-foreground-muted w-36"
+        className="border border-border rounded-lg px-3 py-1.5 text-base text-foreground bg-surface focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring w-36"
       />
-      <button
-        type="submit"
-        disabled={loading}
-        className="text-xs font-semibold text-[var(--btn-primary-text)] bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-hover)] px-3 py-1.5 rounded-lg transition disabled:opacity-50"
-      >
-        {success ? tc("saved") : loading ? "…" : tc("save")}
-      </button>
+      <Button size="sm" variant="primary" type="submit" loading={saving}>
+        {success ? tc("saved") : tc("save")}
+      </Button>
       <button
         type="button"
         onClick={() => { setOpen(false); setError(null); setPassword(""); }}
@@ -70,7 +65,7 @@ export default function ChangePasswordButton({ userId }: { userId: string }) {
       >
         <X size={14} />
       </button>
-      {error && <p className="text-sm text-warn bg-warn-bg border border-warn-border rounded-xl px-3 py-2 w-full">{error}</p>}
+      <FormError message={error} />
     </form>
   );
 }

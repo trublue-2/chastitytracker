@@ -16,6 +16,7 @@ import KontrolleBanner from "@/app/components/KontrolleBanner";
 import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import SessionList from "@/app/dashboard/SessionList";
+import Card from "@/app/components/Card";
 import Link from "next/link";
 import { Lock, ClipboardList, Droplets, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -88,7 +89,6 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   return (
     <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-4">
 
-      {/* ── Section 1: Status ── */}
       {activePair ? (
         <LaufendeSessionCard
           sessionStart={activePair.verschluss.startTime}
@@ -107,7 +107,6 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
       )}
 
-      {/* ── Section 2: Offene Kontrolle ── */}
       {offeneKontrolle && (
         <KontrolleBanner
           deadline={offeneKontrolle.deadline}
@@ -118,8 +117,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         />
       )}
 
-      {/* ── Section 3: Compliance (Statistik kompakt) ── */}
-      <div className="bg-surface rounded-2xl border border-border px-5 py-4">
+      {/* Statistik kompakt */}
+      <Card>
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("statsTitle")}</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-surface-raised px-4 py-3">
@@ -138,15 +137,14 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* ── Section 5: Aktive Vorgabe ── */}
       {activeVorgabe && (
-        <div className="bg-surface rounded-2xl border border-border px-5 py-4">
+        <Card>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ts("trainingGoals")}</p>
             <Link href={`/admin/users/${id}/einstellungen`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
-              Alle <ChevronRight size={12} />
+              {tc("all")} <ChevronRight size={12} />
             </Link>
           </div>
           <div className="flex items-start gap-3">
@@ -163,21 +161,19 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
               {activeVorgabe.notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* ── Section 6: Letzte Einträge ── */}
       <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
 
-      {/* ── Section 7: Kontrollen ── */}
       {kontrollItems.length > 0 && (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
               <ClipboardList size={12} />{ts("inspections")}
             </p>
             <Link href={`/admin/users/${id}/kontrollen`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
-              Alle <ChevronRight size={12} />
+              {tc("all")} <ChevronRight size={12} />
             </Link>
           </div>
           <KontrolleItemListClient
@@ -199,12 +195,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
               };
             })}
           />
-        </div>
+        </Card>
       )}
 
-      {/* ── Section 8: Orgasmus-Einträge ── */}
       {orgasmusEntries.length > 0 && (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
               <Droplets size={12} />{td("orgasms")}
@@ -216,9 +211,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
               orgasmusArt: e.orgasmusArt, note: e.note, editHref: `/dashboard/edit/${e.id}`,
             }))}
           />
-        </div>
+        </Card>
       )}
-
 
     </main>
   );

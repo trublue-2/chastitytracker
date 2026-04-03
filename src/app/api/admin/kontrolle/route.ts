@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { requireAdminApi } from "@/lib/authGuards";
 import { APP_TZ } from "@/lib/utils";
+import { sendPushToUser } from "@/lib/push";
 
 export async function POST(req: NextRequest) {
   try {
@@ -93,6 +94,14 @@ export async function POST(req: NextRequest) {
     </div>
     `
   );
+
+  // Notify user via push (fire-and-forget)
+  sendPushToUser(
+    userId,
+    "Kontrolle angefordert",
+    `Code: ${code} — Frist: ${deadlineStr}`,
+    "/dashboard/new/pruefung"
+  ).catch(() => { /* ignore push errors */ });
 
   return NextResponse.json({ ok: true, deadline: deadline.toISOString() });
   } catch (err) {

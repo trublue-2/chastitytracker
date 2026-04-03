@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ImageOff, CheckCircle2 } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import KontrolleActions from "./KontrolleActions";
+import { useTranslations } from "next-intl";
 
 export interface AdminKontrolleRowData {
   imageUrl: string | null;
@@ -43,14 +44,14 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="flex-shrink-0">
+      <button type="button" onClick={() => setOpen(true)} aria-label={labels.imageAlt} className="flex-shrink-0">
         {imgError ? (
           <div className="w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
             <ImageOff size={16} className="text-foreground-faint" />
           </div>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={row.imageUrl} alt={labels.imageAlt} className="w-10 h-10 rounded-xl object-cover"
+          <img src={row.imageUrl} alt={labels.imageAlt} loading="lazy" className="w-10 h-10 rounded-xl object-cover"
             onError={() => setImgError(true)} />
         )}
       </button>
@@ -114,6 +115,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
 
 export default function AdminKontrolleListClient({ items, labels }: { items: AdminKontrolleRowData[]; labels: Labels }) {
   const [page, setPage] = useState(0);
+  const tc = useTranslations("common");
   const totalPages = Math.ceil(items.length / PAGE_SIZE);
   const paginated = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -160,12 +162,12 @@ export default function AdminKontrolleListClient({ items, labels }: { items: Adm
         <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
           <button type="button" onClick={() => setPage(p => p - 1)} disabled={page === 0}
             className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
-            ← Zurück
+            ← {tc("back")}
           </button>
           <span className="text-xs text-foreground-faint tabular-nums">{page + 1} / {totalPages}</span>
           <button type="button" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
             className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
-            Weiter →
+            {tc("next")} →
           </button>
         </div>
       )}

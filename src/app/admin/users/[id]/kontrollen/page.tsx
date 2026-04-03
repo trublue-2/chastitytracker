@@ -3,7 +3,10 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
+import { ClipboardCheck } from "lucide-react";
 import KontrolleButton from "@/app/admin/KontrolleButton";
+import Card from "@/app/components/Card";
+import EmptyState from "@/app/components/EmptyState";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import AdminKontrolleListClient, { type AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
@@ -137,29 +140,32 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       {isLocked && <KontrolleButton userId={id} hasEmail={!!user.email} />}
 
       {sortedOffene.length > 0 && (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ta("openRequests")}</p>
           </div>
           <AdminKontrolleListClient items={sortedOffene.map(toItem)} labels={labels} />
-        </div>
+        </Card>
       )}
 
       {sortedPruefungen.length > 0 && (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
               {ta("inspectionsCount", { count: sortedPruefungen.length })}
             </p>
           </div>
           <AdminKontrolleListClient items={sortedPruefungen.map(toItem)} labels={labels} />
-        </div>
+        </Card>
       )}
 
       {sortedOffene.length === 0 && sortedPruefungen.length === 0 && (
-        <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
-          {ta("noKontrollenYet")}
-        </div>
+        <Card padding="none">
+          <EmptyState
+            icon={<ClipboardCheck size={32} />}
+            title={ta("noKontrollenYet")}
+          />
+        </Card>
       )}
     </main>
   );

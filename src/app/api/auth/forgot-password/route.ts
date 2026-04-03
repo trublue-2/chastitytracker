@@ -1,31 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
+import { checkRateLimit } from "@/lib/rate-limit";
 import crypto from "crypto";
-
-// IP-based rate limit: max 5 requests per hour
-const resetBucket = new Map<string, { count: number; resetAt: number }>();
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of resetBucket) if (v.resetAt < now) resetBucket.delete(k);
-}, 30 * 60 * 1000);
-
-function isResetRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = resetBucket.get(ip);
-  if (!entry || entry.resetAt < now) {
-    resetBucket.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return false;
-  }
-  entry.count++;
-  return entry.count > 5;
-}
 
 export async function POST(req: NextRequest) {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
     req.headers.get("x-real-ip") ?? "unknown";
-  if (isResetRateLimited(ip)) {
+
+  const rl = await checkRateLimit(`fp:${ip}`, 5, 60 * 60 * 1000);
+  if (rl.limited) {
     return NextResponse.json({ ok: true }); // silent — don't reveal rate limiting
   }
 

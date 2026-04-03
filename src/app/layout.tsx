@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import VersionChecker from "@/app/components/VersionChecker";
+import ToastProvider from "@/app/components/ToastProvider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
@@ -45,17 +52,19 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <body className={`${geistSans.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${jetbrainsMono.variable} antialiased`}>
         <NextIntlClientProvider messages={messages}>
-          {children}
-          <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
-          <Script id="sw-register" strategy="afterInteractive">{`
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                console.warn('[SW] registration failed:', err);
-              });
-            }
-          `}</Script>
+          <ToastProvider>
+            {children}
+            <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
+            <Script id="sw-register" strategy="afterInteractive">{`
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                  console.warn('[SW] registration failed:', err);
+                });
+              }
+            `}</Script>
+          </ToastProvider>
         </NextIntlClientProvider>
       </body>
     </html>

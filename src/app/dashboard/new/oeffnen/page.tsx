@@ -30,17 +30,15 @@ export default async function NewOeffnenPage() {
   const tf = await getTranslations("openForm");
 
   return (
-    <div className="w-full max-w-5xl px-6 py-8">
+    <div className="w-full max-w-2xl mx-auto px-4 py-6">
       <Link href="/dashboard/new" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-8">{tf("title")}</h1>
-      <div className="max-w-lg">
-        <OeffnenForm
-          sperrzeitEndetAt={activeSperrzeit?.endetAt?.toISOString() ?? null}
-          sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
-          reinigungErlaubt={user?.reinigungErlaubt ?? false}
-          reinigungMaxMinuten={user?.reinigungMaxMinuten ?? 15}
-        />
-      </div>
+      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
+      <OeffnenForm
+        sperrzeitEndetAt={activeSperrzeit?.endetAt?.toISOString() ?? null}
+        sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
+        reinigungErlaubt={user?.reinigungErlaubt ?? false}
+        reinigungMaxMinuten={user?.reinigungMaxMinuten ?? 15}
+      />
     </div>
   );
 }

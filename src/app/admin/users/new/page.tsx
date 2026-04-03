@@ -5,18 +5,24 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Card from "@/app/components/Card";
+import Input from "@/app/components/Input";
+import Select from "@/app/components/Select";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
 
 export default function NewUserPage() {
   const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setSaving(true);
 
     const fd = new FormData(e.currentTarget);
     const payload = {
@@ -32,69 +38,68 @@ export default function NewUserPage() {
       body: JSON.stringify(payload),
     });
 
+    setSaving(false);
     if (!res.ok) {
       const data = await res.json();
       setError(data.error ?? t("createError"));
-      setLoading(false);
       return;
     }
 
     router.push("/admin");
   }
 
-  return (
-    <main className="w-full max-w-5xl px-6 py-8"><div className="max-w-lg">
-      <Link href="/admin" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{t("backToUsers")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-8">{t("newUser")}</h1>
+  const roleOptions = [
+    { value: "user", label: t("roleUser") },
+    { value: "admin", label: t("roleAdmin") },
+  ];
 
-      <div className="bg-surface rounded-2xl border border-border p-6">
+  return (
+    <main className="w-full max-w-2xl mx-auto px-4 py-6">
+      <Link href="/admin" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{t("backToUsers")}</Link>
+      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("newUser")}</h1>
+
+      <Card>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider" htmlFor="username">{t("usernameLabel")}</label>
-            <input
-              id="username" name="username" type="text" required autoComplete="off"
-              className="w-full border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted bg-surface-raised"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider" htmlFor="password">{t("passwordLabel")}</label>
-            <div className="relative">
-              <input
-                id="password" name="password" type={showPassword ? "text" : "password"} required autoComplete="new-password"
-                className="w-full border border-border rounded-xl px-4 py-3 pr-12 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted bg-surface-raised"
-              />
+          <Input
+            label={t("usernameLabel")}
+            name="username"
+            type="text"
+            required
+            autoComplete="off"
+          />
+          <Input
+            label={t("passwordLabel")}
+            name="password"
+            type={showPassword ? "text" : "password"}
+            required
+            autoComplete="new-password"
+            icon={
               <button type="button" onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-faint hover:text-foreground-muted transition p-1">
+                aria-label={showPassword ? tc("hidePassword") : tc("showPassword")}
+                className="text-foreground-faint hover:text-foreground-muted transition">
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider" htmlFor="email">{t("emailLabel")}</label>
-            <input
-              id="email" name="email" type="email" required autoComplete="off"
-              className="w-full border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted bg-surface-raised"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground-faint uppercase tracking-wider" htmlFor="role">{t("roleLabel")}</label>
-            <select
-              id="role" name="role" defaultValue="user"
-              className="w-full border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted bg-surface-raised"
-            >
-              <option value="user">{t("roleUser")}</option>
-              <option value="admin">{t("roleAdmin")}</option>
-            </select>
-          </div>
-          {error && <p className="text-sm text-warn-text bg-warn-bg border border-warn-border rounded-xl px-4 py-3">{error}</p>}
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-foreground text-background font-semibold py-3 rounded-xl hover:opacity-80 active:scale-95 transition-all disabled:opacity-50"
-          >
-            {loading ? t("creatingUser") : t("createUserBtn")}
-          </button>
+            }
+          />
+          <Input
+            label={t("emailLabel")}
+            name="email"
+            type="email"
+            required
+            autoComplete="off"
+          />
+          <Select
+            label={t("roleLabel")}
+            name="role"
+            defaultValue="user"
+            options={roleOptions}
+          />
+          <FormError message={error} />
+          <Button type="submit" variant="primary" fullWidth loading={saving}>
+            {t("createUserBtn")}
+          </Button>
         </form>
-      </div>
-    </div></main>
+      </Card>
+    </main>
   );
 }

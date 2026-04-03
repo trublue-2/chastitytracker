@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect, useRef } from "react";
 import { formatHours, toDateLocale } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -41,7 +41,30 @@ export type CalendarMonthData = {
 export default function CalendarContainer({ months }: { months: CalendarMonthData[] }) {
   const locale = useLocale();
   const t = useTranslations("calendar");
+  const tc = useTranslations("common");
   const [selected, setSelected] = useState<CalendarDayData | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Focus the dialog when it opens; restore focus when it closes
+  useEffect(() => {
+    if (selected) {
+      dialogRef.current?.focus();
+    } else if (triggerRef.current) {
+      triggerRef.current.focus();
+      triggerRef.current = null;
+    }
+  }, [selected]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!selected) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelected(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selected]);
 
   const TYPE_LABELS: Record<string, string> = {
     VERSCHLUSS: t("typeVerschluss"),
@@ -65,7 +88,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
               <p className="text-sm font-semibold text-foreground capitalize">{m.label}</p>
               {m.monthGoalMet !== null && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${m.monthGoalMet ? "bg-ok-bg text-ok-text border-ok-border" : "bg-surface-raised text-foreground-faint border-border"}`}>
-                  {m.monthGoalMet ? "✓ Monatsziel" : `${m.monthGoalPct}%`}
+                  {m.monthGoalMet ? t("monthGoal") : `${m.monthGoalPct}%`}
                 </span>
               )}
             </div>
@@ -85,7 +108,11 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                     return (
                       <button
                         key={`${wi}-${di}`}
-                        onClick={() => hasData && setSelected(dayData)}
+                        onClick={(e) => {
+                          if (!hasData) return;
+                          triggerRef.current = e.currentTarget;
+                          setSelected(dayData);
+                        }}
                         className={`relative rounded aspect-square flex items-center justify-center w-full ${dayData.colorClass} ${dayData.dailyGoalMet === true ? "ring-2 ring-emerald-400" : ""} ${hasData ? "cursor-pointer hover:opacity-75 active:scale-95 transition-all" : "cursor-default"}`}
                         title={dayData.wearHours > 0 ? `${Math.round(dayData.wearHours * 10) / 10}h` : undefined}
                       >
@@ -111,14 +138,19 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
       {/* Single shared modal */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
           <div
-            className="relative bg-surface rounded-2xl shadow-overlay border border-border w-full max-w-sm p-5 flex flex-col gap-4"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-modal-title"
+            tabIndex={-1}
+            className="relative bg-surface rounded-2xl shadow-overlay border border-border w-full max-w-sm p-5 flex flex-col gap-4 outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <p className="font-bold text-foreground">{selected.dateLabel}</p>
-              <button onClick={() => setSelected(null)} className="text-foreground-faint hover:text-foreground-muted text-lg leading-none px-1 transition">✕</button>
+              <p id="calendar-modal-title" className="font-bold text-foreground">{selected.dateLabel}</p>
+              <button onClick={() => setSelected(null)} aria-label={tc("close")} className="text-foreground-faint hover:text-foreground-muted text-lg leading-none px-1 transition">✕</button>
             </div>
 
             {selected.wearHours > 0 && (

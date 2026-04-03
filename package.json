@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "2.2.7",
+  "version": "3.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -21,7 +21,8 @@
     "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -30,6 +31,7 @@
     "@types/nodemailer": "^7.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "playwright": "^1.58.2",
     "tailwindcss": "^4",
     "typescript": "^5"

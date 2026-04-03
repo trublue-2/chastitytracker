@@ -15,12 +15,13 @@ export default async function EditEntryPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string }>;
 }) {
-  const [{ id }, { from }, session, t, tStats] = await Promise.all([
+  const [{ id }, { from }, session, t, tStats, tCommon] = await Promise.all([
     params,
     searchParams,
     auth(),
     getTranslations("nav"),
     getTranslations("stats"),
+    getTranslations("common"),
   ]);
   const userId = session?.user?.id;
   const [entry, dbUser] = await Promise.all([
@@ -39,15 +40,15 @@ export default async function EditEntryPage({
 
   const redirectTo = from === "eintraege" ? "/dashboard/eintraege" : "/dashboard";
   const backHref = redirectTo;
-  const backLabel = from === "eintraege" ? "Einträge" : t("overview");
+  const backLabel = from === "eintraege" ? t("entries") : t("overview");
 
   return (
-    <div className="w-full max-w-5xl px-6 py-8">
+    <div className="w-full max-w-2xl mx-auto px-4 py-6">
       <Link href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">← {backLabel}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-8">
-        {LABELS[entry.type] ?? entry.type} bearbeiten
+      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">
+        {LABELS[entry.type] ?? entry.type} {tCommon("edit").toLowerCase()}
       </h1>
-      <div className="max-w-lg">
+      <div>
       {entry.type === "OEFFNEN" && (
         <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} redirectTo={redirectTo} />
       )}

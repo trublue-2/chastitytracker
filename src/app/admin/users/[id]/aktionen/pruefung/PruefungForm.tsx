@@ -3,21 +3,28 @@
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ClipboardCheck, Loader2 } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
+import Card from "@/app/components/Card";
+import Input from "@/app/components/Input";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
+import Spinner from "@/app/components/Spinner";
 import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 
-const inputCls = "w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition";
-
 export default function PruefungForm({ userId }: { userId: string }) {
+  const t = useTranslations("admin");
+  const tInspection = useTranslations("inspectionForm");
+  const tc = useTranslations("common");
   const router = useRouter();
 
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [note, setNote] = useState("");
   const [kontrollCode, setKontrollCode] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
   const [verifyReason, setVerifyReason] = useState<string | null>(null);
@@ -30,7 +37,7 @@ export default function PruefungForm({ userId }: { userId: string }) {
   } = usePhotoUpload({
     startTime,
     exifWarningText: (type, hours) =>
-      type === "deviation" ? `EXIF-Zeit weicht ${hours}h ab` : "Foto enthält keine EXIF-Zeitangabe",
+      type === "deviation" ? tc("exifDeviation", { hours: hours ?? 0 }) : tc("exifMissing"),
   });
 
   function handleFile(file: File) {
@@ -71,8 +78,8 @@ export default function PruefungForm({ userId }: { userId: string }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!imageUrl) { setError("Foto ist bei Kontrolle zwingend"); return; }
-    setLoading(true);
+    if (!imageUrl) { setError(tInspection("photoRequired")); return; }
+    setSaving(true);
     setError("");
     const res = await fetch("/api/admin/entries", {
       method: "POST",
@@ -88,40 +95,42 @@ export default function PruefungForm({ userId }: { userId: string }) {
         verifikationStatus: aiMatch === true ? "ai" : undefined,
       }),
     });
-    setLoading(false);
+    setSaving(false);
     if (res.ok) {
       router.push(`/admin/users/${userId}/aktionen`);
     } else {
       const d = await res.json();
-      setError(d.error || "Fehler");
+      setError(d.error || tc("error"));
     }
   }
 
   return (
-    <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
       <Link href={`/admin/users/${userId}/aktionen`} className="text-sm text-foreground-faint hover:text-foreground transition">
-        ← Aktionen
+        ← {t("aktionen")}
       </Link>
 
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-inspect-bg)" }}>
             <ClipboardCheck size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
           </div>
-          <h1 className="text-base font-semibold text-foreground">Prüfung erfassen</h1>
+          <h1 className="text-base font-semibold text-foreground">{tInspection("title")}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-5 py-5">
-          {/* Datum / Zeit */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">Datum / Zeit *</label>
-            <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className={inputCls} />
-          </div>
+          <Input
+            label={tc("dateTimeRequired")}
+            type="datetime-local"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            required
+          />
 
-          {/* Foto (zwingend) */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-              Foto <span className="text-warn">*</span> <span className="text-foreground-faint normal-case font-normal">(zwingend)</span>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
+              {tc("photo")} <span className="text-warn">*</span>{" "}
+              <span className="text-foreground-faint normal-case font-normal">({tc("photoMandatory")})</span>
             </label>
             {imagePreview ? (
               <div className="flex items-start gap-4">
@@ -132,7 +141,7 @@ export default function PruefungForm({ userId }: { userId: string }) {
                   <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
                   <button type="button" onClick={() => { clearPhoto(); setVerifyStatus(null); setAiMatch(null); }}
                     className="text-xs text-warn hover:opacity-80 w-fit transition">
-                    Foto entfernen
+                    {tc("removePhoto")}
                   </button>
                 </div>
               </div>
@@ -141,33 +150,32 @@ export default function PruefungForm({ userId }: { userId: string }) {
             )}
           </div>
 
-          {/* Verifikationsstatus */}
           {verifyStatus === "pending" && (
             <p className="text-sm text-foreground-muted flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin" /> Code wird im Bild geprüft…
+              <Spinner size="sm" /> {tInspection("verifying")}
             </p>
           )}
           {verifyStatus === "match" && (
-            <p className="text-sm text-[var(--color-ok)] font-medium">✅ Code erkannt</p>
+            <p className="text-sm text-[var(--color-ok)] font-medium">{tInspection("codeMatch")}</p>
           )}
           {verifyStatus === "policy" && (
             <div className="bg-surface-raised border border-border rounded-xl px-4 py-3">
-              <p className="text-sm text-foreground-muted font-medium">Bild konnte nicht geprüft werden</p>
-              <p className="text-xs text-foreground-faint mt-0.5">Das Bild entspricht nicht den Inhaltsrichtlinien – kann trotzdem gespeichert werden.</p>
+              <p className="text-sm text-foreground-muted font-medium">{tInspection("policyError")}</p>
+              <p className="text-xs text-foreground-faint mt-0.5">{tInspection("policyErrorHint")}</p>
             </div>
           )}
           {verifyStatus === "mismatch" && (
             <div className="bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
-              <p className="text-sm text-[var(--color-warn-text)] font-medium">⚠ Code nicht erkannt</p>
+              <p className="text-sm text-[var(--color-warn-text)] font-medium">{tInspection("codeMismatch")}</p>
               {verifyReason && <p className="text-xs text-[var(--color-warn)] mt-0.5">{verifyReason}</p>}
-              <p className="text-xs text-[var(--color-warn)] mt-1">Code deutlich sichtbar im Foto zeigen – kann trotzdem gespeichert werden.</p>
+              <p className="text-xs text-[var(--color-warn)] mt-1">{tInspection("codeMismatchHint")}</p>
             </div>
           )}
 
-          {/* Kontroll-Code */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-              Kontroll-Code <span className="text-[var(--color-inspect)] normal-case font-normal">(muss im Foto erkennbar sein)</span>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
+              {tInspection("controlCode")}{" "}
+              <span className="text-[var(--color-inspect)] normal-case font-normal">({tInspection("controlCodeHint")})</span>
             </label>
             <input
               type="text"
@@ -175,31 +183,32 @@ export default function PruefungForm({ userId }: { userId: string }) {
               onChange={(e) => { setKontrollCode(e.target.value.replace(/\D/g, "").slice(0, 8)); setVerifyStatus(null); setAiMatch(null); }}
               maxLength={8}
               placeholder="–"
-              className={`${inputCls} font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl`}
+              className="w-full rounded-lg border border-border px-3 py-2 text-foreground bg-surface-raised focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring font-mono tracking-widest text-[var(--color-inspect)] font-bold text-xl"
             />
           </div>
 
-          {/* Notiz */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">Notiz (optional)</label>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={`${inputCls} resize-none`} />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("noteOptional")}</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
+            />
           </div>
 
-          {error && <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">{error}</p>}
+          <FormError message={error || null} />
 
-          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-            <button type="button" onClick={() => router.push(`/admin/users/${userId}/aktionen`)}
-              className="flex-1 text-sm text-foreground-muted border border-border rounded-xl py-3.5 hover:bg-surface-raised active:scale-[0.98] transition-all">
-              Abbrechen
-            </button>
-            <button type="submit" disabled={loading || uploading}
-              className="flex-1 bg-[var(--color-inspect)] text-white text-base font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <ClipboardCheck size={16} />}
-              {loading ? "Sende…" : "Prüfung erfassen"}
-            </button>
+          <div className="flex flex-col-reverse sm:flex-row gap-3">
+            <Button type="button" variant="secondary" fullWidth onClick={() => router.push(`/admin/users/${userId}/aktionen`)}>
+              {tc("cancel")}
+            </Button>
+            <Button type="submit" variant="primary" fullWidth loading={saving || uploading} icon={<ClipboardCheck size={16} />}>
+              {tInspection("saveBtn")}
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
     </main>
   );
 }

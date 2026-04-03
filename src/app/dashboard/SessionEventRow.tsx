@@ -92,7 +92,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
         <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden">
           {ev.imageUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={ev.imageUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+            <img src={ev.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover rounded-xl" />
           ) : (
             <div className="w-full h-full bg-sky-50 flex items-center justify-center rounded-xl">
               <LockOpen size={18} className="text-sky-400" />
@@ -182,7 +182,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
         <div className="shrink-0">
           {ev.imageUrl && !imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={ev.imageUrl} alt="" className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover"
+            <img src={ev.imageUrl} alt="" loading="lazy" className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover"
               onError={() => setImgError(true)} />
           ) : imgError ? (
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-raised flex items-center justify-center">

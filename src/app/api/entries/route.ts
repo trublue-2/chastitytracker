@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
+import { sendPushToAdmins } from "@/lib/push";
 
 export async function GET() {
   const session = await auth();
@@ -149,6 +150,15 @@ export async function POST(req: NextRequest) {
   } else {
     trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
   }
+
+  // Notify admins about the new entry (fire-and-forget — never block response)
+  const username = session.user.name ?? "User";
+  const typeLabels: Record<string, string> = { VERSCHLUSS: "Verschluss", OEFFNEN: "Öffnen", PRUEFUNG: "Prüfung", ORGASMUS: "Orgasmus" };
+  sendPushToAdmins(
+    username,
+    typeLabels[type] ?? type,
+    `/admin/users/${session.user.id}`
+  ).catch(() => { /* ignore push errors */ });
 
   // Server-side AI verification for PRUEFUNG entries — never trusted from client.
   // Runs after the transaction; failure leaves verifikationStatus: null (admin can manually verify).
