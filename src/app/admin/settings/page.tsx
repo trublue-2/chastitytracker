@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
 import Card from "@/app/components/Card";
+import PushManager from "@/app/components/PushManager";
 
 export default async function AdminSettingsPage() {
   const session = await auth();
@@ -33,6 +34,13 @@ export default async function AdminSettingsPage() {
             <ChangePasswordButton userId={user.id} />
           </div>
         </div>
+      </Card>
+
+      <Card padding="none" className="overflow-hidden mt-6">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notificationsTitle")}</p>
+        </div>
+        <PushManager />
       </Card>
     </main>
   );

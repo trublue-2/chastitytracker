@@ -118,23 +118,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </Card>
 
       {/* Benachrichtigungen */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notificationsTitle")}</p>
-          <p className="text-[11px] text-foreground-faint mt-0.5">{t("notificationsDesc")}</p>
-        </div>
-        <NotificationToggles
-          userId={user.id}
-          initial={{
-            notifyVerschluss: user.notifyVerschluss,
-            notifyOeffnungImmer: user.notifyOeffnungImmer,
-            notifyOeffnungVerboten: user.notifyOeffnungVerboten,
-            notifyOrgasmus: user.notifyOrgasmus,
-            notifyKontrolleFreiwillig: user.notifyKontrolleFreiwillig,
-            notifyKontrolleAngefordert: user.notifyKontrolleAngefordert,
-          }}
-        />
-      </Card>
+      <NotificationToggles userId={user.id} />
 
       {/* Trainingsvorgaben */}
       <Card padding="none" className="overflow-hidden">

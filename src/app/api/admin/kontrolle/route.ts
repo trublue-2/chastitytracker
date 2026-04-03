@@ -98,9 +98,11 @@ export async function POST(req: NextRequest) {
   // Notify user via push (fire-and-forget)
   sendPushToUser(
     userId,
-    "Kontrolle angefordert",
-    `Code: ${code} — Frist: ${deadlineStr}`,
-    "/dashboard/new/pruefung"
+    "Kontrolle erforderlich",
+    kommentar
+      ? `Code: ${code} · Frist: ${deadlineStr} · ${kommentar}`
+      : `Code: ${code} · Frist: ${deadlineStr}`,
+    `/dashboard/new/pruefung?code=${code}`
   ).catch(() => { /* ignore push errors */ });
 
   return NextResponse.json({ ok: true, deadline: deadline.toISOString() });
