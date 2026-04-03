@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ChangeEvent } from "react";
+import type { ChangeEvent } from "react";
 
 interface ToggleProps {
   label: string;
@@ -19,11 +19,8 @@ export default function Toggle({
   className = "",
   onChange,
 }: ToggleProps) {
-  const id = useId();
-
   function handleClick() {
     if (disabled || !onChange) return;
-    // Synthesize a change event with the toggled value
     const fakeEvent = { target: { checked: !checked } } as ChangeEvent<HTMLInputElement>;
     onChange(fakeEvent);
   }
@@ -32,7 +29,7 @@ export default function Toggle({
     <div
       role="switch"
       aria-checked={checked}
-      aria-labelledby={`${id}-label`}
+      aria-label={label}
       tabIndex={disabled ? -1 : 0}
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
@@ -43,7 +40,7 @@ export default function Toggle({
       ].filter(Boolean).join(" ")}
     >
       <div className="flex flex-col">
-        <span id={`${id}-label`} className="text-sm font-medium text-foreground">{label}</span>
+        <span className="text-sm font-medium text-foreground">{label}</span>
         {description && (
           <span className="text-xs text-foreground-faint">{description}</span>
         )}

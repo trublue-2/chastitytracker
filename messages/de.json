@@ -273,6 +273,8 @@
     "account": "Konto",
     "app": "App",
     "changeEmail": "E-Mail ändern",
+    "emailLabel": "E-Mail-Adresse",
+    "emailSaved": "E-Mail wurde gespeichert.",
     "emailNotAvailable": "E-Mail-Änderung ist derzeit nicht verfügbar.",
     "version": "Version",
     "buildDate": "Build-Datum",
