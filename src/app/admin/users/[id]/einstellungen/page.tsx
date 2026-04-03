@@ -2,10 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { assertAdmin } from "@/lib/authGuards";
-import ChangeEmailButton from "@/app/admin/ChangeEmailButton";
-import ChangePasswordButton from "@/app/admin/ChangePasswordButton";
 import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
+import AccountSection from "./AccountSection";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
@@ -44,44 +43,21 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-6">
 
       {/* Konto */}
+      <AccountSection
+        userId={user.id}
+        username={user.username}
+        email={user.email}
+        role={user.role}
+        isSelf={session?.user?.id === user.id}
+      />
+
+      {/* Rolle */}
       <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionAccount")}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("roleLabel")}</p>
         </div>
-        <div className="divide-y divide-border-subtle">
-
-          <div className="flex items-center justify-between px-5 py-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">{t("usernameLabel")}</p>
-              <p className="text-xs text-foreground-faint font-mono mt-0.5">{user.username}</p>
-            </div>
-          </div>
-
-          <div className="flex items-start justify-between px-5 py-4 gap-4">
-            <div className="pt-0.5">
-              <p className="text-sm font-medium text-foreground">{t("emailLabel")}</p>
-              {user.email
-                ? <p className="text-xs text-foreground-faint mt-0.5">{user.email}</p>
-                : <p className="text-xs text-foreground-faint mt-0.5 italic">{t("noEmail")}</p>
-              }
-            </div>
-            <div className="flex-shrink-0">
-              <ChangeEmailButton userId={user.id} currentEmail={user.email ?? null} />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between px-5 py-4 gap-4">
-            <p className="text-sm font-medium text-foreground">{t("passwordLabel")}</p>
-            <div className="flex-shrink-0">
-              <ChangePasswordButton userId={user.id} />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between px-5 py-4 gap-4">
-            <p className="text-sm font-medium text-foreground">{t("roleLabel")}</p>
-            <RoleSelect id={user.id} currentRole={user.role} />
-          </div>
-
+        <div className="px-5 py-4">
+          <RoleSelect id={user.id} currentRole={user.role} />
         </div>
       </Card>
 
