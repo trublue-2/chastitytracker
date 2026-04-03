@@ -1,134 +1,328 @@
 [
   {
+    "version": "3.2.1",
+    "date": "2026-04-03",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Alarme: Bild-Platzhalter bei Kontrollen ohne Foto"
+      },
+      {
+        "type": "ui",
+        "text": "Alarme: Zurückgezogene und abgelehnte Kontrollen ausgeblendet, Toggle \"Alle Einträge anzeigen\" mit Paginierung"
+      }
+    ]
+  },
+  {
     "version": "3.2.0",
     "date": "2026-04-03",
     "changes": [
-      { "type": "feat", "text": "Benachrichtigungen normalisiert: NotificationPreference-Modell (Mail + Push pro Event-Typ), zwei separate Kacheln in Admin-User-Einstellungen" },
-      { "type": "feat", "text": "E-Mail-Änderung für Benutzer freigeschaltet (neuer API-Endpunkt /api/settings/email)" },
-      { "type": "ui", "text": "Admin-Einstellungen vereinheitlicht: gleicher Accordion-Stil wie User-Settings (Passwort, E-Mail, Abmelden)" },
-      { "type": "ui", "text": "Push-Texte verbessert: beschreibende Nachrichten bei Verschluss/Öffnung/Orgasmus/Kontrolle" },
-      { "type": "fix", "text": "Admin-Settings: E-Mail wird jetzt aus der DB geladen (Session enthält kein email-Feld)" },
-      { "type": "fix", "text": "Toggle iOS-kompatibel: div role=switch statt label+input, behebt Hydration-Mismatch" },
-      { "type": "fix", "text": "Passwort ändern: altes Passwort wird nicht mehr benötigt" },
-      { "type": "fix", "text": "Timer-Kontrast: weisser Text auf blauem Offen-seit-Banner" }
+      {
+        "type": "feat",
+        "text": "Benachrichtigungen normalisiert: NotificationPreference-Modell (Mail + Push pro Event-Typ), zwei separate Kacheln in Admin-User-Einstellungen"
+      },
+      {
+        "type": "feat",
+        "text": "E-Mail-Änderung für Benutzer freigeschaltet (neuer API-Endpunkt /api/settings/email)"
+      },
+      {
+        "type": "ui",
+        "text": "Admin-Einstellungen vereinheitlicht: gleicher Accordion-Stil wie User-Settings (Passwort, E-Mail, Abmelden)"
+      },
+      {
+        "type": "ui",
+        "text": "Push-Texte verbessert: beschreibende Nachrichten bei Verschluss/Öffnung/Orgasmus/Kontrolle"
+      },
+      {
+        "type": "fix",
+        "text": "Admin-Settings: E-Mail wird jetzt aus der DB geladen (Session enthält kein email-Feld)"
+      },
+      {
+        "type": "fix",
+        "text": "Toggle iOS-kompatibel: div role=switch statt label+input, behebt Hydration-Mismatch"
+      },
+      {
+        "type": "fix",
+        "text": "Passwort ändern: altes Passwort wird nicht mehr benötigt"
+      },
+      {
+        "type": "fix",
+        "text": "Timer-Kontrast: weisser Text auf blauem Offen-seit-Banner"
+      }
     ]
   },
   {
     "version": "3.1.0",
     "date": "2026-04-03",
     "changes": [
-      { "type": "feat", "text": "Admin-gesteuerte Benachrichtigungen: 6 Push-Notification-Flags pro User (Verschluss, Öffnung immer/verboten, Orgasmus, Kontrolle freiwillig/angefordert)" },
-      { "type": "ui", "text": "Component Showcase: Dual-Theme (User/Admin), alle 44 Komponenten inkl. LaufendeSessionCard und SessionEventRow" },
-      { "type": "ui", "text": "Admin-Dashboard: Löschen-Button von User-Karten entfernt, Neuer-Benutzer nach unten verschoben" },
-      { "type": "ui", "text": "Navigation: Einstellungen aus Admin-BottomNav/Sidebar entfernt (redundant mit AvatarMenu)" },
-      { "type": "ui", "text": "Footer: ©trublue + FetLife-Link + Version/Changelog in BottomNav und Desktop-Sidebars" },
-      { "type": "fix", "text": "KontrolleBanner: async Server → Client Component (useTranslations statt getTranslations) — behebt Runtime-Fehler im Dashboard" },
-      { "type": "fix", "text": "Sperrzeit-Banner im Dashboard entfernt (redundant mit LaufendeSessionCard)" },
-      { "type": "chore", "text": "Toter Code entfernt: StatusBadge, SessionTimeline, ModeSwitchSheet" }
+      {
+        "type": "feat",
+        "text": "Admin-gesteuerte Benachrichtigungen: 6 Push-Notification-Flags pro User (Verschluss, Öffnung immer/verboten, Orgasmus, Kontrolle freiwillig/angefordert)"
+      },
+      {
+        "type": "ui",
+        "text": "Component Showcase: Dual-Theme (User/Admin), alle 44 Komponenten inkl. LaufendeSessionCard und SessionEventRow"
+      },
+      {
+        "type": "ui",
+        "text": "Admin-Dashboard: Löschen-Button von User-Karten entfernt, Neuer-Benutzer nach unten verschoben"
+      },
+      {
+        "type": "ui",
+        "text": "Navigation: Einstellungen aus Admin-BottomNav/Sidebar entfernt (redundant mit AvatarMenu)"
+      },
+      {
+        "type": "ui",
+        "text": "Footer: ©trublue + FetLife-Link + Version/Changelog in BottomNav und Desktop-Sidebars"
+      },
+      {
+        "type": "fix",
+        "text": "KontrolleBanner: async Server → Client Component (useTranslations statt getTranslations) — behebt Runtime-Fehler im Dashboard"
+      },
+      {
+        "type": "fix",
+        "text": "Sperrzeit-Banner im Dashboard entfernt (redundant mit LaufendeSessionCard)"
+      },
+      {
+        "type": "chore",
+        "text": "Toter Code entfernt: StatusBadge, SessionTimeline, ModeSwitchSheet"
+      }
     ]
   },
   {
     "version": "3.0.0",
     "date": "2026-04-03",
     "changes": [
-      { "type": "feat", "text": "Push-Benachrichtigungen (PWA/VAPID): Admins erhalten Benachrichtigungen bei neuen Einträgen, Benutzer bei Kontrollanforderungen und Verschluss-Anforderungen" },
-      { "type": "feat", "text": "Push-Opt-in in den Einstellungen: Toggle zum Aktivieren/Deaktivieren von Push-Benachrichtigungen pro Browser/Gerät" },
-      { "type": "security", "text": "DB-basiertes Rate Limiting: alle 4 In-Memory-Maps (Login-Fehlversuche, Passwort-Reset, AI-Verifikation, Siegel-Erkennung) durch persistentes SQLite-Modell ersetzt" },
-      { "type": "security", "text": "bcrypt DoS-Schutz: Passwörter über 72 Bytes werden an allen Endpunkten abgewiesen (Passwort setzen, ändern, zurücksetzen)" },
-      { "type": "security", "text": "Benutzername-Validierung: Länge 3–50 Zeichen beim Anlegen neuer Benutzer" },
-      { "type": "ui", "text": "Skeleton-Loading für 5 weitere Seiten: Einträge, Admin-Dashboard, Admin-Benutzerdetail, Admin-Einstellungen, Admin-Kontrollen" },
-      { "type": "ui", "text": "Kalender-Modal: ARIA role=dialog, aria-modal, aria-labelledby, Escape-Taste zum Schliessen, Fokus-Management" },
-      { "type": "ui", "text": "Pagination und Passwort-Toggle haben jetzt korrekte aria-label Attribute" },
-      { "type": "ui", "text": "Thumbnail-Bilder in Listen laden lazy (loading=lazy)" },
-      { "type": "fix", "text": "DeleteVorgabeButton: Bestätigungsdialog und Schaltflächentext sind jetzt i18n-fähig" },
-      { "type": "fix", "text": "AdminKontrolleListClient: Paginierungsbuttons nutzen i18n statt hartkodiertem Deutsch" }
+      {
+        "type": "feat",
+        "text": "Push-Benachrichtigungen (PWA/VAPID): Admins erhalten Benachrichtigungen bei neuen Einträgen, Benutzer bei Kontrollanforderungen und Verschluss-Anforderungen"
+      },
+      {
+        "type": "feat",
+        "text": "Push-Opt-in in den Einstellungen: Toggle zum Aktivieren/Deaktivieren von Push-Benachrichtigungen pro Browser/Gerät"
+      },
+      {
+        "type": "security",
+        "text": "DB-basiertes Rate Limiting: alle 4 In-Memory-Maps (Login-Fehlversuche, Passwort-Reset, AI-Verifikation, Siegel-Erkennung) durch persistentes SQLite-Modell ersetzt"
+      },
+      {
+        "type": "security",
+        "text": "bcrypt DoS-Schutz: Passwörter über 72 Bytes werden an allen Endpunkten abgewiesen (Passwort setzen, ändern, zurücksetzen)"
+      },
+      {
+        "type": "security",
+        "text": "Benutzername-Validierung: Länge 3–50 Zeichen beim Anlegen neuer Benutzer"
+      },
+      {
+        "type": "ui",
+        "text": "Skeleton-Loading für 5 weitere Seiten: Einträge, Admin-Dashboard, Admin-Benutzerdetail, Admin-Einstellungen, Admin-Kontrollen"
+      },
+      {
+        "type": "ui",
+        "text": "Kalender-Modal: ARIA role=dialog, aria-modal, aria-labelledby, Escape-Taste zum Schliessen, Fokus-Management"
+      },
+      {
+        "type": "ui",
+        "text": "Pagination und Passwort-Toggle haben jetzt korrekte aria-label Attribute"
+      },
+      {
+        "type": "ui",
+        "text": "Thumbnail-Bilder in Listen laden lazy (loading=lazy)"
+      },
+      {
+        "type": "fix",
+        "text": "DeleteVorgabeButton: Bestätigungsdialog und Schaltflächentext sind jetzt i18n-fähig"
+      },
+      {
+        "type": "fix",
+        "text": "AdminKontrolleListClient: Paginierungsbuttons nutzen i18n statt hartkodiertem Deutsch"
+      }
     ]
   },
   {
     "version": "2.2.7",
     "date": "2026-04-02",
     "changes": [
-      { "type": "chore", "text": "div. refactoring Code" }
+      {
+        "type": "chore",
+        "text": "div. refactoring Code"
+      }
     ]
   },
   {
     "version": "2.2.6",
     "date": "2026-04-02",
     "changes": [
-      { "type": "chore", "text": "Neue lib/constants.ts: VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE an einem Ort statt 3× kopiert" },
-      { "type": "chore", "text": "Neue lib/authGuards.ts: requireAdminApi() und assertAdmin() ersetzen 23 identische auth()-Blöcke in API-Routes und Page-Komponenten" },
-      { "type": "chore", "text": "lib/queries.ts: getIsLocked(userId) als zentraler Helper; N+1 in admin/users/[id]/layout.tsx durch groupBy-Muster behoben" },
-      { "type": "chore", "text": "lib/mail.ts: escHtml() exportiert und aus zwei API-Routes dedupliziert" },
-      { "type": "chore", "text": "lib/utils.ts: formatBuildDate() exportiert; dashboard/layout.tsx, admin/layout.tsx und Footer.tsx verwenden denselben Helper – inkl. korrekter Europe/Zurich-Zeitzone im Footer" },
-      { "type": "fix", "text": "Prisma dev-Log: Branch zeigte beide Male [\"error\"] statt [\"query\", \"error\"] in development" },
-      { "type": "fix", "text": "Admin Einträge-Tab: Datumsformat nutzt toDateLocale() statt hartkodiertem \"en-GB\"" }
+      {
+        "type": "chore",
+        "text": "Neue lib/constants.ts: VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE an einem Ort statt 3× kopiert"
+      },
+      {
+        "type": "chore",
+        "text": "Neue lib/authGuards.ts: requireAdminApi() und assertAdmin() ersetzen 23 identische auth()-Blöcke in API-Routes und Page-Komponenten"
+      },
+      {
+        "type": "chore",
+        "text": "lib/queries.ts: getIsLocked(userId) als zentraler Helper; N+1 in admin/users/[id]/layout.tsx durch groupBy-Muster behoben"
+      },
+      {
+        "type": "chore",
+        "text": "lib/mail.ts: escHtml() exportiert und aus zwei API-Routes dedupliziert"
+      },
+      {
+        "type": "chore",
+        "text": "lib/utils.ts: formatBuildDate() exportiert; dashboard/layout.tsx, admin/layout.tsx und Footer.tsx verwenden denselben Helper – inkl. korrekter Europe/Zurich-Zeitzone im Footer"
+      },
+      {
+        "type": "fix",
+        "text": "Prisma dev-Log: Branch zeigte beide Male [\"error\"] statt [\"query\", \"error\"] in development"
+      },
+      {
+        "type": "fix",
+        "text": "Admin Einträge-Tab: Datumsformat nutzt toDateLocale() statt hartkodiertem \"en-GB\""
+      }
     ]
   },
   {
     "version": "2.2.5",
     "date": "2026-04-02",
     "changes": [
-      { "type": "fix", "text": "N+1-Abfrage in GET /api/admin/users eliminiert: Status aller User wird jetzt mit 2 statt N Datenbankabfragen ermittelt" },
-      { "type": "fix", "text": "AI-Verifikation (PRUEFUNG): Fehler werden geloggt statt lautlos verschluckt; Eintrag bleibt mit verifikationStatus null und kann manuell verifiziert werden" },
-      { "type": "fix", "text": "PATCH /api/entries/[id]: oeffnenGrund und orgasmusArt werden jetzt gegen die Whitelist validiert" },
-      { "type": "fix", "text": "HTML-Injection in Admin-E-Mails verhindert: nachricht/kommentar werden vor der Einbettung in HTML-Templates escaped" },
-      { "type": "fix", "text": "Passwort-Formular: minLength von 4 auf 8 korrigiert (entspricht dem API-Minimum)" },
-      { "type": "fix", "text": "Service Worker: activate-Handler läuft clients.claim() auch bei Cache-Fehler durch; SW-Registrierung hat jetzt einen catch-Handler" },
-      { "type": "fix", "text": "Prisma-Singleton: globalThis-Guard gilt jetzt auch in Production, verhindert doppelte PrismaClient-Instanzen" },
-      { "type": "feat", "text": "Admin Einträge-Tab: Server-seitige Pagination (100 pro Seite) statt unbegrenztem findMany" }
+      {
+        "type": "fix",
+        "text": "N+1-Abfrage in GET /api/admin/users eliminiert: Status aller User wird jetzt mit 2 statt N Datenbankabfragen ermittelt"
+      },
+      {
+        "type": "fix",
+        "text": "AI-Verifikation (PRUEFUNG): Fehler werden geloggt statt lautlos verschluckt; Eintrag bleibt mit verifikationStatus null und kann manuell verifiziert werden"
+      },
+      {
+        "type": "fix",
+        "text": "PATCH /api/entries/[id]: oeffnenGrund und orgasmusArt werden jetzt gegen die Whitelist validiert"
+      },
+      {
+        "type": "fix",
+        "text": "HTML-Injection in Admin-E-Mails verhindert: nachricht/kommentar werden vor der Einbettung in HTML-Templates escaped"
+      },
+      {
+        "type": "fix",
+        "text": "Passwort-Formular: minLength von 4 auf 8 korrigiert (entspricht dem API-Minimum)"
+      },
+      {
+        "type": "fix",
+        "text": "Service Worker: activate-Handler läuft clients.claim() auch bei Cache-Fehler durch; SW-Registrierung hat jetzt einen catch-Handler"
+      },
+      {
+        "type": "fix",
+        "text": "Prisma-Singleton: globalThis-Guard gilt jetzt auch in Production, verhindert doppelte PrismaClient-Instanzen"
+      },
+      {
+        "type": "feat",
+        "text": "Admin Einträge-Tab: Server-seitige Pagination (100 pro Seite) statt unbegrenztem findMany"
+      }
     ]
   },
   {
     "version": "2.2.4",
     "date": "2026-04-02",
     "changes": [
-      { "type": "fix", "text": "Grossansicht (Vollbild-Modal) ist jetzt überall identisch: Session-Events, Kontrollen in der Übersicht und im Kontrollen-Tab verwenden alle denselben FullscreenImageModal mit solidem schwarzen Hintergrund und erreichbarem Schliessen-Button unten" },
-      { "type": "chore", "text": "SessionEventRow, KontrolleItemListClient und AdminKontrolleListClient nutzen jetzt den gemeinsamen FullscreenImageModal via React Portal (zIndex 99999, backgroundColor #000) – kein Drift mehr zwischen den Views möglich" }
+      {
+        "type": "fix",
+        "text": "Grossansicht (Vollbild-Modal) ist jetzt überall identisch: Session-Events, Kontrollen in der Übersicht und im Kontrollen-Tab verwenden alle denselben FullscreenImageModal mit solidem schwarzen Hintergrund und erreichbarem Schliessen-Button unten"
+      },
+      {
+        "type": "chore",
+        "text": "SessionEventRow, KontrolleItemListClient und AdminKontrolleListClient nutzen jetzt den gemeinsamen FullscreenImageModal via React Portal (zIndex 99999, backgroundColor #000) – kein Drift mehr zwischen den Views möglich"
+      }
     ]
   },
   {
     "version": "2.2.3",
     "date": "2026-03-31",
     "changes": [
-      { "type": "fix", "text": "KI-Verifikation bei Siegel-Nummern (6–8 Stellen) wird nun vor dem Speichern korrekt angezeigt" },
-      { "type": "feat", "text": "Reinigungshinweis im Sperrzeit-Modal: bei Grund 'Reinigung' erscheint die erlaubte Reinigungszeit statt der generischen Warnung" }
+      {
+        "type": "fix",
+        "text": "KI-Verifikation bei Siegel-Nummern (6–8 Stellen) wird nun vor dem Speichern korrekt angezeigt"
+      },
+      {
+        "type": "feat",
+        "text": "Reinigungshinweis im Sperrzeit-Modal: bei Grund 'Reinigung' erscheint die erlaubte Reinigungszeit statt der generischen Warnung"
+      }
     ]
   },
   {
     "version": "2.2.1",
     "date": "2026-03-31",
     "changes": [
-      { "type": "feat", "text": "Strafbuch: Vergehen-Beschreibungen klarer — unerlaubte Öffnungen zeigen Sperrzeit-Kontext, Kontrollen zeigen Code und Einreichzeitpunkt" },
-      { "type": "feat", "text": "Strafbuch: Section-Header zeigt offene vs. Gesamtzahl; Toggle an Seitenende; sanft-grüner 'Wurde bestraft'-Button" }
+      {
+        "type": "feat",
+        "text": "Strafbuch: Vergehen-Beschreibungen klarer — unerlaubte Öffnungen zeigen Sperrzeit-Kontext, Kontrollen zeigen Code und Einreichzeitpunkt"
+      },
+      {
+        "type": "feat",
+        "text": "Strafbuch: Section-Header zeigt offene vs. Gesamtzahl; Toggle an Seitenende; sanft-grüner 'Wurde bestraft'-Button"
+      }
     ]
   },
   {
     "version": "2.2.0",
     "date": "2026-03-31",
     "changes": [
-      { "type": "feat", "text": "Strafbuch pro User: unerlaubte Öffnungen, zu spät erfüllte und abgelehnte Kontrollen in eigenem Tab" },
-      { "type": "feat", "text": "Bestraft-Funktion: Verfehlungen können mit Datum und Notiz als 'bestraft' markiert werden; bestrafte Einträge werden ausgeblendet (Alle-anzeigen-Toggle)" }
+      {
+        "type": "feat",
+        "text": "Strafbuch pro User: unerlaubte Öffnungen, zu spät erfüllte und abgelehnte Kontrollen in eigenem Tab"
+      },
+      {
+        "type": "feat",
+        "text": "Bestraft-Funktion: Verfehlungen können mit Datum und Notiz als 'bestraft' markiert werden; bestrafte Einträge werden ausgeblendet (Alle-anzeigen-Toggle)"
+      }
     ]
   },
   {
     "version": "2.1.0",
     "date": "2026-03-31",
     "changes": [
-      { "type": "feat", "text": "Numbered Seal: Beim Verschluss kann eine Siegel-Nummer (5–8 Ziffern) hinterlegt werden – wird automatisch aus dem Foto erkannt (Claude Vision)" },
-      { "type": "feat", "text": "Numbered Seal: Kontrollanforderungen verwenden die Siegel-Nummer des aktiven Verschlusses als Kontroll-Code (statt Zufallscode)" }
+      {
+        "type": "feat",
+        "text": "Numbered Seal: Beim Verschluss kann eine Siegel-Nummer (5–8 Ziffern) hinterlegt werden – wird automatisch aus dem Foto erkannt (Claude Vision)"
+      },
+      {
+        "type": "feat",
+        "text": "Numbered Seal: Kontrollanforderungen verwenden die Siegel-Nummer des aktiven Verschlusses als Kontroll-Code (statt Zufallscode)"
+      }
     ]
   },
   {
     "version": "2.0.8",
     "date": "2026-03-31",
     "changes": [
-      { "type": "fix", "text": "Sicherheit: Upload-Route prüft Dateipfad via resolve() statt String-Matching; Zugriffsschutz auf eigene Dateien (IDOR)" },
-      { "type": "fix", "text": "Sicherheit: PATCH-Einträge und Admin-Einträge in prisma.$transaction (TOCTOU-Schutz)" },
-      { "type": "fix", "text": "Sicherheit: Admin-Vorgaben-Route gibt 404 zurück wenn Vorgabe nicht existiert" },
-      { "type": "fix", "text": "Sicherheit: verify-kontrolle-Route mit per-User-Rate-Limiting (max. 10 Anfragen/Minute)" },
-      { "type": "fix", "text": "Timezone: toDatetimeLocal() verwendet APP_TZ (Europe/Zurich) statt UTC" },
-      { "type": "fix", "text": "Statistik: buildCompletedPairs verwendet Reinigungsunterbrechungen korrekt (canonical buildPairs)" },
-      { "type": "fix", "text": "Performance: Login-Attempts-Map bereinigt abgelaufene Einträge alle 30 Minuten" }
+      {
+        "type": "fix",
+        "text": "Sicherheit: Upload-Route prüft Dateipfad via resolve() statt String-Matching; Zugriffsschutz auf eigene Dateien (IDOR)"
+      },
+      {
+        "type": "fix",
+        "text": "Sicherheit: PATCH-Einträge und Admin-Einträge in prisma.$transaction (TOCTOU-Schutz)"
+      },
+      {
+        "type": "fix",
+        "text": "Sicherheit: Admin-Vorgaben-Route gibt 404 zurück wenn Vorgabe nicht existiert"
+      },
+      {
+        "type": "fix",
+        "text": "Sicherheit: verify-kontrolle-Route mit per-User-Rate-Limiting (max. 10 Anfragen/Minute)"
+      },
+      {
+        "type": "fix",
+        "text": "Timezone: toDatetimeLocal() verwendet APP_TZ (Europe/Zurich) statt UTC"
+      },
+      {
+        "type": "fix",
+        "text": "Statistik: buildCompletedPairs verwendet Reinigungsunterbrechungen korrekt (canonical buildPairs)"
+      },
+      {
+        "type": "fix",
+        "text": "Performance: Login-Attempts-Map bereinigt abgelaufene Einträge alle 30 Minuten"
+      }
     ]
   },
   {
