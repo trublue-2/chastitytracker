@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import PhotoCapture from "@/app/components/PhotoCapture";
+import ImageViewer from "@/app/components/ImageViewer";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
 import FormField from "@/app/components/FormField";
@@ -174,8 +175,13 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
       <FormField label={`${tCommon("photoRequired")} *`}>
         {imagePreview ? (
           <div className="flex items-start gap-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imagePreview} alt="Vorschau" className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
+            <ImageViewer
+              src={imagePreview}
+              alt=""
+              width={80}
+              height={80}
+              className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
+            />
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && <p className="text-xs text-foreground-faint">{tCommon("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>}
               {exifWarning && !uploading && <p className="text-xs text-warn font-medium">{exifWarning}</p>}

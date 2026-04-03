@@ -41,7 +41,17 @@ function variantClasses(variant: ButtonVariant, semantic?: SemanticColor): strin
       return "bg-warn text-white hover:opacity-90 active:opacity-80 shadow-card";
     case "semantic": {
       if (!semantic) return variantClasses("primary");
-      return `bg-[var(--color-${semantic})] text-white hover:opacity-90 active:opacity-80 shadow-card`;
+      const semanticBgMap: Record<SemanticColor, string> = {
+        lock:      "bg-btn-lock",
+        unlock:    "bg-btn-unlock",
+        inspect:   "bg-btn-inspect",
+        orgasm:    "bg-btn-orgasm",
+        request:   "bg-btn-request",
+        sperrzeit: "bg-btn-sperrzeit",
+        warn:      "bg-btn-warn",
+        ok:        "bg-btn-ok",
+      };
+      return `${semanticBgMap[semantic]} text-white hover:opacity-90 active:opacity-80 shadow-card`;
     }
     default:
       return "";
@@ -74,7 +84,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       disabled={isDisabled}
       className={[
         "inline-flex items-center justify-center font-medium rounded-lg",
-        "transition-all select-none",
+        "transition-all select-none active:scale-[0.97]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
         sizeClasses[size],
         variantClasses(variant, semantic),

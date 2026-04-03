@@ -29,7 +29,7 @@ export default function UserSubNav({ userId }: Props) {
   );
 
   return (
-    <div className="sticky top-[108px] z-10 bg-surface border-b border-border-subtle">
+    <div className="sticky top-[calc(3.5rem+52px)] z-10 bg-surface border-b border-border-subtle">
       {/* Mobile: select dropdown */}
       <div className="lg:hidden px-4 py-2">
         <select

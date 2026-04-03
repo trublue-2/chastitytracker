@@ -36,8 +36,8 @@ export default async function KontrolleBanner({
   const defaultOpenLabel = t("openTitle");
 
   const colorCls = overdue
-    ? "bg-warn-bg border-warn-border text-warn-text"
-    : "bg-inspect-bg border-inspect-border text-inspect-text";
+    ? "bg-warn-bg border-warn-border border-l-[3px] border-l-warn text-warn-text"
+    : "bg-inspect-bg border-inspect-border border-l-[3px] border-l-inspect text-inspect-text";
 
   if (variant === "compact") {
     return (

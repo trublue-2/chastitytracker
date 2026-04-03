@@ -192,7 +192,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
           <Button type="button" variant="secondary" fullWidth onClick={() => router.push("/dashboard")}>
             {tCommon("cancel")}
           </Button>
-          <Button type="submit" variant="secondary" fullWidth loading={saving}>
+          <Button type="submit" variant="semantic" semantic="unlock" fullWidth loading={saving}>
             {initial ? tCommon("update") : t("saveBtn")}
           </Button>
         </div>

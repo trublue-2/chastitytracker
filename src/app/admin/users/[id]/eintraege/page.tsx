@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import { assertAdmin } from "@/lib/authGuards";
 import Link from "next/link";
@@ -25,7 +25,12 @@ export default async function AdminUserEintraegePage({
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
 
-  const dl = toDateLocale(await getLocale());
+  const [locale, t, tStats] = await Promise.all([
+    getLocale(),
+    getTranslations("common"),
+    getTranslations("stats"),
+  ]);
+  const dl = toDateLocale(locale);
 
   const [total, entries] = await Promise.all([
     prisma.entry.count({ where: { userId: id } }),
@@ -43,13 +48,13 @@ export default async function AdminUserEintraegePage({
   return (
     <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Alle Einträge</h2>
-        <span className="text-xs text-foreground-faint tabular-nums">{total} total</span>
+        <h2 className="text-lg font-bold text-foreground">{tStats("allEntries")}</h2>
+        <span className="text-xs text-foreground-faint tabular-nums">{total} {t("total")}</span>
       </div>
 
       {entries.length === 0 ? (
         <div className="bg-surface rounded-2xl border border-border py-12 text-center">
-          <p className="text-foreground-faint text-sm">Noch keine Einträge vorhanden.</p>
+          <p className="text-foreground-faint text-sm">{t("noEntriesYet")}</p>
         </div>
       ) : (
         <div className="bg-surface rounded-2xl border border-border overflow-hidden">
@@ -66,7 +71,7 @@ export default async function AdminUserEintraegePage({
                 aria-disabled={page === 0}
                 className={`flex items-center gap-1 text-xs font-medium transition ${page === 0 ? "text-foreground-faint pointer-events-none" : "text-foreground-muted hover:text-foreground"}`}
               >
-                <ChevronLeft size={14} /> Zurück
+                <ChevronLeft size={14} /> {t("previous")}
               </Link>
               <span className="text-xs text-foreground-faint tabular-nums">
                 {page + 1} / {totalPages}
@@ -76,7 +81,7 @@ export default async function AdminUserEintraegePage({
                 aria-disabled={page >= totalPages - 1}
                 className={`flex items-center gap-1 text-xs font-medium transition ${page >= totalPages - 1 ? "text-foreground-faint pointer-events-none" : "text-foreground-muted hover:text-foreground"}`}
               >
-                Weiter <ChevronRight size={14} />
+                {t("next")} <ChevronRight size={14} />
               </Link>
             </div>
           )}

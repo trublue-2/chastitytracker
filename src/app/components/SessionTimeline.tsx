@@ -16,6 +16,7 @@ interface TimelineEvent {
 interface SessionTimelineProps {
   events: TimelineEvent[];
   isActive?: boolean;
+  locale?: string;
   className?: string;
 }
 
@@ -24,18 +25,17 @@ const eventConfig: Record<EventType, {
   color: string;
   dotColor: string;
   badgeVariant: "lock" | "unlock" | "inspect" | "orgasm" | "neutral";
-  label: string;
 }> = {
-  VERSCHLUSS: { icon: Lock, color: "text-lock", dotColor: "bg-lock", badgeVariant: "lock", label: "Verschluss" },
-  OEFFNEN:    { icon: LockOpen, color: "text-unlock", dotColor: "bg-unlock", badgeVariant: "unlock", label: "Oeffnen" },
-  PRUEFUNG:   { icon: ClipboardCheck, color: "text-inspect", dotColor: "bg-inspect", badgeVariant: "inspect", label: "Pruefung" },
-  ORGASMUS:   { icon: Droplets, color: "text-orgasm", dotColor: "bg-orgasm", badgeVariant: "orgasm", label: "Orgasmus" },
-  REINIGUNG:  { icon: PauseCircle, color: "text-foreground-faint", dotColor: "bg-foreground-faint", badgeVariant: "neutral", label: "Reinigung" },
+  VERSCHLUSS: { icon: Lock, color: "text-lock", dotColor: "bg-lock", badgeVariant: "lock" },
+  OEFFNEN:    { icon: LockOpen, color: "text-unlock", dotColor: "bg-unlock", badgeVariant: "unlock" },
+  PRUEFUNG:   { icon: ClipboardCheck, color: "text-inspect", dotColor: "bg-inspect", badgeVariant: "inspect" },
+  ORGASMUS:   { icon: Droplets, color: "text-orgasm", dotColor: "bg-orgasm", badgeVariant: "orgasm" },
+  REINIGUNG:  { icon: PauseCircle, color: "text-foreground-faint", dotColor: "bg-foreground-faint", badgeVariant: "neutral" },
 };
 
-function formatTime(date: Date | string): string {
+function formatTime(date: Date | string, locale: string): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleString("de-CH", {
+  return d.toLocaleString(locale, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -46,6 +46,7 @@ function formatTime(date: Date | string): string {
 export default function SessionTimeline({
   events,
   isActive = false,
+  locale = "de-CH",
   className = "",
 }: SessionTimelineProps) {
   // Sort descending (newest first)
@@ -90,6 +91,26 @@ export default function SessionTimeline({
                     width={48}
                     height={48}
                     className="w-12 h-12 rounded-lg object-cover"
+                    modalTitle={
+                      <Badge variant={config.badgeVariant} size="sm" label={event.label ?? ""} />
+                    }
+                    modalPanel={(() => {
+                      const d = typeof event.time === "string" ? new Date(event.time) : event.time;
+                      const dateStr = d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
+                      const timeStr = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+                      return (
+                        <div className="flex flex-col gap-2">
+                          <div>
+                            <span className="text-sm font-semibold text-foreground tabular-nums">{dateStr}</span>
+                            {" "}
+                            <span className="text-sm text-foreground-faint tabular-nums">{timeStr}</span>
+                          </div>
+                          {event.note && (
+                            <p className="text-sm text-foreground-muted italic">{event.note}</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   />
                 </div>
               )}
@@ -100,15 +121,15 @@ export default function SessionTimeline({
                   <Badge
                     variant={config.badgeVariant}
                     size="sm"
-                    label={event.label ?? config.label}
+                    label={event.label ?? ""}
                   />
                   <span className="text-xs text-foreground-faint tabular-nums">
-                    {formatTime(event.time)}
+                    {formatTime(event.time, locale)}
                   </span>
                 </div>
                 {event.note && (
-                  <p className="text-sm text-foreground-muted mt-0.5 truncate">
-                    {event.note}
+                  <p className="text-xs text-foreground-faint italic mt-0.5 truncate">
+                    &bdquo;{event.note}&ldquo;
                   </p>
                 )}
               </div>

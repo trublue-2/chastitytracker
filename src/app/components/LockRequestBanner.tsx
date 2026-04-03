@@ -4,16 +4,18 @@ import type { ReactNode } from "react";
 
 type ColorScheme = "request" | "sperrzeit";
 
-const COLORS: Record<ColorScheme, { bg: string; border: string; text: string; accent: string }> = {
+const COLORS: Record<ColorScheme, { bg: string; border: string; leftAccent: string; text: string; accent: string }> = {
   request: {
     bg: "bg-request-bg",
     border: "border-request-border",
+    leftAccent: "border-l-[3px] border-l-request",
     text: "text-request-text",
     accent: "text-request",
   },
   sperrzeit: {
     bg: "bg-sperrzeit-bg",
     border: "border-sperrzeit-border",
+    leftAccent: "border-l-[3px] border-l-sperrzeit",
     text: "text-sperrzeit-text",
     accent: "text-sperrzeit",
   },
@@ -22,6 +24,7 @@ const COLORS: Record<ColorScheme, { bg: string; border: string; text: string; ac
 const WARN = {
   bg: "bg-warn-bg",
   border: "border-warn-border",
+  leftAccent: "border-l-[3px] border-l-warn",
   text: "text-warn-text",
   accent: "text-warn",
 };
@@ -53,7 +56,7 @@ export default function LockRequestBanner(props: Props) {
     const c = overdue ? WARN : COLORS[colorScheme];
 
     return (
-      <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${c.bg} border ${c.border}`}>
+      <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${c.bg} border ${c.border} ${c.leftAccent}`}>
         <div className="flex items-center gap-1.5 min-w-0">
           <Lock size={11} className={`flex-shrink-0 ${c.accent}`} />
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
@@ -73,7 +76,7 @@ export default function LockRequestBanner(props: Props) {
   const c = COLORS[colorScheme];
 
   return (
-    <div className={`flex flex-col gap-1.5 ${c.bg} border ${c.border} rounded-2xl px-5 py-4`}>
+    <div className={`flex flex-col gap-1.5 ${c.bg} border ${c.border} ${c.leftAccent} rounded-2xl px-5 py-4`}>
       <div className="flex items-center gap-2">
         <Lock size={15} className={`${c.accent} shrink-0`} />
         <p className={`text-sm font-bold ${c.text}`}>{label}</p>
