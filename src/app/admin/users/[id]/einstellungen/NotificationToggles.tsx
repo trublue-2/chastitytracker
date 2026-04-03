@@ -1,66 +1,102 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
+import Card from "@/app/components/Card";
+import Spinner from "@/app/components/Spinner";
 
-interface NotifyFlags {
-  notifyVerschluss: boolean;
-  notifyOeffnungImmer: boolean;
-  notifyOeffnungVerboten: boolean;
-  notifyOrgasmus: boolean;
-  notifyKontrolleFreiwillig: boolean;
-  notifyKontrolleAngefordert: boolean;
-}
+const EVENT_TYPES = [
+  "VERSCHLUSS",
+  "OEFFNUNG_IMMER",
+  "OEFFNUNG_VERBOTEN",
+  "ORGASMUS",
+  "KONTROLLE_FREIWILLIG",
+  "KONTROLLE_ANGEFORDERT",
+] as const;
 
-const FLAG_KEYS: (keyof NotifyFlags)[] = [
-  "notifyVerschluss",
-  "notifyOeffnungImmer",
-  "notifyOeffnungVerboten",
-  "notifyOrgasmus",
-  "notifyKontrolleFreiwillig",
-  "notifyKontrolleAngefordert",
-];
+type EventType = typeof EVENT_TYPES[number];
+type Channel = "mail" | "push";
+type PrefsMap = Record<EventType, { mail: boolean; push: boolean }>;
 
-export default function NotificationToggles({
-  userId,
-  initial,
-}: {
-  userId: string;
-  initial: NotifyFlags;
-}) {
+const EMPTY_PREFS: PrefsMap = Object.fromEntries(
+  EVENT_TYPES.map((et) => [et, { mail: false, push: false }])
+) as PrefsMap;
+
+export default function NotificationToggles({ userId }: { userId: string }) {
   const t = useTranslations("admin");
-  const [flags, setFlags] = useState<NotifyFlags>(initial);
+  const [prefs, setPrefs] = useState<PrefsMap>(EMPTY_PREFS);
+  const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
-  async function handleToggle(key: keyof NotifyFlags, checked: boolean) {
-    setFlags((prev) => ({ ...prev, [key]: checked }));
-    setSavingKey(key);
+  useEffect(() => {
+    fetch(`/api/admin/notifications?userId=${userId}`)
+      .then((r) => r.json())
+      .then((data) => { setPrefs(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [userId]);
+
+  async function handleToggle(eventType: EventType, channel: Channel, value: boolean) {
+    const prev = prefs[eventType][channel];
+    setPrefs((p) => ({ ...p, [eventType]: { ...p[eventType], [channel]: value } }));
+    setSavingKey(`${eventType}.${channel}`);
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+      const res = await fetch("/api/admin/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [key]: checked }),
+        body: JSON.stringify({ userId, eventType, channel, value }),
       });
-      if (!res.ok) setFlags((prev) => ({ ...prev, [key]: !checked }));
+      if (!res.ok) setPrefs((p) => ({ ...p, [eventType]: { ...p[eventType], [channel]: prev } }));
     } catch {
-      setFlags((prev) => ({ ...prev, [key]: !checked }));
+      setPrefs((p) => ({ ...p, [eventType]: { ...p[eventType], [channel]: prev } }));
     }
     setSavingKey(null);
   }
 
-  return (
-    <div className="divide-y divide-border-subtle">
-      {FLAG_KEYS.map((key) => (
-        <div key={key} className="px-5 py-3">
-          <Toggle
-            label={t(key)}
-            checked={flags[key]}
-            disabled={savingKey === key}
-            onChange={(e) => handleToggle(key, e.target.checked)}
-          />
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Spinner />
+      </div>
+    );
+  }
+
+  const i18nKey: Record<EventType, string> = {
+    VERSCHLUSS: "notifyVerschluss",
+    OEFFNUNG_IMMER: "notifyOeffnungImmer",
+    OEFFNUNG_VERBOTEN: "notifyOeffnungVerboten",
+    ORGASMUS: "notifyOrgasmus",
+    KONTROLLE_FREIWILLIG: "notifyKontrolleFreiwillig",
+    KONTROLLE_ANGEFORDERT: "notifyKontrolleAngefordert",
+  };
+
+  function renderChannel(channel: Channel, titleKey: string, descKey: string) {
+    return (
+      <Card padding="none" className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t(titleKey)}</p>
+          <p className="text-[11px] text-foreground-faint mt-0.5">{t(descKey)}</p>
         </div>
-      ))}
+        <div className="divide-y divide-border-subtle">
+          {EVENT_TYPES.map((et) => (
+            <div key={et} className="px-5 py-3">
+              <Toggle
+                label={t(i18nKey[et])}
+                checked={prefs[et][channel]}
+                disabled={savingKey === `${et}.${channel}`}
+                onChange={(e) => handleToggle(et, channel, e.target.checked)}
+              />
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {renderChannel("mail", "notifyMailTitle", "notifyMailDesc")}
+      {renderChannel("push", "notifyPushTitle", "notifyPushDesc")}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
 import { sendPushToAdmins } from "@/lib/push";
+import { sendMail } from "@/lib/mail";
 
 export async function GET() {
   const session = await auth();
@@ -151,47 +152,73 @@ export async function POST(req: NextRequest) {
     trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
   }
 
-  // Notify admins based on per-user notification flags (fire-and-forget)
-  const userFlags = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      username: true,
-      notifyVerschluss: true,
-      notifyOeffnungImmer: true,
-      notifyOeffnungVerboten: true,
-      notifyOrgasmus: true,
-      notifyKontrolleFreiwillig: true,
-      notifyKontrolleAngefordert: true,
-    },
-  });
-  if (userFlags) {
-    let shouldNotify = false;
-    if (type === "VERSCHLUSS" && userFlags.notifyVerschluss) shouldNotify = true;
-    if (type === "OEFFNEN" && userFlags.notifyOeffnungImmer) shouldNotify = true;
-    // "Öffnung verboten" — Sperrzeit was active (just withdrawn in the transaction above)
-    if (type === "OEFFNEN" && userFlags.notifyOeffnungVerboten) {
-      // Check if a Sperrzeit was just withdrawn (= user opened despite restriction)
-      const justWithdrawn = await prisma.verschlussAnforderung.findFirst({
-        where: { userId: session.user.id, art: "SPERRZEIT", withdrawnAt: { not: null } },
-        orderBy: { withdrawnAt: "desc" },
-      });
-      if (justWithdrawn && justWithdrawn.withdrawnAt && Date.now() - justWithdrawn.withdrawnAt.getTime() < 5000) {
-        shouldNotify = true;
+  // Notify admins based on per-user NotificationPreference (fire-and-forget)
+  (async () => {
+    try {
+      // Determine which eventType(s) match this entry
+      const eventTypes: string[] = [];
+      if (type === "VERSCHLUSS") eventTypes.push("VERSCHLUSS");
+      if (type === "OEFFNEN") {
+        eventTypes.push("OEFFNUNG_IMMER");
+        // Check if opened during active Sperrzeit (just withdrawn in the transaction above)
+        const justWithdrawn = await prisma.verschlussAnforderung.findFirst({
+          where: { userId: session.user.id, art: "SPERRZEIT", withdrawnAt: { not: null } },
+          orderBy: { withdrawnAt: "desc" },
+        });
+        if (justWithdrawn?.withdrawnAt && Date.now() - justWithdrawn.withdrawnAt.getTime() < 5000) {
+          eventTypes.push("OEFFNUNG_VERBOTEN");
+        }
       }
-    }
-    if (type === "ORGASMUS" && userFlags.notifyOrgasmus) shouldNotify = true;
-    if (type === "PRUEFUNG" && kontrollCode && userFlags.notifyKontrolleAngefordert) shouldNotify = true;
-    if (type === "PRUEFUNG" && !kontrollCode && userFlags.notifyKontrolleFreiwillig) shouldNotify = true;
+      if (type === "ORGASMUS") eventTypes.push("ORGASMUS");
+      if (type === "PRUEFUNG" && kontrollCode) eventTypes.push("KONTROLLE_ANGEFORDERT");
+      if (type === "PRUEFUNG" && !kontrollCode) eventTypes.push("KONTROLLE_FREIWILLIG");
 
-    if (shouldNotify) {
-      const typeLabels: Record<string, string> = { VERSCHLUSS: "Verschluss", OEFFNEN: "Öffnen", PRUEFUNG: "Prüfung", ORGASMUS: "Orgasmus" };
-      sendPushToAdmins(
-        userFlags.username,
-        typeLabels[type] ?? type,
-        `/admin/users/${session.user.id}`
-      ).catch(() => { /* ignore push errors */ });
-    }
-  }
+      if (eventTypes.length === 0) return;
+
+      const prefs = await prisma.notificationPreference.findMany({
+        where: { userId: session.user.id, eventType: { in: eventTypes }, OR: [{ mail: true }, { push: true }] },
+      });
+      if (prefs.length === 0) return;
+
+      const shouldPush = prefs.some((p) => p.push);
+      const shouldMail = prefs.some((p) => p.mail);
+
+      // Build descriptive message
+      const username = session.user.name ?? "User";
+      const time = new Date(startTime).toLocaleString("de-CH", { timeZone: "Europe/Zurich", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      let title = "";
+      let body = "";
+
+      if (type === "VERSCHLUSS") {
+        title = `${username} hat sich eingeschlossen`;
+        body = time;
+      } else if (type === "OEFFNEN") {
+        title = `${username} hat sich geöffnet`;
+        body = oeffnenGrund ? `${time} · Grund: ${oeffnenGrund}` : time;
+      } else if (type === "ORGASMUS") {
+        title = `${username} — Orgasmus`;
+        body = orgasmusArt ? `${time} · ${orgasmusArt}` : time;
+      } else if (type === "PRUEFUNG") {
+        title = kontrollCode ? `${username} hat Kontrolle erfüllt` : `${username} — Selbstkontrolle`;
+        body = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
+      }
+
+      const url = `/admin/users/${session.user.id}`;
+
+      if (shouldPush) {
+        sendPushToAdmins(title, body, url).catch(() => {});
+      }
+      if (shouldMail) {
+        // Send email to all admins with email
+        const admins = await prisma.user.findMany({ where: { role: "admin", email: { not: null } }, select: { email: true } });
+        for (const admin of admins) {
+          if (admin.email) {
+            sendMail(admin.email, `KG-Tracker – ${title}`, `<p>${body}</p>`).catch(() => {});
+          }
+        }
+      }
+    } catch { /* ignore notification errors */ }
+  })();
 
   // Server-side AI verification for PRUEFUNG entries — never trusted from client.
   // Runs after the transaction; failure leaves verifikationStatus: null (admin can manually verify).

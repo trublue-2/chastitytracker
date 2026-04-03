@@ -114,7 +114,7 @@ export default function DashboardClient(props: DashboardProps) {
                     targetDate={currentStatus.since}
                     mode="countup"
                     format="long"
-                    className="text-2xl font-bold"
+                    className="!text-white text-2xl font-bold"
                   />
                 )}
               </div>
