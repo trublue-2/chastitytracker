@@ -1,8 +1,10 @@
+"use client";
+
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
-import { getTranslations, getLocale } from "next-intl/server";
+import { useTranslations, useLocale } from "next-intl";
 
 interface Props {
   deadline: Date;
@@ -20,7 +22,7 @@ interface Props {
   withdrawAction?: ReactNode;
 }
 
-export default async function KontrolleBanner({
+export default function KontrolleBanner({
   deadline,
   code,
   kommentar,
@@ -31,8 +33,8 @@ export default async function KontrolleBanner({
   openLabel,
   withdrawAction,
 }: Props) {
-  const t = await getTranslations("kontrolleBanner");
-  const dl = toDateLocale(await getLocale());
+  const t = useTranslations("kontrolleBanner");
+  const dl = toDateLocale(useLocale());
   const defaultOpenLabel = t("openTitle");
 
   const colorCls = overdue
