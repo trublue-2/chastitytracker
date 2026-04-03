@@ -18,7 +18,26 @@ export const TYPE_COLORS: Record<string, string> = {
   ORGASMUS: "text-[var(--color-orgasm)]",
 };
 
+// ── Notification event types (shared by API + admin UI) ─────────────────────
+
+export const NOTIFICATION_EVENT_TYPES = [
+  "VERSCHLUSS",
+  "OEFFNUNG_IMMER",
+  "OEFFNUNG_VERBOTEN",
+  "ORGASMUS",
+  "KONTROLLE_FREIWILLIG",
+  "KONTROLLE_ANGEFORDERT",
+] as const;
+
+export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
+
 // ── Validation ───────────────────────────────────────────────────────────────
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function isValidEmail(s: string | null | undefined): boolean {
+  if (!s) return true; // null/empty = clear email, which is valid
+  return EMAIL_RE.test(s);
+}
 
 /** Validates that imageUrl is an internal upload path (prevents SSRF + ownership bypass). */
 const ALLOWED_IMAGE_URL = /^\/api\/uploads\/[a-zA-Z0-9._-]+$/;

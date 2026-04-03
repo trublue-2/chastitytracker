@@ -5,28 +5,18 @@ import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
 import Card from "@/app/components/Card";
 import Spinner from "@/app/components/Spinner";
-
-const EVENT_TYPES = [
-  "VERSCHLUSS",
-  "OEFFNUNG_IMMER",
-  "OEFFNUNG_VERBOTEN",
-  "ORGASMUS",
-  "KONTROLLE_FREIWILLIG",
-  "KONTROLLE_ANGEFORDERT",
-] as const;
-
-type EventType = typeof EVENT_TYPES[number];
+import { NOTIFICATION_EVENT_TYPES, type NotificationEventType } from "@/lib/constants";
 type Channel = "mail" | "push";
-type PrefsMap = Record<EventType, { mail: boolean; push: boolean }>;
+type PrefsMap = Record<NotificationEventType, { mail: boolean; push: boolean }>;
 
 const EMPTY_PREFS: PrefsMap = Object.fromEntries(
-  EVENT_TYPES.map((et) => [et, { mail: false, push: false }])
+  NOTIFICATION_EVENT_TYPES.map((et) => [et, { mail: false, push: false }])
 ) as PrefsMap;
 
 export default function NotificationToggles({ userId }: { userId: string }) {
   const t = useTranslations("admin");
   const [prefs, setPrefs] = useState<PrefsMap>(EMPTY_PREFS);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,7 +26,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
       .catch(() => setLoading(false));
   }, [userId]);
 
-  async function handleToggle(eventType: EventType, channel: Channel, value: boolean) {
+  async function handleToggle(eventType: NotificationEventType, channel: Channel, value: boolean) {
     const prev = prefs[eventType][channel];
     setPrefs((p) => ({ ...p, [eventType]: { ...p[eventType], [channel]: value } }));
     setSavingKey(`${eventType}.${channel}`);
@@ -53,7 +43,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
     setSavingKey(null);
   }
 
-  if (loading) {
+  if (fetching) {
     return (
       <div className="flex items-center justify-center py-8">
         <Spinner />
@@ -61,7 +51,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
     );
   }
 
-  const i18nKey: Record<EventType, string> = {
+  const i18nKey: Record<NotificationEventType, string> = {
     VERSCHLUSS: "notifyVerschluss",
     OEFFNUNG_IMMER: "notifyOeffnungImmer",
     OEFFNUNG_VERBOTEN: "notifyOeffnungVerboten",
@@ -78,13 +68,13 @@ export default function NotificationToggles({ userId }: { userId: string }) {
           <p className="text-[11px] text-foreground-faint mt-0.5">{t(descKey)}</p>
         </div>
         <div className="divide-y divide-border-subtle">
-          {EVENT_TYPES.map((et) => (
+          {NOTIFICATION_EVENT_TYPES.map((et) => (
             <div key={et} className="px-5 py-3">
               <Toggle
                 label={t(i18nKey[et])}
                 checked={prefs[et][channel]}
                 disabled={savingKey === `${et}.${channel}`}
-                onChange={(e) => handleToggle(et, channel, e.target.checked)}
+                onChange={(checked) => handleToggle(et, channel, checked)}
               />
             </div>
           ))}

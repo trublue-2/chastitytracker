@@ -259,7 +259,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
               description={t("mobileUploadDesc")}
               checked={mobileDesktopUpload}
               disabled={uploadSaving}
-              onChange={(e) => handleMobileDesktopUpload(e.target.checked)}
+              onChange={(checked) => handleMobileDesktopUpload(checked)}
             />
           </div>
           <PushManager />

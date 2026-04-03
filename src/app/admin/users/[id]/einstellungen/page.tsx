@@ -108,11 +108,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <div className="px-5 py-3 border-b border-border-subtle">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionApp")}</p>
         </div>
-        <div className="flex items-center justify-between px-5 py-4 gap-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">{t("mobileUploadAdminTitle")}</p>
-            <p className="text-xs text-foreground-faint mt-0.5">{t("mobileUploadAdminDesc")}</p>
-          </div>
+        <div className="px-5 py-4">
           <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
         </div>
       </Card>
