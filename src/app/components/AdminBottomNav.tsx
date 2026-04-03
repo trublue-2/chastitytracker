@@ -11,10 +11,11 @@ export default function AdminBottomNav() {
   const pathname = usePathname();
 
   const leftTabs = [
-    { href: "/admin", icon: Users, label: t("users"), exact: true },
+    { href: "/admin", icon: LayoutDashboard, label: t("overview"), exact: true },
   ];
 
   const rightTabs = [
+    { href: "/dashboard", icon: Users, label: t("users"), exact: false },
     { href: "/admin/settings", icon: Settings, label: t("settings"), exact: false },
   ];
 
