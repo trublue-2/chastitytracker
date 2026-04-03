@@ -1,5 +1,19 @@
 [
   {
+    "version": "3.1.0",
+    "date": "2026-04-03",
+    "changes": [
+      { "type": "feat", "text": "Admin-gesteuerte Benachrichtigungen: 6 Push-Notification-Flags pro User (Verschluss, Öffnung immer/verboten, Orgasmus, Kontrolle freiwillig/angefordert)" },
+      { "type": "ui", "text": "Component Showcase: Dual-Theme (User/Admin), alle 44 Komponenten inkl. LaufendeSessionCard und SessionEventRow" },
+      { "type": "ui", "text": "Admin-Dashboard: Löschen-Button von User-Karten entfernt, Neuer-Benutzer nach unten verschoben" },
+      { "type": "ui", "text": "Navigation: Einstellungen aus Admin-BottomNav/Sidebar entfernt (redundant mit AvatarMenu)" },
+      { "type": "ui", "text": "Footer: ©trublue + FetLife-Link + Version/Changelog in BottomNav und Desktop-Sidebars" },
+      { "type": "fix", "text": "KontrolleBanner: async Server → Client Component (useTranslations statt getTranslations) — behebt Runtime-Fehler im Dashboard" },
+      { "type": "fix", "text": "Sperrzeit-Banner im Dashboard entfernt (redundant mit LaufendeSessionCard)" },
+      { "type": "chore", "text": "Toter Code entfernt: StatusBadge, SessionTimeline, ModeSwitchSheet" }
+    ]
+  },
+  {
     "version": "3.0.0",
     "date": "2026-04-03",
     "changes": [

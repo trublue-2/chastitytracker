@@ -81,6 +81,20 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
+  // Notification flags (any of the 6 notify* fields)
+  const notifyKeys = [
+    "notifyVerschluss", "notifyOeffnungImmer", "notifyOeffnungVerboten",
+    "notifyOrgasmus", "notifyKontrolleFreiwillig", "notifyKontrolleAngefordert",
+  ] as const;
+  const notifyUpdate: Record<string, boolean> = {};
+  for (const key of notifyKeys) {
+    if (body[key] !== undefined) notifyUpdate[key] = Boolean(body[key]);
+  }
+  if (Object.keys(notifyUpdate).length > 0) {
+    await prisma.user.update({ where: { id }, data: notifyUpdate });
+    return NextResponse.json({ ok: true });
+  }
+
   if (!["admin", "user"].includes(body.role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }

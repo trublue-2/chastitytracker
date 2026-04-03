@@ -12,7 +12,6 @@ import Toggle from "@/app/components/Toggle";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
-import PushManager from "@/app/components/PushManager";
 
 interface SettingsFormProps {
   username: string;
@@ -230,7 +229,6 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
               onChange={(e) => handleMobileDesktopUpload(e.target.checked)}
             />
           </div>
-          <PushManager />
           <div className="flex items-center justify-between px-5 py-4">
             <span className="text-sm text-foreground">{t("version")}</span>
             <span className="text-sm text-foreground-faint font-mono">{version}</span>
