@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formensprache — User vs Admin Vergleich</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; }
+  .col-light { background: #f8f9fb; color: #111827; }
+  .col-dark  { background: #0d0f14; color: #f1f5f9; }
+  .section-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    padding-bottom: 8px; margin-bottom: 12px;
+  }
+  .section-title-light { color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+  .section-title-dark  { color: #64748b; border-bottom: 1px solid #2d3144; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Sticky Header -->
+<div class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 text-center">
+  <h1 class="text-base font-bold text-gray-900 tracking-tight">Formensprache — Direktvergleich</h1>
+  <p class="text-[11px] text-gray-500 mt-0.5">User (Light) links &middot; Admin (Dark) rechts</p>
+</div>
+
+<!-- Two-column layout -->
+<div class="flex min-h-screen">
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- LEFT: User Light -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="col-light flex-1 p-4 flex flex-col gap-6 border-r border-gray-300">
+
+    <!-- Column Header -->
+    <div class="text-center pb-2">
+      <span class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">User Light</span>
+    </div>
+
+    <!-- ── Buttons ── -->
+    <div>
+      <p class="section-title section-title-light">A: Buttons</p>
+      <div class="flex flex-col gap-2.5">
+        <button class="w-full flex items-center justify-center gap-2 bg-[#0d9151] text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Einschliessen
+        </button>
+        <button class="w-full flex items-center justify-center gap-2 bg-[#0369a1] text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          Oeffnen
+        </button>
+        <button class="w-full flex items-center justify-center gap-2 bg-[#c2610a] text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
+          Pruefung erfassen
+        </button>
+        <button class="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl px-4 py-3 text-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+          Abbrechen
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Status Hero ── -->
+    <div>
+      <p class="section-title section-title-light">B: Status Hero</p>
+      <div class="rounded-xl border border-gray-200 bg-white p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-[#ecfdf5] border border-[#a7f3d0] flex items-center justify-center flex-shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9151" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500">Verschlossen seit</p>
+            <p class="text-xl font-bold text-gray-900 tabular-nums tracking-tight">16h 44m</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Stats ── -->
+    <div>
+      <p class="section-title section-title-light">B: Statistik-Cards</p>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="rounded-xl border border-gray-200 bg-white p-3">
+          <p class="text-lg font-bold text-[#0d9151] tabular-nums">16.5h</p>
+          <p class="text-[10px] text-gray-500">Heute</p>
+          <div class="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full rounded-full bg-[#0d9151]" style="width:100%"></div>
+          </div>
+        </div>
+        <div class="rounded-xl border border-gray-200 bg-white p-3">
+          <p class="text-lg font-bold text-[#0d9151] tabular-nums">65.6h</p>
+          <p class="text-[10px] text-gray-500">Woche</p>
+        </div>
+        <div class="rounded-xl border border-gray-200 bg-white p-3">
+          <p class="text-lg font-bold text-[#0d9151] tabular-nums">58.3h</p>
+          <p class="text-[10px] text-gray-500">Monat</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Banner ── -->
+    <div>
+      <p class="section-title section-title-light">C: Banner (3px Akzent)</p>
+      <div class="flex flex-col gap-2.5">
+        <div class="rounded-xl bg-[#fff7ed] border border-[#fed7aa] border-l-[3px] border-l-[#c2610a] p-3.5">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c2610a" stroke-width="2" class="flex-shrink-0 mt-0.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <div>
+              <p class="text-sm font-bold text-[#92400e]">Kontrolle angefordert</p>
+              <p class="text-[11px] text-[#c2610a] mt-0.5">Code: <span class="font-mono font-bold tracking-widest">48291</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl bg-[#faf5ff] border border-[#ddd6fe] border-l-[3px] border-l-[#7c3aed] p-3.5">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" class="flex-shrink-0 mt-0.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <div>
+              <p class="text-sm font-bold text-[#5b21b6]">Verschlossen</p>
+              <p class="text-[11px] text-[#7c3aed] mt-0.5">bis 03.04.2026, 17:50</p>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl bg-[#eef2ff] border border-[#c7d2fe] border-l-[3px] border-l-[#4338ca] p-3.5">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4338ca" stroke-width="2" class="flex-shrink-0 mt-0.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <div>
+              <p class="text-sm font-bold text-[#3730a3]">Einschliessen angefordert</p>
+              <p class="text-[11px] text-[#4338ca] mt-0.5">Frist: heute, 20:00</p>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl bg-[#fff5f0] border border-[#fed7aa] border-l-[3px] border-l-[#c2410c] p-3.5">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>
+              <p class="text-sm font-bold text-[#9a3412]">Kontrolle ueberfaellig</p>
+              <p class="text-[11px] text-[#c2410c] mt-0.5">seit 2h 15min</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Badges ── -->
+    <div>
+      <p class="section-title section-title-light">C: Badges</p>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#065f46] bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 rounded-full">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Verschluss</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0c4a6e] bg-[#f0f9ff] border border-[#bae6fd] px-2 py-0.5 rounded-full">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          Oeffnung</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#92400e] bg-[#fff7ed] border border-[#fed7aa] px-2 py-0.5 rounded-full">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m9 14 2 2 4-4"/></svg>
+          Kontrolle</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#9d174d] bg-[#fdf2f8] border border-[#fbcfe8] px-2 py-0.5 rounded-full">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/></svg>
+          Orgasmus</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#065f46] bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 rounded-full">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m9 12 2 2 4-4"/></svg>
+          Verifiziert</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#9a3412] bg-[#fff5f0] border border-[#fed7aa] px-2 py-0.5 rounded-full">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+          Ueberfaellig</span>
+      </div>
+    </div>
+
+    <!-- ── Thumbnail ── -->
+    <div>
+      <p class="section-title section-title-light">A: Thumbnail (klickbar)</p>
+      <div class="flex items-start gap-3">
+        <div class="w-6 h-6 rounded-full bg-[#c2610a] flex items-center justify-center flex-shrink-0 mt-1">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="m9 14 2 2 4-4"/></svg>
+        </div>
+        <div class="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
+          <div class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400"></div>
+          <span class="absolute bottom-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-md bg-black/50 text-white">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </span>
+        </div>
+        <div>
+          <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#92400e] bg-[#fff7ed] border border-[#fed7aa] px-2 py-0.5 rounded-full">Kontrolle</span>
+          <p class="text-xs text-gray-400 tabular-nums mt-1">03.04., 13:33</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Form Elements ── -->
+    <div>
+      <p class="section-title section-title-light">Form-Elemente</p>
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Datum / Zeit</label>
+          <input type="text" value="03.04.2026, 14:30" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-2 focus:outline-indigo-400" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Kommentar *</label>
+          <textarea rows="2" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white resize-none">Kurze Reinigungspause</textarea>
+        </div>
+        <button class="w-full flex items-center justify-center gap-2 bg-[#0369a1] text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          Oeffnen
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- RIGHT: Admin Dark -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="col-dark flex-1 p-4 flex flex-col gap-6">
+
+    <!-- Column Header -->
+    <div class="text-center pb-2">
+      <span class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800">Admin Dark</span>
+    </div>
+
+    <!-- ── Buttons ── -->
+    <div>
+      <p class="section-title section-title-dark">A: Buttons</p>
+      <div class="flex flex-col gap-2.5">
+        <button class="w-full flex items-center justify-center gap-2 text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm" style="background:#4f46e5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Kontrolle anfordern
+        </button>
+        <button class="w-full flex items-center justify-center gap-2 text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm" style="background:#059669">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Sperrdauer setzen
+        </button>
+        <button class="w-full flex items-center justify-center gap-2 text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm" style="background:#4338ca">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Verschluss anfordern
+        </button>
+        <button class="w-full flex items-center justify-center gap-2 font-semibold rounded-xl px-4 py-3 text-sm border" style="background:#232737; border-color:#3d4257; color:#94a3b8">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+          Abbrechen
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Status Hero ── -->
+    <div>
+      <p class="section-title section-title-dark">B: Status Hero</p>
+      <div class="rounded-xl border p-4" style="background:#1c1f2a; border-color:#2d3144">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#0b1912; border:1px solid #065f46">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div>
+            <p class="text-xs" style="color:#64748b">Verschlossen seit</p>
+            <p class="text-xl font-bold tabular-nums tracking-tight" style="color:#f1f5f9">16h 44m</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Stats ── -->
+    <div>
+      <p class="section-title section-title-dark">B: Statistik-Cards</p>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="rounded-xl border p-3" style="background:#1c1f2a; border-color:#2d3144">
+          <p class="text-lg font-bold tabular-nums" style="color:#34d399">16.5h</p>
+          <p class="text-[10px]" style="color:#64748b">Heute</p>
+          <div class="mt-2 h-1.5 rounded-full overflow-hidden" style="background:#151821">
+            <div class="h-full rounded-full" style="background:#34d399; width:100%"></div>
+          </div>
+        </div>
+        <div class="rounded-xl border p-3" style="background:#1c1f2a; border-color:#2d3144">
+          <p class="text-lg font-bold tabular-nums" style="color:#34d399">65.6h</p>
+          <p class="text-[10px]" style="color:#64748b">Woche</p>
+        </div>
+        <div class="rounded-xl border p-3" style="background:#1c1f2a; border-color:#2d3144">
+          <p class="text-lg font-bold tabular-nums" style="color:#34d399">58.3h</p>
+          <p class="text-[10px]" style="color:#64748b">Monat</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Banner ── -->
+    <div>
+      <p class="section-title section-title-dark">C: Banner (3px Akzent)</p>
+      <div class="flex flex-col gap-2.5">
+        <div class="rounded-xl p-3.5" style="background:#1c1505; border:1px solid #92400e; border-left:3px solid #fb923c">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2" class="flex-shrink-0 mt-0.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <div>
+              <p class="text-sm font-bold" style="color:#fcd34d">Kontrolle angefordert</p>
+              <p class="text-[11px] mt-0.5" style="color:#fb923c">Code: <span class="font-mono font-bold tracking-widest">48291</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl p-3.5" style="background:#110c1e; border:1px solid #6b21a8; border-left:3px solid #a855f7">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" class="flex-shrink-0 mt-0.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <div>
+              <p class="text-sm font-bold" style="color:#d8b4fe">Verschlossen</p>
+              <p class="text-[11px] mt-0.5" style="color:#a855f7">bis 03.04.2026, 17:50</p>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl p-3.5" style="background:#0f0f28; border:1px solid #3730a3; border-left:3px solid #818cf8">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" class="flex-shrink-0 mt-0.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <div>
+              <p class="text-sm font-bold" style="color:#c7d2fe">Einschliessen angefordert</p>
+              <p class="text-[11px] mt-0.5" style="color:#818cf8">Frist: heute, 20:00</p>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl p-3.5" style="background:#1c0e08; border:1px solid #9a3412; border-left:3px solid #f97316">
+          <div class="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" class="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>
+              <p class="text-sm font-bold" style="color:#fdba74">Kontrolle ueberfaellig</p>
+              <p class="text-[11px] mt-0.5" style="color:#f97316">seit 2h 15min</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Badges ── -->
+    <div>
+      <p class="section-title section-title-dark">C: Badges</p>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#0b1912; color:#6ee7b7; border:1px solid #065f46">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Verschluss</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#0c1c27; color:#7dd3fc; border:1px solid #0c4a6e">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          Oeffnung</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#1c1505; color:#fcd34d; border:1px solid #92400e">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m9 14 2 2 4-4"/></svg>
+          Kontrolle</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#1c0a14; color:#fbcfe8; border:1px solid #9d174d">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/></svg>
+          Orgasmus</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#0b1912; color:#6ee7b7; border:1px solid #065f46">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m9 12 2 2 4-4"/></svg>
+          Verifiziert</span>
+        <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#1c0e08; color:#fdba74; border:1px solid #9a3412">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+          Ueberfaellig</span>
+      </div>
+    </div>
+
+    <!-- ── Thumbnail ── -->
+    <div>
+      <p class="section-title section-title-dark">A: Thumbnail (klickbar)</p>
+      <div class="flex items-start gap-3">
+        <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1" style="background:#fb923c">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="m9 14 2 2 4-4"/></svg>
+        </div>
+        <div class="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0" style="background:#232737">
+          <div class="w-full h-full" style="background:linear-gradient(135deg,#374151,#4b5563)"></div>
+          <span class="absolute bottom-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-md" style="background:rgba(0,0,0,0.6)">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </span>
+        </div>
+        <div>
+          <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#1c1505; color:#fcd34d; border:1px solid #92400e">Kontrolle</span>
+          <p class="text-xs tabular-nums mt-1" style="color:#64748b">03.04., 13:33</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Form Elements ── -->
+    <div>
+      <p class="section-title section-title-dark">Form-Elemente</p>
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style="color:#64748b">Datum / Zeit</label>
+          <input type="text" value="03.04.2026, 14:30" readonly class="w-full border rounded-lg px-3 py-2.5 text-sm" style="background:#232737; border-color:#2d3144; color:#f1f5f9" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style="color:#64748b">Kommentar *</label>
+          <textarea rows="2" readonly class="w-full border rounded-lg px-3 py-2.5 text-sm resize-none" style="background:#232737; border-color:#2d3144; color:#f1f5f9">Kurze Reinigungspause</textarea>
+        </div>
+        <button class="w-full flex items-center justify-center gap-2 text-white font-semibold rounded-xl px-4 py-3 shadow-sm text-sm" style="background:#4f46e5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 12 5 5L20 7"/></svg>
+          Speichern
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>

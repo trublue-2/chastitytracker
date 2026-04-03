@@ -10,6 +10,7 @@ import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe } from "@/lib/queries";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
+import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 
 export default async function DashboardPage() {
@@ -97,15 +98,6 @@ export default async function DashboardPage() {
       endetAtLabel: activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) }) : null,
     } : null,
 
-    sessionEvents: rawSessionEvents.map(e => ({
-      id: e.entryId ?? `event-${e.time.getTime()}`,
-      type: (e.type === "kontrolle" ? "PRUEFUNG" : e.type.toUpperCase()) as DashboardProps["sessionEvents"][number]["type"],
-      time: e.time.toISOString(),
-      note: e.note ?? undefined,
-      imageUrl: e.imageUrl ?? undefined,
-    })),
-    sessionActive: !!activePair,
-
     tagH,
     wocheH,
     monatH,
@@ -115,17 +107,31 @@ export default async function DashboardPage() {
       minProWocheH: activeVorgabe.minProWocheH,
       minProMonatH: activeVorgabe.minProMonatH,
     } : null,
-
-    recentEntries: entries.slice(0, 5).map(e => ({
-      id: e.id,
-      type: e.type,
-      startTime: e.startTime.toISOString(),
-      note: e.note,
-    })),
   };
 
   return (
     <>
+      {activePair && rawSessionEvents.length > 0 && (
+        <div className="w-full max-w-2xl mx-auto px-4 pt-6 pb-2">
+          <LaufendeSessionCard
+            sessionStart={activePair.verschluss.startTime}
+            interruptionPausedMs={interruptionPauseMs(activePair.interruptions)}
+            now={now}
+            events={rawSessionEvents}
+            sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+            sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
+            sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
+            activeVorgabe={activeVorgabe ? {
+              minProTagH: activeVorgabe.minProTagH,
+              minProWocheH: activeVorgabe.minProWocheH,
+              minProMonatH: activeVorgabe.minProMonatH,
+            } : null}
+            tagH={tagH}
+            wocheH={wocheH}
+            monatH={monatH}
+          />
+        </div>
+      )}
       <DashboardClient {...clientProps} />
       {pairs.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-6">

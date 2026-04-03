@@ -30,7 +30,7 @@
   --background:        #f8f9fb;
   --background-subtle: #f1f3f7;
   --surface:           #ffffff;
-  --surface-raised:    #ffffff;
+  --surface-raised:    #f1f3f7;
   --surface-overlay:   #ffffffcc;
 
   /* Borders */
@@ -143,6 +143,16 @@
   --btn-primary-bg:    #059669;
   --btn-primary-hover: #047857;
   --btn-primary-text:  #ffffff;
+
+  /* Semantic button fills — brighter than accent colors for readable white text */
+  --btn-lock:          #059669;
+  --btn-unlock:        #0284c7;
+  --btn-inspect:       #d97706;
+  --btn-orgasm:        #db2777;
+  --btn-request:       #4f46e5;
+  --btn-sperrzeit:     #7c3aed;
+  --btn-warn:          #dc2626;
+  --btn-ok:            #059669;
 
   /* Elevation */
   --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.05);
@@ -274,6 +284,16 @@
   --btn-primary-bg:    #4f46e5;
   --btn-primary-hover: #4338ca;
   --btn-primary-text:  #ffffff;
+
+  /* Semantic button fills — slightly brighter for dark backgrounds */
+  --btn-lock:          #10b981;
+  --btn-unlock:        #0ea5e9;
+  --btn-inspect:       #f59e0b;
+  --btn-orgasm:        #ec4899;
+  --btn-request:       #6366f1;
+  --btn-sperrzeit:     #8b5cf6;
+  --btn-warn:          #ef4444;
+  --btn-ok:            #10b981;
 
   /* Elevation — glowing inner edges on dark surfaces */
   --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
@@ -413,6 +433,16 @@
   --color-btn-primary-hover:  var(--btn-primary-hover);
   --color-btn-primary-text:   var(--btn-primary-text);
   --color-focus-ring:         var(--focus-ring);
+
+  /* Semantic button fills */
+  --color-btn-lock:            var(--btn-lock);
+  --color-btn-unlock:          var(--btn-unlock);
+  --color-btn-inspect:         var(--btn-inspect);
+  --color-btn-orgasm:          var(--btn-orgasm);
+  --color-btn-request:         var(--btn-request);
+  --color-btn-sperrzeit:       var(--btn-sperrzeit);
+  --color-btn-warn:            var(--btn-warn);
+  --color-btn-ok:              var(--btn-ok);
 
   /* Typography */
   --font-sans:      var(--font-geist-sans);

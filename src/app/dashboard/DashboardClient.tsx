@@ -1,19 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, LockOpen, ClipboardCheck, Droplets, Clipboard, BarChart3 } from "lucide-react";
+import { Lock, LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
-import StatusBadge from "@/app/components/StatusBadge";
 import TimerDisplay from "@/app/components/TimerDisplay";
-import Button from "@/app/components/Button";
-import Card from "@/app/components/Card";
-import StatsCard from "@/app/components/StatsCard";
-import Badge from "@/app/components/Badge";
 import EmptyState from "@/app/components/EmptyState";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
-import SessionTimeline from "@/app/components/SessionTimeline";
-import Divider from "@/app/components/Divider";
 
 // ── Types ────────────────────────────────────
 export interface DashboardProps {
@@ -44,17 +37,6 @@ export interface DashboardProps {
     endetAtLabel: string | null;
   } | null;
 
-  // Session events
-  sessionEvents: {
-    id: string;
-    type: "VERSCHLUSS" | "OEFFNEN" | "PRUEFUNG" | "ORGASMUS" | "REINIGUNG";
-    time: string;
-    label?: string;
-    note?: string;
-    imageUrl?: string;
-  }[];
-  sessionActive: boolean;
-
   // Stats
   tagH: number;
   wocheH: number;
@@ -66,14 +48,6 @@ export interface DashboardProps {
     minProWocheH: number | null;
     minProMonatH: number | null;
   } | null;
-
-  // Recent entries
-  recentEntries: {
-    id: string;
-    type: string;
-    startTime: string;
-    note: string | null;
-  }[];
 }
 
 // ── Helpers ──────────────────────────────────
@@ -97,13 +71,10 @@ export default function DashboardClient(props: DashboardProps) {
     offeneKontrolle,
     offeneVerschlussAnf,
     activeSperrzeit,
-    sessionEvents,
-    sessionActive,
     tagH,
     wocheH,
     monatH,
     activeVorgabe,
-    recentEntries,
   } = props;
 
   const isLocked = currentStatus?.type === "VERSCHLUSS";
@@ -123,55 +94,33 @@ export default function DashboardClient(props: DashboardProps) {
     );
   }
 
-  // ── Determine primary action ──
-  const primaryAction = getPrimaryAction({
-    isLocked,
-    offeneKontrolle,
-    offeneVerschlussAnf,
-    activeSperrzeit,
-    t,
-  });
-
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-5">
 
-      {/* ── Status Hero ── */}
-      <Card padding="default">
-        <div className="flex items-center gap-4">
-          <StatusBadge
-            status={isLocked ? "locked" : "unlocked"}
-            duration=""
-            size="large"
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-foreground-muted">
-              {isLocked ? t("lockedSince") : t("openSince")}
-            </p>
-            {currentStatus && (
-              <TimerDisplay
-                targetDate={currentStatus.since}
-                mode="countup"
-                format="long"
-                className="text-2xl"
-              />
-            )}
+      {/* ── Status Hero (only when OPEN — when locked, LaufendeSessionCard handles this) ── */}
+      {isOpen && (
+        <div className="rounded-2xl overflow-hidden border border-unlock-border">
+          <div className="px-5 py-4 text-white bg-gradient-to-br from-sky-600 to-sky-500">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10">
+                <LockOpen size={28} strokeWidth={2} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-widest opacity-60">
+                  {t("openSince")}
+                </p>
+                {currentStatus && (
+                  <TimerDisplay
+                    targetDate={currentStatus.since}
+                    mode="countup"
+                    format="long"
+                    className="text-2xl font-bold"
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </Card>
-
-      {/* ── Primary Action ── */}
-      {primaryAction && (
-        <Link href={primaryAction.href}>
-          <Button
-            variant={primaryAction.variant}
-            semantic={primaryAction.semantic}
-            size="lg"
-            fullWidth
-            icon={primaryAction.icon}
-          >
-            {primaryAction.label}
-          </Button>
-        </Link>
       )}
 
       {/* ── Alert Banners ── */}
@@ -207,205 +156,43 @@ export default function DashboardClient(props: DashboardProps) {
         />
       )}
 
-      {/* ── Session Timeline ── */}
-      {sessionActive && sessionEvents.length > 0 && (
-        <Card padding="default">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-muted mb-3">
-            {t("activeSession")}
-          </p>
-          <SessionTimeline
-            isActive
-            events={sessionEvents}
-          />
-        </Card>
-      )}
-
       {/* ── Stats Summary ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatsCard
-          value={formatHoursShort(tagH)}
-          label={t("wearToday")}
-          variant={activeVorgabe?.minProTagH ? "progress" : "default"}
-          progress={progressPercent(tagH, activeVorgabe?.minProTagH)}
-          color="lock"
-        />
-        <StatsCard
-          value={formatHoursShort(wocheH)}
-          label={t("wearWeek")}
-          variant={activeVorgabe?.minProWocheH ? "progress" : "default"}
-          progress={progressPercent(wocheH, activeVorgabe?.minProWocheH)}
-          color="lock"
-        />
-        <StatsCard
-          value={formatHoursShort(monatH)}
-          label={t("wearMonth")}
-          variant={activeVorgabe?.minProMonatH ? "progress" : "default"}
-          progress={progressPercent(monatH, activeVorgabe?.minProMonatH)}
-          color="lock"
-        />
-      </div>
-      <Link href="/dashboard/stats" className="text-xs text-foreground-faint hover:text-foreground-muted transition text-center">
-        {t("allStats")} →
-      </Link>
-
-      {/* ── Secondary Action (Orgasm) ── */}
-      <div className="flex gap-2">
-        {isLocked && !offeneKontrolle && (
-          <Link href="/dashboard/new/pruefung" className="flex-1">
-            <Button variant="secondary" size="sm" fullWidth icon={<ClipboardCheck size={16} />}>
-              {t("ctaInspectionOrUnlock")}
-            </Button>
+      <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
+            {t("statsTitle")}
+          </p>
+          <Link href="/dashboard/stats" className="text-xs text-foreground-faint hover:text-foreground-muted transition">
+            {t("allStats")} →
           </Link>
-        )}
-        <Link href="/dashboard/new/orgasmus" className="flex-1">
-          <Button variant="secondary" size="sm" fullWidth icon={<Droplets size={16} />}>
-            {t("ctaOrgasm")}
-          </Button>
-        </Link>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl bg-surface-raised px-3 py-3">
+            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursShort(tagH)}</p>
+            <p className="text-xs text-foreground-faint mt-0.5">{t("wearToday")}</p>
+            {activeVorgabe?.minProTagH != null && (
+              <div className="mt-2">
+                <div className="h-1.5 rounded-full bg-background-subtle overflow-hidden">
+                  <div className="h-full rounded-full bg-lock" style={{ width: `${Math.min(100, (tagH / activeVorgabe.minProTagH) * 100)}%` }} />
+                </div>
+                <p className="text-[10px] text-foreground-faint mt-0.5 tabular-nums">{Math.round((tagH / activeVorgabe.minProTagH) * 100)}%</p>
+              </div>
+            )}
+          </div>
+          <div className="rounded-xl bg-surface-raised px-3 py-3">
+            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursShort(wocheH)}</p>
+            <p className="text-xs text-foreground-faint mt-0.5">{t("wearWeek")}</p>
+          </div>
+          <div className="rounded-xl bg-surface-raised px-3 py-3">
+            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursShort(monatH)}</p>
+            <p className="text-xs text-foreground-faint mt-0.5">{t("wearMonth")}</p>
+          </div>
+        </div>
       </div>
 
-      {/* ── Recent Entries ── */}
-      {recentEntries.length > 0 && (
-        <>
-          <Divider />
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
-              {tCommon("entries")}
-            </p>
-            <Link href="/dashboard/eintraege" className="text-xs text-foreground-faint hover:text-foreground-muted transition">
-              {t("sessions")} →
-            </Link>
-          </div>
-          <Card padding="none">
-            <div className="divide-y divide-border-subtle">
-              {recentEntries.map((e) => (
-                <RecentEntry key={e.id} entry={e} />
-              ))}
-            </div>
-          </Card>
-        </>
-      )}
+      {/* Actions accessible via Neu-Button in bottom nav */}
+
     </main>
   );
 }
 
-// ── Recent Entry Row ─────────────────────────
-function RecentEntry({ entry }: { entry: DashboardProps["recentEntries"][number] }) {
-  const date = new Date(entry.startTime);
-  const tStats = useTranslations("stats");
-  const typeConfig: Record<string, { icon: typeof Lock; variant: "lock" | "unlock" | "inspect" | "orgasm"; label: string }> = {
-    VERSCHLUSS: { icon: Lock, variant: "lock", label: tStats("lock") },
-    OEFFNEN: { icon: LockOpen, variant: "unlock", label: tStats("opening") },
-    PRUEFUNG: { icon: ClipboardCheck, variant: "inspect", label: tStats("inspection") },
-    ORGASMUS: { icon: Droplets, variant: "orgasm", label: tStats("orgasm") },
-  };
-  const cfg = typeConfig[entry.type] ?? typeConfig.VERSCHLUSS;
-
-  return (
-    <Link
-      href={`/dashboard/edit/${entry.id}`}
-      className="flex items-center gap-3 px-4 py-3 hover:bg-background-subtle transition-colors"
-    >
-      <Badge variant={cfg.variant} label={cfg.label} size="sm" icon={<cfg.icon size={12} />} />
-      <span className="text-xs text-foreground-faint tabular-nums flex-shrink-0">
-        {date.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit" })}{" "}
-        {date.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}
-      </span>
-      {entry.note && (
-        <span className="text-xs text-foreground-muted truncate">{entry.note}</span>
-      )}
-    </Link>
-  );
-}
-
-// ── Primary Action Logic ─────────────────────
-interface PrimaryActionParams {
-  isLocked: boolean;
-  offeneKontrolle: DashboardProps["offeneKontrolle"];
-  offeneVerschlussAnf: DashboardProps["offeneVerschlussAnf"];
-  activeSperrzeit: DashboardProps["activeSperrzeit"];
-  t: ReturnType<typeof useTranslations>;
-}
-
-interface PrimaryAction {
-  label: string;
-  href: string;
-  variant: "primary" | "secondary" | "danger" | "semantic";
-  semantic?: "lock" | "unlock" | "inspect" | "warn" | "request";
-  icon: React.ReactNode;
-}
-
-function getPrimaryAction({ isLocked, offeneKontrolle, offeneVerschlussAnf, activeSperrzeit, t }: PrimaryActionParams): PrimaryAction | null {
-  // Priority 1: Control overdue (locked)
-  if (isLocked && offeneKontrolle?.overdue) {
-    return {
-      label: t("ctaInspectionOverdue"),
-      href: offeneKontrolle.href,
-      variant: "semantic",
-      semantic: "warn",
-      icon: <ClipboardCheck size={20} />,
-    };
-  }
-
-  // Priority 2: Control open (locked)
-  if (isLocked && offeneKontrolle) {
-    return {
-      label: t("ctaInspection"),
-      href: offeneKontrolle.href,
-      variant: "semantic",
-      semantic: "inspect",
-      icon: <ClipboardCheck size={20} />,
-    };
-  }
-
-  // Priority 3: Lock request overdue (open)
-  if (!isLocked && offeneVerschlussAnf?.overdue) {
-    return {
-      label: t("ctaLockOverdue"),
-      href: "/dashboard/new/verschluss",
-      variant: "semantic",
-      semantic: "warn",
-      icon: <Lock size={20} />,
-    };
-  }
-
-  // Priority 4: Lock request open (open)
-  if (!isLocked && offeneVerschlussAnf) {
-    return {
-      label: t("ctaLockNow"),
-      href: "/dashboard/new/verschluss",
-      variant: "semantic",
-      semantic: "request",
-      icon: <Lock size={20} />,
-    };
-  }
-
-  // Priority 5: Sperrzeit active (locked) — no prominent CTA
-  if (isLocked && activeSperrzeit) {
-    return {
-      label: t("ctaUnlock"),
-      href: "/dashboard/new/oeffnen",
-      variant: "secondary",
-      icon: <LockOpen size={20} />,
-    };
-  }
-
-  // Priority 6: Standard — open → lock, locked → unlock
-  if (!isLocked) {
-    return {
-      label: t("ctaLock"),
-      href: "/dashboard/new/verschluss",
-      variant: "semantic",
-      semantic: "lock",
-      icon: <Lock size={20} />,
-    };
-  }
-
-  // Locked, no requests
-  return {
-    label: t("ctaUnlock"),
-    href: "/dashboard/new/oeffnen",
-    variant: "secondary",
-    icon: <LockOpen size={20} />,
-  };
-}

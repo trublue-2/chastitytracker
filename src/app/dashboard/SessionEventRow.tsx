@@ -139,11 +139,9 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
 
   // Open / overdue kontrolle → banner style
   if (ev.captureHref) {
-    const colorCls = ev.isOverdue
-      ? "bg-warn-bg border-[var(--color-warn-border)] text-warn-text"
-      : "bg-warn-bg border-[var(--color-warn-border)] text-[var(--color-warn)]";
+    const textCls = ev.isOverdue ? "text-warn-text" : "text-[var(--color-warn)]";
     return (
-      <div className={`px-5 py-3 flex items-center gap-3 border-t border-b ${colorCls}`}>
+      <div className={`px-5 py-3 flex items-center gap-3 border-t border-b bg-warn-bg border-[var(--color-warn-border)] ${textCls}`}>
         {ev.isOverdue
           ? <AlertCircle size={20} className="flex-shrink-0 text-warn" />
           : <AlertTriangle size={20} className="flex-shrink-0 text-[var(--color-warn)]" />
@@ -239,26 +237,26 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               )}
               {ev.orgasmusArt && (
                 <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Art</p>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("type")}</p>
                   <p className="text-sm text-foreground-muted">{ev.orgasmusArt}</p>
                 </div>
               )}
               {ev.deadlineStr && (
                 <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Frist</p>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("deadline")}</p>
                   <p className="text-sm text-foreground-muted">{ev.deadlineStr}</p>
                 </div>
               )}
               {ev.timeCorrectedSystemStr && (
                 <div>
-                  <p className="text-xs text-[var(--color-warn)] uppercase tracking-wider font-semibold mb-0.5">Zeit korrigiert</p>
-                  <p className="text-sm text-[var(--color-warn)]">Angegeben: {ev.dateStr}, {ev.timeStr}</p>
-                  <p className="text-sm text-[var(--color-warn)]">System: {ev.timeCorrectedSystemStr}</p>
+                  <p className="text-xs text-[var(--color-warn)] uppercase tracking-wider font-semibold mb-0.5">{tc("timeCorrected")}</p>
+                  <p className="text-sm text-[var(--color-warn)]">{tc("specified")}: {ev.dateStr}, {ev.timeStr}</p>
+                  <p className="text-sm text-[var(--color-warn)]">{tc("systemTime")}: {ev.timeCorrectedSystemStr}</p>
                 </div>
               )}
               {ev.kontrolleKommentar && (
                 <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Anweisung</p>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("instruction")}</p>
                   <p className="text-sm text-[var(--color-warn)]">{ev.kontrolleKommentar}</p>
                 </div>
               )}

@@ -5,12 +5,14 @@ import { ChevronDown, ChevronUp, Lock, LockOpen, Timer, CheckCircle2, Droplets }
 import { useTranslations } from "next-intl";
 import SessionEventRow, { SessionEventData } from "./SessionEventRow";
 
-const GRUND_LABELS: Record<string, string> = {
-  REINIGUNG: "Reinigung",
-  KEYHOLDER: "Von Keyholder erlaubt",
-  NOTFALL: "Notfall",
-  ANDERES: "Anderes",
-};
+function getGrundLabels(t: ReturnType<typeof useTranslations>): Record<string, string> {
+  return {
+    REINIGUNG: t("grundReinigung"),
+    KEYHOLDER: t("grundKeyholder"),
+    NOTFALL: t("grundNotfall"),
+    ANDERES: t("grundAnderes"),
+  };
+}
 
 interface OeffnenFooter {
   dateStr: string;
@@ -38,6 +40,9 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
   const [openId, setOpenId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const t = useTranslations("dashboard");
+  const tCommon = useTranslations("common");
+  const tOpen = useTranslations("openForm");
+  const grundLabels = getGrundLabels(tOpen);
   const totalPages = Math.ceil(sessions.length / PAGE_SIZE);
   const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -132,7 +137,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                         </span>
                         {session.oeffnen.grund && (
                           <span className="text-xs font-semibold text-unlock-text bg-unlock-bg border border-unlock-border px-2 py-0.5 rounded-full">
-                            {GRUND_LABELS[session.oeffnen.grund] ?? session.oeffnen.grund}
+                            {grundLabels[session.oeffnen.grund] ?? session.oeffnen.grund}
                           </span>
                         )}
                         {session.oeffnen.note && (
@@ -163,7 +168,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
             disabled={page === 0}
             className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
           >
-            ← Zurück
+            ← {tCommon("previous")}
           </button>
           <span className="text-xs text-foreground-faint tabular-nums">
             {page + 1} / {totalPages}
@@ -174,7 +179,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
             disabled={page >= totalPages - 1}
             className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
           >
-            Weiter →
+            {tCommon("next")} →
           </button>
         </div>
       )}

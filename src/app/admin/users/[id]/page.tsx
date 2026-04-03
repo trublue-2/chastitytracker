@@ -119,7 +119,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
       {/* Statistik kompakt */}
       <Card>
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("statsTitle")}</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("statsTitle")}</p>
+          <Link href={`/admin/users/${id}/stats`} className="text-xs text-foreground-faint hover:text-foreground-muted transition">
+            {t("allStats")} →
+          </Link>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-surface-raised px-4 py-3">
             <p className="text-xs text-foreground-faint mb-0.5">{ts("entries")}</p>

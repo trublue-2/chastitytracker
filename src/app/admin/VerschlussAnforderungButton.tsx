@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
-import FormField from "@/app/components/FormField";
 import FormError from "@/app/components/FormError";
+import Button from "@/app/components/Button";
 import Input from "@/app/components/Input";
-import Spinner from "@/app/components/Spinner";
+import Textarea from "@/app/components/Textarea";
 
 interface Props {
   userId: string;
@@ -93,15 +93,13 @@ export default function VerschlussAnforderungButton({
         icon={<Lock size={20} strokeWidth={2} style={{ color: accentColor }} />}
         iconBg={accentBg}
       >
-        <FormField label={t("messageLabel")}>
-          <textarea
-            value={nachricht}
-            onChange={(e) => setNachricht(e.target.value)}
-            placeholder={t("messageLabel")}
-            rows={2}
-            className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-          />
-        </FormField>
+        <Textarea
+          label={t("messageLabel")}
+          value={nachricht}
+          onChange={(e) => setNachricht(e.target.value)}
+          placeholder={t("messageLabel")}
+          rows={2}
+        />
 
         <div className="flex items-center gap-2">
           <label className="text-xs text-foreground-faint whitespace-nowrap">{t("kontrolleHours")}</label>
@@ -146,15 +144,16 @@ export default function VerschlussAnforderungButton({
 
         <FormError message={error} variant="compact" />
 
-        <button
+        <Button
+          variant="semantic"
+          semantic={isAnforderung ? "request" : "sperrzeit"}
+          fullWidth
+          loading={saving}
+          icon={<Lock size={16} />}
           onClick={handleSubmit}
-          disabled={saving}
-          className="flex items-center justify-center gap-2 text-sm font-medium text-white rounded-xl px-4 py-3 disabled:opacity-50 transition hover:opacity-80"
-          style={{ backgroundColor: accentColor }}
         >
-          {saving ? <Spinner size="sm" /> : <Lock size={16} />}
           {t("submit")}
-        </button>
+        </Button>
       </ActionModal>
     </>
   );
