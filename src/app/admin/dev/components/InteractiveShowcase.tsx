@@ -17,9 +17,34 @@ import Tabs from "@/app/components/Tabs";
 import ActionModal from "@/app/components/ActionModal";
 import Sheet from "@/app/components/Sheet";
 import Pill from "@/app/components/Pill";
-import StatusBadge from "@/app/components/StatusBadge";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import useToast from "@/app/hooks/useToast";
+
+// ── Theme Pair Wrappers (Client) ─────────────
+
+/** Dual-theme wrapper for interactive demos that need independent state per column.
+ *  Pass a component reference + props — it gets instantiated twice. */
+export function ThemePairClient<P extends Record<string, unknown>>({
+  component: Component,
+  props,
+}: {
+  component: React.ComponentType<P>;
+  props?: P;
+}) {
+  const p = (props ?? {}) as P;
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-theme="user" className="bg-background rounded-xl border border-border p-4">
+        <p className="text-[10px] font-mono text-foreground-faint mb-3 uppercase tracking-wider">User (Light)</p>
+        <Component {...p} />
+      </div>
+      <div data-theme="admin" className="bg-background rounded-xl border border-border p-4">
+        <p className="text-[10px] font-mono text-foreground-faint mb-3 uppercase tracking-wider">Admin (Dark)</p>
+        <Component {...p} />
+      </div>
+    </div>
+  );
+}
 
 // ── Button Demos ──────────────────────────────
 export function ButtonDemo() {
@@ -233,22 +258,6 @@ export function PillDemo() {
           Reset
         </Button>
       )}
-    </div>
-  );
-}
-
-// ── StatusBadge Demo ──────────────────────────
-export function StatusBadgeDemo() {
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-xs text-foreground-faint font-mono">size=&quot;large&quot;</p>
-      <StatusBadge status="locked" duration="3d 14h 22m" size="large" />
-      <StatusBadge status="unlocked" duration="2h 15m" size="large" />
-      <p className="text-xs text-foreground-faint font-mono">size=&quot;compact&quot;</p>
-      <div className="flex gap-4">
-        <StatusBadge status="locked" duration="3d 14h" size="compact" />
-        <StatusBadge status="unlocked" duration="2h 15m" size="compact" />
-      </div>
     </div>
   );
 }
