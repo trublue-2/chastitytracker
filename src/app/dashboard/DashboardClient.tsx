@@ -146,15 +146,7 @@ export default function DashboardClient(props: DashboardProps) {
         />
       )}
 
-      {activeSperrzeit && (
-        <LockRequestBanner
-          variant="large"
-          colorScheme="sperrzeit"
-          label={t("locked")}
-          nachricht={activeSperrzeit.nachricht}
-          endetAtLabel={activeSperrzeit.endetAtLabel}
-        />
-      )}
+      {/* Sperrzeit-Banner entfernt — wird bereits im Sperrzeit-Footer der LaufendeSessionCard angezeigt */}
 
       {/* ── Stats Summary ── */}
       <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">

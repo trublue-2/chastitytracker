@@ -7,9 +7,11 @@ import NewEntrySheet from "@/app/components/NewEntrySheet";
 interface Props {
   isAdmin?: boolean;
   isLocked: boolean;
+  version?: string;
+  buildDate?: string;
 }
 
-export default function DashboardBottomNav({ isAdmin, isLocked }: Props) {
+export default function DashboardBottomNav({ isAdmin, isLocked, version, buildDate }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -18,6 +20,8 @@ export default function DashboardBottomNav({ isAdmin, isLocked }: Props) {
         isAdmin={isAdmin}
         isLocked={isLocked}
         onNewEntry={() => setSheetOpen(true)}
+        version={version}
+        buildDate={buildDate}
       />
       <NewEntrySheet
         open={sheetOpen}
