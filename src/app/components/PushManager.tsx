@@ -68,6 +68,12 @@ export default function PushManager() {
       }
     } catch (err) {
       console.error("[PushManager]", err);
+      // Re-sync state with actual subscription status
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        setSubscribed(!!sub);
+      } catch { /* ignore */ }
     } finally {
       setSaving(false);
     }
