@@ -25,7 +25,10 @@ export default async function AdminPage() {
 
   // Feature flag: when USE_ADMIN_RELATIONSHIPS=true, admins only see their assigned users.
   const useRelationships = process.env.USE_ADMIN_RELATIONSHIPS === "true";
-  let users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
+  let users = await prisma.user.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true, username: true, role: true, email: true, createdAt: true },
+  });
   if (useRelationships && currentUserId) {
     const rels = await prisma.adminUserRelationship.findMany({ where: { adminId: currentUserId } });
     const assignedIds = new Set(rels.map(r => r.userId));
@@ -37,8 +40,9 @@ export default async function AdminPage() {
   const now = new Date();
 
   // Bulk-fetch all data in 4 queries instead of 4×N
-  const [allEntries, allKontrolle, allVerschlussAnf, allSperrzeiten] = await Promise.all([
-    prisma.entry.findMany({ where: { userId: { in: userIds } }, orderBy: { startTime: "asc" } }),
+  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allSperrzeiten] = await Promise.all([
+    prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
+    prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.kontrollAnforderung.findMany({
       where: { userId: { in: userIds }, entryId: null, withdrawnAt: null },
       orderBy: { createdAt: "desc" },
@@ -51,19 +55,23 @@ export default async function AdminPage() {
     }),
   ]);
 
+  // Build lookup maps from groupBy results
+  const verschlussMap = new Map(latestVerschluss.map(v => [v.userId, v._max.startTime]));
+  const oeffnenMap = new Map(latestOeffnen.map(o => [o.userId, o._max.startTime]));
+
   function getUserStats(userId: string) {
-    const entries = allEntries.filter(e => e.userId === userId);
-    const latest = [...entries]
-      .filter(e => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
-      .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
+    const lastV = verschlussMap.get(userId);
+    const lastO = oeffnenMap.get(userId);
+    const latestType = !lastV && !lastO ? null : (!lastO || (lastV && lastV > lastO)) ? "VERSCHLUSS" : "OEFFNEN";
+    const latestTime = latestType === "VERSCHLUSS" ? lastV : lastO;
 
     const offeneKontrolle = allKontrolle.find(k => k.userId === userId) ?? null;
     const offeneVerschlussAnforderung = allVerschlussAnf.find(v => v.userId === userId) ?? null;
     const activeSperrzeit = allSperrzeiten.find(s => s.userId === userId) ?? null;
 
     return {
-      currentStatus: latest?.type ?? null,
-      since: latest?.startTime ?? null,
+      currentStatus: latestType,
+      since: latestTime ?? null,
       offeneKontrolle: offeneKontrolle
         ? { id: offeneKontrolle.id, deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
         : null,

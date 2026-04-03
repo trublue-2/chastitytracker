@@ -8,23 +8,23 @@ import { useTranslations } from "next-intl";
 export default function WithdrawKontrolleButton({ id }: { id: string }) {
   const t = useTranslations("admin");
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function handle() {
-    setLoading(true);
+    setSaving(true);
     await fetch(`/api/admin/kontrollen/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "withdraw" }),
     });
     router.refresh();
-    setLoading(false);
+    setSaving(false);
   }
 
   return (
     <button
       onClick={handle}
-      disabled={loading}
+      disabled={saving}
       title={t("withdrawKontrolleTitle")}
       className="p-0 flex items-center text-[var(--color-inspect)] hover:opacity-80 disabled:opacity-50 transition"
     >

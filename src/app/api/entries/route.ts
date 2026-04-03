@@ -15,6 +15,11 @@ export async function GET() {
   const entries = await prisma.entry.findMany({
     where: { userId: session.user.id },
     orderBy: { startTime: "desc" },
+    select: {
+      id: true, type: true, startTime: true, imageUrl: true, note: true,
+      orgasmusArt: true, kontrollCode: true, oeffnenGrund: true, verifikationStatus: true,
+    },
+    take: 200,
   });
 
   return NextResponse.json(entries);

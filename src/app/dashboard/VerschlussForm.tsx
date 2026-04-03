@@ -105,7 +105,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
           <div className="flex items-start gap-4">
             <ImageViewer
               src={imagePreview}
-              alt="Vorschau"
+              alt={t("preview")}
               width={80}
               height={80}
               className="w-20 h-20 rounded-xl object-cover"
