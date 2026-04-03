@@ -32,8 +32,8 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
 
   const navItems = [
     { href: "/admin", icon: LayoutDashboard, label: t("overview"), exact: true },
-    { href: "/dashboard", icon: Users, label: t("users"), exact: true },
     { href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false },
+    { href: "/dashboard", icon: Users, label: t("users"), exact: true },
   ];
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
