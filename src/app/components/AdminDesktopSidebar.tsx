@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, Settings, LogOut, Plus, ChevronRight } from "lucide-react";
+import { Users, ClipboardList, Settings, LogOut, Plus, ChevronRight } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
@@ -31,7 +31,7 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
   const [loading, setLoading] = useState(false);
 
   const navItems = [
-    { href: "/admin", icon: LayoutDashboard, label: t("overview"), exact: true },
+    { href: "/admin", icon: Users, label: t("users"), exact: true },
     { href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false },
     { href: "/admin/settings", icon: Settings, label: t("settings"), exact: false },
   ];

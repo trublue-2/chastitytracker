@@ -63,6 +63,7 @@
   },
   "adminNav": {
     "overview": "Übersicht",
+    "users": "Benutzer",
     "kontrollen": "Kontrollen",
     "settings": "Einstellungen",
     "new": "Neu",
@@ -140,6 +141,7 @@
     "overduePrefix": "Überfällig seit",
     "untilPrefix": "Bis",
     "sessions": "Sessions",
+    "allStats": "Alle Statistiken",
     "welcomeTitle": "Willkommen!",
     "welcomeDesc": "Erstelle deinen ersten Eintrag, um das Tracking zu starten.",
     "welcomeCta": "Einschliessen",

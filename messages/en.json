@@ -63,6 +63,7 @@
   },
   "adminNav": {
     "overview": "Overview",
+    "users": "Users",
     "kontrollen": "Inspections",
     "settings": "Settings",
     "new": "New",
@@ -140,6 +141,7 @@
     "overduePrefix": "Overdue since",
     "untilPrefix": "Until",
     "sessions": "Sessions",
+    "allStats": "All statistics",
     "welcomeTitle": "Welcome!",
     "welcomeDesc": "Create your first entry to start tracking.",
     "welcomeCta": "Lock up",
