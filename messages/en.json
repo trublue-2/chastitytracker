@@ -476,6 +476,7 @@
     "sectionReinigung": "Cleaning",
     "reinigungPausenLabel": "Allow cleaning breaks",
     "reinigungPausenDesc": "Brief opening without an entry",
+    "reinigungMaxLabel": "Max. duration",
     "sectionApp": "App",
     "mobileUploadAdminTitle": "File picker on mobile",
     "mobileUploadAdminDesc": "Show file picker instead of direct camera on mobile",
