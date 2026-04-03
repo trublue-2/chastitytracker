@@ -66,11 +66,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <div className="px-5 py-3 border-b border-border-subtle">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionReinigung")}</p>
         </div>
-        <div className="flex items-center justify-between px-5 py-4 gap-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">{t("reinigungPausenLabel")}</p>
-            <p className="text-xs text-foreground-faint mt-0.5">{t("reinigungPausenDesc")}</p>
-          </div>
+        <div className="px-5 py-4">
           <ReinigungToggle
             userId={user.id}
             initialErlaubt={user.reinigungErlaubt}
