@@ -10,6 +10,7 @@ import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe } from "@/lib/queries";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
+import SessionList from "./SessionList";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -101,6 +102,7 @@ export default async function DashboardPage() {
       type: (e.type === "kontrolle" ? "PRUEFUNG" : e.type.toUpperCase()) as DashboardProps["sessionEvents"][number]["type"],
       time: e.time.toISOString(),
       note: e.note ?? undefined,
+      imageUrl: e.imageUrl ?? undefined,
     })),
     sessionActive: !!activePair,
 
@@ -122,5 +124,14 @@ export default async function DashboardPage() {
     })),
   };
 
-  return <DashboardClient {...clientProps} />;
+  return (
+    <>
+      <DashboardClient {...clientProps} />
+      {pairs.length > 0 && (
+        <div className="w-full max-w-2xl mx-auto px-4 pb-6">
+          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
+        </div>
+      )}
+    </>
+  );
 }
