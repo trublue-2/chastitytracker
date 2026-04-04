@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Camera, X, FolderOpen, Loader2 } from "lucide-react";
+import { Camera, X, FolderOpen, Loader2, Flashlight, FlashlightOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 function useIsMobile() {
@@ -43,6 +43,13 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
   const [capturing, setCapturing] = useState(false);
   const [camError, setCamError] = useState<string | null>(null);
 
+  // Camera capabilities (Android Chrome only)
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [zoomAvailable, setZoomAvailable] = useState(false);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number }>({ min: 1, max: 1, step: 0.1 });
+  const [zoomLevel, setZoomLevel] = useState(1);
+
   const accent = variant === "orange"
     ? { border: "border-[var(--color-inspect-border)] hover:border-[var(--color-inspect)] hover:bg-[var(--color-inspect-bg)]", icon: "text-[var(--color-inspect)]", text: "text-[var(--color-inspect)]" }
     : { border: "border-border hover:border-border-strong hover:bg-surface-raised", icon: "text-foreground-faint", text: "text-foreground-faint" };
@@ -71,6 +78,28 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
       setDevices(videoDevices);
       if (!deviceId && videoDevices.length > 0) {
         setSelectedDeviceId(videoDevices[0].deviceId);
+      }
+
+      // Check camera capabilities (torch, zoom) — Android Chrome only
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        try {
+          const caps = videoTrack.getCapabilities() as MediaTrackCapabilities & {
+            torch?: boolean;
+            zoom?: { min: number; max: number; step: number };
+          };
+          setTorchAvailable(!!caps.torch);
+          if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+            setZoomAvailable(true);
+            setZoomRange({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
+            setZoomLevel(caps.zoom.min);
+          } else {
+            setZoomAvailable(false);
+          }
+        } catch {
+          setTorchAvailable(false);
+          setZoomAvailable(false);
+        }
       }
     } catch {
       setCamError(t("webcamNotAvailable"));
@@ -114,12 +143,35 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
     );
   }
 
+  async function toggleTorch() {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const newState = !torchOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: newState } as MediaTrackConstraintSet] });
+      setTorchOn(newState);
+    } catch { /* ignore — not supported */ }
+  }
+
+  async function handleZoomChange(value: number) {
+    setZoomLevel(value);
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: value } as MediaTrackConstraintSet] });
+    } catch { /* ignore */ }
+  }
+
   function closeModal() {
     setModalOpen(false);
     stopStream();
     setDevices([]);
     setSelectedDeviceId("");
     setCamError(null);
+    setTorchOn(false);
+    setTorchAvailable(false);
+    setZoomAvailable(false);
+    setZoomLevel(1);
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -228,9 +280,21 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
               ) : (
                 <span className="text-sm font-medium text-foreground-muted">{t("selectCamera")}</span>
               )}
-              <button type="button" onClick={closeModal} className="text-foreground-faint hover:text-foreground-muted transition p-1">
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-1">
+                {torchAvailable && (
+                  <button
+                    type="button"
+                    onClick={toggleTorch}
+                    className={`p-1.5 rounded-lg transition ${torchOn ? "bg-warn text-white" : "text-foreground-faint hover:text-foreground-muted"}`}
+                    aria-label={torchOn ? t("torchOff") : t("torchOn")}
+                  >
+                    {torchOn ? <FlashlightOff size={18} /> : <Flashlight size={18} />}
+                  </button>
+                )}
+                <button type="button" onClick={closeModal} className="text-foreground-faint hover:text-foreground-muted transition p-1">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             {/* Video */}
@@ -246,6 +310,23 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
             </div>
 
             <canvas ref={canvasRef} className="hidden" />
+
+            {/* Zoom slider (Android only — capabilities-based) */}
+            {zoomAvailable && (
+              <div className="px-4 pt-3 flex items-center gap-3">
+                <span className="text-xs text-foreground-faint w-6 text-right">1x</span>
+                <input
+                  type="range"
+                  min={zoomRange.min}
+                  max={zoomRange.max}
+                  step={zoomRange.step}
+                  value={zoomLevel}
+                  onChange={(e) => handleZoomChange(Number(e.target.value))}
+                  className="flex-1 h-1 accent-foreground-muted"
+                />
+                <span className="text-xs text-foreground-faint w-8">{zoomLevel.toFixed(1)}x</span>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="p-4">
