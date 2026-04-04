@@ -42,7 +42,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
 
   if (!row.imageUrl) {
     return (
-      <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
+      <div className="flex-shrink-0 size-10 rounded-xl bg-surface-raised flex items-center justify-center">
         <ImageOff size={16} className="text-foreground-faint" />
       </div>
     );
