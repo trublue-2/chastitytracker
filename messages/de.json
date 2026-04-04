@@ -55,6 +55,8 @@
     "captureBtn": "Foto aufnehmen",
     "webcamNotAvailable": "Kamera nicht verfügbar",
     "webcam": "Webcam",
+    "torchOn": "Blitz einschalten",
+    "torchOff": "Blitz ausschalten",
     "signOutConfirm": "Wirklich abmelden?",
     "notifications": "Benachrichtigungen",
     "remove": "Entfernen",
@@ -284,6 +286,8 @@
     "pushDesc": "Erhalte Benachrichtigungen bei neuen Aktionen",
     "pushDenied": "Benachrichtigungen blockiert – bitte in den Browser-Einstellungen aktivieren.",
     "pushNotSupported": "Benachrichtigungen werden in diesem Browser nicht unterstützt.",
+    "pushIosNotInstalled": "Installiere die App zuerst auf dem Home-Bildschirm, um Push-Benachrichtigungen zu aktivieren.",
+    "pushIosOld": "Push-Benachrichtigungen erfordern iOS 16.4 oder neuer. Bitte aktualisiere dein Gerät.",
     "entriesTitle": "Einträge",
     "entriesEmpty": "Noch keine Einträge vorhanden.",
     "statsEmpty": "Statistiken werden nach dem ersten Verschluss angezeigt.",
@@ -652,5 +656,31 @@
     "typePruefung": "Kontrolle",
     "typeOrgasmus": "Orgasmus",
     "monthGoal": "✓ Monatsziel"
+  },
+  "offline": {
+    "youAreOffline": "Keine Verbindung",
+    "syncing": "Einträge werden synchronisiert\u2026",
+    "synced": "Einträge synchronisiert",
+    "syncFailed": "Synchronisierung fehlgeschlagen",
+    "photoRequiresConnection": "Foto-Upload benötigt eine Internetverbindung.",
+    "pendingEntries": "{count, plural, =1 {1 Eintrag wartet auf Synchronisierung} other {# Einträge warten auf Synchronisierung}}",
+    "savedOffline": "Offline gespeichert — wird bei Verbindung synchronisiert"
+  },
+  "passkey": {
+    "title": "Passkeys",
+    "add": "Hinzufügen",
+    "loginButton": "Mit Passkey anmelden",
+    "noPasskeys": "Noch keine Passkeys registriert.",
+    "unnamedDevice": "Unbenanntes Gerät",
+    "addedOn": "Erstellt am {date}",
+    "lastUsed": "Zuletzt {date}",
+    "deviceNamePrompt": "Name für diesen Passkey (z.B. iPhone, MacBook):",
+    "registered": "Passkey registriert",
+    "registerFailed": "Passkey-Registrierung fehlgeschlagen",
+    "deleted": "Passkey entfernt",
+    "deleteFailed": "Passkey konnte nicht entfernt werden",
+    "deleteConfirm": "Diesen Passkey wirklich entfernen?",
+    "delete": "Entfernen",
+    "authFailed": "Passkey-Anmeldung fehlgeschlagen"
   }
 }

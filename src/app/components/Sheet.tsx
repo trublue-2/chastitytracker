@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { hapticMedium } from "@/lib/haptics";
 
 interface SheetProps {
   open: boolean;
@@ -11,6 +12,11 @@ interface SheetProps {
 
 export default function Sheet({ open, onClose, title, children }: SheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Haptic feedback on open
+  useEffect(() => {
+    if (open) hapticMedium();
+  }, [open]);
 
   // Focus trap & ESC handling
   useEffect(() => {

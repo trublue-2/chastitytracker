@@ -10,6 +10,7 @@ import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import useToast from "@/app/hooks/useToast";
+import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
 
 const SUB_ARTEN: Record<string, string[]> = {
@@ -35,6 +36,7 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
   const tDash = useTranslations("dashboard");
   const router = useRouter();
   const toast = useToast();
+  const { offlineFetch } = useOfflineQueue();
 
   const ARTEN_LABELS: Record<string, string> = {
     "Orgasmus":          t("artOrgasmus"),
@@ -71,21 +73,29 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
     setError("");
 
     try {
-      const res = await fetch(
-        initial ? `/api/entries/${initial.id}` : "/api/entries",
-        {
-          method: initial ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "ORGASMUS",
-            startTime: new Date(startTime).toISOString(),
-            orgasmusArt: subArt ? `${art} – ${subArt}` : art,
-            note: note || null,
-          }),
-        }
-      );
+      const url = initial ? `/api/entries/${initial.id}` : "/api/entries";
+      const init: RequestInit = {
+        method: initial ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "ORGASMUS",
+          startTime: new Date(startTime).toISOString(),
+          orgasmusArt: subArt ? `${art} – ${subArt}` : art,
+          note: note || null,
+        }),
+      };
+
+      // Use offline-aware fetch for new entries (edits require online)
+      const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
 
       setSaving(false);
+
+      // null = queued offline → navigate back
+      if (res === null) {
+        router.push(redirectTo ?? "/dashboard");
+        return;
+      }
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setError(err.error || tCommon("savingError"));
