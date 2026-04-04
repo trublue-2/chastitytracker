@@ -49,3 +49,37 @@ export function getAndDeleteChallenge(userId: string): string | null {
   if (entry.expiresAt < Date.now()) return null;
   return entry.challenge;
 }
+
+// ---------------------------------------------------------------------------
+// Passkey-to-Credentials bridge token store
+// One-time tokens consumed by the Credentials provider to create a session.
+// ---------------------------------------------------------------------------
+
+const passkeyTokens = new Map<string, { userId: string; expiresAt: number }>();
+const PASSKEY_TOKEN_TTL = 60_000; // 1 minute
+
+export function createPasskeyToken(userId: string): string {
+  const token = require("crypto").randomBytes(32).toString("hex");
+  passkeyTokens.set(token, {
+    userId,
+    expiresAt: Date.now() + PASSKEY_TOKEN_TTL,
+  });
+
+  // Cleanup expired tokens
+  if (passkeyTokens.size > 50) {
+    const now = Date.now();
+    for (const [k, v] of passkeyTokens) {
+      if (v.expiresAt < now) passkeyTokens.delete(k);
+    }
+  }
+
+  return token;
+}
+
+export function consumePasskeyToken(token: string): string | null {
+  const entry = passkeyTokens.get(token);
+  if (!entry) return null;
+  passkeyTokens.delete(token);
+  if (entry.expiresAt < Date.now()) return null;
+  return entry.userId;
+}
