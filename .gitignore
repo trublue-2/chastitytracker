@@ -43,3 +43,9 @@ prisma/dev.db
 prisma/dev.db-journal
 prisma/data/
 /data/
+dev.db
+dev.db-journal
+/ai/
+/.claude/worktrees/
+/scripts/seed-demo.ts
+/scripts/take-screenshots.ts
