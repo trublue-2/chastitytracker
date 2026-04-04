@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "3.2.1",
+  "version": "4.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -33,6 +33,7 @@
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "playwright": "^1.58.2",
+    "puppeteer": "^24.40.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -1,5 +1,31 @@
 [
   {
+    "version": "4.0.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Offline-First: Einträge werden lokal gecacht (IndexedDB) für sofortiges Laden"
+      },
+      {
+        "type": "feat",
+        "text": "Offline-Queue: Verschluss, Öffnen und Orgasmus-Einträge können offline erstellt und bei Verbindung synchronisiert werden"
+      },
+      {
+        "type": "feat",
+        "text": "Service Worker: Versionierte Caches für statische Assets, Bilder und API-Responses (stale-while-revalidate)"
+      },
+      {
+        "type": "ui",
+        "text": "Offline-Indikator im Dashboard zeigt Verbindungsstatus und wartende Einträge"
+      },
+      {
+        "type": "ui",
+        "text": "Prüfungsformular zeigt Hinweis wenn offline (Foto-Upload benötigt Verbindung)"
+      }
+    ]
+  },
+  {
     "version": "3.2.1",
     "date": "2026-04-03",
     "changes": [

@@ -17,6 +17,7 @@ import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
 import useToast from "@/app/hooks/useToast";
+import { WifiOff } from "lucide-react";
 
 interface Props {
   initial?: {
@@ -41,6 +42,23 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
   const dl = toDateLocale(useLocale());
   const router = useRouter();
   const toast = useToast();
+  const tOffline = useTranslations("offline");
+
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+
+  // Track online status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
@@ -144,6 +162,16 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Offline warning — photo upload requires connection */}
+      {!isOnline && (
+        <Card variant="semantic" semantic="warn">
+          <div className="flex items-start gap-2.5">
+            <WifiOff size={16} className="flex-shrink-0 text-warn mt-0.5" />
+            <p className="text-sm text-warn-text">{tOffline("photoRequiresConnection")}</p>
+          </div>
+        </Card>
+      )}
+
       {/* Instruction from admin */}
       {initialKommentar && (
         <Card variant="semantic" semantic="warn">
