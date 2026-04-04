@@ -210,7 +210,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               )}
             </div>
           </div>
-          {ev.exifStr && <p className="text-xs text-[var(--color-warn)] mt-0.5">EXIF: {ev.exifStr}</p>}
+          {ev.exifStr && <p className="text-xs text-[var(--color-warn)] mt-0.5">{tc("exifDate")}: {ev.exifStr}</p>}
           {ev.orgasmusArt && <p className="text-xs text-[var(--color-orgasm)] mt-0.5">{ev.orgasmusArt}</p>}
           {ev.kontrolleKommentar && <p className="text-xs text-[var(--color-warn)] mt-0.5 truncate">{ev.kontrolleKommentar}</p>}
           {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}

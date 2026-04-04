@@ -15,6 +15,7 @@ interface Props {
 
 export default function KontrolleActions({ kontrolleId, entryId, anforderungStatus, verifikationStatus }: Props) {
   const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
@@ -77,12 +78,12 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
       }
       if (res && !res.ok) {
         const body = await res.json().catch(() => null);
-        setError(body?.error ?? `Fehler ${res.status}`);
+        setError(body?.error ?? tc("savingError"));
         return;
       }
       router.refresh();
     } catch {
-      setError("Netzwerkfehler");
+      setError(tc("networkError"));
     }
   }
 
@@ -95,7 +96,7 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
         ref={btnRef}
         type="button"
         onClick={openMenu}
-        aria-label={t("ariaActions")}
+        aria-label={t("kontrolleAriaActions")}
         className="size-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground-muted hover:bg-surface-raised active:bg-surface-raised transition"
       >
         <MoreVertical size={16} />

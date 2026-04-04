@@ -530,6 +530,7 @@
     "kontrolleVerifyBtn": "Verify",
     "kontrolleRejectBtn": "Reject",
     "kontrolleWithdrawBtn": "Withdraw",
+    "kontrolleAriaActions": "Actions",
     "alarmeTitle": "Alarms",
     "alarmeShowAll": "Show all {count} entries",
     "alarmeShowAlarmsOnly": "Show alarms only",
