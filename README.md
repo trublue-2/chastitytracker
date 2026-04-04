@@ -1,173 +1,277 @@
-# KG-Tracker
+# Chastity Tracker
 
-Web-Applikation zur Erfassung von Keuschheitsgürtel-Einschlusszeiten. Benutzer können Verschlüsse, Öffnungen, Prüfungen und Orgasmen mit Zeitstempel, Foto und Notiz erfassen. Admins verwalten Benutzer, setzen Trainingsvorgaben und sehen Statistiken.
+> Multi-user web application for tracking chastity device wear times, inspections, and training goals.
 
-## Stack
+![Version](https://img.shields.io/badge/version-3.2.1-blue)
+![License](https://img.shields.io/badge/license-Proprietary-red)
+![Node](https://img.shields.io/badge/node-24+-brightgreen)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
-- **Next.js 16** (App Router)
-- **NextAuth.js v5** (Credentials-Authentifizierung)
-- **Prisma 5** + SQLite
-- **Tailwind CSS**
-- **Lucide React** (Icons)
-- **Docker** (Produktion)
-- **Traefik** (Reverse-Proxy, SSL via Let's Encrypt)
+<!-- screenshot -->
 
 ## Features
 
-- Einträge erfassen: Verschluss, Öffnen, Prüfung, Orgasmus – mit Foto (EXIF-Zeitauswertung), Notiz und Zeitstempel
-- **Laufende Session**: Karte mit Echtzeit-Dauer, Ereignis-Timeline und Trainingsvorgaben-Fortschritt
-- **Kontrollanforderungen**: Admin sendet 5-stelligen Code per E-Mail → User macht Foto mit sichtbarem Code → Claude Vision wertet aus
-- **Sperrzeiten**: Admin kann Zeitraum setzen, in dem das Öffnen gesperrt ist
-- **Verschlussanforderungen**: Admin kann Verschluss einfordern
-- Statistik-Seite mit Kalenderansicht und Monatsübersicht
-- Trainingsvorgaben (min. Tragedauer pro Tag/Woche/Monat) mit Fortschrittsbalken
-- Admin-Bereich: Benutzerverwaltung, Vorgaben, User-Statistiken, Demo-User, Kontrollen-Übersicht
-- Passwort-Reset via E-Mail (SMTP)
-- Mobile-optimiertes UI
-- Multi-Instanz-Betrieb: mehrere unabhängige Instanzen auf einem Server
+### User Features
 
-## Lokale Entwicklung
+- Lock/unlock event logging with timestamps, photos, and notes
+- Photo upload with EXIF metadata extraction and seal detection
+- AI-powered inspection verification (Claude Vision reads handwritten codes from photos)
+- Real-time wear duration timer
+- Personal statistics with calendar heatmap, monthly overview, and training goal progress
+- Orgasm tracking with categorization
+- Password self-service (change, reset via email)
+- Push notifications (PWA) for lock/unlock events, inspections, and more
+- Full i18n support (German and English)
+- Installable as a Progressive Web App
 
-### Voraussetzungen
+### Admin Features
 
-- Node.js 20+
-- npm
+- User management (create, edit, delete, demo user generation)
+- Training goals per user (daily / weekly / monthly minimum wear hours)
+- Inspection requests with 5-digit verification codes and 4-hour deadlines
+- Lock-up requests and lock periods
+- Penalty tracking for missed inspections or unauthorized openings
+- Per-user notification preferences (email + push, per event type)
+- Admin-user relationship model (multi-admin support via feature flag)
+- User statistics overview and inspection history
 
-### Setup
+## Tech Stack
 
-```bash
-# Abhängigkeiten installieren
-npm install
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router, standalone output) |
+| Language | TypeScript 5 |
+| UI | React 19 + Tailwind CSS v4 |
+| Auth | NextAuth.js v5 (Credentials provider, JWT strategy, bcrypt) |
+| Database | Prisma 5 + SQLite |
+| AI | Anthropic Claude SDK (inspection photo verification) |
+| Images | Sharp (processing) + Exifr (EXIF extraction) |
+| Email | Nodemailer (SMTP) |
+| Push | web-push (VAPID) |
+| i18n | next-intl v4 |
+| Icons | Lucide React |
+| Testing | Playwright (E2E) |
+| Runtime | Node.js 24 Alpine (Docker) |
 
-# Umgebungsvariablen konfigurieren (Werte anpassen)
-cp .env.local.example .env.local
+## Architecture
 
-# Datenbank initialisieren
-DATABASE_URL="file:./dev.db" npx prisma migrate dev
+The tracker runs as one container per user instance, orchestrated by a separate portal application behind Traefik:
 
-# Dev-Server starten
-npm run dev
+```
+Internet
+   |
+Traefik (TLS reverse proxy)
+   |-- portal.chastitytracker.ch  -> tracker-portal container
+   |-- chastitytracker.ch         -> marketing site (static)
+   |-- alice.trublue.ch           -> kg-alice (chastitytracker instance)
+   +-- bob.chastitytracker.ch     -> kg-bob  (chastitytracker instance)
 ```
 
-App läuft unter [http://localhost:3000](http://localhost:3000).
+Each tracker instance is an independent container with its own SQLite database. The portal handles user registration, email verification, subdomain selection, and automated container deployment via the Docker API.
 
-### Umgebungsvariablen (`.env.local`)
+**Base domains:** `trublue.ch`, `chastitytracker.ch`, `chastity-tracker.com`
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 24+
+- npm 10+
+- An SMTP server for email delivery (password reset, notifications)
+- An Anthropic API key (for AI-powered inspection verification)
+
+### Install
+
+```bash
+git clone <repository-url>
+cd chastitytracker
+npm install
+```
+
+### Environment
+
+Create `.env.local`:
 
 ```env
-NEXTAUTH_SECRET=<langer-zufaelliger-string>   # openssl rand -base64 32
+NEXTAUTH_SECRET=<random-string>
 NEXTAUTH_URL=http://localhost:3000
 DATABASE_URL="file:./dev.db"
 
-# SMTP (für Passwort-Reset)
-SMTP_HOST=
-SMTP_PORT=465
-SMTP_USER=
-SMTP_PASS=
-SMTP_FROM=
+# SMTP
+SMTP_HOST=<host>
+SMTP_PORT=587
+SMTP_USER=<user>
+SMTP_PASS=<password>
+SMTP_FROM=<from-address>
 
-# Erster Admin-User (wird beim Start einmalig angelegt falls kein Admin existiert)
-INITIAL_ADMIN_USERNAME=
-INITIAL_ADMIN_PASSWORD=
-INITIAL_ADMIN_EMAIL=
+# Initial admin (created on first start if no admin exists)
+INITIAL_ADMIN_USERNAME=admin
+INITIAL_ADMIN_PASSWORD=<password>
+INITIAL_ADMIN_EMAIL=<email>
 
-# Claude Vision (für Kontrollfoto-Auswertung)
-ANTHROPIC_API_KEY=
+# AI verification
+ANTHROPIC_API_KEY=<key>
 ```
 
-### Nützliche Befehle
+### Database
 
 ```bash
-npm run dev          # Dev-Server
-npm run build        # Produktions-Build
-npm run start        # Produktions-Server
-npm run changelog    # Version bumpen + Changelog-Eintrag erfassen
+# Apply migrations
+npx prisma migrate deploy
 
-# Prisma
-DATABASE_URL="file:./dev.db" npx prisma migrate dev --name <name>   # Migration erstellen
-DATABASE_URL="file:./dev.db" npx prisma studio                      # DB-Browser
-npx prisma generate                                                   # Client regenerieren
+# (Optional) Open database browser
+DATABASE_URL="file:./dev.db" npx prisma studio
 ```
 
-## Deployment (Multi-Instanz)
-
-Das Projekt läuft produktiv mit **Traefik** als Reverse-Proxy. Mehrere unabhängige Instanzen (je eigene Domain, DB und Daten) können auf einem Server betrieben werden.
-
-### Infrastruktur-Übersicht
-
-```
-Internet :80/:443
-       │
-    Traefik
-       ├── *.trublue.ch          → Docker-Container (kg-app)
-       ├── *.chastitytracker.ch  → Docker-Container (kg-app)
-       └── *.chastity-tracker.com→ Docker-Container (kg-app)
-```
-
-### Traefik aufsetzen (einmalig)
+### Run
 
 ```bash
-cp -r infra/traefik ~/traefik
-touch ~/traefik/acme.json && chmod 600 ~/traefik/acme.json
-cd ~/traefik && docker compose up -d
+npm run dev
 ```
 
-### Neue Instanz anlegen
+The app starts at `http://localhost:3000`. Default port is 3000 — override with `PORT=<port>`.
+
+## Docker
+
+### Build
 
 ```bash
-./infra/deploy-instance.sh create <name> <domain>
-# Beispiel:
-./infra/deploy-instance.sh create kunde1 kunde1.trublue.ch
+docker build \
+  --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  -t kg-tracker .
 ```
 
-Das Skript:
-1. Liest SMTP + ANTHROPIC_API_KEY aus `~/.env.production`
-2. Fragt Username/Passwort/E-Mail für den ersten Admin ab
-3. Startet einen neuen Docker-Container mit Traefik-Labels
-4. Beim App-Start wird der Admin-User automatisch angelegt (`instrumentation.ts`)
-
-### Instanz entfernen
+### Run
 
 ```bash
-./infra/deploy-instance.sh remove <name>           # Daten behalten
-./infra/deploy-instance.sh remove <name> --purge   # Alles löschen
+docker run -d \
+  --name kg-tracker \
+  -p 3000:3000 \
+  -v $(pwd)/data:/app/data \
+  --env-file .env \
+  kg-tracker
 ```
 
-### GitHub Actions
+The container runs as non-root (`www-data`), uses a multi-stage build (Node.js 24 Alpine), and outputs standalone Next.js. The `/app/data` volume persists the SQLite database and uploaded photos.
 
-Der Workflow **Build, Push & Deploy** wird manuell via `workflow_dispatch` angestossen und:
-1. Baut das Docker-Image und pusht es in die GitHub Container Registry
-2. Deployt auf den Server via SSH (`docker compose pull && docker compose up -d`)
+At startup, the entrypoint script runs Prisma migrations automatically.
 
-## Datenbankmodelle
+## Project Structure
 
-| Modell | Felder |
-|--------|--------|
-| `User` | username, email, passwordHash, role (`user`/`admin`) |
-| `Entry` | type (`VERSCHLUSS`/`OEFFNEN`/`PRUEFUNG`/`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, verifikationStatus, oeffnenGrund |
-| `TrainingVorgabe` | userId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz |
-| `PasswordResetToken` | token, userId, expiresAt (1h) |
-| `KontrollAnforderung` | code (5-stellig), deadline (4h), userId, kommentar, fulfilledAt, withdrawnAt, manuallyVerifiedAt, rejectedAt |
-| `VerschlussAnforderung` | art (`ANFORDERUNG`/`SPERRZEIT`), userId, kommentar, endetAt, fulfilledAt, withdrawnAt |
+```
+src/
+  app/
+    api/              # REST API routes
+      admin/          # User management, training goals, inspections
+      auth/           # Password reset
+      entries/        # Lock/unlock/inspection/orgasm CRUD
+      upload/         # Photo upload
+      uploads/        # Auth-protected photo serving
+      verify-kontrolle/ # AI inspection verification
+      push/           # Push notification subscription
+    dashboard/        # User-facing pages (entries, stats, settings)
+    admin/            # Admin pages (users, goals, inspections)
+    components/       # Shared React components
+    hooks/            # Custom hooks (photo upload, etc.)
+  lib/
+    auth.ts           # NextAuth configuration
+    prisma.ts         # Prisma client singleton
+    constants.ts      # Validation constants, enums, lookup maps
+    utils.ts          # Duration formatting, wear pair calculation
+    mail.ts           # Nodemailer wrapper
+    authGuards.ts     # API route auth helpers
+  proxy.ts            # Route protection (replaces middleware.ts)
+prisma/
+  schema.prisma       # Database schema
+  migrations/         # Migration history
+messages/
+  de.json             # German translations
+  en.json             # English translations
+data/
+  uploads/            # User-uploaded photos (volume mount)
+  logs/               # Access logs
+```
 
-## API-Übersicht
+## API Reference
 
-| Methode | Route | Beschreibung |
-|---------|-------|--------------|
-| GET/POST | `/api/entries` | Einträge abrufen / erstellen |
-| PATCH/DELETE | `/api/entries/[id]` | Eintrag bearbeiten / löschen |
-| POST | `/api/upload` | Foto hochladen (max. 10 MB) |
-| GET | `/api/uploads/[...path]` | Fotos ausliefern (auth-geschützt) |
-| GET/POST | `/api/admin/users` | Benutzerliste / neuen User anlegen |
-| PATCH/DELETE | `/api/admin/users/[id]` | User bearbeiten / löschen |
-| GET/POST | `/api/admin/vorgaben` | Trainingsvorgaben verwalten |
-| PATCH | `/api/settings/password` | Eigenes Passwort ändern |
-| POST | `/api/auth/forgot-password` | Reset-Token per E-Mail senden |
-| POST | `/api/auth/reset-password` | Passwort mit Token zurücksetzen |
-| POST | `/api/admin/demo` | Demo-User anlegen (nur Admin) |
-| POST | `/api/admin/kontrolle` | Kontrolle anfordern (5-stelliger Code per E-Mail) |
-| GET | `/api/admin/kontrollen` | Alle Kontrollanforderungen (Admin) |
-| PATCH | `/api/admin/kontrollen/[id]` | Kontrolle zurückziehen / manuell verifizieren |
-| GET/POST | `/api/admin/verschluss-anforderung` | Verschlussanforderung / Sperrzeit anlegen |
-| PATCH | `/api/admin/verschluss-anforderung/[id]` | Verschlussanforderung zurückziehen |
-| POST | `/api/verify-kontrolle` | Kontrollfoto per Claude Vision auswerten |
-| GET | `/api/version` | Version + Build-Datum |
+### Entries
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/entries` | List entries for current user |
+| `POST` | `/api/entries` | Create entry (lock, unlock, inspection, orgasm) |
+| `PATCH` | `/api/entries/[id]` | Update entry |
+| `DELETE` | `/api/entries/[id]` | Delete entry |
+
+### Photos
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/upload` | Upload photo (extension whitelist + magic byte check, 10 MB limit) |
+| `GET` | `/api/uploads/[...path]` | Serve photo (auth-protected) |
+| `POST` | `/api/detect-seal` | Detect seal presence in photo |
+
+### Inspections
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/verify-kontrolle` | AI verification of handwritten code in photo |
+| `GET` | `/api/admin/kontrollen` | List all inspections (admin) |
+| `PATCH` | `/api/admin/kontrollen/[id]` | Withdraw or manually verify inspection (admin) |
+
+### Admin
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/admin/users` | List users |
+| `POST` | `/api/admin/users` | Create user |
+| `PATCH` | `/api/admin/users/[id]` | Update user |
+| `DELETE` | `/api/admin/users/[id]` | Delete user |
+| `GET/POST` | `/api/admin/vorgaben` | List / create training goals |
+| `PATCH/DELETE` | `/api/admin/vorgaben/[id]` | Update / delete training goal |
+| `POST` | `/api/admin/kontrolle` | Request inspection (sends code via email) |
+| `POST` | `/api/admin/demo` | Create demo user with sample data |
+
+### Auth & Settings
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/forgot-password` | Send password reset email |
+| `POST` | `/api/auth/reset-password` | Reset password with token |
+| `PATCH` | `/api/settings/password` | Change own password |
+| `PATCH` | `/api/settings/email` | Change own email |
+
+### Misc
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/version` | Returns `{ version, buildDate }` |
+| `POST` | `/api/push/subscribe` | Register push notification subscription |
+
+## Database Schema
+
+| Model | Purpose |
+|-------|---------|
+| `User` | Accounts with username, email, role (`user` / `admin`), settings |
+| `Entry` | Events: lock, unlock, inspection, orgasm (with photo, EXIF, notes) |
+| `TrainingVorgabe` | Admin-set wear-time goals per user per period |
+| `KontrollAnforderung` | Inspection requests with verification code and deadline |
+| `VerschlussAnforderung` | Lock-up requests and lock periods |
+| `StrafeRecord` | Penalty records for violations |
+| `NotificationPreference` | Per-user, per-event email/push notification settings |
+| `PushSubscription` | Web Push subscription endpoints per device |
+| `AdminUserRelationship` | Many-to-many admin-user supervision mapping |
+
+## Contributing
+
+This is a proprietary project. If you have access to the repository:
+
+1. Create a feature branch from `main`
+2. Follow the existing code conventions (see `CLAUDE.md` for detailed patterns)
+3. All visible strings must use i18n (`next-intl`) — no hardcoded text in JSX
+4. Run `npm run build` before submitting to catch type errors
+5. Version bump and changelog entry go in the same commit as the change
+
+## License
+
+Proprietary. All rights reserved.
