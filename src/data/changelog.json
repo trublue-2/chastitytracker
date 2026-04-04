@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.5.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kamera: Blitz-Toggle für bessere Siegel-Fotos (Android)"
+      },
+      {
+        "type": "feat",
+        "text": "Kamera: Zoom-Slider in der Webcam-Ansicht (Android)"
+      }
+    ]
+  },
+  {
     "version": "4.4.0",
     "date": "2026-04-04",
     "changes": [

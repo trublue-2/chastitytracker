@@ -55,6 +55,8 @@
     "captureBtn": "Take photo",
     "webcamNotAvailable": "Camera not available",
     "webcam": "Webcam",
+    "torchOn": "Turn on flashlight",
+    "torchOff": "Turn off flashlight",
     "signOutConfirm": "Really sign out?",
     "notifications": "Notifications",
     "remove": "Remove",
