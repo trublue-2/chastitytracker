@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreVertical, CheckCircle2, X, MinusCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 
 interface Props {
   kontrolleId: string | null;
   entryId: string | null;
-  anforderungStatus: string;
-  verifikationStatus: string | null;
+  anforderungStatus: AnforderungStatus;
+  verifikationStatus: VerifikationStatus | null;
 }
 
 export default function KontrolleActions({ kontrolleId, entryId, anforderungStatus, verifikationStatus }: Props) {
@@ -48,37 +49,54 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
     };
   }, [open]);
 
+  const [error, setError] = useState<string | null>(null);
+
   async function doAction(action: string) {
     setOpen(false);
-    if (action === "withdraw" && kontrolleId) {
-      await fetch(`/api/admin/kontrollen/${kontrolleId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "withdraw" }),
-      });
-    } else if (action === "manuallyVerify" && entryId) {
-      await fetch(`/api/entries/${entryId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verifikationStatus: "manual" }),
-      });
-    } else if (action === "reject" && entryId) {
-      await fetch(`/api/entries/${entryId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verifikationStatus: "rejected" }),
-      });
+    setError(null);
+    try {
+      let res: Response | undefined;
+      if (action === "withdraw" && kontrolleId) {
+        res = await fetch(`/api/admin/kontrollen/${kontrolleId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "withdraw" }),
+        });
+      } else if (action === "manuallyVerify" && entryId) {
+        res = await fetch(`/api/entries/${entryId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ verifikationStatus: "manual" }),
+        });
+      } else if (action === "reject" && entryId) {
+        res = await fetch(`/api/entries/${entryId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ verifikationStatus: "rejected" }),
+        });
+      }
+      if (res && !res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? `Fehler ${res.status}`);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Netzwerkfehler");
     }
-    router.refresh();
   }
 
   return (
     <div className="relative flex-shrink-0">
+      {error && (
+        <p className="absolute right-0 top-full mt-1 text-xs text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-lg px-2 py-1 whitespace-nowrap z-50">{error}</p>
+      )}
       <button
         ref={btnRef}
         type="button"
         onClick={openMenu}
-        className="w-6 h-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground-muted hover:bg-surface-raised active:bg-surface-raised transition"
+        aria-label={t("ariaActions")}
+        className="size-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground-muted hover:bg-surface-raised active:bg-surface-raised transition"
       >
         <MoreVertical size={16} />
       </button>

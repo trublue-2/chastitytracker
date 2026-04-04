@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
+import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ClipboardCheck } from "lucide-react";
 import KontrolleButton from "@/app/admin/KontrolleButton";
@@ -104,7 +104,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
     const kPill = row.entryId
       ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, ta)
       : anfPill ? { label: ta(anfPill.labelKey), cls: anfPill.cls } : null;
-    const timeCorrected = row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000;
+    const timeCorrected = row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt);
     return {
       imageUrl: row.imageUrl,
       kommentar: row.kommentar,
@@ -126,13 +126,15 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
     };
   }
 
+  const tc = await getTranslations("common");
   const labels = {
     fulfilledLabel: ta("fulfilledLabel"),
     fristLabel: ta("frist"),
     createdLabel: ta("createdLabel"),
     withdrawnLabel: ta("withdrawnLabel"),
     instructionLabel: ta("instructionLabel"),
-    imageAlt: "Kontroll-Foto",
+    noteLabel: tc("note"),
+    imageAlt: ta("kontrollenTitle"),
   };
 
   return (
