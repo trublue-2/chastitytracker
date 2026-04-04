@@ -284,6 +284,8 @@
     "pushDesc": "Receive notifications for new events",
     "pushDenied": "Notifications blocked – please enable them in browser settings.",
     "pushNotSupported": "Notifications are not supported in this browser.",
+    "pushIosNotInstalled": "Install the app to your home screen first to enable push notifications.",
+    "pushIosOld": "Push notifications require iOS 16.4 or later. Please update your device.",
     "entriesTitle": "Entries",
     "entriesEmpty": "No entries yet.",
     "statsEmpty": "Statistics will appear after your first lock-up entry.",
