@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { LockOpen } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import Card from "@/app/components/Card";
-import Input from "@/app/components/Input";
+import AdminActionFormShell from "@/app/components/AdminActionFormShell";
+import DateTimePicker from "@/app/components/DateTimePicker";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
@@ -56,23 +55,17 @@ export default function OeffnenForm({ userId }: { userId: string }) {
   ];
 
   return (
-    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
-      <Link href={`/admin/users/${userId}/aktionen`} className="text-sm text-foreground-faint hover:text-foreground transition">
-        ← {t("aktionen")}
-      </Link>
-
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-unlock-bg)" }}>
-            <LockOpen size={20} strokeWidth={2} style={{ color: "var(--color-unlock)" }} />
-          </div>
-          <h1 className="text-base font-semibold text-foreground">{tOffen("title")}</h1>
-        </div>
-
+    <AdminActionFormShell
+      userId={userId}
+      backLabel={t("aktionen")}
+      icon={<LockOpen size={20} strokeWidth={2} />}
+      iconBg="var(--color-unlock-bg)"
+      iconColor="var(--color-unlock)"
+      title={tOffen("title")}
+    >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
-          <Input
+          <DateTimePicker
             label={tc("dateTime")}
-            type="datetime-local"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
             required
@@ -96,7 +89,6 @@ export default function OeffnenForm({ userId }: { userId: string }) {
             {tOffen("saveBtn")}
           </Button>
         </form>
-      </Card>
-    </main>
+    </AdminActionFormShell>
   );
 }
