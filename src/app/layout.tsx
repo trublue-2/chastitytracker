@@ -94,6 +94,11 @@ export default async function RootLayout({
               }
               if (navigator.clearAppBadge) {
                 navigator.clearAppBadge().catch(function() {});
+                document.addEventListener('visibilitychange', function() {
+                  if (document.visibilityState === 'visible') {
+                    navigator.clearAppBadge().catch(function() {});
+                  }
+                });
               }
             `}</Script>
           </ToastProvider>
