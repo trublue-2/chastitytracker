@@ -232,3 +232,104 @@ async function networkFirstNavigation(request) {
     return offline || new Response('Offline', { status: 503 });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Background Sync (Android Chrome only — progressive enhancement)
+// Drains the offline-queue IndexedDB store when connectivity returns.
+// ---------------------------------------------------------------------------
+self.addEventListener('sync', (e) => {
+  if (e.tag === 'offline-queue') {
+    e.waitUntil(drainOfflineQueue());
+  }
+});
+
+async function drainOfflineQueue() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction('offline-queue', 'readonly');
+    const store = tx.objectStore('offline-queue');
+    const items = await idbGetAll(store);
+
+    for (const item of items) {
+      try {
+        const res = await fetch(item.url, {
+          method: item.method,
+          headers: { 'Content-Type': 'application/json' },
+          body: item.body,
+        });
+
+        if (res.ok || res.status === 400 || res.status === 409) {
+          // Success or client error — remove from queue
+          const delTx = db.transaction('offline-queue', 'readwrite');
+          delTx.objectStore('offline-queue').delete(item.id);
+        } else if (res.status >= 500) {
+          break; // Server error — stop, retry later
+        }
+      } catch (_) {
+        break; // Network error — stop, retry later
+      }
+    }
+  } catch (err) {
+    console.warn('[SW] drainOfflineQueue failed:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Periodic Background Sync (Android Chrome only — requires site engagement)
+// Refreshes cached entries every 12 hours in the background.
+// ---------------------------------------------------------------------------
+self.addEventListener('periodicsync', (e) => {
+  if (e.tag === 'refresh-entries') {
+    e.waitUntil(refreshEntriesCache());
+  }
+});
+
+async function refreshEntriesCache() {
+  try {
+    const response = await fetch('/api/entries', { cache: 'no-store' });
+    if (response.ok) {
+      const cache = await caches.open(CACHE_API);
+      await cache.put(new Request('/api/entries'), response.clone());
+
+      // Also update IndexedDB
+      const entries = await response.json();
+      const db = await openIDB();
+      const tx = db.transaction('entries', 'readwrite');
+      const store = tx.objectStore('entries');
+      store.clear();
+      entries.forEach((entry) => store.put(entry));
+    }
+  } catch (err) {
+    console.warn('[SW] periodic entries refresh failed:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// IndexedDB helpers (minimal — only used by SW for background sync)
+// ---------------------------------------------------------------------------
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('kg-tracker', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('entries')) {
+        const s = db.createObjectStore('entries', { keyPath: 'id' });
+        s.createIndex('type', 'type', { unique: false });
+        s.createIndex('startTime', 'startTime', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('offline-queue')) {
+        db.createObjectStore('offline-queue', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}

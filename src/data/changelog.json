@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.4.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Background Sync: Offline-Einträge werden auf Android automatisch im Hintergrund synchronisiert"
+      },
+      {
+        "type": "feat",
+        "text": "Periodic Background Sync: Eintrags-Cache wird alle 12h im Hintergrund aktualisiert (Android)"
+      }
+    ]
+  },
+  {
     "version": "4.3.0",
     "date": "2026-04-04",
     "changes": [
