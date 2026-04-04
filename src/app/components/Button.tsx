@@ -2,6 +2,7 @@
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import Spinner from "./Spinner";
+import { hapticLight } from "@/lib/haptics";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "semantic";
 type ButtonSize = "sm" | "default" | "lg";
@@ -71,17 +72,24 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
     children,
     className = "",
     type = "button",
+    onClick,
     ...rest
   },
   ref,
 ) {
   const isDisabled = disabled || loading;
 
+  function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
+    hapticLight();
+    onClick?.(e);
+  }
+
   return (
     <button
       ref={ref}
       type={type}
       disabled={isDisabled}
+      onClick={handleClick}
       className={[
         "inline-flex items-center justify-center font-medium rounded-lg",
         "transition-all select-none active:scale-[0.97]",
