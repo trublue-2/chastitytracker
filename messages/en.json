@@ -663,5 +663,22 @@
     "photoRequiresConnection": "Photo upload requires an internet connection.",
     "pendingEntries": "{count, plural, =1 {1 entry waiting to sync} other {# entries waiting to sync}}",
     "savedOffline": "Saved offline — will sync when connected"
+  },
+  "passkey": {
+    "title": "Passkeys",
+    "add": "Add",
+    "loginButton": "Sign in with Passkey",
+    "noPasskeys": "No passkeys registered yet.",
+    "unnamedDevice": "Unnamed device",
+    "addedOn": "Added {date}",
+    "lastUsed": "Last used {date}",
+    "deviceNamePrompt": "Name for this passkey (e.g. iPhone, MacBook):",
+    "registered": "Passkey registered",
+    "registerFailed": "Passkey registration failed",
+    "deleted": "Passkey removed",
+    "deleteFailed": "Could not remove passkey",
+    "deleteConfirm": "Remove this passkey?",
+    "delete": "Remove",
+    "authFailed": "Passkey authentication failed"
   }
 }

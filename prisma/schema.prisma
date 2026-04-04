@@ -28,6 +28,24 @@ model User {
   adminRelationships      AdminUserRelationship[] @relation("AdminRelationships")
   userRelationships       AdminUserRelationship[] @relation("UserRelationships")
   pushSubscriptions       PushSubscription[]
+  passkeys                Passkey[]
+}
+
+// WebAuthn passkeys for biometric login (Face ID, Touch ID, Fingerprint, Windows Hello).
+// One user can have multiple passkeys (e.g. phone + laptop).
+model Passkey {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String   @unique // base64url-encoded credential ID
+  publicKey    String   // base64url-encoded public key
+  counter      Int      @default(0)
+  transports   String?  // JSON array of transport strings (e.g. ["internal","hybrid"])
+  deviceName   String?  // user-chosen label (e.g. "iPhone 15")
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
 }
 
 model PasswordResetToken {
