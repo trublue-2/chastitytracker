@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.3.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Passkey-Login: Biometrische Anmeldung mit Face ID, Touch ID, Fingerprint oder Windows Hello"
+      },
+      {
+        "type": "feat",
+        "text": "Passkey-Verwaltung in Einstellungen: Passkeys hinzufügen, benennen und entfernen"
+      },
+      {
+        "type": "feat",
+        "text": "Login-Seite: 'Mit Passkey anmelden' Button (nur auf unterstützten Browsern sichtbar)"
+      }
+    ]
+  },
+  {
     "version": "4.2.0",
     "date": "2026-04-04",
     "changes": [
