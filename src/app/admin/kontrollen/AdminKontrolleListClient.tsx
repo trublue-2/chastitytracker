@@ -5,6 +5,7 @@ import { ImageOff, CheckCircle2 } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
+import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 
 export interface AdminKontrolleRowData {
   imageUrl: string | null;
@@ -21,8 +22,8 @@ export interface AdminKontrolleRowData {
   note: string | null;
   kontrolleId: string | null;
   entryId: string | null;
-  anforderungStatus: string;
-  verifikationStatus: string | null;
+  anforderungStatus: AnforderungStatus;
+  verifikationStatus: VerifikationStatus | null;
 }
 
 interface Labels {
@@ -31,6 +32,7 @@ interface Labels {
   createdLabel: string;
   withdrawnLabel: string;
   instructionLabel: string;
+  noteLabel: string;
   imageAlt: string;
 }
 
@@ -107,7 +109,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
               )}
               {row.note && (
                 <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Notiz</p>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.noteLabel}</p>
                   <p className="text-sm text-foreground-muted italic">„{row.note}"</p>
                 </div>
               )}
@@ -119,13 +121,13 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
   );
 }
 
-export default function AdminKontrolleListClient({ items, allItems, labels }: { items: AdminKontrolleRowData[]; allItems: AdminKontrolleRowData[]; labels: Labels }) {
+export default function AdminKontrolleListClient({ items, allItems, labels }: { items: AdminKontrolleRowData[]; allItems?: AdminKontrolleRowData[]; labels: Labels }) {
   const [page, setPage] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const t = useTranslations("admin");
   const tc = useTranslations("common");
 
-  const activeItems = showAll ? allItems : items;
+  const activeItems = showAll && allItems ? allItems : items;
   const totalPages = Math.ceil(activeItems.length / PAGE_SIZE);
   const safePage = Math.min(page, Math.max(0, totalPages - 1));
   const paginated = activeItems.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
@@ -189,7 +191,7 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
           </>
         ) : <span />}
       </div>
-      {allItems.length > items.length && (
+      {allItems && allItems.length > items.length && (
         <div className="px-5 pb-3">
           <button
             type="button"

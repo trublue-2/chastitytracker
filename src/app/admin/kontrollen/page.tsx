@@ -1,13 +1,13 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected } from "@/lib/utils";
+import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
-import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import AdminKontrolleListClient, { type AdminKontrolleRowData } from "./AdminKontrolleListClient";
 
 export default async function AdminKontrollenPage({
@@ -17,7 +17,7 @@ export default async function AdminKontrollenPage({
 }) {
   await auth();
   const { userId } = await searchParams;
-  const t = await getTranslations("admin");
+  const [t, tc] = await Promise.all([getTranslations("admin"), getTranslations("common")]);
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
@@ -102,21 +102,20 @@ export default async function AdminKontrollenPage({
   const allRows = [...pruefungRows, ...offeneRows]
     .sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
-  const rows = allRows
-    .filter((row) => {
-      if (row.anforderungStatus === "withdrawn") return false;
-      if (!row.entryId) return true;
-      if (row.verifikationStatus === "unverified") return true;
-      if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
-      return false;
-    });
+  function isAlarm(row: Row): boolean {
+    if (row.anforderungStatus === "withdrawn") return false;
+    if (!row.entryId) return true;
+    if (row.verifikationStatus === "unverified") return true;
+    if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
+    return false;
+  }
 
   function mapRow(row: Row): AdminKontrolleRowData {
     const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
     const kPill = row.entryId
       ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
       : anfPill ? { label: t(anfPill.labelKey), cls: anfPill.cls } : null;
-    const timeCorrected = row.submittedAt && row.fulfilledAt && row.fulfilledAt.getTime() < row.submittedAt.getTime() - 60_000;
+    const timeCorrected = row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt);
     return {
       imageUrl: row.imageUrl,
       kommentar: row.kommentar,
@@ -139,7 +138,7 @@ export default async function AdminKontrollenPage({
     };
   }
 
-  const items = rows.map(mapRow);
+  const items = allRows.filter(isAlarm).map(mapRow);
   const allItems = allRows.map(mapRow);
 
   const labels = {
@@ -148,6 +147,7 @@ export default async function AdminKontrollenPage({
     createdLabel: t("createdLabel"),
     withdrawnLabel: t("withdrawnLabel"),
     instructionLabel: t("instructionLabel"),
+    noteLabel: tc("note"),
     imageAlt: t("kontrollenTitle"),
   };
 
@@ -166,10 +166,10 @@ export default async function AdminKontrollenPage({
         <h1 className="text-xl font-bold text-foreground mt-1">
           {t("alarmeTitle")}{user ? ` – ${user.username}` : ""}
         </h1>
-        <p className="text-sm text-foreground-faint mt-0.5">{t("alarmeCount", { count: rows.length })}</p>
+        <p className="text-sm text-foreground-faint mt-0.5">{t("alarmeCount", { count: items.length })}</p>
       </div>
 
-      {rows.length === 0 ? (
+      {items.length === 0 ? (
         <Card padding="none">
           <EmptyState
             icon={<ClipboardCheck size={32} />}
