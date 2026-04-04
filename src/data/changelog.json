@@ -1,5 +1,27 @@
 [
   {
+    "version": "4.2.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "View Transitions: Sanfte Seitenübergänge bei Navigation (Chrome 111+, Safari 18+)"
+      },
+      {
+        "type": "feat",
+        "text": "Pull-to-Refresh Hook und Indikator für Dashboard (Touch-Geste)"
+      },
+      {
+        "type": "feat",
+        "text": "Swipe-to-Reveal Geste für Eintrags-Listen (Mobile)"
+      },
+      {
+        "type": "feat",
+        "text": "Haptic Feedback auf Android bei Buttons, Navigation und Sheet-Öffnung"
+      }
+    ]
+  },
+  {
     "version": "4.1.0",
     "date": "2026-04-04",
     "changes": [

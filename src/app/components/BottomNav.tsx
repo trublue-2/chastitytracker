@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ClipboardList, Plus, BarChart2, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
+import ViewTransitionLink from "@/app/components/ViewTransitionLink";
+import { hapticLight } from "@/lib/haptics";
 
 interface BottomNavProps {
   isAdmin?: boolean;
@@ -53,16 +55,17 @@ export default function BottomNav({ isAdmin, onNewEntry, version, buildDate }: B
           const Icon = tab.icon;
 
           return (
-            <Link
+            <ViewTransitionLink
               key={tab.href}
               href={tab.href}
+              onClick={hapticLight}
               className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
                 active ? "text-nav-active-text" : "text-nav-inactive-text hover:text-nav-inactive-hover"
               }`}
             >
               <Icon size={22} strokeWidth={active ? 2 : 1.5} />
               <span className="text-[10px] font-medium">{tab.label}</span>
-            </Link>
+            </ViewTransitionLink>
           );
         })}
       </div>
