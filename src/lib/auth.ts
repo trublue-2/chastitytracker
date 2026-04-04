@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/login-attempts";
+import { consumePasskeyToken } from "@/app/api/auth/passkey/authenticate/route";
 
 function ts() { return new Date().toISOString(); }
 
@@ -22,8 +23,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         username: { label: "Benutzername", type: "text" },
         password: { label: "Passwort", type: "password" },
+        passkeyToken: { label: "Passkey Token", type: "text" },
       },
       async authorize(credentials) {
+        const passkeyToken = credentials?.passkeyToken as string | undefined;
+
+        // ── Passkey token flow (from WebAuthn authenticate endpoint) ──
+        if (passkeyToken) {
+          const userId = consumePasskeyToken(passkeyToken);
+          if (!userId) {
+            console.warn(`${ts()} [auth] Passkey-Token ungültig oder abgelaufen`);
+            return null;
+          }
+          const user = await prisma.user.findUnique({ where: { id: userId } });
+          if (!user) return null;
+          console.log(`${ts()} [auth] Passkey-Login für "${user.username}"`);
+          return { id: user.id, name: user.username, role: user.role };
+        }
+
+        // ── Standard credentials flow ──
         const username = credentials?.username as string;
         const password = credentials?.password as string;
 
