@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/login-attempts";
-import { consumePasskeyToken } from "@/app/api/auth/passkey/authenticate/route";
+import { consumePasskeyToken } from "@/lib/webauthn";
 
 function ts() { return new Date().toISOString(); }
 
