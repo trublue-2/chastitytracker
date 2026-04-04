@@ -2,11 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
-import CreateDemoUserButton from "./CreateDemoUserButton";
 import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
-import WithdrawVerschlussButton from "./WithdrawVerschlussButton";
-import WithdrawKontrolleButton from "./WithdrawKontrolleButton";
+import WithdrawButton from "./WithdrawButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import Card from "@/app/components/Card";
@@ -34,8 +32,6 @@ export default async function AdminPage() {
     const assignedIds = new Set(rels.map(r => r.userId));
     users = users.filter(u => u.role === "admin" || assignedIds.has(u.id));
   }
-  const demoExists = users.some((u) => u.username === "DemoUser");
-
   const userIds = users.map(u => u.id);
   const now = new Date();
 
@@ -118,13 +114,7 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {!demoExists && (
-        <div className="mb-5">
-          <CreateDemoUserButton />
-        </div>
-      )}
-
-      {/* ── User cards grid ── */}
+{/* ── User cards grid ── */}
       {users.length === 0 ? (
         <Card padding="none">
           <EmptyState
@@ -169,7 +159,7 @@ export default async function AdminPage() {
                             <span className="w-2 h-2 rounded-full bg-warn flex-shrink-0" />
                           )}
                           {u.role === "admin" && (
-                            <Badge variant="inspect" label="Admin" size="sm" />
+                            <Badge variant="neutral" label="Admin" size="sm" />
                           )}
                         </div>
                         <p className={`text-xs mt-0.5 font-medium ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
@@ -196,7 +186,7 @@ export default async function AdminPage() {
                         kommentar={u.stats.offeneKontrolle.kommentar}
                         overdue={u.stats.offeneKontrolle.overdue}
                         variant="compact"
-                        withdrawAction={<WithdrawKontrolleButton id={u.stats.offeneKontrolle.id} />}
+                        withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" titleKey="withdrawKontrolleTitle" colorToken="inspect" />}
                       />
                     )}
                     {u.stats.offeneAnforderung && (
@@ -207,7 +197,7 @@ export default async function AdminPage() {
                         overdue={u.stats.offeneAnforderung.overdue}
                         endetAt={u.stats.offeneAnforderung.endetAt}
                         locale={dl}
-                        withdrawAction={<WithdrawVerschlussButton id={u.stats.offeneAnforderung.id} />}
+                        withdrawAction={<WithdrawButton id={u.stats.offeneAnforderung.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
                       />
                     )}
                     {u.stats.activeSperrzeit && (
@@ -218,7 +208,7 @@ export default async function AdminPage() {
                           ? `${t("lockedUntil")} ${new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}`
                           : t("lockedIndefinite")}
                         locale={dl}
-                        withdrawAction={<WithdrawVerschlussButton id={u.stats.activeSperrzeit.id} />}
+                        withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
                       />
                     )}
 
