@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChastityTracker — UI Prototype Screens</title>
+<style>
+  /* ============================================================
+     PAGE LAYOUT
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #d1d5db;
+    min-height: 100vh;
+    padding: 48px 32px 64px;
+    color: #111827;
+  }
+
+  h1.page-title {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 8px;
+  }
+  p.page-subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 48px;
+  }
+
+  .section-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .section-label::before,
+  .section-label::after {
+    content: '';
+    display: inline-block;
+    width: 60px;
+    height: 1px;
+    background: #9ca3af;
+    vertical-align: middle;
+    margin: 0 12px;
+  }
+
+  .screens-row {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 56px;
+  }
+
+  .screen-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .screen-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9ca3af;
+  }
+
+  /* ============================================================
+     PHONE FRAME
+     ============================================================ */
+  .phone {
+    width: 375px;
+    height: 812px;
+    border-radius: 50px;
+    border: 10px solid #1a1a2e;
+    box-shadow:
+      0 0 0 1px #0d0d1a,
+      0 30px 70px -10px rgba(0,0,0,0.45),
+      0 10px 30px -5px rgba(0,0,0,0.3),
+      inset 0 0 0 1px rgba(255,255,255,0.05);
+    overflow: hidden;
+    position: relative;
+    background: #1a1a2e;
+  }
+
+  .phone-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Notch */
+  .notch {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 34px;
+    background: #1a1a2e;
+    border-radius: 0 0 20px 20px;
+    z-index: 100;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 44px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 24px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    position: relative;
+    z-index: 99;
+    flex-shrink: 0;
+  }
+  .status-bar .time { font-size: 15px; font-weight: 700; }
+  .status-bar .icons { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+
+  /* Screen content area */
+  .screen-content {
+    height: calc(100% - 44px);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Scroll fade at bottom */
+  .scroll-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  /* Bottom nav */
+  .bottom-nav {
+    flex-shrink: 0;
+    height: 82px;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 10px;
+    position: relative;
+    z-index: 60;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    padding-top: 2px;
+  }
+  .nav-icon { font-size: 22px; line-height: 1; }
+  .nav-plus {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 300;
+    margin-top: -14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    flex-shrink: 0;
+  }
+
+  /* Scrollable body area */
+  .scroll-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 0 8px;
+    scrollbar-width: none;
+  }
+  .scroll-body::-webkit-scrollbar { display: none; }
+
+  /* ============================================================
+     USER THEME VARIABLES
+     ============================================================ */
+  .user-theme {
+    --bg: #f8f9fb;
+    --surface: #ffffff;
+    --fg: #111827;
+    --fg-muted: #6b7280;
+    --fg-faint: #9ca3af;
+    --border: #e5e7eb;
+    --color-lock: #059669;
+    --color-lock-bg: #ecfdf5;
+    --color-lock-border: #a7f3d0;
+    --color-inspect: #ea580c;
+    --color-inspect-bg: #fff7ed;
+    --color-orgasm: #e11d48;
+    --color-request: #4f46e5;
+    --color-request-bg: #eef2ff;
+    --nav-bg: #ffffff;
+    --nav-border: #f3f4f6;
+    --nav-active: #111827;
+    --nav-inactive: #9ca3af;
+  }
+
+  /* ============================================================
+     ADMIN THEME VARIABLES
+     ============================================================ */
+  .admin-theme {
+    --bg: #0d0f14;
+    --surface: #1c1f2a;
+    --surface-raised: #232737;
+    --fg: #f1f5f9;
+    --fg-muted: #94a3b8;
+    --fg-faint: #64748b;
+    --border: #2d3144;
+    --color-lock: #34d399;
+    --color-lock-bg: #0f1c17;
+    --color-lock-border: #064e3b;
+    --color-inspect: #f59e0b;
+    --color-inspect-bg: #1c1a0f;
+    --color-request: #818cf8;
+    --color-request-bg: #13152a;
+    --color-warn: #f87171;
+    --color-sperrzeit: #fb7185;
+    --nav-bg: #151821;
+    --nav-border: #222535;
+    --nav-active: #f1f5f9;
+    --nav-inactive: #64748b;
+  }
+
+  /* ============================================================
+     SHARED COMPONENT STYLES
+     ============================================================ */
+
+  /* App header */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px 12px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .wordmark {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--fg);
+  }
+  .wordmark span { color: var(--color-lock); }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .badge-admin {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* Cards */
+  .card {
+    margin: 12px 16px;
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* Status badge */
+  .status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  /* Compliance bars */
+  .compliance-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+  }
+  .compliance-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+  }
+  .progress-track {
+    height: 5px;
+    border-radius: 99px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 99px;
+  }
+
+  /* Entry row */
+  .entry-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .entry-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .entry-meta {
+    flex: 1;
+    color: var(--fg);
+  }
+  .entry-time {
+    font-size: 11px;
+    color: var(--fg-faint);
+  }
+
+  /* Inspection banner (user) */
+  .inspect-banner {
+    margin: 0 16px 4px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .inspect-banner-text {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: #9a3412;
+    line-height: 1.4;
+  }
+  .inspect-banner-link {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ea580c;
+    white-space: nowrap;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  /* FAB */
+  .fab {
+    position: absolute;
+    bottom: 96px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    z-index: 70;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    cursor: pointer;
+  }
+
+  /* Pulse ring animation */
+  @keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    70% { transform: scale(1.5); opacity: 0; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+  .pulse-ring {
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid #ea580c;
+    animation: pulse-ring 1.8s ease-out infinite;
+  }
+
+  /* Log entry grid */
+  .log-grid {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .log-btn {
+    border: none;
+    border-radius: 14px;
+    padding: 16px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: opacity 0.15s;
+    text-align: left;
+  }
+  .log-btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .log-btn-sm {
+    border: none;
+    border-radius: 14px;
+    padding: 14px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.15s;
+  }
+
+  /* Admin alert strip */
+  .alert-strip {
+    margin: 8px 16px 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #1c1a0f;
+    border: 1px solid #78350f;
+    font-size: 12px;
+    color: #fcd34d;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .alert-strip strong { color: #fbbf24; font-weight: 700; }
+
+  /* User cards (admin list) */
+  .user-card {
+    margin: 8px 16px 0;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .user-card-main {
+    padding: 12px 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .user-card-banner {
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Status dot */
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  .dot-pulse { animation: dot-pulse 1.6s ease-in-out infinite; }
+
+  /* Admin context bar */
+  .context-bar {
+    background: #1c1f2a;
+    border-bottom: 1px solid #2d3144;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+  .context-back { color: #64748b; cursor: pointer; }
+  .context-status { font-weight: 700; font-size: 12px; }
+  .context-switch {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: #232737;
+    border: 1px solid #2d3144;
+    color: #94a3b8;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+  }
+
+  /* Tab row */
+  .tab-row {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+  .tab-item {
+    flex: 1;
+    padding: 10px 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-faint);
+    cursor: pointer;
+    position: relative;
+  }
+  .tab-item.active {
+    color: var(--fg);
+  }
+  .tab-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--color-lock);
+  }
+
+  /* Quick action buttons (admin) */
+  .quick-actions {
+    margin: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .qa-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+  }
+
+  /* Pending inspection card (admin) */
+  .pending-card {
+    margin: 12px 16px 0;
+    border-radius: 14px;
+    padding: 14px;
+    border: 1px solid #78350f;
+    background: #1c1a0f;
+    font-size: 12px;
+    color: #fcd34d;
+  }
+  .pending-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #f59e0b;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pending-card-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #292411;
+    font-size: 12px;
+  }
+  .pending-card-row:last-child { border-bottom: none; }
+  .pending-val { font-weight: 700; color: #fbbf24; }
+
+  /* Section divider label */
+  .section-divider {
+    padding: 14px 20px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg-faint);
+    flex-shrink: 0;
+  }
+
+  /* Dashboard my link (admin nav) */
+  .my-dashboard-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #94a3b8;
+    border: 1px solid #2d3144;
+    background: #151821;
+    cursor: pointer;
+    margin: 0 8px;
+    white-space: nowrap;
+  }
+  .my-dashboard-link .dot-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #34d399;
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     COLOR LEGEND
+     ============================================================ */
+  .legend {
+    margin-top: 48px;
+    padding: 28px 32px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .legend-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .legend-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .legend-col-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .legend-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .swatch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #374151;
+  }
+  .swatch-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.08);
+    flex-shrink: 0;
+  }
+
+  /* Timer animation */
+  @keyframes timer-tick {
+    0%, 49% { opacity: 1; }
+    50%, 99% { opacity: 0.6; }
+  }
+  .timer-colon { animation: timer-tick 1s step-start infinite; }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">ChastityTracker — UI Prototype</h1>
+<p class="page-subtitle">Design-Vorschau · Alle Screens · 375 × 812 px</p>
+
+<!-- ============================================================
+     SECTION 1: USER SCREENS
+     ============================================================ -->
+
+<div class="section-label">Benutzer-Ansicht</div>
+
+<div class="screens-row">
+
+  <!-- ========================
+       SCREEN 1A: USER DASHBOARD
+       ======================== -->
+  <div class="screen-wrapper">
+    <div class="screen-label">1A — Dashboard</div>
+    <div class="phone">
+      <div class="phone-inner user-theme" style="background: var(--bg);">
+        <div class="notch"></div>
+
+        <!-- Status bar -->
+        <div class="status-bar" style="background: var(--surface); color: var(--fg);">
+          <span class="time">9:41</span>
+          <span class="icons">●●● WiFi 🔋</span>
+        </div>
+
+        <div class="screen-content">
+
+          <!-- App header -->
+          <div class="app-header">
+            <div class="wordmark">KG<span>-</span>Tracker</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="avatar" style="background:#ecfdf5;color:#059669;font-size:12px;">AN</div>
+              <span style="font-size:13px;font-weight:600;color:var(--fg-muted);">anna</span>
+            </div>
+          </div>
+
+          <div class="scroll-body">
+
+            <!-- Status card -->
+            <div class="card" style="background:var(--color-lock-bg);border-color:var(--color-lock-border);margin-top:16px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span class="status-badge" style="background:#d1fae5;color:#065f46;">🔒 VERSCHLOSSEN</span>
+                <span style="font-size:11px;color:#059669;font-weight:600;">seit heute 19:18</span>
+              </div>
+              <div style="font-size:34px;font-weight:800;color:#059669;letter-spacing:-0.02em;line-height:1;">
+                14h 23m<span class="timer-colon">:</span>11s
+              </div>
+              <div style="font-size:12px;color:#34d399;margin-top:4px;font-weight:500;">Aktiv · Alles in Ordnung</div>
+            </div>
+
+            <!-- Compliance bars -->
+            <div class="card" style="margin-top:0;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:12px;">Compliance</div>
+
+              <div class="compliance-row">
+                <div class="compliance-label-row">
+                  <span style="color:var(--fg);font-weight:600;font-size:12px;">Heute</span>
+                  <span style="color:#059669;font-weight:700;font-size:12px;">58%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:58%;background:#059669;"></div>
+                </div>
+              </div>
+
+              <div class="compliance-row">
+                <div class="compliance-label-row">
+                  <span style="color:var(--fg);font-weight:600;font-size:12px;">Diese Woche</span>
+                  <span style="color:#059669;font-weight:700;font-size:12px;">91%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:91%;background:#059669;"></div>
+                </div>
+              </div>
+
+              <div class="compliance-row" style="margin-bottom:0;">
+                <div class="compliance-label-row">
+                  <span style="color:var(--fg);font-weight:600;font-size:12px;">Diesen Monat</span>
+                  <span style="color:#ea580c;font-weight:700;font-size:12px;">63%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:63%;background:#ea580c;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent entries -->
+            <div style="padding:0 16px;margin-bottom:4px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--fg-faint);padding:4px 0 8px;">Letzte Einträge</div>
+            </div>
+            <div style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+
+              <div class="entry-row">
+                <div class="entry-dot" style="background:#059669;"></div>
+                <div class="entry-meta">
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);">Verschlossen</div>
+                  <div style="font-size:11px;color:var(--fg-muted);">27. Mär — 19:18 Uhr</div>
+                </div>
+                <span style="font-size:11px;color:var(--fg-faint);">Heute</span>
+              </div>
+
+              <div class="entry-row">
+                <div class="entry-dot" style="background:#ea580c;"></div>
+                <div class="entry-meta">
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);">Prüfung</div>
+                  <div style="font-size:11px;color:var(--fg-muted);">26. Mär — 21:04 Uhr</div>
+                </div>
+                <span style="font-size:11px;color:var(--fg-faint);">Gestern</span>
+              </div>
+
+              <div class="entry-row" style="border-bottom:none;">
+                <div class="entry-dot" style="background:#6b7280;"></div>
+                <div class="entry-meta">
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);">Geöffnet</div>
+                  <div style="font-size:11px;color:var(--fg-muted);">26. Mär — 09:32 Uhr</div>
+                </div>
+                <span style="font-size:11px;color:var(--fg-faint);">Gestern</span>
+              </div>
+
+            </div>
+
+            <div style="height:20px;"></div>
+          </div>
+
+          <!-- scroll fade -->
+          <div class="scroll-fade" style="background:linear-gradient(to bottom,transparent,var(--bg));"></div>
+
+          <!-- Bottom nav -->
+          <div class="bottom-nav" style="background:var(--nav-bg);border-top:1px solid var(--nav-border);">
+            <div class="nav-item" style="color:#059669;">
+              <span class="nav-icon">🏠</span>
+              <span style="font-weight:700;">Home</span>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">📊</span>
+              <span>Stats</span>
+            </div>
+            <div class="nav-item" style="flex:none;padding:0 20px;">
+              <div class="nav-plus" style="background:#111827;color:white;">+</div>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">📅</span>
+              <span>Log</span>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">⚙️</span>
+              <span>Einst.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================
+       SCREEN 1B: INSPECTION PENDING
+       ======================== -->
+  <div class="screen-wrapper">
+    <div class="screen-label">1B — Prüfung ausstehend</div>
+    <div class="phone">
+      <div class="phone-inner user-theme" style="background: var(--bg);">
+        <div class="notch"></div>
+
+        <div class="status-bar" style="background: var(--surface); color: var(--fg);">
+          <span class="time">9:41</span>
+          <span class="icons">●●● WiFi 🔋</span>
+        </div>
+
+        <div class="screen-content">
+
+          <div class="app-header">
+            <div class="wordmark">KG<span>-</span>Tracker</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="avatar" style="background:#ecfdf5;color:#059669;font-size:12px;">AN</div>
+              <span style="font-size:13px;font-weight:600;color:var(--fg-muted);">anna</span>
+            </div>
+          </div>
+
+          <!-- Inspection banner -->
+          <div style="padding:10px 16px 0;flex-shrink:0;">
+            <div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:14px;padding:12px 14px;">
+              <div style="display:flex;align-items:flex-start;gap:10px;">
+                <span style="font-size:18px;flex-shrink:0;">⚠️</span>
+                <div style="flex:1;">
+                  <div style="font-size:12px;font-weight:800;color:#9a3412;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:3px;">Prüfung Erforderlich</div>
+                  <div style="font-size:13px;font-weight:700;color:#c2410c;margin-bottom:2px;">Code: <span style="font-family:monospace;letter-spacing:0.08em;font-size:14px;">47291</span></div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+                    <span style="font-size:12px;color:#ea580c;font-weight:600;">Frist: <strong>3h 42m</strong></span>
+                    <span style="font-size:12px;font-weight:700;color:#ea580c;text-decoration:underline;cursor:pointer;">Jetzt einreichen →</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="scroll-body">
+
+            <!-- Status card -->
+            <div class="card" style="background:var(--color-lock-bg);border-color:var(--color-lock-border);margin-top:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span class="status-badge" style="background:#d1fae5;color:#065f46;">🔒 VERSCHLOSSEN</span>
+                <span style="font-size:11px;color:#059669;font-weight:600;">seit heute 19:18</span>
+              </div>
+              <div style="font-size:34px;font-weight:800;color:#059669;letter-spacing:-0.02em;line-height:1;">
+                14h 23m<span class="timer-colon">:</span>11s
+              </div>
+              <div style="font-size:12px;color:#34d399;margin-top:4px;font-weight:500;">Aktiv · Prüfung ausstehend ⚠</div>
+            </div>
+
+            <!-- Compliance bars -->
+            <div class="card" style="margin-top:0;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:12px;">Compliance</div>
+              <div class="compliance-row">
+                <div class="compliance-label-row">
+                  <span style="color:var(--fg);font-weight:600;font-size:12px;">Heute</span>
+                  <span style="color:#059669;font-weight:700;font-size:12px;">58%</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill" style="width:58%;background:#059669;"></div></div>
+              </div>
+              <div class="compliance-row">
+                <div class="compliance-label-row">
+                  <span style="color:var(--fg);font-weight:600;font-size:12px;">Diese Woche</span>
+                  <span style="color:#059669;font-weight:700;font-size:12px;">91%</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill" style="width:91%;background:#059669;"></div></div>
+              </div>
+              <div class="compliance-row" style="margin-bottom:0;">
+                <div class="compliance-label-row">
+                  <span style="color:var(--fg);font-weight:600;font-size:12px;">Diesen Monat</span>
+                  <span style="color:#ea580c;font-weight:700;font-size:12px;">63%</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill" style="width:63%;background:#ea580c;"></div></div>
+              </div>
+            </div>
+
+            <!-- Recent entries -->
+            <div style="padding:0 16px;margin-bottom:4px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--fg-faint);padding:4px 0 8px;">Letzte Einträge</div>
+            </div>
+            <div style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+              <div class="entry-row">
+                <div class="entry-dot" style="background:#059669;"></div>
+                <div class="entry-meta">
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);">Verschlossen</div>
+                  <div style="font-size:11px;color:var(--fg-muted);">27. Mär — 19:18 Uhr</div>
+                </div>
+                <span style="font-size:11px;color:var(--fg-faint);">Heute</span>
+              </div>
+              <div class="entry-row" style="border-bottom:none;">
+                <div class="entry-dot" style="background:#ea580c;"></div>
+                <div class="entry-meta">
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);">Prüfung</div>
+                  <div style="font-size:11px;color:var(--fg-muted);">26. Mär — 21:04 Uhr</div>
+                </div>
+                <span style="font-size:11px;color:var(--fg-faint);">Gestern</span>
+              </div>
+            </div>
+            <div style="height:80px;"></div>
+          </div>
+
+          <!-- scroll fade -->
+          <div class="scroll-fade" style="background:linear-gradient(to bottom,transparent,var(--bg));"></div>
+
+          <!-- FAB -->
+          <div class="fab" style="background:#ea580c;color:white;">
+            <div class="pulse-ring"></div>
+            📋
+          </div>
+
+          <!-- Bottom nav -->
+          <div class="bottom-nav" style="background:var(--nav-bg);border-top:1px solid var(--nav-border);">
+            <div class="nav-item" style="color:#059669;">
+              <span class="nav-icon">🏠</span>
+              <span style="font-weight:700;">Home</span>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">📊</span>
+              <span>Stats</span>
+            </div>
+            <div class="nav-item" style="flex:none;padding:0 20px;">
+              <div class="nav-plus" style="background:#111827;color:white;">+</div>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">📅</span>
+              <span>Log</span>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">⚙️</span>
+              <span>Einst.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================
+       SCREEN 1C: LOG ENTRY HUB
+       ======================== -->
+  <div class="screen-wrapper">
+    <div class="screen-label">1C — Neuer Eintrag</div>
+    <div class="phone">
+      <div class="phone-inner user-theme" style="background: var(--bg);">
+        <div class="notch"></div>
+
+        <div class="status-bar" style="background: var(--surface); color: var(--fg);">
+          <span class="time">9:41</span>
+          <span class="icons">●●● WiFi 🔋</span>
+        </div>
+
+        <div class="screen-content">
+
+          <div class="app-header" style="border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:18px;color:var(--fg-faint);cursor:pointer;">←</span>
+              <div style="font-size:17px;font-weight:800;color:var(--fg);letter-spacing:-0.02em;">Neuer Eintrag</div>
+            </div>
+            <div class="avatar" style="background:#ecfdf5;color:#059669;font-size:12px;">AN</div>
+          </div>
+
+          <!-- Current state indicator -->
+          <div style="padding:16px 16px 8px;flex-shrink:0;">
+            <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🔒</span>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:#065f46;letter-spacing:0.06em;text-transform:uppercase;">Aktueller Status</div>
+                <div style="font-size:13px;font-weight:700;color:#059669;">Verschlossen · 14h 23m</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="scroll-body">
+            <div class="log-grid">
+
+              <!-- Primary: Open -->
+              <button class="log-btn" style="background:#111827;color:white;font-size:16px;padding:20px 22px;">
+                <span style="font-size:22px;">🔓</span>
+                <div>
+                  <div style="font-size:16px;font-weight:800;">Öffnen</div>
+                  <div style="font-size:11px;font-weight:400;opacity:0.6;margin-top:1px;">Keuschheitsgürtel entfernen</div>
+                </div>
+              </button>
+
+              <!-- Divider -->
+              <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg-faint);">Weitere Einträge</div>
+
+              <!-- Secondary grid -->
+              <div class="log-btn-row">
+                <button class="log-btn-sm" style="background:#fff7ed;color:#9a3412;border:1.5px solid #fed7aa;flex-direction:column;align-items:flex-start;gap:4px;">
+                  <span style="font-size:20px;">📋</span>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:#c2410c;">Prüfung</div>
+                    <div style="font-size:10px;color:#ea580c;font-weight:500;">Kontrolle einreichen</div>
+                  </div>
+                </button>
+
+                <button class="log-btn-sm" style="background:#fff1f2;color:#9f1239;border:1.5px solid #fecdd3;flex-direction:column;align-items:flex-start;gap:4px;">
+                  <span style="font-size:20px;">🌹</span>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:#e11d48;">Orgasmus</div>
+                    <div style="font-size:10px;color:#fb7185;font-weight:500;">Ereignis erfassen</div>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Request -->
+              <button class="log-btn-sm" style="background:#eef2ff;color:#312e81;border:1.5px solid #c7d2fe;width:100%;justify-content:flex-start;">
+                <span style="font-size:20px;">📬</span>
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:#4338ca;">Verschluss anfragen</div>
+                  <div style="font-size:10px;color:#6366f1;font-weight:500;">Anfrage an Admin senden</div>
+                </div>
+              </button>
+
+              <!-- Note -->
+              <button class="log-btn-sm" style="background:var(--surface);color:var(--fg-muted);border:1.5px solid var(--border);width:100%;justify-content:flex-start;">
+                <span style="font-size:20px;">📝</span>
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:var(--fg);">Notiz</div>
+                  <div style="font-size:10px;color:var(--fg-faint);font-weight:500;">Freitext-Eintrag</div>
+                </div>
+              </button>
+
+            </div>
+          </div>
+
+          <!-- Bottom nav -->
+          <div class="bottom-nav" style="background:var(--nav-bg);border-top:1px solid var(--nav-border);">
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">🏠</span>
+              <span>Home</span>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">📊</span>
+              <span>Stats</span>
+            </div>
+            <div class="nav-item" style="flex:none;padding:0 20px;">
+              <div class="nav-plus" style="background:#059669;color:white;box-shadow:0 4px 14px rgba(5,150,105,0.4);">+</div>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">📅</span>
+              <span>Log</span>
+            </div>
+            <div class="nav-item" style="color:var(--nav-inactive);">
+              <span class="nav-icon">⚙️</span>
+              <span>Einst.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end user screens row -->
+
+
+<!-- ============================================================
+     SECTION 2: ADMIN SCREENS
+     ============================================================ -->
+
+<div class="section-label">Admin-Ansicht</div>
+
+<div class="screens-row">
+
+  <!-- ========================
+       SCREEN 2A: ADMIN HOME
+       ======================== -->
+  <div class="screen-wrapper">
+    <div class="screen-label">2A — Admin Home · Benutzer</div>
+    <div class="phone">
+      <div class="phone-inner admin-theme" style="background: var(--bg);">
+        <div class="notch"></div>
+
+        <div class="status-bar" style="background:#151821;color:#94a3b8;">
+          <span class="time" style="color:#f1f5f9;">9:41</span>
+          <span class="icons">●●● WiFi 🔋</span>
+        </div>
+
+        <div class="screen-content">
+
+          <!-- Header -->
+          <div class="app-header" style="background:#151821;border-bottom-color:#222535;">
+            <div style="display:flex;align-items:center;gap:0;">
+              <div class="wordmark" style="color:#f1f5f9;">KG<span style="color:#818cf8;">-</span>Tracker</div>
+              <span class="badge-admin" style="background:#1e1b4b;color:#818cf8;border:1px solid #312e81;">Admin</span>
+            </div>
+            <div class="avatar" style="background:#1e1b4b;color:#818cf8;font-size:12px;">AD</div>
+          </div>
+
+          <!-- Alert strip -->
+          <div class="alert-strip" style="flex-shrink:0;">
+            <strong>⚠ 2 Meldungen:</strong> anna — Prüfung überfällig · carla — Verschluss angefordert
+          </div>
+
+          <div class="scroll-body">
+
+            <div style="padding:12px 16px 6px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;">Benutzer (3)</div>
+
+            <!-- Card: anna -->
+            <div class="user-card">
+              <div class="user-card-main">
+                <div class="status-dot dot-pulse" style="background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,0.2);"></div>
+                <div style="flex:1;">
+                  <div style="font-size:15px;font-weight:800;color:#f1f5f9;">anna</div>
+                  <div style="font-size:12px;color:#94a3b8;font-weight:500;">VERSCHLOSSEN · 14h 23m</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:11px;font-weight:600;color:#64748b;">Compliance</div>
+                  <div style="font-size:16px;font-weight:800;color:#34d399;">91%</div>
+                </div>
+              </div>
+              <div class="user-card-banner" style="background:#1c1a0f;border-top:1px solid #78350f;color:#fcd34d;">
+                <span>⚠</span> Kontrolle offen · Frist <strong>1h 12m</strong>
+              </div>
+            </div>
+
+            <!-- Card: bettina -->
+            <div class="user-card">
+              <div class="user-card-main">
+                <div class="status-dot" style="background:transparent;border:2px solid #475569;"></div>
+                <div style="flex:1;">
+                  <div style="font-size:15px;font-weight:800;color:#f1f5f9;">bettina</div>
+                  <div style="font-size:12px;color:#64748b;font-weight:500;">OFFEN</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:11px;font-weight:600;color:#64748b;">Compliance</div>
+                  <div style="font-size:16px;font-weight:800;color:#64748b;">—</div>
+                </div>
+              </div>
+              <div class="user-card-banner" style="background:#1c1f2a;border-top:1px solid #2d3144;color:#64748b;">
+                <span>○</span> Keine Anforderung
+              </div>
+            </div>
+
+            <!-- Card: carla -->
+            <div class="user-card">
+              <div class="user-card-main">
+                <div class="status-dot dot-pulse" style="background:#818cf8;box-shadow:0 0 0 3px rgba(129,140,248,0.2);"></div>
+                <div style="flex:1;">
+                  <div style="font-size:15px;font-weight:800;color:#f1f5f9;">carla</div>
+                  <div style="font-size:12px;color:#94a3b8;font-weight:500;">VERSCHLOSSEN · 8h 04m</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:11px;font-weight:600;color:#64748b;">Compliance</div>
+                  <div style="font-size:16px;font-weight:800;color:#34d399;">78%</div>
+                </div>
+              </div>
+              <div class="user-card-banner" style="background:#13152a;border-top:1px solid #312e81;color:#818cf8;">
+                <span>🔒</span> Verschluss angefordert
+              </div>
+            </div>
+
+            <div style="height:24px;"></div>
+          </div>
+
+          <!-- scroll fade -->
+          <div class="scroll-fade" style="background:linear-gradient(to bottom,transparent,var(--bg));"></div>
+
+          <!-- Bottom nav -->
+          <div class="bottom-nav" style="background:#151821;border-top:1px solid #222535;">
+            <div class="nav-item" style="color:#f1f5f9;">
+              <span class="nav-icon">👥</span>
+              <span style="font-weight:700;font-size:10px;">Users</span>
+            </div>
+            <div class="nav-item" style="color:#64748b;">
+              <span class="nav-icon">📋</span>
+              <span style="font-size:10px;">Kontrollen</span>
+            </div>
+            <div class="nav-item" style="color:#64748b;flex:none;padding:0 8px;">
+              <div class="my-dashboard-link">
+                <span class="dot-indicator"></span>
+                Mein Dashboard
+              </div>
+            </div>
+            <div class="nav-item" style="color:#64748b;">
+              <span class="nav-icon">📊</span>
+              <span style="font-size:10px;">Stats</span>
+            </div>
+            <div class="nav-item" style="color:#64748b;">
+              <span class="nav-icon">⚙️</span>
+              <span style="font-size:10px;">Einst.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================
+       SCREEN 2B: USER CONTEXT VIEW
+       ======================== -->
+  <div class="screen-wrapper">
+    <div class="screen-label">2B — anna · Benutzer-Kontext</div>
+    <div class="phone">
+      <div class="phone-inner admin-theme" style="background: var(--bg);">
+        <div class="notch"></div>
+
+        <div class="status-bar" style="background:#151821;color:#94a3b8;">
+          <span class="time" style="color:#f1f5f9;">9:41</span>
+          <span class="icons">●●● WiFi 🔋</span>
+        </div>
+
+        <div class="screen-content">
+
+          <!-- Header -->
+          <div class="app-header" style="background:#151821;border-bottom-color:#222535;">
+            <div style="display:flex;align-items:center;gap:0;">
+              <div class="wordmark" style="color:#f1f5f9;">KG<span style="color:#818cf8;">-</span>Tracker</div>
+              <span class="badge-admin" style="background:#1e1b4b;color:#818cf8;border:1px solid #312e81;">Admin</span>
+            </div>
+            <div class="avatar" style="background:#1e1b4b;color:#818cf8;font-size:12px;">AD</div>
+          </div>
+
+          <!-- Context bar -->
+          <div class="context-bar">
+            <span class="context-back">◀ Alle Users</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="status-dot dot-pulse" style="background:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,0.3);width:8px;height:8px;flex-shrink:0;"></div>
+              <span class="context-status" style="color:#f59e0b;">anna · VERSCHLOSSEN 14h 23m</span>
+            </div>
+            <button class="context-switch">Wechseln ↕</button>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tab-row" style="background:#151821;border-bottom-color:#222535;">
+            <div class="tab-item active" style="--fg:#f1f5f9;--fg-faint:#64748b;color:#f1f5f9;--border:#222535;">
+              Übersicht
+              <span style="position:absolute;bottom:-1px;left:20%;right:20%;height:2px;border-radius:2px;background:#34d399;display:block;"></span>
+            </div>
+            <div class="tab-item" style="color:#64748b;">Stats</div>
+            <div class="tab-item" style="color:#64748b;">Vorgaben</div>
+            <div class="tab-item" style="color:#64748b;">Kontrollen</div>
+          </div>
+
+          <div class="scroll-body">
+
+            <!-- Status card -->
+            <div class="card" style="background:#0f1c17;border-color:#064e3b;margin-top:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span class="status-badge" style="background:#064e3b;color:#34d399;">🔒 VERSCHLOSSEN</span>
+                <span style="font-size:11px;color:#34d399;font-weight:600;">seit 19:18</span>
+              </div>
+              <div style="font-size:32px;font-weight:800;color:#34d399;letter-spacing:-0.02em;line-height:1;">
+                14h 23m<span class="timer-colon">:</span>11s
+              </div>
+              <div style="font-size:12px;color:#6ee7b7;margin-top:4px;font-weight:500;">Aktiv · Prüfung ausstehend</div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div style="padding:4px 16px 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;">Schnellaktionen</div>
+            <div class="quick-actions">
+              <button class="qa-btn" style="background:#1c1a0f;color:#fcd34d;border:1.5px solid #78350f;font-size:14px;padding:15px 16px;">
+                <span style="font-size:18px;">📋</span>
+                <div>
+                  <div style="font-size:14px;font-weight:800;color:#fbbf24;">Prüfung anfordern</div>
+                  <div style="font-size:11px;color:#92400e;font-weight:500;margin-top:1px;">Neue Kontrolle erstellen</div>
+                </div>
+              </button>
+
+              <button class="qa-btn" style="background:#13152a;color:#818cf8;border:1.5px solid #312e81;">
+                <span style="font-size:18px;">🔒</span>
+                <div>
+                  <div style="font-size:13px;font-weight:800;color:#818cf8;">Verschluss anfordern</div>
+                  <div style="font-size:11px;color:#4338ca;font-weight:500;margin-top:1px;">Für nächste Öffnung</div>
+                </div>
+              </button>
+
+              <button class="qa-btn" style="background:#1c0f12;color:#fb7185;border:1.5px solid #881337;font-size:12px;">
+                <span style="font-size:18px;">⏰</span>
+                <div>
+                  <div style="font-size:12px;font-weight:700;color:#fb7185;">Sperrzeit setzen</div>
+                  <div style="font-size:10px;color:#be123c;font-weight:500;margin-top:1px;">Mindest-Tragezeit definieren</div>
+                </div>
+              </button>
+            </div>
+
+            <!-- Pending inspection card -->
+            <div class="pending-card">
+              <div class="pending-card-title">
+                <span>⚠</span> Kontrolle Ausstehend
+              </div>
+              <div class="pending-card-row">
+                <span style="color:#94a3b8;">Code</span>
+                <span class="pending-val" style="font-family:monospace;letter-spacing:0.1em;">47291</span>
+              </div>
+              <div class="pending-card-row">
+                <span style="color:#94a3b8;">Frist</span>
+                <span class="pending-val">1h 12m</span>
+              </div>
+              <div class="pending-card-row">
+                <span style="color:#94a3b8;">Status</span>
+                <span style="font-weight:700;color:#f59e0b;">Ausstehend</span>
+              </div>
+              <div class="pending-card-row" style="border-bottom:none;">
+                <span style="color:#94a3b8;">Angefordert</span>
+                <span style="color:#94a3b8;font-size:11px;">Heute, 08:29</span>
+              </div>
+            </div>
+
+            <!-- Stats row -->
+            <div style="padding:12px 16px 4px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;">Compliance (Monat)</div>
+            <div style="margin:0 16px;background:#1c1f2a;border:1px solid #2d3144;border-radius:14px;padding:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
+              <div>
+                <div style="font-size:20px;font-weight:800;color:#34d399;">91%</div>
+                <div style="font-size:10px;color:#64748b;font-weight:600;">Woche</div>
+              </div>
+              <div>
+                <div style="font-size:20px;font-weight:800;color:#f59e0b;">63%</div>
+                <div style="font-size:10px;color:#64748b;font-weight:600;">Monat</div>
+              </div>
+              <div>
+                <div style="font-size:20px;font-weight:800;color:#818cf8;">14h</div>
+                <div style="font-size:10px;color:#64748b;font-weight:600;">Ø/Tag</div>
+              </div>
+            </div>
+
+            <div style="height:24px;"></div>
+          </div>
+
+          <!-- scroll fade -->
+          <div class="scroll-fade" style="background:linear-gradient(to bottom,transparent,var(--bg));"></div>
+
+          <!-- Bottom nav -->
+          <div class="bottom-nav" style="background:#151821;border-top:1px solid #222535;">
+            <div class="nav-item" style="color:#f1f5f9;">
+              <span class="nav-icon">👥</span>
+              <span style="font-weight:700;font-size:10px;">Users</span>
+            </div>
+            <div class="nav-item" style="color:#64748b;">
+              <span class="nav-icon">📋</span>
+              <span style="font-size:10px;">Kontrollen</span>
+            </div>
+            <div class="nav-item" style="color:#64748b;flex:none;padding:0 8px;">
+              <div class="my-dashboard-link">
+                <span class="dot-indicator"></span>
+                Mein Dashboard
+              </div>
+            </div>
+            <div class="nav-item" style="color:#64748b;">
+              <span class="nav-icon">📊</span>
+              <span style="font-size:10px;">Stats</span>
+            </div>
+            <div class="nav-item" style="color:#64748b;">
+              <span class="nav-icon">⚙️</span>
+              <span style="font-size:10px;">Einst.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================
+       SCREEN 2C: MODE SWITCH — after admin taps "Mein Dashboard"
+       Shows the user dashboard (light theme) with a back-to-admin link
+       ======================== -->
+  <div class="screen-wrapper">
+    <div class="screen-label">2C — Modus-Wechsel: Admin → Nutzer</div>
+    <div class="phone">
+      <div class="phone-inner" style="background:#f8f9fb;">
+        <div class="notch" style="background:#1a1a1a;"></div>
+
+        <div class="status-bar" style="background:#f8f9fb;color:#6b7280;">
+          <span class="time" style="color:#111827;">9:41</span>
+          <span class="icons">●●● WiFi 🔋</span>
+        </div>
+
+        <div class="screen-content">
+
+          <!-- Header — light theme, with "back to admin" chip -->
+          <div class="app-header" style="background:#ffffff;border-bottom:1px solid #f3f4f6;">
+            <div style="display:flex;align-items:center;gap:0;">
+              <div class="wordmark" style="color:#111827;">KG<span style="color:#059669;">-</span>Tracker</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <!-- "Zurück zu Admin" chip — subtle, always visible for dual-role user -->
+              <div style="display:flex;align-items:center;gap:5px;background:#1c1f2a;border:1px solid #3d4257;border-radius:20px;padding:4px 10px 4px 7px;cursor:pointer;">
+                <div style="width:6px;height:6px;border-radius:50%;background:#818cf8;flex-shrink:0;"></div>
+                <span style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:0.03em;">Admin</span>
+              </div>
+              <div class="avatar" style="background:#ecfdf5;color:#059669;font-size:12px;border:1px solid #a7f3d0;">AD</div>
+            </div>
+          </div>
+
+          <div class="scroll-body">
+
+            <!-- Lock status card — user's own, light theme -->
+            <div style="margin:12px 16px 0;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:18px;padding:16px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:15px;">🔒</span>
+                  <span style="font-size:13px;font-weight:800;color:#059669;letter-spacing:0.04em;">VERSCHLOSSEN</span>
+                </div>
+                <span style="font-size:11px;color:#6b7280;">seit heute 13:26</span>
+              </div>
+              <div style="font-size:28px;font-weight:900;color:#111827;letter-spacing:-0.5px;line-height:1.1;margin:4px 0;">6h 15<span class="blink" style="color:#6b7280;">:</span>33s</div>
+              <div style="font-size:11px;color:#059669;font-weight:600;">Aktiv · Alles in Ordnung</div>
+            </div>
+
+            <!-- Compliance bars -->
+            <div style="margin:10px 16px 0;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;">Compliance</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div>
+                  <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                    <span style="font-size:12px;color:#6b7280;">Heute</span>
+                    <span style="font-size:12px;font-weight:700;color:#111827;">77%</span>
+                  </div>
+                  <div style="height:6px;background:#f3f4f6;border-radius:4px;overflow:hidden;">
+                    <div style="height:100%;width:77%;background:#d1fae5;border-radius:4px;"></div>
+                  </div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                    <span style="font-size:12px;color:#6b7280;">Diese Woche</span>
+                    <span style="font-size:12px;font-weight:700;color:#111827;">84%</span>
+                  </div>
+                  <div style="height:6px;background:#f3f4f6;border-radius:4px;overflow:hidden;">
+                    <div style="height:100%;width:84%;background:#6ee7b7;border-radius:4px;"></div>
+                  </div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                    <span style="font-size:12px;color:#6b7280;">Diesen Monat</span>
+                    <span style="font-size:12px;font-weight:700;color:#111827;">61%</span>
+                  </div>
+                  <div style="height:6px;background:#f3f4f6;border-radius:4px;overflow:hidden;">
+                    <div style="height:100%;width:61%;background:#fcd34d;border-radius:4px;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent entries -->
+            <div style="padding:10px 16px 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Letzte Einträge</div>
+            <div style="margin:0 16px;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #f3f4f6;">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#059669;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:#111827;">Verschlossen</div>
+                    <div style="font-size:11px;color:#9ca3af;">27. Mär — 13:26 Uhr</div>
+                  </div>
+                </div>
+                <span style="font-size:11px;color:#9ca3af;">Heute</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #f3f4f6;">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#374151;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:#111827;">Geöffnet</div>
+                    <div style="font-size:11px;color:#9ca3af;">27. Mär — 08:11 Uhr</div>
+                  </div>
+                </div>
+                <span style="font-size:11px;color:#9ca3af;">Heute</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#ea580c;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:#111827;">Prüfung</div>
+                    <div style="font-size:11px;color:#9ca3af;">26. Mär — 21:04 Uhr</div>
+                  </div>
+                </div>
+                <span style="font-size:11px;color:#9ca3af;">Gestern</span>
+              </div>
+            </div>
+
+            <div style="height:24px;"></div>
+          </div>
+
+          <!-- scroll fade -->
+          <div class="scroll-fade" style="background:linear-gradient(to bottom,transparent,#f8f9fb);"></div>
+
+          <!-- Bottom nav — light theme, user tabs, no admin-specific items -->
+          <div class="bottom-nav" style="background:#ffffff;border-top:1px solid #f3f4f6;">
+            <div class="nav-item" style="color:#059669;">
+              <span class="nav-icon">🏠</span>
+              <span style="font-weight:700;font-size:10px;">Home</span>
+            </div>
+            <div class="nav-item" style="color:#9ca3af;">
+              <span class="nav-icon">📊</span>
+              <span style="font-size:10px;">Stats</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;flex:1;">
+              <div style="width:44px;height:44px;border-radius:50%;background:#059669;display:flex;align-items:center;justify-content:center;font-size:22px;color:white;font-weight:300;box-shadow:0 4px 12px rgba(5,150,105,0.4);">+</div>
+            </div>
+            <div class="nav-item" style="color:#9ca3af;">
+              <span class="nav-icon">📅</span>
+              <span style="font-size:10px;">Log</span>
+            </div>
+            <div class="nav-item" style="color:#9ca3af;">
+              <span class="nav-icon">⚙️</span>
+              <span style="font-size:10px;">Einst.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end admin screens row -->
+
+
+<!-- ============================================================
+     COLOR LEGEND
+     ============================================================ -->
+<div class="legend">
+  <div class="legend-title">Design Token Referenz — Beide Themes</div>
+  <div class="legend-cols">
+
+    <div>
+      <div class="legend-col-title">Benutzer-Theme (Light)</div>
+      <div class="legend-swatches">
+        <div class="swatch"><div class="swatch-color" style="background:#f8f9fb;"></div>Background</div>
+        <div class="swatch"><div class="swatch-color" style="background:#ffffff;"></div>Surface</div>
+        <div class="swatch"><div class="swatch-color" style="background:#111827;"></div>Foreground</div>
+        <div class="swatch"><div class="swatch-color" style="background:#6b7280;"></div>Muted</div>
+        <div class="swatch"><div class="swatch-color" style="background:#9ca3af;"></div>Faint</div>
+        <div class="swatch"><div class="swatch-color" style="background:#e5e7eb;border:1px solid #d1d5db;"></div>Border</div>
+        <div class="swatch"><div class="swatch-color" style="background:#059669;"></div>Lock</div>
+        <div class="swatch"><div class="swatch-color" style="background:#ecfdf5;border:1px solid #a7f3d0;"></div>Lock BG</div>
+        <div class="swatch"><div class="swatch-color" style="background:#ea580c;"></div>Inspect</div>
+        <div class="swatch"><div class="swatch-color" style="background:#fff7ed;border:1px solid #fed7aa;"></div>Inspect BG</div>
+        <div class="swatch"><div class="swatch-color" style="background:#e11d48;"></div>Orgasmus</div>
+        <div class="swatch"><div class="swatch-color" style="background:#4f46e5;"></div>Request</div>
+        <div class="swatch"><div class="swatch-color" style="background:#eef2ff;border:1px solid #c7d2fe;"></div>Request BG</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="legend-col-title">Admin-Theme (Dark)</div>
+      <div class="legend-swatches">
+        <div class="swatch"><div class="swatch-color" style="background:#0d0f14;border-color:#333;"></div>Background</div>
+        <div class="swatch"><div class="swatch-color" style="background:#1c1f2a;border-color:#333;"></div>Surface</div>
+        <div class="swatch"><div class="swatch-color" style="background:#232737;border-color:#333;"></div>Surface Raised</div>
+        <div class="swatch"><div class="swatch-color" style="background:#f1f5f9;"></div>Foreground</div>
+        <div class="swatch"><div class="swatch-color" style="background:#94a3b8;"></div>Muted</div>
+        <div class="swatch"><div class="swatch-color" style="background:#64748b;"></div>Faint</div>
+        <div class="swatch"><div class="swatch-color" style="background:#2d3144;"></div>Border</div>
+        <div class="swatch"><div class="swatch-color" style="background:#34d399;"></div>Lock</div>
+        <div class="swatch"><div class="swatch-color" style="background:#0f1c17;border-color:#333;"></div>Lock BG</div>
+        <div class="swatch"><div class="swatch-color" style="background:#f59e0b;"></div>Inspect</div>
+        <div class="swatch"><div class="swatch-color" style="background:#818cf8;"></div>Request</div>
+        <div class="swatch"><div class="swatch-color" style="background:#f87171;"></div>Warn</div>
+        <div class="swatch"><div class="swatch-color" style="background:#fb7185;"></div>Sperrzeit</div>
+        <div class="swatch"><div class="swatch-color" style="background:#151821;border-color:#333;"></div>Nav BG</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="text-align:center;font-size:11px;color:#9ca3af;margin-top:32px;margin-bottom:16px;">
+  ChastityTracker · UI Prototype · Alle Screens · Stand 2026-03-27
+</p>
+
+<script>
+  // Live timer animation
+  function updateTimers() {
+    const colons = document.querySelectorAll('.timer-colon');
+    colons.forEach(c => {
+      c.style.opacity = c.style.opacity === '0.3' ? '1' : '0.3';
+    });
+  }
+  setInterval(updateTimers, 500);
+</script>
+
+</body>
+</html>

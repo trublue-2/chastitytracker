@@ -19,9 +19,9 @@ export default function UserSubNav({ userId }: Props) {
     { href: `${base}/aktionen`, label: t("actions_tab"), exact: false },
     { href: `${base}/eintraege`, label: t("entries_tab"), exact: false },
     { href: `${base}/kontrollen`, label: t("inspections_tab"), exact: false },
-    { href: `${base}/einstellungen`, label: t("user_settings_tab"), exact: false },
     { href: `${base}/stats`, label: t("stats_tab"), exact: false },
     { href: `${base}/strafbuch`, label: t("strafbuch_tab"), exact: false },
+    { href: `${base}/einstellungen`, label: t("user_settings_tab"), exact: false },
   ];
 
   const active = tabs.find((tab) =>
