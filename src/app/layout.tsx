@@ -92,6 +92,9 @@ export default async function RootLayout({
                   console.warn('[SW] registration failed:', err);
                 });
               }
+              if (navigator.clearAppBadge) {
+                navigator.clearAppBadge().catch(function() {});
+              }
             `}</Script>
           </ToastProvider>
         </NextIntlClientProvider>
