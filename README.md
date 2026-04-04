@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, and training goals.
 
-![Version](https://img.shields.io/badge/version-3.2.1-blue)
+![Version](https://img.shields.io/badge/version-4.5.0-blue)
 ![License](https://img.shields.io/badge/license-Proprietary-red)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -21,8 +21,11 @@
 - Orgasm tracking with categorization
 - Password self-service (change, reset via email)
 - Push notifications (PWA) for lock/unlock events, inspections, and more
+- Passkey login (Face ID, Touch ID, Fingerprint, Windows Hello)
+- Offline-first with IndexedDB caching and background sync
+- View Transitions for smooth page navigation
 - Full i18n support (German and English)
-- Installable as a Progressive Web App
+- Installable as a Progressive Web App with splash screens and app shortcuts
 
 ### Admin Features
 
@@ -42,7 +45,7 @@
 | Framework | Next.js 16 (App Router, standalone output) |
 | Language | TypeScript 5 |
 | UI | React 19 + Tailwind CSS v4 |
-| Auth | NextAuth.js v5 (Credentials provider, JWT strategy, bcrypt) |
+| Auth | NextAuth.js v5 (Credentials + Passkey/WebAuthn, JWT strategy, bcrypt) |
 | Database | Prisma 5 + SQLite |
 | AI | Anthropic Claude SDK (inspection photo verification) |
 | Images | Sharp (processing) + Exifr (EXIF extraction) |
@@ -111,6 +114,15 @@ INITIAL_ADMIN_EMAIL=<email>
 
 # AI verification
 ANTHROPIC_API_KEY=<key>
+
+# Push notifications (VAPID) — generate with: node -e "const c=require('crypto').createECDH('prime256v1');c.generateKeys();console.log(c.getPublicKey('base64url'));console.log(c.getPrivateKey('base64url'))"
+VAPID_PUBLIC_KEY=<generated-public-key>
+VAPID_PRIVATE_KEY=<generated-private-key>
+VAPID_SUBJECT=mailto:admin@yourdomain.com
+
+# Passkey / WebAuthn (optional — defaults to localhost for dev)
+WEBAUTHN_RP_ID=yourdomain.com
+WEBAUTHN_RP_ORIGIN=https://yourdomain.com
 ```
 
 ### Database
@@ -172,7 +184,7 @@ src/
     dashboard/        # User-facing pages (entries, stats, settings)
     admin/            # Admin pages (users, goals, inspections)
     components/       # Shared React components
-    hooks/            # Custom hooks (photo upload, etc.)
+    hooks/            # Custom hooks (photo upload, entries cache, offline queue, etc.)
   lib/
     auth.ts           # NextAuth configuration
     prisma.ts         # Prisma client singleton
@@ -180,6 +192,9 @@ src/
     utils.ts          # Duration formatting, wear pair calculation
     mail.ts           # Nodemailer wrapper
     authGuards.ts     # API route auth helpers
+    webauthn.ts       # WebAuthn/Passkey configuration and token store
+    haptics.ts        # Vibration API helpers (Android)
+    idb.ts            # IndexedDB helpers (offline cache + queue)
   proxy.ts            # Route protection (replaces middleware.ts)
 prisma/
   schema.prisma       # Database schema
@@ -232,12 +247,18 @@ data/
 | `POST` | `/api/admin/kontrolle` | Request inspection (sends code via email) |
 | `POST` | `/api/admin/demo` | Create demo user with sample data |
 
-### Auth & Settings
+### Auth, Passkeys & Settings
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/auth/forgot-password` | Send password reset email |
 | `POST` | `/api/auth/reset-password` | Reset password with token |
+| `POST` | `/api/auth/passkey/register` | Generate passkey registration options |
+| `PUT` | `/api/auth/passkey/register` | Verify and store new passkey |
+| `POST` | `/api/auth/passkey/authenticate` | Generate passkey authentication challenge |
+| `PUT` | `/api/auth/passkey/authenticate` | Verify passkey and return session token |
+| `GET` | `/api/auth/passkey/list` | List user's passkeys |
+| `DELETE` | `/api/auth/passkey/list` | Remove a passkey |
 | `PATCH` | `/api/settings/password` | Change own password |
 | `PATCH` | `/api/settings/email` | Change own email |
 
@@ -260,6 +281,7 @@ data/
 | `StrafeRecord` | Penalty records for violations |
 | `NotificationPreference` | Per-user, per-event email/push notification settings |
 | `PushSubscription` | Web Push subscription endpoints per device |
+| `Passkey` | WebAuthn credentials for biometric login |
 | `AdminUserRelationship` | Many-to-many admin-user supervision mapping |
 
 ## Contributing
