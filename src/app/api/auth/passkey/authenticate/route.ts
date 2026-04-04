@@ -1,24 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRpConfig, setChallenge, getAndDeleteChallenge } from "@/lib/webauthn";
+import { getRpConfig, setChallenge, getAndDeleteChallenge, createPasskeyToken } from "@/lib/webauthn";
 import { generateAuthenticationOptions, verifyAuthenticationResponse } from "@simplewebauthn/server";
 import type { AuthenticatorTransportFuture } from "@simplewebauthn/types";
-import crypto from "crypto";
-
-// Temporary token store for passkey-to-credentials bridge.
-// Token is consumed by the Credentials provider to create a session.
-const passkeyTokens = new Map<string, { userId: string; expiresAt: number }>();
-
-const TOKEN_TTL = 60_000; // 1 minute
-
-/** Called by Credentials provider to validate a passkey token */
-export function consumePasskeyToken(token: string): string | null {
-  const entry = passkeyTokens.get(token);
-  if (!entry) return null;
-  passkeyTokens.delete(token);
-  if (entry.expiresAt < Date.now()) return null;
-  return entry.userId;
-}
 
 /**
  * POST /api/auth/passkey/authenticate
@@ -99,19 +83,7 @@ export async function PUT(req: Request) {
     });
 
     // Generate one-time token for the Credentials provider bridge
-    const token = crypto.randomBytes(32).toString("hex");
-    passkeyTokens.set(token, {
-      userId: passkey.userId,
-      expiresAt: Date.now() + TOKEN_TTL,
-    });
-
-    // Cleanup expired tokens
-    if (passkeyTokens.size > 50) {
-      const now = Date.now();
-      for (const [k, v] of passkeyTokens) {
-        if (v.expiresAt < now) passkeyTokens.delete(k);
-      }
-    }
+    const token = createPasskeyToken(passkey.userId);
 
     return NextResponse.json({
       verified: true,
