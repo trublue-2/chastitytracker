@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
-import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
+import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   const err = await requireAdminApi();
@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const orgasmusArtBase = orgasmusArt?.split(" – ")[0];
-  if (type === "ORGASMUS" && !ORGASMUS_ARTEN.includes(orgasmusArtBase)) {
+  const orgasmusArtBase = parseOrgasmusArtBase(orgasmusArt);
+  if (type === "ORGASMUS" && !(ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "")) {
     return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
   }
 

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
-import { isValidEmail } from "@/lib/constants";
+import { isValidEmail, validatePassword } from "@/lib/constants";
 
 export async function GET(
   _req: NextRequest,
@@ -55,9 +55,8 @@ export async function PATCH(
   const body = await req.json();
 
   if (body.password !== undefined) {
-    if (!body.password || body.password.length < 8) {
-      return NextResponse.json({ error: "Passwort zu kurz (min. 8 Zeichen)" }, { status: 400 });
-    }
+    const pwErr = validatePassword(body.password);
+    if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
     const passwordHash = await bcrypt.hash(body.password, 12);
     await prisma.user.update({ where: { id }, data: { passwordHash } });
     return NextResponse.json({ ok: true });

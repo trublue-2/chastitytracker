@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
+import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
 
 export async function PATCH(
   req: NextRequest,
@@ -28,8 +28,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
   }
   if (orgasmusArt !== undefined && orgasmusArt !== null) {
-    const base = (orgasmusArt as string).split(" – ")[0];
-    if (!(ORGASMUS_ARTEN as readonly string[]).includes(base)) {
+    const base = parseOrgasmusArtBase(orgasmusArt as string);
+    if (!base || !(ORGASMUS_ARTEN as readonly string[]).includes(base)) {
       return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
     }
   }

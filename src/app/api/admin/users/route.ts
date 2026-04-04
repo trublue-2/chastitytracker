@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
+import { validatePassword } from "@/lib/constants";
 
 export async function GET() {
   const err = await requireAdminApi();
@@ -49,13 +50,8 @@ export async function POST(req: NextRequest) {
   if (typeof username !== "string" || username.trim().length < 3 || username.trim().length > 50) {
     return NextResponse.json({ error: "Benutzername muss 3–50 Zeichen haben" }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: "Passwort zu kurz (min. 8 Zeichen)" }, { status: 400 });
-  }
-  // Prevent bcrypt silent truncation at 72 bytes
-  if (Buffer.byteLength(password, "utf8") > 72) {
-    return NextResponse.json({ error: "Passwort zu lang (max. 72 Zeichen)" }, { status: 400 });
-  }
+  const pwErr = validatePassword(password);
+  if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 
   const existing = await prisma.user.findUnique({ where: { username } });
   if (existing) {

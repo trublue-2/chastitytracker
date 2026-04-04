@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl } from "@/lib/constants";
+import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
 import { sendPushToUser } from "@/lib/push";
 import { sendMail } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
   if (type === "PRUEFUNG" && !imageUrl) {
     return NextResponse.json({ error: "Foto ist bei Kontrolle zwingend" }, { status: 400 });
   }
-  const orgasmusArtBase = orgasmusArt?.split(" – ")[0];
-  if (type === "ORGASMUS" && !ORGASMUS_ARTEN.includes(orgasmusArtBase)) {
+  const orgasmusArtBase = parseOrgasmusArtBase(orgasmusArt);
+  if (type === "ORGASMUS" && !(ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "")) {
     return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
   }
 

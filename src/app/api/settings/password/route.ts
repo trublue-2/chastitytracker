@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { validatePassword } from "@/lib/constants";
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
@@ -10,17 +11,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   const { newPassword } = await req.json();
-
-  if (!newPassword) {
-    return NextResponse.json({ error: "Neues Passwort fehlt" }, { status: 400 });
-  }
-  if (newPassword.length < 8) {
-    return NextResponse.json({ error: "Neues Passwort zu kurz (min. 8 Zeichen)" }, { status: 400 });
-  }
-  // Prevent bcrypt silent truncation at 72 bytes
-  if (Buffer.byteLength(newPassword, "utf8") > 72) {
-    return NextResponse.json({ error: "Neues Passwort zu lang (max. 72 Zeichen)" }, { status: 400 });
-  }
+  if (!newPassword) return NextResponse.json({ error: "Neues Passwort fehlt" }, { status: 400 });
+  const pwErr = validatePassword(newPassword);
+  if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id: session.user.id }, data: { passwordHash } });

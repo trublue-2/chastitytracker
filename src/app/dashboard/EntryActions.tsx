@@ -14,8 +14,10 @@ interface Props {
 
 export default function EntryActions({ id, editHref, showDelete = true }: Props) {
   const t = useTranslations("entryActions");
+  const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
+  const [error, setError] = useState("");
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -47,8 +49,14 @@ export default function EntryActions({ id, editHref, showDelete = true }: Props)
   async function handleDelete() {
     setOpen(false);
     if (!confirm(t("deleteConfirm"))) return;
-    await fetch(`/api/entries/${id}`, { method: "DELETE" });
-    router.refresh();
+    setError("");
+    try {
+      const res = await fetch(`/api/entries/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(tc("savingError"));
+      router.refresh();
+    } catch {
+      setError(tc("networkError"));
+    }
   }
 
   return (
@@ -91,6 +99,12 @@ export default function EntryActions({ id, editHref, showDelete = true }: Props)
             </>
           )}
         </div>
+      )}
+
+      {error && (
+        <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3 mt-1">
+          {error}
+        </p>
       )}
     </div>
   );

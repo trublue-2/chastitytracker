@@ -2,13 +2,12 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
-import Card from "@/app/components/Card";
-import Input from "@/app/components/Input";
+import AdminActionFormShell from "@/app/components/AdminActionFormShell";
+import DateTimePicker from "@/app/components/DateTimePicker";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Spinner from "@/app/components/Spinner";
@@ -106,23 +105,17 @@ export default function PruefungForm({ userId }: { userId: string }) {
   }
 
   return (
-    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
-      <Link href={`/admin/users/${userId}/aktionen`} className="text-sm text-foreground-faint hover:text-foreground transition">
-        ← {t("aktionen")}
-      </Link>
-
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-inspect-bg)" }}>
-            <ClipboardCheck size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
-          </div>
-          <h1 className="text-base font-semibold text-foreground">{tInspection("title")}</h1>
-        </div>
-
+    <AdminActionFormShell
+      userId={userId}
+      backLabel={t("aktionen")}
+      icon={<ClipboardCheck size={20} strokeWidth={2} />}
+      iconBg="var(--color-inspect-bg)"
+      iconColor="var(--color-inspect)"
+      title={tInspection("title")}
+    >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-5 py-5">
-          <Input
+          <DateTimePicker
             label={tc("dateTimeRequired")}
-            type="datetime-local"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
             required
@@ -137,7 +130,7 @@ export default function PruefungForm({ userId }: { userId: string }) {
               <div className="flex items-start gap-4">
                 <ImageViewer src={imagePreview} alt={tc("preview")} width={80} height={80} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
                 <div className="flex flex-col gap-2 flex-1 pt-1">
-                  {imageExifTime && <p className="text-xs text-foreground-faint">EXIF: {new Date(imageExifTime).toLocaleString()}</p>}
+                  {imageExifTime && <p className="text-xs text-foreground-faint">{tc("exifDate")}: {new Date(imageExifTime).toLocaleString()}</p>}
                   {exifWarning && !uploading && <p className="text-xs text-[var(--color-warn)] font-medium">⚠ {exifWarning}</p>}
                   <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact />
                   <button type="button" onClick={() => { clearPhoto(); setVerifyStatus(null); setAiMatch(null); }}
@@ -206,7 +199,6 @@ export default function PruefungForm({ userId }: { userId: string }) {
             </Button>
           </div>
         </form>
-      </Card>
-    </main>
+    </AdminActionFormShell>
   );
 }

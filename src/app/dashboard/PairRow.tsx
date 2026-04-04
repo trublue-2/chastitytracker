@@ -133,7 +133,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
             </button>
           </div>
           {verschluss.imageExifTime && photoStatus === "exif-mismatch" && (
-            <p className="text-xs text-[var(--color-warn)]">EXIF: {formatDateTime(new Date(verschluss.imageExifTime), dl)}</p>
+            <p className="text-xs text-[var(--color-warn)]">{tc("exifDate")}: {formatDateTime(new Date(verschluss.imageExifTime), dl)}</p>
           )}
           {photoStatus === "no-photo" && <p className="text-xs text-warn">{td("noPhoto")}</p>}
           {verschluss.note && (
