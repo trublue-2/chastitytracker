@@ -284,6 +284,8 @@
     "pushDesc": "Erhalte Benachrichtigungen bei neuen Aktionen",
     "pushDenied": "Benachrichtigungen blockiert – bitte in den Browser-Einstellungen aktivieren.",
     "pushNotSupported": "Benachrichtigungen werden in diesem Browser nicht unterstützt.",
+    "pushIosNotInstalled": "Installiere die App zuerst auf dem Home-Bildschirm, um Push-Benachrichtigungen zu aktivieren.",
+    "pushIosOld": "Push-Benachrichtigungen erfordern iOS 16.4 oder neuer. Bitte aktualisiere dein Gerät.",
     "entriesTitle": "Einträge",
     "entriesEmpty": "Noch keine Einträge vorhanden.",
     "statsEmpty": "Statistiken werden nach dem ersten Verschluss angezeigt.",

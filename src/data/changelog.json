@@ -1,5 +1,27 @@
 [
   {
+    "version": "4.1.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Push-Benachrichtigungen: iOS-spezifische Erkennung (Nicht installiert / iOS-Version zu alt)"
+      },
+      {
+        "type": "feat",
+        "text": "Badge-Count auf App-Icon bei neuen Benachrichtigungen (iOS 16.4+ / Android)"
+      },
+      {
+        "type": "feat",
+        "text": "Manifest: App-Shortcuts (Neuer Eintrag, Statistiken) bei Long-Press auf Android"
+      },
+      {
+        "type": "ui",
+        "text": "iOS: Gebrandete Splash Screens beim App-Start (iPhone SE bis 15 Pro Max, iPad)"
+      }
+    ]
+  },
+  {
     "version": "4.0.0",
     "date": "2026-04-04",
     "changes": [
