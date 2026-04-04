@@ -15,7 +15,11 @@ import SessionList from "./SessionList";
 
 export default async function DashboardPage() {
   const session = await auth();
-  const userId = session!.user.id;
+  if (!session?.user?.id) {
+    const { redirect } = await import("next/navigation");
+    redirect("/login");
+  }
+  const userId = session.user.id;
 
   const t = await getTranslations("dashboard");
   const dl = toDateLocale(await getLocale());
