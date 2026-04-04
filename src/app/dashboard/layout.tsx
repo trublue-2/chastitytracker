@@ -1,6 +1,7 @@
 import Header from "@/app/Header";
 import DesktopSidebar from "@/app/components/DesktopSidebar";
 import InstallBanner from "@/app/components/InstallBanner";
+import OfflineIndicator from "@/app/components/OfflineIndicator";
 import DashboardBottomNav from "./DashboardBottomNav";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +36,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
 
       {/* Content area: offset for sidebar on desktop, offset for bottom nav on mobile */}
-      <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain">
+        <div className="w-full max-w-2xl mx-auto px-4">
+          <OfflineIndicator />
+        </div>
         {children}
       </div>
 

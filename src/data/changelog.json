@@ -1,5 +1,121 @@
 [
   {
+    "version": "4.5.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kamera: Blitz-Toggle für bessere Siegel-Fotos (Android)"
+      },
+      {
+        "type": "feat",
+        "text": "Kamera: Zoom-Slider in der Webcam-Ansicht (Android)"
+      }
+    ]
+  },
+  {
+    "version": "4.4.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Background Sync: Offline-Einträge werden auf Android automatisch im Hintergrund synchronisiert"
+      },
+      {
+        "type": "feat",
+        "text": "Periodic Background Sync: Eintrags-Cache wird alle 12h im Hintergrund aktualisiert (Android)"
+      }
+    ]
+  },
+  {
+    "version": "4.3.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Passkey-Login: Biometrische Anmeldung mit Face ID, Touch ID, Fingerprint oder Windows Hello"
+      },
+      {
+        "type": "feat",
+        "text": "Passkey-Verwaltung in Einstellungen: Passkeys hinzufügen, benennen und entfernen"
+      },
+      {
+        "type": "feat",
+        "text": "Login-Seite: 'Mit Passkey anmelden' Button (nur auf unterstützten Browsern sichtbar)"
+      }
+    ]
+  },
+  {
+    "version": "4.2.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "View Transitions: Sanfte Seitenübergänge bei Navigation (Chrome 111+, Safari 18+)"
+      },
+      {
+        "type": "feat",
+        "text": "Pull-to-Refresh Hook und Indikator für Dashboard (Touch-Geste)"
+      },
+      {
+        "type": "feat",
+        "text": "Swipe-to-Reveal Geste für Eintrags-Listen (Mobile)"
+      },
+      {
+        "type": "feat",
+        "text": "Haptic Feedback auf Android bei Buttons, Navigation und Sheet-Öffnung"
+      }
+    ]
+  },
+  {
+    "version": "4.1.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Push-Benachrichtigungen: iOS-spezifische Erkennung (Nicht installiert / iOS-Version zu alt)"
+      },
+      {
+        "type": "feat",
+        "text": "Badge-Count auf App-Icon bei neuen Benachrichtigungen (iOS 16.4+ / Android)"
+      },
+      {
+        "type": "feat",
+        "text": "Manifest: App-Shortcuts (Neuer Eintrag, Statistiken) bei Long-Press auf Android"
+      },
+      {
+        "type": "ui",
+        "text": "iOS: Gebrandete Splash Screens beim App-Start (iPhone SE bis 15 Pro Max, iPad)"
+      }
+    ]
+  },
+  {
+    "version": "4.0.0",
+    "date": "2026-04-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Offline-First: Einträge werden lokal gecacht (IndexedDB) für sofortiges Laden"
+      },
+      {
+        "type": "feat",
+        "text": "Offline-Queue: Verschluss, Öffnen und Orgasmus-Einträge können offline erstellt und bei Verbindung synchronisiert werden"
+      },
+      {
+        "type": "feat",
+        "text": "Service Worker: Versionierte Caches für statische Assets, Bilder und API-Responses (stale-while-revalidate)"
+      },
+      {
+        "type": "ui",
+        "text": "Offline-Indikator im Dashboard zeigt Verbindungsstatus und wartende Einträge"
+      },
+      {
+        "type": "ui",
+        "text": "Prüfungsformular zeigt Hinweis wenn offline (Foto-Upload benötigt Verbindung)"
+      }
+    ]
+  },
+  {
     "version": "3.2.1",
     "date": "2026-04-03",
     "changes": [

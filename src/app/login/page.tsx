@@ -7,6 +7,7 @@ import { Lock } from "lucide-react";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
+import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
 
 export default function LoginPage() {
   const t = useTranslations("login");
@@ -92,6 +93,11 @@ export default function LoginPage() {
               {loading ? t("submitting") : t("submit")}
             </button>
           </form>
+
+          {/* Passkey login — only shown on supported browsers */}
+          <div className="mt-4 pt-4 border-t border-border">
+            <PasskeyLoginButton />
+          </div>
         </div>
         <div className="mt-4 px-1">
           <Link href="/forgot-password" className="text-sm text-foreground-faint hover:text-foreground-muted transition">

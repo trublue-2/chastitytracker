@@ -55,6 +55,8 @@
     "captureBtn": "Take photo",
     "webcamNotAvailable": "Camera not available",
     "webcam": "Webcam",
+    "torchOn": "Turn on flashlight",
+    "torchOff": "Turn off flashlight",
     "signOutConfirm": "Really sign out?",
     "notifications": "Notifications",
     "remove": "Remove",
@@ -284,6 +286,8 @@
     "pushDesc": "Receive notifications for new events",
     "pushDenied": "Notifications blocked – please enable them in browser settings.",
     "pushNotSupported": "Notifications are not supported in this browser.",
+    "pushIosNotInstalled": "Install the app to your home screen first to enable push notifications.",
+    "pushIosOld": "Push notifications require iOS 16.4 or later. Please update your device.",
     "entriesTitle": "Entries",
     "entriesEmpty": "No entries yet.",
     "statsEmpty": "Statistics will appear after your first lock-up entry.",
@@ -652,5 +656,31 @@
     "typePruefung": "Inspection",
     "typeOrgasmus": "Orgasm",
     "monthGoal": "✓ Monthly goal"
+  },
+  "offline": {
+    "youAreOffline": "No connection",
+    "syncing": "Syncing entries\u2026",
+    "synced": "Entries synced",
+    "syncFailed": "Sync failed",
+    "photoRequiresConnection": "Photo upload requires an internet connection.",
+    "pendingEntries": "{count, plural, =1 {1 entry waiting to sync} other {# entries waiting to sync}}",
+    "savedOffline": "Saved offline — will sync when connected"
+  },
+  "passkey": {
+    "title": "Passkeys",
+    "add": "Add",
+    "loginButton": "Sign in with Passkey",
+    "noPasskeys": "No passkeys registered yet.",
+    "unnamedDevice": "Unnamed device",
+    "addedOn": "Added {date}",
+    "lastUsed": "Last used {date}",
+    "deviceNamePrompt": "Name for this passkey (e.g. iPhone, MacBook):",
+    "registered": "Passkey registered",
+    "registerFailed": "Passkey registration failed",
+    "deleted": "Passkey removed",
+    "deleteFailed": "Could not remove passkey",
+    "deleteConfirm": "Remove this passkey?",
+    "delete": "Remove",
+    "authFailed": "Passkey authentication failed"
   }
 }

@@ -529,6 +529,19 @@ body {
   animation: fade-in 300ms ease;
 }
 
+/* View Transitions (Chrome 111+, Safari 18+) */
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+::view-transition-old(root) {
+  animation: var(--duration-fast) var(--ease-out) fade-out;
+}
+::view-transition-new(root) {
+  animation: var(--duration-fast) var(--ease-out) fade-in;
+}
+
 /* Toast enter (slide down from top) */
 @keyframes toast-enter {
   from { transform: translateY(-16px); opacity: 0; }

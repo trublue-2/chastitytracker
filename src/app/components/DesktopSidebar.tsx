@@ -9,6 +9,7 @@ import {
 import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 import NewEntrySheet from "./NewEntrySheet";
+import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 
 interface Props {
   isAdmin?: boolean;
@@ -51,7 +52,7 @@ export default function DesktopSidebar({ isAdmin, isLocked, version, buildDate }
               : pathname.startsWith(item.href);
             const Icon = item.icon;
             return (
-              <Link
+              <ViewTransitionLink
                 key={item.href}
                 href={item.href}
                 className={[
@@ -63,7 +64,7 @@ export default function DesktopSidebar({ isAdmin, isLocked, version, buildDate }
               >
                 <Icon size={18} strokeWidth={active ? 2 : 1.5} />
                 {item.label}
-              </Link>
+              </ViewTransitionLink>
             );
           })}
         </nav>
