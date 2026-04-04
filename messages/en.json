@@ -652,5 +652,14 @@
     "typePruefung": "Inspection",
     "typeOrgasmus": "Orgasm",
     "monthGoal": "✓ Monthly goal"
+  },
+  "offline": {
+    "youAreOffline": "No connection",
+    "syncing": "Syncing entries\u2026",
+    "synced": "Entries synced",
+    "syncFailed": "Sync failed",
+    "photoRequiresConnection": "Photo upload requires an internet connection.",
+    "pendingEntries": "{count, plural, =1 {1 entry waiting to sync} other {# entries waiting to sync}}",
+    "savedOffline": "Saved offline — will sync when connected"
   }
 }

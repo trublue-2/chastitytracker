@@ -14,6 +14,7 @@ import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Sheet from "@/app/components/Sheet";
 import useToast from "@/app/hooks/useToast";
+import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 
 type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
@@ -33,6 +34,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
   const dl = toDateLocale(useLocale());
   const router = useRouter();
   const toast = useToast();
+  const { offlineFetch } = useOfflineQueue();
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
   );
@@ -48,15 +50,24 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
     setSaving(true);
     setError("");
     try {
-      const res = await fetch(
-        initial ? `/api/entries/${initial.id}` : "/api/entries",
-        {
-          method: initial ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "OEFFNEN", startTime: new Date(startTime).toISOString(), oeffnenGrund: grund, note: note.trim() || null }),
-        }
-      );
+      const url = initial ? `/api/entries/${initial.id}` : "/api/entries";
+      const init: RequestInit = {
+        method: initial ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "OEFFNEN", startTime: new Date(startTime).toISOString(), oeffnenGrund: grund, note: note.trim() || null }),
+      };
+
+      // Use offline-aware fetch for new entries (edits require online)
+      const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
+
       setSaving(false);
+
+      // null = queued offline → navigate back
+      if (res === null) {
+        router.push(redirectTo ?? "/dashboard");
+        return;
+      }
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setError(err.error || tCommon("savingError"));

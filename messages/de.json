@@ -652,5 +652,14 @@
     "typePruefung": "Kontrolle",
     "typeOrgasmus": "Orgasmus",
     "monthGoal": "✓ Monatsziel"
+  },
+  "offline": {
+    "youAreOffline": "Keine Verbindung",
+    "syncing": "Einträge werden synchronisiert\u2026",
+    "synced": "Einträge synchronisiert",
+    "syncFailed": "Synchronisierung fehlgeschlagen",
+    "photoRequiresConnection": "Foto-Upload benötigt eine Internetverbindung.",
+    "pendingEntries": "{count, plural, =1 {1 Eintrag wartet auf Synchronisierung} other {# Einträge warten auf Synchronisierung}}",
+    "savedOffline": "Offline gespeichert — wird bei Verbindung synchronisiert"
   }
 }
