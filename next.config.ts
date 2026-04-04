@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   devIndicators: false,
   poweredByHeader: false,
+  serverExternalPackages: ["@simplewebauthn/server"],
   env: {
     BUILD_DATE: process.env.BUILD_DATE || "",
   },

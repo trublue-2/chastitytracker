@@ -87,7 +87,7 @@ export default async function RootLayout({
             {children}
             <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
             <Script id="sw-register" strategy="afterInteractive">{`
-              if ('serviceWorker' in navigator) {
+              if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
                 navigator.serviceWorker.register('/sw.js').catch(function(err) {
                   console.warn('[SW] registration failed:', err);
                 });
