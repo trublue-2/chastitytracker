@@ -130,6 +130,15 @@ export default function useOfflineQueue() {
       const count = await getQueueCount();
       setPendingCount(count);
 
+      // Register Background Sync if available (Android Chrome)
+      // Falls back to online-event drain on unsupported browsers
+      if ("serviceWorker" in navigator && "SyncManager" in window) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          await (reg as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register("offline-queue");
+        } catch { /* ignore — falls back to online event */ }
+      }
+
       toast.info(t("savedOffline"));
 
       // Return null to indicate queued (caller should handle this)
