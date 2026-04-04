@@ -21,16 +21,22 @@ npx prisma generate                                                  # Client re
 
 ## Architecture
 
-**Stack:** Next.js 14 (App Router) · NextAuth.js v5 (Credentials) · Prisma 5 + SQLite · Tailwind CSS
+**Stack:** Next.js 16 (App Router) · React 19 · NextAuth.js v5 (Credentials) · Prisma 5 + SQLite · Tailwind CSS v4 · next-intl v4
 
 **Auth flow:** `src/proxy.ts` schützt alle `/dashboard`- und `/api`-Routen (außer `/api/auth`). Credentials werden gegen DB-User mit bcrypt geprüft. `role`-Feld: `"user"` oder `"admin"`. (Next.js 16: `proxy.ts` statt `middleware.ts`)
 
 **DB-Modelle:**
-- `User` – username, email, passwordHash, role (`user`/`admin`)
-- `Entry` – type (`VERSCHLUSS`|`OEFFNEN`|`PRUEFUNG`|`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode
+- `User` – username, email, passwordHash, role (`user`/`admin`), settings
+- `Entry` – type (`VERSCHLUSS`|`OEFFNEN`|`PRUEFUNG`|`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, verifikationStatus, oeffnenGrund
 - `TrainingVorgabe` – Zeitraum mit min. Tragedauer pro Tag/Woche/Monat, pro User
+- `KontrollAnforderung` – code (5-stellig), deadline (4h), userId, fulfilledAt, withdrawnAt, kommentar
+- `VerschlussAnforderung` – art (`ANFORDERUNG`/`SPERRZEIT`), userId, kommentar, endetAt, fulfilledAt, withdrawnAt
+- `StrafeRecord` – userId, vergehenTyp, bestraftAt, notiz (Strafbuch)
+- `NotificationPreference` – userId, eventType, mail, push (pro Event-Typ)
+- `PushSubscription` – userId, endpoint, keys (Web Push VAPID)
+- `AdminUserRelationship` – adminId, userId (many-to-many)
 - `PasswordResetToken` – token, userId, expiresAt (1h)
-- `KontrollAnforderung` – code (5-stellig), deadline (4h), userId, fulfilledAt, withdrawnAt, manuallyVerifiedAt, rejectedAt
+- `RateLimitEntry` – key, count, expiresAt (DB-basiertes Rate Limiting)
 
 **Key files:**
 - `src/lib/auth.ts` – NextAuth-Konfiguration (Credentials + bcrypt, JWT-Strategie)
@@ -102,13 +108,27 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - **Keine hardcoded German Strings** — auch nicht in "internen" Admin-Pages
 - Wenn ein i18n-Key fehlt: anlegen in `messages/de.json` UND `messages/en.json`
 
-### Shared Abstractions (bestehend)
-- `src/app/hooks/usePhotoUpload.ts` — Upload + EXIF + Seal-Detect (für alle Foto-Forms)
-- `src/lib/authGuards.ts` — `requireAdminApi()`, `assertAdmin()`
-- `src/lib/constants.ts` — VALID_TYPES, OEFFNEN_GRUENDE, ORGASMUS_ARTEN, `isValidImageUrl()`
+### Shared Abstractions (bestehend — immer zuerst hier suchen!)
+
+**Components:**
+- `src/app/components/AdminActionFormShell.tsx` — Wrapper für Admin-Aktionsformulare (Back-Link + Card mit Icon-Header)
+- `src/app/components/DateTimePicker.tsx` — Datetime-Input mit Label, Error, Hint, ARIA (statt `<Input type="datetime-local">`)
 - `src/app/components/KontrolleBanner.tsx` — Kontroll-Status-Banner (compact + large)
+- `src/app/components/FormError.tsx` — Styled Error-Card für Formulare
+- `src/app/components/Card.tsx` — Standard-Card mit optionalem Padding
+- `src/app/components/Button.tsx` — Button mit Loading-State und Icon
+- `src/app/components/ImageViewer.tsx` + `FullscreenImageModal` — Bild-Anzeige + Vollbild-Modal
+
+**Hooks:**
+- `src/app/hooks/usePhotoUpload.ts` — Upload + EXIF + Seal-Detect (für alle Foto-Forms)
+
+**Utilities:**
+- `src/lib/authGuards.ts` — `requireAdminApi()`, `assertAdmin()`
+- `src/lib/constants.ts` — `VALID_TYPES`, `OEFFNEN_GRUENDE`, `ORGASMUS_ARTEN`, `isValidImageUrl()`, `validatePassword()`, `parseOrgasmusArtBase()`, `PASSWORD_MIN_LENGTH`, `BCRYPT_MAX_BYTES`
+- `src/lib/utils.ts` — `buildWearPairs()`, `wearingHoursFromPairs()`, `isTimeCorrected()`, `formatDuration()`, `formatDateTime()`, `toDatetimeLocal()`
+- `src/lib/queries.ts` — `getIsLocked()`, `getActiveVorgabe()`
+- `src/lib/kontrollePills.ts` — `ANFORDERUNG_PILLS`, `getKombinierterPill()`
 - `src/app/dashboard/EntryActions.tsx` — Drei-Punkte-Menü (Edit + optional Delete)
-- `src/lib/utils.ts` — `buildWearPairs()`, `wearingHoursFromPairs()`, Formatierungs-Helpers
 
 ### Changelog
 - Erlaubte `type`-Werte: `feat`, `fix`, `security`, `perf`, `chore`, `ui` — **nicht** `refactor`
