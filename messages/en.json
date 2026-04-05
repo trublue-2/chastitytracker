@@ -102,7 +102,9 @@
     "copyright": "© trublue {year}",
     "entries": "Entries",
     "changelog": "Changelog",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "userDesign": "User",
+    "adminDesign": "Admin"
   },
   "login": {
     "subtitle": "Sign in to continue",
