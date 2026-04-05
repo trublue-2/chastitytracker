@@ -66,7 +66,7 @@ export default async function DashboardPage() {
 
   const rawSessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
 
-  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, !!activePair, now, reinigung);
+  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
   // ── Serialize for client ──
   const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;

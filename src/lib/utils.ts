@@ -356,14 +356,12 @@ export function wearingHoursInRange(
   return total / (1000 * 60 * 60);
 }
 
-/** Wearing hours for today / current week / current month. Returns zeros when not active. */
+/** Wearing hours for today / current week / current month. */
 export function calculateWearingHoursByRange(
   entries: { type: string; startTime: Date; oeffnenGrund?: string | null }[],
-  active: boolean,
   now: Date,
   reinigung: ReinigungSettings
 ): { tagH: number; wocheH: number; monatH: number } {
-  if (!active) return { tagH: 0, wocheH: 0, monatH: 0 };
   return {
     tagH: wearingHoursInRange(entries, getMidnightToday(now), now, reinigung),
     wocheH: wearingHoursInRange(entries, getWeekStart(now), now, reinigung),
