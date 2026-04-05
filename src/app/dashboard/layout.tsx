@@ -6,7 +6,7 @@ import DashboardBottomNav from "./DashboardBottomNav";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatBuildDate } from "@/lib/utils";
-import { getThemeInitScript } from "@/app/hooks/useTheme";
+import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
