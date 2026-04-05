@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.5.1",
+    "date": "2026-04-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Statistik: Tragedauern werden jetzt auch im offenen Zustand korrekt angezeigt"
+      },
+      {
+        "type": "feat",
+        "text": "Admin-Redirect: Admins werden nach Login direkt auf /admin weitergeleitet"
+      }
+    ]
+  },
+  {
     "version": "4.5.0",
     "date": "2026-04-04",
     "changes": [
