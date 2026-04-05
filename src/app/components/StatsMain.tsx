@@ -102,11 +102,13 @@ function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default async function StatsMain({ userId, heading, backHref, backLabel }: {
+export default async function StatsMain({ userId, heading, backHref, backLabel, compact }: {
   userId: string;
   heading?: string;
   backHref?: string;
   backLabel?: string;
+  /** Use narrower container (max-w-2xl px-4) for dashboard embedding */
+  compact?: boolean;
 }) {
   const t = await getTranslations("stats");
   const td = await getTranslations("dashboard");
@@ -292,11 +294,14 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
 
   if (entries.length === 0) {
     return (
-      <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
+      <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
-        <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
+        {compact
+          ? <h2 className="text-lg font-bold text-foreground">{pageHeading}</h2>
+          : <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
+        }
         <Card padding="default">
           <EmptyState
             icon={<BarChart2 size={32} />}
@@ -308,12 +313,15 @@ export default async function StatsMain({ userId, heading, backHref, backLabel }
   }
 
   return (
-    <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
+    <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
       <div>
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
-        <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
+        {compact
+          ? <h2 className={`text-lg font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h2>
+          : <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
+        }
       </div>
 
       {/* Gesamtübersicht */}
