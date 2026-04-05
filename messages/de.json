@@ -683,5 +683,11 @@
     "deleteConfirm": "Diesen Passkey wirklich entfernen?",
     "delete": "Entfernen",
     "authFailed": "Passkey-Anmeldung fehlgeschlagen"
+  },
+  "theme": {
+    "label": "Design",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
   }
 }
