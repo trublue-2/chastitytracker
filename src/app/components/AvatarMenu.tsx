@@ -4,21 +4,28 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Settings, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useTranslations } from "next-intl";
-import ThemeToggle from "@/app/components/ThemeToggle";
+import { useTranslations, useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
+import { setLocaleCookie } from "@/lib/locale";
 
 interface Props {
   username: string;
   settingsHref: string;
-  /** dark = admin theme, light = user theme */
   theme: "user" | "admin";
   version?: string;
 }
+
+const LOCALES = [
+  { value: "de", label: "DE" },
+  { value: "en", label: "EN" },
+];
 
 export default function AvatarMenu({ username, settingsHref, theme, version }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("nav");
+  const locale = useLocale();
+  const router = useRouter();
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -27,6 +34,11 @@ export default function AvatarMenu({ username, settingsHref, theme, version }: P
     if (open) document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [open]);
+
+  function setLocale(value: string) {
+    setLocaleCookie(value);
+    router.refresh();
+  }
 
   const initial = username?.[0]?.toUpperCase() ?? "?";
 
@@ -61,10 +73,27 @@ export default function AvatarMenu({ username, settingsHref, theme, version }: P
             <div className="px-4 py-3 border-b border-border text-foreground-faint text-xs font-semibold uppercase tracking-wider">
               {username}
             </div>
-            <ThemeToggle role={theme} label={theme === "admin" ? t("adminDesign") : t("userDesign")} />
-            {theme === "admin" && (
-              <ThemeToggle role="user" label={t("userDesign")} />
-            )}
+            {/* Language switcher */}
+            <div className="flex items-center gap-2 px-4 py-2">
+              <span className="text-xs font-medium text-foreground-faint mr-auto">{t("language")}</span>
+              <div className="flex items-center bg-surface-raised rounded-lg p-0.5 gap-0.5">
+                {LOCALES.map((l) => (
+                  <button
+                    key={l.value}
+                    type="button"
+                    onClick={() => setLocale(l.value)}
+                    className={[
+                      "px-2 py-1 rounded-md text-xs font-medium transition-colors",
+                      locale === l.value
+                        ? "bg-surface text-foreground shadow-sm"
+                        : "text-foreground-faint hover:text-foreground-muted",
+                    ].join(" ")}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="border-t border-border-subtle" />
             <Link href={settingsHref} onClick={() => setOpen(false)} className={itemNormal}>
               <Settings size={16} strokeWidth={1.75} />
