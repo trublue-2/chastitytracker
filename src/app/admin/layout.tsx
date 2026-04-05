@@ -3,7 +3,7 @@ import AdminBottomNav from "@/app/components/AdminBottomNav";
 import AdminDesktopSidebar from "@/app/components/AdminDesktopSidebar";
 import { auth } from "@/lib/auth";
 import { formatBuildDate } from "@/lib/utils";
-import { getThemeInitScript } from "@/app/hooks/useTheme";
+import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
