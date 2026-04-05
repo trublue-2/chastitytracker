@@ -59,16 +59,3 @@ export function useTheme(role: "user" | "admin") {
 
   return { mode, setMode } as const;
 }
-
-/**
- * Inline script to prevent FOUC. Call getThemeInitScript() in the layout
- * and render it as a <script> tag.
- */
-export function getThemeInitScript(role: "user" | "admin") {
-  const storageKey = getStorageKey(role);
-  const darkTheme = role === "admin" ? "admin" : "user-dark";
-  const lightTheme = role === "admin" ? "admin-light" : "user";
-  const selector = role === "admin" ? "#admin-root" : "[data-theme]";
-
-  return `(function(){try{var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";var e=document.querySelector('${selector}');if(e)e.setAttribute("data-theme",t);}catch(e){}})();`;
-}
