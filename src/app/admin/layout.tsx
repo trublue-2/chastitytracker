@@ -1,6 +1,7 @@
 import AdminHeader from "@/app/AdminHeader";
 import AdminBottomNav from "@/app/components/AdminBottomNav";
 import AdminDesktopSidebar from "@/app/components/AdminDesktopSidebar";
+import ThemeApplicator from "@/app/components/ThemeApplicator";
 import { auth } from "@/lib/auth";
 import { formatBuildDate } from "@/lib/utils";
 import { getThemeInitScript } from "@/lib/themeScript";
@@ -14,6 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div id="admin-root" data-theme="admin" className="min-h-screen bg-background text-foreground">
       <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("admin") }} />
+      <ThemeApplicator role="admin" />
       <AdminHeader username={user?.name ?? ""} />
       <AdminDesktopSidebar version={pkg.version} buildDate={buildDate} />
 
