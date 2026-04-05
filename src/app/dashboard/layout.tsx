@@ -6,6 +6,7 @@ import DashboardBottomNav from "./DashboardBottomNav";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatBuildDate } from "@/lib/utils";
+import { getThemeInitScript } from "@/app/hooks/useTheme";
 import pkg from "../../../package.json";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-background" data-theme="user">
+      <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("user") }} />
       <Header />
       <DesktopSidebar
         isAdmin={user?.role === "admin"}
