@@ -104,7 +104,8 @@
     "changelog": "Changelog",
     "dashboard": "Dashboard",
     "userDesign": "Benutzer",
-    "adminDesign": "Admin"
+    "adminDesign": "Admin",
+    "language": "Sprache"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -478,6 +479,8 @@
     "roleUser": "Benutzer",
     "roleAdmin": "Administrator",
     "roleLabel": "Rolle",
+    "designAdmin": "Admin-Design",
+    "designUser": "Benutzer-Design",
     "usernameLabel": "Benutzername",
     "passwordLabel": "Passwort",
     "sectionAccount": "Konto",

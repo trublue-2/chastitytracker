@@ -15,6 +15,7 @@ import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
 import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface SettingsFormProps {
   username: string;
@@ -211,6 +212,11 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
                 )}
               </div>
             )}
+          </div>
+
+          {/* Theme */}
+          <div className="px-1 py-1">
+            <ThemeToggle role="user" />
           </div>
 
           {/* Language */}
