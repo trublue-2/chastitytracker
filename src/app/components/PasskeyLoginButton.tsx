@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Fingerprint } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import Button from "@/app/components/Button";
 
@@ -68,7 +68,9 @@ export default function PasskeyLoginButton() {
       });
 
       if (result?.ok) {
-        window.location.href = "/dashboard";
+        const session = await getSession();
+        const dest = (session?.user as { role?: string })?.role === "admin" ? "/admin" : "/dashboard";
+        window.location.href = dest;
       } else {
         setError(t("authFailed"));
       }
