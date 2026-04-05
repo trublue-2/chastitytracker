@@ -24,6 +24,8 @@ interface Entry {
   note: string | null;
   orgasmusArt: string | null;
   oeffnenGrund: string | null;
+  kontrollCode: string | null;
+  verifikationStatus: string | null;
 }
 
 interface Pair {
@@ -91,7 +93,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         captureHref: null,
         deadlineStr: null,
         isOverdue: false,
-        kontrolleCode: null,
+        kontrolleCode: verschluss.kontrollCode,
         kontrolleKommentar: null,
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
@@ -100,27 +102,30 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       },
       ...kontrollen
         .filter((k) => k.anforderungStatus !== "withdrawn")
-        .map((k) => ({
-          type: "kontrolle" as const,
-          time: k.time,
-          dateStr: formatDate(k.time, dl),
-          timeStr: formatTime(k.time, dl),
-          imageUrl: k.imageUrl,
-          exifStr: null,
-          note: k.note,
-          entryId: k.entryId,
-          captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
-          deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
-          isOverdue: k.anforderungStatus === "overdue",
-          kontrolleCode: k.code,
-          kontrolleKommentar: k.kommentar,
-          kombiniertePillLabel: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.label ?? null,
-          kombiniertePillCls: getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta)?.cls ?? null,
-          orgasmusArt: null,
-          timeCorrected: isTimeCorrected(k.time, k.submittedAt),
-          timeCorrectedSystemStr: isTimeCorrected(k.time, k.submittedAt)
-            ? formatDateTime(k.submittedAt!, dl) : null,
-        })),
+        .map((k) => {
+          const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
+          const corrected = isTimeCorrected(k.time, k.submittedAt);
+          return {
+            type: "kontrolle" as const,
+            time: k.time,
+            dateStr: formatDate(k.time, dl),
+            timeStr: formatTime(k.time, dl),
+            imageUrl: k.imageUrl,
+            exifStr: null,
+            note: k.note,
+            entryId: k.entryId,
+            captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
+            deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
+            isOverdue: k.anforderungStatus === "overdue",
+            kontrolleCode: k.code,
+            kontrolleKommentar: k.kommentar,
+            kombiniertePillLabel: pill?.label ?? null,
+            kombiniertePillCls: pill?.cls ?? null,
+            orgasmusArt: null,
+            timeCorrected: corrected,
+            timeCorrectedSystemStr: corrected ? formatDateTime(k.submittedAt!, dl) : null,
+          };
+        }),
       ...sessionOrgasmen.map((e) => ({
         type: "orgasmus" as const,
         time: e.startTime,

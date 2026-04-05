@@ -4,15 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Lock, LockOpen, Timer, CheckCircle2, Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
 import SessionEventRow, { SessionEventData } from "./SessionEventRow";
-
-function getGrundLabels(t: ReturnType<typeof useTranslations>): Record<string, string> {
-  return {
-    REINIGUNG: t("grundReinigung"),
-    KEYHOLDER: t("grundKeyholder"),
-    NOTFALL: t("grundNotfall"),
-    ANDERES: t("grundAnderes"),
-  };
-}
+import { GRUND_I18N_KEYS } from "@/lib/constants";
 
 interface OeffnenFooter {
   dateStr: string;
@@ -42,7 +34,6 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const tOpen = useTranslations("openForm");
-  const grundLabels = getGrundLabels(tOpen);
   const totalPages = Math.ceil(sessions.length / PAGE_SIZE);
   const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -137,7 +128,9 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                         </span>
                         {session.oeffnen.grund && (
                           <span className="text-xs font-semibold text-unlock-text bg-unlock-bg border border-unlock-border px-2 py-0.5 rounded-full">
-                            {grundLabels[session.oeffnen.grund] ?? session.oeffnen.grund}
+                            {GRUND_I18N_KEYS[session.oeffnen.grund as keyof typeof GRUND_I18N_KEYS]
+                              ? tOpen(GRUND_I18N_KEYS[session.oeffnen.grund as keyof typeof GRUND_I18N_KEYS])
+                              : session.oeffnen.grund}
                           </span>
                         )}
                         {session.oeffnen.note && (

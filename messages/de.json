@@ -71,7 +71,12 @@
     "specified": "Angegeben",
     "systemTime": "System",
     "instruction": "Anweisung",
-    "preview": "Vorschau"
+    "preview": "Vorschau",
+    "controlCode": "Kontroll-Code",
+    "sealNumber": "Siegel-Nr.",
+    "verified": "Verifiziert",
+    "notVerified": "Nicht verifiziert",
+    "reason": "Grund"
   },
   "adminNav": {
     "overview": "Übersicht",
@@ -105,7 +110,8 @@
     "dashboard": "Dashboard",
     "userDesign": "Benutzer",
     "adminDesign": "Admin",
-    "language": "Sprache"
+    "language": "Sprache",
+    "menu": "Menü öffnen"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",

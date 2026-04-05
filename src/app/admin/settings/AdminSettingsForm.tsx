@@ -172,12 +172,8 @@ export default function AdminSettingsForm({ userId, username, email, version, bu
           </div>
 
           {/* Theme */}
-          <div className="px-1 py-1">
-            <ThemeToggle role="admin" label={ta("designAdmin")} />
-          </div>
-          <div className="px-1 py-1">
-            <ThemeToggle role="user" label={ta("designUser")} />
-          </div>
+          <ThemeToggle role="admin" label={ta("designAdmin")} />
+          <ThemeToggle role="user" label={ta("designUser")} />
 
           {/* Sign out */}
           <button

@@ -5,13 +5,15 @@ import { Lock, LockOpen, Timer, ImageOff } from "lucide-react";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import { GRUND_I18N_KEYS } from "@/lib/constants";
 
-const GRUND_LABELS: Record<string, string> = {
-  REINIGUNG: "Reinigung",
-  KEYHOLDER: "Von Keyholder erlaubt",
-  NOTFALL: "Notfall",
-  ANDERES: "Anderes",
-};
+function splitDT(iso: string, dl: string) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ }),
+    time: d.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }),
+  };
+}
 
 interface PairEntry {
   id: string;
@@ -34,7 +36,7 @@ interface Props {
 
 function EntryPanel({ entry, type }: { entry: PairEntry; type: "VERSCHLUSS" | "OEFFNEN" }) {
   const tc = useTranslations("common");
-  const ti = useTranslations("inspectionForm");
+  const tOpen = useTranslations("openForm");
   const dl = toDateLocale(useLocale());
 
   return (
@@ -53,9 +55,9 @@ function EntryPanel({ entry, type }: { entry: PairEntry; type: "VERSCHLUSS" | "O
 
       {entry.oeffnenGrund && (
         <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Grund</p>
+          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("reason")}</p>
           <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
-            {GRUND_LABELS[entry.oeffnenGrund] ?? entry.oeffnenGrund}
+            {GRUND_I18N_KEYS[entry.oeffnenGrund as keyof typeof GRUND_I18N_KEYS] ? tOpen(GRUND_I18N_KEYS[entry.oeffnenGrund as keyof typeof GRUND_I18N_KEYS]) : entry.oeffnenGrund}
           </span>
         </div>
       )}
@@ -69,8 +71,13 @@ function EntryPanel({ entry, type }: { entry: PairEntry; type: "VERSCHLUSS" | "O
 
       {entry.kontrollCode && (
         <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{ti("controlCode")}</p>
-          <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">{entry.kontrollCode}</p>
+          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("controlCode")}</p>
+          <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">
+            {entry.kontrollCode}
+            {entry.verifikationStatus && (
+              <span className="ml-2 text-xs font-sans font-medium text-ok-text">✓ {tc("verified")}</span>
+            )}
+          </p>
         </div>
       )}
     </div>
@@ -80,18 +87,14 @@ function EntryPanel({ entry, type }: { entry: PairEntry; type: "VERSCHLUSS" | "O
 export default function PairRow({ verschluss, oeffnen, active, duration, photoStatus }: Props) {
   const tc = useTranslations("common");
   const td = useTranslations("dashboard");
+  const tOpen = useTranslations("openForm");
   const dl = toDateLocale(useLocale());
   const [showVerschluss, setShowVerschluss] = useState(false);
   const [showOeffnen, setShowOeffnen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  function splitDT(iso: string) {
-    const d = new Date(iso);
-    return {
-      date: d.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ }),
-      time: d.toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }),
-    };
-  }
+  const verschlussDT = splitDT(verschluss.startTime, dl);
+  const oeffnenDT = oeffnen ? splitDT(oeffnen.startTime, dl) : null;
 
   const accentBorder =
     photoStatus === "no-photo" ? "border-l-4 border-l-warn" :
@@ -129,7 +132,8 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
               onClick={() => setShowVerschluss(true)}
               className="font-semibold text-foreground hover:text-[var(--color-inspect)] transition text-left"
             >
-              {(() => { const dt = splitDT(verschluss.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-foreground-faint font-normal">{dt.time}</span></>); })()}
+              <span className="block text-sm tabular-nums">{verschlussDT.date}</span>
+              <span className="block text-xs tabular-nums text-foreground-faint font-normal">{verschlussDT.time}</span>
             </button>
           </div>
           {verschluss.imageExifTime && photoStatus === "exif-mismatch" && (
@@ -153,12 +157,13 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
                   onClick={() => setShowOeffnen(true)}
                   className="font-semibold text-foreground hover:text-[var(--color-inspect)] transition text-left"
                 >
-                  {(() => { const dt = splitDT(oeffnen.startTime); return (<><span className="block text-sm tabular-nums">{dt.date}</span><span className="block text-xs tabular-nums text-foreground-faint font-normal">{dt.time}</span></>); })()}
+                  <span className="block text-sm tabular-nums">{oeffnenDT!.date}</span>
+                  <span className="block text-xs tabular-nums text-foreground-faint font-normal">{oeffnenDT!.time}</span>
                 </button>
               </div>
               {oeffnen.oeffnenGrund && (
                 <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text self-start">
-                  {GRUND_LABELS[oeffnen.oeffnenGrund] ?? oeffnen.oeffnenGrund}
+                  {GRUND_I18N_KEYS[oeffnen.oeffnenGrund as keyof typeof GRUND_I18N_KEYS] ? tOpen(GRUND_I18N_KEYS[oeffnen.oeffnenGrund as keyof typeof GRUND_I18N_KEYS]) : oeffnen.oeffnenGrund}
                 </span>
               )}
               {oeffnen.note && (

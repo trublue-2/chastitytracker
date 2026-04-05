@@ -1,5 +1,27 @@
 [
   {
+    "version": "4.7.0",
+    "date": "2026-04-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Siegelnummer wird jetzt im Verschluss-Modal angezeigt"
+      },
+      {
+        "type": "ui",
+        "text": "Shared SegmentedControl-Komponente für Sprach- und Theme-Umschalter"
+      },
+      {
+        "type": "fix",
+        "text": "GRUND_LABELS: hardcodierte deutsche Strings durch i18n ersetzt"
+      },
+      {
+        "type": "chore",
+        "text": "Code-Cleanup: ExpandRow, useLocaleSwitcher-Hook, GRUND_I18N_KEYS, LOCALES zentralisiert"
+      }
+    ]
+  },
+  {
     "version": "4.6.0",
     "date": "2026-04-05",
     "changes": [
