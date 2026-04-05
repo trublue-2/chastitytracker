@@ -161,6 +161,8 @@
     "inspectionOverdue": "Kontrolle überfällig",
     "overduePrefix": "Überfällig seit",
     "untilPrefix": "Bis",
+    "sessionStart": "Start",
+    "sessionEnd": "Ende",
     "sessions": "Sessions",
     "allStats": "Alle Statistiken",
     "statsTitle": "Statistik",
