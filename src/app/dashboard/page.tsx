@@ -112,13 +112,8 @@ export default async function DashboardPage() {
     } : null,
   };
 
-  const username = session.user.name ?? "";
-
   return (
     <>
-      <div className="w-full max-w-2xl mx-auto px-4 pt-6">
-        <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
-      </div>
       {activePair && rawSessionEvents.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pt-6 pb-2">
           <LaufendeSessionCard
