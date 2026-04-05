@@ -1,5 +1,27 @@
 [
   {
+    "version": "4.6.0",
+    "date": "2026-04-05",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Dark Mode: Benutzer- und Admin-Ansicht mit separater Hell/Dunkel/System-Umschaltung"
+      },
+      {
+        "type": "ui",
+        "text": "Theme-Toggle mit Text-Labels (Hell/Dunkel/System) statt Icons"
+      },
+      {
+        "type": "ui",
+        "text": "Akzentfarben: Smaragdgrün (Benutzer) und Indigo (Admin) in Header und Navigation"
+      },
+      {
+        "type": "ui",
+        "text": "Sprachumschalter (DE/EN) im Avatar-Menü, Theme-Einstellungen in die Einstellungsseite verschoben"
+      }
+    ]
+  },
+  {
     "version": "4.5.1",
     "date": "2026-04-05",
     "changes": [
