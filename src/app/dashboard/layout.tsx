@@ -8,7 +8,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatBuildDate } from "@/lib/utils";
 import { getThemeInitScript } from "@/lib/themeScript";
-import { getTranslations } from "next-intl/server";
 import pkg from "../../../package.json";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -27,8 +26,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
     : null;
 
   const isLocked = latestLock?.type === "VERSCHLUSS";
-  const t = await getTranslations("dashboard");
-  const username = user?.name ?? "";
 
   return (
     <div className="min-h-screen bg-background" data-theme="user">
@@ -46,7 +43,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain">
         <div className="w-full max-w-2xl mx-auto px-4">
           <OfflineIndicator />
-          <h1 className="text-xl font-bold text-foreground pt-6">{t("userTitle", { name: username })}</h1>
         </div>
         {children}
       </div>
