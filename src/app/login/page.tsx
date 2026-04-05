@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import Link from "next/link";
@@ -29,7 +29,9 @@ export default function LoginPage() {
       const lockData = await lockRes.json();
       setError(lockData.locked ? t("accountLocked") : t("invalidCredentials"));
     } else {
-      router.push("/dashboard");
+      const session = await getSession();
+      const dest = (session?.user as { role?: string })?.role === "admin" ? "/admin" : "/dashboard";
+      router.push(dest);
       router.refresh();
     }
   }
