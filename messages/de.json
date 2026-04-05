@@ -126,6 +126,7 @@
   },
   "dashboard": {
     "title": "KG Tracker",
+    "userTitle": "Benutzer: {name}",
     "lockRequested": "Einschliessen angefordert",
     "lockUntil": "Bitte bis {date} einschliessen",
     "locked": "Verschlossen",

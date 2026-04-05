@@ -126,6 +126,7 @@
   },
   "dashboard": {
     "title": "KG Tracker",
+    "userTitle": "User: {name}",
     "lockRequested": "Lock-up requested",
     "lockUntil": "Please lock by {date}",
     "locked": "Locked",
