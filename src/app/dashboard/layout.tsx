@@ -2,10 +2,12 @@ import Header from "@/app/Header";
 import DesktopSidebar from "@/app/components/DesktopSidebar";
 import InstallBanner from "@/app/components/InstallBanner";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
+import ThemeApplicator from "@/app/components/ThemeApplicator";
 import DashboardBottomNav from "./DashboardBottomNav";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatBuildDate } from "@/lib/utils";
+import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +29,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-background" data-theme="user">
+      <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("user") }} />
+      <ThemeApplicator role="user" />
       <Header />
       <DesktopSidebar
         isAdmin={user?.role === "admin"}

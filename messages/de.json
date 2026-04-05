@@ -102,7 +102,10 @@
     "copyright": "© trublue {year}",
     "entries": "Einträge",
     "changelog": "Changelog",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "userDesign": "Benutzer",
+    "adminDesign": "Admin",
+    "language": "Sprache"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -476,6 +479,8 @@
     "roleUser": "Benutzer",
     "roleAdmin": "Administrator",
     "roleLabel": "Rolle",
+    "designAdmin": "Admin-Design",
+    "designUser": "Benutzer-Design",
     "usernameLabel": "Benutzername",
     "passwordLabel": "Passwort",
     "sectionAccount": "Konto",
@@ -683,5 +688,11 @@
     "deleteConfirm": "Diesen Passkey wirklich entfernen?",
     "delete": "Entfernen",
     "authFailed": "Passkey-Anmeldung fehlgeschlagen"
+  },
+  "theme": {
+    "label": "Design",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
   }
 }
