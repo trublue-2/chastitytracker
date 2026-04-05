@@ -1,6 +1,24 @@
+export const LOCALES = [
+  { value: "de", label: "DE" },
+  { value: "en", label: "EN" },
+] as const;
+
+export const LOCALES_LONG = [
+  { value: "de", label: "Deutsch" },
+  { value: "en", label: "English" },
+] as const;
+
 export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS"] as const;
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
+
+/** Maps OEFFNEN_GRUENDE values to openForm i18n keys */
+export const GRUND_I18N_KEYS: Record<typeof OEFFNEN_GRUENDE[number], string> = {
+  REINIGUNG: "grundReinigung",
+  KEYHOLDER: "grundKeyholder",
+  NOTFALL: "grundNotfall",
+  ANDERES: "grundAnderes",
+};
 
 // ── Entry display constants (shared by dashboard + admin entry lists) ─────────
 

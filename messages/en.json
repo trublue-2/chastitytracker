@@ -71,7 +71,12 @@
     "specified": "Specified",
     "systemTime": "System",
     "instruction": "Instruction",
-    "preview": "Preview"
+    "preview": "Preview",
+    "controlCode": "Control code",
+    "sealNumber": "Seal no.",
+    "verified": "Verified",
+    "notVerified": "Not verified",
+    "reason": "Reason"
   },
   "adminNav": {
     "overview": "Overview",
@@ -105,7 +110,8 @@
     "dashboard": "Dashboard",
     "userDesign": "User",
     "adminDesign": "Admin",
-    "language": "Language"
+    "language": "Language",
+    "menu": "Open menu"
   },
   "login": {
     "subtitle": "Sign in to continue",

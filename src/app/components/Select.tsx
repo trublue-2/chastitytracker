@@ -11,7 +11,7 @@ interface SelectOption {
 
 interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> {
   label?: string;
-  options: SelectOption[];
+  options: readonly SelectOption[];
   error?: string | null;
   hint?: string;
   placeholder?: string;

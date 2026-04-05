@@ -18,7 +18,7 @@ export interface SessionEvent {
 }
 
 type ActivePair = {
-  verschluss: { id: string; startTime: Date; imageUrl: string | null; imageExifTime: Date | null; note: string | null };
+  verschluss: { id: string; startTime: Date; imageUrl: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null };
   kontrollen: {
     entryId: string | null; time: Date; imageUrl: string | null; note: string | null;
     deadline: Date | null; kommentar: string | null; code: string | null;
@@ -43,6 +43,7 @@ export function buildSessionEvents(
       imageExifTime: activePair.verschluss.imageExifTime,
       note: activePair.verschluss.note,
       entryId: activePair.verschluss.id,
+      kontrolleCode: activePair.verschluss.kontrollCode,
     },
     ...activePair.kontrollen
       .filter(k => k.entryId !== null)

@@ -254,6 +254,14 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
                   <p className="text-sm text-[var(--color-warn)]">{tc("systemTime")}: {ev.timeCorrectedSystemStr}</p>
                 </div>
               )}
+              {ev.kontrolleCode && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">
+                    {ev.type === "verschluss" ? tc("sealNumber") : tc("controlCode")}
+                  </p>
+                  <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">{ev.kontrolleCode}</p>
+                </div>
+              )}
               {ev.kontrolleKommentar && (
                 <div>
                   <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("instruction")}</p>

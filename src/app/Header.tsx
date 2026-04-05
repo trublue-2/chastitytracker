@@ -13,7 +13,7 @@ export default async function Header() {
 
   return (
     <header className="bg-header-bg border-b border-header-border sticky top-0 z-30 pt-safe">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+      <div className="px-4 h-14 flex items-center justify-between gap-3">
         <Link
           href="/dashboard"
           className="font-bold text-header-text hover:opacity-80 transition text-lg tracking-tight flex items-baseline gap-2"

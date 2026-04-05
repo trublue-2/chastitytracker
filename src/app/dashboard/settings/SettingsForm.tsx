@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
-import { useRouter } from "next/navigation";
-import { User, ChevronRight } from "lucide-react";
-import { setLocaleCookie } from "@/lib/locale";
+import { User } from "lucide-react";
 import Card from "@/app/components/Card";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
@@ -13,9 +11,12 @@ import Toggle from "@/app/components/Toggle";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
+import ExpandRow from "@/app/components/ExpandRow";
 import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
+import { LOCALES_LONG } from "@/lib/constants";
 
 interface SettingsFormProps {
   username: string;
@@ -29,7 +30,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const router = useRouter();
+  const switchLocale = useLocaleSwitcher();
 
   const [mobileDesktopUpload, setMobileDesktopUpload] = useState(initialMobileDesktopUpload);
   const [uploadSaving, setUploadSaving] = useState(false);
@@ -51,14 +52,10 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
     setUploadSaving(false);
   }
 
-  function setLocale(value: string) {
-    setLocaleCookie(value);
-    router.refresh();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  function toggle(section: string) {
+    setExpanded((prev) => (prev === section ? null : section));
   }
-
-  const [expandPassword, setExpandPassword] = useState(false);
-  const [expandEmail, setExpandEmail] = useState(false);
-  const [expandLanguage, setExpandLanguage] = useState(false);
 
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -86,7 +83,6 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
     }
   }
 
-  // Email
   const [emailValue, setEmailValue] = useState(email ?? "");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState(false);
@@ -110,11 +106,6 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
     }
   }
 
-  const langOptions = [
-    { value: "de", label: "Deutsch" },
-    { value: "en", label: "English" },
-  ];
-
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
 
@@ -135,112 +126,80 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
         <div className="divide-y divide-border-subtle">
 
           {/* Password change */}
-          <div>
-            <button
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-raised transition text-left"
-              onClick={() => { setExpandPassword(!expandPassword); setExpandEmail(false); setExpandLanguage(false); }}
-            >
-              <span className="text-sm text-foreground">{t("changePassword")}</span>
-              <ChevronRight
-                size={16}
-                className={`text-foreground-faint transition-transform duration-200 ${expandPassword ? "rotate-90" : ""}`}
-              />
-            </button>
-            {expandPassword && (
-              <div className="px-5 pb-5">
-                {pwSuccess ? (
-                  <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("passwordChanged")}</p>
-                ) : (
-                  <form onSubmit={handlePassword} className="flex flex-col gap-4">
-                    <Input
-                      label={t("newPassword")}
-                      type="password"
-                      value={next}
-                      onChange={(e) => setNext(e.target.value)}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                    />
-                    <Input
-                      label={t("confirmPassword")}
-                      type="password"
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                    />
-                    <FormError message={pwError} />
-                    <Button type="submit" variant="primary" fullWidth loading={pwSaving}>
-                      {t("saveBtn")}
-                    </Button>
-                  </form>
-                )}
-              </div>
+          <ExpandRow
+            label={t("changePassword")}
+            open={expanded === "password"}
+            onToggle={() => toggle("password")}
+          >
+            {pwSuccess ? (
+              <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("passwordChanged")}</p>
+            ) : (
+              <form onSubmit={handlePassword} className="flex flex-col gap-4">
+                <Input
+                  label={t("newPassword")}
+                  type="password"
+                  value={next}
+                  onChange={(e) => setNext(e.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+                <Input
+                  label={t("confirmPassword")}
+                  type="password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                <FormError message={pwError} />
+                <Button type="submit" variant="primary" fullWidth loading={pwSaving}>
+                  {t("saveBtn")}
+                </Button>
+              </form>
             )}
-          </div>
+          </ExpandRow>
 
           {/* Email change */}
-          <div>
-            <button
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-raised transition text-left"
-              onClick={() => { setExpandEmail(!expandEmail); setExpandPassword(false); setExpandLanguage(false); }}
-            >
-              <span className="text-sm text-foreground">{t("changeEmail")}</span>
-              <ChevronRight
-                size={16}
-                className={`text-foreground-faint transition-transform duration-200 ${expandEmail ? "rotate-90" : ""}`}
-              />
-            </button>
-            {expandEmail && (
-              <div className="px-5 pb-5">
-                {emailSuccess ? (
-                  <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("emailSaved")}</p>
-                ) : (
-                  <form onSubmit={handleEmail} className="flex flex-col gap-4">
-                    <Input
-                      label={t("emailLabel")}
-                      type="email"
-                      value={emailValue}
-                      onChange={(e) => setEmailValue(e.target.value)}
-                      placeholder="name@example.com"
-                    />
-                    <FormError message={emailError} />
-                    <Button type="submit" variant="primary" fullWidth loading={emailSaving}>
-                      {tc("save")}
-                    </Button>
-                  </form>
-                )}
-              </div>
+          <ExpandRow
+            label={t("changeEmail")}
+            open={expanded === "email"}
+            onToggle={() => toggle("email")}
+          >
+            {emailSuccess ? (
+              <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("emailSaved")}</p>
+            ) : (
+              <form onSubmit={handleEmail} className="flex flex-col gap-4">
+                <Input
+                  label={t("emailLabel")}
+                  type="email"
+                  value={emailValue}
+                  onChange={(e) => setEmailValue(e.target.value)}
+                  placeholder="name@example.com"
+                />
+                <FormError message={emailError} />
+                <Button type="submit" variant="primary" fullWidth loading={emailSaving}>
+                  {tc("save")}
+                </Button>
+              </form>
             )}
-          </div>
+          </ExpandRow>
 
           {/* Theme */}
-          <div className="px-1 py-1">
-            <ThemeToggle role="user" />
-          </div>
+          <ThemeToggle role="user" />
 
           {/* Language */}
-          <div>
-            <button
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-raised transition text-left"
-              onClick={() => { setExpandLanguage(!expandLanguage); setExpandPassword(false); setExpandEmail(false); }}
-            >
-              <span className="text-sm text-foreground">{t("language")}</span>
-              <ChevronRight
-                size={16}
-                className={`text-foreground-faint transition-transform duration-200 ${expandLanguage ? "rotate-90" : ""}`}
-              />
-            </button>
-            {expandLanguage && (
-              <div className="px-5 pb-5">
-                <Select
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value)}
-                  options={langOptions}
-                />
-              </div>
-            )}
-          </div>
+          <ExpandRow
+            label={t("language")}
+            open={expanded === "language"}
+            onToggle={() => toggle("language")}
+          >
+            <Select
+              value={locale}
+              onChange={(e) => switchLocale(e.target.value)}
+              options={LOCALES_LONG}
+            />
+          </ExpandRow>
 
           {/* Sign out */}
           <button
