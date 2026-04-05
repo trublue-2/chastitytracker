@@ -130,13 +130,22 @@
   --color-ok-muted:    #6ee7b7;
   --color-ok-text:     #065f46;
 
-  /* Navigation */
-  --nav-bg:            #ffffff;
-  --nav-border:        #f3f4f6;
-  --nav-active-bg:     #f3f4f6;
-  --nav-active-text:   #111827;
-  --nav-inactive-text: #9ca3af;
-  --nav-inactive-hover:#374151;
+  /* Header — Emerald accent (user) */
+  --header-bg:          #ecfdf5;
+  --header-border:      #a7f3d0;
+  --header-text:        #065f46;
+  --header-avatar-bg:   #d1fae5;
+  --header-avatar-text: #065f46;
+
+  /* Navigation — Emerald accent (user) */
+  --nav-bg:            #ecfdf5;
+  --nav-border:        #a7f3d0;
+  --nav-active-bg:     #d1fae5;
+  --nav-active-text:   #065f46;
+  --nav-inactive-text: #065f46aa;
+  --nav-inactive-hover:#065f46;
+  --nav-icon-bg:       #d1fae5;
+  --nav-icon-active-bg:#059669;
 
   /* Interactive */
   --focus-ring:        #6366f1;
@@ -271,13 +280,22 @@
   --color-ok-muted:    #6ee7b7;
   --color-ok-text:     #6ee7b7;
 
-  /* Navigation */
-  --nav-bg:            #151821;
-  --nav-border:        #222535;
-  --nav-active-bg:     #232737;
-  --nav-active-text:   #f1f5f9;
-  --nav-inactive-text: #64748b;
-  --nav-inactive-hover:#94a3b8;
+  /* Header — Indigo accent (admin) */
+  --header-bg:          #131336;
+  --header-border:      #3730a3;
+  --header-text:        #eef2ff;
+  --header-avatar-bg:   #272566;
+  --header-avatar-text: #a5b4fc;
+
+  /* Navigation — Indigo accent (admin) */
+  --nav-bg:            #131336;
+  --nav-border:        #3730a3;
+  --nav-active-bg:     #272566;
+  --nav-active-text:   #eef2ff;
+  --nav-inactive-text: #a5b4fcaa;
+  --nav-inactive-hover:#a5b4fc;
+  --nav-icon-bg:       #272566;
+  --nav-icon-active-bg:#4f46e5;
 
   /* Interactive */
   --focus-ring:        #818cf8;
@@ -299,6 +317,234 @@
   --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
   --shadow-raised: 0 4px 12px 0 rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
   --shadow-overlay:0 16px 32px 0 rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+
+/* ─────────────────────────────────────────────
+   USER DARK THEME  (dark canvas, emerald accent)
+   Applied to: [data-theme="user-dark"]
+   Inherits dark canvas from admin, emerald accent from user
+   ───────────────────────────────────────────── */
+[data-theme="user-dark"] {
+
+  /* Canvas — same as admin */
+  --background:        #0d0f14;
+  --background-subtle: #151821;
+  --surface:           #1c1f2a;
+  --surface-raised:    #232737;
+  --surface-overlay:   #1c1f2acc;
+
+  /* Borders — same as admin */
+  --border:            #2d3144;
+  --border-subtle:     #222535;
+  --border-strong:     #3d4257;
+
+  /* Text — same as admin */
+  --foreground:        #f1f5f9;
+  --foreground-muted:  #94a3b8;
+  --foreground-faint:  #64748b;
+  --foreground-invert: #0d0f14;
+
+  /* Semantic colors — same as admin dark */
+  --color-lock:        #34d399;
+  --color-lock-bg:     #0b1912;
+  --color-lock-border: #065f46;
+  --color-lock-muted:  #6ee7b7;
+  --color-lock-text:   #6ee7b7;
+
+  --color-unlock:      #38bdf8;
+  --color-unlock-bg:   #0c1c27;
+  --color-unlock-border:#0c4a6e;
+  --color-unlock-muted:#7dd3fc;
+  --color-unlock-text: #7dd3fc;
+
+  --color-inspect:     #fb923c;
+  --color-inspect-bg:  #1c1505;
+  --color-inspect-border:#92400e;
+  --color-inspect-muted:#fcd34d;
+  --color-inspect-text:#fcd34d;
+
+  --color-orgasm:      #f472b6;
+  --color-orgasm-bg:   #1c0a14;
+  --color-orgasm-border:#9d174d;
+  --color-orgasm-muted:#fbcfe8;
+  --color-orgasm-text: #fbcfe8;
+
+  --color-request:     #818cf8;
+  --color-request-bg:  #0f0f28;
+  --color-request-border:#3730a3;
+  --color-request-muted:#c7d2fe;
+  --color-request-text:#c7d2fe;
+
+  --color-warn:        #f97316;
+  --color-warn-bg:     #1c0e08;
+  --color-warn-border: #9a3412;
+  --color-warn-muted:  #fdba74;
+  --color-warn-text:   #fdba74;
+
+  --color-sperrzeit:   #a855f7;
+  --color-sperrzeit-bg:#110c1e;
+  --color-sperrzeit-border:#6b21a8;
+  --color-sperrzeit-muted:#d8b4fe;
+  --color-sperrzeit-text:#d8b4fe;
+
+  --color-ok:          #34d399;
+  --color-ok-bg:       #0b1912;
+  --color-ok-border:   #065f46;
+  --color-ok-muted:    #6ee7b7;
+  --color-ok-text:     #6ee7b7;
+
+  /* Header — Emerald accent (user) on dark */
+  --header-bg:          #062e1e;
+  --header-border:      #065f46;
+  --header-text:        #ecfdf5;
+  --header-avatar-bg:   #0b4d35;
+  --header-avatar-text: #6ee7b7;
+
+  /* Navigation — Emerald accent (user) on dark */
+  --nav-bg:            #062e1e;
+  --nav-border:        #065f46;
+  --nav-active-bg:     #0b4d35;
+  --nav-active-text:   #ecfdf5;
+  --nav-inactive-text: #6ee7b7aa;
+  --nav-inactive-hover:#6ee7b7;
+  --nav-icon-bg:       #0b4d35;
+  --nav-icon-active-bg:#059669;
+
+  /* Interactive — Emerald primary */
+  --focus-ring:        #34d399;
+  --btn-primary-bg:    #059669;
+  --btn-primary-hover: #047857;
+  --btn-primary-text:  #ffffff;
+
+  /* Semantic button fills — same as admin dark */
+  --btn-lock:          #10b981;
+  --btn-unlock:        #0ea5e9;
+  --btn-inspect:       #f59e0b;
+  --btn-orgasm:        #ec4899;
+  --btn-request:       #6366f1;
+  --btn-sperrzeit:     #8b5cf6;
+  --btn-warn:          #ef4444;
+  --btn-ok:            #10b981;
+
+  /* Elevation — same as admin dark */
+  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-raised: 0 4px 12px 0 rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --shadow-overlay:0 16px 32px 0 rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+
+/* ─────────────────────────────────────────────
+   ADMIN LIGHT THEME  (light canvas, indigo accent)
+   Applied to: [data-theme="admin-light"]
+   Inherits light canvas from user, indigo accent from admin
+   ───────────────────────────────────────────── */
+[data-theme="admin-light"] {
+
+  /* Canvas — same as user light */
+  --background:        #f8f9fb;
+  --background-subtle: #f1f3f7;
+  --surface:           #ffffff;
+  --surface-raised:    #f1f3f7;
+  --surface-overlay:   #ffffffcc;
+
+  /* Borders — same as user light */
+  --border:            #e5e7eb;
+  --border-subtle:     #f3f4f6;
+  --border-strong:     #d1d5db;
+
+  /* Text — same as user light */
+  --foreground:        #111827;
+  --foreground-muted:  #4b5563;
+  --foreground-faint:  #9ca3af;
+  --foreground-invert: #ffffff;
+
+  /* Semantic colors — same as user light */
+  --color-lock:        #0d9151;
+  --color-lock-bg:     #ecfdf5;
+  --color-lock-border: #a7f3d0;
+  --color-lock-muted:  #6ee7b7;
+  --color-lock-text:   #065f46;
+
+  --color-unlock:      #0369a1;
+  --color-unlock-bg:   #f0f9ff;
+  --color-unlock-border:#bae6fd;
+  --color-unlock-muted:#7dd3fc;
+  --color-unlock-text: #0c4a6e;
+
+  --color-inspect:     #c2610a;
+  --color-inspect-bg:  #fff7ed;
+  --color-inspect-border:#fed7aa;
+  --color-inspect-muted:#fdba74;
+  --color-inspect-text:#92400e;
+
+  --color-orgasm:      #be185d;
+  --color-orgasm-bg:   #fdf2f8;
+  --color-orgasm-border:#fbcfe8;
+  --color-orgasm-muted:#f9a8d4;
+  --color-orgasm-text: #9d174d;
+
+  --color-request:     #4338ca;
+  --color-request-bg:  #eef2ff;
+  --color-request-border:#c7d2fe;
+  --color-request-muted:#a5b4fc;
+  --color-request-text:#3730a3;
+
+  --color-warn:        #c2410c;
+  --color-warn-bg:     #fff5f0;
+  --color-warn-border: #fed7aa;
+  --color-warn-muted:  #fdba74;
+  --color-warn-text:   #9a3412;
+
+  --color-sperrzeit:   #7c3aed;
+  --color-sperrzeit-bg:#faf5ff;
+  --color-sperrzeit-border:#ddd6fe;
+  --color-sperrzeit-muted:#c4b5fd;
+  --color-sperrzeit-text:#5b21b6;
+
+  --color-ok:          #0d9151;
+  --color-ok-bg:       #ecfdf5;
+  --color-ok-border:   #a7f3d0;
+  --color-ok-muted:    #6ee7b7;
+  --color-ok-text:     #065f46;
+
+  /* Header — Indigo accent (admin) on light */
+  --header-bg:          #eef2ff;
+  --header-border:      #c7d2fe;
+  --header-text:        #3730a3;
+  --header-avatar-bg:   #ddd6fe;
+  --header-avatar-text: #3730a3;
+
+  /* Navigation — Indigo accent (admin) on light */
+  --nav-bg:            #eef2ff;
+  --nav-border:        #c7d2fe;
+  --nav-active-bg:     #ddd6fe;
+  --nav-active-text:   #3730a3;
+  --nav-inactive-text: #3730a3aa;
+  --nav-inactive-hover:#3730a3;
+  --nav-icon-bg:       #ddd6fe;
+  --nav-icon-active-bg:#4f46e5;
+
+  /* Interactive — Indigo primary */
+  --focus-ring:        #6366f1;
+  --btn-primary-bg:    #4f46e5;
+  --btn-primary-hover: #4338ca;
+  --btn-primary-text:  #ffffff;
+
+  /* Semantic button fills — same as user light */
+  --btn-lock:          #059669;
+  --btn-unlock:        #0284c7;
+  --btn-inspect:       #d97706;
+  --btn-orgasm:        #db2777;
+  --btn-request:       #4f46e5;
+  --btn-sperrzeit:     #7c3aed;
+  --btn-warn:          #dc2626;
+  --btn-ok:            #059669;
+
+  /* Elevation — same as user light */
+  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-overlay:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.07);
 }
 
 
@@ -420,6 +666,13 @@
   --color-ok-muted:           var(--color-ok-muted);
   --color-ok-text:            var(--color-ok-text);
 
+  /* Header */
+  --color-header-bg:           var(--header-bg);
+  --color-header-border:       var(--header-border);
+  --color-header-text:         var(--header-text);
+  --color-header-avatar-bg:    var(--header-avatar-bg);
+  --color-header-avatar-text:  var(--header-avatar-text);
+
   /* Navigation */
   --color-nav-bg:             var(--nav-bg);
   --color-nav-border:         var(--nav-border);
@@ -427,6 +680,8 @@
   --color-nav-active-text:    var(--nav-active-text);
   --color-nav-inactive-text:  var(--nav-inactive-text);
   --color-nav-inactive-hover: var(--nav-inactive-hover);
+  --color-nav-icon-bg:        var(--nav-icon-bg);
+  --color-nav-icon-active-bg: var(--nav-icon-active-bg);
 
   /* Interactive */
   --color-btn-primary:        var(--btn-primary-bg);
