@@ -104,7 +104,8 @@
     "changelog": "Changelog",
     "dashboard": "Dashboard",
     "userDesign": "User",
-    "adminDesign": "Admin"
+    "adminDesign": "Admin",
+    "language": "Language"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -478,6 +479,8 @@
     "roleUser": "User",
     "roleAdmin": "Administrator",
     "roleLabel": "Role",
+    "designAdmin": "Admin theme",
+    "designUser": "User theme",
     "usernameLabel": "Username",
     "passwordLabel": "Password",
     "sectionAccount": "Account",

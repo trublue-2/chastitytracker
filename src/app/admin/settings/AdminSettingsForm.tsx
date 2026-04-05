@@ -11,6 +11,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
 import PushManager from "@/app/components/PushManager";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface Props {
   userId: string;
@@ -168,6 +169,14 @@ export default function AdminSettingsForm({ userId, username, email, version, bu
                 )}
               </div>
             )}
+          </div>
+
+          {/* Theme */}
+          <div className="px-1 py-1">
+            <ThemeToggle role="admin" label={ta("designAdmin")} />
+          </div>
+          <div className="px-1 py-1">
+            <ThemeToggle role="user" label={ta("designUser")} />
           </div>
 
           {/* Sign out */}
