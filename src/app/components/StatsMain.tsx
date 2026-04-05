@@ -298,10 +298,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
-        {compact
-          ? <h2 className="text-lg font-bold text-foreground">{pageHeading}</h2>
-          : <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
-        }
+        <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
         <Card padding="default">
           <EmptyState
             icon={<BarChart2 size={32} />}
@@ -318,10 +315,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
-        {compact
-          ? <h2 className={`text-lg font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h2>
-          : <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
-        }
+        <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
       </div>
 
       {/* Gesamtübersicht */}
