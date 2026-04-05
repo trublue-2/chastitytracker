@@ -101,7 +101,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                   {/* Start marker */}
                   <div className="flex items-center gap-2 px-4 py-2 bg-lock-bg border-b border-lock-border">
                     <Lock size={11} className="text-lock shrink-0" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-lock">Start</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-lock">{t("sessionStart")}</span>
                     <span className="text-xs text-lock tabular-nums opacity-70">{session.dateStr}, {session.timeStr}</span>
                   </div>
 
@@ -120,7 +120,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                     <div className="border-t-2 border-border bg-surface-raised">
                       <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle">
                         <LockOpen size={11} className="text-foreground-faint shrink-0" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-foreground-faint">Ende</span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-foreground-faint">{t("sessionEnd")}</span>
                       </div>
                       <div className="px-4 py-3 flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-foreground-muted">
