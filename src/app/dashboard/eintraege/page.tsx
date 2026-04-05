@@ -24,7 +24,7 @@ export default async function EintraegePage() {
 
   return (
     <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
-      <h2 className="text-lg font-bold text-foreground">{t("entriesTitle")}</h2>
+      <h1 className="text-xl font-bold text-foreground">{t("entriesTitle")}</h1>
 
       {entries.length === 0 ? (
         <Card padding="none">
