@@ -61,7 +61,10 @@ export default function AvatarMenu({ username, settingsHref, theme, version }: P
             <div className="px-4 py-3 border-b border-border text-foreground-faint text-xs font-semibold uppercase tracking-wider">
               {username}
             </div>
-            <ThemeToggle role={theme} />
+            <ThemeToggle role={theme} label={theme === "admin" ? t("adminDesign") : t("userDesign")} />
+            {theme === "admin" && (
+              <ThemeToggle role="user" label={t("userDesign")} />
+            )}
             <div className="border-t border-border-subtle" />
             <Link href={settingsHref} onClick={() => setOpen(false)} className={itemNormal}>
               <Settings size={16} strokeWidth={1.75} />
