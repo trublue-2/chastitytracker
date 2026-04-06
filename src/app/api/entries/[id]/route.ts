@@ -82,7 +82,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -96,7 +96,60 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Atomares Unlink + Delete in einer Transaktion
+  const force = req.nextUrl.searchParams.get("force") === "true";
+  const withPartner = req.nextUrl.searchParams.get("withPartner") === "true";
+  const partnerId = req.nextUrl.searchParams.get("partnerId");
+
+  const isVO = existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN";
+
+  // Chain break detection for VERSCHLUSS/OEFFNEN entries
+  if (isVO && !force) {
+    const [prev, next] = await Promise.all([
+      prisma.entry.findFirst({
+        where: { userId: existing.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { lt: existing.startTime } },
+        orderBy: { startTime: "desc" },
+        select: { id: true, type: true, startTime: true },
+      }),
+      prisma.entry.findFirst({
+        where: { userId: existing.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { gt: existing.startTime } },
+        orderBy: { startTime: "asc" },
+        select: { id: true, type: true, startTime: true },
+      }),
+    ]);
+
+    const wouldBreak = prev && next && prev.type === next.type;
+
+    if (wouldBreak) {
+      const partner = existing.type === "VERSCHLUSS" ? next : prev;
+
+      if (withPartner) {
+        if (partnerId && partnerId !== partner.id) {
+          return NextResponse.json({ error: "Partner changed" }, { status: 409 });
+        }
+        try {
+          await prisma.$transaction(async (tx) => {
+            const verified = await tx.entry.findUnique({ where: { id: partner.id }, select: { id: true } });
+            if (!verified) throw Object.assign(new Error(), { _code: "PARTNER_GONE" });
+            await tx.entry.deleteMany({ where: { id: { in: [id, partner.id] } } });
+          });
+        } catch (e: unknown) {
+          if ((e as { _code?: string })?._code === "PARTNER_GONE") {
+            return NextResponse.json({ error: "Partner changed" }, { status: 409 });
+          }
+          throw e;
+        }
+        return new NextResponse(null, { status: 204 });
+      }
+
+      // Return chain break info without deleting
+      return NextResponse.json({
+        chainBreak: true,
+        partner: { id: partner.id, type: partner.type, startTime: partner.startTime },
+      });
+    }
+  }
+
+  // No chain break, force=true, or non-VO entry: delete normally
   await prisma.$transaction(async (tx) => {
     if (existing.type === "PRUEFUNG") {
       await tx.kontrollAnforderung.updateMany({

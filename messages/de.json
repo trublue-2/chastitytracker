@@ -635,6 +635,13 @@
   },
   "entryActions": {
     "deleteConfirm": "Eintrag wirklich löschen?",
+    "deleteConfirmTitle": "Eintrag löschen",
+    "chainBreakTitle": "Kettenbruch erkannt",
+    "chainBreakWarning": "Das Löschen dieses Eintrags erzeugt eine Inkonsistenz in der Verschluss-Kette. Der Partner-Eintrag ({type} am {date}) wird verwaist.",
+    "deleteOnlyThis": "Nur diesen löschen",
+    "deleteBoth": "Beide löschen",
+    "cancel": "Abbrechen",
+    "partnerChanged": "Der Partner-Eintrag wurde zwischenzeitlich geändert. Bitte Seite neu laden.",
     "ariaActions": "Aktionen",
     "edit": "Eintrag anpassen",
     "delete": "Löschen"
