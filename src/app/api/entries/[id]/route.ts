@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
@@ -138,6 +139,7 @@ export async function DELETE(
           }
           throw e;
         }
+        revalidatePath("/dashboard", "layout");
         return new NextResponse(null, { status: 204 });
       }
 
@@ -159,6 +161,10 @@ export async function DELETE(
     }
     await tx.entry.delete({ where: { id } });
   });
+
+  if (isVO) {
+    revalidatePath("/dashboard", "layout");
+  }
 
   return new NextResponse(null, { status: 204 });
 }
