@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
@@ -238,6 +239,10 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error("[POST /api/entries] AI verification failed for entry", entry.id, err);
     }
+  }
+
+  if (type === "VERSCHLUSS" || type === "OEFFNEN") {
+    revalidatePath("/dashboard", "layout");
   }
 
   return NextResponse.json(entry, { status: 201 });

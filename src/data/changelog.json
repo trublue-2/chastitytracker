@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.8.4",
+    "date": "2026-04-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Verschluss/Öffnen-Status im Menü wird nach Eintragsänderung sofort aktualisiert"
+      }
+    ]
+  },
+  {
     "version": "4.8.3",
     "date": "2026-04-06",
     "changes": [
