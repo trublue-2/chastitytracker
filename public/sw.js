@@ -222,7 +222,9 @@ async function staleWhileRevalidate(request, cacheName) {
 async function networkFirstNavigation(request) {
   try {
     const response = await fetch(request);
-    if (response.status === 502 || response.status === 503 || response.status === 504) {
+    // 404 = Traefik has no route (container down during deploy)
+    // 502/503/504 = backend unreachable or error
+    if (response.status === 404 || response.status === 502 || response.status === 503 || response.status === 504) {
       const offline = await caches.match(OFFLINE_URL);
       return offline || response;
     }
