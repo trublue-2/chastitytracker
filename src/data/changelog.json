@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.8.3",
+    "date": "2026-04-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Service Worker zeigt Offline-Seite statt 404 während Deployments"
+      }
+    ]
+  },
+  {
     "version": "4.8.2",
     "date": "2026-04-06",
     "changes": [
