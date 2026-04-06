@@ -5,6 +5,7 @@ import { Lock, LockOpen, Timer, ImageOff } from "lucide-react";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import { GRUND_I18N_KEYS } from "@/lib/constants";
 
 function splitDT(iso: string, dl: string) {
@@ -34,53 +35,17 @@ interface Props {
   photoStatus: "no-photo" | "exif-mismatch" | "ok";
 }
 
-function EntryPanel({ entry, type }: { entry: PairEntry; type: "VERSCHLUSS" | "OEFFNEN" }) {
-  const tc = useTranslations("common");
-  const tOpen = useTranslations("openForm");
-  const dl = toDateLocale(useLocale());
-
+function entryDetailPanel(entry: PairEntry, dl: string) {
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
-        <p className="text-sm font-semibold text-foreground">{formatDateTime(new Date(entry.startTime), dl)}</p>
-      </div>
-
-      {entry.imageExifTime && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
-          <p className="text-sm text-foreground-muted">{formatDateTime(new Date(entry.imageExifTime), dl)}</p>
-        </div>
-      )}
-
-      {entry.oeffnenGrund && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("reason")}</p>
-          <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
-            {GRUND_I18N_KEYS[entry.oeffnenGrund as keyof typeof GRUND_I18N_KEYS] ? tOpen(GRUND_I18N_KEYS[entry.oeffnenGrund as keyof typeof GRUND_I18N_KEYS]) : entry.oeffnenGrund}
-          </span>
-        </div>
-      )}
-
-      {entry.note && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
-          <p className="text-sm text-foreground-muted italic">„{entry.note}"</p>
-        </div>
-      )}
-
-      {entry.kontrollCode && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("controlCode")}</p>
-          <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">
-            {entry.kontrollCode}
-            {entry.verifikationStatus && (
-              <span className="ml-2 text-xs font-sans font-medium text-ok-text">✓ {tc("verified")}</span>
-            )}
-          </p>
-        </div>
-      )}
-    </div>
+    <EntryDetailPanel
+      startTime={new Date(entry.startTime)}
+      locale={dl}
+      imageExifTime={entry.imageExifTime}
+      oeffnenGrund={entry.oeffnenGrund}
+      kontrollCode={entry.kontrollCode}
+      verifikationStatus={entry.verifikationStatus}
+      note={entry.note}
+    />
   );
 }
 
@@ -199,7 +164,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
           alt={tc("photo")}
           onClose={() => setShowVerschluss(false)}
           title={<span className="flex items-center gap-1.5"><Lock size={14} />{td("lock")}</span>}
-          panel={<EntryPanel entry={verschluss} type="VERSCHLUSS" />}
+          panel={entryDetailPanel(verschluss, dl)}
         />
       )}
       {showOeffnen && oeffnen && (
@@ -208,7 +173,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
           alt={tc("photo")}
           onClose={() => setShowOeffnen(false)}
           title={<span className="flex items-center gap-1.5"><LockOpen size={14} />{td("opening")}</span>}
-          panel={<EntryPanel entry={oeffnen} type="OEFFNEN" />}
+          panel={entryDetailPanel(oeffnen, dl)}
         />
       )}
     </>

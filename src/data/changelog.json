@@ -1,5 +1,27 @@
 [
   {
+    "version": "4.8.0",
+    "date": "2026-04-06",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Detail-Modal auf Einträge-Liste: Klick auf Eintrag zeigt Foto, Datum, EXIF, Notiz etc."
+      },
+      {
+        "type": "feat",
+        "text": "Admin kann Einträge bearbeiten und löschen (3-Punkte-Menü auf Admin-Einträge-Seite)"
+      },
+      {
+        "type": "ui",
+        "text": "Benutzer können Einträge nicht mehr selbst bearbeiten (3-Punkte-Menü entfernt)"
+      },
+      {
+        "type": "chore",
+        "text": "Shared EntryDetailPanel-Komponente, TYPE_STATS_KEYS zentralisiert, Icon-Maps vereinheitlicht"
+      }
+    ]
+  },
+  {
     "version": "4.7.0",
     "date": "2026-04-05",
     "changes": [

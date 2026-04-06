@@ -29,6 +29,14 @@ export const TYPE_LABELS: Record<string, string> = {
   ORGASMUS: "Orgasmus",
 };
 
+/** Maps entry type to stats i18n key (e.g. tStats(TYPE_STATS_KEYS["VERSCHLUSS"]) → "Lock") */
+export const TYPE_STATS_KEYS: Record<string, string> = {
+  VERSCHLUSS: "lock",
+  OEFFNEN: "opening",
+  PRUEFUNG: "inspection",
+  ORGASMUS: "orgasm",
+};
+
 export const TYPE_COLORS: Record<string, string> = {
   VERSCHLUSS: "text-foreground-muted",
   OEFFNEN: "text-foreground-muted",
