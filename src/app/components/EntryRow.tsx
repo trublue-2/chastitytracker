@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, LockOpen, ClipboardList, Droplets } from "lucide-react";
+import { Lock, LockOpen, ClipboardList, Droplets, Camera } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { TYPE_LABELS, TYPE_COLORS, TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
@@ -67,6 +67,9 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
           <span className="text-sm text-foreground tabular-nums">
             {formatDateTime(startTime, locale)}
           </span>
+          {e.imageUrl && (
+            <Camera size={12} className="text-foreground-faint flex-shrink-0" />
+          )}
           {e.orgasmusArt && (
             <span className="text-xs text-[var(--color-orgasm)] font-medium">{e.orgasmusArt}</span>
           )}
