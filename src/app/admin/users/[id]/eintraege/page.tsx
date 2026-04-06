@@ -6,6 +6,7 @@ import { toDateLocale } from "@/lib/utils";
 import { assertAdmin } from "@/lib/authGuards";
 import Link from "next/link";
 import EntryRow from "@/app/components/EntryRow";
+import EntryActions from "@/app/dashboard/EntryActions";
 
 const PAGE_SIZE = 100;
 
@@ -60,7 +61,12 @@ export default async function AdminUserEintraegePage({
         <div className="bg-surface rounded-2xl border border-border overflow-hidden">
           <div className="divide-y divide-border-subtle">
             {entries.map((e) => (
-              <EntryRow key={e.id} entry={e} locale={dl} />
+              <EntryRow
+                key={e.id}
+                entry={e}
+                locale={dl}
+                actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=admin&userId=${id}`} />}
+              />
             ))}
           </div>
 

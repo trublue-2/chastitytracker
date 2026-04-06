@@ -7,7 +7,6 @@ import { ClipboardList } from "lucide-react";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import EntryRow from "@/app/components/EntryRow";
-import EntryActions from "../EntryActions";
 
 export default async function EintraegePage() {
   const session = await auth();
@@ -42,7 +41,6 @@ export default async function EintraegePage() {
                 key={e.id}
                 entry={e}
                 locale={dl}
-                actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=eintraege`} showDelete={false} />}
               />
             ))}
           </div>
