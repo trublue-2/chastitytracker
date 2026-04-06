@@ -635,6 +635,13 @@
   },
   "entryActions": {
     "deleteConfirm": "Really delete this entry?",
+    "deleteConfirmTitle": "Delete entry",
+    "chainBreakTitle": "Chain break detected",
+    "chainBreakWarning": "Deleting this entry creates an inconsistency in the lock chain. The partner entry ({type} on {date}) would be orphaned.",
+    "deleteOnlyThis": "Delete only this",
+    "deleteBoth": "Delete both",
+    "cancel": "Cancel",
+    "partnerChanged": "The partner entry has changed. Please reload the page.",
     "ariaActions": "Actions",
     "edit": "Edit entry",
     "delete": "Delete"

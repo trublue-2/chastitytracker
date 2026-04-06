@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.8.2",
+    "date": "2026-04-06",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kettenbruch-Erkennung beim Löschen von Verschluss/Öffnen-Einträgen mit Partner-Löschoption"
+      },
+      {
+        "type": "ui",
+        "text": "Lösch-Bestätigung als Modal statt Browser-Dialog"
+      }
+    ]
+  },
+  {
     "version": "4.8.1",
     "date": "2026-04-06",
     "changes": [
