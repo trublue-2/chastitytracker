@@ -95,7 +95,7 @@ export default async function ChangelogPage() {
               </div>
 
               {/* Content */}
-              <div className="flex-1 pb-2">
+              <div className="flex-1 min-w-0 pb-2">
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`font-mono font-bold text-sm ${isCurrent ? "text-foreground" : "text-foreground-muted"}`}>
                     v{release.version}
