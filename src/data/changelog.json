@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.9.3",
+    "date": "2026-04-07",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Echtzeit-Timer in der laufenden Session (Sekunden-Anzeige)"
+      },
+      {
+        "type": "feat",
+        "text": "Statistik-Kacheln und Trainings-Fortschrittsbalken aktualisieren sich live ohne Seiten-Reload"
+      },
+      {
+        "type": "ui",
+        "text": "Fortschrittsbalken-Werte in der Session-Karte rechtsbündig ausgerichtet"
+      }
+    ]
+  },
+  {
     "version": "4.9.2",
     "date": "2026-04-07",
     "changes": [

@@ -8,6 +8,7 @@ import EmptyState from "@/app/components/EmptyState";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import { formatHoursHM } from "@/lib/utils";
+import { useLiveHours } from "@/app/hooks/useLiveHours";
 
 // ── Types ────────────────────────────────────
 export interface DashboardProps {
@@ -42,6 +43,7 @@ export interface DashboardProps {
   tagH: number;
   wocheH: number;
   monatH: number;
+  serverNow: string;
 
   // Training
   activeVorgabe: {
@@ -76,14 +78,19 @@ export default function DashboardClient(props: DashboardProps) {
     offeneKontrolle,
     offeneVerschlussAnf,
     activeSperrzeit,
-    tagH,
-    wocheH,
-    monatH,
+    tagH: baseTagH,
+    wocheH: baseWocheH,
+    monatH: baseMonatH,
+    serverNow,
     activeVorgabe,
   } = props;
 
   const isLocked = currentStatus?.type === "VERSCHLUSS";
   const isOpen = !isLocked;
+
+  const tagH = useLiveHours(baseTagH, serverNow, isLocked);
+  const wocheH = useLiveHours(baseWocheH, serverNow, isLocked);
+  const monatH = useLiveHours(baseMonatH, serverNow, isLocked);
 
   // ── Empty state (no entries at all) ──
   if (!hasEntries) {
