@@ -8,8 +8,8 @@ export default function SessionDurationBadge({ since, pausedMs = 0 }: { since: s
   const locale = useLocale();
   const [, setTick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 60000);
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, []);
-  return <span suppressHydrationWarning>{formatElapsedMs(Date.now() - new Date(since).getTime() - pausedMs, locale)}</span>;
+  return <span suppressHydrationWarning>{formatElapsedMs(Date.now() - new Date(since).getTime() - pausedMs, locale, true)}</span>;
 }
