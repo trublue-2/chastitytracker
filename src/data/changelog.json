@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.9.2",
+    "date": "2026-04-07",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "iOS: Sticky-Positionierung von User-Kontextleiste und Sub-Navigation im Admin-Bereich korrigiert"
+      },
+      {
+        "type": "fix",
+        "text": "iOS: Toast-Benachrichtigungen berücksichtigen jetzt die Safe-Area (Notch/Dynamic Island)"
+      }
+    ]
+  },
+  {
     "version": "4.9.1",
     "date": "2026-04-07",
     "changes": [
