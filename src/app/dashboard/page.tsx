@@ -104,6 +104,7 @@ export default async function DashboardPage() {
     tagH,
     wocheH,
     monatH,
+    serverNow: now.toISOString(),
 
     activeVorgabe: activeVorgabe ? {
       minProTagH: activeVorgabe.minProTagH,
