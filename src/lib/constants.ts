@@ -37,6 +37,14 @@ export const TYPE_STATS_KEYS: Record<string, string> = {
   ORGASMUS: "orgasm",
 };
 
+/** Hex colors for HTML email templates (no Tailwind/CSS vars available in email) */
+export const TYPE_EMAIL_COLORS: Record<string, string> = {
+  VERSCHLUSS: "#16a34a",
+  OEFFNEN: "#dc2626",
+  PRUEFUNG: "#f97316",
+  ORGASMUS: "#8b5cf6",
+};
+
 export const TYPE_COLORS: Record<string, string> = {
   VERSCHLUSS: "text-foreground-muted",
   OEFFNEN: "text-foreground-muted",

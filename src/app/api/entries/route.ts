@@ -4,10 +4,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
+import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
 import { sendPushToUser } from "@/lib/push";
-import { sendMail } from "@/lib/mail";
-import { formatDateTime } from "@/lib/utils";
+import { sendMail, escHtml } from "@/lib/mail";
+import { formatDateTime, formatDuration } from "@/lib/utils";
+import { getTranslations } from "next-intl/server";
 
 export async function GET() {
   const session = await auth();
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
   // Wrap state-check + create in a transaction to prevent TOCTOU races
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;
   let withdrawnSperrzeit = false;
+  let lockStartTime: Date | null = null;
   try {
     entry = await prisma.$transaction(async (tx) => {
       if (type === "VERSCHLUSS") {
@@ -82,6 +84,7 @@ export async function POST(req: NextRequest) {
         });
         if (!latest || latest.type !== "VERSCHLUSS") throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
         if (new Date(startTime) <= latest.startTime) throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
+        lockStartTime = latest.startTime;
       }
 
       // Trotziges Öffnen während aktiver SPERRZEIT → Sperrzeit aufheben (Strafbuch greift separat)
@@ -187,24 +190,32 @@ export async function POST(req: NextRequest) {
       // Build descriptive message
       const username = session.user.name ?? "User";
       const time = formatDateTime(new Date(startTime));
+      const tOpen = await getTranslations({ locale: "de", namespace: "openForm" });
       let title = "";
-      let body = "";
+      let pushBody = "";
+
+      const grundLabel = (g: string) =>
+        GRUND_I18N_KEYS[g as keyof typeof GRUND_I18N_KEYS]
+          ? tOpen(GRUND_I18N_KEYS[g as keyof typeof GRUND_I18N_KEYS])
+          : g;
 
       if (type === "VERSCHLUSS") {
         title = `${username} hat sich eingeschlossen`;
-        body = time;
+        pushBody = time;
       } else if (type === "OEFFNEN") {
         title = `${username} hat sich geöffnet`;
-        body = oeffnenGrund ? `${time} · Grund: ${oeffnenGrund}` : time;
+        pushBody = oeffnenGrund ? `${time} · Grund: ${grundLabel(oeffnenGrund)}` : time;
       } else if (type === "ORGASMUS") {
         title = `${username} — Orgasmus`;
-        body = orgasmusArt ? `${time} · ${orgasmusArt}` : time;
+        pushBody = orgasmusArt ? `${time} · ${orgasmusArt}` : time;
       } else if (type === "PRUEFUNG") {
         title = kontrollCode ? `${username} hat Kontrolle erfüllt` : `${username} — Selbstkontrolle`;
-        body = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
+        pushBody = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
       }
 
-      const url = `/admin/users/${session.user.id}`;
+      const adminUrl = `/admin/users/${session.user.id}`;
+      const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+      const adminLink = `${baseUrl}${adminUrl}`;
 
       // Fetch admins once for both channels
       const admins = await prisma.user.findMany({
@@ -214,13 +225,54 @@ export async function POST(req: NextRequest) {
 
       if (shouldPush) {
         await Promise.allSettled(
-          admins.map((a) => sendPushToUser(a.id, title, body, url))
+          admins.map((a) => sendPushToUser(a.id, title, pushBody, adminUrl))
         );
       }
       if (shouldMail) {
+        const details: string[] = [];
+        details.push(`<strong>Zeitpunkt:</strong> ${escHtml(time)}`);
+
+        if (type === "OEFFNEN" && oeffnenGrund) {
+          details.push(`<strong>Grund:</strong> ${escHtml(grundLabel(oeffnenGrund))}`);
+        }
+        if (type === "ORGASMUS" && orgasmusArt) {
+          details.push(`<strong>Art:</strong> ${escHtml(orgasmusArt)}`);
+        }
+        if (kontrollCode) {
+          details.push(`<strong>Siegel / Code:</strong> <span style="font-family:monospace;font-weight:bold;color:#f97316">${escHtml(kontrollCode)}</span>`);
+        }
+        if (type === "OEFFNEN" && lockStartTime) {
+          const dur = formatDuration(lockStartTime, new Date(startTime));
+          details.push(`<strong>Tragedauer:</strong> ${escHtml(dur)}`);
+        }
+
+        details.push(`<strong>Foto:</strong> ${imageUrl ? "Ja ✓" : "Nein"}`);
+
+        if (note) {
+          details.push(`<strong>Notiz:</strong> <em>${escHtml(note)}</em>`);
+        }
+
+        const accent = TYPE_EMAIL_COLORS[type] ?? "#1e293b";
+
+        const emailHtml = `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <div style="border-left:4px solid ${accent};padding-left:16px;margin-bottom:16px">
+            <h2 style="color:#1e293b;margin:0 0 4px 0">${escHtml(title)}</h2>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;color:#334155">
+            ${details.map((d) => `<tr><td style="padding:6px 0;border-bottom:1px solid #f1f5f9">${d}</td></tr>`).join("")}
+          </table>
+          <p style="margin-top:20px">
+            <a href="${escHtml(adminLink)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:bold;font-size:14px">
+              Im Admin-Dashboard ansehen →
+            </a>
+          </p>
+          <p style="color:#94a3b8;font-size:12px;margin-top:12px">Falls der Link nicht funktioniert: ${escHtml(adminLink)}</p>
+        </div>`;
+
         for (const admin of admins) {
           if (admin.email) {
-            sendMail(admin.email, `KG-Tracker – ${title}`, `<p>${body}</p>`).catch(() => {});
+            sendMail(admin.email, `KG-Tracker – ${title}`, emailHtml).catch(() => {});
           }
         }
       }
