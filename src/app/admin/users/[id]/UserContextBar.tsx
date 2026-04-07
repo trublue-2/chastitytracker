@@ -38,7 +38,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
   return (
     <>
       {/* Context bar */}
-      <div className="sticky top-14 z-20 bg-surface border-b border-border px-4 h-[52px] flex items-center gap-3">
+      <div className="sticky z-20 bg-surface border-b border-border px-4 h-[52px] flex items-center gap-3" style={{ top: "calc(3.5rem + env(safe-area-inset-top, 0px))" }}>
         <Link
           href="/admin"
           className="flex items-center gap-1 text-foreground-faint hover:text-foreground-muted transition-colors text-sm flex-shrink-0 min-h-12 min-w-12 justify-center sm:justify-start sm:min-w-0"

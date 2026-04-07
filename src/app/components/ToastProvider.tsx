@@ -57,7 +57,8 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
       {mounted &&
         createPortal(
           <div
-            className="fixed top-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0 z-[9999] flex flex-col gap-2 items-center sm:items-end w-full max-w-sm px-4 sm:px-0 pointer-events-none"
+            className="fixed left-1/2 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0 z-[9999] flex flex-col gap-2 items-center sm:items-end w-full max-w-sm px-4 sm:px-0 pointer-events-none"
+            style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
             aria-live="polite"
             aria-label="Benachrichtigungen"
           >
