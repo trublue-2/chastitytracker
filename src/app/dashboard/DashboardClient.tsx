@@ -44,23 +44,19 @@ export interface DashboardProps {
   wocheH: number;
   monatH: number;
   serverNow: string;
-
-  // Training
-  activeVorgabe: {
-    minProTagH: number | null;
-    minProWocheH: number | null;
-    minProMonatH: number | null;
-  } | null;
+  elapsedTagH: number;
+  elapsedWocheH: number;
+  elapsedMonatH: number;
 }
 
 // ── Helpers ──────────────────────────────────
 
-function GoalProgress({ actual, target }: { actual: number; target: number }) {
-  if (target <= 0) return null;
-  const pct = Math.min(100, Math.round((actual / target) * 100));
+function WearPercent({ wornH, elapsedH }: { wornH: number; elapsedH: number }) {
+  if (elapsedH <= 0) return null;
+  const pct = Math.min(100, Math.round((wornH / elapsedH) * 100));
   return (
     <div className="mt-2">
-      <div className="h-1.5 rounded-full bg-background-subtle overflow-hidden">
+      <div className="h-1.5 rounded-full bg-border overflow-hidden">
         <div className="h-full rounded-full bg-lock" style={{ width: `${pct}%` }} />
       </div>
       <p className="text-[10px] text-foreground-faint mt-0.5 tabular-nums">{pct}%</p>
@@ -82,7 +78,9 @@ export default function DashboardClient(props: DashboardProps) {
     wocheH: baseWocheH,
     monatH: baseMonatH,
     serverNow,
-    activeVorgabe,
+    elapsedTagH: baseElapsedTagH,
+    elapsedWocheH: baseElapsedWocheH,
+    elapsedMonatH: baseElapsedMonatH,
   } = props;
 
   const isLocked = currentStatus?.type === "VERSCHLUSS";
@@ -91,6 +89,9 @@ export default function DashboardClient(props: DashboardProps) {
   const tagH = useLiveHours(baseTagH, serverNow, isLocked);
   const wocheH = useLiveHours(baseWocheH, serverNow, isLocked);
   const monatH = useLiveHours(baseMonatH, serverNow, isLocked);
+  const elapsedTagH = useLiveHours(baseElapsedTagH, serverNow, true);
+  const elapsedWocheH = useLiveHours(baseElapsedWocheH, serverNow, true);
+  const elapsedMonatH = useLiveHours(baseElapsedMonatH, serverNow, true);
 
   // ── Empty state (no entries at all) ──
   if (!hasEntries) {
@@ -174,17 +175,17 @@ export default function DashboardClient(props: DashboardProps) {
           <div className="rounded-xl bg-surface-raised px-3 py-3">
             <p className="text-xl font-bold text-lock tabular-nums">{formatHoursHM(tagH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearToday")}</p>
-            {activeVorgabe?.minProTagH != null && <GoalProgress actual={tagH} target={activeVorgabe.minProTagH} />}
+            <WearPercent wornH={tagH} elapsedH={elapsedTagH} />
           </div>
           <div className="rounded-xl bg-surface-raised px-3 py-3">
             <p className="text-xl font-bold text-lock tabular-nums">{formatHoursHM(wocheH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearWeek")}</p>
-            {activeVorgabe?.minProWocheH != null && <GoalProgress actual={wocheH} target={activeVorgabe.minProWocheH} />}
+            <WearPercent wornH={wocheH} elapsedH={elapsedWocheH} />
           </div>
           <div className="rounded-xl bg-surface-raised px-3 py-3">
             <p className="text-xl font-bold text-lock tabular-nums">{formatHoursHM(monatH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearMonth")}</p>
-            {activeVorgabe?.minProMonatH != null && <GoalProgress actual={monatH} target={activeVorgabe.minProMonatH} />}
+            <WearPercent wornH={monatH} elapsedH={elapsedMonatH} />
           </div>
         </div>
       </div>

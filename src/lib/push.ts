@@ -31,7 +31,8 @@ export async function sendPushToUser(
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payload
+          payload,
+          { urgency: "high", TTL: 86400 }
         );
       } catch (err: unknown) {
         // 404/410 means the subscription is no longer valid — remove it
