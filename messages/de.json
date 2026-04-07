@@ -232,7 +232,8 @@
     "modalStay": "Verstanden – KG bleibt zu",
     "modalOpenAnyway": "Trotzdem öffnen",
     "modalTitleReinigung": "Du bist nicht berechtigt, den KG jetzt abzulegen.",
-    "modalSubtextReinigung": "Aber du hast {minutes} Minuten Zeit für eine Reinigung."
+    "modalSubtextReinigung": "Du hast {minutes} Minuten Zeit für eine Reinigung.",
+    "reinigungHintNoConfig": "Die laufende Session wird unterbrochen. Beim nächsten Verschluss startet eine neue Session."
   },
   "inspectionForm": {
     "title": "Kontrolle erfassen",

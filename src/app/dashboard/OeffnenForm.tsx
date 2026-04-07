@@ -106,7 +106,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
          : g === "KEYHOLDER" ? t("grundKeyholder")
          : g === "NOTFALL" ? t("grundNotfall")
          : t("grundAnderes"),
-    disabled: g === "REINIGUNG" && !reinigungErlaubt,
+    disabled: false,
   }));
 
   return (
@@ -118,14 +118,16 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
             <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
             <div className="flex flex-col gap-1.5">
               <p className="font-bold text-foreground text-base leading-snug">
-                {grund === "REINIGUNG" && reinigungErlaubt
+                {grund === "REINIGUNG"
                   ? t("modalTitleReinigung")
                   : t("modalTitle")}
               </p>
               <p className="text-sm text-foreground-muted">
                 {grund === "REINIGUNG" && reinigungErlaubt
                   ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
-                  : t("modalSubtext")}
+                  : grund === "REINIGUNG"
+                    ? t("reinigungHintNoConfig")
+                    : t("modalSubtext")}
               </p>
               <p className="text-xs text-sperrzeit font-semibold mt-1">
                 {sperrzeitUnbefristet
@@ -187,10 +189,12 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
           options={grundOptions}
         />
 
-        {grund === "REINIGUNG" && reinigungErlaubt && (
+        {grund === "REINIGUNG" && (
           <Card variant="semantic" semantic="inspect" padding="compact">
             <p className="text-xs text-inspect-text">
-              {t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })}
+              {reinigungErlaubt
+                ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
+                : t("reinigungHintNoConfig")}
             </p>
           </Card>
         )}
