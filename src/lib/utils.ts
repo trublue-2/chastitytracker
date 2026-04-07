@@ -134,16 +134,20 @@ export function getMonthStart(now: Date): Date {
 }
 
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
-export function formatElapsedMs(ms: number, locale: string): string {
-  const totalMinutes = Math.floor(Math.max(0, ms) / 60000);
+export function formatElapsedMs(ms: number, locale: string, showSeconds = false): string {
+  const safe = Math.max(0, ms);
+  const totalSeconds = Math.floor(safe / 1000);
+  const totalMinutes = Math.floor(totalSeconds / 60);
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
+  const seconds = totalSeconds % 60;
   const d = locale === "en" ? "d" : "T";
   const parts: string[] = [];
   if (days > 0) parts.push(`${days}${d}`);
   if (hours > 0) parts.push(`${hours}h`);
   parts.push(`${minutes}min`);
+  if (showSeconds) parts.push(`${String(seconds).padStart(2, "0")}s`);
   return parts.join(" ");
 }
 
