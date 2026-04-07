@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toDatetimeLocal } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import FormError from "@/app/components/FormError";
+import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
@@ -114,15 +115,16 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <RequiredHint />
       <DateTimePicker
-        label={tCommon("dateTimeRequired")}
+        label={tCommon("dateTime")}
         value={startTime}
         onChange={(e) => setStartTime(e.target.value)}
         required
       />
 
       <Select
-        label={`${t("type")} *`}
+        label={t("type")}
         value={art}
         onChange={(e) => handleArtChange(e.target.value)}
         required
