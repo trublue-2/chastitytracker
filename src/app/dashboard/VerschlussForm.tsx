@@ -84,7 +84,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
 
       // null = queued offline → navigate back
       if (res === null) {
-        router.push(redirectTo ?? "/dashboard");
+        window.location.href = redirectTo ?? "/dashboard";
         return;
       }
 
@@ -94,7 +94,12 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
         return;
       }
       toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
-      router.push(redirectTo ?? "/dashboard");
+      // Full reload to update isLocked in layout (router.push doesn't re-render shared layouts)
+      if (initial) {
+        router.push(redirectTo ?? "/dashboard");
+      } else {
+        window.location.href = redirectTo ?? "/dashboard";
+      }
     } catch {
       setSaving(false);
       setError(t("networkError"));
