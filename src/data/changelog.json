@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.9.4",
+    "date": "2026-04-07",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Statistik-Kacheln zeigen Trage-Anteil in % pro Tag/Woche/Monat mit sichtbarem Fortschrittsbalken"
+      },
+      {
+        "type": "fix",
+        "text": "Push-Benachrichtigungen: Heads-up-Anzeige auf Android, verbesserte Zustellung auf iOS"
+      }
+    ]
+  },
+  {
     "version": "4.9.3",
     "date": "2026-04-07",
     "changes": [
