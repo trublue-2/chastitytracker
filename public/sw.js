@@ -71,6 +71,10 @@ self.addEventListener('push', (e) => {
       body: data.body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
+      tag: 'kg-tracker',
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [200, 100, 200],
       data: { url: data.url },
     }).then(() => {
       // Set badge count (supported on Android + iOS 16.4+ standalone)

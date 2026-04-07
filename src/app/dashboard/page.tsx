@@ -5,6 +5,7 @@ import {
   formatDateTime, formatHours,
   buildPairs, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
+  getMidnightToday, getWeekStart, getMonthStart,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
@@ -105,12 +106,9 @@ export default async function DashboardPage() {
     wocheH,
     monatH,
     serverNow: now.toISOString(),
-
-    activeVorgabe: activeVorgabe ? {
-      minProTagH: activeVorgabe.minProTagH,
-      minProWocheH: activeVorgabe.minProWocheH,
-      minProMonatH: activeVorgabe.minProMonatH,
-    } : null,
+    elapsedTagH: (now.getTime() - getMidnightToday(now).getTime()) / 3_600_000,
+    elapsedWocheH: (now.getTime() - getWeekStart(now).getTime()) / 3_600_000,
+    elapsedMonatH: (now.getTime() - getMonthStart(now).getTime()) / 3_600_000,
   };
 
   const username = session.user.name ?? "";
