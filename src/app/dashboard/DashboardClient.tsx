@@ -7,6 +7,7 @@ import TimerDisplay from "@/app/components/TimerDisplay";
 import EmptyState from "@/app/components/EmptyState";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
+import { formatHoursHM } from "@/lib/utils";
 
 // ── Types ────────────────────────────────────
 export interface DashboardProps {
@@ -51,14 +52,18 @@ export interface DashboardProps {
 }
 
 // ── Helpers ──────────────────────────────────
-function formatHoursShort(h: number): string {
-  if (h < 1) return `${Math.round(h * 60)}m`;
-  return `${Math.round(h * 10) / 10}h`;
-}
 
-function progressPercent(current: number, target: number | null | undefined): number | undefined {
-  if (target == null || target <= 0) return undefined;
-  return Math.min(100, (current / target) * 100);
+function GoalProgress({ actual, target }: { actual: number; target: number }) {
+  if (target <= 0) return null;
+  const pct = Math.min(100, Math.round((actual / target) * 100));
+  return (
+    <div className="mt-2">
+      <div className="h-1.5 rounded-full bg-background-subtle overflow-hidden">
+        <div className="h-full rounded-full bg-lock" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-[10px] text-foreground-faint mt-0.5 tabular-nums">{pct}%</p>
+    </div>
+  );
 }
 
 // ── Component ────────────────────────────────
@@ -160,24 +165,19 @@ export default function DashboardClient(props: DashboardProps) {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursShort(tagH)}</p>
+            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursHM(tagH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearToday")}</p>
-            {activeVorgabe?.minProTagH != null && (
-              <div className="mt-2">
-                <div className="h-1.5 rounded-full bg-background-subtle overflow-hidden">
-                  <div className="h-full rounded-full bg-lock" style={{ width: `${Math.min(100, (tagH / activeVorgabe.minProTagH) * 100)}%` }} />
-                </div>
-                <p className="text-[10px] text-foreground-faint mt-0.5 tabular-nums">{Math.round((tagH / activeVorgabe.minProTagH) * 100)}%</p>
-              </div>
-            )}
+            {activeVorgabe?.minProTagH != null && <GoalProgress actual={tagH} target={activeVorgabe.minProTagH} />}
           </div>
           <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursShort(wocheH)}</p>
+            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursHM(wocheH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearWeek")}</p>
+            {activeVorgabe?.minProWocheH != null && <GoalProgress actual={wocheH} target={activeVorgabe.minProWocheH} />}
           </div>
           <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursShort(monatH)}</p>
+            <p className="text-xl font-bold text-lock tabular-nums">{formatHoursHM(monatH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearMonth")}</p>
+            {activeVorgabe?.minProMonatH != null && <GoalProgress actual={monatH} target={activeVorgabe.minProMonatH} />}
           </div>
         </div>
       </div>

@@ -1,3 +1,11 @@
+/** Format hours as h:mm (e.g. 6:35h). No day splitting — pure hours:minutes. */
+export function formatHoursHM(h: number): string {
+  const totalMin = Math.round(h * 60);
+  const hrs = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  return `${hrs}:${String(mins).padStart(2, "0")}h`;
+}
+
 export function formatHours(h: number, locale = "de"): string {
   const days = Math.floor(h / 24);
   const hours = Math.round(h % 24);
