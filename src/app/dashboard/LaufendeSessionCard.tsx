@@ -38,7 +38,7 @@ function ProgressBar({ actual, target, label }: { actual: number; target: number
       <div className="w-16 sm:w-24 bg-white/15 rounded-full h-1.5 overflow-hidden shrink-0">
         <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-white/60 tabular-nums text-right shrink-0">{fmt(actual)} / {fmt(target)}h</span>
+      <span className="text-xs text-white/60 tabular-nums text-right shrink-0 w-[7.5rem]">{fmt(actual)} / {fmt(target)}h</span>
       <span className="text-xs font-semibold text-white w-9 text-right shrink-0">{pct}%</span>
     </div>
   );
