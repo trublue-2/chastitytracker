@@ -1,5 +1,5 @@
 import { Lock, LockOpen, CheckCircle2, Droplets } from "lucide-react";
-import { formatHours, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected } from "@/lib/utils";
+import { formatHours, formatHoursHM, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getKombinierterPill } from "@/lib/kontrollePills";
@@ -27,15 +27,18 @@ interface Props {
 }
 
 function ProgressBar({ actual, target, label }: { actual: number; target: number; label: string }) {
+  if (target <= 0) return null;
   const pct = Math.min(100, Math.round((actual / target) * 100));
   const color = pct >= 100 ? "bg-white" : pct >= 70 ? "bg-white/70" : "bg-white/40";
+  // formatHoursHM returns "h:mmh" — strip trailing "h" for the compact "ist / soll h" display
+  const fmt = (h: number) => formatHoursHM(h).slice(0, -1);
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-white/70 w-12 shrink-0">{label}</span>
-      <div className="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-white/70 w-11 shrink-0">{label}</span>
+      <div className="w-16 sm:w-24 bg-white/15 rounded-full h-1.5 overflow-hidden shrink-0">
         <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-white/60 w-16 text-right shrink-0">{actual.toFixed(1)}h / {target}h</span>
+      <span className="text-xs text-white/60 tabular-nums text-right shrink-0">{fmt(actual)} / {fmt(target)}h</span>
       <span className="text-xs font-semibold text-white w-9 text-right shrink-0">{pct}%</span>
     </div>
   );

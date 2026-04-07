@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.9.1",
+    "date": "2026-04-07",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Doppelte Pflichtfeld-Sterne (*) in allen Formularen behoben, neuer Hinweis «* = Pflichtfeld»"
+      },
+      {
+        "type": "fix",
+        "text": "Zeitanzeige in Statistik-Kacheln und Session-Karte: h:mm statt Dezimal (z.B. 6:35h statt 6.6h)"
+      },
+      {
+        "type": "fix",
+        "text": "Fortschrittsbalken für Wochen- und Monatsziel auf der Startseite ergänzt"
+      }
+    ]
+  },
+  {
     "version": "4.9.0",
     "date": "2026-04-07",
     "changes": [
