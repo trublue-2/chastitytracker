@@ -10,6 +10,7 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import RequiredHint from "@/app/components/RequiredHint";
 import Spinner from "@/app/components/Spinner";
 import Textarea from "@/app/components/Textarea";
 import ImageViewer from "@/app/components/ImageViewer";
@@ -114,8 +115,9 @@ export default function PruefungForm({ userId }: { userId: string }) {
       title={tInspection("title")}
     >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-5 py-5">
+          <RequiredHint />
           <DateTimePicker
-            label={tc("dateTimeRequired")}
+            label={tc("dateTime")}
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
             required

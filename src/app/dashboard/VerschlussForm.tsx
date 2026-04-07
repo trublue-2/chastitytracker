@@ -8,6 +8,7 @@ import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
+import RequiredHint from "@/app/components/RequiredHint";
 import FormField from "@/app/components/FormField";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Input from "@/app/components/Input";
@@ -102,8 +103,9 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <RequiredHint />
       <DateTimePicker
-        label={t("dateTimeRequired")}
+        label={t("dateTime")}
         value={startTime}
         onChange={(e) => setStartTime(e.target.value)}
         required

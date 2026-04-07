@@ -7,6 +7,7 @@ import { OEFFNEN_GRUENDE } from "@/lib/constants";
 import { AlertCircle, Lock } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
+import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
@@ -147,6 +148,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
       </Sheet>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <RequiredHint />
         {/* Sperrzeit info banner */}
         {isGesperrt && (
           <Card variant="semantic" semantic="sperrzeit">
@@ -165,7 +167,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
         )}
 
         <DateTimePicker
-          label={tCommon("dateTimeRequired")}
+          label={tCommon("dateTime")}
           value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
           required
@@ -189,7 +191,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
         )}
 
         <Textarea
-          label={tCommon("commentRequired")}
+          label={tCommon("comment")}
           value={note}
           onChange={(e) => { setNote(e.target.value); if (e.target.value.trim()) setError(""); }}
           rows={4}

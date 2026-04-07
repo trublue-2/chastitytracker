@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { compressImage } from "@/lib/compressImage";
 
 export type SealState = "idle" | "detecting" | "detected" | "not-detected";
@@ -33,12 +33,16 @@ export function usePhotoUpload({
   const [exifWarning, setExifWarning] = useState("");
   const [sealNumber, setSealNumber] = useState(initial?.kontrollCode ?? "");
   const [sealState, setSealState] = useState<SealState>("idle");
+  const blobUrlRef = useRef<string | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
     setUploading(true);
     setExifWarning("");
     if (enableSealDetection) setSealState("idle");
-    setImagePreview(URL.createObjectURL(file));
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    const blobUrl = URL.createObjectURL(file);
+    blobUrlRef.current = blobUrl;
+    setImagePreview(blobUrl);
 
     // Read lastModified BEFORE compression (iOS Safari strips EXIF)
     const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
@@ -94,6 +98,7 @@ export function usePhotoUpload({
   }, [startTime, exifWarningText, enableSealDetection]);
 
   const clearPhoto = useCallback(() => {
+    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     setImageUrl("");
     setImagePreview("");
     setImageExifTime("");

@@ -8,6 +8,7 @@ import PhotoCapture from "@/app/components/PhotoCapture";
 import ImageViewer from "@/app/components/ImageViewer";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
+import RequiredHint from "@/app/components/RequiredHint";
 import FormField from "@/app/components/FormField";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Input from "@/app/components/Input";
@@ -192,15 +193,17 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
         </Card>
       )}
 
+      <RequiredHint />
+
       <DateTimePicker
-        label={tCommon("dateTimeRequired")}
+        label={tCommon("dateTime")}
         value={startTime}
         onChange={(e) => setStartTime(e.target.value)}
         required
       />
 
       {/* Photo (required) */}
-      <FormField label={`${tCommon("photoRequired")} *`}>
+      <FormField label={tCommon("photo")} required>
         {imagePreview ? (
           <div className="flex items-start gap-4">
             <ImageViewer
