@@ -51,7 +51,7 @@ export function usePhotoUpload({
     const data = await res.json();
 
     setImageUrl(data.url);
-    setImagePreview(data.url);
+    // Keep blob URL for preview — server URL requires an existing entry for ownership check
     setImageExifTime(data.exifTime ?? "");
 
     // EXIF time validation
