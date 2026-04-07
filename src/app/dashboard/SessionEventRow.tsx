@@ -85,41 +85,78 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Reinigung → compact inline row (no modal)
+  // Reinigung → compact inline row with optional modal
   if (ev.type === "reinigung") {
+    const reinigungPill = (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+        <LockOpen size={10} />{t("sessionReinigung")}
+      </span>
+    );
+
     return (
-      <div className="w-full flex items-center gap-4 px-5 py-3 text-left">
-        <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden">
-          {ev.imageUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={ev.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover rounded-xl" />
-          ) : (
-            <div className="w-full h-full bg-sky-50 flex items-center justify-center rounded-xl">
-              <LockOpen size={18} className="text-sky-400" />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 pt-0.5">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="mb-0.5 sm:hidden">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
-                  <LockOpen size={10} />{t("sessionReinigung")}
-                </span>
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen(true)}
+          onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
+          className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-surface-raised/60 transition active:bg-border-subtle/60 cursor-pointer"
+        >
+          <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden">
+            {ev.imageUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={ev.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover rounded-xl" />
+            ) : (
+              <div className="w-full h-full bg-sky-50 flex items-center justify-center rounded-xl">
+                <LockOpen size={18} className="text-sky-400" />
               </div>
-              <span className="block text-sm font-semibold text-foreground tabular-nums">{ev.dateStr}</span>
-              <span className="block text-xs text-foreground-faint tabular-nums">{ev.timeStr}</span>
-            </div>
-            <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full shrink-0">
-              <LockOpen size={10} />{t("sessionReinigung")}
-            </span>
+            )}
           </div>
-          {ev.pauseDurationStr && (
-            <p className="text-xs text-sky-500 mt-0.5">{ev.pauseDurationStr}</p>
-          )}
-          {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
+          <div className="flex-1 min-w-0 pt-0.5">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="mb-0.5 sm:hidden">{reinigungPill}</div>
+                <span className="block text-sm font-semibold text-foreground tabular-nums">{ev.dateStr}</span>
+                <span className="block text-xs text-foreground-faint tabular-nums">{ev.timeStr}</span>
+              </div>
+              <span className="hidden sm:inline-flex shrink-0">{reinigungPill}</span>
+            </div>
+            {ev.pauseDurationStr && (
+              <p className="text-xs text-sky-500 mt-0.5">{ev.pauseDurationStr}</p>
+            )}
+            {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
+          </div>
         </div>
-      </div>
+
+        {open && (
+          <FullscreenImageModal
+            src={ev.imageUrl ?? ""}
+            alt=""
+            onClose={() => setOpen(false)}
+            title={reinigungPill}
+            panel={
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
+                  <p className="text-sm font-semibold text-foreground">{ev.dateStr}, {ev.timeStr}</p>
+                </div>
+                {ev.pauseDurationStr && (
+                  <div>
+                    <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{t("sessionPauseDuration")}</p>
+                    <p className="text-sm text-foreground-muted">{ev.pauseDurationStr}</p>
+                  </div>
+                )}
+                {ev.note && (
+                  <div>
+                    <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
+                    <p className="text-sm text-foreground-muted italic">„{ev.note}"</p>
+                  </div>
+                )}
+              </div>
+            }
+          />
+        )}
+      </>
     );
   }
 

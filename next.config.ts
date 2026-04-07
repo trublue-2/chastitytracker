@@ -5,6 +5,9 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  experimental: {
+    staleTimes: { dynamic: 0 },
+  },
   devIndicators: false,
   poweredByHeader: false,
   serverExternalPackages: ["@simplewebauthn/server"],

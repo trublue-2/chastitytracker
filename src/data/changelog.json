@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.9.5",
+    "date": "2026-04-07",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Verschluss/Öffnen-Status im Menü sofort nach Eintragsänderung aktualisiert"
+      },
+      {
+        "type": "fix",
+        "text": "Foto-Modal für Reinigungspausen funktioniert jetzt (Klick zum Vergrössern)"
+      }
+    ]
+  },
+  {
     "version": "4.9.4",
     "date": "2026-04-07",
     "changes": [
