@@ -20,19 +20,38 @@ async function registerNativePush(): Promise<boolean> {
   }
   if (permStatus.receive !== "granted") return false;
 
-  await PushNotifications.register();
+  // Set up listeners BEFORE calling register() to avoid race condition
+  // where the token arrives before the listener is attached.
+  const result = await new Promise<boolean>((resolve) => {
+    const timeout = setTimeout(() => {
+      console.error("[PushManager] APNs registration timed out after 10s");
+      resolve(false);
+    }, 10_000);
 
-  return new Promise((resolve) => {
     PushNotifications.addListener("registration", async (tokenData) => {
-      await fetch("/api/push/native-subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: tokenData.value, platform: Capacitor.getPlatform() }),
-      });
-      resolve(true);
+      clearTimeout(timeout);
+      try {
+        await fetch("/api/push/native-subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: tokenData.value, platform: Capacitor.getPlatform() }),
+        });
+        resolve(true);
+      } catch {
+        resolve(false);
+      }
     });
-    PushNotifications.addListener("registrationError", () => resolve(false));
+
+    PushNotifications.addListener("registrationError", (err) => {
+      clearTimeout(timeout);
+      console.error("[PushManager] APNs registration error", err);
+      resolve(false);
+    });
+
+    PushNotifications.register();
   });
+
+  return result;
 }
 
 async function unregisterNativePush(): Promise<void> {
