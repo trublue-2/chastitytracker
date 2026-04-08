@@ -84,8 +84,8 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
               type="number"
               value={deadlineH}
               onChange={(e) => setDeadlineH(e.target.value)}
-              min={0.5}
-              step={0.5}
+              min={0.1}
+              step={0.1}
             />
           </div>
           <span className="text-xs text-foreground-faint">h</span>

@@ -74,7 +74,35 @@ export async function POST(req: NextRequest) {
       throw e;
     }
 
-    // E-Mail nur für ANFORDERUNG
+    // E-Mail für ANFORDERUNG und SPERRZEIT
+    if (art === "SPERRZEIT" && user.email) {
+      const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+      const bisHtml = endetAtDate
+        ? `<p><strong>Gesperrt bis:</strong> ${endetAtDate.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</p>`
+        : `<p><strong>Dauer:</strong> Unbefristet</p>`;
+      const nachrichtHtml = nachricht?.trim()
+        ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Nachricht des Admins:</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
+        : "";
+      await sendMail(
+        user.email,
+        "KG-Tracker – Sperrzeit gesetzt",
+        `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2 style="color:#1e293b">Sperrzeit gesetzt</h2>
+          <p>Hallo ${escHtml(user.username)},</p>
+          <p>Der Admin hat eine Sperrzeit gesetzt. Du darfst dich in dieser Zeit nicht öffnen.</p>
+          ${nachrichtHtml}
+          ${bisHtml}
+          <p>
+            <a href="${baseUrl}/dashboard" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
+              Zum Dashboard →
+            </a>
+          </p>
+        </div>
+        `
+      );
+    }
+
     if (art === "ANFORDERUNG" && user.email) {
       const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
       const deadlineHtml = endetAtDate

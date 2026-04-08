@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.10.1",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Zurückgezogene Kontrollen können gelöscht werden"
+      },
+      {
+        "type": "fix",
+        "text": "E-Mail-Benachrichtigung beim Setzen einer Sperrzeit"
+      },
+      {
+        "type": "fix",
+        "text": "Mindestfrist für Kontrolle auf 0.1h gesenkt"
+      }
+    ]
+  },
+  {
     "version": "4.10.0",
     "date": "2026-04-08",
     "changes": [
