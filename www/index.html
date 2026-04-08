@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>ChastityTracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #f0f0f0;
+      --text-muted: #888;
+      --accent: #8b5cf6;
+      --accent-hover: #7c3aed;
+      --radius: 14px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f5f5f5;
+        --card: #ffffff;
+        --border: #e0e0e0;
+        --text: #111;
+        --text-muted: #666;
+      }
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top, 20px) 24px env(safe-area-inset-bottom, 20px);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .logo {
+      width: 56px;
+      height: 56px;
+      background: var(--accent);
+      border-radius: 14px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo svg { color: white; }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    p.subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      transition: border-color 0.15s;
+    }
+
+    .input-wrap:focus-within {
+      border-color: var(--accent);
+    }
+
+    .input-wrap span {
+      padding: 0 10px 0 14px;
+      font-size: 14px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    input {
+      flex: 1;
+      padding: 13px 14px 13px 0;
+      font-size: 15px;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: inherit;
+      min-width: 0;
+    }
+
+    input::placeholder { color: var(--text-muted); }
+
+    .error {
+      font-size: 13px;
+      color: #f87171;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .error.visible { display: block; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      font-family: inherit;
+    }
+
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: default; }
+
+    .spinner {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .spinner.visible { display: flex; }
+    .card.loading .form-content { display: none; }
+    .card.loading .spinner { display: flex; }
+
+    .spin {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <!-- Loading spinner (shown while checking saved URL) -->
+    <div class="spinner" id="spinner">
+      <div class="spin"></div>
+      <span style="font-size:14px;color:var(--text-muted)">Verbinde…</span>
+    </div>
+
+    <!-- Setup form -->
+    <div class="form-content" id="formContent">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+
+      <h1>ChastityTracker</h1>
+      <p class="subtitle">Gib deine Instanz-Adresse ein, um die App zu verbinden.</p>
+
+      <label for="subdomain">Deine Instanz-URL</label>
+      <div class="input-wrap">
+        <span>https://</span>
+        <input
+          id="subdomain"
+          type="text"
+          inputmode="url"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+          placeholder="name.trublue.ch"
+          autofocus
+        />
+      </div>
+
+      <div class="error" id="error">Bitte gib eine gültige Instanz-URL ein.</div>
+
+      <button id="btn" onclick="connect()">Verbinden</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'ct_instance_url';
+
+    const ALLOWED_DOMAINS = [
+      /^[a-z0-9-]+\.trublue\.ch$/i,
+      /^[a-z0-9-]+\.chastitytracker\.ch$/i,
+      /^[a-z0-9-]+\.chastity-tracker\.com$/i,
+    ];
+
+    function isAllowed(hostname) {
+      return ALLOWED_DOMAINS.some(re => re.test(hostname));
+    }
+
+    function redirect(url) {
+      document.getElementById('card').classList.add('loading');
+      window.location.replace(url);
+    }
+
+    function connect() {
+      const raw = document.getElementById('subdomain').value.trim();
+      const errorEl = document.getElementById('error');
+      errorEl.classList.remove('visible');
+
+      // Accept either a full URL or just the hostname
+      let url;
+      try {
+        url = raw.startsWith('http') ? new URL(raw) : new URL('https://' + raw);
+      } catch {
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      if (!isAllowed(url.hostname)) {
+        errorEl.textContent = 'Diese Domain ist nicht erlaubt. Nutze eine gültige Instanz-Adresse.';
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      const finalUrl = url.origin + '/';
+      localStorage.setItem(STORAGE_KEY, finalUrl);
+      redirect(finalUrl);
+    }
+
+    // Allow Enter key to submit
+    document.getElementById('subdomain').addEventListener('keydown', e => {
+      if (e.key === 'Enter') connect();
+    });
+
+    // On load: check for saved URL and redirect immediately
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const url = new URL(saved);
+          if (isAllowed(url.hostname)) {
+            redirect(saved);
+            return;
+          }
+        } catch { /* invalid saved URL, show form */ }
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      // No valid saved URL — show setup form
+      document.getElementById('spinner').style.display = 'none';
+    });
+  </script>
+</body>
+</html>

@@ -49,3 +49,10 @@ dev.db-journal
 /.claude/worktrees/
 /scripts/seed-demo.ts
 /scripts/take-screenshots.ts
+
+# Capacitor native projects (generated, not committed)
+/ios/
+/android/
+
+# APNs private key — never commit this
+*.p8

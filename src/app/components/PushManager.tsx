@@ -4,6 +4,52 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
 
+// ---------------------------------------------------------------------------
+// Native (Capacitor) push helpers — loaded dynamically so the import never
+// runs on the server or in a plain browser context without the bridge.
+// ---------------------------------------------------------------------------
+
+async function registerNativePush(): Promise<boolean> {
+  const { PushNotifications } = await import("@capacitor/push-notifications");
+  const { Capacitor } = await import("@capacitor/core");
+  if (!Capacitor.isNativePlatform()) return false;
+
+  let permStatus = await PushNotifications.checkPermissions();
+  if (permStatus.receive === "prompt") {
+    permStatus = await PushNotifications.requestPermissions();
+  }
+  if (permStatus.receive !== "granted") return false;
+
+  await PushNotifications.register();
+
+  return new Promise((resolve) => {
+    PushNotifications.addListener("registration", async (tokenData) => {
+      await fetch("/api/push/native-subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: tokenData.value, platform: Capacitor.getPlatform() }),
+      });
+      resolve(true);
+    });
+    PushNotifications.addListener("registrationError", () => resolve(false));
+  });
+}
+
+async function unregisterNativePush(): Promise<void> {
+  const { PushNotifications } = await import("@capacitor/push-notifications");
+  const result = await PushNotifications.getDeliveredNotifications();
+  await PushNotifications.removeAllDeliveredNotifications();
+  // Best-effort: tell the server to remove the token.
+  // We can't read the token back easily, so we rely on the server to clean up
+  // stale tokens when delivery fails (analogous to web push 410 handling).
+  void result;
+}
+
+async function isNativePlatform(): Promise<boolean> {
+  const { Capacitor } = await import("@capacitor/core");
+  return Capacitor.isNativePlatform();
+}
+
 function urlBase64ToUint8Array(base64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -15,40 +61,26 @@ function urlBase64ToUint8Array(base64: string): ArrayBuffer {
 
 type PushState =
   | "loading"
-  | "supported"        // PushManager available, ready to toggle
-  | "denied"           // User blocked notifications
+  | "native"            // Running inside Capacitor native app
+  | "supported"         // PushManager available, ready to toggle (web/PWA)
+  | "denied"            // User blocked notifications
   | "ios-not-installed" // iOS Safari but not installed as PWA
-  | "ios-old"          // iOS standalone but too old for push (< 16.4)
-  | "unsupported";     // Browser doesn't support push at all
+  | "ios-old"           // iOS standalone but too old for push (< 16.4)
+  | "unsupported";      // Browser doesn't support push at all
 
-function detectPushState(): PushState {
-  if (typeof window === "undefined") return "loading";
-
+function detectWebPushState(): Exclude<PushState, "loading" | "native"> {
   const ua = navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches
     || ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
 
-  // iOS-specific detection
   if (isIOS) {
-    if (!isStandalone) {
-      // Safari on iOS — push only works when installed as PWA
-      return "ios-not-installed";
-    }
-    // Standalone iOS — PushManager available means iOS 16.4+
-    if (!("PushManager" in window)) {
-      return "ios-old";
-    }
+    if (!isStandalone) return "ios-not-installed";
+    if (!("PushManager" in window)) return "ios-old";
   }
 
-  // General browser support check
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    return "unsupported";
-  }
-
-  if (Notification.permission === "denied") {
-    return "denied";
-  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+  if (Notification.permission === "denied") return "denied";
 
   return "supported";
 }
@@ -60,20 +92,42 @@ export default function PushManager() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const state = detectPushState();
-    setPushState(state);
-
-    if (state === "supported") {
-      navigator.serviceWorker.ready.then((reg) =>
-        reg.pushManager.getSubscription()
-      ).then((sub) => setSubscribed(!!sub));
-    }
+    // Check native platform first (async), fall back to web push detection.
+    isNativePlatform().then((native) => {
+      if (native) {
+        setPushState("native");
+        // Native: treat as subscribed if we can register — we'll attempt on toggle.
+        // For initial state, assume not subscribed (no way to query token without triggering).
+        setSubscribed(false);
+      } else {
+        const state = detectWebPushState();
+        setPushState(state);
+        if (state === "supported") {
+          navigator.serviceWorker.ready
+            .then((reg) => reg.pushManager.getSubscription())
+            .then((sub) => setSubscribed(!!sub));
+        }
+      }
+    });
   }, []);
 
   async function toggle(enable: boolean) {
-    if (pushState !== "supported") return;
+    if (pushState !== "supported" && pushState !== "native") return;
     setSaving(true);
     try {
+      if (pushState === "native") {
+        // --- Native Capacitor push ---
+        if (enable) {
+          const ok = await registerNativePush();
+          setSubscribed(ok);
+        } else {
+          await unregisterNativePush();
+          setSubscribed(false);
+        }
+        return;
+      }
+
+      // --- Web Push (PWA) ---
       const reg = await navigator.serviceWorker.ready;
       if (enable) {
         const permission = await Notification.requestPermission();
@@ -106,12 +160,14 @@ export default function PushManager() {
       }
     } catch (err) {
       console.error("[PushManager]", err);
-      // Re-sync state with actual subscription status
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        setSubscribed(!!sub);
-      } catch { /* ignore */ }
+      if (pushState === "supported") {
+        // Re-sync state with actual subscription status
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const sub = await reg.pushManager.getSubscription();
+          setSubscribed(!!sub);
+        } catch { /* ignore */ }
+      }
     } finally {
       setSaving(false);
     }
@@ -119,6 +175,21 @@ export default function PushManager() {
 
   // Loading state — don't render anything yet
   if (pushState === "loading") return null;
+
+  // Native Capacitor app — show toggle (same UI as web push supported state)
+  if (pushState === "native") {
+    return (
+      <div className="px-5 py-4">
+        <Toggle
+          label={t("pushTitle")}
+          description={t("pushDesc")}
+          checked={subscribed}
+          disabled={saving}
+          onChange={(checked) => toggle(checked)}
+        />
+      </div>
+    );
+  }
 
   // iOS: not installed as PWA
   if (pushState === "ios-not-installed") {

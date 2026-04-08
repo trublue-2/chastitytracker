@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.10.0",
+    "date": "2026-04-08",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Native iOS- und Android-App via Capacitor (TestFlight / APK)"
+      },
+      {
+        "type": "feat",
+        "text": "Native Push Notifications via APNs (iOS) und FCM (Android)"
+      },
+      {
+        "type": "fix",
+        "text": "PWA-Installationshinweis wird in der nativen App nicht mehr angezeigt"
+      }
+    ]
+  },
+  {
     "version": "4.9.5",
     "date": "2026-04-07",
     "changes": [
