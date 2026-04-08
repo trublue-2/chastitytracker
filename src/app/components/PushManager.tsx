@@ -31,13 +31,19 @@ async function registerNativePush(): Promise<boolean> {
     PushNotifications.addListener("registration", async (tokenData) => {
       clearTimeout(timeout);
       try {
-        await fetch("/api/push/native-subscribe", {
+        const res = await fetch("/api/push/native-subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: tokenData.value, platform: Capacitor.getPlatform() }),
         });
-        resolve(true);
-      } catch {
+        if (!res.ok) {
+          console.error("[PushManager] native-subscribe failed", res.status, await res.text());
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      } catch (err) {
+        console.error("[PushManager] native-subscribe fetch error", err);
         resolve(false);
       }
     });
