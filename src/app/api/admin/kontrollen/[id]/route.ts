@@ -16,7 +16,6 @@ export async function DELETE(
   if (!ka.withdrawnAt) return NextResponse.json({ error: "Nur zurückgezogene Kontrollen können gelöscht werden" }, { status: 400 });
 
   await prisma.kontrollAnforderung.delete({ where: { id } });
-  trackEvent("kontrolle.deleted");
   return NextResponse.json({ ok: true });
 }
 
