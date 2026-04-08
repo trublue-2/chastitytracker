@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "/bin/zsh",
-      "runtimeArgs": ["-l", "-c", "source ~/.nvm/nvm.sh && nvm use 20 && npm run dev"],
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": false
     }

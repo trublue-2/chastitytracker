@@ -28,6 +28,7 @@ model User {
   adminRelationships      AdminUserRelationship[] @relation("AdminRelationships")
   userRelationships       AdminUserRelationship[] @relation("UserRelationships")
   pushSubscriptions       PushSubscription[]
+  nativePushTokens        NativePushToken[]
   passkeys                Passkey[]
 }
 
@@ -125,6 +126,20 @@ model AdminUserRelationship {
 model PortalTokenUsed {
   jti    String   @id
   usedAt DateTime @default(now())
+}
+
+// Native push tokens for Capacitor apps (APNs on iOS, FCM on Android).
+// One row per device per user; token is the unique device push token.
+model NativePushToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform   String   // "ios" | "android"
+  token      String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // Web Push subscriptions for PWA push notifications.

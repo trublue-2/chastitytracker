@@ -29,7 +29,10 @@ export default function InstallBanner() {
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches
       || ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
 
-    if (isStandalone) return; // already installed
+    if (isStandalone) return; // already installed as PWA
+
+    // Hide in Capacitor native app — already installed as a native app
+    if ((window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) return;
 
     if (isIos) {
       setPlatform("ios");
