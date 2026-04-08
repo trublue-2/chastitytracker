@@ -43,9 +43,11 @@ async function sendApns(token: string, title: string, body: string, url?: string
       ...(url ? { url } : {}),
     });
 
-    const host = process.env.NODE_ENV === "production"
-      ? "api.push.apple.com"
-      : "api.sandbox.push.apple.com";
+    // APNS_SANDBOX=true  → sandbox (dev builds via Xcode)
+    // APNS_SANDBOX unset → production (TestFlight / App Store)
+    const host = process.env.APNS_SANDBOX === "true"
+      ? "api.sandbox.push.apple.com"
+      : "api.push.apple.com";
 
     const { default: https } = await import("https");
     return new Promise((resolve) => {
