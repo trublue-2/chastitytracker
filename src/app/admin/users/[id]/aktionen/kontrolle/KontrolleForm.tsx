@@ -67,7 +67,7 @@ export default function KontrolleForm({ userId }: { userId: string }) {
         <div className="flex items-center gap-2">
           <label className="text-xs text-foreground-faint whitespace-nowrap">{t("kontrolleHours")}</label>
           <div className="w-24">
-            <Input type="number" value={deadlineH} onChange={(e) => setDeadlineH(e.target.value)} min={0.5} step={0.5} />
+            <Input type="number" value={deadlineH} onChange={(e) => setDeadlineH(e.target.value)} min={0.1} step={0.1} />
           </div>
           <span className="text-xs text-foreground-faint">h</span>
         </div>

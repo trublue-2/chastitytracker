@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreVertical, CheckCircle2, X, MinusCircle } from "lucide-react";
+import { MoreVertical, CheckCircle2, X, MinusCircle, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
   const menuRef = useRef<HTMLDivElement>(null);
 
   const canWithdraw = !!kontrolleId && (anforderungStatus === "open" || anforderungStatus === "overdue");
+  const canDelete = !!kontrolleId && anforderungStatus === "withdrawn";
   const canManuallyVerify = !!entryId && verifikationStatus !== "manual" && verifikationStatus !== "ai";
   const canReject = !!entryId && verifikationStatus !== "rejected";
 
@@ -57,7 +58,9 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
     setError(null);
     try {
       let res: Response | undefined;
-      if (action === "withdraw" && kontrolleId) {
+      if (action === "delete" && kontrolleId) {
+        res = await fetch(`/api/admin/kontrollen/${kontrolleId}`, { method: "DELETE" });
+      } else if (action === "withdraw" && kontrolleId) {
         res = await fetch(`/api/admin/kontrollen/${kontrolleId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -139,6 +142,16 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
             >
               <MinusCircle size={14} />
               {t("kontrolleWithdrawBtn")}
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => doAction("delete")}
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-warn hover:bg-warn-bg transition"
+            >
+              <Trash2 size={14} />
+              {t("kontrolleDeleteBtn")}
             </button>
           )}
         </div>
