@@ -17,6 +17,16 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [],
   },
+  async rewrites() {
+    return [
+      {
+        // Apple requires this exact path for Associated Domains / Passkeys
+        source: "/.well-known/apple-app-site-association",
+        destination: "/api/apple-app-site-association",
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
