@@ -16,20 +16,27 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 // FCM (Android): FCM_SERVER_KEY
 // ---------------------------------------------------------------------------
 
-const APNS_KEY_PATH  = process.env.APNS_KEY_PATH;   // path to .p8 file
-const APNS_KEY_ID    = process.env.APNS_KEY_ID;
-const APNS_TEAM_ID   = process.env.APNS_TEAM_ID;
-const APNS_BUNDLE_ID = process.env.APNS_BUNDLE_ID;   // e.g. ch.chastitytracker.app
-const FCM_SERVER_KEY = process.env.FCM_SERVER_KEY;
+const APNS_KEY_PATH    = process.env.APNS_KEY_PATH;    // path to .p8 file (local dev)
+const APNS_KEY_CONTENT = process.env.APNS_KEY_CONTENT;  // raw .p8 content (server/Docker)
+const APNS_KEY_ID      = process.env.APNS_KEY_ID;
+const APNS_TEAM_ID     = process.env.APNS_TEAM_ID;
+const APNS_BUNDLE_ID   = process.env.APNS_BUNDLE_ID;    // e.g. ch.chastitytracker.app
+const FCM_SERVER_KEY   = process.env.FCM_SERVER_KEY;
 
 /** Send via APNs (HTTP/2). Returns true on success. */
 async function sendApns(token: string, title: string, body: string, url?: string): Promise<boolean> {
-  if (!APNS_KEY_PATH || !APNS_KEY_ID || !APNS_TEAM_ID || !APNS_BUNDLE_ID) return false;
+  const hasKey = APNS_KEY_PATH || APNS_KEY_CONTENT;
+  if (!hasKey || !APNS_KEY_ID || !APNS_TEAM_ID || !APNS_BUNDLE_ID) return false;
   try {
-    const { default: fs } = await import("fs");
     const { createSign } = await import("crypto");
 
-    const key = fs.readFileSync(APNS_KEY_PATH, "utf8");
+    let key: string;
+    if (APNS_KEY_CONTENT) {
+      key = APNS_KEY_CONTENT.replace(/\\n/g, "\n"); // support escaped newlines in env vars
+    } else {
+      const { default: fs } = await import("fs");
+      key = fs.readFileSync(APNS_KEY_PATH!, "utf8");
+    }
     const now = Math.floor(Date.now() / 1000);
 
     // JWT for APNs provider auth token
