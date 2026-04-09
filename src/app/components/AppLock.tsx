@@ -76,14 +76,17 @@ export default function AppLock() {
 
     init();
 
-    // Re-lock when app goes to background; prompt again on foreground.
-    // Delay the authenticate() call slightly so iOS LAContext has time to settle
-    // after device unlock (avoids "Failed to change to usage state 2").
+    // Re-lock when app goes to background.
+    // Do NOT auto-authenticate on foreground — the iOS LAContext is often in an
+    // invalid state immediately after the device is unlocked, causing verifyIdentity()
+    // to hang silently and leaving authenticatingRef stuck at true (which makes
+    // manual button taps do nothing). The user taps the button instead.
     const listenerPromise = App.addListener("appStateChange", ({ isActive }) => {
       if (!isActive) {
+        // Reset any stuck authenticating state when going to background
+        authenticatingRef.current = false;
+        setAuthenticating(false);
         lock();
-      } else if (lockedRef.current) {
-        setTimeout(() => authenticate(), 600);
       }
     });
 
