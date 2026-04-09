@@ -40,7 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
 
       {/* Content area: offset for sidebar on desktop, offset for bottom nav on mobile */}
-      <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain overflow-x-hidden">
+      <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain">
         <div className="w-full max-w-2xl mx-auto px-4">
           <OfflineIndicator />
         </div>
