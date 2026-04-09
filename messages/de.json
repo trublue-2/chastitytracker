@@ -241,6 +241,7 @@
     "modalTitleReinigung": "Du bist nicht berechtigt, den KG jetzt abzulegen.",
     "modalSubtextReinigung": "Du hast {minutes} Minuten Zeit für eine Reinigung.",
     "reinigungHintNoConfig": "Die laufende Session wird unterbrochen. Beim nächsten Verschluss startet eine neue Session.",
+    "reinigungLimitHint": "Heute genutzt: {count} von {max} Reinigungsöffnungen",
     "reinigungLimitTitle": "Tägliches Reinigungslimit erreicht",
     "reinigungLimitSubtext": "Du hast heute bereits {count} von {max} erlaubten Reinigungsöffnungen genutzt. Eine weitere Öffnung wird im Strafbuch vermerkt.",
     "reinigungLimitStay": "Verstanden – bleibt zu",
