@@ -16,5 +16,5 @@ export function getThemeInitScript(role: ThemeRole) {
   const lightTheme = LIGHT_THEME[role];
   const selector = SELECTORS[role];
 
-  return `(function(){try{var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";var e=document.querySelector('${selector}');if(e)e.setAttribute("data-theme",t);}catch(e){}})();`;
+  return `(function(){try{var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";var e=document.querySelector("${selector}");if(e)e.setAttribute("data-theme",t);}catch(e){}})();`;
 }

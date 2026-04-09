@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.10.4",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "JavaScript-Syntaxfehler im Dashboard behoben (Theme-Skript mit einfachen Anführungszeichen im CSS-Selektor)"
+      },
+      {
+        "type": "fix",
+        "text": "NSFaceIDUsageDescription in Info.plist ergänzt – Face ID kann jetzt vom System verwendet werden"
+      }
+    ]
+  },
+  {
     "version": "4.10.3",
     "date": "2026-04-09",
     "changes": [
