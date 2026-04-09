@@ -2,15 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
-import dynamic from "next/dynamic";
 import "./globals.css";
 import VersionChecker from "@/app/components/VersionChecker";
 import ToastProvider from "@/app/components/ToastProvider";
+import AppLockLoader from "@/app/components/AppLockLoader";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
-
-// Loaded client-only: uses Capacitor APIs unavailable during SSR
-const AppLock = dynamic(() => import("@/app/components/AppLock"), { ssr: false });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -89,7 +86,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <ToastProvider>
             {children}
-            <AppLock />
+            <AppLockLoader />
             <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
             <Script id="sw-register" strategy="afterInteractive">{`
               if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
