@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.10.3",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Native App-Sperre mit Face ID / Touch ID beim Öffnen und nach Hintergrund"
+      }
+    ]
+  },
+  {
     "version": "4.10.2",
     "date": "2026-04-09",
     "changes": [

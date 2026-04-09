@@ -1,4 +1,11 @@
 {
+  "appLock": {
+    "subtitle": "Identität bestätigen um fortzufahren",
+    "unlockFaceId": "Mit Face ID entsperren",
+    "unlockTouchId": "Mit Touch ID entsperren",
+    "unlockPasscode": "Mit Passcode entsperren",
+    "unlocking": "Prüfe…"
+  },
   "common": {
     "save": "Speichern",
     "saving": "Speichern…",
