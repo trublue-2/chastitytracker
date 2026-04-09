@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.11.5",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Redirect-Loop bei neuer Instanz behoben: Session-Cookie wird jetzt korrekt gelöscht wenn der User nicht mehr in der DB existiert (z.B. nach Neuinstallation auf gleicher Domain)"
+      },
+      {
+        "type": "fix",
+        "text": "Admin-Zugangsdaten werden beim ersten Start in der Konsole ausgegeben – mit Hinweis zum Ändern nach dem ersten Login"
+      }
+    ]
+  },
+  {
     "version": "4.11.4",
     "date": "2026-04-09",
     "changes": [
