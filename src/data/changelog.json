@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.11.6",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Scroll-Bug in Chrome auf /dashboard und /dashboard/stats behoben: overflow-x-hidden blockierte das Seitenscrolling"
+      },
+      {
+        "type": "ui",
+        "text": "Bezeichnung vereinheitlicht: «Prüfung» → «Kontrolle» durchgehend in der App"
+      }
+    ]
+  },
+  {
     "version": "4.11.5",
     "date": "2026-04-09",
     "changes": [
