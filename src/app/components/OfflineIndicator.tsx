@@ -13,12 +13,14 @@ import { getQueueCount } from "@/lib/idb";
  */
 export default function OfflineIndicator({ isSyncing }: { isSyncing?: boolean }) {
   const t = useTranslations("offline");
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine : true
-  );
+  // Always start as "online" so the server and client initial renders match.
+  // The real value is read in useEffect (client-only) to avoid hydration mismatch.
+  const [isOnline, setIsOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
+    // Sync with the real online state after hydration
+    setIsOnline(navigator.onLine);
     const goOnline = () => setIsOnline(true);
     const goOffline = () => setIsOnline(false);
     window.addEventListener("online", goOnline);

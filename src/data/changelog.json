@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.11.4",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "AppLock: Passwort-Fallback hinzugefügt – bei fehlgeschlagener Face-ID erscheint «Mit Passwort anmelden»; Tap löscht die Session-Cookie nativ aus dem WKWebView-Store und leitet auf den Login-Screen weiter"
+      },
+      {
+        "type": "fix",
+        "text": "OfflineIndicator: React Hydration Error #418 behoben – isOnline startet serverseitig auf true, Echtzeit-Status wird erst nach Hydration per useEffect gesetzt"
+      },
+      {
+        "type": "fix",
+        "text": "AppLock-Komponente (JS) entfernt – Sperrbildschirm wird vollständig nativ via AppDelegate.swift (LAContext / LocalAuthentication) gehandhabt"
+      }
+    ]
+  },
+  {
     "version": "4.11.3",
     "date": "2026-04-09",
     "changes": [
