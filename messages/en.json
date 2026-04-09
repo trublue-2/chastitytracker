@@ -1,4 +1,11 @@
 {
+  "appLock": {
+    "subtitle": "Confirm your identity to continue",
+    "unlockFaceId": "Unlock with Face ID",
+    "unlockTouchId": "Unlock with Touch ID",
+    "unlockPasscode": "Unlock with Passcode",
+    "unlocking": "Checking…"
+  },
   "common": {
     "save": "Save",
     "saving": "Saving…",
