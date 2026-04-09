@@ -240,7 +240,11 @@
     "modalOpenAnyway": "Trotzdem öffnen",
     "modalTitleReinigung": "Du bist nicht berechtigt, den KG jetzt abzulegen.",
     "modalSubtextReinigung": "Du hast {minutes} Minuten Zeit für eine Reinigung.",
-    "reinigungHintNoConfig": "Die laufende Session wird unterbrochen. Beim nächsten Verschluss startet eine neue Session."
+    "reinigungHintNoConfig": "Die laufende Session wird unterbrochen. Beim nächsten Verschluss startet eine neue Session.",
+    "reinigungLimitTitle": "Tägliches Reinigungslimit erreicht",
+    "reinigungLimitSubtext": "Du hast heute bereits {count} von {max} erlaubten Reinigungsöffnungen genutzt. Eine weitere Öffnung wird im Strafbuch vermerkt.",
+    "reinigungLimitStay": "Verstanden – bleibt zu",
+    "reinigungLimitOpenAnyway": "Trotzdem öffnen"
   },
   "inspectionForm": {
     "title": "Kontrolle erfassen",
@@ -505,6 +509,10 @@
     "reinigungPausenLabel": "Reinigungspausen erlauben",
     "reinigungPausenDesc": "Kurzes Öffnen ohne Eintrag",
     "reinigungMaxLabel": "Max. Dauer",
+    "reinigungMaxProTagLabel": "Max. Öffnungen pro Tag",
+    "reinigungMaxProTagHint": "(0 = unbegrenzt)",
+    "strafbuchReinigungLimit": "Reinigungslimit überschritten",
+    "strafbuchReinigungLimitDate": "Reinigungsöffnung am",
     "sectionApp": "App",
     "mobileUploadAdminTitle": "Dateiauswahl auf Mobile",
     "mobileUploadAdminDesc": "Dateiauswahl statt direkter Kamera beim Foto-Upload",

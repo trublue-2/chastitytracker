@@ -240,7 +240,11 @@
     "modalOpenAnyway": "Open anyway",
     "modalTitleReinigung": "You are not permitted to remove the device right now.",
     "modalSubtextReinigung": "You have {minutes} minutes for cleaning.",
-    "reinigungHintNoConfig": "The current session will be interrupted. A new session starts with the next lock."
+    "reinigungHintNoConfig": "The current session will be interrupted. A new session starts with the next lock.",
+    "reinigungLimitTitle": "Daily cleaning limit reached",
+    "reinigungLimitSubtext": "You have already used {count} of your {max} allowed cleaning openings today. Another opening will be noted in the punishment log.",
+    "reinigungLimitStay": "Understood – stay locked",
+    "reinigungLimitOpenAnyway": "Open anyway"
   },
   "inspectionForm": {
     "title": "Log inspection",
@@ -505,6 +509,10 @@
     "reinigungPausenLabel": "Allow cleaning breaks",
     "reinigungPausenDesc": "Brief opening without an entry",
     "reinigungMaxLabel": "Max. duration",
+    "reinigungMaxProTagLabel": "Max. openings per day",
+    "reinigungMaxProTagHint": "(0 = unlimited)",
+    "strafbuchReinigungLimit": "Cleaning limit exceeded",
+    "strafbuchReinigungLimitDate": "Cleaning opening on",
     "sectionApp": "App",
     "mobileUploadAdminTitle": "File picker on mobile",
     "mobileUploadAdminDesc": "Show file picker instead of direct camera on mobile",

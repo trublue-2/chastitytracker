@@ -71,6 +71,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             userId={user.id}
             initialErlaubt={user.reinigungErlaubt}
             initialMaxMinuten={user.reinigungMaxMinuten}
+            initialMaxProTag={user.reinigungMaxProTag}
           />
         </div>
       </Card>

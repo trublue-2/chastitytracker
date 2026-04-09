@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.11.0",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Maximale Reinigungsöffnungen pro Tag konfigurierbar – bei Überschreitung Warnmeldung und automatischer Eintrag ins Strafbuch"
+      }
+    ]
+  },
+  {
     "version": "4.10.4",
     "date": "2026-04-09",
     "changes": [

@@ -26,10 +26,12 @@ interface Props {
   sperrzeitUnbefristet?: boolean;
   reinigungErlaubt?: boolean;
   reinigungMaxMinuten?: number;
+  reinigungMaxProTag?: number;
+  reinigungHeuteAnzahl?: number;
   redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15, redirectTo }: Props) {
+export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15, reinigungMaxProTag = 0, reinigungHeuteAnzahl = 0, redirectTo }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
@@ -47,16 +49,22 @@ export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrz
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showWarning, setShowWarning] = useState(false);
+  const [showReinigungLimitWarning, setShowReinigungLimitWarning] = useState(false);
+  const [forcedReinigung, setForcedReinigung] = useState(false);
 
-  async function doSave() {
+  const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
+
+  async function doSave(forced = false) {
     setSaving(true);
     setError("");
     try {
       const url = initial ? `/api/entries/${initial.id}` : "/api/entries";
+      const bodyData: Record<string, unknown> = { type: "OEFFNEN", startTime: new Date(startTime).toISOString(), oeffnenGrund: grund, note: note.trim() || null };
+      if (forced) bodyData.forcedReinigung = true;
       const init: RequestInit = {
         method: initial ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "OEFFNEN", startTime: new Date(startTime).toISOString(), oeffnenGrund: grund, note: note.trim() || null }),
+        body: JSON.stringify(bodyData),
       };
 
       // Use offline-aware fetch for new entries (edits require online)
@@ -92,11 +100,27 @@ export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrz
     e.preventDefault();
     if (!grund) { setError(t("grundRequired")); return; }
     if (!note.trim()) { setError(t("commentRequired")); return; }
+    // Reinigung limit check takes priority
+    if (isReinigungLimitReached) {
+      setShowReinigungLimitWarning(true);
+      return;
+    }
     if (sperrzeitUnbefristet || (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date())) {
       setShowWarning(true);
       return;
     }
     await doSave();
+  }
+
+  function handleReinigungLimitConfirm() {
+    setShowReinigungLimitWarning(false);
+    setForcedReinigung(true);
+    // If there's also a sperrzeit, chain to that warning; otherwise save directly
+    if (sperrzeitUnbefristet || (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date())) {
+      setShowWarning(true);
+    } else {
+      doSave(true);
+    }
   }
 
   const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
@@ -112,6 +136,36 @@ export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrz
 
   return (
     <>
+      {/* Reinigungslimit-Warnung als Sheet */}
+      <Sheet open={showReinigungLimitWarning} onClose={() => setShowReinigungLimitWarning(false)} title="">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
+            <div className="flex flex-col gap-1.5">
+              <p className="font-bold text-foreground text-base leading-snug">
+                {t("reinigungLimitTitle")}
+              </p>
+              <p className="text-sm text-foreground-muted">
+                {t("reinigungLimitSubtext", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button variant="primary" fullWidth onClick={() => setShowReinigungLimitWarning(false)}>
+              {t("reinigungLimitStay")}
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              loading={saving}
+              onClick={handleReinigungLimitConfirm}
+            >
+              {t("reinigungLimitOpenAnyway")}
+            </Button>
+          </div>
+        </div>
+      </Sheet>
+
       {/* Sperrzeit-Warnung als Sheet */}
       <Sheet open={showWarning} onClose={() => setShowWarning(false)} title="">
         <div className="flex flex-col gap-5">
@@ -147,7 +201,7 @@ export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrz
               variant="secondary"
               fullWidth
               loading={saving}
-              onClick={() => { setShowWarning(false); doSave(); }}
+              onClick={() => { setShowWarning(false); doSave(forcedReinigung); }}
             >
               {t("modalOpenAnyway")}
             </Button>

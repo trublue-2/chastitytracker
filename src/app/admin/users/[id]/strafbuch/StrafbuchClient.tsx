@@ -10,6 +10,12 @@ export interface StrafeRecordData {
   notiz: string | null;
 }
 
+export interface ReinigungLimitRow {
+  entryId: string;
+  startTimeStr: string;
+  note: string | null;
+}
+
 export interface UnerlaubteOeffnungRow {
   id: string;
   startTimeStr: string;
@@ -61,6 +67,8 @@ interface Labels {
   strafbuchOffeneAnzeigen: string;
   strafbuchOffen: string;
   strafbuchGesamt: string;
+  strafbuchReinigungLimit: string;
+  strafbuchReinigungLimitDate: string;
 }
 
 interface Props {
@@ -68,6 +76,7 @@ interface Props {
   unerlaubteOeffnungen: UnerlaubteOeffnungRow[];
   zuSpaet: KontrollRow[];
   abgelehnt: KontrollRow[];
+  reinigungLimitVergehen: ReinigungLimitRow[];
   strafeRecords: StrafeRecordData[];
   labels: Labels;
 }
@@ -78,7 +87,7 @@ function todayLocal(): string {
 
 const fieldCls = "w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, strafeRecords, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, reinigungLimitVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
@@ -90,8 +99,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const openAbgelehnt = abgelehnt.filter(k => !punishedIds.has(k.id));
 
   const hasAnyOpen = openOeffnungen.length > 0 || openZuSpaet.length > 0 || openAbgelehnt.length > 0;
-  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0;
-  const hasPunished = strafeRecords.length > 0;
+  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0 || reinigungLimitVergehen.length > 0;
+  const hasPunished = strafeRecords.filter(r => r.refId && !reinigungLimitVergehen.some(rl => rl.entryId === r.refId)).length > 0;
 
   function Section({ title, openCount, totalCount, children }: {
     title: string; openCount: number; totalCount: number; children: React.ReactNode;
@@ -113,7 +122,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  function BestrafenForm({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" }) {
+  function BestrafenForm({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" }) {
     const [datum, setDatum] = useState(todayLocal());
     const [notiz, setNotiz] = useState("");
     const [saving, setSaving] = useState(false);
@@ -190,7 +199,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  function WurdeBestraftButton({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" }) {
+  function WurdeBestraftButton({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" }) {
     const isOpen = openFormId === refId;
     return (
       <div className="mt-2">
@@ -209,6 +218,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const oeffnungDisplay = showAll ? unerlaubteOeffnungen : openOeffnungen;
   const zuSpaetDisplay  = showAll ? zuSpaet : openZuSpaet;
   const abgelehntDisplay = showAll ? abgelehnt : openAbgelehnt;
+  // Reinigung-Limit offenses are auto-logged — always shown (no open/closed split)
+  const reinigungDisplay = reinigungLimitVergehen;
 
   return (
     <div className="flex flex-col gap-6">
@@ -302,6 +313,32 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               </div>
             );
           })}
+        </Section>
+      )}
+
+      {reinigungDisplay.length > 0 && (
+        <Section title={labels.strafbuchReinigungLimit}
+          openCount={reinigungDisplay.length}
+          totalCount={reinigungDisplay.length}>
+          {reinigungDisplay.map((r) => (
+            <div key={r.entryId} className="px-5 py-3 flex flex-col gap-0.5">
+              <p className="text-sm font-semibold text-foreground">
+                {labels.strafbuchReinigungLimitDate} {r.startTimeStr}
+              </p>
+              {r.note && <span className="text-xs text-foreground-faint italic">„{r.note}"</span>}
+              <div className="mt-1.5">
+                <span className="text-xs font-semibold text-warn border border-warn px-2 py-0.5 rounded-lg">
+                  ⚠ {labels.strafbuchReinigungLimit}
+                </span>
+              </div>
+              <div className="mt-1">
+                <button type="button" onClick={() => handleUndo(r.entryId)}
+                  className="text-xs text-foreground-faint underline hover:text-warn transition">
+                  {labels.strafbuchRueckgaengig}
+                </button>
+              </div>
+            </div>
+          ))}
         </Section>
       )}
 

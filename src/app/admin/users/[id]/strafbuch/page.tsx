@@ -3,7 +3,7 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { toDateLocale, mapAnforderungStatus, formatDateTime, formatDate } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData } from "./StrafbuchClient";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow } from "./StrafbuchClient";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -16,7 +16,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/strafbuch`);
 
-  const [oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw] = await Promise.all([
+  const [oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw, reinigungLimitRecords] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
     prisma.verschlussAnforderung.findMany({ where: { userId: id, art: "SPERRZEIT" } }),
     prisma.kontrollAnforderung.findMany({
@@ -25,7 +25,27 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       orderBy: { createdAt: "desc" },
     }),
     prisma.strafeRecord.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" } }),
+    // REINIGUNG_LIMIT: fetch strafe records + their linked entries
+    prisma.strafeRecord.findMany({
+      where: { userId: id, offenseType: "REINIGUNG_LIMIT" },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
+
+  // Fetch OEFFNEN entries for REINIGUNG_LIMIT offenses
+  const reinigungEntryIds = reinigungLimitRecords.map(r => r.refId);
+  const reinigungEntries = reinigungEntryIds.length > 0
+    ? await prisma.entry.findMany({ where: { id: { in: reinigungEntryIds } } })
+    : [];
+
+  const reinigungLimitVergehen: ReinigungLimitRow[] = reinigungLimitRecords.map(r => {
+    const entry = reinigungEntries.find(e => e.id === r.refId);
+    return {
+      entryId: r.refId,
+      startTimeStr: entry ? formatDateTime(entry.startTime, dl) : "–",
+      note: entry?.note ?? null,
+    };
+  });
 
   // Unerlaubte Öffnungen
   const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = oeffnungen
@@ -127,6 +147,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchAlleVergehenBestraft: t("strafbuchAlleVergehenBestraft"),
     strafbuchOffen: t("strafbuchOffen"),
     strafbuchGesamt: t("strafbuchGesamt"),
+    strafbuchReinigungLimit: t("strafbuchReinigungLimit"),
+    strafbuchReinigungLimitDate: t("strafbuchReinigungLimitDate"),
   };
 
   return (
@@ -136,6 +158,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
         unerlaubteOeffnungen={unerlaubteOeffnungen}
         zuSpaet={zuSpaet}
         abgelehnt={abgelehnt}
+        reinigungLimitVergehen={reinigungLimitVergehen}
         strafeRecords={strafeRecords}
         labels={labels}
       />

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "reinigungMaxProTag" INTEGER NOT NULL DEFAULT 0;
