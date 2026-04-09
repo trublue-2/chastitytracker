@@ -90,7 +90,7 @@ export default async function NewEntryPage() {
             <ClipboardCheck size={24} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">Prüfung</p>
+            <p className="text-sm font-semibold text-foreground">Kontrolle</p>
             <p className="text-xs text-foreground-faint">Kontrolle durchgeführt</p>
           </div>
           <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />

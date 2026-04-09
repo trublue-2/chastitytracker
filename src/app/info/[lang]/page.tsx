@@ -48,7 +48,7 @@ const content = {
         icon: PlusCircle,
         iconColor: "text-indigo-600",
         title: "Einträge erfassen",
-        description: "Vier Eintragstypen per Schnellauswahl: Verschluss mit Foto, Öffnung, Prüfung mit Code-Erkennung und Orgasmus mit Typ.",
+        description: "Vier Eintragstypen per Schnellauswahl: Verschluss mit Foto, Öffnung, Kontrolle mit Code-Erkennung und Orgasmus mit Typ.",
         flip: true,
         shots: [
           { src: "/screenshots/info/02-new-entry.png", alt: "Neuer Eintrag – Typenauswahl" },

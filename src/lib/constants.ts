@@ -25,7 +25,7 @@ export const GRUND_I18N_KEYS: Record<typeof OEFFNEN_GRUENDE[number], string> = {
 export const TYPE_LABELS: Record<string, string> = {
   VERSCHLUSS: "Verschluss",
   OEFFNEN: "Öffnen",
-  PRUEFUNG: "Prüfung",
+  PRUEFUNG: "Kontrolle",
   ORGASMUS: "Orgasmus",
 };
 
