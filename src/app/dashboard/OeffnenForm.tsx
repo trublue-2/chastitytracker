@@ -246,12 +246,19 @@ export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrz
         />
 
         {grund === "REINIGUNG" && (
-          <Card variant="semantic" semantic="inspect" padding="compact">
-            <p className="text-xs text-inspect-text">
-              {reinigungErlaubt
-                ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
-                : t("reinigungHintNoConfig")}
-            </p>
+          <Card variant="semantic" semantic={isReinigungLimitReached ? "warn" : "inspect"} padding="compact">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs text-inspect-text">
+                {reinigungErlaubt
+                  ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
+                  : t("reinigungHintNoConfig")}
+              </p>
+              {reinigungMaxProTag > 0 && (
+                <p className={`text-xs font-semibold ${isReinigungLimitReached ? "text-warn" : "text-inspect-text"}`}>
+                  {t("reinigungLimitHint", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
+                </p>
+              )}
+            </div>
           </Card>
         )}
 

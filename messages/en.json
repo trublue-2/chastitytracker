@@ -241,6 +241,7 @@
     "modalTitleReinigung": "You are not permitted to remove the device right now.",
     "modalSubtextReinigung": "You have {minutes} minutes for cleaning.",
     "reinigungHintNoConfig": "The current session will be interrupted. A new session starts with the next lock.",
+    "reinigungLimitHint": "Used today: {count} of {max} cleaning openings",
     "reinigungLimitTitle": "Daily cleaning limit reached",
     "reinigungLimitSubtext": "You have already used {count} of your {max} allowed cleaning openings today. Another opening will be noted in the punishment log.",
     "reinigungLimitStay": "Understood – stay locked",
