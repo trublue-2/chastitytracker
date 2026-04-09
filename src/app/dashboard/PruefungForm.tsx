@@ -30,13 +30,14 @@ interface Props {
     kontrollCode?: string | null;
     verifikationStatus?: string | null;
   };
+  minTime?: string;
   initialCode?: string;
   initialKommentar?: string;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
 }
 
-export default function PruefungForm({ initial, initialCode, initialKommentar, mobileDesktopMode, redirectTo }: Props) {
+export default function PruefungForm({ initial, minTime, initialCode, initialKommentar, mobileDesktopMode, redirectTo }: Props) {
   const t = useTranslations("inspectionForm");
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
@@ -200,6 +201,7 @@ export default function PruefungForm({ initial, initialCode, initialKommentar, m
         value={startTime}
         onChange={(e) => setStartTime(e.target.value)}
         required
+        {...(minTime && { min: minTime })}
       />
 
       {/* Photo (required) */}

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.10.2",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Eintragszeiten können nur noch in der erlaubten Richtung verschoben werden (Betrugsschutz): Verschluss/Kontrolle nur vorwärts, Öffnen/Orgasmus nur rückwärts"
+      }
+    ]
+  },
+  {
     "version": "4.10.1",
     "date": "2026-04-09",
     "changes": [

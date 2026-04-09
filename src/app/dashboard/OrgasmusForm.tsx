@@ -28,10 +28,11 @@ function parseArt(stored: string | null | undefined): { art: string; subArt: str
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; orgasmusArt?: string | null };
+  maxTime?: string;
   redirectTo?: string;
 }
 
-export default function OrgasmusForm({ initial, redirectTo }: Props) {
+export default function OrgasmusForm({ initial, maxTime, redirectTo }: Props) {
   const t = useTranslations("orgasmForm");
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
@@ -121,6 +122,7 @@ export default function OrgasmusForm({ initial, redirectTo }: Props) {
         value={startTime}
         onChange={(e) => setStartTime(e.target.value)}
         required
+        {...(maxTime && { max: maxTime })}
       />
 
       <Select
