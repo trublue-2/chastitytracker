@@ -24,21 +24,37 @@ export default function AppLock() {
   }
 
   async function authenticate() {
-    if (authenticatingRef.current) return;
+    console.log("[AppLock] authenticate() called, authenticatingRef=", authenticatingRef.current);
+    if (authenticatingRef.current) {
+      console.log("[AppLock] already authenticating, skipping");
+      return;
+    }
     authenticatingRef.current = true;
     setAuthenticating(true);
     try {
-      await NativeBiometric.verifyIdentity({
-        title: "ChastityTracker",
-        useFallback: true, // fall back to device passcode if biometric fails
-      });
+      console.log("[AppLock] calling verifyIdentity...");
+      // Race against a 20 s timeout — if the native call hangs (e.g. "Failed to
+      // change to usage state 2" on iOS), we must still reset authenticating so
+      // the button doesn't stay permanently grayed out.
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("biometric_timeout")), 20_000)
+      );
+      await Promise.race([
+        NativeBiometric.verifyIdentity({
+          title: "ChastityTracker",
+          useFallback: true, // fall back to device passcode if biometric fails
+        }),
+        timeout,
+      ]);
+      console.log("[AppLock] verifyIdentity SUCCESS");
       setLocked(false);
       lockedRef.current = false;
-    } catch {
-      // Authentication failed or cancelled — stay locked, show retry button
+    } catch (err) {
+      console.log("[AppLock] verifyIdentity ERROR:", JSON.stringify(err), String(err));
     } finally {
       authenticatingRef.current = false;
       setAuthenticating(false);
+      console.log("[AppLock] authenticate() done, authenticatingRef reset");
     }
   }
 
@@ -48,6 +64,7 @@ export default function AppLock() {
     async function init() {
       try {
         const result = await NativeBiometric.isAvailable({ useFallback: true });
+        console.log("[AppLock] isAvailable:", JSON.stringify(result));
         if (!result.isAvailable) return;
         setBiometryType(result.biometryType);
         lock();
@@ -59,12 +76,14 @@ export default function AppLock() {
 
     init();
 
-    // Re-lock when app goes to background; prompt again on foreground
+    // Re-lock when app goes to background; prompt again on foreground.
+    // Delay the authenticate() call slightly so iOS LAContext has time to settle
+    // after device unlock (avoids "Failed to change to usage state 2").
     const listenerPromise = App.addListener("appStateChange", ({ isActive }) => {
       if (!isActive) {
         lock();
       } else if (lockedRef.current) {
-        authenticate();
+        setTimeout(() => authenticate(), 600);
       }
     });
 

@@ -70,8 +70,11 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <head>
+        {/* Prevent iOS WebKit from auto-linking phone numbers / dates / addresses
+            — those DOM mutations happen before React hydration and cause #418 */}
+        <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
         {/* iOS splash screens — portrait only */}
         {splashScreens.map(({ w, h, r, src }) => (
           <link
@@ -82,7 +85,7 @@ export default async function RootLayout({
           />
         ))}
       </head>
-      <body className={`${geistSans.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${jetbrainsMono.variable} antialiased`} suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
           <ToastProvider>
             {children}

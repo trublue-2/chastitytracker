@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.11.2",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "React Hydration Error #418 behoben: iOS WebKit DOM-Mutationen (Telefonnummern, Daten) werden per format-detection Meta-Tag verhindert; suppressHydrationWarning auf html/body ergänzt"
+      }
+    ]
+  },
+  {
+    "version": "4.11.1",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "AppLock: biometrischer Entsperr-Button bleibt nach 20 s Timeout nicht mehr dauerhaft ausgegraut, falls der native Biometric-Aufruf hängt"
+      }
+    ]
+  },
+  {
     "version": "4.11.0",
     "date": "2026-04-09",
     "changes": [
