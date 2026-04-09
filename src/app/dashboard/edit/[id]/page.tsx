@@ -7,6 +7,7 @@ import OeffnenForm from "../../OeffnenForm";
 import PruefungForm from "../../PruefungForm";
 import OrgasmusForm from "../../OrgasmusForm";
 import { getTranslations } from "next-intl/server";
+import { toDatetimeLocal } from "@/lib/utils";
 
 export default async function EditEntryPage({
   params,
@@ -42,6 +43,11 @@ export default async function EditEntryPage({
     ORGASMUS: tStats("orgasm"),
   };
 
+  // Anti-cheat: non-admins may only shift times in the allowed direction
+  const originalTime = toDatetimeLocal(entry.startTime);
+  const minTime = !isAdmin && (entry.type === "VERSCHLUSS" || entry.type === "PRUEFUNG") ? originalTime : undefined;
+  const maxTime = !isAdmin && (entry.type === "OEFFNEN" || entry.type === "ORGASMUS") ? originalTime : undefined;
+
   const redirectTo = from === "admin" && adminUserId
     ? `/admin/users/${adminUserId}/eintraege`
     : from === "eintraege" ? "/dashboard/eintraege" : "/dashboard";
@@ -55,27 +61,27 @@ export default async function EditEntryPage({
       </h1>
       <div>
       {entry.type === "OEFFNEN" && (
-        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} redirectTo={redirectTo} />
+        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} maxTime={maxTime} redirectTo={redirectTo} />
       )}
       {entry.type === "VERSCHLUSS" && (
         <VerschlussForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null,
           note: entry.note, kontrollCode: entry.kontrollCode,
-        }} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
+        }} minTime={minTime} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
       )}
       {entry.type === "PRUEFUNG" && (
         <PruefungForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
           kontrollCode: entry.kontrollCode,
-        }} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
+        }} minTime={minTime} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
       )}
       {entry.type === "ORGASMUS" && (
         <OrgasmusForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           note: entry.note, orgasmusArt: entry.orgasmusArt,
-        }} redirectTo={redirectTo} />
+        }} maxTime={maxTime} redirectTo={redirectTo} />
       )}
       </div>
     </div>

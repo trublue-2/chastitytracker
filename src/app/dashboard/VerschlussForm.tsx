@@ -26,11 +26,12 @@ interface Props {
     note?: string | null;
     kontrollCode?: string | null;
   };
+  minTime?: string;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
 }
 
-export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo }: Props) {
+export default function VerschlussForm({ initial, minTime, mobileDesktopMode, redirectTo }: Props) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
   const tDash = useTranslations("dashboard");
@@ -114,6 +115,7 @@ export default function VerschlussForm({ initial, mobileDesktopMode, redirectTo 
         value={startTime}
         onChange={(e) => setStartTime(e.target.value)}
         required
+        {...(minTime && { min: minTime })}
       />
 
       {/* Photo */}

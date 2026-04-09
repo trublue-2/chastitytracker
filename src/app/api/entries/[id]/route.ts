@@ -35,6 +35,24 @@ export async function PATCH(
     }
   }
 
+  // Time-shift direction enforcement for non-admins (anti-cheat)
+  if (startTime && session.user.role !== "admin") {
+    const newTime = new Date(startTime);
+    const oldTime = existing.startTime;
+    if (existing.type === "VERSCHLUSS" && newTime < oldTime) {
+      return NextResponse.json({ error: "Verschlusszeit darf nur nach vorne verschoben werden" }, { status: 400 });
+    }
+    if (existing.type === "OEFFNEN" && newTime > oldTime) {
+      return NextResponse.json({ error: "Öffnungszeit darf nur nach hinten verschoben werden" }, { status: 400 });
+    }
+    if (existing.type === "PRUEFUNG" && newTime < oldTime) {
+      return NextResponse.json({ error: "Kontrollzeit darf nur nach vorne verschoben werden" }, { status: 400 });
+    }
+    if (existing.type === "ORGASMUS" && newTime > oldTime) {
+      return NextResponse.json({ error: "Orgasmuszeit darf nur nach hinten verschoben werden" }, { status: 400 });
+    }
+  }
+
   let entry;
   try {
     entry = await prisma.$transaction(async (tx) => {

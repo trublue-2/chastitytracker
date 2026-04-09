@@ -21,6 +21,7 @@ type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
+  maxTime?: string;
   sperrzeitEndetAt?: string | null;
   sperrzeitUnbefristet?: boolean;
   reinigungErlaubt?: boolean;
@@ -28,7 +29,7 @@ interface Props {
   redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15, redirectTo }: Props) {
+export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15, redirectTo }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
@@ -178,6 +179,7 @@ export default function OeffnenForm({ initial, sperrzeitEndetAt, sperrzeitUnbefr
           value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
           required
+          {...(maxTime && { max: maxTime })}
         />
 
         <Select
