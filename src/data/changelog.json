@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.11.3",
+    "date": "2026-04-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "AppLock: App-Crash nach Homescreen-Sperre behoben – automatische Biometrie beim Foreground entfernt, da wiederholte Fehler den WebProcess zum Absturz brachten; Entsperrung erfolgt nur noch manuell per Button"
+      }
+    ]
+  },
+  {
     "version": "4.11.2",
     "date": "2026-04-09",
     "changes": [
