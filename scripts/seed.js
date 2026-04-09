@@ -20,6 +20,12 @@ async function main() {
     });
 
     console.log(`→ Admin-Benutzer '${username}' angelegt.`);
+    console.log("┌─────────────────────────────────────────────────────┐");
+    console.log("│  ERSTER START – Zugangsdaten                        │");
+    console.log(`│  Benutzername: ${username.padEnd(37)}│`);
+    console.log(`│  Passwort:     ${password.padEnd(37)}│`);
+    console.log("│  Bitte nach dem ersten Einloggen ändern!            │");
+    console.log("└─────────────────────────────────────────────────────┘");
   } else {
     console.log("→ Benutzer bereits vorhanden.");
   }
