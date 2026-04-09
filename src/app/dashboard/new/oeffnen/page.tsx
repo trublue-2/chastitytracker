@@ -19,11 +19,13 @@ export default async function NewOeffnenPage() {
   }
 
   const now = new Date();
-  const [activeSperrzeit, user] = await Promise.all([
+  const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const [activeSperrzeit, user, reinigungHeute] = await Promise.all([
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
     }),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true } }),
+    prisma.entry.count({ where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: since24h } } }),
   ]);
 
   const tn = await getTranslations("newEntry");
@@ -38,6 +40,8 @@ export default async function NewOeffnenPage() {
         sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
         reinigungErlaubt={user?.reinigungErlaubt ?? false}
         reinigungMaxMinuten={user?.reinigungMaxMinuten ?? 15}
+        reinigungMaxProTag={user?.reinigungMaxProTag ?? 0}
+        reinigungHeuteAnzahl={reinigungHeute}
       />
     </div>
   );

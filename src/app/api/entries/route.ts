@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung } = body;
 
   if (!isValidImageUrl(imageUrl)) {
     return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
@@ -156,6 +156,21 @@ export async function POST(req: NextRequest) {
     if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
     if (code === "TIME_BEFORE") return NextResponse.json({ error: "Zeitpunkt muss nach dem vorherigen Eintrag liegen" }, { status: 400 });
     throw e;
+  }
+
+  // Auto-create StrafeRecord when user bypassed the daily REINIGUNG limit
+  if (type === "OEFFNEN" && forcedReinigung === true && oeffnenGrund === "REINIGUNG") {
+    try {
+      await prisma.strafeRecord.create({
+        data: {
+          userId: session.user.id,
+          offenseType: "REINIGUNG_LIMIT",
+          refId: entry.id,
+          bestraftDatum: new Date(),
+          notiz: null,
+        },
+      });
+    } catch { /* ignore if duplicate — e.g. offline replay */ }
   }
 
   if (type === "PRUEFUNG" && kontrollCode) {
