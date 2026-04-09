@@ -47,8 +47,9 @@ export default auth((req) => {
   }
 
   const { pathname } = req.nextUrl;
-  const isLoggedIn = !!req.auth;
-  const role = (req.auth?.user as { role?: string } | undefined)?.role;
+  const user = req.auth?.user as { id?: string | null; role?: string } | undefined;
+  const isLoggedIn = !!req.auth && !!user?.id;
+  const role = user?.role;
 
   const isAuthRoute = pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/api/version" || pathname === "/api/portal-login";
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");

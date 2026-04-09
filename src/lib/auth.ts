@@ -77,7 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { id: token.id as string },
           select: { role: true },
         });
-        if (!dbUser) return { ...token, id: null, role: null }; // user deleted
+        if (!dbUser) return null; // user deleted — NextAuth clears the session cookie
         token.role = dbUser.role;
       }
       return token;
