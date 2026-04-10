@@ -32,8 +32,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# OpenSSL für Prisma
-RUN apk add --no-cache openssl
+# OpenSSL für Prisma + su-exec für sicheres Privilege-Drop im Entrypoint
+RUN apk add --no-cache openssl su-exec
 
 # Prisma CLI + Client für Migrationen zur Laufzeit
 COPY --from=deps /app/node_modules ./node_modules
@@ -57,8 +57,6 @@ RUN addgroup -g 33 -S www-data 2>/dev/null || true \
 # Entrypoint-Script
 COPY --chown=www-data:www-data docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
-
-USER www-data
 
 EXPOSE 3000
 ENV PORT=3000
