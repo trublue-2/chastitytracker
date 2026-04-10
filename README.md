@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, and training goals.
 
-![Version](https://img.shields.io/badge/version-4.5.0-blue)
+![Version](https://img.shields.io/badge/version-4.11.9-blue)
 ![License](https://img.shields.io/badge/license-Proprietary-red)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -108,9 +108,9 @@ SMTP_PASS=<password>
 SMTP_FROM=<from-address>
 
 # Initial admin (created on first start if no admin exists)
-INITIAL_ADMIN_USERNAME=admin
-INITIAL_ADMIN_PASSWORD=<password>
-INITIAL_ADMIN_EMAIL=<email>
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<password>
+ADMIN_EMAIL=<email>
 
 # AI verification
 ANTHROPIC_API_KEY=<key>
@@ -164,9 +164,9 @@ docker run -d \
   kg-tracker
 ```
 
-The container runs as non-root (`www-data`), uses a multi-stage build (Node.js 24 Alpine), and outputs standalone Next.js. The `/app/data` volume persists the SQLite database and uploaded photos.
+The container starts as `root` to fix volume ownership, then drops to `www-data` via `su-exec`. Uses a multi-stage build (Node.js 24 Alpine) with standalone Next.js output. The `/app/data` volume persists the SQLite database and uploaded photos.
 
-At startup, the entrypoint script runs Prisma migrations automatically.
+At startup, the entrypoint script automatically runs Prisma migrations and creates the initial admin user (if none exists). `DATABASE_URL` is set by the entrypoint — do **not** include it in the `.env` file passed to the container.
 
 ## Project Structure
 
