@@ -1,9 +1,15 @@
 [
   {
+    "version": "4.11.11",
+    "date": "2026-04-10",
+    "changes": [
+      { "type": "fix", "text": "Client-Router-Cache deaktiviert: verhinderte nach Rück-Navigation veraltete Schloss-Zustände (z.B. «Offen» im Header, aber Verschluss-Button deaktiviert)" }
+    ]
+  },
+  {
     "version": "4.11.10",
     "date": "2026-04-10",
     "changes": [
-      { "type": "perf", "text": "Navigation zwischen Seiten deutlich schneller: Next.js Client-Router-Cache aktiviert (30s) — kein unnötiger Server-Roundtrip bei Rück-Navigation" },
       { "type": "perf", "text": "JWT-Rolle wird nur noch alle 5 Minuten aus der DB geprüft statt bei jedem Request — reduziert DB-Last spürbar" }
     ]
   },

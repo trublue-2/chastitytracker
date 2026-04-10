@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "4.11.10",
+  "version": "4.11.11",
   "private": true,
   "scripts": {
     "dev": "next dev",
