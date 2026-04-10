@@ -6,7 +6,9 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const nextConfig: NextConfig = {
   output: "standalone",
   experimental: {
-    staleTimes: { dynamic: 0 },
+    // 30s Client-Router-Cache: Navigation innerhalb von 30s ohne Server-Roundtrip.
+    // Full-Reload nach Lock/Unlock (OeffnenForm/VerschlussForm) löscht den Cache — kein Stale-Data-Risiko.
+    staleTimes: { dynamic: 30 },
   },
   devIndicators: false,
   poweredByHeader: false,

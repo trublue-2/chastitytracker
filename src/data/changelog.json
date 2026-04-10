@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.11.10",
+    "date": "2026-04-10",
+    "changes": [
+      { "type": "perf", "text": "Navigation zwischen Seiten deutlich schneller: Next.js Client-Router-Cache aktiviert (30s) — kein unnötiger Server-Roundtrip bei Rück-Navigation" },
+      { "type": "perf", "text": "JWT-Rolle wird nur noch alle 5 Minuten aus der DB geprüft statt bei jedem Request — reduziert DB-Last spürbar" }
+    ]
+  },
+  {
     "version": "4.11.9",
     "date": "2026-04-10",
     "changes": [
