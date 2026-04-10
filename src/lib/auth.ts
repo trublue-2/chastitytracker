@@ -71,14 +71,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
+        token.roleCheckedAt = Date.now();
       } else if (token.id) {
-        // Re-fetch role from DB on every token refresh to detect demotions/deletions
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { role: true },
-        });
-        if (!dbUser) return null; // user deleted — NextAuth clears the session cookie
-        token.role = dbUser.role;
+        // Re-fetch role from DB at most every 5 minutes to detect demotions/deletions.
+        // Full re-check on every request caused 1–2 unnecessary DB hits per navigation.
+        const RECHECK_MS = 5 * 60 * 1000;
+        const checkedAt = (token.roleCheckedAt as number) ?? 0;
+        if (Date.now() - checkedAt > RECHECK_MS) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { role: true },
+          });
+          if (!dbUser) return null; // user deleted — NextAuth clears the session cookie
+          token.role = dbUser.role;
+          token.roleCheckedAt = Date.now();
+        }
       }
       return token;
     },
