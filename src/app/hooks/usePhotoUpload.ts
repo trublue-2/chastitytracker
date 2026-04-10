@@ -33,11 +33,40 @@ export function usePhotoUpload({
   const [exifWarning, setExifWarning] = useState("");
   const [sealNumber, setSealNumber] = useState(initial?.kontrollCode ?? "");
   const [sealState, setSealState] = useState<SealState>("idle");
+  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
   const blobUrlRef = useRef<string | null>(null);
+  // Ref so rotate callbacks always see the latest imageUrl without stale closure
+  const imageUrlRef = useRef(imageUrl);
+  imageUrlRef.current = imageUrl;
+
+  const runSealDetection = useCallback(async (url: string, rot: 0 | 90 | 180 | 270) => {
+    setSealState("detecting");
+    try {
+      const detectRes = await fetch("/api/detect-seal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: url, rotation: rot }),
+      });
+      if (detectRes.ok) {
+        const { detected } = await detectRes.json() as { detected: string | null };
+        if (detected) {
+          setSealNumber(detected);
+          setSealState("detected");
+        } else {
+          setSealState("not-detected");
+        }
+      } else {
+        setSealState("not-detected");
+      }
+    } catch {
+      setSealState("not-detected");
+    }
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     setUploading(true);
     setExifWarning("");
+    setRotation(0);
     if (enableSealDetection) setSealState("idle");
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     const blobUrl = URL.createObjectURL(file);
@@ -55,6 +84,7 @@ export function usePhotoUpload({
     const data = await res.json();
 
     setImageUrl(data.url);
+    imageUrlRef.current = data.url;
     // Keep blob URL for preview — server URL requires an existing entry for ownership check
     setImageExifTime(data.exifTime ?? "");
 
@@ -71,31 +101,30 @@ export function usePhotoUpload({
     }
     setUploading(false);
 
-    // Seal detection (Verschluss forms only)
     if (enableSealDetection) {
-      setSealState("detecting");
-      try {
-        const detectRes = await fetch("/api/detect-seal", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: data.url }),
-        });
-        if (detectRes.ok) {
-          const { detected } = await detectRes.json() as { detected: string | null };
-          if (detected) {
-            setSealNumber(detected);
-            setSealState("detected");
-          } else {
-            setSealState("not-detected");
-          }
-        } else {
-          setSealState("not-detected");
-        }
-      } catch {
-        setSealState("not-detected");
-      }
+      await runSealDetection(data.url, 0);
     }
-  }, [startTime, exifWarningText, enableSealDetection]);
+  }, [startTime, exifWarningText, enableSealDetection, runSealDetection]);
+
+  const rotateLeft = useCallback(() => {
+    setRotation(prev => {
+      const next = ((prev - 90 + 360) % 360) as 0 | 90 | 180 | 270;
+      if (enableSealDetection && imageUrlRef.current) {
+        runSealDetection(imageUrlRef.current, next);
+      }
+      return next;
+    });
+  }, [enableSealDetection, runSealDetection]);
+
+  const rotateRight = useCallback(() => {
+    setRotation(prev => {
+      const next = ((prev + 90) % 360) as 0 | 90 | 180 | 270;
+      if (enableSealDetection && imageUrlRef.current) {
+        runSealDetection(imageUrlRef.current, next);
+      }
+      return next;
+    });
+  }, [enableSealDetection, runSealDetection]);
 
   const clearPhoto = useCallback(() => {
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
@@ -104,6 +133,7 @@ export function usePhotoUpload({
     setImageExifTime("");
     setExifWarning("");
     setSealState("idle");
+    setRotation(0);
   }, []);
 
   return {
@@ -114,6 +144,7 @@ export function usePhotoUpload({
     exifWarning, setExifWarning,
     sealNumber, setSealNumber,
     sealState, setSealState,
+    rotation, rotateLeft, rotateRight,
     handleFile,
     clearPhoto,
   };

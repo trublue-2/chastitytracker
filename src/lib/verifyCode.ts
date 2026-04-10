@@ -1,6 +1,7 @@
 import { readFile } from "fs/promises";
 import { join, basename } from "path";
 import Anthropic from "@anthropic-ai/sdk";
+import sharp from "sharp";
 
 const MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
   jpg: "image/jpeg",
@@ -91,21 +92,25 @@ export async function verifyKontrolleCode(
 /**
  * Tries to detect a 5–8 digit numbered seal from an image.
  * Returns the detected number string, or null if none found.
+ * @param rotation  CSS-style clockwise rotation in degrees applied before sending to Claude.
  */
-export async function detectSealNumber(imageUrl: string): Promise<string | null> {
+export async function detectSealNumber(imageUrl: string, rotation: 0 | 90 | 180 | 270 = 0): Promise<string | null> {
   try {
     const filename = basename(imageUrl);
     if (!filename || filename.includes("..") || filename.includes("/")) return null;
 
-    const buffer = await readFile(join(process.cwd(), "data", "uploads", filename));
+    const rawBuffer = await readFile(join(process.cwd(), "data", "uploads", filename));
+    const buffer: Buffer = rotation !== 0
+      ? await sharp(rawBuffer).rotate(rotation).toBuffer()
+      : rawBuffer;
     const base64 = buffer.toString("base64");
     const ext = filename.split(".").pop()?.toLowerCase() ?? "";
     const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 50,
+      model: "claude-sonnet-4-6",
+      max_tokens: 100,
       messages: [
         {
           role: "user",
@@ -113,7 +118,7 @@ export async function detectSealNumber(imageUrl: string): Promise<string | null>
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
             {
               type: "text",
-              text: `Look for a numbered seal, security seal, or any label with a printed or stamped number in this image. Report the 5–8 digit number if you find one.\nReply with JSON only: {"detected": "<5-8 digit number or null>"}. If no clear number is found, use null.`,
+              text: `Look for a plastic security seal (also called a numbered tag seal or ear tag seal) in this image. These seals are typically colored strips (red, blue, yellow, white, etc.) with a round locking head and a flat strip bearing a printed number. The seal may appear in any orientation — upside down, sideways, or at an angle. The number is usually 5–7 digits and may start with leading zeros (e.g. "006101"). Read the number regardless of orientation and report it as it would read when held upright. Preserve all leading zeros.\nReply with JSON only: {"detected": "<number with leading zeros or null>"}. If no seal or number is visible, use null.`,
             },
           ],
         },
