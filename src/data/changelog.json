@@ -1,5 +1,16 @@
 [
   {
+    "version": "4.11.8",
+    "date": "2026-04-10",
+    "changes": [
+      { "type": "security", "text": "IP-Spoofing-Schutz: X-Forwarded-For liest jetzt korrekt den letzten Eintrag (Traefik-kompatibel) — betrifft Login-Rate-Limit, Access-Log und Passwort-Reset" },
+      { "type": "security", "text": "Passwort ändern erfordert jetzt die Eingabe des aktuellen Passworts" },
+      { "type": "security", "text": "Demo-Endpoint nur noch aktiv wenn ENABLE_DEMO=true gesetzt ist" },
+      { "type": "security", "text": "Admin-Route /api/settings/reinigung entfernt (war ohne Admin-Guard erreichbar)" },
+      { "type": "security", "text": "Vorgaben PATCH/DELETE: Admin kann nur noch Vorgaben von eigenen Benutzern bearbeiten (USE_ADMIN_RELATIONSHIPS)" }
+    ]
+  },
+  {
     "version": "4.11.6",
     "date": "2026-04-09",
     "changes": [

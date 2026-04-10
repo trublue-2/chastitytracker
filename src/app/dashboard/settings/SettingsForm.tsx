@@ -57,6 +57,7 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
     setExpanded((prev) => (prev === section ? null : section));
   }
 
+  const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [pwError, setPwError] = useState<string | null>(null);
@@ -71,15 +72,16 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
     const res = await fetch("/api/settings/password", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newPassword: next }),
+      body: JSON.stringify({ currentPassword: current, newPassword: next }),
     });
     setPwSaving(false);
     if (res.ok) {
       setPwSuccess(true);
-      setNext(""); setConfirm("");
+      setCurrent(""); setNext(""); setConfirm("");
     } else {
       const data = await res.json();
-      setPwError(data.error ?? tc("error"));
+      const errorKey = data.error === "wrongPassword" ? t("wrongPassword") : (data.error ?? tc("error"));
+      setPwError(errorKey);
     }
   }
 
@@ -135,6 +137,14 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
               <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("passwordChanged")}</p>
             ) : (
               <form onSubmit={handlePassword} className="flex flex-col gap-4">
+                <Input
+                  label={t("currentPassword")}
+                  type="password"
+                  value={current}
+                  onChange={(e) => setCurrent(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
                 <Input
                   label={t("newPassword")}
                   type="password"

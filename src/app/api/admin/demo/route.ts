@@ -7,6 +7,9 @@ export const DEMO_USERNAME = "DemoUser";
 export const DEMO_PASSWORD = "demo1234";
 
 export async function POST() {
+  if (process.env.ENABLE_DEMO !== "true") {
+    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  }
   const err = await requireAdminApi();
   if (err) return err;
 

@@ -61,7 +61,13 @@ export default function VersionChecker({ buildDate }: { buildDate: string }) {
           <p className="text-xs text-gray-400">{t("subtitle")}</p>
         </div>
         <button
-          onClick={() => window.location.reload()}
+          onClick={async () => {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg?.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            window.location.reload();
+          }}
           className="flex-shrink-0 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-gray-100 transition"
         >
           {t("reload")}

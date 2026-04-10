@@ -23,9 +23,12 @@ export default function InstallBanner() {
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
 
   useEffect(() => {
-    if (localStorage.getItem("pwa-install-dismissed")) return;
+    const dismissed = localStorage.getItem("pwa-install-dismissed");
+    const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+    if (dismissed && Date.now() - Number(dismissed) < THIRTY_DAYS) return;
 
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches
       || ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
 
@@ -54,13 +57,14 @@ export default function InstallBanner() {
   }, []);
 
   function dismiss() {
-    localStorage.setItem("pwa-install-dismissed", "1");
+    localStorage.setItem("pwa-install-dismissed", String(Date.now()));
     setDismissed(true);
   }
 
   async function install() {
     if (!deferredPrompt) return;
     await deferredPrompt.prompt();
+    setDeferredPrompt(null);
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") setDismissed(true);
     else dismiss();

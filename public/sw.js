@@ -29,12 +29,14 @@ self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_OFFLINE)
       .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
       .catch((err) => {
-        console.warn('[SW] precache failed, skipping anyway:', err);
-        return self.skipWaiting();
+        console.warn('[SW] precache failed:', err);
       })
   );
+});
+
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ---------------------------------------------------------------------------
@@ -130,7 +132,9 @@ self.addEventListener('fetch', (e) => {
 
   // 3. Entries API (GET /api/entries) → stale-while-revalidate
   if (url.pathname === '/api/entries' && request.method === 'GET') {
-    e.respondWith(staleWhileRevalidate(request, CACHE_API));
+    const { response, networkPromise } = staleWhileRevalidate(request, CACHE_API);
+    e.waitUntil(networkPromise);
+    e.respondWith(response);
     return;
   }
 
@@ -174,50 +178,47 @@ async function cacheFirst(request, cacheName) {
 
 /**
  * Stale-while-revalidate: serve cached immediately, update in background.
- * Notifies clients via postMessage when fresh data arrives.
+ * Returns { response: Promise<Response>, networkPromise: Promise } so the
+ * caller can hand both to e.respondWith() and e.waitUntil() respectively.
+ * Notifies clients via a signal-only postMessage (no body serialisation).
  */
-async function staleWhileRevalidate(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
+function staleWhileRevalidate(request, cacheName) {
+  const cacheOpenPromise = caches.open(cacheName);
 
-  // Always fetch in background to update
-  const networkPromise = fetch(request)
-    .then(async (response) => {
-      if (response.ok) {
-        await cache.put(request, response.clone());
-        // Notify all clients that fresh data is available
-        const clients = await self.clients.matchAll({ type: 'window' });
-        const body = await response.clone().json();
-        clients.forEach((client) => {
-          client.postMessage({
-            type: 'SW_ENTRIES_UPDATED',
-            entries: body,
-          });
-        });
-      }
-      return response;
-    })
+  const networkPromise = cacheOpenPromise
+    .then((cache) =>
+      fetch(request).then(async (response) => {
+        if (response.ok) {
+          await cache.put(request, response.clone());
+          // Signal only — client fetches fresh data itself
+          const clients = await self.clients.matchAll({ type: 'window' });
+          clients.forEach((c) => c.postMessage({ type: 'SW_ENTRIES_UPDATED' }));
+        }
+        return response;
+      })
+    )
     .catch((err) => {
       console.warn('[SW] background revalidation failed:', err);
       return null;
     });
 
-  // Return cached version immediately if available
-  if (cached) {
-    // Background update happens asynchronously
-    networkPromise; // intentionally not awaited
-    return cached;
-  }
+  const response = cacheOpenPromise
+    .then((cache) => cache.match(request))
+    .then(async (cached) => {
+      if (cached) return cached;
 
-  // No cache: wait for network
-  const response = await networkPromise;
-  if (response) return response;
+      // No cache: wait for network
+      const networkResponse = await networkPromise;
+      if (networkResponse) return networkResponse;
 
-  // Both cache and network failed
-  return new Response(JSON.stringify([]), {
-    status: 503,
-    headers: { 'Content-Type': 'application/json' },
-  });
+      // Both cache and network failed
+      return new Response(JSON.stringify([]), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+  return { response, networkPromise };
 }
 
 /**
@@ -226,9 +227,14 @@ async function staleWhileRevalidate(request, cacheName) {
 async function networkFirstNavigation(request) {
   try {
     const response = await fetch(request);
-    // 404 = Traefik has no route (container down during deploy)
-    // 502/503/504 = backend unreachable or error
-    if (response.status === 404 || response.status === 502 || response.status === 503 || response.status === 504) {
+    // 502/503/504 = Container startet noch / nicht erreichbar
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      const offline = await caches.match(OFFLINE_URL);
+      return offline || response;
+    }
+    // 404 ohne x-kg-app-Header = Traefik hat kein Routing (Container komplett gestoppt)
+    // 404 mit x-kg-app-Header = echter Next.js-404 → durchlassen
+    if (response.status === 404 && !response.headers.get('x-kg-app')) {
       const offline = await caches.match(OFFLINE_URL);
       return offline || response;
     }
