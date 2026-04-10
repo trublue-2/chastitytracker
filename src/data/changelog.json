@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.11.9",
+    "date": "2026-04-10",
+    "changes": [
+      { "type": "feat", "text": "Vollbild-Bildanzeige: Bild kann per Schaltfläche links/rechts gedreht werden – nützlich wenn Siegel kopfüber im Foto hängt" },
+      { "type": "fix", "text": "Siegel-Erkennung verbessert: besseres Modell (Sonnet), Prompt beschreibt Kunststoff-Sicherheitssiegel mit Drehung und führenden Nullen" }
+    ]
+  },
+  {
     "version": "4.11.8",
     "date": "2026-04-10",
     "changes": [

@@ -13,9 +13,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
   }
 
-  const { imageUrl } = await req.json();
+  const { imageUrl, rotation = 0 } = await req.json();
   if (!imageUrl || !isValidImageUrl(imageUrl)) return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
 
-  const detected = await detectSealNumber(imageUrl);
+  const detected = await detectSealNumber(imageUrl, rotation as 0 | 90 | 180 | 270);
   return NextResponse.json({ detected });
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, RotateCcw, RotateCw } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
@@ -11,7 +11,6 @@ import DateTimePicker from "@/app/components/DateTimePicker";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Textarea from "@/app/components/Textarea";
-import ImageViewer from "@/app/components/ImageViewer";
 import PhotoCapture from "@/app/components/PhotoCapture";
 
 export default function VerschlussForm({ userId }: { userId: string }) {
@@ -27,6 +26,7 @@ export default function VerschlussForm({ userId }: { userId: string }) {
   const {
     imageUrl, imageExifTime, imagePreview, uploading,
     sealNumber, setSealNumber, sealState, setSealState,
+    rotation, rotateLeft, rotateRight,
     handleFile, clearPhoto,
   } = usePhotoUpload({
     startTime,
@@ -80,7 +80,24 @@ export default function VerschlussForm({ userId }: { userId: string }) {
             <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("photoOptional")}</label>
             {imagePreview ? (
               <div className="flex items-start gap-4">
-                <ImageViewer src={imagePreview} alt={tc("preview")} width={80} height={80} className="w-20 h-20 rounded-xl object-cover" />
+                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden" style={{ transform: `rotate(${rotation}deg)`, transition: "transform 0.2s ease" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imagePreview} alt={tc("preview")} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={rotateLeft}
+                      className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground active:text-foreground transition-colors"
+                      aria-label={tc("rotateLeft")}>
+                      <RotateCcw size={14} />
+                    </button>
+                    <button type="button" onClick={rotateRight}
+                      className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground active:text-foreground transition-colors"
+                      aria-label={tc("rotateRight")}>
+                      <RotateCw size={14} />
+                    </button>
+                  </div>
+                </div>
                 <div className="flex flex-col gap-2 flex-1 pt-1">
                   {imageExifTime && (
                     <p className="text-xs text-foreground-faint">{tc("exifDate")}: {new Date(imageExifTime).toLocaleString()}</p>
