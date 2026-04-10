@@ -2,6 +2,7 @@
 // WebAuthn / Passkey configuration
 // Uses @simplewebauthn/server for all crypto operations.
 // ---------------------------------------------------------------------------
+import crypto from "crypto";
 
 /**
  * Relying Party (RP) configuration.
@@ -59,7 +60,7 @@ const passkeyTokens = new Map<string, { userId: string; expiresAt: number }>();
 const PASSKEY_TOKEN_TTL = 60_000; // 1 minute
 
 export function createPasskeyToken(userId: string): string {
-  const token = require("crypto").randomBytes(32).toString("hex");
+  const token = crypto.randomBytes(32).toString("hex");
   passkeyTokens.set(token, {
     userId,
     expiresAt: Date.now() + PASSKEY_TOKEN_TTL,

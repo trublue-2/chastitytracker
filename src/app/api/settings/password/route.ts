@@ -10,8 +10,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { newPassword } = await req.json();
+  const { currentPassword, newPassword } = await req.json();
+  if (!currentPassword) return NextResponse.json({ error: "Aktuelles Passwort fehlt" }, { status: 400 });
   if (!newPassword) return NextResponse.json({ error: "Neues Passwort fehlt" }, { status: 400 });
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { passwordHash: true } });
+  if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    return NextResponse.json({ error: "wrongPassword" }, { status: 401 });
+  }
+
   const pwErr = validatePassword(newPassword);
   if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 

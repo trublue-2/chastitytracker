@@ -2,6 +2,8 @@
   "name": "KG Tracker",
   "short_name": "KG Tracker",
   "description": "Keuschheitsgürtel Tracking",
+  "id": "/dashboard",
+  "lang": "de",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#f8f9fb",
