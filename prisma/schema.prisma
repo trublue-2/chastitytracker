@@ -210,3 +210,9 @@ model NotificationPreference {
   @@unique([userId, eventType])
   @@index([userId])
 }
+
+model AppMeta {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
