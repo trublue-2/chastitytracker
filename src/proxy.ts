@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 // ── Rate limiter für Login-Endpunkt ──────────────────────────────────────────
 const loginBucket = new Map<string, { count: number; resetAt: number }>();
@@ -87,6 +88,15 @@ export default auth((req) => {
       "unknown";
     const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
     console.log(`[ACCESS] ${ts} | ${user?.name ?? "?"} | ${pathname} | ${ip}`);
+  }
+
+  // Fire-and-forget: track last activity for portal overview
+  if (isLoggedIn) {
+    prisma.appMeta.upsert({
+      where:  { key: "lastUsedAt" },
+      create: { key: "lastUsedAt", value: new Date().toISOString() },
+      update: { value: new Date().toISOString() },
+    }).catch(() => {});
   }
 
   return NextResponse.next();
