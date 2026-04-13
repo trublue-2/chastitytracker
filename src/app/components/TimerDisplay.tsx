@@ -30,8 +30,12 @@ function formatLong(totalMs: number): string {
 
 function formatShort(totalMs: number): string {
   const totalSeconds = Math.floor(Math.abs(totalMs) / 1000);
-  const m = Math.floor(totalSeconds / 60);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
