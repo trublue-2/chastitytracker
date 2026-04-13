@@ -75,6 +75,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       } else if (token.id) {
         // Re-fetch role from DB at most every 5 minutes to detect demotions/deletions.
         // Full re-check on every request caused 1–2 unnecessary DB hits per navigation.
+        // Trade-off: a deleted or demoted user retains a valid session for up to 5 minutes.
+        // Acceptable for this use-case — no financial or safety implications.
         const RECHECK_MS = 5 * 60 * 1000;
         const checkedAt = (token.roleCheckedAt as number) ?? 0;
         if (Date.now() - checkedAt > RECHECK_MS) {
