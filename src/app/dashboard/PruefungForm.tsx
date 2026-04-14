@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import PhotoCapture from "@/app/components/PhotoCapture";
-import ImageViewer from "@/app/components/ImageViewer";
 import { useTranslations, useLocale } from "next-intl";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -18,7 +17,7 @@ import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
 import useToast from "@/app/hooks/useToast";
-import { WifiOff } from "lucide-react";
+import { WifiOff, RotateCcw, RotateCw } from "lucide-react";
 
 interface Props {
   initial?: {
@@ -76,6 +75,7 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
 
   const {
     imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
+    rotation, rotateLeft, rotateRight,
     handleFile: uploadFile,
   } = usePhotoUpload({
     startTime,
@@ -94,7 +94,7 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
 
   // Auto-verify when code + image are ready
   useEffect(() => {
-    const key = `${kontrollCode}|${imageUrl}`;
+    const key = `${kontrollCode}|${imageUrl}|${rotation}`;
     if (kontrollCode.length >= 5 && imageUrl && key !== lastVerifiedKey.current) {
       lastVerifiedKey.current = key;
       setVerifyStatus("pending");
@@ -104,7 +104,7 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
       fetch("/api/verify-kontrolle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl, expectedCode: kontrollCode }),
+        body: JSON.stringify({ imageUrl, expectedCode: kontrollCode, rotation }),
         signal: controller.signal,
       })
         .then((r) => r.json())
@@ -122,7 +122,7 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
         .catch((err) => { if (err.name !== "AbortError") setVerifyStatus("error"); });
       return () => controller.abort();
     }
-  }, [kontrollCode, imageUrl]);
+  }, [kontrollCode, imageUrl, rotation]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -208,13 +208,24 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
       <FormField label={tCommon("photo")} required>
         {imagePreview ? (
           <div className="flex items-start gap-4">
-            <ImageViewer
-              src={imagePreview}
-              alt=""
-              width={80}
-              height={80}
-              className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
-            />
+            <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+              <div className="w-20 h-20 rounded-xl overflow-hidden" style={{ transform: `rotate(${rotation}deg)`, transition: "transform 0.2s ease" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imagePreview} alt={tCommon("preview")} className="w-full h-full object-cover" />
+              </div>
+              <div className="flex gap-1">
+                <button type="button" onClick={rotateLeft}
+                  className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground active:text-foreground transition-colors"
+                  aria-label={tCommon("rotateLeft")}>
+                  <RotateCcw size={14} />
+                </button>
+                <button type="button" onClick={rotateRight}
+                  className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground active:text-foreground transition-colors"
+                  aria-label={tCommon("rotateRight")}>
+                  <RotateCw size={14} />
+                </button>
+              </div>
+            </div>
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && <p className="text-xs text-foreground-faint">{tCommon("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>}
               {exifWarning && !uploading && <p className="text-xs text-warn font-medium">{exifWarning}</p>}

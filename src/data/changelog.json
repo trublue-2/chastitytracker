@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.11.13",
+    "date": "2026-04-14",
+    "changes": [
+      { "type": "feat", "text": "Foto drehen bei Kontrolle erfassen — Rotations-Buttons auch beim Prüfungs-Formular; Bildrotation wird beim Code-Erkennen (Claude Vision) berücksichtigt" }
+    ]
+  },
+  {
     "version": "4.11.12",
     "date": "2026-04-11",
     "changes": [

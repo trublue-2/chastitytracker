@@ -31,13 +31,17 @@ export type VerifyDetailedResult = {
  */
 export async function verifyKontrolleCodeDetailed(
   imageUrl: string,
-  expectedCode: string
+  expectedCode: string,
+  rotation: 0 | 90 | 180 | 270 = 0
 ): Promise<VerifyDetailedResult | null> {
   try {
     const filename = basename(imageUrl);
     if (!filename || filename.includes("..") || filename.includes("/")) return null;
 
-    const buffer = await readFile(join(process.cwd(), "data", "uploads", filename));
+    const rawBuffer = await readFile(join(process.cwd(), "data", "uploads", filename));
+    const buffer: Buffer = rotation !== 0
+      ? await sharp(rawBuffer).rotate(rotation).toBuffer()
+      : rawBuffer;
     const base64 = buffer.toString("base64");
     const ext = filename.split(".").pop()?.toLowerCase() ?? "";
     const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
