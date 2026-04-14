@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import { join, basename } from "path";
 import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
+import type { Rotation } from "@/lib/constants";
 
 const MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
   jpg: "image/jpeg",
@@ -10,6 +11,22 @@ const MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "im
   gif: "image/gif",
   webp: "image/webp",
 };
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+async function loadImageBuffer(
+  imageUrl: string,
+  rotation: Rotation
+): Promise<{ base64: string; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" } | null> {
+  const filename = basename(imageUrl);
+  if (!filename || filename.includes("..") || filename.includes("/")) return null;
+  const raw = await readFile(join(process.cwd(), "data", "uploads", filename));
+  const buffer = rotation !== 0 ? await sharp(raw).rotate(rotation).toBuffer() : raw;
+  const base64 = buffer.toString("base64");
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
+  return { base64, mediaType };
+}
 
 function fuzzyMatch(a: string, b: string): boolean {
   if (a === b) return true;
@@ -25,36 +42,23 @@ export type VerifyDetailedResult = {
   error?: "policy" | true;
 };
 
-/**
- * Runs the Claude Vision check and returns the full result (detected code, match, reason).
- * Returns null on read/API errors.
- */
 export async function verifyKontrolleCodeDetailed(
   imageUrl: string,
   expectedCode: string,
-  rotation: 0 | 90 | 180 | 270 = 0
+  rotation: Rotation = 0
 ): Promise<VerifyDetailedResult | null> {
   try {
-    const filename = basename(imageUrl);
-    if (!filename || filename.includes("..") || filename.includes("/")) return null;
+    const img = await loadImageBuffer(imageUrl, rotation);
+    if (!img) return null;
 
-    const rawBuffer = await readFile(join(process.cwd(), "data", "uploads", filename));
-    const buffer: Buffer = rotation !== 0
-      ? await sharp(rawBuffer).rotate(rotation).toBuffer()
-      : rawBuffer;
-    const base64 = buffer.toString("base64");
-    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-    const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
-
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const response = await client.messages.create({
+    const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 100,
       messages: [
         {
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
             {
               type: "text",
               text: `This image should contain a handwritten 5-digit number: ${expectedCode}.\nLook carefully for any handwritten digits in the image. Note: handwritten "1" often looks like "7" and vice versa – read carefully.\nReply with JSON only: {"detected": "<5-digit code or null>", "match": true/false, "reason": "<brief reason in German if match is false, else null>"}.\nPossible reasons (pick the most fitting, keep it short): "Kein Code sichtbar", "Bild zu unscharf", "Code verdeckt oder abgeschnitten", "Schrift nicht lesbar", "Falscher Code sichtbar: <detected>", "Bild zu dunkel", "Kein handgeschriebener Code gefunden".`,
@@ -96,30 +100,21 @@ export async function verifyKontrolleCode(
 /**
  * Tries to detect a 5–8 digit numbered seal from an image.
  * Returns the detected number string, or null if none found.
- * @param rotation  CSS-style clockwise rotation in degrees applied before sending to Claude.
+ * @param rotation  Clockwise rotation in degrees applied before sending to Claude.
  */
-export async function detectSealNumber(imageUrl: string, rotation: 0 | 90 | 180 | 270 = 0): Promise<string | null> {
+export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
   try {
-    const filename = basename(imageUrl);
-    if (!filename || filename.includes("..") || filename.includes("/")) return null;
+    const img = await loadImageBuffer(imageUrl, rotation);
+    if (!img) return null;
 
-    const rawBuffer = await readFile(join(process.cwd(), "data", "uploads", filename));
-    const buffer: Buffer = rotation !== 0
-      ? await sharp(rawBuffer).rotate(rotation).toBuffer()
-      : rawBuffer;
-    const base64 = buffer.toString("base64");
-    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-    const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
-
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const response = await client.messages.create({
+    const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 100,
       messages: [
         {
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
             {
               type: "text",
               text: `Look for a plastic security seal (also called a numbered tag seal or ear tag seal) in this image. These seals are typically colored strips (red, blue, yellow, white, etc.) with a round locking head and a flat strip bearing a printed number. The seal may appear in any orientation — upside down, sideways, or at an angle. The number is usually 5–7 digits and may start with leading zeros (e.g. "006101"). Read the number regardless of orientation and report it as it would read when held upright. Preserve all leading zeros.\nReply with JSON only: {"detected": "<number with leading zeros or null>"}. If no seal or number is visible, use null.`,

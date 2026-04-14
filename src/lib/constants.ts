@@ -92,6 +92,9 @@ export function isValidEmail(s: string | null | undefined): boolean {
   return EMAIL_RE.test(s);
 }
 
+export const VALID_ROTATIONS = [0, 90, 180, 270] as const;
+export type Rotation = typeof VALID_ROTATIONS[number];
+
 /** Validates that imageUrl is an internal upload path (prevents SSRF + ownership bypass). */
 const ALLOWED_IMAGE_URL = /^\/api\/uploads\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 export function isValidImageUrl(url: string | null | undefined): boolean {

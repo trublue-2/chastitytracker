@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { compressImage } from "@/lib/compressImage";
+import type { Rotation } from "@/lib/constants";
 
 export type SealState = "idle" | "detecting" | "detected" | "not-detected";
 
@@ -33,13 +34,13 @@ export function usePhotoUpload({
   const [exifWarning, setExifWarning] = useState("");
   const [sealNumber, setSealNumber] = useState(initial?.kontrollCode ?? "");
   const [sealState, setSealState] = useState<SealState>("idle");
-  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
+  const [rotation, setRotation] = useState<Rotation>(0);
   const blobUrlRef = useRef<string | null>(null);
   // Ref so rotate callbacks always see the latest imageUrl without stale closure
   const imageUrlRef = useRef(imageUrl);
   imageUrlRef.current = imageUrl;
 
-  const runSealDetection = useCallback(async (url: string, rot: 0 | 90 | 180 | 270) => {
+  const runSealDetection = useCallback(async (url: string, rot: Rotation) => {
     setSealState("detecting");
     try {
       const detectRes = await fetch("/api/detect-seal", {
@@ -108,7 +109,7 @@ export function usePhotoUpload({
 
   const rotateLeft = useCallback(() => {
     setRotation(prev => {
-      const next = ((prev - 90 + 360) % 360) as 0 | 90 | 180 | 270;
+      const next = ((prev - 90 + 360) % 360) as Rotation;
       if (enableSealDetection && imageUrlRef.current) {
         runSealDetection(imageUrlRef.current, next);
       }
@@ -118,7 +119,7 @@ export function usePhotoUpload({
 
   const rotateRight = useCallback(() => {
     setRotation(prev => {
-      const next = ((prev + 90) % 360) as 0 | 90 | 180 | 270;
+      const next = ((prev + 90) % 360) as Rotation;
       if (enableSealDetection && imageUrlRef.current) {
         runSealDetection(imageUrlRef.current, next);
       }

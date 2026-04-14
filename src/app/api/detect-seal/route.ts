@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { detectSealNumber } from "@/lib/verifyCode";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { isValidImageUrl } from "@/lib/constants";
+import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -13,9 +13,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
   }
 
-  const { imageUrl, rotation = 0 } = await req.json();
+  const { imageUrl, rotation } = await req.json();
   if (!imageUrl || !isValidImageUrl(imageUrl)) return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
 
-  const detected = await detectSealNumber(imageUrl, rotation as 0 | 90 | 180 | 270);
+  const safeRotation: Rotation = VALID_ROTATIONS.includes(rotation) ? rotation : 0;
+  const detected = await detectSealNumber(imageUrl, safeRotation);
   return NextResponse.json({ detected });
 }

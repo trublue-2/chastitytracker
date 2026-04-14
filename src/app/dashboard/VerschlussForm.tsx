@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, RotateCw } from "lucide-react";
+import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import PhotoCapture from "@/app/components/PhotoCapture";
@@ -123,24 +123,12 @@ export default function VerschlussForm({ initial, minTime, mobileDesktopMode, re
       <FormField label={t("photoOptional")}>
         {imagePreview ? (
           <div className="flex items-start gap-4">
-            <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-              <div className="w-20 h-20 rounded-xl overflow-hidden" style={{ transform: `rotate(${rotation}deg)`, transition: "transform 0.2s ease" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imagePreview} alt={t("preview")} className="w-full h-full object-cover" />
-              </div>
-              <div className="flex gap-1">
-                <button type="button" onClick={rotateLeft}
-                  className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground active:text-foreground transition-colors"
-                  aria-label={t("rotateLeft")}>
-                  <RotateCcw size={14} />
-                </button>
-                <button type="button" onClick={rotateRight}
-                  className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground active:text-foreground transition-colors"
-                  aria-label={t("rotateRight")}>
-                  <RotateCw size={14} />
-                </button>
-              </div>
-            </div>
+            <RotatableImagePreview
+              src={imagePreview}
+              rotation={rotation}
+              onRotateLeft={rotateLeft}
+              onRotateRight={rotateRight}
+            />
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && (
                 <p className="text-xs text-foreground-faint">{t("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>
