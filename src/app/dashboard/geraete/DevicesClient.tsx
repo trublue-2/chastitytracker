@@ -11,7 +11,7 @@ import Toggle from "@/app/components/Toggle";
 import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
 import useToast from "@/app/hooks/useToast";
-import DeviceFormSheet from "./DeviceFormSheet";
+import DeviceForm from "./DeviceFormSheet";
 
 export interface DeviceRow {
   id: string;
@@ -39,7 +39,7 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
   const toast = useToast();
 
   const [showArchived, setShowArchived] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"closed" | "add" | "edit">("closed");
   const [editDevice, setEditDevice] = useState<DeviceRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeviceRow | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -51,21 +51,21 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
 
   function openAdd() {
     setEditDevice(null);
-    setSheetOpen(true);
+    setFormMode("add");
   }
 
   function openEdit(device: DeviceRow) {
     setEditDevice(device);
-    setSheetOpen(true);
+    setFormMode("edit");
   }
 
-  function handleSheetClose() {
-    setSheetOpen(false);
+  function closeForm() {
+    setFormMode("closed");
     setEditDevice(null);
   }
 
   function handleSaved() {
-    handleSheetClose();
+    closeForm();
     router.refresh();
   }
 
@@ -112,6 +112,30 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
 
   const title = username ? t("titleAdmin", { username }) : t("title");
 
+  // ── Inline form view (add/edit) ──
+  if (formMode !== "closed") {
+    return (
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
+        <button
+          type="button"
+          onClick={closeForm}
+          className="text-sm text-foreground-faint hover:text-foreground-muted transition"
+        >
+          ← {title}
+        </button>
+        <div className="mt-4">
+          <DeviceForm
+            onClose={closeForm}
+            onSaved={handleSaved}
+            device={editDevice}
+            userId={userId}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  // ── Device list view ──
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -152,15 +176,6 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
           ))}
         </div>
       )}
-
-      {/* Add/Edit sheet */}
-      <DeviceFormSheet
-        open={sheetOpen}
-        onClose={handleSheetClose}
-        onSaved={handleSaved}
-        device={editDevice}
-        userId={userId}
-      />
 
       {/* Delete/Archive confirmation */}
       <ActionModal
