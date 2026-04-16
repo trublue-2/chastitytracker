@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
+import { validateDeviceOwnership } from "@/lib/queries";
 
 export async function POST(req: NextRequest) {
   const err = await requireAdminApi();
   if (err) return err;
 
   const body = await req.json();
-  const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode } = body;
+  const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode, deviceId } = body;
 
   if (!isValidImageUrl(imageUrl)) {
     return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
@@ -42,6 +43,12 @@ export async function POST(req: NextRequest) {
   let entry;
   try {
     entry = await prisma.$transaction(async (tx) => {
+      // Validate deviceId ownership inside transaction to avoid TOCTOU
+      if (deviceId && type === "VERSCHLUSS") {
+        const device = await validateDeviceOwnership(deviceId, userId, tx);
+        if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
+      }
+
       if (type === "VERSCHLUSS") {
         const latest = await tx.entry.findFirst({
           where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
@@ -69,11 +76,13 @@ export async function POST(req: NextRequest) {
           imageUrl: imageUrl || null,
           imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
           kontrollCode: kontrollCode || null,
+          deviceId: type === "VERSCHLUSS" ? (deviceId || null) : null,
         },
       });
     });
   } catch (e: unknown) {
     const code = (e as { _code?: string })?._code;
+    if (code === "INVALID_DEVICE") return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
     if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
     if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
     throw e;

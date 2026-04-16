@@ -9,17 +9,20 @@ import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Button from "@/app/components/Button";
+import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
 import Textarea from "@/app/components/Textarea";
 import PhotoCapture from "@/app/components/PhotoCapture";
+import type { DeviceOption } from "@/lib/queries";
 
-export default function VerschlussForm({ userId }: { userId: string }) {
+export default function VerschlussForm({ userId, devices = [] }: { userId: string; devices?: DeviceOption[] }) {
   const t = useTranslations("admin");
   const tLock = useTranslations("lockForm");
   const tc = useTranslations("common");
   const router = useRouter();
   const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
   const [note, setNote] = useState("");
+  const [deviceId, setDeviceId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,25 +40,31 @@ export default function VerschlussForm({ userId }: { userId: string }) {
     e.preventDefault();
     setSaving(true);
     setError("");
-    const res = await fetch("/api/admin/entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId,
-        type: "VERSCHLUSS",
-        startTime: new Date(startTime).toISOString(),
-        note: note.trim() || undefined,
-        imageUrl: imageUrl || undefined,
-        imageExifTime: imageExifTime || undefined,
-        kontrollCode: sealNumber.trim() || undefined,
-      }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      router.push(`/admin/users/${userId}/aktionen`);
-    } else {
-      const d = await res.json();
-      setError(d.error || tc("error"));
+    try {
+      const res = await fetch("/api/admin/entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          type: "VERSCHLUSS",
+          startTime: new Date(startTime).toISOString(),
+          note: note.trim() || undefined,
+          imageUrl: imageUrl || undefined,
+          imageExifTime: imageExifTime || undefined,
+          kontrollCode: sealNumber.trim() || undefined,
+          deviceId: deviceId || undefined,
+        }),
+      });
+      if (res.ok) {
+        router.push(`/admin/users/${userId}/aktionen`);
+      } else {
+        const d = await res.json();
+        setError(d.error || tc("error"));
+      }
+    } catch {
+      setError(tc("networkError"));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -75,6 +84,18 @@ export default function VerschlussForm({ userId }: { userId: string }) {
             onChange={(e) => setStartTime(e.target.value)}
             required
           />
+
+          {devices.length > 0 && (
+            <Select
+              label={tLock("selectDevice")}
+              options={[
+                { value: "", label: tLock("noDevice") },
+                ...devices.map((d) => ({ value: d.id, label: d.name })),
+              ]}
+              value={deviceId}
+              onChange={(e) => setDeviceId(e.target.value)}
+            />
+          )}
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("photoOptional")}</label>

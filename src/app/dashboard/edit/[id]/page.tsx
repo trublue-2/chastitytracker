@@ -8,6 +8,7 @@ import PruefungForm from "../../PruefungForm";
 import OrgasmusForm from "../../OrgasmusForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal } from "@/lib/utils";
+import { getUserDeviceOptions } from "@/lib/queries";
 
 export default async function EditEntryPage({
   params,
@@ -27,19 +28,19 @@ export default async function EditEntryPage({
   const { from, userId: adminUserId } = sp;
   const isAdmin = session?.user?.role === "admin";
   const currentUserId = session?.user?.id;
-  const [entry, dbUser, devices] = await Promise.all([
+  const [entry, dbUser] = await Promise.all([
     prisma.entry.findUnique({ where: { id } }),
     currentUserId ? prisma.user.findUnique({ where: { id: currentUserId }, select: { mobileDesktopUpload: true } }) : null,
-    currentUserId ? prisma.device.findMany({
-      where: { userId: currentUserId, archivedAt: null },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, name: true, imageUrl: true },
-    }) : [],
   ]);
   const mobileDesktopMode = dbUser?.mobileDesktopUpload ?? false;
   if (!entry) notFound();
   // Allow access if own entry OR admin
   if (entry.userId !== currentUserId && !isAdmin) notFound();
+
+  // Only load devices for VERSCHLUSS entries (other types don't use them)
+  const devices = entry.type === "VERSCHLUSS"
+    ? await getUserDeviceOptions(entry.userId)
+    : [];
 
   const LABELS: Record<string, string> = {
     VERSCHLUSS: tStats("lock"),
@@ -74,7 +75,7 @@ export default async function EditEntryPage({
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null,
           note: entry.note, kontrollCode: entry.kontrollCode, deviceId: entry.deviceId,
         }} minTime={minTime} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo}
-          devices={entry.userId === currentUserId ? devices : []}
+          devices={devices}
         />
       )}
       {entry.type === "PRUEFUNG" && (

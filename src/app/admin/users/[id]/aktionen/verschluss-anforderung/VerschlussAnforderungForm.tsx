@@ -8,14 +8,17 @@ import ActionModal from "@/app/components/ActionModal";
 import FormField from "@/app/components/FormField";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
+import Select from "@/app/components/Select";
 import Spinner from "@/app/components/Spinner";
+import type { DeviceOption } from "@/lib/queries";
 
 interface Props {
   userId: string;
   art: "ANFORDERUNG" | "SPERRZEIT";
+  devices?: DeviceOption[];
 }
 
-export default function VerschlussAnforderungForm({ userId, art }: Props) {
+export default function VerschlussAnforderungForm({ userId, art, devices = [] }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -29,6 +32,7 @@ export default function VerschlussAnforderungForm({ userId, art }: Props) {
   const [endetAt, setEndetAt] = useState("");
   const [withMinDauer, setWithMinDauer] = useState(false);
   const [minDauerH, setMinDauerH] = useState("24");
+  const [deviceId, setDeviceId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -52,6 +56,9 @@ export default function VerschlussAnforderungForm({ userId, art }: Props) {
       }
       if (!isSperrzeit && withMinDauer) {
         payload.dauerH = parseFloat(minDauerH) || 24;
+      }
+      if (!isSperrzeit && deviceId) {
+        payload.deviceId = deviceId;
       }
 
       const res = await fetch("/api/admin/verschluss-anforderung", {
@@ -147,6 +154,18 @@ export default function VerschlussAnforderungForm({ userId, art }: Props) {
               </div>
             )}
           </div>
+        )}
+
+        {!isSperrzeit && devices.length > 0 && (
+          <Select
+            label={t("selectDeviceLabel")}
+            options={[
+              { value: "", label: t("selectDevicePlaceholder") },
+              ...devices.map((d) => ({ value: d.id, label: d.name })),
+            ]}
+            value={deviceId}
+            onChange={(e) => setDeviceId(e.target.value)}
+          />
         )}
 
         <FormError message={error} variant="compact" />

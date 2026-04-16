@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { getUserDeviceOptions } from "@/lib/queries";
 
 export default async function NewVerschlussPage() {
   const session = await auth();
@@ -15,11 +16,7 @@ export default async function NewVerschlussPage() {
       orderBy: { startTime: "desc" },
     }),
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
-    prisma.device.findMany({
-      where: { userId, archivedAt: null },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, name: true, imageUrl: true },
-    }),
+    getUserDeviceOptions(userId),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
       select: { deviceId: true },

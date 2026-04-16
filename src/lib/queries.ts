@@ -11,6 +11,15 @@ export interface DeviceOption {
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 
+/** Returns active (non-archived) devices for a user, ordered by creation date. */
+export async function getUserDeviceOptions(userId: string): Promise<DeviceOption[]> {
+  return prisma.device.findMany({
+    where: { userId, archivedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, imageUrl: true },
+  });
+}
+
 /** Returns true if the user is currently locked (latest VERSCHLUSS/OEFFNEN entry is VERSCHLUSS). */
 export async function getIsLocked(userId: string): Promise<boolean> {
   const latest = await prisma.entry.findFirst({
