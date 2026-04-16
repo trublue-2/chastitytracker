@@ -33,6 +33,7 @@ export default async function DashboardPage() {
     getActiveVorgabe(userId, now),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      include: { device: { select: { name: true } } },
     }),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
@@ -94,6 +95,7 @@ export default async function DashboardPage() {
       nachricht: offeneVerschlussAnf.nachricht,
       overdue: anfOverdue,
       endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) }) : null,
+      deviceName: offeneVerschlussAnf.device?.name ?? null,
     } : null,
 
     activeSperrzeit: activeSperrzeit ? {

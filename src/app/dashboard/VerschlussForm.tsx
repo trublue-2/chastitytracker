@@ -14,8 +14,11 @@ import DateTimePicker from "@/app/components/DateTimePicker";
 import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
+import Select from "@/app/components/Select";
+import Card from "@/app/components/Card";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
+import type { DeviceOption } from "@/lib/queries";
 
 interface Props {
   initial?: {
@@ -25,13 +28,18 @@ interface Props {
     imageExifTime?: string | null;
     note?: string | null;
     kontrollCode?: string | null;
+    deviceId?: string | null;
   };
   minTime?: string;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
+  /** Active (non-archived) devices for this user */
+  devices?: DeviceOption[];
+  /** Device ID requested by keyholder via VerschlussAnforderung */
+  anforderungDeviceId?: string | null;
 }
 
-export default function VerschlussForm({ initial, minTime, mobileDesktopMode, redirectTo }: Props) {
+export default function VerschlussForm({ initial, minTime, mobileDesktopMode, redirectTo, devices = [], anforderungDeviceId }: Props) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
   const tDash = useTranslations("dashboard");
@@ -45,6 +53,18 @@ export default function VerschlussForm({ initial, minTime, mobileDesktopMode, re
   const [note, setNote] = useState(initial?.note ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Device selection logic:
+  // 0 devices → no selector, deviceId = null
+  // 1 device → auto-selected (user can deselect)
+  // ≥2 devices → dropdown, not pre-selected unless anforderung
+  const defaultDeviceId = anforderungDeviceId
+    ?? (devices.length === 1 ? devices[0].id : null)
+    ?? initial?.deviceId
+    ?? "";
+  const [deviceId, setDeviceId] = useState(defaultDeviceId ?? "");
+  const showDeviceSelector = devices.length > 0;
+  const wrongDevice = anforderungDeviceId && deviceId && deviceId !== anforderungDeviceId;
 
   const {
     imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
@@ -76,6 +96,7 @@ export default function VerschlussForm({ initial, minTime, mobileDesktopMode, re
           imageExifTime: imageExifTime || null,
           note: note || null,
           kontrollCode: sealNumber.trim() || null,
+          deviceId: deviceId || null,
         }),
       };
 
@@ -111,6 +132,33 @@ export default function VerschlussForm({ initial, minTime, mobileDesktopMode, re
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <RequiredHint />
+
+      {/* Device selector */}
+      {showDeviceSelector && (
+        <div className="flex flex-col gap-2">
+          {anforderungDeviceId && (
+            <Card variant="semantic" semantic="request">
+              <p className="text-sm text-request-text font-medium">
+                {tForm("requiredDevice", { name: devices.find((d) => d.id === anforderungDeviceId)?.name ?? "?" })}
+              </p>
+            </Card>
+          )}
+          <Select
+            label={tForm("selectDevice")}
+            options={[
+              { value: "", label: tForm("noDevice") },
+              ...devices.map((d) => ({ value: d.id, label: d.name })),
+            ]}
+            value={deviceId}
+            onChange={(e) => setDeviceId(e.target.value)}
+            hint={devices.length >= 2 && !anforderungDeviceId ? tForm("selectDeviceHint") : undefined}
+          />
+          {wrongDevice && (
+            <p className="text-xs text-warn font-medium">{tForm("wrongDeviceWarning")}</p>
+          )}
+        </div>
+      )}
+
       <DateTimePicker
         label={t("dateTime")}
         value={startTime}

@@ -9,12 +9,21 @@ export default async function NewVerschlussPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [latest, dbUser] = await Promise.all([
+  const [latest, dbUser, devices, offeneAnforderung] = await Promise.all([
     prisma.entry.findFirst({
       where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
       orderBy: { startTime: "desc" },
     }),
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
+    prisma.device.findMany({
+      where: { userId, archivedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, imageUrl: true },
+    }),
+    prisma.verschlussAnforderung.findFirst({
+      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      select: { deviceId: true },
+    }),
   ]);
 
   if (latest?.type === "VERSCHLUSS") {
@@ -27,7 +36,11 @@ export default async function NewVerschlussPage() {
     <div className="w-full max-w-2xl mx-auto px-4 py-6">
       <Link href="/dashboard/new" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
-      <VerschlussForm mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false} />
+      <VerschlussForm
+        mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
+        devices={devices}
+        anforderungDeviceId={offeneAnforderung?.deviceId ?? null}
+      />
     </div>
   );
 }

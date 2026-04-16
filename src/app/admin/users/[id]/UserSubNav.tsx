@@ -21,6 +21,7 @@ export default function UserSubNav({ userId }: Props) {
     { href: `${base}/kontrollen`, label: t("inspections_tab"), exact: false },
     { href: `${base}/stats`, label: t("stats_tab"), exact: false },
     { href: `${base}/strafbuch`, label: t("strafbuch_tab"), exact: false },
+    { href: `${base}/geraete`, label: t("devices_tab"), exact: false },
     { href: `${base}/einstellungen`, label: t("user_settings_tab"), exact: false },
   ];
 

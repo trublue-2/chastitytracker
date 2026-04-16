@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Settings, LogOut } from "lucide-react";
+import { Settings, LogOut, Lock } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { LOCALES } from "@/lib/constants";
@@ -72,6 +72,12 @@ export default function AvatarMenu({ username, settingsHref, theme, version }: P
               <Settings size={16} strokeWidth={1.75} />
               {t("settings")}
             </Link>
+            {theme === "user" && (
+              <Link href="/dashboard/geraete" onClick={() => setOpen(false)} className={itemNormal}>
+                <Lock size={16} strokeWidth={1.75} />
+                {t("devices")}
+              </Link>
+            )}
             <div className="border-t border-border-subtle" />
             <button
               onClick={() => { setOpen(false); if (window.confirm(t("signOutConfirm"))) signOut({ callbackUrl: "/login" }); }}

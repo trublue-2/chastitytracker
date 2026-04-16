@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   if (!userId || !offenseType || !refId || !bestraftDatum) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
-  if (!["KONTROLLANFORDERUNG", "OEFFNEN_ENTRY", "VERSCHLUSS_ANFORDERUNG"].includes(offenseType)) {
+  if (!["KONTROLLANFORDERUNG", "OEFFNEN_ENTRY", "VERSCHLUSS_ANFORDERUNG", "FALSCHES_GERAET"].includes(offenseType)) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
 

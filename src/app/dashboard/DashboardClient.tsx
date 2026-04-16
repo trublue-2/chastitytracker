@@ -30,6 +30,7 @@ export interface DashboardProps {
     nachricht: string | null;
     overdue: boolean;
     endetAtLabel: string | null;
+    deviceName: string | null;
   } | null;
 
   // Sperrzeit
@@ -154,7 +155,7 @@ export default function DashboardClient(props: DashboardProps) {
           variant="large"
           colorScheme="request"
           label={t("lockRequested")}
-          nachricht={offeneVerschlussAnf.nachricht}
+          nachricht={[offeneVerschlussAnf.deviceName ? t("lockDevicePrefix", { name: offeneVerschlussAnf.deviceName }) : null, offeneVerschlussAnf.nachricht].filter(Boolean).join(" · ") || null}
           endetAtLabel={offeneVerschlussAnf.endetAtLabel}
         />
       )}

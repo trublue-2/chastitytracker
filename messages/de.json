@@ -101,7 +101,8 @@
     "inspections_tab": "Kontrollen",
     "user_settings_tab": "Einstellungen",
     "stats_tab": "Statistik",
-    "strafbuch_tab": "Strafbuch"
+    "strafbuch_tab": "Strafbuch",
+    "devices_tab": "KGs"
   },
   "nav": {
     "overview": "Übersicht",
@@ -119,7 +120,8 @@
     "userDesign": "Benutzer",
     "adminDesign": "Admin",
     "language": "Sprache",
-    "menu": "Menü öffnen"
+    "menu": "Menü öffnen",
+    "devices": "Meine KGs"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -136,6 +138,7 @@
     "title": "KG Tracker",
     "userTitle": "Benutzer: {name}",
     "lockRequested": "Einschliessen angefordert",
+    "lockDevicePrefix": "KG: {name}",
     "lockUntil": "Bitte bis {date} einschliessen",
     "locked": "Verschlossen",
     "openingForbiddenUntil": "Öffnen nicht erlaubt bis {date}",
@@ -218,7 +221,12 @@
     "sealNumberHint": "5–8 Ziffern",
     "sealDetecting": "Nummer wird erkannt…",
     "sealDetected": "Erkannt: {code}",
-    "sealNotDetected": "Nicht erkannt"
+    "sealNotDetected": "Nicht erkannt",
+    "selectDevice": "Welchen KG trägst du?",
+    "selectDeviceHint": "Möchtest du ein Modell angeben?",
+    "noDevice": "Keinen angeben",
+    "requiredDevice": "Keyholder hat {name} angefordert",
+    "wrongDeviceWarning": "Bei Wahl eines anderen KG wird ein Eintrag im Strafbuch erstellt."
   },
   "openForm": {
     "title": "Öffnung erfassen",
@@ -397,7 +405,13 @@
     "rejected": "Abgelehnt",
     "noEntries": "Noch keine Einträge vorhanden.",
     "showMore": "{count, plural, one {1 weiteren Monat anzeigen} other {# weitere Monate anzeigen}}",
-    "created": "Erstellt"
+    "created": "Erstellt",
+    "deviceUsage": "KG-Nutzung",
+    "deviceSessions": "{count, plural, =1 {1 Einschluss} other {# Einschlüsse}}",
+    "deviceTotalDuration": "Gesamtdauer",
+    "deviceAvgDuration": "Ø Dauer",
+    "deviceCostPerHour": "Kosten/Stunde",
+    "deviceUnknown": "Ohne KG-Zuordnung"
   },
   "admin": {
     "title": "Benutzerverwaltung",
@@ -416,6 +430,8 @@
     "setLockDuration": "Sperrdauer setzen",
     "minDurationLabel": "Mindest-Tragedauer festlegen",
     "minDurationHint": "Nach dem Einschliessen wird automatisch eine Sperrdauer erstellt.",
+    "selectDeviceLabel": "Bestimmten KG verlangen",
+    "selectDevicePlaceholder": "Kein bestimmter KG",
     "requestInspection": "Kontrolle anfordern",
     "users": "Benutzer",
     "overview": "Übersicht",
@@ -731,5 +747,35 @@
     "light": "Hell",
     "dark": "Dunkel",
     "system": "System"
+  },
+  "devices": {
+    "title": "Meine KGs",
+    "titleAdmin": "KGs von {username}",
+    "empty": "Noch keine KGs erfasst",
+    "emptyDescription": "Lege deinen ersten Keuschheitsgürtel an, um ihn bei Einschlüssen auswählen zu können.",
+    "addDevice": "KG hinzufügen",
+    "editDevice": "KG bearbeiten",
+    "name": "Name",
+    "namePlaceholder": "z.B. CB-6000s",
+    "description": "Beschreibung",
+    "descriptionPlaceholder": "Optionale Beschreibung…",
+    "photo": "Foto",
+    "purchasePrice": "Kaufpreis",
+    "pricePlaceholder": "z.B. 150",
+    "currency": "Währung",
+    "saved": "KG gespeichert",
+    "updated": "KG aktualisiert",
+    "archived": "KG archiviert",
+    "restored": "KG wiederhergestellt",
+    "deleted": "KG gelöscht",
+    "showArchived": "Archivierte anzeigen",
+    "archivedBadge": "Archiviert",
+    "restore": "Wiederherstellen",
+    "archive": "Archivieren",
+    "deleteConfirm": "Diesen KG wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+    "archiveConfirm": "Dieser KG wird archiviert, da er bereits in Einschlüssen verwendet wurde. Er erscheint nicht mehr in der Auswahl.",
+    "noEntries": "Keine Einschlüsse",
+    "sessions": "{count, plural, =1 {1 Einschluss} other {# Einschlüsse}}",
+    "costPerHour": "Kosten/Stunde"
   }
 }

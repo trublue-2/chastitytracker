@@ -25,6 +25,7 @@ model User {
   passwordResetTokens   PasswordResetToken[]
   kontrollAnforderungen   KontrollAnforderung[]
   verschlussAnforderungen VerschlussAnforderung[]
+  devices                 Device[]
   strafeRecords           StrafeRecord[]
   adminRelationships      AdminUserRelationship[] @relation("AdminRelationships")
   userRelationships       AdminUserRelationship[] @relation("UserRelationships")
@@ -99,6 +100,8 @@ model VerschlussAnforderung {
   nachricht   String?
   endetAt     DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
   dauerH      Float?    // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT
+  deviceId    String?
+  device      Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   fulfilledAt DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt DateTime?
@@ -179,6 +182,24 @@ model StrafeRecord {
   @@index([userId])
 }
 
+model Device {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  imageUrl      String?
+  purchasePrice Float?
+  currency      String?   // "CHF" | "EUR" | "USD"
+  createdAt     DateTime  @default(now())
+  archivedAt    DateTime? // Soft-delete: null = active, set = archived
+
+  entries               Entry[]
+  verschlussAnforderungen VerschlussAnforderung[]
+
+  @@index([userId, archivedAt])
+}
+
 model Entry {
   id                  String               @id @default(cuid())
   userId              String
@@ -192,6 +213,8 @@ model Entry {
   orgasmusArt         String?
   kontrollCode        String?
   verifikationStatus  String?
+  deviceId            String?
+  device              Device?              @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   createdAt           DateTime             @default(now())
   kontrollAnforderung KontrollAnforderung? @relation("KontrolleEntry")
 

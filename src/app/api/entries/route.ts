@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
+import { validateDeviceOwnership } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
@@ -20,6 +21,7 @@ export async function GET() {
     select: {
       id: true, type: true, startTime: true, imageUrl: true, note: true,
       orgasmusArt: true, kontrollCode: true, oeffnenGrund: true, verifikationStatus: true,
+      deviceId: true,
     },
     take: 200,
   });
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung, deviceId } = body;
 
   if (!isValidImageUrl(imageUrl)) {
     return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
@@ -65,8 +67,15 @@ export async function POST(req: NextRequest) {
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;
   let withdrawnSperrzeit = false;
   let lockStartTime: Date | null = null;
+  let fulfilledAnforderungDeviceId: string | null = null;
   try {
     entry = await prisma.$transaction(async (tx) => {
+      // Validate deviceId ownership inside transaction (VERSCHLUSS only)
+      if (deviceId && type === "VERSCHLUSS") {
+        const device = await validateDeviceOwnership(deviceId, session.user.id, tx);
+        if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
+      }
+
       if (type === "VERSCHLUSS") {
         const latest = await tx.entry.findFirst({
           where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
@@ -114,6 +123,7 @@ export async function POST(req: NextRequest) {
           orgasmusArt: orgasmusArt || null,
           kontrollCode: kontrollCode || null,
           verifikationStatus: null,
+          deviceId: type === "VERSCHLUSS" ? (deviceId || null) : null,
         },
       });
 
@@ -135,6 +145,7 @@ export async function POST(req: NextRequest) {
             where: { id: offeneAnforderung.id },
             data: { fulfilledAt: new Date() },
           });
+          fulfilledAnforderungDeviceId = offeneAnforderung.deviceId;
           if (offeneAnforderung.dauerH) {
             await tx.verschlussAnforderung.create({
               data: {
@@ -152,6 +163,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (e: unknown) {
     const code = (e as { _code?: string })?._code;
+    if (code === "INVALID_DEVICE") return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
     if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
     if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
     if (code === "TIME_BEFORE") return NextResponse.json({ error: "Zeitpunkt muss nach dem vorherigen Eintrag liegen" }, { status: 400 });
@@ -165,6 +177,21 @@ export async function POST(req: NextRequest) {
         data: {
           userId: session.user.id,
           offenseType: "REINIGUNG_LIMIT",
+          refId: entry.id,
+          bestraftDatum: new Date(),
+          notiz: null,
+        },
+      });
+    } catch { /* ignore if duplicate — e.g. offline replay */ }
+  }
+
+  // Auto-create StrafeRecord when user picked a different device than the Anforderung specified
+  if (type === "VERSCHLUSS" && fulfilledAnforderungDeviceId && fulfilledAnforderungDeviceId !== (deviceId || null)) {
+    try {
+      await prisma.strafeRecord.create({
+        data: {
+          userId: session.user.id,
+          offenseType: "FALSCHES_GERAET",
           refId: entry.id,
           bestraftDatum: new Date(),
           notiz: null,

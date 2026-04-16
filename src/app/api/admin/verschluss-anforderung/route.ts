@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { requireAdminApi } from "@/lib/authGuards";
-import { getIsLocked } from "@/lib/queries";
+import { getIsLocked, validateDeviceOwnership } from "@/lib/queries";
 import { APP_TZ } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
 
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const err = await requireAdminApi();
     if (err) return err;
 
-    const { userId, art, nachricht, endetAt, fristH, dauerH } = await req.json();
+    const { userId, art, nachricht, endetAt, fristH, dauerH, deviceId } = await req.json();
     if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
     if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
       return NextResponse.json({ error: "art muss ANFORDERUNG oder SPERRZEIT sein" }, { status: 400 });
@@ -39,6 +39,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Frist zum Einschliessen ist erforderlich" }, { status: 400 });
     }
 
+    if (deviceId && art === "ANFORDERUNG") {
+      const device = await validateDeviceOwnership(deviceId, userId);
+      if (!device) return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
+    }
+
     // Wrap state-check + withdraw + create in transaction to prevent TOCTOU race
     let anforderung;
     try {
@@ -63,7 +68,8 @@ export async function POST(req: NextRequest) {
             art,
             nachricht: nachricht?.trim() || null,
             endetAt: endetAtDate,
-            dauerH: art === "ANFORDERUNG" ? (dauerH || null) : null,  // Mindest-Tragedauer (optional)
+            dauerH: art === "ANFORDERUNG" ? (dauerH || null) : null,
+            deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
           },
         });
       });

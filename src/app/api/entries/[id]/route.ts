@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
+import { validateDeviceOwnership } from "@/lib/queries";
 
 export async function PATCH(
   req: NextRequest,
@@ -20,7 +21,7 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus } = body;
+  const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus, deviceId } = body;
 
   if (!isValidImageUrl(imageUrl)) {
     return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
@@ -51,6 +52,12 @@ export async function PATCH(
     if (existing.type === "ORGASMUS" && newTime > oldTime) {
       return NextResponse.json({ error: "Orgasmuszeit darf nur nach hinten verschoben werden" }, { status: 400 });
     }
+  }
+
+  // Validate deviceId ownership (VERSCHLUSS entries only)
+  if (deviceId && existing.type === "VERSCHLUSS") {
+    const device = await validateDeviceOwnership(deviceId, existing.userId);
+    if (!device) return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
   }
 
   let entry;
@@ -85,6 +92,7 @@ export async function PATCH(
           ...(oeffnenGrund !== undefined && { oeffnenGrund }),
           ...(orgasmusArt !== undefined && { orgasmusArt }),
           ...(kontrollCode !== undefined && { kontrollCode }),
+          ...(deviceId !== undefined && existing.type === "VERSCHLUSS" && { deviceId: deviceId || null }),
           // verifikationStatus only settable by admins
           ...(verifikationStatus !== undefined && session.user.role === "admin" && { verifikationStatus }),
         },

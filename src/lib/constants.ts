@@ -92,6 +92,16 @@ export function isValidEmail(s: string | null | undefined): boolean {
   return EMAIL_RE.test(s);
 }
 
+// ── Device / KG constants ───────────────────────────────────────────────────
+
+export const VALID_CURRENCIES = ["CHF", "EUR", "USD"] as const;
+export type Currency = typeof VALID_CURRENCIES[number];
+
+export const DEVICE_NAME_MAX_LENGTH = 60;
+export const DEVICE_DESCRIPTION_MAX_LENGTH = 500;
+
+// ── Rotation ────────────────────────────────────────────────────────────────
+
 export const VALID_ROTATIONS = [0, 90, 180, 270] as const;
 export type Rotation = typeof VALID_ROTATIONS[number];
 

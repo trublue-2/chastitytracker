@@ -13,7 +13,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null; oeffnenGrund?: string | null };
+type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null; oeffnenGrund?: string | null; deviceId?: string | null };
 type CompletedPair = { verschluss: Entry; oeffnen: Entry; durationMs: number };
 type Vorgabe = {
   gueltigAb: Date;
@@ -117,12 +117,13 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
-  const [entries, vorgaben, kontrollen, sperrzeiten, userSettings] = await Promise.all([
+  const [entries, vorgaben, kontrollen, sperrzeiten, userSettings, allDevices] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "asc" } }),
     prisma.trainingVorgabe.findMany({ where: { userId }, orderBy: { gueltigAb: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true } }),
   ]);
 
   const reinigung: ReinigungSettings = {
@@ -290,6 +291,50 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet, monthGoalPct });
   }
 
+  // ── Device usage stats ─────────────────────────────────────────────────────
+  const deviceMap = new Map(allDevices.map((d) => [d.id, d]));
+  type DeviceStat = { id: string | null; name: string; count: number; totalMs: number; avgMs: number; purchasePrice: number | null; currency: string | null; costPerHour: number | null };
+  const deviceStatsMap = new Map<string | null, { count: number; totalMs: number }>();
+
+  for (const pair of completed) {
+    const dId = pair.verschluss.deviceId ?? null;
+    const existing = deviceStatsMap.get(dId) ?? { count: 0, totalMs: 0 };
+    existing.count++;
+    existing.totalMs += pair.durationMs;
+    deviceStatsMap.set(dId, existing);
+  }
+  // Also count active session if currently locked
+  if (activeEntry?.deviceId) {
+    const dId = activeEntry.deviceId;
+    const existing = deviceStatsMap.get(dId) ?? { count: 0, totalMs: 0 };
+    existing.count++;
+    existing.totalMs += activeDurationMs;
+    deviceStatsMap.set(dId, existing);
+  }
+
+  const deviceStats: DeviceStat[] = Array.from(deviceStatsMap.entries())
+    .map(([dId, { count, totalMs: dTotalMs }]) => {
+      const device = dId ? deviceMap.get(dId) : null;
+      const totalHours = dTotalMs / 3_600_000;
+      const costPerHour = device?.purchasePrice && totalHours > 0
+        ? device.purchasePrice / totalHours
+        : null;
+      return {
+        id: dId,
+        name: device?.name ?? t("deviceUnknown"),
+        count,
+        totalMs: dTotalMs,
+        avgMs: count > 0 ? Math.round(dTotalMs / count) : 0,
+        purchasePrice: device?.purchasePrice ?? null,
+        currency: device?.currency ?? null,
+        costPerHour,
+      };
+    })
+    .sort((a, b) => b.totalMs - a.totalMs);
+
+  // Only show if at least one entry has a device assigned
+  const hasDeviceData = deviceStats.some((d) => d.id !== null);
+
   const pageHeading = heading ?? t("title");
 
   if (entries.length === 0) {
@@ -430,6 +475,42 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
           <div className="divide-y divide-border-subtle">
             <RecordRow label={t("longestSession")} value={formatMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl)} />
             <RecordRow label={t("shortestSession")} value={formatMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl)} />
+          </div>
+        </Card>
+      )}
+
+      {/* KG-Nutzung */}
+      {hasDeviceData && deviceStats.length > 0 && (
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-6 py-4 border-b border-border-subtle">
+            <p className="text-sm font-bold text-foreground">{t("deviceUsage")}</p>
+          </div>
+          <div className="divide-y divide-border-subtle">
+            {deviceStats.map((ds) => (
+              <div key={ds.id ?? "_none"} className="px-6 py-4 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`text-sm font-semibold ${ds.id ? "text-foreground" : "text-foreground-faint"}`}>
+                    {ds.name}
+                  </span>
+                  <span className="text-xs text-foreground-faint">
+                    {t("deviceSessions", { count: ds.count })}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground-muted">
+                  <span>{t("deviceTotalDuration")}: <strong className="text-foreground">{formatMs(ds.totalMs, dl)}</strong></span>
+                  <span>{t("deviceAvgDuration")}: <strong className="text-foreground">{formatMs(ds.avgMs, dl)}</strong></span>
+                  {ds.costPerHour !== null && ds.currency && (
+                    <span>{t("deviceCostPerHour")}: <strong className="text-foreground">{ds.costPerHour.toFixed(2)} {ds.currency}</strong></span>
+                  )}
+                </div>
+                {/* Usage bar relative to total */}
+                {totalMs > 0 && (
+                  <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden mt-0.5">
+                    <div className="h-full rounded-full bg-lock" style={{ width: `${Math.round((ds.totalMs / totalMs) * 100)}%` }} />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </Card>
       )}

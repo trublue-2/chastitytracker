@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.12.0",
+    "date": "2026-04-16",
+    "changes": [
+      { "type": "feat", "text": "KG-Verwaltung: Keuschheitsgürtel mit Name, Beschreibung, Foto und Kaufpreis erfassen — bei Einschlüssen auswählen, pro KG Nutzungsstatistik (Einschlüsse, Gesamtdauer, Kosten/Stunde) in Statistik-Seite" },
+      { "type": "feat", "text": "Admin: bestimmten KG bei Verschluss-Anforderung verlangen — falscher KG wird automatisch im Strafbuch vermerkt" }
+    ]
+  },
+  {
     "version": "4.11.13",
     "date": "2026-04-14",
     "changes": [

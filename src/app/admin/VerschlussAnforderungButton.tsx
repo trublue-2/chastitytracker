@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -8,7 +8,9 @@ import ActionModal from "@/app/components/ActionModal";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Input from "@/app/components/Input";
+import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
+import type { DeviceOption } from "@/lib/queries";
 
 interface Props {
   userId: string;
@@ -30,6 +32,18 @@ export default function VerschlussAnforderungButton({
   const [minDauerH, setMinDauerH] = useState("24");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [devices, setDevices] = useState<DeviceOption[]>([]);
+  const [devicesFetched, setDevicesFetched] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+
+  // Fetch user's devices once when modal first opens (only for ANFORDERUNG)
+  useEffect(() => {
+    if (!open || isLocked || devicesFetched) return;
+    fetch(`/api/devices?userId=${userId}`)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((data: DeviceOption[]) => { setDevices(data); setDevicesFetched(true); })
+      .catch(() => setDevices([]));
+  }, [open, userId, isLocked, devicesFetched]);
 
   const art = isLocked ? "SPERRZEIT" : "ANFORDERUNG";
   const isAnforderung = art === "ANFORDERUNG";
@@ -41,7 +55,7 @@ export default function VerschlussAnforderungButton({
   if (!isAnforderung && (!isLocked || hasActiveSperrzeit)) return null;
 
   function reset() {
-    setOpen(false); setError(""); setNachricht(""); setDeadlineH(isLocked ? "24" : "4"); setWithMinDauer(false); setMinDauerH("24");
+    setOpen(false); setError(""); setNachricht(""); setDeadlineH(isLocked ? "24" : "4"); setWithMinDauer(false); setMinDauerH("24"); setDeviceId(""); setDevicesFetched(false);
   }
 
   async function handleSubmit() {
@@ -55,6 +69,9 @@ export default function VerschlussAnforderungButton({
       };
       if (isAnforderung && withMinDauer) {
         payload.dauerH = parseFloat(minDauerH) || 24;
+      }
+      if (isAnforderung && deviceId) {
+        payload.deviceId = deviceId;
       }
 
       const res = await fetch("/api/admin/verschluss-anforderung", {
@@ -140,6 +157,18 @@ export default function VerschlussAnforderungButton({
               </div>
             )}
           </div>
+        )}
+
+        {isAnforderung && devices.length > 0 && (
+          <Select
+            label={t("selectDeviceLabel")}
+            options={[
+              { value: "", label: t("selectDevicePlaceholder") },
+              ...devices.map((d) => ({ value: d.id, label: d.name })),
+            ]}
+            value={deviceId}
+            onChange={(e) => setDeviceId(e.target.value)}
+          />
         )}
 
         <FormError message={error} variant="compact" />

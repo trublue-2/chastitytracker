@@ -27,9 +27,14 @@ export default async function EditEntryPage({
   const { from, userId: adminUserId } = sp;
   const isAdmin = session?.user?.role === "admin";
   const currentUserId = session?.user?.id;
-  const [entry, dbUser] = await Promise.all([
+  const [entry, dbUser, devices] = await Promise.all([
     prisma.entry.findUnique({ where: { id } }),
     currentUserId ? prisma.user.findUnique({ where: { id: currentUserId }, select: { mobileDesktopUpload: true } }) : null,
+    currentUserId ? prisma.device.findMany({
+      where: { userId: currentUserId, archivedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, imageUrl: true },
+    }) : [],
   ]);
   const mobileDesktopMode = dbUser?.mobileDesktopUpload ?? false;
   if (!entry) notFound();
@@ -67,8 +72,10 @@ export default async function EditEntryPage({
         <VerschlussForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null,
-          note: entry.note, kontrollCode: entry.kontrollCode,
-        }} minTime={minTime} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
+          note: entry.note, kontrollCode: entry.kontrollCode, deviceId: entry.deviceId,
+        }} minTime={minTime} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo}
+          devices={entry.userId === currentUserId ? devices : []}
+        />
       )}
       {entry.type === "PRUEFUNG" && (
         <PruefungForm initial={{

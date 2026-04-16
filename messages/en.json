@@ -101,7 +101,8 @@
     "inspections_tab": "Inspections",
     "user_settings_tab": "Settings",
     "stats_tab": "Statistics",
-    "strafbuch_tab": "Log"
+    "strafbuch_tab": "Log",
+    "devices_tab": "CBs"
   },
   "nav": {
     "overview": "Overview",
@@ -119,7 +120,8 @@
     "userDesign": "User",
     "adminDesign": "Admin",
     "language": "Language",
-    "menu": "Open menu"
+    "menu": "Open menu",
+    "devices": "My CBs"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -136,6 +138,7 @@
     "title": "KG Tracker",
     "userTitle": "User: {name}",
     "lockRequested": "Lock-up requested",
+    "lockDevicePrefix": "CB: {name}",
     "lockUntil": "Please lock by {date}",
     "locked": "Locked",
     "openingForbiddenUntil": "Opening not allowed until {date}",
@@ -218,7 +221,12 @@
     "sealNumberHint": "5–8 digits",
     "sealDetecting": "Detecting number…",
     "sealDetected": "Detected: {code}",
-    "sealNotDetected": "Not detected"
+    "sealNotDetected": "Not detected",
+    "selectDevice": "Which CB are you wearing?",
+    "selectDeviceHint": "Would you like to specify a model?",
+    "noDevice": "None",
+    "requiredDevice": "Keyholder requested {name}",
+    "wrongDeviceWarning": "Choosing a different CB will result in a log entry."
   },
   "openForm": {
     "title": "Log opening",
@@ -397,7 +405,13 @@
     "rejected": "Rejected",
     "noEntries": "No entries yet.",
     "showMore": "{count, plural, one {Show 1 more month} other {Show # more months}}",
-    "created": "Created"
+    "created": "Created",
+    "deviceUsage": "CB usage",
+    "deviceSessions": "{count, plural, =1 {1 session} other {# sessions}}",
+    "deviceTotalDuration": "Total duration",
+    "deviceAvgDuration": "Avg. duration",
+    "deviceCostPerHour": "Cost/hour",
+    "deviceUnknown": "Without CB"
   },
   "admin": {
     "title": "User management",
@@ -416,6 +430,8 @@
     "setLockDuration": "Set lock duration",
     "minDurationLabel": "Set minimum wear duration",
     "minDurationHint": "A lock duration is automatically created after locking up.",
+    "selectDeviceLabel": "Require specific CB",
+    "selectDevicePlaceholder": "No specific CB",
     "requestInspection": "Request inspection",
     "users": "Users",
     "overview": "Overview",
@@ -731,5 +747,35 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System"
+  },
+  "devices": {
+    "title": "My CBs",
+    "titleAdmin": "{username}'s CBs",
+    "empty": "No chastity belts yet",
+    "emptyDescription": "Add your first chastity belt to select it when locking up.",
+    "addDevice": "Add CB",
+    "editDevice": "Edit CB",
+    "name": "Name",
+    "namePlaceholder": "e.g. CB-6000s",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional description…",
+    "photo": "Photo",
+    "purchasePrice": "Purchase price",
+    "pricePlaceholder": "e.g. 150",
+    "currency": "Currency",
+    "saved": "CB saved",
+    "updated": "CB updated",
+    "archived": "CB archived",
+    "restored": "CB restored",
+    "deleted": "CB deleted",
+    "showArchived": "Show archived",
+    "archivedBadge": "Archived",
+    "restore": "Restore",
+    "archive": "Archive",
+    "deleteConfirm": "Really delete this CB? This cannot be undone.",
+    "archiveConfirm": "This CB will be archived because it has been used in lock entries. It will no longer appear in the selection.",
+    "noEntries": "No lock entries",
+    "sessions": "{count, plural, =1 {1 session} other {# sessions}}",
+    "costPerHour": "Cost/hour"
   }
 }
