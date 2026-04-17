@@ -102,6 +102,7 @@ model VerschlussAnforderung {
   dauerH      Float?    // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT
   deviceId    String?
   device      Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  reinigungErlaubt Boolean @default(false) // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
   createdAt   DateTime  @default(now())
   fulfilledAt DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt DateTime?

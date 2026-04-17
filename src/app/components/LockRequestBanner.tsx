@@ -1,6 +1,7 @@
 import { Lock } from "lucide-react";
-import { formatDateTime, APP_TZ } from "@/lib/utils";
+import { APP_TZ } from "@/lib/utils";
 import type { ReactNode } from "react";
+import SperrzeitRemaining from "./SperrzeitRemaining";
 
 type ColorScheme = "request" | "sperrzeit";
 
@@ -37,6 +38,8 @@ interface CompactProps {
   endetAt?: Date | null;
   locale: string;
   withdrawAction?: ReactNode;
+  /** Shows a live countdown "Rest: …" next to the date. Requires endetAt. */
+  showRemaining?: boolean;
 }
 
 interface LargeProps {
@@ -52,18 +55,21 @@ type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endetAt, locale, withdrawAction } = props;
+    const { colorScheme, label, overdue, endetAt, locale, withdrawAction, showRemaining } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
 
     return (
       <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${c.bg} border ${c.border} ${c.leftAccent}`}>
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Lock size={11} className={`flex-shrink-0 ${c.accent}`} />
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
           {endetAt && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>
               bis {new Date(endetAt).toLocaleString(locale, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
             </span>
+          )}
+          {showRemaining && endetAt && (
+            <SperrzeitRemaining endetAt={new Date(endetAt).toISOString()} className={`text-xs opacity-70 ${c.accent}`} />
           )}
         </div>
         {withdrawAction && <div className="relative z-20 flex-shrink-0">{withdrawAction}</div>}

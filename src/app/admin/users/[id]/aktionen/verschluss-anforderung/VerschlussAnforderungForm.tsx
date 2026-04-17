@@ -33,6 +33,7 @@ export default function VerschlussAnforderungForm({ userId, art, devices = [] }:
   const [withMinDauer, setWithMinDauer] = useState(false);
   const [minDauerH, setMinDauerH] = useState("24");
   const [deviceId, setDeviceId] = useState("");
+  const [reinigungErlaubt, setReinigungErlaubt] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,6 +61,10 @@ export default function VerschlussAnforderungForm({ userId, art, devices = [] }:
       if (!isSperrzeit && deviceId) {
         payload.deviceId = deviceId;
       }
+      // reinigungErlaubt: always for SPERRZEIT, only with minDauer for ANFORDERUNG
+      if (isSperrzeit || (!isSperrzeit && withMinDauer)) {
+        payload.reinigungErlaubt = reinigungErlaubt;
+      }
 
       const res = await fetch("/api/admin/verschluss-anforderung", {
         method: "POST",
@@ -80,6 +85,17 @@ export default function VerschlussAnforderungForm({ userId, art, devices = [] }:
   }
 
   const fieldCls = "w-full text-sm bg-surface-raised border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring";
+
+  const reinigungCheckbox = (
+    <div className="flex flex-col gap-1">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={reinigungErlaubt} onChange={(e) => setReinigungErlaubt(e.target.checked)}
+          className="w-4 h-4" style={{ accentColor: accentColor }} />
+        <span className="text-xs text-foreground-faint">{t("reinigungErlaubtLabel")}</span>
+      </label>
+      <span className="text-xs text-foreground-faint pl-6">{t("reinigungErlaubtHint")}</span>
+    </div>
+  );
 
   return (
     <ActionModal
@@ -151,10 +167,13 @@ export default function VerschlussAnforderungForm({ userId, art, devices = [] }:
                   <span className="text-xs text-foreground-faint">h</span>
                 </div>
                 <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
+                <div className="mt-1">{reinigungCheckbox}</div>
               </div>
             )}
           </div>
         )}
+
+        {isSperrzeit && reinigungCheckbox}
 
         {!isSperrzeit && devices.length > 0 && (
           <Select

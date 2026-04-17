@@ -13,6 +13,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
+  const userReinigungErlaubt = user.reinigungErlaubt;
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/strafbuch`);
 
@@ -47,23 +48,25 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     };
   });
 
-  // Unerlaubte Öffnungen
+  // Unerlaubte Öffnungen — Reinigungsöffnungen sind erlaubt wenn sowohl User-Flag als auch
+  // die aktive Sperrzeit reinigungErlaubt=true haben.
+  const sperrzeitCoveringOpening = (o: typeof oeffnungen[number]) =>
+    sperrzeiten.find((s) => {
+      const nachSperrzeit = o.startTime >= s.createdAt;
+      const vorEnde = s.endetAt === null || o.startTime < s.endetAt;
+      const nichtZurueckgezogen = s.withdrawnAt === null || s.withdrawnAt > o.startTime;
+      return nachSperrzeit && vorEnde && nichtZurueckgezogen;
+    });
+  const isAllowedReinigung = (o: typeof oeffnungen[number]) => {
+    if (o.oeffnenGrund !== "REINIGUNG" || !userReinigungErlaubt) return false;
+    const s = sperrzeitCoveringOpening(o);
+    return !!s && s.reinigungErlaubt;
+  };
+
   const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = oeffnungen
-    .filter((o) =>
-      sperrzeiten.some((s) => {
-        const nachSperrzeit = o.startTime >= s.createdAt;
-        const vorEnde = s.endetAt === null || o.startTime < s.endetAt;
-        const nichtZurueckgezogen = s.withdrawnAt === null || s.withdrawnAt > o.startTime;
-        return nachSperrzeit && vorEnde && nichtZurueckgezogen;
-      })
-    )
+    .filter((o) => !!sperrzeitCoveringOpening(o) && !isAllowedReinigung(o))
     .map((o) => {
-      const aktiveSperrzeit = sperrzeiten.find((s) => {
-        const nachSperrzeit = o.startTime >= s.createdAt;
-        const vorEnde = s.endetAt === null || o.startTime < s.endetAt;
-        const nichtZurueckgezogen = s.withdrawnAt === null || s.withdrawnAt > o.startTime;
-        return nachSperrzeit && vorEnde && nichtZurueckgezogen;
-      });
+      const aktiveSperrzeit = sperrzeitCoveringOpening(o);
       return {
         id: o.id,
         startTimeStr: formatDateTime(o.startTime, dl),

@@ -6,6 +6,7 @@ import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
 import SessionEventRow from "./SessionEventRow";
 import LiveTrainingGoals from "./LiveTrainingGoals";
+import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
 
@@ -159,11 +160,17 @@ export default async function LaufendeSessionCard({
 
       {/* ── Sperrzeit footer ── */}
       {showSperrzeit && (
-        <div className="bg-sperrzeit-bg border-t border-sperrzeit-border px-5 py-3 flex items-center gap-2 rounded-b-2xl">
+        <div className="bg-sperrzeit-bg border-t border-sperrzeit-border px-5 py-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-b-2xl">
           <Lock size={13} className="text-sperrzeit shrink-0" />
           <span className="text-sm font-semibold text-sperrzeit-text">
             {sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
           </span>
+          {sperrzeitEndetAt && (
+            <SperrzeitRemaining
+              endetAt={sperrzeitEndetAt.toISOString()}
+              className="text-xs font-medium text-sperrzeit-text opacity-80"
+            />
+          )}
           {sperrzeitNachricht && (
             <span className="text-xs text-sperrzeit truncate">· {sperrzeitNachricht}</span>
           )}

@@ -13,7 +13,7 @@ import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
+import { toDateLocale, formatDuration } from "@/lib/utils";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -204,10 +204,10 @@ export default async function AdminPage() {
                       <LockRequestBanner
                         variant="compact"
                         colorScheme="sperrzeit"
-                        label={u.stats.activeSperrzeit.endetAt
-                          ? `${t("lockedUntil")} ${new Date(u.stats.activeSperrzeit.endetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}`
-                          : t("lockedIndefinite")}
+                        label={u.stats.activeSperrzeit.endetAt ? t("lockedUntil") : t("lockedIndefinite")}
                         locale={dl}
+                        endetAt={u.stats.activeSperrzeit.endetAt}
+                        showRemaining={!!u.stats.activeSperrzeit.endetAt}
                         withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
                       />
                     )}

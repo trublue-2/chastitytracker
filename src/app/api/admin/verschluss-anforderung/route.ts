@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const err = await requireAdminApi();
     if (err) return err;
 
-    const { userId, art, nachricht, endetAt, fristH, dauerH, deviceId } = await req.json();
+    const { userId, art, nachricht, endetAt, fristH, dauerH, deviceId, reinigungErlaubt } = await req.json();
     if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
     if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
       return NextResponse.json({ error: "art muss ANFORDERUNG oder SPERRZEIT sein" }, { status: 400 });
@@ -62,14 +62,22 @@ export async function POST(req: NextRequest) {
           data: { withdrawnAt: new Date() },
         });
 
+        // reinigungErlaubt: SPERRZEIT always, ANFORDERUNG only with dauerH (inherited by auto-created SPERRZEIT)
+        const effectiveDauerH = art === "ANFORDERUNG" ? (dauerH || null) : null;
+        const effectiveReinigung = Boolean(
+          reinigungErlaubt &&
+          (art === "SPERRZEIT" || effectiveDauerH !== null)
+        );
+
         return tx.verschlussAnforderung.create({
           data: {
             userId,
             art,
             nachricht: nachricht?.trim() || null,
             endetAt: endetAtDate,
-            dauerH: art === "ANFORDERUNG" ? (dauerH || null) : null,
+            dauerH: effectiveDauerH,
             deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
+            reinigungErlaubt: effectiveReinigung,
           },
         });
       });

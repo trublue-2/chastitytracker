@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.12.2",
+    "date": "2026-04-17",
+    "changes": [
+      { "type": "feat", "text": "Sperrdauer: Admin kann pro Sperrzeit (und pro Verschluss-Anforderung mit Mindestdauer) festlegen, ob Reinigungsöffnungen erlaubt sind — erlaubte Reinigungen brechen die Sperre nicht mehr und erscheinen nicht mehr im Strafbuch" },
+      { "type": "feat", "text": "Sperrdauer-Anzeige: live mittickende Restzeit „Rest: x T y h z min“ im Sperrzeit-Footer (User-Dashboard, Admin-User-Detail) und im Admin-Übersichtsbanner" }
+    ]
+  },
+  {
     "version": "4.12.1",
     "date": "2026-04-16",
     "changes": [

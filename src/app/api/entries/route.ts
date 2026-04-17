@@ -97,18 +97,37 @@ export async function POST(req: NextRequest) {
       }
 
       // Trotziges Öffnen während aktiver SPERRZEIT → Sperrzeit aufheben (Strafbuch greift separat)
+      // Ausnahme: Reinigungsöffnung wenn Admin sie erlaubt hat + User reinigungErlaubt=true
       if (type === "OEFFNEN") {
         const now = new Date();
-        const result = await tx.verschlussAnforderung.updateMany({
+        const activeSperrzeiten = await tx.verschlussAnforderung.findMany({
           where: {
             userId: session.user.id,
             art: "SPERRZEIT",
             withdrawnAt: null,
             OR: [{ endetAt: { gt: now } }, { endetAt: null }],
           },
-          data: { withdrawnAt: now },
+          select: { id: true, reinigungErlaubt: true },
         });
-        if (result.count > 0) withdrawnSperrzeit = true;
+
+        if (activeSperrzeiten.length > 0) {
+          const user = await tx.user.findUnique({
+            where: { id: session.user.id },
+            select: { reinigungErlaubt: true },
+          });
+          const allowedCleaning =
+            oeffnenGrund === "REINIGUNG" &&
+            user?.reinigungErlaubt === true &&
+            activeSperrzeiten.every((s) => s.reinigungErlaubt);
+
+          if (!allowedCleaning) {
+            await tx.verschlussAnforderung.updateMany({
+              where: { id: { in: activeSperrzeiten.map((s) => s.id) } },
+              data: { withdrawnAt: now },
+            });
+            withdrawnSperrzeit = true;
+          }
+        }
       }
 
       const created = await tx.entry.create({
@@ -153,6 +172,7 @@ export async function POST(req: NextRequest) {
                 art: "SPERRZEIT",
                 nachricht: offeneAnforderung.nachricht,
                 endetAt: new Date(Date.now() + offeneAnforderung.dauerH * 60 * 60 * 1000),
+                reinigungErlaubt: offeneAnforderung.reinigungErlaubt,
               },
             });
           }
