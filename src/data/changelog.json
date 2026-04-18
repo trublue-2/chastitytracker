@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.12.16",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "README-Self-Hosting: Sample docker-compose.yml + vollständige .env-Vorlage ergänzt, mit Traefik-Labels als optional auskommentierten Block, Hinweis auf admin/admin123-Default beim Erststart, USE_ADMIN_RELATIONSHIPS-Flag, DATABASE_URL-Warnung konsolidiert" },
+      { "type": "fix", "text": "docker-compose.yml: totes kg-uploads-Volume entfernt (Uploads landen intern unter /app/data/uploads, das kg-data-Volume reicht); env_file von .env.production auf .env angeglichen" }
+    ]
+  },
+  {
     "version": "4.12.15",
     "date": "2026-04-18",
     "changes": [
