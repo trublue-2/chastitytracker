@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Bug, Lightbulb, HelpCircle, Heart, Send } from "lucide-react";
-import Sheet from "./Sheet";
+import { Bug, Lightbulb, HelpCircle, Heart, Send, MessageSquareText } from "lucide-react";
+import ActionModal from "./ActionModal";
 import Textarea from "./Textarea";
 import Input from "./Input";
 import Button from "./Button";
@@ -22,6 +22,17 @@ function detectPlatform(): "web" | "ios" | "android" {
   return "web";
 }
 
+/**
+ * Each type uses one of the existing semantic CSS tokens so the picker
+ * feels like the rest of the app (admin "Aktionen" row style).
+ */
+const TYPE_CONFIG: Record<FeedbackType, { icon: typeof Bug; bgVar: string; colorVar: string; labelKey: string }> = {
+  BUG:      { icon: Bug,         bgVar: "var(--color-warn-bg)",     colorVar: "var(--color-warn)",     labelKey: "typeBug" },
+  IDEA:     { icon: Lightbulb,   bgVar: "var(--color-inspect-bg)",  colorVar: "var(--color-inspect)",  labelKey: "typeIdea" },
+  QUESTION: { icon: HelpCircle,  bgVar: "var(--color-request-bg)",  colorVar: "var(--color-request)",  labelKey: "typeQuestion" },
+  THANKS:   { icon: Heart,       bgVar: "var(--color-orgasm-bg)",   colorVar: "var(--color-orgasm)",   labelKey: "typeThanks" },
+};
+
 export default function FeedbackSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("feedback");
   const tc = useTranslations("common");
@@ -36,7 +47,6 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // Reset form whenever the sheet is re-opened after a successful submission
   useEffect(() => {
     if (open) {
       setSuccess(false);
@@ -79,15 +89,14 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
     }
   }
 
-  const types: { value: FeedbackType; icon: typeof Bug; label: string; color: string }[] = [
-    { value: "BUG", icon: Bug, label: t("typeBug"), color: "text-red-500" },
-    { value: "IDEA", icon: Lightbulb, label: t("typeIdea"), color: "text-amber-500" },
-    { value: "QUESTION", icon: HelpCircle, label: t("typeQuestion"), color: "text-blue-500" },
-    { value: "THANKS", icon: Heart, label: t("typeThanks"), color: "text-pink-500" },
-  ];
-
   return (
-    <Sheet open={open} onClose={onClose} title={t("title")}>
+    <ActionModal
+      open={open}
+      onClose={onClose}
+      title={t("title")}
+      icon={<MessageSquareText size={20} strokeWidth={2} style={{ color: "var(--color-request)" }} />}
+      iconBg="var(--color-request-bg)"
+    >
       {success ? (
         <div className="flex flex-col gap-4 py-6 text-center">
           <p className="text-3xl">✅</p>
@@ -97,23 +106,31 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Type picker */}
           <div className="grid grid-cols-2 gap-2">
-            {types.map(({ value, icon: Icon, label, color }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setType(value)}
-                className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
-                  type === value
-                    ? "border-foreground bg-surface-raised text-foreground font-medium"
-                    : "border-border bg-surface text-foreground-muted hover:bg-surface-raised"
-                }`}
-              >
-                <Icon size={16} className={color} />
-                {label}
-              </button>
-            ))}
+            {(Object.keys(TYPE_CONFIG) as FeedbackType[]).map((value) => {
+              const cfg = TYPE_CONFIG[value];
+              const Icon = cfg.icon;
+              const active = type === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setType(value)}
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm text-left transition ${
+                    active
+                      ? "border-foreground bg-surface-raised"
+                      : "border-border bg-surface hover:bg-surface-raised"
+                  }`}
+                >
+                  <span className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cfg.bgVar }}>
+                    <Icon size={16} strokeWidth={2} style={{ color: cfg.colorVar }} />
+                  </span>
+                  <span className={active ? "font-semibold text-foreground" : "text-foreground-muted"}>
+                    {t(cfg.labelKey)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           <Textarea
@@ -161,6 +178,6 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
           </Button>
         </form>
       )}
-    </Sheet>
+    </ActionModal>
   );
 }

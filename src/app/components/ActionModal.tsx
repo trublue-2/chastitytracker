@@ -25,8 +25,8 @@ export default function ActionModal({ open, onClose, title, icon, iconBg, theme 
 
   const modal = (
     <div data-theme={theme} className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[9999]">
-      <div className="bg-background rounded-2xl border border-border overflow-hidden w-full max-w-md shadow-2xl">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between gap-3">
+      <div className="bg-background rounded-2xl border border-border w-full max-w-md shadow-2xl flex flex-col max-h-[calc(100dvh-2rem)]">
+        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: iconBg }}>
@@ -40,7 +40,7 @@ export default function ActionModal({ open, onClose, title, icon, iconBg, theme 
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 px-5 py-5">
+        <div className="flex flex-col gap-4 px-5 py-5 overflow-y-auto">
           {children}
         </div>
       </div>
