@@ -2,7 +2,7 @@
 
 <https://polyformproject.org/licenses/noncommercial/1.0.0>
 
-Required Notice: Copyright © 2024–present trublue-2 <info@trublue.ch>
+Required Notice: Copyright © 2026–present trublue-2 <info@trublue.ch>
 
 ## Acceptance
 

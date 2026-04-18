@@ -381,4 +381,4 @@ In plain terms:
 
 The copyright holder retains the right to operate [chastitytracker.ch](https://chastitytracker.ch) and to offer commercial licenses or services on separate terms.
 
-Copyright © 2024–present trublue-2 &lt;info@trublue.ch&gt;.
+Copyright © 2026–present trublue-2 &lt;info@trublue.ch&gt;.
