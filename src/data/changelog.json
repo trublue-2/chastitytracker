@@ -1,6 +1,14 @@
 [
   {
-    "version": "4.13.1",
+    "version": "4.12.7",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "Rückwirkender /simplify auf v4.12.5 und v4.12.6: DateTimePicker statt rohem datetime-local-Input im VerschlussAnforderungFields; Strafbuch-Öffnungsfilter von 3 Linear-Scans auf 1 pro Öffnung optimiert; tote requireOpenNote-Option aus validateEntryPayload entfernt" },
+      { "type": "chore", "text": "Verschluss-Anforderung Quick-Action-Modal: /simplify-Mandat in CLAUDE.md verschärft mit expliziten Ausreden-Mustern und Eskalations-Pflicht" }
+    ]
+  },
+  {
+    "version": "4.12.6",
     "date": "2026-04-18",
     "changes": [
       { "type": "chore", "text": "Entry-Form-Cores aufgeräumt: SubmitResult/Payload-Typen in src/app/entries/types.ts zentralisiert (statt Re-Export über Orgasmus-Core), useEntrySubmit-Hook dedupliziert Submit-Boilerplate, onSuccess-Callback-Pattern eliminiert Unmount-Race zwischen Admin-Wrappern und Core-finally-State" },
@@ -9,11 +17,11 @@
     ]
   },
   {
-    "version": "4.13.0",
+    "version": "4.12.5",
     "date": "2026-04-18",
     "changes": [
-      { "type": "feat", "text": "Admin-Formulare für Verschluss/Öffnen/Kontrolle/Orgasmus erben jetzt alle User-Features automatisch: Seal-Auto-Detection, AI-Kontroll-Code-Verifikation mit Status-Badge, Sub-Art-Selektor bei Orgasmus, Reinigung-Limit-Warnung, Sperrzeit-Warnung — vorher fehlten diese im Admin-Bereich teilweise" },
-      { "type": "feat", "text": "Admin-Öffnen-Formular nutzt jetzt die zentrale OEFFNEN_GRUENDE-Konstante statt hardcoded Liste — neue Gründe erscheinen automatisch in beiden Formularen (User + Admin)" },
+      { "type": "chore", "text": "Admin-Formulare für Verschluss/Öffnen/Kontrolle/Orgasmus erben jetzt alle User-Features automatisch: Seal-Auto-Detection, AI-Kontroll-Code-Verifikation mit Status-Badge, Sub-Art-Selektor bei Orgasmus, Reinigung-Limit-Warnung, Sperrzeit-Warnung — vorher fehlten diese im Admin-Bereich teilweise" },
+      { "type": "chore", "text": "Admin-Öffnen-Formular nutzt jetzt die zentrale OEFFNEN_GRUENDE-Konstante statt hardcoded Liste — neue Gründe erscheinen automatisch in beiden Formularen (User + Admin)" },
       { "type": "chore", "text": "Entry-Formulare (Verschluss/Öffnen/Kontrolle/Orgasmus) als shared Cores in src/app/entries/ extrahiert — User- und Admin-Wrapper sind jetzt dünne Schichten um denselben Core. Admin-Formulare von ca. 580 Zeilen duplicated Code auf 193 Zeilen thin wrappers reduziert — Drift bei zukünftigen Änderungen eliminiert" }
     ]
   },

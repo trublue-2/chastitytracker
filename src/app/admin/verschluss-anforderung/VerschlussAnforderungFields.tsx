@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
+import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
@@ -95,8 +96,6 @@ export default function VerschlussAnforderungFields({
     </div>
   );
 
-  const datetimeFieldCls = "w-full text-sm bg-surface-raised border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring";
-
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Textarea
@@ -133,13 +132,12 @@ export default function VerschlussAnforderungFields({
           <span className="text-xs text-foreground-faint">h</span>
         </div>
       ) : (
-        <div className="flex flex-col gap-1">
-          <input type="datetime-local" value={endetAt} onChange={(e) => setEndetAt(e.target.value)}
-            min={new Date().toISOString().slice(0, 16)} className={datetimeFieldCls} />
-          <span className="text-xs text-foreground-faint">
-            {isSperrzeit ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
-          </span>
-        </div>
+        <DateTimePicker
+          value={endetAt}
+          onChange={(e) => setEndetAt(e.target.value)}
+          min={new Date().toISOString().slice(0, 16)}
+          hint={isSperrzeit ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
+        />
       )}
 
       {!isSperrzeit && (
