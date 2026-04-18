@@ -136,6 +136,7 @@ WEBAUTHN_RP_ORIGIN=https://yourdomain.com
 # Optional integrations
 PORTAL_SHARED_SECRET=<secret>      # JWT secret for the self-service portal's login flow
 USE_ADMIN_RELATIONSHIPS=true       # enable n:m admin-user supervision
+DISABLE_FEEDBACK=true              # hide the in-app feedback button (disables upstream forwarding)
 TELEMETRY_URL=<url>                # optional telemetry endpoint
 TELEMETRY_INSTANCE_ID=<id>         # optional instance identifier
 ENABLE_DEMO=true                   # optional: allow /api/admin/demo endpoint
@@ -282,8 +283,25 @@ VAPID_SUBJECT=mailto:admin@example.com
 
 # --- Optional ---
 # USE_ADMIN_RELATIONSHIPS=true      # enable n:m admin↔user supervision
+# DISABLE_FEEDBACK=true             # hide the in-app feedback button entirely
 # TELEMETRY_URL=<url>               # optional telemetry endpoint
 # TELEMETRY_INSTANCE_ID=<id>
+```
+
+### In-App Feedback
+
+By default the tracker shows a feedback button in the header that lets users
+send bug reports, ideas, or thanks to the project maintainer. Submissions are
+POSTed to `https://portal.chastitytracker.ch/api/app-feedback` — **only** the
+message text, page path, app version, and platform are transmitted. Username,
+IP, and any user identifier stay on your server.
+
+The form shows users exactly what gets shared before they submit.
+
+If you'd prefer to disable this entirely (no button, no forwarding):
+
+```env
+DISABLE_FEEDBACK=true
 ```
 
 `BUILD_DATE` is a build-time variable (baked in at image build, not read from `.env`) — see the `--build-arg` in the [Docker Build](#build) section.

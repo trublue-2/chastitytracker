@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AvatarMenu from "@/app/components/AvatarMenu";
+import FeedbackButton from "@/app/components/FeedbackButton";
 import pkg from "../../package.json";
 
 interface Props {
@@ -7,6 +8,8 @@ interface Props {
 }
 
 export default function AdminHeader({ username }: Props) {
+  const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
+
   return (
     <header className="bg-header-bg border-b border-header-border sticky top-0 z-30 pt-safe">
       <div className="px-4 h-14 flex items-center justify-between gap-3">
@@ -18,6 +21,7 @@ export default function AdminHeader({ username }: Props) {
         </Link>
 
         <div className="flex items-center gap-2">
+          {feedbackEnabled && <FeedbackButton />}
           <AvatarMenu
             username={username}
             settingsHref="/admin/settings"

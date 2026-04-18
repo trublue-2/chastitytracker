@@ -1,11 +1,13 @@
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import AvatarMenu from "@/app/components/AvatarMenu";
+import FeedbackButton from "@/app/components/FeedbackButton";
 import pkg from "../../package.json";
 
 export default async function Header() {
   const session = await auth();
   const user = session?.user;
+  const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
 
   const hostname = process.env.NEXTAUTH_URL
     ? (() => { try { return new URL(process.env.NEXTAUTH_URL!).hostname; } catch { return null; } })()
@@ -27,6 +29,7 @@ export default async function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
+          {user && feedbackEnabled && <FeedbackButton />}
           {user && (
             <AvatarMenu
               username={user.name ?? ""}

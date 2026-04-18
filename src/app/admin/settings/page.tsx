@@ -21,6 +21,7 @@ export default async function AdminSettingsPage() {
       email={user.email}
       version={pkg.version}
       buildDate={formatBuildDate()}
+      feedbackEnabled={process.env.DISABLE_FEEDBACK !== "true"}
     />
   );
 }

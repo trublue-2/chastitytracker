@@ -12,6 +12,7 @@ import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
 import PushManager from "@/app/components/PushManager";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import FeedbackButton from "@/app/components/FeedbackButton";
 
 interface Props {
   userId: string;
@@ -19,9 +20,10 @@ interface Props {
   email: string | null;
   version: string;
   buildDate?: string;
+  feedbackEnabled?: boolean;
 }
 
-export default function AdminSettingsForm({ userId, username, email, version, buildDate }: Props) {
+export default function AdminSettingsForm({ userId, username, email, version, buildDate, feedbackEnabled = true }: Props) {
   const t = useTranslations("settings");
   const ta = useTranslations("admin");
   const tc = useTranslations("common");
@@ -174,6 +176,9 @@ export default function AdminSettingsForm({ userId, username, email, version, bu
           {/* Theme */}
           <ThemeToggle role="admin" label={ta("designAdmin")} />
           <ThemeToggle role="user" label={ta("designUser")} />
+
+          {/* Feedback */}
+          {feedbackEnabled && <FeedbackButton variant="menu" />}
 
           {/* Sign out */}
           <button
