@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.12.8",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "README aktualisiert: neue Features dokumentiert (KG-Verwaltung, Reinigung-erlaubt-Flag, Live-Restzeit, unified Admin-UI), Versions-Badge auf aktuellen Stand, fehlende API-Routen ergänzt (notifications, strafe, lockout, native-subscribe, vapid-public-key, settings/upload, apple-app-site-association), BUILD_DATE in ENV-Block, aktualisierte Project-Structure mit entries/ und lib/kontrollen.ts" }
+    ]
+  },
+  {
     "version": "4.12.7",
     "date": "2026-04-18",
     "changes": [
