@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/authGuards";
-import { getUserDeviceOptions } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked } from "@/lib/queries";
 import VerschlussAnforderungForm from "./VerschlussAnforderungForm";
 
 export default async function AdminVerschlussAnforderungPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,12 +14,8 @@ export default async function AdminVerschlussAnforderungPage({ params }: { param
 
   const now = new Date();
 
-  const [latest, offeneAnforderung, activeSperrzeit, devices] = await Promise.all([
-    prisma.entry.findFirst({
-      where: { userId: id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-      orderBy: { startTime: "desc" },
-      select: { type: true },
-    }),
+  const [isLocked, offeneAnforderung, activeSperrzeit, devices] = await Promise.all([
+    getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
@@ -29,7 +25,6 @@ export default async function AdminVerschlussAnforderungPage({ params }: { param
     getUserDeviceOptions(id),
   ]);
 
-  const isLocked = latest?.type === "VERSCHLUSS";
   const hasEmail = !!user.email;
   const hasOffeneAnforderung = !!offeneAnforderung;
   const hasActiveSperrzeit = !!activeSperrzeit;

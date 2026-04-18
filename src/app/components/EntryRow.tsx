@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Lock, LockOpen, ClipboardList, Droplets, Camera } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
-import { TYPE_LABELS, TYPE_COLORS, TYPE_STATS_KEYS } from "@/lib/constants";
+import { TYPE_COLORS, TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import { useTranslations } from "next-intl";
@@ -62,7 +62,7 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
         >
           <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${TYPE_COLORS[e.type] ?? "text-foreground-muted"}`}>
             {typeIcon(e.type, 12)}
-            {TYPE_LABELS[e.type] ?? e.type}
+            {tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}
           </span>
           <span className="text-sm text-foreground tabular-nums">
             {formatDateTime(startTime, locale)}
@@ -86,7 +86,7 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
       {showDetail && (
         <FullscreenImageModal
           src={e.imageUrl ?? ""}
-          alt={TYPE_LABELS[e.type] ?? e.type}
+          alt={tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}
           onClose={() => setShowDetail(false)}
           title={typeTitle}
           panel={

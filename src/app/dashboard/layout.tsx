@@ -5,7 +5,7 @@ import OfflineIndicator from "@/app/components/OfflineIndicator";
 import ThemeApplicator from "@/app/components/ThemeApplicator";
 import DashboardBottomNav from "./DashboardBottomNav";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getIsLocked } from "@/lib/queries";
 import { formatBuildDate } from "@/lib/utils";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
@@ -17,15 +17,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const buildDate = formatBuildDate();
 
-  const latestLock = userId
-    ? await prisma.entry.findFirst({
-        where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-        orderBy: { startTime: "desc" },
-        select: { type: true },
-      })
-    : null;
-
-  const isLocked = latestLock?.type === "VERSCHLUSS";
+  const isLocked = userId ? await getIsLocked(userId) : false;
 
   return (
     <div className="min-h-screen bg-background" data-theme="user">

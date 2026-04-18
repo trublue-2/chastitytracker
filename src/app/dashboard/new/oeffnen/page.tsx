@@ -4,19 +4,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { getIsLocked } from "@/lib/queries";
 
 export default async function NewOeffnenPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const latest = await prisma.entry.findFirst({
-    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-    orderBy: { startTime: "desc" },
-  });
-
-  if (!latest || latest.type !== "VERSCHLUSS") {
-    redirect("/dashboard/new");
-  }
+  if (!(await getIsLocked(userId))) redirect("/dashboard/new");
 
   const now = new Date();
   const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);

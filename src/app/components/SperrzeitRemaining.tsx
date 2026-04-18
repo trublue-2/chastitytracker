@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatElapsedMs } from "@/lib/utils";
+import useTick from "@/app/hooks/useTick";
 
 /**
  * Live countdown für die verbleibende Sperrzeit. Tickt jede Minute.
@@ -17,12 +17,7 @@ export default function SperrzeitRemaining({
 }) {
   const locale = useLocale();
   const t = useTranslations("admin");
-  const [, setTick] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  useTick(60_000);
 
   const remainingMs = new Date(endetAt).getTime() - Date.now();
   if (remainingMs <= 0) return null;

@@ -22,13 +22,6 @@ export const GRUND_I18N_KEYS: Record<typeof OEFFNEN_GRUENDE[number], string> = {
 
 // ── Entry display constants (shared by dashboard + admin entry lists) ─────────
 
-export const TYPE_LABELS: Record<string, string> = {
-  VERSCHLUSS: "Verschluss",
-  OEFFNEN: "Öffnen",
-  PRUEFUNG: "Kontrolle",
-  ORGASMUS: "Orgasmus",
-};
-
 /** Maps entry type to stats i18n key (e.g. tStats(TYPE_STATS_KEYS["VERSCHLUSS"]) → "Lock") */
 export const TYPE_STATS_KEYS: Record<string, string> = {
   VERSCHLUSS: "lock",
@@ -110,4 +103,39 @@ const ALLOWED_IMAGE_URL = /^\/api\/uploads\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 export function isValidImageUrl(url: string | null | undefined): boolean {
   if (!url) return true; // null/undefined = no image, which is valid
   return ALLOWED_IMAGE_URL.test(url);
+}
+
+/**
+ * Shared payload validation for entry creation (used by both user and admin routes).
+ * Returns { error, status } on failure, or null on success.
+ * Note: Admin-route has `requirePhotoForPruefung: false` because admin may retroactively
+ * log entries without a photo. User-route requires a photo for PRUEFUNG.
+ */
+export function validateEntryPayload(
+  body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string },
+  opts: { requirePhotoForPruefung?: boolean; requireOpenNote?: boolean } = {},
+): { error: string; status: number } | null {
+  const { requirePhotoForPruefung = true, requireOpenNote = true } = opts;
+  const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note } = body;
+
+  if (!isValidImageUrl(imageUrl)) return { error: "Ungültige imageUrl", status: 400 };
+  if (!startTime) return { error: "startTime is required", status: 400 };
+  if (new Date(startTime) > new Date()) return { error: "Zeitpunkt darf nicht in der Zukunft liegen", status: 400 };
+  if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
+    return { error: "Ungültiger Typ", status: 400 };
+  }
+  if (type === "OEFFNEN") {
+    if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number])) {
+      return { error: "Grund der Öffnung ist erforderlich", status: 400 };
+    }
+    if (requireOpenNote && !note?.trim()) return { error: "Kommentar ist erforderlich", status: 400 };
+  }
+  if (type === "PRUEFUNG" && requirePhotoForPruefung && !imageUrl) {
+    return { error: "Foto ist bei Kontrolle zwingend", status: 400 };
+  }
+  const orgasmusArtBase = parseOrgasmusArtBase(orgasmusArt);
+  if (type === "ORGASMUS" && !(ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "")) {
+    return { error: "Ungültige Art", status: 400 };
+  }
+  return null;
 }

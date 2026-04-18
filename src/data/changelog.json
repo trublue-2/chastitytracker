@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.12.4",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "Zentrale validateEntryPayload() Funktion — User- und Admin-Entry-API teilen jetzt dieselbe Validierungslogik statt duplizierten Checks" },
+      { "type": "chore", "text": "getIsLocked() in allen Server-Pages statt inline Prisma-Queries (Admin-Aktionen, Dashboard-New, Dashboard-Layout)" },
+      { "type": "chore", "text": "useTick()-Hook für Live-Timer — SessionDurationBadge, SperrzeitRemaining und TimerDisplay teilen den Tick-Boilerplate" },
+      { "type": "chore", "text": "TYPE_LABELS mit rohen deutschen Strings aus constants.ts entfernt — alle Callsites nutzen jetzt i18n via tStats(TYPE_STATS_KEYS[...])" },
+      { "type": "chore", "text": "buildKontrolleRows()/mapKontrolleRow()/isKontrolleAlarm() in lib/kontrollen.ts — Admin-Kontrollen-Übersicht und User-Detail-Kontrollen teilen jetzt dieselbe Row-Pipeline" },
+      { "type": "chore", "text": "Admin-Verschluss-Form nutzt gemeinsame RotatableImagePreview-Komponente statt inline duplizierten Rotations-JSX" }
+    ]
+  },
+  {
     "version": "4.12.3",
     "date": "2026-04-18",
     "changes": [

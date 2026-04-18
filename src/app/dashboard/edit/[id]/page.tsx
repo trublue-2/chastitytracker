@@ -9,6 +9,7 @@ import OrgasmusForm from "../../OrgasmusForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal } from "@/lib/utils";
 import { getUserDeviceOptions } from "@/lib/queries";
+import { TYPE_STATS_KEYS } from "@/lib/constants";
 
 export default async function EditEntryPage({
   params,
@@ -42,13 +43,6 @@ export default async function EditEntryPage({
     ? await getUserDeviceOptions(entry.userId)
     : [];
 
-  const LABELS: Record<string, string> = {
-    VERSCHLUSS: tStats("lock"),
-    OEFFNEN: tStats("opening"),
-    PRUEFUNG: tStats("inspection"),
-    ORGASMUS: tStats("orgasm"),
-  };
-
   // Anti-cheat: non-admins may only shift times in the allowed direction
   const originalTime = toDatetimeLocal(entry.startTime);
   const minTime = !isAdmin && (entry.type === "VERSCHLUSS" || entry.type === "PRUEFUNG") ? originalTime : undefined;
@@ -63,7 +57,7 @@ export default async function EditEntryPage({
     <div className="w-full max-w-2xl mx-auto px-4 py-6">
       <Link href={redirectTo} className="text-sm text-foreground-faint hover:text-foreground-muted transition">← {backLabel}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">
-        {LABELS[entry.type] ?? entry.type} {tCommon("edit").toLowerCase()}
+        {tStats(TYPE_STATS_KEYS[entry.type] ?? "lock")} {tCommon("edit").toLowerCase()}
       </h1>
       <div>
       {entry.type === "OEFFNEN" && (

@@ -4,17 +4,14 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked } from "@/lib/queries";
 
 export default async function NewVerschlussPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [latest, dbUser, devices, offeneAnforderung] = await Promise.all([
-    prisma.entry.findFirst({
-      where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-      orderBy: { startTime: "desc" },
-    }),
+  const [isLocked, dbUser, devices, offeneAnforderung] = await Promise.all([
+    getIsLocked(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
     getUserDeviceOptions(userId),
     prisma.verschlussAnforderung.findFirst({
@@ -23,9 +20,7 @@ export default async function NewVerschlussPage() {
     }),
   ]);
 
-  if (latest?.type === "VERSCHLUSS") {
-    redirect("/dashboard/new");
-  }
+  if (isLocked) redirect("/dashboard/new");
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("lockForm");

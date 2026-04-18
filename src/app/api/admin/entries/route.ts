@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
-import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
+import { validateEntryPayload } from "@/lib/constants";
 import { validateDeviceOwnership } from "@/lib/queries";
 
 export async function POST(req: NextRequest) {
@@ -11,34 +11,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode, deviceId } = body;
 
-  if (!isValidImageUrl(imageUrl)) {
-    return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
-  }
   if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
-  if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
-  if (new Date(startTime) > new Date()) {
-    return NextResponse.json({ error: "Zeitpunkt darf nicht in der Zukunft liegen" }, { status: 400 });
-  }
-  if (!type || !VALID_TYPES.includes(type)) {
-    return NextResponse.json({ error: "Ungültiger Typ" }, { status: 400 });
-  }
+  const validationError = validateEntryPayload(body, { requirePhotoForPruefung: false });
+  if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: "Benutzer nicht gefunden" }, { status: 404 });
-
-  if (type === "OEFFNEN") {
-    if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund)) {
-      return NextResponse.json({ error: "Grund der Öffnung ist erforderlich" }, { status: 400 });
-    }
-    if (!note?.trim()) {
-      return NextResponse.json({ error: "Kommentar ist erforderlich" }, { status: 400 });
-    }
-  }
-
-  const orgasmusArtBase = parseOrgasmusArtBase(orgasmusArt);
-  if (type === "ORGASMUS" && !(ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "")) {
-    return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
-  }
 
   let entry;
   try {

@@ -1,14 +1,13 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected } from "@/lib/utils";
-import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
+import { toDateLocale } from "@/lib/utils";
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
-import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
-import AdminKontrolleListClient, { type AdminKontrolleRowData } from "./AdminKontrolleListClient";
+import AdminKontrolleListClient from "./AdminKontrolleListClient";
+import { buildKontrolleRows, isKontrolleAlarm, mapKontrolleRow } from "@/lib/kontrollen";
 
 export default async function AdminKontrollenPage({
   searchParams,
@@ -38,108 +37,13 @@ export default async function AdminKontrollenPage({
     }),
   ]);
 
-  const kaByEntryId = new Map(alleAnforderungen.filter(k => k.entryId).map(k => [k.entryId!, k]));
-
-  type Row = {
-    sortTime: Date;
-    imageUrl: string | null;
-    username: string;
-    anforderungStatus: AnforderungStatus | null;
-    verifikationStatus: VerifikationStatus | null;
-    code: string | null;
-    deadline: Date | null;
-    createdAt: Date | null;
-    fulfilledAt: Date | null;
-    submittedAt: Date | null;
-    withdrawnAt: Date | null;
-    kommentar: string | null;
-    note: string | null;
-    kontrolleId: string | null;
-    entryId: string | null;
-  };
-
-  const pruefungRows: Row[] = pruefungen.map((e) => {
-    const ka = kaByEntryId.get(e.id) ?? null;
-    return {
-      sortTime: e.startTime,
-      imageUrl: e.imageUrl,
-      username: e.user.username,
-      anforderungStatus: ka ? mapAnforderungStatus(ka, e.startTime, now) : null,
-      verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
-      code: ka?.code ?? e.kontrollCode ?? null,
-      deadline: ka?.deadline ?? null,
-      createdAt: ka?.createdAt ?? null,
-      fulfilledAt: e.startTime,
-      submittedAt: ka?.fulfilledAt ?? null,
-      withdrawnAt: ka?.withdrawnAt ?? null,
-      kommentar: ka?.kommentar ?? null,
-      note: e.note,
-      kontrolleId: ka?.id ?? null,
-      entryId: e.id,
-    };
-  });
-
-  const offeneRows: Row[] = alleAnforderungen
-    .filter((k) => !k.entryId)
-    .map((k) => ({
-      sortTime: k.createdAt,
-      imageUrl: null,
-      username: k.user.username,
-      anforderungStatus: mapAnforderungStatus(k, null, now),
-      verifikationStatus: null,
-      code: k.code,
-      deadline: k.deadline,
-      createdAt: k.createdAt,
-      fulfilledAt: null,
-      submittedAt: null,
-      withdrawnAt: k.withdrawnAt,
-      kommentar: k.kommentar,
-      note: null,
-      kontrolleId: k.id,
-      entryId: null,
-    }));
-
+  const { pruefungRows, offeneRows } = buildKontrolleRows(pruefungen, alleAnforderungen, now);
   const allRows = [...pruefungRows, ...offeneRows]
     .sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
-  function isAlarm(row: Row): boolean {
-    if (row.anforderungStatus === "withdrawn") return false;
-    if (!row.entryId) return true;
-    if (row.verifikationStatus === "unverified") return true;
-    if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
-    return false;
-  }
-
-  function mapRow(row: Row): AdminKontrolleRowData {
-    const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
-    const kPill = row.entryId
-      ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
-      : anfPill ? { label: t(anfPill.labelKey), cls: anfPill.cls } : null;
-    const timeCorrected = row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt);
-    return {
-      imageUrl: row.imageUrl,
-      kommentar: row.kommentar,
-      pillLabel: kPill?.label ?? null,
-      pillCls: kPill?.cls ?? null,
-      username: userId ? null : row.username,
-      code: row.code,
-      fulfilledAtStr: row.fulfilledAt ? formatDateTime(row.fulfilledAt, dl) : null,
-      deadlineStr: row.deadline ? formatDateTime(row.deadline, dl) : null,
-      createdAtStr: row.createdAt ? formatDateTime(row.createdAt, dl) : null,
-      withdrawnAtStr: row.withdrawnAt ? formatDateTime(row.withdrawnAt, dl) : null,
-      timeCorrectedStr: timeCorrected
-        ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(row.fulfilledAt!, dl)} · ${t("systemLabel")}: ${formatDateTime(row.submittedAt!, dl)}`
-        : null,
-      note: row.note,
-      kontrolleId: row.kontrolleId,
-      entryId: row.entryId,
-      anforderungStatus: row.anforderungStatus ?? "open",
-      verifikationStatus: row.verifikationStatus,
-    };
-  }
-
-  const items = allRows.filter(isAlarm).map(mapRow);
-  const allItems = allRows.map(mapRow);
+  const mapOpts = { t, dl, includeUsername: !userId };
+  const items = allRows.filter(isKontrolleAlarm).map((r) => mapKontrolleRow(r, mapOpts));
+  const allItems = allRows.map((r) => mapKontrolleRow(r, mapOpts));
 
   const labels = {
     fulfilledLabel: t("fulfilledLabel"),

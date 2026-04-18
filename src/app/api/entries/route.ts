@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { VALID_TYPES, ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
+import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
 import { sendMail, escHtml } from "@/lib/mail";
@@ -37,31 +37,8 @@ export async function POST(req: NextRequest) {
   // verifikationStatus is never accepted from client – set server-side only
   const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung, deviceId } = body;
 
-  if (!isValidImageUrl(imageUrl)) {
-    return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
-  }
-  if (!startTime) return NextResponse.json({ error: "startTime is required" }, { status: 400 });
-  if (new Date(startTime) > new Date()) {
-    return NextResponse.json({ error: "Zeitpunkt darf nicht in der Zukunft liegen" }, { status: 400 });
-  }
-  if (!type || !VALID_TYPES.includes(type)) {
-    return NextResponse.json({ error: "Ungültiger Typ" }, { status: 400 });
-  }
-  if (type === "OEFFNEN") {
-    if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund)) {
-      return NextResponse.json({ error: "Grund der Öffnung ist erforderlich" }, { status: 400 });
-    }
-    if (!note?.trim()) {
-      return NextResponse.json({ error: "Kommentar ist erforderlich" }, { status: 400 });
-    }
-  }
-  if (type === "PRUEFUNG" && !imageUrl) {
-    return NextResponse.json({ error: "Foto ist bei Kontrolle zwingend" }, { status: 400 });
-  }
-  const orgasmusArtBase = parseOrgasmusArtBase(orgasmusArt);
-  if (type === "ORGASMUS" && !(ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "")) {
-    return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
-  }
+  const validationError = validateEntryPayload(body);
+  if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;

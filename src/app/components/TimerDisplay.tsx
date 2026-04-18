@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useTick from "@/app/hooks/useTick";
 
 type TimerMode = "countup" | "countdown";
 type TimerFormat = "long" | "short";
@@ -56,12 +56,8 @@ export default function TimerDisplay({
   onExpire,
 }: TimerDisplayProps) {
   const target = typeof targetDate === "string" ? new Date(targetDate) : targetDate;
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  useTick(1000);
+  const now = new Date();
 
   const diffMs = mode === "countup"
     ? now.getTime() - target.getTime()

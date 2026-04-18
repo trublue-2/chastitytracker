@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { Lock, LockOpen, ClipboardCheck, Droplets, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getIsLocked } from "@/lib/queries";
 import { getTranslations } from "next-intl/server";
 
 export default async function NewEntryPage() {
   const [session, t] = await Promise.all([auth(), getTranslations("newEntry")]);
-  const latest = session ? await prisma.entry.findFirst({
-    where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-    orderBy: { startTime: "desc" },
-  }) : null;
-  const isLocked = latest?.type === "VERSCHLUSS";
+  const isLocked = session ? await getIsLocked(session.user.id) : false;
 
   return (
     <main className="flex-1 w-full max-w-lg px-4 py-8">

@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { formatElapsedMs } from "@/lib/utils";
+import useTick from "@/app/hooks/useTick";
 
 export default function SessionDurationBadge({ since, pausedMs = 0 }: { since: string; pausedMs?: number }) {
   const locale = useLocale();
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
+  useTick(1000);
   return <span suppressHydrationWarning>{formatElapsedMs(Date.now() - new Date(since).getTime() - pausedMs, locale, true)}</span>;
 }
