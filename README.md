@@ -2,8 +2,8 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.12.7-blue)
-![License](https://img.shields.io/badge/license-Proprietary-red)
+![Version](https://img.shields.io/badge/version-4.12.14-blue)
+![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
@@ -187,7 +187,9 @@ At startup, the entrypoint script automatically runs Prisma migrations and creat
 
 ## Self-Hosting
 
-You can run the tracker on your own server. The core dependencies (Node, SMTP, Anthropic API key, VAPID keys) are already listed under [Prerequisites](#prerequisites) — the infrastructure pieces a production deployment adds on top are:
+You are free to run the tracker on your own server for **any noncommercial purpose** — personal use, hobby projects, non-profit communities, and the like — under the terms of the [PolyForm Noncommercial License 1.0.0](./LICENSE.md). Commercial use (e.g. running it as a paid service for others) is not covered by this license.
+
+The core dependencies (Node, SMTP, Anthropic API key, VAPID keys) are already listed under [Prerequisites](#prerequisites) — the infrastructure pieces a production deployment adds on top are:
 
 - A public domain with TLS (Let's Encrypt or your own certificate)
 - A reverse proxy with TLS termination — e.g. [Traefik](https://traefik.io/), Caddy, or nginx
@@ -358,7 +360,7 @@ data/
 
 ## Contributing
 
-If you have access to the repository:
+Contributions are welcome. By submitting a pull request you agree that your contribution is licensed under the same terms as the project (PolyForm Noncommercial 1.0.0).
 
 1. Create a feature branch from `main`.
 2. Follow the existing code conventions — shared UI primitives (see `src/app/components/`), i18n for all visible strings (`next-intl`, both `de.json` and `en.json`), and the form / API conventions already used throughout the codebase.
@@ -368,4 +370,15 @@ If you have access to the repository:
 
 ## License
 
-Proprietary. All rights reserved.
+Licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE.md).
+
+In plain terms:
+- **You may** use, copy, modify, and self-host this software for any noncommercial purpose (personal use, hobby projects, non-profit communities, research, education).
+- **You may not** use the software to run a commercial service for others, re-sell it, or offer paid hosting of it.
+- **No warranty.** The software is provided as-is.
+
+> The above is an informal summary for orientation. The binding terms — including the definition of "noncommercial" — are in [LICENSE.md](./LICENSE.md).
+
+The copyright holder retains the right to operate [chastitytracker.ch](https://chastitytracker.ch) and to offer commercial licenses or services on separate terms.
+
+Copyright © 2024–present trublue-2 &lt;info@trublue.ch&gt;.

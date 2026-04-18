@@ -120,7 +120,7 @@ const content = {
       subtitle: "Melde dich mit deinen Zugangsdaten an, um fortzufahren.",
       btn: "Zur Anmeldung",
     },
-    footer: `KG-Tracker · © ${new Date().getFullYear()} · Alle Rechte vorbehalten`,
+    footer: `KG-Tracker · © ${new Date().getFullYear()} trublue-2 · Lizenziert unter PolyForm Noncommercial 1.0.0`,
   },
   en: {
     meta: {
@@ -236,7 +236,7 @@ const content = {
       subtitle: "Sign in with your credentials to continue.",
       btn: "Go to login",
     },
-    footer: `KG-Tracker · © ${new Date().getFullYear()} · All rights reserved`,
+    footer: `KG-Tracker · © ${new Date().getFullYear()} trublue-2 · Licensed under PolyForm Noncommercial 1.0.0`,
   },
 } as const;
 

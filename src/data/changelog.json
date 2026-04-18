@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.12.14",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "Lizenz umgestellt von „proprietary, all rights reserved“ auf PolyForm Noncommercial 1.0.0: personal und non-commercial Self-Hosting ist jetzt explizit erlaubt, kommerzieller Betrieb des Trackers (bezahltes Hosting für Dritte) weiterhin vorbehalten. Neues LICENSE.md, README-Badge und -Section aktualisiert, Info-Page-Footer auf Lizenz-Hinweis umgestellt, package.json license-Feld gesetzt" }
+    ]
+  },
+  {
     "version": "4.12.13",
     "date": "2026-04-18",
     "changes": [
