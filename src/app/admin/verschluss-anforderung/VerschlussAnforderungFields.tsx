@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toDatetimeLocal } from "@/lib/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
@@ -33,8 +34,13 @@ export default function VerschlussAnforderungFields({
 
   const [nachricht, setNachricht] = useState("");
   const [mode, setMode] = useState<"duration" | "datetime">("duration");
-  const [deadlineH, setDeadlineH] = useState(isSperrzeit ? "24" : "4");
-  const [endetAt, setEndetAt] = useState("");
+  const defaultDurationH = isSperrzeit ? "24" : "4";
+  const [deadlineH, setDeadlineH] = useState(defaultDurationH);
+  // Datetime default = current time + default duration, so switching between
+  // tabs preserves intent. Computed once at mount.
+  const [endetAt, setEndetAt] = useState(() =>
+    toDatetimeLocal(new Date(Date.now() + parseFloat(defaultDurationH) * 60 * 60 * 1000))
+  );
   const [withMinDauer, setWithMinDauer] = useState(false);
   const [minDauerH, setMinDauerH] = useState("24");
   const [deviceId, setDeviceId] = useState("");
