@@ -49,32 +49,31 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   });
 
   // Unerlaubte Öffnungen — Reinigungsöffnungen sind erlaubt wenn sowohl User-Flag als auch
-  // die aktive Sperrzeit reinigungErlaubt=true haben.
-  const sperrzeitCoveringOpening = (o: typeof oeffnungen[number]) =>
-    sperrzeiten.find((s) => {
+  // die aktive Sperrzeit reinigungErlaubt=true haben. Pro Öffnung genau ein Scan über
+  // die Sperrzeiten — Ergebnis wird dann für Filter + Map wiederverwendet.
+  const openingsWithSperre = oeffnungen.map((o) => ({
+    o,
+    sperre: sperrzeiten.find((s) => {
       const nachSperrzeit = o.startTime >= s.createdAt;
       const vorEnde = s.endetAt === null || o.startTime < s.endetAt;
       const nichtZurueckgezogen = s.withdrawnAt === null || s.withdrawnAt > o.startTime;
       return nachSperrzeit && vorEnde && nichtZurueckgezogen;
-    });
-  const isAllowedReinigung = (o: typeof oeffnungen[number]) => {
-    if (o.oeffnenGrund !== "REINIGUNG" || !userReinigungErlaubt) return false;
-    const s = sperrzeitCoveringOpening(o);
-    return !!s && s.reinigungErlaubt;
-  };
+    }),
+  }));
 
-  const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = oeffnungen
-    .filter((o) => !!sperrzeitCoveringOpening(o) && !isAllowedReinigung(o))
-    .map((o) => {
-      const aktiveSperrzeit = sperrzeitCoveringOpening(o);
-      return {
-        id: o.id,
-        startTimeStr: formatDateTime(o.startTime, dl),
-        note: o.note,
-        sperrzetEndetAtStr: aktiveSperrzeit?.endetAt ? formatDateTime(aktiveSperrzeit.endetAt, dl) : null,
-        sperrzetUnbefristet: !!aktiveSperrzeit && aktiveSperrzeit.endetAt === null,
-      };
-    });
+  const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = openingsWithSperre
+    .filter(({ o, sperre }) => {
+      if (!sperre) return false;
+      const isAllowedReinigung = o.oeffnenGrund === "REINIGUNG" && userReinigungErlaubt && sperre.reinigungErlaubt;
+      return !isAllowedReinigung;
+    })
+    .map(({ o, sperre }) => ({
+      id: o.id,
+      startTimeStr: formatDateTime(o.startTime, dl),
+      note: o.note,
+      sperrzetEndetAtStr: sperre?.endetAt ? formatDateTime(sperre.endetAt, dl) : null,
+      sperrzetUnbefristet: !!sperre && sperre.endetAt === null,
+    }));
 
   // Zu spät erfüllte Kontrollen
   const zuSpaet: KontrollRow[] = kontrollAnforderungen

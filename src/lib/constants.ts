@@ -113,9 +113,9 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
  */
 export function validateEntryPayload(
   body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string },
-  opts: { requirePhotoForPruefung?: boolean; requireOpenNote?: boolean } = {},
+  opts: { requirePhotoForPruefung?: boolean } = {},
 ): { error: string; status: number } | null {
-  const { requirePhotoForPruefung = true, requireOpenNote = true } = opts;
+  const { requirePhotoForPruefung = true } = opts;
   const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note } = body;
 
   if (!isValidImageUrl(imageUrl)) return { error: "Ungültige imageUrl", status: 400 };
@@ -128,7 +128,7 @@ export function validateEntryPayload(
     if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number])) {
       return { error: "Grund der Öffnung ist erforderlich", status: 400 };
     }
-    if (requireOpenNote && !note?.trim()) return { error: "Kommentar ist erforderlich", status: 400 };
+    if (!note?.trim()) return { error: "Kommentar ist erforderlich", status: 400 };
   }
   if (type === "PRUEFUNG" && requirePhotoForPruefung && !imageUrl) {
     return { error: "Foto ist bei Kontrolle zwingend", status: 400 };
