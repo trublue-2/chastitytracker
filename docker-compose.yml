@@ -7,13 +7,11 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env.production
+      - .env
     volumes:
-      # SQLite-Datenbank persistent speichern
+      # SQLite-Datenbank + Foto-Uploads persistent speichern
+      # (Uploads landen intern unter /app/data/uploads)
       - kg-data:/app/data
-      # Foto-Uploads persistent speichern
-      - kg-uploads:/app/public/uploads
 
 volumes:
   kg-data:
-  kg-uploads:

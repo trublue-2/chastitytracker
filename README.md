@@ -183,7 +183,7 @@ docker run -d \
 
 The container starts as `root` to fix volume ownership, then drops to `www-data` via `su-exec`. Uses a multi-stage build (Node.js 24 Alpine) with standalone Next.js output. The `/app/data` volume persists the SQLite database and uploaded photos.
 
-At startup, the entrypoint script automatically runs Prisma migrations and creates the initial admin user (if none exists). `DATABASE_URL` is set by the entrypoint — do **not** include it in the `.env` file passed to the container.
+At startup, the entrypoint script automatically runs Prisma migrations and creates the initial admin user (if none exists). See the [Self-Hosting](#self-hosting) section below for a sample `docker-compose.yml` and a complete `.env` template.
 
 ## Self-Hosting
 
@@ -199,8 +199,96 @@ Minimal production deployment:
 
 1. Point a domain / subdomain (e.g. `tracker.example.com`) at your server.
 2. Set up your reverse proxy with HTTPS and route to port `3000` of the container.
-3. Build and run the container (see the [Docker](#docker) section above) with your domain configured as `NEXTAUTH_URL`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_RP_ORIGIN`.
-4. Back up the `/app/data` volume regularly — it holds the entire database and all uploads.
+3. Create a production `.env` file (see below) alongside the `docker-compose.yml`.
+4. `docker compose up -d --build`.
+5. Back up the `kg-data` volume regularly — it holds the entire SQLite database and all uploads.
+
+### Sample `docker-compose.yml`
+
+The repository already ships a basic `docker-compose.yml`. Below is an example expanded with a Traefik-style reverse proxy label set — adapt to your own proxy (Caddy, nginx, etc.):
+
+```yaml
+services:
+  kg-tracker:
+    build: .
+    # Or use a pre-built image:
+    # image: ghcr.io/<your-org>/kg-tracker:latest
+    container_name: kg-tracker
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env                       # see "Sample .env" below
+    volumes:
+      - kg-data:/app/data          # SQLite DB + uploads (persistent)
+    # If you terminate TLS inside Docker with Traefik:
+    # (requires a 'letsencrypt' certresolver + 'websecure' entrypoint in your Traefik config)
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.kg-tracker.rule=Host(`tracker.example.com`)"
+    #   - "traefik.http.routers.kg-tracker.entrypoints=websecure"
+    #   - "traefik.http.routers.kg-tracker.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.kg-tracker.loadbalancer.server.port=3000"
+    # networks:
+    #   - traefik-public
+
+    # If you terminate TLS upstream (system nginx, Caddy, Cloudflare Tunnel, …):
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  kg-data:
+
+# networks:
+#   traefik-public:
+#     external: true
+```
+
+### Sample `.env`
+
+Create a `.env` next to `docker-compose.yml` (add it to `.gitignore`, never commit):
+
+```env
+# --- Required ---
+NEXTAUTH_SECRET=<generate with: openssl rand -base64 48>
+NEXTAUTH_URL=https://tracker.example.com
+
+# SMTP for password reset + notifications
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=<smtp-user>
+SMTP_PASS=<smtp-password>
+SMTP_FROM="KG Tracker <no-reply@example.com>"
+
+# Initial admin (only used on first container start if no admin exists).
+# ⚠ If you omit these the entrypoint falls back to username=admin / password=admin123 —
+# always set your own on the first boot.
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<strong-password>
+ADMIN_EMAIL=admin@example.com
+
+# Passkey / WebAuthn — must match your public domain
+WEBAUTHN_RP_ID=tracker.example.com
+WEBAUTHN_RP_ORIGIN=https://tracker.example.com
+
+# --- Strongly recommended ---
+# AI inspection verification (Claude Vision). Omit to disable AI features.
+ANTHROPIC_API_KEY=<key>
+
+# Web-push (VAPID). Generate once with:
+#   node -e "const c=require('crypto').createECDH('prime256v1');c.generateKeys();console.log(c.getPublicKey('base64url'));console.log(c.getPrivateKey('base64url'))"
+VAPID_PUBLIC_KEY=<generated-public-key>
+VAPID_PRIVATE_KEY=<generated-private-key>
+VAPID_SUBJECT=mailto:admin@example.com
+
+# --- Optional ---
+# USE_ADMIN_RELATIONSHIPS=true      # enable n:m admin↔user supervision
+# TELEMETRY_URL=<url>               # optional telemetry endpoint
+# TELEMETRY_INSTANCE_ID=<id>
+```
+
+`BUILD_DATE` is a build-time variable (baked in at image build, not read from `.env`) — see the `--build-arg` in the [Docker Build](#build) section.
+
+**Do not** include `DATABASE_URL` in `.env` — the Docker entrypoint hard-sets it to `file:/app/data/prod.db` inside the volume. Overriding it is a good way to lose data.
 
 > **Don't want to self-host?**
 > A hosted version is available at [chastitytracker.ch](https://chastitytracker.ch) — a hobby-run, no-fee portal that registers your account and automatically provisions a tracker instance on a shared server. No SLA. Good fit for users who don't want to run their own server. See the website for details and terms.
