@@ -25,7 +25,7 @@ export default function AdminActionFormShell({ userId, backLabel, icon, iconBg, 
           </div>
           <h1 className="text-base font-semibold text-foreground text-balance">{title}</h1>
         </div>
-        {children}
+        <div className="px-5 py-5">{children}</div>
       </Card>
     </main>
   );

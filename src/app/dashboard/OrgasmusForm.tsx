@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
-import OrgasmusFormCore, { type OrgasmusPayload, type SubmitResult } from "@/app/entries/OrgasmusFormCore";
+import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
+import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; orgasmusArt?: string | null };
@@ -27,18 +28,13 @@ export default function OrgasmusForm({ initial, maxTime, redirectTo }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     };
-    // Edits require online; new entries can queue offline.
     const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
-    if (res === null) {
-      router.push(target);
-      return { offline: true };
-    }
+    if (res === null) return { ok: true, offline: true };
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       return { ok: false, error: err.error || tCommon("savingError") };
     }
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
-    router.push(target);
     return { ok: true };
   }
 
@@ -48,6 +44,7 @@ export default function OrgasmusForm({ initial, maxTime, redirectTo }: Props) {
       maxTime={maxTime}
       isEdit={!!initial}
       submitFn={submitFn}
+      onSuccess={() => router.push(target)}
       onCancel={() => router.push("/dashboard")}
       submitVariant="semantic"
     />

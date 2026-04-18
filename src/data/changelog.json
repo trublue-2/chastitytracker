@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.13.1",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "Entry-Form-Cores aufgeräumt: SubmitResult/Payload-Typen in src/app/entries/types.ts zentralisiert (statt Re-Export über Orgasmus-Core), useEntrySubmit-Hook dedupliziert Submit-Boilerplate, onSuccess-Callback-Pattern eliminiert Unmount-Race zwischen Admin-Wrappern und Core-finally-State" },
+      { "type": "chore", "text": "OeffnenFormCore-Props entkrampft: reinigung (erlaubt/maxMinuten/maxProTag/heuteAnzahl) und sperrzeit (endetAt/unbefristet) jetzt als strukturierte Objekte statt acht flacher Props" },
+      { "type": "chore", "text": "Admin-Form-Padding (px-5 py-5) in AdminActionFormShell verschoben — vier Admin-Wrapper teilen jetzt dieselbe innere Struktur" }
+    ]
+  },
+  {
     "version": "4.13.0",
     "date": "2026-04-18",
     "changes": [

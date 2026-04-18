@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Droplets } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
 import FormError from "@/app/components/FormError";
@@ -10,25 +11,8 @@ import DateTimePicker from "@/app/components/DateTimePicker";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
-import { Droplets } from "lucide-react";
-
-export interface OrgasmusPayload {
-  type: "ORGASMUS";
-  startTime: string;
-  orgasmusArt: string;
-  note: string | null;
-}
-
-/**
- * Result contract for submitFn callers:
- *   { ok: true }       → Core navigates away (caller can also show toast).
- *   { ok: false, ... } → Core displays the error inline.
- *   { offline: true }  → Caller handled queuing; Core navigates away silently.
- */
-export type SubmitResult =
-  | { ok: true }
-  | { ok: false; error: string }
-  | { offline: true };
+import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
+import type { OrgasmusPayload, SubmitResult } from "./types";
 
 const SUB_ARTEN: Record<string, string[]> = {
   "Orgasmus": ["Masturbation", "Geschlechtsverkehr", "durch andere Person", "durch Technik"],
@@ -46,18 +30,15 @@ interface Props {
   initial?: { startTime: string; note?: string | null; orgasmusArt?: string | null };
   maxTime?: string;
   isEdit?: boolean;
-  /** Called when the form is submitted. Core manages saving/error state internally. */
   submitFn: (payload: OrgasmusPayload) => Promise<SubmitResult>;
-  /** Optional "Cancel" button — hidden when omitted (admin shell provides a back-link). */
+  onSuccess?: () => void;
   onCancel?: () => void;
-  /** Submit-button variant — "semantic" with orgasm color in user context, "primary" in admin. */
   submitVariant?: "semantic" | "primary";
-  /** Overrides default submit label. Defaults to orgasmForm.saveBtn / common.update. */
   submitLabel?: string;
 }
 
 export default function OrgasmusFormCore({
-  initial, maxTime, isEdit = false, submitFn, onCancel, submitVariant = "semantic", submitLabel,
+  initial, maxTime, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("orgasmForm");
   const tc = useTranslations("common");
@@ -67,8 +48,7 @@ export default function OrgasmusFormCore({
   const [art, setArt] = useState(parsed.art);
   const [subArt, setSubArt] = useState(parsed.subArt);
   const [note, setNote] = useState(initial?.note ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const { saving, error, submit } = useEntrySubmit<OrgasmusPayload>(submitFn, onSuccess);
 
   const ARTEN_LABELS: Record<string, string> = {
     "Orgasmus": t("artOrgasmus"),
@@ -86,21 +66,12 @@ export default function OrgasmusFormCore({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      const result = await submitFn({
-        type: "ORGASMUS",
-        startTime: new Date(startTime).toISOString(),
-        orgasmusArt: subArt ? `${art} – ${subArt}` : art,
-        note: note.trim() || null,
-      });
-      if ("error" in result && !result.ok) setError(result.error);
-    } catch {
-      setError(tc("networkError"));
-    } finally {
-      setSaving(false);
-    }
+    await submit({
+      type: "ORGASMUS",
+      startTime: new Date(startTime).toISOString(),
+      orgasmusArt: subArt ? `${art} – ${subArt}` : art,
+      note: note.trim() || null,
+    });
   }
 
   const artOptions = ORGASMUS_ARTEN.map((a) => ({ value: a, label: ARTEN_LABELS[a] ?? a }));

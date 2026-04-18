@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { AlertCircle, Lock, LockOpen } from "lucide-react";
 import { toDatetimeLocal, toDateLocale, APP_TZ } from "@/lib/utils";
 import { OEFFNEN_GRUENDE } from "@/lib/constants";
+import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -13,80 +14,59 @@ import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Sheet from "@/app/components/Sheet";
-import type { SubmitResult } from "./OrgasmusFormCore";
-
-export type { SubmitResult } from "./OrgasmusFormCore";
-
-export interface OeffnenPayload {
-  type: "OEFFNEN";
-  startTime: string;
-  oeffnenGrund: string;
-  note: string | null;
-  /** Only set when user confirmed the Reinigung-limit-bypass sheet. */
-  forcedReinigung?: boolean;
-}
+import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
 
 type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };
   maxTime?: string;
-  /** Shows Sperrzeit-warning sheet when set and still active. */
-  sperrzeitEndetAt?: string | null;
-  sperrzeitUnbefristet?: boolean;
-  /** User-level: cleaning openings allowed in general. */
-  reinigungErlaubt?: boolean;
-  reinigungMaxMinuten?: number;
-  reinigungMaxProTag?: number;
-  reinigungHeuteAnzahl?: number;
+  sperrzeit?: SperrzeitState;
+  reinigung?: ReinigungConfig;
   isEdit?: boolean;
   submitFn: (payload: OeffnenPayload) => Promise<SubmitResult>;
+  onSuccess?: () => void;
   onCancel?: () => void;
   submitVariant?: "semantic" | "primary";
   submitLabel?: string;
-  /** Default grund when opening the form (admin defaults to KEYHOLDER). */
   defaultGrund?: OeffnenGrund;
 }
 
 export default function OeffnenFormCore({
-  initial, maxTime, sperrzeitEndetAt, sperrzeitUnbefristet = false,
-  reinigungErlaubt = false, reinigungMaxMinuten = 15, reinigungMaxProTag = 0, reinigungHeuteAnzahl = 0,
-  isEdit = false, submitFn, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
+  initial, maxTime, sperrzeit, reinigung,
+  isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
 }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
 
+  const sperrzeitEndetAt = sperrzeit?.endetAt ?? null;
+  const sperrzeitUnbefristet = sperrzeit?.unbefristet ?? false;
+  const reinigungErlaubt = reinigung?.erlaubt ?? false;
+  const reinigungMaxMinuten = reinigung?.maxMinuten ?? 15;
+  const reinigungMaxProTag = reinigung?.maxProTag ?? 0;
+  const reinigungHeuteAnzahl = reinigung?.heuteAnzahl ?? 0;
+
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date()));
   const [grund, setGrund] = useState<OeffnenGrund | "">((initial?.oeffnenGrund as OeffnenGrund) ?? defaultGrund ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [showWarning, setShowWarning] = useState(false);
   const [showReinigungLimitWarning, setShowReinigungLimitWarning] = useState(false);
   const [forcedReinigung, setForcedReinigung] = useState(false);
+  const { saving, error, setError, submit } = useEntrySubmit<OeffnenPayload>(submitFn, onSuccess);
 
   const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
   const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
 
   async function doSave(forced = false) {
-    setSaving(true);
-    setError("");
-    try {
-      const payload: OeffnenPayload = {
-        type: "OEFFNEN",
-        startTime: new Date(startTime).toISOString(),
-        oeffnenGrund: grund,
-        note: note.trim() || null,
-      };
-      if (forced) payload.forcedReinigung = true;
-      const result = await submitFn(payload);
-      if ("error" in result && !result.ok) setError(result.error);
-    } catch {
-      setError(tCommon("networkError"));
-    } finally {
-      setSaving(false);
-    }
+    const payload: OeffnenPayload = {
+      type: "OEFFNEN",
+      startTime: new Date(startTime).toISOString(),
+      oeffnenGrund: grund,
+      note: note.trim() || null,
+    };
+    if (forced) payload.forcedReinigung = true;
+    await submit(payload);
   }
 
   async function handleSubmit(e: React.FormEvent) {

@@ -4,13 +4,15 @@ import { useRouter } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
-import OrgasmusFormCore, { type OrgasmusPayload, type SubmitResult } from "@/app/entries/OrgasmusFormCore";
+import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
+import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
 
 export default function OrgasmusForm({ userId }: { userId: string }) {
   const t = useTranslations("admin");
   const tOrgasm = useTranslations("orgasmForm");
   const tc = useTranslations("common");
   const router = useRouter();
+  const target = `/admin/users/${userId}/aktionen`;
 
   async function submitFn(payload: OrgasmusPayload): Promise<SubmitResult> {
     const res = await fetch("/api/admin/entries", {
@@ -18,10 +20,7 @@ export default function OrgasmusForm({ userId }: { userId: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, ...payload }),
     });
-    if (res.ok) {
-      router.push(`/admin/users/${userId}/aktionen`);
-      return { ok: true };
-    }
+    if (res.ok) return { ok: true };
     const err = await res.json().catch(() => ({}));
     return { ok: false, error: err.error || tc("error") };
   }
@@ -35,9 +34,12 @@ export default function OrgasmusForm({ userId }: { userId: string }) {
       iconColor="var(--color-orgasm)"
       title={tOrgasm("title")}
     >
-      <div className="px-5 py-5">
-        <OrgasmusFormCore submitFn={submitFn} submitVariant="primary" submitLabel={tOrgasm("title")} />
-      </div>
+      <OrgasmusFormCore
+        submitFn={submitFn}
+        onSuccess={() => router.push(target)}
+        onCancel={() => router.push(target)}
+        submitVariant="primary"
+      />
     </AdminActionFormShell>
   );
 }

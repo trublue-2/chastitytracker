@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
-import VerschlussFormCore, { type VerschlussPayload, type SubmitResult } from "@/app/entries/VerschlussFormCore";
+import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
+import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
 import type { DeviceOption } from "@/lib/queries";
 
 export default function VerschlussForm({ userId, devices = [] }: { userId: string; devices?: DeviceOption[] }) {
@@ -20,10 +21,7 @@ export default function VerschlussForm({ userId, devices = [] }: { userId: strin
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, ...payload }),
     });
-    if (res.ok) {
-      router.push(target);
-      return { ok: true };
-    }
+    if (res.ok) return { ok: true };
     const err = await res.json().catch(() => ({}));
     return { ok: false, error: err.error || tc("error") };
   }
@@ -37,15 +35,13 @@ export default function VerschlussForm({ userId, devices = [] }: { userId: strin
       iconColor="var(--color-lock)"
       title={tLock("title")}
     >
-      <div className="px-5 py-5">
-        <VerschlussFormCore
-          devices={devices}
-          submitFn={submitFn}
-          onCancel={() => router.push(target)}
-          submitVariant="primary"
-          submitLabel={tLock("saveBtn")}
-        />
-      </div>
+      <VerschlussFormCore
+        devices={devices}
+        submitFn={submitFn}
+        onSuccess={() => router.push(target)}
+        onCancel={() => router.push(target)}
+        submitVariant="primary"
+      />
     </AdminActionFormShell>
   );
 }

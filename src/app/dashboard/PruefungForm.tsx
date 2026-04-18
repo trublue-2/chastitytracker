@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
-import PruefungFormCore, { type PruefungPayload, type SubmitResult } from "@/app/entries/PruefungFormCore";
+import PruefungFormCore from "@/app/entries/PruefungFormCore";
+import type { PruefungPayload, SubmitResult } from "@/app/entries/types";
 
 interface Props {
   initial?: {
@@ -40,7 +41,6 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
       return { ok: false, error: err.error || tCommon("savingError") };
     }
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
-    router.push(target);
     return { ok: true };
   }
 
@@ -53,6 +53,7 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
       mobileDesktopMode={mobileDesktopMode}
       isEdit={!!initial}
       submitFn={submitFn}
+      onSuccess={() => router.push(target)}
       onCancel={() => router.push("/dashboard")}
       submitVariant="semantic"
     />

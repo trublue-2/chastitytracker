@@ -30,12 +30,16 @@ export default async function NewOeffnenPage() {
       <Link href="/dashboard/new" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
       <OeffnenForm
-        sperrzeitEndetAt={activeSperrzeit?.endetAt?.toISOString() ?? null}
-        sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
-        reinigungErlaubt={user?.reinigungErlaubt ?? false}
-        reinigungMaxMinuten={user?.reinigungMaxMinuten ?? 15}
-        reinigungMaxProTag={user?.reinigungMaxProTag ?? 0}
-        reinigungHeuteAnzahl={reinigungHeute}
+        sperrzeit={{
+          endetAt: activeSperrzeit?.endetAt?.toISOString() ?? null,
+          unbefristet: !!activeSperrzeit && activeSperrzeit.endetAt === null,
+        }}
+        reinigung={{
+          erlaubt: user?.reinigungErlaubt ?? false,
+          maxMinuten: user?.reinigungMaxMinuten ?? 15,
+          maxProTag: user?.reinigungMaxProTag ?? 0,
+          heuteAnzahl: reinigungHeute,
+        }}
       />
     </div>
   );

@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
-import VerschlussFormCore, { type VerschlussPayload, type SubmitResult } from "@/app/entries/VerschlussFormCore";
+import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
+import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
 import type { DeviceOption } from "@/lib/queries";
 
 interface Props {
@@ -40,20 +41,20 @@ export default function VerschlussForm({ initial, minTime, mobileDesktopMode, re
       body: JSON.stringify(payload),
     };
     const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
-
-    if (res === null) {
-      // queued offline — full reload so isLocked in shared layout refreshes
-      window.location.href = target;
-      return { offline: true };
-    }
+    if (res === null) return { ok: true, offline: true };
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       return { ok: false, error: err.error || t("savingError") };
     }
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
-    if (initial) router.push(target);
-    else window.location.href = target; // full reload to refresh shared layouts
     return { ok: true };
+  }
+
+  // Create toggles isLocked in the shared dashboard layout — full reload
+  // ensures the layout re-fetches; router.push alone would stale.
+  function onSuccess() {
+    if (initial) router.push(target);
+    else window.location.href = target;
   }
 
   return (
@@ -65,6 +66,7 @@ export default function VerschlussForm({ initial, minTime, mobileDesktopMode, re
       anforderungDeviceId={anforderungDeviceId}
       isEdit={!!initial}
       submitFn={submitFn}
+      onSuccess={onSuccess}
       onCancel={() => router.push("/dashboard")}
       submitVariant="semantic"
     />

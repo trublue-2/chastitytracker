@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
-import OeffnenFormCore, { type OeffnenPayload, type SubmitResult } from "@/app/entries/OeffnenFormCore";
+import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
+import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
 
 export default function OeffnenForm({ userId }: { userId: string }) {
   const t = useTranslations("admin");
@@ -19,10 +20,7 @@ export default function OeffnenForm({ userId }: { userId: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, ...payload }),
     });
-    if (res.ok) {
-      router.push(target);
-      return { ok: true };
-    }
+    if (res.ok) return { ok: true };
     const err = await res.json().catch(() => ({}));
     return { ok: false, error: err.error || tc("error") };
   }
@@ -36,15 +34,13 @@ export default function OeffnenForm({ userId }: { userId: string }) {
       iconColor="var(--color-unlock)"
       title={tOffen("title")}
     >
-      <div className="px-5 py-5">
-        <OeffnenFormCore
-          submitFn={submitFn}
-          onCancel={() => router.push(target)}
-          submitVariant="primary"
-          submitLabel={tOffen("saveBtn")}
-          defaultGrund="KEYHOLDER"
-        />
-      </div>
+      <OeffnenFormCore
+        submitFn={submitFn}
+        onSuccess={() => router.push(target)}
+        onCancel={() => router.push(target)}
+        submitVariant="primary"
+        defaultGrund="KEYHOLDER"
+      />
     </AdminActionFormShell>
   );
 }

@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ClipboardCheck, WifiOff } from "lucide-react";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
+import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import FormError from "@/app/components/FormError";
@@ -17,19 +18,7 @@ import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
-import type { SubmitResult } from "./OrgasmusFormCore";
-
-export type { SubmitResult } from "./OrgasmusFormCore";
-
-export interface PruefungPayload {
-  type: "PRUEFUNG";
-  startTime: string;
-  imageUrl: string | null;
-  imageExifTime: string | null;
-  note: string | null;
-  kontrollCode: string | null;
-  verifikationStatus: "ai" | null;
-}
+import type { PruefungPayload, SubmitResult } from "./types";
 
 interface Props {
   initial?: {
@@ -46,6 +35,7 @@ interface Props {
   mobileDesktopMode?: boolean;
   isEdit?: boolean;
   submitFn: (payload: PruefungPayload) => Promise<SubmitResult>;
+  onSuccess?: () => void;
   onCancel?: () => void;
   submitVariant?: "semantic" | "primary";
   submitLabel?: string;
@@ -53,7 +43,7 @@ interface Props {
 
 export default function PruefungFormCore({
   initial, minTime, initialCode, initialKommentar, mobileDesktopMode,
-  isEdit = false, submitFn, onCancel, submitVariant = "semantic", submitLabel,
+  isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
   const tc = useTranslations("common");
@@ -75,12 +65,11 @@ export default function PruefungFormCore({
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date()));
   const [note, setNote] = useState(initial?.note ?? "");
   const [kontrollCode, setKontrollCode] = useState(initial?.kontrollCode ?? initialCode ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
   const [verifyReason, setVerifyReason] = useState<string | null>(null);
   const [aiMatch, setAiMatch] = useState<boolean | null>(null);
   const lastVerifiedKey = useRef<string>("");
+  const { saving, error, setError, submit } = useEntrySubmit<PruefungPayload>(submitFn, onSuccess);
 
   const {
     imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
@@ -135,24 +124,15 @@ export default function PruefungFormCore({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!imageUrl) { setError(t("photoRequired")); return; }
-    setSaving(true);
-    setError("");
-    try {
-      const result = await submitFn({
-        type: "PRUEFUNG",
-        startTime: new Date(startTime).toISOString(),
-        imageUrl: imageUrl || null,
-        imageExifTime: imageExifTime || null,
-        note: note.trim() || null,
-        kontrollCode: kontrollCode || null,
-        verifikationStatus: aiMatch === true ? "ai" : null,
-      });
-      if ("error" in result && !result.ok) setError(result.error);
-    } catch {
-      setError(tc("networkError"));
-    } finally {
-      setSaving(false);
-    }
+    await submit({
+      type: "PRUEFUNG",
+      startTime: new Date(startTime).toISOString(),
+      imageUrl: imageUrl || null,
+      imageExifTime: imageExifTime || null,
+      note: note.trim() || null,
+      kontrollCode: kontrollCode || null,
+      verifikationStatus: aiMatch === true ? "ai" : null,
+    });
   }
 
   const defaultLabel = isEdit ? tc("update") : t("saveBtn");

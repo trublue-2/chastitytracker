@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
+import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import FormError from "@/app/components/FormError";
@@ -17,19 +18,7 @@ import Button from "@/app/components/Button";
 import Select from "@/app/components/Select";
 import Card from "@/app/components/Card";
 import type { DeviceOption } from "@/lib/queries";
-import type { SubmitResult } from "./OrgasmusFormCore";
-
-export type { SubmitResult } from "./OrgasmusFormCore";
-
-export interface VerschlussPayload {
-  type: "VERSCHLUSS";
-  startTime: string;
-  imageUrl: string | null;
-  imageExifTime: string | null;
-  note: string | null;
-  kontrollCode: string | null;
-  deviceId: string | null;
-}
+import type { VerschlussPayload, SubmitResult } from "./types";
 
 interface Props {
   initial?: {
@@ -47,6 +36,7 @@ interface Props {
   anforderungDeviceId?: string | null;
   isEdit?: boolean;
   submitFn: (payload: VerschlussPayload) => Promise<SubmitResult>;
+  onSuccess?: () => void;
   onCancel?: () => void;
   submitVariant?: "semantic" | "primary";
   submitLabel?: string;
@@ -54,7 +44,7 @@ interface Props {
 
 export default function VerschlussFormCore({
   initial, minTime, mobileDesktopMode, devices = [], anforderungDeviceId,
-  isEdit = false, submitFn, onCancel, submitVariant = "semantic", submitLabel,
+  isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
@@ -62,17 +52,17 @@ export default function VerschlussFormCore({
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date()));
   const [note, setNote] = useState(initial?.note ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
-  // Device selection: anforderung wins, else auto-pick single device, else initial value, else empty
+  // Device defaulting: anforderung > single-device auto-pick > initial > empty
   const defaultDeviceId = anforderungDeviceId
     ?? (devices.length === 1 ? devices[0].id : null)
     ?? initial?.deviceId
     ?? "";
-  const [deviceId, setDeviceId] = useState(defaultDeviceId ?? "");
+  const [deviceId, setDeviceId] = useState(defaultDeviceId);
   const showDeviceSelector = devices.length > 0;
-  const wrongDevice = anforderungDeviceId && deviceId && deviceId !== anforderungDeviceId;
+  const wrongDevice = Boolean(anforderungDeviceId && deviceId && deviceId !== anforderungDeviceId);
+
+  const { saving, error, submit } = useEntrySubmit<VerschlussPayload>(submitFn, onSuccess);
 
   const {
     imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
@@ -89,24 +79,15 @@ export default function VerschlussFormCore({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      const result = await submitFn({
-        type: "VERSCHLUSS",
-        startTime: new Date(startTime).toISOString(),
-        imageUrl: imageUrl || null,
-        imageExifTime: imageExifTime || null,
-        note: note.trim() || null,
-        kontrollCode: sealNumber.trim() || null,
-        deviceId: deviceId || null,
-      });
-      if ("error" in result && !result.ok) setError(result.error);
-    } catch {
-      setError(t("networkError"));
-    } finally {
-      setSaving(false);
-    }
+    await submit({
+      type: "VERSCHLUSS",
+      startTime: new Date(startTime).toISOString(),
+      imageUrl: imageUrl || null,
+      imageExifTime: imageExifTime || null,
+      note: note.trim() || null,
+      kontrollCode: sealNumber.trim() || null,
+      deviceId: deviceId || null,
+    });
   }
 
   const defaultLabel = isEdit ? t("update") : tForm("saveBtn");

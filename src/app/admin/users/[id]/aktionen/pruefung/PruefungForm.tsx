@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { ClipboardCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
-import PruefungFormCore, { type PruefungPayload, type SubmitResult } from "@/app/entries/PruefungFormCore";
+import PruefungFormCore from "@/app/entries/PruefungFormCore";
+import type { PruefungPayload, SubmitResult } from "@/app/entries/types";
 
 export default function PruefungForm({ userId }: { userId: string }) {
   const t = useTranslations("admin");
@@ -19,10 +20,7 @@ export default function PruefungForm({ userId }: { userId: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, ...payload }),
     });
-    if (res.ok) {
-      router.push(target);
-      return { ok: true };
-    }
+    if (res.ok) return { ok: true };
     const err = await res.json().catch(() => ({}));
     return { ok: false, error: err.error || tc("error") };
   }
@@ -36,14 +34,12 @@ export default function PruefungForm({ userId }: { userId: string }) {
       iconColor="var(--color-inspect)"
       title={tInspection("title")}
     >
-      <div className="px-5 py-5">
-        <PruefungFormCore
-          submitFn={submitFn}
-          onCancel={() => router.push(target)}
-          submitVariant="primary"
-          submitLabel={tInspection("saveBtn")}
-        />
-      </div>
+      <PruefungFormCore
+        submitFn={submitFn}
+        onSuccess={() => router.push(target)}
+        onCancel={() => router.push(target)}
+        submitVariant="primary"
+      />
     </AdminActionFormShell>
   );
 }
