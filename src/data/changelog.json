@@ -1,9 +1,17 @@
 [
   {
+    "version": "4.12.10",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "fix", "text": "Sperrdauer-setzen-Dialog: Default für „Bis Datum“ ist jetzt die aktuelle Zeit + Standarddauer (24h bei Sperrzeit, 4h bei Verschluss-Anforderung) statt leerer Wert — verhindert versehentliches Speichern mit Zeitpunkt in der Vergangenheit" },
+      { "type": "fix", "text": "Ungültiges JSON in Changelog v4.12.9 repariert (fehlende Quote-Escapes in deutschen Anführungszeichen)" }
+    ]
+  },
+  {
     "version": "4.12.9",
     "date": "2026-04-18",
     "changes": [
-      { "type": "ui", "text": "Admin-Aktionen-Tab: Section-Überschrift „Items" → „Einträge" (DE) bzw. „Entries" (EN) — das englische Lehnwort passte nicht zum Rest der deutschen UI" }
+      { "type": "ui", "text": "Admin-Aktionen-Tab: Section-Überschrift „Items“ → „Einträge“ (DE) bzw. „Entries“ (EN) — das englische Lehnwort passte nicht zum Rest der deutschen UI" }
     ]
   },
   {
