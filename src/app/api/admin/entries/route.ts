@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
-import { validateDeviceOwnership } from "@/lib/queries";
+import { validateDeviceOwnership, withdrawActiveSperrzeitenOnOpen } from "@/lib/queries";
 
 export async function POST(req: NextRequest) {
   const err = await requireAdminApi();
@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
           orderBy: { startTime: "desc" },
         });
         if (!latest || latest.type !== "VERSCHLUSS") throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
+        // Same Sperrzeit-withdraw logic as user route — admin-opened entries
+        // must release the lock period too, otherwise the user appears still locked.
+        await withdrawActiveSperrzeitenOnOpen(userId, oeffnenGrund, tx);
       }
 
       return tx.entry.create({
