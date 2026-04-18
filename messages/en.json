@@ -608,7 +608,7 @@
     "entryOnlyIfOpen": "Only possible when open",
     "entryOnlyIfLocked": "Only possible when locked",
     "aktionenAnforderungen": "Requests",
-    "aktionenItems": "Items",
+    "aktionenItems": "Entries",
     "requestInspectionHint": "Inspection request via email",
     "requestLockHint": "Request via email",
     "alreadyLocked": "Already locked",

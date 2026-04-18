@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.12.9",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "ui", "text": "Admin-Aktionen-Tab: Section-Überschrift „Items" → „Einträge" (DE) bzw. „Entries" (EN) — das englische Lehnwort passte nicht zum Rest der deutschen UI" }
+    ]
+  },
+  {
     "version": "4.12.8",
     "date": "2026-04-18",
     "changes": [
