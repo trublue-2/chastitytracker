@@ -1,23 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toDatetimeLocal, toDateLocale, APP_TZ } from "@/lib/utils";
-import { OEFFNEN_GRUENDE } from "@/lib/constants";
-import { AlertCircle, Lock } from "lucide-react";
-import { useTranslations, useLocale } from "next-intl";
-import FormError from "@/app/components/FormError";
-import RequiredHint from "@/app/components/RequiredHint";
-import DateTimePicker from "@/app/components/DateTimePicker";
-import Select from "@/app/components/Select";
-import Textarea from "@/app/components/Textarea";
-import Button from "@/app/components/Button";
-import Card from "@/app/components/Card";
-import Sheet from "@/app/components/Sheet";
+import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
-
-type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
+import OeffnenFormCore, { type OeffnenPayload, type SubmitResult } from "@/app/entries/OeffnenFormCore";
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
@@ -31,257 +18,56 @@ interface Props {
   redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, maxTime, sperrzeitEndetAt, sperrzeitUnbefristet = false, reinigungErlaubt = false, reinigungMaxMinuten = 15, reinigungMaxProTag = 0, reinigungHeuteAnzahl = 0, redirectTo }: Props) {
-  const t = useTranslations("openForm");
+export default function OeffnenForm({
+  initial, maxTime,
+  sperrzeitEndetAt, sperrzeitUnbefristet,
+  reinigungErlaubt, reinigungMaxMinuten, reinigungMaxProTag, reinigungHeuteAnzahl,
+  redirectTo,
+}: Props) {
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
-  const dl = toDateLocale(useLocale());
   const router = useRouter();
   const toast = useToast();
   const { offlineFetch } = useOfflineQueue();
-  const [startTime, setStartTime] = useState(
-    toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date())
-  );
-  const [grund, setGrund] = useState<OeffnenGrund | "">(
-    (initial?.oeffnenGrund as OeffnenGrund) ?? ""
-  );
-  const [note, setNote] = useState(initial?.note ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [showWarning, setShowWarning] = useState(false);
-  const [showReinigungLimitWarning, setShowReinigungLimitWarning] = useState(false);
-  const [forcedReinigung, setForcedReinigung] = useState(false);
+  const target = redirectTo ?? "/dashboard";
 
-  const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
+  async function submitFn(payload: OeffnenPayload): Promise<SubmitResult> {
+    const url = initial ? `/api/entries/${initial.id}` : "/api/entries";
+    const init: RequestInit = {
+      method: initial ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    };
+    const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
 
-  async function doSave(forced = false) {
-    setSaving(true);
-    setError("");
-    try {
-      const url = initial ? `/api/entries/${initial.id}` : "/api/entries";
-      const bodyData: Record<string, unknown> = { type: "OEFFNEN", startTime: new Date(startTime).toISOString(), oeffnenGrund: grund, note: note.trim() || null };
-      if (forced) bodyData.forcedReinigung = true;
-      const init: RequestInit = {
-        method: initial ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyData),
-      };
-
-      // Use offline-aware fetch for new entries (edits require online)
-      const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
-
-      setSaving(false);
-
-      // null = queued offline → navigate back
-      if (res === null) {
-        window.location.href = redirectTo ?? "/dashboard";
-        return;
-      }
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setError(err.error || tCommon("savingError"));
-        return;
-      }
-      toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
-      // Full reload to update isLocked in layout (router.push doesn't re-render shared layouts)
-      if (initial) {
-        router.push(redirectTo ?? "/dashboard");
-      } else {
-        window.location.href = redirectTo ?? "/dashboard";
-      }
-    } catch {
-      setSaving(false);
-      setError(tCommon("networkError"));
+    if (res === null) {
+      window.location.href = target;
+      return { offline: true };
     }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { ok: false, error: err.error || tCommon("savingError") };
+    }
+    toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
+    if (initial) router.push(target);
+    else window.location.href = target; // refresh shared layouts
+    return { ok: true };
   }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!grund) { setError(t("grundRequired")); return; }
-    if (!note.trim()) { setError(t("commentRequired")); return; }
-    // Reinigung limit check takes priority
-    if (isReinigungLimitReached) {
-      setShowReinigungLimitWarning(true);
-      return;
-    }
-    if (sperrzeitUnbefristet || (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date())) {
-      setShowWarning(true);
-      return;
-    }
-    await doSave();
-  }
-
-  function handleReinigungLimitConfirm() {
-    setShowReinigungLimitWarning(false);
-    setForcedReinigung(true);
-    // If there's also a sperrzeit, chain to that warning; otherwise save directly
-    if (sperrzeitUnbefristet || (sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date())) {
-      setShowWarning(true);
-    } else {
-      doSave(true);
-    }
-  }
-
-  const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
-
-  const grundOptions = OEFFNEN_GRUENDE.map((g) => ({
-    value: g,
-    label: g === "REINIGUNG" ? t("grundReinigung")
-         : g === "KEYHOLDER" ? t("grundKeyholder")
-         : g === "NOTFALL" ? t("grundNotfall")
-         : t("grundAnderes"),
-    disabled: false,
-  }));
 
   return (
-    <>
-      {/* Reinigungslimit-Warnung als Sheet */}
-      <Sheet open={showReinigungLimitWarning} onClose={() => setShowReinigungLimitWarning(false)} title="">
-        <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
-            <div className="flex flex-col gap-1.5">
-              <p className="font-bold text-foreground text-base leading-snug">
-                {t("reinigungLimitTitle")}
-              </p>
-              <p className="text-sm text-foreground-muted">
-                {t("reinigungLimitSubtext", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button variant="primary" fullWidth onClick={() => setShowReinigungLimitWarning(false)}>
-              {t("reinigungLimitStay")}
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              loading={saving}
-              onClick={handleReinigungLimitConfirm}
-            >
-              {t("reinigungLimitOpenAnyway")}
-            </Button>
-          </div>
-        </div>
-      </Sheet>
-
-      {/* Sperrzeit-Warnung als Sheet */}
-      <Sheet open={showWarning} onClose={() => setShowWarning(false)} title="">
-        <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
-            <div className="flex flex-col gap-1.5">
-              <p className="font-bold text-foreground text-base leading-snug">
-                {grund === "REINIGUNG"
-                  ? t("modalTitleReinigung")
-                  : t("modalTitle")}
-              </p>
-              <p className="text-sm text-foreground-muted">
-                {grund === "REINIGUNG" && reinigungErlaubt
-                  ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
-                  : grund === "REINIGUNG"
-                    ? t("reinigungHintNoConfig")
-                    : t("modalSubtext")}
-              </p>
-              <p className="text-xs text-sperrzeit font-semibold mt-1">
-                {sperrzeitUnbefristet
-                  ? t("modalLockedIndefinite")
-                  : sperrzeitEndetAt
-                    ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })
-                    : null}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button variant="primary" fullWidth onClick={() => setShowWarning(false)}>
-              {t("modalStay")}
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              loading={saving}
-              onClick={() => { setShowWarning(false); doSave(forcedReinigung); }}
-            >
-              {t("modalOpenAnyway")}
-            </Button>
-          </div>
-        </div>
-      </Sheet>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <RequiredHint />
-        {/* Sperrzeit info banner */}
-        {isGesperrt && (
-          <Card variant="semantic" semantic="sperrzeit">
-            <div className="flex items-start gap-2.5">
-              <Lock size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-sperrzeit-text">{t("lockedWarningTitle")}</p>
-                <p className="text-xs text-sperrzeit mt-0.5">
-                  {sperrzeitUnbefristet
-                    ? t("lockedWarningTextIndefinite")
-                    : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        <DateTimePicker
-          label={tCommon("dateTime")}
-          value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
-          required
-          {...(maxTime && { max: maxTime })}
-        />
-
-        <Select
-          label={t("grundLabel")}
-          value={grund}
-          onChange={(e) => { setGrund(e.target.value as OeffnenGrund | ""); if (e.target.value) setError(""); }}
-          required
-          placeholder="–"
-          options={grundOptions}
-        />
-
-        {grund === "REINIGUNG" && (
-          <Card variant="semantic" semantic={isReinigungLimitReached ? "warn" : "inspect"} padding="compact">
-            <div className="flex flex-col gap-1">
-              <p className="text-xs text-inspect-text">
-                {reinigungErlaubt
-                  ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
-                  : t("reinigungHintNoConfig")}
-              </p>
-              {reinigungMaxProTag > 0 && (
-                <p className={`text-xs font-semibold ${isReinigungLimitReached ? "text-warn" : "text-inspect-text"}`}>
-                  {t("reinigungLimitHint", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
-                </p>
-              )}
-            </div>
-          </Card>
-        )}
-
-        <Textarea
-          label={tCommon("comment")}
-          value={note}
-          onChange={(e) => { setNote(e.target.value); if (e.target.value.trim()) setError(""); }}
-          rows={4}
-          required
-          placeholder={t("commentPlaceholder")}
-        />
-
-        <FormError message={error} />
-
-        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-          <Button type="button" variant="secondary" fullWidth onClick={() => router.push("/dashboard")}>
-            {tCommon("cancel")}
-          </Button>
-          <Button type="submit" variant="semantic" semantic="unlock" fullWidth loading={saving}>
-            {initial ? tCommon("update") : t("saveBtn")}
-          </Button>
-        </div>
-      </form>
-    </>
+    <OeffnenFormCore
+      initial={initial}
+      maxTime={maxTime}
+      sperrzeitEndetAt={sperrzeitEndetAt}
+      sperrzeitUnbefristet={sperrzeitUnbefristet}
+      reinigungErlaubt={reinigungErlaubt}
+      reinigungMaxMinuten={reinigungMaxMinuten}
+      reinigungMaxProTag={reinigungMaxProTag}
+      reinigungHeuteAnzahl={reinigungHeuteAnzahl}
+      isEdit={!!initial}
+      submitFn={submitFn}
+      onCancel={() => router.push("/dashboard")}
+      submitVariant="semantic"
+    />
   );
 }

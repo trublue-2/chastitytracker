@@ -1,19 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
-import { toDatetimeLocal } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
-import DateTimePicker from "@/app/components/DateTimePicker";
-import Button from "@/app/components/Button";
-import Select from "@/app/components/Select";
-import FormError from "@/app/components/FormError";
-import Textarea from "@/app/components/Textarea";
-import PhotoCapture from "@/app/components/PhotoCapture";
-import RotatableImagePreview from "@/app/components/RotatableImagePreview";
+import VerschlussFormCore, { type VerschlussPayload, type SubmitResult } from "@/app/entries/VerschlussFormCore";
 import type { DeviceOption } from "@/lib/queries";
 
 export default function VerschlussForm({ userId, devices = [] }: { userId: string; devices?: DeviceOption[] }) {
@@ -21,52 +12,20 @@ export default function VerschlussForm({ userId, devices = [] }: { userId: strin
   const tLock = useTranslations("lockForm");
   const tc = useTranslations("common");
   const router = useRouter();
-  const [startTime, setStartTime] = useState(() => toDatetimeLocal(new Date()));
-  const [note, setNote] = useState("");
-  const [deviceId, setDeviceId] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const target = `/admin/users/${userId}/aktionen`;
 
-  const {
-    imageUrl, imageExifTime, imagePreview, uploading,
-    sealNumber, setSealNumber, sealState, setSealState,
-    rotation, rotateLeft, rotateRight,
-    handleFile, clearPhoto,
-  } = usePhotoUpload({
-    startTime,
-    enableSealDetection: true,
-  });
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      const res = await fetch("/api/admin/entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          type: "VERSCHLUSS",
-          startTime: new Date(startTime).toISOString(),
-          note: note.trim() || undefined,
-          imageUrl: imageUrl || undefined,
-          imageExifTime: imageExifTime || undefined,
-          kontrollCode: sealNumber.trim() || undefined,
-          deviceId: deviceId || undefined,
-        }),
-      });
-      if (res.ok) {
-        router.push(`/admin/users/${userId}/aktionen`);
-      } else {
-        const d = await res.json();
-        setError(d.error || tc("error"));
-      }
-    } catch {
-      setError(tc("networkError"));
-    } finally {
-      setSaving(false);
+  async function submitFn(payload: VerschlussPayload): Promise<SubmitResult> {
+    const res = await fetch("/api/admin/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, ...payload }),
+    });
+    if (res.ok) {
+      router.push(target);
+      return { ok: true };
     }
+    const err = await res.json().catch(() => ({}));
+    return { ok: false, error: err.error || tc("error") };
   }
 
   return (
@@ -78,78 +37,15 @@ export default function VerschlussForm({ userId, devices = [] }: { userId: strin
       iconColor="var(--color-lock)"
       title={tLock("title")}
     >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5">
-          <DateTimePicker
-            label={tc("dateTime")}
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            required
-          />
-
-          {devices.length > 0 && (
-            <Select
-              label={tLock("selectDevice")}
-              options={[
-                { value: "", label: tLock("noDevice") },
-                ...devices.map((d) => ({ value: d.id, label: d.name })),
-              ]}
-              value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
-            />
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tc("photoOptional")}</label>
-            {imagePreview ? (
-              <div className="flex items-start gap-4">
-                <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
-                <div className="flex flex-col gap-2 flex-1 pt-1">
-                  {imageExifTime && (
-                    <p className="text-xs text-foreground-faint">{tc("exifDate")}: {new Date(imageExifTime).toLocaleString()}</p>
-                  )}
-                  <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
-                  <button type="button" onClick={clearPhoto}
-                    className="text-xs text-warn hover:opacity-80 w-fit transition">
-                    {tc("removePhoto")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{tLock("sealNumber")}</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="\d{5,8}"
-              maxLength={8}
-              value={sealNumber}
-              onChange={(e) => { setSealNumber(e.target.value.replace(/\D/g, "")); setSealState("idle"); }}
-              placeholder={tLock("sealNumberHint")}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-surface-raised placeholder:text-foreground-faint focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-            />
-            {sealState === "detecting" && <p className="text-xs text-foreground-faint">{tLock("sealDetecting")}</p>}
-            {sealState === "detected" && <p className="text-xs text-[var(--color-lock)]">{tLock("sealDetected", { code: sealNumber })}</p>}
-            {sealState === "not-detected" && !sealNumber && <p className="text-xs text-foreground-faint">{tLock("sealNotDetected")}</p>}
-          </div>
-
-          <Textarea
-            label={tc("noteOptional")}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder={tc("note")}
-            rows={2}
-          />
-
-          <FormError message={error || null} />
-
-          <Button type="submit" variant="primary" fullWidth loading={saving || uploading} icon={<Lock size={16} />}>
-            {tLock("saveBtn")}
-          </Button>
-        </form>
+      <div className="px-5 py-5">
+        <VerschlussFormCore
+          devices={devices}
+          submitFn={submitFn}
+          onCancel={() => router.push(target)}
+          submitVariant="primary"
+          submitLabel={tLock("saveBtn")}
+        />
+      </div>
     </AdminActionFormShell>
   );
 }

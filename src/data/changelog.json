@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.13.0",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "feat", "text": "Admin-Formulare für Verschluss/Öffnen/Kontrolle/Orgasmus erben jetzt alle User-Features automatisch: Seal-Auto-Detection, AI-Kontroll-Code-Verifikation mit Status-Badge, Sub-Art-Selektor bei Orgasmus, Reinigung-Limit-Warnung, Sperrzeit-Warnung — vorher fehlten diese im Admin-Bereich teilweise" },
+      { "type": "feat", "text": "Admin-Öffnen-Formular nutzt jetzt die zentrale OEFFNEN_GRUENDE-Konstante statt hardcoded Liste — neue Gründe erscheinen automatisch in beiden Formularen (User + Admin)" },
+      { "type": "chore", "text": "Entry-Formulare (Verschluss/Öffnen/Kontrolle/Orgasmus) als shared Cores in src/app/entries/ extrahiert — User- und Admin-Wrapper sind jetzt dünne Schichten um denselben Core. Admin-Formulare von ca. 580 Zeilen duplicated Code auf 193 Zeilen thin wrappers reduziert — Drift bei zukünftigen Änderungen eliminiert" }
+    ]
+  },
+  {
     "version": "4.12.4",
     "date": "2026-04-18",
     "changes": [
