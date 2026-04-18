@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.12.15",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "Copyright-Jahr korrigiert: 2024–present → 2026–present (Projekt ist 2026 gestartet)" }
+    ]
+  },
+  {
     "version": "4.12.14",
     "date": "2026-04-18",
     "changes": [
