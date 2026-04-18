@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
-import { validateDeviceOwnership, withdrawActiveSperrzeitenOnOpen } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen } from "@/lib/queries";
 
 export async function POST(req: NextRequest) {
   const err = await requireAdminApi();
@@ -41,9 +41,9 @@ export async function POST(req: NextRequest) {
           orderBy: { startTime: "desc" },
         });
         if (!latest || latest.type !== "VERSCHLUSS") throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
-        // Same Sperrzeit-withdraw logic as user route — admin-opened entries
-        // must release the lock period too, otherwise the user appears still locked.
-        await withdrawActiveSperrzeitenOnOpen(userId, oeffnenGrund, tx);
+        // Admin-opened entries must release the lock period too, otherwise the
+        // user still appears locked. Reinigung-erlaubt-Flag aus vorab geladenem User.
+        await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, user.reinigungErlaubt);
       }
 
       return tx.entry.create({

@@ -14,6 +14,7 @@ import EmptyState from "@/app/components/EmptyState";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration } from "@/lib/utils";
+import { getActiveSperrzeiten } from "@/lib/queries";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -46,9 +47,7 @@ export default async function AdminPage() {
     prisma.verschlussAnforderung.findMany({
       where: { userId: { in: userIds }, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
-    prisma.verschlussAnforderung.findMany({
-      where: { userId: { in: userIds }, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
-    }),
+    getActiveSperrzeiten({ userIds }),
   ]);
 
   // Build lookup maps from groupBy results

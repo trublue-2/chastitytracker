@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Lock, LockOpen, ClipboardCheck, Droplets, Bell, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/authGuards";
-import { getIsLocked } from "@/lib/queries";
+import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import { getTranslations } from "next-intl/server";
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,16 +15,12 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
 
-  const now = new Date();
-
   const [isLocked, offeneAnforderung, activeSperrzeit] = await Promise.all([
     getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId: id, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
-    }),
+    getActiveSperrzeit(id),
   ]);
 
   const hasEmail = !!user.email;

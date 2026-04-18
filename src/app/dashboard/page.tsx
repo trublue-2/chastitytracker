@@ -9,7 +9,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit } from "@/lib/queries";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
@@ -35,9 +35,7 @@ export default async function DashboardPage() {
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
       include: { device: { select: { name: true } } },
     }),
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
-    }),
+    getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
   ]);
 
