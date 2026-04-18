@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
-import { validateDeviceOwnership, withdrawActiveSperrzeitenOnOpen } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
@@ -73,10 +73,8 @@ export async function POST(req: NextRequest) {
         lockStartTime = latest.startTime;
       }
 
-      // Trotziges Öffnen während aktiver SPERRZEIT → Sperrzeit aufheben (Strafbuch greift separat).
-      // Ausnahme: Reinigungsöffnung wenn beide Flags (User.reinigungErlaubt + Sperrzeit.reinigungErlaubt).
       if (type === "OEFFNEN") {
-        withdrawnSperrzeit = await withdrawActiveSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx);
+        withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx);
       }
 
       const created = await tx.entry.create({

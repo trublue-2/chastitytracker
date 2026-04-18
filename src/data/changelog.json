@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.12.12",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "Simplify-Fixes zu v4.12.11: getActiveSperrzeit/getActiveSperrzeiten in lib/queries.ts — ersetzt 7 duplizierte Sperrzeit-Queries in Admin- und Dashboard-Pages. PrismaTx-Type-Alias + OeffnenGrund-Export. releaseSperrzeitenOnOpen() akzeptiert optionalen userReinigungErlaubt-Parameter, spart doppelten User-Fetch im Admin-API" },
+      { "type": "chore", "text": "withdrawActiveSperrzeitenOnOpen -> releaseSperrzeitenOnOpen umbenannt (Name widerspiegelt jetzt die Reinigungs-Ausnahme)" }
+    ]
+  },
+  {
     "version": "4.12.11",
     "date": "2026-04-18",
     "changes": [

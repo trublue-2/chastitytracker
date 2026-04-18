@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import type { PrismaClient } from "@prisma/client";
+import type { OeffnenGrund } from "@/lib/constants";
 
 // ── Shared types ────────────────────────────────────────────────────────────
+
+/** Prisma transaction client — parameter type passed to callbacks of `$transaction`. */
+export type PrismaTx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
 export interface DeviceOption {
   id: string;
@@ -50,7 +54,7 @@ export async function getActiveVorgabe(userId: string, now: Date) {
 export async function validateDeviceOwnership(
   deviceId: string,
   userId: string,
-  tx?: Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0],
+  tx?: PrismaTx,
 ) {
   const client = tx ?? prisma;
   const device = await client.device.findUnique({ where: { id: deviceId } });
@@ -58,44 +62,74 @@ export async function validateDeviceOwnership(
   return device;
 }
 
+/** Shared `where` for currently-active Sperrzeiten (not withdrawn, not ended). */
+function activeSperrzeitWhere(userIdFilter: string | { in: string[] }, now: Date) {
+  return {
+    userId: userIdFilter,
+    art: "SPERRZEIT" as const,
+    withdrawnAt: null,
+    OR: [{ endetAt: { gt: now } }, { endetAt: null }],
+  };
+}
+
+/** Returns all currently-active Sperrzeiten for a user (or all users if `userIds` given). */
+export async function getActiveSperrzeiten(
+  userId: string | { userIds: string[] },
+  tx?: PrismaTx,
+) {
+  const client = tx ?? prisma;
+  const filter = typeof userId === "string" ? userId : { in: userId.userIds };
+  return client.verschlussAnforderung.findMany({
+    where: activeSperrzeitWhere(filter, new Date()),
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/** Returns the single active Sperrzeit for a user, or null. */
+export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
+  const client = tx ?? prisma;
+  return client.verschlussAnforderung.findFirst({
+    where: activeSperrzeitWhere(userId, new Date()),
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /**
- * Withdraws all active SPERRZEIT periods for a user when they open their device.
- * Exception: a cleaning opening is not considered a violation if both (a) the user
- * has cleaning allowed and (b) every active Sperrzeit has reinigungErlaubt=true.
- * Must be called inside a transaction — both user and admin entry routes rely on this.
+ * Releases active SPERRZEIT periods when a user opens their device.
+ * The release is skipped (Sperrzeit kept active) for cleaning openings where
+ * both `user.reinigungErlaubt` and *every* active Sperrzeit's `reinigungErlaubt`
+ * are true. Must be called inside a transaction.
  *
- * Returns true if any Sperrzeit was withdrawn (useful for notification routing).
+ * `userReinigungErlaubt` may be passed by callers that already loaded the user
+ * to avoid a redundant fetch — otherwise the function loads it itself.
+ *
+ * Returns true if at least one Sperrzeit was withdrawn (for notification routing).
  */
-export async function withdrawActiveSperrzeitenOnOpen(
+export async function releaseSperrzeitenOnOpen(
   userId: string,
-  oeffnenGrund: string | null | undefined,
-  tx: Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0],
+  oeffnenGrund: OeffnenGrund | string | null | undefined,
+  tx: PrismaTx,
+  userReinigungErlaubt?: boolean,
 ): Promise<boolean> {
-  const now = new Date();
   const activeSperrzeiten = await tx.verschlussAnforderung.findMany({
-    where: {
-      userId,
-      art: "SPERRZEIT",
-      withdrawnAt: null,
-      OR: [{ endetAt: { gt: now } }, { endetAt: null }],
-    },
+    where: activeSperrzeitWhere(userId, new Date()),
     select: { id: true, reinigungErlaubt: true },
   });
   if (activeSperrzeiten.length === 0) return false;
 
-  const user = await tx.user.findUnique({
-    where: { id: userId },
-    select: { reinigungErlaubt: true },
-  });
+  const effectiveUserErlaubt = userReinigungErlaubt ?? (
+    await tx.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true } })
+  )?.reinigungErlaubt ?? false;
+
   const allowedCleaning =
     oeffnenGrund === "REINIGUNG" &&
-    user?.reinigungErlaubt === true &&
+    effectiveUserErlaubt === true &&
     activeSperrzeiten.every((s) => s.reinigungErlaubt);
   if (allowedCleaning) return false;
 
   await tx.verschlussAnforderung.updateMany({
     where: { id: { in: activeSperrzeiten.map((s) => s.id) } },
-    data: { withdrawnAt: now },
+    data: { withdrawnAt: new Date() },
   });
   return true;
 }

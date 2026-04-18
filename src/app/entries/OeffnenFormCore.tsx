@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AlertCircle, Lock, LockOpen } from "lucide-react";
 import { toDatetimeLocal, toDateLocale, APP_TZ } from "@/lib/utils";
-import { OEFFNEN_GRUENDE } from "@/lib/constants";
+import { OEFFNEN_GRUENDE, type OeffnenGrund } from "@/lib/constants";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -15,8 +15,6 @@ import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Sheet from "@/app/components/Sheet";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
-
-type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };

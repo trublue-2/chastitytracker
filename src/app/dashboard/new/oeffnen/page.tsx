@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getIsLocked } from "@/lib/queries";
+import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 
 export default async function NewOeffnenPage() {
   const session = await auth();
@@ -12,12 +12,9 @@ export default async function NewOeffnenPage() {
 
   if (!(await getIsLocked(userId))) redirect("/dashboard/new");
 
-  const now = new Date();
-  const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [activeSperrzeit, user, reinigungHeute] = await Promise.all([
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
-    }),
+    getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true } }),
     prisma.entry.count({ where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: since24h } } }),
   ]);

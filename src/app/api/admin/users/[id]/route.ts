@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, validatePassword } from "@/lib/constants";
+import { getActiveSperrzeit } from "@/lib/queries";
 
 export async function GET(
   _req: NextRequest,
@@ -13,7 +14,6 @@ export async function GET(
   if (err) return err;
 
   const { id } = await params;
-  const now = new Date();
 
   const [user, latestLockEntry, offeneAnforderung, activeSperrzeit] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
@@ -25,12 +25,7 @@ export async function GET(
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
     }),
-    prisma.verschlussAnforderung.findFirst({
-      where: {
-        userId: id, art: "SPERRZEIT", withdrawnAt: null,
-        OR: [{ endetAt: null }, { endetAt: { gt: now } }],
-      },
-    }),
+    getActiveSperrzeit(id),
   ]);
 
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });

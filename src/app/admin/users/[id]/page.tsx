@@ -8,7 +8,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit } from "@/lib/queries";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
@@ -46,9 +46,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId: id, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
-    }),
+    getActiveSperrzeit(id),
   ]);
 
   const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
