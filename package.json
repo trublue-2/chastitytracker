@@ -1,7 +1,8 @@
 {
   "name": "kg-app",
-  "version": "4.12.13",
+  "version": "4.12.14",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
