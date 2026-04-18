@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.12.13",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "chore", "text": "README: neuer Self-Hosting-Abschnitt mit Hinweis auf chastitytracker.ch als Hosted-Alternative; Architecture-Box explizit als Hosted-Deployment markiert zur Abgrenzung von Self-Host-Setups; Contributing-Section von internen Team-Regeln (Simplify-Sequenz, Git-Author) auf nützliche externe Dev-Hinweise reduziert (Prisma-Migrations ergänzt)" }
+    ]
+  },
+  {
     "version": "4.12.12",
     "date": "2026-04-18",
     "changes": [

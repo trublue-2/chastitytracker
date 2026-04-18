@@ -64,6 +64,8 @@
 
 ## Architecture
 
+> This section describes the **hosted deployment** at chastitytracker.ch (multi-instance with the self-service portal). For a **single-instance self-hosted setup**, see the [Self-Hosting](#self-hosting) section below — a simpler topology with one container per install.
+
 The tracker runs as one container per user instance, orchestrated by a separate portal application behind Traefik:
 
 ```
@@ -182,6 +184,24 @@ docker run -d \
 The container starts as `root` to fix volume ownership, then drops to `www-data` via `su-exec`. Uses a multi-stage build (Node.js 24 Alpine) with standalone Next.js output. The `/app/data` volume persists the SQLite database and uploaded photos.
 
 At startup, the entrypoint script automatically runs Prisma migrations and creates the initial admin user (if none exists). `DATABASE_URL` is set by the entrypoint — do **not** include it in the `.env` file passed to the container.
+
+## Self-Hosting
+
+You can run the tracker on your own server. The core dependencies (Node, SMTP, Anthropic API key, VAPID keys) are already listed under [Prerequisites](#prerequisites) — the infrastructure pieces a production deployment adds on top are:
+
+- A public domain with TLS (Let's Encrypt or your own certificate)
+- A reverse proxy with TLS termination — e.g. [Traefik](https://traefik.io/), Caddy, or nginx
+- Persistent storage for the `/app/data` volume (SQLite database + uploaded photos)
+
+Minimal production deployment:
+
+1. Point a domain / subdomain (e.g. `tracker.example.com`) at your server.
+2. Set up your reverse proxy with HTTPS and route to port `3000` of the container.
+3. Build and run the container (see the [Docker](#docker) section above) with your domain configured as `NEXTAUTH_URL`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_RP_ORIGIN`.
+4. Back up the `/app/data` volume regularly — it holds the entire database and all uploads.
+
+> **Don't want to self-host?**
+> A hosted version is available at [chastitytracker.ch](https://chastitytracker.ch) — a hobby-run, no-fee portal that registers your account and automatically provisions a tracker instance on a shared server. No SLA. Good fit for users who don't want to run their own server. See the website for details and terms.
 
 ## Project Structure
 
@@ -338,13 +358,13 @@ data/
 
 ## Contributing
 
-This is a proprietary project. If you have access to the repository:
+If you have access to the repository:
 
-1. Create a feature branch from `main`
-2. Follow the existing code conventions — see `CLAUDE.md` for detailed patterns (shared primitives, i18n, form conventions, security rules)
-3. All visible strings must use i18n (`next-intl`) — no hardcoded text in JSX, including admin pages
-4. Every commit must follow the **mandatory commit sequence**: implement → `/simplify` → `npm run build` → changelog + version bump → commit (all in a single commit; see `CLAUDE.md` for details)
-5. Git author must be configured locally as `trublue-2 <info@trublue.ch>`
+1. Create a feature branch from `main`.
+2. Follow the existing code conventions — shared UI primitives (see `src/app/components/`), i18n for all visible strings (`next-intl`, both `de.json` and `en.json`), and the form / API conventions already used throughout the codebase.
+3. When changing `prisma/schema.prisma`, create a migration: `DATABASE_URL="file:./dev.db" npx prisma migrate dev --name <name>`.
+4. `npm run build` must pass cleanly before opening a pull request.
+5. Bump the version in `package.json` and add a matching entry to `src/data/changelog.json` in the same commit as the feature/fix.
 
 ## License
 
