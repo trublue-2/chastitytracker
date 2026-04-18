@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
-import { validateDeviceOwnership } from "@/lib/queries";
+import { validateDeviceOwnership, withdrawActiveSperrzeitenOnOpen } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
@@ -73,38 +73,10 @@ export async function POST(req: NextRequest) {
         lockStartTime = latest.startTime;
       }
 
-      // Trotziges Öffnen während aktiver SPERRZEIT → Sperrzeit aufheben (Strafbuch greift separat)
-      // Ausnahme: Reinigungsöffnung wenn Admin sie erlaubt hat + User reinigungErlaubt=true
+      // Trotziges Öffnen während aktiver SPERRZEIT → Sperrzeit aufheben (Strafbuch greift separat).
+      // Ausnahme: Reinigungsöffnung wenn beide Flags (User.reinigungErlaubt + Sperrzeit.reinigungErlaubt).
       if (type === "OEFFNEN") {
-        const now = new Date();
-        const activeSperrzeiten = await tx.verschlussAnforderung.findMany({
-          where: {
-            userId: session.user.id,
-            art: "SPERRZEIT",
-            withdrawnAt: null,
-            OR: [{ endetAt: { gt: now } }, { endetAt: null }],
-          },
-          select: { id: true, reinigungErlaubt: true },
-        });
-
-        if (activeSperrzeiten.length > 0) {
-          const user = await tx.user.findUnique({
-            where: { id: session.user.id },
-            select: { reinigungErlaubt: true },
-          });
-          const allowedCleaning =
-            oeffnenGrund === "REINIGUNG" &&
-            user?.reinigungErlaubt === true &&
-            activeSperrzeiten.every((s) => s.reinigungErlaubt);
-
-          if (!allowedCleaning) {
-            await tx.verschlussAnforderung.updateMany({
-              where: { id: { in: activeSperrzeiten.map((s) => s.id) } },
-              data: { withdrawnAt: now },
-            });
-            withdrawnSperrzeit = true;
-          }
-        }
+        withdrawnSperrzeit = await withdrawActiveSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx);
       }
 
       const created = await tx.entry.create({

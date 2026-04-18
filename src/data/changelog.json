@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.12.11",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "fix", "text": "Wenn der Admin auf der Aktionen-Seite eines Users ein Öffnen-Event erfasst, wird die aktive Sperrzeit jetzt korrekt beendet — vorher blieb die Sperrzeit bestehen und der User erschien weiter als „verschlossen“. Gleiche Reinigungsausnahme wie beim User-eigenen Öffnen." },
+      { "type": "chore", "text": "Sperrzeit-Withdraw-Logik als gemeinsame withdrawActiveSperrzeitenOnOpen()-Funktion in lib/queries.ts — wird jetzt von User- und Admin-Entries-API identisch aufgerufen" }
+    ]
+  },
+  {
     "version": "4.12.10",
     "date": "2026-04-18",
     "changes": [
