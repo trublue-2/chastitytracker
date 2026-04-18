@@ -25,6 +25,7 @@ export default async function SettingsPage() {
 
   const version = pkg.version;
   const buildDate = process.env.BUILD_DATE ?? undefined;
+  const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
 
   return (
     <SettingsForm
@@ -33,6 +34,7 @@ export default async function SettingsPage() {
       version={version}
       buildDate={buildDate}
       mobileDesktopUpload={mobileDesktopUpload}
+      feedbackEnabled={feedbackEnabled}
     />
   );
 }

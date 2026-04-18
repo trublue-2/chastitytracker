@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.13.0",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "feat", "text": "In-App-Feedback: Bugs, Ideen, Fragen oder Dank per Klick auf das Speech-Bubble-Icon im Header (User + Admin) — Nachricht + Seite + Version + Plattform werden anonym an das Portal weitergeleitet, weder Benutzername noch IP. Self-Hoster können mit DISABLE_FEEDBACK=true komplett deaktivieren." }
+    ]
+  },
+  {
     "version": "4.12.16",
     "date": "2026-04-18",
     "changes": [

@@ -228,6 +228,23 @@
     "requiredDevice": "Keyholder requested {name}",
     "wrongDeviceWarning": "Choosing a different CB will result in a log entry."
   },
+  "feedback": {
+    "title": "Feedback",
+    "typeBug": "Bug",
+    "typeIdea": "Idea",
+    "typeQuestion": "Question",
+    "typeThanks": "Thanks",
+    "messageLabel": "Your message",
+    "messagePlaceholder": "What would you like to share?",
+    "messageRequired": "Please enter a message",
+    "includeContactLabel": "I'd like to receive a reply",
+    "emailLabel": "Your email",
+    "emailRequired": "Please provide your email or disable the reply option",
+    "privacyNote": "Your feedback is sent to the maintainers. Only <strong>the message, page name, app version, and platform</strong> are transmitted — no username, no IP.",
+    "submit": "Send",
+    "thankYou": "Thanks!",
+    "thankYouSubtitle": "Your feedback helps improve the tracker."
+  },
   "openForm": {
     "title": "Log opening",
     "saveBtn": "Save opening",

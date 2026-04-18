@@ -228,6 +228,23 @@
     "requiredDevice": "Keyholder hat {name} angefordert",
     "wrongDeviceWarning": "Bei Wahl eines anderen KG wird ein Eintrag im Strafbuch erstellt."
   },
+  "feedback": {
+    "title": "Feedback",
+    "typeBug": "Bug",
+    "typeIdea": "Idee",
+    "typeQuestion": "Frage",
+    "typeThanks": "Danke",
+    "messageLabel": "Deine Nachricht",
+    "messagePlaceholder": "Was möchtest du mitteilen?",
+    "messageRequired": "Bitte eine Nachricht eingeben",
+    "includeContactLabel": "Ich möchte eine Rückmeldung erhalten",
+    "emailLabel": "Deine E-Mail",
+    "emailRequired": "Bitte E-Mail angeben oder Rückmeldung deaktivieren",
+    "privacyNote": "Dein Feedback wird an die Entwickler:innen gesendet. Übertragen werden <strong>nur Nachricht, Seitenname, App-Version und Plattform</strong> — weder Benutzername noch IP.",
+    "submit": "Senden",
+    "thankYou": "Danke!",
+    "thankYouSubtitle": "Dein Feedback hilft, den Tracker zu verbessern."
+  },
   "openForm": {
     "title": "Öffnung erfassen",
     "saveBtn": "Öffnung speichern",

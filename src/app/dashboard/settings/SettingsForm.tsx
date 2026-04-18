@@ -15,6 +15,7 @@ import ExpandRow from "@/app/components/ExpandRow";
 import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
 
@@ -24,9 +25,10 @@ interface SettingsFormProps {
   version: string;
   buildDate?: string;
   mobileDesktopUpload?: boolean;
+  feedbackEnabled?: boolean;
 }
 
-export default function SettingsForm({ username, email, version, buildDate, mobileDesktopUpload: initialMobileDesktopUpload = false }: SettingsFormProps) {
+export default function SettingsForm({ username, email, version, buildDate, mobileDesktopUpload: initialMobileDesktopUpload = false, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const locale = useLocale();
@@ -210,6 +212,9 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
               options={LOCALES_LONG}
             />
           </ExpandRow>
+
+          {/* Feedback */}
+          {feedbackEnabled && <FeedbackButton variant="menu" />}
 
           {/* Sign out */}
           <button
