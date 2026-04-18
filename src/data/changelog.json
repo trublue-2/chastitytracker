@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.13.1",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "fix", "text": "Feedback-Formular auf Mobile nicht absendbar: Sheet durch scrollbares Modal ersetzt. ActionModal erhält viewport-basierte Höhenbegrenzung (max-h-[calc(100dvh-2rem)]) und scrollbaren Content-Bereich, damit lange Formulare auf kleinen Displays nicht mehr abgeschnitten werden." },
+      { "type": "ui", "text": "Feedback-Type-Picker im Tracker-Design-Stil: farbige Icon-Kreise (Bug/warn, Idee/inspect, Frage/request, Danke/orgasm) statt flacher Icons — passt visuell zum Rest der App (Admin-Aktionen-Zeilen)." }
+    ]
+  },
+  {
     "version": "4.13.0",
     "date": "2026-04-18",
     "changes": [
