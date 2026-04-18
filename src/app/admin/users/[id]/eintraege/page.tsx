@@ -47,7 +47,7 @@ export default async function AdminUserEintraegePage({
   const base = `/admin/users/${id}/eintraege`;
 
   return (
-    <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-foreground">{tStats("allEntries")}</h2>
         <span className="text-xs text-foreground-faint tabular-nums">{total} {t("total")}</span>
@@ -93,6 +93,6 @@ export default async function AdminUserEintraegePage({
           )}
         </div>
       )}
-    </main>
+    </>
   );
 }

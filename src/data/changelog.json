@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.12.3",
+    "date": "2026-04-18",
+    "changes": [
+      { "type": "ui", "text": "Admin-Layout vereinheitlicht: alle Tabs einer User-Detailseite nutzen jetzt dieselbe Breite, denselben Abstand und dieselbe Zentrierung — kein Springen mehr beim Wechsel zwischen Aktionen/Einträge/Statistik/Strafbuch" },
+      { "type": "fix", "text": "Verschluss-Quick-Action im Admin-Übersichtsmodal hatte weniger Funktionen als die ausführliche Seite (fehlte „Bis Datum“-Frist, fehlte „Reinigungsöffnung erlauben“) — beide nutzen jetzt dieselbe gemeinsame Form" },
+      { "type": "chore", "text": "VerschlussAnforderungFields und KontrolleFields als gemeinsame Form-Bodies extrahiert — Modal (Übersicht) und Page (Aktionen) teilen identische Logik und UI" }
+    ]
+  },
+  {
     "version": "4.12.2",
     "date": "2026-04-17",
     "changes": [

@@ -138,7 +138,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   };
 
   return (
-    <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <>
       {isLocked && <KontrolleButton userId={id} hasEmail={!!user.email} />}
 
       {sortedOffene.length > 0 && (
@@ -169,6 +169,6 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
           />
         </Card>
       )}
-    </main>
+    </>
   );
 }

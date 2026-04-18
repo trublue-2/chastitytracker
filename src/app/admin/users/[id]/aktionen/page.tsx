@@ -38,9 +38,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const canKontrolle = hasEmail && isLocked;
 
   return (
-    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
-      <h1 className="text-2xl font-bold text-foreground">{user.username}</h1>
-
+    <>
       {/* Anforderungen */}
       <div>
         <p className="text-xs font-semibold text-foreground-faint uppercase tracking-wider px-1 mb-2">{t("aktionenAnforderungen")}</p>
@@ -225,6 +223,6 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
 
         </div>
       </div>
-    </main>
+    </>
   );
 }

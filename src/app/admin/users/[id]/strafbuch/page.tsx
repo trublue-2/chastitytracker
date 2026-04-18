@@ -155,16 +155,14 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   };
 
   return (
-    <main className="w-full max-w-5xl px-6 py-8">
-      <StrafbuchClient
-        userId={id}
-        unerlaubteOeffnungen={unerlaubteOeffnungen}
-        zuSpaet={zuSpaet}
-        abgelehnt={abgelehnt}
-        reinigungLimitVergehen={reinigungLimitVergehen}
-        strafeRecords={strafeRecords}
-        labels={labels}
-      />
-    </main>
+    <StrafbuchClient
+      userId={id}
+      unerlaubteOeffnungen={unerlaubteOeffnungen}
+      zuSpaet={zuSpaet}
+      abgelehnt={abgelehnt}
+      reinigungLimitVergehen={reinigungLimitVergehen}
+      strafeRecords={strafeRecords}
+      labels={labels}
+    />
   );
 }

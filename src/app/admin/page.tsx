@@ -88,7 +88,7 @@ export default async function AdminPage() {
   const alarmCount = usersWithStats.filter(u => u.stats.offeneKontrolle || u.stats.hasOffeneAnforderung).length;
 
   return (
-    <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-6">
+    <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
 
       {/* ── Summary Header ── */}
       <div className="flex items-start justify-between mb-6 gap-3">

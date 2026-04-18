@@ -2,7 +2,7 @@ import Skeleton from "@/app/components/Skeleton";
 
 export default function EinstellungenLoading() {
   return (
-    <main className="flex-1 w-full max-w-2xl px-4 py-6 flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {/* Konto */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <div className="px-5 py-4 border-b border-border-subtle">
@@ -54,6 +54,6 @@ export default function EinstellungenLoading() {
           <Skeleton variant="text" width="100%" className="h-10 rounded-xl mt-2" />
         </div>
       </div>
-    </main>
+    </div>
   );
 }

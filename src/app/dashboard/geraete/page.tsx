@@ -24,13 +24,15 @@ export default async function DevicesPage() {
   });
 
   return (
-    <DevicesClient
-      devices={devices.map((d) => ({
-        ...d,
-        archivedAt: d.archivedAt?.toISOString() ?? null,
-        createdAt: d.createdAt.toISOString(),
-        entryCount: d._count.entries,
-      }))}
-    />
+    <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
+      <DevicesClient
+        devices={devices.map((d) => ({
+          ...d,
+          archivedAt: d.archivedAt?.toISOString() ?? null,
+          createdAt: d.createdAt.toISOString(),
+          entryCount: d._count.entries,
+        }))}
+      />
+    </main>
   );
 }

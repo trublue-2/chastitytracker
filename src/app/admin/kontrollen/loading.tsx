@@ -2,7 +2,7 @@ import Skeleton from "@/app/components/Skeleton";
 
 export default function AdminKontrollenLoading() {
   return (
-    <main className="flex-1 w-full max-w-5xl px-4 py-6 flex flex-col gap-4">
+    <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
       <Skeleton variant="text" width="120px" className="h-7" />
 
       <div className="rounded-xl border border-border bg-surface overflow-hidden">

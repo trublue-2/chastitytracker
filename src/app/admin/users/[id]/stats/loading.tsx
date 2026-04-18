@@ -2,7 +2,7 @@ import Skeleton from "@/app/components/Skeleton";
 
 export default function AdminStatsLoading() {
   return (
-    <main className="flex-1 w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {/* Back link + title */}
       <div className="flex flex-col gap-1">
         <Skeleton variant="text" width="80px" />
@@ -74,6 +74,6 @@ export default function AdminStatsLoading() {
           ))}
         </div>
       </div>
-    </main>
+    </div>
   );
 }

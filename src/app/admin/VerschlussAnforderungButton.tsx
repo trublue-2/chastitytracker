@@ -5,11 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
-import FormError from "@/app/components/FormError";
-import Button from "@/app/components/Button";
-import Input from "@/app/components/Input";
-import Select from "@/app/components/Select";
-import Textarea from "@/app/components/Textarea";
+import VerschlussAnforderungFields from "./verschluss-anforderung/VerschlussAnforderungFields";
 import type { DeviceOption } from "@/lib/queries";
 
 interface Props {
@@ -26,15 +22,8 @@ export default function VerschlussAnforderungButton({
   const t = useTranslations("admin");
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [nachricht, setNachricht] = useState("");
-  const [deadlineH, setDeadlineH] = useState(isLocked ? "24" : "4");
-  const [withMinDauer, setWithMinDauer] = useState(false);
-  const [minDauerH, setMinDauerH] = useState("24");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [devices, setDevices] = useState<DeviceOption[]>([]);
   const [devicesFetched, setDevicesFetched] = useState(false);
-  const [deviceId, setDeviceId] = useState("");
 
   // Fetch user's devices once when modal first opens (only for ANFORDERUNG)
   useEffect(() => {
@@ -54,40 +43,11 @@ export default function VerschlussAnforderungButton({
   if (isAnforderung && (isLocked || !hasEmail || hasOffeneAnforderung)) return null;
   if (!isAnforderung && (!isLocked || hasActiveSperrzeit)) return null;
 
-  function reset() {
-    setOpen(false); setError(""); setNachricht(""); setDeadlineH(isLocked ? "24" : "4"); setWithMinDauer(false); setMinDauerH("24"); setDeviceId(""); setDevicesFetched(false);
-  }
-
-  async function handleSubmit() {
-    setSaving(true);
-    setError("");
-    try {
-      const payload: Record<string, unknown> = {
-        userId, art,
-        nachricht: nachricht.trim() || undefined,
-        fristH: parseFloat(deadlineH) || (isAnforderung ? 4 : 24),
-      };
-      if (isAnforderung && withMinDauer) {
-        payload.dauerH = parseFloat(minDauerH) || 24;
-      }
-      if (isAnforderung && deviceId) {
-        payload.deviceId = deviceId;
-      }
-
-      const res = await fetch("/api/admin/verschluss-anforderung", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      setSaving(false);
-      if (res.ok) { reset(); router.refresh(); }
-      else setError(data.error || t("kontrolleTitle"));
-    } catch {
-      setSaving(false);
-      setError(t("kontrolleTitle"));
-    }
-  }
+  const close = () => {
+    setOpen(false);
+    setDevicesFetched(false);
+    setDevices([]);
+  };
 
   const btnBase = isAnforderung
     ? "text-[var(--color-request)] border-[var(--color-request-border)] bg-[var(--color-request-bg)] hover:opacity-80"
@@ -96,7 +56,7 @@ export default function VerschlussAnforderungButton({
   return (
     <>
       <button
-        onClick={() => { setOpen(true); setError(""); }}
+        onClick={() => setOpen(true)}
         className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-2.5 py-2 transition ${btnBase}`}
       >
         <Lock size={11} />
@@ -105,84 +65,17 @@ export default function VerschlussAnforderungButton({
 
       <ActionModal
         open={open}
-        onClose={reset}
+        onClose={close}
         title={label}
         icon={<Lock size={20} strokeWidth={2} style={{ color: accentColor }} />}
         iconBg={accentBg}
       >
-        <Textarea
-          label={t("messageLabel")}
-          value={nachricht}
-          onChange={(e) => setNachricht(e.target.value)}
-          placeholder={t("messageLabel")}
-          rows={2}
+        <VerschlussAnforderungFields
+          userId={userId}
+          art={art}
+          devices={devices}
+          onSuccess={() => { close(); router.refresh(); }}
         />
-
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-foreground-faint whitespace-nowrap">{t("kontrolleHours")}</label>
-          <div className="w-24">
-            <Input
-              type="number"
-              value={deadlineH}
-              onChange={(e) => setDeadlineH(e.target.value)}
-              min={0.5}
-              step={0.5}
-            />
-          </div>
-          <span className="text-xs text-foreground-faint">h</span>
-        </div>
-
-        {isAnforderung && (
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={withMinDauer} onChange={(e) => setWithMinDauer(e.target.checked)}
-                className="accent-[var(--color-request)] w-4 h-4" />
-              <span className="text-xs text-foreground-faint">{t("minDurationLabel")}</span>
-            </label>
-            {withMinDauer && (
-              <div className="flex flex-col gap-1.5 pl-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-24">
-                    <Input
-                      type="number"
-                      value={minDauerH}
-                      onChange={(e) => setMinDauerH(e.target.value)}
-                      min={1}
-                      step={1}
-                    />
-                  </div>
-                  <span className="text-xs text-foreground-faint">h</span>
-                </div>
-                <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {isAnforderung && devices.length > 0 && (
-          <Select
-            label={t("selectDeviceLabel")}
-            options={[
-              { value: "", label: t("selectDevicePlaceholder") },
-              ...devices.map((d) => ({ value: d.id, label: d.name })),
-            ]}
-            value={deviceId}
-            onChange={(e) => setDeviceId(e.target.value)}
-          />
-        )}
-
-        <FormError message={error} variant="compact" />
-
-        <Button
-          variant="semantic"
-          semantic={isAnforderung ? "request" : "sperrzeit"}
-          fullWidth
-          loading={saving}
-          icon={<Lock size={16} />}
-          onClick={handleSubmit}
-        >
-          {t("submit")}
-        </Button>
       </ActionModal>
     </>
   );

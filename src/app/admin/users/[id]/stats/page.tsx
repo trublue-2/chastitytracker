@@ -12,9 +12,5 @@ export default async function AdminUserStatsPage({ params }: { params: Promise<{
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/stats`);
 
-  return (
-    <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-6">
-      <StatsMain userId={id} />
-    </main>
-  );
+  return <StatsMain userId={id} />;
 }

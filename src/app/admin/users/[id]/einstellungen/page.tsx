@@ -40,8 +40,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
   if (!user) redirect("/admin");
 
   return (
-    <main className="w-full max-w-3xl px-4 sm:px-6 py-6 flex flex-col gap-6">
-
+    <div className="flex flex-col gap-6">
       {/* Konto */}
       <AccountSection
         userId={user.id}
@@ -129,7 +128,6 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("sectionDanger")}</p>
         <DeleteUserButton id={user.id} username={user.username} isSelf={session?.user?.id === user.id} />
       </Card>
-
-    </main>
+    </div>
   );
 }

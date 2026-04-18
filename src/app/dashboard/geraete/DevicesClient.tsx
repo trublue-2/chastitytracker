@@ -115,7 +115,7 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
   // ── Inline form view (add/edit) ──
   if (formMode !== "closed") {
     return (
-      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
+      <>
         <button
           type="button"
           onClick={closeForm}
@@ -131,13 +131,13 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
             userId={userId}
           />
         </div>
-      </main>
+      </>
     );
   }
 
   // ── Device list view ──
   return (
-    <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">{title}</h1>
         <Button variant="primary" size="sm" onClick={openAdd}>
@@ -200,7 +200,7 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
           </Button>
         </div>
       </ActionModal>
-    </main>
+    </div>
   );
 }
 

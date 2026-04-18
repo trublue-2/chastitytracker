@@ -2,7 +2,7 @@ import Skeleton from "@/app/components/Skeleton";
 
 export default function AdminUserLoading() {
   return (
-    <main className="flex-1 w-full max-w-4xl px-4 py-6 flex flex-col gap-4">
+    <>
       {/* Laufende Session card */}
       <div className="rounded-2xl border border-border bg-surface p-5 flex items-center gap-4">
         <div className="w-14 h-14 rounded-2xl bg-background-subtle animate-shimmer flex-shrink-0" />
@@ -49,6 +49,6 @@ export default function AdminUserLoading() {
           ))}
         </div>
       </div>
-    </main>
+    </>
   );
 }

@@ -87,8 +87,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
   return (
-    <main className="w-full max-w-5xl px-4 sm:px-6 py-6 flex flex-col gap-4">
-
+    <>
       {activePair ? (
         <LaufendeSessionCard
           sessionStart={activePair.verschluss.startTime}
@@ -218,7 +217,6 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           />
         </Card>
       )}
-
-    </main>
+    </>
   );
 }
