@@ -87,6 +87,20 @@ export function formatTime(date: Date | string, locale = "de-CH"): string {
   });
 }
 
+/** dd.mm. (no year) – APP_TZ */
+export function formatDayMonth(date: Date | string, locale = "de-CH"): string {
+  return new Date(date).toLocaleDateString(locale, {
+    day: "2-digit", month: "2-digit", timeZone: APP_TZ,
+  });
+}
+
+/** "Month YYYY" – APP_TZ */
+export function formatMonthYear(date: Date | string, locale = "de-CH"): string {
+  return new Date(date).toLocaleDateString(locale, {
+    month: "long", year: "numeric", timeZone: APP_TZ,
+  });
+}
+
 /** Returns { year, 0-based month, day } of `d` in APP_TZ. */
 export function tzDateParts(d: Date): { year: number; month: number; day: number } {
   const parts = new Intl.DateTimeFormat("en-US", {

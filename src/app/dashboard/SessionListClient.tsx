@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, ChevronUp, Lock, LockOpen, Timer } from "lucide-react";
 import { SessionEventData } from "./SessionEventRow";
@@ -40,6 +40,9 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
   const tOpen = useTranslations("openForm");
   const locale = useLocale();
   const dl = toDateLocale(locale);
+  // Freeze "now" at mount: historical sessions don't care about live time, and
+  // recomputing on every render invalidates SessionTimeline's useMemo.
+  const nowIso = useMemo(() => new Date().toISOString(), []);
   const totalPages = Math.ceil(sessions.length / PAGE_SIZE);
   const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -115,7 +118,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                     events={session.events}
                     sessionStart={session.sessionStartIso}
                     sessionEndIso={session.sessionEndIso ?? undefined}
-                    nowIso={new Date().toISOString()}
+                    nowIso={nowIso}
                     locale={dl}
                     mode="historical"
                     storageScope={`session-${session.id}`}

@@ -54,13 +54,17 @@ function BucketSection({
   const t = useTranslations("dashboard");
   const [expanded, setExpanded] = useState(bucket.defaultExpanded);
 
+  // Read persisted state after hydration. Using useState+useEffect (instead of
+  // a lazy initializer) avoids SSR/CSR hydration mismatch — the server can't
+  // see localStorage. Guard avoids a redundant re-render when stored matches
+  // defaultExpanded.
   useEffect(() => {
     try {
       const stored = localStorage.getItem(storageKey);
-      if (stored === "open") setExpanded(true);
-      else if (stored === "closed") setExpanded(false);
+      if (stored === "open" && !bucket.defaultExpanded) setExpanded(true);
+      else if (stored === "closed" && bucket.defaultExpanded) setExpanded(false);
     } catch { /* ignore */ }
-  }, [storageKey]);
+  }, [storageKey, bucket.defaultExpanded]);
 
   const toggle = useCallback(() => {
     setExpanded(prev => {
@@ -125,13 +129,15 @@ export default function SessionTimeline({
 }: Props) {
   const t = useTranslations("dashboard");
 
-  // Attach raw _time for grouping (falls back to sessionStart if timeIso missing; shouldn't happen).
-  const withTime = useMemo(() => events.map(ev => Object.assign(
-    { ...ev },
-    { _time: ev.timeIso ? new Date(ev.timeIso) : new Date(sessionStart) },
-  )), [events, sessionStart]);
+  const buckets = useMemo(() => {
+    const withTime = events.map(ev => ({
+      ...ev,
+      _time: ev.timeIso ? new Date(ev.timeIso) : new Date(sessionStart),
+    }));
+    return groupEventsIntoBuckets(withTime, new Date(nowIso), locale, mode);
+  }, [events, sessionStart, nowIso, locale, mode]);
 
-  // Historical: if the session span is <14 days, render flat (like active-mode short sessions).
+  // Historical: session span <14 days → render flat (like active-mode fresh sessions).
   if (mode === "historical") {
     const end = sessionEndIso ? new Date(sessionEndIso) : new Date(nowIso);
     if (!historicalSessionNeedsBuckets(new Date(sessionStart), end)) {
@@ -139,21 +145,18 @@ export default function SessionTimeline({
     }
   }
 
-  const buckets = groupEventsIntoBuckets(withTime, new Date(nowIso), locale, mode);
   const renderHeaders = mode === "active" ? shouldRenderBucketHeaders(buckets) : buckets.length > 0;
-
-  // Active mode, fresh session → flat rendering keeps UI identical to pre-feature state.
-  if (!renderHeaders) {
-    return <FlatEvents items={events} />;
-  }
+  if (!renderHeaders) return <FlatEvents items={events} />;
 
   const titleFor = (b: TimelineBucket): string => {
-    if (b.kind === "today") return t("bucketToday");
-    if (b.kind === "yesterday") return t("bucketYesterday");
-    if (b.kind === "thisWeek") return t("bucketThisWeek");
-    if (b.kind === "lastWeek") return t("bucketLastWeek");
-    if (b.kind === "week") return t("bucketWeekOf", { date: b.absoluteLabel ?? "" });
-    return b.absoluteLabel ?? "";
+    switch (b.kind) {
+      case "today":     return t("bucketToday");
+      case "yesterday": return t("bucketYesterday");
+      case "thisWeek":  return t("bucketThisWeek");
+      case "lastWeek":  return t("bucketLastWeek");
+      case "week":      return t("bucketWeekOf", { date: b.absoluteLabel ?? "" });
+      case "month":     return b.absoluteLabel ?? "";
+    }
   };
 
   return (

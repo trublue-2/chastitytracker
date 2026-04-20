@@ -1,4 +1,4 @@
-import { APP_TZ, tzDateParts, midnightInTZ, getWeekStart, getMidnightToday } from "@/lib/utils";
+import { tzDateParts, midnightInTZ, getWeekStart, getMidnightToday, formatDayMonth, formatMonthYear } from "@/lib/utils";
 import type { SessionEventData } from "@/app/dashboard/SessionEventRow";
 
 export interface TimelineBucket {
@@ -25,22 +25,9 @@ export interface TimelineBucket {
   };
 }
 
-function addDaysTZ(d: Date, days: number): Date {
+/** Naive ms arithmetic — fine for adding ±N days to a TZ-normalized midnight. */
+function addDaysMs(d: Date, days: number): Date {
   return new Date(d.getTime() + days * 86_400_000);
-}
-
-function sameTZDay(a: Date, b: Date): boolean {
-  const pa = tzDateParts(a);
-  const pb = tzDateParts(b);
-  return pa.year === pb.year && pa.month === pb.month && pa.day === pb.day;
-}
-
-function formatDayMonth(d: Date, dl: string): string {
-  return d.toLocaleDateString(dl, { day: "2-digit", month: "2-digit", timeZone: APP_TZ });
-}
-
-function formatMonthYear(d: Date, dl: string): string {
-  return d.toLocaleDateString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
 }
 
 function countEvents(items: SessionEventData[]): TimelineBucket["counts"] {
@@ -73,16 +60,18 @@ export function groupEventsIntoBuckets(
   const sorted = [...eventsWithTime].sort((a, b) => b._time.getTime() - a._time.getTime());
 
   const midnightToday = getMidnightToday(now);
-  const midnightYesterday = addDaysTZ(midnightToday, -1);
+  const midnightYesterday = addDaysMs(midnightToday, -1);
   const weekStart = getWeekStart(now);
-  const lastWeekStart = addDaysTZ(weekStart, -7);
+  const lastWeekStart = addDaysMs(weekStart, -7);
 
   type Draft = Omit<TimelineBucket, "counts" | "items"> & { items: SessionEventData[] };
   const buckets: Draft[] = [];
+  const byId = new Map<string, Draft>();
   const getOrCreate = (id: string, factory: () => Draft): Draft => {
-    const found = buckets.find(b => b.id === id);
-    if (found) return found;
+    const existing = byId.get(id);
+    if (existing) return existing;
     const b = factory();
+    byId.set(id, b);
     buckets.push(b);
     return b;
   };
@@ -118,7 +107,7 @@ export function groupEventsIntoBuckets(
       const b = getOrCreate("thisWeek", () => ({
         id: "thisWeek",
         kind: "thisWeek",
-        dateRangeLabel: `${formatDayMonth(weekStart, dl)}–${formatDayMonth(addDaysTZ(weekStart, 6), dl)}`,
+        dateRangeLabel: `${formatDayMonth(weekStart, dl)}–${formatDayMonth(addDaysMs(weekStart, 6), dl)}`,
         rangeStart: weekStart,
         rangeEnd: midnightYesterday,
         items: [],
@@ -131,7 +120,7 @@ export function groupEventsIntoBuckets(
       const b = getOrCreate("lastWeek", () => ({
         id: "lastWeek",
         kind: "lastWeek",
-        dateRangeLabel: `${formatDayMonth(lastWeekStart, dl)}–${formatDayMonth(addDaysTZ(lastWeekStart, 6), dl)}`,
+        dateRangeLabel: `${formatDayMonth(lastWeekStart, dl)}–${formatDayMonth(addDaysMs(lastWeekStart, 6), dl)}`,
         rangeStart: lastWeekStart,
         rangeEnd: weekStart,
         items: [],
@@ -155,7 +144,7 @@ export function groupEventsIntoBuckets(
         kind: "week",
         absoluteLabel: formatDayMonth(evWeekStart, dl),
         rangeStart: evWeekStart,
-        rangeEnd: addDaysTZ(evWeekStart, 7),
+        rangeEnd: addDaysMs(evWeekStart, 7),
         items: [],
         defaultExpanded: false,
       }));
