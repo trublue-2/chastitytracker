@@ -10,7 +10,7 @@ export interface TimelineBucket {
   absoluteLabel?: string;
   /** For "thisWeek" / "lastWeek": formatted date range (e.g. "12.–18.04."). */
   dateRangeLabel?: string;
-  /** Bucket range (used by milestone inline-marker logic). */
+  /** Bucket range. */
   rangeStart: Date;
   rangeEnd: Date;
   items: SessionEventData[];
