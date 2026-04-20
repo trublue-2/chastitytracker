@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.4",
+    "date": "2026-04-20",
+    "changes": [
+      { "type": "ui", "text": "Timeline-Bucket-Header: Count-Pille und Chevron absolut positioniert, pixelgenau auf vertikaler Mitte — behebt Safari-spezifisches Verschieben beim Reload." }
+    ]
+  },
+  {
     "version": "4.14.3",
     "date": "2026-04-20",
     "changes": [
