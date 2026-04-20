@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Lock, LockOpen, Timer, CheckCircle2, Droplets } from "lucide-react";
-import { useTranslations } from "next-intl";
-import SessionEventRow, { SessionEventData } from "./SessionEventRow";
+import { useLocale, useTranslations } from "next-intl";
+import { ChevronDown, ChevronUp, Lock, LockOpen, Timer } from "lucide-react";
+import { SessionEventData } from "./SessionEventRow";
+import SessionTimeline from "./SessionTimeline";
+import { toDateLocale } from "@/lib/utils";
 import { GRUND_I18N_KEYS } from "@/lib/constants";
 
 interface OeffnenFooter {
@@ -24,6 +26,8 @@ export interface SessionListData {
   events: SessionEventData[];
   oeffnen: OeffnenFooter | null;
   startAbbrevStr: string | null;
+  sessionStartIso: string;
+  sessionEndIso: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -34,6 +38,8 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const tOpen = useTranslations("openForm");
+  const locale = useLocale();
+  const dl = toDateLocale(locale);
   const totalPages = Math.ceil(sessions.length / PAGE_SIZE);
   const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -105,15 +111,15 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                     <span className="text-xs text-lock tabular-nums opacity-70">{session.dateStr}, {session.timeStr}</span>
                   </div>
 
-                  <div className="divide-y divide-border-subtle">
-                    {session.events.map((ev, i) => {
-                      const icon =
-                        ev.type === "verschluss" ? <Lock size={18} className="text-lock" /> :
-                        ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-[var(--color-inspect)]" /> :
-                        <Droplets size={18} className="text-[var(--color-orgasm)]" />;
-                      return <SessionEventRow key={i} ev={ev} icon={icon} />;
-                    })}
-                  </div>
+                  <SessionTimeline
+                    events={session.events}
+                    sessionStart={session.sessionStartIso}
+                    sessionEndIso={session.sessionEndIso ?? undefined}
+                    nowIso={new Date().toISOString()}
+                    locale={dl}
+                    mode="historical"
+                    storageScope={`session-${session.id}`}
+                  />
 
                   {/* ── Öffnung footer (Ende) ── */}
                   {session.oeffnen ? (

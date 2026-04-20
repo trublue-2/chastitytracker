@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.14.0",
+    "date": "2026-04-20",
+    "changes": [
+      { "type": "feat", "text": "Timeline-Gruppierung im Dashboard: Lange Sessions werden automatisch in Buckets (Heute, Gestern, Diese Woche, Letzte Woche, ältere Wochen/Monate) gefaltet. Kurze Sessions (nur Heute, oder Heute + Gestern) bleiben wie bisher flach. Bucket-Zustand (expanded/collapsed) wird pro Session in localStorage gespeichert. Historische Sessions ≥14 Tage nutzen dasselbe Bucket-Pattern." },
+      { "type": "feat", "text": "Meilensteine: Zwischen Hero-Block und Timeline erscheint ein dezenter Streifen mit dem zuletzt erreichten Meilenstein (1, 3, 7, 14, 30, 60, 90, 180, 365, 730 Tage) und dem nächsten Ziel mit Countdown. Beim Überschreiten eines Meilensteins erscheint zusätzlich ein Inline-Marker zwischen den passenden Buckets." },
+      { "type": "ui", "text": "Bucket-Header zeigen Event-Zahl sowie (wenn collapsed) Kurzzusammenfassung (z. B. „6 Selbstkontrollen · 2 Reinigungen“). Chevron rotiert beim Öffnen. ARIA-Attribute (aria-expanded, aria-controls) für Screenreader." }
+    ]
+  },
+  {
     "version": "4.13.1",
     "date": "2026-04-18",
     "changes": [
