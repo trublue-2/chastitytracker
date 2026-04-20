@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { ChevronRight, Lock, CheckCircle2, Droplets, LockOpen, Star } from "lucide-react";
+import { ChevronRight, Lock, CheckCircle2, Droplets, LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import SessionEventRow, { type SessionEventData } from "./SessionEventRow";
 import {
@@ -10,11 +10,10 @@ import {
   historicalSessionNeedsBuckets,
   type TimelineBucket,
 } from "@/lib/timelineBuckets";
-import { milestonesInRange } from "@/lib/milestones";
 
 interface Props {
   events: SessionEventData[];
-  /** Session start — required for milestone inline-marker computation in the active range. */
+  /** Session start — used as fallback for events without timeIso during bucket grouping. */
   sessionStart: string; // ISO
   /** Used to compute bucket ranges relative to "now" in the active mode. */
   nowIso: string;
@@ -43,33 +42,14 @@ function FlatEvents({ items }: { items: SessionEventData[] }) {
   );
 }
 
-function MilestoneInlineMarker({ days }: { days: number }) {
-  const t = useTranslations("dashboard");
-  return (
-    <div
-      role="separator"
-      className="flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle bg-lock-bg"
-    >
-      <div className="flex-1 h-px bg-lock-border" />
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-lock-text">
-        <Star size={12} fill="currentColor" className="text-lock" />
-        {t("milestoneReached", { days })}
-      </span>
-      <div className="flex-1 h-px bg-lock-border" />
-    </div>
-  );
-}
-
 function BucketSection({
   bucket,
   storageKey,
   titleLabel,
-  sessionStartMs,
 }: {
   bucket: TimelineBucket;
   storageKey: string;
   titleLabel: string;
-  sessionStartMs: number;
 }) {
   const t = useTranslations("dashboard");
   const [expanded, setExpanded] = useState(bucket.defaultExpanded);
@@ -130,9 +110,6 @@ function BucketSection({
           <FlatEvents items={bucket.items} />
         </div>
       )}
-      {milestonesInRange(new Date(sessionStartMs), bucket.rangeStart, bucket.rangeEnd).map(m => (
-        <MilestoneInlineMarker key={`m-${bucket.id}-${m.days}`} days={m.days} />
-      ))}
     </div>
   );
 }
@@ -147,7 +124,6 @@ export default function SessionTimeline({
   storageScope,
 }: Props) {
   const t = useTranslations("dashboard");
-  const sessionStartMs = new Date(sessionStart).getTime();
 
   // Attach raw _time for grouping (falls back to sessionStart if timeIso missing; shouldn't happen).
   const withTime = useMemo(() => events.map(ev => Object.assign(
@@ -188,7 +164,6 @@ export default function SessionTimeline({
           bucket={b}
           storageKey={`timeline-bucket-${storageScope}-${b.id}`}
           titleLabel={titleFor(b)}
-          sessionStartMs={sessionStartMs}
         />
       ))}
     </div>

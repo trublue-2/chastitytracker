@@ -7,7 +7,6 @@ import SessionDurationBadge from "./SessionDurationBadge";
 import type { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import LiveTrainingGoals from "./LiveTrainingGoals";
-import MilestoneHeroStrip from "./MilestoneHeroStrip";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
@@ -108,9 +107,6 @@ export default async function LaufendeSessionCard({
           />
         )}
       </div>
-
-      {/* ── Milestone strip (between hero and timeline) ── */}
-      <MilestoneHeroStrip sessionStart={sessionStart} now={now} />
 
       {/* ── Timeline (buckets + flat fallback for short sessions) ── */}
       <SessionTimeline
