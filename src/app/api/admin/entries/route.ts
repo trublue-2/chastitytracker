@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen } from "@/lib/queries";
+import { isDevBypassEnabled } from "@/lib/devMode";
 
 export async function POST(req: NextRequest) {
   const err = await requireAdminApi();
@@ -12,7 +13,8 @@ export async function POST(req: NextRequest) {
   const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode, deviceId } = body;
 
   if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
-  const validationError = validateEntryPayload(body, { requirePhotoForPruefung: false });
+  const devBypass = isDevBypassEnabled(req.headers.get("host"));
+  const validationError = validateEntryPayload(body, { requirePhotoForPruefung: false, allowFuture: devBypass });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
