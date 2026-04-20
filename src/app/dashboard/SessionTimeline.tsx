@@ -84,26 +84,26 @@ function BucketSection({
         onClick={toggle}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="w-full flex items-center gap-3 px-5 py-3 min-h-[48px] hover:bg-surface-raised transition text-left border-b border-border-subtle"
+        className="relative w-full block px-5 py-3 pr-16 min-h-[48px] hover:bg-surface-raised transition text-left border-b border-border-subtle"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-foreground">{titleLabel}</span>
-            {bucket.dateRangeLabel && (
-              <span className="text-xs text-foreground-faint tabular-nums">· {bucket.dateRangeLabel}</span>
-            )}
-            <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-surface-raised border border-border text-foreground-muted tabular-nums">
-              {bucket.counts.total}
-            </span>
-          </div>
-          {!expanded && summaryParts.length > 0 && (
-            <div className="text-xs text-foreground-muted mt-0.5 truncate">{summaryParts.join(" · ")}</div>
+        <div className="flex items-center gap-2 h-6">
+          <span className="font-semibold text-sm text-foreground leading-none">{titleLabel}</span>
+          {bucket.dateRangeLabel && (
+            <span className="text-xs text-foreground-faint tabular-nums leading-none">· {bucket.dateRangeLabel}</span>
           )}
         </div>
-        <ChevronRight
-          size={16}
-          className={`text-foreground-faint transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
-        />
+        {!expanded && summaryParts.length > 0 && (
+          <div className="text-xs text-foreground-muted mt-1 truncate pr-2">{summaryParts.join(" · ")}</div>
+        )}
+        <span className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          <span className="flex items-center justify-center h-6 min-w-6 text-xs px-2 rounded-full bg-surface-raised border border-border text-foreground-muted tabular-nums leading-none">
+            {bucket.counts.total}
+          </span>
+          <ChevronRight
+            size={16}
+            className={`text-foreground-faint transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
+          />
+        </span>
       </button>
       {expanded && (
         <div id={panelId}>
