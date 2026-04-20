@@ -3,7 +3,7 @@
  * (next upcoming milestone) or as an inline marker between buckets (milestones
  * reached within that range).
  */
-export const MILESTONE_DAYS = [1, 3, 7, 14, 30, 60, 90, 180, 365, 730] as const;
+export const MILESTONE_DAYS = [7, 14, 30, 50, 77, 100, 150, 200, 365, 500, 1000] as const;
 
 export type Milestone = {
   days: number;
