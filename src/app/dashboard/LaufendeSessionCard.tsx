@@ -1,11 +1,13 @@
-import { Lock, LockOpen, CheckCircle2, Droplets } from "lucide-react";
-import { formatHours, formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected } from "@/lib/utils";
+import { Lock } from "lucide-react";
+import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
-import SessionEventRow from "./SessionEventRow";
+import type { SessionEventData } from "./SessionEventRow";
+import SessionTimeline from "./SessionTimeline";
 import LiveTrainingGoals from "./LiveTrainingGoals";
+import MilestoneHeroStrip from "./MilestoneHeroStrip";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
@@ -107,9 +109,12 @@ export default async function LaufendeSessionCard({
         )}
       </div>
 
-      {/* ── Timeline ── */}
-      <div className="divide-y divide-border-subtle">
-        {events.map((ev, i) => {
+      {/* ── Milestone strip (between hero and timeline) ── */}
+      <MilestoneHeroStrip sessionStart={sessionStart} now={now} />
+
+      {/* ── Timeline (buckets + flat fallback for short sessions) ── */}
+      <SessionTimeline
+        events={events.map<SessionEventData>((ev) => {
           const dateStr = formatDate(ev.time, dl);
           const timeStr = formatTime(ev.time, dl);
           const exifStr = ev.imageExifTime && hasExifMismatch(ev.imageExifTime, ev.time)
@@ -120,43 +125,37 @@ export default async function LaufendeSessionCard({
             ev.kontrolleVerifikationStatus ?? null,
             ta,
           );
-          const icon =
-            ev.type === "verschluss" ? <Lock size={18} className="text-lock" /> :
-            ev.type === "kontrolle" ? <CheckCircle2 size={18} className="text-[var(--color-inspect)]" /> :
-            ev.type === "reinigung" ? <LockOpen size={18} className="text-[var(--color-unlock)]" /> :
-            <Droplets size={18} className="text-[var(--color-orgasm)]" />;
-
-          return (
-            <SessionEventRow
-              key={i}
-              icon={icon}
-              ev={{
-                type: ev.type,
-                dateStr,
-                timeStr,
-                imageUrl: ev.imageUrl,
-                exifStr,
-                note: ev.note,
-                entryId: ev.entryId,
-                captureHref: !ev.entryId && ev.type === "kontrolle" && ev.kontrolleCode
-                  ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
-                  : null,
-                deadlineStr: ev.deadline ? formatDateTime(ev.deadline, dl) : null,
-                isOverdue: ev.kontrolleAnforderungStatus === "overdue",
-                kontrolleCode: ev.kontrolleCode ?? null,
-                kontrolleKommentar: ev.kontrolleKommentar ?? null,
-                kombiniertePillLabel: kombiniertePill?.label ?? null,
-                kombiniertePillCls: kombiniertePill?.cls ?? null,
-                orgasmusArt: ev.orgasmusArt ?? null,
-                pauseDurationStr: ev.pauseDurationStr ?? null,
-                timeCorrected: isTimeCorrected(ev.time, ev.submittedAt),
-                timeCorrectedSystemStr: isTimeCorrected(ev.time, ev.submittedAt)
-                  ? formatDateTime(ev.submittedAt!, dl) : null,
-              }}
-            />
-          );
+          return {
+            type: ev.type,
+            timeIso: ev.time.toISOString(),
+            dateStr,
+            timeStr,
+            imageUrl: ev.imageUrl,
+            exifStr,
+            note: ev.note,
+            entryId: ev.entryId,
+            captureHref: !ev.entryId && ev.type === "kontrolle" && ev.kontrolleCode
+              ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
+              : null,
+            deadlineStr: ev.deadline ? formatDateTime(ev.deadline, dl) : null,
+            isOverdue: ev.kontrolleAnforderungStatus === "overdue",
+            kontrolleCode: ev.kontrolleCode ?? null,
+            kontrolleKommentar: ev.kontrolleKommentar ?? null,
+            kombiniertePillLabel: kombiniertePill?.label ?? null,
+            kombiniertePillCls: kombiniertePill?.cls ?? null,
+            orgasmusArt: ev.orgasmusArt ?? null,
+            pauseDurationStr: ev.pauseDurationStr ?? null,
+            timeCorrected: isTimeCorrected(ev.time, ev.submittedAt),
+            timeCorrectedSystemStr: isTimeCorrected(ev.time, ev.submittedAt)
+              ? formatDateTime(ev.submittedAt!, dl) : null,
+          };
         })}
-      </div>
+        sessionStart={sessionStart.toISOString()}
+        nowIso={now.toISOString()}
+        locale={dl}
+        mode="active"
+        storageScope="active"
+      />
 
       {/* ── Sperrzeit footer ── */}
       {showSperrzeit && (
