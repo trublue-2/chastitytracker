@@ -114,14 +114,14 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
  */
 export function validateEntryPayload(
   body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string },
-  opts: { requirePhotoForPruefung?: boolean } = {},
+  opts: { requirePhotoForPruefung?: boolean; allowFuture?: boolean } = {},
 ): { error: string; status: number } | null {
-  const { requirePhotoForPruefung = true } = opts;
+  const { requirePhotoForPruefung = true, allowFuture = false } = opts;
   const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note } = body;
 
   if (!isValidImageUrl(imageUrl)) return { error: "Ungültige imageUrl", status: 400 };
   if (!startTime) return { error: "startTime is required", status: 400 };
-  if (new Date(startTime) > new Date()) return { error: "Zeitpunkt darf nicht in der Zukunft liegen", status: 400 };
+  if (!allowFuture && new Date(startTime) > new Date()) return { error: "Zeitpunkt darf nicht in der Zukunft liegen", status: 400 };
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
     return { error: "Ungültiger Typ", status: 400 };
   }

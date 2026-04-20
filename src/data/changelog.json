@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.14.3",
+    "date": "2026-04-20",
+    "changes": [
+      { "type": "chore", "text": "Localhost: Datum-Beschränkung aufgehoben (POST/PATCH von Einträgen) für einfacheres Testen. In Production bleibt der Future-Check aktiv." },
+      { "type": "chore", "text": "Seed-Script scripts/seed-testdata.mjs: erzeugt ~300 Test-Einträge für einen existierenden User, verteilt auf 5 Sessions plus aktive Session." }
+    ]
+  },
+  {
     "version": "4.14.2",
     "date": "2026-04-20",
     "changes": [
