@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
 import { validateDeviceOwnership } from "@/lib/queries";
+import { isDevBypassEnabled } from "@/lib/devMode";
 
 export async function PATCH(
   req: NextRequest,
@@ -36,8 +37,11 @@ export async function PATCH(
     }
   }
 
+  const devBypass = isDevBypassEnabled(req.headers.get("host"));
+
   // Time-shift direction enforcement for non-admins (anti-cheat)
-  if (startTime && session.user.role !== "admin") {
+  // Skipped when running on localhost in dev (test enablement).
+  if (startTime && session.user.role !== "admin" && !devBypass) {
     const newTime = new Date(startTime);
     const oldTime = existing.startTime;
     if (existing.type === "VERSCHLUSS" && newTime < oldTime) {
@@ -64,7 +68,8 @@ export async function PATCH(
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Re-validate temporal ordering when startTime is changed on a VERSCHLUSS/OEFFNEN entry
-      if (startTime && (existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN")) {
+      // (skipped entirely on localhost dev for test enablement).
+      if (!devBypass && startTime && (existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN")) {
         const newTime = new Date(startTime);
         if (newTime > new Date()) throw Object.assign(new Error(), { _code: "FUTURE" });
         const allVO = await tx.entry.findMany({

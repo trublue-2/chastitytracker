@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
+import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
 import { sendMail, escHtml } from "@/lib/mail";
@@ -37,7 +38,8 @@ export async function POST(req: NextRequest) {
   // verifikationStatus is never accepted from client – set server-side only
   const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung, deviceId } = body;
 
-  const validationError = validateEntryPayload(body);
+  const devBypass = isDevBypassEnabled(req.headers.get("host"));
+  const validationError = validateEntryPayload(body, { allowFuture: devBypass });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races

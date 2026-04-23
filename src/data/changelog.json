@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.0",
+    "date": "2026-04-20",
+    "changes": [
+      { "type": "feat", "text": "Timeline-Gruppierung im Dashboard: Lange Sessions werden automatisch in Buckets (Heute, Gestern, Diese Woche, Letzte Woche, ältere Wochen/Monate) gefaltet. Kurze Sessions bleiben wie bisher flach. Bucket-Zustand (expanded/collapsed) wird pro Session in localStorage gespeichert. Historische Sessions ≥14 Tage nutzen dasselbe Bucket-Pattern. Bucket-Header zeigen Event-Zahl sowie (wenn collapsed) Kurzzusammenfassung (z. B. „6 Selbstkontrollen · 2 Reinigungen“)." }
+    ]
+  },
+  {
     "version": "4.13.1",
     "date": "2026-04-18",
     "changes": [
