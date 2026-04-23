@@ -8,6 +8,8 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
+  /** Raw ISO timestamp — used by SessionTimeline for bucket grouping. */
+  timeIso?: string;
   dateStr: string;
   timeStr: string;
   imageUrl: string | null;

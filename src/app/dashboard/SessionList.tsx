@@ -82,6 +82,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       {
         type: "verschluss" as const,
         time: verschluss.startTime,
+        timeIso: verschluss.startTime.toISOString(),
         dateStr,
         timeStr,
         imageUrl: verschluss.imageUrl,
@@ -108,6 +109,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
           return {
             type: "kontrolle" as const,
             time: k.time,
+            timeIso: k.time.toISOString(),
             dateStr: formatDate(k.time, dl),
             timeStr: formatTime(k.time, dl),
             imageUrl: k.imageUrl,
@@ -129,6 +131,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       ...sessionOrgasmen.map((e) => ({
         type: "orgasmus" as const,
         time: e.startTime,
+        timeIso: e.startTime.toISOString(),
         dateStr: formatDate(e.startTime, dl),
         timeStr: formatTime(e.startTime, dl),
         imageUrl: e.imageUrl,
@@ -148,6 +151,7 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       ...(pair.interruptions ?? []).map((intr) => ({
         type: "reinigung" as const,
         time: intr.oeffnen.startTime,
+        timeIso: intr.oeffnen.startTime.toISOString(),
         dateStr: formatDate(intr.oeffnen.startTime, dl),
         timeStr: formatTime(intr.oeffnen.startTime, dl),
         imageUrl: intr.verschluss.imageUrl,
@@ -177,6 +181,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
       thumbnailUrl: verschluss.imageUrl,
       events,
       startAbbrevStr,
+      sessionStartIso: verschluss.startTime.toISOString(),
+      sessionEndIso: oeffnen ? oeffnen.startTime.toISOString() : null,
       oeffnen: oeffnen
         ? {
             dateStr: formatDate(oeffnen.startTime, dl),
