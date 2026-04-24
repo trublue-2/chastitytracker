@@ -50,6 +50,15 @@ export async function POST(req: NextRequest) {
   const { default: pkg } = await import("../../../../package.json");
   const appVersion = pkg.version;
 
+  // Prepend this instance's base URL to currentUrl so the receiving portal
+  // can distinguish submissions from different tracker deployments. Without
+  // the hostname, all feedbacks look like they come from the same source.
+  const instanceBase = (process.env.NEXTAUTH_URL || "").replace(/\/+$/, "");
+  const path = currentUrl?.trim() || "/";
+  const fullUrl = instanceBase
+    ? (path.startsWith("http") ? path : `${instanceBase}${path.startsWith("/") ? path : `/${path}`}`)
+    : path;
+
   try {
     const upstream = await fetch(process.env.FEEDBACK_UPSTREAM_URL || DEFAULT_UPSTREAM_URL, {
       method: "POST",
@@ -58,7 +67,7 @@ export async function POST(req: NextRequest) {
         type,
         message: message.trim(),
         contactEmail: contactEmail?.trim() || null,
-        currentUrl: currentUrl?.trim() || null,
+        currentUrl: fullUrl,
         appVersion,
         platform: platform ?? "web",
         clientLocale: clientLocale ?? null,
