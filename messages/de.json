@@ -732,6 +732,9 @@
     "subtitle": "Seite neu laden für das Update",
     "reload": "Neu laden"
   },
+  "sessionGuard": {
+    "switched": "Du wurdest auf einen anderen Account umgeleitet — Seite wird neu geladen."
+  },
   "calendar": {
     "wearTime": "Tragezeit",
     "validGoal": "Gültige Vorgabe",
