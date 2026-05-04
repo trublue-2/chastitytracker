@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.2",
+    "date": "2026-05-04",
+    "changes": [
+      { "type": "fix", "text": "Erkennt jetzt automatisch wenn das Auth-Cookie während der Nutzung auf einen anderen Account wechselt (z.B. weil ein anderes Tab des selben Browsers eingeloggt hat) — die Seite wird dann neu geladen, damit Header und Inhalt zum gleichen User gehören. Verhindert dass Einträge versehentlich am falschen Account gespeichert werden." }
+    ]
+  },
+  {
     "version": "4.14.0",
     "date": "2026-04-20",
     "changes": [

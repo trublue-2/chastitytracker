@@ -732,6 +732,9 @@
     "subtitle": "Reload page to update",
     "reload": "Reload"
   },
+  "sessionGuard": {
+    "switched": "You were redirected to a different account — reloading."
+  },
   "calendar": {
     "wearTime": "Wear time",
     "validGoal": "Active goal",

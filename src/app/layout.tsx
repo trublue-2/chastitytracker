@@ -4,10 +4,12 @@ import { JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import VersionChecker from "@/app/components/VersionChecker";
+import SessionGuard from "@/app/components/SessionGuard";
 import ToastProvider from "@/app/components/ToastProvider";
 import AppLockLoader from "@/app/components/AppLockLoader";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { auth } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,6 +68,8 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const session = await auth();
+  const sessionUserId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -89,6 +93,7 @@ export default async function RootLayout({
             {children}
             <AppLockLoader />
             <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
+            {sessionUserId && <SessionGuard initialUserId={sessionUserId} />}
             <Script id="sw-register" strategy="afterInteractive">{`
               if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
                 navigator.serviceWorker.register('/sw.js').catch(function(err) {
