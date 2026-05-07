@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.3",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "chore", "text": "Internes Refactoring: buildPairs und verwandte Tragedauer-Funktionen sind jetzt generisch über Type-Paare (Verschluss/Öffnen vs. später Plug/Collar/...) und unterstützen einen optionalen Category-Filter. Verhalten unverändert; Vorbereitung für die Device-Categories-Erweiterung. Vitest als Unit-Test-Framework eingeführt mit 37 Tests als Sicherheitsleine." }
+    ]
+  },
+  {
     "version": "4.14.2",
     "date": "2026-05-04",
     "changes": [

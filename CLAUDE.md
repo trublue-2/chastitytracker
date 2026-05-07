@@ -17,6 +17,11 @@ npm run start     # Produktions-Server starten
 DATABASE_URL="file:./dev.db" npx prisma migrate dev --name <name>  # Migration erstellen
 DATABASE_URL="file:./dev.db" npx prisma studio                     # DB-Browser öffnen
 npx prisma generate                                                  # Client regenerieren
+
+# Tests (Playwright E2E)
+npx playwright test                          # alle Tests
+npx playwright test <pfad/zur/test.spec.ts>  # einzelner Test
+npx playwright test --ui                     # interaktiver UI-Mode
 ```
 
 ## Architecture
