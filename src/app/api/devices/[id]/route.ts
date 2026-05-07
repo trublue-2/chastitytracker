@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Archivierte Devices können nicht bearbeitet werden" }, { status: 400 });
   }
 
-  const { name, description, imageUrl, purchasePrice, currency } = body;
+  const { name, description, imageUrl, purchasePrice, currency, categoryId } = body;
 
   // Validation (only validate provided fields)
   if (name !== undefined) {
@@ -76,12 +76,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Währung ist erforderlich wenn Preis angegeben" }, { status: 400 });
   }
 
+  if (categoryId !== undefined && categoryId !== null) {
+    if (typeof categoryId !== "string") return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+    const cat = await prisma.deviceCategory.findUnique({ where: { id: categoryId }, select: { userId: true } });
+    if (!cat || cat.userId !== device.userId) return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+  }
+
   const data: Record<string, unknown> = {};
   if (name !== undefined) data.name = name.trim();
   if (description !== undefined) data.description = description?.trim() || null;
   if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
   if (purchasePrice !== undefined) data.purchasePrice = purchasePrice ?? null;
   if (currency !== undefined) data.currency = currency || null;
+  if (categoryId !== undefined) data.categoryId = categoryId || null;
 
   const updated = await prisma.device.update({ where: { id }, data });
   return NextResponse.json(updated);

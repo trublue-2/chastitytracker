@@ -827,6 +827,7 @@
     "purchasePrice": "Kaufpreis",
     "pricePlaceholder": "z.B. 150",
     "currency": "Währung",
+    "category": "Kategorie",
     "saved": "KG gespeichert",
     "updated": "KG aktualisiert",
     "archived": "KG archiviert",

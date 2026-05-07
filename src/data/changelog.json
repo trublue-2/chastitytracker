@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.7",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Geräte-Verwaltung erlaubt nun Kategorie-Auswahl (P2b.1.5): wenn der User mehrere Device-Kategorien angelegt hat, zeigt der Geräte-Form ein Kategorie-Dropdown. Default ist die eingebaute KG-Kategorie. Die API validiert Ownership der gewählten Kategorie. Damit lassen sich Plug-Geräte etc. anlegen, die in den WEAR_BEGIN/END-Forms aus P2b.1 verwendet werden können." }
+    ]
+  },
+  {
     "version": "4.14.6",
     "date": "2026-05-07",
     "changes": [
