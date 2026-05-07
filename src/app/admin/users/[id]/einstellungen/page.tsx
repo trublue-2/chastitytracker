@@ -29,9 +29,14 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { id } = await params;
 
-  const [user, vorgaben, t, tc, dl] = await Promise.all([
+  const [user, vorgaben, categories, t, tc, dl] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id }, orderBy: { gueltigAb: "desc" } }),
+    prisma.deviceCategory.findMany({
+      where: { userId: id },
+      orderBy: [{ isBuiltIn: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true },
+    }),
     getTranslations("admin"),
     getTranslations("common"),
     getLocale().then(toDateLocale),
@@ -94,7 +99,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionVorgaben")}</p>
         </div>
         <div className="flex flex-col gap-4 px-5 py-4">
-          <VorgabeForm userId={id} />
+          <VorgabeForm userId={id} categories={categories} />
         </div>
         {vorgaben.length > 0 && (
           <div className="border-t border-border-subtle divide-y divide-border-subtle">
@@ -109,6 +114,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
                 wocheH={v.minProWocheH}
                 monatH={v.minProMonatH}
                 notiz={v.notiz}
+                categories={categories}
+                categoryName={categories.find((c) => c.id === v.categoryId)?.name ?? null}
                 initialValues={{
                   gueltigAb: toDateInput(v.gueltigAb),
                   gueltigBis: v.gueltigBis ? toDateInput(v.gueltigBis) : "",
@@ -116,6 +123,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
                   wocheVal: v.minProWocheH != null ? String(v.minProWocheH) : "",
                   monatVal: v.minProMonatH != null ? String(v.minProMonatH) : "",
                   notiz: v.notiz ?? "",
+                  categoryId: v.categoryId ?? "",
                 }}
               />
             ))}

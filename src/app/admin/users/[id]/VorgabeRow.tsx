@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import VorgabeForm, { VorgabeInitialValues } from "./VorgabeForm";
+import VorgabeForm, { type VorgabeInitialValues, type CategoryOption } from "./VorgabeForm";
 import DeleteVorgabeButton from "./DeleteVorgabeButton";
 import { useTranslations, useLocale } from "next-intl";
 
@@ -16,6 +16,8 @@ interface Props {
   monatH: number | null;
   notiz: string | null;
   initialValues: VorgabeInitialValues;
+  categories?: CategoryOption[];
+  categoryName?: string | null;
 }
 
 function formatHoursLocal(h: number, locale: string): string {
@@ -28,7 +30,7 @@ function formatHoursLocal(h: number, locale: string): string {
   return parts.join(" ");
 }
 
-export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH, wocheH, monatH, notiz, initialValues }: Props) {
+export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH, wocheH, monatH, notiz, initialValues, categories, categoryName }: Props) {
   const t = useTranslations("admin");
   const td = useTranslations("dashboard");
   const locale = useLocale();
@@ -41,6 +43,7 @@ export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH,
           userId={userId}
           vorgabeId={vorgabeId}
           initialValues={initialValues}
+          categories={categories}
           onCancel={() => setEditing(false)}
         />
       </div>
@@ -52,6 +55,7 @@ export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH,
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           {active && <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full">{t("vorgabeActive")}</span>}
+          {categoryName && <span className="text-xs font-medium text-foreground-faint">[{categoryName}]</span>}
           <span className="text-sm font-semibold text-foreground-muted">{dateLabel}</span>
         </div>
         <div className="flex flex-wrap gap-3 mt-1.5">

@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.11",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Stats + Vorgaben pro Kategorie (P2c): Trainingsvorgaben können jetzt pro DeviceCategory definiert werden (Plug-spezifische Vorgabe etc.) — Admin-Form zeigt Kategorie-Picker wenn mehr als KG existiert. /dashboard/stats zeigt unter dem KG-Block einen kompakten Block pro Kategorie mit Heute/Woche/Monat Tragezeit." }
+    ]
+  },
+  {
     "version": "4.14.10",
     "date": "2026-05-07",
     "changes": [

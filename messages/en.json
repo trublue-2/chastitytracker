@@ -386,6 +386,10 @@
   },
   "stats": {
     "title": "Statistics",
+    "byCategory": "By category",
+    "day": "Today",
+    "week": "Week",
+    "month": "Month",
     "entries": "Sessions",
     "totalDuration": "Total duration",
     "orgasmFreeTime": "Orgasm-free time",
@@ -528,6 +532,7 @@
     "alreadyHasSperrzeit": "Lock duration already active",
     "alreadyHasAnforderung": "Open request already exists",
     "vorgabeAddTitle": "Add new goal",
+    "vorgabeCategory": "Category",
     "vorgabeEditTitle": "Edit goal",
     "vorgabeFromRequired": "Valid from *",
     "vorgabeToOptional": "Valid to (optional)",
