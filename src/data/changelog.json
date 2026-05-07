@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.8",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "ui", "text": "Naming-Update (P2b.1.6): „KG\" und „Gerät\" in der UI durchgehend zu „Device\" generalisiert (DE+EN), damit das Vokabular auch zu Plug, Halsband etc. passt. „Einschlüsse\" / „Lock-ups\" → „Sessions\". KG-spezifische Begriffe (Verschluss, Öffnen, Sperrzeit, Reinigung, Kontrollen) bleiben erhalten — sie werden ausschliesslich in KG-Flows angezeigt." }
+    ]
+  },
+  {
     "version": "4.14.7",
     "date": "2026-05-07",
     "changes": [
