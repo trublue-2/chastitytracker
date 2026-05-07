@@ -24,7 +24,12 @@ export async function getUserDeviceOptions(userId: string): Promise<DeviceOption
   });
 }
 
-/** Returns true if the user is currently locked (latest VERSCHLUSS/OEFFNEN entry is VERSCHLUSS). */
+/** Returns true if the user is currently locked (latest VERSCHLUSS/OEFFNEN entry is VERSCHLUSS).
+ *
+ *  KG-only by design: Sperrzeiten, VerschlussAnforderung, Strafen, Kontroll-Anforderungen and
+ *  the "Verschlossen seit X" banner all rely on this single global lock state. Per-category
+ *  wear status (Plug, Collar, ...) is determined separately from `buildPairs` results in the
+ *  pages that need it — never via this function. */
 export async function getIsLocked(userId: string): Promise<boolean> {
   const latest = await prisma.entry.findFirst({
     where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },

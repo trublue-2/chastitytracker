@@ -1,12 +1,14 @@
 {
   "name": "kg-app",
-  "version": "4.14.2",
+  "version": "4.14.3",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "changelog": "node scripts/add-changelog.mjs",
     "seed:testdata": "node scripts/seed-testdata.mjs"
   },
@@ -46,6 +48,7 @@
     "playwright": "^1.58.2",
     "puppeteer": "^24.40.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.5"
   }
 }
