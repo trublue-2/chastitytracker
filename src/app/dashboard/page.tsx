@@ -9,11 +9,13 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
+import ActiveWearSessions from "./ActiveWearSessions";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -27,7 +29,7 @@ export default async function DashboardPage() {
   const now = new Date();
 
   // ── Parallel data fetch ──
-  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(userId, now),
@@ -37,6 +39,7 @@ export default async function DashboardPage() {
     }),
     getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    deviceCategoriesEnabled() ? getActiveWearSessions(userId) : Promise.resolve([]),
   ]);
 
   const reinigung: ReinigungSettings = {
@@ -139,6 +142,17 @@ export default async function DashboardPage() {
           />
         </div>
       )}
+      <ActiveWearSessions
+        sessions={wearSessions.map((s) => ({
+          categoryId: s.categoryId,
+          categoryName: s.categoryName,
+          categoryColor: s.categoryColor,
+          categoryIcon: s.categoryIcon,
+          deviceName: s.deviceName,
+          since: s.since.toISOString(),
+        }))}
+        serverNow={now.toISOString()}
+      />
       <DashboardClient {...clientProps} />
       {pairs.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-6">
