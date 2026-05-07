@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const err = await requireAdminApi();
   if (err) return err;
 
-  const { userId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz } =
+  const { userId, categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz } =
     await req.json();
 
   if (!userId || !gueltigAb) {
@@ -16,10 +16,16 @@ export async function POST(req: NextRequest) {
   if (!minProTagH && !minProWocheH && !minProMonatH) {
     return NextResponse.json({ error: "Mindestens ein Zeitwert ist erforderlich" }, { status: 400 });
   }
+  if (categoryId !== undefined && categoryId !== null) {
+    if (typeof categoryId !== "string") return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+    const cat = await prisma.deviceCategory.findUnique({ where: { id: categoryId }, select: { userId: true } });
+    if (!cat || cat.userId !== userId) return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+  }
 
   const vorgabe = await prisma.trainingVorgabe.create({
     data: {
       userId,
+      categoryId: categoryId || null,
       gueltigAb: new Date(gueltigAb),
       gueltigBis: gueltigBis ? new Date(gueltigBis) : null,
       minProTagH: minProTagH ?? null,

@@ -386,6 +386,10 @@
   },
   "stats": {
     "title": "Statistik",
+    "byCategory": "Pro Kategorie",
+    "day": "Heute",
+    "week": "Woche",
+    "month": "Monat",
     "entries": "Sessions",
     "totalDuration": "Gesamtdauer",
     "orgasmFreeTime": "Orgasmusfreie Zeit",
@@ -528,6 +532,7 @@
     "alreadyHasSperrzeit": "Sperrdauer bereits aktiv",
     "alreadyHasAnforderung": "Offene Anforderung vorhanden",
     "vorgabeAddTitle": "Neue Vorgabe hinzufügen",
+    "vorgabeCategory": "Kategorie",
     "vorgabeEditTitle": "Vorgabe bearbeiten",
     "vorgabeFromRequired": "Gültig ab *",
     "vorgabeToOptional": "Gültig bis (optional)",
