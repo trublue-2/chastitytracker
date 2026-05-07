@@ -39,6 +39,44 @@ export async function getIsLocked(userId: string): Promise<boolean> {
   return latest?.type === "VERSCHLUSS";
 }
 
+/** Result row for a currently-active wear session in a non-KG DeviceCategory. */
+export interface ActiveWearSession {
+  categoryId: string;
+  categoryName: string;
+  deviceId: string;
+  deviceName: string;
+  since: Date;
+}
+
+/** Returns the active wear session in a category, or null if none.
+ *  An "active session" = latest WEAR_BEGIN/WEAR_END entry on a device of this category is WEAR_BEGIN. */
+export async function getActiveWearSessionForCategory(
+  userId: string,
+  categoryId: string,
+): Promise<ActiveWearSession | null> {
+  const latest = await prisma.entry.findFirst({
+    where: {
+      userId,
+      type: { in: ["WEAR_BEGIN", "WEAR_END"] },
+      device: { categoryId },
+    },
+    orderBy: { startTime: "desc" },
+    select: {
+      type: true,
+      startTime: true,
+      device: { select: { id: true, name: true, category: { select: { id: true, name: true } } } },
+    },
+  });
+  if (latest?.type !== "WEAR_BEGIN" || !latest.device || !latest.device.category) return null;
+  return {
+    categoryId: latest.device.category.id,
+    categoryName: latest.device.category.name,
+    deviceId: latest.device.id,
+    deviceName: latest.device.name,
+    since: latest.startTime,
+  };
+}
+
 /** Returns the currently active TrainingVorgabe for a user, or null. */
 export async function getActiveVorgabe(userId: string, now: Date) {
   return prisma.trainingVorgabe.findFirst({

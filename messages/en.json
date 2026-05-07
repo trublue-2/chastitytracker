@@ -780,6 +780,18 @@
     "dark": "Dark",
     "system": "System"
   },
+  "wearForm": {
+    "titleBegin": "Begin wearing",
+    "titleEnd": "End wearing",
+    "device": "Device",
+    "time": "Time",
+    "timezone": "Timezone",
+    "note": "Note (optional)",
+    "deviceRequired": "Device is required",
+    "endingSession": "Session: {device} – since {duration}",
+    "noDevicesInCategory": "No devices in category \"{name}\"",
+    "addDeviceLink": "Add device"
+  },
   "categories": {
     "title": "Categories",
     "addCategory": "New category",
