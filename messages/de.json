@@ -780,6 +780,26 @@
     "dark": "Dunkel",
     "system": "System"
   },
+  "categories": {
+    "title": "Kategorien",
+    "addCategory": "Neue Kategorie",
+    "createTitle": "Kategorie anlegen",
+    "editTitle": "Kategorie bearbeiten",
+    "name": "Name",
+    "color": "Farbe",
+    "icon": "Symbol",
+    "builtInBadge": "Eingebaut",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "empty": "Noch keine Kategorien",
+    "emptyDescription": "Lege Kategorien wie Plug, Halsband oder Fesseln an, um sie getrennt zu tracken.",
+    "usageStats": "{devices, plural, =0 {Keine Geräte} =1 {1 Gerät} other {# Geräte}} · {vorgaben, plural, =0 {keine Vorgaben} =1 {1 Vorgabe} other {# Vorgaben}}",
+    "deleteConfirm": "Soll die Kategorie „{name}\" wirklich gelöscht werden?",
+    "nameRequired": "Name ist erforderlich",
+    "createdToast": "Kategorie angelegt",
+    "savedToast": "Kategorie aktualisiert",
+    "deletedToast": "Kategorie gelöscht"
+  },
   "devices": {
     "title": "Meine KGs",
     "titleAdmin": "KGs von {username}",
