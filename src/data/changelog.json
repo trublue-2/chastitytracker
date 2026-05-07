@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.9",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Dashboard zeigt aktive Wear-Sessions (P2b.2): unter der KG-Karte erscheint pro aktiver Plug/Halsband/...-Session eine kompakte Zeile mit Live-Timer, Kategorie-Symbol und Beenden-Tap. Ein Klick öffnet die wear-end-Form für die Kategorie. Hinter Feature-Flag." }
+    ]
+  },
+  {
     "version": "4.14.8",
     "date": "2026-05-07",
     "changes": [

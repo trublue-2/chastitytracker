@@ -783,6 +783,7 @@
   "wearForm": {
     "titleBegin": "Begin wearing",
     "titleEnd": "End wearing",
+    "endShort": "End",
     "device": "Device",
     "time": "Time",
     "timezone": "Timezone",
