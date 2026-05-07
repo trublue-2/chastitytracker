@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { validatePassword } from "@/lib/constants";
+import { ensureKgCategory } from "@/lib/deviceCategories";
 
 export async function GET() {
   const err = await requireAdminApi();
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
       ...(email?.trim() ? { email: email.trim() } : {}),
     },
   });
+  await ensureKgCategory(user.id);
 
   return NextResponse.json({ id: user.id, username: user.username, role: user.role }, { status: 201 });
 }

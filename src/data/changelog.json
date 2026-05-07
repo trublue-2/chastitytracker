@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.4",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "chore", "text": "Schema-Migration für Device-Kategorien (P1): neue DeviceCategory-Tabelle (user-definierbar), Device.categoryId und TrainingVorgabe.categoryId, automatischer Backfill für bestehende Daten (alle Devices und Vorgaben werden auf eine eingebaute KG-Kategorie verlinkt). Neue Entry-Types WEAR_BEGIN/WEAR_END sind hinter dem Feature-Flag ENABLE_DEVICE_CATEGORIES gegated und werden ohne Flag von der API abgewiesen. Verhalten für KG-Tracking unverändert." }
+    ]
+  },
+  {
     "version": "4.14.3",
     "date": "2026-05-07",
     "changes": [
