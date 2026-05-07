@@ -8,7 +8,15 @@ export const LOCALES_LONG = [
   { value: "en", label: "English" },
 ] as const;
 
-export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS"] as const;
+export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WEAR_BEGIN", "WEAR_END"] as const;
+/** Entry types restricted to KG (the built-in DeviceCategory). */
+export const KG_ENTRY_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "OEFFNEN"]);
+/** Entry types for non-KG DeviceCategories (Plug, Collar, ...). Require deviceId. */
+export const WEAR_ENTRY_TYPES: ReadonlySet<string> = new Set(["WEAR_BEGIN", "WEAR_END"]);
+/** Feature flag: gate WEAR_BEGIN/WEAR_END entry creation until P2 ships UI. */
+export function deviceCategoriesEnabled(): boolean {
+  return process.env.ENABLE_DEVICE_CATEGORIES === "true";
+}
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
 export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
@@ -124,6 +132,9 @@ export function validateEntryPayload(
   if (!allowFuture && new Date(startTime) > new Date()) return { error: "Zeitpunkt darf nicht in der Zukunft liegen", status: 400 };
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
     return { error: "Ungültiger Typ", status: 400 };
+  }
+  if (WEAR_ENTRY_TYPES.has(type) && !deviceCategoriesEnabled()) {
+    return { error: "Device-Kategorien sind nicht aktiviert", status: 400 };
   }
   if (type === "OEFFNEN") {
     if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number])) {

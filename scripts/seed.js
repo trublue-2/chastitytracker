@@ -19,6 +19,23 @@ async function main() {
       data: { username, email, passwordHash, role: "admin" },
     });
 
+    // Seed built-in KG category for new admin.
+    // Defaults must stay in sync with `src/lib/deviceCategories.ts` (kgCategoryId,
+    // KG_BUILTIN_COLOR, KG_BUILTIN_ICON). seed.js is plain JS — can't import the TS helper.
+    await prisma.deviceCategory.create({
+      data: {
+        id: `kgcat_${adminUser.id}`,
+        userId: adminUser.id,
+        name: "KG",
+        slug: "kg",
+        color: "cat-steel",
+        icon: "Lock",
+        isBuiltIn: true,
+        trackingEnabled: true,
+        sortOrder: 0,
+      },
+    });
+
     console.log(`→ Admin-Benutzer '${username}' angelegt.`);
     console.log("┌─────────────────────────────────────────────────────┐");
     console.log("│  ERSTER START – Zugangsdaten                        │");
