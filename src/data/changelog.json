@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.6",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "WEAR_BEGIN/WEAR_END Forms (P2b.1, hinter Feature-Flag): /dashboard/new/wear-begin?category=<id> und /wear-end?category=<id> erlauben das Tragen-Tracking für eigene Kategorien (Plug, Halsband, ...). API-Validierung verhindert WEAR-Operationen auf KG-Geräten und blockiert parallele Sessions in derselben Kategorie. Dashboard-Anzeige folgt in P2b.2." }
+    ]
+  },
+  {
     "version": "4.14.5",
     "date": "2026-05-07",
     "changes": [

@@ -49,10 +49,40 @@ export async function POST(req: NextRequest) {
   let fulfilledAnforderungDeviceId: string | null = null;
   try {
     entry = await prisma.$transaction(async (tx) => {
-      // Validate deviceId ownership inside transaction (VERSCHLUSS only)
-      if (deviceId && type === "VERSCHLUSS") {
+      // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
+      if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
         const device = await validateDeviceOwnership(deviceId, session.user.id, tx);
         if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
+      }
+
+      // WEAR_BEGIN / WEAR_END: require deviceId, derive category, enforce non-KG, state-check session.
+      if (type === "WEAR_BEGIN" || type === "WEAR_END") {
+        if (!deviceId) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_REQUIRED" });
+        const dev = await tx.device.findUnique({
+          where: { id: deviceId },
+          select: { categoryId: true, category: { select: { isBuiltIn: true } } },
+        });
+        if (!dev?.categoryId) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_NO_CATEGORY" });
+        if (dev.category?.isBuiltIn) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_KG" });
+
+        const latestWear = await tx.entry.findFirst({
+          where: {
+            userId: session.user.id,
+            type: { in: ["WEAR_BEGIN", "WEAR_END"] },
+            device: { categoryId: dev.categoryId },
+          },
+          orderBy: { startTime: "desc" },
+          select: { type: true, startTime: true },
+        });
+        if (type === "WEAR_BEGIN" && latestWear?.type === "WEAR_BEGIN") {
+          throw Object.assign(new Error(), { _code: "ALREADY_WEARING" });
+        }
+        if (type === "WEAR_END" && (!latestWear || latestWear.type !== "WEAR_BEGIN")) {
+          throw Object.assign(new Error(), { _code: "NOT_WEARING" });
+        }
+        if (latestWear && new Date(startTime) <= latestWear.startTime) {
+          throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
+        }
       }
 
       if (type === "VERSCHLUSS") {
@@ -91,7 +121,7 @@ export async function POST(req: NextRequest) {
           orgasmusArt: orgasmusArt || null,
           kontrollCode: kontrollCode || null,
           verifikationStatus: null,
-          deviceId: type === "VERSCHLUSS" ? (deviceId || null) : null,
+          deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
         },
       });
 
@@ -136,6 +166,11 @@ export async function POST(req: NextRequest) {
     if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
     if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
     if (code === "TIME_BEFORE") return NextResponse.json({ error: "Zeitpunkt muss nach dem vorherigen Eintrag liegen" }, { status: 400 });
+    if (code === "WEAR_DEVICE_REQUIRED") return NextResponse.json({ error: "Gerät ist erforderlich" }, { status: 400 });
+    if (code === "WEAR_DEVICE_NO_CATEGORY") return NextResponse.json({ error: "Gerät hat keine Kategorie" }, { status: 400 });
+    if (code === "WEAR_DEVICE_KG") return NextResponse.json({ error: "KG-Geräte verwenden Verschluss/Öffnen, nicht WEAR_BEGIN/END" }, { status: 400 });
+    if (code === "ALREADY_WEARING") return NextResponse.json({ error: "Bereits aktive Session in dieser Kategorie" }, { status: 400 });
+    if (code === "NOT_WEARING") return NextResponse.json({ error: "Keine aktive Session in dieser Kategorie" }, { status: 400 });
     throw e;
   }
 

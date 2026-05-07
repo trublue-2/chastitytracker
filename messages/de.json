@@ -780,6 +780,18 @@
     "dark": "Dunkel",
     "system": "System"
   },
+  "wearForm": {
+    "titleBegin": "Tragen beginnen",
+    "titleEnd": "Tragen beenden",
+    "device": "Gerät",
+    "time": "Zeitpunkt",
+    "timezone": "Zeitzone",
+    "note": "Notiz (optional)",
+    "deviceRequired": "Gerät ist erforderlich",
+    "endingSession": "Session: {device} – seit {duration}",
+    "noDevicesInCategory": "Keine Geräte in Kategorie „{name}\"",
+    "addDeviceLink": "Gerät anlegen"
+  },
   "categories": {
     "title": "Kategorien",
     "addCategory": "Neue Kategorie",
