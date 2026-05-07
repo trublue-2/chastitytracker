@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.5",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Device-Kategorien Verwaltung (P2a, hinter Feature-Flag): neue Seite /dashboard/categories zum Anlegen, Bearbeiten und Löschen eigener Kategorien (Plug, Halsband, Fesseln, ...) mit Farb- und Icon-Picker. Eingebaute KG-Kategorie ist gegen Löschung geschützt. Kategorie-CRUD via /api/categories. Aktivierbar via ENABLE_DEVICE_CATEGORIES=true. Dashboard-Integration und WEAR_BEGIN/END Flows folgen in P2b/c." }
+    ]
+  },
+  {
     "version": "4.14.4",
     "date": "2026-05-07",
     "changes": [

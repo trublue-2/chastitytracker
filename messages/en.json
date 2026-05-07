@@ -780,6 +780,26 @@
     "dark": "Dark",
     "system": "System"
   },
+  "categories": {
+    "title": "Categories",
+    "addCategory": "New category",
+    "createTitle": "Create category",
+    "editTitle": "Edit category",
+    "name": "Name",
+    "color": "Color",
+    "icon": "Icon",
+    "builtInBadge": "Built-in",
+    "edit": "Edit",
+    "delete": "Delete",
+    "empty": "No categories yet",
+    "emptyDescription": "Add categories like Plug, Collar or Cuffs to track them separately.",
+    "usageStats": "{devices, plural, =0 {No devices} =1 {1 device} other {# devices}} · {vorgaben, plural, =0 {no goals} =1 {1 goal} other {# goals}}",
+    "deleteConfirm": "Delete category \"{name}\"?",
+    "nameRequired": "Name is required",
+    "createdToast": "Category created",
+    "savedToast": "Category updated",
+    "deletedToast": "Category deleted"
+  },
   "devices": {
     "title": "My CBs",
     "titleAdmin": "{username}'s CBs",
