@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.10",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Action-Picker /dashboard/new zeigt eigene Kategorien (P2b.3): pro user-definierter Kategorie eine Zeile mit kontextueller Aktion (Beenden + Device-Name wenn aktive Session, sonst „Tragen beginnen\"). Macht WEAR_BEGIN/END ohne URL-Trick zugänglich." }
+    ]
+  },
+  {
     "version": "4.14.9",
     "date": "2026-05-07",
     "changes": [
