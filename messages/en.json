@@ -827,6 +827,7 @@
     "purchasePrice": "Purchase price",
     "pricePlaceholder": "e.g. 150",
     "currency": "Currency",
+    "category": "Category",
     "saved": "CB saved",
     "updated": "CB updated",
     "archived": "CB archived",

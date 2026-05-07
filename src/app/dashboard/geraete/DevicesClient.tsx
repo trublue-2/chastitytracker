@@ -20,19 +20,27 @@ export interface DeviceRow {
   imageUrl: string | null;
   purchasePrice: number | null;
   currency: string | null;
+  categoryId: string | null;
   createdAt: string;
   archivedAt: string | null;
   entryCount: number;
 }
 
+export interface CategoryOption {
+  id: string;
+  name: string;
+  isBuiltIn: boolean;
+}
+
 interface Props {
   devices: DeviceRow[];
+  categories?: CategoryOption[];
   /** Admin mode: managing another user's devices */
   userId?: string;
   username?: string;
 }
 
-export default function DevicesClient({ devices: initialDevices, userId, username }: Props) {
+export default function DevicesClient({ devices: initialDevices, categories, userId, username }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
   const router = useRouter();
@@ -128,6 +136,7 @@ export default function DevicesClient({ devices: initialDevices, userId, usernam
             onClose={closeForm}
             onSaved={handleSaved}
             device={editDevice}
+            categories={categories}
             userId={userId}
           />
         </div>

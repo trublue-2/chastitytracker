@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, description, imageUrl, purchasePrice, currency } = body;
+  const { name, description, imageUrl, purchasePrice, currency, categoryId } = body;
 
   // Admin can create devices for other users
   let userId = session.user.id;
@@ -90,6 +90,11 @@ export async function POST(req: NextRequest) {
   if (purchasePrice != null && !currency) {
     return NextResponse.json({ error: "Währung ist erforderlich wenn Preis angegeben" }, { status: 400 });
   }
+  if (categoryId !== undefined && categoryId !== null) {
+    if (typeof categoryId !== "string") return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+    const cat = await prisma.deviceCategory.findUnique({ where: { id: categoryId }, select: { userId: true } });
+    if (!cat || cat.userId !== userId) return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+  }
 
   const device = await prisma.device.create({
     data: {
@@ -99,6 +104,7 @@ export async function POST(req: NextRequest) {
       imageUrl: imageUrl || null,
       purchasePrice: purchasePrice ?? null,
       currency: currency || null,
+      categoryId: categoryId || null,
     },
   });
 
