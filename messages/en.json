@@ -102,7 +102,7 @@
     "user_settings_tab": "Settings",
     "stats_tab": "Statistics",
     "strafbuch_tab": "Log",
-    "devices_tab": "CBs"
+    "devices_tab": "Devices"
   },
   "nav": {
     "overview": "Overview",
@@ -121,7 +121,7 @@
     "adminDesign": "Admin",
     "language": "Language",
     "menu": "Open menu",
-    "devices": "My CBs"
+    "devices": "My Devices"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -143,7 +143,7 @@
     "locked": "Locked",
     "openingForbiddenUntil": "Opening not allowed until {date}",
     "inspectionRequired": "Inspection required",
-    "entries": "Lock-ups",
+    "entries": "Sessions",
     "totalDuration": "Total duration",
     "trainingGoals": "Training goals",
     "noEntries": "No entries yet",
@@ -386,7 +386,7 @@
   },
   "stats": {
     "title": "Statistics",
-    "entries": "Lock-ups",
+    "entries": "Sessions",
     "totalDuration": "Total duration",
     "orgasmFreeTime": "Orgasm-free time",
     "noEntry": "No entry",
@@ -432,12 +432,12 @@
     "noEntries": "No entries yet.",
     "showMore": "{count, plural, one {Show 1 more month} other {Show # more months}}",
     "created": "Created",
-    "deviceUsage": "CB usage",
+    "deviceUsage": "Device usage",
     "deviceSessions": "{count, plural, =1 {1 session} other {# sessions}}",
     "deviceTotalDuration": "Total duration",
     "deviceAvgDuration": "Avg. duration",
     "deviceCostPerHour": "Cost/hour",
-    "deviceUnknown": "Without CB"
+    "deviceUnknown": "No device assigned"
   },
   "admin": {
     "title": "User management",
@@ -447,7 +447,7 @@
     "statusLabel": "Status",
     "locked": "Locked",
     "opened": "Opened",
-    "entries": "Lock-ups",
+    "entries": "Sessions",
     "lockRequested": "Lock-up requested",
     "lockOverdue": "Lock-up overdue",
     "lockedUntil": "Locked until",
@@ -585,7 +585,7 @@
     "creatingUser": "Creating…",
     "createError": "Error creating user",
     "demoTitle": "Create demo user",
-    "demoDesc": "Creates «DemoUser» with 20 lock-ups, training goals & orgasms. Password:",
+    "demoDesc": "Creates «DemoUser» with 20 sessions, training goals & orgasms. Password:",
     "demoCreateBtn": "✦ Create demo user",
     "pillOpen": "Open",
     "pillOverdue": "Overdue",
@@ -813,14 +813,14 @@
     "deletedToast": "Category deleted"
   },
   "devices": {
-    "title": "My CBs",
-    "titleAdmin": "{username}'s CBs",
-    "empty": "No chastity belts yet",
-    "emptyDescription": "Add your first chastity belt to select it when locking up.",
-    "addDevice": "Add CB",
-    "editDevice": "Edit CB",
+    "title": "My devices",
+    "titleAdmin": "{username}'s devices",
+    "empty": "No devices yet",
+    "emptyDescription": "Add your first device (chastity belt, plug, collar, …) to start tracking wear time.",
+    "addDevice": "Add device",
+    "editDevice": "Edit device",
     "name": "Name",
-    "namePlaceholder": "e.g. CB-6000s",
+    "namePlaceholder": "e.g. Steel Cage v2",
     "description": "Description",
     "descriptionPlaceholder": "Optional description…",
     "photo": "Photo",
@@ -828,18 +828,18 @@
     "pricePlaceholder": "e.g. 150",
     "currency": "Currency",
     "category": "Category",
-    "saved": "CB saved",
-    "updated": "CB updated",
-    "archived": "CB archived",
-    "restored": "CB restored",
-    "deleted": "CB deleted",
+    "saved": "Device saved",
+    "updated": "Device updated",
+    "archived": "Device archived",
+    "restored": "Device restored",
+    "deleted": "Device deleted",
     "showArchived": "Show archived",
     "archivedBadge": "Archived",
     "restore": "Restore",
     "archive": "Archive",
-    "deleteConfirm": "Really delete this CB? This cannot be undone.",
-    "archiveConfirm": "This CB will be archived because it has been used in lock entries. It will no longer appear in the selection.",
-    "noEntries": "No lock entries",
+    "deleteConfirm": "Really delete this device? This cannot be undone.",
+    "archiveConfirm": "This device will be archived because it has been used in sessions. It will no longer appear in the selection.",
+    "noEntries": "No sessions",
     "sessions": "{count, plural, =1 {1 session} other {# sessions}}",
     "costPerHour": "Cost/hour"
   }

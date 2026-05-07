@@ -102,7 +102,7 @@
     "user_settings_tab": "Einstellungen",
     "stats_tab": "Statistik",
     "strafbuch_tab": "Strafbuch",
-    "devices_tab": "KGs"
+    "devices_tab": "Devices"
   },
   "nav": {
     "overview": "Übersicht",
@@ -121,7 +121,7 @@
     "adminDesign": "Admin",
     "language": "Sprache",
     "menu": "Menü öffnen",
-    "devices": "Meine KGs"
+    "devices": "Meine Devices"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -143,7 +143,7 @@
     "locked": "Verschlossen",
     "openingForbiddenUntil": "Öffnen nicht erlaubt bis {date}",
     "inspectionRequired": "Kontrolle erforderlich",
-    "entries": "Einschlüsse",
+    "entries": "Sessions",
     "totalDuration": "Gesamtdauer",
     "trainingGoals": "Trainingsvorgaben",
     "noEntries": "Keine Einträge vorhanden",
@@ -386,7 +386,7 @@
   },
   "stats": {
     "title": "Statistik",
-    "entries": "Einschlüsse",
+    "entries": "Sessions",
     "totalDuration": "Gesamtdauer",
     "orgasmFreeTime": "Orgasmusfreie Zeit",
     "noEntry": "Kein Eintrag",
@@ -432,12 +432,12 @@
     "noEntries": "Noch keine Einträge vorhanden.",
     "showMore": "{count, plural, one {1 weiteren Monat anzeigen} other {# weitere Monate anzeigen}}",
     "created": "Erstellt",
-    "deviceUsage": "KG-Nutzung",
-    "deviceSessions": "{count, plural, =1 {1 Einschluss} other {# Einschlüsse}}",
+    "deviceUsage": "Device-Nutzung",
+    "deviceSessions": "{count, plural, =1 {1 Session} other {# Sessions}}",
     "deviceTotalDuration": "Gesamtdauer",
     "deviceAvgDuration": "Ø Dauer",
     "deviceCostPerHour": "Kosten/Stunde",
-    "deviceUnknown": "Ohne KG-Zuordnung"
+    "deviceUnknown": "Ohne Device-Zuordnung"
   },
   "admin": {
     "title": "Benutzerverwaltung",
@@ -447,7 +447,7 @@
     "statusLabel": "Status",
     "locked": "Verschlossen",
     "opened": "Geöffnet",
-    "entries": "Einschlüsse",
+    "entries": "Sessions",
     "lockRequested": "Verschluss angefordert",
     "lockOverdue": "Verschluss überfällig",
     "lockedUntil": "Verschlossen bis",
@@ -585,7 +585,7 @@
     "creatingUser": "Wird erstellt…",
     "createError": "Fehler beim Erstellen",
     "demoTitle": "Demo-User anlegen",
-    "demoDesc": "Erstellt «DemoUser» mit 20 Einschlüssen, Trainingsvorgaben & Orgasmen. Passwort:",
+    "demoDesc": "Erstellt «DemoUser» mit 20 Sessions, Trainingsvorgaben & Orgasmen. Passwort:",
     "demoCreateBtn": "✦ Demo-User erstellen",
     "pillOpen": "Offen",
     "pillOverdue": "Überfällig",
@@ -762,7 +762,7 @@
     "add": "Hinzufügen",
     "loginButton": "Mit Passkey anmelden",
     "noPasskeys": "Noch keine Passkeys registriert.",
-    "unnamedDevice": "Unbenanntes Gerät",
+    "unnamedDevice": "Unbenanntes Device",
     "addedOn": "Erstellt am {date}",
     "lastUsed": "Zuletzt {date}",
     "deviceNamePrompt": "Name für diesen Passkey (z.B. iPhone, MacBook):",
@@ -783,14 +783,14 @@
   "wearForm": {
     "titleBegin": "Tragen beginnen",
     "titleEnd": "Tragen beenden",
-    "device": "Gerät",
+    "device": "Device",
     "time": "Zeitpunkt",
     "timezone": "Zeitzone",
     "note": "Notiz (optional)",
-    "deviceRequired": "Gerät ist erforderlich",
+    "deviceRequired": "Device ist erforderlich",
     "endingSession": "Session: {device} – seit {duration}",
-    "noDevicesInCategory": "Keine Geräte in Kategorie „{name}\"",
-    "addDeviceLink": "Gerät anlegen"
+    "noDevicesInCategory": "Keine Devices in Kategorie „{name}\"",
+    "addDeviceLink": "Device anlegen"
   },
   "categories": {
     "title": "Kategorien",
@@ -805,7 +805,7 @@
     "delete": "Löschen",
     "empty": "Noch keine Kategorien",
     "emptyDescription": "Lege Kategorien wie Plug, Halsband oder Fesseln an, um sie getrennt zu tracken.",
-    "usageStats": "{devices, plural, =0 {Keine Geräte} =1 {1 Gerät} other {# Geräte}} · {vorgaben, plural, =0 {keine Vorgaben} =1 {1 Vorgabe} other {# Vorgaben}}",
+    "usageStats": "{devices, plural, =0 {Keine Devices} =1 {1 Device} other {# Devices}} · {vorgaben, plural, =0 {keine Vorgaben} =1 {1 Vorgabe} other {# Vorgaben}}",
     "deleteConfirm": "Soll die Kategorie „{name}\" wirklich gelöscht werden?",
     "nameRequired": "Name ist erforderlich",
     "createdToast": "Kategorie angelegt",
@@ -813,14 +813,14 @@
     "deletedToast": "Kategorie gelöscht"
   },
   "devices": {
-    "title": "Meine KGs",
-    "titleAdmin": "KGs von {username}",
-    "empty": "Noch keine KGs erfasst",
-    "emptyDescription": "Lege deinen ersten Keuschheitsgürtel an, um ihn bei Einschlüssen auswählen zu können.",
-    "addDevice": "KG hinzufügen",
-    "editDevice": "KG bearbeiten",
+    "title": "Meine Devices",
+    "titleAdmin": "Devices von {username}",
+    "empty": "Noch keine Devices erfasst",
+    "emptyDescription": "Lege dein erstes Device an (KG, Plug, Halsband, …), um es beim Tracken auswählen zu können.",
+    "addDevice": "Device hinzufügen",
+    "editDevice": "Device bearbeiten",
     "name": "Name",
-    "namePlaceholder": "z.B. CB-6000s",
+    "namePlaceholder": "z.B. Steel Cage v2",
     "description": "Beschreibung",
     "descriptionPlaceholder": "Optionale Beschreibung…",
     "photo": "Foto",
@@ -828,19 +828,19 @@
     "pricePlaceholder": "z.B. 150",
     "currency": "Währung",
     "category": "Kategorie",
-    "saved": "KG gespeichert",
-    "updated": "KG aktualisiert",
-    "archived": "KG archiviert",
-    "restored": "KG wiederhergestellt",
-    "deleted": "KG gelöscht",
+    "saved": "Device gespeichert",
+    "updated": "Device aktualisiert",
+    "archived": "Device archiviert",
+    "restored": "Device wiederhergestellt",
+    "deleted": "Device gelöscht",
     "showArchived": "Archivierte anzeigen",
     "archivedBadge": "Archiviert",
     "restore": "Wiederherstellen",
     "archive": "Archivieren",
-    "deleteConfirm": "Diesen KG wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
-    "archiveConfirm": "Dieser KG wird archiviert, da er bereits in Einschlüssen verwendet wurde. Er erscheint nicht mehr in der Auswahl.",
-    "noEntries": "Keine Einschlüsse",
-    "sessions": "{count, plural, =1 {1 Einschluss} other {# Einschlüsse}}",
+    "deleteConfirm": "Dieses Device wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+    "archiveConfirm": "Dieses Device wird archiviert, da es bereits in Sessions verwendet wurde. Es erscheint nicht mehr in der Auswahl.",
+    "noEntries": "Keine Sessions",
+    "sessions": "{count, plural, =1 {1 Session} other {# Sessions}}",
     "costPerHour": "Kosten/Stunde"
   }
 }
