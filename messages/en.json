@@ -408,6 +408,7 @@
     "noEntry": "No entry",
     "currentSession": "Current session",
     "trainingGoals": "Training goals",
+    "trainingGoalFor": "Training goal {name}",
     "wearCalendar": "Wear calendar",
     "notWorn": "Not worn",
     "dailyGoalReached": "Daily goal ✓",

@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, buildWearPairs, wearingHoursFromPairs, type WearPair, type ReinigungSettings } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, buildWearPairs, wearingHoursFromPairs, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
+import { isKgVorgabe } from "@/lib/vorgaben";
+import { categoryStyle } from "@/lib/categoryConstants";
+import CategoryIconRender from "./CategoryIcon";
 import CalendarExpand from "./CalendarExpand";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
 import type { DayEntry, DayVorgabe } from "./CalendarContainer";
@@ -118,8 +121,16 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const now = new Date();
 
   const [entries, vorgaben, kontrollen, sperrzeiten, userSettings, allDevices] = await Promise.all([
-    prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "asc" } }),
-    prisma.trainingVorgabe.findMany({ where: { userId }, orderBy: { gueltigAb: "desc" } }),
+    prisma.entry.findMany({
+      where: { userId },
+      orderBy: { startTime: "asc" },
+      include: { device: { select: { categoryId: true } } },
+    }),
+    prisma.trainingVorgabe.findMany({
+      where: { userId },
+      orderBy: { gueltigAb: "desc" },
+      include: { category: { select: { id: true, name: true, color: true, icon: true, isBuiltIn: true } } },
+    }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
@@ -192,17 +203,40 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     )
   ).sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
-  const activeVorgabe = vorgaben.find(isActive) ?? null;
+  // KG-only vorgaben drive the wear calendar + month stats (which visualize KG).
+  // The Trainingsziele cards below render ALL active vorgaben across categories.
+  const kgVorgaben = vorgaben.filter(isKgVorgabe);
   const wearPairs = buildWearPairs(entries, now);
-  const monthStats = buildMonthStats(completed, wearPairs, vorgaben, dl);
+  const monthStats = buildMonthStats(completed, wearPairs, kgVorgaben, dl);
 
   const todayStart = getMidnightToday(now);
   const weekStart = getWeekStart(now);
   const monthStart = getMonthStart(now);
 
-  const hoursToday = wearingHoursFromPairs(wearPairs, todayStart, now);
-  const hoursWeek = wearingHoursFromPairs(wearPairs, weekStart, now);
-  const hoursMonth = wearingHoursFromPairs(wearPairs, monthStart, now);
+  // Build one goal-card per currently-active vorgabe (KG first, then others by name).
+  const activeVorgaben = vorgaben.filter(isActive).sort((a, b) => {
+    const aKG = isKgVorgabe(a) ? 0 : 1;
+    const bKG = isKgVorgabe(b) ? 0 : 1;
+    if (aKG !== bKG) return aKG - bKG;
+    return (a.category?.name ?? "").localeCompare(b.category?.name ?? "");
+  });
+  const goalCards = activeVorgaben.map((v) => {
+    const kg = isKgVorgabe(v);
+    const pairs = kg ? wearPairs : buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: v.categoryId! });
+    return {
+      id: v.id,
+      name: v.category?.name ?? "KG",
+      color: v.category?.color ?? null,
+      icon: v.category?.icon ?? null,
+      minProTagH: v.minProTagH,
+      minProWocheH: v.minProWocheH,
+      minProMonatH: v.minProMonatH,
+      notiz: v.notiz,
+      hoursToday: wearingHoursFromPairs(pairs, todayStart, now),
+      hoursWeek: wearingHoursFromPairs(pairs, weekStart, now),
+      hoursMonth: wearingHoursFromPairs(pairs, monthStart, now),
+    };
+  });
 
   const orgasmDateSet = new Set<string>(
     entries.filter((e) => e.type === "ORGASMUS")
@@ -226,7 +260,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
 
     const monthStartDate = midnightInTZ(firstDayNoon);
     const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)));
-    const vorgabe = vorgaben.find(
+    const vorgabe = kgVorgaben.find(
       (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
     ) ?? null;
     const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
@@ -412,33 +446,49 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         </Card>
       )}
 
-      {/* Trainingsziele */}
-      {activeVorgabe && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between">
-            <p className="text-sm font-bold text-foreground">{t("trainingGoals")}</p>
-            <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full">{tc("active")}</span>
-          </div>
-          <div className="px-6 py-4 flex flex-col gap-4">
-            {activeVorgabe.minProTagH && (
-              <GoalBar label={t("today")} actual={hoursToday} target={activeVorgabe.minProTagH}
-                sub={`${formatHours(hoursToday, dl)} ${tc("of")} ${formatHours(activeVorgabe.minProTagH, dl)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {activeVorgabe.minProWocheH && (
-              <GoalBar label={t("thisWeek")} actual={hoursWeek} target={activeVorgabe.minProWocheH}
-                sub={`${formatHours(hoursWeek, dl)} ${tc("of")} ${formatHours(activeVorgabe.minProWocheH, dl)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {activeVorgabe.minProMonatH && (
-              <GoalBar label={t("thisMonth")} actual={hoursMonth} target={activeVorgabe.minProMonatH}
-                sub={`${formatHours(hoursMonth, dl)} ${tc("of")} ${formatHours(activeVorgabe.minProMonatH, dl)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {activeVorgabe.notiz && <p className="text-xs text-[var(--color-request)] italic">{activeVorgabe.notiz}</p>}
-          </div>
-        </Card>
-      )}
+      {/* Trainingsziele — eine Card pro aktiver Vorgabe (KG zuerst, dann andere Kategorien) */}
+      {goalCards.map((g) => {
+        const style = g.color ? categoryStyle(g.color) : null;
+        return (
+          <Card key={g.id} padding="none" className="overflow-hidden">
+            <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                {style && g.icon && (
+                  <div
+                    className="size-6 rounded-md flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: style.backgroundColor, color: style.color }}
+                    aria-hidden
+                  >
+                    <CategoryIconRender name={g.icon} className="size-3.5" />
+                  </div>
+                )}
+                <p className="text-sm font-bold text-foreground truncate">
+                  {t("trainingGoalFor", { name: g.name })}
+                </p>
+              </div>
+              <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full shrink-0">{tc("active")}</span>
+            </div>
+            <div className="px-6 py-4 flex flex-col gap-4">
+              {g.minProTagH && (
+                <GoalBar label={t("today")} actual={g.hoursToday} target={g.minProTagH}
+                  sub={`${formatHours(g.hoursToday, dl)} ${tc("of")} ${formatHours(g.minProTagH, dl)}`}
+                  reachedLabel={t("reached")} />
+              )}
+              {g.minProWocheH && (
+                <GoalBar label={t("thisWeek")} actual={g.hoursWeek} target={g.minProWocheH}
+                  sub={`${formatHours(g.hoursWeek, dl)} ${tc("of")} ${formatHours(g.minProWocheH, dl)}`}
+                  reachedLabel={t("reached")} />
+              )}
+              {g.minProMonatH && (
+                <GoalBar label={t("thisMonth")} actual={g.hoursMonth} target={g.minProMonatH}
+                  sub={`${formatHours(g.hoursMonth, dl)} ${tc("of")} ${formatHours(g.minProMonatH, dl)}`}
+                  reachedLabel={t("reached")} />
+              )}
+              {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}
+            </div>
+          </Card>
+        );
+      })}
 
       {/* Kalender */}
       {wearPairs.length > 0 && (
