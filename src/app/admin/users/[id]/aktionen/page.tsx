@@ -108,8 +108,22 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
             </div>
           )}
 
-          {/* Sperrdauer setzen */}
-          {isLocked && !hasActiveSperrzeit ? (
+          {/* Sperrdauer setzen / bearbeiten */}
+          {isLocked && hasActiveSperrzeit ? (
+            <Link
+              href={`/admin/users/${id}/aktionen/sperrdauer-edit`}
+              className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-sperrzeit-bg)" }}>
+                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">{t("editLockDuration")}</p>
+                <p className="text-xs text-foreground-faint">{t("editLockDurationHint")}</p>
+              </div>
+              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
+            </Link>
+          ) : isLocked ? (
             <Link
               href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
               className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
@@ -130,9 +144,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground-muted">{t("setLockDuration")}</p>
-                <p className="text-xs text-foreground-faint">
-                  {hasActiveSperrzeit ? t("alreadyHasSperrzeit") : t("entryOnlyIfLocked")}
-                </p>
+                <p className="text-xs text-foreground-faint">{t("entryOnlyIfLocked")}</p>
               </div>
             </div>
           )}

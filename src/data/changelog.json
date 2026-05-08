@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.28",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Admin → Aktionen: aktive Sperrdauer kann jetzt direkt zurückgezogen oder durch eine neue ersetzt werden. Die bisher inaktive „Sperrdauer setzen\"-Kachel führt bei aktiver Sperrzeit auf einen Bearbeiten-Dialog mit „Zurückziehen\" und „Ersetzen\"-Optionen." }
+    ]
+  },
+  {
     "version": "4.14.27",
     "date": "2026-05-08",
     "changes": [
