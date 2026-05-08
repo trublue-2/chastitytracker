@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.26",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Promo-Card auf dem Dashboard zeigte in DE die rohen i18n-Keys (dashboard.promoTitle/Body/Cta) statt der Übersetzungen — Keys lagen versehentlich nur im stats-Namespace. In den dashboard-Namespace verschoben." }
+    ]
+  },
+  {
     "version": "4.14.25",
     "date": "2026-05-08",
     "changes": [
