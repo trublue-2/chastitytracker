@@ -1,6 +1,7 @@
 import { assertAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import DevicesClient from "@/app/dashboard/geraete/DevicesClient";
 
 export default async function AdminDevicesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -54,6 +55,7 @@ export default async function AdminDevicesPage({ params }: { params: Promise<{ i
       categories={categories}
       userId={user.id}
       username={user.username}
+      showCategoriesLink={deviceCategoriesEnabled()}
     />
   );
 }

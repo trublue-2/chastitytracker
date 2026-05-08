@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import DevicesClient from "./DevicesClient";
 
 export default async function DevicesPage() {
@@ -47,6 +48,7 @@ export default async function DevicesPage() {
           entryCount: d._count.entries,
         }))}
         categories={categories}
+        showCategoriesLink={deviceCategoriesEnabled()}
       />
     </main>
   );

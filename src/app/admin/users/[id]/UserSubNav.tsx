@@ -6,15 +6,15 @@ import { useTranslations } from "next-intl";
 
 interface Props {
   userId: string;
-  showCategoriesTab?: boolean;
 }
 
-export default function UserSubNav({ userId, showCategoriesTab = false }: Props) {
+export default function UserSubNav({ userId }: Props) {
   const t = useTranslations("adminNav");
   const pathname = usePathname();
   const router = useRouter();
   const base = `/admin/users/${userId}`;
 
+  // Kategorien-Verwaltung lebt im Devices-Tab (per Button), nicht als eigener Reiter.
   const tabs = [
     { href: base, label: t("overview_tab"), exact: true },
     { href: `${base}/aktionen`, label: t("actions_tab"), exact: false },
@@ -23,9 +23,6 @@ export default function UserSubNav({ userId, showCategoriesTab = false }: Props)
     { href: `${base}/stats`, label: t("stats_tab"), exact: false },
     { href: `${base}/strafbuch`, label: t("strafbuch_tab"), exact: false },
     { href: `${base}/geraete`, label: t("devices_tab"), exact: false },
-    ...(showCategoriesTab
-      ? [{ href: `${base}/categories`, label: t("categories_tab"), exact: false }]
-      : []),
     { href: `${base}/einstellungen`, label: t("user_settings_tab"), exact: false },
   ];
 
