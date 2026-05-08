@@ -19,6 +19,9 @@ export default async function EintraegePage() {
   const entries = await prisma.entry.findMany({
     where: { userId },
     orderBy: { startTime: "desc" },
+    include: {
+      device: { select: { category: { select: { name: true, color: true, icon: true, isBuiltIn: true } } } },
+    },
   });
 
   return (
@@ -39,7 +42,12 @@ export default async function EintraegePage() {
             {entries.map((e) => (
               <EntryRow
                 key={e.id}
-                entry={e}
+                entry={{
+                  ...e,
+                  category: e.device?.category && !e.device.category.isBuiltIn
+                    ? { name: e.device.category.name, color: e.device.category.color, icon: e.device.category.icon }
+                    : null,
+                }}
                 locale={dl}
               />
             ))}
