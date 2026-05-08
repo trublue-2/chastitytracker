@@ -397,12 +397,15 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
       </div>
 
-      {/* Gesamtübersicht */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatsCard label={t("entries")} value={String(allPairs.length)} />
-        <StatsCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
-        <StatsCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
-        <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
+      {/* Übersicht KG-Tragen */}
+      <section className="flex flex-col gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatsCard label={t("entries")} value={String(allPairs.length)} />
+          <StatsCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
+          <StatsCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
+          <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
+        </div>
       </section>
 
       {/* Orgasmusfreie Zeit */}

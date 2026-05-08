@@ -409,6 +409,7 @@
     "currentSession": "Current session",
     "trainingGoals": "Training goals",
     "trainingGoalFor": "Training goal {name}",
+    "kgWearOverview": "KG wear overview",
     "wearCalendar": "Wear calendar",
     "notWorn": "Not worn",
     "dailyGoalReached": "Daily goal ✓",
