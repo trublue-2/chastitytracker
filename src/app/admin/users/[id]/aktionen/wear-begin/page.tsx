@@ -25,7 +25,7 @@ export default async function AdminWearBeginPage({
     getTranslations("wearForm"),
     prisma.deviceCategory.findUnique({
       where: { id: categoryId },
-      select: { id: true, userId: true, name: true, color: true, icon: true, isBuiltIn: true },
+      select: { id: true, userId: true, name: true, color: true, icon: true, isBuiltIn: true, requirePhoto: true },
     }),
     prisma.device.findMany({
       where: { userId, categoryId, archivedAt: null },
@@ -48,7 +48,7 @@ export default async function AdminWearBeginPage({
     >
       <WearForm
         kind="begin"
-        category={{ id: category.id, name: category.name, color: category.color, icon: category.icon }}
+        category={{ id: category.id, name: category.name, color: category.color, icon: category.icon, requirePhoto: category.requirePhoto }}
         devices={devices}
         adminUserId={userId}
         redirectTo={`/admin/users/${userId}/aktionen`}

@@ -34,10 +34,13 @@ export async function POST(req: NextRequest) {
         if (!deviceId) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_REQUIRED" });
         const dev = await tx.device.findUnique({
           where: { id: deviceId },
-          select: { categoryId: true, category: { select: { isBuiltIn: true } } },
+          select: { categoryId: true, category: { select: { isBuiltIn: true, requirePhoto: true } } },
         });
         if (!dev?.categoryId) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_NO_CATEGORY" });
         if (dev.category?.isBuiltIn) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_KG" });
+        if (type === "WEAR_BEGIN" && dev.category?.requirePhoto && !imageUrl) {
+          throw Object.assign(new Error(), { _code: "WEAR_PHOTO_REQUIRED" });
+        }
 
         const latestWear = await tx.entry.findFirst({
           where: {
@@ -100,6 +103,7 @@ export async function POST(req: NextRequest) {
     if (code === "WEAR_DEVICE_KG") return NextResponse.json({ error: "KG-Geräte verwenden Verschluss/Öffnen, nicht WEAR_BEGIN/END" }, { status: 400 });
     if (code === "ALREADY_WEARING") return NextResponse.json({ error: "Bereits aktive Session in dieser Kategorie" }, { status: 400 });
     if (code === "NOT_WEARING") return NextResponse.json({ error: "Keine aktive Session in dieser Kategorie" }, { status: 400 });
+    if (code === "WEAR_PHOTO_REQUIRED") return NextResponse.json({ error: "Foto ist bei dieser Kategorie zwingend" }, { status: 400 });
     throw e;
   }
 

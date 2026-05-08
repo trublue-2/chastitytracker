@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!category) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const { name, color, icon, sortOrder, trackingEnabled } = body;
+  const { name, color, icon, sortOrder, trackingEnabled, requirePhoto, allowVorgaben } = body;
 
   const validationError = validateCategoryInput({ name, color, icon });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: 400 });
@@ -38,6 +38,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (icon !== undefined) data.icon = icon;
   if (sortOrder !== undefined && typeof sortOrder === "number") data.sortOrder = sortOrder;
   if (trackingEnabled !== undefined && typeof trackingEnabled === "boolean") data.trackingEnabled = trackingEnabled;
+  if (requirePhoto !== undefined && typeof requirePhoto === "boolean") data.requirePhoto = requirePhoto;
+  if (allowVorgaben !== undefined && typeof allowVorgaben === "boolean") data.allowVorgaben = allowVorgaben;
 
   const updated = await prisma.deviceCategory.update({ where: { id }, data });
   return NextResponse.json(updated);

@@ -10,8 +10,12 @@ import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
+import PhotoCapture from "@/app/components/PhotoCapture";
+import RotatableImagePreview from "@/app/components/RotatableImagePreview";
+import FormField from "@/app/components/FormField";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
+import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { toDatetimeLocal, toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
@@ -22,6 +26,8 @@ interface Category {
   name: string;
   color: string;
   icon: string;
+  /** When true, WEAR_BEGIN entries require a photo. Ignored on WEAR_END. */
+  requirePhoto?: boolean;
 }
 
 interface DeviceOption {
@@ -40,6 +46,8 @@ interface EditInitial {
   startTime: string; // ISO
   note: string | null;
   deviceId: string | null;
+  imageUrl?: string | null;
+  imageExifTime?: string | null;
 }
 
 interface Props {
@@ -82,10 +90,26 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const photoRequired = !!category.requirePhoto && kind === "begin";
+  const {
+    imageUrl, imageExifTime, imagePreview, uploading,
+    rotation, rotateLeft, rotateRight,
+    handleFile, clearPhoto,
+  } = usePhotoUpload({
+    startTime,
+    enableSealDetection: false,
+    exifWarningText: () => "",
+    initial: initial?.imageUrl ? { imageUrl: initial.imageUrl, imageExifTime: initial.imageExifTime ?? null } : undefined,
+  });
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isEdit && !deviceId) {
       setError(t("deviceRequired"));
+      return;
+    }
+    if (photoRequired && !imageUrl) {
+      setError(t("photoRequired"));
       return;
     }
     setSaving(true);
@@ -93,11 +117,13 @@ export default function WearForm({ kind, category, devices, activeSession, admin
 
     const target = redirectTo ?? "/dashboard";
 
-    // Edit-mode: PATCH with the editable subset (startTime + note, plus deviceId for WEAR_BEGIN).
+    // Edit-mode: PATCH with the editable subset (startTime + note + photo, plus deviceId for WEAR_BEGIN).
     if (isEdit && initial) {
       const patchBody: Record<string, unknown> = {
         startTime: new Date(startTime).toISOString(),
         note: note.trim() || null,
+        imageUrl: imageUrl || null,
+        imageExifTime: imageExifTime || null,
       };
       if (kind === "begin") patchBody.deviceId = deviceId;
       const res = await fetch(`/api/entries/${initial.id}`, {
@@ -121,8 +147,8 @@ export default function WearForm({ kind, category, devices, activeSession, admin
       type: kind === "begin" ? "WEAR_BEGIN" : "WEAR_END",
       startTime: new Date(startTime).toISOString(),
       deviceId,
-      imageUrl: null,
-      imageExifTime: null,
+      imageUrl: imageUrl || null,
+      imageExifTime: imageExifTime || null,
       note: note.trim() || null,
     };
 
@@ -205,6 +231,34 @@ export default function WearForm({ kind, category, devices, activeSession, admin
           disabled={saving}
           hint={`${t("timezone")}: ${APP_TZ}`}
         />
+
+        {/* Photo — shown for WEAR_BEGIN. Required if category.requirePhoto. */}
+        {kind === "begin" && (
+          <FormField label={photoRequired ? t("photoRequiredLabel") : t("photoOptional")}>
+            {imagePreview ? (
+              <div className="flex items-start gap-4">
+                <RotatableImagePreview
+                  src={imagePreview}
+                  rotation={rotation}
+                  onRotateLeft={rotateLeft}
+                  onRotateRight={rotateRight}
+                />
+                <div className="flex flex-col gap-2 flex-1 pt-1">
+                  <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
+                  <button
+                    type="button"
+                    onClick={clearPhoto}
+                    className="text-xs text-warn hover:opacity-80 w-fit transition"
+                  >
+                    {tCommon("removePhoto")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
+            )}
+          </FormField>
+        )}
 
         <Textarea
           label={t("note")}

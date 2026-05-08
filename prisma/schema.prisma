@@ -48,7 +48,9 @@ model DeviceCategory {
   color           String   // CSS-variable suffix (e.g. "cat-steel", "cat-plum")
   icon            String   // lucide-react icon name (e.g. "Lock", "Crown")
   isBuiltIn       Boolean  @default(false) // true only for KG; cannot be deleted
-  trackingEnabled Boolean  @default(true)  // future: inventory-only categories
+  trackingEnabled Boolean  @default(true)  // when false: inventory-only, no wear sessions
+  requirePhoto    Boolean  @default(false) // when true: WEAR_BEGIN entries require an imageUrl
+  allowVorgaben   Boolean  @default(true)  // when false: category cannot be linked to TrainingVorgaben
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
 

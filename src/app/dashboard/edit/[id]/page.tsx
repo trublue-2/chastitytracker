@@ -34,7 +34,7 @@ export default async function EditEntryPage({
     prisma.entry.findUnique({
       where: { id },
       include: {
-        device: { select: { categoryId: true, category: { select: { id: true, name: true, color: true, icon: true } } } },
+        device: { select: { categoryId: true, category: { select: { id: true, name: true, color: true, icon: true, requirePhoto: true } } } },
       },
     }),
     currentUserId ? prisma.user.findUnique({ where: { id: currentUserId }, select: { mobileDesktopUpload: true } }) : null,
@@ -111,6 +111,8 @@ export default async function EditEntryPage({
             startTime: entry.startTime.toISOString(),
             note: entry.note,
             deviceId: entry.deviceId,
+            imageUrl: entry.imageUrl,
+            imageExifTime: entry.imageExifTime?.toISOString() ?? null,
           }}
           minTime={minTime}
           maxTime={maxTime}

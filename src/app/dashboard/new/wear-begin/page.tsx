@@ -17,7 +17,7 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
 
   const category = await prisma.deviceCategory.findUnique({
     where: { id: categoryId },
-    select: { id: true, userId: true, name: true, color: true, icon: true, isBuiltIn: true },
+    select: { id: true, userId: true, name: true, color: true, icon: true, isBuiltIn: true, requirePhoto: true },
   });
   if (!category || category.userId !== session.user.id || category.isBuiltIn) notFound();
 
@@ -54,7 +54,7 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("titleBegin")}</h1>
       <WearForm
         kind="begin"
-        category={{ id: category.id, name: category.name, color: category.color, icon: category.icon }}
+        category={{ id: category.id, name: category.name, color: category.color, icon: category.icon, requirePhoto: category.requirePhoto }}
         devices={devices}
       />
     </div>

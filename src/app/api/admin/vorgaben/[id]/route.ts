@@ -34,8 +34,14 @@ export async function PATCH(
   const { categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz } = await req.json();
   if (categoryId !== undefined && categoryId !== null) {
     if (typeof categoryId !== "string") return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
-    const cat = await prisma.deviceCategory.findUnique({ where: { id: categoryId }, select: { userId: true } });
+    const cat = await prisma.deviceCategory.findUnique({
+      where: { id: categoryId },
+      select: { userId: true, allowVorgaben: true, isBuiltIn: true },
+    });
     if (!cat || cat.userId !== existing.userId) return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+    if (!cat.isBuiltIn && !cat.allowVorgaben) {
+      return NextResponse.json({ error: "Diese Kategorie erlaubt keine Trainingsvorgaben" }, { status: 400 });
+    }
   }
   const vorgabe = await prisma.trainingVorgabe.update({
     where: { id },

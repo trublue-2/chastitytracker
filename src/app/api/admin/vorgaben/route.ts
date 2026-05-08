@@ -18,8 +18,15 @@ export async function POST(req: NextRequest) {
   }
   if (categoryId !== undefined && categoryId !== null) {
     if (typeof categoryId !== "string") return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
-    const cat = await prisma.deviceCategory.findUnique({ where: { id: categoryId }, select: { userId: true } });
+    const cat = await prisma.deviceCategory.findUnique({
+      where: { id: categoryId },
+      select: { userId: true, allowVorgaben: true, isBuiltIn: true },
+    });
     if (!cat || cat.userId !== userId) return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
+    // Built-in (KG) always allows vorgaben; user-defined respects the toggle.
+    if (!cat.isBuiltIn && !cat.allowVorgaben) {
+      return NextResponse.json({ error: "Diese Kategorie erlaubt keine Trainingsvorgaben" }, { status: 400 });
+    }
   }
 
   const vorgabe = await prisma.trainingVorgabe.create({
