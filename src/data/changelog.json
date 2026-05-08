@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.15.4",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Tragekalender Tag-Detail: WEAR_BEGIN/WEAR_END wurden als rohe Type-Strings angezeigt — fehlten in der TYPE_LABELS-Map des Calendar-Popups. Jetzt korrekt als „Tragen begonnen\" / „Tragen beendet\" lokalisiert." }
+    ]
+  },
+  {
     "version": "4.15.3",
     "date": "2026-05-08",
     "changes": [

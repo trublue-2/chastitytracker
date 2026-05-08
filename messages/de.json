@@ -780,6 +780,8 @@
     "typeOeffnen": "Öffnung",
     "typePruefung": "Kontrolle",
     "typeOrgasmus": "Orgasmus",
+    "typeWearBegin": "Tragen begonnen",
+    "typeWearEnd": "Tragen beendet",
     "monthGoal": "✓ Monatsziel"
   },
   "offline": {
