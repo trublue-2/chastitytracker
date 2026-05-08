@@ -37,6 +37,8 @@ export const TYPE_STATS_KEYS: Record<string, string> = {
   OEFFNEN: "opening",
   PRUEFUNG: "inspection",
   ORGASMUS: "orgasm",
+  WEAR_BEGIN: "wearBegin",
+  WEAR_END: "wearEnd",
 };
 
 /** Hex colors for HTML email templates (no Tailwind/CSS vars available in email) */
@@ -52,6 +54,8 @@ export const TYPE_COLORS: Record<string, string> = {
   OEFFNEN: "text-foreground-muted",
   PRUEFUNG: "text-[var(--color-inspect)]",
   ORGASMUS: "text-[var(--color-orgasm)]",
+  WEAR_BEGIN: "text-foreground-muted",
+  WEAR_END: "text-foreground-muted",
 };
 
 // ── Notification event types (shared by API + admin UI) ─────────────────────

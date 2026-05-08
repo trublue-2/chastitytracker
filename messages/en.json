@@ -393,6 +393,8 @@
     "week": "Week",
     "month": "Month",
     "entries": "Sessions",
+    "wearBegin": "Wear begin",
+    "wearEnd": "Wear end",
     "totalDuration": "Total duration",
     "orgasmFreeTime": "Orgasm-free time",
     "noEntry": "No entry",

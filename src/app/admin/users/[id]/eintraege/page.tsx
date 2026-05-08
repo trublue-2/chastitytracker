@@ -40,6 +40,9 @@ export default async function AdminUserEintraegePage({
       orderBy: { startTime: "desc" },
       skip: page * PAGE_SIZE,
       take: PAGE_SIZE,
+      include: {
+        device: { select: { category: { select: { name: true, color: true, icon: true, isBuiltIn: true } } } },
+      },
     }),
   ]);
 
@@ -63,7 +66,12 @@ export default async function AdminUserEintraegePage({
             {entries.map((e) => (
               <EntryRow
                 key={e.id}
-                entry={e}
+                entry={{
+                  ...e,
+                  category: e.device?.category && !e.device.category.isBuiltIn
+                    ? { name: e.device.category.name, color: e.device.category.color, icon: e.device.category.icon }
+                    : null,
+                }}
                 locale={dl}
                 actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=admin&userId=${id}`} />}
               />

@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.18",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Einträge-Liste zeigt WEAR_BEGIN/WEAR_END Einträge nun korrekt: Kategorie-Name + Symbol (z.B. „Plug ▶\") statt generischem Fallback. EntryRow rendert für WEAR-Types die Kategorie-Daten, die per device.category aus der DB geladen werden. User- und Admin-Einträge-Pages laden Category mit." }
+    ]
+  },
+  {
     "version": "4.14.17",
     "date": "2026-05-08",
     "changes": [
