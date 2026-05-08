@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { CATEGORY_COLOR_HEX, type CategoryColor } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
 
@@ -237,7 +237,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               ? `/admin/users/${id}/aktionen/wear-end?category=${c.id}`
               : `/admin/users/${id}/aktionen/wear-begin?category=${c.id}`;
             const subLabel = active ? `${tw("endShort")} · ${active.deviceName}` : tw("titleBegin");
-            const hex = CATEGORY_COLOR_HEX[c.color as CategoryColor] ?? "#64748b";
+            const style = categoryStyle(c.color);
             return (
               <Link
                 key={c.id}
@@ -246,7 +246,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               >
                 <div
                   className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: hex + "22" }}
+                  style={{ backgroundColor: style.backgroundColor, color: style.color }}
                 >
                   <CategoryIconRender name={c.icon} className="size-5" />
                 </div>

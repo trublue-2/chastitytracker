@@ -10,7 +10,7 @@ import {
   getMonthStart,
   toDateLocale,
 } from "@/lib/utils";
-import { CATEGORY_COLOR_HEX, type CategoryColor } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -64,12 +64,12 @@ export default async function WearStatsByCategory({ userId }: Props) {
         </h3>
         <ul className="flex flex-col gap-3">
           {blocks.map((b) => {
-            const hex = CATEGORY_COLOR_HEX[b.color as CategoryColor] ?? "#64748b";
+            const style = categoryStyle(b.color);
             return (
               <li key={b.id} className="flex items-center gap-3">
                 <div
                   className="size-9 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: hex + "22", color: hex }}
+                  style={{ backgroundColor: style.backgroundColor, color: style.color }}
                   aria-hidden
                 >
                   <CategoryIconRender name={b.icon} className="size-4" />

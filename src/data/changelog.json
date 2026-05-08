@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.14.20",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "WEAR-Einträge sind jetzt editierbar — /dashboard/edit/[id] hat einen WEAR-Branch, der WearForm in Edit-Modus rendert (PATCH statt POST). Anti-cheat: WEAR_BEGIN nur nach vorne, WEAR_END nur nach hinten verschiebbar (für Non-Admins)." },
+      { "type": "fix", "text": "Backend: PATCH /api/entries/[id] und DELETE handhaben jetzt WEAR_BEGIN/WEAR_END korrekt — Time-Direction-Enforcement, deviceId-Validation, Pair-Konsistenz und Chain-Break-Detection (per Kategorie skopiert)." },
+      { "type": "chore", "text": "Aufräumen: doppelte /dashboard/new-Page entfernt (NewEntrySheet ist die einzige primäre Surface), restliche Komponenten auf categoryStyle()-Helper migriert für Theme-Awareness, tote i18n-Keys (categories_tab) entfernt." }
+    ]
+  },
+  {
     "version": "4.14.19",
     "date": "2026-05-08",
     "changes": [

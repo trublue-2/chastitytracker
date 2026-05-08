@@ -13,7 +13,7 @@ import RequiredHint from "@/app/components/RequiredHint";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { toDatetimeLocal, toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
-import { CATEGORY_COLOR_HEX, type CategoryColor } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import type { WearBeginPayload, WearEndPayload, SubmitResult } from "@/app/entries/types";
 
@@ -35,6 +35,13 @@ interface ActiveSession {
   since: string; // ISO
 }
 
+interface EditInitial {
+  id: string;
+  startTime: string; // ISO
+  note: string | null;
+  deviceId: string | null;
+}
+
 interface Props {
   kind: "begin" | "end";
   category: Category;
@@ -46,9 +53,15 @@ interface Props {
   adminUserId?: string;
   /** Where to navigate on success (defaults to /dashboard, admin-mode should pass /admin/users/[id]/aktionen). */
   redirectTo?: string;
+  /** Edit-mode: existing entry to update (PATCH instead of POST). When set, deviceId is locked. */
+  initial?: EditInitial;
+  /** Earliest allowed startTime (anti-cheat for non-admin edits). Maps to <input min="...">. */
+  minTime?: string;
+  /** Latest allowed startTime (anti-cheat for non-admin edits). Maps to <input max="...">. */
+  maxTime?: string;
 }
 
-export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo }: Props) {
+export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime }: Props) {
   const t = useTranslations("wearForm");
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
@@ -56,24 +69,54 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   const router = useRouter();
   const toast = useToast();
   const { offlineFetch } = useOfflineQueue();
+  const isEdit = !!initial;
 
-  const [startTime, setStartTime] = useState(toDatetimeLocal(new Date()));
-  const [deviceId, setDeviceId] = useState<string>(
-    kind === "end" ? activeSession?.deviceId ?? "" : devices?.[0]?.id ?? "",
+  const [startTime, setStartTime] = useState(
+    initial ? toDatetimeLocal(initial.startTime) : toDatetimeLocal(new Date()),
   );
-  const [note, setNote] = useState("");
+  const [deviceId, setDeviceId] = useState<string>(
+    initial?.deviceId
+      ?? (kind === "end" ? activeSession?.deviceId ?? "" : devices?.[0]?.id ?? ""),
+  );
+  const [note, setNote] = useState(initial?.note ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!deviceId) {
+    if (!isEdit && !deviceId) {
       setError(t("deviceRequired"));
       return;
     }
     setSaving(true);
     setError("");
 
+    const target = redirectTo ?? "/dashboard";
+
+    // Edit-mode: PATCH with the editable subset (startTime + note, plus deviceId for WEAR_BEGIN).
+    if (isEdit && initial) {
+      const patchBody: Record<string, unknown> = {
+        startTime: new Date(startTime).toISOString(),
+        note: note.trim() || null,
+      };
+      if (kind === "begin") patchBody.deviceId = deviceId;
+      const res = await fetch(`/api/entries/${initial.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patchBody),
+      });
+      if (!res.ok) {
+        const data: { error?: string } = await res.json().catch(() => ({}));
+        setError(data?.error || tCommon("savingError"));
+        setSaving(false);
+        return;
+      }
+      toast.success(tDash("entryUpdated"));
+      router.push(target);
+      return;
+    }
+
+    // Create-mode: POST a full payload (with offline-queue support for user-mode).
     const payload: WearBeginPayload | WearEndPayload = {
       type: kind === "begin" ? "WEAR_BEGIN" : "WEAR_END",
       startTime: new Date(startTime).toISOString(),
@@ -90,7 +133,6 @@ export default function WearForm({ kind, category, devices, activeSession, admin
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     };
-    const target = redirectTo ?? "/dashboard";
     // Admin uses direct fetch (no offline queue — action is admin-driven, not field-use)
     const res = adminUserId
       ? await fetch(targetUrl, init)
@@ -111,7 +153,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
     window.location.href = target;
   }
 
-  const hex = CATEGORY_COLOR_HEX[category.color as CategoryColor] ?? "#64748b";
+  const style = categoryStyle(category.color);
 
   return (
     <Card>
@@ -120,7 +162,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
         <div className="flex items-center gap-3">
           <div
             className="size-10 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: hex + "22", color: hex }}
+            style={{ backgroundColor: style.backgroundColor, color: style.color }}
             aria-hidden
           >
             <CategoryIconRender name={category.icon} className="size-5" />
@@ -141,15 +183,15 @@ export default function WearForm({ kind, category, devices, activeSession, admin
           </div>
         )}
 
-        {/* Device picker (WEAR_BEGIN) */}
-        {kind === "begin" && (
+        {/* Device picker (WEAR_BEGIN, only when devices are passed — edit-mode without a list locks deviceId). */}
+        {kind === "begin" && devices && devices.length > 0 && (
           <Select
             label={t("device")}
             value={deviceId}
             onChange={(e) => setDeviceId(e.target.value)}
             required
-            disabled={saving || !devices || devices.length === 0}
-            options={(devices ?? []).map((d) => ({ value: d.id, label: d.name }))}
+            disabled={saving}
+            options={devices.map((d) => ({ value: d.id, label: d.name }))}
           />
         )}
 
@@ -157,7 +199,8 @@ export default function WearForm({ kind, category, devices, activeSession, admin
           label={t("time")}
           value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
-          max={toDatetimeLocal(new Date())}
+          min={minTime}
+          max={maxTime ?? toDatetimeLocal(new Date())}
           required
           disabled={saving}
           hint={`${t("timezone")}: ${APP_TZ}`}
