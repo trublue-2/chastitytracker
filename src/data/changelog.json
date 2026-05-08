@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.15.0",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Tragekalender umschaltbar pro Device-Kategorie: Pill-Picker oberhalb des Kalenders zeigt KG (Default) und alle eigenen Kategorien mit Tragezeiten. Jede Kategorie nutzt ihre eigenen Trainingsziele (Tag/Woche/Monat) für Rahmen, Wochen-Häkchen und Monatsziel-Pill. Orgasmus-Punkt nur in der KG-View. Picker erscheint nur, wenn mehr als eine Kategorie Daten hat — Single-KG-User sehen die Ansicht unverändert." },
+      { "type": "perf", "text": "Kalender-Zellen-Berechnung: Einträge werden einmal in eine YMD-Map gebucket statt pro Tag durchgefiltert (O(N×Tage) → O(N+Tage))." }
+    ]
+  },
+  {
     "version": "4.14.29",
     "date": "2026-05-08",
     "changes": [
