@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.27",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Trainingsvorgaben: gueltigBis-Verkettung läuft jetzt pro Kategorie statt über alle Kategorien hinweg. Bisher schloss z.B. eine neu angelegte Plug-Vorgabe ungewollt die laufende KG-Vorgabe. Pro Kategorie bleibt eine Vorgabe parallel aktiv. Bestehende falsche gueltigBis-Werte werden beim nächsten Speichern einer Vorgabe pro User korrigiert." }
+    ]
+  },
+  {
     "version": "4.14.26",
     "date": "2026-05-08",
     "changes": [
