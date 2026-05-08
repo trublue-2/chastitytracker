@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, color, icon, sortOrder } = body;
+  const { name, color, icon, sortOrder, trackingEnabled } = body;
 
   let userId = session.user.id;
   if (body.userId && body.userId !== session.user.id) {
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       color: (color as string | undefined) ?? DEFAULT_USER_CATEGORY_COLOR,
       icon: (icon as string | undefined) ?? DEFAULT_USER_CATEGORY_ICON,
       isBuiltIn: false,
-      trackingEnabled: true,
+      trackingEnabled: typeof trackingEnabled === "boolean" ? trackingEnabled : true,
       sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
     },
   });

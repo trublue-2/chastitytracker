@@ -808,6 +808,8 @@
     "name": "Name",
     "color": "Color",
     "icon": "Icon",
+    "trackingEnabled": "Track wear time",
+    "trackingEnabledHint": "When on, devices in this category can be tracked in sessions. Otherwise inventory only.",
     "builtInBadge": "Built-in",
     "edit": "Edit",
     "delete": "Delete",

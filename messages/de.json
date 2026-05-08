@@ -808,6 +808,8 @@
     "name": "Name",
     "color": "Farbe",
     "icon": "Symbol",
+    "trackingEnabled": "Tragezeiten erfassen",
+    "trackingEnabledHint": "Wenn aktiv: Devices dieser Kategorie können in Sessions getragen werden. Sonst nur Inventar-Eintrag.",
     "builtInBadge": "Eingebaut",
     "edit": "Bearbeiten",
     "delete": "Löschen",
