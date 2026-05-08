@@ -6,6 +6,7 @@ import {
   buildPairs, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
+  buildWearPairs, wearingHoursFromPairs, WEAR_PAIR,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
@@ -16,6 +17,7 @@ import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 import ActiveWearSessions from "./ActiveWearSessions";
+import CategoriesPromoCard from "./CategoriesPromoCard";
 import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
 
@@ -163,11 +165,19 @@ export default async function DashboardPage() {
         }))}
         serverNow={now.toISOString()}
       />
+      {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
       {flagOn && <CategoryGoalsToday userId={userId} />}
       <InactiveCategories
-        categories={allNonKgCategories.filter(
-          (c) => !wearSessions.some((s) => s.categoryId === c.id),
-        )}
+        categories={allNonKgCategories
+          .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))
+          .map((c) => ({
+            ...c,
+            todayHours: wearingHoursFromPairs(
+              buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: c.id }),
+              getMidnightToday(now),
+              now,
+            ),
+          }))}
       />
       <DashboardClient {...clientProps} />
       {pairs.length > 0 && (

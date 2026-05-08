@@ -1,5 +1,16 @@
 [
   {
+    "version": "4.14.23",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Naming-Polish: WEAR-Einträge in der Liste zeigen „Plug · Beginn\" / „Plug · Ende\" statt der ▶/■-Symbole; „Inaktive Kategorien\" → „Nicht getragen\" (klarer)." },
+      { "type": "ui", "text": "Inaktive-Kategorien-Zeile auf Dashboard zeigt nun „Heute Xh\" wenn die Kategorie heute getragen wurde aber gerade nicht aktiv ist." },
+      { "type": "ui", "text": "Erstmal-Promo-Card auf Dashboard: wenn der User noch keine eigenen Kategorien hat, erscheint ein dezenter Hinweis mit Link zur Kategorie-Anlage. Per X-Button dauerhaft schliessbar (localStorage)." },
+      { "type": "chore", "text": "WEAR-Validation extrahiert in lib/queries.ts → prepareWearEntry(). Single Source of Truth für /api/entries und /api/admin/entries — keine Bug-Fix-Drift mehr zwischen den beiden." },
+      { "type": "feat", "text": "Eigene Kategorien können in der Liste per Pfeil-Buttons (▲/▼) umsortiert werden — sortOrder-Tausch via PATCH." }
+    ]
+  },
+  {
     "version": "4.14.22",
     "date": "2026-05-08",
     "changes": [

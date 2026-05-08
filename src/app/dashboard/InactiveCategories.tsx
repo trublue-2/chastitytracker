@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { ChevronDown, Plus } from "lucide-react";
 import Card from "@/app/components/Card";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import { formatHours, toDateLocale } from "@/lib/utils";
 
 export interface InactiveCategoryRow {
   id: string;
   name: string;
   color: string;
   icon: string;
+  /** Hours worn today in this category (already 0 if no sessions). */
+  todayHours: number;
 }
 
 interface Props {
@@ -24,6 +27,8 @@ interface Props {
  *  Tap to expand → one row per inactive category with quick-start link. */
 export default function InactiveCategories({ categories }: Props) {
   const t = useTranslations("wearForm");
+  const tStats = useTranslations("stats");
+  const dl = toDateLocale(useLocale());
   const [open, setOpen] = useState(false);
 
   if (categories.length === 0) return null;
@@ -62,9 +67,14 @@ export default function InactiveCategories({ categories }: Props) {
                     >
                       <CategoryIconRender name={c.icon} className="size-4" />
                     </div>
-                    <span className="text-sm font-medium text-foreground truncate flex-1">
-                      {c.name}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                      {c.todayHours > 0 && (
+                        <p className="text-xs text-foreground-faint">
+                          {tStats("day")} {formatHours(c.todayHours, dl)}
+                        </p>
+                      )}
+                    </div>
                     <span className="text-xs text-foreground-faint shrink-0 flex items-center gap-1">
                       <Plus size={12} />
                       {t("titleBegin")}

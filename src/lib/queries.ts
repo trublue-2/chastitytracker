@@ -58,6 +58,63 @@ export interface ActiveWearSession {
   since: Date;
 }
 
+/** Result of `prepareWearEntry` — never thrown, returned for the route to inspect. */
+export type WearPrepareResult =
+  | { ok: true; categoryId: string }
+  | { ok: false; code:
+      | "WEAR_DEVICE_REQUIRED"
+      | "WEAR_DEVICE_NO_CATEGORY"
+      | "WEAR_DEVICE_KG"
+      | "WEAR_PHOTO_REQUIRED"
+      | "ALREADY_WEARING"
+      | "NOT_WEARING"
+      | "TIME_BEFORE";
+    };
+
+/** Validates a WEAR_BEGIN/WEAR_END create-payload against the device's category and the
+ *  user's session state. Runs inside the caller's transaction so reads are consistent.
+ *  Both /api/entries and /api/admin/entries call this — single source of truth for the
+ *  WEAR-pair invariants. */
+export async function prepareWearEntry(
+  tx: PrismaTx,
+  userId: string,
+  type: "WEAR_BEGIN" | "WEAR_END",
+  deviceId: string | undefined,
+  startTime: string | Date,
+  imageUrl: string | null | undefined,
+): Promise<WearPrepareResult> {
+  if (!deviceId) return { ok: false, code: "WEAR_DEVICE_REQUIRED" };
+  const dev = await tx.device.findUnique({
+    where: { id: deviceId },
+    select: { categoryId: true, category: { select: { isBuiltIn: true, requirePhoto: true } } },
+  });
+  if (!dev?.categoryId) return { ok: false, code: "WEAR_DEVICE_NO_CATEGORY" };
+  if (dev.category?.isBuiltIn) return { ok: false, code: "WEAR_DEVICE_KG" };
+  if (type === "WEAR_BEGIN" && dev.category?.requirePhoto && !imageUrl) {
+    return { ok: false, code: "WEAR_PHOTO_REQUIRED" };
+  }
+
+  const latestWear = await tx.entry.findFirst({
+    where: {
+      userId,
+      type: { in: ["WEAR_BEGIN", "WEAR_END"] },
+      device: { categoryId: dev.categoryId },
+    },
+    orderBy: { startTime: "desc" },
+    select: { type: true, startTime: true },
+  });
+  if (type === "WEAR_BEGIN" && latestWear?.type === "WEAR_BEGIN") {
+    return { ok: false, code: "ALREADY_WEARING" };
+  }
+  if (type === "WEAR_END" && (!latestWear || latestWear.type !== "WEAR_BEGIN")) {
+    return { ok: false, code: "NOT_WEARING" };
+  }
+  if (latestWear && new Date(startTime) <= latestWear.startTime) {
+    return { ok: false, code: "TIME_BEFORE" };
+  }
+  return { ok: true, categoryId: dev.categoryId };
+}
+
 /** Returns all currently active wear sessions across non-KG categories.
  *  Used by the dashboard to render parallel session cards. */
 export async function getActiveWearSessions(userId: string): Promise<(ActiveWearSession & {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
 
 export async function POST(req: NextRequest) {
@@ -29,34 +29,10 @@ export async function POST(req: NextRequest) {
         if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
       }
 
-      // WEAR_BEGIN / WEAR_END: deviceId required, must be non-KG, no parallel session in category.
+      // WEAR_BEGIN / WEAR_END: shared validation lives in lib/queries.ts (single source of truth).
       if (type === "WEAR_BEGIN" || type === "WEAR_END") {
-        if (!deviceId) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_REQUIRED" });
-        const dev = await tx.device.findUnique({
-          where: { id: deviceId },
-          select: { categoryId: true, category: { select: { isBuiltIn: true, requirePhoto: true } } },
-        });
-        if (!dev?.categoryId) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_NO_CATEGORY" });
-        if (dev.category?.isBuiltIn) throw Object.assign(new Error(), { _code: "WEAR_DEVICE_KG" });
-        if (type === "WEAR_BEGIN" && dev.category?.requirePhoto && !imageUrl) {
-          throw Object.assign(new Error(), { _code: "WEAR_PHOTO_REQUIRED" });
-        }
-
-        const latestWear = await tx.entry.findFirst({
-          where: {
-            userId,
-            type: { in: ["WEAR_BEGIN", "WEAR_END"] },
-            device: { categoryId: dev.categoryId },
-          },
-          orderBy: { startTime: "desc" },
-          select: { type: true, startTime: true },
-        });
-        if (type === "WEAR_BEGIN" && latestWear?.type === "WEAR_BEGIN") {
-          throw Object.assign(new Error(), { _code: "ALREADY_WEARING" });
-        }
-        if (type === "WEAR_END" && (!latestWear || latestWear.type !== "WEAR_BEGIN")) {
-          throw Object.assign(new Error(), { _code: "NOT_WEARING" });
-        }
+        const wearResult = await prepareWearEntry(tx, userId, type, deviceId, startTime, imageUrl);
+        if (!wearResult.ok) throw Object.assign(new Error(), { _code: wearResult.code });
       }
 
       if (type === "VERSCHLUSS") {

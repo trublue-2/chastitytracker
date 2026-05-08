@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { formatHours, toDateLocale } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, ChevronUp, ChevronDown } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
@@ -70,6 +70,31 @@ export default function CategoriesClient({ categories: initial, userId, username
   function handleSaved() {
     closeForm();
     router.refresh();
+  }
+
+  /** Swap sortOrder of two adjacent custom categories. Sends two PATCH calls and refreshes. */
+  async function handleSwap(a: CategoryRow, b: CategoryRow) {
+    try {
+      const [resA, resB] = await Promise.all([
+        fetch(`/api/categories/${a.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sortOrder: b.sortOrder }),
+        }),
+        fetch(`/api/categories/${b.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sortOrder: a.sortOrder }),
+        }),
+      ]);
+      if (!resA.ok || !resB.ok) {
+        toast.error(tCommon("error"));
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error(tCommon("networkError"));
+    }
   }
 
   async function handleDelete() {
@@ -138,7 +163,12 @@ export default function CategoriesClient({ categories: initial, userId, username
           action={{ label: t("addCategory"), onClick: openAdd }}
         />
       ) : (
-        <CategoryList categories={initial} onEdit={openEdit} onDelete={(c) => setDeleteModal(c)} />
+        <CategoryList
+          categories={initial}
+          onEdit={openEdit}
+          onDelete={(c) => setDeleteModal(c)}
+          onSwap={handleSwap}
+        />
       )}
 
       <ActionModal
@@ -171,10 +201,12 @@ function CategoryList({
   categories,
   onEdit,
   onDelete,
+  onSwap,
 }: {
   categories: CategoryRow[];
   onEdit: (c: CategoryRow) => void;
   onDelete: (c: CategoryRow) => void;
+  onSwap: (a: CategoryRow, b: CategoryRow) => void;
 }) {
   const t = useTranslations("categories");
   const builtIn = categories.filter((c) => c.isBuiltIn);
@@ -193,8 +225,15 @@ function CategoryList({
       {custom.length > 0 && (
         <Section title={t("sectionCustom")}>
           <ul className="flex flex-col gap-3">
-            {custom.map((c) => (
-              <CategoryRowItem key={c.id} category={c} onEdit={onEdit} onDelete={onDelete} />
+            {custom.map((c, i) => (
+              <CategoryRowItem
+                key={c.id}
+                category={c}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onMoveUp={i > 0 ? () => onSwap(c, custom[i - 1]) : undefined}
+                onMoveDown={i < custom.length - 1 ? () => onSwap(c, custom[i + 1]) : undefined}
+              />
             ))}
           </ul>
         </Section>
@@ -216,10 +255,16 @@ function CategoryRowItem({
   category: c,
   onEdit,
   onDelete,
+  onMoveUp,
+  onMoveDown,
 }: {
   category: CategoryRow;
   onEdit: (c: CategoryRow) => void;
   onDelete: (c: CategoryRow) => void;
+  /** Set when this row can move up — disabled (undefined) for the first custom row. */
+  onMoveUp?: () => void;
+  /** Set when this row can move down — disabled for the last custom row. */
+  onMoveDown?: () => void;
 }) {
   const t = useTranslations("categories");
   const dl = toDateLocale(useLocale());
@@ -254,6 +299,28 @@ function CategoryRowItem({
             <p className="text-xs text-foreground-faint mt-0.5">{featureLine}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {(onMoveUp || onMoveDown) && (
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={onMoveUp}
+                  disabled={!onMoveUp}
+                  aria-label={t("moveUp")}
+                  className="size-5 flex items-center justify-center text-foreground-muted hover:bg-background-subtle rounded disabled:opacity-30 disabled:hover:bg-transparent transition"
+                >
+                  <ChevronUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onMoveDown}
+                  disabled={!onMoveDown}
+                  aria-label={t("moveDown")}
+                  className="size-5 flex items-center justify-center text-foreground-muted hover:bg-background-subtle rounded disabled:opacity-30 disabled:hover:bg-transparent transition"
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => onEdit(c)}
