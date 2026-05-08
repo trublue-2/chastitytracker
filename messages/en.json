@@ -835,6 +835,7 @@
     "pricePlaceholder": "e.g. 150",
     "currency": "Currency",
     "category": "Category",
+    "manageCategories": "Manage categories →",
     "saved": "Device saved",
     "updated": "Device updated",
     "archived": "Device archived",

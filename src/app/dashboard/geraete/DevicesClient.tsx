@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Lock, Plus, Pencil, Trash2, ArchiveRestore } from "lucide-react";
+import { Lock, Plus, Pencil, Trash2, ArchiveRestore, Tags } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
@@ -38,9 +39,11 @@ interface Props {
   /** Admin mode: managing another user's devices */
   userId?: string;
   username?: string;
+  /** When true, render a link to category management. Set by server based on feature flag. */
+  showCategoriesLink?: boolean;
 }
 
-export default function DevicesClient({ devices: initialDevices, categories, userId, username }: Props) {
+export default function DevicesClient({ devices: initialDevices, categories, userId, username, showCategoriesLink = false }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
   const router = useRouter();
@@ -145,6 +148,9 @@ export default function DevicesClient({ devices: initialDevices, categories, use
   }
 
   // ── Device list view ──
+  const categoriesHref = userId
+    ? `/admin/users/${userId}/categories`
+    : "/dashboard/categories";
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -154,6 +160,16 @@ export default function DevicesClient({ devices: initialDevices, categories, use
           {t("addDevice")}
         </Button>
       </div>
+
+      {showCategoriesLink && (
+        <Link
+          href={categoriesHref}
+          className="flex items-center gap-2 text-sm text-foreground-muted hover:text-foreground transition px-1"
+        >
+          <Tags size={14} className="text-foreground-faint" />
+          <span>{t("manageCategories")}</span>
+        </Link>
+      )}
 
       {/* Archived toggle */}
       {hasArchived && (
