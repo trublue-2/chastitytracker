@@ -30,7 +30,7 @@ export interface SessionListData {
   sessionEndIso: string | null;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 export default function SessionListClient({ sessions }: { sessions: SessionListData[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
