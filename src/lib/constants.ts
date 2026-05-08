@@ -67,6 +67,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   "ORGASMUS",
   "KONTROLLE_FREIWILLIG",
   "KONTROLLE_ANGEFORDERT",
+  "WEAR_BEGIN_ANY",
+  "WEAR_END_ANY",
 ] as const;
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
