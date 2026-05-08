@@ -836,6 +836,7 @@
     "currency": "Currency",
     "category": "Category",
     "manageCategories": "Manage categories →",
+    "filterAll": "All",
     "saved": "Device saved",
     "updated": "Device updated",
     "archived": "Device archived",

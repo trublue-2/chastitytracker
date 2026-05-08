@@ -50,15 +50,34 @@ export default function DevicesClient({ devices: initialDevices, categories, use
   const toast = useToast();
 
   const [showArchived, setShowArchived] = useState(false);
+  const [filterCategoryId, setFilterCategoryId] = useState<string | "all">("all");
   const [formMode, setFormMode] = useState<"closed" | "add" | "edit">("closed");
   const [editDevice, setEditDevice] = useState<DeviceRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeviceRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const visibleDevices = showArchived
+  const archiveFiltered = showArchived
     ? initialDevices
     : initialDevices.filter((d) => !d.archivedAt);
+  const visibleDevices = filterCategoryId === "all"
+    ? archiveFiltered
+    : archiveFiltered.filter((d) => d.categoryId === filterCategoryId);
   const hasArchived = initialDevices.some((d) => d.archivedAt);
+  const showFilter = (categories?.length ?? 0) > 1;
+
+  // Group devices by category for the rendered list (only when filter = "all").
+  type Group = { category: CategoryOption | null; devices: DeviceRow[] };
+  const groupedByCategory: Group[] = (() => {
+    if (filterCategoryId !== "all" || !categories || categories.length <= 1) {
+      return [{ category: null, devices: visibleDevices }];
+    }
+    const groups: Group[] = categories
+      .map((c): Group => ({ category: c, devices: visibleDevices.filter((d) => d.categoryId === c.id) }))
+      .filter((g) => g.devices.length > 0);
+    const orphans = visibleDevices.filter((d) => !d.categoryId);
+    if (orphans.length > 0) groups.push({ category: null, devices: orphans });
+    return groups;
+  })();
 
   function openAdd() {
     setEditDevice(null);
@@ -171,6 +190,25 @@ export default function DevicesClient({ devices: initialDevices, categories, use
         </Link>
       )}
 
+      {/* Category filter chips */}
+      {showFilter && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          <FilterChip
+            label={t("filterAll")}
+            active={filterCategoryId === "all"}
+            onClick={() => setFilterCategoryId("all")}
+          />
+          {categories!.map((c) => (
+            <FilterChip
+              key={c.id}
+              label={c.name}
+              active={filterCategoryId === c.id}
+              onClick={() => setFilterCategoryId(c.id)}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Archived toggle */}
       {hasArchived && (
         <Toggle
@@ -180,7 +218,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
         />
       )}
 
-      {/* Device list */}
+      {/* Device list — grouped by category when filter = all and >1 category */}
       {visibleDevices.length === 0 ? (
         <EmptyState
           icon={<Lock size={40} />}
@@ -189,15 +227,26 @@ export default function DevicesClient({ devices: initialDevices, categories, use
           action={{ label: t("addDevice"), onClick: openAdd }}
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {visibleDevices.map((device) => (
-            <DeviceCard
-              key={device.id}
-              device={device}
-              onEdit={() => openEdit(device)}
-              onDelete={() => setDeleteModal(device)}
-              onRestore={() => handleRestore(device)}
-            />
+        <div className="flex flex-col gap-5">
+          {groupedByCategory.map((group) => (
+            <div key={group.category?.id ?? "none"} className="flex flex-col gap-2">
+              {group.category && (
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">
+                  {group.category.name}
+                </h2>
+              )}
+              <div className="flex flex-col gap-3">
+                {group.devices.map((device) => (
+                  <DeviceCard
+                    key={device.id}
+                    device={device}
+                    onEdit={() => openEdit(device)}
+                    onDelete={() => setDeleteModal(device)}
+                    onRestore={() => handleRestore(device)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -311,3 +360,21 @@ function DeviceCard({
     </Card>
   );
 }
+
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium border transition ${
+        active
+          ? "bg-foreground text-background border-foreground"
+          : "bg-surface text-foreground-muted border-border hover:border-foreground-muted"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
