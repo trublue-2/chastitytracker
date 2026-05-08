@@ -125,55 +125,7 @@ export default function CategoriesClient({ categories: initial, userId, username
           action={{ label: t("addCategory"), onClick: openAdd }}
         />
       ) : (
-        <ul className="flex flex-col gap-3">
-          {initial.map((c) => {
-            const hex = CATEGORY_COLOR_HEX[c.color as CategoryColor] ?? "#64748b";
-            return (
-              <li key={c.id}>
-                <Card>
-                  <div className="flex items-start gap-3 p-4">
-                    <div
-                      className="shrink-0 size-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: hex + "22", color: hex }}
-                      aria-hidden
-                    >
-                      <CategoryIconRender name={c.icon} className="size-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-base font-medium truncate">{c.name}</span>
-                        {c.isBuiltIn && <Badge variant="lock" size="sm" label={t("builtInBadge")} />}
-                      </div>
-                      <p className="text-xs text-foreground-muted mt-0.5">
-                        {t("usageStats", { devices: c.deviceCount, vorgaben: c.vorgabeCount })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(c)}
-                        className="size-9 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-background-subtle transition"
-                        aria-label={t("edit")}
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      {!c.isBuiltIn && (
-                        <button
-                          type="button"
-                          onClick={() => setDeleteModal(c)}
-                          className="size-9 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-background-subtle transition"
-                          aria-label={t("delete")}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+        <CategoryList categories={initial} onEdit={openEdit} onDelete={(c) => setDeleteModal(c)} />
       )}
 
       <ActionModal
@@ -197,5 +149,117 @@ export default function CategoriesClient({ categories: initial, userId, username
         </div>
       </ActionModal>
     </div>
+  );
+}
+
+/** Renders the categories list — Built-in (System) on top, user-defined below.
+ *  Each row shows a feature-summary line per Mockup #6. */
+function CategoryList({
+  categories,
+  onEdit,
+  onDelete,
+}: {
+  categories: CategoryRow[];
+  onEdit: (c: CategoryRow) => void;
+  onDelete: (c: CategoryRow) => void;
+}) {
+  const t = useTranslations("categories");
+  const builtIn = categories.filter((c) => c.isBuiltIn);
+  const custom = categories.filter((c) => !c.isBuiltIn);
+  return (
+    <div className="flex flex-col gap-5">
+      {builtIn.length > 0 && (
+        <Section title={t("sectionSystem")}>
+          <ul className="flex flex-col gap-3">
+            {builtIn.map((c) => (
+              <CategoryRowItem key={c.id} category={c} onEdit={onEdit} onDelete={onDelete} />
+            ))}
+          </ul>
+        </Section>
+      )}
+      {custom.length > 0 && (
+        <Section title={t("sectionCustom")}>
+          <ul className="flex flex-col gap-3">
+            {custom.map((c) => (
+              <CategoryRowItem key={c.id} category={c} onEdit={onEdit} onDelete={onDelete} />
+            ))}
+          </ul>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function CategoryRowItem({
+  category: c,
+  onEdit,
+  onDelete,
+}: {
+  category: CategoryRow;
+  onEdit: (c: CategoryRow) => void;
+  onDelete: (c: CategoryRow) => void;
+}) {
+  const t = useTranslations("categories");
+  const hex = CATEGORY_COLOR_HEX[c.color as CategoryColor] ?? "#64748b";
+  // Per mockup #6: KG shows built-in features ("Foto-Pflicht · Siegel · Kontrollen"),
+  // others show "ohne Foto-Pflicht" or "Inventar-only" if tracking disabled.
+  const featureLine = !c.trackingEnabled
+    ? t("featuresInventoryOnly")
+    : c.isBuiltIn
+      ? t("featuresKg")
+      : t("featuresWear");
+  return (
+    <li>
+      <Card>
+        <div className="flex items-start gap-3 p-4">
+          <div
+            className="shrink-0 size-10 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: hex + "22", color: hex }}
+            aria-hidden
+          >
+            <CategoryIconRender name={c.icon} className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-base font-medium truncate">{c.name}</span>
+              {c.isBuiltIn && <Badge variant="lock" size="sm" label={t("builtInBadge")} />}
+            </div>
+            <p className="text-xs text-foreground-muted mt-0.5">
+              {t("usageStats", { devices: c.deviceCount, vorgaben: c.vorgabeCount })}
+            </p>
+            <p className="text-xs text-foreground-faint mt-0.5">{featureLine}</p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => onEdit(c)}
+              className="size-9 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-background-subtle transition"
+              aria-label={t("edit")}
+            >
+              <Pencil size={16} />
+            </button>
+            {!c.isBuiltIn && (
+              <button
+                type="button"
+                onClick={() => onDelete(c)}
+                className="size-9 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-background-subtle transition"
+                aria-label={t("delete")}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+      </Card>
+    </li>
   );
 }
