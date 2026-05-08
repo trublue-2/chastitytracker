@@ -5,10 +5,13 @@ import OfflineIndicator from "@/app/components/OfflineIndicator";
 import ThemeApplicator from "@/app/components/ThemeApplicator";
 import DashboardBottomNav from "./DashboardBottomNav";
 import { auth } from "@/lib/auth";
-import { getIsLocked } from "@/lib/queries";
+import { prisma } from "@/lib/prisma";
+import { getIsLocked, getActiveWearSessions } from "@/lib/queries";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import { formatBuildDate } from "@/lib/utils";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
+import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -17,7 +20,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const buildDate = formatBuildDate();
 
-  const isLocked = userId ? await getIsLocked(userId) : false;
+  const flagOn = deviceCategoriesEnabled();
+  const [isLocked, categories, activeWear] = await Promise.all([
+    userId ? getIsLocked(userId) : Promise.resolve(false),
+    userId && flagOn
+      ? prisma.deviceCategory.findMany({
+          where: { userId, isBuiltIn: false, trackingEnabled: true },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: { id: true, name: true, color: true, icon: true },
+        })
+      : Promise.resolve([]),
+    userId && flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
+  ]);
+  const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
+  const categoryRows: NewEntryCategoryRow[] = categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+    icon: c.icon,
+    activeDeviceName: activeByCategory.get(c.id)?.deviceName ?? null,
+  }));
 
   return (
     <div className="min-h-screen bg-background" data-theme="user">
@@ -29,6 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isLocked={isLocked}
         version={pkg.version}
         buildDate={buildDate}
+        categoryRows={categoryRows}
       />
 
       {/* Content area: offset for sidebar on desktop, offset for bottom nav on mobile */}
@@ -44,6 +67,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isLocked={isLocked}
         version={pkg.version}
         buildDate={buildDate}
+        categoryRows={categoryRows}
       />
       <InstallBanner />
     </div>

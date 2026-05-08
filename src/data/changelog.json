@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.17",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "User-Bottom-Sheet „Neu erfassen\" zeigt jetzt auch Plug, Halsband etc. — bisher fehlten die Kategorien-Aktionen, weil das Sheet (NewEntrySheet) hardcoded auf 4 Standard-Aktionen war. Layout lädt aktive Wear-Sessions und gibt sie über DesktopSidebar/DashboardBottomNav an das Sheet durch." }
+    ]
+  },
+  {
     "version": "4.14.16",
     "date": "2026-05-08",
     "changes": [

@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import BottomNav from "@/app/components/BottomNav";
-import NewEntrySheet from "@/app/components/NewEntrySheet";
+import NewEntrySheet, { type NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
 
 interface Props {
   isAdmin?: boolean;
   isLocked: boolean;
   version?: string;
   buildDate?: string;
+  categoryRows?: NewEntryCategoryRow[];
 }
 
-export default function DashboardBottomNav({ isAdmin, isLocked, version, buildDate }: Props) {
+export default function DashboardBottomNav({ isAdmin, isLocked, version, buildDate, categoryRows }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -27,6 +28,7 @@ export default function DashboardBottomNav({ isAdmin, isLocked, version, buildDa
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         isLocked={isLocked}
+        categoryRows={categoryRows}
       />
     </>
   );
