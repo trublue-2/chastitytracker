@@ -409,6 +409,7 @@
     "currentSession": "Aktuelle Session",
     "trainingGoals": "Trainingsziele",
     "trainingGoalFor": "Trainingsziel {name}",
+    "kgWearOverview": "Übersicht KG-Tragen",
     "wearCalendar": "Tragekalender",
     "notWorn": "Nicht getragen",
     "dailyGoalReached": "Tagesziel ✓",

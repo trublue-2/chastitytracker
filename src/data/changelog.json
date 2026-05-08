@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.29",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Stats-Seite: Die vier Top-Stats (Sessions, Gesamtdauer, Ø Dauer, Kein Foto) sind jetzt unter der Section-Überschrift „Übersicht KG-Tragen\" gruppiert — macht klarer, dass diese Werte sich nur auf die KG-Sessions beziehen, nicht auf andere Devices." }
+    ]
+  },
+  {
     "version": "4.14.28",
     "date": "2026-05-08",
     "changes": [
