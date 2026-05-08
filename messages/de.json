@@ -404,6 +404,7 @@
     "noEntry": "Kein Eintrag",
     "currentSession": "Aktuelle Session",
     "trainingGoals": "Trainingsziele",
+    "trainingGoalFor": "Trainingsziel {name}",
     "promoTitle": "Tracke mehr als nur KG",
     "promoBody": "Lege Kategorien wie Plug, Halsband oder Cuffs an — eigene Tragezeiten, eigene Statistik, eigene Trainingsziele.",
     "promoCta": "Kategorie anlegen",

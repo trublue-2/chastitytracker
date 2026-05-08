@@ -1,5 +1,15 @@
 import { prisma } from "@/lib/prisma";
 
+/** True if the vorgabe targets the built-in KG category (or is legacy pre-migration
+ *  with no category). Centralizes the predicate so calendar/monthstats and goal-card
+ *  filtering stay in sync. */
+export function isKgVorgabe(v: {
+  categoryId?: string | null;
+  category?: { isBuiltIn: boolean } | null;
+}): boolean {
+  return !v.categoryId || v.category?.isBuiltIn === true;
+}
+
 /**
  * Sortiert alle Vorgaben eines Users nach gueltigAb und setzt die Enddaten
  * automatisch: jede Vorgabe endet am Startdatum der nächstneueren.

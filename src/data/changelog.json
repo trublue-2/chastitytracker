@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.14.25",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Stats-Seite zeigt jetzt eine eigene Trainingsziel-Card pro aktiver Vorgabe — KG zuerst, dann Plug/Halsband/etc. nach Name. Jede Card mit Kategorie-Icon, Titel „Trainingsziel KG/Plug/…\", und Tag/Wochen/Monats-Fortschrittsbalken aus den jeweiligen Tragezeiten der Kategorie." },
+      { "type": "chore", "text": "isKgVorgabe-Predicate aus StatsMain in lib/vorgaben.ts extrahiert — Single Source of Truth für „ist diese Vorgabe KG?\"." }
+    ]
+  },
+  {
     "version": "4.14.24",
     "date": "2026-05-08",
     "changes": [
