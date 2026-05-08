@@ -103,8 +103,7 @@
     "user_settings_tab": "Settings",
     "stats_tab": "Statistics",
     "strafbuch_tab": "Log",
-    "devices_tab": "Devices",
-    "categories_tab": "Categories"
+    "devices_tab": "Devices"
   },
   "nav": {
     "overview": "Overview",

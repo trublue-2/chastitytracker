@@ -10,7 +10,7 @@ export default async function NewOeffnenPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  if (!(await getIsLocked(userId))) redirect("/dashboard/new");
+  if (!(await getIsLocked(userId))) redirect("/dashboard");
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [activeSperrzeit, user, reinigungHeute] = await Promise.all([
@@ -24,7 +24,7 @@ export default async function NewOeffnenPage() {
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-6">
-      <Link href="/dashboard/new" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
+      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
       <OeffnenForm
         sperrzeit={{
