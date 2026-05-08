@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.15.2",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Dashboard: KG-Sessions-Liste zeigt nur noch 5 Einträge pro Seite (statt 10) — kompakteres Dashboard, ältere Sessions weiterhin via Pagination erreichbar." },
+      { "type": "feat", "text": "Dashboard: zusätzliche „Sessions andere Kategorien\"-Liste unter den KG-Sessions. Zeigt abgeschlossene Plug/Halsband/Cuffs-Tragesessions kategorienübergreifend, neueste zuerst, mit Kategorie-Icon und Dauer. Aktive Sessions werden weiterhin oben in „Aktive Tragesession\" angezeigt." }
+    ]
+  },
+  {
     "version": "4.15.1",
     "date": "2026-05-08",
     "changes": [
