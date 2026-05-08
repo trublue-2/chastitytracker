@@ -16,6 +16,7 @@ import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 import ActiveWearSessions from "./ActiveWearSessions";
+import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
 
 export default async function DashboardPage() {
@@ -162,6 +163,7 @@ export default async function DashboardPage() {
         }))}
         serverNow={now.toISOString()}
       />
+      {flagOn && <CategoryGoalsToday userId={userId} />}
       <InactiveCategories
         categories={allNonKgCategories.filter(
           (c) => !wearSessions.some((s) => s.categoryId === c.id),

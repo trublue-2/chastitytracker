@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.14.21",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Stats-Page erweitert: pro Kategorie zeigt der Block jetzt nicht nur Heute/Woche/Monat, sondern auch Records (Längste Session, Anzahl Sessions, Ø Session-Dauer, Gesamt all-time)." },
+      { "type": "feat", "text": "Dashboard-Block „Trainingsziele\" pro Non-KG-Kategorie: für jede Kategorie mit aktiver TrainingVorgabe wird ein Live-Progress-Bar gerendert (Tag/Woche/Monat). Hidden wenn keine Vorgaben gesetzt sind." },
+      { "type": "ui", "text": "Categories-Liste zeigt pro Zeile zusätzlich „Xh diese Woche\" wenn die Kategorie tracking-enabled ist und Sessions in dieser Woche existierten." }
+    ]
+  },
+  {
     "version": "4.14.20",
     "date": "2026-05-08",
     "changes": [
