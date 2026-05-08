@@ -10,7 +10,7 @@ import EmptyState from "@/app/components/EmptyState";
 import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
 import useToast from "@/app/hooks/useToast";
-import { CATEGORY_COLOR_HEX, type CategoryColor } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import CategoryFormSheet from "./CategoryFormSheet";
 
@@ -209,7 +209,7 @@ function CategoryRowItem({
   onDelete: (c: CategoryRow) => void;
 }) {
   const t = useTranslations("categories");
-  const hex = CATEGORY_COLOR_HEX[c.color as CategoryColor] ?? "#64748b";
+  const style = categoryStyle(c.color);
   // Per mockup #6: KG shows built-in features ("Foto-Pflicht · Siegel · Kontrollen"),
   // others show "ohne Foto-Pflicht" or "Inventar-only" if tracking disabled.
   const featureLine = !c.trackingEnabled
@@ -223,7 +223,7 @@ function CategoryRowItem({
         <div className="flex items-start gap-3 p-4">
           <div
             className="shrink-0 size-10 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: hex + "22", color: hex }}
+            style={{ backgroundColor: style.backgroundColor, color: style.color }}
             aria-hidden
           >
             <CategoryIconRender name={c.icon} className="size-5" />

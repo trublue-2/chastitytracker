@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
 import { formatElapsedMs } from "@/lib/utils";
-import { CATEGORY_COLOR_HEX, type CategoryColor } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 
 export interface ActiveWearSessionRow {
@@ -44,7 +44,7 @@ export default function ActiveWearSessions({ sessions, serverNow }: Props) {
     <div className="w-full max-w-2xl mx-auto px-4 pt-2 pb-2">
       <ul className="flex flex-col gap-2">
         {sessions.map((s) => {
-          const hex = CATEGORY_COLOR_HEX[s.categoryColor as CategoryColor] ?? "#64748b";
+          const style = categoryStyle(s.categoryColor);
           const elapsedMs = Math.max(0, now - Date.parse(s.since));
           const endHref = `/dashboard/new/wear-end?category=${s.categoryId}`;
           return (
@@ -52,12 +52,12 @@ export default function ActiveWearSessions({ sessions, serverNow }: Props) {
               <Card>
                 <Link
                   href={endHref}
-                  className="flex items-center gap-3 p-3 active:bg-background-subtle transition"
-                  style={{ borderLeft: `3px solid ${hex}` }}
+                  className="flex items-center gap-3 p-3 active:bg-background-subtle transition border-l-[3px]"
+                  style={{ borderLeftColor: style.borderColor }}
                 >
                   <div
                     className="shrink-0 size-9 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: hex + "22", color: hex }}
+                    style={{ backgroundColor: style.backgroundColor, color: style.color }}
                     aria-hidden
                   >
                     <CategoryIconRender name={s.categoryIcon} className="size-4" />

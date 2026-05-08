@@ -21,8 +21,9 @@ export const CATEGORY_COLORS = [
 export type CategoryColor = typeof CATEGORY_COLORS[number];
 
 /** Hex values for the user-pickable color palette (UI Designer spec, light-theme accent).
- *  Used inline in pickers and badges where Tailwind CSS variables aren't yet wired up.
- *  Full bg/border/text/muted CSS variables land in P2b alongside the dashboard styling. */
+ *  Used in the color picker preview where CSS variables don't help (we want raw swatches).
+ *  For themed surfaces (cards, badges), prefer `categoryStyle()` which returns CSS vars
+ *  so dark-mode styling kicks in automatically. */
 export const CATEGORY_COLOR_HEX: Record<CategoryColor, string> = {
   "cat-steel":    "#64748b",
   "cat-graphite": "#71717a",
@@ -83,6 +84,18 @@ export function isValidCategoryColor(value: unknown): value is CategoryColor {
 /** Returns true iff the value is a valid CategoryIcon. */
 export function isValidCategoryIcon(value: unknown): value is CategoryIcon {
   return typeof value === "string" && (CATEGORY_ICONS as readonly string[]).includes(value);
+}
+
+/** Returns themed inline-style values for a category color slug. Resolves to CSS variables
+ *  defined in globals.css, so dark-mode kicks in automatically. Falls back to the default
+ *  user color when the slug is invalid (defensive against stale/dirty DB values). */
+export function categoryStyle(color: string): { backgroundColor: string; color: string; borderColor: string } {
+  const safe = isValidCategoryColor(color) ? color : DEFAULT_USER_CATEGORY_COLOR;
+  return {
+    backgroundColor: `var(--color-${safe}-bg)`,
+    color: `var(--color-${safe}-text)`,
+    borderColor: `var(--color-${safe}-border)`,
+  };
 }
 
 /** Slugifies a name to a URL-safe lowercase identifier. Stable + idempotent. */

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ChevronDown, Plus } from "lucide-react";
 import Card from "@/app/components/Card";
-import { CATEGORY_COLOR_HEX, type CategoryColor } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 
 export interface InactiveCategoryRow {
@@ -46,7 +46,7 @@ export default function InactiveCategories({ categories }: Props) {
       {open && (
         <ul className="mt-2 flex flex-col gap-2">
           {categories.map((c) => {
-            const hex = CATEGORY_COLOR_HEX[c.color as CategoryColor] ?? "#64748b";
+            const style = categoryStyle(c.color);
             const beginHref = `/dashboard/new/wear-begin?category=${c.id}`;
             return (
               <li key={c.id}>
@@ -57,7 +57,7 @@ export default function InactiveCategories({ categories }: Props) {
                   >
                     <div
                       className="shrink-0 size-9 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: hex + "22", color: hex }}
+                      style={{ backgroundColor: style.backgroundColor, color: style.color }}
                       aria-hidden
                     >
                       <CategoryIconRender name={c.icon} className="size-4" />
