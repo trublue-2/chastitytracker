@@ -15,10 +15,20 @@ export interface DeviceOption {
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 
-/** Returns active (non-archived) devices for a user, ordered by creation date. */
+/** Returns active (non-archived) KG devices for a user, ordered by creation date.
+ *  KG-specific filter: includes only devices in the built-in KG category — Plug, Collar
+ *  etc. are excluded because Verschluss/Öffnen-Flows operate on KG only. Devices without
+ *  a category are also included for legacy data (pre-DeviceCategory migration safety). */
 export async function getUserDeviceOptions(userId: string): Promise<DeviceOption[]> {
   return prisma.device.findMany({
-    where: { userId, archivedAt: null },
+    where: {
+      userId,
+      archivedAt: null,
+      OR: [
+        { category: { isBuiltIn: true } },
+        { categoryId: null },
+      ],
+    },
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true, imageUrl: true },
   });
