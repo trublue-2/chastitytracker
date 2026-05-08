@@ -36,7 +36,11 @@ export default async function DashboardPage() {
   // ── Parallel data fetch ──
   const flagOn = deviceCategoriesEnabled();
   const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories] = await Promise.all([
-    prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
+    prisma.entry.findMany({
+      where: { userId },
+      orderBy: { startTime: "desc" },
+      include: { device: { select: { categoryId: true } } },
+    }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(userId, now),
     prisma.verschlussAnforderung.findFirst({

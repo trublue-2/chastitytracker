@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.15.3",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Dashboard zeigte keine Plug/Halsband/Cuffs-Sessions in der neuen „Sessions andere Kategorien\"-Liste, weil die Entries ohne device.categoryId geladen wurden — der Kategorie-Filter in buildWearPairs hat dadurch alles weggefiltert. Gleicher Fix korrigiert auch die „Heute Xh\"-Anzeige in der Inaktive-Kategorien-Zeile." }
+    ]
+  },
+  {
     "version": "4.15.2",
     "date": "2026-05-08",
     "changes": [
