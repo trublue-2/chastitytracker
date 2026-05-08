@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
-import NewEntrySheet from "./NewEntrySheet";
+import NewEntrySheet, { type NewEntryCategoryRow } from "./NewEntrySheet";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 
 interface Props {
@@ -16,9 +16,10 @@ interface Props {
   isLocked: boolean;
   version: string;
   buildDate: string;
+  categoryRows?: NewEntryCategoryRow[];
 }
 
-export default function DesktopSidebar({ isAdmin, isLocked, version, buildDate }: Props) {
+export default function DesktopSidebar({ isAdmin, isLocked, version, buildDate, categoryRows }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -32,7 +33,7 @@ export default function DesktopSidebar({ isAdmin, isLocked, version, buildDate }
 
   return (
     <>
-      <NewEntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} isLocked={isLocked} />
+      <NewEntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} isLocked={isLocked} categoryRows={categoryRows} />
 
       <aside className="hidden lg:flex fixed left-0 top-14 bottom-0 w-64 bg-nav-bg border-r border-nav-border flex-col z-20">
         <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">
