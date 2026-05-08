@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.14.15",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Mockup-Ergänzungen umgesetzt (P2c.4): (1) Devices-Liste mit Kategorie-Filter-Chips und Gruppierung, (2) Vorgaben gruppiert pro Kategorie wenn mehrere existieren, (3) Tragezeiten-Toggle im Kategorie-Formular, (4) Dashboard-Sektion „Inaktive Kategorien (N) ▾\" mit Quick-Start-Links, (5+6) Categories-Liste mit System/Eigene-Sektionen und Feature-Summary pro Zeile, (7) 96 CSS-Variablen für die 12 Kategorie-Farben in Light/Dark-Theme + neuer categoryStyle()-Helper für Theme-aware Surfaces." }
+    ]
+  },
+  {
+    "version": "4.14.14",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Kategorien-Verwaltung als Sub-Feature der Devices-Seite: separater Tab im Admin-Bereich entfernt, stattdessen Link „Kategorien verwalten →\" oben auf der Devices-Seite (User + Admin). Direkt-URLs /dashboard/categories und /admin/users/[id]/categories funktionieren weiter." }
+    ]
+  },
+  {
     "version": "4.14.13",
     "date": "2026-05-08",
     "changes": [
