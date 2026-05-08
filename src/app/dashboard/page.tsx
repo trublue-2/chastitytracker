@@ -16,6 +16,7 @@ import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 import ActiveWearSessions from "./ActiveWearSessions";
+import InactiveCategories from "./InactiveCategories";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -29,7 +30,8 @@ export default async function DashboardPage() {
   const now = new Date();
 
   // ── Parallel data fetch ──
-  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions] = await Promise.all([
+  const flagOn = deviceCategoriesEnabled();
+  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories] = await Promise.all([
     prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(userId, now),
@@ -39,7 +41,14 @@ export default async function DashboardPage() {
     }),
     getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
-    deviceCategoriesEnabled() ? getActiveWearSessions(userId) : Promise.resolve([]),
+    flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
+    flagOn
+      ? prisma.deviceCategory.findMany({
+          where: { userId, isBuiltIn: false, trackingEnabled: true },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: { id: true, name: true, color: true, icon: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const reinigung: ReinigungSettings = {
@@ -152,6 +161,11 @@ export default async function DashboardPage() {
           since: s.since.toISOString(),
         }))}
         serverNow={now.toISOString()}
+      />
+      <InactiveCategories
+        categories={allNonKgCategories.filter(
+          (c) => !wearSessions.some((s) => s.categoryId === c.id),
+        )}
       />
       <DashboardClient {...clientProps} />
       {pairs.length > 0 && (

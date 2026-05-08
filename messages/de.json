@@ -791,6 +791,7 @@
     "titleBegin": "Tragen beginnen",
     "titleEnd": "Tragen beenden",
     "endShort": "Beenden",
+    "inactiveCategories": "{count, plural, =1 {Inaktive Kategorie (1)} other {Inaktive Kategorien (#)}}",
     "device": "Device",
     "time": "Zeitpunkt",
     "timezone": "Zeitzone",
