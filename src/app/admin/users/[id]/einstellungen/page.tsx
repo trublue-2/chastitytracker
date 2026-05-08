@@ -101,34 +101,68 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <div className="flex flex-col gap-4 px-5 py-4">
           <VorgabeForm userId={id} categories={categories} />
         </div>
-        {vorgaben.length > 0 && (
-          <div className="border-t border-border-subtle divide-y divide-border-subtle">
-            {vorgaben.map((v) => (
-              <VorgabeRow
-                key={v.id}
-                userId={id}
-                vorgabeId={v.id}
-                active={isActive(v)}
-                dateLabel={`${formatDate(v.gueltigAb, dl)}${v.gueltigBis ? ` → ${formatDate(v.gueltigBis, dl)}` : ` → ${tc("open")}`}`}
-                tagH={v.minProTagH}
-                wocheH={v.minProWocheH}
-                monatH={v.minProMonatH}
-                notiz={v.notiz}
-                categories={categories}
-                categoryName={categories.find((c) => c.id === v.categoryId)?.name ?? null}
-                initialValues={{
-                  gueltigAb: toDateInput(v.gueltigAb),
-                  gueltigBis: v.gueltigBis ? toDateInput(v.gueltigBis) : "",
-                  tagVal: v.minProTagH != null ? String(v.minProTagH) : "",
-                  wocheVal: v.minProWocheH != null ? String(v.minProWocheH) : "",
-                  monatVal: v.minProMonatH != null ? String(v.minProMonatH) : "",
-                  notiz: v.notiz ?? "",
-                  categoryId: v.categoryId ?? "",
-                }}
-              />
-            ))}
-          </div>
-        )}
+        {vorgaben.length > 0 && (() => {
+          // Group by category — built-in (KG) first, then user-defined order, orphans last.
+          const groups = categories
+            .map((c) => ({
+              category: c,
+              vorgaben: vorgaben.filter((v) => v.categoryId === c.id),
+            }))
+            .filter((g) => g.vorgaben.length > 0);
+          const orphans = vorgaben.filter((v) => !v.categoryId);
+          const showHeaders = categories.length > 1 && groups.length + (orphans.length > 0 ? 1 : 0) > 1;
+          const renderRow = (v: (typeof vorgaben)[number]) => (
+            <VorgabeRow
+              key={v.id}
+              userId={id}
+              vorgabeId={v.id}
+              active={isActive(v)}
+              dateLabel={`${formatDate(v.gueltigAb, dl)}${v.gueltigBis ? ` → ${formatDate(v.gueltigBis, dl)}` : ` → ${tc("open")}`}`}
+              tagH={v.minProTagH}
+              wocheH={v.minProWocheH}
+              monatH={v.minProMonatH}
+              notiz={v.notiz}
+              categories={categories}
+              categoryName={showHeaders ? null : (categories.find((c) => c.id === v.categoryId)?.name ?? null)}
+              initialValues={{
+                gueltigAb: toDateInput(v.gueltigAb),
+                gueltigBis: v.gueltigBis ? toDateInput(v.gueltigBis) : "",
+                tagVal: v.minProTagH != null ? String(v.minProTagH) : "",
+                wocheVal: v.minProWocheH != null ? String(v.minProWocheH) : "",
+                monatVal: v.minProMonatH != null ? String(v.minProMonatH) : "",
+                notiz: v.notiz ?? "",
+                categoryId: v.categoryId ?? "",
+              }}
+            />
+          );
+          if (!showHeaders) {
+            return (
+              <div className="border-t border-border-subtle divide-y divide-border-subtle">
+                {vorgaben.map(renderRow)}
+              </div>
+            );
+          }
+          return (
+            <div className="border-t border-border-subtle">
+              {groups.map((g) => (
+                <div key={g.category.id} className="border-b border-border-subtle last:border-b-0">
+                  <p className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-foreground-faint bg-background-subtle">
+                    {g.category.name}
+                  </p>
+                  <div className="divide-y divide-border-subtle">{g.vorgaben.map(renderRow)}</div>
+                </div>
+              ))}
+              {orphans.length > 0 && (
+                <div className="border-b border-border-subtle last:border-b-0">
+                  <p className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-foreground-faint bg-background-subtle">
+                    {tc("uncategorized")}
+                  </p>
+                  <div className="divide-y divide-border-subtle">{orphans.map(renderRow)}</div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Gefahrenbereich */}
