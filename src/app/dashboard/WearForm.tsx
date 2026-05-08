@@ -42,9 +42,13 @@ interface Props {
   devices?: DeviceOption[];
   /** WEAR_END only — the active session being closed. */
   activeSession?: ActiveSession;
+  /** Admin mode: target userId. Switches POST to /api/admin/entries with userId in body. */
+  adminUserId?: string;
+  /** Where to navigate on success (defaults to /dashboard, admin-mode should pass /admin/users/[id]/aktionen). */
+  redirectTo?: string;
 }
 
-export default function WearForm({ kind, category, devices, activeSession }: Props) {
+export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo }: Props) {
   const t = useTranslations("wearForm");
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
@@ -79,16 +83,22 @@ export default function WearForm({ kind, category, devices, activeSession }: Pro
       note: note.trim() || null,
     };
 
+    const targetUrl = adminUserId ? "/api/admin/entries" : "/api/entries";
+    const body = adminUserId ? { userId: adminUserId, ...payload } : payload;
     const init: RequestInit = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     };
-    const res = await offlineFetch("/api/entries", init);
+    const target = redirectTo ?? "/dashboard";
+    // Admin uses direct fetch (no offline queue — action is admin-driven, not field-use)
+    const res = adminUserId
+      ? await fetch(targetUrl, init)
+      : await offlineFetch(targetUrl, init);
     if (res === null) {
-      // queued offline
+      // queued offline (user-mode only)
       toast.success(tDash("entrySaved"));
-      window.location.href = "/dashboard";
+      window.location.href = target;
       return;
     }
     if (!res.ok) {
@@ -98,7 +108,7 @@ export default function WearForm({ kind, category, devices, activeSession }: Pro
       return;
     }
     toast.success(tDash("entrySaved"));
-    window.location.href = "/dashboard";
+    window.location.href = target;
   }
 
   const hex = CATEGORY_COLOR_HEX[category.color as CategoryColor] ?? "#64748b";
