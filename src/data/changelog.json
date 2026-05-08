@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.15.1",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Naming-Polish: „Sessions\" → „KG-Sessions\" (Stats-Top-Card und Admin-Spalte) und „Aktuelle Session\" → „Aktuelle KG-Session\". Macht klar, dass diese Werte sich nur auf KG-Einschlüsse beziehen, nicht auf andere Devices." }
+    ]
+  },
+  {
     "version": "4.15.0",
     "date": "2026-05-08",
     "changes": [
