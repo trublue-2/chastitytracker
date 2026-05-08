@@ -791,6 +791,7 @@
     "titleBegin": "Begin wearing",
     "titleEnd": "End wearing",
     "endShort": "End",
+    "inactiveCategories": "{count, plural, =1 {Inactive category (1)} other {Inactive categories (#)}}",
     "device": "Device",
     "time": "Time",
     "timezone": "Timezone",
