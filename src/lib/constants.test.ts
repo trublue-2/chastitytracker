@@ -17,38 +17,51 @@ describe("VALID_TYPES", () => {
   });
 });
 
-describe("deviceCategoriesEnabled", () => {
+describe("deviceCategoriesEnabled (default-on, opt-out via 'false')", () => {
   const original = process.env.ENABLE_DEVICE_CATEGORIES;
   afterEach(() => {
     if (original === undefined) delete process.env.ENABLE_DEVICE_CATEGORIES;
     else process.env.ENABLE_DEVICE_CATEGORIES = original;
   });
 
-  it("returns false when env var is unset", () => {
+  it("returns true when env var is unset (default-on)", () => {
     delete process.env.ENABLE_DEVICE_CATEGORIES;
-    expect(deviceCategoriesEnabled()).toBe(false);
+    expect(deviceCategoriesEnabled()).toBe(true);
   });
 
-  it("returns false when env var is anything other than 'true'", () => {
+  it("returns false only when env var is exactly 'false' (opt-out)", () => {
     process.env.ENABLE_DEVICE_CATEGORIES = "false";
     expect(deviceCategoriesEnabled()).toBe(false);
-    process.env.ENABLE_DEVICE_CATEGORIES = "1";
-    expect(deviceCategoriesEnabled()).toBe(false);
-    process.env.ENABLE_DEVICE_CATEGORIES = "";
-    expect(deviceCategoriesEnabled()).toBe(false);
   });
 
-  it("returns true only when env var is exactly 'true'", () => {
+  it("returns true for 'true', '1', '', or other values", () => {
     process.env.ENABLE_DEVICE_CATEGORIES = "true";
+    expect(deviceCategoriesEnabled()).toBe(true);
+    process.env.ENABLE_DEVICE_CATEGORIES = "1";
+    expect(deviceCategoriesEnabled()).toBe(true);
+    process.env.ENABLE_DEVICE_CATEGORIES = "";
     expect(deviceCategoriesEnabled()).toBe(true);
   });
 });
 
-describe("validateEntryPayload — WEAR types feature flag", () => {
-  beforeEach(() => { delete process.env.ENABLE_DEVICE_CATEGORIES; });
-  afterEach(() => { delete process.env.ENABLE_DEVICE_CATEGORIES; });
+describe("validateEntryPayload — WEAR types feature flag (default-on)", () => {
+  const original = process.env.ENABLE_DEVICE_CATEGORIES;
+  afterEach(() => {
+    if (original === undefined) delete process.env.ENABLE_DEVICE_CATEGORIES;
+    else process.env.ENABLE_DEVICE_CATEGORIES = original;
+  });
 
-  it("rejects WEAR_BEGIN when feature flag is off", () => {
+  it("accepts WEAR_BEGIN by default (flag unset)", () => {
+    delete process.env.ENABLE_DEVICE_CATEGORIES;
+    const result = validateEntryPayload(
+      { type: "WEAR_BEGIN", startTime: FUTURE_SAFE_TIME },
+      { allowFuture: true },
+    );
+    expect(result).toBeNull();
+  });
+
+  it("rejects WEAR_BEGIN when explicitly opted out (=false)", () => {
+    process.env.ENABLE_DEVICE_CATEGORIES = "false";
     const result = validateEntryPayload(
       { type: "WEAR_BEGIN", startTime: FUTURE_SAFE_TIME },
       { allowFuture: true },
@@ -57,7 +70,8 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
     expect(result?.status).toBe(400);
   });
 
-  it("rejects WEAR_END when feature flag is off", () => {
+  it("rejects WEAR_END when explicitly opted out (=false)", () => {
+    process.env.ENABLE_DEVICE_CATEGORIES = "false";
     const result = validateEntryPayload(
       { type: "WEAR_END", startTime: FUTURE_SAFE_TIME },
       { allowFuture: true },
@@ -65,25 +79,8 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
     expect(result?.error).toMatch(/Device-Kategorien/);
   });
 
-  it("accepts WEAR_BEGIN when feature flag is on", () => {
-    process.env.ENABLE_DEVICE_CATEGORIES = "true";
-    const result = validateEntryPayload(
-      { type: "WEAR_BEGIN", startTime: FUTURE_SAFE_TIME },
-      { allowFuture: true },
-    );
-    expect(result).toBeNull();
-  });
-
-  it("accepts WEAR_END when feature flag is on", () => {
-    process.env.ENABLE_DEVICE_CATEGORIES = "true";
-    const result = validateEntryPayload(
-      { type: "WEAR_END", startTime: FUTURE_SAFE_TIME },
-      { allowFuture: true },
-    );
-    expect(result).toBeNull();
-  });
-
   it("VERSCHLUSS works regardless of feature flag", () => {
+    process.env.ENABLE_DEVICE_CATEGORIES = "false";
     const result = validateEntryPayload(
       { type: "VERSCHLUSS", startTime: FUTURE_SAFE_TIME },
       { allowFuture: true },

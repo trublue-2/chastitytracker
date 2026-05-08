@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.15.0",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Device-Kategorien sind nun standardmässig aktiv: das Feature-Flag ENABLE_DEVICE_CATEGORIES defaultet auf an. Bestehende Instanzen erhalten die Kategorien-UI ohne Konfigurationsänderung. Wer das Feature explizit ausschalten will, setzt ENABLE_DEVICE_CATEGORIES=false." },
+      { "type": "ui", "text": "Categories-Seite hat einen Back-Link zurück zu Devices (oben links)." },
+      { "type": "feat", "text": "Admin-User-Übersicht (/admin/users/[id]) zeigt nun aktive Wear-Sessions des Users — analog zum User-Dashboard." }
+    ]
+  },
+  {
     "version": "4.14.15",
     "date": "2026-05-08",
     "changes": [

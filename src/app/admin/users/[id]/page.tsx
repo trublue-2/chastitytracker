@@ -8,10 +8,12 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
+import ActiveWearSessions from "@/app/dashboard/ActiveWearSessions";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
@@ -42,11 +44,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
 
-  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, wearSessions] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     getActiveSperrzeit(id),
+    deviceCategoriesEnabled() ? getActiveWearSessions(id) : Promise.resolve([]),
   ]);
 
   const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
@@ -102,6 +105,20 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         />
       ) : (
         <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
+      )}
+
+      {wearSessions.length > 0 && (
+        <ActiveWearSessions
+          sessions={wearSessions.map((s) => ({
+            categoryId: s.categoryId,
+            categoryName: s.categoryName,
+            categoryColor: s.categoryColor,
+            categoryIcon: s.categoryIcon,
+            deviceName: s.deviceName,
+            since: s.since.toISOString(),
+          }))}
+          serverNow={now.toISOString()}
+        />
       )}
 
       {offeneKontrolle && (

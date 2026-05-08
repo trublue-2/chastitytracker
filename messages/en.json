@@ -803,6 +803,7 @@
   },
   "categories": {
     "title": "Categories",
+    "backToDevices": "Back to Devices",
     "addCategory": "New category",
     "createTitle": "Create category",
     "editTitle": "Edit category",

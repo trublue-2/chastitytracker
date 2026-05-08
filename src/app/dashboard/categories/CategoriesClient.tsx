@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2, Tag } from "lucide-react";
@@ -108,8 +109,15 @@ export default function CategoriesClient({ categories: initial, userId, username
   }
 
   // ── List view ──
+  const devicesHref = userId ? `/admin/users/${userId}/geraete` : "/dashboard/geraete";
   return (
     <div className="flex flex-col gap-4">
+      <Link
+        href={devicesHref}
+        className="text-sm text-foreground-faint hover:text-foreground-muted transition w-fit"
+      >
+        ← {t("backToDevices")}
+      </Link>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">{title}</h1>
         <Button variant="primary" size="sm" onClick={openAdd} icon={<Plus size={16} />}>
