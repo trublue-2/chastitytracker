@@ -52,8 +52,9 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
   const startTime = e.startTime instanceof Date ? e.startTime : new Date(e.startTime);
 
   const isWear = e.type === "WEAR_BEGIN" || e.type === "WEAR_END";
+  const wearActionLabel = isWear ? tStats(e.type === "WEAR_BEGIN" ? "wearBeginShort" : "wearEndShort") : "";
   const wearLabel = isWear && e.category
-    ? `${e.category.name} ${e.type === "WEAR_BEGIN" ? "▶" : "■"}`
+    ? `${e.category.name} · ${wearActionLabel}`
     : tStats(TYPE_STATS_KEYS[e.type] ?? "lock");
 
   const typeTitle = (
@@ -75,10 +76,11 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
             <span
               className="flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0"
               style={{ color: categoryStyle(e.category.color).color }}
+              title={wearLabel}
             >
               <CategoryIconRender name={e.category.icon} className="size-3" />
               <span className="truncate">{e.category.name}</span>
-              <span className="ml-0.5">{e.type === "WEAR_BEGIN" ? "▶" : "■"}</span>
+              <span className="ml-0.5 text-[0.65rem] uppercase tracking-wider opacity-70">{wearActionLabel}</span>
             </span>
           ) : (
             <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${TYPE_COLORS[e.type] ?? "text-foreground-muted"}`}>
