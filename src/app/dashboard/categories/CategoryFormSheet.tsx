@@ -20,6 +20,7 @@ import {
   type CategoryIcon,
 } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import Toggle from "@/app/components/Toggle";
 import type { CategoryRow } from "./CategoriesClient";
 
 interface Props {
@@ -44,6 +45,9 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
   const [icon, setIcon] = useState<CategoryIcon>(
     isValidCategoryIcon(category?.icon) ? category.icon : DEFAULT_USER_CATEGORY_ICON,
   );
+  const [trackingEnabled, setTrackingEnabled] = useState<boolean>(
+    category?.trackingEnabled ?? true,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,7 +64,7 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
     setSaving(true);
     setError("");
 
-    const payload: Record<string, unknown> = { name: name.trim(), color, icon };
+    const payload: Record<string, unknown> = { name: name.trim(), color, icon, trackingEnabled };
     if (userId) payload.userId = userId;
     const url = isEdit ? `/api/categories/${category!.id}` : "/api/categories";
     const method = isEdit ? "PATCH" : "POST";
@@ -147,6 +151,17 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Tracking toggle — when off, this category is inventory-only (no wear sessions). */}
+        <div className="flex flex-col gap-1.5 pt-1 border-t border-border-subtle">
+          <Toggle
+            label={t("trackingEnabled")}
+            checked={trackingEnabled}
+            onChange={setTrackingEnabled}
+            disabled={saving}
+          />
+          <p className="text-xs text-foreground-faint">{t("trackingEnabledHint")}</p>
         </div>
 
         {error && <FormError message={error} />}
