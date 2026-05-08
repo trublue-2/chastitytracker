@@ -26,9 +26,11 @@ interface Props {
   category: CategoryRow | null;
   onClose: () => void;
   onSaved: () => void;
+  /** Admin mode: target userId is included in the POST body (admin creates for this user). */
+  userId?: string;
 }
 
-export default function CategoryFormSheet({ category, onClose, onSaved }: Props) {
+export default function CategoryFormSheet({ category, onClose, onSaved, userId }: Props) {
   const t = useTranslations("categories");
   const tCommon = useTranslations("common");
   const toast = useToast();
@@ -59,6 +61,7 @@ export default function CategoryFormSheet({ category, onClose, onSaved }: Props)
     setError("");
 
     const payload: Record<string, unknown> = { name: name.trim(), color, icon };
+    if (userId) payload.userId = userId;
     const url = isEdit ? `/api/categories/${category!.id}` : "/api/categories";
     const method = isEdit ? "PATCH" : "POST";
 

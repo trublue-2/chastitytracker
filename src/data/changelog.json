@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.12",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Admin kann Device-Kategorien pro User verwalten: neuer Tab /admin/users/[id]/categories mit gleichem CRUD wie /dashboard/categories. CategoriesClient + CategoryFormSheet akzeptieren optional userId für Admin-Modus, Tab erscheint im UserSubNav nur wenn ENABLE_DEVICE_CATEGORIES aktiv ist." }
+    ]
+  },
+  {
     "version": "4.14.11",
     "date": "2026-05-07",
     "changes": [

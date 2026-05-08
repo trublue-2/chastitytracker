@@ -6,9 +6,10 @@ import { useTranslations } from "next-intl";
 
 interface Props {
   userId: string;
+  showCategoriesTab?: boolean;
 }
 
-export default function UserSubNav({ userId }: Props) {
+export default function UserSubNav({ userId, showCategoriesTab = false }: Props) {
   const t = useTranslations("adminNav");
   const pathname = usePathname();
   const router = useRouter();
@@ -22,6 +23,9 @@ export default function UserSubNav({ userId }: Props) {
     { href: `${base}/stats`, label: t("stats_tab"), exact: false },
     { href: `${base}/strafbuch`, label: t("strafbuch_tab"), exact: false },
     { href: `${base}/geraete`, label: t("devices_tab"), exact: false },
+    ...(showCategoriesTab
+      ? [{ href: `${base}/categories`, label: t("categories_tab"), exact: false }]
+      : []),
     { href: `${base}/einstellungen`, label: t("user_settings_tab"), exact: false },
   ];
 

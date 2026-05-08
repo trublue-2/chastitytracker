@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import UserContextBar from "./UserContextBar";
 import UserSubNav from "./UserSubNav";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 
 export default async function AdminUserLayout({
   children,
@@ -53,7 +54,7 @@ export default async function AdminUserLayout({
         since={latestLockEntry?.type === "VERSCHLUSS" ? latestLockEntry.startTime.toISOString() : null}
         users={userLockStatuses}
       />
-      <UserSubNav userId={id} />
+      <UserSubNav userId={id} showCategoriesTab={deviceCategoriesEnabled()} />
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
         {children}
       </main>
