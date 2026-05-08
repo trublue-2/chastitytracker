@@ -30,9 +30,12 @@ export interface CategoryRow {
 
 interface Props {
   categories: CategoryRow[];
+  /** Admin mode — managing another user's categories. Form payloads include this userId. */
+  userId?: string;
+  username?: string;
 }
 
-export default function CategoriesClient({ categories: initial }: Props) {
+export default function CategoriesClient({ categories: initial, userId, username }: Props) {
   const t = useTranslations("categories");
   const tCommon = useTranslations("common");
   const router = useRouter();
@@ -84,6 +87,8 @@ export default function CategoriesClient({ categories: initial }: Props) {
     }
   }
 
+  const title = username ? `${t("title")} – ${username}` : t("title");
+
   // ── Inline form view (add/edit) ──
   if (formMode !== "closed") {
     return (
@@ -93,10 +98,10 @@ export default function CategoriesClient({ categories: initial }: Props) {
           onClick={closeForm}
           className="text-sm text-foreground-faint hover:text-foreground-muted transition"
         >
-          ← {t("title")}
+          ← {title}
         </button>
         <div className="mt-4">
-          <CategoryFormSheet category={editCategory} onClose={closeForm} onSaved={handleSaved} />
+          <CategoryFormSheet category={editCategory} onClose={closeForm} onSaved={handleSaved} userId={userId} />
         </div>
       </>
     );
@@ -106,7 +111,7 @@ export default function CategoriesClient({ categories: initial }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+        <h1 className="text-xl font-bold text-foreground">{title}</h1>
         <Button variant="primary" size="sm" onClick={openAdd} icon={<Plus size={16} />}>
           {t("addCategory")}
         </Button>
