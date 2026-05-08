@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.14.24",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Notification-Settings im Admin-Bereich (User → Einstellungen) als kompakte Matrix neu gebaut: eine Zeile pro Event, zwei Spalten (Push / E-Mail) statt zwei separate Listen mit doppelten Labels. Visuell gruppiert in „KG\", „Orgasmus\" und „Andere Devices\"." },
+      { "type": "feat", "text": "Neue Notification-Events „Tragen begonnen\" und „Tragen beendet\" für non-KG Wear-Sessions. Admin bekommt bei Aktivierung eine Push/Mail mit Kategorie- und Device-Name." }
+    ]
+  },
+  {
     "version": "4.14.23",
     "date": "2026-05-08",
     "changes": [

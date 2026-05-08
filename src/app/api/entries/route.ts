@@ -199,6 +199,8 @@ export async function POST(req: NextRequest) {
       if (type === "ORGASMUS") eventTypes.push("ORGASMUS");
       if (type === "PRUEFUNG" && kontrollCode) eventTypes.push("KONTROLLE_ANGEFORDERT");
       if (type === "PRUEFUNG" && !kontrollCode) eventTypes.push("KONTROLLE_FREIWILLIG");
+      if (type === "WEAR_BEGIN") eventTypes.push("WEAR_BEGIN_ANY");
+      if (type === "WEAR_END") eventTypes.push("WEAR_END_ANY");
 
       if (eventTypes.length === 0) return;
 
@@ -234,6 +236,18 @@ export async function POST(req: NextRequest) {
       } else if (type === "PRUEFUNG") {
         title = kontrollCode ? `${username} hat Kontrolle erfüllt` : `${username} — Selbstkontrolle`;
         pushBody = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
+      } else if (type === "WEAR_BEGIN" || type === "WEAR_END") {
+        // Resolve category name for the notification body via the device.
+        const dev = deviceId
+          ? await prisma.device.findUnique({
+              where: { id: deviceId },
+              select: { name: true, category: { select: { name: true } } },
+            })
+          : null;
+        const catName = dev?.category?.name ?? "?";
+        const verb = type === "WEAR_BEGIN" ? "trägt" : "hat abgelegt";
+        title = `${username} ${verb} ${catName}`;
+        pushBody = dev?.name ? `${time} · ${dev.name}` : time;
       }
 
       const adminUrl = `/admin/users/${session.user.id}`;
