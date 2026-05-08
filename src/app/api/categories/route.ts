@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
       icon: true,
       isBuiltIn: true,
       trackingEnabled: true,
+      requirePhoto: true,
+      allowVorgaben: true,
       sortOrder: true,
       createdAt: true,
       _count: { select: { devices: true, vorgaben: true } },
@@ -71,6 +73,8 @@ export async function GET(req: NextRequest) {
       icon: c.icon,
       isBuiltIn: c.isBuiltIn,
       trackingEnabled: c.trackingEnabled,
+      requirePhoto: c.requirePhoto,
+      allowVorgaben: c.allowVorgaben,
       sortOrder: c.sortOrder,
       createdAt: c.createdAt.toISOString(),
       deviceCount: c._count.devices,
@@ -88,7 +92,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, color, icon, sortOrder, trackingEnabled } = body;
+  const { name, color, icon, sortOrder, trackingEnabled, requirePhoto, allowVorgaben } = body;
 
   let userId = session.user.id;
   if (body.userId && body.userId !== session.user.id) {
@@ -116,6 +120,8 @@ export async function POST(req: NextRequest) {
       icon: (icon as string | undefined) ?? DEFAULT_USER_CATEGORY_ICON,
       isBuiltIn: false,
       trackingEnabled: typeof trackingEnabled === "boolean" ? trackingEnabled : true,
+      requirePhoto: typeof requirePhoto === "boolean" ? requirePhoto : false,
+      allowVorgaben: typeof allowVorgaben === "boolean" ? allowVorgaben : true,
       sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
     },
   });

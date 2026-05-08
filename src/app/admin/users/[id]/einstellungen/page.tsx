@@ -32,8 +32,9 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
   const [user, vorgaben, categories, t, tc, dl] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id }, orderBy: { gueltigAb: "desc" } }),
+    // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
     prisma.deviceCategory.findMany({
-      where: { userId: id },
+      where: { userId: id, OR: [{ isBuiltIn: true }, { allowVorgaben: true }] },
       orderBy: [{ isBuiltIn: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true },
     }),

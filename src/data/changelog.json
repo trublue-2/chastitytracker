@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.14.22",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Kategorie-Form bekommt zwei zusätzliche Toggles (Mockup 6.4 vervollständigt): „Foto bei Tragen-Beginn verlangen\" und „Trainingsvorgaben erlauben\". Schema erweitert um requirePhoto und allowVorgaben (Default false bzw. true)." },
+      { "type": "feat", "text": "WearForm: PhotoCapture-Block für WEAR_BEGIN, mit Pflicht-Validierung wenn die Kategorie requirePhoto=true hat. Foto wird zusätzlich beim Editieren bestehender WEAR_BEGIN-Einträge editierbar." },
+      { "type": "feat", "text": "API-Enforcement: WEAR_BEGIN ohne Foto wird abgewiesen wenn die Kategorie es verlangt; Trainingsvorgaben können nicht für Kategorien mit allowVorgaben=false angelegt werden." }
+    ]
+  },
+  {
     "version": "4.14.21",
     "date": "2026-05-08",
     "changes": [

@@ -48,6 +48,8 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
   const [trackingEnabled, setTrackingEnabled] = useState<boolean>(
     category?.trackingEnabled ?? true,
   );
+  const [requirePhoto, setRequirePhoto] = useState<boolean>(category?.requirePhoto ?? false);
+  const [allowVorgaben, setAllowVorgaben] = useState<boolean>(category?.allowVorgaben ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -64,7 +66,14 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
     setSaving(true);
     setError("");
 
-    const payload: Record<string, unknown> = { name: name.trim(), color, icon, trackingEnabled };
+    const payload: Record<string, unknown> = {
+      name: name.trim(),
+      color,
+      icon,
+      trackingEnabled,
+      requirePhoto,
+      allowVorgaben,
+    };
     if (userId) payload.userId = userId;
     const url = isEdit ? `/api/categories/${category!.id}` : "/api/categories";
     const method = isEdit ? "PATCH" : "POST";
@@ -154,14 +163,38 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
         </div>
 
         {/* Tracking toggle — when off, this category is inventory-only (no wear sessions). */}
-        <div className="flex flex-col gap-1.5 pt-1 border-t border-border-subtle">
-          <Toggle
-            label={t("trackingEnabled")}
-            checked={trackingEnabled}
-            onChange={setTrackingEnabled}
-            disabled={saving}
-          />
-          <p className="text-xs text-foreground-faint">{t("trackingEnabledHint")}</p>
+        <div className="flex flex-col gap-3 pt-3 border-t border-border-subtle">
+          <div className="flex flex-col gap-1.5">
+            <Toggle
+              label={t("trackingEnabled")}
+              checked={trackingEnabled}
+              onChange={setTrackingEnabled}
+              disabled={saving}
+            />
+            <p className="text-xs text-foreground-faint">{t("trackingEnabledHint")}</p>
+          </div>
+
+          {/* Photo-required toggle — only meaningful when tracking is enabled. */}
+          <div className="flex flex-col gap-1.5">
+            <Toggle
+              label={t("requirePhoto")}
+              checked={requirePhoto}
+              onChange={setRequirePhoto}
+              disabled={saving || !trackingEnabled}
+            />
+            <p className="text-xs text-foreground-faint">{t("requirePhotoHint")}</p>
+          </div>
+
+          {/* Allow training-goals on this category */}
+          <div className="flex flex-col gap-1.5">
+            <Toggle
+              label={t("allowVorgaben")}
+              checked={allowVorgaben}
+              onChange={setAllowVorgaben}
+              disabled={saving || !trackingEnabled}
+            />
+            <p className="text-xs text-foreground-faint">{t("allowVorgabenHint")}</p>
+          </div>
         </div>
 
         {error && <FormError message={error} />}

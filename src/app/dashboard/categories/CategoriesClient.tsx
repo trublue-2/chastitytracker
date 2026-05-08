@@ -30,6 +30,8 @@ export interface CategoryRow {
   vorgabeCount: number;
   /** Wear hours since the start of the current ISO week. */
   weeklyHours: number;
+  requirePhoto: boolean;
+  allowVorgaben: boolean;
 }
 
 interface Props {
