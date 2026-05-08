@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.14.13",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Admin-Parität für WEAR-Tracking: Admin kann WEAR_BEGIN/WEAR_END für User in /admin/users/[id]/aktionen anstossen (neue Zeilen pro Kategorie). Admin-Stats-Page zeigt nun ebenfalls den Pro-Kategorie-Block. /api/admin/entries unterstützt WEAR_BEGIN/END mit Device-Kategorie-Validation, KG-Schutz und State-Check." }
+    ]
+  },
+  {
     "version": "4.14.12",
     "date": "2026-05-08",
     "changes": [
