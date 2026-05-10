@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.16.0",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "feat", "text": "Device-Kategorien sind ab jetzt per Default für alle Instanzen aktiv. Plug, Halsband, Cuffs etc. mit eigenen Trainingsvorgaben sind ohne ENV-Konfiguration nutzbar. Wer KG-only erzwingen will, setzt `ENABLE_DEVICE_CATEGORIES=false` (case-insensitive). Bestehende User bekamen das KG-Built-in über die initiale Migration retroaktiv — kein Daten-Backfill nötig." },
+      { "type": "chore", "text": "Tests an die neue Default-Semantik angepasst (vitest 72/72 grün)." }
+    ]
+  },
+  {
     "version": "4.15.7",
     "date": "2026-05-10",
     "changes": [

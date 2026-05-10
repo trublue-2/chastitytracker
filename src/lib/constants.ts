@@ -13,9 +13,12 @@ export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WE
 export const KG_ENTRY_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "OEFFNEN"]);
 /** Entry types for non-KG DeviceCategories (Plug, Collar, ...). Require deviceId. */
 export const WEAR_ENTRY_TYPES: ReadonlySet<string> = new Set(["WEAR_BEGIN", "WEAR_END"]);
-/** Feature flag: gate WEAR_BEGIN/WEAR_END entry creation + categories UI. */
+/** Feature flag: gate WEAR_BEGIN/WEAR_END entry creation + categories UI.
+ *  Default ON. Setze `ENABLE_DEVICE_CATEGORIES=false` um KG-only-Verhalten zu erzwingen
+ *  (z.B. fuer eine Instanz die das Feature noch nicht ausrollen will).
+ *  Case-insensitive damit `False`/`FALSE` nicht still als ON durchrutschen. */
 export function deviceCategoriesEnabled(): boolean {
-  return process.env.ENABLE_DEVICE_CATEGORIES === "true";
+  return process.env.ENABLE_DEVICE_CATEGORIES?.toLowerCase() !== "false";
 }
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
