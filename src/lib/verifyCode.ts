@@ -3,6 +3,7 @@ import { join, basename } from "path";
 import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
 import type { Rotation } from "@/lib/constants";
+import { structuredLog, redactDigits } from "@/lib/serverLog";
 
 const MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
   jpg: "image/jpeg",
@@ -14,17 +15,42 @@ const MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "im
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+/** Verify-spezifischer Logger — `[verify]`-Prefix fuer grepbare Container-Logs.
+ *  WICHTIG: der erwartete Auth-Code wird bewusst NICHT geloggt (er ist die
+ *  Authentifizierung der Kontrolle). Nur Laenge, Filename, mediaType, bytes,
+ *  redacted previews. Niemals den API-Key oder rohe Bilddaten. */
+function vlog(label: string, fields: Record<string, unknown>) {
+  structuredLog("verify", label, fields);
+}
+
 async function loadImageBuffer(
   imageUrl: string,
   rotation: Rotation
 ): Promise<{ base64: string; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" } | null> {
   const filename = basename(imageUrl);
-  if (!filename || filename.includes("..") || filename.includes("/")) return null;
-  const raw = await readFile(join(process.cwd(), "data", "uploads", filename));
-  const buffer = rotation !== 0 ? await sharp(raw).rotate(rotation).toBuffer() : raw;
+  if (!filename || filename.includes("..") || filename.includes("/")) {
+    vlog("loadImageBuffer:reject_filename", { filename, imageUrl });
+    return null;
+  }
+  const fullPath = join(process.cwd(), "data", "uploads", filename);
+  let raw: Buffer;
+  try {
+    raw = await readFile(fullPath);
+  } catch (e) {
+    vlog("loadImageBuffer:read_failed", { fullPath, error: (e as Error).message });
+    return null;
+  }
+  let buffer: Buffer;
+  try {
+    buffer = rotation !== 0 ? await sharp(raw).rotate(rotation).toBuffer() : raw;
+  } catch (e) {
+    vlog("loadImageBuffer:sharp_failed", { filename, rotation, rawBytes: raw.length, error: (e as Error).message });
+    return null;
+  }
   const base64 = buffer.toString("base64");
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
+  vlog("loadImageBuffer:ok", { filename, mediaType, bytes: buffer.length, rotation });
   return { base64, mediaType };
 }
 
@@ -47,10 +73,19 @@ export async function verifyKontrolleCodeDetailed(
   expectedCode: string,
   rotation: Rotation = 0
 ): Promise<VerifyDetailedResult | null> {
+  const codeLen = expectedCode.length;
+  if (!process.env.ANTHROPIC_API_KEY) {
+    vlog("verify:no_api_key", { imageUrl, codeLen });
+    return null;
+  }
   try {
     const img = await loadImageBuffer(imageUrl, rotation);
-    if (!img) return null;
+    if (!img) {
+      vlog("verify:image_load_null", { imageUrl, codeLen, rotation });
+      return null;
+    }
 
+    vlog("verify:anthropic_call", { codeLen, mediaType: img.mediaType, rotation });
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 100,
@@ -69,19 +104,34 @@ export async function verifyKontrolleCodeDetailed(
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
+    vlog("verify:anthropic_response", { requestId: response.id, stopReason: response.stop_reason, textPreview: redactDigits(text.slice(0, 200)) });
+
     const policyKeywords = ["I'm unable", "I cannot", "I can't", "inappropriate", "violates", "policy", "explicit", "sorry, I"];
     if (!text.includes("{") && policyKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()))) {
+      vlog("verify:policy_block", { textPreview: redactDigits(text.slice(0, 200)) });
       return { detected: null, match: false, reason: null, error: "policy" };
     }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { detected: null, match: false, reason: null };
+    if (!jsonMatch) {
+      vlog("verify:no_json_in_response", { textPreview: redactDigits(text.slice(0, 200)) });
+      return { detected: null, match: false, reason: null };
+    }
 
-    const result = JSON.parse(jsonMatch[0]);
-    const detected: string | null = result.detected ?? null;
-    const isMatch = result.match === true || (detected !== null && fuzzyMatch(detected, expectedCode));
-    return { detected, match: isMatch, reason: isMatch ? null : (result.reason ?? null) };
-  } catch {
+    let parsed: { detected?: string | null; match?: boolean; reason?: string | null };
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      vlog("verify:json_parse_failed", { jsonRawLen: jsonMatch[0].length, error: (e as Error).message });
+      return { detected: null, match: false, reason: null };
+    }
+    const detected: string | null = parsed.detected ?? null;
+    const isMatch = parsed.match === true || (detected !== null && fuzzyMatch(detected, expectedCode));
+    vlog("verify:result", { codeLen, hasDetected: detected !== null, detectedLen: detected?.length ?? 0, isMatch, reason: parsed.reason ?? null });
+    return { detected, match: isMatch, reason: isMatch ? null : (parsed.reason ?? null) };
+  } catch (e) {
+    const err = e as { status?: number; message?: string; name?: string };
+    vlog("verify:exception", { imageUrl, codeLen, name: err.name, status: err.status, message: err.message });
     return null;
   }
 }
@@ -103,9 +153,16 @@ export async function verifyKontrolleCode(
  * @param rotation  Clockwise rotation in degrees applied before sending to Claude.
  */
 export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    vlog("seal:no_api_key", { imageUrl });
+    return null;
+  }
   try {
     const img = await loadImageBuffer(imageUrl, rotation);
-    if (!img) return null;
+    if (!img) {
+      vlog("seal:image_load_null", { imageUrl, rotation });
+      return null;
+    }
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
@@ -125,14 +182,27 @@ export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0)
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
+    vlog("seal:anthropic_response", { requestId: response.id, stopReason: response.stop_reason, textPreview: redactDigits(text.slice(0, 200)) });
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    if (!jsonMatch) {
+      vlog("seal:no_json", { textPreview: redactDigits(text.slice(0, 200)) });
+      return null;
+    }
     const result = JSON.parse(jsonMatch[0]);
     const detected = result.detected;
-    if (!detected || typeof detected !== "string") return null;
-    if (!/^\d{5,8}$/.test(detected)) return null;
+    if (!detected || typeof detected !== "string") {
+      vlog("seal:no_detection", { detectedType: typeof detected });
+      return null;
+    }
+    if (!/^\d{5,8}$/.test(detected)) {
+      vlog("seal:invalid_format", { detectedLen: detected.length });
+      return null;
+    }
     return detected;
-  } catch {
+  } catch (e) {
+    const err = e as { status?: number; message?: string; name?: string };
+    vlog("seal:exception", { imageUrl, name: err.name, status: err.status, message: err.message });
     return null;
   }
 }

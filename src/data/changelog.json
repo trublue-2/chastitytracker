@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.16.1",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "chore", "text": "KI-Verifizierung: detailliertes Logging hinzugefügt — jeder Failure-Branch (kein API-Key, Image-Load-Fehler, Sharp-Fehler, Anthropic-Exception, JSON-Parse-Fehler, Policy-Block, kein Code erkannt) loggt jetzt mit `[verify]`-Prefix in die Container-Konsole. Inklusive Anthropic-Request-ID für Cross-Reference." },
+      { "type": "security", "text": "Auth-Code wird nicht mehr in Logs geleakt — bisher tauchte der erwartete 5-stellige Kontroll-Code in jedem Verifikations-Log auf. Jetzt nur noch `codeLen`/`detectedLen` plus digit-redaction (`<5d>`) auf KI-Antwort-Previews." },
+      { "type": "chore", "text": "Neuer geteilter Helper `lib/serverLog.ts:structuredLog` + `redactDigits` — verify-route und verify-lib nutzen denselben Logger mit konsistentem Timestamp." }
+    ]
+  },
+  {
     "version": "4.16.0",
     "date": "2026-05-10",
     "changes": [
