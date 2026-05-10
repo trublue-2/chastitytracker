@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
-import { validatePassword } from "@/lib/constants";
+import { validatePassword, isValidEmail } from "@/lib/constants";
 import { ensureKgCategory } from "@/lib/deviceCategories";
+import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 
 export async function GET() {
   const err = await requireAdminApi();
@@ -54,20 +55,31 @@ export async function POST(req: NextRequest) {
   const pwErr = validatePassword(password);
   if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 
-  const existing = await prisma.user.findUnique({ where: { username } });
-  if (existing) {
-    return NextResponse.json({ error: "Benutzername bereits vergeben" }, { status: 409 });
+  const trimmedEmail = email?.trim() || null;
+  if (trimmedEmail && !isValidEmail(trimmedEmail)) {
+    return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.create({
-    data: {
-      username,
-      passwordHash,
-      role: role === "admin" ? "admin" : "user",
-      ...(email?.trim() ? { email: email.trim() } : {}),
-    },
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: {
+        username,
+        passwordHash,
+        role: role === "admin" ? "admin" : "user",
+        ...(trimmedEmail ? { email: trimmedEmail } : {}),
+      },
+    });
+  } catch (err) {
+    if (isUniqueConstraintOn(err, "username")) {
+      return NextResponse.json({ error: "Benutzername bereits vergeben" }, { status: 409 });
+    }
+    if (isUniqueConstraintOn(err, "email")) {
+      return NextResponse.json({ error: "E-Mail-Adresse bereits vergeben" }, { status: 409 });
+    }
+    throw err;
+  }
   await ensureKgCategory(user.id);
 
   return NextResponse.json({ id: user.id, username: user.username, role: user.role }, { status: 201 });

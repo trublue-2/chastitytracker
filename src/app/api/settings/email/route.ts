@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isValidEmail } from "@/lib/constants";
+import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
@@ -23,9 +24,8 @@ export async function PATCH(req: NextRequest) {
       data: { email: value },
     });
   } catch (e: unknown) {
-    const code = (e as { code?: string })?.code;
-    if (code === "P2002") {
-      return NextResponse.json({ error: "Diese E-Mail ist bereits vergeben" }, { status: 409 });
+    if (isUniqueConstraintOn(e, "email")) {
+      return NextResponse.json({ error: "E-Mail-Adresse bereits vergeben" }, { status: 409 });
     }
     throw e;
   }

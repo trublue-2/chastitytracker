@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.15.5",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "ui", "text": "Beim Anlegen eines Users mit bereits vergebener E-Mail-Adresse erschien nur ein generischer Fehler (intern: Prisma-P2002). Jetzt klare Meldung „E-Mail-Adresse bereits vergeben\" mit HTTP 409 — sowohl beim Admin-Anlegen als auch beim Bearbeiten und beim Self-Service-Email-Change." },
+      { "type": "fix", "text": "TOCTOU-Race im User-Create-Pfad behoben: vorher pre-check via findUnique + create (in seltenen Fällen race-anfällig), jetzt direktes create mit P2002-Catch — atomar und ein DB-Roundtrip weniger." },
+      { "type": "chore", "text": "Neuer Helper lib/prismaErrors.ts (isUniqueConstraintOn) — Single-Source-of-Truth für P2002-Erkennung. Drei Routes vereinheitlicht." }
+    ]
+  },
+  {
     "version": "4.15.4",
     "date": "2026-05-08",
     "changes": [
