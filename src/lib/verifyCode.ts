@@ -15,6 +15,10 @@ const MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "im
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+/** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
+ *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
+const SEAL_VOCAB = `plastic security seal or numbered tag (e.g. coloured strip — yellow, red, blue, white — with a round locking head, a barcode and digits; often used to seal chastity devices). The seal may appear in any orientation — upside down, sideways or angled — read it as it would read when held upright. Preserve any leading zeros.`;
+
 /** Verify-spezifischer Logger — `[verify]`-Prefix fuer grepbare Container-Logs.
  *  WICHTIG: der erwartete Auth-Code wird bewusst NICHT geloggt (er ist die
  *  Authentifizierung der Kontrolle). Nur Laenge, Filename, mediaType, bytes,
@@ -88,7 +92,7 @@ export async function verifyKontrolleCodeDetailed(
     vlog("verify:anthropic_call", { codeLen, mediaType: img.mediaType, rotation });
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 100,
+      max_tokens: 150,
       messages: [
         {
           role: "user",
@@ -96,7 +100,7 @@ export async function verifyKontrolleCodeDetailed(
             { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
             {
               type: "text",
-              text: `This image should contain a handwritten 5-digit number: ${expectedCode}.\nLook carefully for any handwritten digits in the image. Note: handwritten "1" often looks like "7" and vice versa – read carefully.\nReply with JSON only: {"detected": "<5-digit code or null>", "match": true/false, "reason": "<brief reason in German if match is false, else null>"}.\nPossible reasons (pick the most fitting, keep it short): "Kein Code sichtbar", "Bild zu unscharf", "Code verdeckt oder abgeschnitten", "Schrift nicht lesbar", "Falscher Code sichtbar: <detected>", "Bild zu dunkel", "Kein handgeschriebener Code gefunden".`,
+              text: `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.\nThe target number may appear in any of these forms:\n• handwritten on a slip of paper or card,\n• printed/typed on a tag, sticker or label,\n• printed on a ${SEAL_VOCAB}\nNote: in handwriting "1" often looks like "7" and vice versa — read carefully.\nReply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false, "reason": "<brief reason in German if match is false, else null>"}.\nIf you find a different number than ${expectedCode}, set detected to that other number and match to false.\nPossible reasons (pick the most fitting, keep it short): "Kein Code sichtbar", "Bild zu unscharf", "Code verdeckt oder abgeschnitten", "Schrift nicht lesbar", "Falscher Code sichtbar: <detected>", "Bild zu dunkel", "Kein Code gefunden".`,
             },
           ],
         },
@@ -174,7 +178,7 @@ export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0)
             { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
             {
               type: "text",
-              text: `Look for a plastic security seal (also called a numbered tag seal or ear tag seal) in this image. These seals are typically colored strips (red, blue, yellow, white, etc.) with a round locking head and a flat strip bearing a printed number. The seal may appear in any orientation — upside down, sideways, or at an angle. The number is usually 5–7 digits and may start with leading zeros (e.g. "006101"). Read the number regardless of orientation and report it as it would read when held upright. Preserve all leading zeros.\nReply with JSON only: {"detected": "<number with leading zeros or null>"}. If no seal or number is visible, use null.`,
+              text: `Look for a ${SEAL_VOCAB}\nThe number is usually 5–8 digits.\nReply with JSON only: {"detected": "<number with leading zeros or null>"}. If no seal or number is visible, use null.`,
             },
           ],
         },
