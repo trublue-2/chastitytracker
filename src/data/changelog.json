@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.15.6",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "chore", "text": "Retroaktive Simplify-Findings zu v4.15.5: Strafe-Route auf den neuen isUniqueConstraintOn-Helper umgestellt (war noch ad-hoc P2002-Check). Helper-Signatur enger typisiert (KnownUniqueField-Union mit Autocomplete für „username\"/„email\"/„refId\") — Tippfehler werden jetzt vom TypeScript erkannt." }
+    ]
+  },
+  {
     "version": "4.15.5",
     "date": "2026-05-10",
     "changes": [
