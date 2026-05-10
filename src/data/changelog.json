@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.16.2",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "feat", "text": "KI-Verifizierung akzeptiert jetzt drei Code-Quellen: handgeschriebener Code (Papier/Karte), gedruckter Code (Etikett/Sticker) und Code auf Plastik-Plomben/Sicherheits-Seal (incl. beliebiger Orientierung). Prompt schärft, dass nur der spezifisch erwartete Code zählt — andere Zahlen im Bild (Barcodes, Geräte-Seriennummern) werden ignoriert, damit Plomben-Nummern keinen False-Negative verursachen." },
+      { "type": "fix", "text": "max_tokens für KI-Verifizierung von 100 auf 150 erhöht — schützt vor JSON-Truncation bei längeren Codes oder ausführlichen Reasons." },
+      { "type": "chore", "text": "Plomben-Vokabular in geteilte SEAL_VOCAB-Konstante extrahiert — verifyKontrolleCodeDetailed und detectSealNumber teilen sich die Beschreibung statt sie zweimal zu pflegen." }
+    ]
+  },
+  {
     "version": "4.16.1",
     "date": "2026-05-10",
     "changes": [
