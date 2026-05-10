@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.15.7",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "fix", "text": "Frische User (noch keine eigenen Einträge) sahen eine offene Verschluss-Anforderung nicht im Dashboard — der „Willkommen!\"-Empty-State überschrieb den Anforderungs-Banner. Banner wird jetzt auch im Empty-State angezeigt, damit User auch ohne Mail-Lesen sofort sehen, was zu tun ist." },
+      { "type": "chore", "text": "DashboardClient: duplizierten LockRequestBanner-JSX (Empty-State + Haupt-Branch) in lokale const lockRequestBanner extrahiert — Single Source of Truth für die nachricht-Composition." }
+    ]
+  },
+  {
     "version": "4.15.6",
     "date": "2026-05-10",
     "changes": [
