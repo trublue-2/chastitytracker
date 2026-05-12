@@ -191,13 +191,19 @@ export async function getNonKgTrackingCategories(userId: string) {
   });
 }
 
-/** Returns the currently active TrainingVorgabe for a user, or null. */
+/** Returns the currently active KG TrainingVorgabe for a user, or null.
+ *  Filters explicitly to the KG category — legacy rows with categoryId=null
+ *  (pre-device-categories) OR rows linked to the built-in KG category.
+ *  Other categories (Plug, etc.) are handled by CategoryGoalsToday. */
 export async function getActiveVorgabe(userId: string, now: Date) {
   return prisma.trainingVorgabe.findFirst({
     where: {
       userId,
       gueltigAb: { lte: now },
-      OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }],
+      AND: [
+        { OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }] },
+        { OR: [{ categoryId: null }, { category: { isBuiltIn: true } }] },
+      ],
     },
     orderBy: { gueltigAb: "desc" },
   });
