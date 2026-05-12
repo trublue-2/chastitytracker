@@ -365,13 +365,16 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     const catPairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cat.id });
     if (catPairs.length === 0) continue;
     const catVorgaben = vorgaben.filter((v) => v.categoryId === cat.id);
+    const catEntries = entries.filter(
+      (e) => (e.type === WEAR_PAIR.close || e.type === WEAR_PAIR.open) && e.device?.categoryId === cat.id
+    );
     calendarVariants.push({
       id: cat.id,
       name: cat.name,
       color: cat.color,
       icon: cat.icon,
       isKG: false,
-      months: buildCalendarMonths({ entries, wearPairs: catPairs, vorgaben: catVorgaben, orgasmDateSet: new Set(), now, dl }),
+      months: buildCalendarMonths({ entries: catEntries, wearPairs: catPairs, vorgaben: catVorgaben, orgasmDateSet: new Set(), now, dl }),
     });
   }
 

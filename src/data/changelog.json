@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.16.4",
+    "date": "2026-05-12",
+    "changes": [
+      { "type": "fix", "text": "seed.js: Startup-Loop behoben — Admin-User-Anlegen schlug fehl wenn die konfigurierte E-Mail schon in der DB war (P2002 unique constraint). Seed sucht jetzt in einer Query nach bestehendem Admin oder User mit passendem Username/E-Mail und befördert ihn ggf. zum Admin statt einen Duplikat anzulegen." },
+      { "type": "fix", "text": "seed.js: ensureKgCategory nutzt jetzt upsert statt findUnique+create — verhindert Race-Condition bei parallelen Container-Starts." }
+    ]
+  },
+  {
+    "version": "4.16.3",
+    "date": "2026-05-12",
+    "changes": [
+      { "type": "fix", "text": "Admin-Übersicht zeigt jetzt Trainingsziele und abgeschlossene Wear-Sessions für non-KG-Kategorien — inhaltlich gleich wie das User-Dashboard." },
+      { "type": "fix", "text": "Tragekalender: Klick auf Tag bei non-KG-Kategorie (z.B. Plug) zeigte fälschlicherweise KG-Einträge (VERSCHLUSS/OEFFNEN) statt WEAR_BEGIN/WEAR_END der jeweiligen Kategorie." },
+      { "type": "fix", "text": "Meldungen-Einstellungen: Spaltenüberschrift 'E-MAIL' umbrechen nicht mehr auf zwei Zeilen." },
+      { "type": "chore", "text": "buildWearSessionRows und WearSessionRow in lib/utils zentralisiert — Dashboard und Admin-Übersicht teilen die Logik statt sie zu duplizieren. getNonKgTrackingCategories aus queries.ts extrahiert." }
+    ]
+  },
+  {
     "version": "4.16.2",
     "date": "2026-05-10",
     "changes": [
