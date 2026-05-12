@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.16.7",
+    "date": "2026-05-12",
+    "changes": [
+      { "type": "fix", "text": "Laufende KG-Session zeigte Trainingsvorgaben einer anderen Kategorie (z.B. Plug) — getActiveVorgabe filterte nicht auf Kategorie und gab die zuletzt erstellte Vorgabe zurück. Jetzt explizit nur KG-Vorgaben (categoryId NULL oder built-in KG-Kategorie). Andere Kategorien werden weiterhin separat in CategoryGoalsToday angezeigt." }
+    ]
+  },
+  {
     "version": "4.16.6",
     "date": "2026-05-12",
     "changes": [
