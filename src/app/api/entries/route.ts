@@ -205,12 +205,14 @@ export async function POST(req: NextRequest) {
       if (eventTypes.length === 0) return;
 
       const prefs = await prisma.notificationPreference.findMany({
-        where: { userId: session.user.id, eventType: { in: eventTypes }, OR: [{ mail: true }, { push: true }] },
+        where: { userId: session.user.id, eventType: { in: eventTypes } },
       });
-      if (prefs.length === 0) return;
-
-      const shouldPush = prefs.some((p) => p.push);
-      const shouldMail = prefs.some((p) => p.mail);
+      // Missing row = ON by default (opt-out model). Explicit rows are respected.
+      const channelOn = (channel: "mail" | "push") =>
+        eventTypes.some((et) => prefs.find((p) => p.eventType === et)?.[channel] ?? true);
+      const shouldPush = channelOn("push");
+      const shouldMail = channelOn("mail");
+      if (!shouldPush && !shouldMail) return;
 
       // Build descriptive message
       const username = session.user.name ?? "User";

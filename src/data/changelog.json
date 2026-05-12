@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.16.5",
+    "date": "2026-05-12",
+    "changes": [
+      { "type": "fix", "text": "Benachrichtigungen für Entry-Erstellung (Verschluss, Öffnen, Plug einsetzen/entfernen, Orgasmus, Prüfung) gingen nur raus, wenn der Admin im UI explizit die Toggles aktiviert hatte. Ab jetzt sind alle Event-Typen standardmässig EIN (mail + push) — Admin kann sie deaktivieren statt aktivieren müssen. Bestehende explizite Opt-outs bleiben respektiert." }
+    ]
+  },
+  {
     "version": "4.16.4",
     "date": "2026-05-12",
     "changes": [
