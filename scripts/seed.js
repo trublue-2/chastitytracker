@@ -6,6 +6,19 @@ const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
+// Mirror of src/lib/constants.ts NOTIFICATION_EVENT_TYPES — seed.js is plain CJS
+// and can't import from src. Keep both lists in sync.
+const NOTIFICATION_EVENT_TYPES = [
+  "VERSCHLUSS",
+  "OEFFNUNG_IMMER",
+  "OEFFNUNG_VERBOTEN",
+  "ORGASMUS",
+  "KONTROLLE_FREIWILLIG",
+  "KONTROLLE_ANGEFORDERT",
+  "WEAR_BEGIN_ANY",
+  "WEAR_END_ANY",
+];
+
 async function ensureKgCategory(userId) {
   const categoryId = `kgcat_${userId}`;
   await prisma.deviceCategory.upsert({
@@ -23,6 +36,18 @@ async function ensureKgCategory(userId) {
       sortOrder: 0,
     },
   });
+}
+
+async function ensureNotificationPrefs(userId) {
+  await Promise.all(
+    NOTIFICATION_EVENT_TYPES.map((eventType) =>
+      prisma.notificationPreference.upsert({
+        where: { userId_eventType: { userId, eventType } },
+        update: {},
+        create: { userId, eventType, mail: true, push: true },
+      })
+    )
+  );
 }
 
 async function main() {
@@ -68,6 +93,11 @@ async function main() {
   }
 
   await ensureKgCategory(adminUser.id);
+
+  // Backfill notification prefs for ALL users (existing instances + new admin).
+  // createMany + skipDuplicates means existing explicit opt-outs are preserved.
+  const allUsers = await prisma.user.findMany({ select: { id: true } });
+  await Promise.all(allUsers.map((u) => ensureNotificationPrefs(u.id)));
 
   // Assign orphaned entries (no userId) to the admin — raw SQL because userId is non-nullable in schema.
   const orphaned = await prisma.$executeRaw`UPDATE "Entry" SET "userId" = ${adminUser.id} WHERE "userId" IS NULL`;

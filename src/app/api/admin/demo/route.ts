@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { ensureKgCategory } from "@/lib/deviceCategories";
+import { ensureNotificationPreferences } from "@/lib/notificationPrefs";
 
 export const DEMO_USERNAME = "DemoUser";
 export const DEMO_PASSWORD = "demo1234";
@@ -24,6 +25,7 @@ export async function POST() {
     data: { username: DEMO_USERNAME, passwordHash, role: "user" },
   });
   await ensureKgCategory(user.id);
+  await ensureNotificationPreferences(user.id);
 
   const now = new Date();
   const days = (n: number) => new Date(now.getTime() - n * 86_400_000);

@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.16.6",
+    "date": "2026-05-12",
+    "changes": [
+      { "type": "fix", "text": "Benachrichtigungs-Einstellungen werden jetzt explizit pro User in der DB angelegt (alle Event-Typen mit mail+push=an) — beim Anlegen neuer User und einmalig für alle bestehenden User beim Container-Start (seed.js). Vorher mussten die Toggles im Admin manuell aktiviert werden, sonst gingen keine Mails/Pushes raus. Bestehende explizite Opt-outs bleiben respektiert." }
+    ]
+  },
+  {
     "version": "4.16.5",
     "date": "2026-05-12",
     "changes": [
