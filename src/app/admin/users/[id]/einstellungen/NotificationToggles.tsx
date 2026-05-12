@@ -77,10 +77,10 @@ export default function NotificationToggles({ userId }: { userId: string }) {
       <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notifyTitle")}</p>
         <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-faint shrink-0">
-          <span className="flex items-center gap-1 w-14 justify-center" title={t("notifyPushTitle")}>
+          <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyPushTitle")}>
             <Bell size={12} aria-hidden /> {t("notifyChannelPush")}
           </span>
-          <span className="flex items-center gap-1 w-14 justify-center" title={t("notifyMailTitle")}>
+          <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyMailTitle")}>
             <Mail size={12} aria-hidden /> {t("notifyChannelMail")}
           </span>
         </div>
@@ -98,7 +98,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
                 <div key={et} className="px-5 py-3 flex items-center justify-between gap-3">
                   <span className="text-sm text-foreground truncate">{t(I18N_KEY[et])}</span>
                   <div className="flex items-center gap-1 shrink-0">
-                    <div className="w-14 flex justify-center">
+                    <div className="w-16 flex justify-center">
                       <Toggle
                         label=""
                         checked={prefs[et].push}
@@ -106,7 +106,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
                         onChange={(checked) => handleToggle(et, "push", checked)}
                       />
                     </div>
-                    <div className="w-14 flex justify-center">
+                    <div className="w-16 flex justify-center">
                       <Toggle
                         label=""
                         checked={prefs[et].mail}

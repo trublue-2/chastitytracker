@@ -182,6 +182,15 @@ export async function getActiveWearSessionForCategory(
   };
 }
 
+/** Returns non-KG device categories with tracking enabled, ordered by sortOrder then createdAt. */
+export async function getNonKgTrackingCategories(userId: string) {
+  return prisma.deviceCategory.findMany({
+    where: { userId, isBuiltIn: false, trackingEnabled: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, color: true, icon: true },
+  });
+}
+
 /** Returns the currently active TrainingVorgabe for a user, or null. */
 export async function getActiveVorgabe(userId: string, now: Date) {
   return prisma.trainingVorgabe.findFirst({

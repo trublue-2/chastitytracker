@@ -6,20 +6,8 @@ import { Timer } from "lucide-react";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
 
-export interface WearSessionRow {
-  id: string;
-  categoryName: string;
-  categoryColor: string;
-  categoryIcon: string;
-  /** Localized "DD.MM.YYYY" or similar — matches SessionList styling. */
-  startDateStr: string;
-  startTimeStr: string;
-  /** Same as startDateStr when the session ended on the same day (the renderer
-   *  collapses the date in that case). */
-  endDateStr: string;
-  endTimeStr: string;
-  durationStr: string;
-}
+import type { WearSessionRow } from "@/lib/utils";
+export type { WearSessionRow } from "@/lib/utils";
 
 const PAGE_SIZE = 5;
 

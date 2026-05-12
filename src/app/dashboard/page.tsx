@@ -2,21 +2,22 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDateTime, formatHours, formatDate, formatTime, formatDuration,
+  formatDateTime, formatHours,
   buildPairs, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
+  buildWearSessionRows,
   buildWearPairs, wearingHoursFromPairs, WEAR_PAIR,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
-import WearSessionList, { type WearSessionRow } from "./WearSessionList";
+import WearSessionList from "./WearSessionList";
 import ActiveWearSessions from "./ActiveWearSessions";
 import CategoriesPromoCard from "./CategoriesPromoCard";
 import CategoryGoalsToday from "./CategoryGoalsToday";
@@ -50,13 +51,7 @@ export default async function DashboardPage() {
     getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
-    flagOn
-      ? prisma.deviceCategory.findMany({
-          where: { userId, isBuiltIn: false, trackingEnabled: true },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-          select: { id: true, name: true, color: true, icon: true },
-        })
-      : Promise.resolve([]),
+    flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
   ]);
 
   const reinigung: ReinigungSettings = {
@@ -88,27 +83,7 @@ export default async function DashboardPage() {
 
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
-  // Completed non-KG wear sessions across all categories, newest first.
-  // Active sessions (end === now per buildWearPairs contract) are skipped — they
-  // appear in ActiveWearSessions at the top of the dashboard.
-  const wearSessionRows: WearSessionRow[] = allNonKgCategories
-    .flatMap((cat) =>
-      buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cat.id })
-        .filter((p) => p.end.getTime() !== now.getTime())
-        .map((p) => ({ cat, pair: p })),
-    )
-    .sort((a, b) => b.pair.start.getTime() - a.pair.start.getTime())
-    .map(({ cat, pair }) => ({
-      id: `${cat.id}-${pair.start.toISOString()}`,
-      categoryName: cat.name,
-      categoryColor: cat.color,
-      categoryIcon: cat.icon,
-      startDateStr: formatDate(pair.start, dl),
-      startTimeStr: formatTime(pair.start, dl),
-      endDateStr: formatDate(pair.end, dl),
-      endTimeStr: formatTime(pair.end, dl),
-      durationStr: formatDuration(pair.start, pair.end, dl),
-    }));
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
 
   // ── Serialize for client ──
   const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
