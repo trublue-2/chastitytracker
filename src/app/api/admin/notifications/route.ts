@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const map: Record<string, { mail: boolean; push: boolean }> = {};
   for (const et of NOTIFICATION_EVENT_TYPES) {
     const p = prefs.find((x) => x.eventType === et);
-    map[et] = { mail: p?.mail ?? true, push: p?.push ?? true };
+    map[et] = { mail: p?.mail ?? false, push: p?.push ?? false };
   }
   return NextResponse.json(map);
 }
