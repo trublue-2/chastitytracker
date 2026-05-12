@@ -261,8 +261,8 @@ model NotificationPreference {
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   eventType String  // VERSCHLUSS | OEFFNUNG_IMMER | OEFFNUNG_VERBOTEN | ORGASMUS | KONTROLLE_FREIWILLIG | KONTROLLE_ANGEFORDERT
-  mail      Boolean @default(false)
-  push      Boolean @default(false)
+  mail      Boolean @default(true)
+  push      Boolean @default(true)
 
   @@unique([userId, eventType])
   @@index([userId])
