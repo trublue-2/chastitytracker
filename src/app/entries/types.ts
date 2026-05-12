@@ -46,6 +46,24 @@ export interface OeffnenPayload {
   forcedReinigung?: boolean;
 }
 
+export interface WearBeginPayload {
+  type: "WEAR_BEGIN";
+  startTime: string;
+  deviceId: string;
+  imageUrl: string | null;
+  imageExifTime: string | null;
+  note: string | null;
+}
+
+export interface WearEndPayload {
+  type: "WEAR_END";
+  startTime: string;
+  deviceId: string;
+  imageUrl: string | null;
+  imageExifTime: string | null;
+  note: string | null;
+}
+
 /** Bundled user-cleaning config (kept together to avoid prop sprawl). */
 export interface ReinigungConfig {
   erlaubt: boolean;

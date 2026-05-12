@@ -6,6 +6,7 @@ import VerschlussForm from "../../VerschlussForm";
 import OeffnenForm from "../../OeffnenForm";
 import PruefungForm from "../../PruefungForm";
 import OrgasmusForm from "../../OrgasmusForm";
+import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal } from "@/lib/utils";
 import { getUserDeviceOptions } from "@/lib/queries";
@@ -30,7 +31,12 @@ export default async function EditEntryPage({
   const isAdmin = session?.user?.role === "admin";
   const currentUserId = session?.user?.id;
   const [entry, dbUser] = await Promise.all([
-    prisma.entry.findUnique({ where: { id } }),
+    prisma.entry.findUnique({
+      where: { id },
+      include: {
+        device: { select: { categoryId: true, category: { select: { id: true, name: true, color: true, icon: true, requirePhoto: true } } } },
+      },
+    }),
     currentUserId ? prisma.user.findUnique({ where: { id: currentUserId }, select: { mobileDesktopUpload: true } }) : null,
   ]);
   const mobileDesktopMode = dbUser?.mobileDesktopUpload ?? false;
@@ -43,10 +49,20 @@ export default async function EditEntryPage({
     ? await getUserDeviceOptions(entry.userId)
     : [];
 
-  // Anti-cheat: non-admins may only shift times in the allowed direction
+  // Devices for WEAR_BEGIN edit (filtered to its category, so user can correct device).
+  const wearDevices = entry.type === "WEAR_BEGIN" && entry.device?.categoryId
+    ? await prisma.device.findMany({
+        where: { userId: entry.userId, categoryId: entry.device.categoryId, archivedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
+
+  // Anti-cheat: non-admins may only shift times in the allowed direction.
+  // WEAR_BEGIN behaves like VERSCHLUSS (forward only), WEAR_END like OEFFNEN (backward only).
   const originalTime = toDatetimeLocal(entry.startTime);
-  const minTime = !isAdmin && (entry.type === "VERSCHLUSS" || entry.type === "PRUEFUNG") ? originalTime : undefined;
-  const maxTime = !isAdmin && (entry.type === "OEFFNEN" || entry.type === "ORGASMUS") ? originalTime : undefined;
+  const minTime = !isAdmin && (entry.type === "VERSCHLUSS" || entry.type === "PRUEFUNG" || entry.type === "WEAR_BEGIN") ? originalTime : undefined;
+  const maxTime = !isAdmin && (entry.type === "OEFFNEN" || entry.type === "ORGASMUS" || entry.type === "WEAR_END") ? originalTime : undefined;
 
   const redirectTo = from === "admin" && adminUserId
     ? `/admin/users/${adminUserId}/eintraege`
@@ -84,6 +100,24 @@ export default async function EditEntryPage({
           id: entry.id, startTime: entry.startTime.toISOString(),
           note: entry.note, orgasmusArt: entry.orgasmusArt,
         }} maxTime={maxTime} redirectTo={redirectTo} />
+      )}
+      {(entry.type === "WEAR_BEGIN" || entry.type === "WEAR_END") && entry.device?.category && (
+        <WearForm
+          kind={entry.type === "WEAR_BEGIN" ? "begin" : "end"}
+          category={entry.device.category}
+          devices={entry.type === "WEAR_BEGIN" ? wearDevices : undefined}
+          initial={{
+            id: entry.id,
+            startTime: entry.startTime.toISOString(),
+            note: entry.note,
+            deviceId: entry.deviceId,
+            imageUrl: entry.imageUrl,
+            imageExifTime: entry.imageExifTime?.toISOString() ?? null,
+          }}
+          minTime={minTime}
+          maxTime={maxTime}
+          redirectTo={redirectTo}
+        />
       )}
       </div>
     </div>

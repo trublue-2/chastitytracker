@@ -4,15 +4,29 @@ import { useRouter } from "next/navigation";
 import { Lock, LockOpen, ClipboardCheck, Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
+import CategoryIconRender from "./CategoryIcon";
+import { categoryStyle } from "@/lib/categoryConstants";
+
+export interface NewEntryCategoryRow {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  /** Set when an active wear-session exists in this category. Null otherwise. */
+  activeDeviceName: string | null;
+}
 
 interface Props {
   open: boolean;
   onClose: () => void;
   isLocked: boolean;
+  /** Non-KG categories with their active-session state. Empty/undefined when feature flag is off. */
+  categoryRows?: NewEntryCategoryRow[];
 }
 
-export default function NewEntrySheet({ open, onClose, isLocked }: Props) {
+export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [] }: Props) {
   const t = useTranslations("newEntry");
+  const tw = useTranslations("wearForm");
   const router = useRouter();
 
   const options = [
@@ -92,6 +106,38 @@ export default function NewEntrySheet({ open, onClose, isLocked }: Props) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground">{opt.label}</p>
                 <p className="text-xs text-foreground-muted">{opt.desc}</p>
+              </div>
+            </button>
+          );
+        })}
+
+        {/* Per-Category wear actions (begin or end based on state). */}
+        {categoryRows.map((c) => {
+          const active = c.activeDeviceName !== null;
+          const href = active
+            ? `/dashboard/new/wear-end?category=${c.id}`
+            : `/dashboard/new/wear-begin?category=${c.id}`;
+          const desc = active
+            ? `${tw("endShort")} · ${c.activeDeviceName}`
+            : tw("titleBegin");
+          const style = categoryStyle(c.color);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => handleSelect(href)}
+              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
+            >
+              <span
+                className="size-7 rounded-md flex items-center justify-center shrink-0"
+                style={{ backgroundColor: style.backgroundColor, color: style.color }}
+                aria-hidden
+              >
+                <CategoryIconRender name={c.icon} className="size-4" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">{c.name}</p>
+                <p className="text-xs text-foreground-muted truncate">{desc}</p>
               </div>
             </button>
           );

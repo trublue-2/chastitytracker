@@ -71,6 +71,8 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
     OEFFNEN: t("typeOeffnen"),
     PRUEFUNG: t("typePruefung"),
     ORGASMUS: t("typeOrgasmus"),
+    WEAR_BEGIN: t("typeWearBegin"),
+    WEAR_END: t("typeWearEnd"),
   };
 
   // Generate locale-aware short day names starting from Monday

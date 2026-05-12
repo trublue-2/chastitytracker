@@ -207,6 +207,19 @@ export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
 
 export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
 
+/** Type-pair definition for pair-building. KG_PAIR is the default; WEAR_PAIR is for
+ *  user-defined non-KG categories (Plug, Collar, etc.). */
+export type PairTypes = { close: string; open: string };
+export const KG_PAIR: PairTypes = { close: "VERSCHLUSS", open: "OEFFNEN" };
+export const WEAR_PAIR: PairTypes = { close: "WEAR_BEGIN", open: "WEAR_END" };
+
+export type BuildPairsOptions = {
+  types?: PairTypes;
+  categoryId?: string | null;
+  /** Only honored when `types === KG_PAIR`. Ignored for WEAR_PAIR. */
+  reinigung?: ReinigungSettings;
+};
+
 type PairResult<E, K> = {
   verschluss: E;
   oeffnen: E | null;
@@ -215,16 +228,62 @@ type PairResult<E, K> = {
   interruptions: { oeffnen: E; verschluss: E }[];
 };
 
-/** Builds Verschluss/Oeffnen pairs with associated Kontrollen, newest first.
- *  If reinigung settings are provided, OEFFNEN(REINIGUNG) followed by a new
- *  VERSCHLUSS within maxMinuten are treated as interruptions (not session ends). */
-export function buildPairs<
-  E extends { id: string; type: string; startTime: Date; oeffnenGrund?: string | null },
-  K extends { time: Date }
->(entries: E[], kontrollen: K[], reinigung?: ReinigungSettings): PairResult<E, K>[] {
-  const asc = [...entries]
-    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
+/** True iff the legacy 3rd arg shape (a bare ReinigungSettings) was passed. */
+function isLegacyReinigungArg(arg: unknown): arg is ReinigungSettings {
+  return !!arg && typeof arg === "object"
+    && "erlaubt" in arg
+    && !("types" in arg) && !("categoryId" in arg) && !("reinigung" in arg);
+}
+
+function normalizeBuildPairsOptions(
+  arg?: ReinigungSettings | BuildPairsOptions,
+): { types: PairTypes; reinigung: ReinigungSettings | undefined; categoryId: string | null } {
+  if (!arg) return { types: KG_PAIR, reinigung: undefined, categoryId: null };
+  if (isLegacyReinigungArg(arg)) return { types: KG_PAIR, reinigung: arg, categoryId: null };
+  return {
+    types: arg.types ?? KG_PAIR,
+    reinigung: arg.reinigung,
+    categoryId: arg.categoryId ?? null,
+  };
+}
+
+/** Filters entries to the given pair-types and optional categoryId, then sorts ascending by startTime. */
+function filterAndSortPairEntries<E extends { type: string; startTime: Date; device?: { categoryId?: string | null } | null }>(
+  entries: E[],
+  types: PairTypes,
+  categoryId: string | null,
+): E[] {
+  return [...entries]
+    .filter((e) =>
+      (e.type === types.close || e.type === types.open) &&
+      (!categoryId || e.device?.categoryId === categoryId),
+    )
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+}
+
+/** Builds close/open pairs with associated Kontrollen, newest first.
+ *  Defaults to KG (VERSCHLUSS/OEFFNEN). Pass `{ types: WEAR_PAIR, categoryId }` for
+ *  user-defined categories. Reinigungs-interruption only applies to KG pairs.
+ *
+ *  Backward-compat: a bare `ReinigungSettings` as the 3rd arg is accepted (legacy callers). */
+export function buildPairs<
+  E extends {
+    id: string;
+    type: string;
+    startTime: Date;
+    oeffnenGrund?: string | null;
+    device?: { categoryId?: string | null } | null;
+  },
+  K extends { time: Date }
+>(
+  entries: E[],
+  kontrollen: K[],
+  reinigungOrOptions?: ReinigungSettings | BuildPairsOptions,
+): PairResult<E, K>[] {
+  const { types, reinigung, categoryId } = normalizeBuildPairsOptions(reinigungOrOptions);
+  const reinigungActive = types === KG_PAIR && reinigung?.erlaubt === true;
+
+  const asc = filterAndSortPairEntries(entries, types, categoryId);
 
   const pairs: PairResult<E, K>[] = [];
   let pending: E | null = null;
@@ -232,10 +291,10 @@ export function buildPairs<
   let currentInterruptions: { oeffnen: E; verschluss: E }[] = [];
 
   for (const e of asc) {
-    if (e.type === "VERSCHLUSS") {
-      if (pendingReinigung && pending && reinigung?.erlaubt) {
+    if (e.type === types.close) {
+      if (pendingReinigung && pending && reinigungActive) {
         const dt = (e.startTime.getTime() - pendingReinigung.startTime.getTime()) / 60000;
-        if (dt <= reinigung.maxMinuten) {
+        if (dt <= reinigung!.maxMinuten) {
           // Valid interruption – continue session
           currentInterruptions.push({ oeffnen: pendingReinigung, verschluss: e });
           pendingReinigung = null;
@@ -251,8 +310,8 @@ export function buildPairs<
         currentInterruptions = [];
         pending = e;
       }
-    } else if (e.type === "OEFFNEN" && pending) {
-      if (reinigung?.erlaubt && e.oeffnenGrund === "REINIGUNG") {
+    } else if (e.type === types.open && pending) {
+      if (reinigungActive && e.oeffnenGrund === "REINIGUNG") {
         pendingReinigung = e;
       } else {
         if (pendingReinigung) {
@@ -272,7 +331,7 @@ export function buildPairs<
 
   // Handle open session (still wearing or pending reinigung)
   if (pending) {
-    if (pendingReinigung && reinigung?.erlaubt) {
+    if (pendingReinigung && reinigungActive) {
       // Device is currently open for cleaning – show session as ended at reinigung OEFFNEN.
       // If user re-locks within maxMinuten, the next page load will merge it as an interruption.
       pairs.push({ verschluss: pending, oeffnen: pendingReinigung, active: false, kontrollen: [], interruptions: currentInterruptions });
@@ -311,21 +370,24 @@ export function photoStatus(v: { imageUrl: string | null; imageExifTime: Date | 
 
 export type WearPair = { start: Date; end: Date };
 
-/** Builds VERSCHLUSS→OEFFNEN pairs from entries. Open sessions end at `now`. */
-export function buildWearPairs(
-  entries: { type: string; startTime: Date }[],
-  now: Date
-): WearPair[] {
-  const asc = [...entries]
-    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+export type WearPairOptions = { types?: PairTypes; categoryId?: string | null };
+
+/** Builds close→open pairs from entries. Open sessions end at `now`.
+ *  Defaults to KG (VERSCHLUSS/OEFFNEN). Pass `{ types: WEAR_PAIR, categoryId }` for
+ *  user-defined categories. */
+export function buildWearPairs<
+  E extends { type: string; startTime: Date; device?: { categoryId?: string | null } | null }
+>(entries: E[], now: Date, options?: WearPairOptions): WearPair[] {
+  const types = options?.types ?? KG_PAIR;
+  const categoryId = options?.categoryId ?? null;
+  const asc = filterAndSortPairEntries(entries, types, categoryId);
   const pairs: WearPair[] = [];
   let pending: { startTime: Date } | null = null;
   for (const e of asc) {
-    if (e.type === "VERSCHLUSS") {
+    if (e.type === types.close) {
       if (pending) pairs.push({ start: pending.startTime, end: now });
       pending = e;
-    } else if (e.type === "OEFFNEN" && pending) {
+    } else if (e.type === types.open && pending) {
       pairs.push({ start: pending.startTime, end: e.startTime });
       pending = null;
     }
@@ -347,26 +409,37 @@ export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, range
 // ── Entry-based wearing hours (single-shot calculations) ─────────────────────
 
 /** Berechnet effektive Tragedauer in Stunden innerhalb eines Zeitraums.
- *  Jedes OEFFNEN (inkl. REINIGUNG) stoppt die Tragedauer – Pausen werden
- *  dadurch automatisch ausgeschlossen. Das reinigung-Param wird für die
- *  Signatur-Kompatibilität beibehalten, ändert aber die Berechnung nicht. */
-export function wearingHoursInRange(
-  entries: { type: string; startTime: Date; oeffnenGrund?: string | null }[],
+ *  Jedes "open"-Entry stoppt die Tragedauer – Pausen werden dadurch automatisch
+ *  ausgeschlossen. Defaults zu KG; per `options.types` für andere Kategorien.
+ *
+ *  Backward-compat: ein bare `ReinigungSettings` als 4. Arg ist erlaubt (wird ignoriert,
+ *  wie bisher — die Funktion respektiert REINIGUNG-Pausen nicht). */
+export function wearingHoursInRange<
+  E extends {
+    type: string;
+    startTime: Date;
+    oeffnenGrund?: string | null;
+    device?: { categoryId?: string | null } | null;
+  }
+>(
+  entries: E[],
   from: Date,
   to: Date,
-  _reinigung?: ReinigungSettings
+  optionsOrReinigung?: ReinigungSettings | WearPairOptions,
 ): number {
-  const sorted = [...entries]
-    .filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  const isLegacy = isLegacyReinigungArg(optionsOrReinigung);
+  const types = isLegacy ? KG_PAIR : (optionsOrReinigung?.types ?? KG_PAIR);
+  const categoryId = isLegacy ? null : (optionsOrReinigung?.categoryId ?? null);
+
+  const sorted = filterAndSortPairEntries(entries, types, categoryId);
 
   let total = 0;
   let wearStart: Date | null = null;
 
   for (const e of sorted) {
-    if (e.type === "VERSCHLUSS") {
+    if (e.type === types.close) {
       wearStart = e.startTime;
-    } else if (e.type === "OEFFNEN" && wearStart) {
+    } else if (e.type === types.open && wearStart) {
       const s = Math.max(wearStart.getTime(), from.getTime());
       const end = Math.min(e.startTime.getTime(), to.getTime());
       if (end > s) total += end - s;
@@ -382,16 +455,30 @@ export function wearingHoursInRange(
   return total / (1000 * 60 * 60);
 }
 
-/** Wearing hours for today / current week / current month. */
-export function calculateWearingHoursByRange(
-  entries: { type: string; startTime: Date; oeffnenGrund?: string | null }[],
+/** Wearing hours for today / current week / current month.
+ *  Builds wear-pairs once and reuses them for the three ranges (vs. three full sorts).
+ *  Backward-compat: legacy callers pass `ReinigungSettings` (now ignored, same as before). */
+export function calculateWearingHoursByRange<
+  E extends {
+    type: string;
+    startTime: Date;
+    oeffnenGrund?: string | null;
+    device?: { categoryId?: string | null } | null;
+  }
+>(
+  entries: E[],
   now: Date,
-  reinigung: ReinigungSettings
+  optionsOrReinigung?: ReinigungSettings | WearPairOptions,
 ): { tagH: number; wocheH: number; monatH: number } {
+  const isLegacy = isLegacyReinigungArg(optionsOrReinigung);
+  const wearOptions: WearPairOptions = isLegacy
+    ? {}
+    : { types: optionsOrReinigung?.types, categoryId: optionsOrReinigung?.categoryId };
+  const pairs = buildWearPairs(entries, now, wearOptions);
   return {
-    tagH: wearingHoursInRange(entries, getMidnightToday(now), now, reinigung),
-    wocheH: wearingHoursInRange(entries, getWeekStart(now), now, reinigung),
-    monatH: wearingHoursInRange(entries, getMonthStart(now), now, reinigung),
+    tagH: wearingHoursFromPairs(pairs, getMidnightToday(now), now),
+    wocheH: wearingHoursFromPairs(pairs, getWeekStart(now), now),
+    monatH: wearingHoursFromPairs(pairs, getMonthStart(now), now),
   };
 }
 
@@ -448,6 +535,46 @@ export function buildKontrolleItems(
         submittedAt: null as Date | null,
       })),
   ];
+}
+
+export interface WearSessionRow {
+  id: string;
+  categoryName: string;
+  categoryColor: string;
+  categoryIcon: string;
+  startDateStr: string;
+  startTimeStr: string;
+  endDateStr: string;
+  endTimeStr: string;
+  durationStr: string;
+}
+
+type WearCategory = { id: string; name: string; color: string; icon: string };
+
+export function buildWearSessionRows(
+  categories: WearCategory[],
+  entries: { type: string; startTime: Date; device?: { categoryId: string | null } | null }[],
+  now: Date,
+  dl: string,
+): WearSessionRow[] {
+  return categories
+    .flatMap((cat) =>
+      buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cat.id })
+        .filter((p) => p.end.getTime() !== now.getTime())
+        .map((p) => ({ cat, pair: p })),
+    )
+    .sort((a, b) => b.pair.start.getTime() - a.pair.start.getTime())
+    .map(({ cat, pair }) => ({
+      id: `${cat.id}-${pair.start.toISOString()}`,
+      categoryName: cat.name,
+      categoryColor: cat.color,
+      categoryIcon: cat.icon,
+      startDateStr: formatDate(pair.start, dl),
+      startTimeStr: formatTime(pair.start, dl),
+      endDateStr: formatDate(pair.end, dl),
+      endTimeStr: formatTime(pair.end, dl),
+      durationStr: formatDuration(pair.start, pair.end, dl),
+    }));
 }
 
 export function toDatetimeLocal(date: Date | string | null | undefined): string {

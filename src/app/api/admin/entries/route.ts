@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
 
 export async function POST(req: NextRequest) {
@@ -24,9 +24,15 @@ export async function POST(req: NextRequest) {
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Validate deviceId ownership inside transaction to avoid TOCTOU
-      if (deviceId && type === "VERSCHLUSS") {
+      if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
         const device = await validateDeviceOwnership(deviceId, userId, tx);
         if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
+      }
+
+      // WEAR_BEGIN / WEAR_END: shared validation lives in lib/queries.ts (single source of truth).
+      if (type === "WEAR_BEGIN" || type === "WEAR_END") {
+        const wearResult = await prepareWearEntry(tx, userId, type, deviceId, startTime, imageUrl);
+        if (!wearResult.ok) throw Object.assign(new Error(), { _code: wearResult.code });
       }
 
       if (type === "VERSCHLUSS") {
@@ -59,7 +65,7 @@ export async function POST(req: NextRequest) {
           imageUrl: imageUrl || null,
           imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
           kontrollCode: kontrollCode || null,
-          deviceId: type === "VERSCHLUSS" ? (deviceId || null) : null,
+          deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
         },
       });
     });
@@ -68,6 +74,12 @@ export async function POST(req: NextRequest) {
     if (code === "INVALID_DEVICE") return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
     if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
     if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
+    if (code === "WEAR_DEVICE_REQUIRED") return NextResponse.json({ error: "Gerät ist erforderlich" }, { status: 400 });
+    if (code === "WEAR_DEVICE_NO_CATEGORY") return NextResponse.json({ error: "Gerät hat keine Kategorie" }, { status: 400 });
+    if (code === "WEAR_DEVICE_KG") return NextResponse.json({ error: "KG-Geräte verwenden Verschluss/Öffnen, nicht WEAR_BEGIN/END" }, { status: 400 });
+    if (code === "ALREADY_WEARING") return NextResponse.json({ error: "Bereits aktive Session in dieser Kategorie" }, { status: 400 });
+    if (code === "NOT_WEARING") return NextResponse.json({ error: "Keine aktive Session in dieser Kategorie" }, { status: 400 });
+    if (code === "WEAR_PHOTO_REQUIRED") return NextResponse.json({ error: "Foto ist bei dieser Kategorie zwingend" }, { status: 400 });
     throw e;
   }
 

@@ -8,7 +8,18 @@ export const LOCALES_LONG = [
   { value: "en", label: "English" },
 ] as const;
 
-export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS"] as const;
+export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WEAR_BEGIN", "WEAR_END"] as const;
+/** Entry types restricted to KG (the built-in DeviceCategory). */
+export const KG_ENTRY_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "OEFFNEN"]);
+/** Entry types for non-KG DeviceCategories (Plug, Collar, ...). Require deviceId. */
+export const WEAR_ENTRY_TYPES: ReadonlySet<string> = new Set(["WEAR_BEGIN", "WEAR_END"]);
+/** Feature flag: gate WEAR_BEGIN/WEAR_END entry creation + categories UI.
+ *  Default ON. Setze `ENABLE_DEVICE_CATEGORIES=false` um KG-only-Verhalten zu erzwingen
+ *  (z.B. fuer eine Instanz die das Feature noch nicht ausrollen will).
+ *  Case-insensitive damit `False`/`FALSE` nicht still als ON durchrutschen. */
+export function deviceCategoriesEnabled(): boolean {
+  return process.env.ENABLE_DEVICE_CATEGORIES?.toLowerCase() !== "false";
+}
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
 export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
@@ -29,6 +40,8 @@ export const TYPE_STATS_KEYS: Record<string, string> = {
   OEFFNEN: "opening",
   PRUEFUNG: "inspection",
   ORGASMUS: "orgasm",
+  WEAR_BEGIN: "wearBegin",
+  WEAR_END: "wearEnd",
 };
 
 /** Hex colors for HTML email templates (no Tailwind/CSS vars available in email) */
@@ -44,6 +57,8 @@ export const TYPE_COLORS: Record<string, string> = {
   OEFFNEN: "text-foreground-muted",
   PRUEFUNG: "text-[var(--color-inspect)]",
   ORGASMUS: "text-[var(--color-orgasm)]",
+  WEAR_BEGIN: "text-foreground-muted",
+  WEAR_END: "text-foreground-muted",
 };
 
 // ── Notification event types (shared by API + admin UI) ─────────────────────
@@ -55,6 +70,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   "ORGASMUS",
   "KONTROLLE_FREIWILLIG",
   "KONTROLLE_ANGEFORDERT",
+  "WEAR_BEGIN_ANY",
+  "WEAR_END_ANY",
 ] as const;
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
@@ -124,6 +141,9 @@ export function validateEntryPayload(
   if (!allowFuture && new Date(startTime) > new Date()) return { error: "Zeitpunkt darf nicht in der Zukunft liegen", status: 400 };
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
     return { error: "Ungültiger Typ", status: 400 };
+  }
+  if (WEAR_ENTRY_TYPES.has(type) && !deviceCategoriesEnabled()) {
+    return { error: "Device-Kategorien sind nicht aktiviert", status: 400 };
   }
   if (type === "OEFFNEN") {
     if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number])) {

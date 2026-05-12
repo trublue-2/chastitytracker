@@ -6,14 +6,22 @@ import {
   buildPairs, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
+  buildWearSessionRows,
+  buildWearPairs, wearingHoursFromPairs, WEAR_PAIR,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories } from "@/lib/queries";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
+import WearSessionList from "./WearSessionList";
+import ActiveWearSessions from "./ActiveWearSessions";
+import CategoriesPromoCard from "./CategoriesPromoCard";
+import CategoryGoalsToday from "./CategoryGoalsToday";
+import InactiveCategories from "./InactiveCategories";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -27,8 +35,13 @@ export default async function DashboardPage() {
   const now = new Date();
 
   // ── Parallel data fetch ──
-  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings] = await Promise.all([
-    prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
+  const flagOn = deviceCategoriesEnabled();
+  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories] = await Promise.all([
+    prisma.entry.findMany({
+      where: { userId },
+      orderBy: { startTime: "desc" },
+      include: { device: { select: { categoryId: true } } },
+    }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(userId, now),
     prisma.verschlussAnforderung.findFirst({
@@ -37,6 +50,8 @@ export default async function DashboardPage() {
     }),
     getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
+    flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
   ]);
 
   const reinigung: ReinigungSettings = {
@@ -67,6 +82,8 @@ export default async function DashboardPage() {
   const rawSessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
 
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
+
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
 
   // ── Serialize for client ──
   const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
@@ -139,10 +156,40 @@ export default async function DashboardPage() {
           />
         </div>
       )}
+      <ActiveWearSessions
+        sessions={wearSessions.map((s) => ({
+          categoryId: s.categoryId,
+          categoryName: s.categoryName,
+          categoryColor: s.categoryColor,
+          categoryIcon: s.categoryIcon,
+          deviceName: s.deviceName,
+          since: s.since.toISOString(),
+        }))}
+        serverNow={now.toISOString()}
+      />
+      {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
+      {flagOn && <CategoryGoalsToday userId={userId} />}
+      <InactiveCategories
+        categories={allNonKgCategories
+          .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))
+          .map((c) => ({
+            ...c,
+            todayHours: wearingHoursFromPairs(
+              buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: c.id }),
+              getMidnightToday(now),
+              now,
+            ),
+          }))}
+      />
       <DashboardClient {...clientProps} />
       {pairs.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-6">
           <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
+        </div>
+      )}
+      {wearSessionRows.length > 0 && (
+        <div className="w-full max-w-2xl mx-auto px-4 pb-6">
+          <WearSessionList sessions={wearSessionRows} />
         </div>
       )}
     </>

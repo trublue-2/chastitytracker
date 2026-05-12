@@ -5,17 +5,22 @@ import {
   formatDuration, formatDateTime, formatDate, formatTime, formatHours, toDateLocale,
   buildPairs, interruptionPauseMs, isTimeCorrected,
   buildKontrolleItems, calculateWearingHoursByRange,
+  buildWearSessionRows,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories } from "@/lib/queries";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
+import ActiveWearSessions from "@/app/dashboard/ActiveWearSessions";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import SessionList from "@/app/dashboard/SessionList";
+import WearSessionList from "@/app/dashboard/WearSessionList";
+import CategoryGoalsToday from "@/app/dashboard/CategoryGoalsToday";
 import Card from "@/app/components/Card";
 import Link from "next/link";
 import { Lock, ClipboardList, Droplets, ChevronRight } from "lucide-react";
@@ -25,6 +30,7 @@ type Entry = {
   id: string; type: string; startTime: Date; imageUrl: string | null;
   imageExifTime: Date | null; note: string | null; orgasmusArt: string | null;
   verifikationStatus: string | null; kontrollCode: string | null; oeffnenGrund: string | null;
+  device?: { categoryId: string | null } | null;
 };
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -42,11 +48,14 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
 
-  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit] = await Promise.all([
-    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" } }),
+  const flagOn = deviceCategoriesEnabled();
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, wearSessions, allNonKgCategories] = await Promise.all([
+    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { categoryId: true } } } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     getActiveSperrzeit(id),
+    flagOn ? getActiveWearSessions(id) : Promise.resolve([]),
+    flagOn ? getNonKgTrackingCategories(id) : Promise.resolve([]),
   ]);
 
   const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
@@ -84,6 +93,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
+
   return (
     <>
       {activePair ? (
@@ -102,6 +113,20 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         />
       ) : (
         <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
+      )}
+
+      {wearSessions.length > 0 && (
+        <ActiveWearSessions
+          sessions={wearSessions.map((s) => ({
+            categoryId: s.categoryId,
+            categoryName: s.categoryName,
+            categoryColor: s.categoryColor,
+            categoryIcon: s.categoryIcon,
+            deviceName: s.deviceName,
+            since: s.since.toISOString(),
+          }))}
+          serverNow={now.toISOString()}
+        />
       )}
 
       {offeneKontrolle && (
@@ -166,7 +191,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         </Card>
       )}
 
+      <CategoryGoalsToday userId={id} />
+
       <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
+
+      {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
 
       {kontrollItems.length > 0 && (
         <Card padding="none" className="overflow-hidden">

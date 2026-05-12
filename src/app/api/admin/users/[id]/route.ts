@@ -5,6 +5,7 @@ import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, validatePassword } from "@/lib/constants";
 import { getActiveSperrzeit } from "@/lib/queries";
+import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 
 export async function GET(
   _req: NextRequest,
@@ -62,8 +63,15 @@ export async function PATCH(
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
     }
-    const user = await prisma.user.update({ where: { id }, data: { email } });
-    return NextResponse.json({ id: user.id, email: user.email });
+    try {
+      const user = await prisma.user.update({ where: { id }, data: { email } });
+      return NextResponse.json({ id: user.id, email: user.email });
+    } catch (err) {
+      if (isUniqueConstraintOn(err, "email")) {
+        return NextResponse.json({ error: "E-Mail-Adresse bereits vergeben" }, { status: 409 });
+      }
+      throw err;
+    }
   }
 
   if (body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined || body.reinigungMaxProTag !== undefined) {

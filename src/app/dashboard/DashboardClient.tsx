@@ -94,10 +94,22 @@ export default function DashboardClient(props: DashboardProps) {
   const elapsedWocheH = useLiveHours(baseElapsedWocheH, serverNow, true);
   const elapsedMonatH = useLiveHours(baseElapsedMonatH, serverNow, true);
 
-  // ── Empty state (no entries at all) ──
+  // Lock-Request-Banner — auch im Empty-State sichtbar, sonst sehen frische User
+  // mit einer offenen Anforderung nichts und reagieren nur auf die Mail.
+  const lockRequestBanner = offeneVerschlussAnf ? (
+    <LockRequestBanner
+      variant="large"
+      colorScheme="request"
+      label={t("lockRequested")}
+      nachricht={[offeneVerschlussAnf.deviceName ? t("lockDevicePrefix", { name: offeneVerschlussAnf.deviceName }) : null, offeneVerschlussAnf.nachricht].filter(Boolean).join(" · ") || null}
+      endetAtLabel={offeneVerschlussAnf.endetAtLabel}
+    />
+  ) : null;
+
   if (!hasEntries) {
     return (
-      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8">
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8 flex flex-col gap-5">
+        {lockRequestBanner}
         <EmptyState
           icon={<Lock size={48} />}
           title={t("welcomeTitle")}
@@ -150,15 +162,7 @@ export default function DashboardClient(props: DashboardProps) {
         />
       )}
 
-      {offeneVerschlussAnf && (
-        <LockRequestBanner
-          variant="large"
-          colorScheme="request"
-          label={t("lockRequested")}
-          nachricht={[offeneVerschlussAnf.deviceName ? t("lockDevicePrefix", { name: offeneVerschlussAnf.deviceName }) : null, offeneVerschlussAnf.nachricht].filter(Boolean).join(" · ") || null}
-          endetAtLabel={offeneVerschlussAnf.endetAtLabel}
-        />
-      )}
+      {lockRequestBanner}
 
       {/* Sperrzeit-Banner entfernt — wird bereits im Sperrzeit-Footer der LaufendeSessionCard angezeigt */}
 

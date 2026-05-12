@@ -12,7 +12,7 @@ import PhotoCapture from "@/app/components/PhotoCapture";
 import useToast from "@/app/hooks/useToast";
 import { compressImage } from "@/lib/compressImage";
 import { VALID_CURRENCIES } from "@/lib/constants";
-import type { DeviceRow } from "./DevicesClient";
+import type { DeviceRow, CategoryOption } from "./DevicesClient";
 
 const CURRENCY_OPTIONS = VALID_CURRENCIES.map((c) => ({ value: c, label: c }));
 
@@ -20,14 +20,22 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
   device: DeviceRow | null;
+  categories?: CategoryOption[];
   /** Set when admin creates device for another user */
   userId?: string;
 }
 
-export default function DeviceForm({ onClose, onSaved, device, userId }: Props) {
+export default function DeviceForm({ onClose, onSaved, device, categories, userId }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
   const toast = useToast();
+
+  // Pick a sensible default category: edit→existing, create→KG built-in.
+  const defaultCategoryId = device?.categoryId
+    ?? categories?.find((c) => c.isBuiltIn)?.id
+    ?? categories?.[0]?.id
+    ?? "";
+  const showCategoryPicker = (categories?.length ?? 0) > 1;
 
   const [name, setName] = useState(device?.name ?? "");
   const [description, setDescription] = useState(device?.description ?? "");
@@ -35,6 +43,7 @@ export default function DeviceForm({ onClose, onSaved, device, userId }: Props) 
   const [imagePreview, setImagePreview] = useState(device?.imageUrl ?? "");
   const [price, setPrice] = useState(device?.purchasePrice != null ? String(device.purchasePrice) : "");
   const [currency, setCurrency] = useState(device?.currency ?? "CHF");
+  const [categoryId, setCategoryId] = useState<string>(defaultCategoryId);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -80,6 +89,7 @@ export default function DeviceForm({ onClose, onSaved, device, userId }: Props) 
       imageUrl: imageUrl || null,
       purchasePrice: parsedPrice,
       currency: parsedPrice !== null ? currency : null,
+      categoryId: categoryId || null,
     };
     if (userId) payload.userId = userId;
 
@@ -124,6 +134,15 @@ export default function DeviceForm({ onClose, onSaved, device, userId }: Props) 
             maxLength={60}
             required
           />
+
+          {showCategoryPicker && (
+            <Select
+              label={t("category")}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              options={(categories ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            />
+          )}
 
           <Textarea
             label={t("description")}

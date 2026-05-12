@@ -44,22 +44,19 @@ export async function PATCH(
   if (startTime && session.user.role !== "admin" && !devBypass) {
     const newTime = new Date(startTime);
     const oldTime = existing.startTime;
-    if (existing.type === "VERSCHLUSS" && newTime < oldTime) {
-      return NextResponse.json({ error: "Verschlusszeit darf nur nach vorne verschoben werden" }, { status: 400 });
+    // Forward-only: VERSCHLUSS, PRUEFUNG, WEAR_BEGIN
+    if ((existing.type === "VERSCHLUSS" || existing.type === "PRUEFUNG" || existing.type === "WEAR_BEGIN") && newTime < oldTime) {
+      return NextResponse.json({ error: "Zeitpunkt darf nur nach vorne verschoben werden" }, { status: 400 });
     }
-    if (existing.type === "OEFFNEN" && newTime > oldTime) {
-      return NextResponse.json({ error: "Öffnungszeit darf nur nach hinten verschoben werden" }, { status: 400 });
-    }
-    if (existing.type === "PRUEFUNG" && newTime < oldTime) {
-      return NextResponse.json({ error: "Kontrollzeit darf nur nach vorne verschoben werden" }, { status: 400 });
-    }
-    if (existing.type === "ORGASMUS" && newTime > oldTime) {
-      return NextResponse.json({ error: "Orgasmuszeit darf nur nach hinten verschoben werden" }, { status: 400 });
+    // Backward-only: OEFFNEN, ORGASMUS, WEAR_END
+    if ((existing.type === "OEFFNEN" || existing.type === "ORGASMUS" || existing.type === "WEAR_END") && newTime > oldTime) {
+      return NextResponse.json({ error: "Zeitpunkt darf nur nach hinten verschoben werden" }, { status: 400 });
     }
   }
 
-  // Validate deviceId ownership (VERSCHLUSS entries only)
-  if (deviceId && existing.type === "VERSCHLUSS") {
+  // Validate deviceId ownership (VERSCHLUSS + WEAR_BEGIN/END entries)
+  const persistsDevice = existing.type === "VERSCHLUSS" || existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
+  if (deviceId && persistsDevice) {
     const device = await validateDeviceOwnership(deviceId, existing.userId);
     if (!device) return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
   }
@@ -67,19 +64,33 @@ export async function PATCH(
   let entry;
   try {
     entry = await prisma.$transaction(async (tx) => {
-      // Re-validate temporal ordering when startTime is changed on a VERSCHLUSS/OEFFNEN entry
-      // (skipped entirely on localhost dev for test enablement).
-      if (!devBypass && startTime && (existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN")) {
+      // Re-validate temporal ordering when startTime is changed on a paired entry
+      // (VERSCHLUSS/OEFFNEN globally, WEAR_BEGIN/WEAR_END scoped to the device's category).
+      // Skipped entirely on localhost dev for test enablement.
+      const isKgPair = existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN";
+      const isWearPair = existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
+      if (!devBypass && startTime && (isKgPair || isWearPair)) {
         const newTime = new Date(startTime);
         if (newTime > new Date()) throw Object.assign(new Error(), { _code: "FUTURE" });
-        const allVO = await tx.entry.findMany({
-          where: { userId: existing.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, id: { not: id } },
+        const pairTypes = isKgPair
+          ? (["VERSCHLUSS", "OEFFNEN"] as const)
+          : (["WEAR_BEGIN", "WEAR_END"] as const);
+        const wearCategoryId = isWearPair && existing.deviceId
+          ? (await tx.device.findUnique({ where: { id: existing.deviceId }, select: { categoryId: true } }))?.categoryId
+          : null;
+        const others = await tx.entry.findMany({
+          where: {
+            userId: existing.userId,
+            type: { in: [...pairTypes] },
+            id: { not: id },
+            ...(isWearPair && wearCategoryId ? { device: { categoryId: wearCategoryId } } : {}),
+          },
           orderBy: { startTime: "asc" },
           select: { type: true, startTime: true },
         });
-        const insertIdx = allVO.findIndex(e => e.startTime > newTime);
-        const prev = insertIdx === -1 ? allVO[allVO.length - 1] : allVO[insertIdx - 1];
-        const next = insertIdx === -1 ? null : allVO[insertIdx];
+        const insertIdx = others.findIndex(e => e.startTime > newTime);
+        const prev = insertIdx === -1 ? others[others.length - 1] : others[insertIdx - 1];
+        const next = insertIdx === -1 ? null : others[insertIdx];
         if ((prev && prev.type === existing.type) || (next && next.type === existing.type)) {
           throw Object.assign(new Error(), { _code: "INVALID_ORDER" });
         }
@@ -97,7 +108,7 @@ export async function PATCH(
           ...(oeffnenGrund !== undefined && { oeffnenGrund }),
           ...(orgasmusArt !== undefined && { orgasmusArt }),
           ...(kontrollCode !== undefined && { kontrollCode }),
-          ...(deviceId !== undefined && existing.type === "VERSCHLUSS" && { deviceId: deviceId || null }),
+          ...(deviceId !== undefined && persistsDevice && { deviceId: deviceId || null }),
           // verifikationStatus only settable by admins
           ...(verifikationStatus !== undefined && session.user.role === "admin" && { verifikationStatus }),
         },
@@ -132,18 +143,27 @@ export async function DELETE(
   const withPartner = req.nextUrl.searchParams.get("withPartner") === "true";
   const partnerId = req.nextUrl.searchParams.get("partnerId");
 
-  const isVO = existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN";
+  const isKgPair = existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN";
+  const isWearPair = existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
+  const isPair = isKgPair || isWearPair;
 
-  // Chain break detection for VERSCHLUSS/OEFFNEN entries
-  if (isVO && !force) {
+  // Chain-break detection for paired entries (VERSCHLUSS/OEFFNEN global; WEAR-pair per category)
+  if (isPair && !force) {
+    const pairTypes = isKgPair
+      ? (["VERSCHLUSS", "OEFFNEN"] as const)
+      : (["WEAR_BEGIN", "WEAR_END"] as const);
+    const wearCategoryId = isWearPair && existing.deviceId
+      ? (await prisma.device.findUnique({ where: { id: existing.deviceId }, select: { categoryId: true } }))?.categoryId
+      : null;
+    const categoryFilter = isWearPair && wearCategoryId ? { device: { categoryId: wearCategoryId } } : {};
     const [prev, next] = await Promise.all([
       prisma.entry.findFirst({
-        where: { userId: existing.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { lt: existing.startTime } },
+        where: { userId: existing.userId, type: { in: [...pairTypes] }, startTime: { lt: existing.startTime }, ...categoryFilter },
         orderBy: { startTime: "desc" },
         select: { id: true, type: true, startTime: true },
       }),
       prisma.entry.findFirst({
-        where: { userId: existing.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { gt: existing.startTime } },
+        where: { userId: existing.userId, type: { in: [...pairTypes] }, startTime: { gt: existing.startTime }, ...categoryFilter },
         orderBy: { startTime: "asc" },
         select: { id: true, type: true, startTime: true },
       }),
@@ -152,7 +172,9 @@ export async function DELETE(
     const wouldBreak = prev && next && prev.type === next.type;
 
     if (wouldBreak) {
-      const partner = existing.type === "VERSCHLUSS" ? next : prev;
+      // Pair partner is "next" for the start-half (VERSCHLUSS/WEAR_BEGIN), "prev" for the end-half.
+      const isStartHalf = existing.type === "VERSCHLUSS" || existing.type === "WEAR_BEGIN";
+      const partner = isStartHalf ? next : prev;
 
       if (withPartner) {
         if (partnerId && partnerId !== partner.id) {
@@ -193,7 +215,7 @@ export async function DELETE(
     await tx.entry.delete({ where: { id } });
   });
 
-  if (isVO) {
+  if (isPair) {
     revalidatePath("/dashboard", "layout");
   }
 
