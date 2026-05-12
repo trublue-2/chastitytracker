@@ -6,7 +6,7 @@ import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
@@ -49,10 +49,16 @@ export async function POST(req: NextRequest) {
   let fulfilledAnforderungDeviceId: string | null = null;
   try {
     entry = await prisma.$transaction(async (tx) => {
-      // Validate deviceId ownership inside transaction (VERSCHLUSS only)
-      if (deviceId && type === "VERSCHLUSS") {
+      // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
+      if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
         const device = await validateDeviceOwnership(deviceId, session.user.id, tx);
         if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
+      }
+
+      // WEAR_BEGIN / WEAR_END: shared validation lives in lib/queries.ts (single source of truth).
+      if (type === "WEAR_BEGIN" || type === "WEAR_END") {
+        const wearResult = await prepareWearEntry(tx, session.user.id, type, deviceId, startTime, imageUrl);
+        if (!wearResult.ok) throw Object.assign(new Error(), { _code: wearResult.code });
       }
 
       if (type === "VERSCHLUSS") {
@@ -91,7 +97,7 @@ export async function POST(req: NextRequest) {
           orgasmusArt: orgasmusArt || null,
           kontrollCode: kontrollCode || null,
           verifikationStatus: null,
-          deviceId: type === "VERSCHLUSS" ? (deviceId || null) : null,
+          deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
         },
       });
 
@@ -136,6 +142,12 @@ export async function POST(req: NextRequest) {
     if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
     if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
     if (code === "TIME_BEFORE") return NextResponse.json({ error: "Zeitpunkt muss nach dem vorherigen Eintrag liegen" }, { status: 400 });
+    if (code === "WEAR_DEVICE_REQUIRED") return NextResponse.json({ error: "Gerät ist erforderlich" }, { status: 400 });
+    if (code === "WEAR_DEVICE_NO_CATEGORY") return NextResponse.json({ error: "Gerät hat keine Kategorie" }, { status: 400 });
+    if (code === "WEAR_DEVICE_KG") return NextResponse.json({ error: "KG-Geräte verwenden Verschluss/Öffnen, nicht WEAR_BEGIN/END" }, { status: 400 });
+    if (code === "ALREADY_WEARING") return NextResponse.json({ error: "Bereits aktive Session in dieser Kategorie" }, { status: 400 });
+    if (code === "NOT_WEARING") return NextResponse.json({ error: "Keine aktive Session in dieser Kategorie" }, { status: 400 });
+    if (code === "WEAR_PHOTO_REQUIRED") return NextResponse.json({ error: "Foto ist bei dieser Kategorie zwingend" }, { status: 400 });
     throw e;
   }
 
@@ -187,6 +199,8 @@ export async function POST(req: NextRequest) {
       if (type === "ORGASMUS") eventTypes.push("ORGASMUS");
       if (type === "PRUEFUNG" && kontrollCode) eventTypes.push("KONTROLLE_ANGEFORDERT");
       if (type === "PRUEFUNG" && !kontrollCode) eventTypes.push("KONTROLLE_FREIWILLIG");
+      if (type === "WEAR_BEGIN") eventTypes.push("WEAR_BEGIN_ANY");
+      if (type === "WEAR_END") eventTypes.push("WEAR_END_ANY");
 
       if (eventTypes.length === 0) return;
 
@@ -222,6 +236,18 @@ export async function POST(req: NextRequest) {
       } else if (type === "PRUEFUNG") {
         title = kontrollCode ? `${username} hat Kontrolle erfüllt` : `${username} — Selbstkontrolle`;
         pushBody = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
+      } else if (type === "WEAR_BEGIN" || type === "WEAR_END") {
+        // Resolve category name for the notification body via the device.
+        const dev = deviceId
+          ? await prisma.device.findUnique({
+              where: { id: deviceId },
+              select: { name: true, category: { select: { name: true } } },
+            })
+          : null;
+        const catName = dev?.category?.name ?? "?";
+        const verb = type === "WEAR_BEGIN" ? "trägt" : "hat abgelegt";
+        title = `${username} ${verb} ${catName}`;
+        pushBody = dev?.name ? `${time} · ${dev.name}` : time;
       }
 
       const adminUrl = `/admin/users/${session.user.id}`;

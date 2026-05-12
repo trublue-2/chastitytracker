@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
+import { ensureKgCategory } from "@/lib/deviceCategories";
 
 export const DEMO_USERNAME = "DemoUser";
 export const DEMO_PASSWORD = "demo1234";
@@ -22,6 +23,7 @@ export async function POST() {
   const user = await prisma.user.create({
     data: { username: DEMO_USERNAME, passwordHash, role: "user" },
   });
+  await ensureKgCategory(user.id);
 
   const now = new Date();
   const days = (n: number) => new Date(now.getTime() - n * 86_400_000);

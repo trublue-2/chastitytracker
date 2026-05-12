@@ -68,6 +68,12 @@ export interface VorgabeInitialValues {
   wocheVal: string;
   monatVal: string;
   notiz: string;
+  categoryId: string;
+}
+
+export interface CategoryOption {
+  id: string;
+  name: string;
 }
 
 interface Props {
@@ -75,13 +81,15 @@ interface Props {
   vorgabeId?: string;
   initialValues?: VorgabeInitialValues;
   onCancel?: () => void;
+  categories?: CategoryOption[];
 }
 
-export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel }: Props) {
+export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel, categories }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const router = useRouter();
   const isEdit = !!vorgabeId;
+  const showCategoryPicker = (categories?.length ?? 0) > 1;
 
   const [gueltigAb, setGueltigAb] = useState(initialValues?.gueltigAb ?? "");
   const [gueltigBis, setGueltigBis] = useState(initialValues?.gueltigBis ?? "");
@@ -89,6 +97,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
   const [wocheVal, setWocheVal] = useState(initialValues?.wocheVal ?? ""); const [wocheUnit, setWocheUnit] = useState("h");
   const [monatVal, setMonatVal] = useState(initialValues?.monatVal ?? ""); const [monatUnit, setMonatUnit] = useState("h");
   const [notiz, setNotiz] = useState(initialValues?.notiz ?? "");
+  const [categoryId, setCategoryId] = useState(initialValues?.categoryId ?? categories?.[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -99,6 +108,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
 
     const payload = {
       userId,
+      categoryId: categoryId || null,
       gueltigAb,
       gueltigBis: gueltigBis || null,
       minProTagH: toHours(tagVal, tagUnit, HOURS_PER_DAY),
@@ -138,6 +148,17 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       <p className={`text-sm font-bold ${isEdit ? "text-[var(--color-warn-text)]" : "text-[var(--color-request-text)]"}`}>
         {isEdit ? t("vorgabeEditTitle") : t("vorgabeAddTitle")}
       </p>
+
+      {showCategoryPicker && (
+        <div>
+          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeCategory")}</label>
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`w-full ${fieldCls}`}>
+            {categories!.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>

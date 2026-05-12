@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/authGuards";
+import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 
 export async function POST(req: Request) {
   const err = await requireAdminApi();
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(record, { status: 201 });
   } catch (e: unknown) {
-    if ((e as { code?: string })?.code === "P2002") {
+    if (isUniqueConstraintOn(e, "refId")) {
       return NextResponse.json({ error: "Already punished" }, { status: 409 });
     }
     throw e;

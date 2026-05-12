@@ -1,5 +1,312 @@
 [
   {
+    "version": "4.16.4",
+    "date": "2026-05-12",
+    "changes": [
+      { "type": "fix", "text": "seed.js: Startup-Loop behoben — Admin-User-Anlegen schlug fehl wenn die konfigurierte E-Mail schon in der DB war (P2002 unique constraint). Seed sucht jetzt in einer Query nach bestehendem Admin oder User mit passendem Username/E-Mail und befördert ihn ggf. zum Admin statt einen Duplikat anzulegen." },
+      { "type": "fix", "text": "seed.js: ensureKgCategory nutzt jetzt upsert statt findUnique+create — verhindert Race-Condition bei parallelen Container-Starts." }
+    ]
+  },
+  {
+    "version": "4.16.3",
+    "date": "2026-05-12",
+    "changes": [
+      { "type": "fix", "text": "Admin-Übersicht zeigt jetzt Trainingsziele und abgeschlossene Wear-Sessions für non-KG-Kategorien — inhaltlich gleich wie das User-Dashboard." },
+      { "type": "fix", "text": "Tragekalender: Klick auf Tag bei non-KG-Kategorie (z.B. Plug) zeigte fälschlicherweise KG-Einträge (VERSCHLUSS/OEFFNEN) statt WEAR_BEGIN/WEAR_END der jeweiligen Kategorie." },
+      { "type": "fix", "text": "Meldungen-Einstellungen: Spaltenüberschrift 'E-MAIL' umbrechen nicht mehr auf zwei Zeilen." },
+      { "type": "chore", "text": "buildWearSessionRows und WearSessionRow in lib/utils zentralisiert — Dashboard und Admin-Übersicht teilen die Logik statt sie zu duplizieren. getNonKgTrackingCategories aus queries.ts extrahiert." }
+    ]
+  },
+  {
+    "version": "4.16.2",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "feat", "text": "KI-Verifizierung akzeptiert jetzt drei Code-Quellen: handgeschriebener Code (Papier/Karte), gedruckter Code (Etikett/Sticker) und Code auf Plastik-Plomben/Sicherheits-Seal (incl. beliebiger Orientierung). Prompt schärft, dass nur der spezifisch erwartete Code zählt — andere Zahlen im Bild (Barcodes, Geräte-Seriennummern) werden ignoriert, damit Plomben-Nummern keinen False-Negative verursachen." },
+      { "type": "fix", "text": "max_tokens für KI-Verifizierung von 100 auf 150 erhöht — schützt vor JSON-Truncation bei längeren Codes oder ausführlichen Reasons." },
+      { "type": "chore", "text": "Plomben-Vokabular in geteilte SEAL_VOCAB-Konstante extrahiert — verifyKontrolleCodeDetailed und detectSealNumber teilen sich die Beschreibung statt sie zweimal zu pflegen." }
+    ]
+  },
+  {
+    "version": "4.16.1",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "chore", "text": "KI-Verifizierung: detailliertes Logging hinzugefügt — jeder Failure-Branch (kein API-Key, Image-Load-Fehler, Sharp-Fehler, Anthropic-Exception, JSON-Parse-Fehler, Policy-Block, kein Code erkannt) loggt jetzt mit `[verify]`-Prefix in die Container-Konsole. Inklusive Anthropic-Request-ID für Cross-Reference." },
+      { "type": "security", "text": "Auth-Code wird nicht mehr in Logs geleakt — bisher tauchte der erwartete 5-stellige Kontroll-Code in jedem Verifikations-Log auf. Jetzt nur noch `codeLen`/`detectedLen` plus digit-redaction (`<5d>`) auf KI-Antwort-Previews." },
+      { "type": "chore", "text": "Neuer geteilter Helper `lib/serverLog.ts:structuredLog` + `redactDigits` — verify-route und verify-lib nutzen denselben Logger mit konsistentem Timestamp." }
+    ]
+  },
+  {
+    "version": "4.16.0",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "feat", "text": "Device-Kategorien sind ab jetzt per Default für alle Instanzen aktiv. Plug, Halsband, Cuffs etc. mit eigenen Trainingsvorgaben sind ohne ENV-Konfiguration nutzbar. Wer KG-only erzwingen will, setzt `ENABLE_DEVICE_CATEGORIES=false` (case-insensitive). Bestehende User bekamen das KG-Built-in über die initiale Migration retroaktiv — kein Daten-Backfill nötig." },
+      { "type": "chore", "text": "Tests an die neue Default-Semantik angepasst (vitest 72/72 grün)." }
+    ]
+  },
+  {
+    "version": "4.15.7",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "fix", "text": "Frische User (noch keine eigenen Einträge) sahen eine offene Verschluss-Anforderung nicht im Dashboard — der „Willkommen!\"-Empty-State überschrieb den Anforderungs-Banner. Banner wird jetzt auch im Empty-State angezeigt, damit User auch ohne Mail-Lesen sofort sehen, was zu tun ist." },
+      { "type": "chore", "text": "DashboardClient: duplizierten LockRequestBanner-JSX (Empty-State + Haupt-Branch) in lokale const lockRequestBanner extrahiert — Single Source of Truth für die nachricht-Composition." }
+    ]
+  },
+  {
+    "version": "4.15.6",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "chore", "text": "Retroaktive Simplify-Findings zu v4.15.5: Strafe-Route auf den neuen isUniqueConstraintOn-Helper umgestellt (war noch ad-hoc P2002-Check). Helper-Signatur enger typisiert (KnownUniqueField-Union mit Autocomplete für „username\"/„email\"/„refId\") — Tippfehler werden jetzt vom TypeScript erkannt." }
+    ]
+  },
+  {
+    "version": "4.15.5",
+    "date": "2026-05-10",
+    "changes": [
+      { "type": "ui", "text": "Beim Anlegen eines Users mit bereits vergebener E-Mail-Adresse erschien nur ein generischer Fehler (intern: Prisma-P2002). Jetzt klare Meldung „E-Mail-Adresse bereits vergeben\" mit HTTP 409 — sowohl beim Admin-Anlegen als auch beim Bearbeiten und beim Self-Service-Email-Change." },
+      { "type": "fix", "text": "TOCTOU-Race im User-Create-Pfad behoben: vorher pre-check via findUnique + create (in seltenen Fällen race-anfällig), jetzt direktes create mit P2002-Catch — atomar und ein DB-Roundtrip weniger." },
+      { "type": "chore", "text": "Neuer Helper lib/prismaErrors.ts (isUniqueConstraintOn) — Single-Source-of-Truth für P2002-Erkennung. Drei Routes vereinheitlicht." }
+    ]
+  },
+  {
+    "version": "4.15.4",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Tragekalender Tag-Detail: WEAR_BEGIN/WEAR_END wurden als rohe Type-Strings angezeigt — fehlten in der TYPE_LABELS-Map des Calendar-Popups. Jetzt korrekt als „Tragen begonnen\" / „Tragen beendet\" lokalisiert." }
+    ]
+  },
+  {
+    "version": "4.15.3",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Dashboard zeigte keine Plug/Halsband/Cuffs-Sessions in der neuen „Sessions andere Kategorien\"-Liste, weil die Entries ohne device.categoryId geladen wurden — der Kategorie-Filter in buildWearPairs hat dadurch alles weggefiltert. Gleicher Fix korrigiert auch die „Heute Xh\"-Anzeige in der Inaktive-Kategorien-Zeile." }
+    ]
+  },
+  {
+    "version": "4.15.2",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Dashboard: KG-Sessions-Liste zeigt nur noch 5 Einträge pro Seite (statt 10) — kompakteres Dashboard, ältere Sessions weiterhin via Pagination erreichbar." },
+      { "type": "feat", "text": "Dashboard: zusätzliche „Sessions andere Kategorien\"-Liste unter den KG-Sessions. Zeigt abgeschlossene Plug/Halsband/Cuffs-Tragesessions kategorienübergreifend, neueste zuerst, mit Kategorie-Icon und Dauer. Aktive Sessions werden weiterhin oben in „Aktive Tragesession\" angezeigt." }
+    ]
+  },
+  {
+    "version": "4.15.1",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Naming-Polish: „Sessions\" → „KG-Sessions\" (Stats-Top-Card und Admin-Spalte) und „Aktuelle Session\" → „Aktuelle KG-Session\". Macht klar, dass diese Werte sich nur auf KG-Einschlüsse beziehen, nicht auf andere Devices." }
+    ]
+  },
+  {
+    "version": "4.15.0",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Tragekalender umschaltbar pro Device-Kategorie: Pill-Picker oberhalb des Kalenders zeigt KG (Default) und alle eigenen Kategorien mit Tragezeiten. Jede Kategorie nutzt ihre eigenen Trainingsziele (Tag/Woche/Monat) für Rahmen, Wochen-Häkchen und Monatsziel-Pill. Orgasmus-Punkt nur in der KG-View. Picker erscheint nur, wenn mehr als eine Kategorie Daten hat — Single-KG-User sehen die Ansicht unverändert." },
+      { "type": "perf", "text": "Kalender-Zellen-Berechnung: Einträge werden einmal in eine YMD-Map gebucket statt pro Tag durchgefiltert (O(N×Tage) → O(N+Tage))." }
+    ]
+  },
+  {
+    "version": "4.14.29",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Stats-Seite: Die vier Top-Stats (Sessions, Gesamtdauer, Ø Dauer, Kein Foto) sind jetzt unter der Section-Überschrift „Übersicht KG-Tragen\" gruppiert — macht klarer, dass diese Werte sich nur auf die KG-Sessions beziehen, nicht auf andere Devices." }
+    ]
+  },
+  {
+    "version": "4.14.28",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Admin → Aktionen: aktive Sperrdauer kann jetzt direkt zurückgezogen oder durch eine neue ersetzt werden. Die bisher inaktive „Sperrdauer setzen\"-Kachel führt bei aktiver Sperrzeit auf einen Bearbeiten-Dialog mit „Zurückziehen\" und „Ersetzen\"-Optionen." }
+    ]
+  },
+  {
+    "version": "4.14.27",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Trainingsvorgaben: gueltigBis-Verkettung läuft jetzt pro Kategorie statt über alle Kategorien hinweg. Bisher schloss z.B. eine neu angelegte Plug-Vorgabe ungewollt die laufende KG-Vorgabe. Pro Kategorie bleibt eine Vorgabe parallel aktiv. Bestehende falsche gueltigBis-Werte werden beim nächsten Speichern einer Vorgabe pro User korrigiert." }
+    ]
+  },
+  {
+    "version": "4.14.26",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Promo-Card auf dem Dashboard zeigte in DE die rohen i18n-Keys (dashboard.promoTitle/Body/Cta) statt der Übersetzungen — Keys lagen versehentlich nur im stats-Namespace. In den dashboard-Namespace verschoben." }
+    ]
+  },
+  {
+    "version": "4.14.25",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Stats-Seite zeigt jetzt eine eigene Trainingsziel-Card pro aktiver Vorgabe — KG zuerst, dann Plug/Halsband/etc. nach Name. Jede Card mit Kategorie-Icon, Titel „Trainingsziel KG/Plug/…\", und Tag/Wochen/Monats-Fortschrittsbalken aus den jeweiligen Tragezeiten der Kategorie." },
+      { "type": "chore", "text": "isKgVorgabe-Predicate aus StatsMain in lib/vorgaben.ts extrahiert — Single Source of Truth für „ist diese Vorgabe KG?\"." }
+    ]
+  },
+  {
+    "version": "4.14.24",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Notification-Settings im Admin-Bereich (User → Einstellungen) als kompakte Matrix neu gebaut: eine Zeile pro Event, zwei Spalten (Push / E-Mail) statt zwei separate Listen mit doppelten Labels. Visuell gruppiert in „KG\", „Orgasmus\" und „Andere Devices\"." },
+      { "type": "feat", "text": "Neue Notification-Events „Tragen begonnen\" und „Tragen beendet\" für non-KG Wear-Sessions. Admin bekommt bei Aktivierung eine Push/Mail mit Kategorie- und Device-Name." }
+    ]
+  },
+  {
+    "version": "4.14.23",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Naming-Polish: WEAR-Einträge in der Liste zeigen „Plug · Beginn\" / „Plug · Ende\" statt der ▶/■-Symbole; „Inaktive Kategorien\" → „Nicht getragen\" (klarer)." },
+      { "type": "ui", "text": "Inaktive-Kategorien-Zeile auf Dashboard zeigt nun „Heute Xh\" wenn die Kategorie heute getragen wurde aber gerade nicht aktiv ist." },
+      { "type": "ui", "text": "Erstmal-Promo-Card auf Dashboard: wenn der User noch keine eigenen Kategorien hat, erscheint ein dezenter Hinweis mit Link zur Kategorie-Anlage. Per X-Button dauerhaft schliessbar (localStorage)." },
+      { "type": "chore", "text": "WEAR-Validation extrahiert in lib/queries.ts → prepareWearEntry(). Single Source of Truth für /api/entries und /api/admin/entries — keine Bug-Fix-Drift mehr zwischen den beiden." },
+      { "type": "feat", "text": "Eigene Kategorien können in der Liste per Pfeil-Buttons (▲/▼) umsortiert werden — sortOrder-Tausch via PATCH." }
+    ]
+  },
+  {
+    "version": "4.14.22",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Kategorie-Form bekommt zwei zusätzliche Toggles (Mockup 6.4 vervollständigt): „Foto bei Tragen-Beginn verlangen\" und „Trainingsvorgaben erlauben\". Schema erweitert um requirePhoto und allowVorgaben (Default false bzw. true)." },
+      { "type": "feat", "text": "WearForm: PhotoCapture-Block für WEAR_BEGIN, mit Pflicht-Validierung wenn die Kategorie requirePhoto=true hat. Foto wird zusätzlich beim Editieren bestehender WEAR_BEGIN-Einträge editierbar." },
+      { "type": "feat", "text": "API-Enforcement: WEAR_BEGIN ohne Foto wird abgewiesen wenn die Kategorie es verlangt; Trainingsvorgaben können nicht für Kategorien mit allowVorgaben=false angelegt werden." }
+    ]
+  },
+  {
+    "version": "4.14.21",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Stats-Page erweitert: pro Kategorie zeigt der Block jetzt nicht nur Heute/Woche/Monat, sondern auch Records (Längste Session, Anzahl Sessions, Ø Session-Dauer, Gesamt all-time)." },
+      { "type": "feat", "text": "Dashboard-Block „Trainingsziele\" pro Non-KG-Kategorie: für jede Kategorie mit aktiver TrainingVorgabe wird ein Live-Progress-Bar gerendert (Tag/Woche/Monat). Hidden wenn keine Vorgaben gesetzt sind." },
+      { "type": "ui", "text": "Categories-Liste zeigt pro Zeile zusätzlich „Xh diese Woche\" wenn die Kategorie tracking-enabled ist und Sessions in dieser Woche existierten." }
+    ]
+  },
+  {
+    "version": "4.14.20",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "WEAR-Einträge sind jetzt editierbar — /dashboard/edit/[id] hat einen WEAR-Branch, der WearForm in Edit-Modus rendert (PATCH statt POST). Anti-cheat: WEAR_BEGIN nur nach vorne, WEAR_END nur nach hinten verschiebbar (für Non-Admins)." },
+      { "type": "fix", "text": "Backend: PATCH /api/entries/[id] und DELETE handhaben jetzt WEAR_BEGIN/WEAR_END korrekt — Time-Direction-Enforcement, deviceId-Validation, Pair-Konsistenz und Chain-Break-Detection (per Kategorie skopiert)." },
+      { "type": "chore", "text": "Aufräumen: doppelte /dashboard/new-Page entfernt (NewEntrySheet ist die einzige primäre Surface), restliche Komponenten auf categoryStyle()-Helper migriert für Theme-Awareness, tote i18n-Keys (categories_tab) entfernt." }
+    ]
+  },
+  {
+    "version": "4.14.19",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Verschluss-Formular zeigt im Device-Dropdown nur noch KG-Devices, nicht mehr Plug/Halsband etc. getUserDeviceOptions() filtert nun auf die eingebaute KG-Kategorie. Betrifft alle KG-Flows: Verschluss erfassen (User+Admin), Verschluss-Anforderung (Admin), Edit-Page für KG-Einträge." }
+    ]
+  },
+  {
+    "version": "4.14.18",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "Einträge-Liste zeigt WEAR_BEGIN/WEAR_END Einträge nun korrekt: Kategorie-Name + Symbol (z.B. „Plug ▶\") statt generischem Fallback. EntryRow rendert für WEAR-Types die Kategorie-Daten, die per device.category aus der DB geladen werden. User- und Admin-Einträge-Pages laden Category mit." }
+    ]
+  },
+  {
+    "version": "4.14.17",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "fix", "text": "User-Bottom-Sheet „Neu erfassen\" zeigt jetzt auch Plug, Halsband etc. — bisher fehlten die Kategorien-Aktionen, weil das Sheet (NewEntrySheet) hardcoded auf 4 Standard-Aktionen war. Layout lädt aktive Wear-Sessions und gibt sie über DesktopSidebar/DashboardBottomNav an das Sheet durch." }
+    ]
+  },
+  {
+    "version": "4.14.16",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Categories-Seite hat einen Back-Link zurück zu Devices (oben links)." },
+      { "type": "feat", "text": "Admin-User-Übersicht (/admin/users/[id]) zeigt nun aktive Wear-Sessions des Users — analog zum User-Dashboard." }
+    ]
+  },
+  {
+    "version": "4.14.15",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Mockup-Ergänzungen umgesetzt (P2c.4): (1) Devices-Liste mit Kategorie-Filter-Chips und Gruppierung, (2) Vorgaben gruppiert pro Kategorie wenn mehrere existieren, (3) Tragezeiten-Toggle im Kategorie-Formular, (4) Dashboard-Sektion „Inaktive Kategorien (N) ▾\" mit Quick-Start-Links, (5+6) Categories-Liste mit System/Eigene-Sektionen und Feature-Summary pro Zeile, (7) 96 CSS-Variablen für die 12 Kategorie-Farben in Light/Dark-Theme + neuer categoryStyle()-Helper für Theme-aware Surfaces." }
+    ]
+  },
+  {
+    "version": "4.14.14",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "ui", "text": "Kategorien-Verwaltung als Sub-Feature der Devices-Seite: separater Tab im Admin-Bereich entfernt, stattdessen Link „Kategorien verwalten →\" oben auf der Devices-Seite (User + Admin). Direkt-URLs /dashboard/categories und /admin/users/[id]/categories funktionieren weiter." }
+    ]
+  },
+  {
+    "version": "4.14.13",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Admin-Parität für WEAR-Tracking: Admin kann WEAR_BEGIN/WEAR_END für User in /admin/users/[id]/aktionen anstossen (neue Zeilen pro Kategorie). Admin-Stats-Page zeigt nun ebenfalls den Pro-Kategorie-Block. /api/admin/entries unterstützt WEAR_BEGIN/END mit Device-Kategorie-Validation, KG-Schutz und State-Check." }
+    ]
+  },
+  {
+    "version": "4.14.12",
+    "date": "2026-05-08",
+    "changes": [
+      { "type": "feat", "text": "Admin kann Device-Kategorien pro User verwalten: neuer Tab /admin/users/[id]/categories mit gleichem CRUD wie /dashboard/categories. CategoriesClient + CategoryFormSheet akzeptieren optional userId für Admin-Modus, Tab erscheint im UserSubNav nur wenn ENABLE_DEVICE_CATEGORIES aktiv ist." }
+    ]
+  },
+  {
+    "version": "4.14.11",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Stats + Vorgaben pro Kategorie (P2c): Trainingsvorgaben können jetzt pro DeviceCategory definiert werden (Plug-spezifische Vorgabe etc.) — Admin-Form zeigt Kategorie-Picker wenn mehr als KG existiert. /dashboard/stats zeigt unter dem KG-Block einen kompakten Block pro Kategorie mit Heute/Woche/Monat Tragezeit." }
+    ]
+  },
+  {
+    "version": "4.14.10",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Action-Picker /dashboard/new zeigt eigene Kategorien (P2b.3): pro user-definierter Kategorie eine Zeile mit kontextueller Aktion (Beenden + Device-Name wenn aktive Session, sonst „Tragen beginnen\"). Macht WEAR_BEGIN/END ohne URL-Trick zugänglich." }
+    ]
+  },
+  {
+    "version": "4.14.9",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Dashboard zeigt aktive Wear-Sessions (P2b.2): unter der KG-Karte erscheint pro aktiver Plug/Halsband/...-Session eine kompakte Zeile mit Live-Timer, Kategorie-Symbol und Beenden-Tap. Ein Klick öffnet die wear-end-Form für die Kategorie. Hinter Feature-Flag." }
+    ]
+  },
+  {
+    "version": "4.14.8",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "ui", "text": "Naming-Update (P2b.1.6): „KG\" und „Gerät\" in der UI durchgehend zu „Device\" generalisiert (DE+EN), damit das Vokabular auch zu Plug, Halsband etc. passt. „Einschlüsse\" / „Lock-ups\" → „Sessions\". KG-spezifische Begriffe (Verschluss, Öffnen, Sperrzeit, Reinigung, Kontrollen) bleiben erhalten — sie werden ausschliesslich in KG-Flows angezeigt." }
+    ]
+  },
+  {
+    "version": "4.14.7",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Geräte-Verwaltung erlaubt nun Kategorie-Auswahl (P2b.1.5): wenn der User mehrere Device-Kategorien angelegt hat, zeigt der Geräte-Form ein Kategorie-Dropdown. Default ist die eingebaute KG-Kategorie. Die API validiert Ownership der gewählten Kategorie. Damit lassen sich Plug-Geräte etc. anlegen, die in den WEAR_BEGIN/END-Forms aus P2b.1 verwendet werden können." }
+    ]
+  },
+  {
+    "version": "4.14.6",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "WEAR_BEGIN/WEAR_END Forms (P2b.1, hinter Feature-Flag): /dashboard/new/wear-begin?category=<id> und /wear-end?category=<id> erlauben das Tragen-Tracking für eigene Kategorien (Plug, Halsband, ...). API-Validierung verhindert WEAR-Operationen auf KG-Geräten und blockiert parallele Sessions in derselben Kategorie. Dashboard-Anzeige folgt in P2b.2." }
+    ]
+  },
+  {
+    "version": "4.14.5",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "feat", "text": "Device-Kategorien Verwaltung (P2a, hinter Feature-Flag): neue Seite /dashboard/categories zum Anlegen, Bearbeiten und Löschen eigener Kategorien (Plug, Halsband, Fesseln, ...) mit Farb- und Icon-Picker. Eingebaute KG-Kategorie ist gegen Löschung geschützt. Kategorie-CRUD via /api/categories. Aktivierbar via ENABLE_DEVICE_CATEGORIES=true. Dashboard-Integration und WEAR_BEGIN/END Flows folgen in P2b/c." }
+    ]
+  },
+  {
+    "version": "4.14.4",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "chore", "text": "Schema-Migration für Device-Kategorien (P1): neue DeviceCategory-Tabelle (user-definierbar), Device.categoryId und TrainingVorgabe.categoryId, automatischer Backfill für bestehende Daten (alle Devices und Vorgaben werden auf eine eingebaute KG-Kategorie verlinkt). Neue Entry-Types WEAR_BEGIN/WEAR_END sind hinter dem Feature-Flag ENABLE_DEVICE_CATEGORIES gegated und werden ohne Flag von der API abgewiesen. Verhalten für KG-Tracking unverändert." }
+    ]
+  },
+  {
+    "version": "4.14.3",
+    "date": "2026-05-07",
+    "changes": [
+      { "type": "chore", "text": "Internes Refactoring: buildPairs und verwandte Tragedauer-Funktionen sind jetzt generisch über Type-Paare (Verschluss/Öffnen vs. später Plug/Collar/...) und unterstützen einen optionalen Category-Filter. Verhalten unverändert; Vorbereitung für die Device-Categories-Erweiterung. Vitest als Unit-Test-Framework eingeführt mit 37 Tests als Sicherheitsleine." }
+    ]
+  },
+  {
     "version": "4.14.2",
     "date": "2026-05-04",
     "changes": [

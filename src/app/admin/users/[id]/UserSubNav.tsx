@@ -14,6 +14,7 @@ export default function UserSubNav({ userId }: Props) {
   const router = useRouter();
   const base = `/admin/users/${userId}`;
 
+  // Kategorien-Verwaltung lebt im Devices-Tab (per Button), nicht als eigener Reiter.
   const tabs = [
     { href: base, label: t("overview_tab"), exact: true },
     { href: `${base}/aktionen`, label: t("actions_tab"), exact: false },

@@ -3,25 +3,41 @@ import Link from "next/link";
 import { Lock, LockOpen, ClipboardCheck, Droplets, Bell, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/authGuards";
-import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { getIsLocked, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { deviceCategoriesEnabled } from "@/lib/constants";
+import { categoryStyle } from "@/lib/categoryConstants";
+import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
   await assertAdmin();
-  const t = await getTranslations("admin");
+  const [t, tw] = await Promise.all([
+    getTranslations("admin"),
+    getTranslations("wearForm"),
+  ]);
 
   const { id } = await params;
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
 
-  const [isLocked, offeneAnforderung, activeSperrzeit] = await Promise.all([
+  const flagOn = deviceCategoriesEnabled();
+  const [isLocked, offeneAnforderung, activeSperrzeit, categories, activeWear] = await Promise.all([
     getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
     getActiveSperrzeit(id),
+    flagOn
+      ? prisma.deviceCategory.findMany({
+          where: { userId: id, isBuiltIn: false },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: { id: true, name: true, color: true, icon: true },
+        })
+      : Promise.resolve([]),
+    flagOn ? getActiveWearSessions(id) : Promise.resolve([]),
   ]);
+  const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
 
   const hasEmail = !!user.email;
   const hasOffeneAnforderung = !!offeneAnforderung;
@@ -92,8 +108,22 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
             </div>
           )}
 
-          {/* Sperrdauer setzen */}
-          {isLocked && !hasActiveSperrzeit ? (
+          {/* Sperrdauer setzen / bearbeiten */}
+          {isLocked && hasActiveSperrzeit ? (
+            <Link
+              href={`/admin/users/${id}/aktionen/sperrdauer-edit`}
+              className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-sperrzeit-bg)" }}>
+                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">{t("editLockDuration")}</p>
+                <p className="text-xs text-foreground-faint">{t("editLockDurationHint")}</p>
+              </div>
+              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
+            </Link>
+          ) : isLocked ? (
             <Link
               href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
               className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
@@ -114,9 +144,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground-muted">{t("setLockDuration")}</p>
-                <p className="text-xs text-foreground-faint">
-                  {hasActiveSperrzeit ? t("alreadyHasSperrzeit") : t("entryOnlyIfLocked")}
-                </p>
+                <p className="text-xs text-foreground-faint">{t("entryOnlyIfLocked")}</p>
               </div>
             </div>
           )}
@@ -201,7 +229,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           {/* Orgasmus */}
           <Link
             href={`/admin/users/${id}/aktionen/orgasmus`}
-            className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
+            className={`flex items-center gap-4 px-5 py-4 ${categories.length === 0 ? "rounded-b-2xl" : ""} hover:bg-surface-raised transition active:scale-[0.98]`}
           >
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-orgasm-bg)" }}>
               <Droplets size={20} strokeWidth={2} style={{ color: "var(--color-orgasm)" }} />
@@ -212,6 +240,36 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
             </div>
             <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
           </Link>
+
+          {/* Per-Category wear actions */}
+          {categories.map((c, i) => {
+            const active = activeByCategory.get(c.id);
+            const isLast = i === categories.length - 1;
+            const href = active
+              ? `/admin/users/${id}/aktionen/wear-end?category=${c.id}`
+              : `/admin/users/${id}/aktionen/wear-begin?category=${c.id}`;
+            const subLabel = active ? `${tw("endShort")} · ${active.deviceName}` : tw("titleBegin");
+            const style = categoryStyle(c.color);
+            return (
+              <Link
+                key={c.id}
+                href={href}
+                className={`flex items-center gap-4 px-5 py-4 ${isLast ? "rounded-b-2xl" : ""} hover:bg-surface-raised transition active:scale-[0.98]`}
+              >
+                <div
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: style.backgroundColor, color: style.color }}
+                >
+                  <CategoryIconRender name={c.icon} className="size-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{c.name}</p>
+                  <p className="text-xs text-foreground-faint truncate">{subLabel}</p>
+                </div>
+                <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
+              </Link>
+            );
+          })}
 
         </div>
       </div>

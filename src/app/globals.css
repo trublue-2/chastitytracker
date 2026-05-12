@@ -130,6 +130,21 @@
   --color-ok-muted:    #6ee7b7;
   --color-ok-text:     #065f46;
 
+  /* ── DeviceCategory palette (UI Designer P2 spec, light theme) ────
+     12 user-pickable category colors. cat-steel reserved for KG built-in. */
+  --color-cat-steel-bg:     #eef2f7;  --color-cat-steel-border:   #cbd5e1;  --color-cat-steel-text:   #334155;  --color-cat-steel-muted:   #94a3b8;
+  --color-cat-graphite-bg:  #f1f1f3;  --color-cat-graphite-border:#c9c9cf;  --color-cat-graphite-text:#3f3f46;  --color-cat-graphite-muted:#a1a1aa;
+  --color-cat-leather-bg:   #f5efe7;  --color-cat-leather-border: #d6c4ad;  --color-cat-leather-text: #6b4f2a;  --color-cat-leather-muted: #b08a5d;
+  --color-cat-burgundy-bg:  #fbeef0;  --color-cat-burgundy-border:#e9bfc6;  --color-cat-burgundy-text:#7a1e2b;  --color-cat-burgundy-muted:#c98896;
+  --color-cat-rose-bg:      #fdeef3;  --color-cat-rose-border:    #f1c2d1;  --color-cat-rose-text:    #8a2750;  --color-cat-rose-muted:    #d693a8;
+  --color-cat-amber-bg:     #fbf3e2;  --color-cat-amber-border:   #e6cf8f;  --color-cat-amber-text:   #7a5410;  --color-cat-amber-muted:   #c8a14a;
+  --color-cat-olive-bg:     #eff1e2;  --color-cat-olive-border:   #c8cf94;  --color-cat-olive-text:   #4d5618;  --color-cat-olive-muted:   #9aa45c;
+  --color-cat-teal-bg:      #e6f3f1;  --color-cat-teal-border:    #9fcfc7;  --color-cat-teal-text:    #1f5b53;  --color-cat-teal-muted:    #5fa49a;
+  --color-cat-indigo-bg:    #ebecf7;  --color-cat-indigo-border:  #bcc0e4;  --color-cat-indigo-text:  #363a7a;  --color-cat-indigo-muted:  #8a90c4;
+  --color-cat-plum-bg:      #f1e9f3;  --color-cat-plum-border:    #cdb7d3;  --color-cat-plum-text:    #5b2a66;  --color-cat-plum-muted:    #9d7aa6;
+  --color-cat-sand-bg:      #f4ede0;  --color-cat-sand-border:    #dcc9a4;  --color-cat-sand-text:    #6b542a;  --color-cat-sand-muted:    #b59c6c;
+  --color-cat-slate-bg:     #eef0f3;  --color-cat-slate-border:   #c4cad2;  --color-cat-slate-text:   #3a4452;  --color-cat-slate-muted:   #8b95a3;
+
   /* Header — Emerald accent (user) */
   --header-bg:          #ecfdf5;
   --header-border:      #a7f3d0;
@@ -279,6 +294,21 @@
   --color-ok-border:   #065f46;
   --color-ok-muted:    #6ee7b7;
   --color-ok-text:     #6ee7b7;
+
+  /* ── DeviceCategory palette (UI Designer P2 spec, dark theme) ────
+     bg = dark surface tinted with hue, text = legible foreground. */
+  --color-cat-steel-bg:     #11161d;  --color-cat-steel-border:   #334155;  --color-cat-steel-text:   #cbd5e1;  --color-cat-steel-muted:   #64748b;
+  --color-cat-graphite-bg:  #161617;  --color-cat-graphite-border:#3f3f46;  --color-cat-graphite-text:#d4d4d8;  --color-cat-graphite-muted:#71717a;
+  --color-cat-leather-bg:   #1a140b;  --color-cat-leather-border: #6b4f2a;  --color-cat-leather-text: #d6c4ad;  --color-cat-leather-muted: #8a6a3d;
+  --color-cat-burgundy-bg:  #1d0e10;  --color-cat-burgundy-border:#7a1e2b;  --color-cat-burgundy-text:#e9bfc6;  --color-cat-burgundy-muted:#a04a58;
+  --color-cat-rose-bg:      #1d1014;  --color-cat-rose-border:    #8a2750;  --color-cat-rose-text:    #f1c2d1;  --color-cat-rose-muted:    #b06079;
+  --color-cat-amber-bg:     #1a1405;  --color-cat-amber-border:   #7a5410;  --color-cat-amber-text:   #e6cf8f;  --color-cat-amber-muted:   #a07a25;
+  --color-cat-olive-bg:     #10130a;  --color-cat-olive-border:   #4d5618;  --color-cat-olive-text:   #c8cf94;  --color-cat-olive-muted:   #717a32;
+  --color-cat-teal-bg:      #0a1716;  --color-cat-teal-border:    #1f5b53;  --color-cat-teal-text:    #9fcfc7;  --color-cat-teal-muted:    #3f7a72;
+  --color-cat-indigo-bg:    #0f111e;  --color-cat-indigo-border:  #363a7a;  --color-cat-indigo-text:  #bcc0e4;  --color-cat-indigo-muted:  #5a609a;
+  --color-cat-plum-bg:      #170f1a;  --color-cat-plum-border:    #5b2a66;  --color-cat-plum-text:    #cdb7d3;  --color-cat-plum-muted:    #7d4f8a;
+  --color-cat-sand-bg:      #171208;  --color-cat-sand-border:    #6b542a;  --color-cat-sand-text:    #dcc9a4;  --color-cat-sand-muted:    #9a7d45;
+  --color-cat-slate-bg:     #10141a;  --color-cat-slate-border:   #3a4452;  --color-cat-slate-text:   #c4cad2;  --color-cat-slate-muted:   #64707f;
 
   /* Header — Indigo accent (admin) */
   --header-bg:          #131336;

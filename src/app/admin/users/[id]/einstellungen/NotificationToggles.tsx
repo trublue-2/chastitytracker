@@ -2,16 +2,36 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { Bell, Mail } from "lucide-react";
 import Toggle from "@/app/components/Toggle";
 import Card from "@/app/components/Card";
 import Spinner from "@/app/components/Spinner";
 import { NOTIFICATION_EVENT_TYPES, type NotificationEventType } from "@/lib/constants";
+
 type Channel = "mail" | "push";
 type PrefsMap = Record<NotificationEventType, { mail: boolean; push: boolean }>;
 
 const EMPTY_PREFS: PrefsMap = Object.fromEntries(
   NOTIFICATION_EVENT_TYPES.map((et) => [et, { mail: false, push: false }])
 ) as PrefsMap;
+
+const I18N_KEY: Record<NotificationEventType, string> = {
+  VERSCHLUSS: "notifyVerschluss",
+  OEFFNUNG_IMMER: "notifyOeffnungImmer",
+  OEFFNUNG_VERBOTEN: "notifyOeffnungVerboten",
+  ORGASMUS: "notifyOrgasmus",
+  KONTROLLE_FREIWILLIG: "notifyKontrolleFreiwillig",
+  KONTROLLE_ANGEFORDERT: "notifyKontrolleAngefordert",
+  WEAR_BEGIN_ANY: "notifyWearBeginAny",
+  WEAR_END_ANY: "notifyWearEndAny",
+};
+
+/** Visual grouping in the matrix — one section per concept. */
+const GROUPS: { titleKey: string; events: readonly NotificationEventType[] }[] = [
+  { titleKey: "notifyGroupKg", events: ["VERSCHLUSS", "OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN", "KONTROLLE_FREIWILLIG", "KONTROLLE_ANGEFORDERT"] },
+  { titleKey: "notifyGroupOrgasmus", events: ["ORGASMUS"] },
+  { titleKey: "notifyGroupWear", events: ["WEAR_BEGIN_ANY", "WEAR_END_ANY"] },
+];
 
 export default function NotificationToggles({ userId }: { userId: string }) {
   const t = useTranslations("admin");
@@ -22,7 +42,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
   useEffect(() => {
     fetch(`/api/admin/notifications?userId=${userId}`)
       .then((r) => r.json())
-      .then((data) => { setPrefs(data); setLoading(false); })
+      .then((data) => { setPrefs({ ...EMPTY_PREFS, ...data }); setLoading(false); })
       .catch(() => setLoading(false));
   }, [userId]);
 
@@ -51,42 +71,60 @@ export default function NotificationToggles({ userId }: { userId: string }) {
     );
   }
 
-  const i18nKey: Record<NotificationEventType, string> = {
-    VERSCHLUSS: "notifyVerschluss",
-    OEFFNUNG_IMMER: "notifyOeffnungImmer",
-    OEFFNUNG_VERBOTEN: "notifyOeffnungVerboten",
-    ORGASMUS: "notifyOrgasmus",
-    KONTROLLE_FREIWILLIG: "notifyKontrolleFreiwillig",
-    KONTROLLE_ANGEFORDERT: "notifyKontrolleAngefordert",
-  };
-
-  function renderChannel(channel: Channel, titleKey: string, descKey: string) {
-    return (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t(titleKey)}</p>
-          <p className="text-[11px] text-foreground-faint mt-0.5">{t(descKey)}</p>
-        </div>
-        <div className="divide-y divide-border-subtle">
-          {NOTIFICATION_EVENT_TYPES.map((et) => (
-            <div key={et} className="px-5 py-3">
-              <Toggle
-                label={t(i18nKey[et])}
-                checked={prefs[et][channel]}
-                disabled={savingKey === `${et}.${channel}`}
-                onChange={(checked) => handleToggle(et, channel, checked)}
-              />
-            </div>
-          ))}
-        </div>
-      </Card>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      {renderChannel("mail", "notifyMailTitle", "notifyMailDesc")}
-      {renderChannel("push", "notifyPushTitle", "notifyPushDesc")}
-    </div>
+    <Card padding="none" className="overflow-hidden">
+      {/* Column header */}
+      <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notifyTitle")}</p>
+        <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-faint shrink-0">
+          <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyPushTitle")}>
+            <Bell size={12} aria-hidden /> {t("notifyChannelPush")}
+          </span>
+          <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyMailTitle")}>
+            <Mail size={12} aria-hidden /> {t("notifyChannelMail")}
+          </span>
+        </div>
+      </div>
+
+      {/* Groups */}
+      <div className="divide-y divide-border-subtle">
+        {GROUPS.map((g) => (
+          <div key={g.titleKey}>
+            <p className="px-5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-faint bg-background-subtle/40">
+              {t(g.titleKey)}
+            </p>
+            <div className="divide-y divide-border-subtle">
+              {g.events.map((et) => (
+                <div key={et} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <span className="text-sm text-foreground truncate">{t(I18N_KEY[et])}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="w-16 flex justify-center">
+                      <Toggle
+                        label=""
+                        checked={prefs[et].push}
+                        disabled={savingKey === `${et}.push`}
+                        onChange={(checked) => handleToggle(et, "push", checked)}
+                      />
+                    </div>
+                    <div className="w-16 flex justify-center">
+                      <Toggle
+                        label=""
+                        checked={prefs[et].mail}
+                        disabled={savingKey === `${et}.mail`}
+                        onChange={(checked) => handleToggle(et, "mail", checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="px-5 py-3 border-t border-border-subtle">
+        <p className="text-[11px] text-foreground-faint">{t("notifyPushDesc")}</p>
+      </div>
+    </Card>
   );
 }

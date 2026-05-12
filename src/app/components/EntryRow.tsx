@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, LockOpen, ClipboardList, Droplets, Camera } from "lucide-react";
+import { Lock, LockOpen, ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { TYPE_COLORS, TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
+import CategoryIconRender from "@/app/components/CategoryIcon";
+import { categoryStyle } from "@/lib/categoryConstants";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -15,6 +17,8 @@ function typeIcon(type: string, size: number): ReactNode {
     OEFFNEN: <LockOpen size={size} />,
     PRUEFUNG: <ClipboardList size={size} />,
     ORGASMUS: <Droplets size={size} />,
+    WEAR_BEGIN: <Play size={size} />,
+    WEAR_END: <Square size={size} />,
   };
   return icons[type];
 }
@@ -30,6 +34,8 @@ interface Entry {
   imageExifTime?: Date | string | null;
   oeffnenGrund?: string | null;
   verifikationStatus?: string | null;
+  /** Category info for WEAR_BEGIN/WEAR_END entries — derived via Entry.device.category. */
+  category?: { name: string; color: string; icon: string } | null;
 }
 
 interface Props {
@@ -45,10 +51,16 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
 
   const startTime = e.startTime instanceof Date ? e.startTime : new Date(e.startTime);
 
+  const isWear = e.type === "WEAR_BEGIN" || e.type === "WEAR_END";
+  const wearActionLabel = isWear ? tStats(e.type === "WEAR_BEGIN" ? "wearBeginShort" : "wearEndShort") : "";
+  const wearLabel = isWear && e.category
+    ? `${e.category.name} · ${wearActionLabel}`
+    : tStats(TYPE_STATS_KEYS[e.type] ?? "lock");
+
   const typeTitle = (
     <span className="flex items-center gap-1.5">
       {typeIcon(e.type, 14)}
-      {tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}
+      {wearLabel}
     </span>
   );
 
@@ -60,10 +72,22 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
           onClick={() => setShowDetail(true)}
           className="flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-surface-raised/60 -mx-2 px-2 -my-1 py-1 rounded-lg transition"
         >
-          <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${TYPE_COLORS[e.type] ?? "text-foreground-muted"}`}>
-            {typeIcon(e.type, 12)}
-            {tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}
-          </span>
+          {isWear && e.category ? (
+            <span
+              className="flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0"
+              style={{ color: categoryStyle(e.category.color).color }}
+              title={wearLabel}
+            >
+              <CategoryIconRender name={e.category.icon} className="size-3" />
+              <span className="truncate">{e.category.name}</span>
+              <span className="ml-0.5 text-[0.65rem] uppercase tracking-wider opacity-70">{wearActionLabel}</span>
+            </span>
+          ) : (
+            <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${TYPE_COLORS[e.type] ?? "text-foreground-muted"}`}>
+              {typeIcon(e.type, 12)}
+              {tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}
+            </span>
+          )}
           <span className="text-sm text-foreground tabular-nums">
             {formatDateTime(startTime, locale)}
           </span>

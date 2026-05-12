@@ -32,6 +32,33 @@ model User {
   pushSubscriptions       PushSubscription[]
   nativePushTokens        NativePushToken[]
   passkeys                Passkey[]
+  deviceCategories        DeviceCategory[]
+}
+
+// User-defined device categories (KG, Plug, Collar, Cuffs, ...).
+// One built-in "kg" category is seeded per user — it cannot be deleted and keeps
+// KG-specific features (photo-pflicht, seal-detection, kontrollen, reinigung).
+// All other categories are user-defined and have plain wear-tracking only.
+model DeviceCategory {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String   // user-editable display name
+  slug            String   // stable identifier; "kg" for built-in
+  color           String   // CSS-variable suffix (e.g. "cat-steel", "cat-plum")
+  icon            String   // lucide-react icon name (e.g. "Lock", "Crown")
+  isBuiltIn       Boolean  @default(false) // true only for KG; cannot be deleted
+  trackingEnabled Boolean  @default(true)  // when false: inventory-only, no wear sessions
+  requirePhoto    Boolean  @default(false) // when true: WEAR_BEGIN entries require an imageUrl
+  allowVorgaben   Boolean  @default(true)  // when false: category cannot be linked to TrainingVorgaben
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  devices  Device[]
+  vorgaben TrainingVorgabe[]
+
+  @@unique([userId, slug])
+  @@index([userId])
 }
 
 // WebAuthn passkeys for biometric login (Face ID, Touch ID, Fingerprint, Windows Hello).
@@ -64,6 +91,8 @@ model TrainingVorgabe {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    String?   // nullable until backfilled; future: required
+  category      DeviceCategory? @relation(fields: [categoryId], references: [id])
   gueltigAb     DateTime
   gueltigBis    DateTime?
   minProTagH    Float?
@@ -73,6 +102,7 @@ model TrainingVorgabe {
   createdAt     DateTime  @default(now())
 
   @@index([userId])
+  @@index([categoryId])
 }
 
 model KontrollAnforderung {
@@ -187,6 +217,8 @@ model Device {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    String?   // nullable until backfilled; future: required for new devices
+  category      DeviceCategory? @relation(fields: [categoryId], references: [id])
   name          String
   description   String?
   imageUrl      String?
@@ -199,6 +231,7 @@ model Device {
   verschlussAnforderungen VerschlussAnforderung[]
 
   @@index([userId, archivedAt])
+  @@index([categoryId])
 }
 
 model Entry {

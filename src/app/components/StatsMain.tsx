@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, buildWearPairs, wearingHoursFromPairs, type WearPair, type ReinigungSettings } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, buildWearPairs, wearingHoursFromPairs, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
-import CalendarExpand from "./CalendarExpand";
+import { isKgVorgabe } from "@/lib/vorgaben";
+import { categoryStyle } from "@/lib/categoryConstants";
+import CategoryIconRender from "./CategoryIcon";
+import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitcher";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
 import type { DayEntry, DayVorgabe } from "./CalendarContainer";
 import MonthStats, { type MonthStat } from "./MonthStats";
@@ -100,6 +103,106 @@ function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {
   return v.gueltigAb <= now && (v.gueltigBis === null || v.gueltigBis >= now);
 }
 
+
+function buildCalendarMonths(opts: {
+  entries: Entry[];
+  wearPairs: WearPair[];
+  vorgaben: Vorgabe[];
+  orgasmDateSet: Set<string>;
+  now: Date;
+  dl: string;
+}): CalendarMonthData[] {
+  const { entries, wearPairs, vorgaben, orgasmDateSet, now, dl } = opts;
+  const dailyData = buildDailyData(wearPairs, orgasmDateSet);
+  const { year: nowYear, month: nowMonth } = tzDateParts(now);
+  const jsWeekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  // Bucket entries by YMD once so day-cells become O(1) lookups instead of O(N) filters.
+  const entriesByYMD = new Map<string, Entry[]>();
+  for (const e of entries) {
+    const { year, month, day } = tzDateParts(e.startTime);
+    const key = `${year}-${month}-${day}`;
+    const list = entriesByYMD.get(key);
+    if (list) list.push(e); else entriesByYMD.set(key, [e]);
+  }
+
+  const calMonthsData: CalendarMonthData[] = [];
+  for (let i = 0; i <= 3; i++) {
+    const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)));
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const firstDayNoon = new Date(Date.UTC(year, month, 1, 12));
+    const firstDayWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
+      .formatToParts(firstDayNoon).find(p => p.type === "weekday")!.value;
+    const startOffset = (jsWeekdayMap[firstDayWd] + 6) % 7;
+    const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
+
+    const monthStartDate = midnightInTZ(firstDayNoon);
+    const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)));
+    const vorgabe = vorgaben.find(
+      (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
+    ) ?? null;
+    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
+    const monthGoalMet = vorgabe?.minProMonatH != null ? monthTotalH >= vorgabe.minProMonatH : null;
+    const monthGoalPct = vorgabe?.minProMonatH ? Math.round((monthTotalH / vorgabe.minProMonatH) * 100) : null;
+
+    const cells: (number | null)[] = [
+      ...Array(startOffset).fill(null),
+      ...Array.from({ length: daysInMonth }, (_, k) => k + 1),
+    ];
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    const weeks: (CalendarDayData | null)[][] = [];
+    const weekGoalMet: (boolean | null)[] = [];
+    const weekGoalPct: (number | null)[] = [];
+
+    for (let w = 0; w < cells.length; w += 7) {
+      const weekCells = cells.slice(w, w + 7);
+      const firstDayOfRow = weekCells.find((x) => x != null);
+      let weekH = 0;
+      if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
+        const anchorNoon = new Date(Date.UTC(year, month, firstDayOfRow, 12));
+        const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
+          .formatToParts(anchorNoon).find(p => p.type === "weekday")!.value;
+        const dow = (jsWeekdayMap[anchorWd] + 6) % 7;
+        const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)));
+        const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
+        weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
+      }
+      weekGoalMet.push(vorgabe?.minProWocheH != null && firstDayOfRow != null ? weekH >= vorgabe.minProWocheH : null);
+      weekGoalPct.push(vorgabe?.minProWocheH && firstDayOfRow != null ? Math.round((weekH / vorgabe.minProWocheH) * 100) : null);
+
+      weeks.push(weekCells.map((day): CalendarDayData | null => {
+        if (!day) return null;
+        const key = `${year}-${month}-${day}`;
+        const data = dailyData.get(key);
+        const pct = data ? Math.min(data.hours / 24, 1) : 0;
+        const dailyGoalMet = vorgabe?.minProTagH != null && data != null ? data.hours >= vorgabe.minProTagH : null;
+        const colorClass = pct === 0 ? "bg-surface-raised text-foreground-faint"
+          : pct < 0.2 ? "bg-blue-100 text-blue-900"
+          : pct < 0.4 ? "bg-blue-200 text-blue-900"
+          : pct < 0.65 ? "bg-blue-400 text-white"
+          : "bg-blue-600 text-white";
+        // entries arrived from prisma sorted by startTime asc, so per-day buckets are too.
+        const dayEntries: DayEntry[] = (entriesByYMD.get(key) ?? []).map((e) => ({
+          type: e.type,
+          time: formatTime(e.startTime, dl),
+          note: e.note,
+          orgasmusArt: e.orgasmusArt,
+        }));
+        const dayVorgabe: DayVorgabe | null = vorgabe ? {
+          minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
+          minProMonatH: vorgabe.minProMonatH, notiz: vorgabe.notiz,
+        } : null;
+        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: APP_TZ });
+        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
+      }));
+    }
+
+    calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet, monthGoalPct });
+  }
+  return calMonthsData;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default async function StatsMain({ userId, heading, backHref, backLabel, compact }: {
@@ -117,13 +220,26 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
-  const [entries, vorgaben, kontrollen, sperrzeiten, userSettings, allDevices] = await Promise.all([
-    prisma.entry.findMany({ where: { userId }, orderBy: { startTime: "asc" } }),
-    prisma.trainingVorgabe.findMany({ where: { userId }, orderBy: { gueltigAb: "desc" } }),
+  const [entries, vorgaben, kontrollen, sperrzeiten, userSettings, allDevices, nonKgCategories] = await Promise.all([
+    prisma.entry.findMany({
+      where: { userId },
+      orderBy: { startTime: "asc" },
+      include: { device: { select: { categoryId: true } } },
+    }),
+    prisma.trainingVorgabe.findMany({
+      where: { userId },
+      orderBy: { gueltigAb: "desc" },
+      include: { category: { select: { id: true, name: true, color: true, icon: true, isBuiltIn: true } } },
+    }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
     prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true } }),
+    prisma.deviceCategory.findMany({
+      where: { userId, isBuiltIn: false },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, color: true, icon: true },
+    }),
   ]);
 
   const reinigung: ReinigungSettings = {
@@ -192,103 +308,74 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     )
   ).sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
-  const activeVorgabe = vorgaben.find(isActive) ?? null;
+  // KG-only vorgaben drive the wear calendar + month stats (which visualize KG).
+  // The Trainingsziele cards below render ALL active vorgaben across categories.
+  const kgVorgaben = vorgaben.filter(isKgVorgabe);
   const wearPairs = buildWearPairs(entries, now);
-  const monthStats = buildMonthStats(completed, wearPairs, vorgaben, dl);
+  const monthStats = buildMonthStats(completed, wearPairs, kgVorgaben, dl);
 
   const todayStart = getMidnightToday(now);
   const weekStart = getWeekStart(now);
   const monthStart = getMonthStart(now);
 
-  const hoursToday = wearingHoursFromPairs(wearPairs, todayStart, now);
-  const hoursWeek = wearingHoursFromPairs(wearPairs, weekStart, now);
-  const hoursMonth = wearingHoursFromPairs(wearPairs, monthStart, now);
+  // Build one goal-card per currently-active vorgabe (KG first, then others by name).
+  const activeVorgaben = vorgaben.filter(isActive).sort((a, b) => {
+    const aKG = isKgVorgabe(a) ? 0 : 1;
+    const bKG = isKgVorgabe(b) ? 0 : 1;
+    if (aKG !== bKG) return aKG - bKG;
+    return (a.category?.name ?? "").localeCompare(b.category?.name ?? "");
+  });
+  const goalCards = activeVorgaben.map((v) => {
+    const kg = isKgVorgabe(v);
+    const pairs = kg ? wearPairs : buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: v.categoryId! });
+    return {
+      id: v.id,
+      name: v.category?.name ?? "KG",
+      color: v.category?.color ?? null,
+      icon: v.category?.icon ?? null,
+      minProTagH: v.minProTagH,
+      minProWocheH: v.minProWocheH,
+      minProMonatH: v.minProMonatH,
+      notiz: v.notiz,
+      hoursToday: wearingHoursFromPairs(pairs, todayStart, now),
+      hoursWeek: wearingHoursFromPairs(pairs, weekStart, now),
+      hoursMonth: wearingHoursFromPairs(pairs, monthStart, now),
+    };
+  });
 
   const orgasmDateSet = new Set<string>(
     entries.filter((e) => e.type === "ORGASMUS")
       .map((e) => { const { year, month, day } = tzDateParts(e.startTime); return `${year}-${month}-${day}`; })
   );
-  const dailyData = buildDailyData(wearPairs, orgasmDateSet);
 
-  // Build serializable calendar data for CalendarContainer
-  const { year: nowYear, month: nowMonth } = tzDateParts(now);
-  const jsWeekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-  const calMonthsData: CalendarMonthData[] = [];
-  for (let i = 0; i <= 3; i++) {
-    const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)));
-    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    const firstDayNoon = new Date(Date.UTC(year, month, 1, 12));
-    const firstDayWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
-      .formatToParts(firstDayNoon).find(p => p.type === "weekday")!.value;
-    const startOffset = (jsWeekdayMap[firstDayWd] + 6) % 7;
-    const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
-
-    const monthStartDate = midnightInTZ(firstDayNoon);
-    const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)));
-    const vorgabe = vorgaben.find(
-      (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
-    ) ?? null;
-    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
-    const monthGoalMet = vorgabe?.minProMonatH != null ? monthTotalH >= vorgabe.minProMonatH : null;
-    const monthGoalPct = vorgabe?.minProMonatH ? Math.round((monthTotalH / vorgabe.minProMonatH) * 100) : null;
-
-    const cells: (number | null)[] = [
-      ...Array(startOffset).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, k) => k + 1),
-    ];
-    while (cells.length % 7 !== 0) cells.push(null);
-
-    const weeks: (CalendarDayData | null)[][] = [];
-    const weekGoalMet: (boolean | null)[] = [];
-    const weekGoalPct: (number | null)[] = [];
-
-    for (let w = 0; w < cells.length; w += 7) {
-      const weekCells = cells.slice(w, w + 7);
-      const firstDayOfRow = weekCells.find((x) => x != null);
-      let weekH = 0;
-      if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
-        const anchorNoon = new Date(Date.UTC(year, month, firstDayOfRow, 12));
-        const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
-          .formatToParts(anchorNoon).find(p => p.type === "weekday")!.value;
-        const dow = (jsWeekdayMap[anchorWd] + 6) % 7;
-        const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)));
-        const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
-        weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
-      }
-      weekGoalMet.push(vorgabe?.minProWocheH != null && firstDayOfRow != null ? weekH >= vorgabe.minProWocheH : null);
-      weekGoalPct.push(vorgabe?.minProWocheH && firstDayOfRow != null ? Math.round((weekH / vorgabe.minProWocheH) * 100) : null);
-
-      weeks.push(weekCells.map((day): CalendarDayData | null => {
-        if (!day) return null;
-        const key = `${year}-${month}-${day}`;
-        const data = dailyData.get(key);
-        const pct = data ? Math.min(data.hours / 24, 1) : 0;
-        const dailyGoalMet = vorgabe?.minProTagH != null && data != null ? data.hours >= vorgabe.minProTagH : null;
-        const colorClass = pct === 0 ? "bg-surface-raised text-foreground-faint"
-          : pct < 0.2 ? "bg-blue-100 text-blue-900"
-          : pct < 0.4 ? "bg-blue-200 text-blue-900"
-          : pct < 0.65 ? "bg-blue-400 text-white"
-          : "bg-blue-600 text-white";
-        const dayEntries: DayEntry[] = entries
-          .filter((e) => { const p = tzDateParts(e.startTime); return p.year === year && p.month === month && p.day === day; })
-          .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
-          .map((e) => ({
-            type: e.type,
-            time: formatTime(e.startTime, dl),
-            note: e.note,
-            orgasmusArt: e.orgasmusArt,
-          }));
-        const dayVorgabe: DayVorgabe | null = vorgabe ? {
-          minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
-          minProMonatH: vorgabe.minProMonatH, notiz: vorgabe.notiz,
-        } : null;
-        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: APP_TZ });
-        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
-      }));
-    }
-
-    calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet, monthGoalPct });
+  // Build calendar variants — one per category that has wear data.
+  // KG always shows orgasm dots; non-KG categories don't (orgasms are not device-specific).
+  const calendarVariants: CalendarVariant[] = [];
+  if (wearPairs.length > 0) {
+    calendarVariants.push({
+      id: "kg",
+      name: "KG",
+      color: "cat-steel",
+      icon: "Lock",
+      isKG: true,
+      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl }),
+    });
+  }
+  for (const cat of nonKgCategories) {
+    const catPairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cat.id });
+    if (catPairs.length === 0) continue;
+    const catVorgaben = vorgaben.filter((v) => v.categoryId === cat.id);
+    const catEntries = entries.filter(
+      (e) => (e.type === WEAR_PAIR.close || e.type === WEAR_PAIR.open) && e.device?.categoryId === cat.id
+    );
+    calendarVariants.push({
+      id: cat.id,
+      name: cat.name,
+      color: cat.color,
+      icon: cat.icon,
+      isKG: false,
+      months: buildCalendarMonths({ entries: catEntries, wearPairs: catPairs, vorgaben: catVorgaben, orgasmDateSet: new Set(), now, dl }),
+    });
   }
 
   // ── Device usage stats ─────────────────────────────────────────────────────
@@ -363,12 +450,15 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
       </div>
 
-      {/* Gesamtübersicht */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatsCard label={t("entries")} value={String(allPairs.length)} />
-        <StatsCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
-        <StatsCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
-        <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
+      {/* Übersicht KG-Tragen */}
+      <section className="flex flex-col gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatsCard label={t("entries")} value={String(allPairs.length)} />
+          <StatsCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
+          <StatsCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
+          <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
+        </div>
       </section>
 
       {/* Orgasmusfreie Zeit */}
@@ -412,58 +502,53 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         </Card>
       )}
 
-      {/* Trainingsziele */}
-      {activeVorgabe && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between">
-            <p className="text-sm font-bold text-foreground">{t("trainingGoals")}</p>
-            <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full">{tc("active")}</span>
-          </div>
-          <div className="px-6 py-4 flex flex-col gap-4">
-            {activeVorgabe.minProTagH && (
-              <GoalBar label={t("today")} actual={hoursToday} target={activeVorgabe.minProTagH}
-                sub={`${formatHours(hoursToday, dl)} ${tc("of")} ${formatHours(activeVorgabe.minProTagH, dl)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {activeVorgabe.minProWocheH && (
-              <GoalBar label={t("thisWeek")} actual={hoursWeek} target={activeVorgabe.minProWocheH}
-                sub={`${formatHours(hoursWeek, dl)} ${tc("of")} ${formatHours(activeVorgabe.minProWocheH, dl)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {activeVorgabe.minProMonatH && (
-              <GoalBar label={t("thisMonth")} actual={hoursMonth} target={activeVorgabe.minProMonatH}
-                sub={`${formatHours(hoursMonth, dl)} ${tc("of")} ${formatHours(activeVorgabe.minProMonatH, dl)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {activeVorgabe.notiz && <p className="text-xs text-[var(--color-request)] italic">{activeVorgabe.notiz}</p>}
-          </div>
-        </Card>
-      )}
-
-      {/* Kalender */}
-      {wearPairs.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-border-subtle">
-            <p className="text-sm font-bold text-foreground mb-3">{t("wearCalendar")}</p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />{t("notWorn")}</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-100 inline-block" />&lt;25%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 inline-block" />25–40%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-400 inline-block" />40–65%</span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-600 inline-block" />&gt;65%</span>
-              <span className="flex items-center gap-1.5">
-                <span className="relative inline-flex w-4 h-4 items-center justify-center">
-                  <span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />
-                  <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-[var(--color-orgasm)] rounded-full" />
-                </span>
-                {t("orgasm")}
-              </span>
-              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 ring-2 ring-emerald-400 inline-block" />{t("dailyGoalReached")}</span>
-              <span className="flex items-center gap-1.5"><span className="font-bold text-emerald-500">✓</span>{t("weeklyGoalReached")}</span>
+      {/* Trainingsziele — eine Card pro aktiver Vorgabe (KG zuerst, dann andere Kategorien) */}
+      {goalCards.map((g) => {
+        const style = g.color ? categoryStyle(g.color) : null;
+        return (
+          <Card key={g.id} padding="none" className="overflow-hidden">
+            <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                {style && g.icon && (
+                  <div
+                    className="size-6 rounded-md flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: style.backgroundColor, color: style.color }}
+                    aria-hidden
+                  >
+                    <CategoryIconRender name={g.icon} className="size-3.5" />
+                  </div>
+                )}
+                <p className="text-sm font-bold text-foreground truncate">
+                  {t("trainingGoalFor", { name: g.name })}
+                </p>
+              </div>
+              <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full shrink-0">{tc("active")}</span>
             </div>
-          </div>
-          <CalendarExpand months={calMonthsData} />
-        </Card>
+            <div className="px-6 py-4 flex flex-col gap-4">
+              {g.minProTagH && (
+                <GoalBar label={t("today")} actual={g.hoursToday} target={g.minProTagH}
+                  sub={`${formatHours(g.hoursToday, dl)} ${tc("of")} ${formatHours(g.minProTagH, dl)}`}
+                  reachedLabel={t("reached")} />
+              )}
+              {g.minProWocheH && (
+                <GoalBar label={t("thisWeek")} actual={g.hoursWeek} target={g.minProWocheH}
+                  sub={`${formatHours(g.hoursWeek, dl)} ${tc("of")} ${formatHours(g.minProWocheH, dl)}`}
+                  reachedLabel={t("reached")} />
+              )}
+              {g.minProMonatH && (
+                <GoalBar label={t("thisMonth")} actual={g.hoursMonth} target={g.minProMonatH}
+                  sub={`${formatHours(g.hoursMonth, dl)} ${tc("of")} ${formatHours(g.minProMonatH, dl)}`}
+                  reachedLabel={t("reached")} />
+              )}
+              {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}
+            </div>
+          </Card>
+        );
+      })}
+
+      {/* Tragekalender */}
+      {calendarVariants.length > 0 && (
+        <WearCalendarSwitcher variants={calendarVariants} />
       )}
 
       {/* Rekorde */}
