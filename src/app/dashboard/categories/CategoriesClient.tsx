@@ -289,7 +289,7 @@ function CategoryRowItem({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-base font-medium truncate">{c.name}</span>
+              <span className="text-base font-medium text-foreground truncate">{c.name}</span>
               {c.isBuiltIn && <Badge variant="lock" size="sm" label={t("builtInBadge")} />}
             </div>
             <p className="text-xs text-foreground-muted mt-0.5">
