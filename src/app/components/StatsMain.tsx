@@ -10,6 +10,7 @@ import type { DayEntry, DayVorgabe } from "./CalendarContainer";
 import MonthStats, { type MonthStat } from "./MonthStats";
 import Card from "./Card";
 import StatsCard from "./StatsCard";
+import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
 import EmptyState from "./EmptyState";
 import { ShieldAlert, BarChart2 } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -272,6 +273,23 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       entryTime: e.startTime,
     })),
   ].sort((a, b) => b.time.getTime() - a.time.getTime());
+
+  // Pre-format kontrolle rows for the client-paginated list — pills and dates resolved here so the
+  // client component can stay simple (no date/i18n logic).
+  const kontrolleRows: StatsKontrolleRow[] = unifiedKontrollen.map((k) => {
+    const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
+    const primaryLine = k.entryTime
+      ? `${t("fulfilled")}: ${new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}`
+      : `${t("created")}: ${formatDateTime(k.time, dl)}`;
+    return {
+      id: k.id,
+      code: k.code,
+      pillLabel: pill?.label ?? null,
+      pillCls: pill?.cls ?? null,
+      primaryLine,
+      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(new Date(k.deadline), dl)}` : null,
+    };
+  });
 
   const allPairs = buildPairs(entries, [], reinigung)
     .filter(p => p.oeffnen !== null)
@@ -601,31 +619,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       )}
 
       {/* Kontrollen */}
-      {unifiedKontrollen.length > 0 && (
+      {kontrolleRows.length > 0 && (
         <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-border-subtle">
             <p className="text-sm font-bold text-foreground">{t("inspections")}</p>
           </div>
-          <div className="divide-y divide-border-subtle">
-            {unifiedKontrollen.map((k) => {
-              const kPill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
-              return (
-                <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {kPill && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${kPill.cls}`}>{kPill.label}</span>}
-                    {k.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>}
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
-                    {k.entryTime
-                      ? <span>{t("fulfilled")}: {new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}</span>
-                      : <span>{t("created")}: {formatDateTime(k.time, dl)}</span>
-                    }
-                    {k.deadline && <span>{t("deadlineLabel")}: {formatDateTime(new Date(k.deadline), dl)}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <StatsKontrollenList rows={kontrolleRows} />
         </Card>
       )}
 

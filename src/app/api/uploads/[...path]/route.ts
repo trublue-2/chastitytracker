@@ -30,13 +30,20 @@ export async function GET(
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  // Ownership: only the entry owner or an admin may access the file
+  // Ownership: file owner (Entry or Device) or admin may access. Check both
+  // tables in parallel — image URLs are reused across models.
   const imageUrlInDb = `/api/uploads/${filename}`;
-  const ownedEntry = await prisma.entry.findFirst({
-    where: { imageUrl: imageUrlInDb, userId: session.user.id },
-    select: { id: true },
-  });
-  if (!ownedEntry && session.user.role !== "admin") {
+  const [ownedEntry, ownedDevice] = await Promise.all([
+    prisma.entry.findFirst({
+      where: { imageUrl: imageUrlInDb, userId: session.user.id },
+      select: { id: true },
+    }),
+    prisma.device.findFirst({
+      where: { imageUrl: imageUrlInDb, userId: session.user.id },
+      select: { id: true },
+    }),
+  ]);
+  if (!ownedEntry && !ownedDevice && session.user.role !== "admin") {
     return new NextResponse("Forbidden", { status: 403 });
   }
 

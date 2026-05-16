@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.17.1",
+    "date": "2026-05-16",
+    "changes": [
+      { "type": "fix", "text": "Device-Bilder erschienen für Non-Admin-User als kaputtes Bild — die Owner-Prüfung in /api/uploads suchte nur in der Entry-Tabelle, nicht in Device. Jetzt werden beide Tabellen parallel geprüft." },
+      { "type": "ui", "text": "Pro-Kategorie-Stats: Label 'KG-Sessions' war fest verdrahtet, auch für Plug/Halsband/etc. Jetzt neutral 'Sessions' — in der KG-Übersichts-Sektion bleibt der Kontext klar durch den Card-Titel." },
+      { "type": "feat", "text": "Statistik-Seite: Kontrollen-Liste paginiert (10 pro Seite) — vorher unbeschränkt lang." },
+      { "type": "feat", "text": "Einträge-Seite: paginiert (20 pro Seite, URL-basiert via ?page=) — bei langer Historie nicht mehr endlos scrollen." }
+    ]
+  },
+  {
     "version": "4.17.0",
     "date": "2026-05-16",
     "changes": [
