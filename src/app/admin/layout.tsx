@@ -3,28 +3,26 @@ import AdminBottomNav from "@/app/components/AdminBottomNav";
 import AdminDesktopSidebar from "@/app/components/AdminDesktopSidebar";
 import ThemeApplicator from "@/app/components/ThemeApplicator";
 import { auth } from "@/lib/auth";
-import { formatBuildDate } from "@/lib/utils";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const user = session?.user;
-  const buildDate = formatBuildDate();
 
   return (
     <div id="admin-root" data-theme="admin" className="min-h-screen bg-background text-foreground">
       <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("admin") }} />
       <ThemeApplicator role="admin" />
       <AdminHeader username={user?.name ?? ""} />
-      <AdminDesktopSidebar version={pkg.version} buildDate={buildDate} />
+      <AdminDesktopSidebar version={pkg.version} />
 
       {/* Content */}
       <div className="lg:ml-64 min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
         {children}
       </div>
 
-      <AdminBottomNav version={pkg.version} buildDate={buildDate} />
+      <AdminBottomNav version={pkg.version} />
     </div>
   );
 }

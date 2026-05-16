@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, ClipboardList, Plus, BarChart2, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
+import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 import { hapticLight } from "@/lib/haptics";
 
 interface BottomNavProps {
@@ -12,10 +13,9 @@ interface BottomNavProps {
   isLocked?: boolean;
   onNewEntry?: () => void;
   version?: string;
-  buildDate?: string;
 }
 
-export default function BottomNav({ isAdmin, onNewEntry, version, buildDate }: BottomNavProps) {
+export default function BottomNav({ isAdmin, onNewEntry, version }: BottomNavProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
@@ -69,18 +69,16 @@ export default function BottomNav({ isAdmin, onNewEntry, version, buildDate }: B
           );
         })}
       </div>
-      {(version || buildDate) && (
+      {version && (
         <div className="flex items-center justify-between px-4 pb-1">
           <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
             &copy; trublue {new Date().getFullYear()}
           </a>
           <div className="flex items-center gap-2">
-            {buildDate && <span className="text-[10px] text-foreground-faint">Build {buildDate}</span>}
-            {version && (
-              <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
-                {version}
-              </Link>
-            )}
+            <UpdateAvailableIndicator currentVersion={version} />
+            <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
+              {version}
+            </Link>
           </div>
         </div>
       )}

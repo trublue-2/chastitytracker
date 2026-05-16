@@ -8,7 +8,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getIsLocked, getActiveWearSessions } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { formatBuildDate } from "@/lib/utils";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
@@ -17,8 +16,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await auth();
   const user = session?.user;
   const userId = user?.id;
-
-  const buildDate = formatBuildDate();
 
   const flagOn = deviceCategoriesEnabled();
   const [isLocked, categories, activeWear] = await Promise.all([
@@ -50,7 +47,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isAdmin={user?.role === "admin"}
         isLocked={isLocked}
         version={pkg.version}
-        buildDate={buildDate}
         categoryRows={categoryRows}
       />
 
@@ -66,7 +62,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isAdmin={user?.role === "admin"}
         isLocked={isLocked}
         version={pkg.version}
-        buildDate={buildDate}
         categoryRows={categoryRows}
       />
       <InstallBanner />

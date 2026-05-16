@@ -10,16 +10,16 @@ import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 import NewEntrySheet, { type NewEntryCategoryRow } from "./NewEntrySheet";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
+import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 
 interface Props {
   isAdmin?: boolean;
   isLocked: boolean;
   version: string;
-  buildDate: string;
   categoryRows?: NewEntryCategoryRow[];
 }
 
-export default function DesktopSidebar({ isAdmin, isLocked, version, buildDate, categoryRows }: Props) {
+export default function DesktopSidebar({ isAdmin, isLocked, version, categoryRows }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -78,18 +78,16 @@ export default function DesktopSidebar({ isAdmin, isLocked, version, buildDate, 
             <LogOut size={18} strokeWidth={1.5} />
             {t("signOut")}
           </button>
-          <div className="px-2 flex flex-col gap-0.5">
-            <div className="flex items-center justify-between">
-              <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
-                &copy; trublue {new Date().getFullYear()}
-              </a>
+          <div className="px-2 flex items-center justify-between gap-2">
+            <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
+              &copy; trublue {new Date().getFullYear()}
+            </a>
+            <div className="flex items-center gap-2">
+              <UpdateAvailableIndicator currentVersion={version} />
               <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
                 {version}
               </Link>
             </div>
-            <span className="text-[10px] text-foreground-faint">
-              {t("build")} {buildDate}
-            </span>
           </div>
         </div>
       </aside>

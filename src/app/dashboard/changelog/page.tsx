@@ -4,6 +4,7 @@ import pkg from "../../../../package.json";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
+import UpstreamSection from "./UpstreamSection";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
@@ -77,6 +78,8 @@ export default async function ChangelogPage() {
             );
           })}
       </div>
+
+      <UpstreamSection currentVersion={currentVersion} locale={dl} />
 
       {/* Releases */}
       <div className="flex flex-col gap-6">

@@ -8,6 +8,7 @@ import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import Spinner from "./Spinner";
+import UpdateAvailableIndicator from "./UpdateAvailableIndicator";
 
 interface UserListItem {
   id: string;
@@ -17,10 +18,9 @@ interface UserListItem {
 
 interface Props {
   version: string;
-  buildDate: string;
 }
 
-export default function AdminDesktopSidebar({ version, buildDate }: Props) {
+export default function AdminDesktopSidebar({ version }: Props) {
   const t = useTranslations("adminNav");
   const tAdmin = useTranslations("admin");
   const pathname = usePathname();
@@ -114,18 +114,16 @@ export default function AdminDesktopSidebar({ version, buildDate }: Props) {
             <LogOut size={18} strokeWidth={1.5} />
             {t("signOut")}
           </button>
-          <div className="px-2 flex flex-col gap-0.5">
-            <div className="flex items-center justify-between">
-              <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
-                &copy; trublue {new Date().getFullYear()}
-              </a>
+          <div className="px-2 flex items-center justify-between gap-2">
+            <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
+              &copy; trublue {new Date().getFullYear()}
+            </a>
+            <div className="flex items-center gap-2">
+              <UpdateAvailableIndicator currentVersion={version} />
               <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
                 {version}
               </Link>
             </div>
-            <span className="text-[10px] text-foreground-faint">
-              Build {buildDate}
-            </span>
           </div>
         </div>
       </aside>
