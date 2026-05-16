@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.17.2",
+    "date": "2026-05-16",
+    "changes": [
+      { "type": "ui", "text": "Kategorien-Übersicht: Kategorie-Namen waren im Dark Mode schlecht lesbar (fehlende text-foreground-Klasse, Inherit auf gedämpfte Default-Farbe). Jetzt voller Kontrast." }
+    ]
+  },
+  {
     "version": "4.17.1",
     "date": "2026-05-16",
     "changes": [
