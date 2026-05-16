@@ -3,26 +3,47 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import EntryRow from "@/app/components/EntryRow";
 
-export default async function EintraegePage() {
+const PAGE_SIZE = 20;
+
+export default async function EintraegePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const session = await auth();
   if (!session) redirect("/login");
 
   const userId = session.user.id;
-  const [locale, t] = await Promise.all([getLocale(), getTranslations("settings")]);
+  const { page: pageStr } = await searchParams;
+  const page = Math.max(0, parseInt(pageStr ?? "0", 10) || 0);
+
+  const [locale, t, tCommon] = await Promise.all([
+    getLocale(),
+    getTranslations("settings"),
+    getTranslations("common"),
+  ]);
   const dl = toDateLocale(locale);
 
-  const entries = await prisma.entry.findMany({
-    where: { userId },
-    orderBy: { startTime: "desc" },
-    include: {
-      device: { select: { category: { select: { name: true, color: true, icon: true, isBuiltIn: true } } } },
-    },
-  });
+  const [total, entries] = await Promise.all([
+    prisma.entry.count({ where: { userId } }),
+    prisma.entry.findMany({
+      where: { userId },
+      orderBy: { startTime: "desc" },
+      skip: page * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: {
+        device: { select: { category: { select: { name: true, color: true, icon: true, isBuiltIn: true } } } },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
@@ -52,6 +73,28 @@ export default async function EintraegePage() {
               />
             ))}
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
+              <Link
+                href={page > 0 ? `/dashboard/eintraege?page=${page - 1}` : "#"}
+                aria-disabled={page === 0}
+                className={`flex items-center gap-1 text-xs font-medium transition ${page === 0 ? "text-foreground-faint pointer-events-none" : "text-foreground-muted hover:text-foreground"}`}
+              >
+                <ChevronLeft size={14} /> {tCommon("previous")}
+              </Link>
+              <span className="text-xs text-foreground-faint tabular-nums">
+                {page + 1} / {totalPages}
+              </span>
+              <Link
+                href={page < totalPages - 1 ? `/dashboard/eintraege?page=${page + 1}` : "#"}
+                aria-disabled={page >= totalPages - 1}
+                className={`flex items-center gap-1 text-xs font-medium transition ${page >= totalPages - 1 ? "text-foreground-faint pointer-events-none" : "text-foreground-muted hover:text-foreground"}`}
+              >
+                {tCommon("next")} <ChevronRight size={14} />
+              </Link>
+            </div>
+          )}
         </Card>
       )}
     </main>
