@@ -369,7 +369,14 @@
     "fix": "Fix",
     "security": "Security",
     "perf": "Performance",
-    "chore": "Intern"
+    "chore": "Intern",
+    "upstreamBannerTitle": "{count, plural, =1 {1 neuere Version verfügbar} other {# neuere Versionen verfügbar}}",
+    "upstreamBannerHint": "Folgende Änderungen sind noch nicht installiert. Self-Hoster: docker compose pull && docker compose up -d",
+    "upstreamBadge": "verfügbar"
+  },
+  "updateIndicator": {
+    "label": "Update v{version}",
+    "tooltip": "Neuere Version verfügbar: v{version}"
   },
   "statusBanner": {
     "status": "Status",

@@ -1,5 +1,14 @@
 [
   {
+    "version": "4.17.0",
+    "date": "2026-05-16",
+    "changes": [
+      { "type": "feat", "text": "Update-Indikator im Footer/Sidebar: pulsierender Punkt + 'Update vX.Y.Z' erscheint, wenn upstream (main-Branch) eine neuere Version hat. Klick führt zur Changelog-Seite." },
+      { "type": "feat", "text": "Changelog-Seite zeigt oben die noch nicht installierten Versionen mit Banner 'X neuere Versionen verfügbar' und Self-Hoster-Hinweis (docker compose pull && up -d). Quelle: raw.githubusercontent.com/trublue-2/chastitytracker/main/src/data/changelog.json, 1h client-cache." },
+      { "type": "ui", "text": "Build-Datum aus Footer und Bottom-Nav entfernt (stand im Self-Hosting eh meist 'local'). In den Einstellungen bleibt es als Detail-Info." }
+    ]
+  },
+  {
     "version": "4.16.7",
     "date": "2026-05-12",
     "changes": [

@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, ClipboardList, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminFAB from "./AdminFAB";
+import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 
 interface Props {
   version?: string;
-  buildDate?: string;
 }
 
-export default function AdminBottomNav({ version, buildDate }: Props) {
+export default function AdminBottomNav({ version }: Props) {
   const t = useTranslations("adminNav");
   const pathname = usePathname();
 
@@ -48,18 +48,16 @@ export default function AdminBottomNav({ version, buildDate }: Props) {
         <AdminFAB />
         {rightTabs.map(renderTab)}
       </div>
-      {(version || buildDate) && (
+      {version && (
         <div className="flex items-center justify-between px-4 pb-1">
           <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
             &copy; trublue {new Date().getFullYear()}
           </a>
           <div className="flex items-center gap-2">
-            {buildDate && <span className="text-[10px] text-foreground-faint">Build {buildDate}</span>}
-            {version && (
-              <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
-                {version}
-              </Link>
-            )}
+            <UpdateAvailableIndicator currentVersion={version} />
+            <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
+              {version}
+            </Link>
           </div>
         </div>
       )}

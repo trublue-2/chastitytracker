@@ -8,11 +8,10 @@ interface Props {
   isAdmin?: boolean;
   isLocked: boolean;
   version?: string;
-  buildDate?: string;
   categoryRows?: NewEntryCategoryRow[];
 }
 
-export default function DashboardBottomNav({ isAdmin, isLocked, version, buildDate, categoryRows }: Props) {
+export default function DashboardBottomNav({ isAdmin, isLocked, version, categoryRows }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -22,7 +21,6 @@ export default function DashboardBottomNav({ isAdmin, isLocked, version, buildDa
         isLocked={isLocked}
         onNewEntry={() => setSheetOpen(true)}
         version={version}
-        buildDate={buildDate}
       />
       <NewEntrySheet
         open={sheetOpen}
