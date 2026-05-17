@@ -130,8 +130,17 @@ export async function verifyKontrolleCodeDetailed(
       return { detected: null, match: false, reason: null };
     }
     const detected: string | null = parsed.detected ?? null;
-    const isMatch = parsed.match === true || (detected !== null && fuzzyMatch(detected, expectedCode));
-    vlog("verify:result", { codeLen, hasDetected: detected !== null, detectedLen: detected?.length ?? 0, isMatch, reason: parsed.reason ?? null });
+    // Normalize before comparing — Claude occasionally wraps the number with whitespace or
+    // surrounding punctuation despite the strict JSON contract.
+    const normalize = (s: string) => s.trim().replace(/\D/g, "");
+    const detectedNorm = detected ? normalize(detected) : null;
+    const exactDetectedMatch = detectedNorm !== null && detectedNorm === expectedCode;
+    // Override Claude's match=false when detected equals the expected code — observed in
+    // 2026-05 that the model returns match=false despite reading the correct digits, presumably
+    // due to seal-detection prompt phrasing.
+    const claudeOverridden = parsed.match !== true && exactDetectedMatch;
+    const isMatch = parsed.match === true || exactDetectedMatch || (detected !== null && fuzzyMatch(detected, expectedCode));
+    vlog("verify:result", { codeLen, hasDetected: detected !== null, detectedLen: detected?.length ?? 0, isMatch, claudeOverridden, reason: parsed.reason ?? null });
     return { detected, match: isMatch, reason: isMatch ? null : (parsed.reason ?? null) };
   } catch (e) {
     const err = e as { status?: number; message?: string; name?: string };
