@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.17.3",
+    "date": "2026-05-17",
+    "changes": [
+      { "type": "fix", "text": "KI-Verifizierung defensiver: wenn Claude den richtigen Code erkennt aber match=false zurückgibt (beobachtet seit dem Plomben-Prompt-Update), überstimmen wir das jetzt explizit. Detected-String wird vor dem Vergleich normalisiert (Whitespace/Noise entfernt). Neues Log-Feld claudeOverridden zeigt, wann der Override gegriffen hat — hilft bei künftiger Diagnose." }
+    ]
+  },
+  {
     "version": "4.17.2",
     "date": "2026-05-16",
     "changes": [
