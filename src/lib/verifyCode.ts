@@ -154,9 +154,10 @@ export async function verifyKontrolleCodeDetailed(
  */
 export async function verifyKontrolleCode(
   imageUrl: string,
-  expectedCode: string
+  expectedCode: string,
+  rotation: Rotation = 0
 ): Promise<"ai" | null> {
-  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode);
+  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode, rotation);
   return result?.match ? "ai" : null;
 }
 

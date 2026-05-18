@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.17.4",
+    "date": "2026-05-18",
+    "changes": [
+      { "type": "fix", "text": "KI-Verifizierung bei gedrehten Fotos: der Server-Path rief verifyKontrolleCode immer mit rotation=0 auf, während der Client-Preview die User-Rotation berücksichtigt. Bei gedrehten Fotos blieb der Eintrag deshalb 'Unverifiziert', obwohl die Vorschau im Form 'Code erkannt' zeigte. Form sendet jetzt imageRotation mit, Server validiert und nutzt sie." }
+    ]
+  },
+  {
     "version": "4.17.3",
     "date": "2026-05-17",
     "changes": [
