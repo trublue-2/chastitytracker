@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS } from "@/lib/constants";
+import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung, deviceId } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung, deviceId, imageRotation } = body;
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
   const validationError = validateEntryPayload(body, { allowFuture: devBypass });
@@ -320,7 +320,10 @@ export async function POST(req: NextRequest) {
   // Runs after the transaction; failure leaves verifikationStatus: null (admin can manually verify).
   if (type === "PRUEFUNG" && imageUrl && kontrollCode) {
     try {
-      const status = await verifyKontrolleCode(imageUrl, kontrollCode);
+      // Respect the user's photo rotation — otherwise rotated images fail server-side verify
+      // even though the client preview matched.
+      const safeRotation: Rotation = VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0;
+      const status = await verifyKontrolleCode(imageUrl, kontrollCode, safeRotation);
       if (status) {
         await prisma.entry.update({ where: { id: entry.id }, data: { verifikationStatus: status } });
         entry = { ...entry, verifikationStatus: status };

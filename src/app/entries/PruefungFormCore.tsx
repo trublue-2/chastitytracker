@@ -132,6 +132,7 @@ export default function PruefungFormCore({
       note: note.trim() || null,
       kontrollCode: kontrollCode || null,
       verifikationStatus: aiMatch === true ? "ai" : null,
+      imageRotation: rotation,
     });
   }
 

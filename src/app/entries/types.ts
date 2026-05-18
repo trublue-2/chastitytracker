@@ -25,6 +25,9 @@ export interface PruefungPayload {
   note: string | null;
   kontrollCode: string | null;
   verifikationStatus: "ai" | null;
+  /** Clockwise rotation applied to the photo in the form (0|90|180|270).
+   *  Server-side AI verify must use the same rotation as the client preview. */
+  imageRotation: number;
 }
 
 export interface VerschlussPayload {
