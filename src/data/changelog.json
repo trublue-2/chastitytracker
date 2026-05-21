@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.1",
+    "date": "2026-05-21",
+    "changes": [
+      { "type": "fix", "text": "MCP get_overview gab Zeitstempel als UTC (ISO Z) zurück — ein konsumierender Assistent las z.B. '09:10' obwohl es lokal 11:10 war (CEST). Zeiten werden jetzt in der Instanz-Zeitzone (Europe/Zurich) als lesbare Strings formatiert, ein timezone-Feld liegt bei, und Sperrzeit/Kontroll-Frist/Anforderung tragen ein explizites remainingMinutes-Feld für eindeutige Restzeit-Angaben." }
+    ]
+  },
+  {
     "version": "4.18.0",
     "date": "2026-05-21",
     "changes": [
