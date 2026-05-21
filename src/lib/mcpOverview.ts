@@ -1,16 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import {
   buildPairs, interruptionPauseMs, summarizeSessions, completedPairsFrom,
-  calculateWearingHoursByRange,
+  calculateWearingHoursByRange, formatDateTime, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
- *  All times ISO strings, all durations in hours (1 decimal) — LLM-friendly. */
+ *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
+ *  so a consuming LLM reads wall-clock time directly. Durations are hours (1 decimal). */
 export interface TrackerOverview {
   user: string;
   generatedAt: string;
+  timezone: string;
   lock: {
     isLocked: boolean;
     since: string | null;
@@ -24,9 +26,9 @@ export interface TrackerOverview {
     minProMonatH: number | null; monthPct: number | null;
     notiz: string | null;
   } | null;
-  openKontrolle: { code: string; deadline: string; overdue: boolean; kommentar: string | null } | null;
-  activeSperrzeit: { endetAt: string | null; indefinite: boolean; nachricht: string | null } | null;
-  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; nachricht: string | null; dauerH: number | null } | null;
+  openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; kommentar: string | null } | null;
+  activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; nachricht: string | null } | null;
+  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; nachricht: string | null; dauerH: number | null } | null;
   sessionSummary: {
     totalSessions: number; totalHours: number; avgHours: number;
     longestHours: number; shortestHours: number;
@@ -51,6 +53,8 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
 
   const userId = user.id;
   const now = new Date();
+  const fmt = (d: Date) => formatDateTime(d);
+  const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
   const reinigung: ReinigungSettings = {
     erlaubt: user.reinigungErlaubt ?? false,
     maxMinuten: user.reinigungMaxMinuten ?? 15,
@@ -95,10 +99,11 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
 
   return {
     user: username,
-    generatedAt: now.toISOString(),
+    generatedAt: fmt(now),
+    timezone: APP_TZ,
     lock: {
       isLocked,
-      since: latest?.startTime.toISOString() ?? null,
+      since: latest ? fmt(latest.startTime) : null,
       currentDurationHours,
       deviceName: isLocked ? (activePair?.verschluss.device?.name ?? null) : null,
     },
@@ -114,18 +119,21 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     } : null,
     openKontrolle: openKontrolle ? {
       code: openKontrolle.code,
-      deadline: openKontrolle.deadline.toISOString(),
+      deadline: fmt(openKontrolle.deadline),
       overdue: openKontrolle.deadline < now,
+      remainingMinutes: minutesUntil(openKontrolle.deadline),
       kommentar: openKontrolle.kommentar,
     } : null,
     activeSperrzeit: activeSperrzeit ? {
-      endetAt: activeSperrzeit.endetAt?.toISOString() ?? null,
+      endetAt: activeSperrzeit.endetAt ? fmt(activeSperrzeit.endetAt) : null,
       indefinite: activeSperrzeit.endetAt === null,
+      remainingMinutes: activeSperrzeit.endetAt ? minutesUntil(activeSperrzeit.endetAt) : null,
       nachricht: activeSperrzeit.nachricht,
     } : null,
     openVerschlussAnforderung: openAnf ? {
-      endetAt: openAnf.endetAt?.toISOString() ?? null,
+      endetAt: openAnf.endetAt ? fmt(openAnf.endetAt) : null,
       overdue: openAnf.endetAt ? openAnf.endetAt < now : false,
+      remainingMinutes: openAnf.endetAt ? minutesUntil(openAnf.endetAt) : null,
       nachricht: openAnf.nachricht,
       dauerH: openAnf.dauerH,
     } : null,
@@ -135,14 +143,14 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       avgHours: msToHours(summary.avgMs),
       longestHours: msToHours(summary.longest?.durationMs ?? 0),
       shortestHours: msToHours(summary.shortest?.durationMs ?? 0),
-      lastOrgasmAt: lastOrgasmus?.startTime.toISOString() ?? null,
+      lastOrgasmAt: lastOrgasmus ? fmt(lastOrgasmus.startTime) : null,
       orgasmFreeHours: lastOrgasmus ? msToHours(now.getTime() - lastOrgasmus.startTime.getTime()) : null,
     } : null,
     penalties: { recordedCount: penaltyCount },
     activeWearSessions: activeWear.map((s) => ({
       category: s.categoryName,
       deviceName: s.deviceName,
-      since: s.since.toISOString(),
+      since: fmt(s.since),
       durationHours: msToHours(now.getTime() - s.since.getTime()),
     })),
   };
