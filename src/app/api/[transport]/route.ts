@@ -1,13 +1,31 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual } from "crypto";
-import { buildOverview } from "@/lib/mcpOverview";
+import { z } from "zod";
+import { buildOverview, listSessions } from "@/lib/mcpOverview";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Read-only MCP server. Exposes a single `get_overview` tool so an AI assistant can
- *  query the tracker state and propose measures. Gated behind ENABLE_MCP + a static
- *  bearer token (MCP_TOKEN); the snapshot is always for the user named in MCP_USERNAME. */
+type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+
+/** Resolves MCP_USERNAME, runs the aggregator, and wraps the result as a tool response.
+ *  Centralizes the misconfig check + error handling shared by all tools. */
+async function runTool<T>(label: string, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+  const username = process.env.MCP_USERNAME;
+  if (!username) {
+    return { content: [{ type: "text", text: "Server misconfigured: MCP_USERNAME is not set." }], isError: true };
+  }
+  try {
+    const data = await fn(username);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `${label} failed: ${(e as Error).message}` }], isError: true };
+  }
+}
+
+/** Read-only MCP server. Exposes tools so an AI assistant can query the tracker state and
+ *  propose measures. Gated behind ENABLE_MCP + a static bearer token (MCP_TOKEN); all data
+ *  is for the user named in MCP_USERNAME. */
 const handler = createMcpHandler(
   (server) => {
     server.registerTool(
@@ -21,24 +39,23 @@ const handler = createMcpHandler(
           "sessions. Use this to reason about the user's current situation and propose measures.",
         inputSchema: {},
       },
-      async () => {
-        const username = process.env.MCP_USERNAME;
-        if (!username) {
-          return {
-            content: [{ type: "text", text: "Server misconfigured: MCP_USERNAME is not set." }],
-            isError: true,
-          };
-        }
-        try {
-          const overview = await buildOverview(username);
-          return { content: [{ type: "text", text: JSON.stringify(overview, null, 2) }] };
-        } catch (e) {
-          return {
-            content: [{ type: "text", text: `Failed to build overview: ${(e as Error).message}` }],
-            isError: true,
-          };
-        }
+      () => runTool("get_overview", buildOverview),
+    );
+
+    server.registerTool(
+      "list_sessions",
+      {
+        title: "List completed sessions",
+        description:
+          "Returns completed (closed) sessions — KG lock sessions and non-KG wear sessions — " +
+          "newest first, each with category, device, start/end time and duration. Use for " +
+          "history beyond the live snapshot of get_overview.",
+        inputSchema: {
+          category: z.string().optional().describe('Filter: "KG" or a category name (e.g. "Plug"). Omit for all categories.'),
+          limit: z.number().int().min(1).max(100).optional().describe("Max rows to return (default 20)."),
+        },
       },
+      (args) => runTool("list_sessions", (username) => listSessions(username, args)),
     );
   },
   {},

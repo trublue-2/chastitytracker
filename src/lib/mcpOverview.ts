@@ -43,22 +43,25 @@ const msToHours = (ms: number) => round1(ms / 3_600_000);
 const pct = (actual: number, target: number | null) =>
   target && target > 0 ? Math.round((actual / target) * 100) : null;
 
-/** Builds the overview for a user identified by username. Throws if the user does not exist. */
-export async function buildOverview(username: string): Promise<TrackerOverview> {
+/** Resolves a username to its id and Reinigung settings. Throws if the user does not exist. */
+async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings }> {
   const user = await prisma.user.findUnique({
     where: { username },
     select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true },
   });
   if (!user) throw new Error(`User not found: ${username}`);
+  return {
+    userId: user.id,
+    reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
+  };
+}
 
-  const userId = user.id;
+/** Builds the overview for a user identified by username. Throws if the user does not exist. */
+export async function buildOverview(username: string): Promise<TrackerOverview> {
+  const { userId, reinigung } = await loadUserContext(username);
   const now = new Date();
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
-  const reinigung: ReinigungSettings = {
-    erlaubt: user.reinigungErlaubt ?? false,
-    maxMinuten: user.reinigungMaxMinuten ?? 15,
-  };
 
   const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, penaltyCount] = await Promise.all([
     prisma.entry.findMany({
@@ -154,4 +157,92 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       durationHours: msToHours(now.getTime() - s.since.getTime()),
     })),
   };
+}
+
+/** One completed session for the MCP `list_sessions` tool. */
+export interface SessionRow {
+  category: string;
+  deviceName: string | null;
+  start: string;
+  end: string;
+  durationHours: number;
+}
+
+export interface ListSessionsOptions {
+  /** "KG" or a category name (case-insensitive). Omit for all categories. */
+  category?: string;
+  /** Max rows (default 20, clamped to 1..100). */
+  limit?: number;
+}
+
+type RawSession = { category: string; deviceName: string | null; start: Date; end: Date; durationMs: number };
+
+/** Pairs WEAR_BEGIN→WEAR_END entries of one category, keeping the device name and
+ *  yielding completed sessions only. `buildWearPairs` is not reused here because it
+ *  deliberately drops the device and includes the still-open session. */
+function completedWearSessions(
+  entries: { type: string; startTime: Date; device?: { name?: string | null; categoryId?: string | null } | null }[],
+  categoryId: string,
+  categoryName: string,
+): RawSession[] {
+  const asc = entries
+    .filter((e) => (e.type === "WEAR_BEGIN" || e.type === "WEAR_END") && e.device?.categoryId === categoryId)
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  const out: RawSession[] = [];
+  let pending: typeof asc[number] | null = null;
+  for (const e of asc) {
+    if (e.type === "WEAR_BEGIN") pending = e;
+    else if (e.type === "WEAR_END" && pending) {
+      out.push({
+        category: categoryName,
+        deviceName: pending.device?.name ?? null,
+        start: pending.startTime,
+        end: e.startTime,
+        durationMs: e.startTime.getTime() - pending.startTime.getTime(),
+      });
+      pending = null;
+    }
+  }
+  return out;
+}
+
+/** Lists completed sessions (KG + non-KG wear), newest first. Throws if the user does not exist. */
+export async function listSessions(username: string, opts: ListSessionsOptions = {}): Promise<SessionRow[]> {
+  const { userId, reinigung } = await loadUserContext(username);
+
+  const [entries, nonKgCategories] = await Promise.all([
+    prisma.entry.findMany({
+      where: { userId },
+      orderBy: { startTime: "desc" },
+      include: { device: { select: { name: true, categoryId: true } } },
+    }),
+    // All non-KG categories — including tracking-disabled ones, since their past sessions still count.
+    prisma.deviceCategory.findMany({ where: { userId, isBuiltIn: false }, select: { id: true, name: true } }),
+  ]);
+
+  // KG durationMs is interruption-adjusted (REINIGUNG pauses deducted) — keep that value.
+  const kg: RawSession[] = completedPairsFrom(buildPairs(entries, [], reinigung)).map((p) => ({
+    category: "KG",
+    deviceName: p.verschluss.device?.name ?? null,
+    start: p.verschluss.startTime,
+    end: p.oeffnen.startTime,
+    durationMs: p.durationMs,
+  }));
+  const wear = nonKgCategories.flatMap((c) => completedWearSessions(entries, c.id, c.name));
+
+  const filter = opts.category?.trim().toLowerCase();
+  const limit = Math.min(Math.max(1, opts.limit ?? 20), 100);
+
+  return [...kg, ...wear]
+    .filter((s) => s.durationMs > 0)
+    .filter((s) => !filter || s.category.toLowerCase() === filter)
+    .sort((a, b) => b.start.getTime() - a.start.getTime())
+    .slice(0, limit)
+    .map((s) => ({
+      category: s.category,
+      deviceName: s.deviceName,
+      start: formatDateTime(s.start),
+      end: formatDateTime(s.end),
+      durationHours: msToHours(s.durationMs),
+    }));
 }
