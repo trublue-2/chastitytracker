@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.2",
+    "date": "2026-05-21",
+    "changes": [
+      { "type": "feat", "text": "Neues MCP-Tool list_sessions: liefert abgeschlossene Sessions (KG-Einschlüsse + Wear-Sessions anderer Kategorien) chronologisch, je mit Kategorie, Gerät, Start/Ende und Dauer. Optionale Filter category und limit. Ergänzt get_overview um Zugriff auf die Historie statt nur den Live-Snapshot." }
+    ]
+  },
+  {
     "version": "4.18.1",
     "date": "2026-05-21",
     "changes": [
