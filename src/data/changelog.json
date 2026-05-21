@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.18.0",
+    "date": "2026-05-21",
+    "changes": [
+      { "type": "feat", "text": "Read-only MCP-Server unter /api/mcp: ein AI-Assistent (z.B. Claude) kann sich per Bearer-Token verbinden und das Tool get_overview aufrufen — liefert einen kuratierten Snapshot (Verschluss-Status & -Dauer, KG-Tragestunden Tag/Woche/Monat, aktives Trainingsziel mit Fortschritt, offene Kontrollen, Sperrzeiten, Session-Statistik, Strafen, aktive Wear-Sessions) zum Vorschlagen von Massnahmen. Aktivierung pro Instanz via ENABLE_MCP=true; MCP_TOKEN (Bearer) und MCP_USERNAME (wessen Daten) erforderlich. Standardmässig deaktiviert." },
+      { "type": "chore", "text": "Session-Aggregationslogik (summarizeSessions, completedPairsFrom) aus StatsMain in lib/utils zentralisiert — geteilt von Statistik-Seite und MCP-Overview statt dupliziert." }
+    ]
+  },
+  {
     "version": "4.17.4",
     "date": "2026-05-18",
     "changes": [

@@ -52,7 +52,8 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth && !!user?.id;
   const role = user?.role;
 
-  const isAuthRoute = pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/api/version" || pathname === "/api/portal-login";
+  // /api/mcp authenticates itself via bearer token (withMcpAuth) — exempt from the NextAuth session gate.
+  const isAuthRoute = pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/api/version" || pathname === "/api/portal-login" || pathname === "/api/mcp";
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const isProtected =
     pathname.startsWith("/dashboard") ||

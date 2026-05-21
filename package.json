@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "4.17.4",
+  "version": "4.18.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
@@ -18,12 +18,14 @@
     "@capacitor/core": "^8.3.0",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.0.3",
+    "@modelcontextprotocol/sdk": "1.26.0",
     "@prisma/client": "^5.22.0",
     "@simplewebauthn/browser": "^9.0.1",
     "@simplewebauthn/server": "^9.0.3",
     "bcryptjs": "^3.0.3",
     "exifr": "^7.1.3",
     "lucide-react": "^0.577.0",
+    "mcp-handler": "^1.1.0",
     "next": "^16.2.1",
     "next-auth": "^5.0.0-beta.30",
     "next-intl": "^4.8.3",
@@ -32,7 +34,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.34.5",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@capacitor/android": "^8.3.0",
