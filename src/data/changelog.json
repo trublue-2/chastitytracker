@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.18.3",
+    "date": "2026-05-22",
+    "changes": [
+      { "type": "feat", "text": "Neues MCP-Tool get_strafbuch: liefert die system-erkannten Vergehen (unerlaubte Öffnungen während Sperrzeit, zu spät/abgelehnte Kontrollen, Reinigungs-Limit-Überschreitungen), jeweils mit Status ob bereits als bestraft markiert." },
+      { "type": "chore", "text": "Strafbuch-Vergehenslogik aus der Admin-Seite in lib/strafbuch.ts (buildStrafbuch) zentralisiert — geteilt von Admin-Strafbuch-Seite und MCP-Tool statt dupliziert. Verhalten der Admin-Seite unverändert." }
+    ]
+  },
+  {
     "version": "4.18.2",
     "date": "2026-05-21",
     "changes": [
