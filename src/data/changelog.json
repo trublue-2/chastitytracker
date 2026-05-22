@@ -1,5 +1,35 @@
 [
   {
+    "version": "4.18.3",
+    "date": "2026-05-22",
+    "changes": [
+      { "type": "feat", "text": "Neues MCP-Tool get_strafbuch: liefert die system-erkannten Vergehen (unerlaubte Öffnungen während Sperrzeit, zu spät/abgelehnte Kontrollen, Reinigungs-Limit-Überschreitungen), jeweils mit Status ob bereits als bestraft markiert." },
+      { "type": "chore", "text": "Strafbuch-Vergehenslogik aus der Admin-Seite in lib/strafbuch.ts (buildStrafbuch) zentralisiert — geteilt von Admin-Strafbuch-Seite und MCP-Tool statt dupliziert. Verhalten der Admin-Seite unverändert." }
+    ]
+  },
+  {
+    "version": "4.18.2",
+    "date": "2026-05-21",
+    "changes": [
+      { "type": "feat", "text": "Neues MCP-Tool list_sessions: liefert abgeschlossene Sessions (KG-Einschlüsse + Wear-Sessions anderer Kategorien) chronologisch, je mit Kategorie, Gerät, Start/Ende und Dauer. Optionale Filter category und limit. Ergänzt get_overview um Zugriff auf die Historie statt nur den Live-Snapshot." }
+    ]
+  },
+  {
+    "version": "4.18.1",
+    "date": "2026-05-21",
+    "changes": [
+      { "type": "fix", "text": "MCP get_overview gab Zeitstempel als UTC (ISO Z) zurück — ein konsumierender Assistent las z.B. '09:10' obwohl es lokal 11:10 war (CEST). Zeiten werden jetzt in der Instanz-Zeitzone (Europe/Zurich) als lesbare Strings formatiert, ein timezone-Feld liegt bei, und Sperrzeit/Kontroll-Frist/Anforderung tragen ein explizites remainingMinutes-Feld für eindeutige Restzeit-Angaben." }
+    ]
+  },
+  {
+    "version": "4.18.0",
+    "date": "2026-05-21",
+    "changes": [
+      { "type": "feat", "text": "Read-only MCP-Server unter /api/mcp: ein AI-Assistent (z.B. Claude) kann sich per Bearer-Token verbinden und das Tool get_overview aufrufen — liefert einen kuratierten Snapshot (Verschluss-Status & -Dauer, KG-Tragestunden Tag/Woche/Monat, aktives Trainingsziel mit Fortschritt, offene Kontrollen, Sperrzeiten, Session-Statistik, Strafen, aktive Wear-Sessions) zum Vorschlagen von Massnahmen. Aktivierung pro Instanz via ENABLE_MCP=true; MCP_TOKEN (Bearer) und MCP_USERNAME (wessen Daten) erforderlich. Standardmässig deaktiviert." },
+      { "type": "chore", "text": "Session-Aggregationslogik (summarizeSessions, completedPairsFrom) aus StatsMain in lib/utils zentralisiert — geteilt von Statistik-Seite und MCP-Overview statt dupliziert." }
+    ]
+  },
+  {
     "version": "4.17.4",
     "date": "2026-05-18",
     "changes": [

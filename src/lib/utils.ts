@@ -359,6 +359,41 @@ export function interruptionPauseMs(interruptions: { oeffnen: { startTime: Date 
   return interruptions.reduce((s, i) => s + i.verschluss.startTime.getTime() - i.oeffnen.startTime.getTime(), 0);
 }
 
+/** Maps built pairs (from `buildPairs`) to completed sessions with interruption-adjusted
+ *  duration. Drops open pairs and non-positive durations. */
+export function completedPairsFrom<E extends { startTime: Date }>(
+  pairs: { verschluss: E; oeffnen: E | null; interruptions: { oeffnen: E; verschluss: E }[] }[],
+): { verschluss: E; oeffnen: E; durationMs: number }[] {
+  return pairs
+    .filter((p) => p.oeffnen !== null)
+    .map((p) => ({
+      verschluss: p.verschluss,
+      oeffnen: p.oeffnen!,
+      durationMs: p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime() - interruptionPauseMs(p.interruptions),
+    }))
+    .filter((p) => p.durationMs > 0);
+}
+
+/** Aggregates completed session pairs: count, total/avg duration, longest & shortest pair.
+ *  Generic over the pair shape — only `durationMs` is required. */
+export function summarizeSessions<T extends { durationMs: number }>(completed: T[]): {
+  count: number;
+  totalMs: number;
+  avgMs: number;
+  longest: T | null;
+  shortest: T | null;
+} {
+  const count = completed.length;
+  const totalMs = completed.reduce((s, p) => s + p.durationMs, 0);
+  return {
+    count,
+    totalMs,
+    avgMs: count ? Math.round(totalMs / count) : 0,
+    longest: count ? completed.reduce((a, b) => (a.durationMs > b.durationMs ? a : b)) : null,
+    shortest: count ? completed.reduce((a, b) => (a.durationMs < b.durationMs ? a : b)) : null,
+  };
+}
+
 /** Returns photo verification status for an entry */
 export function photoStatus(v: { imageUrl: string | null; imageExifTime: Date | null; startTime: Date }): "no-photo" | "exif-mismatch" | "ok" {
   if (!v.imageUrl) return "no-photo";

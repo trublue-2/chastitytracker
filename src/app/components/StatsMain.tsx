@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, interruptionPauseMs, buildWearPairs, wearingHoursFromPairs, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
+import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -291,15 +291,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     };
   });
 
-  const allPairs = buildPairs(entries, [], reinigung)
-    .filter(p => p.oeffnen !== null)
-    .map(p => ({
-      verschluss: p.verschluss,
-      oeffnen: p.oeffnen!,
-      durationMs: p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime() - interruptionPauseMs(p.interruptions),
-    }));
-  const completed = allPairs.filter((p) => p.durationMs > 0);
-  const totalMs = completed.reduce((s, p) => s + p.durationMs, 0);
+  const completed = completedPairsFrom(buildPairs(entries, [], reinigung));
+  const { totalMs, avgMs, longest, shortest } = summarizeSessions(completed);
 
   const activeEntry = (() => {
     const vs = entries.filter((e) => e.type === "VERSCHLUSS");
@@ -307,10 +300,6 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     return vs.length > os.length ? [...vs].pop() ?? null : null;
   })();
   const activeDurationMs = activeEntry ? now.getTime() - activeEntry.startTime.getTime() : 0;
-
-  const longest = completed.length ? completed.reduce((a, b) => (a.durationMs > b.durationMs ? a : b)) : null;
-  const shortest = completed.length ? completed.reduce((a, b) => (a.durationMs < b.durationMs ? a : b)) : null;
-  const avgMs = completed.length ? Math.round(totalMs / completed.length) : 0;
   const missingPhotos = entries.filter((e) => e.type === "VERSCHLUSS" && !e.imageUrl).length;
   const lastOrgasmus = [...entries].filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
@@ -472,7 +461,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       <section className="flex flex-col gap-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatsCard label={t("entries")} value={String(allPairs.length)} />
+          <StatsCard label={t("entries")} value={String(completed.length)} />
           <StatsCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
           <StatsCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
           <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
