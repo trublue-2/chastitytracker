@@ -1,7 +1,7 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual } from "crypto";
 import { z } from "zod";
-import { buildOverview, listSessions } from "@/lib/mcpOverview";
+import { buildOverview, listSessions, mcpStrafbuch } from "@/lib/mcpOverview";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +56,20 @@ const handler = createMcpHandler(
         },
       },
       (args) => runTool("list_sessions", (username) => listSessions(username, args)),
+    );
+
+    server.registerTool(
+      "get_strafbuch",
+      {
+        title: "Get penalty book (Strafbuch)",
+        description:
+          "Returns the Strafbuch: system-detected offenses — unauthorized openings during a " +
+          "lock period, late and rejected control submissions, and cleaning-limit violations — " +
+          "each (where applicable) flagged whether it has already been marked as punished. " +
+          "Use to reason about outstanding misconduct and propose consequences.",
+        inputSchema: {},
+      },
+      () => runTool("get_strafbuch", mcpStrafbuch),
     );
   },
   {},

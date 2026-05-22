@@ -5,6 +5,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
@@ -245,4 +246,74 @@ export async function listSessions(username: string, opts: ListSessionsOptions =
       end: formatDateTime(s.end),
       durationHours: msToHours(s.durationMs),
     }));
+}
+
+/** A Kontroll-based offense formatted for the MCP `get_strafbuch` tool. */
+export interface StrafbuchControlRow {
+  code: string;
+  deadline: string;
+  fulfilledAt: string | null;
+  entryTime: string | null;
+  backdated: boolean;
+  kommentar: string | null;
+  entryNote: string | null;
+  punished: boolean;
+}
+
+/** Strafbuch snapshot for the MCP `get_strafbuch` tool. Timestamps in the instance timezone. */
+export interface StrafbuchOverview {
+  user: string;
+  generatedAt: string;
+  timezone: string;
+  totalOffenses: number;
+  unauthorizedOpenings: {
+    time: string; note: string | null;
+    sperrzeitEndedAt: string | null; sperrzeitIndefinite: boolean;
+    punished: boolean;
+  }[];
+  lateControls: StrafbuchControlRow[];
+  rejectedControls: StrafbuchControlRow[];
+  reinigungLimitViolations: { time: string | null; note: string | null }[];
+}
+
+/** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
+export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview> {
+  const { userId } = await loadUserContext(username);
+  const now = new Date();
+  const fmt = (d: Date) => formatDateTime(d);
+  const sb = await buildStrafbuch(userId, now);
+  const punished = new Set(sb.strafeRecords.map((r) => r.refId));
+
+  const toControlRow = (k: StrafbuchControlOffense): StrafbuchControlRow => ({
+    code: k.code,
+    deadline: fmt(k.deadline),
+    fulfilledAt: k.fulfilledAt ? fmt(k.fulfilledAt) : null,
+    entryTime: k.entryStartTime ? fmt(k.entryStartTime) : null,
+    backdated: k.backdated,
+    kommentar: k.kommentar,
+    entryNote: k.entryNote,
+    punished: punished.has(k.id),
+  });
+
+  return {
+    user: username,
+    generatedAt: fmt(now),
+    timezone: APP_TZ,
+    totalOffenses:
+      sb.unauthorizedOpenings.length + sb.lateControls.length +
+      sb.rejectedControls.length + sb.reinigungLimitViolations.length,
+    unauthorizedOpenings: sb.unauthorizedOpenings.map((o) => ({
+      time: fmt(o.startTime),
+      note: o.note,
+      sperrzeitEndedAt: o.sperrzeitEndetAt ? fmt(o.sperrzeitEndetAt) : null,
+      sperrzeitIndefinite: o.sperrzeitIndefinite,
+      punished: punished.has(o.id),
+    })),
+    lateControls: sb.lateControls.map(toControlRow),
+    rejectedControls: sb.rejectedControls.map(toControlRow),
+    reinigungLimitViolations: sb.reinigungLimitViolations.map((v) => ({
+      time: v.startTime ? fmt(v.startTime) : null,
+      note: v.note,
+    })),
+  };
 }

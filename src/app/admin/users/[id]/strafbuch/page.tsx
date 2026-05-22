@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
-import { toDateLocale, mapAnforderungStatus, formatDateTime, formatDate } from "@/lib/utils";
+import { toDateLocale, formatDateTime, formatDate } from "@/lib/utils";
+import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { getLocale, getTranslations } from "next-intl/server";
 import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow } from "./StrafbuchClient";
 
@@ -13,102 +14,39 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
-  const userReinigungErlaubt = user.reinigungErlaubt;
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/strafbuch`);
 
-  const [oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw, reinigungLimitRecords] = await Promise.all([
-    prisma.entry.findMany({ where: { userId: id, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
-    prisma.verschlussAnforderung.findMany({ where: { userId: id, art: "SPERRZEIT" } }),
-    prisma.kontrollAnforderung.findMany({
-      where: { userId: id, entryId: { not: null } },
-      include: { entry: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.strafeRecord.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" } }),
-    // REINIGUNG_LIMIT: fetch strafe records + their linked entries
-    prisma.strafeRecord.findMany({
-      where: { userId: id, offenseType: "REINIGUNG_LIMIT" },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const sb = await buildStrafbuch(id, now);
 
-  // Fetch OEFFNEN entries for REINIGUNG_LIMIT offenses
-  const reinigungEntryIds = reinigungLimitRecords.map(r => r.refId);
-  const reinigungEntries = reinigungEntryIds.length > 0
-    ? await prisma.entry.findMany({ where: { id: { in: reinigungEntryIds } } })
-    : [];
-
-  const reinigungLimitVergehen: ReinigungLimitRow[] = reinigungLimitRecords.map(r => {
-    const entry = reinigungEntries.find(e => e.id === r.refId);
-    return {
-      entryId: r.refId,
-      startTimeStr: entry ? formatDateTime(entry.startTime, dl) : "–",
-      note: entry?.note ?? null,
-    };
-  });
-
-  // Unerlaubte Öffnungen — Reinigungsöffnungen sind erlaubt wenn sowohl User-Flag als auch
-  // die aktive Sperrzeit reinigungErlaubt=true haben. Pro Öffnung genau ein Scan über
-  // die Sperrzeiten — Ergebnis wird dann für Filter + Map wiederverwendet.
-  const openingsWithSperre = oeffnungen.map((o) => ({
-    o,
-    sperre: sperrzeiten.find((s) => {
-      const nachSperrzeit = o.startTime >= s.createdAt;
-      const vorEnde = s.endetAt === null || o.startTime < s.endetAt;
-      const nichtZurueckgezogen = s.withdrawnAt === null || s.withdrawnAt > o.startTime;
-      return nachSperrzeit && vorEnde && nichtZurueckgezogen;
-    }),
+  const reinigungLimitVergehen: ReinigungLimitRow[] = sb.reinigungLimitViolations.map((v) => ({
+    entryId: v.entryId,
+    startTimeStr: v.startTime ? formatDateTime(v.startTime, dl) : "–",
+    note: v.note,
   }));
 
-  const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = openingsWithSperre
-    .filter(({ o, sperre }) => {
-      if (!sperre) return false;
-      const isAllowedReinigung = o.oeffnenGrund === "REINIGUNG" && userReinigungErlaubt && sperre.reinigungErlaubt;
-      return !isAllowedReinigung;
-    })
-    .map(({ o, sperre }) => ({
-      id: o.id,
-      startTimeStr: formatDateTime(o.startTime, dl),
-      note: o.note,
-      sperrzetEndetAtStr: sperre?.endetAt ? formatDateTime(sperre.endetAt, dl) : null,
-      sperrzetUnbefristet: !!sperre && sperre.endetAt === null,
-    }));
+  const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = sb.unauthorizedOpenings.map((o) => ({
+    id: o.id,
+    startTimeStr: formatDateTime(o.startTime, dl),
+    note: o.note,
+    sperrzetEndetAtStr: o.sperrzeitEndetAt ? formatDateTime(o.sperrzeitEndetAt, dl) : null,
+    sperrzetUnbefristet: o.sperrzeitIndefinite,
+  }));
 
-  // Zu spät erfüllte Kontrollen
-  const zuSpaet: KontrollRow[] = kontrollAnforderungen
-    .filter((k) => mapAnforderungStatus(k, k.entry?.startTime ?? null, now) === "late")
-    .map((k) => {
-      const backdated = !!(k.fulfilledAt && k.entry?.startTime &&
-        k.entry.startTime.getTime() < k.deadline.getTime() &&
-        k.fulfilledAt.getTime() > k.deadline.getTime());
-      return {
-        id: k.id,
-        code: k.code,
-        deadlineStr: formatDateTime(k.deadline, dl),
-        fulfilledAtStr: k.fulfilledAt ? formatDateTime(k.fulfilledAt, dl) : null,
-        entryStartTimeStr: k.entry?.startTime ? formatDateTime(k.entry.startTime, dl) : null,
-        backdated,
-        kommentar: k.kommentar,
-        entryNote: k.entry?.note ?? null,
-      };
-    });
+  const toKontrollRow = (k: StrafbuchControlOffense, backdated: boolean): KontrollRow => ({
+    id: k.id,
+    code: k.code,
+    deadlineStr: formatDateTime(k.deadline, dl),
+    fulfilledAtStr: k.fulfilledAt ? formatDateTime(k.fulfilledAt, dl) : null,
+    entryStartTimeStr: k.entryStartTime ? formatDateTime(k.entryStartTime, dl) : null,
+    backdated,
+    kommentar: k.kommentar,
+    entryNote: k.entryNote,
+  });
+  const zuSpaet: KontrollRow[] = sb.lateControls.map((k) => toKontrollRow(k, k.backdated));
+  const abgelehnt: KontrollRow[] = sb.rejectedControls.map((k) => toKontrollRow(k, false));
 
-  // Abgelehnte Kontrollen
-  const abgelehnt: KontrollRow[] = kontrollAnforderungen
-    .filter((k) => k.entry?.verifikationStatus === "rejected")
-    .map((k) => ({
-      id: k.id,
-      code: k.code,
-      deadlineStr: formatDateTime(k.deadline, dl),
-      fulfilledAtStr: k.fulfilledAt ? formatDateTime(k.fulfilledAt, dl) : null,
-      entryStartTimeStr: k.entry?.startTime ? formatDateTime(k.entry.startTime, dl) : null,
-      backdated: false,
-      kommentar: k.kommentar,
-      entryNote: k.entry?.note ?? null,
-    }));
-
-  const strafeRecords: StrafeRecordData[] = strafeRecordsRaw.map((r) => ({
+  const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
     bestraftDatumStr: formatDate(r.bestraftDatum, dl),
     notiz: r.notiz,
