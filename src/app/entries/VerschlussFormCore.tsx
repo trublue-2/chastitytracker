@@ -65,7 +65,7 @@ export default function VerschlussFormCore({
   const { saving, error, submit } = useEntrySubmit<VerschlussPayload>(submitFn, onSuccess);
 
   const {
-    imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
+    imageUrl, imageExifTime, imagePreview, uploading, exifWarning, uploadError,
     sealNumber, setSealNumber, sealState, setSealState,
     deviceSuggestion, deviceDetectionState,
     rotation, rotateLeft, rotateRight,
@@ -76,6 +76,7 @@ export default function VerschlussFormCore({
     enableDeviceDetection: devices.length >= 2,
     exifWarningText: (type, hours) =>
       type === "deviation" ? t("exifDeviation", { hours: hours ?? 0 }) : t("exifMissing"),
+    uploadErrorText: () => t("uploadError"),
     initial,
   });
 
@@ -168,7 +169,10 @@ export default function VerschlussFormCore({
             </div>
           </div>
         ) : (
-          <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
+          <>
+            <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
+            {uploadError && !uploading && <p className="text-xs text-warn font-medium mt-1">{uploadError}</p>}
+          </>
         )}
       </FormField>
 

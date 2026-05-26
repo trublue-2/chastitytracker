@@ -92,13 +92,14 @@ export default function WearForm({ kind, category, devices, activeSession, admin
 
   const photoRequired = !!category.requirePhoto && kind === "begin";
   const {
-    imageUrl, imageExifTime, imagePreview, uploading,
+    imageUrl, imageExifTime, imagePreview, uploading, uploadError,
     rotation, rotateLeft, rotateRight,
     handleFile, clearPhoto,
   } = usePhotoUpload({
     startTime,
     enableSealDetection: false,
     exifWarningText: () => "",
+    uploadErrorText: () => tCommon("uploadError"),
     initial: initial?.imageUrl ? { imageUrl: initial.imageUrl, imageExifTime: initial.imageExifTime ?? null } : undefined,
   });
 
@@ -255,7 +256,10 @@ export default function WearForm({ kind, category, devices, activeSession, admin
                 </div>
               </div>
             ) : (
-              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
+              <>
+                <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
+                {uploadError && !uploading && <p className="text-xs text-warn font-medium mt-1">{uploadError}</p>}
+              </>
             )}
           </FormField>
         )}
