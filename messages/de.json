@@ -241,7 +241,10 @@
     "selectDeviceHint": "Möchtest du ein Modell angeben?",
     "noDevice": "Keinen angeben",
     "requiredDevice": "Keyholder hat {name} angefordert",
-    "wrongDeviceWarning": "Bei Wahl eines anderen KG wird ein Eintrag im Strafbuch erstellt."
+    "wrongDeviceWarning": "Bei Wahl eines anderen KG wird ein Eintrag im Strafbuch erstellt.",
+    "deviceDetecting": "Gerät wird erkannt…",
+    "deviceDetected": "Erkannt: {name}",
+    "deviceNotDetected": "Gerät konnte nicht erkannt werden"
   },
   "feedback": {
     "title": "Feedback",

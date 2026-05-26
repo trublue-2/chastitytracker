@@ -1,19 +1,10 @@
 import { readFile } from "fs/promises";
 import { join, basename } from "path";
-import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
 import type { Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
-
-const MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  gif: "image/gif",
-  webp: "image/webp",
-};
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { IMAGE_MEDIA_TYPES } from "@/lib/imageUtils";
+import { anthropic } from "@/lib/anthropic";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
@@ -53,7 +44,7 @@ async function loadImageBuffer(
   }
   const base64 = buffer.toString("base64");
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  const mediaType = MEDIA_TYPES[ext] ?? "image/jpeg";
+  const mediaType = IMAGE_MEDIA_TYPES[ext] ?? "image/jpeg";
   vlog("loadImageBuffer:ok", { filename, mediaType, bytes: buffer.length, rotation });
   return { base64, mediaType };
 }
