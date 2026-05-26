@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
 import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
@@ -67,15 +67,27 @@ export default function VerschlussFormCore({
   const {
     imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
     sealNumber, setSealNumber, sealState, setSealState,
+    deviceSuggestion, deviceDetectionState,
     rotation, rotateLeft, rotateRight,
     handleFile, clearPhoto,
   } = usePhotoUpload({
     startTime,
     enableSealDetection: true,
+    enableDeviceDetection: devices.length >= 2,
     exifWarningText: (type, hours) =>
       type === "deviation" ? t("exifDeviation", { hours: hours ?? 0 }) : t("exifMissing"),
     initial,
   });
+
+  // Auto-apply device suggestion unless the user has already made an explicit choice
+  // or there's a keyholder-mandated device. Track whether the user manually changed the selection.
+  const [deviceManuallySet, setDeviceManuallySet] = useState(false);
+
+  useEffect(() => {
+    if (deviceSuggestion && !deviceManuallySet && !anforderungDeviceId) {
+      setDeviceId(deviceSuggestion.deviceId);
+    }
+  }, [deviceSuggestion, deviceManuallySet, anforderungDeviceId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,9 +124,18 @@ export default function VerschlussFormCore({
               ...devices.map((d) => ({ value: d.id, label: d.name })),
             ]}
             value={deviceId}
-            onChange={(e) => setDeviceId(e.target.value)}
+            onChange={(e) => { setDeviceId(e.target.value); setDeviceManuallySet(true); }}
             hint={devices.length >= 2 && !anforderungDeviceId ? tForm("selectDeviceHint") : undefined}
           />
+          {deviceDetectionState === "detecting" && (
+            <p className="text-xs text-foreground-faint">{tForm("deviceDetecting")}</p>
+          )}
+          {deviceDetectionState === "detected" && deviceSuggestion && (
+            <p className="text-xs text-lock">{tForm("deviceDetected", { name: deviceSuggestion.deviceName })}</p>
+          )}
+          {deviceDetectionState === "not-detected" && (
+            <p className="text-xs text-foreground-faint">{tForm("deviceNotDetected")}</p>
+          )}
           {wrongDevice && (
             <p className="text-xs text-warn font-medium">{tForm("wrongDeviceWarning")}</p>
           )}

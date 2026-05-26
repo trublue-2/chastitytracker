@@ -241,7 +241,10 @@
     "selectDeviceHint": "Would you like to specify a model?",
     "noDevice": "None",
     "requiredDevice": "Keyholder requested {name}",
-    "wrongDeviceWarning": "Choosing a different CB will result in a log entry."
+    "wrongDeviceWarning": "Choosing a different CB will result in a log entry.",
+    "deviceDetecting": "Detecting device…",
+    "deviceDetected": "Detected: {name}",
+    "deviceNotDetected": "Device could not be identified"
   },
   "feedback": {
     "title": "Feedback",

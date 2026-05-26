@@ -5,6 +5,12 @@ import { compressImage } from "@/lib/compressImage";
 import type { Rotation } from "@/lib/constants";
 
 export type SealState = "idle" | "detecting" | "detected" | "not-detected";
+export type DeviceDetectionState = "idle" | "detecting" | "detected" | "not-detected";
+
+export interface DeviceSuggestion {
+  deviceId: string;
+  deviceName: string;
+}
 
 interface UsePhotoUploadOptions {
   /** Current startTime for EXIF time comparison. */
@@ -13,6 +19,8 @@ interface UsePhotoUploadOptions {
   exifWarningText?: (type: "deviation" | "missing", hours?: number) => string;
   /** Auto-detect seal number from photo (Verschluss only). Default false. */
   enableSealDetection?: boolean;
+  /** Auto-detect device from photo by comparing against reference images. Default false. */
+  enableDeviceDetection?: boolean;
   /** Initial values (for edit mode). */
   initial?: {
     imageUrl?: string | null;
@@ -25,6 +33,7 @@ export function usePhotoUpload({
   startTime,
   exifWarningText,
   enableSealDetection = false,
+  enableDeviceDetection = false,
   initial,
 }: UsePhotoUploadOptions) {
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -34,11 +43,38 @@ export function usePhotoUpload({
   const [exifWarning, setExifWarning] = useState("");
   const [sealNumber, setSealNumber] = useState(initial?.kontrollCode ?? "");
   const [sealState, setSealState] = useState<SealState>("idle");
+  const [deviceSuggestion, setDeviceSuggestion] = useState<DeviceSuggestion | null>(null);
+  const [deviceDetectionState, setDeviceDetectionState] = useState<DeviceDetectionState>("idle");
   const [rotation, setRotation] = useState<Rotation>(0);
   const blobUrlRef = useRef<string | null>(null);
   // Ref so rotate callbacks always see the latest imageUrl without stale closure
   const imageUrlRef = useRef(imageUrl);
   imageUrlRef.current = imageUrl;
+
+  const runDeviceDetection = useCallback(async (url: string) => {
+    setDeviceDetectionState("detecting");
+    setDeviceSuggestion(null);
+    try {
+      const res = await fetch("/api/detect-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: url }),
+      });
+      if (res.ok) {
+        const { deviceId, deviceName } = await res.json() as { deviceId: string | null; deviceName: string | null };
+        if (deviceId && deviceName) {
+          setDeviceSuggestion({ deviceId, deviceName });
+          setDeviceDetectionState("detected");
+        } else {
+          setDeviceDetectionState("not-detected");
+        }
+      } else {
+        setDeviceDetectionState("not-detected");
+      }
+    } catch {
+      setDeviceDetectionState("not-detected");
+    }
+  }, []);
 
   const runSealDetection = useCallback(async (url: string, rot: Rotation) => {
     setSealState("detecting");
@@ -69,6 +105,7 @@ export function usePhotoUpload({
     setExifWarning("");
     setRotation(0);
     if (enableSealDetection) setSealState("idle");
+    if (enableDeviceDetection) { setDeviceDetectionState("idle"); setDeviceSuggestion(null); }
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     const blobUrl = URL.createObjectURL(file);
     blobUrlRef.current = blobUrl;
@@ -102,10 +139,11 @@ export function usePhotoUpload({
     }
     setUploading(false);
 
-    if (enableSealDetection) {
-      await runSealDetection(data.url, 0);
-    }
-  }, [startTime, exifWarningText, enableSealDetection, runSealDetection]);
+    await Promise.all([
+      enableSealDetection ? runSealDetection(data.url, 0) : Promise.resolve(),
+      enableDeviceDetection ? runDeviceDetection(data.url) : Promise.resolve(),
+    ]);
+  }, [startTime, exifWarningText, enableSealDetection, enableDeviceDetection, runSealDetection, runDeviceDetection]);
 
   const rotateLeft = useCallback(() => {
     setRotation(prev => {
@@ -134,6 +172,8 @@ export function usePhotoUpload({
     setImageExifTime("");
     setExifWarning("");
     setSealState("idle");
+    setDeviceDetectionState("idle");
+    setDeviceSuggestion(null);
     setRotation(0);
   }, []);
 
@@ -145,6 +185,8 @@ export function usePhotoUpload({
     exifWarning, setExifWarning,
     sealNumber, setSealNumber,
     sealState, setSealState,
+    deviceSuggestion, setDeviceSuggestion,
+    deviceDetectionState, setDeviceDetectionState,
     rotation, rotateLeft, rotateRight,
     handleFile,
     clearPhoto,

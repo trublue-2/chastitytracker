@@ -234,7 +234,32 @@
       window.location.replace(url);
     }
 
-    function connect() {
+    // Capacitor Preferences with localStorage fallback
+    async function storageSave(value) {
+      if (window.Capacitor?.Plugins?.Preferences) {
+        await window.Capacitor.Plugins.Preferences.set({ key: STORAGE_KEY, value });
+      } else {
+        localStorage.setItem(STORAGE_KEY, value);
+      }
+    }
+
+    async function storageLoad() {
+      if (window.Capacitor?.Plugins?.Preferences) {
+        const { value } = await window.Capacitor.Plugins.Preferences.get({ key: STORAGE_KEY });
+        return value;
+      }
+      return localStorage.getItem(STORAGE_KEY);
+    }
+
+    async function storageRemove() {
+      if (window.Capacitor?.Plugins?.Preferences) {
+        await window.Capacitor.Plugins.Preferences.remove({ key: STORAGE_KEY });
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    async function connect() {
       const raw = document.getElementById('subdomain').value.trim();
       const errorEl = document.getElementById('error');
       errorEl.classList.remove('visible');
@@ -255,7 +280,7 @@
       }
 
       const finalUrl = url.origin + '/';
-      localStorage.setItem(STORAGE_KEY, finalUrl);
+      await storageSave(finalUrl);
       redirect(finalUrl);
     }
 
@@ -265,8 +290,8 @@
     });
 
     // On load: check for saved URL and redirect immediately
-    window.addEventListener('load', () => {
-      const saved = localStorage.getItem(STORAGE_KEY);
+    window.addEventListener('load', async () => {
+      const saved = await storageLoad();
       if (saved) {
         try {
           const url = new URL(saved);
@@ -275,7 +300,7 @@
             return;
           }
         } catch { /* invalid saved URL, show form */ }
-        localStorage.removeItem(STORAGE_KEY);
+        await storageRemove();
       }
       // No valid saved URL — show setup form
       document.getElementById('spinner').style.display = 'none';
