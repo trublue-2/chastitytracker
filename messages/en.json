@@ -26,6 +26,7 @@
     "since": "since",
     "savingError": "Error saving",
     "networkError": "Network error",
+    "uploadError": "Error uploading photo",
     "requiredHint": "* = required field",
     "dateTime": "Date / Time",
     "note": "Note",

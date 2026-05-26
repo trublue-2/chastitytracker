@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.5",
+    "date": "2026-05-26",
+    "changes": [
+      { "type": "fix", "text": "Foto-Upload-Fehler werden jetzt korrekt angezeigt: bei HTTP-Fehler oder Netzwerkabbruch erscheint eine Fehlermeldung direkt beim Foto-Feld, statt die Form in einen stillen Broken-State zu versetzen." }
+    ]
+  },
+  {
     "version": "4.18.4",
     "date": "2026-05-26",
     "changes": [

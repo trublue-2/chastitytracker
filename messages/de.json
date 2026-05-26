@@ -26,6 +26,7 @@
     "since": "seit",
     "savingError": "Fehler beim Speichern",
     "networkError": "Netzwerkfehler",
+    "uploadError": "Fehler beim Hochladen des Fotos",
     "requiredHint": "* = Pflichtfeld",
     "dateTime": "Datum / Zeit",
     "note": "Notiz",

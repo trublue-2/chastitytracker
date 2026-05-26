@@ -17,6 +17,8 @@ interface UsePhotoUploadOptions {
   startTime: string;
   /** Translate EXIF warnings. Return a display string. */
   exifWarningText?: (type: "deviation" | "missing", hours?: number) => string;
+  /** Translate upload error message. Return a display string. */
+  uploadErrorText?: () => string;
   /** Auto-detect seal number from photo (Verschluss only). Default false. */
   enableSealDetection?: boolean;
   /** Auto-detect device from photo by comparing against reference images. Default false. */
@@ -32,6 +34,7 @@ interface UsePhotoUploadOptions {
 export function usePhotoUpload({
   startTime,
   exifWarningText,
+  uploadErrorText,
   enableSealDetection = false,
   enableDeviceDetection = false,
   initial,
@@ -41,6 +44,7 @@ export function usePhotoUpload({
   const [imagePreview, setImagePreview] = useState(initial?.imageUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [exifWarning, setExifWarning] = useState("");
+  const [uploadError, setUploadError] = useState("");
   const [sealNumber, setSealNumber] = useState(initial?.kontrollCode ?? "");
   const [sealState, setSealState] = useState<SealState>("idle");
   const [deviceSuggestion, setDeviceSuggestion] = useState<DeviceSuggestion | null>(null);
@@ -103,6 +107,7 @@ export function usePhotoUpload({
   const handleFile = useCallback(async (file: File) => {
     setUploading(true);
     setExifWarning("");
+    setUploadError("");
     setRotation(0);
     if (enableSealDetection) setSealState("idle");
     if (enableDeviceDetection) { setDeviceDetectionState("idle"); setDeviceSuggestion(null); }
@@ -115,11 +120,34 @@ export function usePhotoUpload({
     const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
     const compressed = await compressImage(file).catch(() => file);
 
-    const fd = new FormData();
-    fd.append("file", compressed);
-    if (clientExifTime) fd.append("clientExifTime", clientExifTime);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
+    function abortUpload() {
+      URL.revokeObjectURL(blobUrl);
+      blobUrlRef.current = null;
+      setImagePreview("");
+      setImageUrl("");
+      imageUrlRef.current = "";
+      setImageExifTime("");
+      setUploadError(uploadErrorText ? uploadErrorText() : "Upload failed");
+      setUploading(false);
+    }
+
+    let res: Response;
+    try {
+      const fd = new FormData();
+      fd.append("file", compressed);
+      if (clientExifTime) fd.append("clientExifTime", clientExifTime);
+      res = await fetch("/api/upload", { method: "POST", body: fd });
+    } catch {
+      abortUpload();
+      return;
+    }
+
+    if (!res.ok) {
+      abortUpload();
+      return;
+    }
+
+    const data = await res.json() as { url: string; exifTime?: string };
 
     setImageUrl(data.url);
     imageUrlRef.current = data.url;
@@ -143,7 +171,7 @@ export function usePhotoUpload({
       enableSealDetection ? runSealDetection(data.url, 0) : Promise.resolve(),
       enableDeviceDetection ? runDeviceDetection(data.url) : Promise.resolve(),
     ]);
-  }, [startTime, exifWarningText, enableSealDetection, enableDeviceDetection, runSealDetection, runDeviceDetection]);
+  }, [startTime, exifWarningText, uploadErrorText, enableSealDetection, enableDeviceDetection, runSealDetection, runDeviceDetection]);
 
   const rotateLeft = useCallback(() => {
     setRotation(prev => {
@@ -171,6 +199,7 @@ export function usePhotoUpload({
     setImagePreview("");
     setImageExifTime("");
     setExifWarning("");
+    setUploadError("");
     setSealState("idle");
     setDeviceDetectionState("idle");
     setDeviceSuggestion(null);
@@ -183,6 +212,7 @@ export function usePhotoUpload({
     imagePreview, setImagePreview,
     uploading,
     exifWarning, setExifWarning,
+    uploadError, setUploadError,
     sealNumber, setSealNumber,
     sealState, setSealState,
     deviceSuggestion, setDeviceSuggestion,

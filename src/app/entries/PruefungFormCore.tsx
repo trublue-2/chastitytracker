@@ -72,12 +72,13 @@ export default function PruefungFormCore({
   const { saving, error, setError, submit } = useEntrySubmit<PruefungPayload>(submitFn, onSuccess);
 
   const {
-    imageUrl, imageExifTime, imagePreview, uploading, exifWarning,
+    imageUrl, imageExifTime, imagePreview, uploading, exifWarning, uploadError,
     rotation, rotateLeft, rotateRight, handleFile: uploadFile,
   } = usePhotoUpload({
     startTime,
     exifWarningText: (type, hours) =>
       type === "deviation" ? tc("exifDeviation", { hours: hours ?? 0 }) : tc("exifMissing"),
+    uploadErrorText: () => tc("uploadError"),
     initial,
   });
 
@@ -189,7 +190,10 @@ export default function PruefungFormCore({
             </div>
           </div>
         ) : (
-          <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" mobileDesktopMode={mobileDesktopMode} />
+          <>
+            <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" mobileDesktopMode={mobileDesktopMode} />
+            {uploadError && !uploading && <p className="text-xs text-warn font-medium mt-1">{uploadError}</p>}
+          </>
         )}
       </FormField>
 
