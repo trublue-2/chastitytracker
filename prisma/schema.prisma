@@ -273,3 +273,54 @@ model AppMeta {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// ── OAuth 2.0 Authorization Server ──────────────────────────────────────────
+// Enables Claude Mobile / Claude Desktop to authenticate to the MCP server
+// via OAuth 2.0 Authorization Code + PKCE instead of a static bearer token.
+
+// Registered OAuth clients (e.g. Claude Desktop, Claude Mobile).
+// Dynamic Client Registration (RFC 7591) creates rows here automatically.
+model OAuthClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  clientName   String
+  redirectUris String   // JSON array of allowed redirect URIs
+  createdAt    DateTime @default(now())
+
+  codes  OAuthCode[]
+  tokens OAuthToken[]
+}
+
+// Short-lived authorization codes (10 min). Exchanged once for an access token.
+model OAuthCode {
+  id                  String      @id @default(cuid())
+  code                String      @unique
+  clientId            String
+  client              OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  userId              String
+  redirectUri         String
+  scopes              String      // space-separated list, e.g. "read"
+  codeChallenge       String      // PKCE S256 challenge
+  codeChallengeMethod String      @default("S256")
+  expiresAt           DateTime
+  usedAt              DateTime?   // set when exchanged — single-use enforcement
+  createdAt           DateTime    @default(now())
+
+  @@index([code])
+  @@index([expiresAt])
+}
+
+// Long-lived access tokens issued to MCP clients.
+model OAuthToken {
+  id        String      @id @default(cuid())
+  tokenHash String      @unique // SHA-256 hex of the raw token — never store plaintext
+  clientId  String
+  client    OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  userId    String
+  scopes    String      // space-separated list, e.g. "read"
+  expiresAt DateTime    // 1 year
+  createdAt DateTime    @default(now())
+
+  @@index([tokenHash])
+  @@index([expiresAt])
+}

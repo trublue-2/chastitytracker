@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.6",
+    "date": "2026-05-27",
+    "changes": [
+      { "type": "feat", "text": "OAuth 2.0 Authorization Server für den MCP-Server: Claude Mobile und Claude Desktop können sich jetzt per OAuth (Authorization Code + PKCE) authentifizieren statt mit einem statischen Bearer-Token. Neuer Consent-Screen unter /oauth/authorize, Discovery-Endpoint unter /.well-known/oauth-authorization-server, Dynamic Client Registration." }
+    ]
+  },
+  {
     "version": "4.18.5",
     "date": "2026-05-26",
     "changes": [
