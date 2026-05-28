@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.9",
+    "date": "2026-05-28",
+    "changes": [
+      { "type": "chore", "text": "MCP-API: schemaVersion: 1 zu allen drei Tool-Responses hinzugefügt (get_overview, get_strafbuch, list_sessions), damit Breaking Changes künftig nachvollziehbar sind. list_sessions gibt jetzt { schemaVersion, sessions: [...] } zurück statt ein reines Array." }
+    ]
+  },
+  {
     "version": "4.18.8",
     "date": "2026-05-28",
     "changes": [

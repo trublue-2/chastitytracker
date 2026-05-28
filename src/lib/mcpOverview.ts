@@ -11,6 +11,7 @@ import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
  *  so a consuming LLM reads wall-clock time directly. Durations are hours (1 decimal). */
 export interface TrackerOverview {
+  schemaVersion: 1;
   user: string;
   generatedAt: string;
   timezone: string;
@@ -104,6 +105,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
   return {
+    schemaVersion: 1 as const,
     user: username,
     generatedAt: fmt(now),
     timezone: APP_TZ,
@@ -171,6 +173,11 @@ export interface SessionRow {
   durationHours: number;
 }
 
+export interface SessionList {
+  schemaVersion: 1;
+  sessions: SessionRow[];
+}
+
 export interface ListSessionsOptions {
   /** "KG" or a category name (case-insensitive). Omit for all categories. */
   category?: string;
@@ -210,7 +217,7 @@ function completedWearSessions(
 }
 
 /** Lists completed sessions (KG + non-KG wear), newest first. Throws if the user does not exist. */
-export async function listSessions(username: string, opts: ListSessionsOptions = {}): Promise<SessionRow[]> {
+export async function listSessions(username: string, opts: ListSessionsOptions = {}): Promise<SessionList> {
   const { userId, reinigung } = await loadUserContext(username);
 
   const [entries, nonKgCategories] = await Promise.all([
@@ -236,7 +243,7 @@ export async function listSessions(username: string, opts: ListSessionsOptions =
   const filter = opts.category?.trim().toLowerCase();
   const limit = Math.min(Math.max(1, opts.limit ?? 20), 100);
 
-  return [...kg, ...wear]
+  const sessions = [...kg, ...wear]
     .filter((s) => s.durationMs > 0)
     .filter((s) => !filter || s.category.toLowerCase() === filter)
     .sort((a, b) => b.start.getTime() - a.start.getTime())
@@ -248,6 +255,7 @@ export async function listSessions(username: string, opts: ListSessionsOptions =
       end: formatDateTime(s.end),
       durationHours: msToHours(s.durationMs),
     }));
+  return { schemaVersion: 1 as const, sessions };
 }
 
 /** A Kontroll-based offense formatted for the MCP `get_strafbuch` tool. */
@@ -264,6 +272,7 @@ export interface StrafbuchControlRow {
 
 /** Strafbuch snapshot for the MCP `get_strafbuch` tool. Timestamps in the instance timezone. */
 export interface StrafbuchOverview {
+  schemaVersion: 1;
   user: string;
   generatedAt: string;
   timezone: string;
@@ -300,6 +309,7 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
   });
 
   return {
+    schemaVersion: 1 as const,
     user: username,
     generatedAt: fmt(now),
     timezone: APP_TZ,
