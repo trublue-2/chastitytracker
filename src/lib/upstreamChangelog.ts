@@ -1,8 +1,9 @@
-/** Client-side fetcher for the upstream changelog.json from the main branch.
- *  Used to detect available updates and show release notes the local instance
- *  hasn't deployed yet. */
+/** Client-side fetcher for the upstream changelog.
+ *  Calls the local proxy endpoint /api/upstream-changelog which fetches from
+ *  GitHub server-side — avoids a connect-src CSP violation when fetching
+ *  raw.githubusercontent.com directly from the browser. */
 
-const RAW_URL = "https://raw.githubusercontent.com/trublue-2/chastitytracker/main/src/data/changelog.json";
+const PROXY_URL = "/api/upstream-changelog";
 const CACHE_KEY = "upstream-changelog-v1";
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 
@@ -29,9 +30,11 @@ export async function fetchUpstreamChangelog(): Promise<UpstreamRelease[] | null
   } catch { /* fallthrough on parse error */ }
 
   try {
-    const res = await fetch(RAW_URL, { cache: "no-store" });
+    const res = await fetch(PROXY_URL, { cache: "no-store" });
     if (!res.ok) return null;
-    const data = await res.json() as UpstreamRelease[];
+    const raw = await res.json();
+    if (!Array.isArray(raw)) return null;
+    const data = raw as UpstreamRelease[];
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, fetchedAt: Date.now() } satisfies CachedPayload));
     } catch { /* quota / private mode — ignore */ }
