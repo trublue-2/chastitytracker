@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
+import { clearSwUserCache } from "@/lib/swMessages";
 
 export default function LoginPage() {
   const t = useTranslations("login");
@@ -29,6 +30,7 @@ export default function LoginPage() {
       const lockData = await lockRes.json();
       setError(lockData.locked ? t("accountLocked") : t("invalidCredentials"));
     } else {
+      clearSwUserCache();
       const session = await getSession();
       const dest = (session?.user as { role?: string })?.role === "admin" ? "/admin" : "/dashboard";
       router.push(dest);

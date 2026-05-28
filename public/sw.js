@@ -3,7 +3,7 @@
 // Versioned caches, fetch routing, push notifications, offline support
 // ---------------------------------------------------------------------------
 
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2; // bumped: clears potentially user-contaminated api-v1 cache
 const OFFLINE_URL = '/offline.html';
 
 // Cache names (versioned for clean upgrades)
@@ -37,6 +37,23 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+
+  // Sent by the app on login and logout.
+  // Clears the user-specific API response cache and the entries IndexedDB store
+  // so a newly logged-in user never sees stale data that belonged to a previous user.
+  if (e.data?.type === 'CLEAR_USER_CACHE') {
+    e.waitUntil(
+      Promise.all([
+        caches.delete(CACHE_API),
+        openIDB()
+          .then((db) => {
+            const tx = db.transaction('entries', 'readwrite');
+            tx.objectStore('entries').clear();
+          })
+          .catch(() => {}),
+      ])
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------

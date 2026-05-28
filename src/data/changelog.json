@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.11",
+    "date": "2026-05-28",
+    "changes": [
+      { "type": "fix", "text": "Service Worker: API-Cache (stale-while-revalidate für /api/entries) und IndexedDB-Entries-Store werden bei Login und Logout geleert — verhindert dass ein nachfolgender User veraltete Daten eines vorherigen Users sieht. SW-Cache-Version auf v2 erhöht, damit kontaminierte v1-Caches sofort bereinigt werden." }
+    ]
+  },
+  {
     "version": "4.18.10",
     "date": "2026-05-28",
     "changes": [

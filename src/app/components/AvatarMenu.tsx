@@ -8,6 +8,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { LOCALES } from "@/lib/constants";
 import SegmentedControl from "@/app/components/SegmentedControl";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
+import { clearSwUserCache } from "@/lib/swMessages";
 
 interface Props {
   username: string;
@@ -80,7 +81,7 @@ export default function AvatarMenu({ username, settingsHref, theme, version }: P
             )}
             <div className="border-t border-border-subtle" />
             <button
-              onClick={() => { setOpen(false); if (window.confirm(t("signOutConfirm"))) signOut({ callbackUrl: "/login" }); }}
+              onClick={() => { setOpen(false); if (window.confirm(t("signOutConfirm"))) { clearSwUserCache(); signOut({ callbackUrl: "/login" }); } }}
               className={itemDanger}
             >
               <LogOut size={16} strokeWidth={1.75} />

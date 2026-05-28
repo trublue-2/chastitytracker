@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { signIn, getSession } from "next-auth/react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import Button from "@/app/components/Button";
+import { clearSwUserCache } from "@/lib/swMessages";
 
 /**
  * PasskeyLoginButton — shows a "Sign in with Passkey" button on the login page.
@@ -68,6 +69,7 @@ export default function PasskeyLoginButton() {
       });
 
       if (result?.ok) {
+        clearSwUserCache();
         const session = await getSession();
         const dest = (session?.user as { role?: string })?.role === "admin" ? "/admin" : "/dashboard";
         window.location.href = dest;
