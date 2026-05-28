@@ -7,7 +7,10 @@ import { OAUTH_SUPPORTED_SCOPES, OAUTH_SUPPORTED_GRANT_TYPES, OAUTH_CODE_CHALLEN
  * Required by the MCP spec so clients can auto-discover endpoints.
  */
 export async function GET(req: Request) {
-  const base = new URL(req.url).origin;
+  // Behind Traefik the internal URL is 0.0.0.0:3000 — use forwarded headers for the public origin.
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? new URL(req.url).host;
+  const proto = req.headers.get("x-forwarded-proto")?.split(",").at(-1)?.trim() ?? "https";
+  const base = `${proto}://${host}`;
   return NextResponse.json({
     issuer: base,
     authorization_endpoint: `${base}/oauth/authorize`,

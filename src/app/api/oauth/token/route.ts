@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getClient, consumeAuthorizationCode, createAccessToken, verifyPkceS256, OAUTH_TOKEN_TTL_MS } from "@/lib/oauth";
+import { getClient, consumeAuthorizationCode, createAccessToken, verifyPkceS256, OAUTH_TOKEN_TTL_MS, pruneExpiredOAuthRecords } from "@/lib/oauth";
 
 /**
  * POST /api/oauth/token
@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
 
   const scopes = record.scopes.split(" ").filter(Boolean);
   const accessToken = await createAccessToken(clientId, record.userId, scopes);
+
+  // Lazy cleanup — prune expired codes and tokens on every successful exchange (fire-and-forget).
+  pruneExpiredOAuthRecords().catch(() => {});
 
   return NextResponse.json({
     access_token: accessToken,

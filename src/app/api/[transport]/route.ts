@@ -1,5 +1,5 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { buildOverview, listSessions, mcpStrafbuch } from "@/lib/mcpOverview";
 import { verifyAccessToken } from "@/lib/oauth";
@@ -77,14 +77,13 @@ const handler = createMcpHandler(
   { basePath: "/api", maxDuration: 60 },
 );
 
-/** Constant-time bearer-token comparison — avoids a timing side-channel on MCP_TOKEN.
- *  Pads both buffers to a fixed length before timingSafeEqual so length differences
- *  do not leak via early exit. */
+/** Constant-time bearer-token comparison — avoids timing side-channels on MCP_TOKEN.
+ *  Compares SHA-256 digests so the comparison is always fixed-length regardless of
+ *  the token length (eliminates the truncation risk of a pad-and-slice approach). */
 function tokenMatches(token: string, expected: string): boolean {
-  const padLen = 128;
-  const a = Buffer.from(token.padEnd(padLen).slice(0, padLen));
-  const b = Buffer.from(expected.padEnd(padLen).slice(0, padLen));
-  return timingSafeEqual(a, b) && token.length === expected.length;
+  const a = createHash("sha256").update(token).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
 }
 
 /**

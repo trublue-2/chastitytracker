@@ -43,8 +43,11 @@ export async function GET(req: NextRequest) {
   if (!client) return errorRedirect("invalid_client", "Unknown client_id");
   if (!clientAllowsRedirect(client, redirectUri)) return errorRedirect("invalid_redirect_uri", "redirect_uri not registered");
 
-  // Redirect to consent page (a Next.js page, not an API route)
-  const consentUrl = new URL("/oauth/authorize", req.nextUrl.origin);
+  // Redirect to consent page. Behind Traefik req.nextUrl.origin is the internal bind address
+  // (0.0.0.0:3000) — reconstruct the public origin from forwarded headers instead.
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
+  const proto = req.headers.get("x-forwarded-proto")?.split(",").at(-1)?.trim() ?? "https";
+  const consentUrl = new URL("/oauth/authorize", `${proto}://${host}`);
   consentUrl.searchParams.set("client_id", clientId);
   consentUrl.searchParams.set("redirect_uri", redirectUri);
   consentUrl.searchParams.set("scope", scopes.join(" "));
