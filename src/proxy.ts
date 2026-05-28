@@ -53,7 +53,11 @@ export default auth((req) => {
   const role = user?.role;
 
   // /api/mcp authenticates itself via bearer token (withMcpAuth) — exempt from the NextAuth session gate.
-  const isAuthRoute = pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/api/version" || pathname === "/api/portal-login" || pathname === "/api/mcp";
+  // OAuth endpoints are public: clients call them directly; the consent page redirects to /login itself.
+  // /api/mcp, /api/sse, /api/message: mcp-handler transport paths — all authenticated via withMcpAuth (bearer token), not session.
+  const isAuthRoute = pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/api/version" || pathname === "/api/portal-login"
+    || pathname === "/api/mcp" || pathname === "/api/sse" || pathname === "/api/message"
+    || pathname.startsWith("/api/oauth/") || pathname.startsWith("/.well-known/") || pathname.startsWith("/oauth/");
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const isProtected =
     pathname.startsWith("/dashboard") ||

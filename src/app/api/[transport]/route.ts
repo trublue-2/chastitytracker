@@ -1,7 +1,8 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { buildOverview, listSessions, mcpStrafbuch } from "@/lib/mcpOverview";
+import { verifyAccessToken } from "@/lib/oauth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,17 +77,37 @@ const handler = createMcpHandler(
   { basePath: "/api", maxDuration: 60 },
 );
 
-/** Constant-time bearer-token comparison — avoids a timing side-channel on MCP_TOKEN. */
+/** Constant-time bearer-token comparison — avoids timing side-channels on MCP_TOKEN.
+ *  Compares SHA-256 digests so the comparison is always fixed-length regardless of
+ *  the token length (eliminates the truncation risk of a pad-and-slice approach). */
 function tokenMatches(token: string, expected: string): boolean {
-  const a = Buffer.from(token);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const a = createHash("sha256").update(token).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
 }
 
+/**
+ * Verifies an incoming MCP bearer token.
+ * Priority:
+ *   1. OAuth access token (issued via /api/oauth/token) — preferred, supports mobile
+ *   2. Static MCP_TOKEN env var — legacy fallback for Claude Desktop config
+ */
 const verifyToken = async (_req: Request, token?: string) => {
+  if (!token) return undefined;
+
+  // 1. OAuth access token
+  const oauthRecord = await verifyAccessToken(token);
+  if (oauthRecord) {
+    return { token, scopes: oauthRecord.scopes.split(" "), clientId: oauthRecord.clientId };
+  }
+
+  // 2. Static bearer token fallback
   const expected = process.env.MCP_TOKEN;
-  if (!expected || !token || !tokenMatches(token, expected)) return undefined;
-  return { token, scopes: ["read"], clientId: "mcp-client" };
+  if (expected && tokenMatches(token, expected)) {
+    return { token, scopes: ["read"], clientId: "mcp-client" };
+  }
+
+  return undefined;
 };
 
 const authHandler = withMcpAuth(handler, verifyToken, { required: true });

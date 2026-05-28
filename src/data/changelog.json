@@ -1,5 +1,36 @@
 [
   {
+    "version": "4.18.9",
+    "date": "2026-05-28",
+    "changes": [
+      { "type": "chore", "text": "MCP-API: schemaVersion: 1 zu allen drei Tool-Responses hinzugefügt (get_overview, get_strafbuch, list_sessions), damit Breaking Changes künftig nachvollziehbar sind. list_sessions gibt jetzt { schemaVersion, sessions: [...] } zurück statt ein reines Array." }
+    ]
+  },
+  {
+    "version": "4.18.8",
+    "date": "2026-05-28",
+    "changes": [
+      { "type": "chore", "text": "MCP-API: Feldnamen bereinigt — deutsche Namen eingedeutscht (kommentar→comment, nachricht→message, sperrzeitEndedAt→lockPeriodEndedAt, reinigungLimitViolations→cleaningLimitViolations, trainingGoalKg.minProTagH/Woche/Monat/notiz→minPerDayH/WeekH/MonthH/note), semantische Verwechslung behoben (recordedCount→punishedCount, totalOffenses→detectedOffenseCount), punished-Flag auf cleaningLimitViolations ergänzt." }
+    ]
+  },
+  {
+    "version": "4.18.7",
+    "date": "2026-05-28",
+    "changes": [
+      { "type": "security", "text": "OAuth: tokenMatches verwendet jetzt SHA-256-Digest-Vergleich statt Pad-und-Truncate — verhindert Fälschung von MCP_TOKEN-Tokens die länger als 128 Zeichen sind." },
+      { "type": "fix", "text": "OAuth Discovery-Endpoint und Authorize-Redirect lesen jetzt x-forwarded-host/x-forwarded-proto (last entry per Projekt-Sicherheitsregel) statt der internen Bind-Adresse — behebt falsche Issuer-URL (0.0.0.0:3000) hinter Traefik." },
+      { "type": "fix", "text": "SSE- und Message-Transportpfade des MCP-Servers (/api/sse, /api/message) in den Proxy-Whitelist aufgenommen — OAuth-Clients mit SSE-Transport erhielten zuvor 401 vom Session-Gate statt vom MCP-Auth-Layer." },
+      { "type": "fix", "text": "Abgelaufene OAuth-Codes und -Tokens werden jetzt beim Token-Exchange bereinigt (fire-and-forget pruneExpiredOAuthRecords)." }
+    ]
+  },
+  {
+    "version": "4.18.6",
+    "date": "2026-05-27",
+    "changes": [
+      { "type": "feat", "text": "OAuth 2.0 Authorization Server für den MCP-Server: Claude Mobile und Claude Desktop können sich jetzt per OAuth (Authorization Code + PKCE) authentifizieren statt mit einem statischen Bearer-Token. Neuer Consent-Screen unter /oauth/authorize, Discovery-Endpoint unter /.well-known/oauth-authorization-server, Dynamic Client Registration." }
+    ]
+  },
+  {
     "version": "4.18.5",
     "date": "2026-05-26",
     "changes": [

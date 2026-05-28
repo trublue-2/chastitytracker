@@ -11,6 +11,7 @@ import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
  *  so a consuming LLM reads wall-clock time directly. Durations are hours (1 decimal). */
 export interface TrackerOverview {
+  schemaVersion: 1;
   user: string;
   generatedAt: string;
   timezone: string;
@@ -22,20 +23,22 @@ export interface TrackerOverview {
   };
   wearingHoursKg: { today: number; week: number; month: number };
   trainingGoalKg: {
-    minProTagH: number | null; todayPct: number | null;
-    minProWocheH: number | null; weekPct: number | null;
-    minProMonatH: number | null; monthPct: number | null;
-    notiz: string | null;
+    minPerDayH: number | null; todayPct: number | null;
+    minPerWeekH: number | null; weekPct: number | null;
+    minPerMonthH: number | null; monthPct: number | null;
+    note: string | null;
   } | null;
-  openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; kommentar: string | null } | null;
-  activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; nachricht: string | null } | null;
-  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; nachricht: string | null; dauerH: number | null } | null;
+  openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null } | null;
+  activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null } | null;
+  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null } | null;
   sessionSummary: {
     totalSessions: number; totalHours: number; avgHours: number;
     longestHours: number; shortestHours: number;
     lastOrgasmAt: string | null; orgasmFreeHours: number | null;
   } | null;
-  penalties: { recordedCount: number };
+  /** punishedCount: admin-confirmed punishments (StrafeRecord rows).
+   *  Distinct from detectedOffenseCount in get_strafbuch which counts system-detected offenses. */
+  penalties: { punishedCount: number };
   activeWearSessions: { category: string; deviceName: string; since: string; durationHours: number }[];
 }
 
@@ -64,7 +67,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
-  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, penaltyCount] = await Promise.all([
+  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -102,6 +105,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
   return {
+    schemaVersion: 1 as const,
     user: username,
     generatedAt: fmt(now),
     timezone: APP_TZ,
@@ -113,32 +117,32 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     },
     wearingHoursKg: { today: round1(tagH), week: round1(wocheH), month: round1(monatH) },
     trainingGoalKg: activeVorgabe ? {
-      minProTagH: activeVorgabe.minProTagH,
+      minPerDayH: activeVorgabe.minProTagH,
       todayPct: pct(tagH, activeVorgabe.minProTagH),
-      minProWocheH: activeVorgabe.minProWocheH,
+      minPerWeekH: activeVorgabe.minProWocheH,
       weekPct: pct(wocheH, activeVorgabe.minProWocheH),
-      minProMonatH: activeVorgabe.minProMonatH,
+      minPerMonthH: activeVorgabe.minProMonatH,
       monthPct: pct(monatH, activeVorgabe.minProMonatH),
-      notiz: activeVorgabe.notiz,
+      note: activeVorgabe.notiz,
     } : null,
     openKontrolle: openKontrolle ? {
       code: openKontrolle.code,
       deadline: fmt(openKontrolle.deadline),
       overdue: openKontrolle.deadline < now,
       remainingMinutes: minutesUntil(openKontrolle.deadline),
-      kommentar: openKontrolle.kommentar,
+      comment: openKontrolle.kommentar,
     } : null,
     activeSperrzeit: activeSperrzeit ? {
       endetAt: activeSperrzeit.endetAt ? fmt(activeSperrzeit.endetAt) : null,
       indefinite: activeSperrzeit.endetAt === null,
       remainingMinutes: activeSperrzeit.endetAt ? minutesUntil(activeSperrzeit.endetAt) : null,
-      nachricht: activeSperrzeit.nachricht,
+      message: activeSperrzeit.nachricht,
     } : null,
     openVerschlussAnforderung: openAnf ? {
       endetAt: openAnf.endetAt ? fmt(openAnf.endetAt) : null,
       overdue: openAnf.endetAt ? openAnf.endetAt < now : false,
       remainingMinutes: openAnf.endetAt ? minutesUntil(openAnf.endetAt) : null,
-      nachricht: openAnf.nachricht,
+      message: openAnf.nachricht,
       dauerH: openAnf.dauerH,
     } : null,
     sessionSummary: summary.count > 0 ? {
@@ -150,7 +154,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       lastOrgasmAt: lastOrgasmus ? fmt(lastOrgasmus.startTime) : null,
       orgasmFreeHours: lastOrgasmus ? msToHours(now.getTime() - lastOrgasmus.startTime.getTime()) : null,
     } : null,
-    penalties: { recordedCount: penaltyCount },
+    penalties: { punishedCount },
     activeWearSessions: activeWear.map((s) => ({
       category: s.categoryName,
       deviceName: s.deviceName,
@@ -167,6 +171,11 @@ export interface SessionRow {
   start: string;
   end: string;
   durationHours: number;
+}
+
+export interface SessionList {
+  schemaVersion: 1;
+  sessions: SessionRow[];
 }
 
 export interface ListSessionsOptions {
@@ -208,7 +217,7 @@ function completedWearSessions(
 }
 
 /** Lists completed sessions (KG + non-KG wear), newest first. Throws if the user does not exist. */
-export async function listSessions(username: string, opts: ListSessionsOptions = {}): Promise<SessionRow[]> {
+export async function listSessions(username: string, opts: ListSessionsOptions = {}): Promise<SessionList> {
   const { userId, reinigung } = await loadUserContext(username);
 
   const [entries, nonKgCategories] = await Promise.all([
@@ -234,7 +243,7 @@ export async function listSessions(username: string, opts: ListSessionsOptions =
   const filter = opts.category?.trim().toLowerCase();
   const limit = Math.min(Math.max(1, opts.limit ?? 20), 100);
 
-  return [...kg, ...wear]
+  const sessions = [...kg, ...wear]
     .filter((s) => s.durationMs > 0)
     .filter((s) => !filter || s.category.toLowerCase() === filter)
     .sort((a, b) => b.start.getTime() - a.start.getTime())
@@ -246,6 +255,7 @@ export async function listSessions(username: string, opts: ListSessionsOptions =
       end: formatDateTime(s.end),
       durationHours: msToHours(s.durationMs),
     }));
+  return { schemaVersion: 1 as const, sessions };
 }
 
 /** A Kontroll-based offense formatted for the MCP `get_strafbuch` tool. */
@@ -255,25 +265,28 @@ export interface StrafbuchControlRow {
   fulfilledAt: string | null;
   entryTime: string | null;
   backdated: boolean;
-  kommentar: string | null;
+  comment: string | null;
   entryNote: string | null;
   punished: boolean;
 }
 
 /** Strafbuch snapshot for the MCP `get_strafbuch` tool. Timestamps in the instance timezone. */
 export interface StrafbuchOverview {
+  schemaVersion: 1;
   user: string;
   generatedAt: string;
   timezone: string;
-  totalOffenses: number;
+  /** Total number of system-detected offenses across all categories.
+   *  Distinct from penalties.punishedCount in get_overview which counts admin-confirmed punishments. */
+  detectedOffenseCount: number;
   unauthorizedOpenings: {
     time: string; note: string | null;
-    sperrzeitEndedAt: string | null; sperrzeitIndefinite: boolean;
+    lockPeriodEndedAt: string | null; lockPeriodIndefinite: boolean;
     punished: boolean;
   }[];
   lateControls: StrafbuchControlRow[];
   rejectedControls: StrafbuchControlRow[];
-  reinigungLimitViolations: { time: string | null; note: string | null }[];
+  cleaningLimitViolations: { time: string | null; note: string | null; punished: boolean }[];
 }
 
 /** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
@@ -290,30 +303,32 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
     fulfilledAt: k.fulfilledAt ? fmt(k.fulfilledAt) : null,
     entryTime: k.entryStartTime ? fmt(k.entryStartTime) : null,
     backdated: k.backdated,
-    kommentar: k.kommentar,
+    comment: k.kommentar,
     entryNote: k.entryNote,
     punished: punished.has(k.id),
   });
 
   return {
+    schemaVersion: 1 as const,
     user: username,
     generatedAt: fmt(now),
     timezone: APP_TZ,
-    totalOffenses:
+    detectedOffenseCount:
       sb.unauthorizedOpenings.length + sb.lateControls.length +
       sb.rejectedControls.length + sb.reinigungLimitViolations.length,
     unauthorizedOpenings: sb.unauthorizedOpenings.map((o) => ({
       time: fmt(o.startTime),
       note: o.note,
-      sperrzeitEndedAt: o.sperrzeitEndetAt ? fmt(o.sperrzeitEndetAt) : null,
-      sperrzeitIndefinite: o.sperrzeitIndefinite,
+      lockPeriodEndedAt: o.sperrzeitEndetAt ? fmt(o.sperrzeitEndetAt) : null,
+      lockPeriodIndefinite: o.sperrzeitIndefinite,
       punished: punished.has(o.id),
     })),
     lateControls: sb.lateControls.map(toControlRow),
     rejectedControls: sb.rejectedControls.map(toControlRow),
-    reinigungLimitViolations: sb.reinigungLimitViolations.map((v) => ({
+    cleaningLimitViolations: sb.reinigungLimitViolations.map((v) => ({
       time: v.startTime ? fmt(v.startTime) : null,
       note: v.note,
+      punished: punished.has(v.entryId),
     })),
   };
 }
