@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.12",
+    "date": "2026-05-29",
+    "changes": [
+      { "type": "feat", "text": "MCP-Server: Neues Tool list_entries liefert die vollständige Eintrags-Timeline mit allen Details pro Eintrag — Notizen/Kommentare, Orgasmus-Art, Öffnungsgrund, Kontroll-Code, Verifikationsstatus, Gerät, Foto-Vorhandensein (+ EXIF-Zeit) und ob die Zeit nachträglich korrigiert wurde. Damit kann eine KI das Gesamtbild der Situation erfassen, das die aggregierten Tools (get_overview, list_sessions, get_strafbuch) bewusst weglassen. Filterbar nach Typ, Default 50 / max 200 Einträge." }
+    ]
+  },
+  {
     "version": "4.18.11",
     "date": "2026-05-28",
     "changes": [

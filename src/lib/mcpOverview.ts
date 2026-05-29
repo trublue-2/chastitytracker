@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   buildPairs, interruptionPauseMs, summarizeSessions, completedPairsFrom,
-  calculateWearingHoursByRange, formatDateTime, APP_TZ,
+  calculateWearingHoursByRange, formatDateTime, isTimeCorrected, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
@@ -256,6 +256,86 @@ export async function listSessions(username: string, opts: ListSessionsOptions =
       durationHours: msToHours(s.durationMs),
     }));
   return { schemaVersion: 1 as const, sessions };
+}
+
+/** One raw entry for the MCP `list_entries` tool — every field a consuming LLM needs
+ *  to understand the full context. Timestamps are instance-timezone strings. Photos are
+ *  surfaced as metadata only (auth-protected files cannot be fetched by an MCP client). */
+export interface EntryRow {
+  /** One of VALID_TYPES: VERSCHLUSS | OEFFNEN | PRUEFUNG | ORGASMUS | WEAR_BEGIN | WEAR_END */
+  type: string;
+  time: string;
+  /** Free-text note / comment the user attached to the entry. */
+  note: string | null;
+  /** Opening reason for OEFFNEN entries (REINIGUNG | KEYHOLDER | NOTFALL | ANDERES). */
+  oeffnenGrund: string | null;
+  /** Orgasm type for ORGASMUS entries (e.g. "Orgasmus", "ruinierter Orgasmus", "feuchter Traum"). */
+  orgasmusArt: string | null;
+  kontrollCode: string | null;
+  verifikationStatus: string | null;
+  deviceName: string | null;
+  hasImage: boolean;
+  imageExifTime: string | null;
+  /** True when the entered time differs from the creation time (back-/post-dated). */
+  timeCorrected: boolean;
+}
+
+export interface EntryList {
+  schemaVersion: 1;
+  user: string;
+  generatedAt: string;
+  timezone: string;
+  /** Total entries matching the filter, before the limit is applied. */
+  totalCount: number;
+  returnedCount: number;
+  entries: EntryRow[];
+}
+
+export interface ListEntriesOptions {
+  /** Filter by entry type (one of VALID_TYPES). Omit for all types. */
+  type?: string;
+  /** Max rows (default 50, clamped to 1..200). */
+  limit?: number;
+}
+
+/** Lists raw entries with full per-entry detail, newest first. Throws if the user does not exist. */
+export async function listEntries(username: string, opts: ListEntriesOptions = {}): Promise<EntryList> {
+  const { userId } = await loadUserContext(username);
+  const typeFilter = opts.type?.trim().toUpperCase();
+  const limit = Math.min(Math.max(1, opts.limit ?? 50), 200);
+  const where = { userId, ...(typeFilter ? { type: typeFilter } : {}) };
+
+  const [totalCount, entries] = await Promise.all([
+    prisma.entry.count({ where }),
+    prisma.entry.findMany({
+      where,
+      orderBy: { startTime: "desc" },
+      take: limit,
+      include: { device: { select: { name: true } } },
+    }),
+  ]);
+
+  return {
+    schemaVersion: 1 as const,
+    user: username,
+    generatedAt: formatDateTime(new Date()),
+    timezone: APP_TZ,
+    totalCount,
+    returnedCount: entries.length,
+    entries: entries.map((e) => ({
+      type: e.type,
+      time: formatDateTime(e.startTime),
+      note: e.note,
+      oeffnenGrund: e.oeffnenGrund,
+      orgasmusArt: e.orgasmusArt,
+      kontrollCode: e.kontrollCode,
+      verifikationStatus: e.verifikationStatus,
+      deviceName: e.device?.name ?? null,
+      hasImage: !!e.imageUrl,
+      imageExifTime: e.imageExifTime ? formatDateTime(e.imageExifTime) : null,
+      timeCorrected: isTimeCorrected(e.startTime, e.createdAt),
+    })),
+  };
 }
 
 /** A Kontroll-based offense formatted for the MCP `get_strafbuch` tool. */

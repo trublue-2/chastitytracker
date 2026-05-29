@@ -1,8 +1,9 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
-import { buildOverview, listSessions, mcpStrafbuch } from "@/lib/mcpOverview";
+import { buildOverview, listSessions, listEntries, mcpStrafbuch } from "@/lib/mcpOverview";
 import { verifyAccessToken } from "@/lib/oauth";
+import { VALID_TYPES } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +58,25 @@ const handler = createMcpHandler(
         },
       },
       (args) => runTool("list_sessions", (username) => listSessions(username, args)),
+    );
+
+    server.registerTool(
+      "list_entries",
+      {
+        title: "List raw entries (full detail)",
+        description:
+          "Returns the raw entry timeline with ALL per-entry detail needed to understand the " +
+          "full situation: each entry's type, timestamp, free-text note/comment, opening reason " +
+          "(oeffnenGrund), orgasm type (orgasmusArt), control code, verification status, device, " +
+          "whether a photo exists (+ its EXIF capture time) and whether the time was back-/post-dated. " +
+          "Newest first. Use this for the narrative context that the aggregate tools (get_overview, " +
+          "list_sessions, get_strafbuch) leave out.",
+        inputSchema: {
+          type: z.enum(VALID_TYPES).optional().describe("Filter by entry type. Omit for all types."),
+          limit: z.number().int().min(1).max(200).optional().describe("Max rows to return (default 50)."),
+        },
+      },
+      (args) => runTool("list_entries", (username) => listEntries(username, args)),
     );
 
     server.registerTool(
