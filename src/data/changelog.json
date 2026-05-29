@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.13",
+    "date": "2026-05-29",
+    "changes": [
+      { "type": "fix", "text": "MCP get_overview: lock.deviceName zeigte nach einem Gerätewechsel während einer Reinigungspause weiterhin das Gerät vom Session-Start statt das aktuell getragene. Die Übersicht liest das Gerät jetzt aus dem jüngsten Wiederverschluss der laufenden Session (mit Fallback auf den Session-Start). Streak und Tragedauer bleiben unverändert über die Pause hinweg durchlaufend." }
+    ]
+  },
+  {
     "version": "4.18.12",
     "date": "2026-05-29",
     "changes": [

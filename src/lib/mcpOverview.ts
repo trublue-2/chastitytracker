@@ -95,6 +95,13 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   const currentDurationHours = isLocked && activePair
     ? msToHours(now.getTime() - activePair.verschluss.startTime.getTime() - interruptionPauseMs(activePair.interruptions))
     : null;
+  // Currently worn device = newest re-lock of the session (the lock following the last
+  // REINIGUNG pause), falling back to the session-start lock. A device swap during a
+  // cleaning pause does not change the session head, so reading activePair.verschluss
+  // alone would report the pre-pause device.
+  const currentLock = activePair
+    ? (activePair.interruptions.at(-1)?.verschluss ?? activePair.verschluss)
+    : null;
 
   // ── Completed sessions ──
   const summary = summarizeSessions(completedPairsFrom(pairs));
@@ -113,7 +120,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       isLocked,
       since: latest ? fmt(latest.startTime) : null,
       currentDurationHours,
-      deviceName: isLocked ? (activePair?.verschluss.device?.name ?? null) : null,
+      deviceName: isLocked ? (currentLock?.device?.name ?? null) : null,
     },
     wearingHoursKg: { today: round1(tagH), week: round1(wocheH), month: round1(monatH) },
     trainingGoalKg: activeVorgabe ? {
