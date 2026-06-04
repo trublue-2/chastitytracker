@@ -257,6 +257,15 @@ export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
   });
 }
 
+/** Returns the open OrgasmusAnforderung whose window has not yet ended (newest first), or null. */
+export async function getActiveOrgasmusAnforderung(userId: string, now: Date = new Date(), tx?: PrismaTx) {
+  const client = tx ?? prisma;
+  return client.orgasmusAnforderung.findFirst({
+    where: { userId, fulfilledAt: null, withdrawnAt: null, endetAt: { gte: now } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /**
  * Releases active SPERRZEIT periods when a user opens their device.
  * The release is skipped (Sperrzeit kept active) for cleaning openings where

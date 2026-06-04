@@ -11,8 +11,8 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories } from "@/lib/queries";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung } from "@/lib/queries";
+import { deviceCategoriesEnabled, orgasmusArtLabel } from "@/lib/constants";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
@@ -31,12 +31,13 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   const t = await getTranslations("dashboard");
+  const tOrgasm = await getTranslations("orgasmForm");
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
   // ── Parallel data fetch ──
   const flagOn = deviceCategoriesEnabled();
-  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories, deviceCount] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories, deviceCount, offeneOrgasmusAnf] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -53,6 +54,7 @@ export default async function DashboardPage() {
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
+    getActiveOrgasmusAnforderung(userId, now),
   ]);
   const userHasDevices = deviceCount > 0;
 
@@ -95,6 +97,10 @@ export default async function DashboardPage() {
 
   const anfOverdue = offeneVerschlussAnf ? (offeneVerschlussAnf.endetAt ? offeneVerschlussAnf.endetAt < now : false) : false;
 
+  const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
+    ? orgasmusArtLabel(offeneOrgasmusAnf.vorgegebeneArt, tOrgasm)
+    : null;
+
   const clientProps: DashboardProps = {
     currentStatus,
     hasEntries: entries.length > 0,
@@ -119,6 +125,12 @@ export default async function DashboardPage() {
       endetAt: activeSperrzeit.endetAt?.toISOString() ?? null,
       nachricht: activeSperrzeit.nachricht,
       endetAtLabel: activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) }) : null,
+    } : null,
+
+    offeneOrgasmusAnf: offeneOrgasmusAnf ? {
+      label: offeneOrgasmusAnf.art === "ANWEISUNG" ? t("orgasmInstructed") : t("orgasmOpportunity"),
+      nachricht: [orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null, offeneOrgasmusAnf.nachricht].filter(Boolean).join(" · ") || null,
+      windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl), until: formatDateTime(offeneOrgasmusAnf.endetAt, dl) }),
     } : null,
 
     tagH,

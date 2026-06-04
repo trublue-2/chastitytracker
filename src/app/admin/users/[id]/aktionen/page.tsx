@@ -111,7 +111,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           {isLocked && hasActiveSperrzeit ? (
             <Link
               href={`/admin/users/${id}/aktionen/sperrdauer-edit`}
-              className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
+              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
             >
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-sperrzeit-bg)" }}>
                 <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
@@ -125,7 +125,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           ) : isLocked ? (
             <Link
               href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
-              className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
+              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
             >
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-sperrzeit-bg)" }}>
                 <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
@@ -137,7 +137,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
             </Link>
           ) : (
-            <div className="flex items-center gap-4 px-5 py-4 rounded-b-2xl opacity-40 cursor-not-allowed">
+            <div className="flex items-center gap-4 px-5 py-4 opacity-40 cursor-not-allowed">
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
                 <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
               </div>
@@ -147,6 +147,21 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
           )}
+
+          {/* Orgasmus anfordern */}
+          <Link
+            href={`/admin/users/${id}/aktionen/orgasmus-anforderung`}
+            className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
+          >
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-orgasm-bg)" }}>
+              <Droplets size={20} strokeWidth={2} style={{ color: "var(--color-orgasm)" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">{t("requestOrgasm")}</p>
+              <p className="text-xs text-foreground-faint">{t("requestOrgasmHint")}</p>
+            </div>
+            <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
+          </Link>
 
         </div>
       </div>

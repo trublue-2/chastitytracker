@@ -40,6 +40,13 @@ export interface DashboardProps {
     endetAtLabel: string | null;
   } | null;
 
+  // Orgasmus-Anforderung
+  offeneOrgasmusAnf: {
+    label: string;
+    nachricht: string | null;
+    windowLabel: string;
+  } | null;
+
   // Stats
   tagH: number;
   wocheH: number;
@@ -75,6 +82,7 @@ export default function DashboardClient(props: DashboardProps) {
     offeneKontrolle,
     offeneVerschlussAnf,
     activeSperrzeit,
+    offeneOrgasmusAnf,
     tagH: baseTagH,
     wocheH: baseWocheH,
     monatH: baseMonatH,
@@ -106,10 +114,21 @@ export default function DashboardClient(props: DashboardProps) {
     />
   ) : null;
 
+  const orgasmusRequestBanner = offeneOrgasmusAnf ? (
+    <LockRequestBanner
+      variant="large"
+      colorScheme="orgasm"
+      label={offeneOrgasmusAnf.label}
+      nachricht={offeneOrgasmusAnf.nachricht}
+      endetAtLabel={offeneOrgasmusAnf.windowLabel}
+    />
+  ) : null;
+
   if (!hasEntries) {
     return (
       <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8 flex flex-col gap-5">
         {lockRequestBanner}
+        {orgasmusRequestBanner}
         <EmptyState
           icon={<Lock size={48} />}
           title={t("welcomeTitle")}
@@ -163,6 +182,8 @@ export default function DashboardClient(props: DashboardProps) {
       )}
 
       {lockRequestBanner}
+
+      {orgasmusRequestBanner}
 
       {/* Sperrzeit-Banner entfernt — wird bereits im Sperrzeit-Footer der LaufendeSessionCard angezeigt */}
 

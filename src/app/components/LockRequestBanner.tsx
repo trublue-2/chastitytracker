@@ -1,9 +1,9 @@
-import { Lock } from "lucide-react";
+import { Lock, Droplets } from "lucide-react";
 import { APP_TZ } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import SperrzeitRemaining from "./SperrzeitRemaining";
 
-type ColorScheme = "request" | "sperrzeit";
+type ColorScheme = "request" | "sperrzeit" | "orgasm";
 
 const COLORS: Record<ColorScheme, { bg: string; border: string; leftAccent: string; text: string; accent: string }> = {
   request: {
@@ -20,6 +20,20 @@ const COLORS: Record<ColorScheme, { bg: string; border: string; leftAccent: stri
     text: "text-sperrzeit-text",
     accent: "text-sperrzeit",
   },
+  orgasm: {
+    bg: "bg-orgasm-bg",
+    border: "border-orgasm-border",
+    leftAccent: "border-l-[3px] border-l-orgasm",
+    text: "text-orgasm-text",
+    accent: "text-orgasm",
+  },
+};
+
+/** Icon per color scheme — keeps the banner self-contained (no icon prop needed). */
+const SCHEME_ICON: Record<ColorScheme, ComponentType<{ size?: number; className?: string }>> = {
+  request: Lock,
+  sperrzeit: Lock,
+  orgasm: Droplets,
 };
 
 const WARN = {
@@ -57,11 +71,12 @@ export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
     const { colorScheme, label, overdue, endetAt, locale, withdrawAction, showRemaining } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
+    const Icon = SCHEME_ICON[colorScheme];
 
     return (
       <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${c.bg} border ${c.border} ${c.leftAccent}`}>
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-          <Lock size={11} className={`flex-shrink-0 ${c.accent}`} />
+          <Icon size={11} className={`flex-shrink-0 ${c.accent}`} />
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
           {endetAt && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>
@@ -80,11 +95,12 @@ export default function LockRequestBanner(props: Props) {
   // Large variant (dashboard)
   const { colorScheme, label, nachricht, endetAtLabel } = props;
   const c = COLORS[colorScheme];
+  const Icon = SCHEME_ICON[colorScheme];
 
   return (
     <div className={`flex flex-col gap-1.5 ${c.bg} border ${c.border} ${c.leftAccent} rounded-2xl px-5 py-4`}>
       <div className="flex items-center gap-2">
-        <Lock size={15} className={`${c.accent} shrink-0`} />
+        <Icon size={15} className={`${c.accent} shrink-0`} />
         <p className={`text-sm font-bold ${c.text}`}>{label}</p>
       </div>
       {nachricht && <p className={`text-sm ${c.accent}`}>{nachricht}</p>}

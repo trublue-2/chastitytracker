@@ -4,7 +4,7 @@ import {
   calculateWearingHoursByRange, formatDateTime, isTimeCorrected, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 
@@ -44,6 +44,8 @@ export interface TrackerOverview {
   openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null } | null;
   activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null } | null;
   openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null } | null;
+  /** Open keyholder orgasm directive (request/opportunity) whose window has not yet ended. */
+  openOrgasmusAnforderung: { art: string; beginntAt: string; endetAt: string; active: boolean; requiredType: string | null; message: string | null; remainingMinutes: number } | null;
   sessionSummary: {
     totalSessions: number; totalHours: number; avgHours: number;
     longestHours: number; shortestHours: number;
@@ -92,7 +94,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
-  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount] = await Promise.all([
+  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, openOrgasmusAnf] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -109,6 +111,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     }),
     getActiveWearSessions(userId),
     prisma.strafeRecord.count({ where: { userId } }),
+    getActiveOrgasmusAnforderung(userId, now),
   ]);
 
   // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
@@ -185,6 +188,15 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       remainingMinutes: openAnf.endetAt ? minutesUntil(openAnf.endetAt) : null,
       message: openAnf.nachricht,
       dauerH: openAnf.dauerH,
+    } : null,
+    openOrgasmusAnforderung: openOrgasmusAnf ? {
+      art: openOrgasmusAnf.art,
+      beginntAt: fmt(openOrgasmusAnf.beginntAt),
+      endetAt: fmt(openOrgasmusAnf.endetAt),
+      active: openOrgasmusAnf.beginntAt <= now,
+      requiredType: openOrgasmusAnf.vorgegebeneArt,
+      message: openOrgasmusAnf.nachricht,
+      remainingMinutes: minutesUntil(openOrgasmusAnf.endetAt),
     } : null,
     sessionSummary: summary.count > 0 ? {
       totalSessions: summary.count,

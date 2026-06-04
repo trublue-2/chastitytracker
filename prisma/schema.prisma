@@ -27,6 +27,7 @@ model User {
   passwordResetTokens   PasswordResetToken[]
   kontrollAnforderungen   KontrollAnforderung[]
   verschlussAnforderungen VerschlussAnforderung[]
+  orgasmusAnforderungen   OrgasmusAnforderung[]
   devices                 Device[]
   strafeRecords           StrafeRecord[]
   adminRelationships      AdminUserRelationship[] @relation("AdminRelationships")
@@ -253,9 +254,31 @@ model Entry {
   device              Device?              @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   createdAt           DateTime             @default(now())
   kontrollAnforderung KontrollAnforderung? @relation("KontrolleEntry")
+  orgasmusAnforderung OrgasmusAnforderung? @relation("OrgasmusAnforderungEntry")
 
   @@index([userId])
   @@index([userId, type, startTime(sort: Desc)])
+}
+
+// Keyholder-Aufforderung für einen Orgasmus innerhalb eines Zeitfensters.
+// art=ANWEISUNG: Pflicht (Versäumnis -> Strafbuch, Phase 2). art=GELEGENHEIT: Erlaubnis, kein Zwang.
+// vorgegebeneArt (optional): erforderliche orgasmusArt-Basis; null = jeder Orgasmus erfüllt.
+model OrgasmusAnforderung {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  art            String    // "ANWEISUNG" | "GELEGENHEIT"
+  nachricht      String?
+  beginntAt      DateTime  // Fenster-Start
+  endetAt        DateTime  // Fenster-Ende
+  vorgegebeneArt String?   // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal
+  createdAt      DateTime  @default(now())
+  fulfilledAt    DateTime? // gesetzt wenn passender ORGASMUS-Eintrag im Fenster erstellt
+  entryId        String?   @unique
+  entry          Entry?    @relation("OrgasmusAnforderungEntry", fields: [entryId], references: [id], onDelete: SetNull)
+  withdrawnAt    DateTime?
+
+  @@index([userId, fulfilledAt, withdrawnAt])
 }
 
 model NotificationPreference {

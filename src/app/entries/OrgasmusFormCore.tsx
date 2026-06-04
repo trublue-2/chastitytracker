@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Droplets } from "lucide-react";
 import { toDatetimeLocal } from "@/lib/utils";
-import { ORGASMUS_ARTEN } from "@/lib/constants";
+import { ORGASMUS_ARTEN, orgasmusArtLabel } from "@/lib/constants";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -50,11 +50,6 @@ export default function OrgasmusFormCore({
   const [note, setNote] = useState(initial?.note ?? "");
   const { saving, error, submit } = useEntrySubmit<OrgasmusPayload>(submitFn, onSuccess);
 
-  const ARTEN_LABELS: Record<string, string> = {
-    "Orgasmus": t("artOrgasmus"),
-    "ruinierter Orgasmus": t("artRuiniert"),
-    "feuchter Traum": t("artTraum"),
-  };
   const SUB_ARTEN_LABELS: Record<string, string> = {
     "Masturbation": t("subMasturbation"),
     "Geschlechtsverkehr": t("subGeschlecht"),
@@ -74,7 +69,7 @@ export default function OrgasmusFormCore({
     });
   }
 
-  const artOptions = ORGASMUS_ARTEN.map((a) => ({ value: a, label: ARTEN_LABELS[a] ?? a }));
+  const artOptions = ORGASMUS_ARTEN.map((a) => ({ value: a, label: orgasmusArtLabel(a, t) }));
   const subArtOptions = (SUB_ARTEN[art] ?? []).map((s) => ({ value: s, label: SUB_ARTEN_LABELS[s] ?? s }));
   const defaultLabel = isEdit ? tc("update") : t("saveBtn");
 

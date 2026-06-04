@@ -21,6 +21,20 @@ export function deviceCategoriesEnabled(): boolean {
   return process.env.ENABLE_DEVICE_CATEGORIES?.toLowerCase() !== "false";
 }
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
+/** Maps each ORGASMUS_ARTEN value to its orgasmForm i18n key (shared by entry + Anforderung forms). */
+export const ORGASMUS_ART_I18N_KEYS: Record<string, string> = {
+  "Orgasmus": "artOrgasmus",
+  "ruinierter Orgasmus": "artRuiniert",
+  "feuchter Traum": "artTraum",
+};
+/** Translates an orgasmusArt base value via the orgasmForm namespace, falling back to the raw value. */
+export function orgasmusArtLabel(art: string, t: (key: string) => string): string {
+  const key = ORGASMUS_ART_I18N_KEYS[art];
+  return key ? t(key) : art;
+}
+/** Charakter einer Orgasmus-Aufforderung: ANWEISUNG = Pflicht, GELEGENHEIT = Erlaubnis. */
+export const ORGASMUS_ANFORDERUNG_ARTEN = ["ANWEISUNG", "GELEGENHEIT"] as const;
+export type OrgasmusAnforderungArt = typeof ORGASMUS_ANFORDERUNG_ARTEN[number];
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
 export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 

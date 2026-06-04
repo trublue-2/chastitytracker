@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
+import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
@@ -132,6 +132,32 @@ export async function POST(req: NextRequest) {
               },
             });
           }
+        }
+      }
+
+      // OrgasmusAnforderung als erfüllt markieren, wenn ein passender Orgasmus im Fenster erfasst wird.
+      // Matching auf vorgegebene Art (Basis), wenn gesetzt; sonst zählt jeder Orgasmus.
+      if (type === "ORGASMUS") {
+        const entryTime = new Date(startTime);
+        const offeneAnforderung = await tx.orgasmusAnforderung.findFirst({
+          where: {
+            userId: session.user.id,
+            fulfilledAt: null,
+            withdrawnAt: null,
+            beginntAt: { lte: entryTime },
+            endetAt: { gte: entryTime },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (
+          offeneAnforderung &&
+          (!offeneAnforderung.vorgegebeneArt ||
+            offeneAnforderung.vorgegebeneArt === parseOrgasmusArtBase(orgasmusArt))
+        ) {
+          await tx.orgasmusAnforderung.update({
+            where: { id: offeneAnforderung.id },
+            data: { fulfilledAt: new Date(), entryId: created.id },
+          });
         }
       }
 
