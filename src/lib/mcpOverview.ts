@@ -5,11 +5,19 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
  *  so a consuming LLM reads wall-clock time directly. Durations are hours (1 decimal). */
+/** Period training-goal targets with progress percentages. Shared by KG + per-category goals. */
+export interface GoalProgress {
+  minPerDayH: number | null; todayPct: number | null;
+  minPerWeekH: number | null; weekPct: number | null;
+  minPerMonthH: number | null; monthPct: number | null;
+}
+
 export interface TrackerOverview {
   schemaVersion: 1;
   user: string;
@@ -22,12 +30,15 @@ export interface TrackerOverview {
     deviceName: string | null;
   };
   wearingHoursKg: { today: number; week: number; month: number };
-  trainingGoalKg: {
-    minPerDayH: number | null; todayPct: number | null;
-    minPerWeekH: number | null; weekPct: number | null;
-    minPerMonthH: number | null; monthPct: number | null;
-    note: string | null;
-  } | null;
+  trainingGoalKg: (GoalProgress & { note: string | null }) | null;
+  /** Cleaning-pause rules. maxMinutesPerDay = null means unlimited. */
+  reinigung: { allowed: boolean; maxMinutesPerBreak: number; maxMinutesPerDay: number | null };
+  /** Non-KG tracking categories (Plug, Collar, …) — wearing hours + their training goal (null if none). */
+  categories: {
+    name: string;
+    wearingHours: { today: number; week: number; month: number };
+    goal: GoalProgress | null;
+  }[];
   openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null } | null;
   activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null } | null;
   openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null } | null;
@@ -47,22 +58,33 @@ const msToHours = (ms: number) => round1(ms / 3_600_000);
 const pct = (actual: number, target: number | null) =>
   target && target > 0 ? Math.round((actual / target) * 100) : null;
 
+/** Builds the shared 6-field goal-progress shape from actual hours + period targets. */
+const goalProgress = (
+  tagH: number, wocheH: number, monatH: number,
+  dayH: number | null, weekH: number | null, monthH: number | null,
+): GoalProgress => ({
+  minPerDayH: dayH, todayPct: pct(tagH, dayH),
+  minPerWeekH: weekH, weekPct: pct(wocheH, weekH),
+  minPerMonthH: monthH, monthPct: pct(monatH, monthH),
+});
+
 /** Resolves a username to its id and Reinigung settings. Throws if the user does not exist. */
-async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings }> {
+async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number }> {
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true },
+    select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true },
   });
   if (!user) throw new Error(`User not found: ${username}`);
   return {
     userId: user.id,
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
+    reinigungMaxProTag: user.reinigungMaxProTag ?? 0,
   };
 }
 
 /** Builds the overview for a user identified by username. Throws if the user does not exist. */
 export async function buildOverview(username: string): Promise<TrackerOverview> {
-  const { userId, reinigung } = await loadUserContext(username);
+  const { userId, reinigung, reinigungMaxProTag } = await loadUserContext(username);
   const now = new Date();
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
@@ -85,6 +107,9 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     getActiveWearSessions(userId),
     prisma.strafeRecord.count({ where: { userId } }),
   ]);
+
+  // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
+  const categoryGoals = await buildCategoryWearGoals(userId, now, entries);
 
   // ── Lock state ──
   const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
@@ -124,14 +149,19 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     },
     wearingHoursKg: { today: round1(tagH), week: round1(wocheH), month: round1(monatH) },
     trainingGoalKg: activeVorgabe ? {
-      minPerDayH: activeVorgabe.minProTagH,
-      todayPct: pct(tagH, activeVorgabe.minProTagH),
-      minPerWeekH: activeVorgabe.minProWocheH,
-      weekPct: pct(wocheH, activeVorgabe.minProWocheH),
-      minPerMonthH: activeVorgabe.minProMonatH,
-      monthPct: pct(monatH, activeVorgabe.minProMonatH),
+      ...goalProgress(tagH, wocheH, monatH, activeVorgabe.minProTagH, activeVorgabe.minProWocheH, activeVorgabe.minProMonatH),
       note: activeVorgabe.notiz,
     } : null,
+    reinigung: {
+      allowed: reinigung.erlaubt,
+      maxMinutesPerBreak: reinigung.maxMinuten,
+      maxMinutesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
+    },
+    categories: categoryGoals.map((c) => ({
+      name: c.name,
+      wearingHours: { today: round1(c.tagH), week: round1(c.wocheH), month: round1(c.monatH) },
+      goal: hasAnyGoal(c) ? goalProgress(c.tagH, c.wocheH, c.monatH, c.goalDayH, c.goalWeekH, c.goalMonthH) : null,
+    })),
     openKontrolle: openKontrolle ? {
       code: openKontrolle.code,
       deadline: fmt(openKontrolle.deadline),
@@ -345,6 +375,44 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
   };
 }
 
+/** One device for the MCP `list_devices` tool — inventory metadata. */
+export interface DeviceRow {
+  name: string;
+  category: string;
+  isKg: boolean;
+  purchasePrice: number | null;
+  currency: string | null;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface DeviceList {
+  schemaVersion: 1;
+  devices: DeviceRow[];
+}
+
+/** Lists the user's devices (KG + non-KG categories), active first then archived. Throws if the user does not exist. */
+export async function listDevices(username: string): Promise<DeviceList> {
+  const { userId } = await loadUserContext(username);
+  const devices = await prisma.device.findMany({
+    where: { userId },
+    orderBy: [{ archivedAt: "asc" }, { createdAt: "asc" }],
+    include: { category: { select: { name: true, isBuiltIn: true } } },
+  });
+  return {
+    schemaVersion: 1 as const,
+    devices: devices.map((d) => ({
+      name: d.name,
+      category: d.category?.name ?? "—",
+      isKg: d.category?.isBuiltIn ?? false,
+      purchasePrice: d.purchasePrice,
+      currency: d.currency,
+      archived: d.archivedAt !== null,
+      createdAt: formatDateTime(d.createdAt),
+    })),
+  };
+}
+
 /** A Kontroll-based offense formatted for the MCP `get_strafbuch` tool. */
 export interface StrafbuchControlRow {
   code: string;
@@ -374,6 +442,8 @@ export interface StrafbuchOverview {
   lateControls: StrafbuchControlRow[];
   rejectedControls: StrafbuchControlRow[];
   cleaningLimitViolations: { time: string | null; note: string | null; punished: boolean }[];
+  /** Lock entries where a different device than the Anforderung specified was worn. */
+  wrongDeviceViolations: { time: string | null; note: string | null; deviceName: string | null; punished: boolean }[];
 }
 
 /** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
@@ -402,7 +472,8 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
     timezone: APP_TZ,
     detectedOffenseCount:
       sb.unauthorizedOpenings.length + sb.lateControls.length +
-      sb.rejectedControls.length + sb.reinigungLimitViolations.length,
+      sb.rejectedControls.length + sb.reinigungLimitViolations.length +
+      sb.wrongDeviceViolations.length,
     unauthorizedOpenings: sb.unauthorizedOpenings.map((o) => ({
       time: fmt(o.startTime),
       note: o.note,
@@ -415,6 +486,12 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
     cleaningLimitViolations: sb.reinigungLimitViolations.map((v) => ({
       time: v.startTime ? fmt(v.startTime) : null,
       note: v.note,
+      punished: punished.has(v.entryId),
+    })),
+    wrongDeviceViolations: sb.wrongDeviceViolations.map((v) => ({
+      time: v.startTime ? fmt(v.startTime) : null,
+      note: v.note,
+      deviceName: v.deviceName,
       punished: punished.has(v.entryId),
     })),
   };

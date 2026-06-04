@@ -31,6 +31,13 @@ export interface StrafbuchData {
     startTime: Date | null;
     note: string | null;
   }[];
+  /** Lock entries where the user wore a different device than the Anforderung specified. */
+  wrongDeviceViolations: {
+    entryId: string;
+    startTime: Date | null;
+    note: string | null;
+    deviceName: string | null;
+  }[];
   /** StrafeRecord rows — each marks an offense (by `refId`) as punished. */
   strafeRecords: { refId: string; bestraftDatum: Date; notiz: string | null }[];
 }
@@ -52,15 +59,25 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   ]);
   const userReinigungErlaubt = user?.reinigungErlaubt ?? false;
 
-  // REINIGUNG-limit offenses: their StrafeRecords are a subset of strafeRecordsRaw.
+  // Offenses whose StrafeRecord.refId points at the offending entry (REINIGUNG-limit, wrong-device).
+  // Both are subsets of strafeRecordsRaw; fetch the referenced entries once (with device for naming).
   const reinigungLimitRecords = strafeRecordsRaw.filter((r) => r.offenseType === "REINIGUNG_LIMIT");
-  const reinigungEntryIds = reinigungLimitRecords.map((r) => r.refId);
-  const reinigungEntries = reinigungEntryIds.length > 0
-    ? await prisma.entry.findMany({ where: { id: { in: reinigungEntryIds } } })
+  const wrongDeviceRecords = strafeRecordsRaw.filter((r) => r.offenseType === "FALSCHES_GERAET");
+  const offenseEntryIds = [...reinigungLimitRecords, ...wrongDeviceRecords].map((r) => r.refId);
+  const offenseEntries = offenseEntryIds.length > 0
+    ? await prisma.entry.findMany({
+        where: { id: { in: offenseEntryIds } },
+        include: { device: { select: { name: true } } },
+      })
     : [];
+  const offenseEntryById = new Map(offenseEntries.map((e) => [e.id, e]));
   const reinigungLimitViolations = reinigungLimitRecords.map((r) => {
-    const entry = reinigungEntries.find((e) => e.id === r.refId);
+    const entry = offenseEntryById.get(r.refId);
     return { entryId: r.refId, startTime: entry?.startTime ?? null, note: entry?.note ?? null };
+  });
+  const wrongDeviceViolations = wrongDeviceRecords.map((r) => {
+    const entry = offenseEntryById.get(r.refId);
+    return { entryId: r.refId, startTime: entry?.startTime ?? null, note: entry?.note ?? null, deviceName: entry?.device?.name ?? null };
   });
 
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
@@ -109,6 +126,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .filter((k) => k.entry?.verifikationStatus === "rejected")
       .map(toControl),
     reinigungLimitViolations,
+    wrongDeviceViolations,
     strafeRecords: strafeRecordsRaw.map((r) => ({ refId: r.refId, bestraftDatum: r.bestraftDatum, notiz: r.notiz })),
   };
 }

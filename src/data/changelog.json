@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.18.14",
+    "date": "2026-06-04",
+    "changes": [
+      { "type": "feat", "text": "MCP-Server deutlich vollständiger: get_overview liefert jetzt auch die Reinigungs-Regeln (erlaubt, Max-Minuten pro Pause/Tag) und pro Nicht-KG-Kategorie (Plug, Collar …) die Tragestunden today/week/month inkl. Trainingsziel + Prozent — vorher nur KG. get_strafbuch zeigt zusätzlich „falsches Gerät getragen\"-Vergehen. Neues Tool list_devices gibt das Geräte-Inventar aus (Kategorie, Kaufpreis, Währung, Archiv-Status). Damit kann eine KI das Gesamtbild über alle Kategorien hinweg erfassen statt nur KG." }
+    ]
+  },
+  {
     "version": "4.18.13",
     "date": "2026-05-29",
     "changes": [

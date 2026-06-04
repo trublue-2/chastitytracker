@@ -1,14 +1,6 @@
 import Card from "@/app/components/Card";
-import { prisma } from "@/lib/prisma";
-import {
-  buildWearPairs,
-  wearingHoursFromPairs,
-  formatHoursHM,
-  WEAR_PAIR,
-  getMidnightToday,
-  getWeekStart,
-  getMonthStart,
-} from "@/lib/utils";
+import { formatHoursHM } from "@/lib/utils";
+import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
@@ -17,79 +9,16 @@ interface Props {
   userId: string;
 }
 
-interface Row {
-  id: string;
-  name: string;
-  color: string;
-  icon: string;
-  tagH: number;
-  wocheH: number;
-  monatH: number;
-  goalDayH: number | null;
-  goalWeekH: number | null;
-  goalMonthH: number | null;
-}
-
-/** Server component — renders progress bars per non-KG category that has an active
- *  TrainingVorgabe with at least one period target. Hidden when no data. */
+/** Server component — renders progress bars per tracking-enabled non-KG category that has an
+ *  active TrainingVorgabe with at least one period target. Categories with tracking disabled are
+ *  excluded (no wear sessions are recorded for them). Hidden when no data. */
 export default async function CategoryGoalsToday({ userId }: Props) {
   const now = new Date();
-  const [vorgaben, t] = await Promise.all([
-    prisma.trainingVorgabe.findMany({
-      where: {
-        userId,
-        gueltigAb: { lte: now },
-        OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }],
-        categoryId: { not: null },
-        category: { isBuiltIn: false },
-      },
-      select: {
-        categoryId: true,
-        minProTagH: true,
-        minProWocheH: true,
-        minProMonatH: true,
-        category: { select: { id: true, name: true, color: true, icon: true } },
-      },
-    }),
+  const [allRows, t] = await Promise.all([
+    buildCategoryWearGoals(userId, now),
     getTranslations("dashboard"),
   ]);
-  if (vorgaben.length === 0) return null;
-
-  // One Vorgabe per Category (most recent active). Group by categoryId taking the first
-  // (Prisma returns no order; for stability we'd want orderBy gueltigAb desc, but since
-  // we expect at most one active vorgabe per category in normal usage, this is fine).
-  const byCategory = new Map<string, typeof vorgaben[number]>();
-  for (const v of vorgaben) if (v.categoryId && !byCategory.has(v.categoryId)) byCategory.set(v.categoryId, v);
-
-  const categoryIds = [...byCategory.keys()];
-  const entries = await prisma.entry.findMany({
-    where: { userId, type: { in: ["WEAR_BEGIN", "WEAR_END"] } },
-    orderBy: { startTime: "asc" },
-    select: { type: true, startTime: true, device: { select: { categoryId: true } } },
-  });
-
-  const tagStart = getMidnightToday(now);
-  const wocheStart = getWeekStart(now);
-  const monatStart = getMonthStart(now);
-
-  const rows: Row[] = categoryIds.flatMap((cid): Row[] => {
-    const v = byCategory.get(cid);
-    if (!v?.category) return [];
-    const pairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cid });
-    return [{
-      id: v.category.id,
-      name: v.category.name,
-      color: v.category.color,
-      icon: v.category.icon,
-      tagH: wearingHoursFromPairs(pairs, tagStart, now),
-      wocheH: wearingHoursFromPairs(pairs, wocheStart, now),
-      monatH: wearingHoursFromPairs(pairs, monatStart, now),
-      goalDayH: v.minProTagH,
-      goalWeekH: v.minProWocheH,
-      goalMonthH: v.minProMonatH,
-    }];
-  });
-
+  const rows = allRows.filter(hasAnyGoal);
   if (rows.length === 0) return null;
 
   return (
@@ -103,7 +32,7 @@ export default async function CategoryGoalsToday({ userId }: Props) {
             {rows.map((r) => {
               const style = categoryStyle(r.color);
               return (
-                <li key={r.id} className="flex flex-col gap-2">
+                <li key={r.categoryId} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <div
                       className="size-7 rounded-md flex items-center justify-center shrink-0"

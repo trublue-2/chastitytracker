@@ -1,7 +1,7 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
-import { buildOverview, listSessions, listEntries, mcpStrafbuch } from "@/lib/mcpOverview";
+import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch } from "@/lib/mcpOverview";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
 
@@ -36,9 +36,10 @@ const handler = createMcpHandler(
         title: "Get tracker overview",
         description:
           "Returns a read-only snapshot of the chastity-tracker state: lock status and duration, " +
-          "KG wearing hours (today/week/month), active training goal with progress, open control " +
-          "requests, active lock periods, session statistics, recorded penalties and active wear " +
-          "sessions. Use this to reason about the user's current situation and propose measures.",
+          "KG wearing hours (today/week/month), active KG training goal with progress, cleaning-pause " +
+          "rules (reinigung), per-category wear hours + goals for non-KG categories (Plug, Collar, …), " +
+          "open control requests, active lock periods, session statistics, recorded penalties and " +
+          "active wear sessions. Use this to reason about the user's current situation and propose measures.",
         inputSchema: {},
       },
       () => runTool("get_overview", buildOverview),
@@ -80,12 +81,26 @@ const handler = createMcpHandler(
     );
 
     server.registerTool(
+      "list_devices",
+      {
+        title: "List devices (inventory)",
+        description:
+          "Returns the user's device inventory — KG and non-KG (Plug, Collar, …) devices — each " +
+          "with its category, purchase price, currency, archived status and creation date. Active " +
+          "devices first, then archived. Use for inventory and cost questions.",
+        inputSchema: {},
+      },
+      () => runTool("list_devices", listDevices),
+    );
+
+    server.registerTool(
       "get_strafbuch",
       {
         title: "Get penalty book (Strafbuch)",
         description:
           "Returns the Strafbuch: system-detected offenses — unauthorized openings during a " +
-          "lock period, late and rejected control submissions, and cleaning-limit violations — " +
+          "lock period, late and rejected control submissions, cleaning-limit violations, and " +
+          "wrong-device violations (a different device worn than the Anforderung specified) — " +
           "each (where applicable) flagged whether it has already been marked as punished. " +
           "Use to reason about outstanding misconduct and propose consequences.",
         inputSchema: {},
