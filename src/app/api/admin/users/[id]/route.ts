@@ -88,6 +88,12 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
+  if (body.mcpKeyholderInstructions !== undefined) {
+    const text = typeof body.mcpKeyholderInstructions === "string" ? body.mcpKeyholderInstructions.trim() : "";
+    await prisma.user.update({ where: { id }, data: { mcpKeyholderInstructions: text || null } });
+    return NextResponse.json({ ok: true });
+  }
+
   if (!["admin", "user"].includes(body.role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }

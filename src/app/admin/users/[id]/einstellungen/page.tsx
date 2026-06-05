@@ -6,6 +6,7 @@ import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AccountSection from "./AccountSection";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
+import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
 import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import Card from "@/app/components/Card";
@@ -90,6 +91,18 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
         </div>
       </Card>
+
+      {/* KI-Keyholder-Regeln (MCP) — nur wenn der MCP-Server aktiviert ist */}
+      {process.env.ENABLE_MCP === "true" && (
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionKeyholder")}</p>
+          </div>
+          <div className="px-5 py-4">
+            <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
+          </div>
+        </Card>
+      )}
 
       {/* Benachrichtigungen */}
       <NotificationToggles userId={user.id} />

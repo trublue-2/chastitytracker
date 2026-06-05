@@ -23,6 +23,8 @@ export interface TrackerOverview {
   user: string;
   generatedAt: string;
   timezone: string;
+  /** Free-text rules the human keyholder set for the AI keyholder. Write tools MUST respect these (soft guidance). */
+  keyholderInstructions: string | null;
   lock: {
     isLocked: boolean;
     since: string | null;
@@ -69,22 +71,23 @@ const goalProgress = (
 });
 
 /** Resolves a username to its id and Reinigung settings. Throws if the user does not exist. */
-async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number }> {
+async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number; keyholderInstructions: string | null }> {
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true },
+    select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, mcpKeyholderInstructions: true },
   });
   if (!user) throw new Error(`User not found: ${username}`);
   return {
     userId: user.id,
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
     reinigungMaxProTag: user.reinigungMaxProTag ?? 0,
+    keyholderInstructions: user.mcpKeyholderInstructions ?? null,
   };
 }
 
 /** Builds the overview for a user identified by username. Throws if the user does not exist. */
 export async function buildOverview(username: string): Promise<TrackerOverview> {
-  const { userId, reinigung, reinigungMaxProTag } = await loadUserContext(username);
+  const { userId, reinigung, reinigungMaxProTag, keyholderInstructions } = await loadUserContext(username);
   const now = new Date();
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
@@ -141,6 +144,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     user: username,
     generatedAt: fmt(now),
     timezone: APP_TZ,
+    keyholderInstructions,
     lock: {
       isLocked,
       since: latest ? fmt(latest.startTime) : null,

@@ -19,6 +19,8 @@ model User {
   reinigungMaxMinuten   Int                    @default(15)
   reinigungMaxProTag    Int                    @default(0)
   mobileDesktopUpload   Boolean                @default(false)
+  // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
+  mcpKeyholderInstructions String?
   entries               Entry[]
   notificationPrefs     NotificationPreference[]
   vorgaben              TrainingVorgabe[]

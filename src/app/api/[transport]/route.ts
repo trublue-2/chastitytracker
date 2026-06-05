@@ -2,6 +2,9 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch } from "@/lib/mcpOverview";
+import {
+  isMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
+} from "@/lib/mcpWrite";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
 
@@ -25,6 +28,22 @@ async function runTool<T>(label: string, fn: (username: string) => Promise<T>): 
   }
 }
 
+/** Auth context the MCP SDK passes to tool callbacks. The OAuth branch of verifyToken stores the
+ *  authorizing user's id under authInfo.extra.userId. */
+type ToolExtra = { authInfo?: { extra?: { userId?: string } } };
+
+/** Wrapper for WRITE tools: enforces keyholder (admin OAuth) authorization, then delegates to
+ *  runTool. The static MCP_TOKEN has no user identity and is therefore always rejected here. */
+async function runWriteTool<T>(label: string, extra: ToolExtra, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+  if (!(await isMcpKeyholder(extra?.authInfo?.extra?.userId))) {
+    return {
+      content: [{ type: "text", text: "Write denied: this action requires a keyholder (admin) OAuth token. The static MCP token is read-only." }],
+      isError: true,
+    };
+  }
+  return runTool(label, fn);
+}
+
 /** Read-only MCP server. Exposes tools so an AI assistant can query the tracker state and
  *  propose measures. Gated behind ENABLE_MCP + a static bearer token (MCP_TOKEN); all data
  *  is for the user named in MCP_USERNAME. */
@@ -38,8 +57,9 @@ const handler = createMcpHandler(
           "Returns a read-only snapshot of the chastity-tracker state: lock status and duration, " +
           "KG wearing hours (today/week/month), active KG training goal with progress, cleaning-pause " +
           "rules (reinigung), per-category wear hours + goals for non-KG categories (Plug, Collar, …), " +
-          "open control requests, active lock periods, session statistics, recorded penalties and " +
-          "active wear sessions. Use this to reason about the user's current situation and propose measures.",
+          "open control requests, active lock periods, session statistics, recorded penalties, " +
+          "active wear sessions, and the human keyholder's free-text rules (keyholderInstructions) " +
+          "that the write tools must respect. Use this to reason about the user's situation and propose measures.",
         inputSchema: {},
       },
       () => runTool("get_overview", buildOverview),
@@ -107,6 +127,96 @@ const handler = createMcpHandler(
       },
       () => runTool("get_strafbuch", mcpStrafbuch),
     );
+
+    // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
+    // All write tools MUST respect the human keyholder's rules in get_overview.keyholderInstructions.
+    const KEYHOLDER_NOTE =
+      " Keyholder action (requires an admin OAuth token). Respect the human keyholder's rules in " +
+      "get_overview.keyholderInstructions before acting. The user is notified by e-mail + push.";
+
+    server.registerTool(
+      "request_lock",
+      {
+        title: "Request lock-up",
+        description:
+          "Asks the user to lock up within a deadline (creates a VerschlussAnforderung). Only valid " +
+          "when the user is currently open. Optionally enforce a minimum wearing duration and/or a " +
+          "specific device." + KEYHOLDER_NOTE,
+        inputSchema: {
+          deadlineHours: z.number().positive().optional().describe("Hours from now to lock up by. Use this or deadlineAt."),
+          deadlineAt: z.string().optional().describe("Absolute deadline (ISO 8601). Overrides deadlineHours."),
+          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) enforced after lock-up via an auto lock period."),
+          deviceName: z.string().optional().describe("Require a specific device by name."),
+          message: z.string().optional().describe("Message shown to the user."),
+        },
+      },
+      (args, extra) => runWriteTool("request_lock", extra, (u) => mcpRequestLock(u, args)),
+    );
+
+    server.registerTool(
+      "set_lock_period",
+      {
+        title: "Set lock period (Sperrzeit)",
+        description:
+          "Sets a lock period during which the user may not open (creates a SPERRZEIT). Only valid " +
+          "when the user is currently locked. Provide untilAt or durationHours, or set indefinite=true." + KEYHOLDER_NOTE,
+        inputSchema: {
+          untilAt: z.string().optional().describe("Lock until this absolute time (ISO 8601)."),
+          durationHours: z.number().positive().optional().describe("Lock for this many hours from now."),
+          indefinite: z.boolean().optional().describe("Lock indefinitely (no end). Overrides untilAt/durationHours."),
+          reinigungErlaubt: z.boolean().optional().describe("Allow cleaning openings without breaking the lock period."),
+          message: z.string().optional().describe("Message shown to the user."),
+        },
+      },
+      (args, extra) => runWriteTool("set_lock_period", extra, (u) => mcpSetLockPeriod(u, args)),
+    );
+
+    server.registerTool(
+      "request_inspection",
+      {
+        title: "Request inspection (Kontrolle)",
+        description:
+          "Requests a photo inspection: e-mails the user a code they must show in a photo within a " +
+          "deadline (default 4h). Only valid when the user is currently locked." + KEYHOLDER_NOTE,
+        inputSchema: {
+          deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4)."),
+          comment: z.string().optional().describe("Instruction shown to the user."),
+        },
+      },
+      (args, extra) => runWriteTool("request_inspection", extra, (u) => mcpRequestInspection(u, args)),
+    );
+
+    server.registerTool(
+      "set_training_goal",
+      {
+        title: "Set training goal (Vorgabe)",
+        description:
+          "Sets a wear-time goal (min hours per day/week/month) for KG or a named category, valid from " +
+          "now. At least one period target is required." + KEYHOLDER_NOTE,
+        inputSchema: {
+          category: z.string().optional().describe('Category name, e.g. "Plug". Omit or "KG" for the chastity device.'),
+          minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
+          minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
+          minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
+          validUntil: z.string().optional().describe("Goal end (ISO 8601). Omit for open-ended."),
+          note: z.string().optional().describe("Note shown with the goal."),
+        },
+      },
+      (args, extra) => runWriteTool("set_training_goal", extra, (u) => mcpSetTrainingGoal(u, args)),
+    );
+
+    server.registerTool(
+      "withdraw",
+      {
+        title: "Withdraw an open directive",
+        description:
+          "Withdraws the user's currently open lock request, active lock period, or open inspection." + KEYHOLDER_NOTE,
+        inputSchema: {
+          target: z.enum(["lock_request", "lock_period", "inspection"]).describe("Which open directive to withdraw."),
+        },
+      },
+      (args, extra) => runWriteTool("withdraw", extra, (u) => mcpWithdraw(u, args)),
+    );
   },
   {},
   { basePath: "/api", maxDuration: 60 },
@@ -130,13 +240,13 @@ function tokenMatches(token: string, expected: string): boolean {
 const verifyToken = async (_req: Request, token?: string) => {
   if (!token) return undefined;
 
-  // 1. OAuth access token
+  // 1. OAuth access token — carries the authorizing user's id (used to gate write tools).
   const oauthRecord = await verifyAccessToken(token);
   if (oauthRecord) {
-    return { token, scopes: oauthRecord.scopes.split(" "), clientId: oauthRecord.clientId };
+    return { token, scopes: oauthRecord.scopes.split(" "), clientId: oauthRecord.clientId, extra: { userId: oauthRecord.userId } };
   }
 
-  // 2. Static bearer token fallback
+  // 2. Static bearer token fallback — read-only (no user identity → cannot pass the keyholder check).
   const expected = process.env.MCP_TOKEN;
   if (expected && tokenMatches(token, expected)) {
     return { token, scopes: ["read"], clientId: "mcp-client" };

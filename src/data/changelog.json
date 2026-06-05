@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.19.0",
+    "date": "2026-06-05",
+    "changes": [
+      { "type": "feat", "text": "MCP-Schreibfunktionen: Der KI-Keyholder kann jetzt über den MCP Verschluss-Anforderungen und Sperrzeiten setzen, Kontrollen anfordern, Trainingsziele setzen und offene Direktiven zurückziehen — jeweils mit Mail+Push an den User, identisch zum Admin-UI. Schreiben erfordert ein Admin-OAuth-Token (statischer MCP-Token bleibt read-only). Neues Freitext-Feld „KI-Keyholder-Regeln\" in den Admin-Einstellungen (nur bei aktiviertem MCP sichtbar): der menschliche Keyholder formuliert dort die Regeln, die die KI über get_overview liest und einhält (weiche Vorgabe, nicht erzwungen — der Mensch kann jederzeit eingreifen)." },
+      { "type": "chore", "text": "Geschäftslogik für Verschluss-Anforderung, Kontrolle und Trainingsziel in geteilte Services extrahiert, die Admin-Routen und MCP gemeinsam nutzen (Single Source of Truth)." }
+    ]
+  },
+  {
     "version": "4.18.14",
     "date": "2026-06-04",
     "changes": [

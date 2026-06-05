@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "4.18.14",
+  "version": "4.19.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
