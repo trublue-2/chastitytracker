@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.19.1",
+    "date": "2026-06-05",
+    "changes": [
+      { "type": "ui", "text": "Dashboard: Die Kategorie-Trainingsvorgaben (Plug, Halsband …) ticken jetzt live mit, solange eine Session läuft — wie das KG-Ziel daneben. Vorher froren sie auf dem Wert beim Seiten-Laden ein, sodass eine laufende Session zu wenig anzeigte (z.B. „0:22\" statt „1:38\"). Die Datenquelle war bereits korrekt; nur die Anzeige aktualisierte nicht." },
+      { "type": "fix", "text": "MCP: Wird ein Schreib-Tool ohne Admin-Berechtigung aufgerufen, nennt die Fehlermeldung jetzt den konkreten Grund (z.B. „autorisiert als '[user]' (role: user) — Schreiben braucht einen Admin-Account; MCP neu verbinden und als Admin autorisieren\") statt einer generischen Ablehnung." }
+    ]
+  },
+  {
     "version": "4.19.0",
     "date": "2026-06-05",
     "changes": [

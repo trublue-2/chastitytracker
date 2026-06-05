@@ -6,6 +6,11 @@ export function formatHoursHM(h: number): string {
   return `${hrs}:${String(mins).padStart(2, "0")}h`;
 }
 
+/** formatHoursHM without the trailing "h" — for compact "x / y h" goal readouts. */
+export function formatHoursHMCompact(h: number): string {
+  return formatHoursHM(h).slice(0, -1);
+}
+
 export function formatHours(h: number, locale = "de"): string {
   const days = Math.floor(h / 24);
   const hours = Math.round(h % 24);

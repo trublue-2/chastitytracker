@@ -7,17 +7,24 @@ import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
  * MCP write tools — keyholder directives issued over the MCP. The acting authority is the
- * OAuth-authorizing admin (verified via isMcpKeyholder); the target is always MCP_USERNAME.
+ * OAuth-authorizing admin (verified via checkMcpKeyholder); the target is always MCP_USERNAME.
  * Each function reuses the same service layer as the admin UI, so behaviour + notifications match.
  */
 
-/** True when the OAuth-authorizing user id belongs to an existing admin (keyholder). Gates writes.
- *  Single-instance model: any admin may direct MCP_USERNAME (mirrors requireAdminApi's blanket-admin
- *  behaviour). USE_ADMIN_RELATIONSHIPS scoping is not applied here. */
-export async function isMcpKeyholder(userId: string | undefined): Promise<boolean> {
-  if (!userId) return false;
-  const u = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  return u?.role === "admin";
+/** Checks whether the OAuth-authorizing user may write (must be an existing admin/keyholder).
+ *  Returns a precise reason on denial so the agent can self-diagnose instead of seeing a generic
+ *  refusal. Single-instance model: any admin may direct MCP_USERNAME (mirrors requireAdminApi's
+ *  blanket-admin behaviour); USE_ADMIN_RELATIONSHIPS scoping is not applied here. */
+export async function checkMcpKeyholder(userId: string | undefined): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (!userId) {
+    return { ok: false, reason: "the token carries no user identity — the static MCP token is read-only; connect with an OAuth token authorized by an admin account" };
+  }
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { username: true, role: true } });
+  if (!u) return { ok: false, reason: "the token's user no longer exists" };
+  if (u.role !== "admin") {
+    return { ok: false, reason: `authorized as "${u.username}" (role: ${u.role}) — writing requires an admin (keyholder) account; reconnect the MCP and authorize while logged in as the admin` };
+  }
+  return { ok: true };
 }
 
 /** Resolves the configured MCP_USERNAME (the directive target) to its user id. Throws if missing. */

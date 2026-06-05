@@ -168,7 +168,7 @@ export default async function DashboardPage() {
         serverNow={now.toISOString()}
       />
       {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
-      {flagOn && <CategoryGoalsToday userId={userId} />}
+      {flagOn && <CategoryGoalsToday userId={userId} activeWearSessions={wearSessions} />}
       <InactiveCategories
         categories={allNonKgCategories
           .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))

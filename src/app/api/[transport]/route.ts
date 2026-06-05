@@ -3,7 +3,7 @@ import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch } from "@/lib/mcpOverview";
 import {
-  isMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
+  checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
 } from "@/lib/mcpWrite";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
@@ -35,11 +35,9 @@ type ToolExtra = { authInfo?: { extra?: { userId?: string } } };
 /** Wrapper for WRITE tools: enforces keyholder (admin OAuth) authorization, then delegates to
  *  runTool. The static MCP_TOKEN has no user identity and is therefore always rejected here. */
 async function runWriteTool<T>(label: string, extra: ToolExtra, fn: (username: string) => Promise<T>): Promise<ToolResult> {
-  if (!(await isMcpKeyholder(extra?.authInfo?.extra?.userId))) {
-    return {
-      content: [{ type: "text", text: "Write denied: this action requires a keyholder (admin) OAuth token. The static MCP token is read-only." }],
-      isError: true,
-    };
+  const check = await checkMcpKeyholder(extra?.authInfo?.extra?.userId);
+  if (!check.ok) {
+    return { content: [{ type: "text", text: `Write denied: ${check.reason}.` }], isError: true };
   }
   return runTool(label, fn);
 }
