@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
+import { isKeyholderOf } from "@/lib/keyholder";
 
 /** Returns a 403 NextResponse if the current session is not an admin, otherwise null. */
 export async function requireAdminApi(): Promise<NextResponse | null> {
@@ -16,6 +17,26 @@ export async function requireAdminApi(): Promise<NextResponse | null> {
 export async function assertAdmin(): Promise<void> {
   const session = await auth();
   if (!session || session.user.role !== "admin") redirect("/login");
+}
+
+/** API guard: allows a global admin OR a keyholder of `targetUserId`. Self-control is impossible
+ *  (isKeyholderOf rejects actor === target). Returns a 401/403 NextResponse on denial, else null. */
+export async function requireKeyholderOrAdminApi(targetUserId: string): Promise<NextResponse | null> {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role === "admin") return null;
+  if (await isKeyholderOf(session.user.id, targetUserId)) return null;
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+}
+
+/** Page guard: returns the session user id if admin or keyholder of `targetUserId`, else redirects. */
+export async function assertKeyholderOrAdmin(targetUserId: string): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  if (session.user.role === "admin" || (await isKeyholderOf(session.user.id, targetUserId))) {
+    return session.user.id;
+  }
+  redirect("/dashboard");
 }
 
 /** Returns a 404 NextResponse if the device-categories feature flag is off, else null.

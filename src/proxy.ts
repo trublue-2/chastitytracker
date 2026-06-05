@@ -61,6 +61,7 @@ export default auth((req) => {
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const isProtected =
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/keyholder") ||
     (pathname.startsWith("/api") && !isAuthRoute);
 
   if ((isProtected || isAdminRoute) && !isLoggedIn) {

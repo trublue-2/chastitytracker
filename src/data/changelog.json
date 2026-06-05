@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.20.0",
+    "date": "2026-06-05",
+    "changes": [
+      { "type": "feat", "text": "Keyholder-Rolle (Phase 1, Lesen): Ein normaler User kann vom Admin als Keyholder einer anderen Person definiert werden — ohne selbst Admin zu werden und nie für sich selbst. Keyholder bekommen einen eigenen Bereich /keyholder mit Lese-Panel (Statistik/Tragezeiten der kontrollierten Person) und einen Schlüssel-Link im Header. Verwaltung im Admin unter Benutzer-Einstellungen (Admins sind nicht als Keyholder zuweisbar). Direktiven (Sperrzeit, Kontrolle, Vorgabe etc.) folgen in Phase 2." }
+    ]
+  },
+  {
     "version": "4.19.1",
     "date": "2026-06-05",
     "changes": [

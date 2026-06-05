@@ -13,7 +13,7 @@ export async function GET() {
 
   const users = await prisma.user.findMany({
     orderBy: { username: "asc" },
-    select: { id: true, username: true },
+    select: { id: true, username: true, role: true },
   });
 
   // Two aggregate queries instead of one per user.
@@ -35,7 +35,7 @@ export async function GET() {
   const usersWithStatus = users.map((u) => {
     const vTime = vMap.get(u.id);
     const oTime = oMap.get(u.id);
-    return { id: u.id, username: u.username, isLocked: !!vTime && (!oTime || vTime > oTime) };
+    return { id: u.id, username: u.username, role: u.role, isLocked: !!vTime && (!oTime || vTime > oTime) };
   });
 
   return NextResponse.json(usersWithStatus);

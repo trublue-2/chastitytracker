@@ -7,6 +7,8 @@ import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AccountSection from "./AccountSection";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
+import KeyholderManager from "@/app/admin/KeyholderManager";
+import { getKeyholdersOfUser } from "@/lib/keyholder";
 import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import Card from "@/app/components/Card";
@@ -30,7 +32,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { id } = await params;
 
-  const [user, vorgaben, categories, t, tc, dl] = await Promise.all([
+  const [user, vorgaben, categories, keyholders, t, tc, dl] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id }, orderBy: { gueltigAb: "desc" } }),
     // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
@@ -39,6 +41,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       orderBy: [{ isBuiltIn: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true },
     }),
+    getKeyholdersOfUser(id),
     getTranslations("admin"),
     getTranslations("common"),
     getLocale().then(toDateLocale),
@@ -64,6 +67,16 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         </div>
         <div className="px-5 py-4">
           <RoleSelect id={user.id} currentRole={user.role} />
+        </div>
+      </Card>
+
+      {/* Keyholder dieses Subs */}
+      <Card padding="none" className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionKeyholders")}</p>
+        </div>
+        <div className="px-5 py-4">
+          <KeyholderManager subId={user.id} initial={keyholders.map((k) => ({ id: k.id, username: k.username }))} />
         </div>
       </Card>
 

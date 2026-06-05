@@ -586,6 +586,11 @@
     "roleUser": "Benutzer",
     "roleAdmin": "Administrator",
     "roleLabel": "Rolle",
+    "sectionKeyholders": "Keyholder dieses Subs",
+    "keyholdersDesc": "User, die diesen Sub kontrollieren dürfen (Keyholder). Sie sehen den Sub und können später Direktiven setzen — aber nie sich selbst kontrollieren.",
+    "keyholdersNone": "Noch keine Keyholder zugewiesen.",
+    "keyholderSelect": "User wählen …",
+    "keyholderAdd": "Hinzufügen",
     "designAdmin": "Admin-Design",
     "designUser": "Benutzer-Design",
     "usernameLabel": "Benutzername",
@@ -809,6 +814,13 @@
     "photoRequiresConnection": "Foto-Upload benötigt eine Internetverbindung.",
     "pendingEntries": "{count, plural, =1 {1 Eintrag wartet auf Synchronisierung} other {# Einträge warten auf Synchronisierung}}",
     "savedOffline": "Offline gespeichert — wird bei Verbindung synchronisiert"
+  },
+  "keyholder": {
+    "title": "Kontrollpanel",
+    "subtitle": "Personen, die du als Keyholder kontrollierst.",
+    "openPanel": "Panel öffnen",
+    "backToOwn": "Zurück zu meinem Dashboard",
+    "subHeading": "{name}"
   },
   "passkey": {
     "title": "Passkeys",

@@ -586,6 +586,11 @@
     "roleUser": "User",
     "roleAdmin": "Administrator",
     "roleLabel": "Role",
+    "sectionKeyholders": "Keyholders of this sub",
+    "keyholdersDesc": "Users allowed to control this sub (keyholders). They can see the sub and later issue directives — but never control themselves.",
+    "keyholdersNone": "No keyholders assigned yet.",
+    "keyholderSelect": "Choose user …",
+    "keyholderAdd": "Add",
     "designAdmin": "Admin theme",
     "designUser": "User theme",
     "usernameLabel": "Username",
@@ -809,6 +814,13 @@
     "photoRequiresConnection": "Photo upload requires an internet connection.",
     "pendingEntries": "{count, plural, =1 {1 entry waiting to sync} other {# entries waiting to sync}}",
     "savedOffline": "Saved offline — will sync when connected"
+  },
+  "keyholder": {
+    "title": "Control panel",
+    "subtitle": "People you control as a keyholder.",
+    "openPanel": "Open panel",
+    "backToOwn": "Back to my dashboard",
+    "subHeading": "{name}"
   },
   "passkey": {
     "title": "Passkeys",
