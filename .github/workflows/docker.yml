@@ -62,11 +62,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # :latest only on the default branch (main = stable). Feature branches get their branch
-          # name as the tag (e.g. feat-keyholder-role) so they never overwrite the stable :latest.
+          # Two rolling channels:
+          #   main (default branch) -> :latest   (stable)
+          #   any feature branch    -> :feature  (rolling feature channel; trublue pins this once)
+          # The enable guards ensure a feature build never overwrites the stable :latest.
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
+            type=raw,value=feature,enable=${{ github.ref_name != 'main' }}
             type=raw,value=v${{ env.NEW_VERSION }}
             type=sha,prefix=sha-
 
