@@ -62,8 +62,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # :latest only on the default branch (main = stable). Feature branches get their branch
+          # name as the tag (e.g. feat-keyholder-role) so they never overwrite the stable :latest.
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
             type=raw,value=v${{ env.NEW_VERSION }}
             type=sha,prefix=sha-
 
@@ -104,7 +107,6 @@ jobs:
           envs: INSTANCES_INPUT
           script: |
             INSTANCES_DIR="$HOME/instances"
-            IMAGE="ghcr.io/trublue-2/chastitytracker:latest"
 
             # Targets bestimmen
             if [ -n "$INSTANCES_INPUT" ]; then
@@ -116,9 +118,9 @@ jobs:
               done
             fi
 
-            # Image einmal pullen (statt pro Instanz)
-            echo "→ Image pullen..."
-            docker pull "$IMAGE"
+            # Jede Instanz zieht ihren EIGENEN in der docker-compose.yml gepinnten Image-Tag
+            # (z.B. :latest = stable, oder :feat-xyz für ein Feature-Image). Daher pro Instanz
+            # ein eigenes `docker compose pull` statt eines globalen Pulls.
 
             # Instanzen parallel updaten
             PIDS=()
@@ -131,6 +133,7 @@ jobs:
               (
                 echo "→ Update $INSTANCE ..."
                 cd "$DIR"
+                docker compose pull
                 docker compose up -d --force-recreate
                 echo "✓ $INSTANCE aktualisiert."
               ) &
