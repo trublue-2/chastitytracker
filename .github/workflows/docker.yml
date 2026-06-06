@@ -12,6 +12,10 @@ on:
         description: "Instanzen updaten (kommagetrennt, z.B. kunde1,kunde2). Leer = alle."
         required: false
         default: ""
+      channel:
+        description: "Ziel-Instanzen auf diesen Image-Tag umpinnen (z.B. feature, latest). Leer = bestehende Pins behalten."
+        required: false
+        default: ""
 
 env:
   REGISTRY: ghcr.io
@@ -95,18 +99,20 @@ jobs:
 
     env:
       INSTANCES_INPUT: ${{ github.event.inputs.instances }}
+      CHANNEL_INPUT: ${{ github.event.inputs.channel }}
 
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         env:
           INSTANCES_INPUT: ${{ env.INSTANCES_INPUT }}
+          CHANNEL_INPUT: ${{ env.CHANNEL_INPUT }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: INSTANCES_INPUT
+          envs: INSTANCES_INPUT,CHANNEL_INPUT
           script: |
             INSTANCES_DIR="$HOME/instances"
 
@@ -135,6 +141,17 @@ jobs:
               (
                 echo "→ Update $INSTANCE ..."
                 cd "$DIR"
+                # Optional: Instanz auf einen anderen Image-Tag umpinnen (z.B. :feature, :latest).
+                # CHANNEL_INPUT ist auf ein striktes Tag-Muster validiert (keine Shell-/sed-Injection).
+                if [ -n "$CHANNEL_INPUT" ]; then
+                  case "$CHANNEL_INPUT" in
+                    *[!A-Za-z0-9._-]*) echo "⚠ Ungültiger channel '$CHANNEL_INPUT' — übersprungen." ;;
+                    *)
+                      echo "→ Pinne $INSTANCE auf :$CHANNEL_INPUT"
+                      sed -i "s#\(ghcr.io/trublue-2/chastitytracker\):[A-Za-z0-9._-]*#\1:$CHANNEL_INPUT#" docker-compose.yml
+                      ;;
+                  esac
+                fi
                 docker compose pull
                 docker compose up -d --force-recreate
                 echo "✓ $INSTANCE aktualisiert."
