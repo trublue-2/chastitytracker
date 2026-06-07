@@ -1,20 +1,13 @@
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import { KeyRound } from "lucide-react";
-import { getTranslations } from "next-intl/server";
 import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
-import { controlsAnySub } from "@/lib/keyholder";
 import pkg from "../../package.json";
 
 export default async function Header() {
   const session = await auth();
   const user = session?.user;
   const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
-  const [controlsSubs, t] = await Promise.all([
-    user?.id ? controlsAnySub(user.id) : Promise.resolve(false),
-    getTranslations("keyholder"),
-  ]);
 
   const hostname = process.env.NEXTAUTH_URL
     ? (() => { try { return new URL(process.env.NEXTAUTH_URL!).hostname; } catch { return null; } })()
@@ -36,15 +29,6 @@ export default async function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {user && controlsSubs && (
-            <Link
-              href="/admin"
-              aria-label={t("title")}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-header-text/80 hover:bg-header-text/10 transition"
-            >
-              <KeyRound size={18} strokeWidth={1.75} />
-            </Link>
-          )}
           {user && feedbackEnabled && <FeedbackButton />}
           {user && (
             <AvatarMenu

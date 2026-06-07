@@ -16,6 +16,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await auth();
   const user = session?.user;
   const userId = user?.id;
+  // controlsSubs is cached on the JWT (auth.ts) — same source the proxy uses to gate /admin,
+  // so the keyholder nav entry appears exactly when access actually works. No extra DB query.
+  const isKeyholder = (user as { controlsSubs?: boolean } | undefined)?.controlsSubs ?? false;
 
   const flagOn = deviceCategoriesEnabled();
   const [isLocked, categories, activeWear] = await Promise.all([
@@ -45,6 +48,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Header />
       <DesktopSidebar
         isAdmin={user?.role === "admin"}
+        isKeyholder={isKeyholder}
         isLocked={isLocked}
         version={pkg.version}
         categoryRows={categoryRows}
@@ -60,6 +64,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       <DashboardBottomNav
         isAdmin={user?.role === "admin"}
+        isKeyholder={isKeyholder}
         isLocked={isLocked}
         version={pkg.version}
         categoryRows={categoryRows}

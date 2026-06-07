@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.21.1",
+    "date": "2026-06-07",
+    "changes": [
+      { "type": "fix", "text": "Keyholder: Beim Öffnen eines kontrollierten Subs erschien „Diese Seite konnte nicht geladen werden\" — ein React-Hooks-Fehler im Admin-Schnellmenü (FAB) crashte die Detailseiten für Keyholder. Behoben." },
+      { "type": "ui", "text": "Keyholder-Einstieg vom Header in die untere Navigationsleiste verschoben (dort, wo Admins den Admin-Button haben) — als Schlüssel-Tab, der nur für Keyholder erscheint." }
+    ]
+  },
+  {
     "version": "4.21.0",
     "date": "2026-06-07",
     "changes": [

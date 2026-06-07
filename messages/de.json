@@ -112,6 +112,7 @@
     "new": "Neu",
     "settings": "Einstellungen",
     "admin": "Admin",
+    "keyholder": "Keyholder",
     "signOut": "Abmelden",
     "signOutConfirm": "Wirklich abmelden?",
     "build": "Build",
@@ -814,9 +815,6 @@
     "photoRequiresConnection": "Foto-Upload benötigt eine Internetverbindung.",
     "pendingEntries": "{count, plural, =1 {1 Eintrag wartet auf Synchronisierung} other {# Einträge warten auf Synchronisierung}}",
     "savedOffline": "Offline gespeichert — wird bei Verbindung synchronisiert"
-  },
-  "keyholder": {
-    "title": "Kontrollpanel"
   },
   "passkey": {
     "title": "Passkeys",

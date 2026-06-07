@@ -112,6 +112,7 @@
     "new": "New",
     "settings": "Settings",
     "admin": "Admin",
+    "keyholder": "Keyholder",
     "signOut": "Sign out",
     "signOutConfirm": "Really sign out?",
     "build": "Build",
@@ -814,9 +815,6 @@
     "photoRequiresConnection": "Photo upload requires an internet connection.",
     "pendingEntries": "{count, plural, =1 {1 entry waiting to sync} other {# entries waiting to sync}}",
     "savedOffline": "Saved offline — will sync when connected"
-  },
-  "keyholder": {
-    "title": "Control panel"
   },
   "passkey": {
     "title": "Passkeys",

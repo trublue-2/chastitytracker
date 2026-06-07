@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Plus, BarChart2, ShieldCheck } from "lucide-react";
+import { Home, ClipboardList, Plus, BarChart2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
+import { adminNavEntry } from "@/lib/adminNavEntry";
 import { hapticLight } from "@/lib/haptics";
 
 interface BottomNavProps {
   isAdmin?: boolean;
+  isKeyholder?: boolean;
   isLocked?: boolean;
   onNewEntry?: () => void;
   version?: string;
 }
 
-export default function BottomNav({ isAdmin, onNewEntry, version }: BottomNavProps) {
+export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }: BottomNavProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
@@ -24,9 +26,7 @@ export default function BottomNav({ isAdmin, onNewEntry, version }: BottomNavPro
     { href: "/dashboard/eintraege", icon: ClipboardList, label: t("entries"), exact: false },
     { href: "#new", icon: Plus, label: t("new"), action: true },
     { href: "/dashboard/stats", icon: BarChart2, label: t("stats"), exact: false },
-    ...(isAdmin
-      ? [{ href: "/admin", icon: ShieldCheck, label: t("admin"), exact: false }]
-      : []),
+    ...adminNavEntry({ isAdmin, isKeyholder, adminLabel: t("admin"), keyholderLabel: t("keyholder") }),
   ];
 
   return (

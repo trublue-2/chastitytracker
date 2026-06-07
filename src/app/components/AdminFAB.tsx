@@ -29,11 +29,6 @@ export default function AdminFAB({ isGlobalAdmin }: Props) {
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
 
-  // Without a user context the FAB opens a create picker fetching ALL users
-  // (instance-level affordance). Keyholders only get the FAB on a user-detail
-  // path, where it routes to that user's /aktionen.
-  if (!isGlobalAdmin && !userIdFromPath) return null;
-
   const handleOpen = useCallback(async () => {
     if (userIdFromPath) {
       router.push(`/admin/users/${userIdFromPath}/aktionen`);
@@ -48,6 +43,13 @@ export default function AdminFAB({ isGlobalAdmin }: Props) {
     setLoading(false);
     setOpen(true);
   }, [userIdFromPath, userList, router]);
+
+  // Without a user context the FAB opens a create picker fetching ALL users
+  // (instance-level affordance). Keyholders only get the FAB on a user-detail
+  // path, where it routes to that user's /aktionen.
+  // NOTE: keep this AFTER all hooks — an early return above a hook changes the
+  // hook count between renders (landing ↔ detail) and crashes React.
+  if (!isGlobalAdmin && !userIdFromPath) return null;
 
   return (
     <>

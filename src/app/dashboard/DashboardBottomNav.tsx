@@ -6,18 +6,20 @@ import NewEntrySheet, { type NewEntryCategoryRow } from "@/app/components/NewEnt
 
 interface Props {
   isAdmin?: boolean;
+  isKeyholder?: boolean;
   isLocked: boolean;
   version?: string;
   categoryRows?: NewEntryCategoryRow[];
 }
 
-export default function DashboardBottomNav({ isAdmin, isLocked, version, categoryRows }: Props) {
+export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
     <>
       <BottomNav
         isAdmin={isAdmin}
+        isKeyholder={isKeyholder}
         isLocked={isLocked}
         onNewEntry={() => setSheetOpen(true)}
         version={version}

@@ -4,22 +4,24 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, ClipboardList, BarChart2, Plus, ShieldCheck, LogOut,
+  Home, ClipboardList, BarChart2, Plus, LogOut,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 import NewEntrySheet, { type NewEntryCategoryRow } from "./NewEntrySheet";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
+import { adminNavEntry } from "@/lib/adminNavEntry";
 
 interface Props {
   isAdmin?: boolean;
+  isKeyholder?: boolean;
   isLocked: boolean;
   version: string;
   categoryRows?: NewEntryCategoryRow[];
 }
 
-export default function DesktopSidebar({ isAdmin, isLocked, version, categoryRows }: Props) {
+export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version, categoryRows }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -28,7 +30,7 @@ export default function DesktopSidebar({ isAdmin, isLocked, version, categoryRow
     { href: "/dashboard", icon: Home, label: t("overview"), exact: true },
     { href: "/dashboard/eintraege", icon: ClipboardList, label: t("entries"), exact: false },
     { href: "/dashboard/stats", icon: BarChart2, label: t("stats"), exact: false },
-    ...(isAdmin ? [{ href: "/admin", icon: ShieldCheck, label: t("admin"), exact: false }] : []),
+    ...adminNavEntry({ isAdmin, isKeyholder, adminLabel: t("admin"), keyholderLabel: t("keyholder") }),
   ];
 
   return (
