@@ -120,23 +120,43 @@ export interface SetTrainingGoalArgs {
   minPerDayHours?: number;
   minPerWeekHours?: number;
   minPerMonthHours?: number;
+  validFrom?: string;
   validUntil?: string;
   note?: string;
 }
+
+/** Parses an ISO date arg, throwing a clean tool error on garbage. */
+function parseGoalDate(value: string, field: string): Date {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Invalid ${field} date: "${value}". Use ISO 8601, e.g. 2026-06-12.`);
+  }
+  return d;
+}
+
 export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
   const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
+
+  // Default to now; validFrom may be a future date to schedule a goal in advance.
+  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : new Date();
+  const gueltigBis = args.validUntil ? parseGoalDate(args.validUntil, "validUntil") : null;
+  if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
+    throw new Error("validUntil must be after validFrom.");
+  }
+
   const data = unwrap(await createVorgabe({
     userId,
     categoryId,
-    gueltigAb: new Date(),
-    gueltigBis: args.validUntil,
+    gueltigAb,
+    gueltigBis,
     minProTagH: args.minPerDayHours,
     minProWocheH: args.minPerWeekHours,
     minProMonatH: args.minPerMonthHours,
     notiz: args.note,
   }));
-  return { ok: true, id: data.id, message: "Training goal set." };
+  const when = args.validFrom ? `scheduled from ${gueltigAb.toISOString().slice(0, 10)}` : "active now";
+  return { ok: true, id: data.id, message: `Training goal set (${when}).` };
 }
 
 export interface WithdrawArgs {

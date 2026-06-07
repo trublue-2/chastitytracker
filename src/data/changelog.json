@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.21.2",
+    "date": "2026-06-07",
+    "changes": [
+      { "type": "feat", "text": "MCP set_training_goal: neuer Parameter validFrom (ISO-Datum) — Trainingsziele können jetzt mit zukünftigem Startdatum geplant werden (z.B. ein Wochenziel vordatiert auf den 12.6.). Ziele werden pro Kategorie nach Startdatum verkettet; ein vordatiertes Ziel beendet das laufende automatisch zu diesem Datum. validUntil muss nach validFrom liegen." }
+    ]
+  },
+  {
     "version": "4.21.1",
     "date": "2026-06-07",
     "changes": [

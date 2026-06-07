@@ -189,14 +189,17 @@ const handler = createMcpHandler(
       {
         title: "Set training goal (Vorgabe)",
         description:
-          "Sets a wear-time goal (min hours per day/week/month) for KG or a named category, valid from " +
-          "now. At least one period target is required." + KEYHOLDER_NOTE,
+          "Sets a wear-time goal (min hours per day/week/month) for KG or a named category. Starts now by " +
+          "default, or schedule a future start via validFrom. Goals are chained per category by start date, " +
+          "so a future-dated goal automatically ends the current one at that date. At least one period target " +
+          "is required." + KEYHOLDER_NOTE,
         inputSchema: {
           category: z.string().optional().describe('Category name, e.g. "Plug". Omit or "KG" for the chastity device.'),
           minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
           minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
           minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
-          validUntil: z.string().optional().describe("Goal end (ISO 8601). Omit for open-ended."),
+          validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start now. May be a future date to schedule a goal in advance."),
+          validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),
         },
       },
