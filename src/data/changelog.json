@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.21.0",
+    "date": "2026-06-07",
+    "changes": [
+      { "type": "feat", "text": "Keyholder = gescopeder Admin: Ein als Keyholder definierter User bekommt jetzt das vollständige Admin-Interface — aber nur für seine zugewiesenen Subs (Übersicht, Aktionen, Einträge, Kontrollen, Statistik, Strafbuch, Geräte, Einstellungen inkl. Passwort/E-Mail). Der separate /keyholder-Bereich entfällt; der Schlüssel-Link führt ins gescopte /admin." },
+      { "type": "security", "text": "Strikte Scoping-Grenzen für Keyholder: niemals Aktionen auf sich selbst; Rolle ändern, User anlegen/löschen, Demo, Keyholder-Zuweisung und die instanzweite Benutzer-/Kontrollen-Liste bleiben dem globalen Admin vorbehalten. Jede Admin-Route prüft den Ziel-User über einen zentralen Guard (admin ODER Keyholder-des-Ziels); der Proxy lässt Keyholder chirurgisch nur in /admin, /admin/users/<id> und /api/admin." }
+    ]
+  },
+  {
     "version": "4.20.0",
     "date": "2026-06-05",
     "changes": [

@@ -816,11 +816,7 @@
     "savedOffline": "Offline gespeichert — wird bei Verbindung synchronisiert"
   },
   "keyholder": {
-    "title": "Kontrollpanel",
-    "subtitle": "Personen, die du als Keyholder kontrollierst.",
-    "openPanel": "Panel öffnen",
-    "backToOwn": "Zurück zu meinem Dashboard",
-    "subHeading": "{name}"
+    "title": "Kontrollpanel"
   },
   "passkey": {
     "title": "Passkeys",

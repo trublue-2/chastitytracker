@@ -1,5 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import { getControlledSubs } from "@/lib/keyholder";
 import Link from "next/link";
 
 import KontrolleButton from "./KontrolleButton";
@@ -19,19 +21,31 @@ import { getActiveSperrzeiten } from "@/lib/queries";
 export default async function AdminPage() {
   const session = await auth();
   const currentUserId = session?.user?.id;
+  const isGlobalAdmin = session?.user?.role === "admin";
   const t = await getTranslations("admin");
   const dl = toDateLocale(await getLocale());
 
-  // Feature flag: when USE_ADMIN_RELATIONSHIPS=true, admins only see their assigned users.
-  const useRelationships = process.env.USE_ADMIN_RELATIONSHIPS === "true";
-  let users = await prisma.user.findMany({
-    orderBy: { createdAt: "asc" },
-    select: { id: true, username: true, role: true, email: true, createdAt: true },
-  });
-  if (useRelationships && currentUserId) {
-    const rels = await prisma.adminUserRelationship.findMany({ where: { adminId: currentUserId } });
-    const assignedIds = new Set(rels.map(r => r.userId));
-    users = users.filter(u => u.role === "admin" || assignedIds.has(u.id));
+  const userSelect = { id: true, username: true, role: true, email: true, createdAt: true };
+
+  let users;
+  if (isGlobalAdmin) {
+    // Feature flag: when USE_ADMIN_RELATIONSHIPS=true, admins only see their assigned users.
+    const useRelationships = process.env.USE_ADMIN_RELATIONSHIPS === "true";
+    users = await prisma.user.findMany({ orderBy: { createdAt: "asc" }, select: userSelect });
+    if (useRelationships && currentUserId) {
+      const rels = await prisma.adminUserRelationship.findMany({ where: { adminId: currentUserId } });
+      const assignedIds = new Set(rels.map(r => r.userId));
+      users = users.filter(u => u.role === "admin" || assignedIds.has(u.id));
+    }
+  } else {
+    // Keyholder: only render the subs they control.
+    const subs = currentUserId ? await getControlledSubs(currentUserId) : [];
+    if (subs.length === 0) redirect("/dashboard");
+    users = await prisma.user.findMany({
+      where: { id: { in: subs.map(s => s.id) } },
+      orderBy: { createdAt: "asc" },
+      select: userSelect,
+    });
   }
   const userIds = users.map(u => u.id);
   const now = new Date();
@@ -120,7 +134,7 @@ export default async function AdminPage() {
             icon={<Users size={36} />}
             title={t("noUsers")}
             description={t("noUsersDesc")}
-            action={{ label: t("newUser"), href: "/admin/users/new" }}
+            action={isGlobalAdmin ? { label: t("newUser"), href: "/admin/users/new" } : undefined}
           />
         </Card>
       ) : (
@@ -232,13 +246,15 @@ export default async function AdminPage() {
         </div>
       )}
 
-      <div className="mt-4">
-        <Link href="/admin/users/new">
-          <Button variant="secondary" icon={<UserPlus size={15} strokeWidth={2} />} fullWidth>
-            {t("newUser")}
-          </Button>
-        </Link>
-      </div>
+      {isGlobalAdmin && (
+        <div className="mt-4">
+          <Link href="/admin/users/new">
+            <Button variant="secondary" icon={<UserPlus size={15} strokeWidth={2} />} fullWidth>
+              {t("newUser")}
+            </Button>
+          </Link>
+        </div>
+      )}
     </main>
   );
 }

@@ -1,10 +1,12 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { assertAdmin } from "@/lib/authGuards";
 import { formatBuildDate } from "@/lib/utils";
 import AdminSettingsForm from "./AdminSettingsForm";
 import pkg from "../../../../package.json";
 
 export default async function AdminSettingsPage() {
+  await assertAdmin();
   const session = await auth();
   if (!session?.user) return null;
 

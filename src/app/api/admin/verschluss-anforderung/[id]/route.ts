@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const err = await requireAdminApi();
+  const { id } = await params;
+
+  const va = await prisma.verschlussAnforderung.findUnique({
+    where: { id },
+    select: { userId: true },
+  });
+  if (!va) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
+  const err = await requireKeyholderOrAdminApi(va.userId);
   if (err) return err;
 
-  const { id } = await params;
   const { action } = await req.json();
 
   if (action === "withdraw") {

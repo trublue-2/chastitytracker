@@ -212,6 +212,7 @@ export function UserContextBarDemo() {
         currentStatus="VERSCHLUSS"
         since={new Date(Date.now() - 3 * 24 * 3600_000).toISOString()}
         users={MOCK_USERS}
+        isGlobalAdmin={true}
       />
     </div>
   );

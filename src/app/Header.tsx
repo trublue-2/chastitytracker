@@ -38,7 +38,7 @@ export default async function Header() {
         <div className="flex items-center gap-2">
           {user && controlsSubs && (
             <Link
-              href="/keyholder"
+              href="/admin"
               aria-label={t("title")}
               className="w-8 h-8 rounded-full flex items-center justify-center text-header-text/80 hover:bg-header-text/10 transition"
             >

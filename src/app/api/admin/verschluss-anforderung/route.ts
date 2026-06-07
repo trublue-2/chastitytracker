@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { createVerschlussAnforderung } from "@/lib/verschlussAnforderungService";
 
 export async function POST(req: NextRequest) {
   try {
-    const err = await requireAdminApi();
+    const body = await req.json();
+
+    const err = await requireKeyholderOrAdminApi(body.userId);
     if (err) return err;
 
-    const result = await createVerschlussAnforderung(await req.json());
+    const result = await createVerschlussAnforderung(body);
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
     return NextResponse.json({ ok: true, id: result.data.id });
   } catch (err) {

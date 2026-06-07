@@ -816,11 +816,7 @@
     "savedOffline": "Saved offline — will sync when connected"
   },
   "keyholder": {
-    "title": "Control panel",
-    "subtitle": "People you control as a keyholder.",
-    "openPanel": "Open panel",
-    "backToOwn": "Back to my dashboard",
-    "subHeading": "{name}"
+    "title": "Control panel"
   },
   "passkey": {
     "title": "Passkeys",

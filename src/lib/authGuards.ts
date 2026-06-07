@@ -29,12 +29,15 @@ export async function requireKeyholderOrAdminApi(targetUserId: string): Promise<
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
-/** Page guard: returns the session user id if admin or keyholder of `targetUserId`, else redirects. */
-export async function assertKeyholderOrAdmin(targetUserId: string): Promise<string> {
+/** Page guard: returns the actor's id + whether they are a global admin if they are admin or
+ *  keyholder of `targetUserId`, else redirects. Returning isGlobalAdmin lets callers gate
+ *  admin-only UI without a second `auth()` call. */
+export async function assertKeyholderOrAdmin(targetUserId: string): Promise<{ userId: string; isGlobalAdmin: boolean }> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  if (session.user.role === "admin" || (await isKeyholderOf(session.user.id, targetUserId))) {
-    return session.user.id;
+  const isGlobalAdmin = session.user.role === "admin";
+  if (isGlobalAdmin || (await isKeyholderOf(session.user.id, targetUserId))) {
+    return { userId: session.user.id, isGlobalAdmin };
   }
   redirect("/dashboard");
 }

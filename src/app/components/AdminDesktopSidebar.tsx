@@ -18,9 +18,10 @@ interface UserListItem {
 
 interface Props {
   version: string;
+  isGlobalAdmin: boolean;
 }
 
-export default function AdminDesktopSidebar({ version }: Props) {
+export default function AdminDesktopSidebar({ version, isGlobalAdmin }: Props) {
   const t = useTranslations("adminNav");
   const tAdmin = useTranslations("admin");
   const pathname = usePathname();
@@ -32,11 +33,16 @@ export default function AdminDesktopSidebar({ version }: Props) {
 
   const navItems = [
     { href: "/admin", icon: LayoutDashboard, label: t("overview"), exact: true },
-    { href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false },
+    ...(isGlobalAdmin ? [{ href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false }] : []),
     { href: "/dashboard", icon: Users, label: t("users"), exact: true },
   ];
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
+
+  // The "Neu" button without a user context opens a create picker fetching ALL users
+  // (instance-level affordance). Keyholders only see "Neu" on a user-detail path,
+  // where it routes to that user's /aktionen.
+  const showNeu = isGlobalAdmin || userIdFromPath !== null;
 
   const handleNeu = useCallback(async () => {
     if (userIdFromPath) {
@@ -75,14 +81,16 @@ export default function AdminDesktopSidebar({ version }: Props) {
 
       <aside className="hidden lg:flex fixed left-0 top-14 bottom-0 w-64 bg-nav-bg border-r border-nav-border flex-col z-20">
         <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">
-          <button
-            onClick={handleNeu}
-            disabled={loading}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-nav-inactive-text hover:bg-surface-raised hover:text-nav-inactive-hover w-full text-left disabled:opacity-50 mb-1"
-          >
-            {loading ? <Spinner size="sm" /> : <Plus size={18} strokeWidth={1.75} />}
-            {t("new")}
-          </button>
+          {showNeu && (
+            <button
+              onClick={handleNeu}
+              disabled={loading}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-nav-inactive-text hover:bg-surface-raised hover:text-nav-inactive-hover w-full text-left disabled:opacity-50 mb-1"
+            >
+              {loading ? <Spinner size="sm" /> : <Plus size={18} strokeWidth={1.75} />}
+              {t("new")}
+            </button>
+          )}
           {navItems.map((item) => {
             const active = item.exact
               ? pathname === item.href

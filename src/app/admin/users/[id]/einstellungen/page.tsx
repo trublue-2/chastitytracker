@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AccountSection from "./AccountSection";
@@ -27,10 +26,9 @@ function toDateInput(d: Date): string {
 }
 
 export default async function EinstellungenPage({ params }: { params: Promise<{ id: string }> }) {
-  await assertAdmin();
-  const session = await auth();
-
   const { id } = await params;
+
+  const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
 
   const [user, vorgaben, categories, keyholders, t, tc, dl] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
@@ -57,28 +55,32 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         username={user.username}
         email={user.email}
         role={user.role}
-        isSelf={session?.user?.id === user.id}
+        isSelf={actorId === user.id}
       />
 
       {/* Rolle */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("roleLabel")}</p>
-        </div>
-        <div className="px-5 py-4">
-          <RoleSelect id={user.id} currentRole={user.role} />
-        </div>
-      </Card>
+      {isGlobalAdmin && (
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("roleLabel")}</p>
+          </div>
+          <div className="px-5 py-4">
+            <RoleSelect id={user.id} currentRole={user.role} />
+          </div>
+        </Card>
+      )}
 
       {/* Keyholder dieses Subs */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionKeyholders")}</p>
-        </div>
-        <div className="px-5 py-4">
-          <KeyholderManager subId={user.id} initial={keyholders.map((k) => ({ id: k.id, username: k.username }))} />
-        </div>
-      </Card>
+      {isGlobalAdmin && (
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-border-subtle">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionKeyholders")}</p>
+          </div>
+          <div className="px-5 py-4">
+            <KeyholderManager subId={user.id} initial={keyholders.map((k) => ({ id: k.id, username: k.username }))} />
+          </div>
+        </Card>
+      )}
 
       {/* Reinigung */}
       <Card padding="none" className="overflow-hidden">
@@ -193,10 +195,12 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </Card>
 
       {/* Gefahrenbereich */}
-      <Card>
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("sectionDanger")}</p>
-        <DeleteUserButton id={user.id} username={user.username} isSelf={session?.user?.id === user.id} />
-      </Card>
+      {isGlobalAdmin && (
+        <Card>
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("sectionDanger")}</p>
+          <DeleteUserButton id={user.id} username={user.username} isSelf={actorId === user.id} />
+        </Card>
+      )}
     </div>
   );
 }

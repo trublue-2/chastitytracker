@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import Link from "next/link";
 import EntryRow from "@/app/components/EntryRow";
 import EntryActions from "@/app/dashboard/EntryActions";
@@ -17,9 +17,8 @@ export default async function AdminUserEintraegePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ page?: string }>;
 }) {
-  await assertAdmin();
-
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
   const { page: pageStr } = await searchParams;
   const page = Math.max(0, parseInt(pageStr ?? "0", 10) || 0);
 

@@ -48,7 +48,7 @@ export default auth((req) => {
   }
 
   const { pathname } = req.nextUrl;
-  const user = req.auth?.user as { id?: string | null; role?: string } | undefined;
+  const user = req.auth?.user as { id?: string | null; role?: string; controlsSubs?: boolean } | undefined;
   const isLoggedIn = !!req.auth && !!user?.id;
   const role = user?.role;
 
@@ -61,7 +61,6 @@ export default auth((req) => {
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const isProtected =
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/keyholder") ||
     (pathname.startsWith("/api") && !isAuthRoute);
 
   if ((isProtected || isAdminRoute) && !isLoggedIn) {
@@ -71,7 +70,19 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (isAdminRoute && role !== "admin") {
+  // Keyholders (controlsSubs, non-admin) get a surgical allowance into /admin:
+  // (a) any /api/admin/* route (each route self-guards via requireKeyholderOrAdminApi;
+  //     instance-level routes keep requireAdminApi), (b) the bare /admin landing,
+  // (c) per-user detail pages (/admin/users/<cuid>/...). Everything else stays admin-only.
+  // Consumed only inside `if (isAdminRoute && role !== "admin" && !keyholderAllowed)`,
+  // which already guarantees role !== "admin" — so no need to re-check it here.
+  const keyholderAllowed =
+    user?.controlsSubs === true &&
+    (pathname.startsWith("/api/admin/") ||
+      pathname === "/admin" ||
+      /^\/admin\/users\/[a-z0-9]{20,}(?:\/.*)?$/.test(pathname));
+
+  if (isAdminRoute && role !== "admin" && !keyholderAllowed) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

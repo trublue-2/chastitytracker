@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Lock, LockOpen, ClipboardCheck, Droplets, Bell, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -10,13 +10,12 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
-  await assertAdmin();
+  const { id } = await params;
+  await assertKeyholderOrAdmin(id);
   const [t, tw] = await Promise.all([
     getTranslations("admin"),
     getTranslations("wearForm"),
   ]);
-
-  const { id } = await params;
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");

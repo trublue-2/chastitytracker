@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { assertAdmin } from "@/lib/authGuards";
 import { toDateLocale } from "@/lib/utils";
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
@@ -14,7 +14,7 @@ export default async function AdminKontrollenPage({
 }: {
   searchParams: Promise<{ userId?: string }>;
 }) {
-  await auth();
+  await assertAdmin();
   const { userId } = await searchParams;
   const [t, tc] = await Promise.all([getTranslations("admin"), getTranslations("common")]);
   const dl = toDateLocale(await getLocale());

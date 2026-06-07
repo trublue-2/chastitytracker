@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getUserDeviceOptions, getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import VerschlussAnforderungForm from "./VerschlussAnforderungForm";
 
 export default async function AdminVerschlussAnforderungPage({ params }: { params: Promise<{ id: string }> }) {
-  await assertAdmin();
-
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");

@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { toDateLocale } from "@/lib/utils";
@@ -14,6 +15,7 @@ import { buildKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
   const [ta, dl] = [await getTranslations("admin"), toDateLocale(await getLocale())];
   const now = new Date();
 

@@ -13,7 +13,11 @@ interface UserListItem {
   isLocked: boolean;
 }
 
-export default function AdminFAB() {
+interface Props {
+  isGlobalAdmin: boolean;
+}
+
+export default function AdminFAB({ isGlobalAdmin }: Props) {
   const t = useTranslations("adminNav");
   const tAdmin = useTranslations("admin");
   const router = useRouter();
@@ -24,6 +28,11 @@ export default function AdminFAB() {
   const [loading, setLoading] = useState(false);
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
+
+  // Without a user context the FAB opens a create picker fetching ALL users
+  // (instance-level affordance). Keyholders only get the FAB on a user-detail
+  // path, where it routes to that user's /aktionen.
+  if (!isGlobalAdmin && !userIdFromPath) return null;
 
   const handleOpen = useCallback(async () => {
     if (userIdFromPath) {

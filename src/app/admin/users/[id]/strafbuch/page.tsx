@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { toDateLocale, formatDateTime, formatDate } from "@/lib/utils";
@@ -9,6 +10,7 @@ import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type Str
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
   const [t, dl] = [await getTranslations("admin"), toDateLocale(await getLocale())];
   const now = new Date();
 

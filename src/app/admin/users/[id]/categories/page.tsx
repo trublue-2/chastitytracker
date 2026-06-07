@@ -1,4 +1,4 @@
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
@@ -7,8 +7,8 @@ import CategoriesClient from "@/app/dashboard/categories/CategoriesClient";
 
 export default async function AdminCategoriesPage({ params }: { params: Promise<{ id: string }> }) {
   if (!deviceCategoriesEnabled()) notFound();
-  await assertAdmin();
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
   const now = new Date();
   const wocheStart = getWeekStart(now);
 

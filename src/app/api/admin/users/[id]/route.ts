@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requireAdminApi } from "@/lib/authGuards";
+import { requireAdminApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, validatePassword } from "@/lib/constants";
 import { getActiveSperrzeit } from "@/lib/queries";
@@ -11,10 +11,10 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const { id } = await params;
+
+  const err = await requireKeyholderOrAdminApi(id);
+  if (err) return err;
 
   const [user, latestLockEntry, offeneAnforderung, activeSperrzeit] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
@@ -44,11 +44,14 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const { id } = await params;
   const body = await req.json();
+
+  const err =
+    body.role !== undefined
+      ? await requireAdminApi()
+      : await requireKeyholderOrAdminApi(id);
+  if (err) return err;
 
   if (body.password !== undefined) {
     const pwErr = validatePassword(body.password);

@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getActiveSperrzeit } from "@/lib/queries";
 import SperrdauerEditForm from "./SperrdauerEditForm";
 
 export default async function AdminSperrdauerEditPage({ params }: { params: Promise<{ id: string }> }) {
-  await assertAdmin();
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
 
   const [user, activeSperrzeit] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { id: true } }),

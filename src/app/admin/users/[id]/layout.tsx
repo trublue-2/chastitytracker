@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { getControlledSubs } from "@/lib/keyholder";
 import UserContextBar from "./UserContextBar";
 import UserSubNav from "./UserSubNav";
 
@@ -11,10 +13,18 @@ export default async function AdminUserLayout({
 }) {
   const { id } = await params;
 
+  // Single guard for every per-user tab: global admin OR keyholder-of-id.
+  const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
+
+  // Switch list: global admin sees all users; a keyholder sees only their controlled subs.
+  const usersForSwitcher = isGlobalAdmin
+    ? prisma.user.findMany({ orderBy: { username: "asc" }, select: { id: true, username: true } })
+    : getControlledSubs(actorId);
+
   // Parallelize all queries — select only needed fields for user-switcher
   const [user, allUsers, latestLockEntry] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { id: true, username: true } }),
-    prisma.user.findMany({ orderBy: { username: "asc" }, select: { id: true, username: true } }),
+    usersForSwitcher,
     prisma.entry.findFirst({
       where: { userId: id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
       orderBy: { startTime: "desc" },
@@ -52,6 +62,7 @@ export default async function AdminUserLayout({
         currentStatus={currentStatus}
         since={latestLockEntry?.type === "VERSCHLUSS" ? latestLockEntry.startTime.toISOString() : null}
         users={userLockStatuses}
+        isGlobalAdmin={isGlobalAdmin}
       />
       <UserSubNav userId={id} />
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">

@@ -9,20 +9,21 @@ import pkg from "../../../package.json";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const user = session?.user;
+  const isGlobalAdmin = user?.role === "admin";
 
   return (
     <div id="admin-root" data-theme="admin" className="min-h-screen bg-background text-foreground">
       <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("admin") }} />
       <ThemeApplicator role="admin" />
       <AdminHeader username={user?.name ?? ""} />
-      <AdminDesktopSidebar version={pkg.version} />
+      <AdminDesktopSidebar version={pkg.version} isGlobalAdmin={isGlobalAdmin} />
 
       {/* Content */}
       <div className="lg:ml-64 min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
         {children}
       </div>
 
-      <AdminBottomNav version={pkg.version} />
+      <AdminBottomNav version={pkg.version} isGlobalAdmin={isGlobalAdmin} />
     </div>
   );
 }

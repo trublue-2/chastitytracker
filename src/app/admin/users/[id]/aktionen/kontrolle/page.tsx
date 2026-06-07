@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked } from "@/lib/queries";
 import KontrolleForm from "./KontrolleForm";
 
 export default async function AdminKontrollePage({ params }: { params: Promise<{ id: string }> }) {
-  await assertAdmin();
-
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
 
   const [user, isLocked] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),

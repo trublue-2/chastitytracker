@@ -1,18 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 
 export async function POST(req: Request) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const body = await req.json();
   const { userId, offenseType, refId, bestraftDatum, notiz } = body;
 
   if (!userId || !offenseType || !refId || !bestraftDatum) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  const err = await requireKeyholderOrAdminApi(userId);
+  if (err) return err;
   if (!["KONTROLLANFORDERUNG", "OEFFNEN_ENTRY", "VERSCHLUSS_ANFORDERUNG", "FALSCHES_GERAET"].includes(offenseType)) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
@@ -50,14 +50,14 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const { refId } = await req.json();
   if (!refId) return NextResponse.json({ error: "Missing refId" }, { status: 400 });
 
   const record = await prisma.strafeRecord.findUnique({ where: { refId } });
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const err = await requireKeyholderOrAdminApi(record.userId);
+  if (err) return err;
 
   await prisma.strafeRecord.delete({ where: { refId } });
   return NextResponse.json({ ok: true });

@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getActiveWearSessionForCategory } from "@/lib/queries";
@@ -15,8 +15,8 @@ export default async function AdminWearBeginPage({
   searchParams: Promise<{ category?: string }>;
 }) {
   if (!deviceCategoriesEnabled()) notFound();
-  await assertAdmin();
   const { id: userId } = await params;
+  await assertKeyholderOrAdmin(userId);
   const { category: categoryId } = await searchParams;
   if (!categoryId) redirect(`/admin/users/${userId}/aktionen`);
 

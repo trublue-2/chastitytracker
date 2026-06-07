@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
-import { requireAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const { id } = await params;
   const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
   if (!ka) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const err = await requireKeyholderOrAdminApi(ka.userId);
+  if (err) return err;
   if (!ka.withdrawnAt) return NextResponse.json({ error: "Nur zurückgezogene Kontrollen können gelöscht werden" }, { status: 400 });
 
   await prisma.kontrollAnforderung.delete({ where: { id } });
@@ -23,14 +22,13 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const { id } = await params;
   const { action } = await req.json();
 
   const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
   if (!ka) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const err = await requireKeyholderOrAdminApi(ka.userId);
+  if (err) return err;
 
   if (action === "withdraw") {
     if (ka.withdrawnAt) return NextResponse.json({ error: "Bereits zurückgezogen" }, { status: 400 });

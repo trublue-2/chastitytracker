@@ -20,9 +20,10 @@ interface Props {
   currentStatus: "VERSCHLUSS" | "OEFFNEN" | null;
   since: string | null; // ISO string
   users: UserEntry[];
+  isGlobalAdmin: boolean;
 }
 
-export default function UserContextBar({ userId, username, currentStatus, since, users }: Props) {
+export default function UserContextBar({ userId, username, currentStatus, since, users, isGlobalAdmin }: Props) {
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -39,15 +40,19 @@ export default function UserContextBar({ userId, username, currentStatus, since,
     <>
       {/* Context bar */}
       <div className="sticky z-20 bg-surface border-b border-border px-4 h-[52px] flex items-center gap-3" style={{ top: "calc(3.5rem + env(safe-area-inset-top, 0px))" }}>
-        <Link
-          href="/admin"
-          className="flex items-center gap-1 text-foreground-faint hover:text-foreground-muted transition-colors text-sm flex-shrink-0 min-h-12 min-w-12 justify-center sm:justify-start sm:min-w-0"
-        >
-          <ChevronLeft size={18} strokeWidth={2} />
-          <span className="hidden sm:inline">{t("allUsers")}</span>
-        </Link>
+        {isGlobalAdmin && (
+          <>
+            <Link
+              href="/admin"
+              className="flex items-center gap-1 text-foreground-faint hover:text-foreground-muted transition-colors text-sm flex-shrink-0 min-h-12 min-w-12 justify-center sm:justify-start sm:min-w-0"
+            >
+              <ChevronLeft size={18} strokeWidth={2} />
+              <span className="hidden sm:inline">{t("allUsers")}</span>
+            </Link>
 
-        <div className="w-px h-4 bg-border flex-shrink-0" />
+            <div className="w-px h-4 bg-border flex-shrink-0" />
+          </>
+        )}
 
         {/* User + status */}
         <div className="flex-1 flex items-center gap-2 min-w-0">

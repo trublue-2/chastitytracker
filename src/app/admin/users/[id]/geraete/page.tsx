@@ -1,12 +1,12 @@
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import DevicesClient from "@/app/dashboard/geraete/DevicesClient";
 
 export default async function AdminDevicesPage({ params }: { params: Promise<{ id: string }> }) {
-  await assertAdmin();
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
 
   const user = await prisma.user.findUnique({
     where: { id },

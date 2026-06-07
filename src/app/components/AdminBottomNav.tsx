@@ -9,9 +9,10 @@ import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator"
 
 interface Props {
   version?: string;
+  isGlobalAdmin: boolean;
 }
 
-export default function AdminBottomNav({ version }: Props) {
+export default function AdminBottomNav({ version, isGlobalAdmin }: Props) {
   const t = useTranslations("adminNav");
   const pathname = usePathname();
 
@@ -20,7 +21,7 @@ export default function AdminBottomNav({ version }: Props) {
   ];
 
   const rightTabs = [
-    { href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false },
+    ...(isGlobalAdmin ? [{ href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false }] : []),
     { href: "/dashboard", icon: Users, label: t("users"), exact: true },
   ];
 
@@ -45,7 +46,7 @@ export default function AdminBottomNav({ version }: Props) {
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
       <div className="flex h-16 items-center">
         {leftTabs.map(renderTab)}
-        <AdminFAB />
+        <AdminFAB isGlobalAdmin={isGlobalAdmin} />
         {rightTabs.map(renderTab)}
       </div>
       {version && (

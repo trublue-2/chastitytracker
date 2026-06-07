@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
@@ -36,6 +37,7 @@ type Entry = {
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
   const t = await getTranslations("admin");
   const ts = await getTranslations("stats");
   const td = await getTranslations("dashboard");

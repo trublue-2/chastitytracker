@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { NOTIFICATION_EVENT_TYPES } from "@/lib/constants";
 
 /** GET /api/admin/notifications?userId=xxx — get all preferences for a user */
 export async function GET(req: NextRequest) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
+
+  const err = await requireKeyholderOrAdminApi(userId);
+  if (err) return err;
 
   const prefs = await prisma.notificationPreference.findMany({ where: { userId } });
 
@@ -24,13 +24,13 @@ export async function GET(req: NextRequest) {
 
 /** PATCH /api/admin/notifications — upsert a single preference */
 export async function PATCH(req: NextRequest) {
-  const err = await requireAdminApi();
-  if (err) return err;
-
   const { userId, eventType, channel, value } = await req.json();
   if (!userId || !eventType || !channel) {
     return NextResponse.json({ error: "userId, eventType, channel erforderlich" }, { status: 400 });
   }
+
+  const err = await requireKeyholderOrAdminApi(userId);
+  if (err) return err;
   if (!NOTIFICATION_EVENT_TYPES.includes(eventType)) {
     return NextResponse.json({ error: "Ungültiger eventType" }, { status: 400 });
   }

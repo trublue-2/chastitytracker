@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/login-attempts";
 import { consumePasskeyToken } from "@/lib/webauthn";
+import { controlsAnySub } from "@/lib/keyholder";
 
 function ts() { return new Date().toISOString(); }
 
@@ -72,6 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.roleCheckedAt = Date.now();
+        token.controlsSubs = await controlsAnySub(user.id as string);
       } else if (token.id) {
         // Re-fetch role from DB at most every 5 minutes to detect demotions/deletions.
         // Full re-check on every request caused 1–2 unnecessary DB hits per navigation.
@@ -87,6 +89,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!dbUser) return null; // user deleted — NextAuth clears the session cookie
           token.role = dbUser.role;
           token.roleCheckedAt = Date.now();
+          token.controlsSubs = await controlsAnySub(token.id as string);
         }
       }
       return token;
@@ -96,6 +99,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         (session.user as { id: string; name?: string | null; role?: string }).role =
           token.role as string;
+        (session.user as { controlsSubs?: boolean }).controlsSubs =
+          token.controlsSubs as boolean | undefined;
       }
       return session;
     },
