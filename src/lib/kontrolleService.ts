@@ -2,7 +2,33 @@ import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
+import { trackEvent } from "@/lib/telemetry";
 import type { ServiceResult } from "@/lib/serviceResult";
+
+export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
+
+/**
+ * Resolves an inspection by id: withdraw it, or manually verify / reject its submitted photo.
+ * Shared by PATCH /api/admin/kontrollen/[id] and the MCP resolve_inspection tool.
+ */
+export async function resolveKontrolle(id: string, action: KontrolleAction): Promise<ServiceResult<{ userId: string }>> {
+  const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
+  if (!ka) return { ok: false, status: 404, error: "Kontrolle nicht gefunden" };
+
+  if (action === "withdraw") {
+    if (ka.withdrawnAt) return { ok: false, status: 400, error: "Bereits zurückgezogen" };
+    await prisma.kontrollAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
+    trackEvent("kontrolle.withdrawn");
+  } else if (action === "manuallyVerify" || action === "reject") {
+    if (!ka.entryId) return { ok: false, status: 400, error: "Keine Einreichung vorhanden" };
+    const verifikationStatus = action === "manuallyVerify" ? "manual" : "rejected";
+    await prisma.entry.update({ where: { id: ka.entryId }, data: { verifikationStatus } });
+    trackEvent(action === "manuallyVerify" ? "kontrolle.verified" : "kontrolle.rejected");
+  } else {
+    return { ok: false, status: 400, error: "Unbekannte Aktion" };
+  }
+  return { ok: true, data: { userId: ka.userId } };
+}
 
 export interface RequestKontrolleParams {
   userId: string;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { reorderVorgabenDates } from "@/lib/vorgaben";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
 
 export async function PATCH(
   req: NextRequest,
@@ -14,32 +14,9 @@ export async function PATCH(
   const err = await requireKeyholderOrAdminApi(existing.userId);
   if (err) return err;
 
-  const { categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz } = await req.json();
-  if (categoryId !== undefined && categoryId !== null) {
-    if (typeof categoryId !== "string") return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
-    const cat = await prisma.deviceCategory.findUnique({
-      where: { id: categoryId },
-      select: { userId: true, allowVorgaben: true, isBuiltIn: true },
-    });
-    if (!cat || cat.userId !== existing.userId) return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
-    if (!cat.isBuiltIn && !cat.allowVorgaben) {
-      return NextResponse.json({ error: "Diese Kategorie erlaubt keine Trainingsvorgaben" }, { status: 400 });
-    }
-  }
-  const vorgabe = await prisma.trainingVorgabe.update({
-    where: { id },
-    data: {
-      ...(categoryId !== undefined ? { categoryId: categoryId || null } : {}),
-      gueltigAb: new Date(gueltigAb),
-      gueltigBis: gueltigBis ? new Date(gueltigBis) : null,
-      minProTagH: minProTagH ?? null,
-      minProWocheH: minProWocheH ?? null,
-      minProMonatH: minProMonatH ?? null,
-      notiz: notiz ?? null,
-    },
-  });
-  await reorderVorgabenDates(vorgabe.userId);
-  return NextResponse.json(vorgabe);
+  const result = await updateVorgabe(id, await req.json());
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(
@@ -47,13 +24,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const toDelete = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
-  if (!toDelete) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const err = await requireKeyholderOrAdminApi(toDelete.userId);
+  const err = await requireKeyholderOrAdminApi(existing.userId);
   if (err) return err;
 
-  const deleted = await prisma.trainingVorgabe.delete({ where: { id }, select: { userId: true } });
-  await reorderVorgabenDates(deleted.userId);
+  const result = await deleteVorgabe(id);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return new NextResponse(null, { status: 204 });
 }

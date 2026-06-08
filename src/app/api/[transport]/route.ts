@@ -4,6 +4,7 @@ import { z } from "zod";
 import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch } from "@/lib/mcpOverview";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
 } from "@/lib/mcpWrite";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
@@ -217,6 +218,100 @@ const handler = createMcpHandler(
         },
       },
       (args, extra) => runWriteTool("withdraw", extra, (u) => mcpWithdraw(u, args)),
+    );
+
+    server.registerTool(
+      "list_training_goals",
+      {
+        title: "List training goals",
+        description:
+          "Lists all training goals (KG + categories) with their id, status (active/scheduled/expired), " +
+          "start/end dates, period targets and note. Use the id with edit_training_goal / delete_training_goal.",
+        inputSchema: {
+          category: z.string().optional().describe('Filter by category name, e.g. "Plug". Omit for all.'),
+        },
+      },
+      (args) => runTool("list_training_goals", (u) => mcpListTrainingGoals(u, args)),
+    );
+
+    server.registerTool(
+      "edit_training_goal",
+      {
+        title: "Edit a training goal",
+        description:
+          "Replaces a training goal's values by id (get the id from list_training_goals). Overwrite semantics: " +
+          "provide the full desired state. Omitting category keeps the current one. At least one period target " +
+          "is required." + KEYHOLDER_NOTE,
+        inputSchema: {
+          id: z.string().describe("Goal id from list_training_goals."),
+          category: z.string().optional().describe('Category name, e.g. "Plug" or "KG". Omit to keep current.'),
+          minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
+          minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
+          minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
+          validFrom: z.string().optional().describe("Goal start (ISO 8601). Omit = now."),
+          validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit = open-ended."),
+          note: z.string().optional().describe("Note shown with the goal."),
+        },
+      },
+      (args, extra) => runWriteTool("edit_training_goal", extra, (u) => mcpEditTrainingGoal(u, args)),
+    );
+
+    server.registerTool(
+      "delete_training_goal",
+      {
+        title: "Delete a training goal",
+        description: "Deletes a training goal by id (get the id from list_training_goals)." + KEYHOLDER_NOTE,
+        inputSchema: {
+          id: z.string().describe("Goal id from list_training_goals."),
+        },
+      },
+      (args, extra) => runWriteTool("delete_training_goal", extra, (u) => mcpDeleteTrainingGoal(u, args)),
+    );
+
+    server.registerTool(
+      "set_cleaning",
+      {
+        title: "Set cleaning (Reinigung) rules",
+        description:
+          "Sets the cleaning-pause rules: whether short cleaning openings are allowed, the max minutes per " +
+          "pause, and the max pauses per day (0 = unlimited). Only provided fields change." + KEYHOLDER_NOTE,
+        inputSchema: {
+          allowed: z.boolean().optional().describe("Allow cleaning pauses?"),
+          maxMinutes: z.number().int().nonnegative().optional().describe("Max minutes per cleaning pause (clamped to 1–120)."),
+          maxPerDay: z.number().int().nonnegative().optional().describe("Max pauses per day, 0 = unlimited (clamped to 0–20)."),
+        },
+      },
+      (args, extra) => runWriteTool("set_cleaning", extra, (u) => mcpSetCleaning(u, args)),
+    );
+
+    server.registerTool(
+      "resolve_inspection",
+      {
+        title: "Verify or reject the latest inspection",
+        description:
+          "Manually verifies or rejects the user's most recent submitted inspection photo (overrides any " +
+          "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
+        inputSchema: {
+          action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
+        },
+      },
+      (args, extra) => runWriteTool("resolve_inspection", extra, (u) => mcpResolveInspection(u, args)),
+    );
+
+    server.registerTool(
+      "edit_lock_period",
+      {
+        title: "Change the active lock period's end",
+        description:
+          "Extends or shortens the currently active lock period (Sperrzeit) by changing its end — without " +
+          "withdrawing and recreating it. Set indefinite=true for open-ended, or untilAt for a new end (must " +
+          "be in the future)." + KEYHOLDER_NOTE,
+        inputSchema: {
+          untilAt: z.string().optional().describe("New end (ISO 8601, future). Ignored if indefinite=true."),
+          indefinite: z.boolean().optional().describe("Make the lock period open-ended."),
+        },
+      },
+      (args, extra) => runWriteTool("edit_lock_period", extra, (u) => mcpEditLockPeriod(u, args)),
     );
   },
   {},

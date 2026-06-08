@@ -182,3 +182,26 @@ async function sendVerschlussAnforderungNotifications(opts: {
   if (nachricht?.trim()) pushParts.push(nachricht.trim());
   sendPushToUser(userId, pushTitle, pushParts.join(" · "), "/dashboard").catch(() => { /* ignore push errors */ });
 }
+
+/**
+ * Changes the end of an active Sperrzeit (extend or shorten). `endetAt = null` → indefinite.
+ * Shared by PATCH /api/admin/verschluss-anforderung/[id] (action "setEnd") and the MCP edit_lock_period tool.
+ */
+export async function updateSperrzeitEnde(
+  id: string,
+  endetAt: Date | null,
+): Promise<ServiceResult<{ id: string; userId: string }>> {
+  const va = await prisma.verschlussAnforderung.findUnique({
+    where: { id },
+    select: { userId: true, art: true, withdrawnAt: true },
+  });
+  if (!va) return { ok: false, status: 404, error: "Sperrzeit nicht gefunden" };
+  if (va.art !== "SPERRZEIT") return { ok: false, status: 400, error: "Nur Sperrzeiten haben ein Ende" };
+  if (va.withdrawnAt) return { ok: false, status: 400, error: "Sperrzeit ist bereits aufgehoben" };
+  if (endetAt && endetAt.getTime() <= Date.now()) {
+    return { ok: false, status: 400, error: "Das neue Ende muss in der Zukunft liegen" };
+  }
+
+  await prisma.verschlussAnforderung.update({ where: { id }, data: { endetAt } });
+  return { ok: true, data: { id, userId: va.userId } };
+}

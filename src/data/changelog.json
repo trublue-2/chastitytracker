@@ -1,5 +1,16 @@
 [
   {
+    "version": "4.22.0",
+    "date": "2026-06-08",
+    "changes": [
+      { "type": "feat", "text": "MCP: Trainingsziele vollständig verwaltbar — list_training_goals (alle Ziele mit id, Status aktiv/geplant/abgelaufen, Daten, Vorgaben), edit_training_goal und delete_training_goal. Damit kann die KI mehrere datierte Ziele planen und korrigieren, nicht nur neu anlegen." },
+      { "type": "feat", "text": "MCP: set_cleaning — Reinigungspausen erlauben + Limits (max. Minuten/Pause, max. Pausen/Tag) über den MCP setzen." },
+      { "type": "feat", "text": "MCP: resolve_inspection — die zuletzt eingereichte Kontrolle manuell bestätigen oder ablehnen (überschreibt die automatische Prüfung)." },
+      { "type": "feat", "text": "MCP: edit_lock_period — das Ende einer laufenden Sperrzeit verlängern/verkürzen (oder auf unbefristet) ohne withdraw + neu anlegen. Neue Backend-Aktion setEnd." },
+      { "type": "chore", "text": "Service-Layer vereinheitlicht: updateVorgabe/deleteVorgabe/listVorgaben, resolveKontrolle, updateSperrzeitEnde und setReinigungSettings werden von Admin-Routen und MCP geteilt; Reinigung-Grenzen (1–120 Min, 0–20/Tag) gelten jetzt einheitlich für beide Pfade." }
+    ]
+  },
+  {
     "version": "4.21.2",
     "date": "2026-06-07",
     "changes": [

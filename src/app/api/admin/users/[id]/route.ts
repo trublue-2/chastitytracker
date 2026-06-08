@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { isValidEmail, validatePassword } from "@/lib/constants";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { setReinigungSettings } from "@/lib/reinigungService";
 
 export async function GET(
   _req: NextRequest,
@@ -78,11 +79,11 @@ export async function PATCH(
   }
 
   if (body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined || body.reinigungMaxProTag !== undefined) {
-    const data: { reinigungErlaubt?: boolean; reinigungMaxMinuten?: number; reinigungMaxProTag?: number } = {};
-    if (body.reinigungErlaubt !== undefined) data.reinigungErlaubt = Boolean(body.reinigungErlaubt);
-    if (body.reinigungMaxMinuten !== undefined) data.reinigungMaxMinuten = Math.max(1, Math.min(120, Number(body.reinigungMaxMinuten) || 15));
-    if (body.reinigungMaxProTag !== undefined) data.reinigungMaxProTag = Math.max(0, Math.min(20, Number(body.reinigungMaxProTag) || 0));
-    await prisma.user.update({ where: { id }, data });
+    await setReinigungSettings(id, {
+      erlaubt: body.reinigungErlaubt !== undefined ? Boolean(body.reinigungErlaubt) : undefined,
+      maxMinuten: body.reinigungMaxMinuten !== undefined ? Number(body.reinigungMaxMinuten) : undefined,
+      maxProTag: body.reinigungMaxProTag !== undefined ? Number(body.reinigungMaxProTag) : undefined,
+    });
     return NextResponse.json({ ok: true });
   }
 

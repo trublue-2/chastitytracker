@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getUserDeviceOptions } from "@/lib/queries";
-import { createVerschlussAnforderung } from "@/lib/verschlussAnforderungService";
-import { requestKontrolle } from "@/lib/kontrolleService";
-import { createVorgabe } from "@/lib/vorgabeService";
+import { createVerschlussAnforderung, updateSperrzeitEnde } from "@/lib/verschlussAnforderungService";
+import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
+import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
+import { setReinigungSettings } from "@/lib/reinigungService";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
@@ -185,4 +186,136 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     throw new Error(`Unknown withdraw target: ${args.target}`);
   }
   return { ok: true, withdrawn: count, message: count > 0 ? `Withdrew ${count} ${args.target}.` : `Nothing open to withdraw for ${args.target}.` };
+}
+
+// ── Training goals: list / edit / delete ────────────────────────────────────
+
+/** Loads a training goal and asserts it belongs to `userId` (scopes id-based tools to the target). */
+async function assertOwnedVorgabe(id: string, userId: string): Promise<void> {
+  const v = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+  if (!v || v.userId !== userId) throw new Error(`Training goal not found: ${id}`);
+}
+
+export interface ListTrainingGoalsArgs {
+  category?: string;
+}
+export async function mcpListTrainingGoals(username: string, args: ListTrainingGoalsArgs) {
+  const userId = await resolveTargetUserId(username);
+  const filterCatId = args.category ? await resolveCategoryId(userId, args.category) : undefined;
+  const now = Date.now();
+  const goals = (await listVorgaben(userId))
+    .filter((g) => filterCatId === undefined || g.categoryId === filterCatId)
+    .map((g) => {
+      const ab = g.gueltigAb.getTime();
+      const bis = g.gueltigBis ? g.gueltigBis.getTime() : null;
+      const status = ab > now ? "scheduled" : bis !== null && bis <= now ? "expired" : "active";
+      return {
+        id: g.id,
+        category: g.category?.name ?? "KG",
+        status,
+        validFrom: g.gueltigAb.toISOString(),
+        validUntil: g.gueltigBis ? g.gueltigBis.toISOString() : null,
+        minPerDayHours: g.minProTagH,
+        minPerWeekHours: g.minProWocheH,
+        minPerMonthHours: g.minProMonatH,
+        note: g.notiz,
+      };
+    });
+  return { ok: true, goals };
+}
+
+export interface EditTrainingGoalArgs extends SetTrainingGoalArgs {
+  id: string;
+}
+export async function mcpEditTrainingGoal(username: string, args: EditTrainingGoalArgs) {
+  const userId = await resolveTargetUserId(username);
+  await assertOwnedVorgabe(args.id, userId);
+
+  // Category: only change when provided (omit = keep existing).
+  const categoryId = args.category !== undefined ? await resolveCategoryId(userId, args.category) : undefined;
+  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : new Date();
+  const gueltigBis = args.validUntil ? parseGoalDate(args.validUntil, "validUntil") : null;
+  if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
+    throw new Error("validUntil must be after validFrom.");
+  }
+
+  unwrap(await updateVorgabe(args.id, {
+    categoryId,
+    gueltigAb,
+    gueltigBis,
+    minProTagH: args.minPerDayHours,
+    minProWocheH: args.minPerWeekHours,
+    minProMonatH: args.minPerMonthHours,
+    notiz: args.note,
+  }));
+  return { ok: true, id: args.id, message: "Training goal updated." };
+}
+
+export interface DeleteTrainingGoalArgs {
+  id: string;
+}
+export async function mcpDeleteTrainingGoal(username: string, args: DeleteTrainingGoalArgs) {
+  const userId = await resolveTargetUserId(username);
+  await assertOwnedVorgabe(args.id, userId);
+  unwrap(await deleteVorgabe(args.id));
+  return { ok: true, id: args.id, message: "Training goal deleted." };
+}
+
+// ── Cleaning (Reinigung) settings ───────────────────────────────────────────
+
+export interface SetCleaningArgs {
+  allowed?: boolean;
+  maxMinutes?: number;
+  maxPerDay?: number;
+}
+export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
+  const userId = await resolveTargetUserId(username);
+  if (args.allowed === undefined && args.maxMinutes === undefined && args.maxPerDay === undefined) {
+    throw new Error("Provide at least one of: allowed, maxMinutes, maxPerDay.");
+  }
+  unwrap(await setReinigungSettings(userId, {
+    erlaubt: args.allowed,
+    maxMinuten: args.maxMinutes,
+    maxProTag: args.maxPerDay,
+  }));
+  return { ok: true, message: "Cleaning settings updated." };
+}
+
+// ── Inspections: verify / reject the latest submission ──────────────────────
+
+export interface ResolveInspectionArgs {
+  action: "verify" | "reject";
+}
+export async function mcpResolveInspection(username: string, args: ResolveInspectionArgs) {
+  const userId = await resolveTargetUserId(username);
+  const ka = await prisma.kontrollAnforderung.findFirst({
+    where: { userId, entryId: { not: null }, withdrawnAt: null },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  if (!ka) throw new Error("No submitted inspection to verify or reject.");
+  unwrap(await resolveKontrolle(ka.id, args.action === "verify" ? "manuallyVerify" : "reject"));
+  return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}.` };
+}
+
+// ── Lock period: change the end of an active Sperrzeit ───────────────────────
+
+export interface EditLockPeriodArgs {
+  untilAt?: string;
+  indefinite?: boolean;
+}
+export async function mcpEditLockPeriod(username: string, args: EditLockPeriodArgs) {
+  const userId = await resolveTargetUserId(username);
+  if (!args.indefinite && !args.untilAt) throw new Error("Provide untilAt (ISO date) or indefinite=true.");
+  const endetAt = args.indefinite ? null : parseGoalDate(args.untilAt!, "untilAt");
+
+  const now = new Date();
+  const sz = await prisma.verschlussAnforderung.findFirst({
+    where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  if (!sz) throw new Error("No active lock period to edit.");
+  unwrap(await updateSperrzeitEnde(sz.id, endetAt));
+  return { ok: true, id: sz.id, message: args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.` };
 }
