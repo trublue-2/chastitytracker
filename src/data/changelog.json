@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.22.2",
+    "date": "2026-06-09",
+    "changes": [
+      { "type": "ui", "text": "Einträge zeigen jetzt das hinterlegte Gerät: im aufgeklappten Einschluss-Eintrag steht „Gerät: <Name>\" bzw. „Gerät: —\", wenn keins gewählt wurde (nur wenn der User überhaupt Geräte hat). So fällt eine fehlende Zuordnung sofort auf." },
+      { "type": "ui", "text": "Beim Einschliessen ein weicher Hinweis, wenn kein Gerät ausgewählt ist (nicht blockierend — Gerät bleibt optional)." }
+    ]
+  },
+  {
     "version": "4.22.1",
     "date": "2026-06-08",
     "changes": [

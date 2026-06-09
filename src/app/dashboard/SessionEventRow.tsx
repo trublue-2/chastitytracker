@@ -27,6 +27,10 @@ export interface SessionEventData {
   pauseDurationStr?: string | null;
   timeCorrected?: boolean;
   timeCorrectedSystemStr?: string | null;
+  /** VERSCHLUSS only: the device worn (null = none selected). */
+  deviceName?: string | null;
+  /** VERSCHLUSS only: show the device row (true when the user has any devices). */
+  showDevice?: boolean;
 }
 
 
@@ -305,6 +309,12 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
                 <div>
                   <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("instruction")}</p>
                   <p className="text-sm text-[var(--color-warn)]">{ev.kontrolleKommentar}</p>
+                </div>
+              )}
+              {ev.type === "verschluss" && ev.showDevice && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("device")}</p>
+                  <p className="text-sm text-foreground-muted">{ev.deviceName ?? "—"}</p>
                 </div>
               )}
               {ev.note && (

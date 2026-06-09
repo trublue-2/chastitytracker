@@ -128,6 +128,9 @@ export default function VerschlussFormCore({
             onChange={(e) => { setDeviceId(e.target.value); setDeviceManuallySet(true); }}
             hint={devices.length >= 2 && !anforderungDeviceId ? tForm("selectDeviceHint") : undefined}
           />
+          {!deviceId && deviceDetectionState !== "detecting" && (
+            <p className="text-xs text-warn font-medium">{tForm("noDeviceWarning")}</p>
+          )}
           {deviceDetectionState === "detecting" && (
             <p className="text-xs text-foreground-faint">{tForm("deviceDetecting")}</p>
           )}

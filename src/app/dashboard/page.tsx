@@ -36,11 +36,11 @@ export default async function DashboardPage() {
 
   // ── Parallel data fetch ──
   const flagOn = deviceCategoriesEnabled();
-  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories, deviceCount] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
-      include: { device: { select: { categoryId: true } } },
+      include: { device: { select: { categoryId: true, name: true } } },
     }),
     prisma.kontrollAnforderung.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(userId, now),
@@ -52,7 +52,9 @@ export default async function DashboardPage() {
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
+    prisma.device.count({ where: { userId, archivedAt: null } }),
   ]);
+  const userHasDevices = deviceCount > 0;
 
   const reinigung: ReinigungSettings = {
     erlaubt: userSettings?.reinigungErlaubt ?? false,
@@ -184,7 +186,7 @@ export default async function DashboardPage() {
       <DashboardClient {...clientProps} />
       {pairs.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-6">
-          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
+          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} />
         </div>
       )}
       {wearSessionRows.length > 0 && (

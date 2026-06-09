@@ -26,6 +26,7 @@ interface Entry {
   oeffnenGrund: string | null;
   kontrollCode: string | null;
   verifikationStatus: string | null;
+  device?: { name?: string | null; categoryId?: string | null } | null;
 }
 
 interface Pair {
@@ -39,9 +40,12 @@ interface Pair {
 interface Props {
   pairs: Pair[];
   orgasmusEntries: Entry[];
+  /** Whether the user has any devices — gates the "Gerät: —" row on lock entries.
+   *  Omitted (e.g. admin view) → no device row. */
+  userHasDevices?: boolean;
 }
 
-export default async function SessionList({ pairs, orgasmusEntries }: Props) {
+export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   const ta = await getTranslations("admin");
@@ -100,6 +104,8 @@ export default async function SessionList({ pairs, orgasmusEntries }: Props) {
         kombiniertePillCls: null,
         orgasmusArt: null,
         timeCorrected: false,
+        deviceName: verschluss.device?.name ?? null,
+        showDevice: userHasDevices,
       },
       ...kontrollen
         .filter((k) => k.anforderungStatus !== "withdrawn")
