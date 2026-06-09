@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.22.1",
+    "date": "2026-06-08",
+    "changes": [
+      { "type": "fix", "text": "Benachrichtigungen: Keyholder erhielten keine E-Mails/Push, wenn ihr Sub etwas eintrug — die Empfänger-Abfrage suchte nur role:\"admin\", Keyholder sind aber role:\"user\". Empfänger sind jetzt globale Admins + die Keyholder des jeweiligen Subs (pro Sub gescoped)." }
+    ]
+  },
+  {
     "version": "4.22.0",
     "date": "2026-06-08",
     "changes": [

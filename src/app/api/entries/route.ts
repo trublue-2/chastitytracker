@@ -8,6 +8,7 @@ import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS, VALID_ROTATIO
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { sendPushToUser } from "@/lib/push";
+import { getControllersOfUser } from "@/lib/keyholder";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
@@ -254,15 +255,13 @@ export async function POST(req: NextRequest) {
       const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
       const adminLink = `${baseUrl}${adminUrl}`;
 
-      // Fetch admins once for both channels
-      const admins = await prisma.user.findMany({
-        where: { role: "admin" },
-        select: { id: true, email: true },
-      });
+      // Recipients = global admins + the sub's keyholders (controllers via AdminUserRelationship).
+      // Keyholders are role "user", so a role:"admin" query alone would miss them.
+      const recipients = await getControllersOfUser(session.user.id);
 
       if (shouldPush) {
         await Promise.allSettled(
-          admins.map((a) => sendPushToUser(a.id, title, pushBody, adminUrl))
+          recipients.map((a) => sendPushToUser(a.id, title, pushBody, adminUrl))
         );
       }
       if (shouldMail) {
@@ -307,9 +306,9 @@ export async function POST(req: NextRequest) {
           <p style="color:#94a3b8;font-size:12px;margin-top:12px">Falls der Link nicht funktioniert: ${escHtml(adminLink)}</p>
         </div>`;
 
-        for (const admin of admins) {
-          if (admin.email) {
-            sendMail(admin.email, `KG-Tracker – ${title}`, emailHtml).catch(() => {});
+        for (const r of recipients) {
+          if (r.email) {
+            sendMail(r.email, `KG-Tracker – ${title}`, emailHtml).catch(() => {});
           }
         }
       }

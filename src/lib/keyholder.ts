@@ -45,3 +45,23 @@ export async function getKeyholdersOfUser(subId: string): Promise<{ id: string; 
   });
   return rels.map((r) => r.admin);
 }
+
+/**
+ * Who should be notified about a sub's activity: all global admins PLUS the sub's keyholders
+ * (controllers assigned via AdminUserRelationship — keyholders are role "user", so the global-admin
+ * query alone would miss them). Deduped by id; returns id + email. Keyholders are inherently
+ * scoped to their sub; global admins stay global so an instance owner keeps full visibility.
+ */
+export async function getControllersOfUser(subId: string): Promise<{ id: string; email: string | null }[]> {
+  const [admins, rels] = await Promise.all([
+    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, email: true } }),
+    prisma.adminUserRelationship.findMany({
+      where: { userId: subId },
+      select: { admin: { select: { id: true, email: true } } },
+    }),
+  ]);
+  const byId = new Map<string, { id: string; email: string | null }>();
+  for (const a of admins) byId.set(a.id, a);
+  for (const r of rels) byId.set(r.admin.id, { id: r.admin.id, email: r.admin.email });
+  return [...byId.values()];
+}

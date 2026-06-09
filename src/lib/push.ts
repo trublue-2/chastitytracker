@@ -202,16 +202,3 @@ async function sendWebPushToUser(
     await prisma.pushSubscription.deleteMany({ where: { id: { in: stale } } });
   }
 }
-
-/** Send a push notification to all subscriptions belonging to all admins. */
-export async function sendPushToAdmins(
-  title: string,
-  body: string,
-  url?: string
-): Promise<void> {
-  const admins = await prisma.user.findMany({
-    where: { role: "admin" },
-    select: { id: true },
-  });
-  await Promise.allSettled(admins.map((a) => sendPushToUser(a.id, title, body, url)));
-}
