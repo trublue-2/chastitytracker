@@ -35,6 +35,7 @@ model User {
   nativePushTokens        NativePushToken[]
   passkeys                Passkey[]
   deviceCategories        DeviceCategory[]
+  boxEvents               BoxEvent[]
 }
 
 // User-defined device categories (KG, Plug, Collar, Cuffs, ...).
@@ -231,9 +232,29 @@ model Device {
 
   entries               Entry[]
   verschlussAnforderungen VerschlussAnforderung[]
+  boxEvents             BoxEvent[]
 
   @@index([userId, archivedAt])
   @@index([categoryId])
+}
+
+// Hardware-Wahrheit der Heimdall-Schlüsselbox (Spur 2), getrennt vom selbst-
+// erfassten Entry (Spur 1). Wird vom Heimdall-Server über /api/integration/box/*
+// (Shared-Secret) eingespielt. Abgleich Entry↔BoxEvent erfolgt später (P3).
+model BoxEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId   String?
+  device     Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  type       String   // "LOCKED" | "UNLOCKED" | "EARLY_OPEN" | "UNAUTHORIZED_OPEN"
+  wakeReason String?  // gemeldeter Öffnungsgrund der Box
+  battery    Int?     // 0–100
+  fwVersion  String?
+  at         DateTime // Zeitpunkt des Box-Ereignisses (server-autoritativ vom Heimdall-Sync)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, at])
 }
 
 model Entry {
