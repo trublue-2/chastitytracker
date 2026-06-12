@@ -38,6 +38,13 @@ export interface StrafbuchData {
     note: string | null;
     deviceName: string | null;
   }[];
+  /** Mandatory orgasm directives (ANWEISUNG) whose window ended without a matching orgasm. */
+  missedOrgasmInstructions: {
+    id: string;
+    endetAt: Date;
+    nachricht: string | null;
+    requiredArt: string | null;
+  }[];
   /** StrafeRecord rows — each marks an offense (by `refId`) as punished. */
   strafeRecords: { refId: string; bestraftDatum: Date; notiz: string | null }[];
 }
@@ -46,7 +53,7 @@ export interface StrafbuchData {
  *  rejected Kontrollen, REINIGUNG-limit violations, plus the punished-marker records.
  *  Single source of truth shared by the admin Strafbuch page and the MCP tool. */
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
-  const [user, oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw] = await Promise.all([
+  const [user, oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
@@ -56,7 +63,17 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       orderBy: { createdAt: "desc" },
     }),
     prisma.strafeRecord.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    prisma.orgasmusAnforderung.findMany({ where: { userId } }),
   ]);
+
+  // Windows that explicitly permit opening to perform the directed orgasm — an OEFFNEN inside
+  // such a window is not an unauthorized opening (like the REINIGUNG exception).
+  const oeffnenErlaubtWindows = orgasmusAnforderungen.filter((a) => a.oeffnenErlaubt);
+  const isOrgasmusOpenAllowed = (openTime: Date): boolean =>
+    oeffnenErlaubtWindows.some((w) =>
+      openTime >= w.beginntAt && openTime <= w.endetAt &&
+      (w.withdrawnAt === null || w.withdrawnAt > openTime),
+    );
   const userReinigungErlaubt = user?.reinigungErlaubt ?? false;
 
   // Offenses whose StrafeRecord.refId points at the offending entry (REINIGUNG-limit, wrong-device).
@@ -94,7 +111,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     .filter(({ o, sperre }) => {
       if (!sperre) return false;
       const allowedReinigung = o.oeffnenGrund === "REINIGUNG" && userReinigungErlaubt && sperre.reinigungErlaubt;
-      return !allowedReinigung;
+      return !allowedReinigung && !isOrgasmusOpenAllowed(o.startTime);
     })
     .map(({ o, sperre }) => ({
       id: o.id,
@@ -127,6 +144,10 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .map(toControl),
     reinigungLimitViolations,
     wrongDeviceViolations,
+    missedOrgasmInstructions: orgasmusAnforderungen
+      .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endetAt < now)
+      .sort((a, b) => b.endetAt.getTime() - a.endetAt.getTime())
+      .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
     strafeRecords: strafeRecordsRaw.map((r) => ({ refId: r.refId, bestraftDatum: r.bestraftDatum, notiz: r.notiz })),
   };
 }
