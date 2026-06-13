@@ -86,6 +86,29 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       .catch(() => {});
   }, [open]);
 
+  // Nach einem Kommando den Status pollen: sobald die Box den neuen Zustand meldet,
+  // "angefordert" durch den echten Zustand ersetzen. Stoppt, wenn nichts mehr aussteht.
+  useEffect(() => {
+    if (!open || Object.keys(requested).length === 0) return;
+    const iv = setInterval(() => {
+      fetch("/api/box")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((rows: BoxRow[]) => {
+          setBoxes(rows);
+          setRequested((prev) => {
+            const next = { ...prev };
+            for (const [boxId, cmd] of Object.entries(prev)) {
+              const b = rows.find((x) => x.boxId === boxId);
+              if (b && b.locked === (cmd === "lock")) delete next[boxId];
+            }
+            return next;
+          });
+        })
+        .catch(() => {});
+    }, 2500);
+    return () => clearInterval(iv);
+  }, [open, requested]);
+
   async function sendCommand(boxId: string, command: "lock" | "open") {
     setBoxBusy(boxId);
     try {
