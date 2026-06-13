@@ -13,13 +13,14 @@ export async function GET(req: NextRequest) {
   const denied = requireBoxSync(req);
   if (denied) return denied;
 
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
+  // Heimdall mappt per Username (kein cuid-Lookup nötig).
+  const username = req.nextUrl.searchParams.get("username");
+  if (!username) return NextResponse.json({ error: "username required" }, { status: 400 });
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  const user = await prisma.user.findUnique({ where: { username }, select: { id: true } });
   if (!user) return NextResponse.json({ error: "Unknown user" }, { status: 404 });
 
-  const sperre = await getActiveSperrzeit(userId);
+  const sperre = await getActiveSperrzeit(user.id);
 
   return NextResponse.json({
     sperrzeit: sperre
