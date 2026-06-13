@@ -18,9 +18,9 @@ model User {
   reinigungErlaubt      Boolean                @default(false)
   reinigungMaxMinuten   Int                    @default(15)
   reinigungMaxProTag    Int                    @default(0)
-  // Tägliche Öffnungs-Fenster für Reinigung, z.B. [{"start":"19:00","end":"20:00"}] (CH-Lokalzeit).
-  // Nur innerhalb eines Fensters + mit Kontingent übrig darf der Sub zur Reinigung öffnen.
-  reinigungsFenster     Json?
+  // Tägliche Öffnungs-Fenster für Reinigung als JSON-String, z.B. [{"start":"19:00","end":"20:00"}]
+  // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseReinigungsFenster deserialisiert.
+  reinigungsFenster     String?
   mobileDesktopUpload   Boolean                @default(false)
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions String?

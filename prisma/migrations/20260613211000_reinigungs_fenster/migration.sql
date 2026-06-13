@@ -1,2 +1,2 @@
--- Tägliche Reinigungs-Öffnungsfenster (JSON-Array von {start,end} in CH-Lokalzeit).
-ALTER TABLE "User" ADD COLUMN "reinigungsFenster" JSONB;
+-- Tägliche Reinigungs-Öffnungsfenster als JSON-String (SQLite/Prisma 5 → TEXT).
+ALTER TABLE "User" ADD COLUMN "reinigungsFenster" TEXT;

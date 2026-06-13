@@ -18,11 +18,16 @@ export interface SetReinigungParams {
   fenster?: unknown;
 }
 
-/** Parst + validiert die Fenster-Liste aus User.reinigungsFenster (tolerant: Murks → []). */
+/** Parst + validiert die Fenster-Liste aus User.reinigungsFenster (JSON-String ODER Array;
+ *  tolerant: Murks → []). SQLite/Prisma 5 speichert das Feld als TEXT, daher String-Pfad. */
 export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
-  if (!Array.isArray(raw)) return [];
+  let arr: unknown = raw;
+  if (typeof raw === "string") {
+    try { arr = JSON.parse(raw); } catch { return []; }
+  }
+  if (!Array.isArray(arr)) return [];
   const out: ReinigungsFenster[] = [];
-  for (const f of raw) {
+  for (const f of arr) {
     const start = (f as { start?: unknown })?.start;
     const end = (f as { end?: unknown })?.end;
     if (
@@ -74,13 +79,14 @@ function clamp(value: number, { min, max, fallback }: { min: number; max: number
 export async function setReinigungSettings(userId: string, params: SetReinigungParams): Promise<ServiceResult<null>> {
   const data: {
     reinigungErlaubt?: boolean; reinigungMaxMinuten?: number; reinigungMaxProTag?: number;
-    reinigungsFenster?: ReinigungsFenster[];
+    reinigungsFenster?: string;
   } = {};
 
   if (params.erlaubt !== undefined) data.reinigungErlaubt = params.erlaubt;
   if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, MAX_MINUTEN_RANGE);
   if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, MAX_PRO_TAG_RANGE);
-  if (params.fenster !== undefined) data.reinigungsFenster = parseReinigungsFenster(params.fenster);
+  // Als JSON-String ablegen (TEXT-Spalte) — nur validierte Paare.
+  if (params.fenster !== undefined) data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
 
   if (Object.keys(data).length === 0) return { ok: false, status: 400, error: "Keine Felder zum Aktualisieren" };
 
