@@ -181,7 +181,7 @@ const handler = createMcpHandler(
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
-          delayMinutes: z.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
+          delayMinutes: z.coerce.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
         },
       },
       (args, extra) => runWriteTool("request_inspection", extra, (u) => mcpRequestInspection(u, args)),
