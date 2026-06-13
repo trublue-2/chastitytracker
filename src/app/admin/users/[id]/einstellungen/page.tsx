@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
+import { parseReinigungsFenster } from "@/lib/reinigungService";
 import AccountSection from "./AccountSection";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
@@ -93,6 +94,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             initialErlaubt={user.reinigungErlaubt}
             initialMaxMinuten={user.reinigungMaxMinuten}
             initialMaxProTag={user.reinigungMaxProTag}
+            initialFenster={parseReinigungsFenster(user.reinigungsFenster)}
           />
         </div>
       </Card>

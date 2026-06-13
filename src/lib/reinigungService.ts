@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import type { ServiceResult } from "@/lib/serviceResult";
+import { APP_TZ, midnightInTZ } from "@/lib/utils";
+
+export interface ReinigungsFenster {
+  start: string; // "HH:MM"
+  end: string;   // "HH:MM"
+}
 
 export interface SetReinigungParams {
   /** Allow cleaning pauses (short opening without an entry). */
@@ -8,6 +14,48 @@ export interface SetReinigungParams {
   maxMinuten?: number;
   /** Max cleaning pauses per day (0 = unlimited). */
   maxProTag?: number;
+  /** Daily cleaning windows; raw input, validated/normalised before storing. */
+  fenster?: unknown;
+}
+
+/** Parst + validiert die Fenster-Liste aus User.reinigungsFenster (tolerant: Murks → []). */
+export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReinigungsFenster[] = [];
+  for (const f of raw) {
+    const start = (f as { start?: unknown })?.start;
+    const end = (f as { end?: unknown })?.end;
+    if (
+      typeof start === "string" && typeof end === "string" &&
+      /^\d{2}:\d{2}$/.test(start) && /^\d{2}:\d{2}$/.test(end) && start < end
+    ) {
+      out.push({ start, end });
+    }
+  }
+  return out;
+}
+
+/** „HH:MM" der aktuellen Uhrzeit in CH-Lokalzeit (24h, fix mit ":" für lexikalischen Vergleich). */
+function hhmmInTZ(now: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: APP_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(now);
+}
+
+/** Liegt `now` (CH-Lokalzeit) in einem Reinigungs-Fenster? Liefert dessen Ende „HH:MM", sonst null. */
+export function aktivesReinigungsFenster(raw: unknown, now: Date): string | null {
+  const hhmm = hhmmInTZ(now);
+  for (const f of parseReinigungsFenster(raw)) {
+    if (f.start <= hhmm && hhmm < f.end) return f.end;
+  }
+  return null;
+}
+
+/** Heute (CH-Tag) bereits verbrauchte Reinigungs-Öffnungen — gezählt über CLEAN_OPEN-Fakten (Spur 2). */
+export async function reinigungVerbrauchtHeute(userId: string, now: Date): Promise<number> {
+  return prisma.boxEvent.count({
+    where: { userId, type: "CLEAN_OPEN", at: { gte: midnightInTZ(now) } },
+  });
 }
 
 /** Max minutes per cleaning pause is clamped to this range. */
@@ -24,11 +72,15 @@ function clamp(value: number, { min, max, fallback }: { min: number; max: number
  * fields are clamped to their valid ranges. Shared by PATCH /api/admin/users/[id] and the MCP tool.
  */
 export async function setReinigungSettings(userId: string, params: SetReinigungParams): Promise<ServiceResult<null>> {
-  const data: { reinigungErlaubt?: boolean; reinigungMaxMinuten?: number; reinigungMaxProTag?: number } = {};
+  const data: {
+    reinigungErlaubt?: boolean; reinigungMaxMinuten?: number; reinigungMaxProTag?: number;
+    reinigungsFenster?: ReinigungsFenster[];
+  } = {};
 
   if (params.erlaubt !== undefined) data.reinigungErlaubt = params.erlaubt;
   if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, MAX_MINUTEN_RANGE);
   if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, MAX_PRO_TAG_RANGE);
+  if (params.fenster !== undefined) data.reinigungsFenster = parseReinigungsFenster(params.fenster);
 
   if (Object.keys(data).length === 0) return { ok: false, status: 400, error: "Keine Felder zum Aktualisieren" };
 

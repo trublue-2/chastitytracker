@@ -15,7 +15,15 @@ type BoxRow = {
   lockUntil: string | null;
   simpleLock: boolean;
   keyholderLocked: boolean;
+  // gesetzt, wenn die Box durch eine Sperrzeit gehalten wird, aber gerade zur Reinigung
+  // geöffnet werden darf (Fenster aktiv + Kontingent übrig). max 0 = unbegrenzt.
+  cleaning: { endHHMM: string; used: number; max: number; maxMinutes: number } | null;
 };
+
+function cleaningDesc(c: NonNullable<BoxRow["cleaning"]>): string {
+  const rest = c.max === 0 ? "unbegrenzt" : `noch ${Math.max(0, c.max - c.used)}/${c.max}`;
+  return `Fenster bis ${c.endHHMM} · ${rest} · max ${c.maxMinutes} Min`;
+}
 
 function boxStateLabel(b: BoxRow): string {
   if (b.keyholderLocked) return b.lockUntil ? `zu · Sperrzeit bis ${fmtTime(b.lockUntil)}` : "zu · Sperrzeit";
@@ -76,7 +84,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
 
   const [boxes, setBoxes] = useState<BoxRow[]>([]);
   const [boxBusy, setBoxBusy] = useState<string | null>(null);
-  const [requested, setRequested] = useState<Record<string, "lock" | "open">>({});
+  const [requested, setRequested] = useState<Record<string, "lock" | "open" | "clean_open">>({});
 
   // Box-Status holen, sobald das Menü offen ist, und alle 3s nachladen — so werden
   // Box-Syncs, zeitlich abgelaufene Sperrzeiten und erledigte Kommandos sichtbar, ohne
@@ -104,7 +112,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
     return () => clearInterval(iv);
   }, [open]);
 
-  async function sendCommand(boxId: string, command: "lock" | "open") {
+  async function sendCommand(boxId: string, command: "lock" | "open" | "clean_open") {
     setBoxBusy(boxId);
     try {
       const r = await fetch("/api/box/command", {
@@ -246,7 +254,9 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
                   <p className="text-xs text-foreground-muted">
                     {req === "lock"
                       ? "Verschluss angefordert — schliesst beim nächsten Box-Sync"
-                      : "Öffnen angefordert — geht beim nächsten Box-Sync auf"}
+                      : req === "clean_open"
+                        ? "Reinigung angefordert — öffnet beim nächsten Box-Sync"
+                        : "Öffnen angefordert — geht beim nächsten Box-Sync auf"}
                   </p>
                 </div>
               </div>
@@ -265,6 +275,14 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
               <BoxAction key={b.boxId} busy={busy} icon={LockOpen} color="text-unlock"
                 title={`${b.name} öffnen`} desc="ohne Zeitlimit zu — du kannst öffnen"
                 onClick={() => sendCommand(b.boxId, "open")} />
+            );
+          }
+          // durch Sperrzeit gehalten, aber Reinigung gerade erlaubt (Fenster + Kontingent).
+          if (b.cleaning) {
+            return (
+              <BoxAction key={b.boxId} busy={busy} icon={Droplets} color="text-inspect"
+                title={`🧽 ${b.name}: Reinigung öffnen`} desc={cleaningDesc(b.cleaning)}
+                onClick={() => sendCommand(b.boxId, "clean_open")} />
             );
           }
           return (

@@ -78,11 +78,15 @@ export async function PATCH(
     }
   }
 
-  if (body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined || body.reinigungMaxProTag !== undefined) {
+  if (
+    body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined ||
+    body.reinigungMaxProTag !== undefined || body.reinigungsFenster !== undefined
+  ) {
     await setReinigungSettings(id, {
       erlaubt: body.reinigungErlaubt !== undefined ? Boolean(body.reinigungErlaubt) : undefined,
       maxMinuten: body.reinigungMaxMinuten !== undefined ? Number(body.reinigungMaxMinuten) : undefined,
       maxProTag: body.reinigungMaxProTag !== undefined ? Number(body.reinigungMaxProTag) : undefined,
+      fenster: body.reinigungsFenster, // roh — der Service validiert/normalisiert
     });
     return NextResponse.json({ ok: true });
   }
