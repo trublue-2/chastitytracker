@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getActiveSperrzeit } from "@/lib/queries";
 
 // Der Sub löst aus dem Tracker eine Box-Aktion aus (Session-Auth, eigene Box). Setzt nur die
 // Absicht (pendingCommand) — Heimdall zieht & vollzieht sie beim nächsten Box-Sync.
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest) {
   if (command === "open") {
     // Nur die eigene "ohne Zeit"-Sperre ist vom Sub öffenbar — Zeit/Sperrzeit nicht (Heimdall-Notfall).
     if (!box.locked) return NextResponse.json({ error: "Box ist bereits offen" }, { status: 400 });
-    if (box.keyholderLocked || box.lockUntil) {
+    // gepushter BoxStatus ODER die Tracker-eigene Sperrzeit (die Heimdall noch nicht gezogen hat).
+    if (box.keyholderLocked || box.lockUntil || (await getActiveSperrzeit(userId))) {
       return NextResponse.json({ error: "Box durch Sperrzeit gehalten — nicht öffenbar" }, { status: 400 });
     }
   }
