@@ -36,6 +36,7 @@ model User {
   passkeys                Passkey[]
   deviceCategories        DeviceCategory[]
   boxEvents               BoxEvent[]
+  boxStatuses             BoxStatus[]
 }
 
 // User-defined device categories (KG, Plug, Collar, Cuffs, ...).
@@ -260,6 +261,34 @@ model BoxEvent {
   createdAt  DateTime @default(now())
 
   @@index([userId, at])
+}
+
+// Live-Zustand der Heimdall-Box(en) eines Users — vom Heimdall-Server bei jedem Box-Sync
+// gepusht. Zeigt den Box-Status im Tracker (statt zweiter App). pendingCommand = vom Sub
+// im Tracker ausgelöste Aktion, die Heimdall beim nächsten Sync zieht & anwendet.
+model BoxStatus {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boxId           String    // Heimdall-Geräte-id (stabil)
+  name            String
+  locked          Boolean   @default(false)
+  lockUntil       DateTime? // effektive Sperre (eigene + Tracker-Sperrzeit, gekappt)
+  simpleLock      Boolean   @default(false)
+  keyholderLocked Boolean   @default(false) // durch Tracker-Sperrzeit gehalten (Sub kann lokal nicht öffnen)
+  battery         Int?
+  charging        Boolean?
+  boltPos         String?
+  fwVersion       String?
+  lastSyncAt      DateTime?
+  // Vom Sub ausgelöstes, noch nicht vollzogenes Kommando.
+  pendingCommand         String?   // "lock" | "open" | "clean_open"
+  pendingCommandRelockBy DateTime? // nur clean_open: Re-Lock-Frist
+  pendingCommandAt       DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, boxId])
+  @@index([userId])
 }
 
 model Entry {
