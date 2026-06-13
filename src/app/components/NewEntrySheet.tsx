@@ -78,19 +78,13 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
   const [boxBusy, setBoxBusy] = useState<string | null>(null);
   const [requested, setRequested] = useState<Record<string, "lock" | "open">>({});
 
+  // Box-Status holen, sobald das Menü offen ist, und alle 3s nachladen — so werden
+  // Box-Syncs, zeitlich abgelaufene Sperrzeiten und erledigte Kommandos sichtbar, ohne
+  // das Menü zu schliessen. Ein erledigtes "angefordert" wird gelöscht, sobald die Box
+  // den passenden Zustand meldet.
   useEffect(() => {
     if (!open) return;
-    fetch("/api/box")
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setBoxes)
-      .catch(() => {});
-  }, [open]);
-
-  // Nach einem Kommando den Status pollen: sobald die Box den neuen Zustand meldet,
-  // "angefordert" durch den echten Zustand ersetzen. Stoppt, wenn nichts mehr aussteht.
-  useEffect(() => {
-    if (!open || Object.keys(requested).length === 0) return;
-    const iv = setInterval(() => {
+    const tick = () =>
       fetch("/api/box")
         .then((r) => (r.ok ? r.json() : []))
         .then((rows: BoxRow[]) => {
@@ -105,9 +99,10 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
           });
         })
         .catch(() => {});
-    }, 2500);
+    tick();
+    const iv = setInterval(tick, 3000);
     return () => clearInterval(iv);
-  }, [open, requested]);
+  }, [open]);
 
   async function sendCommand(boxId: string, command: "lock" | "open") {
     setBoxBusy(boxId);
