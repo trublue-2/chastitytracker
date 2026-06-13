@@ -118,11 +118,16 @@ model KontrollAnforderung {
   createdAt   DateTime  @default(now())
   fulfilledAt DateTime? // Server-seitig gesetzt beim Erstellen des PRUEFUNG-Eintrags – nie editierbar
   withdrawnAt DateTime?
+  // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub
+  // unsichtbar, Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
+  wirksamAb        DateTime?
+  benachrichtigtAt DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
   entryId     String?   @unique
   entry       Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)
 
   @@index([userId, withdrawnAt])
   @@index([userId, entryId])
+  @@index([wirksamAb])
 }
 
 model VerschlussAnforderung {

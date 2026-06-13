@@ -1,6 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund } from "@/lib/constants";
+
+/**
+ * Where-Fragment: Kontroll-Anforderungen, die für den Sub schon sichtbar sind — sofortige
+ * (wirksamAb null) und zeitversetzte, die bereits ausgelöst haben (wirksamAb <= jetzt).
+ * Geplante (wirksamAb in der Zukunft) bleiben verborgen, bis der Poller sie auslöst.
+ * NUR für Sub-Sichten (Dashboard, Stats, get_overview) — Admin/Strafbuch-Sichten nutzen es nicht.
+ */
+export function subVisibleKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
+  return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
+}
 
 // ── Shared types ────────────────────────────────────────────────────────────
 

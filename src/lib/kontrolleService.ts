@@ -30,22 +30,35 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
   return { ok: true, data: { userId: ka.userId } };
 }
 
+/** Gültige Siegel-Nummer aus dem letzten Eintrag (5–8-stellig, nur bei aktivem VERSCHLUSS), sonst null.
+ *  Single source für „ist dieser Code eine Siegel-Nummer" — genutzt beim Anlegen und im Poller. */
+export function deriveSealCode(latest: { type: string; kontrollCode: string | null } | null): string | null {
+  return latest?.type === "VERSCHLUSS" && latest.kontrollCode && /^\d{5,8}$/.test(latest.kontrollCode)
+    ? latest.kontrollCode
+    : null;
+}
+
 export interface RequestKontrolleParams {
   userId: string;
   kommentar?: string | null;
   /** Deadline in hours (default 4). */
   deadlineH?: number | null;
+  /** Verzögerte Auslösung in Minuten (>0). Fehlt/0 = sofort. Die 5–65-/Random-Policy
+   *  liegt beim Aufrufer (MCP) — der Service verzögert nur mechanisch. */
+  delayMinutes?: number | null;
 }
 
 /**
  * Requests an inspection (KontrollAnforderung): generates a 5-digit code (or reuses the active
- * seal code), sets a deadline, withdraws any open request, and e-mails + pushes the user.
+ * seal code), sets a deadline, withdraws any open request. Sends e-mail + push immediately —
+ * or, with delayMinutes, schedules it (wirksamAb): the request stays invisible to the user and
+ * the deadline starts at trigger; the poller (kontrollePoller) sends the notification when due.
  * Shared by POST /api/admin/kontrolle and the MCP write tool. User must be currently locked.
  */
 export async function requestKontrolle(
   params: RequestKontrolleParams,
-): Promise<ServiceResult<{ code: string; deadline: string }>> {
-  const { userId, kommentar, deadlineH } = params;
+): Promise<ServiceResult<{ code: string; deadline: string; scheduledFor: string | null }>> {
+  const { userId, kommentar, deadlineH, delayMinutes } = params;
   if (!userId) return { ok: false, status: 400, error: "userId fehlt" };
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -54,7 +67,13 @@ export async function requestKontrolle(
 
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
   const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
-  const deadline = new Date(Date.now() + hours * 60 * 60 * 1000);
+  const now = new Date();
+  const wirksamAb =
+    typeof delayMinutes === "number" && delayMinutes > 0
+      ? new Date(now.getTime() + delayMinutes * 60 * 1000)
+      : null;
+  // Frist läuft ab Auslösung (bei sofort = jetzt, bei geplant = wirksamAb).
+  const deadline = new Date((wirksamAb ?? now).getTime() + hours * 60 * 60 * 1000);
 
   let code: string;
   let sealCode: string | null;
@@ -70,14 +89,21 @@ export async function requestKontrolle(
 
       await tx.kontrollAnforderung.updateMany({
         where: { userId, entryId: null, withdrawnAt: null },
-        data: { withdrawnAt: new Date() },
+        data: { withdrawnAt: now },
       });
 
-      const seal = latest.kontrollCode && /^\d{5,8}$/.test(latest.kontrollCode) ? latest.kontrollCode : null;
+      const seal = deriveSealCode(latest);
       const c = seal ?? String(Math.floor(10000 + Math.random() * 90000));
 
       await tx.kontrollAnforderung.create({
-        data: { userId, code: c, deadline, kommentar: kommentarTrimmed || null },
+        data: {
+          userId,
+          code: c,
+          deadline,
+          kommentar: kommentarTrimmed || null,
+          wirksamAb,
+          benachrichtigtAt: wirksamAb ? null : now, // sofort = jetzt benachrichtigt; geplant = Poller
+        },
       });
 
       return { code: c, sealCode: seal };
@@ -91,12 +117,36 @@ export async function requestKontrolle(
     throw e;
   }
 
-  const kommentarHtml = kommentarTrimmed
-    ? '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Anweisung des Admins:</p><p style="margin:0;font-size:15px;color:#422006">' + escHtml(kommentarTrimmed) + '</p></div>'
+  // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
+  if (!wirksamAb) {
+    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline });
+  }
+
+  return { ok: true, data: { code, deadline: deadline.toISOString(), scheduledFor: wirksamAb?.toISOString() ?? null } };
+}
+
+/**
+ * Sends the inspection e-mail (code + deadline + link) and a push to the user.
+ * Reused by the immediate path in requestKontrolle and by the delayed-trigger poller.
+ * No-op if the user has no e-mail. Push is fire-and-forget.
+ */
+export async function sendKontrolleNotification(opts: {
+  user: { id: string; email: string | null; username: string };
+  code: string;
+  sealCode: string | null;
+  kommentar: string | null;
+  deadline: Date;
+}): Promise<void> {
+  const { user, code, sealCode, kommentar, deadline } = opts;
+  if (!user.email) return;
+
+  const hoursLeft = Math.max(1, Math.round((deadline.getTime() - Date.now()) / (60 * 60 * 1000)));
+  const kommentarHtml = kommentar
+    ? '<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Anweisung des Admins:</p><p style="margin:0;font-size:15px;color:#422006">' + escHtml(kommentar) + '</p></div>'
     : "";
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const kommentarParam = kommentarTrimmed ? `&kommentar=${encodeURIComponent(kommentarTrimmed)}` : "";
+  const kommentarParam = kommentar ? `&kommentar=${encodeURIComponent(kommentar)}` : "";
   const link = `${baseUrl}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
   const deadlineStr = formatDateTime(deadline);
   const codeLabel = sealCode
@@ -110,7 +160,7 @@ export async function requestKontrolle(
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
       <h2 style="color:#1e293b">Kontrolle angefordert</h2>
       <p>Hallo ${escHtml(user.username)},</p>
-      <p>Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten ${hours} Stunde${hours === 1 ? "" : "n"} einen Kontroll-Eintrag mit Foto.</p>
+      <p>Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten ${hoursLeft} Stunde${hoursLeft === 1 ? "" : "n"} einen Kontroll-Eintrag mit Foto.</p>
       ${kommentarHtml}
       <p><strong>${codeLabel}</strong></p>
       <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
@@ -126,11 +176,9 @@ export async function requestKontrolle(
   );
 
   sendPushToUser(
-    userId,
+    user.id,
     "Kontrolle erforderlich",
-    kommentarTrimmed ? `Code: ${code} · Frist: ${deadlineStr} · ${kommentarTrimmed}` : `Code: ${code} · Frist: ${deadlineStr}`,
+    kommentar ? `Code: ${code} · Frist: ${deadlineStr} · ${kommentar}` : `Code: ${code} · Frist: ${deadlineStr}`,
     `/dashboard/new/pruefung?code=${code}`,
   ).catch(() => { /* ignore push errors */ });
-
-  return { ok: true, data: { code, deadline: deadline.toISOString() } };
 }

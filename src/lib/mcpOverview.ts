@@ -4,7 +4,7 @@ import {
   calculateWearingHoursByRange, formatDateTime, isTimeCorrected, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, subVisibleKontrolleWhere } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 
@@ -99,7 +99,8 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       include: { device: { select: { name: true, categoryId: true } } },
     }),
     prisma.kontrollAnforderung.findFirst({
-      where: { userId, entryId: null, withdrawnAt: null },
+      // geplante (noch nicht ausgelöste) Kontrollen sind auch im get_overview unsichtbar
+      where: { userId, entryId: null, withdrawnAt: null, ...subVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
     getActiveVorgabe(userId, now),
