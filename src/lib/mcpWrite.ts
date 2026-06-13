@@ -109,11 +109,31 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
 export interface RequestInspectionArgs {
   deadlineHours?: number;
   comment?: string;
+  delayMinutes?: number;
 }
 export async function mcpRequestInspection(username: string, args: RequestInspectionArgs) {
   const userId = await resolveTargetUserId(username);
-  const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours }));
-  return { ok: true, deadline: data.deadline, message: `Inspection requested; the code was e-mailed to the user. Deadline: ${data.deadline}.` };
+  // Delay-Policy (nur MCP): kein Wert → zufällig 5–65; ≤0 → sofort; sonst auf 5–65 geklemmt.
+  let delayMinutes: number;
+  if (args.delayMinutes === undefined) {
+    delayMinutes = 5 + Math.floor(Math.random() * 61); // 5..65 inkl.
+  } else if (args.delayMinutes <= 0) {
+    delayMinutes = 0;
+  } else {
+    delayMinutes = Math.min(65, Math.max(5, Math.round(args.delayMinutes)));
+  }
+
+  const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes }));
+
+  if (data.scheduledFor) {
+    return {
+      ok: true,
+      scheduledFor: data.scheduledFor,
+      deadline: data.deadline,
+      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.`,
+    };
+  }
+  return { ok: true, deadline: data.deadline, message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` };
 }
 
 export interface SetTrainingGoalArgs {

@@ -176,10 +176,12 @@ const handler = createMcpHandler(
         title: "Request inspection (Kontrolle)",
         description:
           "Requests a photo inspection: e-mails the user a code they must show in a photo within a " +
-          "deadline (default 4h). Only valid when the user is currently locked." + KEYHOLDER_NOTE,
+          "deadline (default 4h). Only valid when the user is currently locked. Can be triggered " +
+          "time-delayed so the user does not know exactly when it strikes." + KEYHOLDER_NOTE,
         inputSchema: {
-          deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4)."),
+          deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
+          delayMinutes: z.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
         },
       },
       (args, extra) => runWriteTool("request_inspection", extra, (u) => mcpRequestInspection(u, args)),

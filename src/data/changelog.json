@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.23.0",
+    "date": "2026-06-13",
+    "changes": [
+      { "type": "feat", "text": "MCP: Kontrollen lassen sich zeitversetzt auslösen — request_inspection bekommt delayMinutes (5–65). Ohne Angabe wählt das System eine zufällige Verzögerung von 5–65 Min, 0 = sofort. Die Anforderung bleibt bis zur Auslösung für den Sub unsichtbar; Code-Mail/Push und die Frist starten erst dann. Ein Minuten-Poller verschickt fällige Anforderungen (übersteht Neustart/Deploy)." }
+    ]
+  },
+  {
     "version": "4.22.2",
     "date": "2026-06-09",
     "changes": [
