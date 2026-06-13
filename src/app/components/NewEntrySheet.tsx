@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound, Loader2 } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound, Loader2, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
@@ -26,6 +26,30 @@ function boxStateLabel(b: BoxRow): string {
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+}
+
+function BoxAction({ busy, icon: Icon, color, title, desc, onClick }: {
+  busy: boolean;
+  icon: LucideIcon;
+  color: string;
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full disabled:opacity-50"
+    >
+      {busy ? <Loader2 size={22} className={`${color} shrink-0 animate-spin`} /> : <Icon size={22} className={`${color} shrink-0`} />}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="text-xs text-foreground-muted">{desc}</p>
+      </div>
+    </button>
+  );
 }
 
 export interface NewEntryCategoryRow {
@@ -52,7 +76,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
 
   const [boxes, setBoxes] = useState<BoxRow[]>([]);
   const [boxBusy, setBoxBusy] = useState<string | null>(null);
-  const [requested, setRequested] = useState<Record<string, boolean>>({});
+  const [requested, setRequested] = useState<Record<string, "lock" | "open">>({});
 
   useEffect(() => {
     if (!open) return;
@@ -62,15 +86,15 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       .catch(() => {});
   }, [open]);
 
-  async function lockBox(boxId: string) {
+  async function sendCommand(boxId: string, command: "lock" | "open") {
     setBoxBusy(boxId);
     try {
       const r = await fetch("/api/box/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ boxId, command: "lock" }),
+        body: JSON.stringify({ boxId, command }),
       });
-      if (r.ok) setRequested((s) => ({ ...s, [boxId]: true }));
+      if (r.ok) setRequested((s) => ({ ...s, [boxId]: command }));
     } finally {
       setBoxBusy(null);
     }
@@ -190,38 +214,39 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
           );
         })}
 
-        {/* Heimdall-Box(en): zustands-bewusst — offen → verschliessen, zu → Status (öffnen folgt). */}
+        {/* Heimdall-Box(en): zustands-bewusst — offen → verschliessen, eigene "ohne Zeit"-Sperre →
+            öffnen, Zeit/Sperrzeit → nur Status (Notfall-Öffnen bleibt in Heimdall). */}
         {boxes.map((b) => {
-          if (requested[b.boxId]) {
+          const req = requested[b.boxId];
+          const busy = boxBusy === b.boxId;
+          if (req) {
             return (
               <div key={b.boxId} className="flex items-center gap-4 px-4 py-3.5 rounded-xl opacity-60">
                 <KeyRound size={22} className="text-foreground-faint shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground">{b.name}</p>
-                  <p className="text-xs text-foreground-muted">Verschluss angefordert — schliesst beim nächsten Box-Sync</p>
+                  <p className="text-xs text-foreground-muted">
+                    {req === "lock"
+                      ? "Verschluss angefordert — schliesst beim nächsten Box-Sync"
+                      : "Öffnen angefordert — geht beim nächsten Box-Sync auf"}
+                  </p>
                 </div>
               </div>
             );
           }
           if (!b.locked) {
             return (
-              <button
-                key={b.boxId}
-                type="button"
-                onClick={() => lockBox(b.boxId)}
-                disabled={boxBusy === b.boxId}
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full disabled:opacity-50"
-              >
-                {boxBusy === b.boxId ? (
-                  <Loader2 size={22} className="text-lock shrink-0 animate-spin" />
-                ) : (
-                  <KeyRound size={22} className="text-lock shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{b.name} verschliessen</p>
-                  <p className="text-xs text-foreground-muted">Schlüssel ist jetzt in der Box</p>
-                </div>
-              </button>
+              <BoxAction key={b.boxId} busy={busy} icon={KeyRound} color="text-lock"
+                title={`${b.name} verschliessen`} desc="Schlüssel ist jetzt in der Box"
+                onClick={() => sendCommand(b.boxId, "lock")} />
+            );
+          }
+          // zu: eigene "ohne Zeit"-Sperre → öffenbar; Zeit/Sperrzeit → nicht (nur Status).
+          if (b.simpleLock && !b.keyholderLocked && !b.lockUntil) {
+            return (
+              <BoxAction key={b.boxId} busy={busy} icon={LockOpen} color="text-unlock"
+                title={`${b.name} öffnen`} desc="ohne Zeitlimit zu — du kannst öffnen"
+                onClick={() => sendCommand(b.boxId, "open")} />
             );
           }
           return (
