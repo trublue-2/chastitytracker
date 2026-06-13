@@ -22,7 +22,6 @@ const schema = z.object({
   boltPos: z.string().max(16).nullable().optional(),
   fwVersion: z.string().max(32).nullable().optional(),
   lastSyncAt: z.string().datetime().nullable().optional(),
-  lastAppliedCommand: z.string().max(32).optional(), // was Heimdall gerade vollzogen hat
 });
 
 export async function POST(req: NextRequest) {
@@ -41,8 +40,10 @@ export async function POST(req: NextRequest) {
 
   const key = { userId_boxId: { userId: user.id, boxId: body.boxId } };
   const existing = await prisma.boxStatus.findUnique({ where: key });
-  // Erledigtes Kommando löschen, wenn Heimdall genau dieses gerade vollzogen hat.
-  const clear = !!body.lastAppliedCommand && existing?.pendingCommand === body.lastAppliedCommand;
+  // Consume-on-read: ein anstehendes Kommando wird beim Abholen direkt gelöscht. Heimdall
+  // wendet es an; geht es verloren (Crash), setzt der Sub es einfach neu — kein Ack nötig.
+  const pendingCommand = existing?.pendingCommand ?? null;
+  const relockBy = existing?.pendingCommandRelockBy ?? null;
 
   const status = {
     name: body.name,
@@ -57,14 +58,11 @@ export async function POST(req: NextRequest) {
     lastSyncAt: body.lastSyncAt ? new Date(body.lastSyncAt) : null,
   };
 
-  const row = await prisma.boxStatus.upsert({
+  await prisma.boxStatus.upsert({
     where: key,
     create: { userId: user.id, boxId: body.boxId, ...status },
-    update: { ...status, ...(clear ? { pendingCommand: null, pendingCommandRelockBy: null, pendingCommandAt: null } : {}) },
+    update: { ...status, ...(pendingCommand ? { pendingCommand: null, pendingCommandRelockBy: null, pendingCommandAt: null } : {}) },
   });
 
-  return NextResponse.json({
-    pendingCommand: row.pendingCommand,
-    relockBy: row.pendingCommandRelockBy?.toISOString() ?? null,
-  });
+  return NextResponse.json({ pendingCommand, relockBy: relockBy?.toISOString() ?? null });
 }
