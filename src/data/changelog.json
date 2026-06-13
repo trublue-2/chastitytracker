@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.23.1",
+    "date": "2026-06-13",
+    "changes": [
+      { "type": "fix", "text": "MCP: request_inspection akzeptiert delayMinutes jetzt auch als String (z.coerce.number) — MCP-Clients mit veraltetem Schema-Cache schickten den Wert als Text, was die zeitversetzte Auslösung blockierte." }
+    ]
+  },
+  {
     "version": "4.23.0",
     "date": "2026-06-13",
     "changes": [
