@@ -1,10 +1,11 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
-import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch } from "@/lib/mcpOverview";
+import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch, listKeyholderNotes } from "@/lib/mcpOverview";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
+  mcpAddKeyholderNote, mcpDeleteKeyholderNote,
 } from "@/lib/mcpWrite";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
@@ -125,6 +126,25 @@ const handler = createMcpHandler(
         inputSchema: {},
       },
       () => runTool("get_strafbuch", mcpStrafbuch),
+    );
+
+    server.registerTool(
+      "list_keyholder_notes",
+      {
+        title: "List keyholder notes (wearing-behaviour observations)",
+        description:
+          "Returns the private keyholder notes — free observations about the user's wearing " +
+          "behaviour, optionally tagged by KG (device) and category (e.g. pressure marks, escape " +
+          "attempts, complaints). Newest first. get_overview already surfaces the 8 most recent; " +
+          "use this for the full history or to filter by a specific KG/category. MCP-only — the " +
+          "user never sees these. Use add_keyholder_note to record, delete_keyholder_note to prune.",
+        inputSchema: {
+          kg: z.string().optional().describe("Filter to a specific KG/device tag (exact match). Omit for all."),
+          kategorie: z.string().optional().describe("Filter to a specific category/tag (exact match). Omit for all."),
+          limit: z.number().int().min(1).max(200).optional().describe("Max rows to return (default 50)."),
+        },
+      },
+      (args) => runTool("list_keyholder_notes", (username) => listKeyholderNotes(username, args)),
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
@@ -314,6 +334,38 @@ const handler = createMcpHandler(
         },
       },
       (args, extra) => runWriteTool("edit_lock_period", extra, (u) => mcpEditLockPeriod(u, args)),
+    );
+
+    server.registerTool(
+      "add_keyholder_note",
+      {
+        title: "Add a keyholder note (wearing-behaviour observation)",
+        description:
+          "Records a private observation about the user's wearing behaviour for later evaluation — " +
+          "e.g. which KG draws complaints, reported pressure marks, escape attempts, hygiene issues. " +
+          "Optionally tag it with a KG (device) and a category. These notes are MCP-only (the user " +
+          "never sees them) and resurface in get_overview + list_keyholder_notes." + KEYHOLDER_NOTE,
+        inputSchema: {
+          text: z.string().min(1).describe("The observation (free text)."),
+          kg: z.string().optional().describe("Optional KG/device this concerns (e.g. the device name)."),
+          kategorie: z.string().optional().describe('Optional category/tag, e.g. "Druckstelle", "Ausbruchsversuch", "Gemecker".'),
+        },
+      },
+      (args, extra) => runWriteTool("add_keyholder_note", extra, (u) => mcpAddKeyholderNote(u, args)),
+    );
+
+    server.registerTool(
+      "delete_keyholder_note",
+      {
+        title: "Delete a keyholder note",
+        description:
+          "Removes a keyholder note by id (e.g. an outdated or superseded observation). Get the id " +
+          "from get_overview.keyholderNotes or list_keyholder_notes." + KEYHOLDER_NOTE,
+        inputSchema: {
+          id: z.string().min(1).describe("The note id to delete."),
+        },
+      },
+      (args, extra) => runWriteTool("delete_keyholder_note", extra, (u) => mcpDeleteKeyholderNote(u, args)),
     );
   },
   {},

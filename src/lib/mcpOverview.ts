@@ -53,6 +53,9 @@ export interface TrackerOverview {
    *  Distinct from detectedOffenseCount in get_strafbuch which counts system-detected offenses. */
   penalties: { punishedCount: number };
   activeWearSessions: { category: string; deviceName: string; since: string; durationHours: number }[];
+  /** Jüngste private Keyholder-Notizen (Beobachtungen zum Trageverhalten je KG/Kategorie).
+   *  Volle Historie über list_keyholder_notes. Nur über den MCP sichtbar. */
+  keyholderNotes: { id: string; kg: string | null; kategorie: string | null; text: string; at: string }[];
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -92,7 +95,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
-  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount] = await Promise.all([
+  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -110,6 +113,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     }),
     getActiveWearSessions(userId),
     prisma.strafeRecord.count({ where: { userId } }),
+    prisma.keyholderNote.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
   ]);
 
   // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
@@ -202,6 +206,9 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       deviceName: s.deviceName,
       since: fmt(s.since),
       durationHours: msToHours(now.getTime() - s.since.getTime()),
+    })),
+    keyholderNotes: recentNotes.map((n) => ({
+      id: n.id, kg: n.kg, kategorie: n.kategorie, text: n.text, at: fmt(n.createdAt),
     })),
   };
 }
@@ -499,5 +506,24 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
       deviceName: v.deviceName,
       punished: punished.has(v.entryId),
     })),
+  };
+}
+
+export interface ListNotesOptions { kg?: string; kategorie?: string; limit?: number }
+
+/** Volle Keyholder-Notiz-Historie (Beobachtungen zum Trageverhalten), optional nach KG/Kategorie
+ *  gefiltert. Read-only Gegenstück zu add/delete; get_overview zeigt nur die jüngsten 8. */
+export async function listKeyholderNotes(username: string, opts: ListNotesOptions = {}) {
+  const { userId } = await loadUserContext(username);
+  const fmt = (d: Date) => formatDateTime(d);
+  const notes = await prisma.keyholderNote.findMany({
+    where: { userId, ...(opts.kg ? { kg: opts.kg } : {}), ...(opts.kategorie ? { kategorie: opts.kategorie } : {}) },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(opts.limit ?? 50, 200),
+  });
+  return {
+    schemaVersion: 1 as const,
+    user: username,
+    notes: notes.map((n) => ({ id: n.id, kg: n.kg, kategorie: n.kategorie, text: n.text, at: fmt(n.createdAt) })),
   };
 }

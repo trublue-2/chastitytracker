@@ -40,6 +40,22 @@ model User {
   deviceCategories        DeviceCategory[]
   boxEvents               BoxEvent[]
   boxStatuses             BoxStatus[]
+  keyholderNotes          KeyholderNote[]
+}
+
+// Freie Beobachtungen, die der virtuelle Keyholder (MCP-KI) zum Trageverhalten ablegt und
+// später wieder auswertet. NUR über den MCP zugänglich — kein Sub-/Admin-UI. kg/kategorie
+// sind optionale Freitext-Tags (z.B. Gerätename bzw. "Druckstelle"/"Ausbruchsversuch"/"Gemecker").
+model KeyholderNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kg        String?
+  kategorie String?
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // User-defined device categories (KG, Plug, Collar, Cuffs, ...).

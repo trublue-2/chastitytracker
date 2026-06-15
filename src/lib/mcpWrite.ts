@@ -339,3 +339,26 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   unwrap(await updateSperrzeitEnde(sz.id, endetAt));
   return { ok: true, id: sz.id, message: args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.` };
 }
+
+// ── Keyholder-Notizen — private Beobachtungen der KI zum Trageverhalten (nur MCP) ──
+
+export interface AddKeyholderNoteArgs { text: string; kg?: string; kategorie?: string }
+
+/** Legt eine freie Beobachtung zum MCP_USERNAME-User ab (Trageverhalten je KG/Kategorie). */
+export async function mcpAddKeyholderNote(username: string, args: AddKeyholderNoteArgs) {
+  const userId = await resolveTargetUserId(username);
+  const text = args.text?.trim();
+  if (!text) throw new Error("text is required.");
+  const note = await prisma.keyholderNote.create({
+    data: { userId, text, kg: args.kg?.trim() || null, kategorie: args.kategorie?.trim() || null },
+  });
+  return { ok: true, id: note.id, message: "Note saved." };
+}
+
+/** Löscht eine eigene Notiz (per id, auf MCP_USERNAME beschränkt) — z.B. veraltete Beobachtung. */
+export async function mcpDeleteKeyholderNote(username: string, args: { id: string }) {
+  const userId = await resolveTargetUserId(username);
+  const res = await prisma.keyholderNote.deleteMany({ where: { id: args.id, userId } });
+  if (res.count === 0) throw new Error(`Note not found: ${args.id}`);
+  return { ok: true, message: "Note deleted." };
+}
