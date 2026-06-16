@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { midnightInTZ } from "@/lib/utils";
 
 export default async function NewOeffnenPage() {
   const session = await auth();
@@ -12,11 +13,14 @@ export default async function NewOeffnenPage() {
 
   if (!(await getIsLocked(userId))) redirect("/dashboard");
 
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  // „pro Tag" = Kalendertag (CH), nicht rollendes 24h-Fenster — sonst zählt eine Öffnung von
+  // gestern Abend heute noch mit und löst eine falsche Limit-Warnung aus. Muss zur
+  // Strafbuch-Ableitung (buildStrafbuch, ebenfalls Kalendertag) passen.
+  const dayStart = midnightInTZ(new Date());
   const [activeSperrzeit, user, reinigungHeute] = await Promise.all([
     getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true } }),
-    prisma.entry.count({ where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: since24h } } }),
+    prisma.entry.count({ where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: dayStart } } }),
   ]);
 
   const tn = await getTranslations("newEntry");

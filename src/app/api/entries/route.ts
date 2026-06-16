@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, forcedReinigung, deviceId, imageRotation } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation } = body;
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
   const validationError = validateEntryPayload(body, { allowFuture: devBypass });
@@ -152,20 +152,10 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
-  // Auto-create StrafeRecord when user bypassed the daily REINIGUNG limit
-  if (type === "OEFFNEN" && forcedReinigung === true && oeffnenGrund === "REINIGUNG") {
-    try {
-      await prisma.strafeRecord.create({
-        data: {
-          userId: session.user.id,
-          offenseType: "REINIGUNG_LIMIT",
-          refId: entry.id,
-          bestraftDatum: new Date(),
-          notiz: null,
-        },
-      });
-    } catch { /* ignore if duplicate — e.g. offline replay */ }
-  }
+  // REINIGUNG-Limit wird NICHT mehr automatisch bestraft: eine Reinigungsöffnung über dem
+  // Tageskontingent (auch ein Geräte-Wechsel) wird im Strafbuch nur noch ERKANNT (live in
+  // buildStrafbuch abgeleitet); ob sie geahndet wird, entscheidet die Keyholderin. Das
+  // Öffnen-Formular warnt weiterhin vorab — forcedReinigung bleibt rein informativ.
 
   // Auto-create StrafeRecord when user picked a different device than the Anforderung specified
   if (type === "VERSCHLUSS" && fulfilledAnforderungDeviceId && fulfilledAnforderungDeviceId !== (deviceId || null)) {

@@ -33,8 +33,9 @@ export interface TrackerOverview {
   };
   wearingHoursKg: { today: number; week: number; month: number };
   trainingGoalKg: (GoalProgress & { note: string | null }) | null;
-  /** Cleaning-pause rules. maxMinutesPerDay = null means unlimited. */
-  reinigung: { allowed: boolean; maxMinutesPerBreak: number; maxMinutesPerDay: number | null };
+  /** Cleaning-pause rules. maxPausesPerDay = max cleaning OPENINGS per day (a COUNT, not minutes;
+   *  null = unlimited). maxMinutesPerBreak = max minutes per single pause. */
+  reinigung: { allowed: boolean; maxMinutesPerBreak: number; maxPausesPerDay: number | null };
   /** Non-KG tracking categories (Plug, Collar, …) — wearing hours + their training goal (null if none). */
   categories: {
     name: string;
@@ -164,7 +165,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     reinigung: {
       allowed: reinigung.erlaubt,
       maxMinutesPerBreak: reinigung.maxMinuten,
-      maxMinutesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
+      maxPausesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
     },
     categories: categoryGoals.map((c) => ({
       name: c.name,
