@@ -2,6 +2,7 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch, listKeyholderNotes } from "@/lib/mcpOverview";
+import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
@@ -59,7 +60,9 @@ const handler = createMcpHandler(
           "rules (reinigung), per-category wear hours + goals for non-KG categories (Plug, Collar, …), " +
           "open control requests, active lock periods, session statistics, recorded penalties, " +
           "active wear sessions, and the human keyholder's free-text rules (keyholderInstructions) " +
-          "that the write tools must respect. Use this to reason about the user's situation and propose measures.",
+          "that the write tools must respect. Use this to reason about the user's situation and propose measures. " +
+          "If any field or rule is unclear (e.g. reinigung.maxPausesPerDay, or how Strafbuch detection vs " +
+          "punishment works), call explain_model first for a plain-language reference.",
         inputSchema: {},
       },
       () => runTool("get_overview", buildOverview),
@@ -145,6 +148,22 @@ const handler = createMcpHandler(
         },
       },
       (args) => runTool("list_keyholder_notes", (username) => listKeyholderNotes(username, args)),
+    );
+
+    server.registerTool(
+      "explain_model",
+      {
+        title: "Explain the tracker model & dependencies",
+        description:
+          "Returns a plain-language reference (German) of how the tracker's concepts interrelate — " +
+          "lock & Sperrzeit, Reinigung (cleaning) incl. maxPausesPerDay (a COUNT per calendar day, not " +
+          "minutes), device switches (which run through the cleaning path and consume the cleaning " +
+          "quota), the Strafbuch detected-vs-punished distinction, box control, and keyholder notes. " +
+          "Read this whenever a field or rule is unclear — it prevents the common misreadings (e.g. " +
+          "treating a detected offense as a punishment, or maxPausesPerDay as minutes).",
+        inputSchema: {},
+      },
+      () => ({ content: [{ type: "text" as const, text: MCP_MODEL_DOC }] }),
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
