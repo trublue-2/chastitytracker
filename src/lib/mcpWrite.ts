@@ -109,11 +109,31 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
 export interface RequestInspectionArgs {
   deadlineHours?: number;
   comment?: string;
+  delayMinutes?: number;
 }
 export async function mcpRequestInspection(username: string, args: RequestInspectionArgs) {
   const userId = await resolveTargetUserId(username);
-  const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours }));
-  return { ok: true, deadline: data.deadline, message: `Inspection requested; the code was e-mailed to the user. Deadline: ${data.deadline}.` };
+  // Delay-Policy (nur MCP): kein Wert → zufällig 5–65; ≤0 → sofort; sonst auf 5–65 geklemmt.
+  let delayMinutes: number;
+  if (args.delayMinutes === undefined) {
+    delayMinutes = 5 + Math.floor(Math.random() * 61); // 5..65 inkl.
+  } else if (args.delayMinutes <= 0) {
+    delayMinutes = 0;
+  } else {
+    delayMinutes = Math.min(65, Math.max(5, Math.round(args.delayMinutes)));
+  }
+
+  const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes }));
+
+  if (data.scheduledFor) {
+    return {
+      ok: true,
+      scheduledFor: data.scheduledFor,
+      deadline: data.deadline,
+      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.`,
+    };
+  }
+  return { ok: true, deadline: data.deadline, message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` };
 }
 
 export interface SetTrainingGoalArgs {
@@ -318,4 +338,27 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   if (!sz) throw new Error("No active lock period to edit.");
   unwrap(await updateSperrzeitEnde(sz.id, endetAt));
   return { ok: true, id: sz.id, message: args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.` };
+}
+
+// ── Keyholder-Notizen — private Beobachtungen der KI zum Trageverhalten (nur MCP) ──
+
+export interface AddKeyholderNoteArgs { text: string; kg?: string; kategorie?: string }
+
+/** Legt eine freie Beobachtung zum MCP_USERNAME-User ab (Trageverhalten je KG/Kategorie). */
+export async function mcpAddKeyholderNote(username: string, args: AddKeyholderNoteArgs) {
+  const userId = await resolveTargetUserId(username);
+  const text = args.text?.trim();
+  if (!text) throw new Error("text is required.");
+  const note = await prisma.keyholderNote.create({
+    data: { userId, text, kg: args.kg?.trim() || null, kategorie: args.kategorie?.trim() || null },
+  });
+  return { ok: true, id: note.id, message: "Note saved." };
+}
+
+/** Löscht eine eigene Notiz (per id, auf MCP_USERNAME beschränkt) — z.B. veraltete Beobachtung. */
+export async function mcpDeleteKeyholderNote(username: string, args: { id: string }) {
+  const userId = await resolveTargetUserId(username);
+  const res = await prisma.keyholderNote.deleteMany({ where: { id: args.id, userId } });
+  if (res.count === 0) throw new Error(`Note not found: ${args.id}`);
+  return { ok: true, message: "Note deleted." };
 }

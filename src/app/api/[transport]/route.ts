@@ -1,10 +1,12 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
-import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch } from "@/lib/mcpOverview";
+import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch, listKeyholderNotes } from "@/lib/mcpOverview";
+import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
+  mcpAddKeyholderNote, mcpDeleteKeyholderNote,
 } from "@/lib/mcpWrite";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
@@ -58,7 +60,9 @@ const handler = createMcpHandler(
           "rules (reinigung), per-category wear hours + goals for non-KG categories (Plug, Collar, …), " +
           "open control requests, active lock periods, session statistics, recorded penalties, " +
           "active wear sessions, and the human keyholder's free-text rules (keyholderInstructions) " +
-          "that the write tools must respect. Use this to reason about the user's situation and propose measures.",
+          "that the write tools must respect. Use this to reason about the user's situation and propose measures. " +
+          "If any field or rule is unclear (e.g. reinigung.maxPausesPerDay, or how Strafbuch detection vs " +
+          "punishment works), call explain_model first for a plain-language reference.",
         inputSchema: {},
       },
       () => runTool("get_overview", buildOverview),
@@ -105,8 +109,9 @@ const handler = createMcpHandler(
         title: "List devices (inventory)",
         description:
           "Returns the user's device inventory — KG and non-KG (Plug, Collar, …) devices — each " +
-          "with its category, purchase price, currency, archived status and creation date. Active " +
-          "devices first, then archived. Use for inventory and cost questions.",
+          "with its notes/description, category, purchase price, currency, whether it has a photo, " +
+          "archived status and creation date. Active devices first, then archived. Use for " +
+          "inventory, notes and cost questions.",
         inputSchema: {},
       },
       () => runTool("list_devices", listDevices),
@@ -125,6 +130,41 @@ const handler = createMcpHandler(
         inputSchema: {},
       },
       () => runTool("get_strafbuch", mcpStrafbuch),
+    );
+
+    server.registerTool(
+      "list_keyholder_notes",
+      {
+        title: "List keyholder notes (wearing-behaviour observations)",
+        description:
+          "Returns the private keyholder notes — free observations about the user's wearing " +
+          "behaviour, optionally tagged by KG (device) and category (e.g. pressure marks, escape " +
+          "attempts, complaints). Newest first. get_overview already surfaces the 8 most recent; " +
+          "use this for the full history or to filter by a specific KG/category. MCP-only — the " +
+          "user never sees these. Use add_keyholder_note to record, delete_keyholder_note to prune.",
+        inputSchema: {
+          kg: z.string().optional().describe("Filter to a specific KG/device tag (exact match). Omit for all."),
+          kategorie: z.string().optional().describe("Filter to a specific category/tag (exact match). Omit for all."),
+          limit: z.number().int().min(1).max(200).optional().describe("Max rows to return (default 50)."),
+        },
+      },
+      (args) => runTool("list_keyholder_notes", (username) => listKeyholderNotes(username, args)),
+    );
+
+    server.registerTool(
+      "explain_model",
+      {
+        title: "Explain the tracker model & dependencies",
+        description:
+          "Returns a plain-language reference (German) of how the tracker's concepts interrelate — " +
+          "lock & Sperrzeit, Reinigung (cleaning) incl. maxPausesPerDay (a COUNT per calendar day, not " +
+          "minutes), device switches (which run through the cleaning path and consume the cleaning " +
+          "quota), the Strafbuch detected-vs-punished distinction, box control, and keyholder notes. " +
+          "Read this whenever a field or rule is unclear — it prevents the common misreadings (e.g. " +
+          "treating a detected offense as a punishment, or maxPausesPerDay as minutes).",
+        inputSchema: {},
+      },
+      () => ({ content: [{ type: "text" as const, text: MCP_MODEL_DOC }] }),
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
@@ -176,10 +216,12 @@ const handler = createMcpHandler(
         title: "Request inspection (Kontrolle)",
         description:
           "Requests a photo inspection: e-mails the user a code they must show in a photo within a " +
-          "deadline (default 4h). Only valid when the user is currently locked." + KEYHOLDER_NOTE,
+          "deadline (default 4h). Only valid when the user is currently locked. Can be triggered " +
+          "time-delayed so the user does not know exactly when it strikes." + KEYHOLDER_NOTE,
         inputSchema: {
-          deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4)."),
+          deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
+          delayMinutes: z.coerce.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
         },
       },
       (args, extra) => runWriteTool("request_inspection", extra, (u) => mcpRequestInspection(u, args)),
@@ -312,6 +354,38 @@ const handler = createMcpHandler(
         },
       },
       (args, extra) => runWriteTool("edit_lock_period", extra, (u) => mcpEditLockPeriod(u, args)),
+    );
+
+    server.registerTool(
+      "add_keyholder_note",
+      {
+        title: "Add a keyholder note (wearing-behaviour observation)",
+        description:
+          "Records a private observation about the user's wearing behaviour for later evaluation — " +
+          "e.g. which KG draws complaints, reported pressure marks, escape attempts, hygiene issues. " +
+          "Optionally tag it with a KG (device) and a category. These notes are MCP-only (the user " +
+          "never sees them) and resurface in get_overview + list_keyholder_notes." + KEYHOLDER_NOTE,
+        inputSchema: {
+          text: z.string().min(1).describe("The observation (free text)."),
+          kg: z.string().optional().describe("Optional KG/device this concerns (e.g. the device name)."),
+          kategorie: z.string().optional().describe('Optional category/tag, e.g. "Druckstelle", "Ausbruchsversuch", "Gemecker".'),
+        },
+      },
+      (args, extra) => runWriteTool("add_keyholder_note", extra, (u) => mcpAddKeyholderNote(u, args)),
+    );
+
+    server.registerTool(
+      "delete_keyholder_note",
+      {
+        title: "Delete a keyholder note",
+        description:
+          "Removes a keyholder note by id (e.g. an outdated or superseded observation). Get the id " +
+          "from get_overview.keyholderNotes or list_keyholder_notes." + KEYHOLDER_NOTE,
+        inputSchema: {
+          id: z.string().min(1).describe("The note id to delete."),
+        },
+      },
+      (args, extra) => runWriteTool("delete_keyholder_note", extra, (u) => mcpDeleteKeyholderNote(u, args)),
     );
   },
   {},

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { mapAnforderungStatus } from "@/lib/utils";
+import { mapAnforderungStatus, tzDateParts } from "@/lib/utils";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
@@ -54,7 +54,7 @@ export interface StrafbuchData {
  *  Single source of truth shared by the admin Strafbuch page and the MCP tool. */
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
   const [user, oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
     prisma.kontrollAnforderung.findMany({
@@ -75,12 +75,11 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       (w.withdrawnAt === null || w.withdrawnAt > openTime),
     );
   const userReinigungErlaubt = user?.reinigungErlaubt ?? false;
+  const reinigungMaxProTag = user?.reinigungMaxProTag ?? 0;
 
-  // Offenses whose StrafeRecord.refId points at the offending entry (REINIGUNG-limit, wrong-device).
-  // Both are subsets of strafeRecordsRaw; fetch the referenced entries once (with device for naming).
-  const reinigungLimitRecords = strafeRecordsRaw.filter((r) => r.offenseType === "REINIGUNG_LIMIT");
+  // Wrong-device: StrafeRecord.refId points at the offending VERSCHLUSS entry (für Geräte-Namen laden).
   const wrongDeviceRecords = strafeRecordsRaw.filter((r) => r.offenseType === "FALSCHES_GERAET");
-  const offenseEntryIds = [...reinigungLimitRecords, ...wrongDeviceRecords].map((r) => r.refId);
+  const offenseEntryIds = wrongDeviceRecords.map((r) => r.refId);
   const offenseEntries = offenseEntryIds.length > 0
     ? await prisma.entry.findMany({
         where: { id: { in: offenseEntryIds } },
@@ -88,14 +87,32 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       })
     : [];
   const offenseEntryById = new Map(offenseEntries.map((e) => [e.id, e]));
-  const reinigungLimitViolations = reinigungLimitRecords.map((r) => {
-    const entry = offenseEntryById.get(r.refId);
-    return { entryId: r.refId, startTime: entry?.startTime ?? null, note: entry?.note ?? null };
-  });
   const wrongDeviceViolations = wrongDeviceRecords.map((r) => {
     const entry = offenseEntryById.get(r.refId);
     return { entryId: r.refId, startTime: entry?.startTime ?? null, note: entry?.note ?? null, deviceName: entry?.device?.name ?? null };
   });
+
+  // REINIGUNG-Limit: NICHT mehr aus Auto-StrafeRecords, sondern LIVE abgeleitet — eine
+  // REINIGUNG-Öffnung über dem Tageskontingent (CH-Tag) ist eine Erkennung; ob sie bestraft
+  // wird, entscheidet die Keyholderin (punished = ein StrafeRecord referenziert den Eintrag).
+  // 0 = unbegrenzt → keine Verstösse. Wechsel laufen über diesen Pfad und werden so nicht
+  // mehr automatisch geahndet.
+  const reinigungLimitViolations: { entryId: string; startTime: Date | null; note: string | null }[] = [];
+  if (reinigungMaxProTag > 0) {
+    const perDay = new Map<string, number>();
+    const reinigungAsc = oeffnungen
+      .filter((o) => o.oeffnenGrund === "REINIGUNG")
+      .slice()
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    for (const o of reinigungAsc) {
+      const { year, month, day } = tzDateParts(o.startTime);
+      const key = `${year}-${month}-${day}`;
+      const n = (perDay.get(key) ?? 0) + 1;
+      perDay.set(key, n);
+      if (n > reinigungMaxProTag) reinigungLimitViolations.push({ entryId: o.id, startTime: o.startTime, note: o.note });
+    }
+    reinigungLimitViolations.reverse(); // neueste zuerst (Anzeige)
+  }
 
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
   // permitted when both the user flag and the Sperrzeit allow cleaning.

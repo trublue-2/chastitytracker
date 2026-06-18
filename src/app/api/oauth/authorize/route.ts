@@ -102,5 +102,8 @@ export async function POST(req: NextRequest) {
   const callbackUrl = new URL(redirectUri);
   callbackUrl.searchParams.set("code", code);
   if (state) callbackUrl.searchParams.set("state", state);
-  return NextResponse.redirect(callbackUrl.toString());
+  // 303 See Other: zwingt den Browser, den Callback als GET aufzurufen. Der Default (307)
+  // behält die POST-Methode bei → der OAuth-Callback (claude.ai) erwartet GET und antwortet
+  // sonst mit „405 Method Not Allowed".
+  return NextResponse.redirect(callbackUrl.toString(), 303);
 }

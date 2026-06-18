@@ -18,6 +18,9 @@ model User {
   reinigungErlaubt      Boolean                @default(false)
   reinigungMaxMinuten   Int                    @default(15)
   reinigungMaxProTag    Int                    @default(0)
+  // Tägliche Öffnungs-Fenster für Reinigung als JSON-String, z.B. [{"start":"19:00","end":"20:00"}]
+  // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseReinigungsFenster deserialisiert.
+  reinigungsFenster     String?
   mobileDesktopUpload   Boolean                @default(false)
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions String?
@@ -36,6 +39,24 @@ model User {
   nativePushTokens        NativePushToken[]
   passkeys                Passkey[]
   deviceCategories        DeviceCategory[]
+  boxEvents               BoxEvent[]
+  boxStatuses             BoxStatus[]
+  keyholderNotes          KeyholderNote[]
+}
+
+// Freie Beobachtungen, die der virtuelle Keyholder (MCP-KI) zum Trageverhalten ablegt und
+// später wieder auswertet. NUR über den MCP zugänglich — kein Sub-/Admin-UI. kg/kategorie
+// sind optionale Freitext-Tags (z.B. Gerätename bzw. "Druckstelle"/"Ausbruchsversuch"/"Gemecker").
+model KeyholderNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kg        String?
+  kategorie String?
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // User-defined device categories (KG, Plug, Collar, Cuffs, ...).
@@ -118,11 +139,16 @@ model KontrollAnforderung {
   createdAt   DateTime  @default(now())
   fulfilledAt DateTime? // Server-seitig gesetzt beim Erstellen des PRUEFUNG-Eintrags – nie editierbar
   withdrawnAt DateTime?
+  // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub
+  // unsichtbar, Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
+  wirksamAb        DateTime?
+  benachrichtigtAt DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
   entryId     String?   @unique
   entry       Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)
 
   @@index([userId, withdrawnAt])
   @@index([userId, entryId])
+  @@index([wirksamAb])
 }
 
 model VerschlussAnforderung {
@@ -232,9 +258,57 @@ model Device {
 
   entries               Entry[]
   verschlussAnforderungen VerschlussAnforderung[]
+  boxEvents             BoxEvent[]
 
   @@index([userId, archivedAt])
   @@index([categoryId])
+}
+
+// Hardware-Wahrheit der Heimdall-Schlüsselbox (Spur 2), getrennt vom selbst-
+// erfassten Entry (Spur 1). Wird vom Heimdall-Server über /api/integration/box/*
+// (Shared-Secret) eingespielt. Abgleich Entry↔BoxEvent erfolgt später (P3).
+model BoxEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId   String?
+  device     Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  type       String   // "LOCKED" | "UNLOCKED" | "EARLY_OPEN" | "UNAUTHORIZED_OPEN"
+  wakeReason String?  // gemeldeter Öffnungsgrund der Box
+  battery    Int?     // 0–100
+  fwVersion  String?
+  at         DateTime // Zeitpunkt des Box-Ereignisses (server-autoritativ vom Heimdall-Sync)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, at])
+}
+
+// Live-Zustand der Heimdall-Box(en) eines Users — vom Heimdall-Server bei jedem Box-Sync
+// gepusht. Zeigt den Box-Status im Tracker (statt zweiter App). pendingCommand = vom Sub
+// im Tracker ausgelöste Aktion, die Heimdall beim nächsten Sync zieht & anwendet.
+model BoxStatus {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boxId           String    // Heimdall-Geräte-id (stabil)
+  name            String
+  locked          Boolean   @default(false)
+  lockUntil       DateTime? // effektive Sperre (eigene + Tracker-Sperrzeit, gekappt)
+  simpleLock      Boolean   @default(false)
+  keyholderLocked Boolean   @default(false) // durch Tracker-Sperrzeit gehalten (Sub kann lokal nicht öffnen)
+  battery         Int?
+  charging        Boolean?
+  boltPos         String?
+  fwVersion       String?
+  lastSyncAt      DateTime?
+  // Vom Sub ausgelöstes, noch nicht vollzogenes Kommando.
+  pendingCommand         String?   // "lock" | "open" | "clean_open"
+  pendingCommandRelockBy DateTime? // nur clean_open: Re-Lock-Frist
+  pendingCommandAt       DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, boxId])
+  @@index([userId])
 }
 
 model Entry {

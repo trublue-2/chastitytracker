@@ -4,7 +4,7 @@ import {
   calculateWearingHoursByRange, formatDateTime, isTimeCorrected, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, subVisibleKontrolleWhere } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 
@@ -33,8 +33,9 @@ export interface TrackerOverview {
   };
   wearingHoursKg: { today: number; week: number; month: number };
   trainingGoalKg: (GoalProgress & { note: string | null }) | null;
-  /** Cleaning-pause rules. maxMinutesPerDay = null means unlimited. */
-  reinigung: { allowed: boolean; maxMinutesPerBreak: number; maxMinutesPerDay: number | null };
+  /** Cleaning-pause rules. maxPausesPerDay = max cleaning OPENINGS per day (a COUNT, not minutes;
+   *  null = unlimited). maxMinutesPerBreak = max minutes per single pause. */
+  reinigung: { allowed: boolean; maxMinutesPerBreak: number; maxPausesPerDay: number | null };
   /** Non-KG tracking categories (Plug, Collar, …) — wearing hours + their training goal (null if none). */
   categories: {
     name: string;
@@ -42,8 +43,10 @@ export interface TrackerOverview {
     goal: GoalProgress | null;
   }[];
   openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null } | null;
-  activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null } | null;
-  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null } | null;
+  /** reinigungErlaubt: true = eine Reinigungsöffnung bricht die Sperre nicht. deviceName: vorgegebenes Gerät (null = keines). */
+  activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null } | null;
+  /** deviceName: das von der Anforderung verlangte Gerät (null = beliebig). reinigungErlaubt wird auf die erzeugte Sperrzeit vererbt. */
+  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null; reinigungErlaubt: boolean; deviceName: string | null } | null;
   /** Open keyholder orgasm directive (request/opportunity) whose window has not yet ended. */
   openOrgasmusAnforderung: { art: string; beginntAt: string; endetAt: string; active: boolean; requiredType: string | null; message: string | null; remainingMinutes: number } | null;
   sessionSummary: {
@@ -55,6 +58,9 @@ export interface TrackerOverview {
    *  Distinct from detectedOffenseCount in get_strafbuch which counts system-detected offenses. */
   penalties: { punishedCount: number };
   activeWearSessions: { category: string; deviceName: string; since: string; durationHours: number }[];
+  /** Jüngste private Keyholder-Notizen (Beobachtungen zum Trageverhalten je KG/Kategorie).
+   *  Volle Historie über list_keyholder_notes. Nur über den MCP sichtbar. */
+  keyholderNotes: { id: string; kg: string | null; kategorie: string | null; text: string; at: string }[];
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -94,23 +100,26 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
-  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, openOrgasmusAnf] = await Promise.all([
+  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes, openOrgasmusAnf] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
       include: { device: { select: { name: true, categoryId: true } } },
     }),
     prisma.kontrollAnforderung.findFirst({
-      where: { userId, entryId: null, withdrawnAt: null },
+      // geplante (noch nicht ausgelöste) Kontrollen sind auch im get_overview unsichtbar
+      where: { userId, entryId: null, withdrawnAt: null, ...subVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
     getActiveVorgabe(userId, now),
     getActiveSperrzeit(userId),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      include: { device: { select: { name: true } } },
     }),
     getActiveWearSessions(userId),
     prisma.strafeRecord.count({ where: { userId } }),
+    prisma.keyholderNote.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
     getActiveOrgasmusAnforderung(userId, now),
   ]);
 
@@ -162,7 +171,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     reinigung: {
       allowed: reinigung.erlaubt,
       maxMinutesPerBreak: reinigung.maxMinuten,
-      maxMinutesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
+      maxPausesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
     },
     categories: categoryGoals.map((c) => ({
       name: c.name,
@@ -181,6 +190,8 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       indefinite: activeSperrzeit.endetAt === null,
       remainingMinutes: activeSperrzeit.endetAt ? minutesUntil(activeSperrzeit.endetAt) : null,
       message: activeSperrzeit.nachricht,
+      reinigungErlaubt: activeSperrzeit.reinigungErlaubt,
+      deviceName: activeSperrzeit.device?.name ?? null,
     } : null,
     openVerschlussAnforderung: openAnf ? {
       endetAt: openAnf.endetAt ? fmt(openAnf.endetAt) : null,
@@ -188,6 +199,8 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       remainingMinutes: openAnf.endetAt ? minutesUntil(openAnf.endetAt) : null,
       message: openAnf.nachricht,
       dauerH: openAnf.dauerH,
+      reinigungErlaubt: openAnf.reinigungErlaubt,
+      deviceName: openAnf.device?.name ?? null,
     } : null,
     openOrgasmusAnforderung: openOrgasmusAnf ? {
       art: openOrgasmusAnf.art,
@@ -213,6 +226,9 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       deviceName: s.deviceName,
       since: fmt(s.since),
       durationHours: msToHours(now.getTime() - s.since.getTime()),
+    })),
+    keyholderNotes: recentNotes.map((n) => ({
+      id: n.id, kg: n.kg, kategorie: n.kategorie, text: n.text, at: fmt(n.createdAt),
     })),
   };
 }
@@ -394,10 +410,13 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
 /** One device for the MCP `list_devices` tool — inventory metadata. */
 export interface DeviceRow {
   name: string;
+  /** Free-text notes/description the user stored for this device. */
+  description: string | null;
   category: string;
   isKg: boolean;
   purchasePrice: number | null;
   currency: string | null;
+  hasImage: boolean;
   archived: boolean;
   createdAt: string;
 }
@@ -419,10 +438,12 @@ export async function listDevices(username: string): Promise<DeviceList> {
     schemaVersion: 1 as const,
     devices: devices.map((d) => ({
       name: d.name,
+      description: d.description,
       category: d.category?.name ?? "—",
       isKg: d.category?.isBuiltIn ?? false,
       purchasePrice: d.purchasePrice,
       currency: d.currency,
+      hasImage: !!d.imageUrl,
       archived: d.archivedAt !== null,
       createdAt: formatDateTime(d.createdAt),
     })),
@@ -510,5 +531,24 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
       deviceName: v.deviceName,
       punished: punished.has(v.entryId),
     })),
+  };
+}
+
+export interface ListNotesOptions { kg?: string; kategorie?: string; limit?: number }
+
+/** Volle Keyholder-Notiz-Historie (Beobachtungen zum Trageverhalten), optional nach KG/Kategorie
+ *  gefiltert. Read-only Gegenstück zu add/delete; get_overview zeigt nur die jüngsten 8. */
+export async function listKeyholderNotes(username: string, opts: ListNotesOptions = {}) {
+  const { userId } = await loadUserContext(username);
+  const fmt = (d: Date) => formatDateTime(d);
+  const notes = await prisma.keyholderNote.findMany({
+    where: { userId, ...(opts.kg ? { kg: opts.kg } : {}), ...(opts.kategorie ? { kategorie: opts.kategorie } : {}) },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(opts.limit ?? 50, 200),
+  });
+  return {
+    schemaVersion: 1 as const,
+    user: username,
+    notes: notes.map((n) => ({ id: n.id, kg: n.kg, kategorie: n.kategorie, text: n.text, at: fmt(n.createdAt) })),
   };
 }

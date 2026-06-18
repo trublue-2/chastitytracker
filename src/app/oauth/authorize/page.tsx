@@ -43,6 +43,9 @@ export default async function OAuthAuthorizePage({ searchParams }: Props) {
   const scopeList = (scope ?? "read").split(" ").filter(Boolean);
   // Use the DB-stored client name — never the URL param (attacker-controlled)
   const appName = client.clientName;
+  // Schreibzugriff hängt NICHT am OAuth-Scope (nur "read" existiert), sondern an der Rolle:
+  // checkMcpKeyholder lässt Schreib-Tools nur für Admins zu. Der Consent muss das ehrlich zeigen.
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -71,9 +74,17 @@ export default async function OAuthAuthorizePage({ searchParams }: Props) {
                     <span>Lesezugriff auf Tracker-Daten (Einschlüsse, Statistiken, Strafbuch)</span>
                   </li>
                 )}
+                {isAdmin && (
+                  <li className="text-sm flex items-start gap-2">
+                    <span className="text-lock mt-0.5">✓</span>
+                    <span>Keyholder-Aktionen in deinem Namen (Sperren/Entsperren, Kontrollen, Trainingsziele, Reinigung, Notizen)</span>
+                  </li>
+                )}
               </ul>
               <p className="text-xs text-foreground-faint mt-3">
-                Kein Schreibzugriff — keine Änderungen an deinen Daten möglich.
+                {isAdmin
+                  ? "Als Admin verbunden — die KI kann als Keyholderin handeln (Schreibzugriff)."
+                  : "Kein Schreibzugriff — keine Änderungen an deinen Daten möglich."}
               </p>
             </div>
 

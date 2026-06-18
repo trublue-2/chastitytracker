@@ -57,6 +57,7 @@ export default auth((req) => {
   // /api/mcp, /api/sse, /api/message: mcp-handler transport paths — all authenticated via withMcpAuth (bearer token), not session.
   const isAuthRoute = pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/api/version" || pathname === "/api/upstream-changelog" || pathname === "/api/portal-login"
     || pathname === "/api/mcp" || pathname === "/api/sse" || pathname === "/api/message"
+    || pathname.startsWith("/api/integration/") // Heimdall-Box: Shared-Secret (requireBoxSync), keine Session
     || pathname.startsWith("/api/oauth/") || pathname.startsWith("/.well-known/") || pathname.startsWith("/oauth/");
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const isProtected =
