@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.24.0",
+    "date": "2026-06-18",
+    "changes": [
+      { "type": "feat", "text": "Heimdall-Box-Integration: Der Tracker zeigt den Live-Zustand der Schlüsselbox (Lock-Status, Akku, Firmware) und kann die Box direkt verschliessen sowie öffnen (eigene Sperre ohne Zeit). Box-Ereignisse (LOCKED/UNLOCKED/…) werden über eine Maschinen-API mit Shared-Secret eingespielt; die Tracker-eigene Sperrzeit wird respektiert." },
+      { "type": "feat", "text": "Reinigung im (+)-Eintrag: Reinigungsöffnungen lassen sich mit Tages-Fenstern konfigurieren; die Box öffnet temporär (clean_open) und verschliesst danach wieder, ohne die Sperrzeit zu brechen." },
+      { "type": "feat", "text": "MCP: Virtueller Keyholder kann private Beobachtungen ablegen und wieder auswerten (add/list/delete_keyholder_note) — nur über den MCP sichtbar, kein Sub-/Admin-UI." },
+      { "type": "feat", "text": "MCP: explain_model — Referenz zu Modell & Abhängigkeiten für den Keyholder (Lock, Sperrzeit, Reinigung, Strafen)." },
+      { "type": "feat", "text": "MCP: list_devices liefert jetzt Notizen (description) und Foto-Status; get_overview zeigt bei aktiver Sperrzeit und offener Verschluss-Anforderung das vorgegebene Gerät sowie reinigungErlaubt." },
+      { "type": "fix", "text": "Reinigungs-Limit wird als Verstoss erkannt statt automatisch bestraft; Zählung pro CH-Kalendertag." },
+      { "type": "fix", "text": "OAuth: Authorize redirectet mit 303 statt 307 (Method Not Allowed behoben); Consent zeigt den Admin-Schreibzugriff ehrlich an." }
+    ]
+  },
+  {
     "version": "4.23.1",
     "date": "2026-06-13",
     "changes": [
