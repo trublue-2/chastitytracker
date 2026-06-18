@@ -43,8 +43,10 @@ export interface TrackerOverview {
     goal: GoalProgress | null;
   }[];
   openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null } | null;
-  activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null } | null;
-  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null } | null;
+  /** reinigungErlaubt: true = eine Reinigungsöffnung bricht die Sperre nicht. deviceName: vorgegebenes Gerät (null = keines). */
+  activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null } | null;
+  /** deviceName: das von der Anforderung verlangte Gerät (null = beliebig). reinigungErlaubt wird auf die erzeugte Sperrzeit vererbt. */
+  openVerschlussAnforderung: { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null; reinigungErlaubt: boolean; deviceName: string | null } | null;
   sessionSummary: {
     totalSessions: number; totalHours: number; avgHours: number;
     longestHours: number; shortestHours: number;
@@ -111,6 +113,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     getActiveSperrzeit(userId),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      include: { device: { select: { name: true } } },
     }),
     getActiveWearSessions(userId),
     prisma.strafeRecord.count({ where: { userId } }),
@@ -184,6 +187,8 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       indefinite: activeSperrzeit.endetAt === null,
       remainingMinutes: activeSperrzeit.endetAt ? minutesUntil(activeSperrzeit.endetAt) : null,
       message: activeSperrzeit.nachricht,
+      reinigungErlaubt: activeSperrzeit.reinigungErlaubt,
+      deviceName: activeSperrzeit.device?.name ?? null,
     } : null,
     openVerschlussAnforderung: openAnf ? {
       endetAt: openAnf.endetAt ? fmt(openAnf.endetAt) : null,
@@ -191,6 +196,8 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       remainingMinutes: openAnf.endetAt ? minutesUntil(openAnf.endetAt) : null,
       message: openAnf.nachricht,
       dauerH: openAnf.dauerH,
+      reinigungErlaubt: openAnf.reinigungErlaubt,
+      deviceName: openAnf.device?.name ?? null,
     } : null,
     sessionSummary: summary.count > 0 ? {
       totalSessions: summary.count,
@@ -391,10 +398,13 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
 /** One device for the MCP `list_devices` tool — inventory metadata. */
 export interface DeviceRow {
   name: string;
+  /** Free-text notes/description the user stored for this device. */
+  description: string | null;
   category: string;
   isKg: boolean;
   purchasePrice: number | null;
   currency: string | null;
+  hasImage: boolean;
   archived: boolean;
   createdAt: string;
 }
@@ -416,10 +426,12 @@ export async function listDevices(username: string): Promise<DeviceList> {
     schemaVersion: 1 as const,
     devices: devices.map((d) => ({
       name: d.name,
+      description: d.description,
       category: d.category?.name ?? "—",
       isKg: d.category?.isBuiltIn ?? false,
       purchasePrice: d.purchasePrice,
       currency: d.currency,
+      hasImage: !!d.imageUrl,
       archived: d.archivedAt !== null,
       createdAt: formatDateTime(d.createdAt),
     })),

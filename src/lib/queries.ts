@@ -264,6 +264,9 @@ export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
   return client.verschlussAnforderung.findFirst({
     where: activeSperrzeitWhere(userId, new Date()),
     orderBy: { createdAt: "desc" },
+    // device additiv mitladen — vom get_overview (deviceName) genutzt, für alle
+    // anderen Aufrufer harmlos (lesen nur Skalarfelder).
+    include: { device: { select: { name: true } } },
   });
 }
 

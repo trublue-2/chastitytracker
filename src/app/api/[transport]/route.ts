@@ -109,8 +109,9 @@ const handler = createMcpHandler(
         title: "List devices (inventory)",
         description:
           "Returns the user's device inventory — KG and non-KG (Plug, Collar, …) devices — each " +
-          "with its category, purchase price, currency, archived status and creation date. Active " +
-          "devices first, then archived. Use for inventory and cost questions.",
+          "with its notes/description, category, purchase price, currency, whether it has a photo, " +
+          "archived status and creation date. Active devices first, then archived. Use for " +
+          "inventory, notes and cost questions.",
         inputSchema: {},
       },
       () => runTool("list_devices", listDevices),
