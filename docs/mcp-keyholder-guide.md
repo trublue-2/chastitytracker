@@ -114,3 +114,22 @@ eine Strafe gibt.
   ersetzt die vorige. Zurückziehen via `withdraw` mit `target:"orgasm_directive"`.
 - **Lesen**: die aktuell offene Direktive steht in `get_overview.openOrgasmusAnforderung`;
   verpasste ANWEISUNGEN in `get_strafbuch.missedOrgasmInstructions`.
+
+## 12. Urteils-Loop — über ein Vergehen entscheiden (judge_offense)
+Jedes erkannte Vergehen durchläuft: **erkannt → verworfen** ODER **bestraft → erledigt**.
+- In `get_strafbuch` trägt jedes Vergehen ein `judgment`: `open` (unbeurteilt), `dismissed`
+  (verworfen) oder `punished` (bestraft), plus `judgedBy` (`ai`/`admin`), `judgedAt` und eine stabile
+  `ref {type,id}`. Bei `punished`: `penalty` (der Strafe-Text) und `done`/`doneAt`. Bei `dismissed`: `reason`.
+- **`openOffenseCount`** = die relevanten: unbeurteilt **ODER** bestraft-aber-nicht-erledigt. Ein
+  Vergehen fällt erst raus, wenn es **verworfen** ODER die Strafe **erledigt** ist.
+- **Die Strafe ist ein freier Text** — was „20 Schläge" bedeutet, entscheidest du beim Reinschreiben.
+  Kein Typen-Zoo, keine automatische Sperrzeit. Willst du eine Sperre als Strafe, setze sie separat
+  über `set_lock_period`.
+- **`judge_offense`** (ref = `ref.id` aus get_strafbuch):
+  - `action:"dismiss"` (+ optional `text` = Grund) → **keine Strafe** (verbindlich, sofort).
+  - `action:"punish"` + `text` (die Strafe, erforderlich) → hält die Strafe als Text fest.
+  - `action:"complete"` → markiert die Strafe als **erledigt** (schließt den Loop).
+  - `action:"reopen"` → Urteil zurücknehmen (revidieren).
+- `penalties.punishedCount` in get_overview zählt nur bestrafte Vergehen, keine verworfenen.
+- **Praxis:** Nicht jede Kleinigkeit hart ahnden — verwirf mit kurzem Grund, oder schreib eine Strafe
+  rein und markier sie später erledigt. Klar in der Konsequenz, ohne Automatik.

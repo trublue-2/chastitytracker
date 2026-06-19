@@ -6,7 +6,7 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
-  mcpAddKeyholderNote, mcpDeleteKeyholderNote, mcpRequestOrgasm,
+  mcpAddKeyholderNote, mcpDeleteKeyholderNote, mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
@@ -284,6 +284,26 @@ const handler = createMcpHandler(
         },
       },
       (args, extra) => runWriteTool("withdraw", extra, (u) => mcpWithdraw(u, args)),
+    );
+
+    server.registerTool(
+      "judge_offense",
+      {
+        title: "Judge a detected offense",
+        description:
+          "Rules on a detected offense (from get_strafbuch). action=dismiss → no penalty (binding, " +
+          "immediate); action=punish → records a free-text penalty (text, e.g. \"20 strokes\") — the " +
+          "penalty is whatever you write, the field is dumb; action=complete → marks a recorded penalty " +
+          "as carried out (closes the loop); action=reopen → undoes a prior judgment. An offense stays " +
+          "relevant (openOffenseCount) until dismissed or its penalty is completed. Use the offense's " +
+          "ref.id from get_strafbuch." + KEYHOLDER_NOTE,
+        inputSchema: {
+          ref: z.string().describe("The offense ref.id from get_strafbuch."),
+          action: z.enum(["dismiss", "punish", "complete", "reopen"]).describe("dismiss = no penalty; punish = record a penalty; complete = mark penalty done; reopen = undo a prior judgment."),
+          text: z.string().optional().describe("Free text: the penalty (required for punish, e.g. \"20 strokes\") or an optional reason (dismiss)."),
+        },
+      },
+      (args, extra) => runWriteTool("judge_offense", extra, (u) => mcpJudgeOffense(u, args)),
     );
 
     server.registerTool(

@@ -50,8 +50,13 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
+    status: r.status,
     bestraftDatumStr: formatDate(r.bestraftDatum, dl),
     notiz: r.notiz,
+    reason: r.reason,
+    judgedBy: r.judgedBy,
+    done: r.erledigtAt !== null,
+    erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl) : null,
   }));
 
   const labels = {
@@ -69,10 +74,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchEmpty: t("strafbuchEmpty"),
     strafbuchNoEntries: t("strafbuchNoEntries"),
     strafbuchWurdeBestraft: t("strafbuchWurdeBestraft"),
-    strafbuchBestraftMarkieren: t("strafbuchBestraftMarkieren"),
-    strafbuchBestraftDatum: t("strafbuchBestraftDatum"),
-    strafbuchNotiz: t("strafbuchNotiz"),
-    strafbuchBestraftBadge: t("strafbuchBestraftBadge"),
     strafbuchAlleAnzeigen: t("strafbuchAlleAnzeigen"),
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
@@ -91,6 +92,17 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchGesamt: t("strafbuchGesamt"),
     strafbuchReinigungLimit: t("strafbuchReinigungLimit"),
     strafbuchReinigungLimitDate: t("strafbuchReinigungLimitDate"),
+    strafbuchVerwerfen: t("strafbuchVerwerfen"),
+    strafbuchVerworfenBadge: t("strafbuchVerworfenBadge"),
+    strafbuchBegruendung: t("strafbuchBegruendung"),
+    strafbuchUrteilKI: t("strafbuchUrteilKI"),
+    strafbuchStrafeLabel: t("strafbuchStrafeLabel"),
+    strafbuchStrafePlaceholder: t("strafbuchStrafePlaceholder"),
+    strafbuchStrafeVerhaengen: t("strafbuchStrafeVerhaengen"),
+    strafbuchStrafeBadge: t("strafbuchStrafeBadge"),
+    strafbuchErledigtBadge: t("strafbuchErledigtBadge"),
+    strafbuchAlsErledigt: t("strafbuchAlsErledigt"),
+    strafbuchWiederOffen: t("strafbuchWiederOffen"),
   };
 
   return (

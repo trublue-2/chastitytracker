@@ -45,8 +45,17 @@ export interface StrafbuchData {
     nachricht: string | null;
     requiredArt: string | null;
   }[];
-  /** StrafeRecord rows — each marks an offense (by `refId`) as punished. */
-  strafeRecords: { refId: string; bestraftDatum: Date; notiz: string | null }[];
+  /** Judgment records — each marks an offense (by `refId`) as PUNISHED or DISMISSED. */
+  strafeRecords: {
+    refId: string;
+    offenseType: string;
+    status: string; // "PUNISHED" | "DISMISSED"
+    bestraftDatum: Date;
+    notiz: string | null;
+    reason: string | null;
+    judgedBy: string | null;
+    erledigtAt: Date | null;
+  }[];
 }
 
 /** Computes the Strafbuch for a user: unauthorized openings during Sperrzeiten, late and
@@ -165,6 +174,15 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endetAt < now)
       .sort((a, b) => b.endetAt.getTime() - a.endetAt.getTime())
       .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
-    strafeRecords: strafeRecordsRaw.map((r) => ({ refId: r.refId, bestraftDatum: r.bestraftDatum, notiz: r.notiz })),
+    strafeRecords: strafeRecordsRaw.map((r) => ({
+      refId: r.refId,
+      offenseType: r.offenseType,
+      status: r.status,
+      bestraftDatum: r.bestraftDatum,
+      notiz: r.notiz,
+      reason: r.reason,
+      judgedBy: r.judgedBy,
+      erledigtAt: r.erledigtAt,
+    })),
   };
 }

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.26.0",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "feat", "text": "Strafbuch-Urteilsloop: Jedes erkannte Vergehen hat jetzt einen Status — erkannt → verworfen (keine Strafe) oder bestraft → erledigt. Die Strafe ist ein freies Textfeld (z.B. „20 Schläge\"); ein Erledigt-Status schließt den Loop. „Relevant = unbeurteilt oder Strafe noch offen\" ist damit explizit, nicht mehr Kopfsache." },
+      { "type": "feat", "text": "MCP: Neues Tool judge_offense — die KI verwirft (verbindlich, mit optionalem Grund), bestraft (Freitext) oder markiert eine Strafe als erledigt; reopen revidiert. get_strafbuch liefert je Vergehen judgment, penalty/done bzw. Grund, eine stabile ref sowie openOffenseCount/pendingPenaltyCount." },
+      { "type": "feat", "text": "Admin-Strafbuch: Vergehen lassen sich verwerfen, mit Freitext bestrafen und als erledigt markieren; KI-Urteile werden als solche angezeigt. Verworfene/erledigte Vergehen erscheinen nicht mehr als offen." },
+      { "type": "chore", "text": "StrafeRecord zum Urteils-Record generalisiert (status/reason/judgedBy/erledigtAt, Migration; Bestand = PUNISHED). Geteilter strafurteilService für Admin-Route und MCP. penalties.punishedCount zählt nur noch tatsächliche Bestrafungen." }
+    ]
+  },
+  {
     "version": "4.25.0",
     "date": "2026-06-18",
     "changes": [

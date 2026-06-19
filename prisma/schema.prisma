@@ -229,14 +229,22 @@ model RateLimit {
   resetAt DateTime
 }
 
+// Urteil über ein erkanntes Vergehen. Lebenszyklus: erkannt (kein Record) →
+// verworfen (status=DISMISSED) | bestraft (status=PUNISHED). Identität des Vergehens
+// über (offenseType, refId); refId ist die Entry-/Kontrolle-/Anforderungs-id.
 model StrafeRecord {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  offenseType   String   // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY"
+  offenseType   String   // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" | "FALSCHES_GERAET" | "ORGASMUS_ANWEISUNG"
   refId         String   @unique
-  bestraftDatum DateTime
+  bestraftDatum DateTime // Urteilszeitpunkt (bei PUNISHED = Strafdatum)
   notiz         String?
+  // Urteils-Status + Audit
+  status        String   @default("PUNISHED") // "PUNISHED" | "DISMISSED"
+  reason        String?  // DAS eine Freitextfeld: Strafe-Text bei PUNISHED, optionaler Grund bei DISMISSED
+  judgedBy      String?  // "ai" | "admin" | "system"
+  erledigtAt    DateTime? // nur PUNISHED: null = Strafe offen, gesetzt = erledigt (Loop geschlossen)
   createdAt     DateTime @default(now())
 
   @@index([userId])

@@ -7,6 +7,7 @@ import {
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, subVisibleKontrolleWhere } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
+import { collectDetectedOffenses } from "@/lib/strafurteilService";
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
@@ -118,7 +119,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       include: { device: { select: { name: true } } },
     }),
     getActiveWearSessions(userId),
-    prisma.strafeRecord.count({ where: { userId } }),
+    prisma.strafeRecord.count({ where: { userId, status: "PUNISHED" } }),
     prisma.keyholderNote.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
     getActiveOrgasmusAnforderung(userId, now),
   ]);
@@ -450,8 +451,24 @@ export async function listDevices(username: string): Promise<DeviceList> {
   };
 }
 
+/** Urteil über ein Vergehen: erkannt → (verworfen | bestraft → erledigt). Relevant ("offen") =
+ *  unbeurteilt ODER bestraft-aber-nicht-erledigt. `ref` ist die Eingabe für das MCP-Tool judge_offense. */
+export interface OffenseJudgment {
+  judgment: "open" | "dismissed" | "punished";
+  /** Strafe (Freitext) bei judgment="punished". */
+  penalty: string | null;
+  /** Grund bei judgment="dismissed". */
+  reason: string | null;
+  judgedBy: string | null;
+  judgedAt: string | null;
+  /** Bei judgment="punished": ob die Strafe bereits erledigt ist. */
+  done: boolean;
+  doneAt: string | null;
+  ref: { type: string; id: string };
+}
+
 /** A Kontroll-based offense formatted for the MCP `get_strafbuch` tool. */
-export interface StrafbuchControlRow {
+export interface StrafbuchControlRow extends OffenseJudgment {
   code: string;
   deadline: string;
   fulfilledAt: string | null;
@@ -459,7 +476,6 @@ export interface StrafbuchControlRow {
   backdated: boolean;
   comment: string | null;
   entryNote: string | null;
-  punished: boolean;
 }
 
 /** Strafbuch snapshot for the MCP `get_strafbuch` tool. Timestamps in the instance timezone. */
@@ -471,18 +487,22 @@ export interface StrafbuchOverview {
   /** Total number of system-detected offenses across all categories.
    *  Distinct from penalties.punishedCount in get_overview which counts admin-confirmed punishments. */
   detectedOffenseCount: number;
-  unauthorizedOpenings: {
+  /** Relevante Vergehen = unbeurteilt ODER bestraft-aber-nicht-erledigt — genau die, die deine
+   *  Aufmerksamkeit brauchen (judge_offense bzw. action="complete"). */
+  openOffenseCount: number;
+  /** Bestrafte Vergehen, deren Strafe noch nicht als erledigt markiert ist. */
+  pendingPenaltyCount: number;
+  unauthorizedOpenings: ({
     time: string; note: string | null;
     lockPeriodEndedAt: string | null; lockPeriodIndefinite: boolean;
-    punished: boolean;
-  }[];
+  } & OffenseJudgment)[];
   lateControls: StrafbuchControlRow[];
   rejectedControls: StrafbuchControlRow[];
-  cleaningLimitViolations: { time: string | null; note: string | null; punished: boolean }[];
+  cleaningLimitViolations: ({ time: string | null; note: string | null } & OffenseJudgment)[];
   /** Lock entries where a different device than the Anforderung specified was worn. */
-  wrongDeviceViolations: { time: string | null; note: string | null; deviceName: string | null; punished: boolean }[];
+  wrongDeviceViolations: ({ time: string | null; note: string | null; deviceName: string | null } & OffenseJudgment)[];
   /** Mandatory orgasm directives (ANWEISUNG) whose window ended without a matching orgasm. */
-  missedOrgasmInstructions: { windowEndedAt: string; message: string | null; requiredType: string | null; punished: boolean }[];
+  missedOrgasmInstructions: ({ windowEndedAt: string; message: string | null; requiredType: string | null } & OffenseJudgment)[];
 }
 
 /** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
@@ -491,9 +511,37 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
   const now = new Date();
   const fmt = (d: Date) => formatDateTime(d);
   const sb = await buildStrafbuch(userId, now);
-  const punished = new Set(sb.strafeRecords.map((r) => r.refId));
 
-  const toControlRow = (k: StrafbuchControlOffense): StrafbuchControlRow => ({
+  // Urteil pro Vergehen (per refId aufgelöst).
+  const judgmentByRef = new Map(sb.strafeRecords.map((r) => [r.refId, r]));
+  const detected = collectDetectedOffenses(sb);
+
+  // Relevanz in einem Durchlauf: pending-penalty ⊂ open (= unbeurteilt ODER bestraft-nicht-erledigt).
+  let openOffenseCount = 0;
+  let pendingPenaltyCount = 0;
+  for (const o of detected) {
+    const rec = judgmentByRef.get(o.refId);
+    const pendingPenalty = rec?.status === "PUNISHED" && rec.erledigtAt == null;
+    if (!rec || pendingPenalty) openOffenseCount++;
+    if (pendingPenalty) pendingPenaltyCount++;
+  }
+
+  const judge = (canonicalType: string, refId: string): OffenseJudgment => {
+    const rec = judgmentByRef.get(refId);
+    const judgment = rec ? (rec.status === "PUNISHED" ? "punished" : "dismissed") : "open";
+    return {
+      judgment,
+      penalty: judgment === "punished" ? (rec?.reason ?? null) : null,
+      reason: judgment === "dismissed" ? (rec?.reason ?? null) : null,
+      judgedBy: rec?.judgedBy ?? null,
+      judgedAt: rec ? fmt(rec.bestraftDatum) : null,
+      done: judgment === "punished" ? rec?.erledigtAt != null : false,
+      doneAt: rec?.erledigtAt ? fmt(rec.erledigtAt) : null,
+      ref: { type: canonicalType, id: refId },
+    };
+  };
+
+  const toControlRow = (canonicalType: string) => (k: StrafbuchControlOffense): StrafbuchControlRow => ({
     code: k.code,
     deadline: fmt(k.deadline),
     fulfilledAt: k.fulfilledAt ? fmt(k.fulfilledAt) : null,
@@ -501,7 +549,7 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
     backdated: k.backdated,
     comment: k.kommentar,
     entryNote: k.entryNote,
-    punished: punished.has(k.id),
+    ...judge(canonicalType, k.id),
   });
 
   return {
@@ -509,35 +557,34 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
     user: username,
     generatedAt: fmt(now),
     timezone: APP_TZ,
-    detectedOffenseCount:
-      sb.unauthorizedOpenings.length + sb.lateControls.length +
-      sb.rejectedControls.length + sb.reinigungLimitViolations.length +
-      sb.wrongDeviceViolations.length + sb.missedOrgasmInstructions.length,
+    detectedOffenseCount: detected.length,
+    openOffenseCount,
+    pendingPenaltyCount,
     unauthorizedOpenings: sb.unauthorizedOpenings.map((o) => ({
       time: fmt(o.startTime),
       note: o.note,
       lockPeriodEndedAt: o.sperrzeitEndetAt ? fmt(o.sperrzeitEndetAt) : null,
       lockPeriodIndefinite: o.sperrzeitIndefinite,
-      punished: punished.has(o.id),
+      ...judge("unauthorized_opening", o.id),
     })),
-    lateControls: sb.lateControls.map(toControlRow),
-    rejectedControls: sb.rejectedControls.map(toControlRow),
+    lateControls: sb.lateControls.map(toControlRow("late_control")),
+    rejectedControls: sb.rejectedControls.map(toControlRow("rejected_control")),
     cleaningLimitViolations: sb.reinigungLimitViolations.map((v) => ({
       time: v.startTime ? fmt(v.startTime) : null,
       note: v.note,
-      punished: punished.has(v.entryId),
+      ...judge("cleaning_limit", v.entryId),
     })),
     wrongDeviceViolations: sb.wrongDeviceViolations.map((v) => ({
       time: v.startTime ? fmt(v.startTime) : null,
       note: v.note,
       deviceName: v.deviceName,
-      punished: punished.has(v.entryId),
+      ...judge("wrong_device", v.entryId),
     })),
     missedOrgasmInstructions: sb.missedOrgasmInstructions.map((m) => ({
       windowEndedAt: fmt(m.endetAt),
       message: m.nachricht,
       requiredType: m.requiredArt,
-      punished: punished.has(m.id),
+      ...judge("missed_orgasm", m.id),
     })),
   };
 }

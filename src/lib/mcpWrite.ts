@@ -5,6 +5,7 @@ import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
+import { judgeOffense } from "@/lib/strafurteilService";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
@@ -383,6 +384,32 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   if (!sz) throw new Error("No active lock period to edit.");
   unwrap(await updateSperrzeitEnde(sz.id, endetAt));
   return { ok: true, id: sz.id, message: args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.` };
+}
+
+// ── Urteil über ein erkanntes Vergehen (Strafbuch-Loop) ─────────────────────
+
+export interface JudgeOffenseArgs {
+  /** Vergehens-ref aus get_strafbuch (das Feld `ref.id`). */
+  ref: string;
+  action: "dismiss" | "punish" | "complete" | "reopen";
+  /** Freitext: die Strafe (bei punish, erforderlich — z.B. „20 Schläge") bzw. ein Grund (bei dismiss). */
+  text?: string;
+}
+export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) {
+  const userId = await resolveTargetUserId(username);
+  const r = unwrap(await judgeOffense({
+    userId,
+    refId: args.ref,
+    action: args.action,
+    text: args.text,
+    judgedBy: "ai",
+  }));
+  const message =
+    args.action === "complete" ? "Penalty marked as completed."
+    : r.status === "dismissed" ? "Offense dismissed (no penalty)."
+    : r.status === "open" ? "Judgment reopened — the offense is open again."
+    : "Offense punished — the penalty was recorded.";
+  return { ok: true, status: r.status, done: r.done, message };
 }
 
 // ── Keyholder-Notizen — private Beobachtungen der KI zum Trageverhalten (nur MCP) ──
