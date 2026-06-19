@@ -134,6 +134,11 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               <p className="text-xs text-sky-500 mt-0.5">{ev.pauseDurationStr}</p>
             )}
             {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
+            {ev.codeImageUrl && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <SealedCodePhoto url={ev.codeImageUrl} />
+              </div>
+            )}
           </div>
         </div>
 

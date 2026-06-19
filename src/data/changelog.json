@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.29.1",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "fix", "text": "Bildersafe: Das Code-Versiegelt-Widget erscheint jetzt auch an Reinigungspause-/Re-Lock-Einträgen in der laufenden Session (nicht mehr nur am ersten Verschluss). So ist der jeweils aktuelle Code direkt in der Timeline sichtbar — versiegelt bzw. nach Freigabe als Code anzeigen." }
+    ]
+  },
+  {
     "version": "4.29.0",
     "date": "2026-06-19",
     "changes": [
