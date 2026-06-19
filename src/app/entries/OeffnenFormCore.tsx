@@ -40,6 +40,7 @@ export default function OeffnenFormCore({
 
   const sperrzeitEndetAt = sperrzeit?.endetAt ?? null;
   const sperrzeitUnbefristet = sperrzeit?.unbefristet ?? false;
+  const sperrzeitReinigungErlaubt = sperrzeit?.reinigungErlaubt ?? false;
   const reinigungErlaubt = reinigung?.erlaubt ?? false;
   const reinigungMaxMinuten = reinigung?.maxMinuten ?? 15;
   const reinigungMaxProTag = reinigung?.maxProTag ?? 0;
@@ -55,6 +56,10 @@ export default function OeffnenFormCore({
 
   const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
   const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
+  // Eine REINIGUNG-Öffnung verletzt die Sperre NICHT, wenn sowohl der User als auch DIESE Sperrzeit
+  // Reinigung erlauben (spiegelt die Strafbuch-Regel) — dann keine „Öffnen nicht erlaubt"-Warnung.
+  const istErlaubteReinigungsOeffnung = grund === "REINIGUNG" && reinigungErlaubt && sperrzeitReinigungErlaubt;
+  const isGesperrtBlockiert = isGesperrt && !istErlaubteReinigungsOeffnung;
 
   async function doSave(forced = false) {
     const payload: OeffnenPayload = {
@@ -72,14 +77,14 @@ export default function OeffnenFormCore({
     if (!grund) { setError(t("grundRequired")); return; }
     if (!note.trim()) { setError(t("commentRequired")); return; }
     if (isReinigungLimitReached) { setShowReinigungLimitWarning(true); return; }
-    if (isGesperrt) { setShowWarning(true); return; }
+    if (isGesperrtBlockiert) { setShowWarning(true); return; }
     await doSave();
   }
 
   function handleReinigungLimitConfirm() {
     setShowReinigungLimitWarning(false);
     setForcedReinigung(true);
-    if (isGesperrt) setShowWarning(true);
+    if (isGesperrtBlockiert) setShowWarning(true);
     else doSave(true);
   }
 
@@ -155,7 +160,7 @@ export default function OeffnenFormCore({
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <RequiredHint />
 
-        {isGesperrt && (
+        {isGesperrtBlockiert && (
           <Card variant="semantic" semantic="sperrzeit">
             <div className="flex items-start gap-2.5">
               <Lock size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />

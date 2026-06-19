@@ -34,6 +34,7 @@ export default async function NewOeffnenPage() {
         sperrzeit={{
           endetAt: activeSperrzeit?.endetAt?.toISOString() ?? null,
           unbefristet: !!activeSperrzeit && activeSperrzeit.endetAt === null,
+          reinigungErlaubt: activeSperrzeit?.reinigungErlaubt ?? false,
         }}
         reinigung={{
           erlaubt: user?.reinigungErlaubt ?? false,

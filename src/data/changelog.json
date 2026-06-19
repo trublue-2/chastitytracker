@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.26.2",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "fix", "text": "Öffnen-Formular: Bei einer Sperrzeit, die Reinigung erlaubt, erschien beim Öffnungsgrund „Reinigung\" trotzdem die Warnung „Öffnen nicht erlaubt – trotzdem öffnen\". Die Warnung (und das Bestätigungs-Modal) werden jetzt korrekt ausgeblendet, wenn sowohl User als auch Sperrzeit Reinigung erlauben. Die separate Tageslimit-Warnung bleibt davon unberührt." }
+    ]
+  },
+  {
     "version": "4.26.1",
     "date": "2026-06-19",
     "changes": [

@@ -79,4 +79,6 @@ export interface ReinigungConfig {
 export interface SperrzeitState {
   endetAt: string | null;
   unbefristet: boolean;
+  /** Ob DIESE Sperrzeit Reinigungsöffnungen erlaubt — dann ist ein REINIGUNG-Öffnen keine Sperrverletzung. */
+  reinigungErlaubt: boolean;
 }
