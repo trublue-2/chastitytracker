@@ -6,8 +6,9 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
-  mcpAddKeyholderNote, mcpDeleteKeyholderNote,
+  mcpAddKeyholderNote, mcpDeleteKeyholderNote, mcpRequestOrgasm,
 } from "@/lib/mcpWrite";
+import { ORGASMUS_ARTEN } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
 
@@ -228,6 +229,29 @@ const handler = createMcpHandler(
     );
 
     server.registerTool(
+      "request_orgasm",
+      {
+        title: "Request / direct an orgasm",
+        description:
+          "Sets a keyholder orgasm directive with a time window. art=ANWEISUNG makes it mandatory " +
+          "(a missed window becomes a Strafbuch offense); art=GELEGENHEIT is a permitted opportunity " +
+          "(no penalty if unused). Optionally require a specific orgasm type, allow opening the device " +
+          "during the window, and attach a message. Replaces any existing open directive (one active " +
+          "at a time). The user is notified by e-mail + push." + KEYHOLDER_NOTE,
+        inputSchema: {
+          art: z.enum(["ANWEISUNG", "GELEGENHEIT"]).describe("ANWEISUNG = mandatory (penalty if missed); GELEGENHEIT = permitted opportunity (no penalty)."),
+          beginsAt: z.string().optional().describe("Window start (ISO 8601). Default: now."),
+          endsAt: z.string().optional().describe("Window end (ISO 8601). Use this or windowHours."),
+          windowHours: z.number().positive().optional().describe("Window length in hours from beginsAt, when endsAt is omitted."),
+          requiredType: z.enum(ORGASMUS_ARTEN).optional().describe("Require a specific orgasm type. Omit = any orgasm counts."),
+          openAllowed: z.boolean().optional().describe("Allow opening the device to perform the orgasm during the window (no lock break / penalty)."),
+          message: z.string().optional().describe("Message shown to the user."),
+        },
+      },
+      (args, extra) => runWriteTool("request_orgasm", extra, (u) => mcpRequestOrgasm(u, args)),
+    );
+
+    server.registerTool(
       "set_training_goal",
       {
         title: "Set training goal (Vorgabe)",
@@ -254,9 +278,9 @@ const handler = createMcpHandler(
       {
         title: "Withdraw an open directive",
         description:
-          "Withdraws the user's currently open lock request, active lock period, or open inspection." + KEYHOLDER_NOTE,
+          "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive." + KEYHOLDER_NOTE,
         inputSchema: {
-          target: z.enum(["lock_request", "lock_period", "inspection"]).describe("Which open directive to withdraw."),
+          target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
         },
       },
       (args, extra) => runWriteTool("withdraw", extra, (u) => mcpWithdraw(u, args)),

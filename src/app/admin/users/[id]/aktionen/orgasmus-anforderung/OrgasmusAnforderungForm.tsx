@@ -11,6 +11,7 @@ import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
+import Checkbox from "@/app/components/Checkbox";
 import Button from "@/app/components/Button";
 
 export default function OrgasmusAnforderungForm({ userId }: { userId: string }) {
@@ -24,6 +25,7 @@ export default function OrgasmusAnforderungForm({ userId }: { userId: string }) 
   const [beginntAt, setBeginntAt] = useState(() => toDatetimeLocal(new Date()));
   const [endetAt, setEndetAt] = useState(() => toDatetimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000)));
   const [vorgegebeneArt, setVorgegebeneArt] = useState("");
+  const [oeffnenErlaubt, setOeffnenErlaubt] = useState(false);
   const [nachricht, setNachricht] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -55,6 +57,7 @@ export default function OrgasmusAnforderungForm({ userId }: { userId: string }) 
           beginntAt: new Date(beginntAt).toISOString(),
           endetAt: new Date(endetAt).toISOString(),
           vorgegebeneArt: vorgegebeneArt || undefined,
+          oeffnenErlaubt,
           nachricht: nachricht.trim() || undefined,
         }),
       });
@@ -101,6 +104,14 @@ export default function OrgasmusAnforderungForm({ userId }: { userId: string }) 
           onChange={(e) => setVorgegebeneArt(e.target.value)}
           hint={t("orgasmReqArtHint")}
         />
+        <div className="flex flex-col gap-1">
+          <Checkbox
+            label={t("orgasmReqOpenAllowedLabel")}
+            checked={oeffnenErlaubt}
+            onChange={(e) => setOeffnenErlaubt(e.target.checked)}
+          />
+          <span className="text-xs text-foreground-faint pl-8">{t("orgasmReqOpenAllowedHint")}</span>
+        </div>
         <Textarea
           label={t("orgasmReqMessage")}
           value={nachricht}

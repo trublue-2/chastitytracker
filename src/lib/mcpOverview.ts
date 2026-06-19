@@ -481,6 +481,8 @@ export interface StrafbuchOverview {
   cleaningLimitViolations: { time: string | null; note: string | null; punished: boolean }[];
   /** Lock entries where a different device than the Anforderung specified was worn. */
   wrongDeviceViolations: { time: string | null; note: string | null; deviceName: string | null; punished: boolean }[];
+  /** Mandatory orgasm directives (ANWEISUNG) whose window ended without a matching orgasm. */
+  missedOrgasmInstructions: { windowEndedAt: string; message: string | null; requiredType: string | null; punished: boolean }[];
 }
 
 /** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
@@ -510,7 +512,7 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
     detectedOffenseCount:
       sb.unauthorizedOpenings.length + sb.lateControls.length +
       sb.rejectedControls.length + sb.reinigungLimitViolations.length +
-      sb.wrongDeviceViolations.length,
+      sb.wrongDeviceViolations.length + sb.missedOrgasmInstructions.length,
     unauthorizedOpenings: sb.unauthorizedOpenings.map((o) => ({
       time: fmt(o.startTime),
       note: o.note,
@@ -530,6 +532,12 @@ export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview>
       note: v.note,
       deviceName: v.deviceName,
       punished: punished.has(v.entryId),
+    })),
+    missedOrgasmInstructions: sb.missedOrgasmInstructions.map((m) => ({
+      windowEndedAt: fmt(m.endetAt),
+      message: m.nachricht,
+      requiredType: m.requiredArt,
+      punished: punished.has(m.id),
     })),
   };
 }

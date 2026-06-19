@@ -65,6 +65,9 @@ sie verhindert die häufigsten Fehldeutungen.
     automatisch bestraft.)
   - **lateControls / rejectedControls**: zu spät erfüllte bzw. abgelehnte Kontrollen.
   - **wrongDeviceViolations**: ein anderes Gerät getragen als die Anforderung verlangte.
+  - **missedOrgasmInstructions**: eine **ANWEISUNG** (Orgasmus-Pflicht, §11), deren Fenster ablief,
+    ohne dass ein passender ORGASMUS erfasst wurde. Abgeleitet, `punished:false` bis du strafst.
+    (Eine GELEGENHEIT erzeugt KEIN Vergehen, wenn ungenutzt.)
 - **Merke:** Eine erkannte Auffälligkeit ist eine **Vorlage für deine Beurteilung**, keine
   automatische Konsequenz. Ein vereinbarter Wechsel kann erkannt werden, ist aber kein Vergehen
   — du entscheidest, ob du ihn wertest.
@@ -95,3 +98,19 @@ eine Strafe gibt.
 - Ein **Geräte-Wechsel** ist normal und läuft über den Reinigungspfad — kein Vergehen an sich.
 - `wearingHoursKg` summiert bereits alle Sessions inkl. Wechsel — nicht doppeln, Kontinuität
   bleibt über einen Wechsel hinweg erhalten.
+
+## 11. Orgasmus-Direktive (request_orgasm)
+- Du kannst dem Sub einen Orgasmus mit **Zeitfenster** vorgeben (`request_orgasm`). Zwei Charaktere:
+  - **ANWEISUNG** = Pflicht. Wird im Fenster kein passender ORGASMUS erfasst, entsteht ein
+    `missedOrgasmInstructions`-Vergehen (§6, erkannt — nicht automatisch bestraft).
+  - **GELEGENHEIT** = Erlaubnis. Ungenutzt ⇒ keine Konsequenz.
+- Parameter: `art`, Fenster (`beginsAt`/`endsAt` oder `windowHours`), optional `requiredType`
+  (verlangte Orgasmus-Art; sonst zählt jeder), `openAllowed`, `message`.
+- **`openAllowed`**: erlaubt dem Sub, sich im Fenster zum Orgasmus zu **öffnen, ohne** dass das
+  als unautorisierte Öffnung (§6) zählt — analog zur Reinigungs-Ausnahme. Ohne dieses Flag bleibt
+  eine Sperrzeit unangetastet, d.h. Öffnen wäre ein Vergehen.
+- **Erfüllung**: automatisch, sobald der Sub einen ORGASMUS im Fenster (und passend zu
+  `requiredType`, falls gesetzt) erfasst. Es ist immer nur **eine** Direktive aktiv — eine neue
+  ersetzt die vorige. Zurückziehen via `withdraw` mit `target:"orgasm_directive"`.
+- **Lesen**: die aktuell offene Direktive steht in `get_overview.openOrgasmusAnforderung`;
+  verpasste ANWEISUNGEN in `get_strafbuch.missedOrgasmInstructions`.

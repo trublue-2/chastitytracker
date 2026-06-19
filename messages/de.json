@@ -500,6 +500,8 @@
     "orgasmReqArt": "Vorgegebene Art",
     "orgasmReqArtAny": "egal — jeder Orgasmus zählt",
     "orgasmReqArtHint": "Wenn gesetzt, zählt nur diese Art als erfüllt.",
+    "orgasmReqOpenAllowedLabel": "Öffnen zum Orgasmus erlaubt",
+    "orgasmReqOpenAllowedHint": "Der Sub darf sich im Fenster zum Orgasmus öffnen, ohne dass eine aktive Sperrzeit verletzt wird.",
     "orgasmReqMessage": "Nachricht (optional)",
     "orgasmReqSubmit": "Aufforderung senden",
     "orgasmReqEndAfterStart": "Das Ende muss nach dem Start liegen.",

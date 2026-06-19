@@ -4,6 +4,7 @@ import { createVerschlussAnforderung, updateSperrzeitEnde } from "@/lib/verschlu
 import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
+import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
@@ -136,6 +137,48 @@ export async function mcpRequestInspection(username: string, args: RequestInspec
   return { ok: true, deadline: data.deadline, message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` };
 }
 
+export interface RequestOrgasmArgs {
+  art: "ANWEISUNG" | "GELEGENHEIT";
+  /** Window start (ISO). Default: now. */
+  beginsAt?: string;
+  /** Window end (ISO). Takes precedence over windowHours. */
+  endsAt?: string;
+  /** Window length in hours from beginsAt, used when endsAt is absent. */
+  windowHours?: number;
+  /** Required orgasm type (one of ORGASMUS_ARTEN). Omit = any orgasm counts. */
+  requiredType?: string;
+  /** Allow opening the device to perform the orgasm during the window (no Sperre break / penalty). */
+  openAllowed?: boolean;
+  message?: string;
+}
+export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs) {
+  const userId = await resolveTargetUserId(username);
+  const beginnt = args.beginsAt ? parseGoalDate(args.beginsAt, "beginsAt") : new Date();
+  let endet: Date;
+  if (args.endsAt) {
+    endet = parseGoalDate(args.endsAt, "endsAt");
+  } else if (args.windowHours && args.windowHours > 0) {
+    endet = new Date(beginnt.getTime() + args.windowHours * 60 * 60 * 1000);
+  } else {
+    throw new Error("Provide endsAt (ISO date) or windowHours (> 0).");
+  }
+  const data = unwrap(await createOrgasmusAnforderung({
+    userId,
+    art: args.art,
+    nachricht: args.message,
+    beginntAt: beginnt,
+    endetAt: endet,
+    vorgegebeneArt: args.requiredType,
+    oeffnenErlaubt: args.openAllowed,
+  }));
+  const kind = args.art === "ANWEISUNG" ? "mandatory directive" : "opportunity";
+  return {
+    ok: true,
+    id: data.id,
+    message: `Orgasm ${kind} set (window ${beginnt.toISOString()} – ${endet.toISOString()}); the user was notified by e-mail + push.`,
+  };
+}
+
 export interface SetTrainingGoalArgs {
   category?: string;
   minPerDayHours?: number;
@@ -181,13 +224,15 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
 }
 
 export interface WithdrawArgs {
-  target: "lock_request" | "lock_period" | "inspection";
+  target: "lock_request" | "lock_period" | "inspection" | "orgasm_directive";
 }
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
   const now = new Date();
   let count = 0;
-  if (args.target === "lock_request") {
+  if (args.target === "orgasm_directive") {
+    count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
+  } else if (args.target === "lock_request") {
     count = (await prisma.verschlussAnforderung.updateMany({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
       data: { withdrawnAt: now },

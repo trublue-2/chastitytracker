@@ -500,6 +500,8 @@
     "orgasmReqArt": "Required type",
     "orgasmReqArtAny": "any — any orgasm counts",
     "orgasmReqArtHint": "If set, only this type counts as fulfilled.",
+    "orgasmReqOpenAllowedLabel": "Opening for the orgasm allowed",
+    "orgasmReqOpenAllowedHint": "The sub may open the device to orgasm within the window without violating an active lock period.",
     "orgasmReqMessage": "Message (optional)",
     "orgasmReqSubmit": "Send request",
     "orgasmReqEndAfterStart": "The end must be after the start.",
