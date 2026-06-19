@@ -21,19 +21,12 @@ export function deviceCategoriesEnabled(): boolean {
   return process.env.ENABLE_DEVICE_CATEGORIES?.toLowerCase() !== "false";
 }
 
-/** Verwahrungs-Modus der Instanz (Schicht B — wie der Schlüssel verwahrt wird):
- *  - "heimdall"  = Hardware-Schlüsselbox (Heimdall-Integration)
- *  - "bildersafe" = versiegeltes Foto des Schlüsselbox-Codes (softwareseitig)
- *  - "manual"    = keine besondere Verwahrung (Default)
- *  Siegel + Kontrollen (Schicht A) sind davon unabhängig und in allen Modi verfügbar. */
-export type CustodyMode = "heimdall" | "bildersafe" | "manual";
-export function custodyMode(): CustodyMode {
-  const m = process.env.CUSTODY_MODE?.toLowerCase();
-  return m === "heimdall" || m === "bildersafe" ? m : "manual";
-}
-/** True, wenn die Instanz das Bildersafe-Verfahren (versiegeltes Code-Foto) nutzt. */
+/** Bildersafe (softwareseitige Schlüssel-Verwahrung: versiegeltes Foto des Schlüsselbox-Codes).
+ *  Eigenständiges, opt-in Feature pro Instanz via `ENABLE_BILDERSAFE=true` (Default aus).
+ *  Unabhängig von Heimdall (das über HEIMDALL_SYNC_SECRET aktiviert wird) — beide können
+ *  einzeln aktiviert werden. Siegel + Kontrollen (Schicht A) sind davon unberührt. */
 export function bildersafeEnabled(): boolean {
-  return custodyMode() === "bildersafe";
+  return process.env.ENABLE_BILDERSAFE?.toLowerCase() === "true";
 }
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 /** Maps each ORGASMUS_ARTEN value to its orgasmForm i18n key (shared by entry + Anforderung forms). */

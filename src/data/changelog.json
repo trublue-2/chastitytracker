@@ -1,9 +1,16 @@
 [
   {
+    "version": "4.27.1",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "chore", "text": "Bildersafe-Aktivierung als eigenständiges Feature: eigener Flag ENABLE_BILDERSAFE=true (statt des CUSTODY_MODE-Tri-States). Bildersafe und die Heimdall-Box sind damit unabhängige Features, die je einzeln aktiviert werden — Heimdall über HEIMDALL_SYNC_SECRET, Bildersafe über ENABLE_BILDERSAFE." }
+    ]
+  },
+  {
     "version": "4.27.0",
     "date": "2026-06-19",
     "changes": [
-      { "type": "feat", "text": "Bildersafe (MVP): softwareseitige Schlüssel-Verwahrung als hardwarelose Alternative zur Heimdall-Box. Pro Instanz via CUSTODY_MODE=bildersafe aktivierbar. Beim Verschluss wird ein zweites, VERSIEGELTES Foto des Schlüsselbox-Codes aufgenommen (keine Vorschau, Lesbarkeits-Check ohne die Zahl anzuzeigen oder zu speichern). Das Foto wird automatisch freigegeben, sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder erlaubtes Reinigungsfenster). Siegel & Kontrollen (Schicht A) bleiben unverändert und unversiegelt. Standard CUSTODY_MODE=manual → auf bestehenden Instanzen inaktiv." }
+      { "type": "feat", "text": "Bildersafe (MVP): softwareseitige Schlüssel-Verwahrung als hardwarelose Alternative zur Heimdall-Box. Pro Instanz via ENABLE_BILDERSAFE=true aktivierbar (Default aus). Beim Verschluss wird ein zweites, VERSIEGELTES Foto des Schlüsselbox-Codes aufgenommen (keine Vorschau, Lesbarkeits-Check ohne die Zahl anzuzeigen oder zu speichern). Das Foto wird automatisch freigegeben, sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder erlaubtes Reinigungsfenster). Siegel & Kontrollen (Schicht A) bleiben unverändert und unversiegelt." }
     ]
   },
   {
