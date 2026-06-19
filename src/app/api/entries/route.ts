@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable } = body;
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
   const validationError = validateEntryPayload(body, { allowFuture: devBypass });
@@ -99,6 +99,9 @@ export async function POST(req: NextRequest) {
           kontrollCode: kontrollCode || null,
           verifikationStatus: null,
           deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
+          // Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur VERSCHLUSS)
+          codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,
+          codeReadable: type === "VERSCHLUSS" && codeImageUrl ? (codeReadable ?? null) : null,
         },
       });
 

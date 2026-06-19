@@ -23,9 +23,10 @@ interface Props {
   redirectTo?: string;
   devices?: DeviceOption[];
   anforderungDeviceId?: string | null;
+  bildersafe?: boolean;
 }
 
-export default function VerschlussForm({ initial, minTime, mobileDesktopMode, redirectTo, devices, anforderungDeviceId }: Props) {
+export default function VerschlussForm({ initial, minTime, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe }: Props) {
   const t = useTranslations("common");
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -64,6 +65,7 @@ export default function VerschlussForm({ initial, minTime, mobileDesktopMode, re
       mobileDesktopMode={mobileDesktopMode}
       devices={devices}
       anforderungDeviceId={anforderungDeviceId}
+      bildersafe={bildersafe}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}

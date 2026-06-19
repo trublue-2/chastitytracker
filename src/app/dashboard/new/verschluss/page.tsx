@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getUserDeviceOptions, getIsLocked } from "@/lib/queries";
+import { bildersafeEnabled } from "@/lib/constants";
 
 export default async function NewVerschlussPage() {
   const session = await auth();
@@ -32,6 +33,7 @@ export default async function NewVerschlussPage() {
         mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
         devices={devices}
         anforderungDeviceId={offeneAnforderung?.deviceId ?? null}
+        bildersafe={bildersafeEnabled()}
       />
     </div>
   );

@@ -4,6 +4,8 @@ export interface SessionEvent {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
   time: Date;
   imageUrl: string | null;
+  /** Bildersafe (VERSCHLUSS): versiegeltes Schlüsselbox-Code-Foto. Sichtbarkeit entscheidet der Server (403-Gate). */
+  codeImageUrl?: string | null;
   imageExifTime: Date | null;
   note: string | null;
   entryId: string | null;
@@ -18,7 +20,7 @@ export interface SessionEvent {
 }
 
 type ActivePair = {
-  verschluss: { id: string; startTime: Date; imageUrl: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null };
+  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null };
   kontrollen: {
     entryId: string | null; time: Date; imageUrl: string | null; note: string | null;
     deadline: Date | null; kommentar: string | null; code: string | null;
@@ -40,6 +42,7 @@ export function buildSessionEvents(
       type: "verschluss" as const,
       time: activePair.verschluss.startTime,
       imageUrl: activePair.verschluss.imageUrl,
+      codeImageUrl: activePair.verschluss.codeImageUrl ?? null,
       imageExifTime: activePair.verschluss.imageExifTime,
       note: activePair.verschluss.note,
       entryId: activePair.verschluss.id,

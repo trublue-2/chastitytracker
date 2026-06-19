@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isCodePhotoRevealed } from "@/lib/queries";
 import { readFile } from "fs/promises";
 import { join, extname, resolve, sep } from "path";
 
@@ -30,10 +31,10 @@ export async function GET(
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  // Ownership: file owner (Entry or Device) or admin may access. Check both
-  // tables in parallel — image URLs are reused across models.
+  // Ownership: file owner (Entry, Device, or sealed code photo) or admin may access.
   const imageUrlInDb = `/api/uploads/${filename}`;
-  const [ownedEntry, ownedDevice] = await Promise.all([
+  const isAdmin = session.user.role === "admin";
+  const [ownedEntry, ownedDevice, codeEntry] = await Promise.all([
     prisma.entry.findFirst({
       where: { imageUrl: imageUrlInDb, userId: session.user.id },
       select: { id: true },
@@ -42,9 +43,19 @@ export async function GET(
       where: { imageUrl: imageUrlInDb, userId: session.user.id },
       select: { id: true },
     }),
+    prisma.entry.findFirst({
+      where: { codeImageUrl: imageUrlInDb, userId: session.user.id },
+      select: { userId: true, startTime: true },
+    }),
   ]);
-  if (!ownedEntry && !ownedDevice && session.user.role !== "admin") {
+  if (!ownedEntry && !ownedDevice && !codeEntry && !isAdmin) {
     return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  // Bildersafe: ein versiegeltes Code-Foto bleibt für den Owner gesperrt, bis Öffnen erlaubt ist
+  // (oder die Session vorbei ist). Admin/Keyholder sieht es immer.
+  if (codeEntry && !isAdmin && !(await isCodePhotoRevealed(codeEntry))) {
+    return new NextResponse("Sealed", { status: 403 });
   }
 
   try {

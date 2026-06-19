@@ -34,6 +34,8 @@ interface Props {
   devices?: DeviceOption[];
   /** Device ID requested by keyholder via VerschlussAnforderung */
   anforderungDeviceId?: string | null;
+  /** Bildersafe-Instanz: zweiten, versiegelten Code-Foto-Schritt anzeigen. */
+  bildersafe?: boolean;
   isEdit?: boolean;
   submitFn: (payload: VerschlussPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
@@ -43,7 +45,7 @@ interface Props {
 }
 
 export default function VerschlussFormCore({
-  initial, minTime, mobileDesktopMode, devices = [], anforderungDeviceId,
+  initial, minTime, mobileDesktopMode, devices = [], anforderungDeviceId, bildersafe = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("common");
@@ -90,6 +92,34 @@ export default function VerschlussFormCore({
     }
   }, [deviceSuggestion, deviceManuallySet, anforderungDeviceId]);
 
+  // ── Bildersafe: zweites, versiegeltes Schlüsselbox-Code-Foto ──
+  // Eigene Upload-Instanz OHNE Seal-/Device-Erkennung; Lesbarkeit wird separat geprüft (nur
+  // boolean — die Zahl verlässt den Server nicht). Keine Vorschau für den Sub.
+  const codePhoto = usePhotoUpload({
+    startTime,
+    enableSealDetection: false,
+    enableDeviceDetection: false,
+    uploadErrorText: () => t("uploadError"),
+  });
+  const [codeReadable, setCodeReadable] = useState<boolean | null>(null);
+  const [codeChecking, setCodeChecking] = useState(false);
+  const codeUrl = codePhoto.imageUrl;
+  useEffect(() => {
+    if (!bildersafe || !codeUrl) { setCodeReadable(null); return; }
+    let cancelled = false;
+    setCodeChecking(true);
+    fetch("/api/detect-seal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: codeUrl, readableOnly: true }),
+    })
+      .then((r) => (r.ok ? r.json() : { readable: false }))
+      .then(({ readable }) => { if (!cancelled) setCodeReadable(!!readable); })
+      .catch(() => { if (!cancelled) setCodeReadable(false); })
+      .finally(() => { if (!cancelled) setCodeChecking(false); });
+    return () => { cancelled = true; };
+  }, [bildersafe, codeUrl]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     await submit({
@@ -100,6 +130,7 @@ export default function VerschlussFormCore({
       note: note.trim() || null,
       kontrollCode: sealNumber.trim() || null,
       deviceId: deviceId || null,
+      ...(bildersafe ? { codeImageUrl: codeUrl || null, codeReadable } : {}),
     });
   }
 
@@ -179,6 +210,41 @@ export default function VerschlussFormCore({
         )}
       </FormField>
 
+      {bildersafe && (
+        <FormField label={tForm("codePhotoLabel")}>
+          {codeUrl ? (
+            <div className="flex flex-col gap-2">
+              <Card variant="semantic" semantic="sperrzeit">
+                <div className="flex items-start gap-2.5">
+                  <Lock size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-bold text-sperrzeit-text">{tForm("codePhotoSealed")}</p>
+                    <p className="text-sperrzeit mt-0.5">
+                      {codeChecking
+                        ? tForm("codePhotoChecking")
+                        : codeReadable === false
+                          ? tForm("codePhotoUnreadable")
+                          : codeReadable
+                            ? tForm("codePhotoReadable")
+                            : ""}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              <button type="button" onClick={codePhoto.clearPhoto} className="text-xs text-warn hover:opacity-80 w-fit transition">
+                {tForm("codePhotoRetake")}
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-foreground-faint mb-1.5">{tForm("codePhotoHint")}</p>
+              <PhotoCapture onFile={codePhoto.handleFile} uploading={codePhoto.uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
+              {codePhoto.uploadError && !codePhoto.uploading && <p className="text-xs text-warn font-medium mt-1">{codePhoto.uploadError}</p>}
+            </>
+          )}
+        </FormField>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <Input
           label={tForm("sealNumber")}
@@ -215,7 +281,8 @@ export default function VerschlussFormCore({
           variant={submitVariant}
           semantic={submitVariant === "semantic" ? "lock" : undefined}
           fullWidth
-          loading={saving || uploading}
+          loading={saving || uploading || codePhoto.uploading}
+          disabled={bildersafe && !codeUrl}
           icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
         >
           {submitLabel ?? defaultLabel}

@@ -127,6 +127,7 @@ export default async function LaufendeSessionCard({
             dateStr,
             timeStr,
             imageUrl: ev.imageUrl,
+            codeImageUrl: ev.codeImageUrl ?? null,
             exifStr,
             note: ev.note,
             entryId: ev.entryId,

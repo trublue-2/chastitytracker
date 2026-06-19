@@ -5,6 +5,7 @@ import { Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera,
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import SealedCodePhoto from "./SealedCodePhoto";
 
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -13,6 +14,8 @@ export interface SessionEventData {
   dateStr: string;
   timeStr: string;
   imageUrl: string | null;
+  /** Bildersafe (VERSCHLUSS): versiegeltes Code-Foto. Sichtbarkeit entscheidet der Server (403-Gate). */
+  codeImageUrl?: string | null;
   exifStr: string | null;
   note: string | null;
   entryId: string | null;
@@ -257,6 +260,11 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           {ev.orgasmusArt && <p className="text-xs text-[var(--color-orgasm)] mt-0.5">{ev.orgasmusArt}</p>}
           {ev.kontrolleKommentar && <p className="text-xs text-[var(--color-warn)] mt-0.5 truncate">{ev.kontrolleKommentar}</p>}
           {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
+          {ev.type === "verschluss" && ev.codeImageUrl && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <SealedCodePhoto url={ev.codeImageUrl} />
+            </div>
+          )}
         </div>
       </div>
 

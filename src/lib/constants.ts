@@ -20,6 +20,21 @@ export const WEAR_ENTRY_TYPES: ReadonlySet<string> = new Set(["WEAR_BEGIN", "WEA
 export function deviceCategoriesEnabled(): boolean {
   return process.env.ENABLE_DEVICE_CATEGORIES?.toLowerCase() !== "false";
 }
+
+/** Verwahrungs-Modus der Instanz (Schicht B — wie der Schlüssel verwahrt wird):
+ *  - "heimdall"  = Hardware-Schlüsselbox (Heimdall-Integration)
+ *  - "bildersafe" = versiegeltes Foto des Schlüsselbox-Codes (softwareseitig)
+ *  - "manual"    = keine besondere Verwahrung (Default)
+ *  Siegel + Kontrollen (Schicht A) sind davon unabhängig und in allen Modi verfügbar. */
+export type CustodyMode = "heimdall" | "bildersafe" | "manual";
+export function custodyMode(): CustodyMode {
+  const m = process.env.CUSTODY_MODE?.toLowerCase();
+  return m === "heimdall" || m === "bildersafe" ? m : "manual";
+}
+/** True, wenn die Instanz das Bildersafe-Verfahren (versiegeltes Code-Foto) nutzt. */
+export function bildersafeEnabled(): boolean {
+  return custodyMode() === "bildersafe";
+}
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 /** Maps each ORGASMUS_ARTEN value to its orgasmForm i18n key (shared by entry + Anforderung forms). */
 export const ORGASMUS_ART_I18N_KEYS: Record<string, string> = {

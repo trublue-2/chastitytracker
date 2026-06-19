@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.27.0",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "feat", "text": "Bildersafe (MVP): softwareseitige Schlüssel-Verwahrung als hardwarelose Alternative zur Heimdall-Box. Pro Instanz via CUSTODY_MODE=bildersafe aktivierbar. Beim Verschluss wird ein zweites, VERSIEGELTES Foto des Schlüsselbox-Codes aufgenommen (keine Vorschau, Lesbarkeits-Check ohne die Zahl anzuzeigen oder zu speichern). Das Foto wird automatisch freigegeben, sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder erlaubtes Reinigungsfenster). Siegel & Kontrollen (Schicht A) bleiben unverändert und unversiegelt. Standard CUSTODY_MODE=manual → auf bestehenden Instanzen inaktiv." }
+    ]
+  },
+  {
     "version": "4.26.2",
     "date": "2026-06-19",
     "changes": [

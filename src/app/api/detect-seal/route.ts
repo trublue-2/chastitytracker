@@ -13,10 +13,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
   }
 
-  const { imageUrl, rotation } = await req.json();
+  const { imageUrl, rotation, readableOnly } = await req.json();
   if (!imageUrl || !isValidImageUrl(imageUrl)) return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
 
   const safeRotation: Rotation = VALID_ROTATIONS.includes(rotation) ? rotation : 0;
   const detected = await detectSealNumber(imageUrl, safeRotation);
+  // Bildersafe: nur Lesbarkeit zurückgeben — die Zahl verlässt den Server NICHT (Sub soll sie nicht sehen).
+  if (readableOnly) return NextResponse.json({ readable: detected !== null });
   return NextResponse.json({ detected });
 }

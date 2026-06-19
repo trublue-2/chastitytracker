@@ -38,6 +38,10 @@ export interface VerschlussPayload {
   note: string | null;
   kontrollCode: string | null;
   deviceId: string | null;
+  /** Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur wenn Instanz im Bildersafe-Modus). */
+  codeImageUrl?: string | null;
+  /** Bildersafe: Ziffern im Code-Foto erkannt (Lesbarkeits-✓). */
+  codeReadable?: boolean | null;
 }
 
 export interface OeffnenPayload {

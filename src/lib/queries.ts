@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund } from "@/lib/constants";
+import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 
 /**
  * Where-Fragment: Kontroll-Anforderungen, die für den Sub schon sichtbar sind — sofortige
@@ -277,6 +278,52 @@ export async function getActiveOrgasmusAnforderung(userId: string, now: Date = n
     where: { userId, fulfilledAt: null, withdrawnAt: null, endetAt: { gte: now } },
     orderBy: { createdAt: "desc" },
   });
+}
+
+/**
+ * Live-Antwort auf „darf der Sub JETZT öffnen?" — spiegelt die Regel aus strafbuch.ts/oeffnen:
+ * keine aktive Sperrzeit ODER ein aktives, erlaubtes Reinigungsfenster ODER ein Orgasmus-
+ * Öffnungsfenster. Genutzt fürs Bildersafe-Foto-Freigabe-Gate.
+ */
+export async function isOpeningPermittedNow(userId: string, now: Date = new Date()): Promise<boolean> {
+  const sperre = await getActiveSperrzeit(userId);
+  if (!sperre) return true;
+
+  // Erlaubtes, aktives Reinigungsfenster (User- UND Sperrzeit-Flag + im Zeitfenster)
+  if (sperre.reinigungErlaubt) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { reinigungErlaubt: true, reinigungsFenster: true },
+    });
+    if (user?.reinigungErlaubt && aktivesReinigungsFenster(user.reinigungsFenster, now)) return true;
+  }
+
+  // Orgasmus-Öffnungsfenster (oeffnenErlaubt + im Zeitfenster)
+  const orgasm = await getActiveOrgasmusAnforderung(userId, now);
+  if (orgasm?.oeffnenErlaubt && orgasm.beginntAt <= now) return true;
+
+  return false;
+}
+
+/**
+ * Ist das versiegelte Code-Foto eines VERSCHLUSS-Eintrags aktuell freigegeben?
+ * Freigegeben, wenn die Session vorbei ist (späteres OEFFNEN existiert) ODER Öffnen gerade erlaubt ist.
+ * `hasLaterOpen` kann übergeben werden (z.B. aus bereits geladenen Einträgen), um die DB-Abfrage zu sparen.
+ */
+export async function isCodePhotoRevealed(
+  entry: { userId: string; startTime: Date },
+  now: Date = new Date(),
+  hasLaterOpen?: boolean,
+): Promise<boolean> {
+  if (hasLaterOpen === undefined) {
+    const later = await prisma.entry.findFirst({
+      where: { userId: entry.userId, type: "OEFFNEN", startTime: { gt: entry.startTime } },
+      select: { id: true },
+    });
+    hasLaterOpen = later !== null;
+  }
+  if (hasLaterOpen) return true;
+  return isOpeningPermittedNow(entry.userId, now);
 }
 
 /**

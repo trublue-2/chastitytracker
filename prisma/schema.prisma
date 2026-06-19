@@ -327,6 +327,10 @@ model Entry {
   startTime           DateTime
   imageUrl            String?
   imageExifTime       DateTime?
+  // Bildersafe (Schlüssel-Verwahrung): versiegeltes Foto des Schlüsselbox-Codes. Getrennt von
+  // imageUrl (offenes Siegel/Gerät). Wird erst freigegeben, wenn Öffnen erlaubt ist.
+  codeImageUrl        String?
+  codeReadable        Boolean?             // detectSealNumber hat Ziffern erkannt (nur "lesbar ✓", Zahl wird NICHT gespeichert)
   note                String?
   oeffnenGrund        String?
   orgasmusArt         String?
