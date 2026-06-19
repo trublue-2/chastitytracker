@@ -16,6 +16,11 @@ on:
         description: "Ziel-Instanzen auf diesen Image-Tag umpinnen (z.B. feature, latest). Leer = bestehende Pins behalten."
         required: false
         default: ""
+      tagFeature:
+        description: "Image zusätzlich als :feature taggen (auch bei main-Builds) — damit auf :feature gepinnte Instanzen diesen Build ziehen, ohne umzupinnen."
+        required: false
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -72,7 +77,7 @@ jobs:
           # The enable guards ensure a feature build never overwrites the stable :latest.
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=feature,enable=${{ github.ref_name != 'main' }}
+            type=raw,value=feature,enable=${{ github.ref_name != 'main' || github.event.inputs.tagFeature == 'true' }}
             type=raw,value=v${{ env.NEW_VERSION }}
             type=sha,prefix=sha-
 
