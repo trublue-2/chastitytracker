@@ -10,9 +10,10 @@ interface Props {
   isLocked: boolean;
   version?: string;
   categoryRows?: NewEntryCategoryRow[];
+  bildersafe?: boolean;
 }
 
-export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows }: Props) {
+export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -29,6 +30,7 @@ export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, ver
         onClose={() => setSheetOpen(false)}
         isLocked={isLocked}
         categoryRows={categoryRows}
+        bildersafe={bildersafe}
       />
     </>
   );

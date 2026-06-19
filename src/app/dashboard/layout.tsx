@@ -7,7 +7,7 @@ import DashboardBottomNav from "./DashboardBottomNav";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getIsLocked, getActiveWearSessions } from "@/lib/queries";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled, bildersafeEnabled } from "@/lib/constants";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
@@ -52,6 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isLocked={isLocked}
         version={pkg.version}
         categoryRows={categoryRows}
+        bildersafe={bildersafeEnabled()}
       />
 
       {/* Content area: offset for sidebar on desktop, offset for bottom nav on mobile */}
@@ -68,6 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isLocked={isLocked}
         version={pkg.version}
         categoryRows={categoryRows}
+        bildersafe={bildersafeEnabled()}
       />
       <InstallBanner />
     </div>

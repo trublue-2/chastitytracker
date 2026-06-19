@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.28.0",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "feat", "text": "Bildersafe: „Schlüsselbox-Code versiegeln\" jetzt als eigener Punkt im (+)-Menü „Neu erfassen\" — verfügbar WÄHREND verschlossen (dort wo bei Heimdall die Box-Aktionen waren). Nimmt ein neues versiegeltes Code-Foto auf und hängt es an den aktuellen Verschluss. Damit lässt sich nach jeder Reinigungsöffnung ein neuer Code versiegeln (Re-Lock-Zyklus), und der Sub kann Bildersafe testen, ohne erst zu öffnen. Nur sichtbar bei ENABLE_BILDERSAFE=true." }
+    ]
+  },
+  {
     "version": "4.27.2",
     "date": "2026-06-19",
     "changes": [
