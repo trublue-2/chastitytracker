@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { aktivesReinigungsFenster, reinigungVerbrauchtHeute } from "@/lib/reinigungService";
+import { heimdallEnabled } from "@/lib/constants";
 
 const VALID = ["lock", "open", "clean_open"] as const;
 
@@ -11,6 +12,7 @@ const VALID = ["lock", "open", "clean_open"] as const;
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!heimdallEnabled()) return NextResponse.json({ error: "Heimdall nicht aktiviert" }, { status: 404 });
   const userId = session.user.id;
   const now = new Date();
 

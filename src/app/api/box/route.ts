@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { aktivesReinigungsFenster, reinigungVerbrauchtHeute } from "@/lib/reinigungService";
+import { heimdallEnabled } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Heimdall-Box ist ein eigenständiges Feature: ohne Sync-Secret keine Box-UI (auch wenn
+  // noch alte BoxStatus-Zeilen in der DB liegen).
+  if (!heimdallEnabled()) return NextResponse.json([]);
   const userId = session.user.id;
   const now = new Date();
 

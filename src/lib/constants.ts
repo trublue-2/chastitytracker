@@ -28,6 +28,12 @@ export function deviceCategoriesEnabled(): boolean {
 export function bildersafeEnabled(): boolean {
   return process.env.ENABLE_BILDERSAFE?.toLowerCase() === "true";
 }
+
+/** Heimdall-Hardware-Box aktiv? = Sync-Secret gesetzt. Gilt für Integration UND Box-UI:
+ *  ohne Secret werden keine Box-Aktionen angezeigt (auch wenn noch alte BoxStatus-Zeilen existieren). */
+export function heimdallEnabled(): boolean {
+  return !!process.env.HEIMDALL_SYNC_SECRET;
+}
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 /** Maps each ORGASMUS_ARTEN value to its orgasmForm i18n key (shared by entry + Anforderung forms). */
 export const ORGASMUS_ART_I18N_KEYS: Record<string, string> = {

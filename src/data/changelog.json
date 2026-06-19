@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.27.2",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "fix", "text": "Heimdall-Box-UI an die Aktivierung gekoppelt: Ohne HEIMDALL_SYNC_SECRET werden keine Box-Aktionen mehr angezeigt (das (+)-Menü blendet die Box aus, auch wenn noch alte Box-Status-Daten in der DB liegen). Bisher war die Box-UI rein datengetrieben und blieb sichtbar, obwohl Heimdall deaktiviert war. Box-Kommandos werden in diesem Fall ebenfalls abgelehnt." }
+    ]
+  },
+  {
     "version": "4.27.1",
     "date": "2026-06-19",
     "changes": [
