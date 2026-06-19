@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.29.0",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "feat", "text": "Bildersafe: Code-Abruf jetzt als eigener Menüpunkt im (+)-Menü (Schlüsselbox-Code anzeigen) — lädt den Code des AKTUELLEN Verschlusses, unabhängig von der Session-Timeline. Damit ist der Code auch nach einem Reinigungs-Wiederverschluss abrufbar. Versiegelt zeigt er den Sperr-Hinweis; sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder Reinigungsfenster) das Code-Foto (Tippen für Vollbild). Behebt: Code-Widget war nur am ersten Verschluss-Eintrag sichtbar." }
+    ]
+  },
+  {
     "version": "4.28.1",
     "date": "2026-06-19",
     "changes": [

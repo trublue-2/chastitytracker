@@ -245,17 +245,30 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
         {/* Bildersafe: Schlüsselbox-Code (neu) versiegeln — nur während verschlossen (hängt am
             aktuellen Verschluss; deckt das Neu-Versiegeln nach einer Reinigungsöffnung ab). */}
         {bildersafe && isLocked && (
-          <button
-            type="button"
-            onClick={() => handleSelect("/dashboard/new/bildersafe")}
-            className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
-          >
-            <KeyRound size={22} className="text-lock shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{t("bildersafeAction")}</p>
-              <p className="text-xs text-foreground-muted">{t("bildersafeActionDesc")}</p>
-            </div>
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => handleSelect("/dashboard/new/bildersafe")}
+              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
+            >
+              <KeyRound size={22} className="text-lock shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">{t("bildersafeAction")}</p>
+                <p className="text-xs text-foreground-muted">{t("bildersafeActionDesc")}</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelect("/dashboard/new/bildersafe/anzeigen")}
+              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
+            >
+              <LockOpen size={22} className="text-unlock shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">{t("bildersafeShowAction")}</p>
+                <p className="text-xs text-foreground-muted">{t("bildersafeShowActionDesc")}</p>
+              </div>
+            </button>
+          </>
         )}
 
         {/* Heimdall-Box(en): zustands-bewusst — offen → verschliessen, eigene "ohne Zeit"-Sperre →
