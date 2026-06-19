@@ -183,16 +183,21 @@ export async function POST(req: NextRequest) {
   // buildStrafbuch abgeleitet); ob sie geahndet wird, entscheidet die Keyholderin. Das
   // Öffnen-Formular warnt weiterhin vorab — forcedReinigung bleibt rein informativ.
 
-  // Auto-create StrafeRecord when user picked a different device than the Anforderung specified
+  // Auto-create StrafeRecord when user picked a different device than the Anforderung specified.
+  // Automatische Ahndung ohne Urteilsschritt → sofort erledigt (judgedBy=system), damit sie
+  // nicht als offene Strafe im Urteilsloop hängt.
   if (type === "VERSCHLUSS" && fulfilledAnforderungDeviceId && fulfilledAnforderungDeviceId !== (deviceId || null)) {
     try {
+      const now = new Date();
       await prisma.strafeRecord.create({
         data: {
           userId: session.user.id,
           offenseType: "FALSCHES_GERAET",
           refId: entry.id,
-          bestraftDatum: new Date(),
+          bestraftDatum: now,
           notiz: null,
+          judgedBy: "system",
+          erledigtAt: now,
         },
       });
     } catch { /* ignore if duplicate — e.g. offline replay */ }

@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.26.1",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "fix", "text": "Strafbuch: Bereits vor dem Urteilsloop bestrafte Vergehen wurden fälschlich als „offene Strafe\" angezeigt. Sie sind jetzt automatisch als erledigt gesetzt (Erledigt-Datum = Datum der Strafe). Automatische Ahndungen (falsches Gerät) gelten künftig sofort als erledigt." }
+    ]
+  },
+  {
     "version": "4.26.0",
     "date": "2026-06-19",
     "changes": [
