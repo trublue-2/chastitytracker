@@ -39,7 +39,7 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
     fetch("/api/detect-seal", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: codeUrl, readableOnly: true }),
+      body: JSON.stringify({ imageUrl: codeUrl, readableOnly: true, lockbox: true }),
     })
       .then((r) => (r.ok ? r.json() : { readable: false }))
       .then(({ readable }) => { if (!cancelled) setReadable(!!readable); })
@@ -70,20 +70,21 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
   return (
     <div className="flex flex-col gap-5">
       {codeUrl ? (
-        <Card variant="semantic" semantic="sperrzeit">
-          <div className="flex items-start gap-2.5">
-            <Lock size={16} className="text-sperrzeit mt-0.5 shrink-0" />
-            <div className="text-xs">
-              <p className="font-bold text-sperrzeit-text">{t("codePhotoSealed")}</p>
-              <p className="text-sperrzeit mt-0.5">
-                {checking ? t("codePhotoChecking") : readable === false ? t("codePhotoUnreadable") : readable ? t("codePhotoReadable") : ""}
-              </p>
+        // Ganze Fläche = neu aufnehmen.
+        <button type="button" onClick={code.clearPhoto} className="text-left w-full">
+          <Card variant="semantic" semantic={readable === false ? "warn" : "sperrzeit"}>
+            <div className="flex items-start gap-2.5">
+              <Lock size={16} className={`mt-0.5 shrink-0 ${readable === false ? "text-warn" : "text-sperrzeit"}`} />
+              <div className="text-xs flex-1">
+                <p className={`font-bold ${readable === false ? "text-warn-text" : "text-sperrzeit-text"}`}>{t("codePhotoSealed")}</p>
+                <p className={`mt-0.5 ${readable === false ? "text-warn" : "text-sperrzeit"}`}>
+                  {checking ? t("codePhotoChecking") : readable === false ? t("codePhotoUnreadable") : readable ? t("codePhotoReadable") : ""}
+                </p>
+                <p className="text-foreground-faint mt-1.5 underline">{t("codePhotoRetake")}</p>
+              </div>
             </div>
-          </div>
-          <button type="button" onClick={code.clearPhoto} className="text-xs text-warn hover:opacity-80 mt-2 transition">
-            {t("codePhotoRetake")}
-          </button>
-        </Card>
+          </Card>
+        </button>
       ) : (
         <>
           <p className="text-xs text-foreground-faint">{t("codePhotoHint")}</p>
@@ -94,7 +95,8 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
 
       {error && <p className="text-xs text-warn">{error}</p>}
 
-      <Button variant="primary" fullWidth loading={saving || code.uploading} disabled={!codeUrl} onClick={submit} icon={<KeyRound size={16} />}>
+      {/* Versiegeln nur möglich, wenn Ziffern erkannt wurden. */}
+      <Button variant="primary" fullWidth loading={saving || code.uploading || checking} disabled={!codeUrl || readable !== true} onClick={submit} icon={<KeyRound size={16} />}>
         {tn("bildersafeSubmit")}
       </Button>
     </div>

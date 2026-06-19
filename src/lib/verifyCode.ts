@@ -211,3 +211,63 @@ export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0)
     return null;
   }
 }
+
+/**
+ * Bildersafe: liest den Code eines ZAHLEN-VORHÄNGESCHLOSSES / einer Schlüsselbox (Dial-/Rolldials),
+ * nicht einer Plombe. Typisch 3–4 (bis 8) Ziffern an der Markierungslinie.
+ * Returns the detected digit string, or null if none readable.
+ */
+export async function detectLockboxCode(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    vlog("lockbox:no_api_key", { imageUrl });
+    return null;
+  }
+  try {
+    const img = await loadImageBuffer(imageUrl, rotation);
+    if (!img) {
+      vlog("lockbox:image_load_null", { imageUrl, rotation });
+      return null;
+    }
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 100,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
+            {
+              type: "text",
+              text: `This is a combination padlock or key lockbox with rotating number dials (Zahlenschloss). Read the digits currently set at the indicator — the row aligned with the marker line (often red) / shown in the small windows. Read them in order (top→bottom for stacked dials, left→right for a row). The code is usually 3–4 digits (up to 8). Ignore the partially-visible neighbouring digits above/below the line.\nReply with JSON only: {"detected": "<the digits, with leading zeros, or null>"}. If you cannot read the digits, use null.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    vlog("lockbox:response", { requestId: response.id, stopReason: response.stop_reason, textPreview: redactDigits(text.slice(0, 200)) });
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      vlog("lockbox:no_json", { textPreview: redactDigits(text.slice(0, 200)) });
+      return null;
+    }
+    const result = JSON.parse(jsonMatch[0]);
+    const detected = result.detected;
+    if (!detected || typeof detected !== "string") {
+      vlog("lockbox:no_detection", { detectedType: typeof detected });
+      return null;
+    }
+    if (!/^\d{3,8}$/.test(detected)) {
+      vlog("lockbox:invalid_format", { detectedLen: detected.length });
+      return null;
+    }
+    return detected;
+  } catch (e) {
+    const err = e as { status?: number; message?: string; name?: string };
+    vlog("lockbox:exception", { imageUrl, name: err.name, status: err.status, message: err.message });
+    return null;
+  }
+}

@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.28.1",
+    "date": "2026-06-19",
+    "changes": [
+      { "type": "fix", "text": "Bildersafe-Code-Erkennung für Zahlen-Vorhängeschlösser / Schlüsselboxen: Bisher wurde mit dem Plomben-Erkenner (5–8 Ziffern) geprüft → der 3–4-stellige Code eines Dial-Schlosses wurde nie erkannt. Neuer Erkenner für Zahlenschloss-Dials (3–8 Ziffern, an der Markierungslinie). Versiegeln ist jetzt nur möglich, wenn Ziffern erkannt wurden (sonst Hinweis „neu aufnehmen"). Die ganze versiegelte Fläche dient als Link zum Neu-Aufnehmen." }
+    ]
+  },
+  {
     "version": "4.28.0",
     "date": "2026-06-19",
     "changes": [

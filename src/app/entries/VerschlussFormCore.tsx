@@ -111,7 +111,7 @@ export default function VerschlussFormCore({
     fetch("/api/detect-seal", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: codeUrl, readableOnly: true }),
+      body: JSON.stringify({ imageUrl: codeUrl, readableOnly: true, lockbox: true }),
     })
       .then((r) => (r.ok ? r.json() : { readable: false }))
       .then(({ readable }) => { if (!cancelled) setCodeReadable(!!readable); })
@@ -213,13 +213,14 @@ export default function VerschlussFormCore({
       {bildersafe && (
         <FormField label={tForm("codePhotoLabel")}>
           {codeUrl ? (
-            <div className="flex flex-col gap-2">
-              <Card variant="semantic" semantic="sperrzeit">
+            // Ganze Fläche = neu aufnehmen.
+            <button type="button" onClick={codePhoto.clearPhoto} className="text-left w-full">
+              <Card variant="semantic" semantic={codeReadable === false ? "warn" : "sperrzeit"}>
                 <div className="flex items-start gap-2.5">
-                  <Lock size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
-                  <div className="text-xs">
-                    <p className="font-bold text-sperrzeit-text">{tForm("codePhotoSealed")}</p>
-                    <p className="text-sperrzeit mt-0.5">
+                  <Lock size={16} className={`flex-shrink-0 mt-0.5 ${codeReadable === false ? "text-warn" : "text-sperrzeit"}`} />
+                  <div className="text-xs flex-1">
+                    <p className={`font-bold ${codeReadable === false ? "text-warn-text" : "text-sperrzeit-text"}`}>{tForm("codePhotoSealed")}</p>
+                    <p className={`mt-0.5 ${codeReadable === false ? "text-warn" : "text-sperrzeit"}`}>
                       {codeChecking
                         ? tForm("codePhotoChecking")
                         : codeReadable === false
@@ -228,13 +229,11 @@ export default function VerschlussFormCore({
                             ? tForm("codePhotoReadable")
                             : ""}
                     </p>
+                    <p className="text-foreground-faint mt-1.5 underline">{tForm("codePhotoRetake")}</p>
                   </div>
                 </div>
               </Card>
-              <button type="button" onClick={codePhoto.clearPhoto} className="text-xs text-warn hover:opacity-80 w-fit transition">
-                {tForm("codePhotoRetake")}
-              </button>
-            </div>
+            </button>
           ) : (
             <>
               <p className="text-xs text-foreground-faint mb-1.5">{tForm("codePhotoHint")}</p>
@@ -282,7 +281,7 @@ export default function VerschlussFormCore({
           semantic={submitVariant === "semantic" ? "lock" : undefined}
           fullWidth
           loading={saving || uploading || codePhoto.uploading}
-          disabled={bildersafe && !codeUrl}
+          disabled={bildersafe && (!codeUrl || codeReadable !== true)}
           icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
         >
           {submitLabel ?? defaultLabel}
