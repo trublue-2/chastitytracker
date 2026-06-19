@@ -1,5 +1,16 @@
 [
   {
+    "version": "4.25.0",
+    "date": "2026-06-18",
+    "changes": [
+      { "type": "feat", "text": "Orgasmus-Anforderung: Der Keyholder kann einen Orgasmus mit Zeitfenster vorgeben — als ANWEISUNG (Pflicht) oder GELEGENHEIT (Erlaubnis), optional mit verlangter Orgasmus-Art und einer Nachricht. Der Sub wird per E-Mail + Push benachrichtigt; ein passender Orgasmus im Fenster erfüllt die Anforderung automatisch." },
+      { "type": "feat", "text": "Öffnen zum Orgasmus erlaubt: Optional darf sich der Sub im Fenster zum Orgasmus öffnen, ohne dass eine aktive Sperrzeit verletzt wird (analog zur Reinigungs-Ausnahme). Im Admin-Formular als Checkbox, über den MCP als openAllowed." },
+      { "type": "feat", "text": "Strafbuch: Eine verpasste ANWEISUNG (Fenster abgelaufen ohne passenden Orgasmus) wird als Vergehen erkannt (missedOrgasmInstructions) — erkannt, nicht automatisch bestraft." },
+      { "type": "feat", "text": "MCP voll angebunden: request_orgasm (Direktive setzen), withdraw mit target \"orgasm_directive\", get_strafbuch.missedOrgasmInstructions und get_overview.openOrgasmusAnforderung. explain_model + Keyholder-Guide um §11 erweitert." },
+      { "type": "chore", "text": "Geschäftslogik der Orgasmus-Anforderung in geteilten Service orgasmusAnforderungService extrahiert — Admin-Route und MCP nutzen denselben Pfad (Single Source of Truth)." }
+    ]
+  },
+  {
     "version": "4.24.0",
     "date": "2026-06-18",
     "changes": [
