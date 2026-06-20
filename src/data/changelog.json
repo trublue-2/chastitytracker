@@ -1,9 +1,16 @@
 [
   {
+    "version": "4.29.4",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "fix", "text": "Changelog ließ sich nicht anzeigen — ein Eintrag nutzte einen unbekannten Typ (improvement), der den Renderer abstürzen ließ. Korrigiert + nur gültige Typen erlaubt." }
+    ]
+  },
+  {
     "version": "4.29.3",
     "date": "2026-06-20",
     "changes": [
-      { "type": "improvement", "text": "Bildersafe-Lesbarkeitsprüfung läuft jetzt vollständig LOKAL und ohne KI: Statt Anthropic wird die Bildschärfe direkt auf der Instanz gemessen (Laplace-Varianz, kein Datenabfluss). Damit funktioniert die Schlüsselbox-Code-Funktion auch ohne ANTHROPIC_API_KEY. Schwellwert über BILDERSAFE_SHARPNESS_MIN justierbar (Default 20). Echte KI-Ziffernerkennung bleibt optionaler Zusatz." }
+      { "type": "feat", "text": "Bildersafe-Lesbarkeitsprüfung läuft jetzt vollständig LOKAL und ohne KI: Statt Anthropic wird die Bildschärfe direkt auf der Instanz gemessen (Laplace-Varianz, kein Datenabfluss). Damit funktioniert die Schlüsselbox-Code-Funktion auch ohne ANTHROPIC_API_KEY. Schwellwert über BILDERSAFE_SHARPNESS_MIN justierbar (Default 20). Echte KI-Ziffernerkennung bleibt optionaler Zusatz." }
     ]
   },
   {
