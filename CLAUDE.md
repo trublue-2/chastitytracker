@@ -116,16 +116,7 @@ BUILD_DATE=<iso-date>              # optional: wird beim Build gesetzt
 
 Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert werden. **Vor jeder neuen Komponente oder Form: grep nach bestehendem Pattern.**
 
-### `/simplify` — Pflicht nach JEDER Änderung
-
-**Auf `/simplify` darf NIE verzichtet werden — gerade NICHT bei kleinen Anpassungen.** Genau bei „nur eine Zeile" oder „nur eine kleine Helper-Datei" entsteht das meiste Duplikat und die meiste übersehene Wiederverwendung. Faustregel: Wenn Code geändert wurde, läuft `/simplify` — vor dem finalen Commit/Deploy, ohne Ausnahme und ohne Nachfrage.
-
-Zwei Beispiele, warum auch das Kleinste zählt:
-
-1. **Einzeiler-Fix** (`VorgabeForm.tsx`, `step={0.5}` → `step="any"`): trotz Ein-Zeilen-Diff fand `/simplify` im selben Branch, dass die neue `imageReadability.ts` eine eigene, schwächere Pfadlogik mitbrachte statt den vorhandenen `loadUploadedImage()` zu nutzen.
-2. **Neue Mini-Helper-Datei** (`imageReadability.ts`, ~55 Zeilen): `/simplify` deckte das Reuse-/Security-Problem auf (eigener `basename`+`readFile`-Pfad mit `includes("..")` statt des härteren `startsWith(uploadsDir+sep)`-Guards in `imageUtils.ts`). Eine Datei, die „zu klein für Review" wirkt, hatte den größten Aufräum-Effekt.
-
-→ Kein Diff ist zu klein für `/simplify`. Übersprungen wird höchstens, was das Skill selbst als „bereits sauber" meldet.
+> `/simplify`-Pflicht (nach JEDER Änderung, auch Einzeilern) ist zentral im **Workspace-Root-`CLAUDE.md`** geregelt → „Commit Sequence" + „Never skip `/simplify`".
 
 ### Wiederverwendung vor Neubau
 - **Bevor du eine Komponente, einen Hook oder eine Utility-Funktion schreibst:** Durchsuche `src/app/components/`, `src/app/hooks/`, `src/lib/` nach bestehenden Lösungen.
