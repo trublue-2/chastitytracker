@@ -1,6 +1,5 @@
 import sharp from "sharp";
-import { readFile } from "fs/promises";
-import { join, basename } from "path";
+import { loadUploadedImage } from "@/lib/imageUtils";
 
 /**
  * Lokale, datenschutzfreundliche Schärfeprüfung für das Bildersafe-Code-Foto — OHNE KI, ohne
@@ -11,17 +10,16 @@ import { join, basename } from "path";
  * Der Laplace wird bewusst MANUELL signiert aus dem Rohpuffer gerechnet — sharps convolve clamped
  * auf uint8 und verschluckt die negativen Kantenantworten (→ unbrauchbar).
  *
- * Schwellwert über BILDERSAFE_SHARPNESS_MIN justierbar (Default tolerant). Im Zweifel (Fehler/zu
- * kleines Bild) wird erlaubt — nie hart blockiert, damit gute Fotos nicht fälschlich abgelehnt werden.
+ * Schwellwert über BILDERSAFE_SHARPNESS_MIN justierbar (Default tolerant). Im Zweifel (Datei
+ * fehlt/zu kleines Bild/Fehler) wird erlaubt — nie hart blockiert, damit gute Fotos nicht
+ * fälschlich abgelehnt werden.
  */
 export async function localCodeReadable(imageUrl: string, rotation = 0): Promise<boolean> {
-  const filename = basename(imageUrl);
-  if (!filename || filename.includes("..") || filename.includes("/")) return true;
-  const fullPath = join(process.cwd(), "data", "uploads", filename);
+  const img = await loadUploadedImage(imageUrl); // sichere Pfadauflösung + Path-Traversal-Schutz
+  if (!img) return true; // im Zweifel nicht blockieren
 
   try {
-    const raw = await readFile(fullPath);
-    const { data, info } = await sharp(raw)
+    const { data, info } = await sharp(Buffer.from(img.base64, "base64"))
       .rotate(rotation || 0)
       .grayscale()
       .resize(640, 640, { fit: "inside", withoutEnlargement: true })

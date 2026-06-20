@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.29.5",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "chore", "text": "Aufräumen (/simplify): lokale Schärfeprüfung nutzt jetzt den vorhandenen, härteren Upload-Lader (loadUploadedImage, mit Path-Traversal-Schutz) statt eigener Pfadlogik. Kein Verhaltens­unterschied." }
+    ]
+  },
+  {
     "version": "4.29.4",
     "date": "2026-06-20",
     "changes": [
