@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.30.0",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "feat", "text": "Lokale Ziffern-OCR ohne KI: Ist kein ANTHROPIC_API_KEY gesetzt, liest die App gedruckte Plomben-/Siegel-Nummern jetzt per Tesseract direkt auf der Instanz (kein Datenabfluss) statt gar nicht. Mit KI bleibt Claude Vision der Standard. Handschriftliche Kontroll-Codes kann OCR nicht zuverlässig lesen — dort weiterhin KI oder manuelle Keyholder-Verifikation. Im Docker-Image ist tesseract-ocr enthalten; fehlt das Binary, degradiert es sauber (keine Erkennung statt Absturz)." }
+    ]
+  },
+  {
     "version": "4.29.5",
     "date": "2026-06-20",
     "changes": [

@@ -33,7 +33,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # OpenSSL für Prisma + su-exec für sicheres Privilege-Drop im Entrypoint
-RUN apk add --no-cache openssl su-exec
+# tesseract-ocr + eng-Daten: lokale, KI-freie Ziffern-OCR (gedruckte Plomben/Siegel)
+RUN apk add --no-cache openssl su-exec tesseract-ocr tesseract-ocr-data-eng
 
 # Prisma CLI + Client für Migrationen zur Laufzeit
 COPY --from=deps /app/node_modules ./node_modules

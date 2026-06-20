@@ -5,6 +5,7 @@ import type { Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES } from "@/lib/imageUtils";
 import { anthropic } from "@/lib/anthropic";
+import { localReadDigits } from "@/lib/ocr";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
@@ -159,8 +160,9 @@ export async function verifyKontrolleCode(
  */
 export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    vlog("seal:no_api_key", { imageUrl });
-    return null;
+    // Ohne KI: lokales OCR (gedruckte Plombenziffern, 5–8). Kein Datenabfluss.
+    vlog("seal:no_api_key_local_ocr", { imageUrl });
+    return localReadDigits(imageUrl, { rotation, minLen: 5, maxLen: 8 });
   }
   try {
     const img = await loadImageBuffer(imageUrl, rotation);
@@ -219,8 +221,9 @@ export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0)
  */
 export async function detectLockboxCode(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    vlog("lockbox:no_api_key", { imageUrl });
-    return null;
+    // Ohne KI: lokales OCR (3–8). Bei geprägten Metall-Dials oft schwach → ggf. null (Best Effort).
+    vlog("lockbox:no_api_key_local_ocr", { imageUrl });
+    return localReadDigits(imageUrl, { rotation, minLen: 3, maxLen: 8 });
   }
   try {
     const img = await loadImageBuffer(imageUrl, rotation);
