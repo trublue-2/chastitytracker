@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.30.1",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "fix", "text": "MCP: Die Tool-Beschreibungen von add_keyholder_note / delete_keyholder_note behaupteten fälschlich „der Nutzer wird per E-Mail + Push benachrichtigt\". Notizen sind aber privat und lösen bewusst KEINE Benachrichtigung aus — die Beschreibung sagt das jetzt korrekt (still, keine Benachrichtigung). Verhalten unverändert; nur die irreführende Angabe korrigiert." }
+    ]
+  },
+  {
     "version": "4.30.0",
     "date": "2026-06-20",
     "changes": [

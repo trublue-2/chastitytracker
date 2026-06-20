@@ -170,9 +170,14 @@ const handler = createMcpHandler(
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
     // All write tools MUST respect the human keyholder's rules in get_overview.keyholderInstructions.
-    const KEYHOLDER_NOTE =
+    const KEYHOLDER_BASE =
       " Keyholder action (requires an admin OAuth token). Respect the human keyholder's rules in " +
-      "get_overview.keyholderInstructions before acting. The user is notified by e-mail + push.";
+      "get_overview.keyholderInstructions before acting.";
+    // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
+    const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
+    // STILLE Keyholder-Tools (private Notizen) → KEIN Notify: die Notiz-Funktionen lösen bewusst
+    // weder E-Mail noch Push aus (der Nutzer sieht Notizen nie).
+    const KEYHOLDER_SILENT = KEYHOLDER_BASE + " This is silent — the user is NOT notified.";
 
     server.registerTool(
       "request_lock",
@@ -408,7 +413,7 @@ const handler = createMcpHandler(
           "Records a private observation about the user's wearing behaviour for later evaluation — " +
           "e.g. which KG draws complaints, reported pressure marks, escape attempts, hygiene issues. " +
           "Optionally tag it with a KG (device) and a category. These notes are MCP-only (the user " +
-          "never sees them) and resurface in get_overview + list_keyholder_notes." + KEYHOLDER_NOTE,
+          "never sees them) and resurface in get_overview + list_keyholder_notes." + KEYHOLDER_SILENT,
         inputSchema: {
           text: z.string().min(1).describe("The observation (free text)."),
           kg: z.string().optional().describe("Optional KG/device this concerns (e.g. the device name)."),
@@ -424,7 +429,7 @@ const handler = createMcpHandler(
         title: "Delete a keyholder note",
         description:
           "Removes a keyholder note by id (e.g. an outdated or superseded observation). Get the id " +
-          "from get_overview.keyholderNotes or list_keyholder_notes." + KEYHOLDER_NOTE,
+          "from get_overview.keyholderNotes or list_keyholder_notes." + KEYHOLDER_SILENT,
         inputSchema: {
           id: z.string().min(1).describe("The note id to delete."),
         },
