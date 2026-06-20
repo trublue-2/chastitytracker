@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.29.3",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "improvement", "text": "Bildersafe-Lesbarkeitsprüfung läuft jetzt vollständig LOKAL und ohne KI: Statt Anthropic wird die Bildschärfe direkt auf der Instanz gemessen (Laplace-Varianz, kein Datenabfluss). Damit funktioniert die Schlüsselbox-Code-Funktion auch ohne ANTHROPIC_API_KEY. Schwellwert über BILDERSAFE_SHARPNESS_MIN justierbar (Default 20). Echte KI-Ziffernerkennung bleibt optionaler Zusatz." }
+    ]
+  },
+  {
     "version": "4.29.2",
     "date": "2026-06-20",
     "changes": [
