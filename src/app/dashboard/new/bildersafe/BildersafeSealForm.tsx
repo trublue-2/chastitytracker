@@ -41,9 +41,10 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl: codeUrl, readableOnly: true, lockbox: true }),
     })
-      .then((r) => (r.ok ? r.json() : { readable: false }))
-      .then(({ readable }) => { if (!cancelled) setReadable(!!readable); })
-      .catch(() => { if (!cancelled) setReadable(false); })
+      .then((r) => (r.ok ? r.json() : { readable: null }))
+      // readable: true = lesbar · false = unlesbar · null = nicht geprüft (KI aus) → Versiegeln erlaubt
+      .then(({ readable }) => { if (!cancelled) setReadable(typeof readable === "boolean" ? readable : null); })
+      .catch(() => { if (!cancelled) setReadable(null); })
       .finally(() => { if (!cancelled) setChecking(false); });
     return () => { cancelled = true; };
   }, [codeUrl]);
@@ -78,7 +79,7 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
               <div className="text-xs flex-1">
                 <p className={`font-bold ${readable === false ? "text-warn-text" : "text-sperrzeit-text"}`}>{t("codePhotoSealed")}</p>
                 <p className={`mt-0.5 ${readable === false ? "text-warn" : "text-sperrzeit"}`}>
-                  {checking ? t("codePhotoChecking") : readable === false ? t("codePhotoUnreadable") : readable ? t("codePhotoReadable") : ""}
+                  {checking ? t("codePhotoChecking") : readable === false ? t("codePhotoUnreadable") : readable === true ? t("codePhotoReadable") : t("codePhotoNoCheck")}
                 </p>
                 <p className="text-foreground-faint mt-1.5 underline">{t("codePhotoRetake")}</p>
               </div>
@@ -95,8 +96,8 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
 
       {error && <p className="text-xs text-warn">{error}</p>}
 
-      {/* Versiegeln nur möglich, wenn Ziffern erkannt wurden. */}
-      <Button variant="primary" fullWidth loading={saving || code.uploading || checking} disabled={!codeUrl || readable !== true} onClick={submit} icon={<KeyRound size={16} />}>
+      {/* Versiegeln blockiert nur bei explizit unlesbar (KI an). Ohne KI (readable=null) erlaubt. */}
+      <Button variant="primary" fullWidth loading={saving || code.uploading || checking} disabled={!codeUrl || readable === false} onClick={submit} icon={<KeyRound size={16} />}>
         {tn("bildersafeSubmit")}
       </Button>
     </div>

@@ -16,6 +16,14 @@ export async function POST(req: NextRequest) {
   const { imageUrl, rotation, readableOnly, lockbox } = await req.json();
   if (!imageUrl || !isValidImageUrl(imageUrl)) return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
 
+  // KI optional: ohne ANTHROPIC_API_KEY findet KEINE Code-Erkennung statt. Für die Lesbarkeitsprüfung
+  // (Bildersafe) bedeutet das „nicht geprüft" (readable: null) — NICHT „unlesbar". So bleibt Bildersafe
+  // auch ohne KI nutzbar.
+  if (!process.env.ANTHROPIC_API_KEY) {
+    if (readableOnly) return NextResponse.json({ readable: null });
+    return NextResponse.json({ detected: null });
+  }
+
   const safeRotation: Rotation = VALID_ROTATIONS.includes(rotation) ? rotation : 0;
   // lockbox=true → Zahlen-Vorhängeschloss / Schlüsselbox (3–8 Ziffern), sonst Plombe (5–8).
   const detected = lockbox

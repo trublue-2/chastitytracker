@@ -265,6 +265,7 @@
     "codePhotoChecking": "Checking readability …",
     "codePhotoReadable": "Code readable ✓ (digits are not shown to you)",
     "codePhotoUnreadable": "Digits not recognizable – please retake",
+    "codePhotoNoCheck": "Sealed (no automatic readability check — AI off)",
     "codePhotoRetake": "Retake",
     "sealDetecting": "Detecting number…",
     "sealDetected": "Detected: {code}",

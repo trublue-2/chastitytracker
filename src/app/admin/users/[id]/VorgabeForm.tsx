@@ -35,7 +35,9 @@ function InputWithUnit({
           onChange={(e) => onValue(e.target.value)}
           min={0}
           max={unit === "%" ? 100 : max}
-          step={unit === "%" ? 1 : 0.5}
+          // "any": Dezimalwerte erlauben (z.B. 16.8 h). Ein fester step (0.5) machte Nicht-Vielfache
+          // ungültig und blockierte das gesamte Formular-Submit (inkl. Enddatum).
+          step="any"
           placeholder="–"
           className={`flex-1 ${fieldCls}`}
         />

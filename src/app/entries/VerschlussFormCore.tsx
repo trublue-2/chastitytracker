@@ -113,9 +113,10 @@ export default function VerschlussFormCore({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl: codeUrl, readableOnly: true, lockbox: true }),
     })
-      .then((r) => (r.ok ? r.json() : { readable: false }))
-      .then(({ readable }) => { if (!cancelled) setCodeReadable(!!readable); })
-      .catch(() => { if (!cancelled) setCodeReadable(false); })
+      .then((r) => (r.ok ? r.json() : { readable: null }))
+      // true = lesbar · false = unlesbar · null = nicht geprüft (KI aus) → Versiegeln erlaubt
+      .then(({ readable }) => { if (!cancelled) setCodeReadable(typeof readable === "boolean" ? readable : null); })
+      .catch(() => { if (!cancelled) setCodeReadable(null); })
       .finally(() => { if (!cancelled) setCodeChecking(false); });
     return () => { cancelled = true; };
   }, [bildersafe, codeUrl]);
@@ -225,9 +226,9 @@ export default function VerschlussFormCore({
                         ? tForm("codePhotoChecking")
                         : codeReadable === false
                           ? tForm("codePhotoUnreadable")
-                          : codeReadable
+                          : codeReadable === true
                             ? tForm("codePhotoReadable")
-                            : ""}
+                            : tForm("codePhotoNoCheck")}
                     </p>
                     <p className="text-foreground-faint mt-1.5 underline">{tForm("codePhotoRetake")}</p>
                   </div>
@@ -281,7 +282,7 @@ export default function VerschlussFormCore({
           semantic={submitVariant === "semantic" ? "lock" : undefined}
           fullWidth
           loading={saving || uploading || codePhoto.uploading}
-          disabled={bildersafe && (!codeUrl || codeReadable !== true)}
+          disabled={bildersafe && (!codeUrl || codeReadable === false)}
           icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
         >
           {submitLabel ?? defaultLabel}

@@ -1,5 +1,13 @@
 [
   {
+    "version": "4.29.2",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "fix", "text": "Bildersafe ohne KI nutzbar: Die Code-Lesbarkeitsprüfung nutzt Anthropic-KI und ist jetzt optional (wie an den anderen Stellen). Ohne ANTHROPIC_API_KEY entfällt die automatische Prüfung — das Versiegeln ist trotzdem möglich (Hinweis: keine automatische Lesbarkeitsprüfung). Mit KI bleibt es bei: nicht erkennbar = kein Versiegeln." },
+      { "type": "fix", "text": "Trainingsvorgaben: Dezimale Stundenwerte (z.B. 16.8 h) werden jetzt akzeptiert. Das feste Eingabe-Raster (0.5) machte solche Werte ungültig und blockierte das gesamte Speichern — wodurch u.a. das Enddatum nicht gesichert wurde." }
+    ]
+  },
+  {
     "version": "4.29.1",
     "date": "2026-06-19",
     "changes": [

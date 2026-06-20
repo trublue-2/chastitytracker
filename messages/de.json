@@ -265,6 +265,7 @@
     "codePhotoChecking": "Lesbarkeit wird geprüft …",
     "codePhotoReadable": "Code lesbar ✓ (Ziffern werden dir nicht angezeigt)",
     "codePhotoUnreadable": "Ziffern nicht erkennbar – bitte neu aufnehmen",
+    "codePhotoNoCheck": "Versiegelt (keine automatische Lesbarkeitsprüfung — KI aus)",
     "codePhotoRetake": "Neu aufnehmen",
     "sealDetecting": "Nummer wird erkannt…",
     "sealDetected": "Erkannt: {code}",
