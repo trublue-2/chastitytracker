@@ -175,9 +175,9 @@ const handler = createMcpHandler(
       "get_overview.keyholderInstructions before acting.";
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
-    // STILLE Keyholder-Tools (private Notizen) → KEIN Notify: die Notiz-Funktionen lösen bewusst
-    // weder E-Mail noch Push aus (der Nutzer sieht Notizen nie).
-    const KEYHOLDER_SILENT = KEYHOLDER_BASE + " This is silent — the user is NOT notified.";
+    // STILLE Keyholder-Tools → KEIN aktiver Notify (weder E-Mail noch Push). Nur die
+    // notifizierenden Aktionen (Lock, Lock-Periode, Inspektion, Orgasmus) senden eine Nachricht.
+    const KEYHOLDER_SILENT = KEYHOLDER_BASE + " The user is NOT notified (no e-mail/push).";
 
     server.registerTool(
       "request_lock",
@@ -264,7 +264,7 @@ const handler = createMcpHandler(
           "Sets a wear-time goal (min hours per day/week/month) for KG or a named category. Starts now by " +
           "default, or schedule a future start via validFrom. Goals are chained per category by start date, " +
           "so a future-dated goal automatically ends the current one at that date. At least one period target " +
-          "is required." + KEYHOLDER_NOTE,
+          "is required." + KEYHOLDER_SILENT,
         inputSchema: {
           category: z.string().optional().describe('Category name, e.g. "Plug". Omit or "KG" for the chastity device.'),
           minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
@@ -283,7 +283,7 @@ const handler = createMcpHandler(
       {
         title: "Withdraw an open directive",
         description:
-          "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive." + KEYHOLDER_NOTE,
+          "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive." + KEYHOLDER_SILENT,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
         },
@@ -301,7 +301,7 @@ const handler = createMcpHandler(
           "penalty is whatever you write, the field is dumb; action=complete → marks a recorded penalty " +
           "as carried out (closes the loop); action=reopen → undoes a prior judgment. An offense stays " +
           "relevant (openOffenseCount) until dismissed or its penalty is completed. Use the offense's " +
-          "ref.id from get_strafbuch." + KEYHOLDER_NOTE,
+          "ref.id from get_strafbuch." + KEYHOLDER_SILENT,
         inputSchema: {
           ref: z.string().describe("The offense ref.id from get_strafbuch."),
           action: z.enum(["dismiss", "punish", "complete", "reopen"]).describe("dismiss = no penalty; punish = record a penalty; complete = mark penalty done; reopen = undo a prior judgment."),
@@ -332,7 +332,7 @@ const handler = createMcpHandler(
         description:
           "Replaces a training goal's values by id (get the id from list_training_goals). Overwrite semantics: " +
           "provide the full desired state. Omitting category keeps the current one. At least one period target " +
-          "is required." + KEYHOLDER_NOTE,
+          "is required." + KEYHOLDER_SILENT,
         inputSchema: {
           id: z.string().describe("Goal id from list_training_goals."),
           category: z.string().optional().describe('Category name, e.g. "Plug" or "KG". Omit to keep current.'),
@@ -351,7 +351,7 @@ const handler = createMcpHandler(
       "delete_training_goal",
       {
         title: "Delete a training goal",
-        description: "Deletes a training goal by id (get the id from list_training_goals)." + KEYHOLDER_NOTE,
+        description: "Deletes a training goal by id (get the id from list_training_goals)." + KEYHOLDER_SILENT,
         inputSchema: {
           id: z.string().describe("Goal id from list_training_goals."),
         },
@@ -365,7 +365,7 @@ const handler = createMcpHandler(
         title: "Set cleaning (Reinigung) rules",
         description:
           "Sets the cleaning-pause rules: whether short cleaning openings are allowed, the max minutes per " +
-          "pause, and the max pauses per day (0 = unlimited). Only provided fields change." + KEYHOLDER_NOTE,
+          "pause, and the max pauses per day (0 = unlimited). Only provided fields change." + KEYHOLDER_SILENT,
         inputSchema: {
           allowed: z.boolean().optional().describe("Allow cleaning pauses?"),
           maxMinutes: z.number().int().nonnegative().optional().describe("Max minutes per cleaning pause (clamped to 1–120)."),
@@ -381,7 +381,7 @@ const handler = createMcpHandler(
         title: "Verify or reject the latest inspection",
         description:
           "Manually verifies or rejects the user's most recent submitted inspection photo (overrides any " +
-          "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
+          "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_SILENT,
         inputSchema: {
           action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
         },
@@ -396,7 +396,7 @@ const handler = createMcpHandler(
         description:
           "Extends or shortens the currently active lock period (Sperrzeit) by changing its end — without " +
           "withdrawing and recreating it. Set indefinite=true for open-ended, or untilAt for a new end (must " +
-          "be in the future)." + KEYHOLDER_NOTE,
+          "be in the future)." + KEYHOLDER_SILENT,
         inputSchema: {
           untilAt: z.string().optional().describe("New end (ISO 8601, future). Ignored if indefinite=true."),
           indefinite: z.boolean().optional().describe("Make the lock period open-ended."),

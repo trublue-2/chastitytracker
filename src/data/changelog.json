@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.30.2",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "fix", "text": "MCP-Audit: 8 weitere Keyholder-Tools behaupteten fälschlich „E-Mail + Push an den Nutzer\", obwohl sie keine Benachrichtigung auslösen — set_training_goal, edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, withdraw, judge_offense. Beschreibungen an die Realität angeglichen (still). Tatsächlich benachrichtigen nur: request_lock, set_lock_period, request_inspection, request_orgasm. Verhalten unverändert — nur die irreführenden Angaben korrigiert." }
+    ]
+  },
+  {
     "version": "4.30.1",
     "date": "2026-06-20",
     "changes": [
