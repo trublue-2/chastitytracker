@@ -75,6 +75,29 @@ async function isNativePlatform(): Promise<boolean> {
   return Capacitor.isNativePlatform();
 }
 
+// Native push has no API to query the current registration, so we persist the
+// user's choice locally (Capacitor Preferences) and restore the toggle from it
+// on mount — otherwise the switch always shows OFF after reopening the app.
+const NATIVE_PUSH_FLAG = "pushRegistered";
+
+async function getNativePushFlag(): Promise<boolean> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const { value } = await Preferences.get({ key: NATIVE_PUSH_FLAG });
+    return value === "true";
+  } catch {
+    return false;
+  }
+}
+
+async function setNativePushFlag(on: boolean): Promise<void> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    if (on) await Preferences.set({ key: NATIVE_PUSH_FLAG, value: "true" });
+    else await Preferences.remove({ key: NATIVE_PUSH_FLAG });
+  } catch { /* ignore — toggle still works, just won't persist visual state */ }
+}
+
 function urlBase64ToUint8Array(base64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -121,9 +144,8 @@ export default function PushManager() {
     isNativePlatform().then((native) => {
       if (native) {
         setPushState("native");
-        // Native: treat as subscribed if we can register — we'll attempt on toggle.
-        // For initial state, assume not subscribed (no way to query token without triggering).
-        setSubscribed(false);
+        // Native can't query the token, so restore the toggle from the persisted flag.
+        getNativePushFlag().then(setSubscribed);
       } else {
         const state = detectWebPushState();
         setPushState(state);
@@ -144,9 +166,11 @@ export default function PushManager() {
         // --- Native Capacitor push ---
         if (enable) {
           const ok = await registerNativePush();
+          await setNativePushFlag(ok);
           setSubscribed(ok);
         } else {
           await unregisterNativePush();
+          await setNativePushFlag(false);
           setSubscribed(false);
         }
         return;

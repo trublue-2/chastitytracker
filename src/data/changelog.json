@@ -1,955 +1,1592 @@
 [
   {
+    "version": "4.31.4",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "iOS-App: Der Push-Benachrichtigungs-Schalter sprang nach jedem Neu-Öffnen wieder auf OFF, weil der native Status nicht abfragbar ist. Der Schalter merkt sich seinen Zustand jetzt lokal (Capacitor Preferences) und stellt ihn beim Start wieder her. Web/PWA unverändert."
+      }
+    ]
+  },
+  {
     "version": "4.31.3",
     "date": "2026-06-21",
     "changes": [
-      { "type": "security", "text": "„Dateiauswahl auf Mobile\" (mobileDesktopUpload) ist jetzt KEYHOLDER-only. Der User konnte das Flag bisher selbst umlegen (/api/settings/upload, nur Session-Auth) — das umging die Keyholder-Kontrolle und konnte das Flag unerwartet ändern. User-Toggle + Self-Route entfernt; gesetzt wird es nur noch über die Admin-Einstellungen (requireAdminApi). Schützt die Foto-Verifikation (kein selbst aktivierter Galerie-Upload)." }
+      {
+        "type": "security",
+        "text": "„Dateiauswahl auf Mobile\" (mobileDesktopUpload) ist jetzt KEYHOLDER-only. Der User konnte das Flag bisher selbst umlegen (/api/settings/upload, nur Session-Auth) — das umging die Keyholder-Kontrolle und konnte das Flag unerwartet ändern. User-Toggle + Self-Route entfernt; gesetzt wird es nur noch über die Admin-Einstellungen (requireAdminApi). Schützt die Foto-Verifikation (kein selbst aktivierter Galerie-Upload)."
+      }
     ]
   },
   {
     "version": "4.31.2",
     "date": "2026-06-21",
     "changes": [
-      { "type": "fix", "text": "MCP: get_overview lieferte die Reinigungs-ZEITFENSTER nicht aus — der KI-Assistent schloss daraus fälschlich, Reinigung sei „nicht an Uhrzeiten gebunden\". get_overview.reinigung enthält jetzt windows (erlaubte HH:MM-Fenster), windowOpenNow (gerade offen bis) und usedToday (heute verbrauchte Öffnungen); explain_model erklärt die Fenster. Der Geräte-Wechsel-Hinweis (verbraucht eine Reinigungsöffnung) war korrekt." }
+      {
+        "type": "fix",
+        "text": "MCP: get_overview lieferte die Reinigungs-ZEITFENSTER nicht aus — der KI-Assistent schloss daraus fälschlich, Reinigung sei „nicht an Uhrzeiten gebunden\". get_overview.reinigung enthält jetzt windows (erlaubte HH:MM-Fenster), windowOpenNow (gerade offen bis) und usedToday (heute verbrauchte Öffnungen); explain_model erklärt die Fenster. Der Geräte-Wechsel-Hinweis (verbraucht eine Reinigungsöffnung) war korrekt."
+      }
     ]
   },
   {
     "version": "4.31.1",
     "date": "2026-06-21",
     "changes": [
-      { "type": "fix", "text": "Konsistenz (via /simplify-Review gefunden): Eine über die Admin-UI verhängte Strafe benachrichtigte den Nutzer NICHT, über MCP aber schon. Jetzt benachrichtigen beide Wege identisch (gemeinsamer strafeVerhaengtNotice-Text)." }
+      {
+        "type": "fix",
+        "text": "Konsistenz (via /simplify-Review gefunden): Eine über die Admin-UI verhängte Strafe benachrichtigte den Nutzer NICHT, über MCP aber schon. Jetzt benachrichtigen beide Wege identisch (gemeinsamer strafeVerhaengtNotice-Text)."
+      }
     ]
   },
   {
     "version": "4.31.0",
     "date": "2026-06-20",
     "changes": [
-      { "type": "feat", "text": "Mehr Keyholder-Aktionen benachrichtigen den Nutzer (E-Mail + Push) — konsistent aus Admin-UI UND MCP: Zurückziehen einer offenen Anweisung (Lock-Anforderung, Sperrzeit, Inspektion, Orgasmus), Ändern des Sperrzeit-Endes, Verhängen einer Strafe sowie Bestätigen/Ablehnen einer eingereichten Kontrolle. Umgesetzt im Service-Layer über einen gemeinsamen notifyUser-Helper, damit beide Wege dasselbe Verhalten zeigen. Die MCP-Tool-Beschreibungen sind entsprechend wieder auf benachrichtigend gesetzt." }
+      {
+        "type": "feat",
+        "text": "Mehr Keyholder-Aktionen benachrichtigen den Nutzer (E-Mail + Push) — konsistent aus Admin-UI UND MCP: Zurückziehen einer offenen Anweisung (Lock-Anforderung, Sperrzeit, Inspektion, Orgasmus), Ändern des Sperrzeit-Endes, Verhängen einer Strafe sowie Bestätigen/Ablehnen einer eingereichten Kontrolle. Umgesetzt im Service-Layer über einen gemeinsamen notifyUser-Helper, damit beide Wege dasselbe Verhalten zeigen. Die MCP-Tool-Beschreibungen sind entsprechend wieder auf benachrichtigend gesetzt."
+      }
     ]
   },
   {
     "version": "4.30.2",
     "date": "2026-06-20",
     "changes": [
-      { "type": "fix", "text": "MCP-Audit: 8 weitere Keyholder-Tools behaupteten fälschlich „E-Mail + Push an den Nutzer\", obwohl sie keine Benachrichtigung auslösen — set_training_goal, edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, withdraw, judge_offense. Beschreibungen an die Realität angeglichen (still). Tatsächlich benachrichtigen nur: request_lock, set_lock_period, request_inspection, request_orgasm. Verhalten unverändert — nur die irreführenden Angaben korrigiert." }
+      {
+        "type": "fix",
+        "text": "MCP-Audit: 8 weitere Keyholder-Tools behaupteten fälschlich „E-Mail + Push an den Nutzer\", obwohl sie keine Benachrichtigung auslösen — set_training_goal, edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, withdraw, judge_offense. Beschreibungen an die Realität angeglichen (still). Tatsächlich benachrichtigen nur: request_lock, set_lock_period, request_inspection, request_orgasm. Verhalten unverändert — nur die irreführenden Angaben korrigiert."
+      }
     ]
   },
   {
     "version": "4.30.1",
     "date": "2026-06-20",
     "changes": [
-      { "type": "fix", "text": "MCP: Die Tool-Beschreibungen von add_keyholder_note / delete_keyholder_note behaupteten fälschlich „der Nutzer wird per E-Mail + Push benachrichtigt\". Notizen sind aber privat und lösen bewusst KEINE Benachrichtigung aus — die Beschreibung sagt das jetzt korrekt (still, keine Benachrichtigung). Verhalten unverändert; nur die irreführende Angabe korrigiert." }
+      {
+        "type": "fix",
+        "text": "MCP: Die Tool-Beschreibungen von add_keyholder_note / delete_keyholder_note behaupteten fälschlich „der Nutzer wird per E-Mail + Push benachrichtigt\". Notizen sind aber privat und lösen bewusst KEINE Benachrichtigung aus — die Beschreibung sagt das jetzt korrekt (still, keine Benachrichtigung). Verhalten unverändert; nur die irreführende Angabe korrigiert."
+      }
     ]
   },
   {
     "version": "4.30.0",
     "date": "2026-06-20",
     "changes": [
-      { "type": "feat", "text": "Lokale Ziffern-OCR ohne KI: Ist kein ANTHROPIC_API_KEY gesetzt, liest die App gedruckte Plomben-/Siegel-Nummern jetzt per Tesseract direkt auf der Instanz (kein Datenabfluss) statt gar nicht. Mit KI bleibt Claude Vision der Standard. Handschriftliche Kontroll-Codes kann OCR nicht zuverlässig lesen — dort weiterhin KI oder manuelle Keyholder-Verifikation. Im Docker-Image ist tesseract-ocr enthalten; fehlt das Binary, degradiert es sauber (keine Erkennung statt Absturz)." }
+      {
+        "type": "feat",
+        "text": "Lokale Ziffern-OCR ohne KI: Ist kein ANTHROPIC_API_KEY gesetzt, liest die App gedruckte Plomben-/Siegel-Nummern jetzt per Tesseract direkt auf der Instanz (kein Datenabfluss) statt gar nicht. Mit KI bleibt Claude Vision der Standard. Handschriftliche Kontroll-Codes kann OCR nicht zuverlässig lesen — dort weiterhin KI oder manuelle Keyholder-Verifikation. Im Docker-Image ist tesseract-ocr enthalten; fehlt das Binary, degradiert es sauber (keine Erkennung statt Absturz)."
+      }
     ]
   },
   {
     "version": "4.29.5",
     "date": "2026-06-20",
     "changes": [
-      { "type": "chore", "text": "Aufräumen (/simplify): lokale Schärfeprüfung nutzt jetzt den vorhandenen, härteren Upload-Lader (loadUploadedImage, mit Path-Traversal-Schutz) statt eigener Pfadlogik. Kein Verhaltens­unterschied." }
+      {
+        "type": "chore",
+        "text": "Aufräumen (/simplify): lokale Schärfeprüfung nutzt jetzt den vorhandenen, härteren Upload-Lader (loadUploadedImage, mit Path-Traversal-Schutz) statt eigener Pfadlogik. Kein Verhaltens­unterschied."
+      }
     ]
   },
   {
     "version": "4.29.4",
     "date": "2026-06-20",
     "changes": [
-      { "type": "fix", "text": "Changelog ließ sich nicht anzeigen — ein Eintrag nutzte einen unbekannten Typ (improvement), der den Renderer abstürzen ließ. Korrigiert + nur gültige Typen erlaubt." }
+      {
+        "type": "fix",
+        "text": "Changelog ließ sich nicht anzeigen — ein Eintrag nutzte einen unbekannten Typ (improvement), der den Renderer abstürzen ließ. Korrigiert + nur gültige Typen erlaubt."
+      }
     ]
   },
   {
     "version": "4.29.3",
     "date": "2026-06-20",
     "changes": [
-      { "type": "feat", "text": "Bildersafe-Lesbarkeitsprüfung läuft jetzt vollständig LOKAL und ohne KI: Statt Anthropic wird die Bildschärfe direkt auf der Instanz gemessen (Laplace-Varianz, kein Datenabfluss). Damit funktioniert die Schlüsselbox-Code-Funktion auch ohne ANTHROPIC_API_KEY. Schwellwert über BILDERSAFE_SHARPNESS_MIN justierbar (Default 20). Echte KI-Ziffernerkennung bleibt optionaler Zusatz." }
+      {
+        "type": "feat",
+        "text": "Bildersafe-Lesbarkeitsprüfung läuft jetzt vollständig LOKAL und ohne KI: Statt Anthropic wird die Bildschärfe direkt auf der Instanz gemessen (Laplace-Varianz, kein Datenabfluss). Damit funktioniert die Schlüsselbox-Code-Funktion auch ohne ANTHROPIC_API_KEY. Schwellwert über BILDERSAFE_SHARPNESS_MIN justierbar (Default 20). Echte KI-Ziffernerkennung bleibt optionaler Zusatz."
+      }
     ]
   },
   {
     "version": "4.29.2",
     "date": "2026-06-20",
     "changes": [
-      { "type": "fix", "text": "Bildersafe ohne KI nutzbar: Die Code-Lesbarkeitsprüfung nutzt Anthropic-KI und ist jetzt optional (wie an den anderen Stellen). Ohne ANTHROPIC_API_KEY entfällt die automatische Prüfung — das Versiegeln ist trotzdem möglich (Hinweis: keine automatische Lesbarkeitsprüfung). Mit KI bleibt es bei: nicht erkennbar = kein Versiegeln." },
-      { "type": "fix", "text": "Trainingsvorgaben: Dezimale Stundenwerte (z.B. 16.8 h) werden jetzt akzeptiert. Das feste Eingabe-Raster (0.5) machte solche Werte ungültig und blockierte das gesamte Speichern — wodurch u.a. das Enddatum nicht gesichert wurde." }
+      {
+        "type": "fix",
+        "text": "Bildersafe ohne KI nutzbar: Die Code-Lesbarkeitsprüfung nutzt Anthropic-KI und ist jetzt optional (wie an den anderen Stellen). Ohne ANTHROPIC_API_KEY entfällt die automatische Prüfung — das Versiegeln ist trotzdem möglich (Hinweis: keine automatische Lesbarkeitsprüfung). Mit KI bleibt es bei: nicht erkennbar = kein Versiegeln."
+      },
+      {
+        "type": "fix",
+        "text": "Trainingsvorgaben: Dezimale Stundenwerte (z.B. 16.8 h) werden jetzt akzeptiert. Das feste Eingabe-Raster (0.5) machte solche Werte ungültig und blockierte das gesamte Speichern — wodurch u.a. das Enddatum nicht gesichert wurde."
+      }
     ]
   },
   {
     "version": "4.29.1",
     "date": "2026-06-19",
     "changes": [
-      { "type": "fix", "text": "Bildersafe: Das Code-Versiegelt-Widget erscheint jetzt auch an Reinigungspause-/Re-Lock-Einträgen in der laufenden Session (nicht mehr nur am ersten Verschluss). So ist der jeweils aktuelle Code direkt in der Timeline sichtbar — versiegelt bzw. nach Freigabe als Code anzeigen." }
+      {
+        "type": "fix",
+        "text": "Bildersafe: Das Code-Versiegelt-Widget erscheint jetzt auch an Reinigungspause-/Re-Lock-Einträgen in der laufenden Session (nicht mehr nur am ersten Verschluss). So ist der jeweils aktuelle Code direkt in der Timeline sichtbar — versiegelt bzw. nach Freigabe als Code anzeigen."
+      }
     ]
   },
   {
     "version": "4.29.0",
     "date": "2026-06-19",
     "changes": [
-      { "type": "feat", "text": "Bildersafe: Code-Abruf jetzt als eigener Menüpunkt im (+)-Menü (Schlüsselbox-Code anzeigen) — lädt den Code des AKTUELLEN Verschlusses, unabhängig von der Session-Timeline. Damit ist der Code auch nach einem Reinigungs-Wiederverschluss abrufbar. Versiegelt zeigt er den Sperr-Hinweis; sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder Reinigungsfenster) das Code-Foto (Tippen für Vollbild). Behebt: Code-Widget war nur am ersten Verschluss-Eintrag sichtbar." }
+      {
+        "type": "feat",
+        "text": "Bildersafe: Code-Abruf jetzt als eigener Menüpunkt im (+)-Menü (Schlüsselbox-Code anzeigen) — lädt den Code des AKTUELLEN Verschlusses, unabhängig von der Session-Timeline. Damit ist der Code auch nach einem Reinigungs-Wiederverschluss abrufbar. Versiegelt zeigt er den Sperr-Hinweis; sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder Reinigungsfenster) das Code-Foto (Tippen für Vollbild). Behebt: Code-Widget war nur am ersten Verschluss-Eintrag sichtbar."
+      }
     ]
   },
   {
     "version": "4.28.1",
     "date": "2026-06-19",
     "changes": [
-      { "type": "fix", "text": "Bildersafe-Code-Erkennung für Zahlen-Vorhängeschlösser / Schlüsselboxen: Bisher wurde mit dem Plomben-Erkenner (5–8 Ziffern) geprüft → der 3–4-stellige Code eines Dial-Schlosses wurde nie erkannt. Neuer Erkenner für Zahlenschloss-Dials (3–8 Ziffern, an der Markierungslinie). Versiegeln ist jetzt nur möglich, wenn Ziffern erkannt wurden (sonst Hinweis zum Neu-Aufnehmen). Die ganze versiegelte Fläche dient als Link zum Neu-Aufnehmen." }
+      {
+        "type": "fix",
+        "text": "Bildersafe-Code-Erkennung für Zahlen-Vorhängeschlösser / Schlüsselboxen: Bisher wurde mit dem Plomben-Erkenner (5–8 Ziffern) geprüft → der 3–4-stellige Code eines Dial-Schlosses wurde nie erkannt. Neuer Erkenner für Zahlenschloss-Dials (3–8 Ziffern, an der Markierungslinie). Versiegeln ist jetzt nur möglich, wenn Ziffern erkannt wurden (sonst Hinweis zum Neu-Aufnehmen). Die ganze versiegelte Fläche dient als Link zum Neu-Aufnehmen."
+      }
     ]
   },
   {
     "version": "4.28.0",
     "date": "2026-06-19",
     "changes": [
-      { "type": "feat", "text": "Bildersafe: „Schlüsselbox-Code versiegeln\" jetzt als eigener Punkt im (+)-Menü „Neu erfassen\" — verfügbar WÄHREND verschlossen (dort wo bei Heimdall die Box-Aktionen waren). Nimmt ein neues versiegeltes Code-Foto auf und hängt es an den aktuellen Verschluss. Damit lässt sich nach jeder Reinigungsöffnung ein neuer Code versiegeln (Re-Lock-Zyklus), und der Sub kann Bildersafe testen, ohne erst zu öffnen. Nur sichtbar bei ENABLE_BILDERSAFE=true." }
+      {
+        "type": "feat",
+        "text": "Bildersafe: „Schlüsselbox-Code versiegeln\" jetzt als eigener Punkt im (+)-Menü „Neu erfassen\" — verfügbar WÄHREND verschlossen (dort wo bei Heimdall die Box-Aktionen waren). Nimmt ein neues versiegeltes Code-Foto auf und hängt es an den aktuellen Verschluss. Damit lässt sich nach jeder Reinigungsöffnung ein neuer Code versiegeln (Re-Lock-Zyklus), und der Sub kann Bildersafe testen, ohne erst zu öffnen. Nur sichtbar bei ENABLE_BILDERSAFE=true."
+      }
     ]
   },
   {
     "version": "4.27.2",
     "date": "2026-06-19",
     "changes": [
-      { "type": "fix", "text": "Heimdall-Box-UI an die Aktivierung gekoppelt: Ohne HEIMDALL_SYNC_SECRET werden keine Box-Aktionen mehr angezeigt (das (+)-Menü blendet die Box aus, auch wenn noch alte Box-Status-Daten in der DB liegen). Bisher war die Box-UI rein datengetrieben und blieb sichtbar, obwohl Heimdall deaktiviert war. Box-Kommandos werden in diesem Fall ebenfalls abgelehnt." }
+      {
+        "type": "fix",
+        "text": "Heimdall-Box-UI an die Aktivierung gekoppelt: Ohne HEIMDALL_SYNC_SECRET werden keine Box-Aktionen mehr angezeigt (das (+)-Menü blendet die Box aus, auch wenn noch alte Box-Status-Daten in der DB liegen). Bisher war die Box-UI rein datengetrieben und blieb sichtbar, obwohl Heimdall deaktiviert war. Box-Kommandos werden in diesem Fall ebenfalls abgelehnt."
+      }
     ]
   },
   {
     "version": "4.27.1",
     "date": "2026-06-19",
     "changes": [
-      { "type": "chore", "text": "Bildersafe-Aktivierung als eigenständiges Feature: eigener Flag ENABLE_BILDERSAFE=true (statt des CUSTODY_MODE-Tri-States). Bildersafe und die Heimdall-Box sind damit unabhängige Features, die je einzeln aktiviert werden — Heimdall über HEIMDALL_SYNC_SECRET, Bildersafe über ENABLE_BILDERSAFE." }
+      {
+        "type": "chore",
+        "text": "Bildersafe-Aktivierung als eigenständiges Feature: eigener Flag ENABLE_BILDERSAFE=true (statt des CUSTODY_MODE-Tri-States). Bildersafe und die Heimdall-Box sind damit unabhängige Features, die je einzeln aktiviert werden — Heimdall über HEIMDALL_SYNC_SECRET, Bildersafe über ENABLE_BILDERSAFE."
+      }
     ]
   },
   {
     "version": "4.27.0",
     "date": "2026-06-19",
     "changes": [
-      { "type": "feat", "text": "Bildersafe (MVP): softwareseitige Schlüssel-Verwahrung als hardwarelose Alternative zur Heimdall-Box. Pro Instanz via ENABLE_BILDERSAFE=true aktivierbar (Default aus). Beim Verschluss wird ein zweites, VERSIEGELTES Foto des Schlüsselbox-Codes aufgenommen (keine Vorschau, Lesbarkeits-Check ohne die Zahl anzuzeigen oder zu speichern). Das Foto wird automatisch freigegeben, sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder erlaubtes Reinigungsfenster). Siegel & Kontrollen (Schicht A) bleiben unverändert und unversiegelt." }
+      {
+        "type": "feat",
+        "text": "Bildersafe (MVP): softwareseitige Schlüssel-Verwahrung als hardwarelose Alternative zur Heimdall-Box. Pro Instanz via ENABLE_BILDERSAFE=true aktivierbar (Default aus). Beim Verschluss wird ein zweites, VERSIEGELTES Foto des Schlüsselbox-Codes aufgenommen (keine Vorschau, Lesbarkeits-Check ohne die Zahl anzuzeigen oder zu speichern). Das Foto wird automatisch freigegeben, sobald Öffnen erlaubt ist (Sperrzeit zu Ende oder erlaubtes Reinigungsfenster). Siegel & Kontrollen (Schicht A) bleiben unverändert und unversiegelt."
+      }
     ]
   },
   {
     "version": "4.26.2",
     "date": "2026-06-19",
     "changes": [
-      { "type": "fix", "text": "Öffnen-Formular: Bei einer Sperrzeit, die Reinigung erlaubt, erschien beim Öffnungsgrund „Reinigung\" trotzdem die Warnung „Öffnen nicht erlaubt – trotzdem öffnen\". Die Warnung (und das Bestätigungs-Modal) werden jetzt korrekt ausgeblendet, wenn sowohl User als auch Sperrzeit Reinigung erlauben. Die separate Tageslimit-Warnung bleibt davon unberührt." }
+      {
+        "type": "fix",
+        "text": "Öffnen-Formular: Bei einer Sperrzeit, die Reinigung erlaubt, erschien beim Öffnungsgrund „Reinigung\" trotzdem die Warnung „Öffnen nicht erlaubt – trotzdem öffnen\". Die Warnung (und das Bestätigungs-Modal) werden jetzt korrekt ausgeblendet, wenn sowohl User als auch Sperrzeit Reinigung erlauben. Die separate Tageslimit-Warnung bleibt davon unberührt."
+      }
     ]
   },
   {
     "version": "4.26.1",
     "date": "2026-06-19",
     "changes": [
-      { "type": "fix", "text": "Strafbuch: Bereits vor dem Urteilsloop bestrafte Vergehen wurden fälschlich als „offene Strafe\" angezeigt. Sie sind jetzt automatisch als erledigt gesetzt (Erledigt-Datum = Datum der Strafe). Automatische Ahndungen (falsches Gerät) gelten künftig sofort als erledigt." }
+      {
+        "type": "fix",
+        "text": "Strafbuch: Bereits vor dem Urteilsloop bestrafte Vergehen wurden fälschlich als „offene Strafe\" angezeigt. Sie sind jetzt automatisch als erledigt gesetzt (Erledigt-Datum = Datum der Strafe). Automatische Ahndungen (falsches Gerät) gelten künftig sofort als erledigt."
+      }
     ]
   },
   {
     "version": "4.26.0",
     "date": "2026-06-19",
     "changes": [
-      { "type": "feat", "text": "Strafbuch-Urteilsloop: Jedes erkannte Vergehen hat jetzt einen Status — erkannt → verworfen (keine Strafe) oder bestraft → erledigt. Die Strafe ist ein freies Textfeld (z.B. „20 Schläge\"); ein Erledigt-Status schließt den Loop. „Relevant = unbeurteilt oder Strafe noch offen\" ist damit explizit, nicht mehr Kopfsache." },
-      { "type": "feat", "text": "MCP: Neues Tool judge_offense — die KI verwirft (verbindlich, mit optionalem Grund), bestraft (Freitext) oder markiert eine Strafe als erledigt; reopen revidiert. get_strafbuch liefert je Vergehen judgment, penalty/done bzw. Grund, eine stabile ref sowie openOffenseCount/pendingPenaltyCount." },
-      { "type": "feat", "text": "Admin-Strafbuch: Vergehen lassen sich verwerfen, mit Freitext bestrafen und als erledigt markieren; KI-Urteile werden als solche angezeigt. Verworfene/erledigte Vergehen erscheinen nicht mehr als offen." },
-      { "type": "chore", "text": "StrafeRecord zum Urteils-Record generalisiert (status/reason/judgedBy/erledigtAt, Migration; Bestand = PUNISHED). Geteilter strafurteilService für Admin-Route und MCP. penalties.punishedCount zählt nur noch tatsächliche Bestrafungen." }
+      {
+        "type": "feat",
+        "text": "Strafbuch-Urteilsloop: Jedes erkannte Vergehen hat jetzt einen Status — erkannt → verworfen (keine Strafe) oder bestraft → erledigt. Die Strafe ist ein freies Textfeld (z.B. „20 Schläge\"); ein Erledigt-Status schließt den Loop. „Relevant = unbeurteilt oder Strafe noch offen\" ist damit explizit, nicht mehr Kopfsache."
+      },
+      {
+        "type": "feat",
+        "text": "MCP: Neues Tool judge_offense — die KI verwirft (verbindlich, mit optionalem Grund), bestraft (Freitext) oder markiert eine Strafe als erledigt; reopen revidiert. get_strafbuch liefert je Vergehen judgment, penalty/done bzw. Grund, eine stabile ref sowie openOffenseCount/pendingPenaltyCount."
+      },
+      {
+        "type": "feat",
+        "text": "Admin-Strafbuch: Vergehen lassen sich verwerfen, mit Freitext bestrafen und als erledigt markieren; KI-Urteile werden als solche angezeigt. Verworfene/erledigte Vergehen erscheinen nicht mehr als offen."
+      },
+      {
+        "type": "chore",
+        "text": "StrafeRecord zum Urteils-Record generalisiert (status/reason/judgedBy/erledigtAt, Migration; Bestand = PUNISHED). Geteilter strafurteilService für Admin-Route und MCP. penalties.punishedCount zählt nur noch tatsächliche Bestrafungen."
+      }
     ]
   },
   {
     "version": "4.25.0",
     "date": "2026-06-18",
     "changes": [
-      { "type": "feat", "text": "Orgasmus-Anforderung: Der Keyholder kann einen Orgasmus mit Zeitfenster vorgeben — als ANWEISUNG (Pflicht) oder GELEGENHEIT (Erlaubnis), optional mit verlangter Orgasmus-Art und einer Nachricht. Der Sub wird per E-Mail + Push benachrichtigt; ein passender Orgasmus im Fenster erfüllt die Anforderung automatisch." },
-      { "type": "feat", "text": "Öffnen zum Orgasmus erlaubt: Optional darf sich der Sub im Fenster zum Orgasmus öffnen, ohne dass eine aktive Sperrzeit verletzt wird (analog zur Reinigungs-Ausnahme). Im Admin-Formular als Checkbox, über den MCP als openAllowed." },
-      { "type": "feat", "text": "Strafbuch: Eine verpasste ANWEISUNG (Fenster abgelaufen ohne passenden Orgasmus) wird als Vergehen erkannt (missedOrgasmInstructions) — erkannt, nicht automatisch bestraft." },
-      { "type": "feat", "text": "MCP voll angebunden: request_orgasm (Direktive setzen), withdraw mit target \"orgasm_directive\", get_strafbuch.missedOrgasmInstructions und get_overview.openOrgasmusAnforderung. explain_model + Keyholder-Guide um §11 erweitert." },
-      { "type": "chore", "text": "Geschäftslogik der Orgasmus-Anforderung in geteilten Service orgasmusAnforderungService extrahiert — Admin-Route und MCP nutzen denselben Pfad (Single Source of Truth)." }
+      {
+        "type": "feat",
+        "text": "Orgasmus-Anforderung: Der Keyholder kann einen Orgasmus mit Zeitfenster vorgeben — als ANWEISUNG (Pflicht) oder GELEGENHEIT (Erlaubnis), optional mit verlangter Orgasmus-Art und einer Nachricht. Der Sub wird per E-Mail + Push benachrichtigt; ein passender Orgasmus im Fenster erfüllt die Anforderung automatisch."
+      },
+      {
+        "type": "feat",
+        "text": "Öffnen zum Orgasmus erlaubt: Optional darf sich der Sub im Fenster zum Orgasmus öffnen, ohne dass eine aktive Sperrzeit verletzt wird (analog zur Reinigungs-Ausnahme). Im Admin-Formular als Checkbox, über den MCP als openAllowed."
+      },
+      {
+        "type": "feat",
+        "text": "Strafbuch: Eine verpasste ANWEISUNG (Fenster abgelaufen ohne passenden Orgasmus) wird als Vergehen erkannt (missedOrgasmInstructions) — erkannt, nicht automatisch bestraft."
+      },
+      {
+        "type": "feat",
+        "text": "MCP voll angebunden: request_orgasm (Direktive setzen), withdraw mit target \"orgasm_directive\", get_strafbuch.missedOrgasmInstructions und get_overview.openOrgasmusAnforderung. explain_model + Keyholder-Guide um §11 erweitert."
+      },
+      {
+        "type": "chore",
+        "text": "Geschäftslogik der Orgasmus-Anforderung in geteilten Service orgasmusAnforderungService extrahiert — Admin-Route und MCP nutzen denselben Pfad (Single Source of Truth)."
+      }
     ]
   },
   {
     "version": "4.24.0",
     "date": "2026-06-18",
     "changes": [
-      { "type": "feat", "text": "Heimdall-Box-Integration: Der Tracker zeigt den Live-Zustand der Schlüsselbox (Lock-Status, Akku, Firmware) und kann die Box direkt verschliessen sowie öffnen (eigene Sperre ohne Zeit). Box-Ereignisse (LOCKED/UNLOCKED/…) werden über eine Maschinen-API mit Shared-Secret eingespielt; die Tracker-eigene Sperrzeit wird respektiert." },
-      { "type": "feat", "text": "Reinigung im (+)-Eintrag: Reinigungsöffnungen lassen sich mit Tages-Fenstern konfigurieren; die Box öffnet temporär (clean_open) und verschliesst danach wieder, ohne die Sperrzeit zu brechen." },
-      { "type": "feat", "text": "MCP: Virtueller Keyholder kann private Beobachtungen ablegen und wieder auswerten (add/list/delete_keyholder_note) — nur über den MCP sichtbar, kein Sub-/Admin-UI." },
-      { "type": "feat", "text": "MCP: explain_model — Referenz zu Modell & Abhängigkeiten für den Keyholder (Lock, Sperrzeit, Reinigung, Strafen)." },
-      { "type": "feat", "text": "MCP: list_devices liefert jetzt Notizen (description) und Foto-Status; get_overview zeigt bei aktiver Sperrzeit und offener Verschluss-Anforderung das vorgegebene Gerät sowie reinigungErlaubt." },
-      { "type": "fix", "text": "Reinigungs-Limit wird als Verstoss erkannt statt automatisch bestraft; Zählung pro CH-Kalendertag." },
-      { "type": "fix", "text": "OAuth: Authorize redirectet mit 303 statt 307 (Method Not Allowed behoben); Consent zeigt den Admin-Schreibzugriff ehrlich an." }
+      {
+        "type": "feat",
+        "text": "Heimdall-Box-Integration: Der Tracker zeigt den Live-Zustand der Schlüsselbox (Lock-Status, Akku, Firmware) und kann die Box direkt verschliessen sowie öffnen (eigene Sperre ohne Zeit). Box-Ereignisse (LOCKED/UNLOCKED/…) werden über eine Maschinen-API mit Shared-Secret eingespielt; die Tracker-eigene Sperrzeit wird respektiert."
+      },
+      {
+        "type": "feat",
+        "text": "Reinigung im (+)-Eintrag: Reinigungsöffnungen lassen sich mit Tages-Fenstern konfigurieren; die Box öffnet temporär (clean_open) und verschliesst danach wieder, ohne die Sperrzeit zu brechen."
+      },
+      {
+        "type": "feat",
+        "text": "MCP: Virtueller Keyholder kann private Beobachtungen ablegen und wieder auswerten (add/list/delete_keyholder_note) — nur über den MCP sichtbar, kein Sub-/Admin-UI."
+      },
+      {
+        "type": "feat",
+        "text": "MCP: explain_model — Referenz zu Modell & Abhängigkeiten für den Keyholder (Lock, Sperrzeit, Reinigung, Strafen)."
+      },
+      {
+        "type": "feat",
+        "text": "MCP: list_devices liefert jetzt Notizen (description) und Foto-Status; get_overview zeigt bei aktiver Sperrzeit und offener Verschluss-Anforderung das vorgegebene Gerät sowie reinigungErlaubt."
+      },
+      {
+        "type": "fix",
+        "text": "Reinigungs-Limit wird als Verstoss erkannt statt automatisch bestraft; Zählung pro CH-Kalendertag."
+      },
+      {
+        "type": "fix",
+        "text": "OAuth: Authorize redirectet mit 303 statt 307 (Method Not Allowed behoben); Consent zeigt den Admin-Schreibzugriff ehrlich an."
+      }
     ]
   },
   {
     "version": "4.23.1",
     "date": "2026-06-13",
     "changes": [
-      { "type": "fix", "text": "MCP: request_inspection akzeptiert delayMinutes jetzt auch als String (z.coerce.number) — MCP-Clients mit veraltetem Schema-Cache schickten den Wert als Text, was die zeitversetzte Auslösung blockierte." }
+      {
+        "type": "fix",
+        "text": "MCP: request_inspection akzeptiert delayMinutes jetzt auch als String (z.coerce.number) — MCP-Clients mit veraltetem Schema-Cache schickten den Wert als Text, was die zeitversetzte Auslösung blockierte."
+      }
     ]
   },
   {
     "version": "4.23.0",
     "date": "2026-06-13",
     "changes": [
-      { "type": "feat", "text": "MCP: Kontrollen lassen sich zeitversetzt auslösen — request_inspection bekommt delayMinutes (5–65). Ohne Angabe wählt das System eine zufällige Verzögerung von 5–65 Min, 0 = sofort. Die Anforderung bleibt bis zur Auslösung für den Sub unsichtbar; Code-Mail/Push und die Frist starten erst dann. Ein Minuten-Poller verschickt fällige Anforderungen (übersteht Neustart/Deploy)." }
+      {
+        "type": "feat",
+        "text": "MCP: Kontrollen lassen sich zeitversetzt auslösen — request_inspection bekommt delayMinutes (5–65). Ohne Angabe wählt das System eine zufällige Verzögerung von 5–65 Min, 0 = sofort. Die Anforderung bleibt bis zur Auslösung für den Sub unsichtbar; Code-Mail/Push und die Frist starten erst dann. Ein Minuten-Poller verschickt fällige Anforderungen (übersteht Neustart/Deploy)."
+      }
     ]
   },
   {
     "version": "4.22.2",
     "date": "2026-06-09",
     "changes": [
-      { "type": "ui", "text": "Einträge zeigen jetzt das hinterlegte Gerät: im aufgeklappten Einschluss-Eintrag steht „Gerät: <Name>\" bzw. „Gerät: —\", wenn keins gewählt wurde (nur wenn der User überhaupt Geräte hat). So fällt eine fehlende Zuordnung sofort auf." },
-      { "type": "ui", "text": "Beim Einschliessen ein weicher Hinweis, wenn kein Gerät ausgewählt ist (nicht blockierend — Gerät bleibt optional)." }
+      {
+        "type": "ui",
+        "text": "Einträge zeigen jetzt das hinterlegte Gerät: im aufgeklappten Einschluss-Eintrag steht „Gerät: <Name>\" bzw. „Gerät: —\", wenn keins gewählt wurde (nur wenn der User überhaupt Geräte hat). So fällt eine fehlende Zuordnung sofort auf."
+      },
+      {
+        "type": "ui",
+        "text": "Beim Einschliessen ein weicher Hinweis, wenn kein Gerät ausgewählt ist (nicht blockierend — Gerät bleibt optional)."
+      }
     ]
   },
   {
     "version": "4.22.1",
     "date": "2026-06-08",
     "changes": [
-      { "type": "fix", "text": "Benachrichtigungen: Keyholder erhielten keine E-Mails/Push, wenn ihr Sub etwas eintrug — die Empfänger-Abfrage suchte nur role:\"admin\", Keyholder sind aber role:\"user\". Empfänger sind jetzt globale Admins + die Keyholder des jeweiligen Subs (pro Sub gescoped)." }
+      {
+        "type": "fix",
+        "text": "Benachrichtigungen: Keyholder erhielten keine E-Mails/Push, wenn ihr Sub etwas eintrug — die Empfänger-Abfrage suchte nur role:\"admin\", Keyholder sind aber role:\"user\". Empfänger sind jetzt globale Admins + die Keyholder des jeweiligen Subs (pro Sub gescoped)."
+      }
     ]
   },
   {
     "version": "4.22.0",
     "date": "2026-06-08",
     "changes": [
-      { "type": "feat", "text": "MCP: Trainingsziele vollständig verwaltbar — list_training_goals (alle Ziele mit id, Status aktiv/geplant/abgelaufen, Daten, Vorgaben), edit_training_goal und delete_training_goal. Damit kann die KI mehrere datierte Ziele planen und korrigieren, nicht nur neu anlegen." },
-      { "type": "feat", "text": "MCP: set_cleaning — Reinigungspausen erlauben + Limits (max. Minuten/Pause, max. Pausen/Tag) über den MCP setzen." },
-      { "type": "feat", "text": "MCP: resolve_inspection — die zuletzt eingereichte Kontrolle manuell bestätigen oder ablehnen (überschreibt die automatische Prüfung)." },
-      { "type": "feat", "text": "MCP: edit_lock_period — das Ende einer laufenden Sperrzeit verlängern/verkürzen (oder auf unbefristet) ohne withdraw + neu anlegen. Neue Backend-Aktion setEnd." },
-      { "type": "chore", "text": "Service-Layer vereinheitlicht: updateVorgabe/deleteVorgabe/listVorgaben, resolveKontrolle, updateSperrzeitEnde und setReinigungSettings werden von Admin-Routen und MCP geteilt; Reinigung-Grenzen (1–120 Min, 0–20/Tag) gelten jetzt einheitlich für beide Pfade." }
+      {
+        "type": "feat",
+        "text": "MCP: Trainingsziele vollständig verwaltbar — list_training_goals (alle Ziele mit id, Status aktiv/geplant/abgelaufen, Daten, Vorgaben), edit_training_goal und delete_training_goal. Damit kann die KI mehrere datierte Ziele planen und korrigieren, nicht nur neu anlegen."
+      },
+      {
+        "type": "feat",
+        "text": "MCP: set_cleaning — Reinigungspausen erlauben + Limits (max. Minuten/Pause, max. Pausen/Tag) über den MCP setzen."
+      },
+      {
+        "type": "feat",
+        "text": "MCP: resolve_inspection — die zuletzt eingereichte Kontrolle manuell bestätigen oder ablehnen (überschreibt die automatische Prüfung)."
+      },
+      {
+        "type": "feat",
+        "text": "MCP: edit_lock_period — das Ende einer laufenden Sperrzeit verlängern/verkürzen (oder auf unbefristet) ohne withdraw + neu anlegen. Neue Backend-Aktion setEnd."
+      },
+      {
+        "type": "chore",
+        "text": "Service-Layer vereinheitlicht: updateVorgabe/deleteVorgabe/listVorgaben, resolveKontrolle, updateSperrzeitEnde und setReinigungSettings werden von Admin-Routen und MCP geteilt; Reinigung-Grenzen (1–120 Min, 0–20/Tag) gelten jetzt einheitlich für beide Pfade."
+      }
     ]
   },
   {
     "version": "4.21.2",
     "date": "2026-06-07",
     "changes": [
-      { "type": "feat", "text": "MCP set_training_goal: neuer Parameter validFrom (ISO-Datum) — Trainingsziele können jetzt mit zukünftigem Startdatum geplant werden (z.B. ein Wochenziel vordatiert auf den 12.6.). Ziele werden pro Kategorie nach Startdatum verkettet; ein vordatiertes Ziel beendet das laufende automatisch zu diesem Datum. validUntil muss nach validFrom liegen." }
+      {
+        "type": "feat",
+        "text": "MCP set_training_goal: neuer Parameter validFrom (ISO-Datum) — Trainingsziele können jetzt mit zukünftigem Startdatum geplant werden (z.B. ein Wochenziel vordatiert auf den 12.6.). Ziele werden pro Kategorie nach Startdatum verkettet; ein vordatiertes Ziel beendet das laufende automatisch zu diesem Datum. validUntil muss nach validFrom liegen."
+      }
     ]
   },
   {
     "version": "4.21.1",
     "date": "2026-06-07",
     "changes": [
-      { "type": "fix", "text": "Keyholder: Beim Öffnen eines kontrollierten Subs erschien „Diese Seite konnte nicht geladen werden\" — ein React-Hooks-Fehler im Admin-Schnellmenü (FAB) crashte die Detailseiten für Keyholder. Behoben." },
-      { "type": "ui", "text": "Keyholder-Einstieg vom Header in die untere Navigationsleiste verschoben (dort, wo Admins den Admin-Button haben) — als Schlüssel-Tab, der nur für Keyholder erscheint." }
+      {
+        "type": "fix",
+        "text": "Keyholder: Beim Öffnen eines kontrollierten Subs erschien „Diese Seite konnte nicht geladen werden\" — ein React-Hooks-Fehler im Admin-Schnellmenü (FAB) crashte die Detailseiten für Keyholder. Behoben."
+      },
+      {
+        "type": "ui",
+        "text": "Keyholder-Einstieg vom Header in die untere Navigationsleiste verschoben (dort, wo Admins den Admin-Button haben) — als Schlüssel-Tab, der nur für Keyholder erscheint."
+      }
     ]
   },
   {
     "version": "4.21.0",
     "date": "2026-06-07",
     "changes": [
-      { "type": "feat", "text": "Keyholder = gescopeder Admin: Ein als Keyholder definierter User bekommt jetzt das vollständige Admin-Interface — aber nur für seine zugewiesenen Subs (Übersicht, Aktionen, Einträge, Kontrollen, Statistik, Strafbuch, Geräte, Einstellungen inkl. Passwort/E-Mail). Der separate /keyholder-Bereich entfällt; der Schlüssel-Link führt ins gescopte /admin." },
-      { "type": "security", "text": "Strikte Scoping-Grenzen für Keyholder: niemals Aktionen auf sich selbst; Rolle ändern, User anlegen/löschen, Demo, Keyholder-Zuweisung und die instanzweite Benutzer-/Kontrollen-Liste bleiben dem globalen Admin vorbehalten. Jede Admin-Route prüft den Ziel-User über einen zentralen Guard (admin ODER Keyholder-des-Ziels); der Proxy lässt Keyholder chirurgisch nur in /admin, /admin/users/<id> und /api/admin." }
+      {
+        "type": "feat",
+        "text": "Keyholder = gescopeder Admin: Ein als Keyholder definierter User bekommt jetzt das vollständige Admin-Interface — aber nur für seine zugewiesenen Subs (Übersicht, Aktionen, Einträge, Kontrollen, Statistik, Strafbuch, Geräte, Einstellungen inkl. Passwort/E-Mail). Der separate /keyholder-Bereich entfällt; der Schlüssel-Link führt ins gescopte /admin."
+      },
+      {
+        "type": "security",
+        "text": "Strikte Scoping-Grenzen für Keyholder: niemals Aktionen auf sich selbst; Rolle ändern, User anlegen/löschen, Demo, Keyholder-Zuweisung und die instanzweite Benutzer-/Kontrollen-Liste bleiben dem globalen Admin vorbehalten. Jede Admin-Route prüft den Ziel-User über einen zentralen Guard (admin ODER Keyholder-des-Ziels); der Proxy lässt Keyholder chirurgisch nur in /admin, /admin/users/<id> und /api/admin."
+      }
     ]
   },
   {
     "version": "4.20.0",
     "date": "2026-06-05",
     "changes": [
-      { "type": "feat", "text": "Keyholder-Rolle (Phase 1, Lesen): Ein normaler User kann vom Admin als Keyholder einer anderen Person definiert werden — ohne selbst Admin zu werden und nie für sich selbst. Keyholder bekommen einen eigenen Bereich /keyholder mit Lese-Panel (Statistik/Tragezeiten der kontrollierten Person) und einen Schlüssel-Link im Header. Verwaltung im Admin unter Benutzer-Einstellungen (Admins sind nicht als Keyholder zuweisbar). Direktiven (Sperrzeit, Kontrolle, Vorgabe etc.) folgen in Phase 2." }
+      {
+        "type": "feat",
+        "text": "Keyholder-Rolle (Phase 1, Lesen): Ein normaler User kann vom Admin als Keyholder einer anderen Person definiert werden — ohne selbst Admin zu werden und nie für sich selbst. Keyholder bekommen einen eigenen Bereich /keyholder mit Lese-Panel (Statistik/Tragezeiten der kontrollierten Person) und einen Schlüssel-Link im Header. Verwaltung im Admin unter Benutzer-Einstellungen (Admins sind nicht als Keyholder zuweisbar). Direktiven (Sperrzeit, Kontrolle, Vorgabe etc.) folgen in Phase 2."
+      }
     ]
   },
   {
     "version": "4.19.1",
     "date": "2026-06-05",
     "changes": [
-      { "type": "ui", "text": "Dashboard: Die Kategorie-Trainingsvorgaben (Plug, Halsband …) ticken jetzt live mit, solange eine Session läuft — wie das KG-Ziel daneben. Vorher froren sie auf dem Wert beim Seiten-Laden ein, sodass eine laufende Session zu wenig anzeigte (z.B. „0:22\" statt „1:38\"). Die Datenquelle war bereits korrekt; nur die Anzeige aktualisierte nicht." },
-      { "type": "fix", "text": "MCP: Wird ein Schreib-Tool ohne Admin-Berechtigung aufgerufen, nennt die Fehlermeldung jetzt den konkreten Grund (z.B. „autorisiert als '[user]' (role: user) — Schreiben braucht einen Admin-Account; MCP neu verbinden und als Admin autorisieren\") statt einer generischen Ablehnung." }
+      {
+        "type": "ui",
+        "text": "Dashboard: Die Kategorie-Trainingsvorgaben (Plug, Halsband …) ticken jetzt live mit, solange eine Session läuft — wie das KG-Ziel daneben. Vorher froren sie auf dem Wert beim Seiten-Laden ein, sodass eine laufende Session zu wenig anzeigte (z.B. „0:22\" statt „1:38\"). Die Datenquelle war bereits korrekt; nur die Anzeige aktualisierte nicht."
+      },
+      {
+        "type": "fix",
+        "text": "MCP: Wird ein Schreib-Tool ohne Admin-Berechtigung aufgerufen, nennt die Fehlermeldung jetzt den konkreten Grund (z.B. „autorisiert als '[user]' (role: user) — Schreiben braucht einen Admin-Account; MCP neu verbinden und als Admin autorisieren\") statt einer generischen Ablehnung."
+      }
     ]
   },
   {
     "version": "4.19.0",
     "date": "2026-06-05",
     "changes": [
-      { "type": "feat", "text": "MCP-Schreibfunktionen: Der KI-Keyholder kann jetzt über den MCP Verschluss-Anforderungen und Sperrzeiten setzen, Kontrollen anfordern, Trainingsziele setzen und offene Direktiven zurückziehen — jeweils mit Mail+Push an den User, identisch zum Admin-UI. Schreiben erfordert ein Admin-OAuth-Token (statischer MCP-Token bleibt read-only). Neues Freitext-Feld „KI-Keyholder-Regeln\" in den Admin-Einstellungen (nur bei aktiviertem MCP sichtbar): der menschliche Keyholder formuliert dort die Regeln, die die KI über get_overview liest und einhält (weiche Vorgabe, nicht erzwungen — der Mensch kann jederzeit eingreifen)." },
-      { "type": "chore", "text": "Geschäftslogik für Verschluss-Anforderung, Kontrolle und Trainingsziel in geteilte Services extrahiert, die Admin-Routen und MCP gemeinsam nutzen (Single Source of Truth)." }
+      {
+        "type": "feat",
+        "text": "MCP-Schreibfunktionen: Der KI-Keyholder kann jetzt über den MCP Verschluss-Anforderungen und Sperrzeiten setzen, Kontrollen anfordern, Trainingsziele setzen und offene Direktiven zurückziehen — jeweils mit Mail+Push an den User, identisch zum Admin-UI. Schreiben erfordert ein Admin-OAuth-Token (statischer MCP-Token bleibt read-only). Neues Freitext-Feld „KI-Keyholder-Regeln\" in den Admin-Einstellungen (nur bei aktiviertem MCP sichtbar): der menschliche Keyholder formuliert dort die Regeln, die die KI über get_overview liest und einhält (weiche Vorgabe, nicht erzwungen — der Mensch kann jederzeit eingreifen)."
+      },
+      {
+        "type": "chore",
+        "text": "Geschäftslogik für Verschluss-Anforderung, Kontrolle und Trainingsziel in geteilte Services extrahiert, die Admin-Routen und MCP gemeinsam nutzen (Single Source of Truth)."
+      }
     ]
   },
   {
     "version": "4.18.14",
     "date": "2026-06-04",
     "changes": [
-      { "type": "feat", "text": "MCP-Server deutlich vollständiger: get_overview liefert jetzt auch die Reinigungs-Regeln (erlaubt, Max-Minuten pro Pause/Tag) und pro Nicht-KG-Kategorie (Plug, Collar …) die Tragestunden today/week/month inkl. Trainingsziel + Prozent — vorher nur KG. get_strafbuch zeigt zusätzlich „falsches Gerät getragen\"-Vergehen. Neues Tool list_devices gibt das Geräte-Inventar aus (Kategorie, Kaufpreis, Währung, Archiv-Status). Damit kann eine KI das Gesamtbild über alle Kategorien hinweg erfassen statt nur KG." }
+      {
+        "type": "feat",
+        "text": "MCP-Server deutlich vollständiger: get_overview liefert jetzt auch die Reinigungs-Regeln (erlaubt, Max-Minuten pro Pause/Tag) und pro Nicht-KG-Kategorie (Plug, Collar …) die Tragestunden today/week/month inkl. Trainingsziel + Prozent — vorher nur KG. get_strafbuch zeigt zusätzlich „falsches Gerät getragen\"-Vergehen. Neues Tool list_devices gibt das Geräte-Inventar aus (Kategorie, Kaufpreis, Währung, Archiv-Status). Damit kann eine KI das Gesamtbild über alle Kategorien hinweg erfassen statt nur KG."
+      }
     ]
   },
   {
     "version": "4.18.13",
     "date": "2026-05-29",
     "changes": [
-      { "type": "fix", "text": "MCP get_overview: lock.deviceName zeigte nach einem Gerätewechsel während einer Reinigungspause weiterhin das Gerät vom Session-Start statt das aktuell getragene. Die Übersicht liest das Gerät jetzt aus dem jüngsten Wiederverschluss der laufenden Session (mit Fallback auf den Session-Start). Streak und Tragedauer bleiben unverändert über die Pause hinweg durchlaufend." }
+      {
+        "type": "fix",
+        "text": "MCP get_overview: lock.deviceName zeigte nach einem Gerätewechsel während einer Reinigungspause weiterhin das Gerät vom Session-Start statt das aktuell getragene. Die Übersicht liest das Gerät jetzt aus dem jüngsten Wiederverschluss der laufenden Session (mit Fallback auf den Session-Start). Streak und Tragedauer bleiben unverändert über die Pause hinweg durchlaufend."
+      }
     ]
   },
   {
     "version": "4.18.12",
     "date": "2026-05-29",
     "changes": [
-      { "type": "feat", "text": "MCP-Server: Neues Tool list_entries liefert die vollständige Eintrags-Timeline mit allen Details pro Eintrag — Notizen/Kommentare, Orgasmus-Art, Öffnungsgrund, Kontroll-Code, Verifikationsstatus, Gerät, Foto-Vorhandensein (+ EXIF-Zeit) und ob die Zeit nachträglich korrigiert wurde. Damit kann eine KI das Gesamtbild der Situation erfassen, das die aggregierten Tools (get_overview, list_sessions, get_strafbuch) bewusst weglassen. Filterbar nach Typ, Default 50 / max 200 Einträge." }
+      {
+        "type": "feat",
+        "text": "MCP-Server: Neues Tool list_entries liefert die vollständige Eintrags-Timeline mit allen Details pro Eintrag — Notizen/Kommentare, Orgasmus-Art, Öffnungsgrund, Kontroll-Code, Verifikationsstatus, Gerät, Foto-Vorhandensein (+ EXIF-Zeit) und ob die Zeit nachträglich korrigiert wurde. Damit kann eine KI das Gesamtbild der Situation erfassen, das die aggregierten Tools (get_overview, list_sessions, get_strafbuch) bewusst weglassen. Filterbar nach Typ, Default 50 / max 200 Einträge."
+      }
     ]
   },
   {
     "version": "4.18.11",
     "date": "2026-05-28",
     "changes": [
-      { "type": "fix", "text": "Service Worker: API-Cache (stale-while-revalidate für /api/entries) und IndexedDB-Entries-Store werden bei Login und Logout geleert — verhindert dass ein nachfolgender User veraltete Daten eines vorherigen Users sieht. SW-Cache-Version auf v2 erhöht, damit kontaminierte v1-Caches sofort bereinigt werden." }
+      {
+        "type": "fix",
+        "text": "Service Worker: API-Cache (stale-while-revalidate für /api/entries) und IndexedDB-Entries-Store werden bei Login und Logout geleert — verhindert dass ein nachfolgender User veraltete Daten eines vorherigen Users sieht. SW-Cache-Version auf v2 erhöht, damit kontaminierte v1-Caches sofort bereinigt werden."
+      }
     ]
   },
   {
     "version": "4.18.10",
     "date": "2026-05-28",
     "changes": [
-      { "type": "fix", "text": "Update-Anzeige: Upstream-Changelog wird nun über einen serverseitigen Proxy-Endpoint (/api/upstream-changelog) abgerufen statt direkt von raw.githubusercontent.com — behebt CSP-Verletzung (connect-src 'self') die das Update-Banner dauerhaft unterdrückt hat. Ungültige GitHub-Responses (kein Array) werden abgefangen und nicht gecacht." }
+      {
+        "type": "fix",
+        "text": "Update-Anzeige: Upstream-Changelog wird nun über einen serverseitigen Proxy-Endpoint (/api/upstream-changelog) abgerufen statt direkt von raw.githubusercontent.com — behebt CSP-Verletzung (connect-src 'self') die das Update-Banner dauerhaft unterdrückt hat. Ungültige GitHub-Responses (kein Array) werden abgefangen und nicht gecacht."
+      }
     ]
   },
   {
     "version": "4.18.9",
     "date": "2026-05-28",
     "changes": [
-      { "type": "chore", "text": "MCP-API: schemaVersion: 1 zu allen drei Tool-Responses hinzugefügt (get_overview, get_strafbuch, list_sessions), damit Breaking Changes künftig nachvollziehbar sind. list_sessions gibt jetzt { schemaVersion, sessions: [...] } zurück statt ein reines Array." }
+      {
+        "type": "chore",
+        "text": "MCP-API: schemaVersion: 1 zu allen drei Tool-Responses hinzugefügt (get_overview, get_strafbuch, list_sessions), damit Breaking Changes künftig nachvollziehbar sind. list_sessions gibt jetzt { schemaVersion, sessions: [...] } zurück statt ein reines Array."
+      }
     ]
   },
   {
     "version": "4.18.8",
     "date": "2026-05-28",
     "changes": [
-      { "type": "chore", "text": "MCP-API: Feldnamen bereinigt — deutsche Namen eingedeutscht (kommentar→comment, nachricht→message, sperrzeitEndedAt→lockPeriodEndedAt, reinigungLimitViolations→cleaningLimitViolations, trainingGoalKg.minProTagH/Woche/Monat/notiz→minPerDayH/WeekH/MonthH/note), semantische Verwechslung behoben (recordedCount→punishedCount, totalOffenses→detectedOffenseCount), punished-Flag auf cleaningLimitViolations ergänzt." }
+      {
+        "type": "chore",
+        "text": "MCP-API: Feldnamen bereinigt — deutsche Namen eingedeutscht (kommentar→comment, nachricht→message, sperrzeitEndedAt→lockPeriodEndedAt, reinigungLimitViolations→cleaningLimitViolations, trainingGoalKg.minProTagH/Woche/Monat/notiz→minPerDayH/WeekH/MonthH/note), semantische Verwechslung behoben (recordedCount→punishedCount, totalOffenses→detectedOffenseCount), punished-Flag auf cleaningLimitViolations ergänzt."
+      }
     ]
   },
   {
     "version": "4.18.7",
     "date": "2026-05-28",
     "changes": [
-      { "type": "security", "text": "OAuth: tokenMatches verwendet jetzt SHA-256-Digest-Vergleich statt Pad-und-Truncate — verhindert Fälschung von MCP_TOKEN-Tokens die länger als 128 Zeichen sind." },
-      { "type": "fix", "text": "OAuth Discovery-Endpoint und Authorize-Redirect lesen jetzt x-forwarded-host/x-forwarded-proto (last entry per Projekt-Sicherheitsregel) statt der internen Bind-Adresse — behebt falsche Issuer-URL (0.0.0.0:3000) hinter Traefik." },
-      { "type": "fix", "text": "SSE- und Message-Transportpfade des MCP-Servers (/api/sse, /api/message) in den Proxy-Whitelist aufgenommen — OAuth-Clients mit SSE-Transport erhielten zuvor 401 vom Session-Gate statt vom MCP-Auth-Layer." },
-      { "type": "fix", "text": "Abgelaufene OAuth-Codes und -Tokens werden jetzt beim Token-Exchange bereinigt (fire-and-forget pruneExpiredOAuthRecords)." }
+      {
+        "type": "security",
+        "text": "OAuth: tokenMatches verwendet jetzt SHA-256-Digest-Vergleich statt Pad-und-Truncate — verhindert Fälschung von MCP_TOKEN-Tokens die länger als 128 Zeichen sind."
+      },
+      {
+        "type": "fix",
+        "text": "OAuth Discovery-Endpoint und Authorize-Redirect lesen jetzt x-forwarded-host/x-forwarded-proto (last entry per Projekt-Sicherheitsregel) statt der internen Bind-Adresse — behebt falsche Issuer-URL (0.0.0.0:3000) hinter Traefik."
+      },
+      {
+        "type": "fix",
+        "text": "SSE- und Message-Transportpfade des MCP-Servers (/api/sse, /api/message) in den Proxy-Whitelist aufgenommen — OAuth-Clients mit SSE-Transport erhielten zuvor 401 vom Session-Gate statt vom MCP-Auth-Layer."
+      },
+      {
+        "type": "fix",
+        "text": "Abgelaufene OAuth-Codes und -Tokens werden jetzt beim Token-Exchange bereinigt (fire-and-forget pruneExpiredOAuthRecords)."
+      }
     ]
   },
   {
     "version": "4.18.6",
     "date": "2026-05-27",
     "changes": [
-      { "type": "feat", "text": "OAuth 2.0 Authorization Server für den MCP-Server: Claude Mobile und Claude Desktop können sich jetzt per OAuth (Authorization Code + PKCE) authentifizieren statt mit einem statischen Bearer-Token. Neuer Consent-Screen unter /oauth/authorize, Discovery-Endpoint unter /.well-known/oauth-authorization-server, Dynamic Client Registration." }
+      {
+        "type": "feat",
+        "text": "OAuth 2.0 Authorization Server für den MCP-Server: Claude Mobile und Claude Desktop können sich jetzt per OAuth (Authorization Code + PKCE) authentifizieren statt mit einem statischen Bearer-Token. Neuer Consent-Screen unter /oauth/authorize, Discovery-Endpoint unter /.well-known/oauth-authorization-server, Dynamic Client Registration."
+      }
     ]
   },
   {
     "version": "4.18.5",
     "date": "2026-05-26",
     "changes": [
-      { "type": "fix", "text": "Foto-Upload-Fehler werden jetzt korrekt angezeigt: bei HTTP-Fehler oder Netzwerkabbruch erscheint eine Fehlermeldung direkt beim Foto-Feld, statt die Form in einen stillen Broken-State zu versetzen." }
+      {
+        "type": "fix",
+        "text": "Foto-Upload-Fehler werden jetzt korrekt angezeigt: bei HTTP-Fehler oder Netzwerkabbruch erscheint eine Fehlermeldung direkt beim Foto-Feld, statt die Form in einen stillen Broken-State zu versetzen."
+      }
     ]
   },
   {
     "version": "4.18.4",
     "date": "2026-05-26",
     "changes": [
-      { "type": "feat", "text": "Automatische Geräteerkennung beim Verschluss: Claude Vision vergleicht das Foto mit Referenzbildern aus der Geräteverwaltung und bisherigen Einträgen und wählt das Gerät automatisch vor." }
+      {
+        "type": "feat",
+        "text": "Automatische Geräteerkennung beim Verschluss: Claude Vision vergleicht das Foto mit Referenzbildern aus der Geräteverwaltung und bisherigen Einträgen und wählt das Gerät automatisch vor."
+      }
     ]
   },
   {
     "version": "4.18.3",
     "date": "2026-05-22",
     "changes": [
-      { "type": "feat", "text": "Neues MCP-Tool get_strafbuch: liefert die system-erkannten Vergehen (unerlaubte Öffnungen während Sperrzeit, zu spät/abgelehnte Kontrollen, Reinigungs-Limit-Überschreitungen), jeweils mit Status ob bereits als bestraft markiert." },
-      { "type": "chore", "text": "Strafbuch-Vergehenslogik aus der Admin-Seite in lib/strafbuch.ts (buildStrafbuch) zentralisiert — geteilt von Admin-Strafbuch-Seite und MCP-Tool statt dupliziert. Verhalten der Admin-Seite unverändert." }
+      {
+        "type": "feat",
+        "text": "Neues MCP-Tool get_strafbuch: liefert die system-erkannten Vergehen (unerlaubte Öffnungen während Sperrzeit, zu spät/abgelehnte Kontrollen, Reinigungs-Limit-Überschreitungen), jeweils mit Status ob bereits als bestraft markiert."
+      },
+      {
+        "type": "chore",
+        "text": "Strafbuch-Vergehenslogik aus der Admin-Seite in lib/strafbuch.ts (buildStrafbuch) zentralisiert — geteilt von Admin-Strafbuch-Seite und MCP-Tool statt dupliziert. Verhalten der Admin-Seite unverändert."
+      }
     ]
   },
   {
     "version": "4.18.2",
     "date": "2026-05-21",
     "changes": [
-      { "type": "feat", "text": "Neues MCP-Tool list_sessions: liefert abgeschlossene Sessions (KG-Einschlüsse + Wear-Sessions anderer Kategorien) chronologisch, je mit Kategorie, Gerät, Start/Ende und Dauer. Optionale Filter category und limit. Ergänzt get_overview um Zugriff auf die Historie statt nur den Live-Snapshot." }
+      {
+        "type": "feat",
+        "text": "Neues MCP-Tool list_sessions: liefert abgeschlossene Sessions (KG-Einschlüsse + Wear-Sessions anderer Kategorien) chronologisch, je mit Kategorie, Gerät, Start/Ende und Dauer. Optionale Filter category und limit. Ergänzt get_overview um Zugriff auf die Historie statt nur den Live-Snapshot."
+      }
     ]
   },
   {
     "version": "4.18.1",
     "date": "2026-05-21",
     "changes": [
-      { "type": "fix", "text": "MCP get_overview gab Zeitstempel als UTC (ISO Z) zurück — ein konsumierender Assistent las z.B. '09:10' obwohl es lokal 11:10 war (CEST). Zeiten werden jetzt in der Instanz-Zeitzone (Europe/Zurich) als lesbare Strings formatiert, ein timezone-Feld liegt bei, und Sperrzeit/Kontroll-Frist/Anforderung tragen ein explizites remainingMinutes-Feld für eindeutige Restzeit-Angaben." }
+      {
+        "type": "fix",
+        "text": "MCP get_overview gab Zeitstempel als UTC (ISO Z) zurück — ein konsumierender Assistent las z.B. '09:10' obwohl es lokal 11:10 war (CEST). Zeiten werden jetzt in der Instanz-Zeitzone (Europe/Zurich) als lesbare Strings formatiert, ein timezone-Feld liegt bei, und Sperrzeit/Kontroll-Frist/Anforderung tragen ein explizites remainingMinutes-Feld für eindeutige Restzeit-Angaben."
+      }
     ]
   },
   {
     "version": "4.18.0",
     "date": "2026-05-21",
     "changes": [
-      { "type": "feat", "text": "Read-only MCP-Server unter /api/mcp: ein AI-Assistent (z.B. Claude) kann sich per Bearer-Token verbinden und das Tool get_overview aufrufen — liefert einen kuratierten Snapshot (Verschluss-Status & -Dauer, KG-Tragestunden Tag/Woche/Monat, aktives Trainingsziel mit Fortschritt, offene Kontrollen, Sperrzeiten, Session-Statistik, Strafen, aktive Wear-Sessions) zum Vorschlagen von Massnahmen. Aktivierung pro Instanz via ENABLE_MCP=true; MCP_TOKEN (Bearer) und MCP_USERNAME (wessen Daten) erforderlich. Standardmässig deaktiviert." },
-      { "type": "chore", "text": "Session-Aggregationslogik (summarizeSessions, completedPairsFrom) aus StatsMain in lib/utils zentralisiert — geteilt von Statistik-Seite und MCP-Overview statt dupliziert." }
+      {
+        "type": "feat",
+        "text": "Read-only MCP-Server unter /api/mcp: ein AI-Assistent (z.B. Claude) kann sich per Bearer-Token verbinden und das Tool get_overview aufrufen — liefert einen kuratierten Snapshot (Verschluss-Status & -Dauer, KG-Tragestunden Tag/Woche/Monat, aktives Trainingsziel mit Fortschritt, offene Kontrollen, Sperrzeiten, Session-Statistik, Strafen, aktive Wear-Sessions) zum Vorschlagen von Massnahmen. Aktivierung pro Instanz via ENABLE_MCP=true; MCP_TOKEN (Bearer) und MCP_USERNAME (wessen Daten) erforderlich. Standardmässig deaktiviert."
+      },
+      {
+        "type": "chore",
+        "text": "Session-Aggregationslogik (summarizeSessions, completedPairsFrom) aus StatsMain in lib/utils zentralisiert — geteilt von Statistik-Seite und MCP-Overview statt dupliziert."
+      }
     ]
   },
   {
     "version": "4.17.4",
     "date": "2026-05-18",
     "changes": [
-      { "type": "fix", "text": "KI-Verifizierung bei gedrehten Fotos: der Server-Path rief verifyKontrolleCode immer mit rotation=0 auf, während der Client-Preview die User-Rotation berücksichtigt. Bei gedrehten Fotos blieb der Eintrag deshalb 'Unverifiziert', obwohl die Vorschau im Form 'Code erkannt' zeigte. Form sendet jetzt imageRotation mit, Server validiert und nutzt sie." }
+      {
+        "type": "fix",
+        "text": "KI-Verifizierung bei gedrehten Fotos: der Server-Path rief verifyKontrolleCode immer mit rotation=0 auf, während der Client-Preview die User-Rotation berücksichtigt. Bei gedrehten Fotos blieb der Eintrag deshalb 'Unverifiziert', obwohl die Vorschau im Form 'Code erkannt' zeigte. Form sendet jetzt imageRotation mit, Server validiert und nutzt sie."
+      }
     ]
   },
   {
     "version": "4.17.3",
     "date": "2026-05-17",
     "changes": [
-      { "type": "fix", "text": "KI-Verifizierung defensiver: wenn Claude den richtigen Code erkennt aber match=false zurückgibt (beobachtet seit dem Plomben-Prompt-Update), überstimmen wir das jetzt explizit. Detected-String wird vor dem Vergleich normalisiert (Whitespace/Noise entfernt). Neues Log-Feld claudeOverridden zeigt, wann der Override gegriffen hat — hilft bei künftiger Diagnose." }
+      {
+        "type": "fix",
+        "text": "KI-Verifizierung defensiver: wenn Claude den richtigen Code erkennt aber match=false zurückgibt (beobachtet seit dem Plomben-Prompt-Update), überstimmen wir das jetzt explizit. Detected-String wird vor dem Vergleich normalisiert (Whitespace/Noise entfernt). Neues Log-Feld claudeOverridden zeigt, wann der Override gegriffen hat — hilft bei künftiger Diagnose."
+      }
     ]
   },
   {
     "version": "4.17.2",
     "date": "2026-05-16",
     "changes": [
-      { "type": "ui", "text": "Kategorien-Übersicht: Kategorie-Namen waren im Dark Mode schlecht lesbar (fehlende text-foreground-Klasse, Inherit auf gedämpfte Default-Farbe). Jetzt voller Kontrast." }
+      {
+        "type": "ui",
+        "text": "Kategorien-Übersicht: Kategorie-Namen waren im Dark Mode schlecht lesbar (fehlende text-foreground-Klasse, Inherit auf gedämpfte Default-Farbe). Jetzt voller Kontrast."
+      }
     ]
   },
   {
     "version": "4.17.1",
     "date": "2026-05-16",
     "changes": [
-      { "type": "fix", "text": "Device-Bilder erschienen für Non-Admin-User als kaputtes Bild — die Owner-Prüfung in /api/uploads suchte nur in der Entry-Tabelle, nicht in Device. Jetzt werden beide Tabellen parallel geprüft." },
-      { "type": "ui", "text": "Pro-Kategorie-Stats: Label 'KG-Sessions' war fest verdrahtet, auch für Plug/Halsband/etc. Jetzt neutral 'Sessions' — in der KG-Übersichts-Sektion bleibt der Kontext klar durch den Card-Titel." },
-      { "type": "feat", "text": "Statistik-Seite: Kontrollen-Liste paginiert (10 pro Seite) — vorher unbeschränkt lang." },
-      { "type": "feat", "text": "Einträge-Seite: paginiert (20 pro Seite, URL-basiert via ?page=) — bei langer Historie nicht mehr endlos scrollen." }
+      {
+        "type": "fix",
+        "text": "Device-Bilder erschienen für Non-Admin-User als kaputtes Bild — die Owner-Prüfung in /api/uploads suchte nur in der Entry-Tabelle, nicht in Device. Jetzt werden beide Tabellen parallel geprüft."
+      },
+      {
+        "type": "ui",
+        "text": "Pro-Kategorie-Stats: Label 'KG-Sessions' war fest verdrahtet, auch für Plug/Halsband/etc. Jetzt neutral 'Sessions' — in der KG-Übersichts-Sektion bleibt der Kontext klar durch den Card-Titel."
+      },
+      {
+        "type": "feat",
+        "text": "Statistik-Seite: Kontrollen-Liste paginiert (10 pro Seite) — vorher unbeschränkt lang."
+      },
+      {
+        "type": "feat",
+        "text": "Einträge-Seite: paginiert (20 pro Seite, URL-basiert via ?page=) — bei langer Historie nicht mehr endlos scrollen."
+      }
     ]
   },
   {
     "version": "4.17.0",
     "date": "2026-05-16",
     "changes": [
-      { "type": "feat", "text": "Update-Indikator im Footer/Sidebar: pulsierender Punkt + 'Update vX.Y.Z' erscheint, wenn upstream (main-Branch) eine neuere Version hat. Klick führt zur Changelog-Seite." },
-      { "type": "feat", "text": "Changelog-Seite zeigt oben die noch nicht installierten Versionen mit Banner 'X neuere Versionen verfügbar' und Self-Hoster-Hinweis (docker compose pull && up -d). Quelle: raw.githubusercontent.com/trublue-2/chastitytracker/main/src/data/changelog.json, 1h client-cache." },
-      { "type": "ui", "text": "Build-Datum aus Footer und Bottom-Nav entfernt (stand im Self-Hosting eh meist 'local'). In den Einstellungen bleibt es als Detail-Info." }
+      {
+        "type": "feat",
+        "text": "Update-Indikator im Footer/Sidebar: pulsierender Punkt + 'Update vX.Y.Z' erscheint, wenn upstream (main-Branch) eine neuere Version hat. Klick führt zur Changelog-Seite."
+      },
+      {
+        "type": "feat",
+        "text": "Changelog-Seite zeigt oben die noch nicht installierten Versionen mit Banner 'X neuere Versionen verfügbar' und Self-Hoster-Hinweis (docker compose pull && up -d). Quelle: raw.githubusercontent.com/trublue-2/chastitytracker/main/src/data/changelog.json, 1h client-cache."
+      },
+      {
+        "type": "ui",
+        "text": "Build-Datum aus Footer und Bottom-Nav entfernt (stand im Self-Hosting eh meist 'local'). In den Einstellungen bleibt es als Detail-Info."
+      }
     ]
   },
   {
     "version": "4.16.7",
     "date": "2026-05-12",
     "changes": [
-      { "type": "fix", "text": "Laufende KG-Session zeigte Trainingsvorgaben einer anderen Kategorie (z.B. Plug) — getActiveVorgabe filterte nicht auf Kategorie und gab die zuletzt erstellte Vorgabe zurück. Jetzt explizit nur KG-Vorgaben (categoryId NULL oder built-in KG-Kategorie). Andere Kategorien werden weiterhin separat in CategoryGoalsToday angezeigt." }
+      {
+        "type": "fix",
+        "text": "Laufende KG-Session zeigte Trainingsvorgaben einer anderen Kategorie (z.B. Plug) — getActiveVorgabe filterte nicht auf Kategorie und gab die zuletzt erstellte Vorgabe zurück. Jetzt explizit nur KG-Vorgaben (categoryId NULL oder built-in KG-Kategorie). Andere Kategorien werden weiterhin separat in CategoryGoalsToday angezeigt."
+      }
     ]
   },
   {
     "version": "4.16.6",
     "date": "2026-05-12",
     "changes": [
-      { "type": "fix", "text": "Benachrichtigungs-Einstellungen werden jetzt explizit pro User in der DB angelegt (alle Event-Typen mit mail+push=an) — beim Anlegen neuer User und einmalig für alle bestehenden User beim Container-Start (seed.js). Vorher mussten die Toggles im Admin manuell aktiviert werden, sonst gingen keine Mails/Pushes raus. Bestehende explizite Opt-outs bleiben respektiert." }
+      {
+        "type": "fix",
+        "text": "Benachrichtigungs-Einstellungen werden jetzt explizit pro User in der DB angelegt (alle Event-Typen mit mail+push=an) — beim Anlegen neuer User und einmalig für alle bestehenden User beim Container-Start (seed.js). Vorher mussten die Toggles im Admin manuell aktiviert werden, sonst gingen keine Mails/Pushes raus. Bestehende explizite Opt-outs bleiben respektiert."
+      }
     ]
   },
   {
     "version": "4.16.5",
     "date": "2026-05-12",
     "changes": [
-      { "type": "fix", "text": "Benachrichtigungen für Entry-Erstellung (Verschluss, Öffnen, Plug einsetzen/entfernen, Orgasmus, Prüfung) gingen nur raus, wenn der Admin im UI explizit die Toggles aktiviert hatte. Ab jetzt sind alle Event-Typen standardmässig EIN (mail + push) — Admin kann sie deaktivieren statt aktivieren müssen. Bestehende explizite Opt-outs bleiben respektiert." }
+      {
+        "type": "fix",
+        "text": "Benachrichtigungen für Entry-Erstellung (Verschluss, Öffnen, Plug einsetzen/entfernen, Orgasmus, Prüfung) gingen nur raus, wenn der Admin im UI explizit die Toggles aktiviert hatte. Ab jetzt sind alle Event-Typen standardmässig EIN (mail + push) — Admin kann sie deaktivieren statt aktivieren müssen. Bestehende explizite Opt-outs bleiben respektiert."
+      }
     ]
   },
   {
     "version": "4.16.4",
     "date": "2026-05-12",
     "changes": [
-      { "type": "fix", "text": "seed.js: Startup-Loop behoben — Admin-User-Anlegen schlug fehl wenn die konfigurierte E-Mail schon in der DB war (P2002 unique constraint). Seed sucht jetzt in einer Query nach bestehendem Admin oder User mit passendem Username/E-Mail und befördert ihn ggf. zum Admin statt einen Duplikat anzulegen." },
-      { "type": "fix", "text": "seed.js: ensureKgCategory nutzt jetzt upsert statt findUnique+create — verhindert Race-Condition bei parallelen Container-Starts." }
+      {
+        "type": "fix",
+        "text": "seed.js: Startup-Loop behoben — Admin-User-Anlegen schlug fehl wenn die konfigurierte E-Mail schon in der DB war (P2002 unique constraint). Seed sucht jetzt in einer Query nach bestehendem Admin oder User mit passendem Username/E-Mail und befördert ihn ggf. zum Admin statt einen Duplikat anzulegen."
+      },
+      {
+        "type": "fix",
+        "text": "seed.js: ensureKgCategory nutzt jetzt upsert statt findUnique+create — verhindert Race-Condition bei parallelen Container-Starts."
+      }
     ]
   },
   {
     "version": "4.16.3",
     "date": "2026-05-12",
     "changes": [
-      { "type": "fix", "text": "Admin-Übersicht zeigt jetzt Trainingsziele und abgeschlossene Wear-Sessions für non-KG-Kategorien — inhaltlich gleich wie das User-Dashboard." },
-      { "type": "fix", "text": "Tragekalender: Klick auf Tag bei non-KG-Kategorie (z.B. Plug) zeigte fälschlicherweise KG-Einträge (VERSCHLUSS/OEFFNEN) statt WEAR_BEGIN/WEAR_END der jeweiligen Kategorie." },
-      { "type": "fix", "text": "Meldungen-Einstellungen: Spaltenüberschrift 'E-MAIL' umbrechen nicht mehr auf zwei Zeilen." },
-      { "type": "chore", "text": "buildWearSessionRows und WearSessionRow in lib/utils zentralisiert — Dashboard und Admin-Übersicht teilen die Logik statt sie zu duplizieren. getNonKgTrackingCategories aus queries.ts extrahiert." }
+      {
+        "type": "fix",
+        "text": "Admin-Übersicht zeigt jetzt Trainingsziele und abgeschlossene Wear-Sessions für non-KG-Kategorien — inhaltlich gleich wie das User-Dashboard."
+      },
+      {
+        "type": "fix",
+        "text": "Tragekalender: Klick auf Tag bei non-KG-Kategorie (z.B. Plug) zeigte fälschlicherweise KG-Einträge (VERSCHLUSS/OEFFNEN) statt WEAR_BEGIN/WEAR_END der jeweiligen Kategorie."
+      },
+      {
+        "type": "fix",
+        "text": "Meldungen-Einstellungen: Spaltenüberschrift 'E-MAIL' umbrechen nicht mehr auf zwei Zeilen."
+      },
+      {
+        "type": "chore",
+        "text": "buildWearSessionRows und WearSessionRow in lib/utils zentralisiert — Dashboard und Admin-Übersicht teilen die Logik statt sie zu duplizieren. getNonKgTrackingCategories aus queries.ts extrahiert."
+      }
     ]
   },
   {
     "version": "4.16.2",
     "date": "2026-05-10",
     "changes": [
-      { "type": "feat", "text": "KI-Verifizierung akzeptiert jetzt drei Code-Quellen: handgeschriebener Code (Papier/Karte), gedruckter Code (Etikett/Sticker) und Code auf Plastik-Plomben/Sicherheits-Seal (incl. beliebiger Orientierung). Prompt schärft, dass nur der spezifisch erwartete Code zählt — andere Zahlen im Bild (Barcodes, Geräte-Seriennummern) werden ignoriert, damit Plomben-Nummern keinen False-Negative verursachen." },
-      { "type": "fix", "text": "max_tokens für KI-Verifizierung von 100 auf 150 erhöht — schützt vor JSON-Truncation bei längeren Codes oder ausführlichen Reasons." },
-      { "type": "chore", "text": "Plomben-Vokabular in geteilte SEAL_VOCAB-Konstante extrahiert — verifyKontrolleCodeDetailed und detectSealNumber teilen sich die Beschreibung statt sie zweimal zu pflegen." }
+      {
+        "type": "feat",
+        "text": "KI-Verifizierung akzeptiert jetzt drei Code-Quellen: handgeschriebener Code (Papier/Karte), gedruckter Code (Etikett/Sticker) und Code auf Plastik-Plomben/Sicherheits-Seal (incl. beliebiger Orientierung). Prompt schärft, dass nur der spezifisch erwartete Code zählt — andere Zahlen im Bild (Barcodes, Geräte-Seriennummern) werden ignoriert, damit Plomben-Nummern keinen False-Negative verursachen."
+      },
+      {
+        "type": "fix",
+        "text": "max_tokens für KI-Verifizierung von 100 auf 150 erhöht — schützt vor JSON-Truncation bei längeren Codes oder ausführlichen Reasons."
+      },
+      {
+        "type": "chore",
+        "text": "Plomben-Vokabular in geteilte SEAL_VOCAB-Konstante extrahiert — verifyKontrolleCodeDetailed und detectSealNumber teilen sich die Beschreibung statt sie zweimal zu pflegen."
+      }
     ]
   },
   {
     "version": "4.16.1",
     "date": "2026-05-10",
     "changes": [
-      { "type": "chore", "text": "KI-Verifizierung: detailliertes Logging hinzugefügt — jeder Failure-Branch (kein API-Key, Image-Load-Fehler, Sharp-Fehler, Anthropic-Exception, JSON-Parse-Fehler, Policy-Block, kein Code erkannt) loggt jetzt mit `[verify]`-Prefix in die Container-Konsole. Inklusive Anthropic-Request-ID für Cross-Reference." },
-      { "type": "security", "text": "Auth-Code wird nicht mehr in Logs geleakt — bisher tauchte der erwartete 5-stellige Kontroll-Code in jedem Verifikations-Log auf. Jetzt nur noch `codeLen`/`detectedLen` plus digit-redaction (`<5d>`) auf KI-Antwort-Previews." },
-      { "type": "chore", "text": "Neuer geteilter Helper `lib/serverLog.ts:structuredLog` + `redactDigits` — verify-route und verify-lib nutzen denselben Logger mit konsistentem Timestamp." }
+      {
+        "type": "chore",
+        "text": "KI-Verifizierung: detailliertes Logging hinzugefügt — jeder Failure-Branch (kein API-Key, Image-Load-Fehler, Sharp-Fehler, Anthropic-Exception, JSON-Parse-Fehler, Policy-Block, kein Code erkannt) loggt jetzt mit `[verify]`-Prefix in die Container-Konsole. Inklusive Anthropic-Request-ID für Cross-Reference."
+      },
+      {
+        "type": "security",
+        "text": "Auth-Code wird nicht mehr in Logs geleakt — bisher tauchte der erwartete 5-stellige Kontroll-Code in jedem Verifikations-Log auf. Jetzt nur noch `codeLen`/`detectedLen` plus digit-redaction (`<5d>`) auf KI-Antwort-Previews."
+      },
+      {
+        "type": "chore",
+        "text": "Neuer geteilter Helper `lib/serverLog.ts:structuredLog` + `redactDigits` — verify-route und verify-lib nutzen denselben Logger mit konsistentem Timestamp."
+      }
     ]
   },
   {
     "version": "4.16.0",
     "date": "2026-05-10",
     "changes": [
-      { "type": "feat", "text": "Device-Kategorien sind ab jetzt per Default für alle Instanzen aktiv. Plug, Halsband, Cuffs etc. mit eigenen Trainingsvorgaben sind ohne ENV-Konfiguration nutzbar. Wer KG-only erzwingen will, setzt `ENABLE_DEVICE_CATEGORIES=false` (case-insensitive). Bestehende User bekamen das KG-Built-in über die initiale Migration retroaktiv — kein Daten-Backfill nötig." },
-      { "type": "chore", "text": "Tests an die neue Default-Semantik angepasst (vitest 72/72 grün)." }
+      {
+        "type": "feat",
+        "text": "Device-Kategorien sind ab jetzt per Default für alle Instanzen aktiv. Plug, Halsband, Cuffs etc. mit eigenen Trainingsvorgaben sind ohne ENV-Konfiguration nutzbar. Wer KG-only erzwingen will, setzt `ENABLE_DEVICE_CATEGORIES=false` (case-insensitive). Bestehende User bekamen das KG-Built-in über die initiale Migration retroaktiv — kein Daten-Backfill nötig."
+      },
+      {
+        "type": "chore",
+        "text": "Tests an die neue Default-Semantik angepasst (vitest 72/72 grün)."
+      }
     ]
   },
   {
     "version": "4.15.7",
     "date": "2026-05-10",
     "changes": [
-      { "type": "fix", "text": "Frische User (noch keine eigenen Einträge) sahen eine offene Verschluss-Anforderung nicht im Dashboard — der „Willkommen!\"-Empty-State überschrieb den Anforderungs-Banner. Banner wird jetzt auch im Empty-State angezeigt, damit User auch ohne Mail-Lesen sofort sehen, was zu tun ist." },
-      { "type": "chore", "text": "DashboardClient: duplizierten LockRequestBanner-JSX (Empty-State + Haupt-Branch) in lokale const lockRequestBanner extrahiert — Single Source of Truth für die nachricht-Composition." }
+      {
+        "type": "fix",
+        "text": "Frische User (noch keine eigenen Einträge) sahen eine offene Verschluss-Anforderung nicht im Dashboard — der „Willkommen!\"-Empty-State überschrieb den Anforderungs-Banner. Banner wird jetzt auch im Empty-State angezeigt, damit User auch ohne Mail-Lesen sofort sehen, was zu tun ist."
+      },
+      {
+        "type": "chore",
+        "text": "DashboardClient: duplizierten LockRequestBanner-JSX (Empty-State + Haupt-Branch) in lokale const lockRequestBanner extrahiert — Single Source of Truth für die nachricht-Composition."
+      }
     ]
   },
   {
     "version": "4.15.6",
     "date": "2026-05-10",
     "changes": [
-      { "type": "chore", "text": "Retroaktive Simplify-Findings zu v4.15.5: Strafe-Route auf den neuen isUniqueConstraintOn-Helper umgestellt (war noch ad-hoc P2002-Check). Helper-Signatur enger typisiert (KnownUniqueField-Union mit Autocomplete für „username\"/„email\"/„refId\") — Tippfehler werden jetzt vom TypeScript erkannt." }
+      {
+        "type": "chore",
+        "text": "Retroaktive Simplify-Findings zu v4.15.5: Strafe-Route auf den neuen isUniqueConstraintOn-Helper umgestellt (war noch ad-hoc P2002-Check). Helper-Signatur enger typisiert (KnownUniqueField-Union mit Autocomplete für „username\"/„email\"/„refId\") — Tippfehler werden jetzt vom TypeScript erkannt."
+      }
     ]
   },
   {
     "version": "4.15.5",
     "date": "2026-05-10",
     "changes": [
-      { "type": "ui", "text": "Beim Anlegen eines Users mit bereits vergebener E-Mail-Adresse erschien nur ein generischer Fehler (intern: Prisma-P2002). Jetzt klare Meldung „E-Mail-Adresse bereits vergeben\" mit HTTP 409 — sowohl beim Admin-Anlegen als auch beim Bearbeiten und beim Self-Service-Email-Change." },
-      { "type": "fix", "text": "TOCTOU-Race im User-Create-Pfad behoben: vorher pre-check via findUnique + create (in seltenen Fällen race-anfällig), jetzt direktes create mit P2002-Catch — atomar und ein DB-Roundtrip weniger." },
-      { "type": "chore", "text": "Neuer Helper lib/prismaErrors.ts (isUniqueConstraintOn) — Single-Source-of-Truth für P2002-Erkennung. Drei Routes vereinheitlicht." }
+      {
+        "type": "ui",
+        "text": "Beim Anlegen eines Users mit bereits vergebener E-Mail-Adresse erschien nur ein generischer Fehler (intern: Prisma-P2002). Jetzt klare Meldung „E-Mail-Adresse bereits vergeben\" mit HTTP 409 — sowohl beim Admin-Anlegen als auch beim Bearbeiten und beim Self-Service-Email-Change."
+      },
+      {
+        "type": "fix",
+        "text": "TOCTOU-Race im User-Create-Pfad behoben: vorher pre-check via findUnique + create (in seltenen Fällen race-anfällig), jetzt direktes create mit P2002-Catch — atomar und ein DB-Roundtrip weniger."
+      },
+      {
+        "type": "chore",
+        "text": "Neuer Helper lib/prismaErrors.ts (isUniqueConstraintOn) — Single-Source-of-Truth für P2002-Erkennung. Drei Routes vereinheitlicht."
+      }
     ]
   },
   {
     "version": "4.15.4",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "Tragekalender Tag-Detail: WEAR_BEGIN/WEAR_END wurden als rohe Type-Strings angezeigt — fehlten in der TYPE_LABELS-Map des Calendar-Popups. Jetzt korrekt als „Tragen begonnen\" / „Tragen beendet\" lokalisiert." }
+      {
+        "type": "fix",
+        "text": "Tragekalender Tag-Detail: WEAR_BEGIN/WEAR_END wurden als rohe Type-Strings angezeigt — fehlten in der TYPE_LABELS-Map des Calendar-Popups. Jetzt korrekt als „Tragen begonnen\" / „Tragen beendet\" lokalisiert."
+      }
     ]
   },
   {
     "version": "4.15.3",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "Dashboard zeigte keine Plug/Halsband/Cuffs-Sessions in der neuen „Sessions andere Kategorien\"-Liste, weil die Entries ohne device.categoryId geladen wurden — der Kategorie-Filter in buildWearPairs hat dadurch alles weggefiltert. Gleicher Fix korrigiert auch die „Heute Xh\"-Anzeige in der Inaktive-Kategorien-Zeile." }
+      {
+        "type": "fix",
+        "text": "Dashboard zeigte keine Plug/Halsband/Cuffs-Sessions in der neuen „Sessions andere Kategorien\"-Liste, weil die Entries ohne device.categoryId geladen wurden — der Kategorie-Filter in buildWearPairs hat dadurch alles weggefiltert. Gleicher Fix korrigiert auch die „Heute Xh\"-Anzeige in der Inaktive-Kategorien-Zeile."
+      }
     ]
   },
   {
     "version": "4.15.2",
     "date": "2026-05-08",
     "changes": [
-      { "type": "ui", "text": "Dashboard: KG-Sessions-Liste zeigt nur noch 5 Einträge pro Seite (statt 10) — kompakteres Dashboard, ältere Sessions weiterhin via Pagination erreichbar." },
-      { "type": "feat", "text": "Dashboard: zusätzliche „Sessions andere Kategorien\"-Liste unter den KG-Sessions. Zeigt abgeschlossene Plug/Halsband/Cuffs-Tragesessions kategorienübergreifend, neueste zuerst, mit Kategorie-Icon und Dauer. Aktive Sessions werden weiterhin oben in „Aktive Tragesession\" angezeigt." }
+      {
+        "type": "ui",
+        "text": "Dashboard: KG-Sessions-Liste zeigt nur noch 5 Einträge pro Seite (statt 10) — kompakteres Dashboard, ältere Sessions weiterhin via Pagination erreichbar."
+      },
+      {
+        "type": "feat",
+        "text": "Dashboard: zusätzliche „Sessions andere Kategorien\"-Liste unter den KG-Sessions. Zeigt abgeschlossene Plug/Halsband/Cuffs-Tragesessions kategorienübergreifend, neueste zuerst, mit Kategorie-Icon und Dauer. Aktive Sessions werden weiterhin oben in „Aktive Tragesession\" angezeigt."
+      }
     ]
   },
   {
     "version": "4.15.1",
     "date": "2026-05-08",
     "changes": [
-      { "type": "ui", "text": "Naming-Polish: „Sessions\" → „KG-Sessions\" (Stats-Top-Card und Admin-Spalte) und „Aktuelle Session\" → „Aktuelle KG-Session\". Macht klar, dass diese Werte sich nur auf KG-Einschlüsse beziehen, nicht auf andere Devices." }
+      {
+        "type": "ui",
+        "text": "Naming-Polish: „Sessions\" → „KG-Sessions\" (Stats-Top-Card und Admin-Spalte) und „Aktuelle Session\" → „Aktuelle KG-Session\". Macht klar, dass diese Werte sich nur auf KG-Einschlüsse beziehen, nicht auf andere Devices."
+      }
     ]
   },
   {
     "version": "4.15.0",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Tragekalender umschaltbar pro Device-Kategorie: Pill-Picker oberhalb des Kalenders zeigt KG (Default) und alle eigenen Kategorien mit Tragezeiten. Jede Kategorie nutzt ihre eigenen Trainingsziele (Tag/Woche/Monat) für Rahmen, Wochen-Häkchen und Monatsziel-Pill. Orgasmus-Punkt nur in der KG-View. Picker erscheint nur, wenn mehr als eine Kategorie Daten hat — Single-KG-User sehen die Ansicht unverändert." },
-      { "type": "perf", "text": "Kalender-Zellen-Berechnung: Einträge werden einmal in eine YMD-Map gebucket statt pro Tag durchgefiltert (O(N×Tage) → O(N+Tage))." }
+      {
+        "type": "feat",
+        "text": "Tragekalender umschaltbar pro Device-Kategorie: Pill-Picker oberhalb des Kalenders zeigt KG (Default) und alle eigenen Kategorien mit Tragezeiten. Jede Kategorie nutzt ihre eigenen Trainingsziele (Tag/Woche/Monat) für Rahmen, Wochen-Häkchen und Monatsziel-Pill. Orgasmus-Punkt nur in der KG-View. Picker erscheint nur, wenn mehr als eine Kategorie Daten hat — Single-KG-User sehen die Ansicht unverändert."
+      },
+      {
+        "type": "perf",
+        "text": "Kalender-Zellen-Berechnung: Einträge werden einmal in eine YMD-Map gebucket statt pro Tag durchgefiltert (O(N×Tage) → O(N+Tage))."
+      }
     ]
   },
   {
     "version": "4.14.29",
     "date": "2026-05-08",
     "changes": [
-      { "type": "ui", "text": "Stats-Seite: Die vier Top-Stats (Sessions, Gesamtdauer, Ø Dauer, Kein Foto) sind jetzt unter der Section-Überschrift „Übersicht KG-Tragen\" gruppiert — macht klarer, dass diese Werte sich nur auf die KG-Sessions beziehen, nicht auf andere Devices." }
+      {
+        "type": "ui",
+        "text": "Stats-Seite: Die vier Top-Stats (Sessions, Gesamtdauer, Ø Dauer, Kein Foto) sind jetzt unter der Section-Überschrift „Übersicht KG-Tragen\" gruppiert — macht klarer, dass diese Werte sich nur auf die KG-Sessions beziehen, nicht auf andere Devices."
+      }
     ]
   },
   {
     "version": "4.14.28",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Admin → Aktionen: aktive Sperrdauer kann jetzt direkt zurückgezogen oder durch eine neue ersetzt werden. Die bisher inaktive „Sperrdauer setzen\"-Kachel führt bei aktiver Sperrzeit auf einen Bearbeiten-Dialog mit „Zurückziehen\" und „Ersetzen\"-Optionen." }
+      {
+        "type": "feat",
+        "text": "Admin → Aktionen: aktive Sperrdauer kann jetzt direkt zurückgezogen oder durch eine neue ersetzt werden. Die bisher inaktive „Sperrdauer setzen\"-Kachel führt bei aktiver Sperrzeit auf einen Bearbeiten-Dialog mit „Zurückziehen\" und „Ersetzen\"-Optionen."
+      }
     ]
   },
   {
     "version": "4.14.27",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "Trainingsvorgaben: gueltigBis-Verkettung läuft jetzt pro Kategorie statt über alle Kategorien hinweg. Bisher schloss z.B. eine neu angelegte Plug-Vorgabe ungewollt die laufende KG-Vorgabe. Pro Kategorie bleibt eine Vorgabe parallel aktiv. Bestehende falsche gueltigBis-Werte werden beim nächsten Speichern einer Vorgabe pro User korrigiert." }
+      {
+        "type": "fix",
+        "text": "Trainingsvorgaben: gueltigBis-Verkettung läuft jetzt pro Kategorie statt über alle Kategorien hinweg. Bisher schloss z.B. eine neu angelegte Plug-Vorgabe ungewollt die laufende KG-Vorgabe. Pro Kategorie bleibt eine Vorgabe parallel aktiv. Bestehende falsche gueltigBis-Werte werden beim nächsten Speichern einer Vorgabe pro User korrigiert."
+      }
     ]
   },
   {
     "version": "4.14.26",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "Promo-Card auf dem Dashboard zeigte in DE die rohen i18n-Keys (dashboard.promoTitle/Body/Cta) statt der Übersetzungen — Keys lagen versehentlich nur im stats-Namespace. In den dashboard-Namespace verschoben." }
+      {
+        "type": "fix",
+        "text": "Promo-Card auf dem Dashboard zeigte in DE die rohen i18n-Keys (dashboard.promoTitle/Body/Cta) statt der Übersetzungen — Keys lagen versehentlich nur im stats-Namespace. In den dashboard-Namespace verschoben."
+      }
     ]
   },
   {
     "version": "4.14.25",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Stats-Seite zeigt jetzt eine eigene Trainingsziel-Card pro aktiver Vorgabe — KG zuerst, dann Plug/Halsband/etc. nach Name. Jede Card mit Kategorie-Icon, Titel „Trainingsziel KG/Plug/…\", und Tag/Wochen/Monats-Fortschrittsbalken aus den jeweiligen Tragezeiten der Kategorie." },
-      { "type": "chore", "text": "isKgVorgabe-Predicate aus StatsMain in lib/vorgaben.ts extrahiert — Single Source of Truth für „ist diese Vorgabe KG?\"." }
+      {
+        "type": "feat",
+        "text": "Stats-Seite zeigt jetzt eine eigene Trainingsziel-Card pro aktiver Vorgabe — KG zuerst, dann Plug/Halsband/etc. nach Name. Jede Card mit Kategorie-Icon, Titel „Trainingsziel KG/Plug/…\", und Tag/Wochen/Monats-Fortschrittsbalken aus den jeweiligen Tragezeiten der Kategorie."
+      },
+      {
+        "type": "chore",
+        "text": "isKgVorgabe-Predicate aus StatsMain in lib/vorgaben.ts extrahiert — Single Source of Truth für „ist diese Vorgabe KG?\"."
+      }
     ]
   },
   {
     "version": "4.14.24",
     "date": "2026-05-08",
     "changes": [
-      { "type": "ui", "text": "Notification-Settings im Admin-Bereich (User → Einstellungen) als kompakte Matrix neu gebaut: eine Zeile pro Event, zwei Spalten (Push / E-Mail) statt zwei separate Listen mit doppelten Labels. Visuell gruppiert in „KG\", „Orgasmus\" und „Andere Devices\"." },
-      { "type": "feat", "text": "Neue Notification-Events „Tragen begonnen\" und „Tragen beendet\" für non-KG Wear-Sessions. Admin bekommt bei Aktivierung eine Push/Mail mit Kategorie- und Device-Name." }
+      {
+        "type": "ui",
+        "text": "Notification-Settings im Admin-Bereich (User → Einstellungen) als kompakte Matrix neu gebaut: eine Zeile pro Event, zwei Spalten (Push / E-Mail) statt zwei separate Listen mit doppelten Labels. Visuell gruppiert in „KG\", „Orgasmus\" und „Andere Devices\"."
+      },
+      {
+        "type": "feat",
+        "text": "Neue Notification-Events „Tragen begonnen\" und „Tragen beendet\" für non-KG Wear-Sessions. Admin bekommt bei Aktivierung eine Push/Mail mit Kategorie- und Device-Name."
+      }
     ]
   },
   {
     "version": "4.14.23",
     "date": "2026-05-08",
     "changes": [
-      { "type": "ui", "text": "Naming-Polish: WEAR-Einträge in der Liste zeigen „Plug · Beginn\" / „Plug · Ende\" statt der ▶/■-Symbole; „Inaktive Kategorien\" → „Nicht getragen\" (klarer)." },
-      { "type": "ui", "text": "Inaktive-Kategorien-Zeile auf Dashboard zeigt nun „Heute Xh\" wenn die Kategorie heute getragen wurde aber gerade nicht aktiv ist." },
-      { "type": "ui", "text": "Erstmal-Promo-Card auf Dashboard: wenn der User noch keine eigenen Kategorien hat, erscheint ein dezenter Hinweis mit Link zur Kategorie-Anlage. Per X-Button dauerhaft schliessbar (localStorage)." },
-      { "type": "chore", "text": "WEAR-Validation extrahiert in lib/queries.ts → prepareWearEntry(). Single Source of Truth für /api/entries und /api/admin/entries — keine Bug-Fix-Drift mehr zwischen den beiden." },
-      { "type": "feat", "text": "Eigene Kategorien können in der Liste per Pfeil-Buttons (▲/▼) umsortiert werden — sortOrder-Tausch via PATCH." }
+      {
+        "type": "ui",
+        "text": "Naming-Polish: WEAR-Einträge in der Liste zeigen „Plug · Beginn\" / „Plug · Ende\" statt der ▶/■-Symbole; „Inaktive Kategorien\" → „Nicht getragen\" (klarer)."
+      },
+      {
+        "type": "ui",
+        "text": "Inaktive-Kategorien-Zeile auf Dashboard zeigt nun „Heute Xh\" wenn die Kategorie heute getragen wurde aber gerade nicht aktiv ist."
+      },
+      {
+        "type": "ui",
+        "text": "Erstmal-Promo-Card auf Dashboard: wenn der User noch keine eigenen Kategorien hat, erscheint ein dezenter Hinweis mit Link zur Kategorie-Anlage. Per X-Button dauerhaft schliessbar (localStorage)."
+      },
+      {
+        "type": "chore",
+        "text": "WEAR-Validation extrahiert in lib/queries.ts → prepareWearEntry(). Single Source of Truth für /api/entries und /api/admin/entries — keine Bug-Fix-Drift mehr zwischen den beiden."
+      },
+      {
+        "type": "feat",
+        "text": "Eigene Kategorien können in der Liste per Pfeil-Buttons (▲/▼) umsortiert werden — sortOrder-Tausch via PATCH."
+      }
     ]
   },
   {
     "version": "4.14.22",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Kategorie-Form bekommt zwei zusätzliche Toggles (Mockup 6.4 vervollständigt): „Foto bei Tragen-Beginn verlangen\" und „Trainingsvorgaben erlauben\". Schema erweitert um requirePhoto und allowVorgaben (Default false bzw. true)." },
-      { "type": "feat", "text": "WearForm: PhotoCapture-Block für WEAR_BEGIN, mit Pflicht-Validierung wenn die Kategorie requirePhoto=true hat. Foto wird zusätzlich beim Editieren bestehender WEAR_BEGIN-Einträge editierbar." },
-      { "type": "feat", "text": "API-Enforcement: WEAR_BEGIN ohne Foto wird abgewiesen wenn die Kategorie es verlangt; Trainingsvorgaben können nicht für Kategorien mit allowVorgaben=false angelegt werden." }
+      {
+        "type": "feat",
+        "text": "Kategorie-Form bekommt zwei zusätzliche Toggles (Mockup 6.4 vervollständigt): „Foto bei Tragen-Beginn verlangen\" und „Trainingsvorgaben erlauben\". Schema erweitert um requirePhoto und allowVorgaben (Default false bzw. true)."
+      },
+      {
+        "type": "feat",
+        "text": "WearForm: PhotoCapture-Block für WEAR_BEGIN, mit Pflicht-Validierung wenn die Kategorie requirePhoto=true hat. Foto wird zusätzlich beim Editieren bestehender WEAR_BEGIN-Einträge editierbar."
+      },
+      {
+        "type": "feat",
+        "text": "API-Enforcement: WEAR_BEGIN ohne Foto wird abgewiesen wenn die Kategorie es verlangt; Trainingsvorgaben können nicht für Kategorien mit allowVorgaben=false angelegt werden."
+      }
     ]
   },
   {
     "version": "4.14.21",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Stats-Page erweitert: pro Kategorie zeigt der Block jetzt nicht nur Heute/Woche/Monat, sondern auch Records (Längste Session, Anzahl Sessions, Ø Session-Dauer, Gesamt all-time)." },
-      { "type": "feat", "text": "Dashboard-Block „Trainingsziele\" pro Non-KG-Kategorie: für jede Kategorie mit aktiver TrainingVorgabe wird ein Live-Progress-Bar gerendert (Tag/Woche/Monat). Hidden wenn keine Vorgaben gesetzt sind." },
-      { "type": "ui", "text": "Categories-Liste zeigt pro Zeile zusätzlich „Xh diese Woche\" wenn die Kategorie tracking-enabled ist und Sessions in dieser Woche existierten." }
+      {
+        "type": "feat",
+        "text": "Stats-Page erweitert: pro Kategorie zeigt der Block jetzt nicht nur Heute/Woche/Monat, sondern auch Records (Längste Session, Anzahl Sessions, Ø Session-Dauer, Gesamt all-time)."
+      },
+      {
+        "type": "feat",
+        "text": "Dashboard-Block „Trainingsziele\" pro Non-KG-Kategorie: für jede Kategorie mit aktiver TrainingVorgabe wird ein Live-Progress-Bar gerendert (Tag/Woche/Monat). Hidden wenn keine Vorgaben gesetzt sind."
+      },
+      {
+        "type": "ui",
+        "text": "Categories-Liste zeigt pro Zeile zusätzlich „Xh diese Woche\" wenn die Kategorie tracking-enabled ist und Sessions in dieser Woche existierten."
+      }
     ]
   },
   {
     "version": "4.14.20",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "WEAR-Einträge sind jetzt editierbar — /dashboard/edit/[id] hat einen WEAR-Branch, der WearForm in Edit-Modus rendert (PATCH statt POST). Anti-cheat: WEAR_BEGIN nur nach vorne, WEAR_END nur nach hinten verschiebbar (für Non-Admins)." },
-      { "type": "fix", "text": "Backend: PATCH /api/entries/[id] und DELETE handhaben jetzt WEAR_BEGIN/WEAR_END korrekt — Time-Direction-Enforcement, deviceId-Validation, Pair-Konsistenz und Chain-Break-Detection (per Kategorie skopiert)." },
-      { "type": "chore", "text": "Aufräumen: doppelte /dashboard/new-Page entfernt (NewEntrySheet ist die einzige primäre Surface), restliche Komponenten auf categoryStyle()-Helper migriert für Theme-Awareness, tote i18n-Keys (categories_tab) entfernt." }
+      {
+        "type": "fix",
+        "text": "WEAR-Einträge sind jetzt editierbar — /dashboard/edit/[id] hat einen WEAR-Branch, der WearForm in Edit-Modus rendert (PATCH statt POST). Anti-cheat: WEAR_BEGIN nur nach vorne, WEAR_END nur nach hinten verschiebbar (für Non-Admins)."
+      },
+      {
+        "type": "fix",
+        "text": "Backend: PATCH /api/entries/[id] und DELETE handhaben jetzt WEAR_BEGIN/WEAR_END korrekt — Time-Direction-Enforcement, deviceId-Validation, Pair-Konsistenz und Chain-Break-Detection (per Kategorie skopiert)."
+      },
+      {
+        "type": "chore",
+        "text": "Aufräumen: doppelte /dashboard/new-Page entfernt (NewEntrySheet ist die einzige primäre Surface), restliche Komponenten auf categoryStyle()-Helper migriert für Theme-Awareness, tote i18n-Keys (categories_tab) entfernt."
+      }
     ]
   },
   {
     "version": "4.14.19",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "Verschluss-Formular zeigt im Device-Dropdown nur noch KG-Devices, nicht mehr Plug/Halsband etc. getUserDeviceOptions() filtert nun auf die eingebaute KG-Kategorie. Betrifft alle KG-Flows: Verschluss erfassen (User+Admin), Verschluss-Anforderung (Admin), Edit-Page für KG-Einträge." }
+      {
+        "type": "fix",
+        "text": "Verschluss-Formular zeigt im Device-Dropdown nur noch KG-Devices, nicht mehr Plug/Halsband etc. getUserDeviceOptions() filtert nun auf die eingebaute KG-Kategorie. Betrifft alle KG-Flows: Verschluss erfassen (User+Admin), Verschluss-Anforderung (Admin), Edit-Page für KG-Einträge."
+      }
     ]
   },
   {
     "version": "4.14.18",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "Einträge-Liste zeigt WEAR_BEGIN/WEAR_END Einträge nun korrekt: Kategorie-Name + Symbol (z.B. „Plug ▶\") statt generischem Fallback. EntryRow rendert für WEAR-Types die Kategorie-Daten, die per device.category aus der DB geladen werden. User- und Admin-Einträge-Pages laden Category mit." }
+      {
+        "type": "fix",
+        "text": "Einträge-Liste zeigt WEAR_BEGIN/WEAR_END Einträge nun korrekt: Kategorie-Name + Symbol (z.B. „Plug ▶\") statt generischem Fallback. EntryRow rendert für WEAR-Types die Kategorie-Daten, die per device.category aus der DB geladen werden. User- und Admin-Einträge-Pages laden Category mit."
+      }
     ]
   },
   {
     "version": "4.14.17",
     "date": "2026-05-08",
     "changes": [
-      { "type": "fix", "text": "User-Bottom-Sheet „Neu erfassen\" zeigt jetzt auch Plug, Halsband etc. — bisher fehlten die Kategorien-Aktionen, weil das Sheet (NewEntrySheet) hardcoded auf 4 Standard-Aktionen war. Layout lädt aktive Wear-Sessions und gibt sie über DesktopSidebar/DashboardBottomNav an das Sheet durch." }
+      {
+        "type": "fix",
+        "text": "User-Bottom-Sheet „Neu erfassen\" zeigt jetzt auch Plug, Halsband etc. — bisher fehlten die Kategorien-Aktionen, weil das Sheet (NewEntrySheet) hardcoded auf 4 Standard-Aktionen war. Layout lädt aktive Wear-Sessions und gibt sie über DesktopSidebar/DashboardBottomNav an das Sheet durch."
+      }
     ]
   },
   {
     "version": "4.14.16",
     "date": "2026-05-08",
     "changes": [
-      { "type": "ui", "text": "Categories-Seite hat einen Back-Link zurück zu Devices (oben links)." },
-      { "type": "feat", "text": "Admin-User-Übersicht (/admin/users/[id]) zeigt nun aktive Wear-Sessions des Users — analog zum User-Dashboard." }
+      {
+        "type": "ui",
+        "text": "Categories-Seite hat einen Back-Link zurück zu Devices (oben links)."
+      },
+      {
+        "type": "feat",
+        "text": "Admin-User-Übersicht (/admin/users/[id]) zeigt nun aktive Wear-Sessions des Users — analog zum User-Dashboard."
+      }
     ]
   },
   {
     "version": "4.14.15",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Mockup-Ergänzungen umgesetzt (P2c.4): (1) Devices-Liste mit Kategorie-Filter-Chips und Gruppierung, (2) Vorgaben gruppiert pro Kategorie wenn mehrere existieren, (3) Tragezeiten-Toggle im Kategorie-Formular, (4) Dashboard-Sektion „Inaktive Kategorien (N) ▾\" mit Quick-Start-Links, (5+6) Categories-Liste mit System/Eigene-Sektionen und Feature-Summary pro Zeile, (7) 96 CSS-Variablen für die 12 Kategorie-Farben in Light/Dark-Theme + neuer categoryStyle()-Helper für Theme-aware Surfaces." }
+      {
+        "type": "feat",
+        "text": "Mockup-Ergänzungen umgesetzt (P2c.4): (1) Devices-Liste mit Kategorie-Filter-Chips und Gruppierung, (2) Vorgaben gruppiert pro Kategorie wenn mehrere existieren, (3) Tragezeiten-Toggle im Kategorie-Formular, (4) Dashboard-Sektion „Inaktive Kategorien (N) ▾\" mit Quick-Start-Links, (5+6) Categories-Liste mit System/Eigene-Sektionen und Feature-Summary pro Zeile, (7) 96 CSS-Variablen für die 12 Kategorie-Farben in Light/Dark-Theme + neuer categoryStyle()-Helper für Theme-aware Surfaces."
+      }
     ]
   },
   {
     "version": "4.14.14",
     "date": "2026-05-08",
     "changes": [
-      { "type": "ui", "text": "Kategorien-Verwaltung als Sub-Feature der Devices-Seite: separater Tab im Admin-Bereich entfernt, stattdessen Link „Kategorien verwalten →\" oben auf der Devices-Seite (User + Admin). Direkt-URLs /dashboard/categories und /admin/users/[id]/categories funktionieren weiter." }
+      {
+        "type": "ui",
+        "text": "Kategorien-Verwaltung als Sub-Feature der Devices-Seite: separater Tab im Admin-Bereich entfernt, stattdessen Link „Kategorien verwalten →\" oben auf der Devices-Seite (User + Admin). Direkt-URLs /dashboard/categories und /admin/users/[id]/categories funktionieren weiter."
+      }
     ]
   },
   {
     "version": "4.14.13",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Admin-Parität für WEAR-Tracking: Admin kann WEAR_BEGIN/WEAR_END für User in /admin/users/[id]/aktionen anstossen (neue Zeilen pro Kategorie). Admin-Stats-Page zeigt nun ebenfalls den Pro-Kategorie-Block. /api/admin/entries unterstützt WEAR_BEGIN/END mit Device-Kategorie-Validation, KG-Schutz und State-Check." }
+      {
+        "type": "feat",
+        "text": "Admin-Parität für WEAR-Tracking: Admin kann WEAR_BEGIN/WEAR_END für User in /admin/users/[id]/aktionen anstossen (neue Zeilen pro Kategorie). Admin-Stats-Page zeigt nun ebenfalls den Pro-Kategorie-Block. /api/admin/entries unterstützt WEAR_BEGIN/END mit Device-Kategorie-Validation, KG-Schutz und State-Check."
+      }
     ]
   },
   {
     "version": "4.14.12",
     "date": "2026-05-08",
     "changes": [
-      { "type": "feat", "text": "Admin kann Device-Kategorien pro User verwalten: neuer Tab /admin/users/[id]/categories mit gleichem CRUD wie /dashboard/categories. CategoriesClient + CategoryFormSheet akzeptieren optional userId für Admin-Modus, Tab erscheint im UserSubNav nur wenn ENABLE_DEVICE_CATEGORIES aktiv ist." }
+      {
+        "type": "feat",
+        "text": "Admin kann Device-Kategorien pro User verwalten: neuer Tab /admin/users/[id]/categories mit gleichem CRUD wie /dashboard/categories. CategoriesClient + CategoryFormSheet akzeptieren optional userId für Admin-Modus, Tab erscheint im UserSubNav nur wenn ENABLE_DEVICE_CATEGORIES aktiv ist."
+      }
     ]
   },
   {
     "version": "4.14.11",
     "date": "2026-05-07",
     "changes": [
-      { "type": "feat", "text": "Stats + Vorgaben pro Kategorie (P2c): Trainingsvorgaben können jetzt pro DeviceCategory definiert werden (Plug-spezifische Vorgabe etc.) — Admin-Form zeigt Kategorie-Picker wenn mehr als KG existiert. /dashboard/stats zeigt unter dem KG-Block einen kompakten Block pro Kategorie mit Heute/Woche/Monat Tragezeit." }
+      {
+        "type": "feat",
+        "text": "Stats + Vorgaben pro Kategorie (P2c): Trainingsvorgaben können jetzt pro DeviceCategory definiert werden (Plug-spezifische Vorgabe etc.) — Admin-Form zeigt Kategorie-Picker wenn mehr als KG existiert. /dashboard/stats zeigt unter dem KG-Block einen kompakten Block pro Kategorie mit Heute/Woche/Monat Tragezeit."
+      }
     ]
   },
   {
     "version": "4.14.10",
     "date": "2026-05-07",
     "changes": [
-      { "type": "feat", "text": "Action-Picker /dashboard/new zeigt eigene Kategorien (P2b.3): pro user-definierter Kategorie eine Zeile mit kontextueller Aktion (Beenden + Device-Name wenn aktive Session, sonst „Tragen beginnen\"). Macht WEAR_BEGIN/END ohne URL-Trick zugänglich." }
+      {
+        "type": "feat",
+        "text": "Action-Picker /dashboard/new zeigt eigene Kategorien (P2b.3): pro user-definierter Kategorie eine Zeile mit kontextueller Aktion (Beenden + Device-Name wenn aktive Session, sonst „Tragen beginnen\"). Macht WEAR_BEGIN/END ohne URL-Trick zugänglich."
+      }
     ]
   },
   {
     "version": "4.14.9",
     "date": "2026-05-07",
     "changes": [
-      { "type": "feat", "text": "Dashboard zeigt aktive Wear-Sessions (P2b.2): unter der KG-Karte erscheint pro aktiver Plug/Halsband/...-Session eine kompakte Zeile mit Live-Timer, Kategorie-Symbol und Beenden-Tap. Ein Klick öffnet die wear-end-Form für die Kategorie. Hinter Feature-Flag." }
+      {
+        "type": "feat",
+        "text": "Dashboard zeigt aktive Wear-Sessions (P2b.2): unter der KG-Karte erscheint pro aktiver Plug/Halsband/...-Session eine kompakte Zeile mit Live-Timer, Kategorie-Symbol und Beenden-Tap. Ein Klick öffnet die wear-end-Form für die Kategorie. Hinter Feature-Flag."
+      }
     ]
   },
   {
     "version": "4.14.8",
     "date": "2026-05-07",
     "changes": [
-      { "type": "ui", "text": "Naming-Update (P2b.1.6): „KG\" und „Gerät\" in der UI durchgehend zu „Device\" generalisiert (DE+EN), damit das Vokabular auch zu Plug, Halsband etc. passt. „Einschlüsse\" / „Lock-ups\" → „Sessions\". KG-spezifische Begriffe (Verschluss, Öffnen, Sperrzeit, Reinigung, Kontrollen) bleiben erhalten — sie werden ausschliesslich in KG-Flows angezeigt." }
+      {
+        "type": "ui",
+        "text": "Naming-Update (P2b.1.6): „KG\" und „Gerät\" in der UI durchgehend zu „Device\" generalisiert (DE+EN), damit das Vokabular auch zu Plug, Halsband etc. passt. „Einschlüsse\" / „Lock-ups\" → „Sessions\". KG-spezifische Begriffe (Verschluss, Öffnen, Sperrzeit, Reinigung, Kontrollen) bleiben erhalten — sie werden ausschliesslich in KG-Flows angezeigt."
+      }
     ]
   },
   {
     "version": "4.14.7",
     "date": "2026-05-07",
     "changes": [
-      { "type": "feat", "text": "Geräte-Verwaltung erlaubt nun Kategorie-Auswahl (P2b.1.5): wenn der User mehrere Device-Kategorien angelegt hat, zeigt der Geräte-Form ein Kategorie-Dropdown. Default ist die eingebaute KG-Kategorie. Die API validiert Ownership der gewählten Kategorie. Damit lassen sich Plug-Geräte etc. anlegen, die in den WEAR_BEGIN/END-Forms aus P2b.1 verwendet werden können." }
+      {
+        "type": "feat",
+        "text": "Geräte-Verwaltung erlaubt nun Kategorie-Auswahl (P2b.1.5): wenn der User mehrere Device-Kategorien angelegt hat, zeigt der Geräte-Form ein Kategorie-Dropdown. Default ist die eingebaute KG-Kategorie. Die API validiert Ownership der gewählten Kategorie. Damit lassen sich Plug-Geräte etc. anlegen, die in den WEAR_BEGIN/END-Forms aus P2b.1 verwendet werden können."
+      }
     ]
   },
   {
     "version": "4.14.6",
     "date": "2026-05-07",
     "changes": [
-      { "type": "feat", "text": "WEAR_BEGIN/WEAR_END Forms (P2b.1, hinter Feature-Flag): /dashboard/new/wear-begin?category=<id> und /wear-end?category=<id> erlauben das Tragen-Tracking für eigene Kategorien (Plug, Halsband, ...). API-Validierung verhindert WEAR-Operationen auf KG-Geräten und blockiert parallele Sessions in derselben Kategorie. Dashboard-Anzeige folgt in P2b.2." }
+      {
+        "type": "feat",
+        "text": "WEAR_BEGIN/WEAR_END Forms (P2b.1, hinter Feature-Flag): /dashboard/new/wear-begin?category=<id> und /wear-end?category=<id> erlauben das Tragen-Tracking für eigene Kategorien (Plug, Halsband, ...). API-Validierung verhindert WEAR-Operationen auf KG-Geräten und blockiert parallele Sessions in derselben Kategorie. Dashboard-Anzeige folgt in P2b.2."
+      }
     ]
   },
   {
     "version": "4.14.5",
     "date": "2026-05-07",
     "changes": [
-      { "type": "feat", "text": "Device-Kategorien Verwaltung (P2a, hinter Feature-Flag): neue Seite /dashboard/categories zum Anlegen, Bearbeiten und Löschen eigener Kategorien (Plug, Halsband, Fesseln, ...) mit Farb- und Icon-Picker. Eingebaute KG-Kategorie ist gegen Löschung geschützt. Kategorie-CRUD via /api/categories. Aktivierbar via ENABLE_DEVICE_CATEGORIES=true. Dashboard-Integration und WEAR_BEGIN/END Flows folgen in P2b/c." }
+      {
+        "type": "feat",
+        "text": "Device-Kategorien Verwaltung (P2a, hinter Feature-Flag): neue Seite /dashboard/categories zum Anlegen, Bearbeiten und Löschen eigener Kategorien (Plug, Halsband, Fesseln, ...) mit Farb- und Icon-Picker. Eingebaute KG-Kategorie ist gegen Löschung geschützt. Kategorie-CRUD via /api/categories. Aktivierbar via ENABLE_DEVICE_CATEGORIES=true. Dashboard-Integration und WEAR_BEGIN/END Flows folgen in P2b/c."
+      }
     ]
   },
   {
     "version": "4.14.4",
     "date": "2026-05-07",
     "changes": [
-      { "type": "chore", "text": "Schema-Migration für Device-Kategorien (P1): neue DeviceCategory-Tabelle (user-definierbar), Device.categoryId und TrainingVorgabe.categoryId, automatischer Backfill für bestehende Daten (alle Devices und Vorgaben werden auf eine eingebaute KG-Kategorie verlinkt). Neue Entry-Types WEAR_BEGIN/WEAR_END sind hinter dem Feature-Flag ENABLE_DEVICE_CATEGORIES gegated und werden ohne Flag von der API abgewiesen. Verhalten für KG-Tracking unverändert." }
+      {
+        "type": "chore",
+        "text": "Schema-Migration für Device-Kategorien (P1): neue DeviceCategory-Tabelle (user-definierbar), Device.categoryId und TrainingVorgabe.categoryId, automatischer Backfill für bestehende Daten (alle Devices und Vorgaben werden auf eine eingebaute KG-Kategorie verlinkt). Neue Entry-Types WEAR_BEGIN/WEAR_END sind hinter dem Feature-Flag ENABLE_DEVICE_CATEGORIES gegated und werden ohne Flag von der API abgewiesen. Verhalten für KG-Tracking unverändert."
+      }
     ]
   },
   {
     "version": "4.14.3",
     "date": "2026-05-07",
     "changes": [
-      { "type": "chore", "text": "Internes Refactoring: buildPairs und verwandte Tragedauer-Funktionen sind jetzt generisch über Type-Paare (Verschluss/Öffnen vs. später Plug/Collar/...) und unterstützen einen optionalen Category-Filter. Verhalten unverändert; Vorbereitung für die Device-Categories-Erweiterung. Vitest als Unit-Test-Framework eingeführt mit 37 Tests als Sicherheitsleine." }
+      {
+        "type": "chore",
+        "text": "Internes Refactoring: buildPairs und verwandte Tragedauer-Funktionen sind jetzt generisch über Type-Paare (Verschluss/Öffnen vs. später Plug/Collar/...) und unterstützen einen optionalen Category-Filter. Verhalten unverändert; Vorbereitung für die Device-Categories-Erweiterung. Vitest als Unit-Test-Framework eingeführt mit 37 Tests als Sicherheitsleine."
+      }
     ]
   },
   {
     "version": "4.14.2",
     "date": "2026-05-04",
     "changes": [
-      { "type": "fix", "text": "Erkennt jetzt automatisch wenn das Auth-Cookie während der Nutzung auf einen anderen Account wechselt (z.B. weil ein anderes Tab des selben Browsers eingeloggt hat) — die Seite wird dann neu geladen, damit Header und Inhalt zum gleichen User gehören. Verhindert dass Einträge versehentlich am falschen Account gespeichert werden." }
+      {
+        "type": "fix",
+        "text": "Erkennt jetzt automatisch wenn das Auth-Cookie während der Nutzung auf einen anderen Account wechselt (z.B. weil ein anderes Tab des selben Browsers eingeloggt hat) — die Seite wird dann neu geladen, damit Header und Inhalt zum gleichen User gehören. Verhindert dass Einträge versehentlich am falschen Account gespeichert werden."
+      }
     ]
   },
   {
     "version": "4.14.0",
     "date": "2026-04-20",
     "changes": [
-      { "type": "feat", "text": "Timeline-Gruppierung im Dashboard: Lange Sessions werden automatisch in Buckets (Heute, Gestern, Diese Woche, Letzte Woche, ältere Wochen/Monate) gefaltet. Kurze Sessions bleiben wie bisher flach. Bucket-Zustand (expanded/collapsed) wird pro Session in localStorage gespeichert. Historische Sessions ≥14 Tage nutzen dasselbe Bucket-Pattern. Bucket-Header zeigen Event-Zahl sowie (wenn collapsed) Kurzzusammenfassung (z. B. „6 Selbstkontrollen · 2 Reinigungen“)." }
+      {
+        "type": "feat",
+        "text": "Timeline-Gruppierung im Dashboard: Lange Sessions werden automatisch in Buckets (Heute, Gestern, Diese Woche, Letzte Woche, ältere Wochen/Monate) gefaltet. Kurze Sessions bleiben wie bisher flach. Bucket-Zustand (expanded/collapsed) wird pro Session in localStorage gespeichert. Historische Sessions ≥14 Tage nutzen dasselbe Bucket-Pattern. Bucket-Header zeigen Event-Zahl sowie (wenn collapsed) Kurzzusammenfassung (z. B. „6 Selbstkontrollen · 2 Reinigungen“)."
+      }
     ]
   },
   {
     "version": "4.13.1",
     "date": "2026-04-18",
     "changes": [
-      { "type": "fix", "text": "Feedback-Formular auf Mobile nicht absendbar: Sheet durch scrollbares Modal ersetzt. ActionModal erhält viewport-basierte Höhenbegrenzung (max-h-[calc(100dvh-2rem)]) und scrollbaren Content-Bereich, damit lange Formulare auf kleinen Displays nicht mehr abgeschnitten werden." },
-      { "type": "ui", "text": "Feedback-Type-Picker im Tracker-Design-Stil: farbige Icon-Kreise (Bug/warn, Idee/inspect, Frage/request, Danke/orgasm) statt flacher Icons — passt visuell zum Rest der App (Admin-Aktionen-Zeilen)." }
+      {
+        "type": "fix",
+        "text": "Feedback-Formular auf Mobile nicht absendbar: Sheet durch scrollbares Modal ersetzt. ActionModal erhält viewport-basierte Höhenbegrenzung (max-h-[calc(100dvh-2rem)]) und scrollbaren Content-Bereich, damit lange Formulare auf kleinen Displays nicht mehr abgeschnitten werden."
+      },
+      {
+        "type": "ui",
+        "text": "Feedback-Type-Picker im Tracker-Design-Stil: farbige Icon-Kreise (Bug/warn, Idee/inspect, Frage/request, Danke/orgasm) statt flacher Icons — passt visuell zum Rest der App (Admin-Aktionen-Zeilen)."
+      }
     ]
   },
   {
     "version": "4.13.0",
     "date": "2026-04-18",
     "changes": [
-      { "type": "feat", "text": "In-App-Feedback: Bugs, Ideen, Fragen oder Dank per Klick auf das Speech-Bubble-Icon im Header (User + Admin) — Nachricht + Seite + Version + Plattform werden anonym an das Portal weitergeleitet, weder Benutzername noch IP. Self-Hoster können mit DISABLE_FEEDBACK=true komplett deaktivieren." }
+      {
+        "type": "feat",
+        "text": "In-App-Feedback: Bugs, Ideen, Fragen oder Dank per Klick auf das Speech-Bubble-Icon im Header (User + Admin) — Nachricht + Seite + Version + Plattform werden anonym an das Portal weitergeleitet, weder Benutzername noch IP. Self-Hoster können mit DISABLE_FEEDBACK=true komplett deaktivieren."
+      }
     ]
   },
   {
     "version": "4.12.16",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "README-Self-Hosting: Sample docker-compose.yml + vollständige .env-Vorlage ergänzt, mit Traefik-Labels als optional auskommentierten Block, Hinweis auf admin/admin123-Default beim Erststart, USE_ADMIN_RELATIONSHIPS-Flag, DATABASE_URL-Warnung konsolidiert" },
-      { "type": "fix", "text": "docker-compose.yml: totes kg-uploads-Volume entfernt (Uploads landen intern unter /app/data/uploads, das kg-data-Volume reicht); env_file von .env.production auf .env angeglichen" }
+      {
+        "type": "chore",
+        "text": "README-Self-Hosting: Sample docker-compose.yml + vollständige .env-Vorlage ergänzt, mit Traefik-Labels als optional auskommentierten Block, Hinweis auf admin/admin123-Default beim Erststart, USE_ADMIN_RELATIONSHIPS-Flag, DATABASE_URL-Warnung konsolidiert"
+      },
+      {
+        "type": "fix",
+        "text": "docker-compose.yml: totes kg-uploads-Volume entfernt (Uploads landen intern unter /app/data/uploads, das kg-data-Volume reicht); env_file von .env.production auf .env angeglichen"
+      }
     ]
   },
   {
     "version": "4.12.15",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "Copyright-Jahr korrigiert: 2024–present → 2026–present (Projekt ist 2026 gestartet)" }
+      {
+        "type": "chore",
+        "text": "Copyright-Jahr korrigiert: 2024–present → 2026–present (Projekt ist 2026 gestartet)"
+      }
     ]
   },
   {
     "version": "4.12.14",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "Lizenz umgestellt von „proprietary, all rights reserved“ auf PolyForm Noncommercial 1.0.0: personal und non-commercial Self-Hosting ist jetzt explizit erlaubt, kommerzieller Betrieb des Trackers (bezahltes Hosting für Dritte) weiterhin vorbehalten. Neues LICENSE.md, README-Badge und -Section aktualisiert, Info-Page-Footer auf Lizenz-Hinweis umgestellt, package.json license-Feld gesetzt" }
+      {
+        "type": "chore",
+        "text": "Lizenz umgestellt von „proprietary, all rights reserved“ auf PolyForm Noncommercial 1.0.0: personal und non-commercial Self-Hosting ist jetzt explizit erlaubt, kommerzieller Betrieb des Trackers (bezahltes Hosting für Dritte) weiterhin vorbehalten. Neues LICENSE.md, README-Badge und -Section aktualisiert, Info-Page-Footer auf Lizenz-Hinweis umgestellt, package.json license-Feld gesetzt"
+      }
     ]
   },
   {
     "version": "4.12.13",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "README: neuer Self-Hosting-Abschnitt mit Hinweis auf chastitytracker.ch als Hosted-Alternative; Architecture-Box explizit als Hosted-Deployment markiert zur Abgrenzung von Self-Host-Setups; Contributing-Section von internen Team-Regeln (Simplify-Sequenz, Git-Author) auf nützliche externe Dev-Hinweise reduziert (Prisma-Migrations ergänzt)" }
+      {
+        "type": "chore",
+        "text": "README: neuer Self-Hosting-Abschnitt mit Hinweis auf chastitytracker.ch als Hosted-Alternative; Architecture-Box explizit als Hosted-Deployment markiert zur Abgrenzung von Self-Host-Setups; Contributing-Section von internen Team-Regeln (Simplify-Sequenz, Git-Author) auf nützliche externe Dev-Hinweise reduziert (Prisma-Migrations ergänzt)"
+      }
     ]
   },
   {
     "version": "4.12.12",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "Simplify-Fixes zu v4.12.11: getActiveSperrzeit/getActiveSperrzeiten in lib/queries.ts — ersetzt 7 duplizierte Sperrzeit-Queries in Admin- und Dashboard-Pages. PrismaTx-Type-Alias + OeffnenGrund-Export. releaseSperrzeitenOnOpen() akzeptiert optionalen userReinigungErlaubt-Parameter, spart doppelten User-Fetch im Admin-API" },
-      { "type": "chore", "text": "withdrawActiveSperrzeitenOnOpen -> releaseSperrzeitenOnOpen umbenannt (Name widerspiegelt jetzt die Reinigungs-Ausnahme)" }
+      {
+        "type": "chore",
+        "text": "Simplify-Fixes zu v4.12.11: getActiveSperrzeit/getActiveSperrzeiten in lib/queries.ts — ersetzt 7 duplizierte Sperrzeit-Queries in Admin- und Dashboard-Pages. PrismaTx-Type-Alias + OeffnenGrund-Export. releaseSperrzeitenOnOpen() akzeptiert optionalen userReinigungErlaubt-Parameter, spart doppelten User-Fetch im Admin-API"
+      },
+      {
+        "type": "chore",
+        "text": "withdrawActiveSperrzeitenOnOpen -> releaseSperrzeitenOnOpen umbenannt (Name widerspiegelt jetzt die Reinigungs-Ausnahme)"
+      }
     ]
   },
   {
     "version": "4.12.11",
     "date": "2026-04-18",
     "changes": [
-      { "type": "fix", "text": "Wenn der Admin auf der Aktionen-Seite eines Users ein Öffnen-Event erfasst, wird die aktive Sperrzeit jetzt korrekt beendet — vorher blieb die Sperrzeit bestehen und der User erschien weiter als „verschlossen“. Gleiche Reinigungsausnahme wie beim User-eigenen Öffnen." },
-      { "type": "chore", "text": "Sperrzeit-Withdraw-Logik als gemeinsame withdrawActiveSperrzeitenOnOpen()-Funktion in lib/queries.ts — wird jetzt von User- und Admin-Entries-API identisch aufgerufen" }
+      {
+        "type": "fix",
+        "text": "Wenn der Admin auf der Aktionen-Seite eines Users ein Öffnen-Event erfasst, wird die aktive Sperrzeit jetzt korrekt beendet — vorher blieb die Sperrzeit bestehen und der User erschien weiter als „verschlossen“. Gleiche Reinigungsausnahme wie beim User-eigenen Öffnen."
+      },
+      {
+        "type": "chore",
+        "text": "Sperrzeit-Withdraw-Logik als gemeinsame withdrawActiveSperrzeitenOnOpen()-Funktion in lib/queries.ts — wird jetzt von User- und Admin-Entries-API identisch aufgerufen"
+      }
     ]
   },
   {
     "version": "4.12.10",
     "date": "2026-04-18",
     "changes": [
-      { "type": "fix", "text": "Sperrdauer-setzen-Dialog: Default für „Bis Datum“ ist jetzt die aktuelle Zeit + Standarddauer (24h bei Sperrzeit, 4h bei Verschluss-Anforderung) statt leerer Wert — verhindert versehentliches Speichern mit Zeitpunkt in der Vergangenheit" },
-      { "type": "fix", "text": "Ungültiges JSON in Changelog v4.12.9 repariert (fehlende Quote-Escapes in deutschen Anführungszeichen)" }
+      {
+        "type": "fix",
+        "text": "Sperrdauer-setzen-Dialog: Default für „Bis Datum“ ist jetzt die aktuelle Zeit + Standarddauer (24h bei Sperrzeit, 4h bei Verschluss-Anforderung) statt leerer Wert — verhindert versehentliches Speichern mit Zeitpunkt in der Vergangenheit"
+      },
+      {
+        "type": "fix",
+        "text": "Ungültiges JSON in Changelog v4.12.9 repariert (fehlende Quote-Escapes in deutschen Anführungszeichen)"
+      }
     ]
   },
   {
     "version": "4.12.9",
     "date": "2026-04-18",
     "changes": [
-      { "type": "ui", "text": "Admin-Aktionen-Tab: Section-Überschrift „Items“ → „Einträge“ (DE) bzw. „Entries“ (EN) — das englische Lehnwort passte nicht zum Rest der deutschen UI" }
+      {
+        "type": "ui",
+        "text": "Admin-Aktionen-Tab: Section-Überschrift „Items“ → „Einträge“ (DE) bzw. „Entries“ (EN) — das englische Lehnwort passte nicht zum Rest der deutschen UI"
+      }
     ]
   },
   {
     "version": "4.12.8",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "README aktualisiert: neue Features dokumentiert (KG-Verwaltung, Reinigung-erlaubt-Flag, Live-Restzeit, unified Admin-UI), Versions-Badge auf aktuellen Stand, fehlende API-Routen ergänzt (notifications, strafe, lockout, native-subscribe, vapid-public-key, settings/upload, apple-app-site-association), BUILD_DATE in ENV-Block, aktualisierte Project-Structure mit entries/ und lib/kontrollen.ts" }
+      {
+        "type": "chore",
+        "text": "README aktualisiert: neue Features dokumentiert (KG-Verwaltung, Reinigung-erlaubt-Flag, Live-Restzeit, unified Admin-UI), Versions-Badge auf aktuellen Stand, fehlende API-Routen ergänzt (notifications, strafe, lockout, native-subscribe, vapid-public-key, settings/upload, apple-app-site-association), BUILD_DATE in ENV-Block, aktualisierte Project-Structure mit entries/ und lib/kontrollen.ts"
+      }
     ]
   },
   {
     "version": "4.12.7",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "Rückwirkender /simplify auf v4.12.5 und v4.12.6: DateTimePicker statt rohem datetime-local-Input im VerschlussAnforderungFields; Strafbuch-Öffnungsfilter von 3 Linear-Scans auf 1 pro Öffnung optimiert; tote requireOpenNote-Option aus validateEntryPayload entfernt" },
-      { "type": "chore", "text": "Verschluss-Anforderung Quick-Action-Modal: /simplify-Mandat in CLAUDE.md verschärft mit expliziten Ausreden-Mustern und Eskalations-Pflicht" }
+      {
+        "type": "chore",
+        "text": "Rückwirkender /simplify auf v4.12.5 und v4.12.6: DateTimePicker statt rohem datetime-local-Input im VerschlussAnforderungFields; Strafbuch-Öffnungsfilter von 3 Linear-Scans auf 1 pro Öffnung optimiert; tote requireOpenNote-Option aus validateEntryPayload entfernt"
+      },
+      {
+        "type": "chore",
+        "text": "Verschluss-Anforderung Quick-Action-Modal: /simplify-Mandat in CLAUDE.md verschärft mit expliziten Ausreden-Mustern und Eskalations-Pflicht"
+      }
     ]
   },
   {
     "version": "4.12.6",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "Entry-Form-Cores aufgeräumt: SubmitResult/Payload-Typen in src/app/entries/types.ts zentralisiert (statt Re-Export über Orgasmus-Core), useEntrySubmit-Hook dedupliziert Submit-Boilerplate, onSuccess-Callback-Pattern eliminiert Unmount-Race zwischen Admin-Wrappern und Core-finally-State" },
-      { "type": "chore", "text": "OeffnenFormCore-Props entkrampft: reinigung (erlaubt/maxMinuten/maxProTag/heuteAnzahl) und sperrzeit (endetAt/unbefristet) jetzt als strukturierte Objekte statt acht flacher Props" },
-      { "type": "chore", "text": "Admin-Form-Padding (px-5 py-5) in AdminActionFormShell verschoben — vier Admin-Wrapper teilen jetzt dieselbe innere Struktur" }
+      {
+        "type": "chore",
+        "text": "Entry-Form-Cores aufgeräumt: SubmitResult/Payload-Typen in src/app/entries/types.ts zentralisiert (statt Re-Export über Orgasmus-Core), useEntrySubmit-Hook dedupliziert Submit-Boilerplate, onSuccess-Callback-Pattern eliminiert Unmount-Race zwischen Admin-Wrappern und Core-finally-State"
+      },
+      {
+        "type": "chore",
+        "text": "OeffnenFormCore-Props entkrampft: reinigung (erlaubt/maxMinuten/maxProTag/heuteAnzahl) und sperrzeit (endetAt/unbefristet) jetzt als strukturierte Objekte statt acht flacher Props"
+      },
+      {
+        "type": "chore",
+        "text": "Admin-Form-Padding (px-5 py-5) in AdminActionFormShell verschoben — vier Admin-Wrapper teilen jetzt dieselbe innere Struktur"
+      }
     ]
   },
   {
     "version": "4.12.5",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "Admin-Formulare für Verschluss/Öffnen/Kontrolle/Orgasmus erben jetzt alle User-Features automatisch: Seal-Auto-Detection, AI-Kontroll-Code-Verifikation mit Status-Badge, Sub-Art-Selektor bei Orgasmus, Reinigung-Limit-Warnung, Sperrzeit-Warnung — vorher fehlten diese im Admin-Bereich teilweise" },
-      { "type": "chore", "text": "Admin-Öffnen-Formular nutzt jetzt die zentrale OEFFNEN_GRUENDE-Konstante statt hardcoded Liste — neue Gründe erscheinen automatisch in beiden Formularen (User + Admin)" },
-      { "type": "chore", "text": "Entry-Formulare (Verschluss/Öffnen/Kontrolle/Orgasmus) als shared Cores in src/app/entries/ extrahiert — User- und Admin-Wrapper sind jetzt dünne Schichten um denselben Core. Admin-Formulare von ca. 580 Zeilen duplicated Code auf 193 Zeilen thin wrappers reduziert — Drift bei zukünftigen Änderungen eliminiert" }
+      {
+        "type": "chore",
+        "text": "Admin-Formulare für Verschluss/Öffnen/Kontrolle/Orgasmus erben jetzt alle User-Features automatisch: Seal-Auto-Detection, AI-Kontroll-Code-Verifikation mit Status-Badge, Sub-Art-Selektor bei Orgasmus, Reinigung-Limit-Warnung, Sperrzeit-Warnung — vorher fehlten diese im Admin-Bereich teilweise"
+      },
+      {
+        "type": "chore",
+        "text": "Admin-Öffnen-Formular nutzt jetzt die zentrale OEFFNEN_GRUENDE-Konstante statt hardcoded Liste — neue Gründe erscheinen automatisch in beiden Formularen (User + Admin)"
+      },
+      {
+        "type": "chore",
+        "text": "Entry-Formulare (Verschluss/Öffnen/Kontrolle/Orgasmus) als shared Cores in src/app/entries/ extrahiert — User- und Admin-Wrapper sind jetzt dünne Schichten um denselben Core. Admin-Formulare von ca. 580 Zeilen duplicated Code auf 193 Zeilen thin wrappers reduziert — Drift bei zukünftigen Änderungen eliminiert"
+      }
     ]
   },
   {
     "version": "4.12.4",
     "date": "2026-04-18",
     "changes": [
-      { "type": "chore", "text": "Zentrale validateEntryPayload() Funktion — User- und Admin-Entry-API teilen jetzt dieselbe Validierungslogik statt duplizierten Checks" },
-      { "type": "chore", "text": "getIsLocked() in allen Server-Pages statt inline Prisma-Queries (Admin-Aktionen, Dashboard-New, Dashboard-Layout)" },
-      { "type": "chore", "text": "useTick()-Hook für Live-Timer — SessionDurationBadge, SperrzeitRemaining und TimerDisplay teilen den Tick-Boilerplate" },
-      { "type": "chore", "text": "TYPE_LABELS mit rohen deutschen Strings aus constants.ts entfernt — alle Callsites nutzen jetzt i18n via tStats(TYPE_STATS_KEYS[...])" },
-      { "type": "chore", "text": "buildKontrolleRows()/mapKontrolleRow()/isKontrolleAlarm() in lib/kontrollen.ts — Admin-Kontrollen-Übersicht und User-Detail-Kontrollen teilen jetzt dieselbe Row-Pipeline" },
-      { "type": "chore", "text": "Admin-Verschluss-Form nutzt gemeinsame RotatableImagePreview-Komponente statt inline duplizierten Rotations-JSX" }
+      {
+        "type": "chore",
+        "text": "Zentrale validateEntryPayload() Funktion — User- und Admin-Entry-API teilen jetzt dieselbe Validierungslogik statt duplizierten Checks"
+      },
+      {
+        "type": "chore",
+        "text": "getIsLocked() in allen Server-Pages statt inline Prisma-Queries (Admin-Aktionen, Dashboard-New, Dashboard-Layout)"
+      },
+      {
+        "type": "chore",
+        "text": "useTick()-Hook für Live-Timer — SessionDurationBadge, SperrzeitRemaining und TimerDisplay teilen den Tick-Boilerplate"
+      },
+      {
+        "type": "chore",
+        "text": "TYPE_LABELS mit rohen deutschen Strings aus constants.ts entfernt — alle Callsites nutzen jetzt i18n via tStats(TYPE_STATS_KEYS[...])"
+      },
+      {
+        "type": "chore",
+        "text": "buildKontrolleRows()/mapKontrolleRow()/isKontrolleAlarm() in lib/kontrollen.ts — Admin-Kontrollen-Übersicht und User-Detail-Kontrollen teilen jetzt dieselbe Row-Pipeline"
+      },
+      {
+        "type": "chore",
+        "text": "Admin-Verschluss-Form nutzt gemeinsame RotatableImagePreview-Komponente statt inline duplizierten Rotations-JSX"
+      }
     ]
   },
   {
     "version": "4.12.3",
     "date": "2026-04-18",
     "changes": [
-      { "type": "ui", "text": "Admin-Layout vereinheitlicht: alle Tabs einer User-Detailseite nutzen jetzt dieselbe Breite, denselben Abstand und dieselbe Zentrierung — kein Springen mehr beim Wechsel zwischen Aktionen/Einträge/Statistik/Strafbuch" },
-      { "type": "fix", "text": "Verschluss-Quick-Action im Admin-Übersichtsmodal hatte weniger Funktionen als die ausführliche Seite (fehlte „Bis Datum“-Frist, fehlte „Reinigungsöffnung erlauben“) — beide nutzen jetzt dieselbe gemeinsame Form" },
-      { "type": "chore", "text": "VerschlussAnforderungFields und KontrolleFields als gemeinsame Form-Bodies extrahiert — Modal (Übersicht) und Page (Aktionen) teilen identische Logik und UI" }
+      {
+        "type": "ui",
+        "text": "Admin-Layout vereinheitlicht: alle Tabs einer User-Detailseite nutzen jetzt dieselbe Breite, denselben Abstand und dieselbe Zentrierung — kein Springen mehr beim Wechsel zwischen Aktionen/Einträge/Statistik/Strafbuch"
+      },
+      {
+        "type": "fix",
+        "text": "Verschluss-Quick-Action im Admin-Übersichtsmodal hatte weniger Funktionen als die ausführliche Seite (fehlte „Bis Datum“-Frist, fehlte „Reinigungsöffnung erlauben“) — beide nutzen jetzt dieselbe gemeinsame Form"
+      },
+      {
+        "type": "chore",
+        "text": "VerschlussAnforderungFields und KontrolleFields als gemeinsame Form-Bodies extrahiert — Modal (Übersicht) und Page (Aktionen) teilen identische Logik und UI"
+      }
     ]
   },
   {
     "version": "4.12.2",
     "date": "2026-04-17",
     "changes": [
-      { "type": "feat", "text": "Sperrdauer: Admin kann pro Sperrzeit (und pro Verschluss-Anforderung mit Mindestdauer) festlegen, ob Reinigungsöffnungen erlaubt sind — erlaubte Reinigungen brechen die Sperre nicht mehr und erscheinen nicht mehr im Strafbuch" },
-      { "type": "feat", "text": "Sperrdauer-Anzeige: live mittickende Restzeit „Rest: x T y h z min“ im Sperrzeit-Footer (User-Dashboard, Admin-User-Detail) und im Admin-Übersichtsbanner" }
+      {
+        "type": "feat",
+        "text": "Sperrdauer: Admin kann pro Sperrzeit (und pro Verschluss-Anforderung mit Mindestdauer) festlegen, ob Reinigungsöffnungen erlaubt sind — erlaubte Reinigungen brechen die Sperre nicht mehr und erscheinen nicht mehr im Strafbuch"
+      },
+      {
+        "type": "feat",
+        "text": "Sperrdauer-Anzeige: live mittickende Restzeit „Rest: x T y h z min“ im Sperrzeit-Footer (User-Dashboard, Admin-User-Detail) und im Admin-Übersichtsbanner"
+      }
     ]
   },
   {
     "version": "4.12.1",
     "date": "2026-04-16",
     "changes": [
-      { "type": "fix", "text": "KG-Auswahl in allen Admin-Formularen (Verschluss erfassen, Verschluss anfordern) und beim Eintrag bearbeiten — fehlende Selektoren ergänzt" },
-      { "type": "chore", "text": "getUserDeviceOptions() als gemeinsame Query-Funktion, DeviceOption-Import aus queries.ts, deviceId-Validierung innerhalb der Transaktion" }
+      {
+        "type": "fix",
+        "text": "KG-Auswahl in allen Admin-Formularen (Verschluss erfassen, Verschluss anfordern) und beim Eintrag bearbeiten — fehlende Selektoren ergänzt"
+      },
+      {
+        "type": "chore",
+        "text": "getUserDeviceOptions() als gemeinsame Query-Funktion, DeviceOption-Import aus queries.ts, deviceId-Validierung innerhalb der Transaktion"
+      }
     ]
   },
   {
     "version": "4.12.0",
     "date": "2026-04-16",
     "changes": [
-      { "type": "feat", "text": "KG-Verwaltung: Keuschheitsgürtel mit Name, Beschreibung, Foto und Kaufpreis erfassen — bei Einschlüssen auswählen, pro KG Nutzungsstatistik (Einschlüsse, Gesamtdauer, Kosten/Stunde) in Statistik-Seite" },
-      { "type": "feat", "text": "Admin: bestimmten KG bei Verschluss-Anforderung verlangen — falscher KG wird automatisch im Strafbuch vermerkt" }
+      {
+        "type": "feat",
+        "text": "KG-Verwaltung: Keuschheitsgürtel mit Name, Beschreibung, Foto und Kaufpreis erfassen — bei Einschlüssen auswählen, pro KG Nutzungsstatistik (Einschlüsse, Gesamtdauer, Kosten/Stunde) in Statistik-Seite"
+      },
+      {
+        "type": "feat",
+        "text": "Admin: bestimmten KG bei Verschluss-Anforderung verlangen — falscher KG wird automatisch im Strafbuch vermerkt"
+      }
     ]
   },
   {
     "version": "4.11.13",
     "date": "2026-04-14",
     "changes": [
-      { "type": "feat", "text": "Foto drehen bei Kontrolle erfassen — Rotations-Buttons auch beim Prüfungs-Formular; Bildrotation wird beim Code-Erkennen (Claude Vision) berücksichtigt" }
+      {
+        "type": "feat",
+        "text": "Foto drehen bei Kontrolle erfassen — Rotations-Buttons auch beim Prüfungs-Formular; Bildrotation wird beim Code-Erkennen (Claude Vision) berücksichtigt"
+      }
     ]
   },
   {
     "version": "4.11.12",
     "date": "2026-04-11",
     "changes": [
-      { "type": "perf", "text": "Instanz-Aktivität wird im Hintergrund protokolliert (letzte Nutzung) — ermöglicht Übersicht im Admin-Portal" }
+      {
+        "type": "perf",
+        "text": "Instanz-Aktivität wird im Hintergrund protokolliert (letzte Nutzung) — ermöglicht Übersicht im Admin-Portal"
+      }
     ]
   },
   {
     "version": "4.11.11",
     "date": "2026-04-10",
     "changes": [
-      { "type": "fix", "text": "Client-Router-Cache deaktiviert: verhinderte nach Rück-Navigation veraltete Schloss-Zustände (z.B. «Offen» im Header, aber Verschluss-Button deaktiviert)" }
+      {
+        "type": "fix",
+        "text": "Client-Router-Cache deaktiviert: verhinderte nach Rück-Navigation veraltete Schloss-Zustände (z.B. «Offen» im Header, aber Verschluss-Button deaktiviert)"
+      }
     ]
   },
   {
     "version": "4.11.10",
     "date": "2026-04-10",
     "changes": [
-      { "type": "perf", "text": "JWT-Rolle wird nur noch alle 5 Minuten aus der DB geprüft statt bei jedem Request — reduziert DB-Last spürbar" }
+      {
+        "type": "perf",
+        "text": "JWT-Rolle wird nur noch alle 5 Minuten aus der DB geprüft statt bei jedem Request — reduziert DB-Last spürbar"
+      }
     ]
   },
   {
     "version": "4.11.9",
     "date": "2026-04-10",
     "changes": [
-      { "type": "feat", "text": "Vollbild-Bildanzeige: Bild kann per Schaltfläche links/rechts gedreht werden – nützlich wenn Siegel kopfüber im Foto hängt" },
-      { "type": "fix", "text": "Siegel-Erkennung verbessert: besseres Modell (Sonnet), Prompt beschreibt Kunststoff-Sicherheitssiegel mit Drehung und führenden Nullen" }
+      {
+        "type": "feat",
+        "text": "Vollbild-Bildanzeige: Bild kann per Schaltfläche links/rechts gedreht werden – nützlich wenn Siegel kopfüber im Foto hängt"
+      },
+      {
+        "type": "fix",
+        "text": "Siegel-Erkennung verbessert: besseres Modell (Sonnet), Prompt beschreibt Kunststoff-Sicherheitssiegel mit Drehung und führenden Nullen"
+      }
     ]
   },
   {
     "version": "4.11.8",
     "date": "2026-04-10",
     "changes": [
-      { "type": "security", "text": "IP-Spoofing-Schutz: X-Forwarded-For liest jetzt korrekt den letzten Eintrag (Traefik-kompatibel) — betrifft Login-Rate-Limit, Access-Log und Passwort-Reset" },
-      { "type": "security", "text": "Passwort ändern erfordert jetzt die Eingabe des aktuellen Passworts" },
-      { "type": "security", "text": "Demo-Endpoint nur noch aktiv wenn ENABLE_DEMO=true gesetzt ist" },
-      { "type": "security", "text": "Admin-Route /api/settings/reinigung entfernt (war ohne Admin-Guard erreichbar)" },
-      { "type": "security", "text": "Vorgaben PATCH/DELETE: Admin kann nur noch Vorgaben von eigenen Benutzern bearbeiten (USE_ADMIN_RELATIONSHIPS)" }
+      {
+        "type": "security",
+        "text": "IP-Spoofing-Schutz: X-Forwarded-For liest jetzt korrekt den letzten Eintrag (Traefik-kompatibel) — betrifft Login-Rate-Limit, Access-Log und Passwort-Reset"
+      },
+      {
+        "type": "security",
+        "text": "Passwort ändern erfordert jetzt die Eingabe des aktuellen Passworts"
+      },
+      {
+        "type": "security",
+        "text": "Demo-Endpoint nur noch aktiv wenn ENABLE_DEMO=true gesetzt ist"
+      },
+      {
+        "type": "security",
+        "text": "Admin-Route /api/settings/reinigung entfernt (war ohne Admin-Guard erreichbar)"
+      },
+      {
+        "type": "security",
+        "text": "Vorgaben PATCH/DELETE: Admin kann nur noch Vorgaben von eigenen Benutzern bearbeiten (USE_ADMIN_RELATIONSHIPS)"
+      }
     ]
   },
   {
