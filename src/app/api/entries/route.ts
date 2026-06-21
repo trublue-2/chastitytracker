@@ -7,6 +7,9 @@ import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
+import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
+import { checkDeviceInPhoto } from "@/lib/detectDevice";
+import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { sendMail, escHtml } from "@/lib/mail";
@@ -210,6 +213,32 @@ export async function POST(req: NextRequest) {
     trackEvent("kontrolle.fulfilled", { type });
   } else {
     trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
+  }
+
+  // Kontroll-Geräte-Check (advisory): ist das aktuell verschlossene Gerät im Kontroll-Foto sichtbar?
+  // Server-seitig + fire-and-forget (blockiert die Antwort NICHT); Ergebnis landet als entry.deviceCheck,
+  // das der Keyholder sieht. Läuft nur, wenn der Nutzer verschlossen ist und ein Gerät hinterlegt hat.
+  if (type === "PRUEFUNG" && imageUrl) {
+    const entryId = entry.id;
+    const userId = session.user.id;
+    const photoUrl = imageUrl;
+    (async () => {
+      try {
+        const lockEntry = await prisma.entry.findFirst({
+          where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+          orderBy: { startTime: "desc" },
+          select: { type: true, deviceId: true },
+        });
+        if (lockEntry?.type !== "VERSCHLUSS" || !lockEntry.deviceId) return; // nicht verschlossen / kein Gerät
+        const references = await gatherDeviceReferences(userId);
+        const result = await checkDeviceInPhoto(photoUrl, references, lockEntry.deviceId);
+        if (result) {
+          await prisma.entry.update({ where: { id: entryId }, data: { deviceCheck: result.status, deviceCheckNote: result.note } });
+        }
+      } catch (e) {
+        structuredLog("detect-device", "kontrolle_check_failed", { entryId, error: (e as Error).message });
+      }
+    })();
   }
 
   // Notify admins based on per-user NotificationPreference (fire-and-forget)

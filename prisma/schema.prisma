@@ -356,6 +356,11 @@ model Entry {
   orgasmusArt         String?
   kontrollCode        String?
   verifikationStatus  String?
+  // Geräte-Check der Kontrolle (PRUEFUNG): wird das verschlossene Gerät im Foto erkannt?
+  // null = nicht geprüft · "ok" = passendes Gerät sichtbar · "wrong" = anderes Gerät · "missing" = kein Gerät.
+  // Advisory (Keyholder sieht es), blockiert nicht. Server-seitig per Vision gesetzt.
+  deviceCheck         String?
+  deviceCheckNote     String?              // kurzer Grund / erkanntes Gerät
   deviceId            String?
   device              Device?              @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   createdAt           DateTime             @default(now())

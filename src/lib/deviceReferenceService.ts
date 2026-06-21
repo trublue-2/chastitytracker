@@ -2,7 +2,59 @@ import { readFile, writeFile } from "fs/promises";
 import { join, basename } from "path";
 import { prisma } from "@/lib/prisma";
 import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
+import type { DeviceReference } from "@/lib/detectDevice";
 import type { ServiceResult } from "@/lib/serviceResult";
+
+/** Max. Referenzbilder je Gerät im Vision-Prompt (Latenz/Prompt-Größe begrenzen). */
+const MAX_REFS_PER_DEVICE = 5;
+
+/**
+ * Sammelt die Referenzbilder JE aktivem KG-Gerät für die Vision-Erkennung: bevorzugt kuratierte
+ * DeviceReferenceImage (Cap 5), sonst Fallback (Geräte-Foto + letzte 2 Verschluss-Fotos). Liefert
+ * einen Eintrag pro Gerät (auch ohne Bilder → leere imageUrls). Geteilt von /api/detect-device
+ * und dem Kontroll-Geräte-Check.
+ */
+export async function gatherDeviceReferences(userId: string): Promise<DeviceReference[]> {
+  const devices = await prisma.device.findMany({
+    where: { userId, archivedAt: null, OR: [{ category: { isBuiltIn: true } }, { categoryId: null }] },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, imageUrl: true },
+  });
+  if (devices.length === 0) return [];
+
+  const curatedByDevice = await Promise.all(
+    devices.map((d) =>
+      prisma.deviceReferenceImage.findMany({
+        where: { deviceId: d.id },
+        select: { imageUrl: true },
+        orderBy: { createdAt: "desc" },
+        take: MAX_REFS_PER_DEVICE,
+      })
+    )
+  );
+  // Fallback-Fotos NUR für Geräte ohne kuratierte Referenzen.
+  const fallbackByDevice = await Promise.all(
+    devices.map((d, i) =>
+      curatedByDevice[i].length > 0
+        ? Promise.resolve([] as { imageUrl: string | null }[])
+        : prisma.entry.findMany({
+            where: { userId, type: "VERSCHLUSS", deviceId: d.id, imageUrl: { not: null } },
+            select: { imageUrl: true },
+            orderBy: { startTime: "desc" },
+            take: 2,
+          })
+    )
+  );
+
+  return devices.map((device, i) => {
+    const curated = curatedByDevice[i].map((r) => r.imageUrl);
+    if (curated.length > 0) return { deviceId: device.id, deviceName: device.name, imageUrls: curated };
+    const imageUrls: string[] = [];
+    if (device.imageUrl) imageUrls.push(device.imageUrl);
+    for (const e of fallbackByDevice[i]) if (e.imageUrl) imageUrls.push(e.imageUrl);
+    return { deviceId: device.id, deviceName: device.name, imageUrls: imageUrls.slice(0, MAX_REFS_PER_DEVICE) };
+  });
+}
 
 /**
  * Kuratierte Geräte-Referenzfotos („Trainingsmaterial" für die Geräte-Erkennung).

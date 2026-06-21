@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ImageOff, CheckCircle2 } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import Badge from "@/app/components/Badge";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
@@ -24,6 +25,9 @@ export interface AdminKontrolleRowData {
   entryId: string | null;
   anforderungStatus: AnforderungStatus;
   verifikationStatus: VerifikationStatus | null;
+  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" · "missing". */
+  deviceCheck: "ok" | "wrong" | "missing" | null;
+  deviceCheckNote: string | null;
 }
 
 interface Labels {
@@ -148,6 +152,9 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
                 {row.username && <span className="font-semibold text-foreground text-sm">{row.username}</span>}
                 {row.pillLabel && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${row.pillCls}`}>{row.pillLabel}</span>}
                 {row.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{row.code}</span>}
+                {row.deviceCheck === "ok" && <Badge variant="ok" size="sm" label={t("deviceCheckOk")} />}
+                {row.deviceCheck === "wrong" && <Badge variant="warn" size="sm" label={row.deviceCheckNote ? `${t("deviceCheckWrong")}: ${row.deviceCheckNote}` : t("deviceCheckWrong")} />}
+                {row.deviceCheck === "missing" && <Badge variant="warn" size="sm" label={t("deviceCheckMissing")} />}
               </div>
               <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                 {row.fulfilledAtStr && <span>{labels.fulfilledLabel}: {row.fulfilledAtStr}</span>}

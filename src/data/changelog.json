@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.34.0",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontrolle prüft jetzt auch das GERÄT, nicht nur den Code: Aus dem Kontroll-Foto wird server-seitig per Vision erkannt, ob das aktuell verschlossene Gerät sichtbar ist. Ergebnis als Hinweis für den Keyholder in der Kontroll-Liste (✓ Gerät erkannt / ⚠ falsches Gerät / ⚠ kein Gerät) — advisory, blockiert nicht. Läuft non-blocking (verzögert die Einreichung nicht); nutzt die kuratierten Geräte-Referenzfotos und das lokale ODER Anthropic-Modell. Auch bei nur einem Gerät muss es im Foto sichtbar sein."
+      }
+    ]
+  },
+  {
     "version": "4.33.1",
     "date": "2026-06-21",
     "changes": [
