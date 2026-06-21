@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.31.2",
+    "date": "2026-06-21",
+    "changes": [
+      { "type": "fix", "text": "MCP: get_overview lieferte die Reinigungs-ZEITFENSTER nicht aus — der KI-Assistent schloss daraus fälschlich, Reinigung sei „nicht an Uhrzeiten gebunden\". get_overview.reinigung enthält jetzt windows (erlaubte HH:MM-Fenster), windowOpenNow (gerade offen bis) und usedToday (heute verbrauchte Öffnungen); explain_model erklärt die Fenster. Der Geräte-Wechsel-Hinweis (verbraucht eine Reinigungsöffnung) war korrekt." }
+    ]
+  },
+  {
     "version": "4.31.1",
     "date": "2026-06-21",
     "changes": [

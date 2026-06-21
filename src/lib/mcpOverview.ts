@@ -5,6 +5,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, subVisibleKontrolleWhere } from "@/lib/queries";
+import { parseReinigungsFenster, aktivesReinigungsFenster, reinigungVerbrauchtHeute } from "@/lib/reinigungService";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
@@ -34,9 +35,20 @@ export interface TrackerOverview {
   };
   wearingHoursKg: { today: number; week: number; month: number };
   trainingGoalKg: (GoalProgress & { note: string | null }) | null;
-  /** Cleaning-pause rules. maxPausesPerDay = max cleaning OPENINGS per day (a COUNT, not minutes;
-   *  null = unlimited). maxMinutesPerBreak = max minutes per single pause. */
-  reinigung: { allowed: boolean; maxMinutesPerBreak: number; maxPausesPerDay: number | null };
+  /** Cleaning-pause rules.
+   *  - windows: allowed daily TIME WINDOWS (HH:MM, CH local time). EMPTY = NOT time-bound (any time of day).
+   *  - windowOpenNow: the currently open window (until = its end HH:MM), or null if outside all windows.
+   *  - maxPausesPerDay = max cleaning OPENINGS per day (a COUNT, not minutes; null = unlimited).
+   *  - usedToday = openings already used today (resets at CH midnight). maxMinutesPerBreak = max minutes per opening.
+   *  A DEVICE CHANGE runs through this same cleaning path and consumes one opening. */
+  reinigung: {
+    allowed: boolean;
+    windows: { start: string; end: string }[];
+    windowOpenNow: { until: string } | null;
+    maxMinutesPerBreak: number;
+    maxPausesPerDay: number | null;
+    usedToday: number;
+  };
   /** Non-KG tracking categories (Plug, Collar, …) — wearing hours + their training goal (null if none). */
   categories: {
     name: string;
@@ -80,28 +92,29 @@ const goalProgress = (
 });
 
 /** Resolves a username to its id and Reinigung settings. Throws if the user does not exist. */
-async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number; keyholderInstructions: string | null }> {
+async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number; reinigungsFensterRaw: unknown; keyholderInstructions: string | null }> {
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, mcpKeyholderInstructions: true },
+    select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, mcpKeyholderInstructions: true },
   });
   if (!user) throw new Error(`User not found: ${username}`);
   return {
     userId: user.id,
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
     reinigungMaxProTag: user.reinigungMaxProTag ?? 0,
+    reinigungsFensterRaw: user.reinigungsFenster,
     keyholderInstructions: user.mcpKeyholderInstructions ?? null,
   };
 }
 
 /** Builds the overview for a user identified by username. Throws if the user does not exist. */
 export async function buildOverview(username: string): Promise<TrackerOverview> {
-  const { userId, reinigung, reinigungMaxProTag, keyholderInstructions } = await loadUserContext(username);
+  const { userId, reinigung, reinigungMaxProTag, reinigungsFensterRaw, keyholderInstructions } = await loadUserContext(username);
   const now = new Date();
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
-  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes, openOrgasmusAnf] = await Promise.all([
+  const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes, openOrgasmusAnf, cleaningUsedToday] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -122,6 +135,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     prisma.strafeRecord.count({ where: { userId, status: "PUNISHED" } }),
     prisma.keyholderNote.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
     getActiveOrgasmusAnforderung(userId, now),
+    reinigungVerbrauchtHeute(userId, now),
   ]);
 
   // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
@@ -152,6 +166,10 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
   // ── Wearing hours + KG training goal ──
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
+  const cleaningWindowEnd = aktivesReinigungsFenster(reinigungsFensterRaw, now); // "HH:MM" oder null
+
+
+
   return {
     schemaVersion: 1 as const,
     user: username,
@@ -171,8 +189,11 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     } : null,
     reinigung: {
       allowed: reinigung.erlaubt,
+      windows: parseReinigungsFenster(reinigungsFensterRaw),
+      windowOpenNow: cleaningWindowEnd ? { until: cleaningWindowEnd } : null,
       maxMinutesPerBreak: reinigung.maxMinuten,
       maxPausesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
+      usedToday: cleaningUsedToday,
     },
     categories: categoryGoals.map((c) => ({
       name: c.name,

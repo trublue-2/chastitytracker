@@ -39,6 +39,13 @@ sie verhindert die häufigsten Fehldeutungen.
 - \`reinigung.maxPausesPerDay\`: Max-**ANZAHL** Reinigungsöffnungen pro **Kalendertag** (CH).
   **Das ist ein Stückzähler, KEINE Minutenangabe.** (Früher hieß das Feld irreführend
   \"maxMinutesPerDay\" — ein \"2\" bedeutet *zwei Öffnungen/Tag*, nicht zwei Minuten.)
+- \`reinigung.usedToday\`: heute (CH-Tag) bereits verbrauchte Öffnungen. Rest = maxPausesPerDay − usedToday.
+- \`reinigung.windows\`: erlaubte Tages-**Zeitfenster** (HH:MM, CH-Zeit). **Sind welche gesetzt, ist die
+  Reinigung an diese Uhrzeiten GEBUNDEN** — außerhalb ist keine Öffnung erlaubt. Eine **leere** Liste
+  bedeutet: KEINE Uhrzeit-Bindung (jederzeit, nur durch das Tageskontingent begrenzt). Behaupte also
+  NICHT pauschal \"nicht an Uhrzeiten gebunden\" — prüf erst \`windows\`.
+- \`reinigung.windowOpenNow\`: das gerade offene Fenster (\`until\` = Ende HH:MM) oder \`null\`, wenn die
+  aktuelle Uhrzeit außerhalb aller Fenster liegt.
 - Eine **Reinigungsöffnung** = ein \`OEFFNEN\` mit \`oeffnenGrund=REINIGUNG\`.
 - **\"pro Tag\" = CH-Kalendertag** (Reset um Mitternacht lokal), kein rollendes 24h-Fenster.
 
