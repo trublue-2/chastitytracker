@@ -8,7 +8,8 @@ import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
  * Sammelt die Referenzbilder JE aktivem KG-Gerät für die Vision-Erkennung: bevorzugt kuratierte
- * DeviceReferenceImage (Cap 5), sonst Fallback (Geräte-Foto + letzte 2 Verschluss-Fotos). Liefert
+ * DeviceReferenceImage (Cap = visionMaxRefsPerDevice(), Default 2), sonst Fallback (Geräte-Foto +
+ * letzte Verschluss-Fotos). Liefert
  * einen Eintrag pro Gerät (auch ohne Bilder → leere imageUrls). Geteilt von /api/detect-device
  * und dem Kontroll-Geräte-Check.
  */

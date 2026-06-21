@@ -7,7 +7,10 @@ const dlog = (label: string, fields: Record<string, unknown>) => structuredLog("
 
 /** Mindest-Abstand zwischen bestem und zweitbestem Gerät — sonst „zu unsicher" → kein Vorschlag. */
 function minMargin(): number {
-  const n = Number(process.env.EMBED_MIN_MARGIN);
+  // Leerer/blanker String (EMBED_MIN_MARGIN=) zählt als „nicht gesetzt" → Default, sonst würde
+  // Number("") = 0 die Sicherheits-Schwelle still deaktivieren.
+  const raw = process.env.EMBED_MIN_MARGIN;
+  const n = raw && raw.trim() ? Number(raw) : NaN;
   return Number.isFinite(n) ? n : 0.01;
 }
 
@@ -34,7 +37,10 @@ export async function detectDeviceByEmbedding(queryImageUrl: string, userId: str
   });
   const withRefs = devices.filter((d) => d.referenceImages.length > 0);
   if (withRefs.length === 0) return null;
-  if (withRefs.length === 1) return { deviceId: withRefs[0].id, deviceName: withRefs[0].name };
+  // Trivial nur bei GENAU einem aktiven Gerät überhaupt — dann ist die Zuordnung eindeutig.
+  // Bei mehreren Geräten (auch wenn nur eines Referenzen hat) erst das Query-Bild einbetten und
+  // vergleichen, statt blind das einzige referenzierte Gerät zurückzugeben.
+  if (devices.length === 1) return { deviceId: withRefs[0].id, deviceName: withRefs[0].name };
 
   // Lazy: fehlende / Modell-fremde Referenz-Embeddings nachrechnen und persistieren.
   for (const d of withRefs) {

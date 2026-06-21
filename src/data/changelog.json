@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.36.1",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Robustheits-Korrekturen an der Embedding-Geräte-Erkennung (aus Code-Review): Referenz-Vektoren werden beim Speichern sauber kopiert (kein Speicher-Aliasing), eine korrupte Embedding-Zeile in der DB lässt die Erkennung nicht mehr abstürzen, ein leeres EMBED_MIN_MARGIN deaktiviert nicht mehr versehentlich die Sicherheits-Schwelle, und bei mehreren Geräten wird das Foto immer wirklich verglichen statt vorschnell das einzige referenzierte Gerät vorzuschlagen. Plus 34 neue Unit-Tests."
+      }
+    ]
+  },
+  {
     "version": "4.36.0",
     "date": "2026-06-21",
     "changes": [

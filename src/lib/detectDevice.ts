@@ -47,7 +47,9 @@ async function loadDeviceSet(references: DeviceReference[], queryImageUrl: strin
   ).filter((r): r is LoadedReference => r !== null);
   if (loadedRefs.length === 0) return null;
 
-  // Gesamt-Cap über alle Geräte (Latenz dominiert von der Bild-Anzahl): fairer Anteil je Gerät, min. 1.
+  // Bilder je Gerät begrenzen (Latenz dominiert von der Bild-Anzahl): fairer Anteil aus dem
+  // Gesamt-Budget, min. 1. Best-effort — bei mehr Geräten als visionMaxTotalRefs() bleibt es bei
+  // 1 Bild/Gerät, die Gesamtzahl kann das Budget dann übersteigen (jedes Gerät braucht ≥1 Bild).
   const perDevice = Math.max(1, Math.floor(visionMaxTotalRefs() / loadedRefs.length));
   for (const r of loadedRefs) r.images = r.images.slice(0, perDevice);
 

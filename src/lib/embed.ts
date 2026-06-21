@@ -22,9 +22,14 @@ export function embedModel(): string {
 
 /** Float32-Vektor → Buffer (Prisma Bytes) und zurück (Offset-/Alignment-sicher kopiert). */
 export function vectorToBytes(v: Float32Array): Buffer {
-  return Buffer.from(v.buffer, v.byteOffset, v.byteLength);
+  // Echte Kopie des Byte-Bereichs — NICHT Buffer.from(v.buffer, …), das wäre ein View, der den
+  // Vektor-Speicher aliast (Korruption, falls v ein Subarray ist oder später mutiert wird).
+  return Buffer.from(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength));
 }
 export function bytesToVector(b: Uint8Array): Float32Array {
+  // Korrupte/abgeschnittene Blobs (Länge kein Vielfaches von 4) → leerer Vektor statt RangeError,
+  // damit eine kaputte DB-Zeile nicht die ganze Erkennung wirft (Score 0 → effektiv ignoriert).
+  if (b.byteLength % 4 !== 0) return new Float32Array(0);
   const copy = new Uint8Array(b.byteLength);
   copy.set(b);
   return new Float32Array(copy.buffer);
