@@ -73,6 +73,15 @@ export interface JudgeOffenseResult {
  * - complete: setzt erledigtAt = now auf einer bestehenden Strafe (Loop schließen).
  * - reopen: entfernt das Urteil (revidieren).
  */
+/** Betreff + Text der „Strafe verhängt"-Benachrichtigung — geteilt von judgeOffense (MCP) und
+ *  der Admin-Strafe-Route, damit beide Wege identisch benachrichtigen. */
+export function strafeVerhaengtNotice(reason: string | null): { subject: string; message: string } {
+  return {
+    subject: "Strafe verhängt",
+    message: reason ? `Der Keyholder hat eine Strafe verhängt: ${reason}` : "Der Keyholder hat eine Strafe verhängt.",
+  };
+}
+
 export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult<JudgeOffenseResult>> {
   const now = new Date();
 
@@ -106,12 +115,7 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   });
 
   // Nur bei verhängter Strafe benachrichtigen (ein Verwerfen ist für den Nutzer belanglos).
-  if (status === "PUNISHED") {
-    await notifyUser(p.userId, {
-      subject: "Strafe verhängt",
-      message: text ? `Der Keyholder hat eine Strafe verhängt: ${text}` : "Der Keyholder hat eine Strafe verhängt.",
-    });
-  }
+  if (status === "PUNISHED") await notifyUser(p.userId, strafeVerhaengtNotice(text));
 
   return { ok: true, data: { status: status === "PUNISHED" ? "punished" : "dismissed", done: false } };
 }

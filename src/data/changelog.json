@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.31.1",
+    "date": "2026-06-21",
+    "changes": [
+      { "type": "fix", "text": "Konsistenz (via /simplify-Review gefunden): Eine über die Admin-UI verhängte Strafe benachrichtigte den Nutzer NICHT, über MCP aber schon. Jetzt benachrichtigen beide Wege identisch (gemeinsamer strafeVerhaengtNotice-Text)." }
+    ]
+  },
+  {
     "version": "4.31.0",
     "date": "2026-06-20",
     "changes": [

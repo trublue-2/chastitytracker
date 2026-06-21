@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { notifyUser } from "@/lib/notify";
+import { strafeVerhaengtNotice } from "@/lib/strafurteilService";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -52,6 +54,8 @@ export async function POST(req: Request) {
         judgedBy: "admin",
       },
     });
+    // Konsistent zur MCP (judgeOffense): bei verhängter Strafe den Nutzer benachrichtigen.
+    if (status === "PUNISHED") await notifyUser(userId, strafeVerhaengtNotice(reason?.trim() || null));
     return NextResponse.json(record, { status: 201 });
   } catch (e: unknown) {
     if (isUniqueConstraintOn(e, "refId")) {
