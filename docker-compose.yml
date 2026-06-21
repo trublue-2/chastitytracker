@@ -8,6 +8,12 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    # Bildverifikation: Default = Anthropic-API. Für lokales Modell in .env setzen:
+    #   VERIFY_PROVIDER=local
+    #   LOCAL_VISION_BASE_URL=http://<mac-tailscale-name>:11434/v1   # Ollama auf dem Mac, via Tailscale
+    #   LOCAL_VISION_MODEL=qwen2.5-vl:7b
+    # Ollama läuft NICHT in diesem Container, sondern nativ auf dem Mac (Metal-GPU).
+    # Siehe docs/local-vision.md.
     volumes:
       # SQLite-Datenbank + Foto-Uploads persistent speichern
       # (Uploads landen intern unter /app/data/uploads)

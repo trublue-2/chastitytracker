@@ -60,7 +60,8 @@ npx playwright test --ui                     # interaktiver UI-Mode
 - `src/lib/mail.ts` – nodemailer-Wrapper (`sendMail`)
 - `src/lib/push.ts` – Web Push Notifications via VAPID (`sendPushToUser()`)
 - `src/lib/webauthn.ts` – Passkey/WebAuthn Konfiguration (rpId, rpOrigin)
-- `src/lib/verifyCode.ts` – Claude Vision: handschriftlichen Code im Foto erkennen + Siegel-Erkennung
+- `src/lib/verifyCode.ts` – Vision: handschriftlichen Code im Foto erkennen + Siegel-Erkennung (via `src/lib/vision/`)
+- `src/lib/vision/` – Provider-Abstraktion für Bildverifikation; `VERIFY_PROVIDER=anthropic|local` umschaltbar (lokal = Ollama, OpenAI-kompatibel). Siehe `docs/local-vision.md`. Ohne konfigurierten Provider greift der lokale Tesseract-OCR-/Schärfe-Fallback (`src/lib/ocr.ts`, `src/lib/imageReadability.ts`)
 - `src/lib/telemetry.ts` – optionale Telemetrie (`TELEMETRY_URL` + `TELEMETRY_INSTANCE_ID`)
 - `src/lib/serverLog.ts` – Server-seitiges Logging
 

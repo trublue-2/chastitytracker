@@ -4,7 +4,7 @@ import sharp from "sharp";
 import type { Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES } from "@/lib/imageUtils";
-import { anthropic } from "@/lib/anthropic";
+import { visionComplete, visionConfigured } from "@/lib/vision";
 import { localReadDigits } from "@/lib/ocr";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
@@ -70,8 +70,10 @@ export async function verifyKontrolleCodeDetailed(
   rotation: Rotation = 0
 ): Promise<VerifyDetailedResult | null> {
   const codeLen = expectedCode.length;
-  if (!process.env.ANTHROPIC_API_KEY) {
-    vlog("verify:no_api_key", { imageUrl, codeLen });
+  // Handschrift → kein lokales OCR-Fallback (Tesseract kann das nicht zuverlässig). Ohne
+  // konfigurierten Vision-Provider bleibt die Verifikation manuell (Keyholder).
+  if (!visionConfigured()) {
+    vlog("verify:not_configured", { imageUrl, codeLen });
     return null;
   }
   try {
@@ -81,26 +83,21 @@ export async function verifyKontrolleCodeDetailed(
       return null;
     }
 
-    vlog("verify:anthropic_call", { codeLen, mediaType: img.mediaType, rotation });
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
-      messages: [
+    vlog("verify:vision_call", { codeLen, mediaType: img.mediaType, rotation });
+    const response = await visionComplete({
+      task: "code-verify",
+      maxTokens: 150,
+      content: [
+        { type: "image", mediaType: img.mediaType, base64: img.base64 },
         {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
-            {
-              type: "text",
-              text: `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.\nThe target number may appear in any of these forms:\n• handwritten on a slip of paper or card,\n• printed/typed on a tag, sticker or label,\n• printed on a ${SEAL_VOCAB}\nNote: in handwriting "1" often looks like "7" and vice versa — read carefully.\nReply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false, "reason": "<brief reason in German if match is false, else null>"}.\nIf you find a different number than ${expectedCode}, set detected to that other number and match to false.\nPossible reasons (pick the most fitting, keep it short): "Kein Code sichtbar", "Bild zu unscharf", "Code verdeckt oder abgeschnitten", "Schrift nicht lesbar", "Falscher Code sichtbar: <detected>", "Bild zu dunkel", "Kein Code gefunden".`,
-            },
-          ],
+          type: "text",
+          text: `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.\nThe target number may appear in any of these forms:\n• handwritten on a slip of paper or card,\n• printed/typed on a tag, sticker or label,\n• printed on a ${SEAL_VOCAB}\nNote: in handwriting "1" often looks like "7" and vice versa — read carefully.\nReply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false, "reason": "<brief reason in German if match is false, else null>"}.\nIf you find a different number than ${expectedCode}, set detected to that other number and match to false.\nPossible reasons (pick the most fitting, keep it short): "Kein Code sichtbar", "Bild zu unscharf", "Code verdeckt oder abgeschnitten", "Schrift nicht lesbar", "Falscher Code sichtbar: <detected>", "Bild zu dunkel", "Kein Code gefunden".`,
         },
       ],
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    vlog("verify:anthropic_response", { requestId: response.id, stopReason: response.stop_reason, textPreview: redactDigits(text.slice(0, 200)) });
+    const text = response.text;
+    vlog("verify:vision_response", { requestId: response.requestId, stopReason: response.stopReason, textPreview: redactDigits(text.slice(0, 200)) });
 
     const policyKeywords = ["I'm unable", "I cannot", "I can't", "inappropriate", "violates", "policy", "explicit", "sorry, I"];
     if (!text.includes("{") && policyKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()))) {
@@ -122,14 +119,13 @@ export async function verifyKontrolleCodeDetailed(
       return { detected: null, match: false, reason: null };
     }
     const detected: string | null = parsed.detected ?? null;
-    // Normalize before comparing — Claude occasionally wraps the number with whitespace or
+    // Normalize before comparing — the model occasionally wraps the number with whitespace or
     // surrounding punctuation despite the strict JSON contract.
     const normalize = (s: string) => s.trim().replace(/\D/g, "");
     const detectedNorm = detected ? normalize(detected) : null;
     const exactDetectedMatch = detectedNorm !== null && detectedNorm === expectedCode;
-    // Override Claude's match=false when detected equals the expected code — observed in
-    // 2026-05 that the model returns match=false despite reading the correct digits, presumably
-    // due to seal-detection prompt phrasing.
+    // Override match=false when detected equals the expected code — observed in 2026-05 that the
+    // model returns match=false despite reading the correct digits, presumably due to prompt phrasing.
     const claudeOverridden = parsed.match !== true && exactDetectedMatch;
     const isMatch = parsed.match === true || exactDetectedMatch || (detected !== null && fuzzyMatch(detected, expectedCode));
     vlog("verify:result", { codeLen, hasDetected: detected !== null, detectedLen: detected?.length ?? 0, isMatch, claudeOverridden, reason: parsed.reason ?? null });
@@ -154,123 +150,87 @@ export async function verifyKontrolleCode(
 }
 
 /**
- * Tries to detect a 5–8 digit numbered seal from an image.
- * Returns the detected number string, or null if none found.
- * @param rotation  Clockwise rotation in degrees applied before sending to Claude.
+ * Gemeinsames Gerüst der Ziffern-Erkennung aus einem Code-/Siegelbild: ohne Vision-Provider
+ * lokales OCR (min..max Ziffern), sonst visionComplete (task seal-detect) → JSON {detected}
+ * → Längen-/Format-Validierung. Genutzt von detectSealNumber (Plombe) und detectLockboxCode (Dial).
  */
-export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    // Ohne KI: lokales OCR (gedruckte Plombenziffern, 5–8). Kein Datenabfluss.
-    vlog("seal:no_api_key_local_ocr", { imageUrl });
-    return localReadDigits(imageUrl, { rotation, minLen: 5, maxLen: 8 });
+async function detectSealDigits(
+  imageUrl: string,
+  rotation: Rotation,
+  opts: { minLen: number; maxLen: number; prompt: string; logPrefix: string },
+): Promise<string | null> {
+  const { minLen, maxLen, prompt, logPrefix } = opts;
+
+  if (!visionConfigured()) {
+    // Kein Vision-Provider → lokales OCR (gedruckte Ziffern). Kein Datenabfluss; Dials oft schwach → ggf. null.
+    vlog(`${logPrefix}:no_provider_local_ocr`, { imageUrl });
+    return localReadDigits(imageUrl, { rotation, minLen, maxLen });
   }
   try {
     const img = await loadImageBuffer(imageUrl, rotation);
     if (!img) {
-      vlog("seal:image_load_null", { imageUrl, rotation });
+      vlog(`${logPrefix}:image_load_null`, { imageUrl, rotation });
       return null;
     }
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 100,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
-            {
-              type: "text",
-              text: `Look for a ${SEAL_VOCAB}\nThe number is usually 5–8 digits.\nReply with JSON only: {"detected": "<number with leading zeros or null>"}. If no seal or number is visible, use null.`,
-            },
-          ],
-        },
+    const response = await visionComplete({
+      task: "seal-detect",
+      maxTokens: 100,
+      content: [
+        { type: "image", mediaType: img.mediaType, base64: img.base64 },
+        { type: "text", text: prompt },
       ],
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    vlog("seal:anthropic_response", { requestId: response.id, stopReason: response.stop_reason, textPreview: redactDigits(text.slice(0, 200)) });
+    const text = response.text;
+    vlog(`${logPrefix}:vision_response`, { requestId: response.requestId, stopReason: response.stopReason, textPreview: redactDigits(text.slice(0, 200)) });
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      vlog("seal:no_json", { textPreview: redactDigits(text.slice(0, 200)) });
+      vlog(`${logPrefix}:no_json`, { textPreview: redactDigits(text.slice(0, 200)) });
       return null;
     }
     const result = JSON.parse(jsonMatch[0]);
     const detected = result.detected;
     if (!detected || typeof detected !== "string") {
-      vlog("seal:no_detection", { detectedType: typeof detected });
+      vlog(`${logPrefix}:no_detection`, { detectedType: typeof detected });
       return null;
     }
-    if (!/^\d{5,8}$/.test(detected)) {
-      vlog("seal:invalid_format", { detectedLen: detected.length });
+    if (!new RegExp(`^\\d{${minLen},${maxLen}}$`).test(detected)) {
+      vlog(`${logPrefix}:invalid_format`, { detectedLen: detected.length });
       return null;
     }
     return detected;
   } catch (e) {
     const err = e as { status?: number; message?: string; name?: string };
-    vlog("seal:exception", { imageUrl, name: err.name, status: err.status, message: err.message });
+    vlog(`${logPrefix}:exception`, { imageUrl, name: err.name, status: err.status, message: err.message });
     return null;
   }
 }
 
 /**
+ * Tries to detect a 5–8 digit numbered seal (Plombe) from an image.
+ * Returns the detected number string, or null if none found.
+ * @param rotation  Clockwise rotation in degrees applied before sending to the vision model.
+ */
+export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
+  return detectSealDigits(imageUrl, rotation, {
+    minLen: 5,
+    maxLen: 8,
+    logPrefix: "seal",
+    prompt: `Look for a ${SEAL_VOCAB}\nThe number is usually 5–8 digits.\nReply with JSON only: {"detected": "<number with leading zeros or null>"}. If no seal or number is visible, use null.`,
+  });
+}
+
+/**
  * Bildersafe: liest den Code eines ZAHLEN-VORHÄNGESCHLOSSES / einer Schlüsselbox (Dial-/Rolldials),
  * nicht einer Plombe. Typisch 3–4 (bis 8) Ziffern an der Markierungslinie.
- * Returns the detected digit string, or null if none readable.
  */
 export async function detectLockboxCode(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    // Ohne KI: lokales OCR (3–8). Bei geprägten Metall-Dials oft schwach → ggf. null (Best Effort).
-    vlog("lockbox:no_api_key_local_ocr", { imageUrl });
-    return localReadDigits(imageUrl, { rotation, minLen: 3, maxLen: 8 });
-  }
-  try {
-    const img = await loadImageBuffer(imageUrl, rotation);
-    if (!img) {
-      vlog("lockbox:image_load_null", { imageUrl, rotation });
-      return null;
-    }
-
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 100,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
-            {
-              type: "text",
-              text: `This is a combination padlock or key lockbox with rotating number dials (Zahlenschloss). Read the digits currently set at the indicator — the row aligned with the marker line (often red) / shown in the small windows. Read them in order (top→bottom for stacked dials, left→right for a row). The code is usually 3–4 digits (up to 8). Ignore the partially-visible neighbouring digits above/below the line.\nReply with JSON only: {"detected": "<the digits, with leading zeros, or null>"}. If you cannot read the digits, use null.`,
-            },
-          ],
-        },
-      ],
-    });
-
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    vlog("lockbox:response", { requestId: response.id, stopReason: response.stop_reason, textPreview: redactDigits(text.slice(0, 200)) });
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      vlog("lockbox:no_json", { textPreview: redactDigits(text.slice(0, 200)) });
-      return null;
-    }
-    const result = JSON.parse(jsonMatch[0]);
-    const detected = result.detected;
-    if (!detected || typeof detected !== "string") {
-      vlog("lockbox:no_detection", { detectedType: typeof detected });
-      return null;
-    }
-    if (!/^\d{3,8}$/.test(detected)) {
-      vlog("lockbox:invalid_format", { detectedLen: detected.length });
-      return null;
-    }
-    return detected;
-  } catch (e) {
-    const err = e as { status?: number; message?: string; name?: string };
-    vlog("lockbox:exception", { imageUrl, name: err.name, status: err.status, message: err.message });
-    return null;
-  }
+  return detectSealDigits(imageUrl, rotation, {
+    minLen: 3,
+    maxLen: 8,
+    logPrefix: "lockbox",
+    prompt: `This is a combination padlock or key lockbox with rotating number dials (Zahlenschloss). Read the digits currently set at the indicator — the row aligned with the marker line (often red) / shown in the small windows. Read them in order (top→bottom for stacked dials, left→right for a row). The code is usually 3–4 digits (up to 8). Ignore the partially-visible neighbouring digits above/below the line.\nReply with JSON only: {"detected": "<the digits, with leading zeros, or null>"}. If you cannot read the digits, use null.`,
+  });
 }

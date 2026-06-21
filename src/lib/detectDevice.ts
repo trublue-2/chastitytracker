@@ -1,7 +1,6 @@
-import type Anthropic from "@anthropic-ai/sdk";
-import { anthropic } from "@/lib/anthropic";
 import { loadUploadedImage, type ImageData } from "@/lib/imageUtils";
 import { structuredLog } from "@/lib/serverLog";
+import { visionComplete, visionConfigured, type VisionBlock } from "@/lib/vision";
 
 function dlog(label: string, fields: Record<string, unknown>) {
   structuredLog("detect-device", label, fields);
@@ -35,6 +34,13 @@ export async function detectDevice(
   newImageUrl: string,
   references: DeviceReference[]
 ): Promise<DetectedDevice | null> {
+  // Geräte-Erkennung ist Bild-Verständnis (kein OCR-Fallback). Ohne Vision-Provider sauber
+  // aussteigen — konsistent zu verifyKontrolleCode/detectSealNumber, statt blind zu werfen.
+  if (!visionConfigured()) {
+    dlog("detect:not_configured", { newImageUrl });
+    return null;
+  }
+
   // Load reference images for each device (parallel)
   const loadedRefs: LoadedReference[] = (
     await Promise.all(
@@ -68,7 +74,7 @@ export async function detectDevice(
   }));
 
   // Build message content: reference images grouped by device, then the query image
-  const content: Anthropic.MessageParam["content"] = [];
+  const content: VisionBlock[] = [];
 
   let introText =
     "You are identifying which chastity device appears in the QUERY image.\n\nKnown devices:\n";
@@ -83,18 +89,12 @@ export async function detectDevice(
       text: `Reference images for ${deviceKeys[i].key} ("${loadedRefs[i].deviceName}"):`,
     });
     for (const img of loadedRefs[i].images) {
-      content.push({
-        type: "image",
-        source: { type: "base64", media_type: img.mediaType, data: img.base64 },
-      });
+      content.push({ type: "image", mediaType: img.mediaType, base64: img.base64 });
     }
   }
 
   content.push({ type: "text", text: "QUERY image (the photo to identify):" });
-  content.push({
-    type: "image",
-    source: { type: "base64", media_type: newImg.mediaType, data: newImg.base64 },
-  });
+  content.push({ type: "image", mediaType: newImg.mediaType, base64: newImg.base64 });
 
   const validKeys = deviceKeys.map((d) => `"${d.key}"`).join(", ");
   content.push({
@@ -103,16 +103,15 @@ export async function detectDevice(
   });
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 50,
-      messages: [{ role: "user", content }],
+    const response = await visionComplete({
+      task: "device-detect",
+      maxTokens: 50,
+      content,
     });
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const text = response.text;
     dlog("detect:response", {
-      requestId: response.id,
+      requestId: response.requestId,
       textPreview: text.slice(0, 200),
       refCount: loadedRefs.length,
     });

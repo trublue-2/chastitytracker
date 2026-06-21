@@ -1,0 +1,9 @@
+{
+  "_hinweis": "Kopiere diese Datei nach scripts/bench-vision.manifest.json und trage echte Werte ein. image = Dateiname in data/uploads/. expected = Soll-Wert (optional). rotation = 0|90|180|270 (optional).",
+  "codeVerify": [
+    { "image": "1774183326540-f8i9y7q4818.jpg", "expected": "12345", "rotation": 0 }
+  ],
+  "seal": [
+    { "image": "1774183582351-n6p3rze94xm.jpg", "expected": "0012345" }
+  ]
+}

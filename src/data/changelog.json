@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.32.0",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Bildverifikation ist jetzt provider-austauschbar: VERIFY_PROVIDER=anthropic (Default, unverändert) oder local (eigenes Modell via OpenAI-kompatiblem Endpoint wie Ollama/Qwen2.5-VL, datenschutzfreundlich — Fotos verlassen die Instanz nicht). Neue Abstraktion src/lib/vision/; verifyCode + detectDevice laufen darüber. Ohne konfigurierten Provider greift weiterhin der lokale Tesseract-OCR-/Schärfe-Fallback. Bench-Skript + docs/local-vision.md."
+      },
+      {
+        "type": "chore",
+        "text": "Aufräumen (/simplify): detectSealNumber/detectLockboxCode teilen ein gemeinsames Gerüst (detectSealDigits); detectDevice steigt ohne Vision-Provider sauber aus (visionConfigured-Gate) statt blind zu werfen."
+      }
+    ]
+  },
+  {
     "version": "4.31.4",
     "date": "2026-06-21",
     "changes": [

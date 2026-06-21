@@ -6,7 +6,8 @@ import { structuredLog } from "@/lib/serverLog";
 /**
  * Lokale, KI-freie Ziffern-OCR via Tesseract (im Docker-Image: `apk add tesseract-ocr`).
  * Datenschutzfreundlich — das Bild verlässt den Container NICHT. Gedacht als Fallback für
- * GEDRUCKTE Ziffern (Plomben/Siegel) wenn kein ANTHROPIC_API_KEY gesetzt ist. Für Handschrift
+ * GEDRUCKTE Ziffern (Plomben/Siegel) wenn KEIN Vision-Provider konfiguriert ist (weder Anthropic
+ * noch lokales Modell, siehe src/lib/vision/). Für Handschrift
  * (Kontroll-Codes) ungeeignet — dort bleibt es bei KI bzw. manueller Verifikation.
  *
  * Immer „best effort": fehlt das tesseract-Binary, schlägt es fehl oder liest es nichts

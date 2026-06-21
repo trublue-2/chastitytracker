@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ readable: await localCodeReadable(imageUrl, safeRotation) });
   }
 
-  // Tatsächliche Ziffern-Erkennung. Mit KI → Claude Vision; ohne KI fallen detectSealNumber/
-  // detectLockboxCode intern auf lokales Tesseract-OCR zurück (gedruckte Ziffern, kein Datenabfluss).
+  // Tatsächliche Ziffern-Erkennung. Mit Vision-Provider (Anthropic ODER lokales Modell) → visionComplete;
+  // ohne Provider fallen detectSealNumber/detectLockboxCode intern auf lokales Tesseract-OCR zurück.
   // lockbox=true → Zahlen-Vorhängeschloss / Schlüsselbox (3–8 Ziffern), sonst Plombe (5–8).
   const detected = lockbox
     ? await detectLockboxCode(imageUrl, safeRotation)
