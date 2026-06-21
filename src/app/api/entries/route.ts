@@ -233,7 +233,10 @@ export async function POST(req: NextRequest) {
         const references = await gatherDeviceReferences(userId);
         const result = await checkDeviceInPhoto(photoUrl, references, lockEntry.deviceId);
         if (result) {
-          await prisma.entry.update({ where: { id: entryId }, data: { deviceCheck: result.status, deviceCheckNote: result.note } });
+          await prisma.entry.update({
+            where: { id: entryId },
+            data: { deviceCheck: result.status, deviceCheckNote: result.detected, deviceCheckExpected: result.expected },
+          });
         }
       } catch (e) {
         structuredLog("detect-device", "kontrolle_check_failed", { entryId, error: (e as Error).message });

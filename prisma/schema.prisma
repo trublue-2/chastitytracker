@@ -360,7 +360,8 @@ model Entry {
   // null = nicht geprüft · "ok" = passendes Gerät sichtbar · "wrong" = anderes Gerät · "missing" = kein Gerät.
   // Advisory (Keyholder sieht es), blockiert nicht. Server-seitig per Vision gesetzt.
   deviceCheck         String?
-  deviceCheckNote     String?              // kurzer Grund / erkanntes Gerät
+  deviceCheckNote     String?              // erkanntes Gerät (Name) oder null, wenn keins erkannt
+  deviceCheckExpected String?              // erwartetes (verschlossenes) Gerät zur Check-Zeit
   deviceId            String?
   device              Device?              @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   createdAt           DateTime             @default(now())

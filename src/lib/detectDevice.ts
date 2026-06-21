@@ -138,7 +138,10 @@ export async function detectDevice(
 export type DeviceCheckResult = {
   /** ok = passendes Gerät sichtbar · wrong = anderes/unklares Gerät · missing = kein Gerät sichtbar. */
   status: "ok" | "wrong" | "missing";
-  note: string | null;
+  /** Im Foto erkanntes Gerät (Name) oder null, wenn keins zugeordnet/sichtbar. */
+  detected: string | null;
+  /** Erwartetes (aktuell verschlossenes) Gerät — der Soll-Zustand. */
+  expected: string;
 };
 
 /**
@@ -188,17 +191,16 @@ export async function checkDeviceInPhoto(
     const response = await visionComplete({ task: "device-check", maxTokens: 50, content });
     dlog("check:response", { requestId: response.requestId, textPreview: response.text.slice(0, 200) });
 
+    const expected = lockedKey.deviceName;
     const parsed = parseJsonObject<{ present?: boolean; device?: string | null }>(response.text);
-    if (!parsed) return { status: "missing", note: null };
-
-    if (!parsed.present) return { status: "missing", note: null };
+    if (!parsed || !parsed.present) return { status: "missing", detected: null, expected };
 
     const matched = parsed.device ? set.deviceKeys.find((d) => d.key === parsed.device) : undefined;
     if (matched?.key === lockedKey.key) {
-      return { status: "ok", note: lockedKey.deviceName };
+      return { status: "ok", detected: expected, expected };
     }
     // Gerät sichtbar, aber nicht das verschlossene (anderes erkannt oder keins zugeordnet).
-    return { status: "wrong", note: matched?.deviceName ?? "unbekannt" };
+    return { status: "wrong", detected: matched?.deviceName ?? null, expected };
   } catch (e) {
     const err = e as { message?: string; name?: string };
     dlog("check:exception", { error: err.message, name: err.name });

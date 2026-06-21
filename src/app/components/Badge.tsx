@@ -8,6 +8,8 @@ interface BadgeProps {
   size?: BadgeSize;
   icon?: ReactNode;
   label: string;
+  /** Optionaler Zusatzinhalt nach dem Label (z.B. ein hervorgehobener Wert oder Status-Icon). */
+  children?: ReactNode;
   className?: string;
 }
 
@@ -33,6 +35,7 @@ export default function Badge({
   size = "default",
   icon,
   label,
+  children,
   className = "",
 }: BadgeProps) {
   return (
@@ -46,6 +49,7 @@ export default function Badge({
     >
       {icon && <span className="shrink-0" aria-hidden="true">{icon}</span>}
       {label}
+      {children}
     </span>
   );
 }

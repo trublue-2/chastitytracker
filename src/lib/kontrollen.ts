@@ -12,6 +12,7 @@ export interface KontrolleRow {
   verifikationStatus: VerifikationStatus | null;
   deviceCheck: string | null;
   deviceCheckNote: string | null;
+  deviceCheckExpected: string | null;
   code: string | null;
   deadline: Date | null;
   createdAt: Date | null;
@@ -33,6 +34,7 @@ type PruefungEntry = {
   verifikationStatus: string | null;
   deviceCheck?: string | null;
   deviceCheckNote?: string | null;
+  deviceCheckExpected?: string | null;
   user?: { username: string };
 };
 
@@ -71,6 +73,7 @@ export function buildKontrolleRows(
       verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
       deviceCheck: e.deviceCheck ?? null,
       deviceCheckNote: e.deviceCheckNote ?? null,
+      deviceCheckExpected: e.deviceCheckExpected ?? null,
       code: ka?.code ?? e.kontrollCode ?? null,
       deadline: ka?.deadline ?? null,
       createdAt: ka?.createdAt ?? null,
@@ -94,6 +97,7 @@ export function buildKontrolleRows(
       verifikationStatus: null,
       deviceCheck: null,
       deviceCheckNote: null,
+      deviceCheckExpected: null,
       code: k.code,
       deadline: k.deadline,
       createdAt: k.createdAt,
@@ -154,5 +158,6 @@ export function mapKontrolleRow(
     verifikationStatus: row.verifikationStatus,
     deviceCheck: (row.deviceCheck as AdminKontrolleRowData["deviceCheck"]) ?? null,
     deviceCheckNote: row.deviceCheckNote,
+    deviceCheckExpected: row.deviceCheckExpected,
   };
 }
