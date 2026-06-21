@@ -37,6 +37,29 @@ export function visionMaxImagePx(): number {
   return Number.isFinite(n) && n >= 256 ? n : 1024;
 }
 
+/** Kleinere Kantenlänge für GERÄTE-Tasks (detect/check): dort zählen mehrere Bilder gleichzeitig,
+ *  und die Geräte-Form ist auch bei weniger Auflösung erkennbar. Jedes Bild kostet Tokens ∝ px²,
+ *  daher ist Verkleinern hier der größte Speed-Hebel. Env: VISION_DEVICE_MAX_IMAGE_PX (Default 768). */
+export function visionDeviceMaxImagePx(): number {
+  const n = Number(process.env.VISION_DEVICE_MAX_IMAGE_PX);
+  return Number.isFinite(n) && n >= 256 ? n : 768;
+}
+
+/** Max. Referenzbilder JE Gerät im Vision-Prompt. Jedes Bild kostet ~1060 Tokens (~6s bei
+ *  qwen2.5-vl auf M1) — das ist der dominante Latenz-Faktor, NICHT die Auflösung. Weniger Bilder =
+ *  deutlich schneller; mehr = robustere Erkennung. Env: VISION_MAX_REFS_PER_DEVICE (Default 2). */
+export function visionMaxRefsPerDevice(): number {
+  const n = Number(process.env.VISION_MAX_REFS_PER_DEVICE);
+  return Number.isFinite(n) && n >= 1 ? n : 2;
+}
+
+/** Harte Obergrenze für die GESAMTzahl Referenzbilder im Geräte-Prompt (über alle Geräte), damit
+ *  die Latenz bei vielen Geräten nicht explodiert. Env: VISION_MAX_TOTAL_REFS (Default 6). */
+export function visionMaxTotalRefs(): number {
+  const n = Number(process.env.VISION_MAX_TOTAL_REFS);
+  return Number.isFinite(n) && n >= 1 ? n : 6;
+}
+
 /** Heimdall-Hardware-Box aktiv? = Sync-Secret gesetzt. Gilt für Integration UND Box-UI:
  *  ohne Secret werden keine Box-Aktionen angezeigt (auch wenn noch alte BoxStatus-Zeilen existieren). */
 export function heimdallEnabled(): boolean {

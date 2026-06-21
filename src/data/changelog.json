@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.34.1",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "perf",
+        "text": "Geräte-Erkennung lokal deutlich schneller: Die Latenz wird von der ANZAHL der Bilder im Prompt dominiert (jedes ~1060 Tokens; die Auflösung unter ~1024px spart nichts). Referenzfotos je Gerät auf 2 begrenzt (VISION_MAX_REFS_PER_DEVICE) + Gesamt-Obergrenze 6 über alle Geräte (VISION_MAX_TOTAL_REFS). Geräte-Bilder etwas kleiner (768px, VISION_DEVICE_MAX_IMAGE_PX). Alles env-justierbar (mehr = genauer, weniger = schneller)."
+      }
+    ]
+  },
+  {
     "version": "4.34.0",
     "date": "2026-06-21",
     "changes": [

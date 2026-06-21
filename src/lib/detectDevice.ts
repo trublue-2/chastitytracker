@@ -1,5 +1,5 @@
 import { loadUploadedImage, type ImageData } from "@/lib/imageUtils";
-import { visionMaxImagePx } from "@/lib/constants";
+import { visionDeviceMaxImagePx, visionMaxTotalRefs } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
 import { visionComplete, visionConfigured, type VisionBlock } from "@/lib/vision";
 
@@ -34,7 +34,7 @@ interface DeviceSet {
 /** Lädt (runterskaliert) alle Referenzbilder + das Query-Bild und vergibt stabile DEVICE_n-Keys.
  *  Geteilt von detectDevice (Klassifikation) und checkDeviceInPhoto (Presence/Match). */
 async function loadDeviceSet(references: DeviceReference[], queryImageUrl: string): Promise<DeviceSet | null> {
-  const maxPx = visionMaxImagePx();
+  const maxPx = visionDeviceMaxImagePx(); // kleiner als bei Ziffern — mehrere Bilder, Form reicht
   const loadedRefs: LoadedReference[] = (
     await Promise.all(
       references.map(async (ref) => {
@@ -46,6 +46,10 @@ async function loadDeviceSet(references: DeviceReference[], queryImageUrl: strin
     )
   ).filter((r): r is LoadedReference => r !== null);
   if (loadedRefs.length === 0) return null;
+
+  // Gesamt-Cap über alle Geräte (Latenz dominiert von der Bild-Anzahl): fairer Anteil je Gerät, min. 1.
+  const perDevice = Math.max(1, Math.floor(visionMaxTotalRefs() / loadedRefs.length));
+  for (const r of loadedRefs) r.images = r.images.slice(0, perDevice);
 
   const newImg = await loadUploadedImage(queryImageUrl, { maxPx });
   if (!newImg) return null;

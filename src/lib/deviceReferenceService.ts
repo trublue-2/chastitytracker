@@ -2,11 +2,9 @@ import { readFile, writeFile } from "fs/promises";
 import { join, basename } from "path";
 import { prisma } from "@/lib/prisma";
 import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
+import { visionMaxRefsPerDevice } from "@/lib/constants";
 import type { DeviceReference } from "@/lib/detectDevice";
 import type { ServiceResult } from "@/lib/serviceResult";
-
-/** Max. Referenzbilder je Gerät im Vision-Prompt (Latenz/Prompt-Größe begrenzen). */
-const MAX_REFS_PER_DEVICE = 5;
 
 /**
  * Sammelt die Referenzbilder JE aktivem KG-Gerät für die Vision-Erkennung: bevorzugt kuratierte
@@ -15,6 +13,7 @@ const MAX_REFS_PER_DEVICE = 5;
  * und dem Kontroll-Geräte-Check.
  */
 export async function gatherDeviceReferences(userId: string): Promise<DeviceReference[]> {
+  const MAX_REFS_PER_DEVICE = visionMaxRefsPerDevice();
   const devices = await prisma.device.findMany({
     where: { userId, archivedAt: null, OR: [{ category: { isBuiltIn: true } }, { categoryId: null }] },
     orderBy: { createdAt: "asc" },
