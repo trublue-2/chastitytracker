@@ -15,6 +15,16 @@ export interface ImageData {
   mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 }
 
+/** Absoluter Pfad des Upload-Verzeichnisses (data/uploads). Single source für alle Upload-Pfade. */
+export function uploadsDirPath(): string {
+  return join(process.cwd(), "data", "uploads");
+}
+
+/** Erzeugt einen eindeutigen Upload-Dateinamen (optionaler Prefix, z.B. "ref-"). */
+export function generateUploadFilename(prefix = ""): string {
+  return `${prefix}${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+}
+
 /**
  * Loads a local upload file and returns base64 + mediaType.
  * Only allows files from the `data/uploads/` directory — rejects any path traversal.
@@ -26,7 +36,7 @@ export async function loadUploadedImage(imageUrl: string): Promise<ImageData | n
     structuredLog("imageUtils", "loadUploadedImage:reject_filename", { filename, imageUrl });
     return null;
   }
-  const uploadsDir = join(process.cwd(), "data", "uploads");
+  const uploadsDir = uploadsDirPath();
   const fullPath = join(uploadsDir, filename);
   // Path-prefix guard: ensure the resolved path stays inside the uploads directory.
   if (!fullPath.startsWith(uploadsDir + sep)) {

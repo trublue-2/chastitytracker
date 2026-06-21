@@ -5,6 +5,7 @@ import { join } from "path";
 import exifr from "exifr";
 import sharp from "sharp";
 import { trackEvent } from "@/lib/telemetry";
+import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
 
 function isAllowedImageBuffer(buf: Buffer): boolean {
   // JPEG: FF D8 FF
@@ -56,10 +57,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ungültiger Dateityp (MIME)" }, { status: 400 });
   }
 
-  const uploadsDir = join(process.cwd(), "data", "uploads");
+  const uploadsDir = uploadsDirPath();
   await mkdir(uploadsDir, { recursive: true });
 
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+  const filename = generateUploadFilename();
   const filepath = join(uploadsDir, filename);
 
   let compressed: Buffer;

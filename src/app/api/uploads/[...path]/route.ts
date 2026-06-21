@@ -34,7 +34,7 @@ export async function GET(
   // Ownership: file owner (Entry, Device, or sealed code photo) or admin may access.
   const imageUrlInDb = `/api/uploads/${filename}`;
   const isAdmin = session.user.role === "admin";
-  const [ownedEntry, ownedDevice, codeEntry] = await Promise.all([
+  const [ownedEntry, ownedDevice, codeEntry, ownedReference] = await Promise.all([
     prisma.entry.findFirst({
       where: { imageUrl: imageUrlInDb, userId: session.user.id },
       select: { id: true },
@@ -47,8 +47,13 @@ export async function GET(
       where: { codeImageUrl: imageUrlInDb, userId: session.user.id },
       select: { userId: true, startTime: true },
     }),
+    // Kuratiertes Geräte-Referenzfoto (DeviceReferenceImage) des eigenen Geräts
+    prisma.deviceReferenceImage.findFirst({
+      where: { imageUrl: imageUrlInDb, device: { userId: session.user.id } },
+      select: { id: true },
+    }),
   ]);
-  if (!ownedEntry && !ownedDevice && !codeEntry && !isAdmin) {
+  if (!ownedEntry && !ownedDevice && !codeEntry && !ownedReference && !isAdmin) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 

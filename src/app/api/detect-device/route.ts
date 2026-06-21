@@ -58,32 +58,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ deviceId: devices[0].id, deviceName: devices[0].name });
   }
 
-  // Multiple devices: gather reference images
-  // Query per device so each gets up to 2 recent photos regardless of relative usage frequency.
-  // A single global query with `take` would be biased toward the most-used device.
-  const entryImagesByDevice = await Promise.all(
+  // Referenzen je Gerät: bevorzugt KURATIERTE Referenzfotos (DeviceReferenceImage = „Trainingsmaterial"),
+  // sonst Fallback auf die bisherige Heuristik (Geräte-Foto + letzte 2 Verschluss-Fotos), damit Geräte
+  // ohne Kuration nicht regressieren. Cap pro Gerät begrenzt Prompt-Größe/Latenz (v.a. lokales Modell).
+  // Query per device, sonst wäre ein globales `take` zum meistgenutzten Gerät verzerrt.
+  const MAX_REFS_PER_DEVICE = 5;
+  const curatedByDevice = await Promise.all(
     devices.map((device) =>
-      prisma.entry.findMany({
-        where: {
-          userId: session.user.id,
-          type: "VERSCHLUSS",
-          deviceId: device.id,
-          imageUrl: { not: null },
-        },
+      prisma.deviceReferenceImage.findMany({
+        where: { deviceId: device.id },
         select: { imageUrl: true },
-        orderBy: { startTime: "desc" },
-        take: 2,
+        orderBy: { createdAt: "desc" },
+        take: MAX_REFS_PER_DEVICE,
       })
+    )
+  );
+  // Fallback-Fotos (Geräte-Foto + letzte Verschluss-Fotos) NUR für Geräte ohne kuratierte Referenzen laden.
+  const fallbackByDevice = await Promise.all(
+    devices.map((device, i) =>
+      curatedByDevice[i].length > 0
+        ? Promise.resolve([] as { imageUrl: string | null }[])
+        : prisma.entry.findMany({
+            where: { userId: session.user.id, type: "VERSCHLUSS", deviceId: device.id, imageUrl: { not: null } },
+            select: { imageUrl: true },
+            orderBy: { startTime: "desc" },
+            take: 2,
+          })
     )
   );
 
   const references: DeviceReference[] = devices.map((device, i) => {
+    const curated = curatedByDevice[i].map((r) => r.imageUrl);
+    if (curated.length > 0) {
+      return { deviceId: device.id, deviceName: device.name, imageUrls: curated };
+    }
     const imageUrls: string[] = [];
     if (device.imageUrl) imageUrls.push(device.imageUrl);
-    for (const entry of entryImagesByDevice[i]) {
+    for (const entry of fallbackByDevice[i]) {
       if (entry.imageUrl) imageUrls.push(entry.imageUrl);
     }
-    return { deviceId: device.id, deviceName: device.name, imageUrls };
+    return { deviceId: device.id, deviceName: device.name, imageUrls: imageUrls.slice(0, MAX_REFS_PER_DEVICE) };
   });
 
   const result = await detectDevice(imageUrl, references);

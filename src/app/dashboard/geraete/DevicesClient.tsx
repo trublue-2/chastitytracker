@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Lock, Plus, Pencil, Trash2, ArchiveRestore, Tags } from "lucide-react";
 import Card from "@/app/components/Card";
+import DeviceReferencesManager from "./DeviceReferencesManager";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import Toggle from "@/app/components/Toggle";
@@ -357,6 +358,9 @@ function DeviceCard({
           )}
         </div>
       </div>
+
+      {/* Kuratierte Referenzfotos für die Geräte-Erkennung (nur aktive Geräte) */}
+      {!isArchived && <DeviceReferencesManager deviceId={device.id} />}
     </Card>
   );
 }

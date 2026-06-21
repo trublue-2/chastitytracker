@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.33.0",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Geräte-Erkennung lernt aus eigenen Fotos: Pro Gerät lassen sich jetzt kuratierte Referenzfotos pflegen (Geräte-Verwaltung → „Referenzfotos\") — hochladen oder aus den bisherigen Verschluss-Fotos übernehmen. Die Erkennung nutzt bevorzugt diese Referenzen (Cap 5/Gerät); Geräte ohne Kuration nutzen weiterhin die bisherige Heuristik. Funktioniert mit Anthropic UND lokalem Modell."
+      },
+      {
+        "type": "fix",
+        "text": "Lokale Bild-KI: Der Policy-Refusal-Pfad (Anthropic verweigert explizitere Fotos) greift jetzt NUR noch bei Anthropic. Mit lokalem Modell (VERIFY_PROVIDER=local) wird ein nicht lesbarer Code als normaler Lesefehler behandelt, nicht als Policy-Block — so lassen sich auch explizitere Fotos lokal prüfen."
+      }
+    ]
+  },
+  {
     "version": "4.32.0",
     "date": "2026-06-21",
     "changes": [

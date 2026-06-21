@@ -267,9 +267,29 @@ model Device {
   entries               Entry[]
   verschlussAnforderungen VerschlussAnforderung[]
   boxEvents             BoxEvent[]
+  referenceImages       DeviceReferenceImage[]
 
   @@index([userId, archivedAt])
   @@index([categoryId])
+}
+
+/// Kuratierte Referenzfotos je Gerät — „Trainingsmaterial" für die Geräte-Erkennung
+/// (Few-Shot in detectDevice). Eigene Datei-Kopie unter data/uploads; sourceEntryId
+/// dokumentiert die Herkunft, falls aus einem Verschluss-Eintrag importiert.
+/// embedding*-Spalten sind für einen späteren Embedding-Index (Phase 3) reserviert und
+/// in der Few-Shot-Phase leer.
+model DeviceReferenceImage {
+  id             String   @id @default(cuid())
+  deviceId       String
+  device         Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  imageUrl       String   // /api/uploads/<filename>, wie Entry.imageUrl
+  sourceEntryId  String?  // Herkunft, falls aus einem bestehenden Entry importiert
+  note           String?
+  embedding      Bytes?   // Phase 3: Float32-Vektor als Blob; vorerst leer
+  embeddingModel String?  // welches Modell den Vektor erzeugt hat (Invalidierung)
+  createdAt      DateTime @default(now())
+
+  @@index([deviceId])
 }
 
 // Hardware-Wahrheit der Heimdall-Schlüsselbox (Spur 2), getrennt vom selbst-

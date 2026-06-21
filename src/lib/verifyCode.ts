@@ -4,7 +4,7 @@ import sharp from "sharp";
 import type { Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES } from "@/lib/imageUtils";
-import { visionComplete, visionConfigured } from "@/lib/vision";
+import { visionComplete, visionConfigured, visionProvider } from "@/lib/vision";
 import { localReadDigits } from "@/lib/ocr";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
@@ -99,10 +99,14 @@ export async function verifyKontrolleCodeDetailed(
     const text = response.text;
     vlog("verify:vision_response", { requestId: response.requestId, stopReason: response.stopReason, textPreview: redactDigits(text.slice(0, 200)) });
 
-    const policyKeywords = ["I'm unable", "I cannot", "I can't", "inappropriate", "violates", "policy", "explicit", "sorry, I"];
-    if (!text.includes("{") && policyKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()))) {
-      vlog("verify:policy_block", { textPreview: redactDigits(text.slice(0, 200)) });
-      return { detected: null, match: false, reason: null, error: "policy" };
+    // Policy-Refusal ist eine ANTHROPIC-Eigenheit (verweigert explizitere Fotos). Ein lokales Modell
+    // kennt das nicht — ein „I cannot read…" ist dort ein normaler Lesefehler, kein Policy-Block.
+    if (visionProvider() === "anthropic") {
+      const policyKeywords = ["I'm unable", "I cannot", "I can't", "inappropriate", "violates", "policy", "explicit", "sorry, I"];
+      if (!text.includes("{") && policyKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()))) {
+        vlog("verify:policy_block", { textPreview: redactDigits(text.slice(0, 200)) });
+        return { detected: null, match: false, reason: null, error: "policy" };
+      }
     }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);

@@ -1,0 +1,18 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { deleteReference } from "@/lib/deviceReferenceService";
+
+type Params = { params: Promise<{ id: string; refId: string }> };
+
+/** DELETE /api/devices/[id]/references/[refId] — einzelne Referenz entfernen. */
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { refId } = await params;
+  // Admin → kein Owner-Filter; sonst auf eigene Geräte beschränkt.
+  const ownerScope = session.user.role === "admin" ? null : session.user.id;
+  const result = await deleteReference(refId, ownerScope);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return new NextResponse(null, { status: 204 });
+}
