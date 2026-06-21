@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml } from "@/lib/mail";
+import { sendMail, escHtml, dashboardEmailHtml } from "@/lib/mail";
+import { notifyUser } from "@/lib/notify";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
@@ -107,21 +108,6 @@ export async function createVerschlussAnforderung(
 }
 
 /** Wraps email body HTML in the standard frame + "Zum Dashboard →" button. */
-function dashboardEmailHtml(heading: string, innerHtml: string): string {
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  return `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#1e293b">${heading}</h2>
-        ${innerHtml}
-        <p>
-          <a href="${baseUrl}/dashboard" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
-            Zum Dashboard →
-          </a>
-        </p>
-      </div>
-      `;
-}
-
 /** Sends the e-mail (ANFORDERUNG/SPERRZEIT) + push to the user. Fire-and-forget for push. */
 async function sendVerschlussAnforderungNotifications(opts: {
   userId: string;
@@ -203,5 +189,36 @@ export async function updateSperrzeitEnde(
   }
 
   await prisma.verschlussAnforderung.update({ where: { id }, data: { endetAt } });
+  await notifyUser(va.userId, {
+    subject: "Sperrzeit geändert",
+    message: endetAt
+      ? `Der Keyholder hat das Ende deiner Sperrzeit auf ${formatDateTime(endetAt)} geändert.`
+      : "Der Keyholder hat deine Sperrzeit auf unbefristet gesetzt.",
+  });
   return { ok: true, data: { id, userId: va.userId } };
+}
+
+/** Betreff + Text der Withdraw-Benachrichtigung — geteilt von Service (MCP, per art) und
+ *  Admin-Route (per id), damit die Meldung nicht divergiert. */
+export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT"): { subject: string; message: string } {
+  return art === "SPERRZEIT"
+    ? { subject: "Sperrzeit aufgehoben", message: "Der Keyholder hat deine aktive Sperrzeit aufgehoben." }
+    : { subject: "Anforderung zurückgezogen", message: "Der Keyholder hat die Einschliess-Anforderung zurückgezogen." };
+}
+
+/**
+ * Zieht offene VerschlussAnforderung(en) einer Art zurück (ANFORDERUNG = Einschliess-Anforderung,
+ * SPERRZEIT = aktive Sperre) und benachrichtigt den Nutzer. Geteilt von der MCP `withdraw`.
+ */
+export async function withdrawVerschlussAnforderung(
+  userId: string,
+  art: "ANFORDERUNG" | "SPERRZEIT",
+): Promise<ServiceResult<{ count: number }>> {
+  const now = new Date();
+  const where = art === "ANFORDERUNG"
+    ? { userId, art, fulfilledAt: null, withdrawnAt: null }
+    : { userId, art, withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] };
+  const res = await prisma.verschlussAnforderung.updateMany({ where, data: { withdrawnAt: now } });
+  if (res.count > 0) await notifyUser(userId, verschlussWithdrawNotice(art));
+  return { ok: true, data: { count: res.count } };
 }

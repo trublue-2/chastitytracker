@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
-import { updateSperrzeitEnde } from "@/lib/verschlussAnforderungService";
+import { updateSperrzeitEnde, verschlussWithdrawNotice } from "@/lib/verschlussAnforderungService";
+import { notifyUser } from "@/lib/notify";
 
 export async function PATCH(
   req: NextRequest,
@@ -11,7 +12,7 @@ export async function PATCH(
 
   const va = await prisma.verschlussAnforderung.findUnique({
     where: { id },
-    select: { userId: true },
+    select: { userId: true, art: true },
   });
   if (!va) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
 
@@ -25,6 +26,7 @@ export async function PATCH(
       where: { id },
       data: { withdrawnAt: new Date() },
     });
+    await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT"));
     return NextResponse.json({ ok: true });
   }
 

@@ -3,6 +3,7 @@ import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
 import { ORGASMUS_ANFORDERUNG_ARTEN, ORGASMUS_ARTEN } from "@/lib/constants";
+import { notifyUser } from "@/lib/notify";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateOrgasmusAnforderungParams {
@@ -84,6 +85,12 @@ export async function withdrawOrgasmusAnforderung(userId: string): Promise<Servi
     where: { userId, fulfilledAt: null, withdrawnAt: null },
     data: { withdrawnAt: new Date() },
   });
+  if (res.count > 0) {
+    await notifyUser(userId, {
+      subject: "Orgasmus-Anweisung zurückgezogen",
+      message: "Der Keyholder hat die offene Orgasmus-Anweisung/-Gelegenheit zurückgezogen.",
+    });
+  }
   return { ok: true, data: { count: res.count } };
 }
 

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
+import { notifyUser } from "@/lib/notify";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
@@ -103,6 +104,14 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
     create: { userId: p.userId, offenseType: offense.offenseType, refId: p.refId, bestraftDatum: now, status, reason: text, judgedBy: p.judgedBy, erledigtAt: null },
     update: { status, reason: text, judgedBy: p.judgedBy, erledigtAt: null, bestraftDatum: now },
   });
+
+  // Nur bei verhängter Strafe benachrichtigen (ein Verwerfen ist für den Nutzer belanglos).
+  if (status === "PUNISHED") {
+    await notifyUser(p.userId, {
+      subject: "Strafe verhängt",
+      message: text ? `Der Keyholder hat eine Strafe verhängt: ${text}` : "Der Keyholder hat eine Strafe verhängt.",
+    });
+  }
 
   return { ok: true, data: { status: status === "PUNISHED" ? "punished" : "dismissed", done: false } };
 }

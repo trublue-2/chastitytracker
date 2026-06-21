@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.31.0",
+    "date": "2026-06-20",
+    "changes": [
+      { "type": "feat", "text": "Mehr Keyholder-Aktionen benachrichtigen den Nutzer (E-Mail + Push) — konsistent aus Admin-UI UND MCP: Zurückziehen einer offenen Anweisung (Lock-Anforderung, Sperrzeit, Inspektion, Orgasmus), Ändern des Sperrzeit-Endes, Verhängen einer Strafe sowie Bestätigen/Ablehnen einer eingereichten Kontrolle. Umgesetzt im Service-Layer über einen gemeinsamen notifyUser-Helper, damit beide Wege dasselbe Verhalten zeigen. Die MCP-Tool-Beschreibungen sind entsprechend wieder auf benachrichtigend gesetzt." }
+    ]
+  },
+  {
     "version": "4.30.2",
     "date": "2026-06-20",
     "changes": [

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getUserDeviceOptions } from "@/lib/queries";
-import { createVerschlussAnforderung, updateSperrzeitEnde } from "@/lib/verschlussAnforderungService";
+import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
@@ -229,29 +229,26 @@ export interface WithdrawArgs {
 }
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
-  const now = new Date();
   let count = 0;
+  // Über die Shared-Services zurückziehen → der Nutzer wird konsistent benachrichtigt (wie in der Admin-UI).
   if (args.target === "orgasm_directive") {
     count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
   } else if (args.target === "lock_request") {
-    count = (await prisma.verschlussAnforderung.updateMany({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
-      data: { withdrawnAt: now },
-    })).count;
+    count = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")).count;
   } else if (args.target === "lock_period") {
-    count = (await prisma.verschlussAnforderung.updateMany({
-      where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] },
-      data: { withdrawnAt: now },
-    })).count;
+    count = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")).count;
   } else if (args.target === "inspection") {
-    count = (await prisma.kontrollAnforderung.updateMany({
+    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — resolveKontrolle benachrichtigt.
+    const open = await prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null },
-      data: { withdrawnAt: now },
-    })).count;
+      select: { id: true },
+    });
+    for (const ka of open) unwrap(await resolveKontrolle(ka.id, "withdraw"));
+    count = open.length;
   } else {
     throw new Error(`Unknown withdraw target: ${args.target}`);
   }
-  return { ok: true, withdrawn: count, message: count > 0 ? `Withdrew ${count} ${args.target}.` : `Nothing open to withdraw for ${args.target}.` };
+  return { ok: true, withdrawn: count, message: count > 0 ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.` : `Nothing open to withdraw for ${args.target}.` };
 }
 
 // ── Training goals: list / edit / delete ────────────────────────────────────
@@ -361,7 +358,7 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
   });
   if (!ka) throw new Error("No submitted inspection to verify or reject.");
   unwrap(await resolveKontrolle(ka.id, args.action === "verify" ? "manuallyVerify" : "reject"));
-  return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}.` };
+  return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}; the user was notified by e-mail + push.` };
 }
 
 // ── Lock period: change the end of an active Sperrzeit ───────────────────────
@@ -383,7 +380,7 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   });
   if (!sz) throw new Error("No active lock period to edit.");
   unwrap(await updateSperrzeitEnde(sz.id, endetAt));
-  return { ok: true, id: sz.id, message: args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.` };
+  return { ok: true, id: sz.id, message: (args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`) + " The user was notified by e-mail + push." };
 }
 
 // ── Urteil über ein erkanntes Vergehen (Strafbuch-Loop) ─────────────────────
@@ -408,7 +405,7 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     args.action === "complete" ? "Penalty marked as completed."
     : r.status === "dismissed" ? "Offense dismissed (no penalty)."
     : r.status === "open" ? "Judgment reopened — the offense is open again."
-    : "Offense punished — the penalty was recorded.";
+    : "Offense punished — the penalty was recorded; the user was notified by e-mail + push.";
   return { ok: true, status: r.status, done: r.done, message };
 }
 

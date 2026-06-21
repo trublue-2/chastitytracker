@@ -283,7 +283,7 @@ const handler = createMcpHandler(
       {
         title: "Withdraw an open directive",
         description:
-          "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive." + KEYHOLDER_SILENT,
+          "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive." + KEYHOLDER_NOTE,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
         },
@@ -301,7 +301,7 @@ const handler = createMcpHandler(
           "penalty is whatever you write, the field is dumb; action=complete → marks a recorded penalty " +
           "as carried out (closes the loop); action=reopen → undoes a prior judgment. An offense stays " +
           "relevant (openOffenseCount) until dismissed or its penalty is completed. Use the offense's " +
-          "ref.id from get_strafbuch." + KEYHOLDER_SILENT,
+          "ref.id from get_strafbuch." + KEYHOLDER_BASE + " On punish, the user is notified by e-mail + push; dismiss/complete/reopen are silent.",
         inputSchema: {
           ref: z.string().describe("The offense ref.id from get_strafbuch."),
           action: z.enum(["dismiss", "punish", "complete", "reopen"]).describe("dismiss = no penalty; punish = record a penalty; complete = mark penalty done; reopen = undo a prior judgment."),
@@ -381,7 +381,7 @@ const handler = createMcpHandler(
         title: "Verify or reject the latest inspection",
         description:
           "Manually verifies or rejects the user's most recent submitted inspection photo (overrides any " +
-          "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_SILENT,
+          "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
         inputSchema: {
           action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
         },
@@ -396,7 +396,7 @@ const handler = createMcpHandler(
         description:
           "Extends or shortens the currently active lock period (Sperrzeit) by changing its end — without " +
           "withdrawing and recreating it. Set indefinite=true for open-ended, or untilAt for a new end (must " +
-          "be in the future)." + KEYHOLDER_SILENT,
+          "be in the future)." + KEYHOLDER_NOTE,
         inputSchema: {
           untilAt: z.string().optional().describe("New end (ISO 8601, future). Ignored if indefinite=true."),
           indefinite: z.boolean().optional().describe("Make the lock period open-ended."),

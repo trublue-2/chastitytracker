@@ -3,6 +3,7 @@ import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
 import { trackEvent } from "@/lib/telemetry";
+import { notifyUser } from "@/lib/notify";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
@@ -27,6 +28,13 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
   } else {
     return { ok: false, status: 400, error: "Unbekannte Aktion" };
   }
+
+  const notif =
+    action === "manuallyVerify" ? { subject: "Kontrolle bestätigt", message: "Der Keyholder hat deine eingereichte Kontrolle bestätigt." }
+    : action === "reject" ? { subject: "Kontrolle abgelehnt", message: "Der Keyholder hat deine Kontrolle abgelehnt — bitte reiche eine neue ein." }
+    : { subject: "Kontrolle zurückgezogen", message: "Der Keyholder hat die angeforderte Kontrolle zurückgezogen." };
+  await notifyUser(ka.userId, notif);
+
   return { ok: true, data: { userId: ka.userId } };
 }
 
