@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.35.0",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Geräte-Erkennung per Bild-Embedding (CLIP) — schnell UND genau: Statt das VLM bei jeder Erkennung alle Referenzfotos durchrechnen zu lassen (~6s/Bild), wird jedes Foto einmal zu einem Vektor und ein neues Foto per Ähnlichkeit dem nächstgelegenen Gerät zugeordnet (Millisekunden). Validierung an echten Geräten: 100% Trefferquote mit clip-ViT-L-14. Aktiv über EMBED_BASE_URL (lokaler CLIP-Dienst); Referenz-Embeddings werden lazy berechnet und gecacht. Ohne Dienst/Referenzen oder bei uneindeutigem Ergebnis fällt es auf den VLM-Pfad zurück. Braucht kuratierte Referenzfotos je Gerät."
+      }
+    ]
+  },
+  {
     "version": "4.34.1",
     "date": "2026-06-21",
     "changes": [

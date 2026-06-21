@@ -13,6 +13,11 @@ services:
     #   LOCAL_VISION_BASE_URL=http://<mac-tailscale-name>:11434/v1   # Ollama auf dem Mac, via Tailscale
     #   LOCAL_VISION_MODEL=qwen2.5-vl:7b
     # Ollama läuft NICHT in diesem Container, sondern nativ auf dem Mac (Metal-GPU).
+    #
+    # Geräte-Erkennung per Bild-Embedding (CLIP, schnell + genau, optional). Wenn gesetzt, läuft die
+    # Geräte-Erkennung in ms statt sekundenlanger VLM-Inferenz (braucht kuratierte Referenzfotos):
+    #   EMBED_BASE_URL=http://<mac-tailscale-name>:11435   # CLIP-Embedding-Dienst auf dem Mac
+    #   EMBED_MODEL=clip-ViT-L-14
     # Siehe docs/local-vision.md.
     volumes:
       # SQLite-Datenbank + Foto-Uploads persistent speichern

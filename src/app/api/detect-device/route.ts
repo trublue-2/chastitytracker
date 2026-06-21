@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl } from "@/lib/constants";
 import { detectDevice } from "@/lib/detectDevice";
+import { detectDeviceByEmbedding } from "@/lib/deviceEmbedding";
+import { embedAvailable } from "@/lib/embed";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 
 /**
@@ -33,6 +35,14 @@ export async function POST(req: NextRequest) {
   const { imageUrl } = body as { imageUrl?: unknown };
   if (!imageUrl || typeof imageUrl !== "string" || !isValidImageUrl(imageUrl)) {
     return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
+  }
+
+  // Schnellpfad: Bild-Embedding (CLIP-Dienst). Millisekunden statt sekundenlanger VLM-Inferenz.
+  // Nutzt kuratierte Referenzfotos; bei Erfolg direkt zurück. Sonst (kein Dienst / keine Referenzen
+  // / zu uneindeutig) fällt es auf den VLM-Pfad zurück.
+  if (embedAvailable()) {
+    const e = await detectDeviceByEmbedding(imageUrl, session.user.id);
+    if (e) return NextResponse.json({ deviceId: e.deviceId, deviceName: e.deviceName });
   }
 
   // Referenzen je aktivem KG-Gerät (kuratiert bevorzugt, sonst Heuristik) — geteilte Sammlung.
