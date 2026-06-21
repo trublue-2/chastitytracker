@@ -29,6 +29,14 @@ export function bildersafeEnabled(): boolean {
   return process.env.ENABLE_BILDERSAFE?.toLowerCase() === "true";
 }
 
+/** Max. Kantenlänge (px), auf die Bilder VOR einer Vision-Anfrage runterskaliert werden.
+ *  Reduziert die Vision-Tokens/Latenz drastisch (v.a. lokale Modelle wie Ollama) bei kaum
+ *  Genauigkeitsverlust für Ziffern/Geräte. Justierbar via `VISION_MAX_IMAGE_PX` (Default 1024). */
+export function visionMaxImagePx(): number {
+  const n = Number(process.env.VISION_MAX_IMAGE_PX);
+  return Number.isFinite(n) && n >= 256 ? n : 1024;
+}
+
 /** Heimdall-Hardware-Box aktiv? = Sync-Secret gesetzt. Gilt für Integration UND Box-UI:
  *  ohne Secret werden keine Box-Aktionen angezeigt (auch wenn noch alte BoxStatus-Zeilen existieren). */
 export function heimdallEnabled(): boolean {

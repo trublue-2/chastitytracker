@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import { join, basename } from "path";
 import sharp from "sharp";
-import type { Rotation } from "@/lib/constants";
+import { visionMaxImagePx, type Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES } from "@/lib/imageUtils";
 import { visionComplete, visionConfigured, visionProvider } from "@/lib/vision";
@@ -36,16 +36,24 @@ async function loadImageBuffer(
     vlog("loadImageBuffer:read_failed", { fullPath, error: (e as Error).message });
     return null;
   }
+  // Vor dem Vision-Call runterskalieren — spart Vision-Tokens/Latenz drastisch (v.a. lokale Modelle).
+  const maxPx = visionMaxImagePx();
   let buffer: Buffer;
+  let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
   try {
-    buffer = rotation !== 0 ? await sharp(raw).rotate(rotation).toBuffer() : raw;
+    buffer = await sharp(raw)
+      .rotate(rotation || 0)
+      .resize(maxPx, maxPx, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+    mediaType = "image/jpeg";
   } catch (e) {
     vlog("loadImageBuffer:sharp_failed", { filename, rotation, rawBytes: raw.length, error: (e as Error).message });
-    return null;
+    buffer = raw; // Fallback: Original ohne Skalierung
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    mediaType = IMAGE_MEDIA_TYPES[ext] ?? "image/jpeg";
   }
   const base64 = buffer.toString("base64");
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  const mediaType = IMAGE_MEDIA_TYPES[ext] ?? "image/jpeg";
   vlog("loadImageBuffer:ok", { filename, mediaType, bytes: buffer.length, rotation });
   return { base64, mediaType };
 }

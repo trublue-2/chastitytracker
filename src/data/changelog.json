@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.33.1",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "perf",
+        "text": "Bild-Verifikation deutlich schneller: Fotos werden vor der Vision-Anfrage auf max. 1024px runterskaliert (justierbar via VISION_MAX_IMAGE_PX). Spart bei lokalen Modellen ~3x Tokens/Zeit (gemessen 22s→7s, 3556→1073 Tokens) bei unveränderter Ziffern-/Geräte-Erkennung. Gilt für Code/Siegel und Geräte-Erkennung (die mehrere Bilder schickt)."
+      }
+    ]
+  },
+  {
     "version": "4.33.0",
     "date": "2026-06-21",
     "changes": [

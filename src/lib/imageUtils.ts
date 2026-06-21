@@ -1,5 +1,6 @@
 import { readFile } from "fs/promises";
 import { join, basename, sep } from "path";
+import sharp from "sharp";
 import { structuredLog } from "@/lib/serverLog";
 
 export const IMAGE_MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
@@ -29,8 +30,11 @@ export function generateUploadFilename(prefix = ""): string {
  * Loads a local upload file and returns base64 + mediaType.
  * Only allows files from the `data/uploads/` directory — rejects any path traversal.
  * Returns null if the file cannot be read or the filename is invalid.
+ *
+ * @param opts.maxPx  Wenn gesetzt, wird das Bild vor base64 auf diese Kantenlänge runterskaliert
+ *   (JPEG) — für Vision-Anfragen, um Tokens/Latenz zu sparen.
  */
-export async function loadUploadedImage(imageUrl: string): Promise<ImageData | null> {
+export async function loadUploadedImage(imageUrl: string, opts?: { maxPx?: number }): Promise<ImageData | null> {
   const filename = basename(imageUrl);
   if (!filename) {
     structuredLog("imageUtils", "loadUploadedImage:reject_filename", { filename, imageUrl });
@@ -45,6 +49,19 @@ export async function loadUploadedImage(imageUrl: string): Promise<ImageData | n
   }
   try {
     const raw = await readFile(fullPath);
+    if (opts?.maxPx) {
+      try {
+        const buf = await sharp(raw)
+          .rotate()
+          .resize(opts.maxPx, opts.maxPx, { fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 85 })
+          .toBuffer();
+        return { base64: buf.toString("base64"), mediaType: "image/jpeg" };
+      } catch (e) {
+        structuredLog("imageUtils", "loadUploadedImage:resize_failed", { fullPath, error: (e as Error).message });
+        // Fallback unten: Original ohne Resize
+      }
+    }
     const base64 = raw.toString("base64");
     const ext = filename.split(".").pop()?.toLowerCase() ?? "";
     const mediaType = IMAGE_MEDIA_TYPES[ext] ?? "image/jpeg";

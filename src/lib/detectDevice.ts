@@ -1,4 +1,5 @@
 import { loadUploadedImage, type ImageData } from "@/lib/imageUtils";
+import { visionMaxImagePx } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
 import { visionComplete, visionConfigured, type VisionBlock } from "@/lib/vision";
 
@@ -41,12 +42,15 @@ export async function detectDevice(
     return null;
   }
 
+  // Bilder für die Vision-Anfrage runterskalieren (Geräte-Erkennung schickt mehrere Bilder → spart viel).
+  const maxPx = visionMaxImagePx();
+
   // Load reference images for each device (parallel)
   const loadedRefs: LoadedReference[] = (
     await Promise.all(
       references.map(async (ref) => {
         const images = (
-          await Promise.all(ref.imageUrls.map(loadUploadedImage))
+          await Promise.all(ref.imageUrls.map((u) => loadUploadedImage(u, { maxPx })))
         ).filter((img): img is ImageData => img !== null);
         return images.length > 0
           ? { deviceId: ref.deviceId, deviceName: ref.deviceName, images }
@@ -60,7 +64,7 @@ export async function detectDevice(
     return null;
   }
 
-  const newImg = await loadUploadedImage(newImageUrl);
+  const newImg = await loadUploadedImage(newImageUrl, { maxPx });
   if (!newImg) {
     dlog("detect:new_image_load_failed", { newImageUrl });
     return null;
