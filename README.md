@@ -120,8 +120,17 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD=<password>
 ADMIN_EMAIL=<email>
 
-# AI verification
+# AI verification — cloud (default). Omit ANTHROPIC_API_KEY to disable AI features.
 ANTHROPIC_API_KEY=<key>
+
+# AI verification — local instead of cloud (optional; intimate photos stay on your infra).
+# See docs/local-vision.md for the full local-AI-box setup.
+# VERIFY_PROVIDER=local
+# LOCAL_VISION_BASE_URL=http://<mac-tailscale-name>:11434/v1   # Ollama (VLM)
+# LOCAL_VISION_MODEL=qwen2.5-vl:7b
+# Fast device recognition via CLIP embeddings (optional; needs clip-embed-service/ running):
+# EMBED_BASE_URL=http://<mac-tailscale-name>:11435
+# EMBED_MODEL=clip-ViT-L-14
 
 # Push notifications (VAPID) — generate with:
 #   node -e "const c=require('crypto').createECDH('prime256v1');c.generateKeys();console.log(c.getPublicKey('base64url'));console.log(c.getPrivateKey('base64url'))"
@@ -275,6 +284,15 @@ WEBAUTHN_RP_ORIGIN=https://tracker.example.com
 # AI inspection verification (Claude Vision). Omit to disable AI features.
 ANTHROPIC_API_KEY=<key>
 
+# Local AI instead of the cloud (optional). Routes vision to your own Mac box over
+# Tailscale — intimate photos never leave your infrastructure. Full setup:
+# docs/local-vision.md. Set per instance:
+# VERIFY_PROVIDER=local
+# LOCAL_VISION_BASE_URL=http://<mac-tailscale-name>:11434/v1   # Ollama (VLM: code/seal/device-check)
+# LOCAL_VISION_MODEL=qwen2.5-vl:7b
+# EMBED_BASE_URL=http://<mac-tailscale-name>:11435            # CLIP service: fast device recognition
+# EMBED_MODEL=clip-ViT-L-14
+
 # Web-push (VAPID). Generate once with:
 #   node -e "const c=require('crypto').createECDH('prime256v1');c.generateKeys();console.log(c.getPublicKey('base64url'));console.log(c.getPrivateKey('base64url'))"
 VAPID_PUBLIC_KEY=<generated-public-key>
@@ -287,6 +305,34 @@ VAPID_SUBJECT=mailto:admin@example.com
 # TELEMETRY_URL=<url>               # optional telemetry endpoint
 # TELEMETRY_INSTANCE_ID=<id>
 ```
+
+### Local AI Instance (optional)
+
+By default the tracker sends inspection photos to the **Anthropic API** (Claude Vision) for
+code/seal reading and device recognition. You can instead run the vision models **on your own
+hardware** — so intimate photos never leave your infrastructure, and explicit photos aren't
+subject to a cloud provider's content policy.
+
+The local AI lives on a single **Mac box** (Apple Silicon / Metal) and serves all tracker
+instances over **Tailscale** (no router ports exposed). Two independent services:
+
+```
+                                     ┌─ Ollama (:11434)  qwen2.5-vl    → VLM: code / seal / device-check
+[tracker container]  ──Tailscale──→  │
+   VERIFY_PROVIDER=local             └─ CLIP   (:11435)  clip-ViT-L-14 → embeddings: fast device recognition
+   LOCAL_VISION_BASE_URL=…:11434/v1
+   EMBED_BASE_URL=…:11435
+```
+
+- **Ollama** runs the VLM (`VERIFY_PROVIDER=local`, `LOCAL_VISION_BASE_URL`). Drop-in for the
+  Anthropic API across all vision tasks.
+- **CLIP embedding service** ([`clip-embed-service/`](clip-embed-service/), `EMBED_BASE_URL`)
+  makes device recognition near-instant: each reference photo becomes a vector once, and a new
+  photo is matched to the nearest device by cosine similarity (ms vs. seconds of VLM inference).
+
+Both are optional and independent. If a service is unreachable the tracker degrades gracefully —
+no suggestion / "not verified", **never a rejection or a failed submission**. Full step-by-step
+setup (Mac install, Tailscale, launchd, env reference, benchmark): **[`docs/local-vision.md`](docs/local-vision.md)**.
 
 ### In-App Feedback
 

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent-Vorlage: nach ~/Library/LaunchAgents/ kopieren, Pfade + Label anpassen,
+     dann `launchctl load ~/Library/LaunchAgents/ch.example.clip-embed.plist`.
+     RunAtLoad + KeepAlive = Auto-Start beim Login + Neustart bei Absturz. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ch.example.clip-embed</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/CHANGE_ME/clip-embed-service/venv/bin/uvicorn</string>
+        <string>app:app</string>
+        <string>--host</string>
+        <string>0.0.0.0</string>
+        <string>--port</string>
+        <string>11435</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/CHANGE_ME/clip-embed-service</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CLIP_MODEL</key>
+        <string>clip-ViT-L-14</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/CHANGE_ME/clip-embed-service/service.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/CHANGE_ME/clip-embed-service/service.log</string>
+</dict>
+</plist>

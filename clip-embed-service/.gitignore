@@ -1,0 +1,4 @@
+venv/
+photos/
+service.log
+__pycache__/
