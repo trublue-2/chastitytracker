@@ -8,6 +8,7 @@ const MODEL: Record<VisionTask, string> = {
   "code-verify": "claude-haiku-4-5-20251001",
   "seal-detect": "claude-sonnet-4-6",
   "device-detect": "claude-haiku-4-5-20251001",
+  "device-check": "claude-haiku-4-5-20251001",
 };
 
 /** Ist der Anthropic-Provider einsatzbereit? (API-Key gesetzt) */

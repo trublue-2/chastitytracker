@@ -1,24 +1,35 @@
 # Lokale Bildverifikation (Alternative zur Anthropic-API)
 
-Die App wertet Fotos an drei Stellen mit einem Vision-Modell aus:
+Die App wertet Fotos an mehreren Stellen aus:
 
-- **Kontroll-Code lesen + matchen** (`verifyKontrolleCodeDetailed`, oft handschriftlich)
-- **Siegelnummer lesen** (`detectSealNumber`, 5–8-stellig)
-- **Geräte-Erkennung** (`detectDevice`, Foto gegen Referenzbilder)
+- **Kontroll-Code lesen + matchen** (`verifyKontrolleCodeDetailed`, oft handschriftlich) — VLM
+- **Siegelnummer lesen** (`detectSealNumber`, 5–8-stellig) — lokales OCR (Tesseract), VLM-Fallback
+- **Geräte-Erkennung beim Verschluss** (`detectDevice` / `detectDeviceByEmbedding`) — CLIP-Embedding
+  bevorzugt (schnell), VLM-Fallback
+- **Kontroll-Geräte-Check** (`checkDeviceInPhoto`) — ist das verschlossene Gerät im Kontroll-Foto? — VLM
 
-Standardmäßig läuft das über die **Anthropic-API**. Alternativ kann ein **lokales Modell**
+Standardmäßig läuft das VLM über die **Anthropic-API**. Alternativ kann ein **lokales Modell**
 verwendet werden — z.B. aus Datenschutzgründen (intime Fotos verlassen die eigene
 Infrastruktur nicht) oder um Anthropic-Policy-Blocks zu vermeiden.
 
-Umgeschaltet wird per Env-Variable `VERIFY_PROVIDER` — **kein Code-Deploy nötig**.
+Umgeschaltet wird per Env-Variable `VERIFY_PROVIDER` — **kein Code-Deploy nötig**. Die schnelle
+Embedding-Geräte-Erkennung ist separat über `EMBED_BASE_URL` zuschaltbar (siehe TEIL C).
 
 ## Architektur
 
+Eine **lokale KI-Box** (Mac, Apple Silicon/Metal) bedient beide Tracker-Instanzen über Tailscale.
+Zwei unabhängige Dienste:
+
 ```
-[Tracker-Container am Server]  --HTTP über Tailscale (E2E-verschlüsselt)-->  [Mac Studio: Ollama]
-   VERIFY_PROVIDER=local                                                       qwen2.5-vl:7b
-   LOCAL_VISION_BASE_URL=http://<mac>:11434/v1
+                                     ┌─ Ollama  (Port 11434)  qwen2.5-vl  → VLM: Code/Siegel/Geräte-Check
+[Tracker-Container]  ──Tailscale──→  │
+   VERIFY_PROVIDER=local             └─ CLIP    (Port 11435)  clip-ViT-L-14 → Embeddings: Geräte-Erkennung
+   LOCAL_VISION_BASE_URL=…:11434/v1
+   EMBED_BASE_URL=…:11435
 ```
+
+Beide sind optional und voneinander unabhängig: nur Ollama → VLM für alles; zusätzlich CLIP →
+schnelle Geräte-Erkennung; keiner von beiden → Anthropic (sofern `ANTHROPIC_API_KEY` gesetzt).
 
 Der Provider-Code liegt in `src/lib/vision/`:
 `index.ts` (Dispatch), `anthropic.ts`, `local.ts` (OpenAI-kompatibel), `types.ts`.
@@ -27,6 +38,13 @@ Die drei Funktionen rufen `visionComplete()` auf — der Provider ist dahinter a
 > **Wichtig:** Im lokalen Modus gibt es **keinen automatischen Anthropic-Fallback**.
 > Ist der Mac aus/nicht erreichbar, meldet der Tracker „nicht verifiziert" (manuelle
 > Prüfung) — es werden keine Fotos ungewollt an Anthropic geschickt.
+>
+> **Kein Fehler bei Ausfall:** Jeder Pfad fängt einen nicht erreichbaren Dienst ab und liefert
+> „nichts erkannt", nie eine Ablehnung oder einen Abbruch. Konkret: Geräte-Vorschlag → kein
+> Vorschlag (manuelle Wahl); Embedding aus → VLM-Fallback → sonst kein Vorschlag; Kontroll-
+> Geräte-Check läuft non-blocking nach dem Speichern (die Prüfung wird **immer** erstellt);
+> Code-Verifikation bleibt schlicht „nicht verifiziert" (Admin kann manuell prüfen) — eine
+> Kontrolle wird bei Netzwerkfehler **nie fälschlich abgelehnt**.
 
 ---
 
@@ -83,6 +101,56 @@ Tailscale-ACL nur den Server-Host auf Port 11434 zulassen.
 | `LOCAL_VISION_MODEL_DEVICE` | – | Override nur Geräte-Erkennung |
 | `LOCAL_VISION_TIMEOUT_MS` | `120000` | Timeout pro Anfrage |
 | `LOCAL_VISION_API_KEY` | `local` | Bearer-Token (Ollama ignoriert ihn) |
+| `EMBED_BASE_URL` | – | CLIP-Embedding-Dienst (z.B. `http://mac:11435`); aktiviert die schnelle Geräte-Erkennung |
+| `EMBED_MODEL` | `clip-ViT-L-14` | CLIP-Modell (muss zum laufenden Dienst passen) |
+| `EMBED_TIMEOUT_MS` | `30000` | Timeout pro Embedding-Anfrage |
+| `EMBED_MIN_MARGIN` | `0.01` | Mindest-Abstand bestes↔zweitbestes Gerät, sonst kein Vorschlag |
+
+`VERIFY_PROVIDER`/`LOCAL_VISION_*` und `EMBED_*` sind unabhängig. Für die schnelle Geräte-
+Erkennung genügt `EMBED_BASE_URL` (+ kuratierte Referenzfotos je Gerät, im Dashboard pflegbar).
+
+---
+
+## TEIL C — CLIP-Embedding-Dienst (schnelle Geräte-Erkennung)
+
+Statt das VLM bei jeder Erkennung alle Referenzfotos durchrechnen zu lassen (~Sekunden/Bild),
+wird jedes Foto **einmal** zu einem CLIP-Vektor; ein neues Foto wird per Cosine-Ähnlichkeit dem
+nächstgelegenen Gerät zugeordnet (**Millisekunden**). Validiert: 100 % Trefferquote an echten
+Geräten mit `clip-ViT-L-14`.
+
+Der Dienst liegt im Repo unter [`clip-embed-service/`](../clip-embed-service/) und läuft auf
+derselben Mac-Box wie Ollama.
+
+1. **Einrichten** (am Mac):
+   ```bash
+   cd clip-embed-service
+   python3 -m venv venv
+   ./venv/bin/pip install -r requirements.txt
+   CLIP_MODEL=clip-ViT-L-14 ./venv/bin/uvicorn app:app --host 0.0.0.0 --port 11435
+   curl http://localhost:11435/health     # {"ok":true,"model":"clip-ViT-L-14"}
+   ```
+2. **Dauerhaft laufen lassen** (launchd): `ch.example.clip-embed.plist` nach
+   `~/Library/LaunchAgents/` kopieren, Pfade anpassen, `launchctl load …`. (`RunAtLoad` +
+   `KeepAlive` = Auto-Start + Neustart bei Absturz, überlebt Reboot.)
+3. **Tailscale**: derselbe Account wie Server/Ollama — der Mac ist als `<mac-name>:11435`
+   erreichbar. Keinen Router-Port öffnen.
+4. **Tracker anbinden** (`.env` pro Instanz):
+   ```bash
+   EMBED_BASE_URL=http://<mac-tailscale-name>:11435
+   EMBED_MODEL=clip-ViT-L-14
+   ```
+5. **Referenzfotos pflegen**: im Dashboard je Gerät klare Beispielfotos hinterlegen (oder aus
+   vergangenen Verschluss-Fotos importieren). Embeddings werden beim ersten Einsatz berechnet und
+   in `DeviceReferenceImage.embedding` gecacht. Ohne Referenzen → kein Embedding-Vorschlag (VLM-
+   Fallback greift).
+
+**Neue Geräte vorab prüfen** (optional, empfohlen vor dem Verlassen auf Embeddings): Fotos je
+Gerät unter `clip-embed-service/photos/<geraet>/` ablegen und die Trennschärfe messen:
+```bash
+CLIP_MODEL=clip-ViT-L-14 ./venv/bin/python separation_test.py photos
+```
+Trefferquote ~100 % und Zentroid-Ähnlichkeiten < ~0.9 → die Geräte sind sauber trennbar. Sonst
+stärkeres Modell testen (z.B. `clip-ViT-L-14` statt `clip-ViT-B-32`).
 
 ---
 

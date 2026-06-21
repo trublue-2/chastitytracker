@@ -1,11 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { ImageOff, CheckCircle2 } from "lucide-react";
+import { ImageOff, CheckCircle2, ScanLine, Lock, Check, AlertTriangle } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import Badge from "@/app/components/Badge";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
+
+/**
+ * Geräte-Fakt aus dem Kontroll-Check: erkanntes Gerät + Abgleich gegen das erwartete (verschlossene).
+ * Selbst-gated (rendert nichts ohne Check). Nutzt Badge als einheitlichen Fakt-Chip.
+ */
+function DeviceFact({ t, row }: { t: ReturnType<typeof useTranslations>; row: AdminKontrolleRowData }) {
+  if (!row.deviceCheck) return null;
+  const isOk = row.deviceCheck === "ok";
+  return (
+    <Badge variant={isOk ? "ok" : "warn"} size="sm" icon={<Lock size={12} />} label={t("deviceLabel")}>
+      {row.deviceCheck === "missing"
+        ? <span className="italic opacity-80">{t("deviceNoneLabel")}</span>
+        : <span className="font-semibold">{row.deviceCheckNote ?? "—"}</span>}
+      {!isOk && row.deviceCheckExpected && (
+        <span className="opacity-80">· {t("deviceExpectedLabel")} {row.deviceCheckExpected}</span>
+      )}
+      {isOk ? <Check size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
+    </Badge>
+  );
+}
 
 export interface AdminKontrolleRowData {
   imageUrl: string | null;
@@ -24,6 +45,12 @@ export interface AdminKontrolleRowData {
   entryId: string | null;
   anforderungStatus: AnforderungStatus;
   verifikationStatus: VerifikationStatus | null;
+  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" · "missing". */
+  deviceCheck: "ok" | "wrong" | "missing" | null;
+  /** Im Foto erkanntes Gerät (Name) oder null. */
+  deviceCheckNote: string | null;
+  /** Erwartetes (verschlossenes) Gerät zur Check-Zeit. */
+  deviceCheckExpected: string | null;
 }
 
 interface Labels {
@@ -39,6 +66,7 @@ interface Labels {
 const PAGE_SIZE = 10;
 
 function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labels: Labels }) {
+  const t = useTranslations("admin");
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -80,6 +108,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
               {row.pillLabel && (
                 <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
               )}
+              <DeviceFact t={t} row={row} />
               {row.fulfilledAtStr && (
                 <div>
                   <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.fulfilledLabel}</p>
@@ -143,12 +172,23 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
         {paginated.map((row, i) => (
           <div key={i} className="px-4 py-3 flex items-start gap-3">
             <AdminKontrolleThumb row={row} labels={labels} />
-            <div className="flex-1 min-w-0 flex flex-col gap-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                {row.username && <span className="font-semibold text-foreground text-sm">{row.username}</span>}
-                {row.pillLabel && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${row.pillCls}`}>{row.pillLabel}</span>}
-                {row.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{row.code}</span>}
-              </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+              {(row.username || row.pillLabel) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {row.username && <span className="font-semibold text-foreground text-sm">{row.username}</span>}
+                  {row.pillLabel && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${row.pillCls}`}>{row.pillLabel}</span>}
+                </div>
+              )}
+              {(row.code || row.deviceCheck) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {row.code && (
+                    <Badge variant="inspect" size="sm" icon={<ScanLine size={12} />} label={t("codeLabel")}>
+                      <span className="font-mono font-bold">{row.code}</span>
+                    </Badge>
+                  )}
+                  <DeviceFact t={t} row={row} />
+                </div>
+              )}
               <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                 {row.fulfilledAtStr && <span>{labels.fulfilledLabel}: {row.fulfilledAtStr}</span>}
                 {row.deadlineStr && <span>{labels.fristLabel}: {row.deadlineStr}</span>}

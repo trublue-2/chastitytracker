@@ -6,8 +6,9 @@
  * (Anthropic-API oder lokales Modell via OpenAI-kompatiblem Endpoint) austauschbar ist.
  */
 
-/** Welcher Anwendungsfall — bestimmt pro Provider das gewählte Modell. */
-export type VisionTask = "code-verify" | "seal-detect" | "device-detect";
+/** Welcher Anwendungsfall — bestimmt pro Provider das gewählte Modell.
+ *  device-check: „ist das verschlossene Gerät im Kontroll-Foto sichtbar?" (Presence/Match). */
+export type VisionTask = "code-verify" | "seal-detect" | "device-detect" | "device-check";
 
 /** Ein Inhaltsblock einer Vision-Anfrage: Text oder Bild (base64). */
 export type VisionBlock =

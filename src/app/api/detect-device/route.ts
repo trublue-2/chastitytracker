@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl } from "@/lib/constants";
-import { detectDevice, type DeviceReference } from "@/lib/detectDevice";
+import { detectDevice } from "@/lib/detectDevice";
+import { detectDeviceByEmbedding } from "@/lib/deviceEmbedding";
+import { embedAvailable } from "@/lib/embed";
+import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 
 /**
  * POST /api/detect-device
@@ -35,70 +37,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
   }
 
-  // KG-only filter: mirrors getUserDeviceOptions — Verschluss/Öffnen flows are KG-only.
-  // Plug, Collar etc. (user-defined categories) are excluded by design.
-  // Legacy devices without a category (categoryId: null) are included for safety.
-  const devices = await prisma.device.findMany({
-    where: {
-      userId: session.user.id,
-      archivedAt: null,
-      OR: [{ category: { isBuiltIn: true } }, { categoryId: null }],
-    },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, imageUrl: true },
-  });
+  // Schnellpfad: Bild-Embedding (CLIP-Dienst). Millisekunden statt sekundenlanger VLM-Inferenz.
+  // Nutzt kuratierte Referenzfotos; bei Erfolg direkt zurück. Sonst (kein Dienst / keine Referenzen
+  // / zu uneindeutig) fällt es auf den VLM-Pfad zurück.
+  if (embedAvailable()) {
+    const e = await detectDeviceByEmbedding(imageUrl, session.user.id);
+    if (e) return NextResponse.json({ deviceId: e.deviceId, deviceName: e.deviceName });
+  }
 
-  // No devices at all
-  if (devices.length === 0) {
+  // Referenzen je aktivem KG-Gerät (kuratiert bevorzugt, sonst Heuristik) — geteilte Sammlung.
+  const references = await gatherDeviceReferences(session.user.id);
+
+  // Keine Geräte → nichts zu erkennen.
+  if (references.length === 0) {
     return NextResponse.json({ deviceId: null, deviceName: null });
   }
-
-  // Single device: skip Claude, return directly
-  if (devices.length === 1) {
-    return NextResponse.json({ deviceId: devices[0].id, deviceName: devices[0].name });
+  // Genau ein Gerät: kein Vision-Call nötig.
+  if (references.length === 1) {
+    return NextResponse.json({ deviceId: references[0].deviceId, deviceName: references[0].deviceName });
   }
-
-  // Referenzen je Gerät: bevorzugt KURATIERTE Referenzfotos (DeviceReferenceImage = „Trainingsmaterial"),
-  // sonst Fallback auf die bisherige Heuristik (Geräte-Foto + letzte 2 Verschluss-Fotos), damit Geräte
-  // ohne Kuration nicht regressieren. Cap pro Gerät begrenzt Prompt-Größe/Latenz (v.a. lokales Modell).
-  // Query per device, sonst wäre ein globales `take` zum meistgenutzten Gerät verzerrt.
-  const MAX_REFS_PER_DEVICE = 5;
-  const curatedByDevice = await Promise.all(
-    devices.map((device) =>
-      prisma.deviceReferenceImage.findMany({
-        where: { deviceId: device.id },
-        select: { imageUrl: true },
-        orderBy: { createdAt: "desc" },
-        take: MAX_REFS_PER_DEVICE,
-      })
-    )
-  );
-  // Fallback-Fotos (Geräte-Foto + letzte Verschluss-Fotos) NUR für Geräte ohne kuratierte Referenzen laden.
-  const fallbackByDevice = await Promise.all(
-    devices.map((device, i) =>
-      curatedByDevice[i].length > 0
-        ? Promise.resolve([] as { imageUrl: string | null }[])
-        : prisma.entry.findMany({
-            where: { userId: session.user.id, type: "VERSCHLUSS", deviceId: device.id, imageUrl: { not: null } },
-            select: { imageUrl: true },
-            orderBy: { startTime: "desc" },
-            take: 2,
-          })
-    )
-  );
-
-  const references: DeviceReference[] = devices.map((device, i) => {
-    const curated = curatedByDevice[i].map((r) => r.imageUrl);
-    if (curated.length > 0) {
-      return { deviceId: device.id, deviceName: device.name, imageUrls: curated };
-    }
-    const imageUrls: string[] = [];
-    if (device.imageUrl) imageUrls.push(device.imageUrl);
-    for (const entry of fallbackByDevice[i]) {
-      if (entry.imageUrl) imageUrls.push(entry.imageUrl);
-    }
-    return { deviceId: device.id, deviceName: device.name, imageUrls: imageUrls.slice(0, MAX_REFS_PER_DEVICE) };
-  });
 
   const result = await detectDevice(imageUrl, references);
   return NextResponse.json({

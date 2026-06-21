@@ -1,5 +1,55 @@
 [
   {
+    "version": "4.36.1",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Robustheits-Korrekturen an der Embedding-Geräte-Erkennung (aus Code-Review): Referenz-Vektoren werden beim Speichern sauber kopiert (kein Speicher-Aliasing), eine korrupte Embedding-Zeile in der DB lässt die Erkennung nicht mehr abstürzen, ein leeres EMBED_MIN_MARGIN deaktiviert nicht mehr versehentlich die Sicherheits-Schwelle, und bei mehreren Geräten wird das Foto immer wirklich verglichen statt vorschnell das einzige referenzierte Gerät vorzuschlagen. Plus 34 neue Unit-Tests."
+      }
+    ]
+  },
+  {
+    "version": "4.36.0",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Kontrollen zeigen jetzt das erkannte Gerät gleichwertig neben dem erkannten Code — als logisches Faktenpaar (Code · Gerät), jeweils als eigener Chip. Beim Geräte-Check: ✓ passendes Gerät (grün), bei Abweichung das erkannte Gerät + „erwartet <Sollgerät>\", oder „keins erkannt\" — jeweils mit Warn-Markierung. Der erwartete (verschlossene) Gerätename wird zur Check-Zeit festgehalten, damit die Abweichung nachvollziehbar bleibt."
+      }
+    ]
+  },
+  {
+    "version": "4.35.0",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Geräte-Erkennung per Bild-Embedding (CLIP) — schnell UND genau: Statt das VLM bei jeder Erkennung alle Referenzfotos durchrechnen zu lassen (~6s/Bild), wird jedes Foto einmal zu einem Vektor und ein neues Foto per Ähnlichkeit dem nächstgelegenen Gerät zugeordnet (Millisekunden). Validierung an echten Geräten: 100% Trefferquote mit clip-ViT-L-14. Aktiv über EMBED_BASE_URL (lokaler CLIP-Dienst); Referenz-Embeddings werden lazy berechnet und gecacht. Ohne Dienst/Referenzen oder bei uneindeutigem Ergebnis fällt es auf den VLM-Pfad zurück. Braucht kuratierte Referenzfotos je Gerät."
+      }
+    ]
+  },
+  {
+    "version": "4.34.1",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "perf",
+        "text": "Geräte-Erkennung lokal deutlich schneller: Die Latenz wird von der ANZAHL der Bilder im Prompt dominiert (jedes ~1060 Tokens; die Auflösung unter ~1024px spart nichts). Referenzfotos je Gerät auf 2 begrenzt (VISION_MAX_REFS_PER_DEVICE) + Gesamt-Obergrenze 6 über alle Geräte (VISION_MAX_TOTAL_REFS). Geräte-Bilder etwas kleiner (768px, VISION_DEVICE_MAX_IMAGE_PX). Alles env-justierbar (mehr = genauer, weniger = schneller)."
+      }
+    ]
+  },
+  {
+    "version": "4.34.0",
+    "date": "2026-06-21",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Kontrolle prüft jetzt auch das GERÄT, nicht nur den Code: Aus dem Kontroll-Foto wird server-seitig per Vision erkannt, ob das aktuell verschlossene Gerät sichtbar ist. Ergebnis als Hinweis für den Keyholder in der Kontroll-Liste (✓ Gerät erkannt / ⚠ falsches Gerät / ⚠ kein Gerät) — advisory, blockiert nicht. Läuft non-blocking (verzögert die Einreichung nicht); nutzt die kuratierten Geräte-Referenzfotos und das lokale ODER Anthropic-Modell. Auch bei nur einem Gerät muss es im Foto sichtbar sein."
+      }
+    ]
+  },
+  {
     "version": "4.33.1",
     "date": "2026-06-21",
     "changes": [

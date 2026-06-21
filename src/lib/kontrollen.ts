@@ -10,6 +10,9 @@ export interface KontrolleRow {
   username: string | null;
   anforderungStatus: AnforderungStatus | null;
   verifikationStatus: VerifikationStatus | null;
+  deviceCheck: string | null;
+  deviceCheckNote: string | null;
+  deviceCheckExpected: string | null;
   code: string | null;
   deadline: Date | null;
   createdAt: Date | null;
@@ -29,6 +32,9 @@ type PruefungEntry = {
   note: string | null;
   kontrollCode: string | null;
   verifikationStatus: string | null;
+  deviceCheck?: string | null;
+  deviceCheckNote?: string | null;
+  deviceCheckExpected?: string | null;
   user?: { username: string };
 };
 
@@ -65,6 +71,9 @@ export function buildKontrolleRows(
       username: e.user?.username ?? null,
       anforderungStatus: ka ? mapAnforderungStatus(ka, e.startTime, now) : null,
       verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
+      deviceCheck: e.deviceCheck ?? null,
+      deviceCheckNote: e.deviceCheckNote ?? null,
+      deviceCheckExpected: e.deviceCheckExpected ?? null,
       code: ka?.code ?? e.kontrollCode ?? null,
       deadline: ka?.deadline ?? null,
       createdAt: ka?.createdAt ?? null,
@@ -86,6 +95,9 @@ export function buildKontrolleRows(
       username: k.user?.username ?? null,
       anforderungStatus: mapAnforderungStatus(k, null, now),
       verifikationStatus: null,
+      deviceCheck: null,
+      deviceCheckNote: null,
+      deviceCheckExpected: null,
       code: k.code,
       deadline: k.deadline,
       createdAt: k.createdAt,
@@ -144,5 +156,8 @@ export function mapKontrolleRow(
     entryId: row.entryId,
     anforderungStatus: row.anforderungStatus ?? "open",
     verifikationStatus: row.verifikationStatus,
+    deviceCheck: (row.deviceCheck as AdminKontrolleRowData["deviceCheck"]) ?? null,
+    deviceCheckNote: row.deviceCheckNote,
+    deviceCheckExpected: row.deviceCheckExpected,
   };
 }
