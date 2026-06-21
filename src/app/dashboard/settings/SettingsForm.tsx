@@ -7,7 +7,6 @@ import { User } from "lucide-react";
 import Card from "@/app/components/Card";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
-import Toggle from "@/app/components/Toggle";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
@@ -24,35 +23,14 @@ interface SettingsFormProps {
   email: string | null;
   version: string;
   buildDate?: string;
-  mobileDesktopUpload?: boolean;
   feedbackEnabled?: boolean;
 }
 
-export default function SettingsForm({ username, email, version, buildDate, mobileDesktopUpload: initialMobileDesktopUpload = false, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const locale = useLocale();
   const switchLocale = useLocaleSwitcher();
-
-  const [mobileDesktopUpload, setMobileDesktopUpload] = useState(initialMobileDesktopUpload);
-  const [uploadSaving, setUploadSaving] = useState(false);
-
-  async function handleMobileDesktopUpload(value: boolean) {
-    const previous = mobileDesktopUpload;
-    setMobileDesktopUpload(value);
-    setUploadSaving(true);
-    try {
-      const res = await fetch("/api/settings/upload", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobileDesktopUpload: value }),
-      });
-      if (!res.ok) setMobileDesktopUpload(previous);
-    } catch {
-      setMobileDesktopUpload(previous);
-    }
-    setUploadSaving(false);
-  }
 
   const [expanded, setExpanded] = useState<string | null>(null);
   function toggle(section: string) {
@@ -235,15 +213,6 @@ export default function SettingsForm({ username, email, version, buildDate, mobi
           {t("app")}
         </p>
         <div className="divide-y divide-border-subtle">
-          <div className="px-5 py-4">
-            <Toggle
-              label={t("mobileUploadTitle")}
-              description={t("mobileUploadDesc")}
-              checked={mobileDesktopUpload}
-              disabled={uploadSaving}
-              onChange={(checked) => handleMobileDesktopUpload(checked)}
-            />
-          </div>
           <PushManager />
           <Divider />
           <PasskeyManager />

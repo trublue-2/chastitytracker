@@ -1,5 +1,12 @@
 [
   {
+    "version": "4.31.3",
+    "date": "2026-06-21",
+    "changes": [
+      { "type": "security", "text": "„Dateiauswahl auf Mobile\" (mobileDesktopUpload) ist jetzt KEYHOLDER-only. Der User konnte das Flag bisher selbst umlegen (/api/settings/upload, nur Session-Auth) — das umging die Keyholder-Kontrolle und konnte das Flag unerwartet ändern. User-Toggle + Self-Route entfernt; gesetzt wird es nur noch über die Admin-Einstellungen (requireAdminApi). Schützt die Foto-Verifikation (kein selbst aktivierter Galerie-Upload)." }
+    ]
+  },
+  {
     "version": "4.31.2",
     "date": "2026-06-21",
     "changes": [
