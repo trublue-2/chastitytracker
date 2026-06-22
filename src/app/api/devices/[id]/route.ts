@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -91,6 +92,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (categoryId !== undefined) data.categoryId = categoryId || null;
 
   const updated = await prisma.device.update({ where: { id }, data });
+
+  // H5: wird das Geräte-Foto ersetzt, die alte verwaiste Datei löschen.
+  if (imageUrl !== undefined && device.imageUrl && imageUrl !== device.imageUrl) {
+    void deleteUploadedFiles([device.imageUrl]);
+  }
+
   return NextResponse.json(updated);
 }
 
@@ -117,8 +124,11 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const entryCount = await prisma.entry.count({ where: { deviceId: id } });
 
   if (entryCount === 0) {
-    // Hard delete — no history to preserve
+    // Hard delete — no history to preserve. H5: Geräte-Foto + alle Referenzfotos von der Platte
+    // entfernen (die Referenz-DB-Zeilen kaskadieren, die Dateien nicht).
+    const refs = await prisma.deviceReferenceImage.findMany({ where: { deviceId: id }, select: { imageUrl: true } });
     await prisma.device.delete({ where: { id } });
+    void deleteUploadedFiles([device.imageUrl, ...refs.map((r) => r.imageUrl)]);
     return NextResponse.json({ deleted: true });
   }
 

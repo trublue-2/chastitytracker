@@ -11,6 +11,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
   }
 
+  // M17: Hijack verhindern — gehört dieser Endpoint bereits einem ANDEREN Konto, nicht umhängen.
+  const existing = await prisma.pushSubscription.findUnique({ where: { endpoint }, select: { userId: true } });
+  if (existing && existing.userId !== session.user.id) {
+    return NextResponse.json({ error: "Subscription belongs to another account" }, { status: 409 });
+  }
+
   await prisma.pushSubscription.upsert({
     where: { endpoint },
     create: { userId: session.user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth },

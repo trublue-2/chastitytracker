@@ -1,5 +1,6 @@
-import { readFile } from "fs/promises";
+import { readFile, unlink } from "fs/promises";
 import { join, basename, sep } from "path";
+import { randomBytes } from "crypto";
 import sharp from "sharp";
 import { structuredLog } from "@/lib/serverLog";
 
@@ -21,9 +22,43 @@ export function uploadsDirPath(): string {
   return join(process.cwd(), "data", "uploads");
 }
 
-/** Erzeugt einen eindeutigen Upload-Dateinamen (optionaler Prefix, z.B. "ref-"). */
+/** Erzeugt einen eindeutigen, nicht erratbaren Upload-Dateinamen (optionaler Prefix, z.B. "ref-").
+ *  M8: kryptographisch zufällig (randomBytes) statt Date.now()+Math.random() — Dateiname ist eine
+ *  (sekundäre) Verteidigungslinie für intime Fotopfade und darf nicht vorhersagbar sein. */
 export function generateUploadFilename(prefix = ""): string {
-  return `${prefix}${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+  return `${prefix}${randomBytes(16).toString("hex")}.jpg`;
+}
+
+/**
+ * H5 (Recht auf Vergessenwerden): Löscht hochgeladene Foto-Dateien sicher von der Platte.
+ * Gleicher Pfad-Guard wie beim Laden (nur innerhalb data/uploads). Dedupliziert, ignoriert
+ * null/leer und bereits fehlende Dateien (ENOENT). Wirft NIE — ein fehlgeschlagenes Löschen darf
+ * den auslösenden Request (Entry/Device/User-Löschung) nicht scheitern lassen.
+ */
+export async function deleteUploadedFiles(imageUrls: Array<string | null | undefined>): Promise<void> {
+  const uploadsDir = uploadsDirPath();
+  const seen = new Set<string>();
+  await Promise.all(
+    imageUrls.map(async (url) => {
+      if (!url) return;
+      const filename = basename(url);
+      if (!filename || seen.has(filename)) return;
+      seen.add(filename);
+      const fullPath = join(uploadsDir, filename);
+      if (!fullPath.startsWith(uploadsDir + sep)) {
+        structuredLog("imageUtils", "deleteUploadedFiles:path_traversal", { fullPath, uploadsDir });
+        return;
+      }
+      try {
+        await unlink(fullPath);
+      } catch (e) {
+        const err = e as NodeJS.ErrnoException;
+        if (err.code !== "ENOENT") {
+          structuredLog("imageUtils", "deleteUploadedFiles:failed", { fullPath, error: err.message });
+        }
+      }
+    })
+  );
 }
 
 /**

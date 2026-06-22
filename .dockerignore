@@ -5,7 +5,7 @@ node_modules
 prisma/dev.db
 data/
 public/uploads
-.env.local
+.env*
 *.md
 playwright-report
 test-results

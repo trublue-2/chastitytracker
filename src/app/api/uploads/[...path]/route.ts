@@ -67,8 +67,12 @@ export async function GET(
     const buffer = await readFile(filepath);
     const ext = extname(filename).toLowerCase();
     const contentType = MIME[ext] ?? "application/octet-stream";
+    // M9: intime Fotos sind auth-gated → niemals in geteilte Caches (Proxies/CDNs). `private`
+    // erlaubt nur den Browser-Cache. Versiegelte Code-Fotos gar nicht cachen (no-store), damit ein
+    // einmal freigegebenes Foto nach erneutem Versiegeln nicht weiter aus dem Cache kommt.
+    const cacheControl = codeEntry ? "private, no-store" : "private, max-age=31536000, immutable";
     return new NextResponse(buffer, {
-      headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=31536000, immutable" },
+      headers: { "Content-Type": contentType, "Cache-Control": cacheControl },
     });
   } catch {
     return new NextResponse("Not Found", { status: 404 });

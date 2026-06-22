@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { hashToken } from "@/lib/oauth";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -27,11 +28,13 @@ export async function POST(req: NextRequest) {
   // Alte Tokens löschen
   await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
 
-  const token = crypto.randomBytes(32).toString("hex");
+  const token = crypto.randomBytes(32).toString("hex"); // Klartext nur im Mail-Link
+  // L1: nur den Hash speichern — bei DB-Leak ist der gespeicherte Wert nicht direkt nutzbar.
+  const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
   await prisma.passwordResetToken.create({
-    data: { token, userId: user.id, expiresAt },
+    data: { token: tokenHash, userId: user.id, expiresAt },
   });
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
