@@ -63,29 +63,16 @@ export async function POST(req: NextRequest) {
   const filename = generateUploadFilename();
   const filepath = join(uploadsDir, filename);
 
-  // H4: sharp re-encodiert zu JPEG und verwirft dabei ALLE Metadaten (EXIF/GPS) — kein
-  // .withMetadata(). Schlägt das fehl (z.B. HEIC ohne Codec), wird der ROHE Puffer NIE
-  // persistiert (sonst läge das Original samt GPS-Standort auf der Platte). Stattdessen ablehnen.
-  let compressed: Buffer;
-  try {
-    compressed = await sharp(buffer)
-      .resize({ width: 1920, withoutEnlargement: true })
-      .jpeg({ quality: 85 })
-      .toBuffer();
-  } catch {
-    return NextResponse.json(
-      { error: "Bild konnte nicht verarbeitet werden — bitte als JPEG oder PNG hochladen." },
-      { status: 422 }
-    );
-  }
-
-  await writeFile(filepath, compressed);
-
-  // Prefer client-provided EXIF time (survives iOS Safari stripping)
+  // Zeit + GPS aus dem ROHEN Puffer lesen, BEVOR gespeichert wird (exifr liest auch HEIC). Die
+  // Aufnahmezeit für den Abgleich ist damit IMMER verfügbar — unabhängig davon, ob sharp das Bild
+  // verarbeiten kann. clientExifTime (file.lastModified) hat Vorrang (überlebt iOS-Safari-Stripping).
   let exifTime: string | null = clientExifTime || null;
-
+  let hasGps = false;
+  try {
+    const gps = await exifr.gps(buffer);
+    hasGps = !!gps && (gps.latitude != null || gps.longitude != null);
+  } catch { /* keine/unlesbare GPS-Daten */ }
   if (!exifTime) {
-    // Fallback: server-side EXIF parsing
     try {
       const exif = await exifr.parse(buffer, { pick: ["DateTimeOriginal", "DateTime"] });
       const raw = exif?.DateTimeOriginal ?? exif?.DateTime ?? null;
@@ -94,13 +81,34 @@ export async function POST(req: NextRequest) {
       } else if (typeof raw === "string") {
         const normalized = raw.replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3");
         const parsed = new Date(normalized);
-        if (!isNaN(parsed.getTime())) {
-          exifTime = parsed.toISOString();
-        }
+        if (!isNaN(parsed.getTime())) exifTime = parsed.toISOString();
       }
-    } catch {
-      // No EXIF data available
-    }
+    } catch { /* keine EXIF-Zeit verfügbar */ }
+  }
+
+  // H4: sharp re-encodiert zu JPEG und verwirft dabei ALLE Metadaten inkl. GPS (kein .withMetadata()).
+  let compressed: Buffer | null = null;
+  try {
+    compressed = await sharp(buffer)
+      .resize({ width: 1920, withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+  } catch {
+    compressed = null;
+  }
+
+  if (compressed) {
+    await writeFile(filepath, compressed); // GPS-frei (re-encodiert)
+  } else if (!hasGps) {
+    // sharp konnte das Bild nicht verarbeiten (z.B. HEIC ohne Codec), es enthält aber KEINE
+    // GPS-Daten → das Original ist unbedenklich speicherbar. Die Zeit ist oben bereits erfasst.
+    await writeFile(filepath, buffer);
+  } else {
+    // Unverarbeitbar UND mit Standortdaten → niemals roh speichern (GPS-Leak, H4). Ablehnen.
+    return NextResponse.json(
+      { error: "Bild mit Standortdaten konnte nicht bereinigt werden — bitte als JPEG hochladen." },
+      { status: 422 }
+    );
   }
 
   trackEvent("upload.success");
