@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.37.1",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Upload-Härtung (H4) verfeinert: Die Aufnahmezeit für den Zeit-Abgleich wird jetzt IMMER zuerst aus dem Bild gelesen — auch wenn das Bild nicht re-encodiert werden kann. Bilder, die der Server nicht verarbeiten kann (z.B. HEIC ohne Codec), werden nur noch abgelehnt, wenn sie tatsächlich Standortdaten (GPS) enthalten; ohne GPS werden sie normal gespeichert. So bleibt die Zeit-Funktion vollständig erhalten und HEIC-Uploads ohne Standort funktionieren weiter, ohne dass je ein GPS-Standort gespeichert wird."
+      }
+    ]
+  },
+  {
     "version": "4.37.0",
     "date": "2026-06-22",
     "changes": [
