@@ -55,7 +55,18 @@ export interface TrackerOverview {
     wearingHours: { today: number; week: number; month: number };
     goal: GoalProgress | null;
   }[];
+  /** Aktuell OFFENE Kontrolle (noch nicht eingereicht). null bedeutet NICHT "ausgelaufen": eine
+   *  eingereichte Kontrolle ist nicht mehr offen (→ lastKontrolle), eine überfällige bleibt offen
+   *  mit overdue:true. Kontrollen verschwinden nie automatisch. */
   openKontrolle: { code: string; deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null } | null;
+  /** Die zuletzt eingereichte Kontrolle (jüngste PRUEFUNG) — Code-Verifikation + Geräte-Check.
+   *  Damit ist erkennbar, dass/wann zuletzt etwas eingereicht & verifiziert wurde. null = nie. */
+  lastKontrolle: {
+    time: string;
+    code: string | null;
+    verifikationStatus: string | null;
+    deviceCheck: { status: string; detected: string | null; expected: string | null } | null;
+  } | null;
   /** reinigungErlaubt: true = eine Reinigungsöffnung bricht die Sperre nicht. deviceName: vorgegebenes Gerät (null = keines). */
   activeSperrzeit: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null } | null;
   /** deviceName: das von der Anforderung verlangte Gerät (null = beliebig). reinigungErlaubt wird auf die erzeugte Sperrzeit vererbt. */
@@ -74,6 +85,11 @@ export interface TrackerOverview {
   /** Jüngste private Keyholder-Notizen (Beobachtungen zum Trageverhalten je KG/Kategorie).
    *  Volle Historie über list_keyholder_notes. Nur über den MCP sichtbar. */
   keyholderNotes: { id: string; kg: string | null; kategorie: string | null; text: string; at: string }[];
+}
+
+/** Geräte-Check eines Eintrags ins MCP-Format (status/detected/expected) oder null. */
+function mapDeviceCheck(e: { deviceCheck: string | null; deviceCheckNote: string | null; deviceCheckExpected: string | null }) {
+  return e.deviceCheck ? { status: e.deviceCheck, detected: e.deviceCheckNote, expected: e.deviceCheckExpected } : null;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -207,6 +223,16 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       remainingMinutes: minutesUntil(openKontrolle.deadline),
       comment: openKontrolle.kommentar,
     } : null,
+    lastKontrolle: (() => {
+      // Jüngste eingereichte Kontrolle (PRUEFUNG) aus den bereits geladenen entries — kein Extra-Query.
+      const p = entries.find((e) => e.type === "PRUEFUNG");
+      return p ? {
+        time: fmt(p.startTime),
+        code: p.kontrollCode,
+        verifikationStatus: p.verifikationStatus,
+        deviceCheck: mapDeviceCheck(p),
+      } : null;
+    })(),
     activeSperrzeit: activeSperrzeit ? {
       endetAt: activeSperrzeit.endetAt ? fmt(activeSperrzeit.endetAt) : null,
       indefinite: activeSperrzeit.endetAt === null,
@@ -365,6 +391,11 @@ export interface EntryRow {
   kontrollCode: string | null;
   verifikationStatus: string | null;
   deviceName: string | null;
+  /** Geräte-Check aus dem Kontroll-Foto (nur PRUEFUNG, advisory): wurde das verschlossene Gerät
+   *  erkannt? status: "ok" = passendes Gerät · "wrong" = anderes/keins zugeordnet · "missing" = kein
+   *  Gerät sichtbar. detected = im Foto erkanntes Gerät, expected = das verschlossene (Soll-)Gerät.
+   *  null = nicht geprüft (z.B. nicht verschlossen oder keine Referenzfotos hinterlegt). */
+  deviceCheck: { status: string; detected: string | null; expected: string | null } | null;
   hasImage: boolean;
   imageExifTime: string | null;
   /** True when the entered time differs from the creation time (back-/post-dated). */
@@ -422,6 +453,7 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
       kontrollCode: e.kontrollCode,
       verifikationStatus: e.verifikationStatus,
       deviceName: e.device?.name ?? null,
+      deviceCheck: mapDeviceCheck(e),
       hasImage: !!e.imageUrl,
       imageExifTime: e.imageExifTime ? formatDateTime(e.imageExifTime) : null,
       timeCorrected: isTimeCorrected(e.startTime, e.createdAt),
