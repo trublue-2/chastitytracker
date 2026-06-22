@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
 
 export async function PATCH(
   req: NextRequest,
@@ -121,6 +122,11 @@ export async function PATCH(
     throw e;
   }
 
+  // H5: wird das Foto ersetzt, die alte verwaiste Datei löschen (fire-and-forget).
+  if (imageUrl !== undefined && existing.imageUrl && imageUrl !== existing.imageUrl) {
+    void deleteUploadedFiles([existing.imageUrl]);
+  }
+
   return NextResponse.json(entry);
 }
 
@@ -160,12 +166,12 @@ export async function DELETE(
       prisma.entry.findFirst({
         where: { userId: existing.userId, type: { in: [...pairTypes] }, startTime: { lt: existing.startTime }, ...categoryFilter },
         orderBy: { startTime: "desc" },
-        select: { id: true, type: true, startTime: true },
+        select: { id: true, type: true, startTime: true, imageUrl: true, codeImageUrl: true },
       }),
       prisma.entry.findFirst({
         where: { userId: existing.userId, type: { in: [...pairTypes] }, startTime: { gt: existing.startTime }, ...categoryFilter },
         orderBy: { startTime: "asc" },
-        select: { id: true, type: true, startTime: true },
+        select: { id: true, type: true, startTime: true, imageUrl: true, codeImageUrl: true },
       }),
     ]);
 
@@ -192,6 +198,8 @@ export async function DELETE(
           }
           throw e;
         }
+        // H5: Foto-Dateien beider gelöschter Einträge entfernen.
+        void deleteUploadedFiles([existing.imageUrl, existing.codeImageUrl, partner.imageUrl, partner.codeImageUrl]);
         revalidatePath("/dashboard", "layout");
         return new NextResponse(null, { status: 204 });
       }
@@ -214,6 +222,9 @@ export async function DELETE(
     }
     await tx.entry.delete({ where: { id } });
   });
+
+  // H5: Foto-Dateien des gelöschten Eintrags entfernen.
+  void deleteUploadedFiles([existing.imageUrl, existing.codeImageUrl]);
 
   if (isPair) {
     revalidatePath("/dashboard", "layout");

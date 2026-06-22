@@ -15,6 +15,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "token and platform (ios|android) required" }, { status: 400 });
   }
 
+  // M17: Hijack verhindern — gehört dieser Token bereits einem ANDEREN Konto, nicht umhängen.
+  const existing = await prisma.nativePushToken.findUnique({ where: { token }, select: { userId: true } });
+  if (existing && existing.userId !== session.user.id) {
+    return NextResponse.json({ error: "Token belongs to another account" }, { status: 409 });
+  }
+
   await prisma.nativePushToken.upsert({
     where: { token },
     create: { userId: session.user.id, token, platform },

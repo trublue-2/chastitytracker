@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "fs/promises";
 import { join, basename } from "path";
 import { prisma } from "@/lib/prisma";
-import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
+import { uploadsDirPath, generateUploadFilename, deleteUploadedFiles } from "@/lib/imageUtils";
 import { visionMaxRefsPerDevice } from "@/lib/constants";
 import type { DeviceReference } from "@/lib/detectDevice";
 import type { ServiceResult } from "@/lib/serviceResult";
@@ -152,9 +152,13 @@ export async function importRecentVerschluss(
 /** Referenz löschen. `userId` = Owner-Scope (Nicht-Admin); `null` = Admin (kein Owner-Filter).
  *  Datei bleibt liegen (konsistent mit dem App-Verhalten — Upload-Dateien werden nicht gelöscht). */
 export async function deleteReference(refId: string, userId: string | null): Promise<ServiceResult<null>> {
-  const res = await prisma.deviceReferenceImage.deleteMany({
+  // Erst mit Ownership-Scope laden (für die Datei-URL), dann löschen — H5: Datei mit entfernen.
+  const ref = await prisma.deviceReferenceImage.findFirst({
     where: { id: refId, ...(userId ? { device: { userId } } : {}) },
+    select: { id: true, imageUrl: true },
   });
-  if (res.count === 0) return { ok: false, status: 404, error: "Referenz nicht gefunden" };
+  if (!ref) return { ok: false, status: 404, error: "Referenz nicht gefunden" };
+  await prisma.deviceReferenceImage.delete({ where: { id: ref.id } });
+  void deleteUploadedFiles([ref.imageUrl]);
   return { ok: true, data: null };
 }

@@ -12,11 +12,15 @@ export DATABASE_URL="file:/app/data/prod.db"
 echo "┌─────────────────────────────────────────────────────┐"
 echo "│  STARTUP DIAGNOSE                                   │"
 printf "│  ADMIN_USERNAME : %-34s│\n" "${ADMIN_USERNAME:-'(nicht gesetzt → admin)'}"
-printf "│  ADMIN_EMAIL    : %-34s│\n" "${ADMIN_EMAIL:-'(nicht gesetzt → null)'}"
-if [ -n "$ADMIN_PASSWORD" ]; then
-  printf "│  ADMIN_PASSWORD : %-34s│\n" "(gesetzt, ${#ADMIN_PASSWORD} Zeichen)"
+if [ -n "$ADMIN_EMAIL" ]; then
+  printf "│  ADMIN_EMAIL    : %-34s│\n" "(gesetzt)"
 else
-  printf "│  ADMIN_PASSWORD : %-34s│\n" "(nicht gesetzt → admin123)"
+  printf "│  ADMIN_EMAIL    : %-34s│\n" "(nicht gesetzt → null)"
+fi
+if [ -n "$ADMIN_PASSWORD" ]; then
+  printf "│  ADMIN_PASSWORD : %-34s│\n" "(gesetzt)"
+else
+  printf "│  ADMIN_PASSWORD : %-34s│\n" "(nicht gesetzt → Zufallspasswort)"
 fi
 printf "│  NEXTAUTH_URL   : %-34s│\n" "${NEXTAUTH_URL:-'(nicht gesetzt)'}"
 printf "│  DATABASE_URL   : %-34s│\n" "file:/app/data/prod.db"

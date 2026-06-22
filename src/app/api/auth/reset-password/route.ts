@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { hashToken } from "@/lib/oauth";
 import { validatePassword } from "@/lib/constants";
 
 export async function POST(req: Request) {
@@ -9,8 +10,10 @@ export async function POST(req: Request) {
   const pwErr = validatePassword(password);
   if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 
+  // L1: Token wird nur als SHA-256-Hash gespeichert — eingehenden Klartext-Token hashen und so suchen.
+  const tokenHash = hashToken(token);
   const resetToken = await prisma.passwordResetToken.findUnique({
-    where: { token },
+    where: { token: tokenHash },
     include: { user: true },
   });
 
@@ -21,7 +24,7 @@ export async function POST(req: Request) {
   const passwordHash = await bcrypt.hash(password, 12);
   await prisma.$transaction([
     prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
-    prisma.passwordResetToken.delete({ where: { token } }),
+    prisma.passwordResetToken.delete({ where: { token: tokenHash } }),
   ]);
 
   return NextResponse.json({ ok: true });

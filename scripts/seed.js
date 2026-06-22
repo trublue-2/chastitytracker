@@ -3,6 +3,7 @@
 
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const prisma = new PrismaClient();
 
@@ -52,8 +53,11 @@ async function ensureNotificationPrefs(userId) {
 
 async function main() {
   const username = process.env.ADMIN_USERNAME || "admin";
-  const password = process.env.ADMIN_PASSWORD || "admin123";
   const email = process.env.ADMIN_EMAIL || null;
+  // C1: KEIN ratebarer Default ("admin123"). Ohne ADMIN_PASSWORD wird ein starkes Zufalls-
+  // passwort erzeugt und (nur beim Erststart, s.u.) genau einmal ins Log geschrieben.
+  const passwordFromEnv = !!process.env.ADMIN_PASSWORD;
+  const password = process.env.ADMIN_PASSWORD || crypto.randomBytes(18).toString("base64url");
 
   // Single query: find an existing admin OR a user that matches the configured credentials.
   // This handles first-start, re-deployments, and the case where a user exists but isn't admin.
@@ -87,8 +91,15 @@ async function main() {
     console.log("┌─────────────────────────────────────────────────────┐");
     console.log("│  ERSTER START – Zugangsdaten                        │");
     console.log(`│  Benutzername: ${username.padEnd(37)}│`);
-    console.log(`│  Passwort:     ${password.padEnd(37)}│`);
-    console.log("│  Bitte nach dem ersten Einloggen ändern!            │");
+    if (passwordFromEnv) {
+      console.log("│  Passwort:     (aus ADMIN_PASSWORD)                 │");
+      console.log("│  Bitte nach dem ersten Einloggen ändern!            │");
+    } else {
+      // Einmaliges Anzeigen des generierten Passworts — JETZT notieren, es wird nie wieder geloggt.
+      console.log(`│  Passwort:     ${password.padEnd(37)}│`);
+      console.log("│  ⚠ Generiert (kein ADMIN_PASSWORD gesetzt) — JETZT  │");
+      console.log("│    notieren und nach dem Login ändern!              │");
+    }
     console.log("└─────────────────────────────────────────────────────┘");
   }
 

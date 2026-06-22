@@ -63,6 +63,9 @@ export async function POST(req: NextRequest) {
   const filename = generateUploadFilename();
   const filepath = join(uploadsDir, filename);
 
+  // H4: sharp re-encodiert zu JPEG und verwirft dabei ALLE Metadaten (EXIF/GPS) — kein
+  // .withMetadata(). Schlägt das fehl (z.B. HEIC ohne Codec), wird der ROHE Puffer NIE
+  // persistiert (sonst läge das Original samt GPS-Standort auf der Platte). Stattdessen ablehnen.
   let compressed: Buffer;
   try {
     compressed = await sharp(buffer)
@@ -70,7 +73,10 @@ export async function POST(req: NextRequest) {
       .jpeg({ quality: 85 })
       .toBuffer();
   } catch {
-    compressed = buffer;
+    return NextResponse.json(
+      { error: "Bild konnte nicht verarbeitet werden — bitte als JPEG oder PNG hochladen." },
+      { status: 422 }
+    );
   }
 
   await writeFile(filepath, compressed);

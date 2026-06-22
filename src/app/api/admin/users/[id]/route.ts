@@ -7,6 +7,7 @@ import { isValidEmail, validatePassword } from "@/lib/constants";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
 
 export async function GET(
   _req: NextRequest,
@@ -124,6 +125,20 @@ export async function DELETE(
     return NextResponse.json({ error: "Eigenen Account kann man nicht löschen" }, { status: 400 });
   }
 
+  // H5 (Recht auf Vergessenwerden): alle Foto-Dateien des Nutzers VOR dem Cascade-Delete einsammeln,
+  // danach von der Platte entfernen (DB-Zeilen kaskadieren, die Dateien nicht).
+  const [entries, devices, refs] = await Promise.all([
+    prisma.entry.findMany({ where: { userId: id }, select: { imageUrl: true, codeImageUrl: true } }),
+    prisma.device.findMany({ where: { userId: id }, select: { imageUrl: true } }),
+    prisma.deviceReferenceImage.findMany({ where: { device: { userId: id } }, select: { imageUrl: true } }),
+  ]);
+
   await prisma.user.delete({ where: { id } });
+
+  void deleteUploadedFiles([
+    ...entries.flatMap((e) => [e.imageUrl, e.codeImageUrl]),
+    ...devices.map((d) => d.imageUrl),
+    ...refs.map((r) => r.imageUrl),
+  ]);
   return new NextResponse(null, { status: 204 });
 }

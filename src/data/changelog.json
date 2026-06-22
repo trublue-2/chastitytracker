@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.37.0",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Sicherheits-Härtung aus externem Audit: kein ratbares Standard-Admin-Passwort mehr (Zufallspasswort wenn ADMIN_PASSWORD fehlt); intime Foto-Dateien werden beim Löschen von Eintrag/Gerät/Referenz/Nutzer und beim Ersetzen tatsächlich von der Platte entfernt (Recht auf Vergessenwerden); EXIF/GPS wird bei JEDEM Upload entfernt (Roh-Original wird nie mehr gespeichert); kryptographisch zufällige Upload-Dateinamen; Passwort-Reset-Token nur noch als Hash gespeichert; Push-Token-Hijack unterbunden; intime Bilder nicht mehr in geteilten Caches; Abhängigkeits-Updates (15 → 5 Schwachstellen); weniger PII im Startlog."
+      }
+    ]
+  },
+  {
     "version": "4.36.1",
     "date": "2026-06-21",
     "changes": [
