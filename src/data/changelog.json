@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.0",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "MCP-Keyholder-Tools zeigen jetzt die Geräte-Erkennung: list_entries enthält pro Kontrolle deviceCheck (erkannt/falsch/keins + erkanntes & erwartetes Gerät), und get_overview liefert zusätzlich zur offenen Kontrolle die zuletzt eingereichte (lastKontrolle) mit Code-Verifikation + Geräte-Check. Klarstellung: openKontrolle:null heißt nicht „ausgelaufen\" — eine eingereichte Kontrolle ist nur nicht mehr offen, eine überfällige bleibt sichtbar."
+      }
+    ]
+  },
+  {
     "version": "4.37.1",
     "date": "2026-06-22",
     "changes": [

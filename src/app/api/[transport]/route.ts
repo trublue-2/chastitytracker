@@ -59,7 +59,10 @@ const handler = createMcpHandler(
           "Returns a read-only snapshot of the chastity-tracker state: lock status and duration, " +
           "KG wearing hours (today/week/month), active KG training goal with progress, cleaning-pause " +
           "rules (reinigung), per-category wear hours + goals for non-KG categories (Plug, Collar, …), " +
-          "open control requests, active lock periods, session statistics, recorded penalties, " +
+          "the currently OPEN control request (openKontrolle) AND the last submitted control " +
+          "(lastKontrolle: code verification + device-check) — note openKontrolle:null means none is " +
+          "open right now, NOT that one expired (a submitted control simply isn't open anymore). " +
+          "Active lock periods, session statistics, recorded penalties, " +
           "active wear sessions, and the human keyholder's free-text rules (keyholderInstructions) " +
           "that the write tools must respect. Use this to reason about the user's situation and propose measures. " +
           "If any field or rule is unclear (e.g. reinigung.maxPausesPerDay, or how Strafbuch detection vs " +
@@ -92,7 +95,9 @@ const handler = createMcpHandler(
         description:
           "Returns the raw entry timeline with ALL per-entry detail needed to understand the " +
           "full situation: each entry's type, timestamp, free-text note/comment, opening reason " +
-          "(oeffnenGrund), orgasm type (orgasmusArt), control code, verification status, device, " +
+          "(oeffnenGrund), orgasm type (orgasmusArt), control code, code verification status, device, " +
+          "the device-check (deviceCheck: was the locked device recognised in the control photo — " +
+          "status ok/wrong/missing + detected/expected device), " +
           "whether a photo exists (+ its EXIF capture time) and whether the time was back-/post-dated. " +
           "Newest first. Use this for the narrative context that the aggregate tools (get_overview, " +
           "list_sessions, get_strafbuch) leave out.",
