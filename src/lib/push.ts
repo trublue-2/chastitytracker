@@ -1,5 +1,13 @@
 import webpush from "web-push";
 import { prisma } from "@/lib/prisma";
+import { structuredLog } from "@/lib/serverLog";
+
+const plog = (label: string, fields: Record<string, unknown>) => structuredLog("push", label, fields);
+
+/** Ergebnis eines nativen Send-Versuchs. invalid=true NUR bei definitiv totem Token (Gerät
+ *  deinstalliert / Token rotiert) → dann darf gelöscht werden. Transiente Fehler (Timeout, 429,
+ *  5xx, Config-Mismatch) lassen invalid=false → Token bleibt erhalten. */
+type NativeSendResult = { ok: boolean; invalid: boolean };
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY!;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY!;
@@ -23,10 +31,13 @@ const APNS_TEAM_ID     = process.env.APNS_TEAM_ID;
 const APNS_BUNDLE_ID   = process.env.APNS_BUNDLE_ID;    // e.g. ch.chastitytracker.app
 const FCM_SERVER_KEY   = process.env.FCM_SERVER_KEY;
 
-/** Send via APNs (HTTP/2). Returns true on success. */
-async function sendApns(token: string, title: string, body: string, url?: string): Promise<boolean> {
+/** Send via APNs (HTTP/2). */
+async function sendApns(token: string, title: string, body: string, url?: string): Promise<NativeSendResult> {
   const hasKey = APNS_KEY_PATH || APNS_KEY_CONTENT;
-  if (!hasKey || !APNS_KEY_ID || !APNS_TEAM_ID || !APNS_BUNDLE_ID) return false;
+  if (!hasKey || !APNS_KEY_ID || !APNS_TEAM_ID || !APNS_BUNDLE_ID) {
+    plog("apns:not_configured", {});
+    return { ok: false, invalid: false };
+  }
   try {
     const { createSign } = await import("crypto");
 
@@ -73,28 +84,36 @@ async function sendApns(token: string, title: string, body: string, url?: string
           },
         },
         (res) => {
-          if (res.statusCode === 200) { resolve(true); return; }
+          if (res.statusCode === 200) { resolve({ ok: true, invalid: false }); return; }
           let data = "";
           res.on("data", (c: Buffer) => (data += c));
           res.on("end", () => {
-            console.error("[push/apns] failed", res.statusCode, data);
-            resolve(false);
+            let reason = "";
+            try { reason = (JSON.parse(data) as { reason?: string })?.reason ?? ""; } catch { /* nicht-JSON */ }
+            // Nur diese Reasons bedeuten einen definitiv toten Token → löschen erlaubt.
+            // (DeviceTokenNotForTopic = Topic-/Sandbox-Mismatch = Config-Fehler → Token NICHT löschen!)
+            const invalid = res.statusCode === 410 || reason === "BadDeviceToken" || reason === "Unregistered";
+            plog("apns:failed", { status: res.statusCode, reason, invalid });
+            resolve({ ok: false, invalid });
           });
         }
       );
-      req.on("error", (e) => { console.error("[push/apns] error", e); resolve(false); });
+      req.on("error", (e) => { plog("apns:error", { error: (e as Error).message }); resolve({ ok: false, invalid: false }); });
       req.write(payload);
       req.end();
     });
   } catch (err) {
-    console.error("[push/apns] unexpected error", err);
-    return false;
+    plog("apns:exception", { error: (err as Error).message });
+    return { ok: false, invalid: false };
   }
 }
 
-/** Send via FCM legacy API. Returns true on success. */
-async function sendFcm(token: string, title: string, body: string, url?: string): Promise<boolean> {
-  if (!FCM_SERVER_KEY) return false;
+/** Send via FCM legacy API. */
+async function sendFcm(token: string, title: string, body: string, url?: string): Promise<NativeSendResult> {
+  if (!FCM_SERVER_KEY) {
+    plog("fcm:not_configured", {});
+    return { ok: false, invalid: false };
+  }
   try {
     const res = await fetch("https://fcm.googleapis.com/fcm/send", {
       method: "POST",
@@ -110,13 +129,18 @@ async function sendFcm(token: string, title: string, body: string, url?: string)
       }),
     });
     if (!res.ok) {
-      console.error("[push/fcm] failed", res.status, await res.text());
-      return false;
+      plog("fcm:failed", { status: res.status });
+      return { ok: false, invalid: false }; // HTTP-Fehler = transient → Token behalten
     }
-    return true;
+    // FCM-Legacy liefert 200 auch bei totem Token; der Grund steht im Body.
+    const json = (await res.json().catch(() => null)) as { results?: { error?: string }[] } | null;
+    const err = json?.results?.[0]?.error ?? "";
+    const invalid = err === "NotRegistered" || err === "InvalidRegistration";
+    if (err) plog("fcm:result_error", { error: err, invalid });
+    return { ok: !err, invalid };
   } catch (err) {
-    console.error("[push/fcm] unexpected error", err);
-    return false;
+    plog("fcm:exception", { error: (err as Error).message });
+    return { ok: false, invalid: false };
   }
 }
 
@@ -128,23 +152,25 @@ async function sendNativePushToUser(
   url?: string
 ): Promise<void> {
   const tokens = await prisma.nativePushToken.findMany({ where: { userId } });
+  plog("native:tokens", { userId, count: tokens.length });
   if (tokens.length === 0) return;
 
-  const stale: string[] = [];
+  const invalidIds: string[] = [];
 
   await Promise.allSettled(
     tokens.map(async (t) => {
-      const ok = t.platform === "ios"
+      const r = t.platform === "ios"
         ? await sendApns(t.token, title, body, url)
         : await sendFcm(t.token, title, body, url);
-
-      if (!ok) stale.push(t.id);
+      plog("native:result", { platform: t.platform, ok: r.ok, invalid: r.invalid });
+      // NUR definitiv tote Tokens entfernen — transiente Fehler dürfen den Token nicht vernichten.
+      if (r.invalid) invalidIds.push(t.id);
     })
   );
 
-  // Remove tokens that failed (device uninstalled / token rotated)
-  if (stale.length > 0) {
-    await prisma.nativePushToken.deleteMany({ where: { id: { in: stale } } });
+  if (invalidIds.length > 0) {
+    plog("native:prune", { count: invalidIds.length });
+    await prisma.nativePushToken.deleteMany({ where: { id: { in: invalidIds } } });
   }
 }
 
@@ -168,11 +194,12 @@ async function sendWebPushToUser(
   body: string,
   url?: string
 ): Promise<void> {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) { plog("web:not_configured", {}); return; }
 
   const subscriptions = await prisma.pushSubscription.findMany({
     where: { userId },
   });
+  plog("web:subs", { userId, count: subscriptions.length });
   if (subscriptions.length === 0) return;
 
   const payload = JSON.stringify({ title, body, url });
