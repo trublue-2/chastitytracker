@@ -5,6 +5,7 @@ import Script from "next/script";
 import "./globals.css";
 import VersionChecker from "@/app/components/VersionChecker";
 import SessionGuard from "@/app/components/SessionGuard";
+import PendingDirectivesWatcher from "@/app/components/PendingDirectivesWatcher";
 import ToastProvider from "@/app/components/ToastProvider";
 import AppLockLoader from "@/app/components/AppLockLoader";
 import { NextIntlClientProvider } from "next-intl";
@@ -94,6 +95,7 @@ export default async function RootLayout({
             <AppLockLoader />
             <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
             {sessionUserId && <SessionGuard initialUserId={sessionUserId} />}
+            {sessionUserId && <PendingDirectivesWatcher />}
             <Script id="sw-register" strategy="afterInteractive">{`
               if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
                 navigator.serviceWorker.register('/sw.js').catch(function(err) {

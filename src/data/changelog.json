@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.1",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Neu angeforderte Kontrollen (und Verschluss-/Orgasmus-Anforderungen, Sperrzeiten) erscheinen jetzt automatisch im Dashboard — ohne manuellen Reload. Ein leichter Watcher prüft alle 30 s sowie sofort beim Zurückkehren in den Tab, ob sich offene Anforderungen geändert haben, und aktualisiert nur dann."
+      }
+    ]
+  },
+  {
     "version": "4.38.0",
     "date": "2026-06-22",
     "changes": [
