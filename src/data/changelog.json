@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.39.2",
+    "date": "2026-06-23",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Push-Benachrichtigungen (u.a. Kontrollanforderungen) öffneten beim Antippen die Home-Screen-PWA statt der nativen App. Ursache: jede Push wurde parallel über Web UND Native verschickt — die Web-Variante öffnete die PWA. Neu wird bei Nutzern mit installierter nativer App nur noch nativ gesendet (Tap öffnet immer die App); Web-Push bleibt als Fallback für Nutzer ohne native App."
+      }
+    ]
+  },
+  {
     "version": "4.39.1",
     "date": "2026-06-23",
     "changes": [
