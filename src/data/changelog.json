@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.39.3",
+    "date": "2026-06-23",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Bei fehlgeschlagener nativer Push-Registrierung zeigt der Fehler-Toast jetzt den konkreten Grund (z.B. error/subscribe-failed/timeout) statt einer generischen Meldung — zur Diagnose ohne Web-Inspector."
+      }
+    ]
+  },
+  {
     "version": "4.39.2",
     "date": "2026-06-23",
     "changes": [
