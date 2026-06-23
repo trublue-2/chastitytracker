@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.39.5",
+    "date": "2026-06-23",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Native iOS-Push (APNs) kam nie an: der Versand nutzte HTTP/1.1, APNs akzeptiert aber ausschließlich HTTP/2 — jeder Sendeversuch scheiterte mit \"Parse Error: Expected HTTP/\". Auf das http2-Modul umgestellt; native Benachrichtigungen werden jetzt korrekt zugestellt. (Bisher kam nur die Web/PWA-Push durch.)"
+      }
+    ]
+  },
+  {
     "version": "4.39.4",
     "date": "2026-06-23",
     "changes": [

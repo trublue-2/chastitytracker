@@ -61,46 +61,54 @@ async function sendApns(token: string, title: string, body: string, url?: string
       ...(url ? { url } : {}),
     });
 
-    // APNS_SANDBOX=true  → sandbox (dev builds via Xcode)
-    // APNS_SANDBOX unset → production (TestFlight / App Store)
-    const host = process.env.APNS_SANDBOX === "true"
-      ? "api.sandbox.push.apple.com"
-      : "api.push.apple.com";
+    // APNs spricht AUSSCHLIESSLICH HTTP/2 → http2-Modul (HTTP/1.1 via https.request scheitert mit
+    // "Parse Error: Expected HTTP/, RTSP/ or ICE/"). APNS_SANDBOX=true → Sandbox (Xcode-Dev),
+    // unset/false → Production (TestFlight/App Store).
+    const authority = process.env.APNS_SANDBOX === "true"
+      ? "https://api.sandbox.push.apple.com"
+      : "https://api.push.apple.com";
 
-    const { default: https } = await import("https");
+    const { default: http2 } = await import("http2");
     return new Promise((resolve) => {
-      const req = https.request(
-        {
-          host,
-          path: `/3/device/${token}`,
-          method: "POST",
-          headers: {
-            "authorization": `bearer ${jwt}`,
-            "apns-topic": APNS_BUNDLE_ID!,
-            "apns-push-type": "alert",
-            "apns-priority": "10",
-            "content-type": "application/json",
-            "content-length": Buffer.byteLength(payload),
-          },
-        },
-        (res) => {
-          if (res.statusCode === 200) { resolve({ ok: true, invalid: false }); return; }
-          let data = "";
-          res.on("data", (c: Buffer) => (data += c));
-          res.on("end", () => {
-            let reason = "";
-            try { reason = (JSON.parse(data) as { reason?: string })?.reason ?? ""; } catch { /* nicht-JSON */ }
-            // Nur diese Reasons bedeuten einen definitiv toten Token → löschen erlaubt.
-            // (DeviceTokenNotForTopic = Topic-/Sandbox-Mismatch = Config-Fehler → Token NICHT löschen!)
-            const invalid = res.statusCode === 410 || reason === "BadDeviceToken" || reason === "Unregistered";
-            plog("apns:failed", { status: res.statusCode, reason, invalid });
-            resolve({ ok: false, invalid });
-          });
-        }
-      );
-      req.on("error", (e) => { plog("apns:error", { error: (e as Error).message }); resolve({ ok: false, invalid: false }); });
-      req.write(payload);
-      req.end();
+      const client = http2.connect(authority);
+      let settled = false;
+      const finish = (r: NativeSendResult) => {
+        if (settled) return;
+        settled = true;
+        client.close();
+        resolve(r);
+      };
+      const fail = (e: Error) => { plog("apns:error", { error: e.message }); finish({ ok: false, invalid: false }); };
+      client.on("error", fail);
+      client.setTimeout(10_000, () => { plog("apns:timeout", {}); finish({ ok: false, invalid: false }); });
+
+      const req = client.request({
+        ":method": "POST",
+        ":path": `/3/device/${token}`,
+        "authorization": `bearer ${jwt}`,
+        "apns-topic": APNS_BUNDLE_ID!,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "content-type": "application/json",
+      });
+
+      let status = 0;
+      let data = "";
+      req.on("response", (headers) => { status = Number(headers[":status"]) || 0; });
+      req.setEncoding("utf8");
+      req.on("data", (c) => (data += c));
+      req.on("error", fail);
+      req.on("end", () => {
+        if (status === 200) { finish({ ok: true, invalid: false }); return; }
+        let reason = "";
+        try { reason = (JSON.parse(data) as { reason?: string })?.reason ?? ""; } catch { /* nicht-JSON */ }
+        // Nur diese Reasons bedeuten einen definitiv toten Token → löschen erlaubt.
+        // (DeviceTokenNotForTopic = Topic-/Sandbox-Mismatch = Config-Fehler → Token NICHT löschen!)
+        const invalid = status === 410 || reason === "BadDeviceToken" || reason === "Unregistered";
+        plog("apns:failed", { status, reason, invalid });
+        finish({ ok: false, invalid });
+      });
+      req.end(payload);
     });
   } catch (err) {
     plog("apns:exception", { error: (err as Error).message });
