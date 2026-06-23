@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.9",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Aufräumung (Folge von /simplify): NativePushRouter nutzt isNativePlatform() aus dem neuen Modul statt eigener Kopie; kleinere Vereinfachungen in nativePush.ts. Kein Verhaltenswechsel."
+      }
+    ]
+  },
+  {
     "version": "4.38.8",
     "date": "2026-06-22",
     "changes": [
