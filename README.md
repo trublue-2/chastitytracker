@@ -23,7 +23,7 @@
 - **Orgasm tracking** with categorization and sub-types (Masturbation, Geschlechtsverkehr, ruinierter, feuchter Traum, etc.)
 - **Offline-first** — IndexedDB-cached dashboard and queued entry creation with background sync
 - **Password self-service** (change and reset via email)
-- **Push notifications** (PWA) for lock/unlock, inspections, lock requests, and penalties
+- **Push notifications** (PWA web-push + native iOS/Android app) for lock/unlock, inspections, lock requests, and penalties; tapping a native push opens the relevant in-app page
 - **Passkey login** (Face ID, Touch ID, Fingerprint, Windows Hello) alongside password
 - **View Transitions** for smooth navigation between dashboard pages
 - **Full i18n** support (German and English)
@@ -55,7 +55,7 @@
 | AI | Anthropic Claude SDK (inspection photo verification + seal detection) |
 | Images | Sharp (processing) + Exifr (EXIF extraction) |
 | Email | Nodemailer (SMTP) |
-| Push | web-push (VAPID) |
+| Push | web-push (VAPID) + native APNs/FCM (Capacitor) |
 | i18n | next-intl v4 |
 | Mobile | Capacitor wrappers (iOS via TestFlight, Android via direct APK) |
 | Icons | Lucide React |
@@ -270,8 +270,8 @@ SMTP_PASS=<smtp-password>
 SMTP_FROM="KG Tracker <no-reply@example.com>"
 
 # Initial admin (only used on first container start if no admin exists).
-# ⚠ If you omit these the entrypoint falls back to username=admin / password=admin123 —
-# always set your own on the first boot.
+# ⚠ If you omit ADMIN_PASSWORD, a strong RANDOM password is generated and printed ONCE in the
+# startup logs — note it and change it after the first login. Set your own to avoid that.
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=<strong-password>
 ADMIN_EMAIL=admin@example.com
@@ -298,6 +298,17 @@ ANTHROPIC_API_KEY=<key>
 VAPID_PUBLIC_KEY=<generated-public-key>
 VAPID_PRIVATE_KEY=<generated-private-key>
 VAPID_SUBJECT=mailto:admin@example.com
+
+# Native push for the Capacitor iOS/Android app (optional — only for the native app builds; the
+# PWA uses VAPID above). Without these the app falls back to no native push (web push still works).
+# iOS (APNs):
+# APNS_KEY_CONTENT=<.p8 key file content>   # or APNS_KEY_PATH=/app/data/apns.p8
+# APNS_KEY_ID=<key id>
+# APNS_TEAM_ID=<team id>
+# APNS_BUNDLE_ID=ch.chastitytracker.app
+# APNS_SANDBOX=true                          # Xcode/dev builds → sandbox; unset for TestFlight/App Store
+# Android (FCM):
+# FCM_SERVER_KEY=<fcm server key>
 
 # --- Optional ---
 # USE_ADMIN_RELATIONSHIPS=true      # enable n:m admin↔user supervision

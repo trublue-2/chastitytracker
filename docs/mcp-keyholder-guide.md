@@ -98,6 +98,13 @@ eine Strafe gibt.
 - Ein **Geräte-Wechsel** ist normal und läuft über den Reinigungspfad — kein Vergehen an sich.
 - `wearingHoursKg` summiert bereits alle Sessions inkl. Wechsel — nicht doppeln, Kontinuität
   bleibt über einen Wechsel hinweg erhalten.
+- **`get_overview.openKontrolle: null` heißt NICHT „ausgelaufen".** Es heißt nur: gerade ist keine
+  Kontrolle offen. Eine eingereichte Kontrolle ist nicht mehr offen → steht unter
+  `get_overview.lastKontrolle` (mit Code-Verifikation + Geräte-Check). Eine überfällige bleibt offen
+  mit `overdue: true`. Kontrollen verschwinden nie automatisch. Für den vollen Verlauf `list_entries`.
+- **Geräte-Erkennung lesen:** ob das richtige Gerät auf dem Kontroll-Foto war, steht im `deviceCheck`
+  je Eintrag in `list_entries` (und in `lastKontrolle`): `status` ok/wrong/missing + `detected`/
+  `expected`. `null` = nicht geprüft (z.B. keine Referenzfotos hinterlegt) — kein Vorwurf.
 
 ## 11. Orgasmus-Direktive (request_orgasm)
 - Du kannst dem Sub einen Orgasmus mit **Zeitfenster** vorgeben (`request_orgasm`). Zwei Charaktere:
