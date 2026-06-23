@@ -144,16 +144,17 @@ async function sendFcm(token: string, title: string, body: string, url?: string)
   }
 }
 
-/** Send native push to all registered device tokens for a user. */
+/** Send native push to all registered device tokens for a user. Liefert true, wenn der Nutzer native
+ *  Tokens hat (= native App vorhanden) — damit der Aufrufer die parallele Web-Push unterdrücken kann. */
 async function sendNativePushToUser(
   userId: string,
   title: string,
   body: string,
   url?: string
-): Promise<void> {
+): Promise<boolean> {
   const tokens = await prisma.nativePushToken.findMany({ where: { userId } });
   plog("native:tokens", { userId, count: tokens.length });
-  if (tokens.length === 0) return;
+  if (tokens.length === 0) return false;
 
   const invalidIds: string[] = [];
 
@@ -172,6 +173,7 @@ async function sendNativePushToUser(
     plog("native:prune", { count: invalidIds.length });
     await prisma.nativePushToken.deleteMany({ where: { id: { in: invalidIds } } });
   }
+  return true;
 }
 
 /** Send a push notification to all subscriptions belonging to a user. */
@@ -181,11 +183,10 @@ export async function sendPushToUser(
   body: string,
   url?: string
 ): Promise<void> {
-  // Run web push and native push in parallel.
-  await Promise.allSettled([
-    sendWebPushToUser(userId, title, body, url),
-    sendNativePushToUser(userId, title, body, url),
-  ]);
+  // Native bevorzugen: hat der Nutzer eine native App (≥1 Token), NUR nativ senden — sonst öffnet die
+  // parallele Web-Push die Home-Screen-PWA statt der App. Web-Push nur als Fallback ohne native App.
+  const hasNative = await sendNativePushToUser(userId, title, body, url);
+  if (!hasNative) await sendWebPushToUser(userId, title, body, url);
 }
 
 async function sendWebPushToUser(
