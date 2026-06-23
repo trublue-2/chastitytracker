@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { isNativePlatform } from "@/lib/nativePush";
 
 /**
  * Öffnet beim Tippen auf eine NATIVE Push-Benachrichtigung (Capacitor/iOS) die passende Seite
@@ -18,8 +19,7 @@ export default function NativePushRouter() {
 
     (async () => {
       try {
-        const { Capacitor } = await import("@capacitor/core");
-        if (!Capacitor.isNativePlatform()) return;
+        if (!(await isNativePlatform())) return;
         const { PushNotifications } = await import("@capacitor/push-notifications");
         const handle = await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
           const url = (action.notification?.data as { url?: unknown })?.url;

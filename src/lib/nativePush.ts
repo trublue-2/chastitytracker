@@ -40,7 +40,7 @@ export async function isNativePushRegistered(): Promise<boolean> {
   return (await prefGet(NATIVE_PUSH_TOKEN)) !== null;
 }
 
-export type RegisterResult = { ok: boolean; reason?: "denied" | "timeout" | "error" | "subscribe-failed" | "not-native" };
+type RegisterResult = { ok: boolean; reason?: "denied" | "timeout" | "error" | "subscribe-failed" | "not-native" };
 
 export async function registerNativePush(): Promise<RegisterResult> {
   const [{ PushNotifications }, { Capacitor }] = await Promise.all([
@@ -100,10 +100,13 @@ export async function registerNativePush(): Promise<RegisterResult> {
 }
 
 export async function unregisterNativePush(): Promise<void> {
-  const { PushNotifications } = await import("@capacitor/push-notifications");
+  // Import, Token-Lesen sind unabhängig → parallel. Token serverseitig abmelden (gezielt; fehlt der
+  // lokale Token, entfernt der Server alle des Nutzers).
+  const [{ PushNotifications }, token] = await Promise.all([
+    import("@capacitor/push-notifications"),
+    prefGet(NATIVE_PUSH_TOKEN),
+  ]);
   await PushNotifications.removeAllDeliveredNotifications();
-  // Token serverseitig abmelden (gezielt; fehlt der lokale Token, entfernt der Server alle des Nutzers).
-  const token = await prefGet(NATIVE_PUSH_TOKEN);
   await fetch("/api/push/native-subscribe", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
