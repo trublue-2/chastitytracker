@@ -4,113 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
 import useToast from "@/app/hooks/useToast";
-
-// ---------------------------------------------------------------------------
-// Capacitor Preferences — ein get/set für alle Keys (set(null) = remove).
-// Dynamisch importiert, damit nichts auf dem Server / im reinen Browser läuft.
-// ---------------------------------------------------------------------------
-async function prefGet(key: string): Promise<string | null> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    return (await Preferences.get({ key })).value ?? null;
-  } catch {
-    return null;
-  }
-}
-async function prefSet(key: string, value: string | null): Promise<void> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    if (value === null) await Preferences.remove({ key });
-    else await Preferences.set({ key, value });
-  } catch {
-    /* ignore — Toggle funktioniert weiter, nur ohne Persistenz */
-  }
-}
-
-// Der gespeicherte Token IST der Registrierungs-Zustand — kein separates Flag (sonst zwei Quellen
-// für eine Wahrheit, die auseinanderlaufen können). Vorhanden = Push für dieses Gerät aktiv.
-const NATIVE_PUSH_TOKEN = "pushToken";
-
-async function isNativePlatform(): Promise<boolean> {
-  try {
-    const { Capacitor } = await import("@capacitor/core");
-    return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
-}
-
-type RegisterResult = { ok: boolean; reason?: "denied" | "timeout" | "error" | "subscribe-failed" | "not-native" };
-
-async function registerNativePush(): Promise<RegisterResult> {
-  const [{ PushNotifications }, { Capacitor }] = await Promise.all([
-    import("@capacitor/push-notifications"),
-    import("@capacitor/core"),
-  ]);
-  if (!Capacitor.isNativePlatform()) return { ok: false, reason: "not-native" };
-
-  let perm = await PushNotifications.checkPermissions();
-  if (perm.receive === "prompt") perm = await PushNotifications.requestPermissions();
-  if (perm.receive !== "granted") return { ok: false, reason: "denied" };
-
-  // Genau EINE Auflösung garantieren: der Gesamt-Timeout deckt Registrierung UND Subscribe ab, der
-  // fetch hat ein eigenes Limit, Listener werden gezielt entfernt (nicht removeAllListeners → würde
-  // den Tap-Handler aus NativePushRouter killen). Sonst bliebe der Toggle bei hängendem fetch disabled.
-  let settled = false;
-  let resolveFn: (r: RegisterResult) => void;
-  const done = new Promise<RegisterResult>((res) => { resolveFn = res; });
-
-  const regHandle = await PushNotifications.addListener("registration", async (tok) => {
-    try {
-      const res = await fetch("/api/push/native-subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: tok.value, platform: Capacitor.getPlatform() }),
-        signal: AbortSignal.timeout(8_000),
-      });
-      if (res.ok) {
-        await prefSet(NATIVE_PUSH_TOKEN, tok.value);
-        finish({ ok: true });
-      } else {
-        console.error("[PushManager] native-subscribe failed", res.status);
-        finish({ ok: false, reason: "subscribe-failed" });
-      }
-    } catch (err) {
-      console.error("[PushManager] native-subscribe error", err);
-      finish({ ok: false, reason: "subscribe-failed" });
-    }
-  });
-  const errHandle = await PushNotifications.addListener("registrationError", (err) => {
-    console.error("[PushManager] APNs registration error", err);
-    finish({ ok: false, reason: "error" });
-  });
-  const timeout = setTimeout(() => finish({ ok: false, reason: "timeout" }), 15_000);
-
-  function finish(r: RegisterResult) {
-    if (settled) return;
-    settled = true;
-    clearTimeout(timeout);
-    regHandle.remove();
-    errHandle.remove();
-    resolveFn(r);
-  }
-
-  await PushNotifications.register();
-  return done;
-}
-
-async function unregisterNativePush(): Promise<void> {
-  const { PushNotifications } = await import("@capacitor/push-notifications");
-  await PushNotifications.removeAllDeliveredNotifications();
-  // Token serverseitig abmelden (gezielt; fehlt der lokale Token, entfernt der Server alle des Nutzers).
-  const token = await prefGet(NATIVE_PUSH_TOKEN);
-  await fetch("/api/push/native-subscribe", {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(token ? { token } : {}),
-  }).catch((err) => console.error("[PushManager] native-unsubscribe failed", err));
-  await prefSet(NATIVE_PUSH_TOKEN, null);
-}
+import { isNativePlatform, isNativePushRegistered, registerNativePush, unregisterNativePush } from "@/lib/nativePush";
 
 function urlBase64ToUint8Array(base64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -164,8 +58,7 @@ export default function PushManager() {
     isNativePlatform().then((native) => {
       if (native) {
         setPushState("native");
-        // Native kann den Token nicht abfragen → aus dem gespeicherten Token ableiten.
-        prefGet(NATIVE_PUSH_TOKEN).then((tok) => setSubscribed(tok !== null));
+        isNativePushRegistered().then(setSubscribed);
       } else {
         const state = detectWebPushState();
         setPushState(state);

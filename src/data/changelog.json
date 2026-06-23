@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.8",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Interne Aufräumung: Native-Push-Logik aus der UI-Komponente in ein eigenes Modul (src/lib/nativePush.ts) ausgelagert. Kein Verhaltenswechsel."
+      }
+    ]
+  },
+  {
     "version": "4.38.7",
     "date": "2026-06-22",
     "changes": [
