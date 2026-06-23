@@ -50,6 +50,26 @@ model User {
   boxEvents               BoxEvent[]
   boxStatuses             BoxStatus[]
   keyholderNotes          KeyholderNote[]
+  keyholderActionLogs     KeyholderActionLog[]
+}
+
+// Append-only Audit-Log jeder mutierenden MCP-V2-Aktion (Pflicht-`reason` + `source`).
+// Deckt §9.2 (Action-Log) und §6 (Goal-Audit-Historie) ab: die nächste Keyholder-Instanz
+// erbt Entscheidungen samt Begründung, nicht nur Zustände. MCP-only, additiv — der Tracker
+// schreibt/liest diese Tabelle nicht.
+model KeyholderActionLog {
+  id        String   @id @default(cuid())
+  userId    String   // Ziel-User der Aktion (MCP_USERNAME)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool      String   // MCP-Tool-Name, z.B. "set_training_goal" | "judge_offense" | "upsert_note"
+  actor     String?  // OAuth-userId des handelnden Keyholders (null = unbekannt/legacy)
+  reason    String   // Pflicht-Begründung — nie stille Mutation
+  source    String   @default("agent") // agent | user-stated
+  argsJson  String?  // Tool-Input als JSON (Audit)
+  resultRef String?  // erzeugte/betroffene Entity-id (Goal, Sperrzeit, Note ...)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // Freie Beobachtungen, die der virtuelle Keyholder (MCP-KI) zum Trageverhalten ablegt und
@@ -64,7 +84,44 @@ model KeyholderNote {
   text      String
   createdAt DateTime @default(now())
 
+  // ── Notes v2 (MCP-only, additiv — Tracker liest diese Felder nicht) ──
+  // type: DIRECTIVE | BOUNDARY | OBSERVATION | CORRECTION | EQUIPMENT | DATA | HISTORY
+  type        String    @default("OBSERVATION")
+  // status: active | superseded | archived  (Supersession statt Delete)
+  status      String    @default("active")
+  pinned      Boolean   @default(false)
+  // Vorgänger-Note, die diese hier ablöst (status der alten → superseded). Reiner id-Pointer.
+  supersedesId String?
+  // source: user-stated | inferred  — trennt Nutzer-Fakt von Agenten-Schluss
+  source      String    @default("inferred")
+  // confidence: low | medium | high (optional, v.a. für inferred)
+  confidence  String?
+  validFrom   DateTime?
+  validUntil  DateTime?
+  // doDont: JSON {"do":[...],"dont":[...]} — strukturiert für BOUNDARY-Notes
+  doDont      String?
+
+  refs        NoteRef[]
+
   @@index([userId, createdAt])
+  @@index([userId, status, pinned])
+  @@index([supersedesId])
+}
+
+// Polymorphe Verknüpfung einer Keyholder-Note an ein Tracking-Objekt (das fehlende Bindeglied).
+// Bidirektional: ein geholtes Objekt bringt seine Notes inline mit, eine Note zeigt auf ihre Belege.
+// entityId für segment ist die Re-Lock-Entry-id des Teilstücks (berechnet, nicht persistiert).
+model NoteRef {
+  id         String        @id @default(cuid())
+  noteId     String
+  note       KeyholderNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  // entityType: device | session | segment | control | offense | orgasmDirective | goal | appointment
+  entityType String
+  entityId   String
+  createdAt  DateTime      @default(now())
+
+  @@index([entityType, entityId])
+  @@index([noteId])
 }
 
 // User-defined device categories (KG, Plug, Collar, Cuffs, ...).
@@ -272,6 +329,17 @@ model Device {
   currency      String?   // "CHF" | "EUR" | "USD"
   createdAt     DateTime  @default(now())
   archivedAt    DateTime? // Soft-delete: null = active, set = archived
+
+  // ── Geräte-Metadaten für Keyholder-Entscheidungen (MCP-only, additiv) ──
+  // securityLevel: SECURING | TRUST_ONLY — Vertrauensgerät vs. sicherndes Gerät, maschinenlesbar
+  securityLevel      String?
+  // lookalikeClusterId: gleiche Optik = gleicher Cluster. Mismatch INNERHALB eines Clusters ist soft, nie ein Vergehen.
+  lookalikeClusterId String?
+  abstreifbar        Boolean @default(false) // Anti-Auszieh-Status
+  material           String? // Edelstahl | Kunststoff | Silikon
+  bauform            String? // flach | voll | standard | Plug ...
+  healthFlags        String? // JSON string[] — Druckstellen, scheuert, rutscht ...
+  retentionNotes     String? // z.B. "njoy: rutscht beim Entspannen"
 
   entries               Entry[]
   verschlussAnforderungen VerschlussAnforderung[]

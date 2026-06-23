@@ -10,6 +10,7 @@ import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
+import { round1, msToHours } from "@/lib/mcp/format";
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
@@ -98,8 +99,6 @@ function mapDeviceCheck(e: { deviceCheck: string | null; deviceCheckNote: string
   return e.deviceCheck ? { status: e.deviceCheck, detected: e.deviceCheckNote, expected: e.deviceCheckExpected } : null;
 }
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const msToHours = (ms: number) => round1(ms / 3_600_000);
 const pct = (actual: number, target: number | null) =>
   target && target > 0 ? Math.round((actual / target) * 100) : null;
 

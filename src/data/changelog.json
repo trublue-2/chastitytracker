@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.40.0",
+    "date": "2026-06-23",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Neue, fortschrittlichere Keyholder-Schnittstelle (MCP V2): der virtuelle Keyholder erhält ein Dashboard mit allen relevanten Infos in einem Zugriff, korrekte Geräte-Aufschlüsselung pro Trage-Session, vorberechnete Statistiken und Rekorde, strukturierte & versionierte Notizen sowie ein Audit-Protokoll aller Aktionen. Keine Auswirkung auf die normale App-Nutzung."
+      }
+    ]
+  },
+  {
     "version": "4.39.3",
     "date": "2026-06-23",
     "changes": [
