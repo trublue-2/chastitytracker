@@ -107,18 +107,8 @@ const AUTO_USER_SELECT = {
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
 } as const;
 
-/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (CH-Tag)
- *  angelegte Auto-Zeilen, passiert nichts. */
-export async function ensureDailyAutoKontrollenForUser(
-  userId: string, settings: AutoKontrolleSettings, now: Date,
-): Promise<number> {
-  if (!settings.aktiv || settings.proTag <= 0) return 0;
-  const already = await prisma.kontrollAnforderung.count({
-    where: { userId, auto: true, createdAt: { gte: midnightInTZ(now) } },
-  });
-  if (already > 0) return 0;
-
-  const slots = generateAutoKontrollen(settings, now);
+/** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null). */
+async function createAutoKontrollen(userId: string, slots: { wirksamAb: Date; deadline: Date }[]): Promise<number> {
   if (slots.length === 0) return 0;
   await prisma.kontrollAnforderung.createMany({
     data: slots.map((s) => ({
@@ -127,6 +117,33 @@ export async function ensureDailyAutoKontrollenForUser(
     })),
   });
   return slots.length;
+}
+
+/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (CH-Tag)
+ *  angelegte Auto-Zeilen, passiert nichts. (Vom Poller, einmal pro Tag.) */
+export async function ensureDailyAutoKontrollenForUser(
+  userId: string, settings: AutoKontrolleSettings, now: Date,
+): Promise<number> {
+  if (!settings.aktiv || settings.proTag <= 0) return 0;
+  const already = await prisma.kontrollAnforderung.count({
+    where: { userId, auto: true, createdAt: { gte: midnightInTZ(now) } },
+  });
+  if (already > 0) return 0;
+  return createAutoKontrollen(userId, generateAutoKontrollen(settings, now));
+}
+
+/** Plant die Auto-Kontrollen für den LAUFENDEN Tag neu (für sofort wirksame Settings-Änderungen): noch
+ *  nicht versendete Auto-Zeilen von heute verwerfen und die Resttag-Slots nach den neuen Settings anlegen.
+ *  Bereits versendete Kontrollen bleiben unberührt; Deaktivieren entfernt nur die noch offenen. */
+export async function replanTodayAutoKontrollenForUser(
+  userId: string, settings: AutoKontrolleSettings, now: Date,
+): Promise<number> {
+  // Noch nicht versendete (und nicht zurückgezogene) Auto-Zeilen von heute löschen — sie waren nie sichtbar.
+  await prisma.kontrollAnforderung.deleteMany({
+    where: { userId, auto: true, benachrichtigtAt: null, withdrawnAt: null, createdAt: { gte: midnightInTZ(now) } },
+  });
+  if (!settings.aktiv || settings.proTag <= 0) return 0;
+  return createAutoKontrollen(userId, generateAutoKontrollen(settings, now));
 }
 
 /** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro CH-Tag). */
@@ -162,6 +179,10 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   }
 
   if (Object.keys(data).length === 0) return { ok: false, status: 400, error: "Keine Felder zum Aktualisieren" };
-  await prisma.user.update({ where: { id: userId }, data });
+  const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_USER_SELECT });
+
+  // Änderung sofort auf den laufenden Tag anwenden (mit den neuen, effektiven Settings neu planen).
+  await replanTodayAutoKontrollenForUser(userId, autoKontrolleSettingsFromUser(user), new Date())
+    .catch((e) => console.error(`[autoKontrolle] Replan nach Settings-Änderung fehlgeschlagen (${userId}):`, (e as Error).message));
   return { ok: true, data: null };
 }
