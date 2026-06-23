@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { buildOverview } from "@/lib/mcpOverview";
-import { iso, APP_TZ, loadTrackingContext, type NoteDTO } from "@/lib/mcp/common";
+import { iso, APP_TZ, resolveUserId, loadTrackingContext, type NoteDTO } from "@/lib/mcp/common";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
@@ -74,6 +74,19 @@ async function loadBoxState(userId: string, now: Date): Promise<BoxStateView | n
     online: box.lastSyncAt ? now.getTime() - box.lastSyncAt.getTime() < BOX_ONLINE_THRESHOLD_MS : false,
     lastSeen: iso(box.lastSyncAt),
   };
+}
+
+export interface BoxStateResult {
+  schemaVersion: 2;
+  user: string;
+  boxState: BoxStateView | null;
+}
+
+/** Dedizierter BoxState-Read (§11): hardwareEnforced unterscheidet physische Vollstreckung von
+ *  Ehrensache. null = keine Box registriert. Throws, wenn der User unbekannt ist. */
+export async function getBoxState(username: string): Promise<BoxStateResult> {
+  const userId = await resolveUserId(username);
+  return { schemaVersion: 2, user: username, boxState: await loadBoxState(userId, new Date()) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */

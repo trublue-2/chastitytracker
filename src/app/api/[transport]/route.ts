@@ -18,7 +18,7 @@ import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_S
 import { listDevicesV2, setDeviceMetaDef, SECURITY_LEVELS } from "@/lib/mcp/devices";
 import { executeWrite, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext } from "@/lib/mcp/common";
-import { keyholderDashboard } from "@/lib/mcp/dashboard";
+import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
 import { getOffenses } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
@@ -402,6 +402,20 @@ const handler = createMcpHandler(
         },
       },
       (args) => runTool("get_action_log", (u) => getActionLog(u, args)),
+    );
+
+    server.registerTool(
+      "get_box_state",
+      {
+        title: "Heimdall box state (hardware enforcement)",
+        description:
+          "MCP V2 — Zustand der elektronischen Schlüsselbox (§11): locked, lockUntil, battery, charging, " +
+          "online (lastSync < 10 min), lastSeen und v.a. hardwareEnforced — vollstreckt die Box eine " +
+          "Sperrzeit physisch (Sub kann lokal nicht öffnen) oder ist sie Ehrensache? null = keine Box " +
+          "registriert. Auch im keyholder_dashboard enthalten.",
+        inputSchema: {},
+      },
+      () => runTool("get_box_state", getBoxState),
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
