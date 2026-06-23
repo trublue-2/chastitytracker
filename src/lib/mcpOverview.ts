@@ -4,8 +4,9 @@ import {
   calculateWearingHoursByRange, formatDateTime, isTimeCorrected, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, subVisibleKontrolleWhere } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, aktiveKontrolleWhere } from "@/lib/queries";
 import { parseReinigungsFenster, aktivesReinigungsFenster, reinigungVerbrauchtHeute } from "@/lib/reinigungService";
+import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
@@ -49,6 +50,11 @@ export interface TrackerOverview {
     maxPausesPerDay: number | null;
     usedToday: number;
   };
+  /** Automatische Kontrollen: das System sendet selbsttätig `proTag` zufällig verteilte Kontrollen
+   *  pro Tag (Frist nie im Schlaf-Fenster ruheVon–ruheBis, Erfüllungsdauer zufällig fristVon–fristBis
+   *  Min). aktiv=false → keine Auto-Kontrollen. Geplante, noch nicht ausgelöste sind absichtlich
+   *  unsichtbar (auch hier). */
+  autoKontrolle: { aktiv: boolean; proTag: number; ruheVon: string; ruheBis: string; fristVon: number; fristBis: number };
   /** Non-KG tracking categories (Plug, Collar, …) — wearing hours + their training goal (null if none). */
   categories: {
     name: string;
@@ -108,10 +114,13 @@ const goalProgress = (
 });
 
 /** Resolves a username to its id and Reinigung settings. Throws if the user does not exist. */
-async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number; reinigungsFensterRaw: unknown; keyholderInstructions: string | null }> {
+async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number; reinigungsFensterRaw: unknown; keyholderInstructions: string | null; autoKontrolle: AutoKontrolleSettings }> {
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, mcpKeyholderInstructions: true },
+    select: {
+      id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, mcpKeyholderInstructions: true,
+      autoKontrolleAktiv: true, autoKontrolleProTag: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true, autoKontrolleFristVon: true, autoKontrolleFristBis: true,
+    },
   });
   if (!user) throw new Error(`User not found: ${username}`);
   return {
@@ -120,12 +129,13 @@ async function loadUserContext(username: string): Promise<{ userId: string; rein
     reinigungMaxProTag: user.reinigungMaxProTag ?? 0,
     reinigungsFensterRaw: user.reinigungsFenster,
     keyholderInstructions: user.mcpKeyholderInstructions ?? null,
+    autoKontrolle: autoKontrolleSettingsFromUser(user),
   };
 }
 
 /** Builds the overview for a user identified by username. Throws if the user does not exist. */
 export async function buildOverview(username: string): Promise<TrackerOverview> {
-  const { userId, reinigung, reinigungMaxProTag, reinigungsFensterRaw, keyholderInstructions } = await loadUserContext(username);
+  const { userId, reinigung, reinigungMaxProTag, reinigungsFensterRaw, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
   const now = new Date();
   const fmt = (d: Date) => formatDateTime(d);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
@@ -138,7 +148,7 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
     }),
     prisma.kontrollAnforderung.findFirst({
       // geplante (noch nicht ausgelöste) Kontrollen sind auch im get_overview unsichtbar
-      where: { userId, entryId: null, withdrawnAt: null, ...subVisibleKontrolleWhere(now) },
+      where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
     getActiveVorgabe(userId, now),
@@ -210,6 +220,14 @@ export async function buildOverview(username: string): Promise<TrackerOverview> 
       maxMinutesPerBreak: reinigung.maxMinuten,
       maxPausesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
       usedToday: cleaningUsedToday,
+    },
+    autoKontrolle: {
+      aktiv: autoKontrolle.aktiv,
+      proTag: autoKontrolle.proTag,
+      ruheVon: autoKontrolle.ruheVon,
+      ruheBis: autoKontrolle.ruheBis,
+      fristVon: autoKontrolle.fristVon,
+      fristBis: autoKontrolle.fristBis,
     },
     categories: categoryGoals.map((c) => ({
       name: c.name,

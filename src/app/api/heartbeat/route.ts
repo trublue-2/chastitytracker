@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getActiveSperrzeit, getActiveOrgasmusAnforderung, subVisibleKontrolleWhere } from "@/lib/queries";
+import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere } from "@/lib/queries";
 
 /**
  * Konsolidierter Client-Heartbeat: EIN Endpoint + EIN Poll deckt drei Belange ab, die vorher je
@@ -24,7 +24,7 @@ export async function GET() {
   const now = new Date();
   const [kontrollen, verschluss, sperrzeit, orgasmus] = await Promise.all([
     prisma.kontrollAnforderung.findMany({
-      where: { userId, entryId: null, withdrawnAt: null, ...subVisibleKontrolleWhere(now) },
+      where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       select: { id: true },
     }),
     prisma.verschlussAnforderung.findFirst({

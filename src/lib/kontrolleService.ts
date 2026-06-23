@@ -46,6 +46,11 @@ export function deriveSealCode(latest: { type: string; kontrollCode: string | nu
     : null;
 }
 
+/** Frische 5-stellige Kontroll-Code-Nummer (10000–99999). */
+export function generateKontrollCode(): string {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
 export interface RequestKontrolleParams {
   userId: string;
   kommentar?: string | null;
@@ -95,13 +100,14 @@ export async function requestKontrolle(
         throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
       }
 
+      // Nur andere MANUELLE offene Kontrollen zurückziehen — geplante Auto-Kontrollen bleiben.
       await tx.kontrollAnforderung.updateMany({
-        where: { userId, entryId: null, withdrawnAt: null },
+        where: { userId, entryId: null, withdrawnAt: null, auto: false },
         data: { withdrawnAt: now },
       });
 
       const seal = deriveSealCode(latest);
-      const c = seal ?? String(Math.floor(10000 + Math.random() * 90000));
+      const c = seal ?? generateKontrollCode();
 
       await tx.kontrollAnforderung.create({
         data: {

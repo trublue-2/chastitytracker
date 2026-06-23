@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.39.0",
+    "date": "2026-06-23",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Automatische Kontrollen: pro Sub lassen sich X zufällig über den Tag verteilte Kontrollen automatisch auslösen (Keyholder-Einstellung). Die Frist fällt nie ins konfigurierbare Schlaf-Fenster (Default 22–06), die Erfüllungsdauer ist je Kontrolle zufällig im eingestellten Bereich (Default 15–60 Min). Auto-Kontrollen sind unabhängig (ziehen sich nicht gegenseitig oder durch manuelle zurück) und feuern nur, wenn der Sub verschlossen ist. Noch nicht ausgelöste (geplante) Kontrollen sind jetzt überall unsichtbar — auch im Admin-Portal. Aktivierung und alle Einstellungen (Anzahl/Tag, Schlaf-Fenster, Erfüllungsdauer) sind auch über die MCP konfigurierbar (set_auto_inspections)."
+      }
+    ]
+  },
+  {
     "version": "4.38.9",
     "date": "2026-06-22",
     "changes": [

@@ -4,6 +4,7 @@ import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnf
 import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
+import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense } from "@/lib/strafurteilService";
 import type { ServiceResult } from "@/lib/serviceResult";
@@ -342,6 +343,34 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
     maxProTag: args.maxPerDay,
   }));
   return { ok: true, message: "Cleaning settings updated." };
+}
+
+export interface SetAutoInspectionsArgs {
+  active?: boolean;
+  perDay?: number;
+  sleepFrom?: string;
+  sleepTo?: string;
+  fulfillMinMinutes?: number;
+  fulfillMaxMinutes?: number;
+}
+
+export async function mcpSetAutoInspections(username: string, args: SetAutoInspectionsArgs) {
+  const userId = await resolveTargetUserId(username);
+  if (
+    args.active === undefined && args.perDay === undefined && args.sleepFrom === undefined &&
+    args.sleepTo === undefined && args.fulfillMinMinutes === undefined && args.fulfillMaxMinutes === undefined
+  ) {
+    throw new Error("Provide at least one of: active, perDay, sleepFrom, sleepTo, fulfillMinMinutes, fulfillMaxMinutes.");
+  }
+  unwrap(await setAutoKontrolleSettings(userId, {
+    aktiv: args.active,
+    proTag: args.perDay,
+    ruheVon: args.sleepFrom,
+    ruheBis: args.sleepTo,
+    fristVon: args.fulfillMinMinutes,
+    fristBis: args.fulfillMaxMinutes,
+  }));
+  return { ok: true, message: "Automatic-inspection settings updated." };
 }
 
 // ── Inspections: verify / reject the latest submission ──────────────────────

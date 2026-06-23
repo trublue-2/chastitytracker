@@ -10,7 +10,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, aktiveKontrolleWhere } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
@@ -53,7 +53,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const flagOn = deviceCategoriesEnabled();
   const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, wearSessions, allNonKgCategories] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { categoryId: true } } } }),
-    prisma.kontrollAnforderung.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
+    prisma.kontrollAnforderung.findMany({ where: { userId: id, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     getActiveSperrzeit(id),
     flagOn ? getActiveWearSessions(id) : Promise.resolve([]),

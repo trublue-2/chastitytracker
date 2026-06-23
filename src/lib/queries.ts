@@ -4,12 +4,12 @@ import type { OeffnenGrund } from "@/lib/constants";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 
 /**
- * Where-Fragment: Kontroll-Anforderungen, die für den Sub schon sichtbar sind — sofortige
- * (wirksamAb null) und zeitversetzte, die bereits ausgelöst haben (wirksamAb <= jetzt).
- * Geplante (wirksamAb in der Zukunft) bleiben verborgen, bis der Poller sie auslöst.
- * NUR für Sub-Sichten (Dashboard, Stats, get_overview) — Admin/Strafbuch-Sichten nutzen es nicht.
+ * Where-Fragment: bereits AKTIVE Kontroll-Anforderungen — sofortige (wirksamAb null) und
+ * zeitversetzte, die schon ausgelöst haben (wirksamAb <= jetzt). Noch nicht aktive (wirksamAb in
+ * der Zukunft, z.B. geplante Auto-Kontrollen) bleiben verborgen — ÜBERALL: Sub-Sichten (Dashboard,
+ * Stats, get_overview) UND Admin/Strafbuch (sonst sähe die Keyholderin die geplanten Zufallszeiten).
  */
-export function subVisibleKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
+export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
 }
 

@@ -9,7 +9,7 @@ import KontrolleButton from "@/app/admin/KontrolleButton";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "@/app/admin/kontrollen/AdminKontrolleListClient";
-import { getIsLocked } from "@/lib/queries";
+import { getIsLocked, aktiveKontrolleWhere } from "@/lib/queries";
 import { buildKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,7 +30,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       orderBy: { startTime: "desc" },
     }),
     prisma.kontrollAnforderung.findMany({
-      where: { userId: id },
+      where: { userId: id, ...aktiveKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
     getIsLocked(id),
