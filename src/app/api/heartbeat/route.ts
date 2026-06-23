@@ -4,14 +4,21 @@ import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit, getActiveOrgasmusAnforderung, subVisibleKontrolleWhere } from "@/lib/queries";
 
 /**
- * Leichtgewichtige Signatur der aktuell für den Sub sichtbaren keyholder-initiierten Anforderungen
- * (offene Kontrollen, Verschluss-/Orgasmus-Anforderung, aktive Sperrzeit). Der Client pollt das und
- * löst nur bei Änderung ein router.refresh() aus — so erscheinen z.B. neu angeforderte Kontrollen
- * ohne manuellen Reload. Nur IDs, kein schwerer Payload.
+ * Konsolidierter Client-Heartbeat: EIN Endpoint + EIN Poll deckt drei Belange ab, die vorher je
+ * einen eigenen Timer/Endpoint hatten:
+ *  - buildDate     → neue App-Version verfügbar (Reload-Banner)
+ *  - sessionUserId → Account-Wechsel in einem anderen Tab (Hard-Reload)
+ *  - pendingSig    → Signatur der offenen keyholder-initiierten Anforderungen (router.refresh,
+ *                    damit z.B. neu angeforderte Kontrollen ohne manuellen Reload erscheinen)
+ * Nur leichte Werte/IDs; ohne Session bleiben die per-User-Felder leer (Version funktioniert auch
+ * ausgeloggt).
  */
 export async function GET() {
+  const buildDate = process.env.BUILD_DATE ?? "local";
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ buildDate, sessionUserId: null, pendingSig: "" }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   const userId = session.user.id;
   const now = new Date();
@@ -28,12 +35,12 @@ export async function GET() {
     getActiveOrgasmusAnforderung(userId, now),
   ]);
 
-  const sig = [
+  const pendingSig = [
     "k:" + kontrollen.map((k) => k.id).sort().join(","),
     "v:" + (verschluss?.id ?? ""),
     "s:" + (sperrzeit?.id ?? ""),
     "o:" + (orgasmus?.id ?? ""),
   ].join("|");
 
-  return NextResponse.json({ sig }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ buildDate, sessionUserId: userId, pendingSig }, { headers: { "Cache-Control": "no-store" } });
 }

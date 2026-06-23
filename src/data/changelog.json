@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.3",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Drei separate Client-Polls (Versions-Check, Session-Wechsel, offene Anforderungen) zu EINEM Heartbeat zusammengeführt: ein Timer, ein Endpoint /api/heartbeat, eine Focus/Visibility-Logik. Weniger Netzwerk-Requests, ein zentraler Takt-Regler — gleiches Verhalten wie zuvor."
+      }
+    ]
+  },
+  {
     "version": "4.38.2",
     "date": "2026-06-22",
     "changes": [

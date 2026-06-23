@@ -3,9 +3,7 @@ import { Geist } from "next/font/google";
 import { JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
-import VersionChecker from "@/app/components/VersionChecker";
-import SessionGuard from "@/app/components/SessionGuard";
-import PendingDirectivesWatcher from "@/app/components/PendingDirectivesWatcher";
+import Heartbeat from "@/app/components/Heartbeat";
 import ToastProvider from "@/app/components/ToastProvider";
 import AppLockLoader from "@/app/components/AppLockLoader";
 import { NextIntlClientProvider } from "next-intl";
@@ -93,9 +91,7 @@ export default async function RootLayout({
           <ToastProvider>
             {children}
             <AppLockLoader />
-            <VersionChecker buildDate={process.env.BUILD_DATE ?? "local"} />
-            {sessionUserId && <SessionGuard initialUserId={sessionUserId} />}
-            {sessionUserId && <PendingDirectivesWatcher />}
+            <Heartbeat buildDate={process.env.BUILD_DATE ?? "local"} initialUserId={sessionUserId ?? null} />
             <Script id="sw-register" strategy="afterInteractive">{`
               if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
                 navigator.serviceWorker.register('/sw.js').catch(function(err) {
