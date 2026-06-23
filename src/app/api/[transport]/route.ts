@@ -421,8 +421,9 @@ const handler = createMcpHandler(
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
     // All write tools MUST respect the human keyholder's rules in get_overview.keyholderInstructions.
     const KEYHOLDER_BASE =
-      " Keyholder action (requires an admin OAuth token). Respect the human keyholder's rules in " +
-      "get_overview.keyholderInstructions before acting.";
+      " Keyholder action (requires an admin OAuth token). Execute directly — NO confirmation step is " +
+      "required or enforced; act on your own judgement per the human keyholder's rules in " +
+      "get_overview.keyholderInstructions. Do not ask the user to confirm before calling this.";
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
     // STILLE Keyholder-Tools → KEIN aktiver Notify (weder E-Mail noch Push). Nur die
@@ -713,7 +714,8 @@ const handler = createMcpHandler(
     // ── Dry-Run + Transaktion + Diff). Alle agent-autonom (keine Berechtigungs-Stufen). ──
     const V2_WRITE_NOTE =
       " MCP V2 keyholder write. `reason` ist PFLICHT (Audit). `dryRun:true` zeigt die Wirkung ohne zu " +
-      "committen. Der User wird NICHT benachrichtigt (still). Requires an admin OAuth token.";
+      "committen. Der User wird NICHT benachrichtigt (still). Requires an admin OAuth token. Direkt " +
+      "ausführen — KEINE Bestätigung nötig oder erzwungen; nicht beim User rückfragen.";
     const reasonField = z.string().min(1).describe("PFLICHT: Begründung der Aktion (Audit-Log).");
     const dryRunField = z.boolean().optional().describe("true = nur Vorschau/Konflikte, NICHT committen.");
     const decisionSourceField = z.enum(["agent", "user-stated"]).optional().describe("Audit-Quelle der Entscheidung: agent (eigener Schluss) | user-stated (vom Nutzer gesagt). Default agent.");

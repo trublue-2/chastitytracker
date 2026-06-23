@@ -180,7 +180,9 @@ und Grenzen sind gepinnt und versioniert.**
 ### V2-Write-Disziplin
 Jeder V2-Write braucht **\`reason\`** (Pflicht, Audit) und unterstützt **\`dryRun:true\`** (zeigt
 Wirkung/Konflikte OHNE zu committen) und liefert **Diff** + neuen Zustand zurück. Alle Writes sind
-agent-autonom (keine Berechtigungs-Stufen). Zeiten in V2 sind ISO-8601 mit Offset — AUSSER Felder,
+agent-autonom (keine Berechtigungs-Stufen) und erfordern **keine Bestätigung** — entscheide und
+führe direkt aus, ohne beim User rückzufragen (auch die benachrichtigenden V1-Tools wie Sperrzeit/
+Inspektion/Strafe). Zeiten in V2 sind ISO-8601 mit Offset — AUSSER Felder,
 die aus den V1-Tools komponiert werden (dashboard.nextRelevant, get_offenses-Zeiten): die sind im
 Instanz-lokalen Human-Format; dort \`remainingMinutes\`/\`overdue\` nutzen.
 
