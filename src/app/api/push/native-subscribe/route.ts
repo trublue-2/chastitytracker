@@ -34,11 +34,13 @@ export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { token } = await req.json() as { token?: string };
-  if (!token) return NextResponse.json({ error: "token required" }, { status: 400 });
+  const { token } = (await req.json().catch(() => ({}))) as { token?: string };
 
+  // Mit Token: gezielt dieses Gerät abmelden. Ohne Token (z.B. Bestands-Registrierung ohne lokal
+  // gespeicherten Token): ALLE Native-Tokens dieses Nutzers entfernen, damit „Push aus" zuverlässig
+  // greift.
   await prisma.nativePushToken.deleteMany({
-    where: { token, userId: session.user.id },
+    where: { userId: session.user.id, ...(token ? { token } : {}) },
   });
 
   return NextResponse.json({ ok: true });

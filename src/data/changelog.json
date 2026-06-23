@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.5",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Push lässt sich jetzt wirklich ausschalten: Beim Deaktivieren wird der Geräte-Token serverseitig entfernt (vorher blieb er liegen → Pushes kamen weiter). Und das Tippen auf eine Push-Benachrichtigung öffnet jetzt die passende Seite INNERHALB der App statt im Browser (nativer Deep-Link auf den relativen Pfad)."
+      }
+    ]
+  },
+  {
     "version": "4.38.4",
     "date": "2026-06-22",
     "changes": [
