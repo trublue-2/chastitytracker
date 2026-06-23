@@ -91,16 +91,38 @@ async function runV2Write<A, T>(
   }
 }
 
+/** Server-Instructions (MCP `initialize.instructions`) — steuern die V1/V2-Tool-Wahl global,
+ *  damit der Agent nicht der Beschreibungs-Ähnlichkeit ausgeliefert ist. */
+const MCP_SERVER_INSTRUCTIONS =
+  "ChastityTracker Keyholder-MCP (V1 + V2 parallel). Tool-Wahl:\n" +
+  "• LESEN → V2-first: beginne mit `keyholder_dashboard` (beantwortet ~90 %), dann gezielt die Deep-Views " +
+  "(`get_session` für Segmente/deviceBreakdown, `device_stats`, `records`, `period_summary`, `denial_trend`, " +
+  "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`). " +
+  "Die V1-Read-Tools (`get_overview`, `list_sessions`, `list_devices`, `get_strafbuch`, `list_keyholder_notes`) " +
+  "sind LEGACY und nutzen z.T. irreführende Einzel-Geräte-Labels — nur als Fallback.\n" +
+  "• DIREKTIV-WRITES (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung) → das sind die V1-" +
+  "Tools (`set_lock_period`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
+  "`set_cleaning`, `set_auto_inspections`, …). Es gibt KEINE V2-Variante dafür.\n" +
+  "• WISSEN/META/KONTEXT-WRITES → V2 (`upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
+  "`upsert_appointment`, `upsert_recurring_context`).\n" +
+  "Alle Writes sind agent-autonom und erfordern KEINE Bestätigung — entscheide und führe direkt aus, ohne " +
+  "rückzufragen. Bei Unklarheit zu Begriffen/Regeln: `explain_model`.";
+
 /** Read-only MCP server. Exposes tools so an AI assistant can query the tracker state and
  *  propose measures. Gated behind ENABLE_MCP + a static bearer token (MCP_TOKEN); all data
  *  is for the user named in MCP_USERNAME. */
 const handler = createMcpHandler(
   (server) => {
+    // V1-Read-Tools, die eine genauere V2-Entsprechung haben, als Legacy markieren (Steuerimpuls
+    // zusätzlich zu den Server-Instructions). Direktiv-Writes bleiben unmarkiert (kein V2-Ersatz).
+    const LEGACY = (replacement: string) => `[LEGACY V1 — bevorzuge ${replacement}; dieses Tool nur als Fallback.] `;
+
     server.registerTool(
       "get_overview",
       {
         title: "Get tracker overview",
         description:
+          LEGACY("keyholder_dashboard") +
           "Returns a read-only snapshot of the chastity-tracker state: lock status and duration, " +
           "KG wearing hours (today/week/month), active KG training goal with progress, cleaning-pause " +
           "rules (reinigung), per-category wear hours + goals for non-KG categories (Plug, Collar, …), " +
@@ -122,6 +144,7 @@ const handler = createMcpHandler(
       {
         title: "List completed sessions",
         description:
+          LEGACY("get_session (Segmente + deviceBreakdown; dieses Tool zeigt nur das irreführende Einzel-Gerät-Label)") +
           "Returns completed (closed) sessions — KG lock sessions and non-KG wear sessions — " +
           "newest first, each with category, device, start/end time and duration. Use for " +
           "history beyond the live snapshot of get_overview.",
@@ -159,6 +182,7 @@ const handler = createMcpHandler(
       {
         title: "List devices (inventory)",
         description:
+          LEGACY("get_devices (inkl. Entscheidungs-Metadaten + Cluster + inline Notes)") +
           "Returns the user's device inventory — KG and non-KG (Plug, Collar, …) devices — each " +
           "with its notes/description, category, purchase price, currency, whether it has a photo, " +
           "archived status and creation date. Active devices first, then archived. Use for " +
@@ -173,6 +197,7 @@ const handler = createMcpHandler(
       {
         title: "Get penalty book (Strafbuch)",
         description:
+          LEGACY("get_offenses (vereinheitlichtes Ledger + Cluster-Kontext + inline Notes)") +
           "Returns the Strafbuch: system-detected offenses — unauthorized openings during a " +
           "lock period, late and rejected control submissions, cleaning-limit violations, and " +
           "wrong-device violations (a different device worn than the Anforderung specified) — " +
@@ -188,6 +213,7 @@ const handler = createMcpHandler(
       {
         title: "List keyholder notes (wearing-behaviour observations)",
         description:
+          LEGACY("query_notes (Notes v2: type/status/pinned/refs, strukturiert)") +
           "Returns the private keyholder notes — free observations about the user's wearing " +
           "behaviour, optionally tagged by KG (device) and category (e.g. pressure marks, escape " +
           "attempts, complaints). Newest first. get_overview already surfaces the 8 most recent; " +
@@ -683,6 +709,7 @@ const handler = createMcpHandler(
       {
         title: "Add a keyholder note (wearing-behaviour observation)",
         description:
+          LEGACY("upsert_note (Notes v2: type/pinned/refs, Supersession statt Delete)") +
           "Records a private observation about the user's wearing behaviour for later evaluation — " +
           "e.g. which KG draws complaints, reported pressure marks, escape attempts, hygiene issues. " +
           "Optionally tag it with a KG (device) and a category. These notes are MCP-only (the user " +
@@ -701,6 +728,7 @@ const handler = createMcpHandler(
       {
         title: "Delete a keyholder note",
         description:
+          LEGACY("upsert_note mit status=archived/superseded (auditierbar statt hartes Delete)") +
           "Removes a keyholder note by id (e.g. an outdated or superseded observation). Get the id " +
           "from get_overview.keyholderNotes or list_keyholder_notes." + KEYHOLDER_SILENT,
         inputSchema: {
@@ -855,7 +883,7 @@ const handler = createMcpHandler(
       (args, extra) => runV2Write(upsertRecurringContextDef, extra, args),
     );
   },
-  {},
+  { instructions: MCP_SERVER_INSTRUCTIONS },
   { basePath: "/api", maxDuration: 60 },
 );
 
