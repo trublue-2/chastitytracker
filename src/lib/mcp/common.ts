@@ -44,26 +44,35 @@ export interface TrackingEntry {
   device: { id: string; name: string; categoryId: string | null } | null;
 }
 
+/** Geräte-Metadaten, die die Segment-Wahrheit braucht: id↔Name-Auflösung + Lookalike-Cluster
+ *  (cluster-interne Bild-Mismatches sind soft, nie ein echter Konflikt). */
+export interface DeviceMeta {
+  id: string;
+  name: string;
+  lookalikeClusterId: string | null;
+}
+
 /** Vorgeladener Tracking-Kontext — erlaubt komponierenden Tools (keyholder_dashboard), Entries +
- *  Reinigung + User-id EINMAL zu laden und an mehrere Berechnungen durchzureichen. */
+ *  Reinigung + Geräte-Meta + User-id EINMAL zu laden und an mehrere Berechnungen durchzureichen. */
 export interface TrackingContext {
   userId: string;
   entries: TrackingEntry[];
   reinigung: ReinigungSettings;
+  devices: DeviceMeta[];
   now: Date;
 }
 
 /** Lädt resolveUserId + loadTrackingData zu einem TrackingContext (eine Quelle für komponierende Tools). */
 export async function loadTrackingContext(username: string, now: Date = new Date()): Promise<TrackingContext> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung } = await loadTrackingData(userId);
-  return { userId, entries, reinigung, now };
+  const { entries, reinigung, devices } = await loadTrackingData(userId);
+  return { userId, entries, reinigung, devices, now };
 }
 
-/** Lädt Entries (mit Device-Include) + Reinigungs-Settings in EINEM Roundtrip-Paar — die geteilte
+/** Lädt Entries (mit Device-Include) + Reinigungs-Settings + Geräte-Meta — die geteilte
  *  Datenbasis aller V2-Read-Tools (get_session, device_stats, records, denial_trend …). */
-export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings }> {
-  const [user, entries] = await Promise.all([
+export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[] }> {
+  const [user, entries, devices] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
     prisma.entry.findMany({
       where: { userId },
@@ -75,10 +84,12 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
         device: { select: { id: true, name: true, categoryId: true } },
       },
     }),
+    prisma.device.findMany({ where: { userId }, select: { id: true, name: true, lookalikeClusterId: true } }),
   ]);
   return {
     entries,
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
+    devices,
   };
 }
 

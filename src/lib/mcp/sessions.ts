@@ -13,6 +13,8 @@ export interface SegmentView {
   durationHours: number;
   deviceDeclared: { id: string | null; name: string | null };
   deviceVerified: { id: string | null; name: string | null } | null;
+  /** Massgebliches Gerät für die Tragezeit-Zurechnung (Bild bei echtem Konflikt, sonst deklariert). */
+  deviceEffective: { id: string | null; name: string | null };
   deviceConfidence: Segment["deviceConfidence"];
   endedBy: Segment["endedBy"];
   controls: { id: string; time: string; code: string | null; verifikationStatus: string | null; deviceCheckStatus: string | null; detected: string | null; expected: string | null; notes: NoteDTO[] }[];
@@ -81,6 +83,7 @@ function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>): Segme
     durationHours: msToHours(seg.durationMs),
     deviceDeclared: seg.deviceDeclared,
     deviceVerified: seg.deviceVerified,
+    deviceEffective: seg.deviceEffective,
     deviceConfidence: seg.deviceConfidence,
     endedBy: seg.endedBy,
     controls: seg.controls.map((c) => controlView(c, notesByEntity)),
@@ -93,7 +96,9 @@ function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>): Session
   const dataQualityFlags: string[] = [];
   for (const seg of s.segments) {
     if (seg.deviceConfidence === "image-conflict") {
-      dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle widerspricht dem deklarierten Gerät (Bild gewinnt).`);
+      dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle (${seg.deviceVerified?.name}) widerspricht dem deklarierten Gerät (${seg.deviceDeclared.name}) über die Cluster-Grenze — Bild gewinnt, Stunden auf das verifizierte Gerät.`);
+    } else if (seg.deviceConfidence === "cluster-ambiguous") {
+      dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle nennt ein optisch gleiches Gerät (${seg.deviceVerified?.name}) aus demselben Cluster — unzuverlässig, deklariert (${seg.deviceDeclared.name}) bleibt massgeblich. Kein Vergehen.`);
     }
   }
   return {
@@ -115,12 +120,12 @@ function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>): Session
  *  deviceBreakdown und inline verknüpften Notes. Throws, wenn der User unbekannt ist. */
 export async function getSession(username: string, opts: GetSessionOptions = {}): Promise<SessionListResult> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung } = await loadTrackingData(userId);
+  const { entries, reinigung, devices } = await loadTrackingData(userId);
   const now = new Date();
   // Sessions sind abgeleitet (Segment-/Pausen-Logik über benachbarte Entries) → die ganze Serie
   // wird gebaut, auch wenn nur eine sessionId gefragt ist. Bei sehr langer Historie der dominante
   // Kostenfaktor; ein Zeitfenster-Cut wäre die Optimierung, falls dieser Pfad heiss wird.
-  const all = buildSessions(entries, reinigung, now);
+  const all = buildSessions(entries, reinigung, now, devices);
 
   const selected = opts.sessionId
     ? all.filter((s) => s.id === opts.sessionId)

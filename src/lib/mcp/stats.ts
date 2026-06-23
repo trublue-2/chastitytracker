@@ -1,7 +1,7 @@
 import { calculateWearingHoursByRange } from "@/lib/utils";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, deviceGroupKey, type Session } from "@/lib/mcp/segments";
+import { buildSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/mcp/segments";
 import { round1, msToHours, pct } from "@/lib/mcp/format";
 import { iso, loadTrackingContext, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
@@ -46,26 +46,27 @@ export interface DeviceStatsResult {
 
 /** Pro Gerät total/avg/median/min/max + längste Strecke + zuletzt getragen, aus allen Segmenten. */
 export async function deviceStats(username: string, ctx?: TrackingContext): Promise<DeviceStatsResult> {
-  const { entries, reinigung, now } = await ctxOf(username, ctx);
-  const sessions = buildSessions(entries, reinigung, now);
+  const { entries, reinigung, devices, now } = await ctxOf(username, ctx);
+  const sessions = buildSessions(entries, reinigung, now, devices);
 
   const byDevice = new Map<string, { id: string | null; name: string | null; durations: number[]; lastWorn: Date }>();
   for (const s of sessions) {
     for (const seg of s.segments) {
-      const key = deviceGroupKey(seg.deviceDeclared);
-      const row = byDevice.get(key) ?? { id: seg.deviceDeclared.id, name: seg.deviceDeclared.name, durations: [], lastWorn: seg.start };
+      // Nach dem MASSGEBLICHEN Gerät (Bild gewinnt bei echtem Konflikt), wie deviceBreakdown.
+      const key = deviceGroupKey(seg.deviceEffective);
+      const row = byDevice.get(key) ?? { id: seg.deviceEffective.id, name: seg.deviceEffective.name, durations: [], lastWorn: seg.start };
       row.durations.push(seg.durationMs);
       if (seg.start > row.lastWorn) row.lastWorn = seg.start;
       byDevice.set(key, row);
     }
   }
 
-  const devices = [...byDevice.values()]
+  const rows = [...byDevice.values()]
     .map((r) => {
       const total = r.durations.reduce((a, b) => a + b, 0);
       return {
         deviceId: r.id,
-        deviceName: r.name,
+        deviceName: deviceDisplayName({ id: r.id, name: r.name }),
         segmentCount: r.durations.length,
         totalHours: msToHours(total),
         avgHours: msToHours(total / r.durations.length),
@@ -77,7 +78,7 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
     })
     .sort((a, b) => b.totalHours - a.totalHours);
 
-  return { schemaVersion: 2, user: username, devices };
+  return { schemaVersion: 2, user: username, devices: rows };
 }
 
 // ── records ──────────────────────────────────────────────────────────────────
@@ -110,8 +111,8 @@ function longestOrgasmGapMs(times: Date[], now: Date): number | null {
 }
 
 export async function records(username: string, ctx?: TrackingContext): Promise<RecordsResult> {
-  const { entries, reinigung, now } = await ctxOf(username, ctx);
-  const sessions = buildSessions(entries, reinigung, now);
+  const { entries, reinigung, devices, now } = await ctxOf(username, ctx);
+  const sessions = buildSessions(entries, reinigung, now, devices);
 
   const open = sessions.find((s) => s.isOpen) ?? null;
   const closed = sessions.filter((s) => !s.isOpen);
@@ -161,7 +162,7 @@ interface FlatSegment { start: number; end: number; name: string | null }
 function flattenSegments(sessions: Session[], now: Date): FlatSegment[] {
   return sessions
     .flatMap((s) => s.segments)
-    .map((seg) => ({ start: seg.start.getTime(), end: (seg.end ?? now).getTime(), name: seg.deviceDeclared.name }))
+    .map((seg) => ({ start: seg.start.getTime(), end: (seg.end ?? now).getTime(), name: seg.deviceEffective.name }))
     .sort((a, b) => a.start - b.start);
 }
 
@@ -177,8 +178,8 @@ function deviceContextAt(segs: FlatSegment[], t: number): string | null {
 }
 
 export async function denialTrend(username: string, opts: { limit?: number } = {}, ctx?: TrackingContext): Promise<DenialTrendResult> {
-  const { entries, reinigung, now } = await ctxOf(username, ctx);
-  const sessions = buildSessions(entries, reinigung, now);
+  const { entries, reinigung, devices, now } = await ctxOf(username, ctx);
+  const sessions = buildSessions(entries, reinigung, now, devices);
   const segs = flattenSegments(sessions, now);
   const times = orgasmTimes(entries);
 

@@ -154,8 +154,10 @@ und Grenzen sind gepinnt und versioniert.**
 - **Segmente (\`get_session\`)** — eine KG-Session zerfällt an REINIGUNG-Öffnungen in **Segmente**,
   pro Segment GENAU EIN Gerät. \`deviceBreakdown\` beantwortet „welches Gerät wie lange" korrekt
   (statt eines falschen Einzel-Labels). \`deviceConfidence\`: \`declared\` | \`image-confirmed\` |
-  \`image-conflict\` (bei Konflikt **gewinnt das Bild**). \`endedBy\`: \`cleaning\` (Pause) vs
-  \`session-end\` vs \`open\`.
+  \`image-conflict\` (Bild nennt ein Gerät aus ANDEREM Cluster → **Bild gewinnt**) | \`cluster-ambiguous\`
+  (optisch gleiches Gerät aus DEMSELBEN \`lookalikeCluster\` → unzuverlässig, **soft**, deklariert bleibt,
+  kein Vergehen). **\`deviceEffective\`** ist das für \`deviceBreakdown\`/\`device_stats\` massgebliche
+  Gerät. \`endedBy\`: \`cleaning\` (Pause) vs \`session-end\` vs \`open\`.
 - **Geräte-Metadaten (\`get_devices\` / \`set_device_meta\`)** — \`securityLevel\` (SECURING vs
   TRUST_ONLY), \`lookalikeClusterId\`: ein Geräte-Mismatch **innerhalb eines Clusters ist nie ein
   echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`).
