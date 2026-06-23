@@ -12,6 +12,12 @@ import { HHMM } from "@/lib/autoKontrolleService";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
+// ── MCP V2 ──
+import { getSession } from "@/lib/mcp/sessions";
+import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_SOURCE, NOTE_CONFIDENCE, ENTITY_TYPES } from "@/lib/mcp/notes";
+import { listDevicesV2, setDeviceMetaDef, SECURITY_LEVELS } from "@/lib/mcp/devices";
+import { executeWrite, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
+import { buildWriteContext } from "@/lib/mcp/common";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +51,38 @@ async function runWriteTool<T>(label: string, extra: ToolExtra, fn: (username: s
     return { content: [{ type: "text", text: `Write denied: ${check.reason}.` }], isError: true };
   }
   return runTool(label, fn);
+}
+
+/** Wrapper für MCP-V2-WRITE-Tools: prüft Keyholder-Autorisierung, baut den WriteContext und führt
+ *  den Write durchs zentrale Framework (Pflicht-`reason` + Audit + Dry-Run + Transaktion + Diff).
+ *  `reason`/`source`/`dryRun` werden aus den Tool-Args extrahiert, der Rest ist die Domänen-Eingabe. */
+async function runV2Write<A, T>(
+  def: WriteDef<A, T>,
+  extra: ToolExtra,
+  raw: Record<string, unknown>,
+): Promise<ToolResult> {
+  const check = await checkMcpKeyholder(extra?.authInfo?.extra?.userId);
+  if (!check.ok) {
+    return { content: [{ type: "text", text: `Write denied: ${check.reason}.` }], isError: true };
+  }
+  const username = process.env.MCP_USERNAME;
+  if (!username) {
+    return { content: [{ type: "text", text: "Server misconfigured: MCP_USERNAME is not set." }], isError: true };
+  }
+  // `decisionSource` ist die Audit-Quelle (wer hat entschieden) — bewusst NICHT `source`, damit es
+  // nicht mit Domänenfeldern wie der Note-Provenienz (note.source) kollidiert.
+  const { reason, decisionSource, dryRun, ...domain } = raw;
+  try {
+    const ctx = await buildWriteContext(username, extra?.authInfo?.extra?.userId);
+    const result = await executeWrite(def, ctx, domain as A, {
+      reason: reason as string,
+      source: decisionSource as WriteSource | undefined,
+      dryRun: dryRun as boolean | undefined,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `${def.tool} failed: ${(e as Error).message}` }], isError: true };
+  }
 }
 
 /** Read-only MCP server. Exposes tools so an AI assistant can query the tracker state and
@@ -172,6 +210,61 @@ const handler = createMcpHandler(
         inputSchema: {},
       },
       () => ({ content: [{ type: "text" as const, text: MCP_MODEL_DOC }] }),
+    );
+
+    // ── MCP V2 READ tools — abgeleitete Wahrheit (Segmente), strukturierte Notes, Geräte-Metadaten ──
+    server.registerTool(
+      "get_session",
+      {
+        title: "Get KG session(s) with segments + deviceBreakdown",
+        description:
+          "MCP V2 — die KORREKTE Antwort auf 'welches Gerät war Session X': eine KG-Session zerfällt an " +
+          "REINIGUNG-Öffnungen in Segmente (pro Segment GENAU EIN Gerät). Liefert pro Session " +
+          "`deviceBreakdown` (Stunden je Gerät), `segments[]` (declared vs. bild-verifiziertes Gerät + " +
+          "`deviceConfidence`), inline verknüpfte Notes (§9.3) und `dataQualityFlags` (z.B. declared≠verified). " +
+          "Ohne sessionId werden die neuesten Sessions aufgelistet. Zeiten als ISO-8601 mit Offset.",
+        inputSchema: {
+          sessionId: z.string().optional().describe("Eine bestimmte Session (Lock-Entry-id). Omit = neueste auflisten."),
+          limit: z.number().int().min(1).max(50).optional().describe("Max. Sessions beim Auflisten (default 10)."),
+        },
+      },
+      (args) => runTool("get_session", (u) => getSession(u, args)),
+    );
+
+    server.registerTool(
+      "query_notes",
+      {
+        title: "Query keyholder notes (v2, structured + linked)",
+        description:
+          "MCP V2 — Notes v2 gefiltert nach type (" + NOTE_TYPES.join("|") + "), status (active|superseded|" +
+          "archived|all), pinned, kg oder verknüpftem Objekt (entityType/entityId). Default: nur aktive, " +
+          "gepinnte oben. Jede Note trägt source/confidence (Nutzer-Fakt vs. Schluss), doDont (für BOUNDARY) " +
+          "und ihre refs (belegende Objekte). MCP-only.",
+        inputSchema: {
+          type: z.enum(NOTE_TYPES).optional().describe("Filter nach Note-Typ."),
+          status: z.enum(["active", "superseded", "archived", "all"]).optional().describe("Filter nach Status (default active; 'all' = alle)."),
+          pinned: z.boolean().optional().describe("Nur gepinnte / nur ungepinnte."),
+          kg: z.string().optional().describe("Filter auf KG/Gerät-Tag (exakt)."),
+          entityType: z.enum(ENTITY_TYPES).optional().describe("Nur Notes, die an diesen Objekttyp hängen."),
+          entityId: z.string().optional().describe("Zusammen mit entityType: nur Notes zu genau diesem Objekt."),
+          limit: z.number().int().min(1).max(200).optional().describe("Max. Notes (default 50)."),
+        },
+      },
+      (args) => runTool("query_notes", (u) => queryNotes(u, args)),
+    );
+
+    server.registerTool(
+      "get_devices",
+      {
+        title: "Get devices with decision metadata + inline notes (v2)",
+        description:
+          "MCP V2 — Geräte-Inventar inkl. der Entscheidungs-Metadaten (§2): securityLevel " +
+          "(SECURING|TRUST_ONLY), lookalikeClusterId (Mismatch INNERHALB eines Clusters ist nie ein " +
+          "Vergehen), abstreifbar, material, bauform, healthFlags, retentionNotes, Anzahl Referenzfotos — " +
+          "plus inline verknüpfte Notes. Setze Metadaten mit set_device_meta.",
+        inputSchema: {},
+      },
+      () => runTool("get_devices", listDevicesV2),
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
@@ -463,6 +556,95 @@ const handler = createMcpHandler(
         },
       },
       (args, extra) => runWriteTool("delete_keyholder_note", extra, (u) => mcpDeleteKeyholderNote(u, args)),
+    );
+
+    // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──
+    // ── Dry-Run + Transaktion + Diff). Alle agent-autonom (keine Berechtigungs-Stufen). ──
+    const V2_WRITE_NOTE =
+      " MCP V2 keyholder write. `reason` ist PFLICHT (Audit). `dryRun:true` zeigt die Wirkung ohne zu " +
+      "committen. Der User wird NICHT benachrichtigt (still). Requires an admin OAuth token.";
+    const reasonField = z.string().min(1).describe("PFLICHT: Begründung der Aktion (Audit-Log).");
+    const dryRunField = z.boolean().optional().describe("true = nur Vorschau/Konflikte, NICHT committen.");
+    const decisionSourceField = z.enum(["agent", "user-stated"]).optional().describe("Audit-Quelle der Entscheidung: agent (eigener Schluss) | user-stated (vom Nutzer gesagt). Default agent.");
+    const entityRefField = z.object({
+      entityType: z.enum(ENTITY_TYPES).describe("Objekttyp: " + ENTITY_TYPES.join("|") + "."),
+      entityId: z.string().describe("Objekt-id (z.B. Geräte-id, Session-/Segment-id = Lock-Entry-id, Kontroll-id)."),
+    });
+    // Audit-Felder, die JEDES V2-Write-Tool trägt — einmal definiert, in jedes inputSchema gespreadet.
+    const writeMetaFields = { reason: reasonField, dryRun: dryRunField, decisionSource: decisionSourceField };
+
+    server.registerTool(
+      "upsert_note",
+      {
+        title: "Create / edit / supersede a keyholder note (v2)",
+        description:
+          "Legt eine strukturierte Note v2 an oder bearbeitet sie (id). Supersession statt Delete: mit " +
+          "`supersedesId` wird die alte Note auf status=superseded gesetzt und eine neue erstellt (auditierbar, " +
+          "kein Churn). type=BOUNDARY nutzt `doDont` (was tun / was nie tun). `refs` hängt die Note typisiert " +
+          "an Objekte (inline-Abruf via get_session/get_devices)." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          id: z.string().optional().describe("Bestehende Note bearbeiten; weglassen = neue anlegen."),
+          type: z.enum(NOTE_TYPES).optional().describe("Note-Typ (default OBSERVATION)."),
+          text: z.string().optional().describe("Notiztext (Pflicht beim Anlegen)."),
+          kg: z.string().optional().describe("Optionaler KG/Gerät-Tag."),
+          kategorie: z.string().optional().describe("Optionaler Kategorie-Tag."),
+          pinned: z.boolean().optional().describe("Im Dashboard dauerhaft anpinnen (z.B. DIRECTIVE/BOUNDARY)."),
+          source: z.enum(NOTE_SOURCE).optional().describe("user-stated (Nutzer-Fakt) | inferred (eigener Schluss). Default inferred."),
+          confidence: z.enum(NOTE_CONFIDENCE).optional().describe("Konfidenz, v.a. bei inferred."),
+          status: z.enum(NOTE_STATUS).optional().describe("Status setzen (z.B. archived = Soft-Delete)."),
+          validFrom: z.string().optional().describe("Gültig ab (ISO 8601)."),
+          validUntil: z.string().optional().describe("Gültig bis (ISO 8601)."),
+          doDont: z.object({
+            do: z.array(z.string()).optional().describe("Was tun."),
+            dont: z.array(z.string()).optional().describe("Was nie tun."),
+          }).optional().describe("Strukturiert für BOUNDARY-Notes."),
+          supersedesId: z.string().optional().describe("Vorgänger-Note, die abgelöst wird (nur beim Anlegen)."),
+          refs: z.array(entityRefField).optional().describe("Objekte, an die die neue Note gehängt wird."),
+        },
+      },
+      (args, extra) => runV2Write(upsertNoteDef, extra, args),
+    );
+
+    server.registerTool(
+      "link_note",
+      {
+        title: "Link a note to tracking objects (v2)",
+        description:
+          "Hängt eine bestehende Note typisiert an ein oder mehrere Objekte (idempotent — Duplikate werden " +
+          "übersprungen). Danach kommt die Note inline mit dem Objekt (get_session/get_devices)." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          noteId: z.string().describe("Die zu verknüpfende Note."),
+          refs: z.array(entityRefField).min(1).describe("Objekte, an die die Note gehängt wird."),
+        },
+      },
+      (args, extra) => runV2Write(linkNoteDef, extra, args),
+    );
+
+    server.registerTool(
+      "set_device_meta",
+      {
+        title: "Set device decision metadata (v2)",
+        description:
+          "Setzt die Entscheidungs-Metadaten eines Geräts (§2): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
+          "lookalikeClusterId (Geräte gleicher Optik in einen Cluster — Mismatch innerhalb ist dann nie ein " +
+          "Vergehen), abstreifbar, material, bauform, healthFlags, retentionNotes. Nur angegebene Felder ändern " +
+          "sich." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          deviceName: z.string().optional().describe("Gerät per Name (case-insensitiv). deviceName ODER deviceId."),
+          deviceId: z.string().optional().describe("Gerät per id."),
+          securityLevel: z.enum(SECURITY_LEVELS).optional().describe("SECURING = sicherndes Gerät, TRUST_ONLY = Vertrauensgerät."),
+          lookalikeClusterId: z.string().nullable().optional().describe("Cluster-Tag gleich aussehender Geräte. null = entfernen."),
+          abstreifbar: z.boolean().optional().describe("Anti-Auszieh-Status."),
+          material: z.string().nullable().optional().describe("Edelstahl | Kunststoff | Silikon."),
+          bauform: z.string().nullable().optional().describe("flach | voll | standard | Plug ..."),
+          healthFlags: z.array(z.string()).optional().describe("z.B. Druckstellen, scheuert, rutscht."),
+          retentionNotes: z.string().nullable().optional().describe("z.B. 'njoy: rutscht beim Entspannen'."),
+        },
+      },
+      (args, extra) => runV2Write(setDeviceMetaDef, extra, args),
     );
   },
   {},
