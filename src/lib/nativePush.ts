@@ -40,9 +40,20 @@ export async function isNativePushRegistered(): Promise<boolean> {
   return (await prefGet(NATIVE_PUSH_TOKEN)) !== null;
 }
 
-type RegisterResult = { ok: boolean; reason?: "denied" | "timeout" | "error" | "subscribe-failed" | "not-native" };
+type RegisterResult = { ok: boolean; reason?: "denied" | "timeout" | "error" | "subscribe-failed" | "not-native"; detail?: string };
 
 export async function registerNativePush(): Promise<RegisterResult> {
+  try {
+    return await doRegisterNativePush();
+  } catch (err) {
+    // Plugin-Import / checkPermissions / register() können werfen (z.B. fehlendes aps-environment-
+    // Entitlement) → sauber als Fehler mit Klartext zurückgeben statt die Exception durchzureichen.
+    console.error("[nativePush] register threw", err);
+    return { ok: false, reason: "error", detail: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function doRegisterNativePush(): Promise<RegisterResult> {
   const [{ PushNotifications }, { Capacitor }] = await Promise.all([
     import("@capacitor/push-notifications"),
     import("@capacitor/core"),
