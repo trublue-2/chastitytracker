@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.39.4",
+    "date": "2026-06-23",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Native Push-Registrierung: Exceptions (z.B. fehlendes aps-environment-Entitlement) wurden bisher nur generisch gemeldet. Jetzt werden sie sauber abgefangen und der Klartext-Fehler im Toast angezeigt — zur Diagnose der fehlschlagenden Registrierung."
+      }
+    ]
+  },
+  {
     "version": "4.39.3",
     "date": "2026-06-23",
     "changes": [

@@ -81,8 +81,12 @@ export default function PushManager() {
           const result = await registerNativePush();
           if (!result.ok) {
             setSubscribed(false);
-            // Grund-Code mit anzeigen (z.B. "error"/"subscribe-failed"/"timeout") → ohne Web-Inspector diagnostizierbar.
-            toast.error(result.reason === "denied" ? t("pushDenied") : `${t("pushRegisterFailed")} (${result.reason ?? "?"})`);
+            // Grund-Code + Klartext mit anzeigen (z.B. "error: …") → ohne Web-Inspector diagnostizierbar.
+            toast.error(
+              result.reason === "denied"
+                ? t("pushDenied")
+                : `${t("pushRegisterFailed")} (${result.reason ?? "?"}${result.detail ? ": " + result.detail : ""})`,
+            );
           }
         } else {
           await unregisterNativePush();
