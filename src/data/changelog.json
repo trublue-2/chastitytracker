@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.39.1",
+    "date": "2026-06-23",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Automatische Kontrollen: Einstellungs-Änderungen wirken jetzt sofort auf den laufenden Tag. Bisher wurden Auto-Kontrollen nur einmal um Mitternacht geplant — Aktivieren oder Anpassen tagsüber griff erst am Folgetag. Neu wird bei jeder Änderung (Admin-UI oder MCP) der Resttag sofort neu geplant: noch nicht versendete Auto-Kontrollen werden verworfen und nach den neuen Einstellungen neu angelegt; Deaktivieren entfernt die noch offenen, bereits versendete bleiben."
+      }
+    ]
+  },
+  {
     "version": "4.39.0",
     "date": "2026-06-23",
     "changes": [
