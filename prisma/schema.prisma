@@ -51,6 +51,53 @@ model User {
   boxStatuses             BoxStatus[]
   keyholderNotes          KeyholderNote[]
   keyholderActionLogs     KeyholderActionLog[]
+  healthHolds             HealthHold[]
+  recurringContexts       RecurringContext[]
+  appointments            Appointment[]
+}
+
+// Gesundheits-Zurückhaltung (§8): ein Signal, dass aus Gesundheitsgründen (Migräne/Aura, Schlaf,
+// Blutdruck) gerade Zurückhaltung gilt. Aktuell aktiver Hold = active=true, resolvedAt=null.
+// MCP-only, additiv — der Tracker liest diese Tabellen nicht.
+model HealthHold {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  active     Boolean   @default(true)
+  reason     String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([userId, active])
+}
+
+// Wiederkehrender Wochen-Kontext (§8): HO-Tage, Bürotage, Pilates-Slots … damit der Keyholder
+// Anker/Kontrollen ums echte Leben plant. weekday: 0=So .. 6=Sa. deviceFree = Slot ist gerätefrei.
+model RecurringContext {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String   // z.B. "Home Office", "Pilates"
+  weekday   Int      // 0=So .. 6=Sa
+  deviceFree Boolean @default(false)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Einzeltermine (§8): geräte-frei-Termine (Arzt, Therapie) + Hitze-Ausnahmen, strukturiert statt Prosa.
+model Appointment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  when       DateTime
+  typ        String?  // z.B. "Therapie", "Arzt"
+  deviceFree Boolean  @default(false)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, when])
 }
 
 // Append-only Audit-Log jeder mutierenden MCP-V2-Aktion (Pflicht-`reason` + `source`).

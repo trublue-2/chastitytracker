@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
-  resolveUserId, toNoteDTO, noteSelect, type NoteDTO, type EntityRef, type EntityType,
+  resolveUserId, toNoteDTO, noteSelect, parseIsoDate, type NoteDTO, type EntityRef, type EntityType,
 } from "@/lib/mcp/common";
 import { diffFields, type WriteDef } from "@/lib/mcp/writeFramework";
 
@@ -12,14 +12,6 @@ export const NOTE_STATUS = ["active", "superseded", "archived"] as const;
 export const NOTE_SOURCE = ["user-stated", "inferred"] as const;
 export const NOTE_CONFIDENCE = ["low", "medium", "high"] as const;
 export const ENTITY_TYPES = ["device", "session", "segment", "control", "offense", "orgasmDirective", "goal", "appointment"] as const;
-
-/** Parst einen ISO-String zu einem Date; wirft bei ungültigem Wert (Guardrail). */
-function parseDate(value: string | undefined, field: string): Date | undefined {
-  if (value == null) return undefined;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ISO date for ${field}: "${value}"`);
-  return d;
-}
 
 // ── Read: query_notes ──────────────────────────────────────────────────────
 
@@ -133,8 +125,8 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
     };
   },
   async apply(tx, ctx, args) {
-    const validFrom = parseDate(args.validFrom, "validFrom");
-    const validUntil = parseDate(args.validUntil, "validUntil");
+    const validFrom = parseIsoDate(args.validFrom, "validFrom");
+    const validUntil = parseIsoDate(args.validUntil, "validUntil");
 
     // ── Edit bestehender Note ──
     if (args.id) {

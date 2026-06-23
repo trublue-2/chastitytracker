@@ -4,6 +4,7 @@ import { iso, APP_TZ, loadTrackingContext, type NoteDTO } from "@/lib/mcp/common
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
+import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 
 /** keyholder_dashboard (§0/§12) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
@@ -54,8 +55,8 @@ export interface DashboardResult {
   /** Gepinnte Grenzen (BOUNDARY) mit doDont — unübersehbar. */
   boundaries: NoteDTO[];
   boxState: BoxStateView | null;
-  /** Phase 3: Gesundheits-Zurückhaltung. Bis dahin null. */
-  healthHold: null;
+  /** Aktive Gesundheits-Zurückhaltung (§8) oder null. */
+  healthHold: HealthHoldView | null;
 }
 
 const BOX_ONLINE_THRESHOLD_MS = 10 * 60 * 1000;
@@ -82,13 +83,14 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // statt sie pro Aggregat erneut zu scannen. (buildOverview/getOffenses sind V1-Reuse mit eigenem Load.)
   const trackingCtx = await loadTrackingContext(username, now);
 
-  const [overview, rec, periods, ledger, pinned, boxState] = await Promise.all([
+  const [overview, rec, periods, ledger, pinned, boxState, healthHold] = await Promise.all([
     buildOverview(username),
     records(username, trackingCtx),
     periodSummary(username, trackingCtx),
     getOffenses(username),
     queryNotes(username, { pinned: true, status: "active", limit: 50 }),
     loadBoxState(trackingCtx.userId, now),
+    loadActiveHealthHold(trackingCtx.userId),
   ]);
 
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
@@ -132,6 +134,6 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     standingDirectives: pinned.notes.filter((n) => n.type === "DIRECTIVE"),
     boundaries: pinned.notes.filter((n) => n.type === "BOUNDARY"),
     boxState,
-    healthHold: null,
+    healthHold,
   };
 }

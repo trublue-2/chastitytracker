@@ -21,6 +21,9 @@ import { buildWriteContext } from "@/lib/mcp/common";
 import { keyholderDashboard } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
 import { getOffenses } from "@/lib/mcp/ledger";
+import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
+import { timeline } from "@/lib/mcp/timeline";
+import { getActionLog } from "@/lib/mcp/actionlog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -350,6 +353,55 @@ const handler = createMcpHandler(
         inputSchema: {},
       },
       () => runTool("get_offenses", getOffenses),
+    );
+
+    server.registerTool(
+      "get_context",
+      {
+        title: "Get life context (recurring + appointments + health hold)",
+        description:
+          "MCP V2 — Kontext um das echte Leben (§8): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
+          "wiederkehrender Wochen-Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree) " +
+          "und anstehende Termine (ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen.",
+        inputSchema: {},
+      },
+      () => runTool("get_context", getContext),
+    );
+
+    server.registerTool(
+      "timeline",
+      {
+        title: "Unified event timeline",
+        description:
+          "MCP V2 — alle Ereignisse auf EINER Zeitachse (chronologisch): lock/unlock (KG), wear_begin/" +
+          "wear_end (Kategorien), control (Kontrolle + deviceCheck), orgasm (+ Art). Mit from/to-Filter " +
+          "(ISO 8601) und limit (behält die jüngsten).",
+        inputSchema: {
+          from: z.string().optional().describe("Nur Ereignisse ab diesem Zeitpunkt (ISO 8601)."),
+          to: z.string().optional().describe("Nur Ereignisse bis zu diesem Zeitpunkt (ISO 8601)."),
+          limit: z.number().int().min(1).max(1000).optional().describe("Max. Ereignisse (default 200, jüngste)."),
+        },
+      },
+      (args) => runTool("timeline", (u) => timeline(u, args)),
+    );
+
+    server.registerTool(
+      "get_action_log",
+      {
+        title: "Keyholder action log (audit + goal-change history)",
+        description:
+          "MCP V2 — append-only Audit aller mutierenden V2-Aktionen mit reason + source: was hat welche " +
+          "Instanz wann mit welcher Begründung entschieden. Die nächste Instanz erbt Entscheidungen samt " +
+          "Begründung. Für die AUTORITATIVE Ziel-Historie (auch UI-gesetzte Ziele) list_training_goals " +
+          "nutzen; dieses Log liefert nur das Warum/Wann der MCP-Änderungen (filter tool=\"set_training_goal\").",
+        inputSchema: {
+          tool: z.string().optional().describe("Nur Aktionen dieses Tools (z.B. set_training_goal)."),
+          from: z.string().optional().describe("Ab Zeitpunkt (ISO 8601)."),
+          to: z.string().optional().describe("Bis Zeitpunkt (ISO 8601)."),
+          limit: z.number().int().min(1).max(500).optional().describe("Max. Einträge (default 100)."),
+        },
+      },
+      (args) => runTool("get_action_log", (u) => getActionLog(u, args)),
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
@@ -730,6 +782,61 @@ const handler = createMcpHandler(
         },
       },
       (args, extra) => runV2Write(setDeviceMetaDef, extra, args),
+    );
+
+    server.registerTool(
+      "set_health_hold",
+      {
+        title: "Set / clear health hold (v2)",
+        description:
+          "Setzt oder löst die Gesundheits-Zurückhaltung (§8). active=true braucht einen reason " +
+          "(z.B. 'Migräne/Aura', 'Nacht-Auszeit'); active=false löst den aktiven Hold. Erscheint im " +
+          "keyholder_dashboard.healthHold." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          active: z.boolean().describe("true = Hold aktivieren (reason nötig), false = aktiven Hold lösen."),
+          reason: z.string().optional().describe("Grund der Zurückhaltung (Pflicht bei active=true)."),
+        },
+      },
+      (args, extra) => runV2Write(setHealthHoldDef, extra, args),
+    );
+
+    server.registerTool(
+      "upsert_appointment",
+      {
+        title: "Create / edit an appointment (v2)",
+        description:
+          "Legt einen Einzeltermin an oder bearbeitet ihn (id): geräte-frei-Termine (Arzt, Therapie), " +
+          "Hitze-Ausnahmen. deviceFree markiert geräte-freie Termine." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          id: z.string().optional().describe("Bestehenden Termin bearbeiten; weglassen = neuer."),
+          when: z.string().optional().describe("Zeitpunkt (ISO 8601). Pflicht beim Anlegen."),
+          typ: z.string().nullable().optional().describe("z.B. Therapie, Arzt."),
+          deviceFree: z.boolean().optional().describe("Geräte-freier Termin?"),
+          note: z.string().nullable().optional().describe("Notiz zum Termin."),
+        },
+      },
+      (args, extra) => runV2Write(upsertAppointmentDef, extra, args),
+    );
+
+    server.registerTool(
+      "upsert_recurring_context",
+      {
+        title: "Create / edit a recurring weekly context (v2)",
+        description:
+          "Legt einen wiederkehrenden Wochen-Slot an oder bearbeitet ihn (id): HO-Tage, Bürotage, " +
+          "Pilates-Slots. weekday 0=So..6=Sa, deviceFree markiert geräte-freie Slots." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          id: z.string().optional().describe("Bestehenden Slot bearbeiten; weglassen = neuer."),
+          label: z.string().optional().describe("Bezeichnung, z.B. 'Home Office' (Pflicht beim Anlegen)."),
+          weekday: z.number().int().min(0).max(6).optional().describe("Wochentag 0=So..6=Sa (Pflicht beim Anlegen)."),
+          deviceFree: z.boolean().optional().describe("Geräte-freier Slot?"),
+          note: z.string().nullable().optional().describe("Notiz zum Slot."),
+        },
+      },
+      (args, extra) => runV2Write(upsertRecurringContextDef, extra, args),
     );
   },
   {},

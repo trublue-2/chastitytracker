@@ -20,6 +20,15 @@ export async function resolveUserId(username: string): Promise<string> {
 
 export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
 
+/** Parst einen ISO-String zu Date; wirft bei ungültigem Wert (geteilter Guardrail aller V2-Tools).
+ *  undefined-Input → undefined (Feld nicht gesetzt). */
+export function parseIsoDate(value: string | undefined, field: string): Date | undefined {
+  if (value == null) return undefined;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ISO date for ${field}: "${value}"`);
+  return d;
+}
+
 /** Ein Entry mit allen Feldern, die die V2-Read-Schicht braucht (Segmente, Kontrollen, Orgasmen). */
 export interface TrackingEntry {
   id: string;
