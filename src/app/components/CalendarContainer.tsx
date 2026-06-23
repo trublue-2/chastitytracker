@@ -147,10 +147,11 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             aria-modal="true"
             aria-labelledby="calendar-modal-title"
             tabIndex={-1}
-            className="relative bg-surface rounded-2xl shadow-overlay border border-border w-full max-w-sm p-5 flex flex-col gap-4 outline-none"
+            className="relative bg-surface rounded-2xl shadow-overlay border border-border w-full max-w-sm max-h-[85dvh] overflow-y-auto p-5 flex flex-col gap-4 outline-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
+            {/* Header sticky, damit ✕ bei vielen Einträgen erreichbar bleibt; Body scrollt (max-h). */}
+            <div className="sticky top-0 z-10 -mx-5 -mt-5 px-5 pt-5 pb-3 bg-surface flex items-center justify-between">
               <p id="calendar-modal-title" className="font-bold text-foreground">{selected.dateLabel}</p>
               <button onClick={() => setSelected(null)} aria-label={tc("close")} className="text-foreground-faint hover:text-foreground-muted text-lg leading-none px-1 transition">✕</button>
             </div>
