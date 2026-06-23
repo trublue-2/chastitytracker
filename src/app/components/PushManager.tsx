@@ -3,62 +3,73 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
+import useToast from "@/app/hooks/useToast";
 
 // ---------------------------------------------------------------------------
 // Native (Capacitor) push helpers — loaded dynamically so the import never
 // runs on the server or in a plain browser context without the bridge.
 // ---------------------------------------------------------------------------
 
-async function registerNativePush(): Promise<boolean> {
+type RegisterResult = { ok: boolean; reason?: "denied" | "timeout" | "error" | "subscribe-failed" | "not-native" };
+
+async function registerNativePush(): Promise<RegisterResult> {
   const { PushNotifications } = await import("@capacitor/push-notifications");
   const { Capacitor } = await import("@capacitor/core");
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!Capacitor.isNativePlatform()) return { ok: false, reason: "not-native" };
 
   let permStatus = await PushNotifications.checkPermissions();
   if (permStatus.receive === "prompt") {
     permStatus = await PushNotifications.requestPermissions();
   }
-  if (permStatus.receive !== "granted") return false;
+  if (permStatus.receive !== "granted") return { ok: false, reason: "denied" };
 
-  // Set up listeners BEFORE calling register() to avoid race condition
-  // where the token arrives before the listener is attached.
-  const result = await new Promise<boolean>((resolve) => {
-    const timeout = setTimeout(() => {
-      console.error("[PushManager] APNs registration timed out after 10s");
-      resolve(false);
-    }, 10_000);
+  // EINMALIGE Auflösung garantieren: der frühere Code löschte den Timeout, sobald das
+  // registration-Event feuerte — hing danach der fetch, wurde das Promise NIE aufgelöst und der
+  // Toggle blieb dauerhaft disabled (saving=true). `finish` löst genau einmal auf, räumt Timeout +
+  // Listener auf; ein Gesamt-Timeout deckt Registrierung UND Subscribe ab, der fetch hat zusätzlich
+  // ein eigenes Limit. Listener werden gezielt entfernt (nicht removeAllListeners → würde den
+  // Tap-Handler aus NativePushRouter killen).
+  let settled = false;
+  let resolveFn: (r: RegisterResult) => void;
+  const done = new Promise<RegisterResult>((res) => { resolveFn = res; });
 
-    PushNotifications.addListener("registration", async (tokenData) => {
-      clearTimeout(timeout);
-      try {
-        const res = await fetch("/api/push/native-subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: tokenData.value, platform: Capacitor.getPlatform() }),
-        });
-        if (!res.ok) {
-          console.error("[PushManager] native-subscribe failed", res.status, await res.text());
-          resolve(false);
-        } else {
-          await setNativeToken(tokenData.value); // merken, um beim Ausschalten serverseitig zu löschen
-          resolve(true);
-        }
-      } catch (err) {
-        console.error("[PushManager] native-subscribe fetch error", err);
-        resolve(false);
+  const regHandle = await PushNotifications.addListener("registration", async (tokenData) => {
+    try {
+      const res = await fetch("/api/push/native-subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: tokenData.value, platform: Capacitor.getPlatform() }),
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (res.ok) {
+        await setNativeToken(tokenData.value); // merken, um beim Ausschalten serverseitig zu löschen
+        finish({ ok: true });
+      } else {
+        console.error("[PushManager] native-subscribe failed", res.status);
+        finish({ ok: false, reason: "subscribe-failed" });
       }
-    });
-
-    PushNotifications.addListener("registrationError", (err) => {
-      clearTimeout(timeout);
-      console.error("[PushManager] APNs registration error", err);
-      resolve(false);
-    });
-
-    PushNotifications.register();
+    } catch (err) {
+      console.error("[PushManager] native-subscribe error", err);
+      finish({ ok: false, reason: "subscribe-failed" });
+    }
   });
+  const errHandle = await PushNotifications.addListener("registrationError", (err) => {
+    console.error("[PushManager] APNs registration error", err);
+    finish({ ok: false, reason: "error" });
+  });
+  const timeout = setTimeout(() => finish({ ok: false, reason: "timeout" }), 15_000);
 
-  return result;
+  function finish(r: RegisterResult) {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timeout);
+    regHandle.remove();
+    errHandle.remove();
+    resolveFn(r);
+  }
+
+  await PushNotifications.register();
+  return done;
 }
 
 async function unregisterNativePush(): Promise<void> {
@@ -166,6 +177,7 @@ function detectWebPushState(): Exclude<PushState, "loading" | "native"> {
 
 export default function PushManager() {
   const t = useTranslations("settings");
+  const toast = useToast();
   const [pushState, setPushState] = useState<PushState>("loading");
   const [subscribed, setSubscribed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -196,9 +208,12 @@ export default function PushManager() {
       if (pushState === "native") {
         // --- Native Capacitor push ---
         if (enable) {
-          const ok = await registerNativePush();
-          await setNativePushFlag(ok);
-          setSubscribed(ok);
+          const result = await registerNativePush();
+          await setNativePushFlag(result.ok);
+          setSubscribed(result.ok);
+          if (!result.ok) {
+            toast.error(result.reason === "denied" ? t("pushDenied") : t("pushRegisterFailed"));
+          }
         } else {
           await unregisterNativePush();
           await setNativePushFlag(false);

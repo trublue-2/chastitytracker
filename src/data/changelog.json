@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.6",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Push-Toggle in den Einstellungen ließ sich teils nicht mehr betätigen: Die native Registrierung konnte hängen bleiben (der Timeout wurde zu früh gelöscht), wodurch der Schalter dauerhaft deaktiviert blieb. Die Registrierung löst jetzt garantiert genau einmal auf (Gesamt-Timeout + eigenes Limit für den Netzwerk-Call, sauberes Aufräumen der Listener), und bei Fehlschlag erscheint eine erklärende Meldung statt eines stillen Zurückspringens."
+      }
+    ]
+  },
+  {
     "version": "4.38.5",
     "date": "2026-06-22",
     "changes": [
