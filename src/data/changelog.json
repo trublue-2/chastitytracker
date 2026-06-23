@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.7",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Push-Toggle reagiert jetzt sofort beim Antippen (optimistische Anzeige; springt nur bei echtem Fehlschlag zurück und zeigt dann eine Meldung). Interne Vereinfachung der Push-Logik (ein gespeicherter Token statt Token+Flag, weniger Boilerplate)."
+      }
+    ]
+  },
+  {
     "version": "4.38.6",
     "date": "2026-06-22",
     "changes": [

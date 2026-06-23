@@ -6,43 +6,70 @@ import Toggle from "@/app/components/Toggle";
 import useToast from "@/app/hooks/useToast";
 
 // ---------------------------------------------------------------------------
-// Native (Capacitor) push helpers — loaded dynamically so the import never
-// runs on the server or in a plain browser context without the bridge.
+// Capacitor Preferences — ein get/set für alle Keys (set(null) = remove).
+// Dynamisch importiert, damit nichts auf dem Server / im reinen Browser läuft.
 // ---------------------------------------------------------------------------
+async function prefGet(key: string): Promise<string | null> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    return (await Preferences.get({ key })).value ?? null;
+  } catch {
+    return null;
+  }
+}
+async function prefSet(key: string, value: string | null): Promise<void> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    if (value === null) await Preferences.remove({ key });
+    else await Preferences.set({ key, value });
+  } catch {
+    /* ignore — Toggle funktioniert weiter, nur ohne Persistenz */
+  }
+}
+
+// Der gespeicherte Token IST der Registrierungs-Zustand — kein separates Flag (sonst zwei Quellen
+// für eine Wahrheit, die auseinanderlaufen können). Vorhanden = Push für dieses Gerät aktiv.
+const NATIVE_PUSH_TOKEN = "pushToken";
+
+async function isNativePlatform(): Promise<boolean> {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
 
 type RegisterResult = { ok: boolean; reason?: "denied" | "timeout" | "error" | "subscribe-failed" | "not-native" };
 
 async function registerNativePush(): Promise<RegisterResult> {
-  const { PushNotifications } = await import("@capacitor/push-notifications");
-  const { Capacitor } = await import("@capacitor/core");
+  const [{ PushNotifications }, { Capacitor }] = await Promise.all([
+    import("@capacitor/push-notifications"),
+    import("@capacitor/core"),
+  ]);
   if (!Capacitor.isNativePlatform()) return { ok: false, reason: "not-native" };
 
-  let permStatus = await PushNotifications.checkPermissions();
-  if (permStatus.receive === "prompt") {
-    permStatus = await PushNotifications.requestPermissions();
-  }
-  if (permStatus.receive !== "granted") return { ok: false, reason: "denied" };
+  let perm = await PushNotifications.checkPermissions();
+  if (perm.receive === "prompt") perm = await PushNotifications.requestPermissions();
+  if (perm.receive !== "granted") return { ok: false, reason: "denied" };
 
-  // EINMALIGE Auflösung garantieren: der frühere Code löschte den Timeout, sobald das
-  // registration-Event feuerte — hing danach der fetch, wurde das Promise NIE aufgelöst und der
-  // Toggle blieb dauerhaft disabled (saving=true). `finish` löst genau einmal auf, räumt Timeout +
-  // Listener auf; ein Gesamt-Timeout deckt Registrierung UND Subscribe ab, der fetch hat zusätzlich
-  // ein eigenes Limit. Listener werden gezielt entfernt (nicht removeAllListeners → würde den
-  // Tap-Handler aus NativePushRouter killen).
+  // Genau EINE Auflösung garantieren: der Gesamt-Timeout deckt Registrierung UND Subscribe ab, der
+  // fetch hat ein eigenes Limit, Listener werden gezielt entfernt (nicht removeAllListeners → würde
+  // den Tap-Handler aus NativePushRouter killen). Sonst bliebe der Toggle bei hängendem fetch disabled.
   let settled = false;
   let resolveFn: (r: RegisterResult) => void;
   const done = new Promise<RegisterResult>((res) => { resolveFn = res; });
 
-  const regHandle = await PushNotifications.addListener("registration", async (tokenData) => {
+  const regHandle = await PushNotifications.addListener("registration", async (tok) => {
     try {
       const res = await fetch("/api/push/native-subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: tokenData.value, platform: Capacitor.getPlatform() }),
+        body: JSON.stringify({ token: tok.value, platform: Capacitor.getPlatform() }),
         signal: AbortSignal.timeout(8_000),
       });
       if (res.ok) {
-        await setNativeToken(tokenData.value); // merken, um beim Ausschalten serverseitig zu löschen
+        await prefSet(NATIVE_PUSH_TOKEN, tok.value);
         finish({ ok: true });
       } else {
         console.error("[PushManager] native-subscribe failed", res.status);
@@ -75,69 +102,14 @@ async function registerNativePush(): Promise<RegisterResult> {
 async function unregisterNativePush(): Promise<void> {
   const { PushNotifications } = await import("@capacitor/push-notifications");
   await PushNotifications.removeAllDeliveredNotifications();
-  // Token serverseitig entfernen, damit KEINE Pushes mehr ankommen. Der bei der Registrierung
-  // gespeicherte Token wird gezielt abgemeldet; fehlt er (Bestands-Registrierung), entfernt der
-  // Server alle Native-Tokens dieses Nutzers (leerer Body).
-  const token = await getNativeToken();
+  // Token serverseitig abmelden (gezielt; fehlt der lokale Token, entfernt der Server alle des Nutzers).
+  const token = await prefGet(NATIVE_PUSH_TOKEN);
   await fetch("/api/push/native-subscribe", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(token ? { token } : {}),
   }).catch((err) => console.error("[PushManager] native-unsubscribe failed", err));
-  await clearNativeToken();
-}
-
-async function isNativePlatform(): Promise<boolean> {
-  const { Capacitor } = await import("@capacitor/core");
-  return Capacitor.isNativePlatform();
-}
-
-// Native push has no API to query the current registration, so we persist the
-// user's choice locally (Capacitor Preferences) and restore the toggle from it
-// on mount — otherwise the switch always shows OFF after reopening the app.
-const NATIVE_PUSH_FLAG = "pushRegistered";
-const NATIVE_PUSH_TOKEN = "pushToken";
-
-// Den APNs/FCM-Token lokal merken, damit beim Ausschalten gezielt DIESES Gerät serverseitig
-// abgemeldet werden kann (Capacitor bietet keine API, den Token später zurückzulesen).
-async function setNativeToken(token: string): Promise<void> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    await Preferences.set({ key: NATIVE_PUSH_TOKEN, value: token });
-  } catch { /* ignore */ }
-}
-async function getNativeToken(): Promise<string | null> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    const { value } = await Preferences.get({ key: NATIVE_PUSH_TOKEN });
-    return value ?? null;
-  } catch {
-    return null;
-  }
-}
-async function clearNativeToken(): Promise<void> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    await Preferences.remove({ key: NATIVE_PUSH_TOKEN });
-  } catch { /* ignore */ }
-}
-
-async function getNativePushFlag(): Promise<boolean> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    const { value } = await Preferences.get({ key: NATIVE_PUSH_FLAG });
-    return value === "true";
-  } catch {
-    return false;
-  }
-}
-
-async function setNativePushFlag(on: boolean): Promise<void> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    if (on) await Preferences.set({ key: NATIVE_PUSH_FLAG, value: "true" });
-    else await Preferences.remove({ key: NATIVE_PUSH_FLAG });
-  } catch { /* ignore — toggle still works, just won't persist visual state */ }
+  await prefSet(NATIVE_PUSH_TOKEN, null);
 }
 
 function urlBase64ToUint8Array(base64: string): ArrayBuffer {
@@ -151,12 +123,12 @@ function urlBase64ToUint8Array(base64: string): ArrayBuffer {
 
 type PushState =
   | "loading"
-  | "native"            // Running inside Capacitor native app
+  | "native"            // Capacitor native app
   | "supported"         // PushManager available, ready to toggle (web/PWA)
-  | "denied"            // User blocked notifications
+  | "denied"            // notifications blocked
   | "ios-not-installed" // iOS Safari but not installed as PWA
   | "ios-old"           // iOS standalone but too old for push (< 16.4)
-  | "unsupported";      // Browser doesn't support push at all
+  | "unsupported";      // no push support at all
 
 function detectWebPushState(): Exclude<PushState, "loading" | "native"> {
   const ua = navigator.userAgent;
@@ -168,12 +140,18 @@ function detectWebPushState(): Exclude<PushState, "loading" | "native"> {
     if (!isStandalone) return "ios-not-installed";
     if (!("PushManager" in window)) return "ios-old";
   }
-
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
   if (Notification.permission === "denied") return "denied";
-
   return "supported";
 }
+
+// Zustände, die nur einen Text-Hinweis zeigen (kein interaktiver Toggle).
+const TEXT_STATES: Partial<Record<PushState, { key: string; warn?: boolean }>> = {
+  "ios-not-installed": { key: "pushIosNotInstalled" },
+  "ios-old": { key: "pushIosOld" },
+  unsupported: { key: "pushNotSupported" },
+  denied: { key: "pushDenied", warn: true },
+};
 
 export default function PushManager() {
   const t = useTranslations("settings");
@@ -183,12 +161,11 @@ export default function PushManager() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Check native platform first (async), fall back to web push detection.
     isNativePlatform().then((native) => {
       if (native) {
         setPushState("native");
-        // Native can't query the token, so restore the toggle from the persisted flag.
-        getNativePushFlag().then(setSubscribed);
+        // Native kann den Token nicht abfragen → aus dem gespeicherten Token ableiten.
+        prefGet(NATIVE_PUSH_TOKEN).then((tok) => setSubscribed(tok !== null));
       } else {
         const state = detectWebPushState();
         setPushState(state);
@@ -203,21 +180,18 @@ export default function PushManager() {
 
   async function toggle(enable: boolean) {
     if (pushState !== "supported" && pushState !== "native") return;
+    setSubscribed(enable); // optimistisch: der Schalter reagiert SOFORT; revert nur bei Fehlschlag
     setSaving(true);
     try {
       if (pushState === "native") {
-        // --- Native Capacitor push ---
         if (enable) {
           const result = await registerNativePush();
-          await setNativePushFlag(result.ok);
-          setSubscribed(result.ok);
           if (!result.ok) {
+            setSubscribed(false);
             toast.error(result.reason === "denied" ? t("pushDenied") : t("pushRegisterFailed"));
           }
         } else {
           await unregisterNativePush();
-          await setNativePushFlag(false);
-          setSubscribed(false);
         }
         return;
       }
@@ -227,6 +201,7 @@ export default function PushManager() {
       if (enable) {
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
+          setSubscribed(false);
           if (permission === "denied") setPushState("denied");
           return;
         }
@@ -240,7 +215,6 @@ export default function PushManager() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sub.toJSON()),
         });
-        setSubscribed(true);
       } else {
         const sub = await reg.pushManager.getSubscription();
         if (sub) {
@@ -251,69 +225,24 @@ export default function PushManager() {
           });
           await sub.unsubscribe();
         }
-        setSubscribed(false);
       }
     } catch (err) {
       console.error("[PushManager]", err);
-      if (pushState === "supported") {
-        // Re-sync state with actual subscription status
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          const sub = await reg.pushManager.getSubscription();
-          setSubscribed(!!sub);
-        } catch { /* ignore */ }
-      }
+      setSubscribed(!enable); // revert bei Fehler
+      toast.error(t("pushRegisterFailed"));
     } finally {
       setSaving(false);
     }
   }
 
-  // Loading state — don't render anything yet
   if (pushState === "loading") return null;
 
-  // Native Capacitor app — show toggle (same UI as web push supported state)
-  if (pushState === "native") {
-    return (
-      <div className="px-5 py-4">
-        <Toggle
-          label={t("pushTitle")}
-          description={t("pushDesc")}
-          checked={subscribed}
-          disabled={saving}
-          onChange={(checked) => toggle(checked)}
-        />
-      </div>
-    );
+  const textState = TEXT_STATES[pushState];
+  if (textState) {
+    return <p className={`text-xs px-5 py-4 ${textState.warn ? "text-warn" : "text-foreground-faint"}`}>{t(textState.key)}</p>;
   }
 
-  // iOS: not installed as PWA
-  if (pushState === "ios-not-installed") {
-    return (
-      <p className="text-xs text-foreground-faint px-5 py-4">{t("pushIosNotInstalled")}</p>
-    );
-  }
-
-  // iOS: too old for push
-  if (pushState === "ios-old") {
-    return (
-      <p className="text-xs text-foreground-faint px-5 py-4">{t("pushIosOld")}</p>
-    );
-  }
-
-  // Browser doesn't support push
-  if (pushState === "unsupported") {
-    return (
-      <p className="text-xs text-foreground-faint px-5 py-4">{t("pushNotSupported")}</p>
-    );
-  }
-
-  // User blocked notifications
-  if (pushState === "denied") {
-    return (
-      <p className="text-xs text-warn px-5 py-4">{t("pushDenied")}</p>
-    );
-  }
-
+  // native | supported → interaktiver Toggle
   return (
     <div className="px-5 py-4">
       <Toggle
