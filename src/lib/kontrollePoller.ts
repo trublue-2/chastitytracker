@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendKontrolleNotification, deriveSealCode } from "@/lib/kontrolleService";
+import { ensureDailyAutoKontrollen } from "@/lib/autoKontrolleService";
+import { midnightInTZ } from "@/lib/utils";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -12,6 +14,16 @@ async function processDue(): Promise<void> {
   running = true;
   try {
     const now = new Date();
+
+    // Einmal pro CH-Tag die Auto-Kontrollen aller aktiven User für heute einplanen (idempotent;
+    // DB-Check als Restart-Backstop). Schlägt das fehl, läuft das Versenden trotzdem weiter.
+    const dayKey = midnightInTZ(now).getTime();
+    const g = globalThis as unknown as { __autoKontrolleDay?: number };
+    if (g.__autoKontrolleDay !== dayKey) {
+      g.__autoKontrolleDay = dayKey;
+      await ensureDailyAutoKontrollen(now).catch((e) => console.error("[autoKontrolle]", e));
+    }
+
     const due = await prisma.kontrollAnforderung.findMany({
       where: {
         wirksamAb: { not: null, lte: now },
@@ -31,6 +43,11 @@ async function processDue(): Promise<void> {
           orderBy: { startTime: "desc" },
           select: { type: true, kontrollCode: true },
         });
+        // Auto-Kontrolle bei offenem KG ist sinnlos → bei Fälligkeit zurückziehen statt senden.
+        if (ka.auto && latest?.type !== "VERSCHLUSS") {
+          await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: new Date() } });
+          continue;
+        }
         // Label „Siegel-Nummer" nur, wenn der gespeicherte Code die aktuelle Siegel-Nummer ist.
         const sealCode = deriveSealCode(latest) === ka.code ? ka.code : null;
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
+import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
 import AccountSection from "./AccountSection";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
@@ -95,6 +96,24 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             initialMaxMinuten={user.reinigungMaxMinuten}
             initialMaxProTag={user.reinigungMaxProTag}
             initialFenster={parseReinigungsFenster(user.reinigungsFenster)}
+          />
+        </div>
+      </Card>
+
+      {/* Automatische Kontrollen */}
+      <Card padding="none" className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionAutoKontrolle")}</p>
+        </div>
+        <div className="px-5 py-4">
+          <AutoKontrolleToggle
+            userId={user.id}
+            initialAktiv={user.autoKontrolleAktiv}
+            initialProTag={user.autoKontrolleProTag}
+            initialRuheVon={user.autoKontrolleRuheVon}
+            initialRuheBis={user.autoKontrolleRuheBis}
+            initialFristVon={user.autoKontrolleFristVon}
+            initialFristBis={user.autoKontrolleFristBis}
           />
         </div>
       </Card>

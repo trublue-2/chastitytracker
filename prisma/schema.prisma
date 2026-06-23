@@ -21,6 +21,14 @@ model User {
   // Tägliche Öffnungs-Fenster für Reinigung als JSON-String, z.B. [{"start":"19:00","end":"20:00"}]
   // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseReinigungsFenster deserialisiert.
   reinigungsFenster     String?
+  // Automatische Kontrollen: X zufällig verteilte Kontrollen/Tag. Frist darf nicht ins Schlaf-
+  // Fenster (RuheVon–RuheBis, CH-Lokalzeit) fallen; Erfüllungsdauer zufällig in [FristVon, FristBis] Min.
+  autoKontrolleAktiv    Boolean                @default(false)
+  autoKontrolleProTag   Int                    @default(0)
+  autoKontrolleRuheVon  String                 @default("22:00")
+  autoKontrolleRuheBis  String                 @default("06:00")
+  autoKontrolleFristVon Int                    @default(15)
+  autoKontrolleFristBis Int                    @default(60)
   mobileDesktopUpload   Boolean                @default(false)
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions String?
@@ -143,6 +151,7 @@ model KontrollAnforderung {
   // unsichtbar, Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
   wirksamAb        DateTime?
   benachrichtigtAt DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
+  auto        Boolean   @default(false) // automatisch generiert (Auto-Kontrollen); manuelle = false
   entryId     String?   @unique
   entry       Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)
 

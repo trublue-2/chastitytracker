@@ -61,6 +61,11 @@ export function toDateLocale(locale: string): string {
 /** App timezone – all server-side date formatting uses this. */
 export const APP_TZ = "Europe/Zurich";
 
+/** Klemmt eine Zahl auf [min, max] und rundet; ungültige/0-Werte fallen auf `fallback`. */
+export function clamp(value: number, { min, max, fallback }: { min: number; max: number; fallback: number }): number {
+  return Math.max(min, Math.min(max, Math.round(value) || fallback));
+}
+
 /** Formats the BUILD_DATE env var as "dd.mm.yyyy, HH:mm" in APP_TZ, or "local" if unset. */
 export function formatBuildDate(): string {
   if (!process.env.BUILD_DATE) return "local";

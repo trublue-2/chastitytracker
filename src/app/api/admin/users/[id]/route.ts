@@ -7,6 +7,7 @@ import { isValidEmail, validatePassword } from "@/lib/constants";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
+import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 
 export async function GET(
@@ -88,6 +89,20 @@ export async function PATCH(
       maxMinuten: body.reinigungMaxMinuten !== undefined ? Number(body.reinigungMaxMinuten) : undefined,
       maxProTag: body.reinigungMaxProTag !== undefined ? Number(body.reinigungMaxProTag) : undefined,
       fenster: body.reinigungsFenster, // roh — der Service validiert/normalisiert
+    });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (
+    body.autoKontrolleAktiv !== undefined || body.autoKontrolleProTag !== undefined ||
+    body.autoKontrolleRuheVon !== undefined || body.autoKontrolleRuheBis !== undefined ||
+    body.autoKontrolleFristVon !== undefined || body.autoKontrolleFristBis !== undefined
+  ) {
+    // Felder roh durchreichen — setAutoKontrolleSettings klemmt/validiert (HH:MM, Bereiche, Bis≥Von).
+    await setAutoKontrolleSettings(id, {
+      aktiv: body.autoKontrolleAktiv, proTag: body.autoKontrolleProTag,
+      ruheVon: body.autoKontrolleRuheVon, ruheBis: body.autoKontrolleRuheBis,
+      fristVon: body.autoKontrolleFristVon, fristBis: body.autoKontrolleFristBis,
     });
     return NextResponse.json({ ok: true });
   }

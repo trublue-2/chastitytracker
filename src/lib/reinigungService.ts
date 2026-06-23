@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ServiceResult } from "@/lib/serviceResult";
-import { APP_TZ, midnightInTZ } from "@/lib/utils";
+import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
 
 export interface ReinigungsFenster {
   start: string; // "HH:MM"
@@ -67,10 +67,6 @@ export async function reinigungVerbrauchtHeute(userId: string, now: Date): Promi
 const MAX_MINUTEN_RANGE = { min: 1, max: 120, fallback: 15 } as const;
 /** Max cleaning pauses per day is clamped to this range (0 = unlimited). */
 const MAX_PRO_TAG_RANGE = { min: 0, max: 20, fallback: 0 } as const;
-
-function clamp(value: number, { min, max, fallback }: { min: number; max: number; fallback: number }): number {
-  return Math.max(min, Math.min(max, Math.round(value) || fallback));
-}
 
 /**
  * Updates a user's cleaning-pause (Reinigung) settings. Only provided fields change; numeric

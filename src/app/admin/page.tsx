@@ -16,7 +16,7 @@ import EmptyState from "@/app/components/EmptyState";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration } from "@/lib/utils";
-import { getActiveSperrzeiten } from "@/lib/queries";
+import { getActiveSperrzeiten, aktiveKontrolleWhere } from "@/lib/queries";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -55,7 +55,7 @@ export default async function AdminPage() {
     prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.kontrollAnforderung.findMany({
-      where: { userId: { in: userIds }, entryId: null, withdrawnAt: null },
+      where: { userId: { in: userIds }, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
     prisma.verschlussAnforderung.findMany({

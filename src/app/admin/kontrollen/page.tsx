@@ -8,6 +8,7 @@ import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "./AdminKontrolleListClient";
 import { buildKontrolleRows, isKontrolleAlarm, mapKontrolleRow } from "@/lib/kontrollen";
+import { aktiveKontrolleWhere } from "@/lib/queries";
 
 export default async function AdminKontrollenPage({
   searchParams,
@@ -31,7 +32,8 @@ export default async function AdminKontrollenPage({
       include: { user: { select: { username: true } } },
     }),
     prisma.kontrollAnforderung.findMany({
-      where: userId ? { userId } : undefined,
+      // Noch nicht aktive (geplante) Kontrollen ausblenden — auch im Admin-Portal.
+      where: { ...aktiveKontrolleWhere(now), ...(userId ? { userId } : {}) },
       orderBy: { createdAt: "desc" },
       include: { user: { select: { username: true } } },
     }),
