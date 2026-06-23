@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.4",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Heartbeat-Endpoint /api/heartbeat in die Public-Allowlist aufgenommen, damit der Versions-Check auch im ausgeloggten Zustand funktioniert (wie zuvor /api/version). Eingeloggte erhalten weiterhin ihre Session-/Anforderungs-Daten."
+      }
+    ]
+  },
+  {
     "version": "4.38.3",
     "date": "2026-06-22",
     "changes": [
