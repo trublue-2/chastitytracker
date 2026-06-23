@@ -7,6 +7,10 @@ export const round1 = (n: number) => Math.round(n * 10) / 10;
 /** Millisekunden → Stunden, auf eine Nachkommastelle gerundet. */
 export const msToHours = (ms: number) => round1(ms / 3_600_000);
 
+/** Prozent-Erfüllung (actual/target), gerundet; null wenn kein/0-Ziel. Geteilt von V1 + V2. */
+export const pct = (actual: number, target: number | null): number | null =>
+  target && target > 0 ? Math.round((actual / target) * 100) : null;
+
 /** Offset (Minuten) einer Zeitzone zum gegebenen Zeitpunkt. Positiv = östlich von UTC. */
 function tzOffsetMinutes(date: Date, tz: string): number {
   // Wall-clock-Felder in der Ziel-TZ holen und als UTC interpretieren → Differenz = Offset.

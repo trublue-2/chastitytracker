@@ -1,8 +1,6 @@
-import { prisma } from "@/lib/prisma";
-import type { ReinigungSettings } from "@/lib/utils";
 import { buildSessions, type Session, type Segment, type LinkedControl } from "@/lib/mcp/segments";
 import { msToHours } from "@/lib/mcp/format";
-import { resolveUserId, iso, notesForEntities, entityKey, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
+import { resolveUserId, iso, notesForEntities, entityKey, loadTrackingData, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
 
 /** get_session — KG-Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes
  *  + Daten-Qualitäts-Flags. Rein lesend, MCP-only. */
@@ -50,27 +48,6 @@ export interface GetSessionOptions {
 }
 
 const controlEntityType = "control";
-
-/** Lädt Entries (mit Device-Include) + Reinigungs-Settings — dieselbe Datenbasis wie buildOverview. */
-async function loadSessionData(userId: string): Promise<{ entries: Parameters<typeof buildSessions>[0]; reinigung: ReinigungSettings }> {
-  const [user, entries] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
-    prisma.entry.findMany({
-      where: { userId },
-      orderBy: { startTime: "desc" },
-      select: {
-        id: true, type: true, startTime: true, oeffnenGrund: true,
-        kontrollCode: true, verifikationStatus: true,
-        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true,
-        device: { select: { id: true, name: true, categoryId: true } },
-      },
-    }),
-  ]);
-  return {
-    entries,
-    reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
-  };
-}
 
 /** Sammelt alle Objekt-Refs einer Session (Session + Segmente + Kontrollen) für EINEN Inline-Notes-Query. */
 function refsOfSession(s: Session): EntityRef[] {
@@ -138,7 +115,7 @@ function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>): Session
  *  deviceBreakdown und inline verknüpften Notes. Throws, wenn der User unbekannt ist. */
 export async function getSession(username: string, opts: GetSessionOptions = {}): Promise<SessionListResult> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung } = await loadSessionData(userId);
+  const { entries, reinigung } = await loadTrackingData(userId);
   const now = new Date();
   // Sessions sind abgeleitet (Segment-/Pausen-Logik über benachbarte Entries) → die ganze Serie
   // wird gebaut, auch wenn nur eine sessionId gefragt ist. Bei sehr langer Historie der dominante

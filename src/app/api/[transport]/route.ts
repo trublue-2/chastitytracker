@@ -18,6 +18,9 @@ import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_S
 import { listDevicesV2, setDeviceMetaDef, SECURITY_LEVELS } from "@/lib/mcp/devices";
 import { executeWrite, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext } from "@/lib/mcp/common";
+import { keyholderDashboard } from "@/lib/mcp/dashboard";
+import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
+import { getOffenses } from "@/lib/mcp/ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -265,6 +268,88 @@ const handler = createMcpHandler(
         inputSchema: {},
       },
       () => runTool("get_devices", listDevicesV2),
+    );
+
+    server.registerTool(
+      "keyholder_dashboard",
+      {
+        title: "Keyholder dashboard (one call answers ~90%)",
+        description:
+          "MCP V2 — DER Einstiegs-Call: currentRun vs. Personal Best, was JETZT getragen wird (KG + " +
+          "alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit / offenes Orgasmus-Fenster), " +
+          "Ziele + Adhärenz (Tag/Woche/Monat-Erfüllung), offene Vergehen (Top 5), gepinnte " +
+          "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), BoxState. Nutze die " +
+          "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details.",
+        inputSchema: {},
+      },
+      () => runTool("keyholder_dashboard", keyholderDashboard),
+    );
+
+    server.registerTool(
+      "device_stats",
+      {
+        title: "Per-device wear statistics (from segments)",
+        description:
+          "MCP V2 — pro Gerät aus SEGMENTEN (nicht Labels): segmentCount, total/avg/median/min/max-Stunden, " +
+          "längste durchgehende Strecke (maxHours) und zuletzt getragen. Vorberechnet — keine Rekonstruktion " +
+          "aus Rohdaten nötig.",
+        inputSchema: {},
+      },
+      () => runTool("device_stats", deviceStats),
+    );
+
+    server.registerTool(
+      "records",
+      {
+        title: "Records & personal bests",
+        description:
+          "MCP V2 — längster Lauf (interruption-bereinigt) als Personal Best, aktueller Lauf + % vom PB, " +
+          "Tage seit Rekord, Stunden seit letztem Orgasmus und längste orgasmusfreie Strecke. Vorberechnet.",
+        inputSchema: {},
+      },
+      () => runTool("records", records),
+    );
+
+    server.registerTool(
+      "period_summary",
+      {
+        title: "Period summary (day/week/month) + goal fulfillment",
+        description:
+          "MCP V2 — Tag/Woche/Monat-Tragestunden für KG und je Kategorie inkl. Ziel-Erfüllung (pct). " +
+          "Eine Quelle für die Adhärenz-Frage.",
+        inputSchema: {},
+      },
+      () => runTool("period_summary", periodSummary),
+    );
+
+    server.registerTool(
+      "denial_trend",
+      {
+        title: "Denial / orgasm interval trend",
+        description:
+          "MCP V2 — Entsagungs-Entwicklung mit DATEN statt Kopfrechnen: currentStreakH (seit letztem " +
+          "Orgasmus), longestDenialH, avgIntervalH + recentAvgIntervalH + trendRising (steigt die " +
+          "Entsagung?), und orgasmHistory[] (Zeitpunkt, Intervall zum vorigen, Geräte-Kontext).",
+        inputSchema: {
+          limit: z.number().int().min(1).max(500).optional().describe("Nur die letzten N Orgasmen in orgasmHistory."),
+        },
+      },
+      (args) => runTool("denial_trend", (u) => denialTrend(u, args)),
+    );
+
+    server.registerTool(
+      "get_offenses",
+      {
+        title: "Discipline ledger (unified offense list)",
+        description:
+          "MCP V2 — vereinheitlichtes Disziplin-Ledger: alle erkannten Vergehen (unauthorized_opening, " +
+          "late_control, rejected_control, cleaning_limit, wrong_device, missed_orgasm) als EINE Liste mit " +
+          "status (open|judged), judgment, Folge (consequence) und Kontext + inline Notes. Bei wrong_device " +
+          "kommt der Cluster-Kontext des getragenen Geräts mit (possiblyClusterInternal) — Cluster-interne " +
+          "Mismatches sind nie ein echtes Vergehen; urteile via judge_offense. Counts wie in get_strafbuch.",
+        inputSchema: {},
+      },
+      () => runTool("get_offenses", getOffenses),
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──

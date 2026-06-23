@@ -18,6 +18,61 @@ export async function resolveUserId(username: string): Promise<string> {
   return u.id;
 }
 
+export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
+
+/** Ein Entry mit allen Feldern, die die V2-Read-Schicht braucht (Segmente, Kontrollen, Orgasmen). */
+export interface TrackingEntry {
+  id: string;
+  type: string;
+  startTime: Date;
+  oeffnenGrund: string | null;
+  orgasmusArt: string | null;
+  kontrollCode: string | null;
+  verifikationStatus: string | null;
+  deviceCheck: string | null;
+  deviceCheckNote: string | null;
+  deviceCheckExpected: string | null;
+  device: { id: string; name: string; categoryId: string | null } | null;
+}
+
+/** Vorgeladener Tracking-Kontext — erlaubt komponierenden Tools (keyholder_dashboard), Entries +
+ *  Reinigung + User-id EINMAL zu laden und an mehrere Berechnungen durchzureichen. */
+export interface TrackingContext {
+  userId: string;
+  entries: TrackingEntry[];
+  reinigung: ReinigungSettings;
+  now: Date;
+}
+
+/** Lädt resolveUserId + loadTrackingData zu einem TrackingContext (eine Quelle für komponierende Tools). */
+export async function loadTrackingContext(username: string, now: Date = new Date()): Promise<TrackingContext> {
+  const userId = await resolveUserId(username);
+  const { entries, reinigung } = await loadTrackingData(userId);
+  return { userId, entries, reinigung, now };
+}
+
+/** Lädt Entries (mit Device-Include) + Reinigungs-Settings in EINEM Roundtrip-Paar — die geteilte
+ *  Datenbasis aller V2-Read-Tools (get_session, device_stats, records, denial_trend …). */
+export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings }> {
+  const [user, entries] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    prisma.entry.findMany({
+      where: { userId },
+      orderBy: { startTime: "desc" },
+      select: {
+        id: true, type: true, startTime: true, oeffnenGrund: true, orgasmusArt: true,
+        kontrollCode: true, verifikationStatus: true,
+        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true,
+        device: { select: { id: true, name: true, categoryId: true } },
+      },
+    }),
+  ]);
+  return {
+    entries,
+    reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
+  };
+}
+
 /** Baut den WriteContext (Ziel-User + handelnder Keyholder) für das Write-Framework. */
 export async function buildWriteContext(username: string, actorUserId?: string): Promise<WriteContext> {
   return { targetUserId: await resolveUserId(username), targetUsername: username, actorUserId };

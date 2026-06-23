@@ -96,6 +96,9 @@ const deviceRefOf = (e: SegmentEntry): DeviceRef => ({
   name: e.device?.name ?? null,
 });
 
+/** Gruppierungs-Schlüssel je Gerät (id, sonst Name-Fallback) — geteilt von deviceBreakdown + device_stats. */
+export const deviceGroupKey = (d: DeviceRef): string => d.id ?? `name:${d.name ?? "—"}`;
+
 /** Mappt die in dieses Segment fallenden PRUEFUNG-Entries auf LinkedControl.
  *  `controls` ist bereits chronologisch aufsteigend sortiert (einmal in buildSessions). */
 function linkControls(controls: SegmentEntry[], start: Date, end: Date | null, now: Date): LinkedControl[] {
@@ -168,7 +171,7 @@ function segmentsOfPair(pair: Pair, controls: SegmentEntry[], now: Date): Segmen
 function breakdownOf(segments: Segment[]): DeviceBreakdownRow[] {
   const msByDevice = new Map<string, { deviceId: string | null; deviceName: string | null; ms: number }>();
   for (const s of segments) {
-    const key = s.deviceDeclared.id ?? `name:${s.deviceDeclared.name ?? "—"}`;
+    const key = deviceGroupKey(s.deviceDeclared);
     const row = msByDevice.get(key) ?? { deviceId: s.deviceDeclared.id, deviceName: s.deviceDeclared.name, ms: 0 };
     row.ms += s.durationMs;
     msByDevice.set(key, row);

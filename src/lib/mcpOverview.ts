@@ -10,7 +10,7 @@ import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
-import { round1, msToHours } from "@/lib/mcp/format";
+import { round1, msToHours, pct } from "@/lib/mcp/format";
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
@@ -98,9 +98,6 @@ export interface TrackerOverview {
 function mapDeviceCheck(e: { deviceCheck: string | null; deviceCheckNote: string | null; deviceCheckExpected: string | null }) {
   return e.deviceCheck ? { status: e.deviceCheck, detected: e.deviceCheckNote, expected: e.deviceCheckExpected } : null;
 }
-
-const pct = (actual: number, target: number | null) =>
-  target && target > 0 ? Math.round((actual / target) * 100) : null;
 
 /** Builds the shared 6-field goal-progress shape from actual hours + period targets. */
 const goalProgress = (
