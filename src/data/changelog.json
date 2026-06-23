@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.38.2",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Push-Benachrichtigungen: Geräte-Tokens werden nicht mehr bei jedem fehlgeschlagenen Versand gelöscht, sondern nur noch, wenn der Token wirklich tot ist (APNs Unregistered/BadDeviceToken bzw. FCM NotRegistered). Ein transienter Fehler (Timeout, 429, 5xx, Topic-Mismatch) entfernt den Token nicht mehr — das erklärt, warum Push nach einmaligem Funktionieren plötzlich ausblieb und der Toggle auf OFF sprang. Zusätzlich aussagekräftiges Diagnose-Logging im Push-Pfad."
+      }
+    ]
+  },
+  {
+    "version": "4.38.1",
+    "date": "2026-06-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Neu angeforderte Kontrollen (und Verschluss-/Orgasmus-Anforderungen, Sperrzeiten) erscheinen jetzt automatisch im Dashboard — ohne manuellen Reload. Ein leichter Watcher prüft alle 30 s sowie sofort beim Zurückkehren in den Tab, ob sich offene Anforderungen geändert haben, und aktualisiert nur dann."
+      }
+    ]
+  },
+  {
     "version": "4.38.0",
     "date": "2026-06-22",
     "changes": [
