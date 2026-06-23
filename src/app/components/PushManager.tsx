@@ -40,6 +40,7 @@ async function registerNativePush(): Promise<boolean> {
           console.error("[PushManager] native-subscribe failed", res.status, await res.text());
           resolve(false);
         } else {
+          await setNativeToken(tokenData.value); // merken, um beim Ausschalten serverseitig zu löschen
           resolve(true);
         }
       } catch (err) {
@@ -62,12 +63,17 @@ async function registerNativePush(): Promise<boolean> {
 
 async function unregisterNativePush(): Promise<void> {
   const { PushNotifications } = await import("@capacitor/push-notifications");
-  const result = await PushNotifications.getDeliveredNotifications();
   await PushNotifications.removeAllDeliveredNotifications();
-  // Best-effort: tell the server to remove the token.
-  // We can't read the token back easily, so we rely on the server to clean up
-  // stale tokens when delivery fails (analogous to web push 410 handling).
-  void result;
+  // Token serverseitig entfernen, damit KEINE Pushes mehr ankommen. Der bei der Registrierung
+  // gespeicherte Token wird gezielt abgemeldet; fehlt er (Bestands-Registrierung), entfernt der
+  // Server alle Native-Tokens dieses Nutzers (leerer Body).
+  const token = await getNativeToken();
+  await fetch("/api/push/native-subscribe", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(token ? { token } : {}),
+  }).catch((err) => console.error("[PushManager] native-unsubscribe failed", err));
+  await clearNativeToken();
 }
 
 async function isNativePlatform(): Promise<boolean> {
@@ -79,6 +85,31 @@ async function isNativePlatform(): Promise<boolean> {
 // user's choice locally (Capacitor Preferences) and restore the toggle from it
 // on mount — otherwise the switch always shows OFF after reopening the app.
 const NATIVE_PUSH_FLAG = "pushRegistered";
+const NATIVE_PUSH_TOKEN = "pushToken";
+
+// Den APNs/FCM-Token lokal merken, damit beim Ausschalten gezielt DIESES Gerät serverseitig
+// abgemeldet werden kann (Capacitor bietet keine API, den Token später zurückzulesen).
+async function setNativeToken(token: string): Promise<void> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key: NATIVE_PUSH_TOKEN, value: token });
+  } catch { /* ignore */ }
+}
+async function getNativeToken(): Promise<string | null> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const { value } = await Preferences.get({ key: NATIVE_PUSH_TOKEN });
+    return value ?? null;
+  } catch {
+    return null;
+  }
+}
+async function clearNativeToken(): Promise<void> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.remove({ key: NATIVE_PUSH_TOKEN });
+  } catch { /* ignore */ }
+}
 
 async function getNativePushFlag(): Promise<boolean> {
   try {
