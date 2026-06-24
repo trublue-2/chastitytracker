@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.40.1",
+    "date": "2026-06-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Keyholder (ohne globale Admin-Rolle) konnten bei aktivem USE_ADMIN_RELATIONSHIPS die Kontroll-Fotos ihrer Subs nicht laden (HTTP 403) und Kontrollen nicht verifizieren/ablehnen (HTTP 403). Beide Routen prüften nur „globaler Admin\" und ignorierten die Keyholder-Beziehung. Jetzt erlaubt die Bild-Route und die Verify-Aktion den Keyholder des jeweiligen Subs (strikt auf eigene Subs gescopt)."
+      }
+    ]
+  },
+  {
     "version": "4.40.0",
     "date": "2026-06-23",
     "changes": [

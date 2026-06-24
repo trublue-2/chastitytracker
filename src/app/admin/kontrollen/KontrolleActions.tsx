@@ -66,17 +66,13 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "withdraw" }),
         });
-      } else if (action === "manuallyVerify" && entryId) {
-        res = await fetch(`/api/entries/${entryId}`, {
+      } else if ((action === "manuallyVerify" || action === "reject") && entryId && kontrolleId) {
+        // Über die keyholder-fähige Kontrollen-Route (resolveKontrolle setzt verifikationStatus) —
+        // NICHT /api/entries (das ist owner-/admin-only → 403 für Keyholder).
+        res = await fetch(`/api/admin/kontrollen/${kontrolleId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ verifikationStatus: "manual" }),
-        });
-      } else if (action === "reject" && entryId) {
-        res = await fetch(`/api/entries/${entryId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ verifikationStatus: "rejected" }),
+          body: JSON.stringify({ action }),
         });
       }
       if (res && !res.ok) {
