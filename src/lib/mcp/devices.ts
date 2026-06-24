@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { resolveUserId, iso, notesForEntities, entityKey, parseStringArray, type NoteDTO } from "@/lib/mcp/common";
-import { diffFields, type WriteDef } from "@/lib/mcp/writeFramework";
+import { diffFields, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
 
 /** Geräte-Metadaten, die Keyholder-Entscheidungen tragen (§2) + angereicherte Geräteliste mit
  *  Inline-Notes. MCP-only, additiv. */
@@ -115,17 +115,18 @@ type MetaRow = {
   healthFlags: string | null; retentionNotes: string | null;
 };
 
-/** Resolviert das Zielgerät (per id oder Name) innerhalb des Users — lesend über `prisma`, schmaler
- *  Select. Die Mutation läuft danach per id im Transaktions-Client. */
-async function resolveDevice(userId: string, args: SetDeviceMetaArgs): Promise<MetaRow> {
+/** Resolviert das Zielgerät (per id oder Name) innerhalb des Users, schmaler Select. `client` MUSS
+ *  `tx` sein, wenn dies in einem write-apply läuft (sonst Deadlock auf der SQLite-Verbindung der
+ *  offenen Transaktion); `prisma` für den preview-Pfad (keine Transaktion offen). */
+async function resolveDevice(client: TxClient, userId: string, args: SetDeviceMetaArgs): Promise<MetaRow> {
   if (args.deviceId) {
-    const d = await prisma.device.findFirst({ where: { id: args.deviceId, userId }, select: metaResolveSelect });
+    const d = await client.device.findFirst({ where: { id: args.deviceId, userId }, select: metaResolveSelect });
     if (!d) throw new Error(`Device not found: ${args.deviceId}`);
     return d;
   }
   if (args.deviceName) {
     const target = args.deviceName.trim().toLowerCase();
-    const devices = await prisma.device.findMany({ where: { userId }, select: metaResolveSelect });
+    const devices = await client.device.findMany({ where: { userId }, select: metaResolveSelect });
     const match = devices.find((d) => d.name.toLowerCase() === target);
     if (!match) throw new Error(`Device not found: "${args.deviceName}". Available: ${devices.map((d) => d.name).join(", ") || "none"}`);
     return match;
@@ -147,11 +148,11 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
     return args;
   },
   async preview(ctx, args) {
-    const d = await resolveDevice(ctx.targetUserId, args);
+    const d = await resolveDevice(prisma, ctx.targetUserId, args);
     return { device: d.name, before: metaSnapshot(d) };
   },
   async apply(tx, ctx, args) {
-    const d = await resolveDevice(ctx.targetUserId, args);
+    const d = await resolveDevice(tx, ctx.targetUserId, args);
     const before = metaSnapshot(d);
     await tx.device.update({
       where: { id: d.id },
@@ -166,8 +167,9 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
       },
     });
     // Echten, vollständigen View nach dem Update liefern (kein erfundener Platzhalter-State).
+    // ALLE Reads über `tx` — globaler prisma-Client hier würde gegen die offene Transaktion deadlocken.
     const fresh = await tx.device.findUniqueOrThrow({ where: { id: d.id }, select: deviceViewSelect });
-    const notesByEntity = await notesForEntities(ctx.targetUserId, [{ entityType: "device", entityId: d.id }]);
+    const notesByEntity = await notesForEntities(ctx.targetUserId, [{ entityType: "device", entityId: d.id }], {}, tx);
     const view = toDeviceMetaView(fresh, notesByEntity.get(entityKey("device", d.id)) ?? []);
     return { newState: view, resultRef: d.id, diff: diffFields(before, metaSnapshot(fresh)) };
   },

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ } from "@/lib/utils";
 import { isoWithOffset } from "@/lib/mcp/format";
-import type { WriteContext } from "@/lib/mcp/writeFramework";
+import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";
 
 /** Querschnitt-Helfer der MCP-V2-Schicht: User-Auflösung, Zeitformat, Inline-Notes.
  *  Alles rein additiv — kein Eingriff in Tracker-Kernlogik. */
@@ -184,16 +184,21 @@ const noteSelect = {
  * Lädt die aktiven Notes, die an die gegebenen Objekte hängen, in EINEM Query und gruppiert sie
  * je Objekt ("entityType:entityId" → NoteDTO[]). Damit bringt jedes geholte Objekt seine Notes
  * inline mit (§9.3) — ohne zweiten Call und ohne N+1.
+ *
+ * `client` MUSS der Transaktions-Client `tx` sein, wenn dies INNERHALB eines write-apply läuft —
+ * sonst blockiert die Query (globaler prisma-Client) auf der vom offenen interaktiven Transaktions-
+ * Lock gehaltenen SQLite-Verbindung → Deadlock/Timeout. Default `prisma` für reine Read-Tools.
  */
 export async function notesForEntities(
   userId: string,
   refs: EntityRef[],
   opts: { includeSuperseded?: boolean } = {},
+  client: TxClient = prisma,
 ): Promise<Map<string, NoteDTO[]>> {
   const out = new Map<string, NoteDTO[]>();
   if (refs.length === 0) return out;
 
-  const notes = await prisma.keyholderNote.findMany({
+  const notes = await client.keyholderNote.findMany({
     where: {
       userId,
       ...(opts.includeSuperseded ? {} : { status: "active" }),
