@@ -10,7 +10,15 @@ import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
-import { round1, msToHours, pct } from "@/lib/mcp/format";
+import { round1, msToHours, pct, isoWithOffset } from "@/lib/mcp/format";
+
+/** Zeitformat der MCP-Ausgabe: V1-Tools nutzen das Instanz-lokale Human-Format (bewusster V1-
+ *  Vertrag), V2-Composer (dashboard, ledger) ziehen via opts.iso ISO-8601 mit Offset.
+ *  TODO(altitude): langfristig roh-Date zurückgeben + am Tool-Rand formatieren, sobald der V1-
+ *  Vertrag versioniert wird — dann entfällt dieser Interim-Schalter im V1-Aggregat. */
+const isoFmt = (d: Date) => isoWithOffset(d, APP_TZ)!;
+const pickFmt = (iso?: boolean) => (iso ? isoFmt : formatDateTime);
+export interface McpFormatOptions { iso?: boolean }
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
  *  Timestamps are human strings in the instance timezone (see `timezone`) — NOT UTC,
@@ -130,10 +138,10 @@ async function loadUserContext(username: string): Promise<{ userId: string; rein
 }
 
 /** Builds the overview for a user identified by username. Throws if the user does not exist. */
-export async function buildOverview(username: string): Promise<TrackerOverview> {
+export async function buildOverview(username: string, opts: McpFormatOptions = {}): Promise<TrackerOverview> {
   const { userId, reinigung, reinigungMaxProTag, reinigungsFensterRaw, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
   const now = new Date();
-  const fmt = (d: Date) => formatDateTime(d);
+  const fmt = pickFmt(opts.iso);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
   const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes, openOrgasmusAnf, cleaningUsedToday] = await Promise.all([
@@ -573,10 +581,10 @@ export interface StrafbuchOverview {
 }
 
 /** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
-export async function mcpStrafbuch(username: string): Promise<StrafbuchOverview> {
+export async function mcpStrafbuch(username: string, opts: McpFormatOptions = {}): Promise<StrafbuchOverview> {
   const { userId } = await loadUserContext(username);
   const now = new Date();
-  const fmt = (d: Date) => formatDateTime(d);
+  const fmt = pickFmt(opts.iso);
   const sb = await buildStrafbuch(userId, now);
 
   // Urteil pro Vergehen (per refId aufgelöst).

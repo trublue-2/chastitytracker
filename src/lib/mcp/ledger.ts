@@ -21,8 +21,7 @@ export const OFFENSE_TYPES = [
 export interface OffenseRow {
   id: string;
   type: string;
-  /** HINWEIS: detectedAt/judgedAt und die Zeiten in `context` stammen aus mcpStrafbuch und sind im
-   *  Instanz-lokalen Human-Format ("dd.mm.yyyy, HH:mm"), NICHT ISO-8601 (Naht der V1-Komposition). */
+  /** ISO-8601 mit Offset (mcpStrafbuch wird mit iso:true komponiert). */
   detectedAt: string | null;
   status: "open" | "judged";
   judgment: OffenseJudgment["judgment"];
@@ -66,7 +65,7 @@ function toRow(detectedAt: string | null, j: OffenseJudgment, context: Record<st
 export async function getOffenses(username: string): Promise<LedgerResult> {
   const userId = await resolveUserId(username);
   const [sb, deviceClusters] = await Promise.all([
-    mcpStrafbuch(username),
+    mcpStrafbuch(username, { iso: true }),
     prisma.device.findMany({ where: { userId }, select: { name: true, lookalikeClusterId: true, securityLevel: true } }),
   ]);
   const clusterByName = new Map(deviceClusters.map((d) => [d.name, d]));

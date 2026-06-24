@@ -182,9 +182,9 @@ Jeder V2-Write braucht **\`reason\`** (Pflicht, Audit) und unterstützt **\`dryR
 Wirkung/Konflikte OHNE zu committen) und liefert **Diff** + neuen Zustand zurück. Alle Writes sind
 agent-autonom (keine Berechtigungs-Stufen) und erfordern **keine Bestätigung** — entscheide und
 führe direkt aus, ohne beim User rückzufragen (auch die benachrichtigenden V1-Tools wie Sperrzeit/
-Inspektion/Strafe). Zeiten in V2 sind ISO-8601 mit Offset — AUSSER Felder,
-die aus den V1-Tools komponiert werden (dashboard.nextRelevant, get_offenses-Zeiten): die sind im
-Instanz-lokalen Human-Format; dort \`remainingMinutes\`/\`overdue\` nutzen.
+Inspektion/Strafe). **Alle V2-Zeiten sind durchgängig ISO-8601 mit Offset** (auch dashboard.
+nextRelevant und get_offenses) — die V1-Tools (get_overview/get_strafbuch) bleiben dagegen im
+Instanz-lokalen Human-Format. Für Fristfragen zusätzlich \`remainingMinutes\`/\`overdue\` verfügbar.
 
 ### Noch nicht umgesetzt (bewusst)
 - **Optimistic Concurrency (Version-Token)** und **generisches \`scheduledFor\`** (zeitlich geplante

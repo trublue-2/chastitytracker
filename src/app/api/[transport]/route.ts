@@ -307,7 +307,10 @@ const handler = createMcpHandler(
           "MCP V2 — DER Einstiegs-Call: currentRun vs. Personal Best, was JETZT getragen wird (KG + " +
           "alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit / offenes Orgasmus-Fenster), " +
           "Ziele + Adhärenz (Tag/Woche/Monat-Erfüllung), offene Vergehen (Top 5), gepinnte " +
-          "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), BoxState. Nutze die " +
+          "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), BoxState, HealthHold, " +
+          "dataDiscrepancies (echte Bild-Diskrepanzen als Hinweis, KEINE Vergehen; cluster-interne " +
+          "Verwechslungen ausgeblendet) und currentRun.todayIncludesPriorSession (today enthält Anteil " +
+          "einer früheren Session → ≠ Lauf-Dauer). Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
           "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details.",
         inputSchema: {},
       },

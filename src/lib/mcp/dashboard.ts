@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { buildOverview } from "@/lib/mcpOverview";
 import { iso, APP_TZ, resolveUserId, loadTrackingContext, type NoteDTO } from "@/lib/mcp/common";
+import { buildSessions, type Session } from "@/lib/mcp/segments";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
@@ -35,14 +36,19 @@ export interface DashboardResult {
     deviceName: string | null;
     personalBestHours: number;
     vsPersonalBestPct: number | null;
+    /** true, wenn goals.kg.today einen Anteil einer FRÜHEREN (heute geendeten) Session enthält —
+     *  dann ist `today` grösser als der durchgehende `durationHours`, ist also NICHT die Lauf-Dauer. */
+    todayIncludesPriorSession: boolean;
   };
+  /** Echte (nicht cluster-interne) Bild-Diskrepanzen als reiner Daten-Hinweis — KEINE Vergehen
+   *  (eine Routine-Kontrolle hat kein verlangtes Gerät). Cluster-interne Verwechslungen sind hier
+   *  bewusst ausgeblendet. */
+  dataDiscrepancies: { count: number; items: DiscrepancyItem[] };
   /** Was JETZT getragen wird — KG + alle Kategorien vereint. */
   wornNow: { category: string; deviceName: string | null; since: string | null; durationHours: number | null }[];
   /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / offenes Orgasmus-Fenster.
-   *  HINWEIS Zeit-Disziplin: deadline/endetAt (und currentRun.since, wornNow.since) stammen aus der
-   *  V1-Overview und sind im Instanz-lokalen Human-Format ("dd.mm.yyyy, HH:mm"), NICHT ISO-8601 wie
-   *  generatedAt/boxState. Für Fristfragen die mitgelieferten remainingMinutes/overdue nutzen.
-   *  (Vollständige ISO-Vereinheitlichung erfordert eine V1-Boundary-Anpassung — Future-Work.) */
+   *  Zeiten ISO-8601 mit Offset (buildOverview wird mit iso:true komponiert); zusätzlich
+   *  remainingMinutes/overdue für direkte Fristfragen. */
   nextRelevant: {
     openControl: { code: string; deadline: string; overdue: boolean; remainingMinutes: number } | null;
     activeLockPeriod: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null } | null;
@@ -60,6 +66,27 @@ export interface DashboardResult {
 }
 
 const BOX_ONLINE_THRESHOLD_MS = 10 * 60 * 1000;
+/** Toleranz beim Vergleich zweier auf 0.1 h gerundeter Stundenwerte (halbe Bucket-Breite). */
+const ROUND_EPSILON_H = 0.05;
+
+/** Eine echte Bild-Diskrepanz (deklariert ≠ bildverifiziert, cross-cluster). */
+export interface DiscrepancyItem {
+  sessionId: string;
+  segmentIndex: number;
+  declared: string | null;
+  detected: string | null;
+  at: string;
+}
+
+/** Sammelt echte (cross-cluster) Bild-Konflikte aus den Sessions — cluster-interne Verwechslungen
+ *  (cluster-ambiguous) bleiben bewusst draussen (keine Vergehen). */
+function collectImageConflicts(sessions: Session[]): DiscrepancyItem[] {
+  return sessions.flatMap((s) =>
+    s.segments
+      .filter((seg) => seg.deviceConfidence === "image-conflict")
+      .map((seg) => ({ sessionId: s.id, segmentIndex: seg.index, declared: seg.deviceDeclared.name, detected: seg.deviceVerified?.name ?? null, at: iso(seg.start)! })),
+  );
+}
 
 async function loadBoxState(userId: string, now: Date): Promise<BoxStateView | null> {
   const box = await prisma.boxStatus.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" } });
@@ -95,10 +122,12 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // Entries/Reinigung/User-id EINMAL laden und an die segment-basierten Aggregate durchreichen,
   // statt sie pro Aggregat erneut zu scannen. (buildOverview/getOffenses sind V1-Reuse mit eigenem Load.)
   const trackingCtx = await loadTrackingContext(username, now);
+  // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
+  const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices);
 
   const [overview, rec, periods, ledger, pinned, boxState, healthHold] = await Promise.all([
-    buildOverview(username),
-    records(username, trackingCtx),
+    buildOverview(username, { iso: true }),
+    records(username, trackingCtx, sessions),
     periodSummary(username, trackingCtx),
     getOffenses(username),
     queryNotes(username, { pinned: true, status: "active", limit: 50 }),
@@ -117,6 +146,14 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
 
   const openOffenseRows = ledger.offenses.filter((o) => o.status === "open");
 
+  // CT-008: "today" enthält einen Anteil einer früheren Session, wenn die Kalendertag-Summe grösser
+  // ist als der durchgehende aktuelle Lauf (bei Lauf-Start vor Mitternacht ist today kleiner → false).
+  const todayIncludesPriorSession =
+    rec.currentRunHours != null && periods.kg.today - rec.currentRunHours > ROUND_EPSILON_H;
+
+  // CT-004: echte (cross-cluster) Bild-Diskrepanzen als Daten-Hinweis (keine Vergehen).
+  const discrepancyItems = collectImageConflicts(sessions);
+
   return {
     schemaVersion: 2,
     user: username,
@@ -129,7 +166,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       deviceName: overview.lock.deviceName,
       personalBestHours: rec.longestRunHours,
       vsPersonalBestPct: rec.currentRunVsPbPct,
+      todayIncludesPriorSession,
     },
+    dataDiscrepancies: { count: discrepancyItems.length, items: discrepancyItems.slice(0, 5) },
     wornNow,
     nextRelevant: {
       openControl: overview.openKontrolle

@@ -110,9 +110,10 @@ function longestOrgasmGapMs(times: Date[], now: Date): number | null {
   return longest;
 }
 
-export async function records(username: string, ctx?: TrackingContext): Promise<RecordsResult> {
+export async function records(username: string, ctx?: TrackingContext, presessions?: Session[]): Promise<RecordsResult> {
   const { entries, reinigung, devices, now } = await ctxOf(username, ctx);
-  const sessions = buildSessions(entries, reinigung, now, devices);
+  // Vorgebaute Sessions (vom Dashboard) wiederverwenden, statt buildSessions doppelt zu rechnen.
+  const sessions = presessions ?? buildSessions(entries, reinigung, now, devices);
 
   const open = sessions.find((s) => s.isOpen) ?? null;
   const closed = sessions.filter((s) => !s.isOpen);
