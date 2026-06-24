@@ -549,8 +549,9 @@ model OAuthClient {
   redirectUris String   // JSON array of allowed redirect URIs
   createdAt    DateTime @default(now())
 
-  codes  OAuthCode[]
-  tokens OAuthToken[]
+  codes         OAuthCode[]
+  tokens        OAuthToken[]
+  refreshTokens OAuthRefreshToken[]
 }
 
 // Short-lived authorization codes (10 min). Exchanged once for an access token.
@@ -572,7 +573,7 @@ model OAuthCode {
   @@index([expiresAt])
 }
 
-// Long-lived access tokens issued to MCP clients.
+// Short-lived access tokens issued to MCP clients (1 h). Renewed silently via refresh token.
 model OAuthToken {
   id        String      @id @default(cuid())
   tokenHash String      @unique // SHA-256 hex of the raw token — never store plaintext
@@ -580,7 +581,24 @@ model OAuthToken {
   client    OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   userId    String
   scopes    String      // space-separated list, e.g. "read"
-  expiresAt DateTime    // 1 year
+  expiresAt DateTime    // short (1 h) — refresh via OAuthRefreshToken
+  createdAt DateTime    @default(now())
+
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+// Long-lived refresh tokens (RFC 6749 §6) for silent access-token renewal. Bewusst NICHT-rotierend
+// (wiederverwendbar) — vermeidet die Rotation-Race, bei der ein noch-in-Transit alter Token den Grant
+// killt. Sicherheit: kurzlebiger Access-Token + Widerruf über /api/oauth/revoke (RFC 7009).
+model OAuthRefreshToken {
+  id        String      @id @default(cuid())
+  tokenHash String      @unique // SHA-256 hex — never store plaintext
+  clientId  String
+  client    OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  userId    String
+  scopes    String      // space-separated list, e.g. "read"
+  expiresAt DateTime    // long (1 year)
   createdAt DateTime    @default(now())
 
   @@index([tokenHash])

@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 export const OAUTH_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-export const OAUTH_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+export const OAUTH_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour (access token — silently renewed via refresh)
+export const OAUTH_REFRESH_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 year (refresh token, non-rotating)
 export const OAUTH_SUPPORTED_SCOPES = ["read"] as const;
-export const OAUTH_SUPPORTED_GRANT_TYPES = ["authorization_code"] as const;
+export const OAUTH_SUPPORTED_GRANT_TYPES = ["authorization_code", "refresh_token"] as const;
 export const OAUTH_CODE_CHALLENGE_METHODS = ["S256"] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -19,6 +20,14 @@ export function generateToken(byteLength = 32): string {
 /** SHA-256 hex digest — used to store tokens without plaintext. */
 export function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/** Public Origin hinter Traefik (X-Forwarded-Host/Proto) — geteilt von den .well-known-Metadata-
+ *  Routen, damit Issuer/Resource konsistent abgeleitet werden. */
+export function publicBaseFromHeaders(req: Request): string {
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? new URL(req.url).host;
+  const proto = req.headers.get("x-forwarded-proto")?.split(",").at(-1)?.trim() ?? "https";
+  return `${proto}://${host}`;
 }
 
 /** Verifies a PKCE S256 code verifier against a stored challenge.
@@ -135,6 +144,35 @@ export async function verifyAccessToken(raw: string) {
   return record;
 }
 
+// ── Refresh tokens (non-rotating, RFC 6749 §6) ────────────────────────────────
+
+/** Issues a long-lived, reusable refresh token for silent access-token renewal. */
+export async function createRefreshToken(clientId: string, userId: string, scopes: string[]): Promise<string> {
+  const raw = generateToken(32);
+  await prisma.oAuthRefreshToken.create({
+    data: { tokenHash: hashToken(raw), clientId, userId, scopes: scopes.join(" "), expiresAt: new Date(Date.now() + OAUTH_REFRESH_TTL_MS) },
+  });
+  return raw;
+}
+
+/** Looks up a refresh token by hash. Returns the record if valid (not expired), else null. */
+export async function verifyRefreshToken(raw: string) {
+  const record = await prisma.oAuthRefreshToken.findUnique({ where: { tokenHash: hashToken(raw) } });
+  if (!record) return null;
+  if (record.expiresAt < new Date()) return null;
+  return record;
+}
+
+/** Widerruft ein Token (RFC 7009): löscht den passenden Access- ODER Refresh-Token per Hash.
+ *  Idempotent — unbekannte Tokens sind ein No-op (RFC 7009 verlangt 200 unabhängig vom Treffer). */
+export async function revokeToken(raw: string): Promise<void> {
+  const tokenHash = hashToken(raw);
+  await Promise.all([
+    prisma.oAuthToken.deleteMany({ where: { tokenHash } }),
+    prisma.oAuthRefreshToken.deleteMany({ where: { tokenHash } }),
+  ]);
+}
+
 // ── Cleanup ──────────────────────────────────────────────────────────────────
 
 /** Deletes expired codes and tokens. Call from a background job or on-demand.
@@ -145,5 +183,6 @@ export async function pruneExpiredOAuthRecords(): Promise<void> {
   await Promise.all([
     prisma.oAuthCode.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.oAuthToken.deleteMany({ where: { expiresAt: { lt: now } } }),
+    prisma.oAuthRefreshToken.deleteMany({ where: { expiresAt: { lt: now } } }),
   ]);
 }

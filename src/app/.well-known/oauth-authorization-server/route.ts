@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OAUTH_SUPPORTED_SCOPES, OAUTH_SUPPORTED_GRANT_TYPES, OAUTH_CODE_CHALLENGE_METHODS } from "@/lib/oauth";
+import { OAUTH_SUPPORTED_SCOPES, OAUTH_SUPPORTED_GRANT_TYPES, OAUTH_CODE_CHALLENGE_METHODS, publicBaseFromHeaders } from "@/lib/oauth";
 
 /**
  * GET /.well-known/oauth-authorization-server
@@ -7,15 +7,13 @@ import { OAUTH_SUPPORTED_SCOPES, OAUTH_SUPPORTED_GRANT_TYPES, OAUTH_CODE_CHALLEN
  * Required by the MCP spec so clients can auto-discover endpoints.
  */
 export async function GET(req: Request) {
-  // Behind Traefik the internal URL is 0.0.0.0:3000 — use forwarded headers for the public origin.
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? new URL(req.url).host;
-  const proto = req.headers.get("x-forwarded-proto")?.split(",").at(-1)?.trim() ?? "https";
-  const base = `${proto}://${host}`;
+  const base = publicBaseFromHeaders(req);
   return NextResponse.json({
     issuer: base,
     authorization_endpoint: `${base}/oauth/authorize`,
     token_endpoint: `${base}/api/oauth/token`,
     registration_endpoint: `${base}/api/oauth/register`,
+    revocation_endpoint: `${base}/api/oauth/revoke`,
     scopes_supported: [...OAUTH_SUPPORTED_SCOPES],
     response_types_supported: ["code"],
     grant_types_supported: [...OAUTH_SUPPORTED_GRANT_TYPES],
