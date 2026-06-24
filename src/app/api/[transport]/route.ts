@@ -5,10 +5,9 @@ import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch, li
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
   mcpAddKeyholderNote, mcpDeleteKeyholderNote, mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { HHMM } from "@/lib/autoKontrolleService";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 import { VALID_TYPES } from "@/lib/constants";
@@ -102,7 +101,9 @@ const MCP_SERVER_INSTRUCTIONS =
   "sind LEGACY und nutzen z.T. irreführende Einzel-Geräte-Labels — nur als Fallback.\n" +
   "• DIREKTIV-WRITES (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung) → das sind die V1-" +
   "Tools (`set_lock_period`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `set_auto_inspections`, …). Es gibt KEINE V2-Variante dafür.\n" +
+  "`set_cleaning`, …). Es gibt KEINE V2-Variante dafür. Kontrollen werden MANUELL über " +
+  "`request_inspection` veranlasst; die Einstellungen der AUTOMATISCHEN Kontrollen sind über den MCP " +
+  "NICHT änderbar (nur lesbar via get_overview.autoKontrolle).\n" +
   "• WISSEN/META/KONTEXT-WRITES → V2 (`upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
   "`upsert_appointment`, `upsert_recurring_context`).\n" +
   "Alle Writes sind agent-autonom und erfordern KEINE Bestätigung — entscheide und führe direkt aus, ohne " +
@@ -655,27 +656,10 @@ const handler = createMcpHandler(
       (args, extra) => runWriteTool("set_cleaning", extra, (u) => mcpSetCleaning(u, args)),
     );
 
-    server.registerTool(
-      "set_auto_inspections",
-      {
-        title: "Configure automatic inspections",
-        description:
-          "Configures AUTOMATIC inspections: the system itself triggers `perDay` randomly-timed inspections per " +
-          "day (no manual request needed). The DEADLINE never falls inside the sleep window (sleepFrom–sleepTo); " +
-          "the fulfillment time is random per inspection within [fulfillMinMinutes, fulfillMaxMinutes]. Auto " +
-          "inspections fire only while the user is locked. Set active:false to stop them. Only provided fields " +
-          "change." + KEYHOLDER_SILENT,
-        inputSchema: {
-          active: z.boolean().optional().describe("Enable/disable automatic inspections."),
-          perDay: z.number().int().nonnegative().optional().describe("Inspections per day (clamped to 0–12)."),
-          sleepFrom: z.string().regex(HHMM).optional().describe('Sleep window start "HH:MM" (no deadline inside). Default 22:00.'),
-          sleepTo: z.string().regex(HHMM).optional().describe('Sleep window end "HH:MM". Default 06:00.'),
-          fulfillMinMinutes: z.number().int().optional().describe("Min fulfillment time in minutes (clamped to 5–240). Default 15."),
-          fulfillMaxMinutes: z.number().int().optional().describe("Max fulfillment time in minutes (clamped to 5–240, ≥ min). Default 60."),
-        },
-      },
-      (args, extra) => runWriteTool("set_auto_inspections", extra, (u) => mcpSetAutoInspections(u, args)),
-    );
+    // set_auto_inspections wird BEWUSST NICHT als MCP-Tool angeboten: der virtuelle Keyholder soll
+    // Kontrollen weiterhin MANUELL über request_inspection veranlassen, aber die Einstellungen der
+    // AUTOMATISCHEN Kontrollen (perDay/Schlaf-Fenster/Fristen) nicht ändern. Die autoKontrolle-Config
+    // bleibt nur LESBAR (get_overview.autoKontrolle).
 
     server.registerTool(
       "resolve_inspection",
