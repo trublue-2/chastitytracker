@@ -15,12 +15,8 @@
 
 - **Lock/unlock event logging** with timestamps, photos, notes, and device selection
 - **Device (KG) management** — register multiple chastity belts with name, description, photo, and purchase price; automatic per-device wear statistics and cost-per-hour tracking
-- **Multi-category wear tracking** — beyond chastity belts, track wear sessions for other device categories via `WEAR_BEGIN` / `WEAR_END` events (gated by `ENABLE_DEVICE_CATEGORIES`, default on)
 - **Cleaning openings** with configurable daily limits and per-opening max-minutes
-- **Photo upload** with EXIF metadata extraction, automatic seal-number detection, and rotation correction
-- **AI-powered inspection verification** (Claude Vision reads handwritten codes from photos)
-- **Automatic device recognition** — store reference photos per device so an inspection photo is matched to the correct belt (Claude Vision, or fast local CLIP embeddings — see [Local AI Instance](#local-ai-instance-optional))
-- **Sealed key-box code photo (Bildersafe)** — opt-in per instance via `ENABLE_BILDERSAFE` (default off); store a sealed photo of the key-box combination that stays locked to the wearer during the lock period and only becomes visible during a permitted opening (cleaning / orgasm window) or after the lock ends. The keyholder can always see it
+- **Photo upload** with EXIF metadata extraction and rotation correction
 - **Real-time wear duration timer** and live countdown of remaining lock period
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
 - **Orgasm tracking** with categorization and sub-types (Masturbation, Geschlechtsverkehr, ruinierter, feuchter Traum, etc.)
@@ -46,6 +42,28 @@
 - **Per-user notification preferences** (email + push, per event type)
 - **Keyholder relationships** — a non-admin user can be assigned as keyholder for specific subs, gaining scoped access to their data, photos, and notifications — always active, independent of any flag. The optional `USE_ADMIN_RELATIONSHIPS` flag additionally restricts global admins to only their assigned users
 - **User statistics overview** and inspection history with alarm filter
+
+### Optional features (toggleable)
+
+Off-by-default or flag-gated capabilities — enable/disable per instance via
+environment variables. Everything above is on by default.
+
+- **AI photo analysis** — Claude Vision reads handwritten inspection codes,
+  detects the seal number, and (with per-device reference photos) recognizes which
+  belt is shown. Runs on the Anthropic API or fully local (Ollama VLM + CLIP
+  embeddings). Disable by omitting `ANTHROPIC_API_KEY` and not configuring a local
+  provider; the app degrades gracefully (no suggestion, never a rejection). See
+  [Local AI Instance](#local-ai-instance-optional).
+- **Multi-category wear tracking** — beyond chastity belts, track wear sessions for
+  other device categories via `WEAR_BEGIN` / `WEAR_END` events. Gated by
+  `ENABLE_DEVICE_CATEGORIES` (default **on**; set `false` for KG-only behavior).
+- **Sealed key-box code photo (Bildersafe)** — store a sealed photo of the key-box
+  combination that stays locked to the wearer during the lock period and only
+  becomes visible during a permitted opening (cleaning / orgasm window) or after
+  the lock ends; the keyholder can always see it. Opt-in via `ENABLE_BILDERSAFE`
+  (default **off**).
+- **MCP keyholder interface** & **Heimdall physical box** — two larger opt-in
+  integrations, documented under [Advanced integrations](#advanced-integrations).
 
 ## Tech Stack
 
@@ -375,6 +393,22 @@ DISABLE_FEEDBACK=true
 > **Don't want to self-host?**
 > A hosted version is available at [chastitytracker.ch](https://chastitytracker.ch) — a hobby-run, no-fee portal that registers your account and automatically provisions a tracker instance on a shared server. No SLA. Good fit for users who don't want to run their own server. See the website for details and terms.
 
+## Advanced integrations
+
+Two optional, opt-in integrations are documented separately. Both are off by
+default and not required for a standard install:
+
+- **[MCP Keyholder Interface](docs/mcp.md)** — expose an instance as a *virtual
+  keyholder* over the Model Context Protocol so an AI client can read the tracker
+  state and issue keyholder directives. Covers enabling (`ENABLE_MCP`,
+  `MCP_USERNAME`), the OAuth 2.0 flow, the available tools, and the data model.
+  For the domain model the agent reasons over, see
+  [`docs/mcp-keyholder-guide.md`](docs/mcp-keyholder-guide.md).
+- **[Heimdall Box Integration](docs/heimdall-box.md)** — connect a physical
+  electronic key box that *physically enforces* lock periods (`hardwareEnforced`).
+  Covers the Heimdall-server bridge, the integration endpoints, `HEIMDALL_SYNC_SECRET`,
+  the command/status lifecycle, and current limitations.
+
 ## Project Structure
 
 ```
@@ -554,7 +588,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `RateLimit` | DB-backed rate-limiting (login attempts, etc.) |
 | `AppMeta` | Key-value metadata store (last-seen version, etc.) |
 
-> The hosted deployment adds further models for the virtual-keyholder interface (notes, action log, appointments, recurring context, health holds), its OAuth 2.0 server, and the optional physical-box integration. These are not needed for a standard self-hosted install and are intentionally omitted here.
+> The hosted deployment adds further models for the virtual-keyholder interface (notes, action log, appointments, recurring context, health holds), its OAuth 2.0 server, and the optional physical-box integration. These are not needed for a standard self-hosted install — they are documented separately under [Advanced integrations](#advanced-integrations).
 
 ## Contributing
 
