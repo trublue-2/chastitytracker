@@ -20,6 +20,9 @@ import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
 import type { PruefungPayload, SubmitResult } from "./types";
 
+/** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
+const LIVE_CHECK_DEBOUNCE_MS = 600;
+
 interface Props {
   initial?: {
     startTime: string;
@@ -92,12 +95,16 @@ export default function PruefungFormCore({
 
   useEffect(() => {
     const key = `${kontrollCode}|${imageUrl}|${rotation}`;
-    if (kontrollCode.length >= 5 && imageUrl && key !== lastVerifiedKey.current) {
+    if (kontrollCode.length < 5 || !imageUrl || key === lastVerifiedKey.current) return;
+
+    // Entprellen: erst nach kurzer Tipp-/Rotier-Ruhe einen Live-Check feuern. Verhindert einen Sturm
+    // aus Request-Abbrüchen (AbortError) und unnötiger Vision-Last bei jedem Tastendruck/Re-Render.
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
       lastVerifiedKey.current = key;
       setVerifyStatus("pending");
       setVerifyReason(null);
       setAiMatch(null);
-      const controller = new AbortController();
       fetch("/api/verify-kontrolle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,11 +122,14 @@ export default function PruefungFormCore({
           }
         })
         .catch((err) => { if (err.name !== "AbortError") setVerifyStatus("error"); });
-      return () => {
-        controller.abort();
-        lastVerifiedKey.current = "";
-      };
-    }
+    }, LIVE_CHECK_DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      // Abgebrochenen (noch nicht abgeschlossenen) Check freigeben → erneutes Prüfen bei Rückkehr möglich.
+      if (lastVerifiedKey.current === key) lastVerifiedKey.current = "";
+    };
   }, [kontrollCode, imageUrl, rotation]);
 
   async function handleSubmit(e: React.FormEvent) {

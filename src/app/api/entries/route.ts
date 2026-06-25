@@ -372,20 +372,26 @@ export async function POST(req: NextRequest) {
   })();
 
   // Server-side AI verification for PRUEFUNG entries — never trusted from client.
-  // Runs after the transaction; failure leaves verifikationStatus: null (admin can manually verify).
+  // Fire-and-forget (blockiert die Antwort NICHT, konsistent zum Geräte-Check oben): der Eintrag ist
+  // bereits committed; verifikationStatus füllt sich asynchron nach. Failure lässt verifikationStatus:
+  // null (Keyholder kann manuell verifizieren). Verhindert Handy-Timeouts bei langsamem Vision-Modell.
   if (type === "PRUEFUNG" && imageUrl && kontrollCode) {
-    try {
-      // Respect the user's photo rotation — otherwise rotated images fail server-side verify
-      // even though the client preview matched.
-      const safeRotation: Rotation = VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0;
-      const status = await verifyKontrolleCode(imageUrl, kontrollCode, safeRotation);
-      if (status) {
-        await prisma.entry.update({ where: { id: entry.id }, data: { verifikationStatus: status } });
-        entry = { ...entry, verifikationStatus: status };
+    const entryId = entry.id;
+    const photoUrl = imageUrl;
+    const code = kontrollCode;
+    // Respect the user's photo rotation — otherwise rotated images fail server-side verify
+    // even though the client preview matched.
+    const safeRotation: Rotation = VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0;
+    (async () => {
+      try {
+        const status = await verifyKontrolleCode(photoUrl, code, safeRotation);
+        if (status) {
+          await prisma.entry.update({ where: { id: entryId }, data: { verifikationStatus: status } });
+        }
+      } catch (err) {
+        console.error("[POST /api/entries] AI verification failed for entry", entryId, err);
       }
-    } catch (err) {
-      console.error("[POST /api/entries] AI verification failed for entry", entry.id, err);
-    }
+    })();
   }
 
   if (type === "VERSCHLUSS" || type === "OEFFNEN") {

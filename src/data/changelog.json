@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.40.2",
+    "date": "2026-06-25",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Kontroll-Einreichung wartet beim Speichern nicht mehr auf die KI-Code-Prüfung: der Eintrag wird sofort gespeichert, die Verifikation läuft danach im Hintergrund und füllt das Ergebnis verzögert nach. Behebt Timeouts auf dem Handy bei langsamem lokalem Vision-Modell (Ollama)."
+      },
+      {
+        "type": "perf",
+        "text": "Live-Code-Check im Kontroll-Formular wird jetzt entprellt (kurze Tipp-Ruhe), statt bei jedem Tastendruck einen neuen Prüf-Request zu starten und den vorigen abzubrechen. Weniger unnötige Last auf dem Vision-Modell."
+      }
+    ]
+  },
+  {
     "version": "4.40.1",
     "date": "2026-06-24",
     "changes": [

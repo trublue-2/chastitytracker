@@ -1,6 +1,6 @@
 # Kontroll-Verifikation: Speichern entkoppeln & Doppel-Verifikation vermeiden
 
-**Status:** offen / zur späteren Umsetzung
+**Status:** M1–M3 umgesetzt (2026-06-25) · M4 zurückgestellt (eigener Task, Idempotenz-Key) · M5 offen (Mitigation)
 **Erstellt:** 2026-06-24
 **Auslöser:** User-Feedback beim Testen der automatischen Code-Prüfung (lokale KI / Ollama, Siegel am KG).
 
@@ -79,24 +79,34 @@ Hinweis: `verifyKontrolleCodeDetailed` ruft das Modell **pro Request nur 1×** a
 - **Kein `maxDuration`** auf den API-Routen → auf dem self-hosted Node-Server läuft der Request bis zum
   Vision-Timeout durch, auch wenn der Client schon aufgegeben hat → „Server fertig, Client Timeout".
 
-### 4. Möglicher Folgebug (Hypothese, NICHT verifiziert)
-Der Retry erzeugt vermutlich einen **zweiten PRUEFUNG-Eintrag** — keine Idempotenz. Die Anforderungs-
-Verknüpfung (`entryId: null`-Filter, ≈ Z. 113) greift nur beim ersten; der zweite Eintrag bliebe „lose".
-→ An echten Daten gegenprüfen.
+### 4. Folgebug (per Code-Analyse BESTÄTIGT — 2026-06-25)
+Der Retry erzeugt einen **zweiten PRUEFUNG-Eintrag**: `tx.entry.create` (`route.ts` ≈ Z. 92) läuft
+**unbedingt**, die Anforderungs-Verknüpfung (`entryId: null`-Filter, ≈ Z. 113) greift aber nur beim
+ersten. Der zweite Eintrag bleibt „lose" (nicht mit der Anforderung verknüpft).
+
+**ABER — der Code taugt NICHT als Idempotenz-Schlüssel:** Bei aktivem Siegel wird der Siegel-Code
+wiederverwendet (`kontrolleService.ts` Z. 109–110, `const c = seal ?? generateKontrollCode()`). Während
+einer Siegel-Sperrperiode teilen sich also **alle** Kontroll-Anforderungen denselben Code. Eine naive
+Idempotenz „Code schon erfüllt → ablehnen" würde legitime Folge-Kontrollen während derselben Siegel-
+Sperre fälschlich blockieren. Eine korrekte Idempotenz braucht daher einen echten Idempotenz-Key
+(client-generierte UUID + Schema-Migration), nicht den Code.
 
 ---
 
 ## Geplante Maßnahmen (priorisiert)
 
-### M1 — Save vom Verify entkoppeln (Kern-Fix) · hoch
+### M1 — Save vom Verify entkoppeln (Kern-Fix) · hoch · ✅ ERLEDIGT (2026-06-25)
 `verifyKontrolleCode` in `POST /api/entries` genauso fire-and-forget ausführen wie den Geräte-Check.
 - Eintrag wird committed → Route antwortet **sofort** (201) mit `verifikationStatus: null`.
 - Verifikation läuft danach asynchron, setzt `verifikationStatus` per `entry.update` nach.
 - Frontend zeigt das Ergebnis über den bestehenden Heartbeat/Reload bzw. den Live-Check-Badge.
 - **Abnahme:** Speichern antwortet < 2 s auch bei langsamem/abwesendem Ollama; `verifikationStatus`
   erscheint verzögert; kein Handy-Timeout mehr.
+- **Umsetzung:** Der `await`-Block in `route.ts` wurde durch eine `(async () => { … })()`-IIFE ersetzt
+  (Muster wie der Geräte-Check direkt darüber); die Response-Mutation `entry = { …, verifikationStatus }`
+  entfällt (Antwort kommt sofort mit `null`).
 
-### M2 — Doppel-Verifikation reduzieren · mittel
+### M2 — Doppel-Verifikation reduzieren · mittel · ✅ ERLEDIGT (folgt aus M1, 2026-06-25)
 - Server-Verify **nur 1×** und entkoppelt (folgt aus M1).
 - **Constraint:** Server-Verify bewusst „never trusted from client" (Anti-Cheat) — das Client-Live-
   Ergebnis darf den Server-Verify **nicht ersetzen**. Also: Live-Check bleibt reines UI-Feedback,
@@ -104,16 +114,24 @@ Verknüpfung (`entryId: null`-Filter, ≈ Z. 113) greift nur beim ersten; der zw
 - **Abnahme:** pro eingereichter Kontrolle genau **ein** server-seitiger Vision-Call (plus optional
   Live-Checks, die UI-only sind).
 
-### M3 — Live-Check entprellen · mittel
+### M3 — Live-Check entprellen · mittel · ✅ ERLEDIGT (2026-06-25)
 Den Client-Live-Check entprellen (debounce) und nicht bei jedem Tastendruck/Re-Render neu starten,
 um den Abbruch-Sturm (`AbortError`) und unnötige Ollama-Last zu vermeiden.
 - **Abnahme:** beim Tippen des Codes maximal 1 Live-Call nach kurzer Ruhephase, kein Sturm von
   `verify:vision_call` + `AbortError` auf demselben Bild.
+- **Umsetzung:** `PruefungFormCore.tsx` — der Live-Check-Effect feuert jetzt erst nach 600 ms Ruhe
+  (`setTimeout` + `clearTimeout` im Cleanup); Abort beim Wechsel bleibt erhalten.
 
-### M4 — Retry-Idempotenz · mittel (abhängig von Befund #4)
-Doppelte PRUEFUNG-Einträge beim Retry verhindern (z. B. Idempotenz-Key / „ein offener Code → ein
-Eintrag"). Erst Befund #4 an Daten bestätigen.
-- **Abnahme:** mehrfaches Absenden derselben Kontrolle erzeugt höchstens einen Eintrag.
+### M4 — Retry-Idempotenz · niedrig · ⏸ ZURÜCKGESTELLT (eigener Task)
+Befund #4 ist per Code-Analyse bestätigt (Retry → loser Zweit-Eintrag), **aber** der naive Ansatz
+„ein offener Code → ein Eintrag" ist **unsicher**: Siegel-Codes werden über die ganze Sperrperiode
+wiederverwendet (siehe Befund #4), eine code-basierte Idempotenz würde legitime Folge-Kontrollen
+blockieren. Korrekt wäre ein echter Idempotenz-Key (client-generierte UUID + Schema-Migration) — eine
+eigenständige, grössere Änderung.
+- **Priorität gesenkt:** M1 beseitigt die Timeout-Ursache, die das Retry-Verhalten überhaupt auslöst.
+  Ohne Timeouts entstehen Duplikate nur noch durch echtes Doppel-Tippen → seltener Randfall.
+- **Abnahme (für den späteren Task):** mehrfaches Absenden derselben Kontrolle erzeugt höchstens einen
+  Eintrag — umgesetzt via Idempotenz-Key, NICHT via Code.
 
 ### M5 — Ollama-Leistung · niedrig (Mitigation, nicht Ursache)
 Stärkeres/schnelleres lokales Modell bzw. Hardware. Verbessert die Latenz, behebt aber nicht die
