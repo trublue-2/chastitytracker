@@ -121,6 +121,31 @@ MCP-specific Prisma models (additive; see `prisma/schema.prisma`):
 3. Complete the OAuth consent **signed in as an admin** to get write access
    (or set `MCP_TOKEN` for read-only and use it as a bearer token).
 
+## Keyholder rules (human-in-the-loop)
+
+The human keyholder stays in control by writing **free-text standing rules** that
+the AI keyholder must follow. This is the steering layer on top of the autonomous
+tools.
+
+- **Where:** the admin area → a user's **Settings** tab → the **"AI keyholder
+  rules"** field (`mcpKeyholderInstructions`). The field is only shown when
+  `ENABLE_MCP=true`, and is saved via `PATCH /api/admin/users/[id]`.
+- **What:** plain-language directives and boundaries — e.g. "minimum 12 h between
+  openings", "never require an inspection at night", "no orgasm directives during
+  her exam week". There is no fixed syntax; write them as instructions to the
+  agent.
+- **How the agent sees them:** they are surfaced to the client as
+  **`get_overview.keyholderInstructions`**.
+- **Binding:** the MCP server instructions and **every write tool description**
+  state that writes must respect `get_overview.keyholderInstructions`. So the
+  human's rules constrain the agent's autonomous directives without a per-action
+  confirmation step.
+
+> Set these rules before letting the agent act. They are the primary way to keep
+> the autonomous writes aligned with the keyholder's intent. For richer,
+> structured guidance the agent can also read pinned directives/boundaries from
+> notes v2 (`query_notes`, surfaced in `keyholder_dashboard`).
+
 ## Security & gotchas
 
 - **Autonomous writes — no confirmation.** The server instructions and tool
