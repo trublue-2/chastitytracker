@@ -20,7 +20,7 @@
 - **Photo upload** with EXIF metadata extraction, automatic seal-number detection, and rotation correction
 - **AI-powered inspection verification** (Claude Vision reads handwritten codes from photos)
 - **Automatic device recognition** — store reference photos per device so an inspection photo is matched to the correct belt (Claude Vision, or fast local CLIP embeddings — see [Local AI Instance](#local-ai-instance-optional))
-- **Sealed key-box code photo (Bildersafe)** — store a sealed photo of the key-box combination; it stays locked to the wearer during the lock period and only becomes visible during a permitted opening (cleaning / orgasm window) or after the lock ends. The keyholder can always see it
+- **Sealed key-box code photo (Bildersafe)** — opt-in per instance via `ENABLE_BILDERSAFE` (default off); store a sealed photo of the key-box combination that stays locked to the wearer during the lock period and only becomes visible during a permitted opening (cleaning / orgasm window) or after the lock ends. The keyholder can always see it
 - **Real-time wear duration timer** and live countdown of remaining lock period
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
 - **Orgasm tracking** with categorization and sub-types (Masturbation, Geschlechtsverkehr, ruinierter, feuchter Traum, etc.)
@@ -44,7 +44,7 @@
 - **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
 - **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Penalties / Settings / Devices
 - **Per-user notification preferences** (email + push, per event type)
-- **Admin-user relationship model** — multi-admin support with feature flag
+- **Keyholder relationships** — a non-admin user can be assigned as keyholder for specific subs, gaining scoped access to their data, photos, and notifications — always active, independent of any flag. The optional `USE_ADMIN_RELATIONSHIPS` flag additionally restricts global admins to only their assigned users
 - **User statistics overview** and inspection history with alarm filter
 
 ## Tech Stack
@@ -63,7 +63,7 @@
 | i18n | next-intl v4 |
 | Mobile | Capacitor wrappers (iOS via TestFlight, Android via direct APK) |
 | Icons | Lucide React |
-| Testing | Playwright (E2E) |
+| Testing | Vitest (unit) |
 | Runtime | Node.js 24 Alpine (Docker) |
 
 ## Architecture
@@ -316,7 +316,9 @@ VAPID_SUBJECT=mailto:admin@example.com
 
 # --- Optional ---
 # USE_ADMIN_RELATIONSHIPS=true      # enable n:m admin↔user supervision
+# ENABLE_BILDERSAFE=true            # enable the sealed key-box code photo feature (default off)
 # DISABLE_FEEDBACK=true             # hide the in-app feedback button entirely
+# FEEDBACK_UPSTREAM_URL=<url>       # send in-app feedback to your own inbox instead of the project portal
 # TELEMETRY_URL=<url>               # optional telemetry endpoint
 # TELEMETRY_INSTANCE_ID=<id>
 ```
@@ -353,9 +355,10 @@ setup (Mac install, Tailscale, launchd, env reference, benchmark): **[`docs/loca
 
 By default the tracker shows a feedback button in the header that lets users
 send bug reports, ideas, or thanks to the project maintainer. Submissions are
-POSTed to `https://portal.chastitytracker.ch/api/app-feedback` — **only** the
-message text, page path, app version, and platform are transmitted. Username,
-IP, and any user identifier stay on your server.
+POSTed to `https://portal.chastitytracker.ch/api/app-feedback` (override with
+`FEEDBACK_UPSTREAM_URL` to send them to your own inbox) — only the message text,
+an optional contact email you type, page path, app version, platform, and locale
+are transmitted. Username, IP, and any user identifier stay on your server.
 
 The form shows users exactly what gets shared before they submit.
 
@@ -409,6 +412,8 @@ src/
     webauthn.ts             # WebAuthn/Passkey configuration and token store
     haptics.ts              # Vibration API helpers (Android)
     idb.ts                  # IndexedDB helpers (offline cache + queue)
+  i18n/
+    request.ts              # next-intl request configuration
   proxy.ts                  # Route protection (replaces middleware.ts in Next.js 16)
 prisma/
   schema.prisma             # Database schema
@@ -489,10 +494,11 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `POST` | `/api/admin/users` | Create user |
 | `PATCH` | `/api/admin/users/[id]` | Update user |
 | `DELETE` | `/api/admin/users/[id]` | Delete user |
+| `POST/DELETE` | `/api/admin/users/[id]/keyholders` | Assign / remove a keyholder for a user |
 | `GET/POST` | `/api/admin/vorgaben` | List / create training goals |
 | `PATCH/DELETE` | `/api/admin/vorgaben/[id]` | Update / delete training goal |
 | `GET/PATCH` | `/api/admin/notifications` | Get / update per-user notification preferences (`?userId=`) |
-| `POST` | `/api/admin/strafe` | Record a penalty (offense type + refId + note) |
+| `POST/PATCH/DELETE` | `/api/admin/strafe` | Record / update / remove a penalty (offense type + refId + note) |
 | `POST` | `/api/admin/demo` | Create demo user with sample data (requires `ENABLE_DEMO=true`) |
 
 ### Auth, Passkeys & Settings
@@ -516,10 +522,13 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/version` | Returns `{ version, buildDate }` |
+| `GET` | `/api/heartbeat` | Consolidated client heartbeat |
+| `GET` | `/api/upstream-changelog` | Proxied upstream changelog (1 h cache) |
+| `POST` | `/api/feedback` | Submit in-app feedback (forwarded unless `DISABLE_FEEDBACK`) |
 | `GET` | `/api/push/vapid-public-key` | VAPID public key for web-push subscription |
-| `POST` | `/api/push/subscribe` | Register web-push subscription |
-| `POST` | `/api/push/native-subscribe` | Register native iOS/Android push token (Capacitor) |
-| `POST` | `/api/portal-login` | JWT-based portal login (requires `PORTAL_SHARED_SECRET`) |
+| `POST/DELETE` | `/api/push/subscribe` | Register / remove web-push subscription |
+| `POST/DELETE` | `/api/push/native-subscribe` | Register / remove native iOS/Android push token (Capacitor) |
+| `GET` | `/api/portal-login` | JWT-based portal login via `?token=` (requires `PORTAL_SHARED_SECRET`) |
 | `GET` | `/api/apple-app-site-association` | iOS Universal Links manifest |
 
 ## Database Schema
@@ -535,7 +544,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `KontrollAnforderung` | Inspection requests with 5-digit code and deadline |
 | `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `reinigungErlaubt` flag |
 | `OrgasmusAnforderung` | Orgasm requirement / window for a user (optional required type, permitted opening) |
-| `StrafeRecord` | Penalty records — cleaning-limit violations, wrong-device usage, missed inspections |
+| `StrafeRecord` | Penalty records — missed inspections, unauthorized openings, cleaning-limit violations, wrong-device usage, missed orgasm instructions |
 | `NotificationPreference` | Per-user, per-event email/push notification settings |
 | `PushSubscription` / `NativePushToken` | Web Push endpoints and native-iOS/Android tokens |
 | `Passkey` | WebAuthn credentials for biometric login |
@@ -545,7 +554,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `RateLimit` | DB-backed rate-limiting (login attempts, etc.) |
 | `AppMeta` | Key-value metadata store (last-seen version, etc.) |
 
-> The hosted deployment adds further models for the virtual-keyholder interface (notes, action log, appointments, recurring context), its OAuth 2.0 server, and the optional physical-box integration. These are not needed for a standard self-hosted install and are intentionally omitted here.
+> The hosted deployment adds further models for the virtual-keyholder interface (notes, action log, appointments, recurring context, health holds), its OAuth 2.0 server, and the optional physical-box integration. These are not needed for a standard self-hosted install and are intentionally omitted here.
 
 ## Contributing
 

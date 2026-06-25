@@ -18,10 +18,10 @@ DATABASE_URL="file:./dev.db" npx prisma migrate dev --name <name>  # Migration e
 DATABASE_URL="file:./dev.db" npx prisma studio                     # DB-Browser öffnen
 npx prisma generate                                                  # Client regenerieren
 
-# Tests (Playwright E2E)
-npx playwright test                          # alle Tests
-npx playwright test <pfad/zur/test.spec.ts>  # einzelner Test
-npx playwright test --ui                     # interaktiver UI-Mode
+# Tests (Vitest unit)
+npm test                                     # alle Tests (vitest run)
+npm run test:watch                           # Watch-Mode
+npx vitest run <pfad/zur/datei.test.ts>      # einzelne Datei
 ```
 
 ## Architecture
