@@ -40,7 +40,6 @@
 - **Lock requests** — request a user locks up by a deadline, optionally with a minimum wear duration
 - **Lock periods (Sperrzeiten)** — enforced lock periods with automatic or manual end time; optional flag allowing cleaning openings during the period
 - **Orgasm requirements** — grant a time-boxed orgasm window for a user, optionally tied to a permitted opening and a required orgasm type
-- **Health holds** — pause obligations for health reasons (set via the keyholder interface)
 - **Device requirements** — admin can require a specific KG for a lock request; wrong-device usage is flagged automatically
 - **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
 - **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Penalties / Settings / Devices
@@ -536,7 +535,6 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `KontrollAnforderung` | Inspection requests with 5-digit code and deadline |
 | `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `reinigungErlaubt` flag |
 | `OrgasmusAnforderung` | Orgasm requirement / window for a user (optional required type, permitted opening) |
-| `HealthHold` | Health-related pause of obligations (set via keyholder interface) |
 | `StrafeRecord` | Penalty records — cleaning-limit violations, wrong-device usage, missed inspections |
 | `NotificationPreference` | Per-user, per-event email/push notification settings |
 | `PushSubscription` / `NativePushToken` | Web Push endpoints and native-iOS/Android tokens |
