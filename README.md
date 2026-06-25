@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.12.14-blue)
+![Version](https://img.shields.io/badge/version-4.40.2-blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -15,9 +15,12 @@
 
 - **Lock/unlock event logging** with timestamps, photos, notes, and device selection
 - **Device (KG) management** — register multiple chastity belts with name, description, photo, and purchase price; automatic per-device wear statistics and cost-per-hour tracking
+- **Multi-category wear tracking** — beyond chastity belts, track wear sessions for other device categories via `WEAR_BEGIN` / `WEAR_END` events (gated by `ENABLE_DEVICE_CATEGORIES`, default on)
 - **Cleaning openings** with configurable daily limits and per-opening max-minutes
 - **Photo upload** with EXIF metadata extraction, automatic seal-number detection, and rotation correction
 - **AI-powered inspection verification** (Claude Vision reads handwritten codes from photos)
+- **Automatic device recognition** — store reference photos per device so an inspection photo is matched to the correct belt (Claude Vision, or fast local CLIP embeddings — see [Local AI Instance](#local-ai-instance-optional))
+- **Sealed key-box code photo (Bildersafe)** — store a sealed photo of the key-box combination; it stays locked to the wearer during the lock period and only becomes visible during a permitted opening (cleaning / orgasm window) or after the lock ends. The keyholder can always see it
 - **Real-time wear duration timer** and live countdown of remaining lock period
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
 - **Orgasm tracking** with categorization and sub-types (Masturbation, Geschlechtsverkehr, ruinierter, feuchter Traum, etc.)
@@ -36,6 +39,8 @@
 - **Inspection requests** with 5-digit verification codes and configurable deadlines
 - **Lock requests** — request a user locks up by a deadline, optionally with a minimum wear duration
 - **Lock periods (Sperrzeiten)** — enforced lock periods with automatic or manual end time; optional flag allowing cleaning openings during the period
+- **Orgasm requirements** — grant a time-boxed orgasm window for a user, optionally tied to a permitted opening and a required orgasm type
+- **Health holds** — pause obligations for health reasons (set via the keyholder interface)
 - **Device requirements** — admin can require a specific KG for a lock request; wrong-device usage is flagged automatically
 - **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
 - **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Penalties / Settings / Devices
@@ -73,7 +78,7 @@ Internet
    |
 Traefik (TLS reverse proxy)
    |-- portal.chastitytracker.ch  -> tracker-portal container
-   |-- chastitytracker.ch         -> marketing site (static)
+   |-- chastitytracker.ch         -> marketing site (standalone container)
    |-- alice.trublue.ch           -> kg-alice (chastitytracker instance)
    +-- bob.chastitytracker.ch     -> kg-bob  (chastitytracker instance)
 ```
@@ -376,12 +381,15 @@ src/
     api/                    # REST API routes
       admin/                # User management, training goals, inspections, lock requests
       auth/                 # Password reset + passkey registration/authentication
-      entries/              # Lock/unlock/inspection/orgasm CRUD
-      devices/              # Device (KG) CRUD
+      entries/              # Lock/unlock/inspection/orgasm/wear CRUD
+      devices/              # Device (KG) CRUD + reference photos
+      categories/           # Device categories (multi-category wear tracking)
+      bildersafe/           # Seal a key-box code photo onto the active lock
       upload/               # Photo upload
       uploads/              # Auth-protected photo serving
       verify-kontrolle/     # AI inspection verification
       detect-seal/          # AI seal-number detection
+      detect-device/        # AI device recognition
       push/                 # Push notification subscription
     dashboard/              # User-facing pages (entries, devices, stats, settings)
     admin/                  # Admin pages with shared user-detail layout
@@ -434,14 +442,28 @@ data/
 | `POST` | `/api/devices` | Create device |
 | `PATCH` | `/api/devices/[id]` | Update device (name, description, photo, price, archivedAt) |
 | `DELETE` | `/api/devices/[id]` | Delete device (only if no entries reference it) |
+| `GET/POST` | `/api/devices/[id]/references` | List / add reference photos used for automatic device recognition |
+| `DELETE` | `/api/devices/[id]/references/[refId]` | Remove a reference photo |
+| `POST` | `/api/devices/[id]/references/import-recent` | Seed reference photos from the device's recent entry photos |
+
+### Device Categories
+
+Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET/POST` | `/api/categories` | List / create device categories |
+| `PATCH/DELETE` | `/api/categories/[id]` | Update / delete a category |
 
 ### Photos
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/upload` | Upload photo (extension whitelist + magic-byte check, 10 MB limit) |
-| `GET` | `/api/uploads/[...path]` | Serve photo (auth-protected) |
+| `GET` | `/api/uploads/[...path]` | Serve photo (auth-protected; sealed key-box photos stay locked to the wearer until an opening is permitted) |
 | `POST` | `/api/detect-seal` | Detect seal-number presence in photo |
+| `POST` | `/api/detect-device` | Identify which registered device is shown in a photo |
+| `POST` | `/api/bildersafe/seal` | Seal a key-box code photo onto the active lock (Bildersafe) |
 
 ### Inspections
 
@@ -458,6 +480,7 @@ data/
 |--------|----------|-------------|
 | `POST` | `/api/admin/verschluss-anforderung` | Create lock request or lock period (admin). Supports `dauerH` (min wear), `deviceId` (required device), `reinigungErlaubt` (allow cleaning openings) |
 | `PATCH` | `/api/admin/verschluss-anforderung/[id]` | Withdraw a lock request or period (admin) |
+| `POST` | `/api/admin/orgasmus-anforderung` | Create an orgasm requirement / window for a user (admin) |
 
 ### Admin
 
@@ -488,7 +511,6 @@ data/
 | `POST` | `/api/auth/lockout` | Check login lockout status |
 | `PATCH` | `/api/settings/password` | Change own password |
 | `PATCH` | `/api/settings/email` | Change own email |
-| `PATCH` | `/api/settings/upload` | Toggle mobile/desktop upload behavior |
 
 ### Misc
 
@@ -506,11 +528,15 @@ data/
 | Model | Purpose |
 |-------|---------|
 | `User` | Accounts with username, email, role (`user` / `admin`), cleaning-policy settings |
-| `Entry` | Events: lock, unlock, inspection, orgasm (with photo, EXIF, notes, device) |
-| `Device` | Chastity belts per user — name, description, photo, purchase price, archived state |
+| `Entry` | Events: lock, unlock, inspection, orgasm, wear-begin/end (with photo, EXIF, notes, device, optional sealed key-box code photo) |
+| `Device` | Chastity belts (and other category devices) per user — name, description, photo, purchase price, archived state |
+| `DeviceCategory` | Device categories for multi-category wear tracking |
+| `DeviceReferenceImage` | Reference photos per device for automatic recognition |
 | `TrainingVorgabe` | Admin-set wear-time goals per user per period |
 | `KontrollAnforderung` | Inspection requests with 5-digit code and deadline |
 | `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `reinigungErlaubt` flag |
+| `OrgasmusAnforderung` | Orgasm requirement / window for a user (optional required type, permitted opening) |
+| `HealthHold` | Health-related pause of obligations (set via keyholder interface) |
 | `StrafeRecord` | Penalty records — cleaning-limit violations, wrong-device usage, missed inspections |
 | `NotificationPreference` | Per-user, per-event email/push notification settings |
 | `PushSubscription` / `NativePushToken` | Web Push endpoints and native-iOS/Android tokens |
@@ -520,6 +546,8 @@ data/
 | `PasswordResetToken` | Time-limited password reset tokens (1h validity) |
 | `RateLimit` | DB-backed rate-limiting (login attempts, etc.) |
 | `AppMeta` | Key-value metadata store (last-seen version, etc.) |
+
+> The hosted deployment adds further models for the virtual-keyholder interface (notes, action log, appointments, recurring context), its OAuth 2.0 server, and the optional physical-box integration. These are not needed for a standard self-hosted install and are intentionally omitted here.
 
 ## Contributing
 
