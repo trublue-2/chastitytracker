@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.40.3",
+    "date": "2026-06-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "MCP keyholder_dashboard: Das Orgasmus-Fenster zeigt jetzt auch den Start (beginntAt) und ein active-Flag. Ein erst später beginnendes Fenster (GELEGENHEIT) wurde bisher nur mit Ende + Restzeit ausgegeben und dadurch fälschlich als bereits laufend dargestellt — jetzt ist erkennbar, ob der Startzeitpunkt schon erreicht ist."
+      }
+    ]
+  },
+  {
     "version": "4.40.2",
     "date": "2026-06-25",
     "changes": [

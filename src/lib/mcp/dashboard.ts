@@ -46,13 +46,15 @@ export interface DashboardResult {
   dataDiscrepancies: { count: number; items: DiscrepancyItem[] };
   /** Was JETZT getragen wird — KG + alle Kategorien vereint. */
   wornNow: { category: string; deviceName: string | null; since: string | null; durationHours: number | null }[];
-  /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / offenes Orgasmus-Fenster.
+  /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / Orgasmus-Fenster.
    *  Zeiten ISO-8601 mit Offset (buildOverview wird mit iso:true komponiert); zusätzlich
-   *  remainingMinutes/overdue für direkte Fristfragen. */
+   *  remainingMinutes/overdue für direkte Fristfragen. Beim Orgasmus-Fenster zeigt `active` an,
+   *  ob der Start (`beginntAt`) schon erreicht ist — `active:false` = geplant, läuft noch NICHT
+   *  (remainingMinutes zählt bis `endetAt`). */
   nextRelevant: {
     openControl: { code: string; deadline: string; overdue: boolean; remainingMinutes: number } | null;
     activeLockPeriod: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null } | null;
-    openOrgasmWindow: { art: string; endetAt: string; requiredType: string | null; remainingMinutes: number } | null;
+    openOrgasmWindow: { art: string; beginntAt: string; endetAt: string; active: boolean; requiredType: string | null; remainingMinutes: number } | null;
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
@@ -178,7 +180,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
         ? { endetAt: overview.activeSperrzeit.endetAt, indefinite: overview.activeSperrzeit.indefinite, remainingMinutes: overview.activeSperrzeit.remainingMinutes }
         : null,
       openOrgasmWindow: overview.openOrgasmusAnforderung
-        ? { art: overview.openOrgasmusAnforderung.art, endetAt: overview.openOrgasmusAnforderung.endetAt, requiredType: overview.openOrgasmusAnforderung.requiredType, remainingMinutes: overview.openOrgasmusAnforderung.remainingMinutes }
+        ? { art: overview.openOrgasmusAnforderung.art, beginntAt: overview.openOrgasmusAnforderung.beginntAt, endetAt: overview.openOrgasmusAnforderung.endetAt, active: overview.openOrgasmusAnforderung.active, requiredType: overview.openOrgasmusAnforderung.requiredType, remainingMinutes: overview.openOrgasmusAnforderung.remainingMinutes }
         : null,
     },
     goals: { kg: periods.kg, categories: periods.categories },
