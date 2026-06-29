@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.41.2",
+    "date": "2026-06-29",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Bild-Verifikation: Wenn das KI-Modell „keine Erkennung\" als String (\"null\"/\"none\") statt als JSON-null meldet, wird das jetzt zentral als „nicht erkannt\" behandelt. Vorher rutschte der Wort-Sentinel in die Format-Prüfung (irreführendes invalid_format-Log bei Plombe/Code-Tresor) bzw. leakte roh ins Ergebnis der Kontroll-Code-Prüfung. Ein geteilter Helfer deckt nun alle drei Vision-Parser ab."
+      }
+    ]
+  },
+  {
     "version": "4.41.1",
     "date": "2026-06-29",
     "changes": [

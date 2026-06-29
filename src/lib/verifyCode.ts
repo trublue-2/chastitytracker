@@ -11,6 +11,15 @@ import { localReadDigits } from "@/lib/ocr";
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
 const SEAL_VOCAB = `plastic security seal or numbered tag (e.g. coloured strip — yellow, red, blue, white — with a round locking head, a barcode and digits; often used to seal chastity devices). The seal may appear in any orientation — upside down, sideways or angled — read it as it would read when held upright. Preserve any leading zeros.`;
 
+/** Normalisiert das `detected`-Feld der Vision-Antwort: liefert den String oder `null`, wenn keine
+ *  Erkennung vorliegt. Das Modell meldet "keine Erkennung" mal als JSON-null/undefined, mal als
+ *  Wort-Sentinel ("null"/"none") IM String — alle Fälle hier zentral auf `null` abbilden, damit der
+ *  Sentinel nicht in Format-Prüfung/Result-Contract leakt. Geteilt von beiden `{"detected": …}`-Parsern. */
+function normalizeDetected(raw: unknown): string | null {
+  if (!raw || typeof raw !== "string") return null;
+  return ["null", "none"].includes(raw.trim().toLowerCase()) ? null : raw;
+}
+
 /** Verify-spezifischer Logger — `[verify]`-Prefix fuer grepbare Container-Logs.
  *  WICHTIG: der erwartete Auth-Code wird bewusst NICHT geloggt (er ist die
  *  Authentifizierung der Kontrolle). Nur Laenge, Filename, mediaType, bytes,
@@ -130,7 +139,7 @@ export async function verifyKontrolleCodeDetailed(
       vlog("verify:json_parse_failed", { jsonRawLen: jsonMatch[0].length, error: (e as Error).message });
       return { detected: null, match: false, reason: null };
     }
-    const detected: string | null = parsed.detected ?? null;
+    const detected: string | null = normalizeDetected(parsed.detected);
     // Normalize before comparing — the model occasionally wraps the number with whitespace or
     // surrounding punctuation despite the strict JSON contract.
     const normalize = (s: string) => s.trim().replace(/\D/g, "");
@@ -203,9 +212,9 @@ async function detectSealDigits(
       return null;
     }
     const result = JSON.parse(jsonMatch[0]);
-    const detected = result.detected;
-    if (!detected || typeof detected !== "string") {
-      vlog(`${logPrefix}:no_detection`, { detectedType: typeof detected });
+    const detected = normalizeDetected(result.detected);
+    if (detected === null) {
+      vlog(`${logPrefix}:no_detection`, { detectedType: typeof result.detected });
       return null;
     }
     if (!new RegExp(`^\\d{${minLen},${maxLen}}$`).test(detected)) {
