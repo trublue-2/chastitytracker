@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
-import { aktiveKontrolleWhere } from "@/lib/queries";
+import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
 
 export async function GET() {
   const err = await requireAdminApi();
   if (err) return err;
 
   const kontrollen = await prisma.kontrollAnforderung.findMany({
-    where: aktiveKontrolleWhere(), // noch nicht aktive (geplante) Kontrollen ausblenden
+    where: keyholderVisibleKontrolleWhere(), // Keyholder-Sicht: manuell geplante zeigen, nur Auto-Zufalls-Kontrollen verbergen
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { username: true } },

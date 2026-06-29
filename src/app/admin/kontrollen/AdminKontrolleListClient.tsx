@@ -39,6 +39,8 @@ export interface AdminKontrolleRowData {
   deadlineStr: string | null;
   createdAtStr: string | null;
   withdrawnAtStr: string | null;
+  /** "geplant für <wirksamAb>" — nur bei geplanten (noch nicht ausgelösten) Kontrollen gesetzt. */
+  scheduledForStr: string | null;
   timeCorrectedStr: string | null;
   note: string | null;
   kontrolleId: string | null;
@@ -58,6 +60,7 @@ interface Labels {
   fristLabel: string;
   createdLabel: string;
   withdrawnLabel: string;
+  scheduledForLabel: string;
   instructionLabel: string;
   noteLabel: string;
   imageAlt: string;
@@ -109,6 +112,12 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
                 <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
               )}
               <DeviceFact t={t} row={row} />
+              {row.scheduledForStr && (
+                <div>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.scheduledForLabel}</p>
+                  <p className="text-sm text-foreground-muted">{row.scheduledForStr}</p>
+                </div>
+              )}
               {row.fulfilledAtStr && (
                 <div>
                   <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.fulfilledLabel}</p>
@@ -190,6 +199,7 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
                 </div>
               )}
               <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
+                {row.scheduledForStr && <span>{labels.scheduledForLabel}: {row.scheduledForStr}</span>}
                 {row.fulfilledAtStr && <span>{labels.fulfilledLabel}: {row.fulfilledAtStr}</span>}
                 {row.deadlineStr && <span>{labels.fristLabel}: {row.deadlineStr}</span>}
                 {row.createdAtStr && <span>{labels.createdLabel}: {row.createdAtStr}</span>}

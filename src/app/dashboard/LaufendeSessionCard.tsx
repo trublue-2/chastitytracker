@@ -19,6 +19,9 @@ interface Props {
   sperrzeitEndetAt: Date | null;
   sperrzeitUnbefristet?: boolean;
   sperrzeitNachricht?: string | null;
+  /** Nur Keyholder-Sicht: geplante (noch nicht ausgelöste) Sperrzeit → Footer zeigt "geplant für"
+   *  statt "gesperrt bis". Sub-Sichten setzen dies NIE (geplante bleiben für den Sub unsichtbar). */
+  sperrzeitScheduledFor?: Date | null;
   activeVorgabe: {
     minProTagH: number | null;
     minProWocheH: number | null;
@@ -37,6 +40,7 @@ export default async function LaufendeSessionCard({
   sperrzeitEndetAt,
   sperrzeitUnbefristet = false,
   sperrzeitNachricht,
+  sperrzeitScheduledFor = null,
   activeVorgabe,
   tagH,
   wocheH,
@@ -49,7 +53,8 @@ export default async function LaufendeSessionCard({
 
   const sessionStartStr = formatDateTime(sessionStart, dl);
   const sperrzeitStr = sperrzeitEndetAt ? formatDateTime(sperrzeitEndetAt, dl) : null;
-  const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet;
+  const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl) : null;
+  const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet || scheduledForStr !== null;
 
   const hasVorgabe =
     activeVorgabe &&
@@ -159,9 +164,11 @@ export default async function LaufendeSessionCard({
         <div className="bg-sperrzeit-bg border-t border-sperrzeit-border px-5 py-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-b-2xl">
           <Lock size={13} className="text-sperrzeit shrink-0" />
           <span className="text-sm font-semibold text-sperrzeit-text">
-            {sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
+            {scheduledForStr
+              ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>
+              : sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
           </span>
-          {sperrzeitEndetAt && (
+          {!scheduledForStr && sperrzeitEndetAt && (
             <SperrzeitRemaining
               endetAt={sperrzeitEndetAt.toISOString()}
               className="text-xs font-medium text-sperrzeit-text opacity-80"

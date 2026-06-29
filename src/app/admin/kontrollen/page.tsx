@@ -8,7 +8,7 @@ import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "./AdminKontrolleListClient";
 import { buildKontrolleRows, isKontrolleAlarm, mapKontrolleRow } from "@/lib/kontrollen";
-import { aktiveKontrolleWhere } from "@/lib/queries";
+import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
 
 export default async function AdminKontrollenPage({
   searchParams,
@@ -32,8 +32,9 @@ export default async function AdminKontrollenPage({
       include: { user: { select: { username: true } } },
     }),
     prisma.kontrollAnforderung.findMany({
-      // Noch nicht aktive (geplante) Kontrollen ausblenden — auch im Admin-Portal.
-      where: { ...aktiveKontrolleWhere(now), ...(userId ? { userId } : {}) },
+      // Keyholder-Sicht: manuell geplante Kontrollen ZEIGEN (stornierbar), nur zukünftige
+      // Auto-/Zufalls-Kontrollen verbergen (Überraschungseffekt).
+      where: { ...keyholderVisibleKontrolleWhere(now), ...(userId ? { userId } : {}) },
       orderBy: { createdAt: "desc" },
       include: { user: { select: { username: true } } },
     }),
@@ -52,6 +53,7 @@ export default async function AdminKontrollenPage({
     fristLabel: t("frist"),
     createdLabel: t("createdLabel"),
     withdrawnLabel: t("withdrawnLabel"),
+    scheduledForLabel: t("scheduledForLabel"),
     instructionLabel: t("instructionLabel"),
     noteLabel: tc("note"),
     imageAlt: t("kontrollenTitle"),

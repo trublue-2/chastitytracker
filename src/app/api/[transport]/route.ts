@@ -359,7 +359,9 @@ function registerTools(server: McpServer) {
           "MCP V2 — DER Einstiegs-Call: currentRun vs. Personal Best, was JETZT getragen wird (KG + " +
           "alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit / offenes Orgasmus-Fenster), " +
           "Ziele + Adhärenz (Tag/Woche/Monat-Erfüllung), offene Vergehen (Top 5), gepinnte " +
-          "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), BoxState, HealthHold, " +
+          "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), scheduledDirectives " +
+          "(vom Keyholder TERMINIERTE, noch nicht ausgelöste lock_request/lock_period/manuelle inspection — " +
+          "für den Sub noch unsichtbar, via `withdraw` stornierbar; Auto-Kontrollen bewusst NICHT enthalten), BoxState, HealthHold, " +
           "dataDiscrepancies (echte Bild-Diskrepanzen als Hinweis, KEINE Vergehen; cluster-interne " +
           "Verwechslungen ausgeblendet) und currentRun.todayIncludesPriorSession (today enthält Anteil " +
           "einer früheren Session → ≠ Lauf-Dauer). Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
@@ -624,7 +626,9 @@ function registerTools(server: McpServer) {
       {
         title: "Withdraw an open directive",
         description:
-          "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive." + KEYHOLDER_NOTE,
+          "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive. " +
+          "Also cancels SCHEDULED (not yet triggered) directives of the same kind — a lock_request/lock_period/" +
+          "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives)." + KEYHOLDER_NOTE,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
         },

@@ -61,6 +61,12 @@ export interface DashboardResult {
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
+  /** Vom Keyholder TERMINIERTE, noch nicht ausgelöste Direktiven (wirksamAb in der Zukunft):
+   *  Sperrzeit/Einschliess-Anforderung (lock_period/lock_request) und MANUELLE Kontrollen
+   *  (auto:false). Diese sind für den Sub noch unsichtbar — der Keyholder sieht hier, was in der
+   *  Pipeline liegt, und kann sie via `withdraw` stornieren. Auto-/Zufalls-Kontrollen (auto:true)
+   *  sind bewusst NICHT enthalten (Überraschungseffekt). */
+  scheduledDirectives: ScheduledDirective[];
   /** Gepinnte, dauerhafte Anweisungen (DIRECTIVE) — fallen nie aus einem Recency-Fenster. */
   standingDirectives: NoteDTO[];
   /** Gepinnte Grenzen (BOUNDARY) mit doDont — unübersehbar. */
@@ -68,6 +74,51 @@ export interface DashboardResult {
   boxState: BoxStateView | null;
   /** Aktive Gesundheits-Zurückhaltung (§8) oder null. */
   healthHold: HealthHoldView | null;
+}
+
+/** Eine vom Keyholder terminierte, noch nicht ausgelöste Direktive (für scheduledDirectives). */
+export interface ScheduledDirective {
+  id: string;
+  /** lock_request = Einschliess-Anforderung · lock_period = Sperrzeit · inspection = manuelle Kontrolle. */
+  kind: "lock_request" | "lock_period" | "inspection";
+  /** Geplanter Auslöse-Zeitpunkt (ISO-8601 mit Offset). */
+  wirksamAb: string;
+  /** Frist/Sperrzeit-Ende (ISO) — bei Kontrollen die Erfüllungs-Frist, bei Sperrzeit das Ende, sonst null. */
+  endetAt: string | null;
+  /** Freitext: Kontroll-Kommentar bzw. Anforderungs-/Sperrzeit-Nachricht. */
+  message: string | null;
+}
+
+/** Lädt die vom Keyholder terminierten, noch nicht ausgelösten Direktiven (wirksamAb > now):
+ *  VerschlussAnforderung (ANFORDERUNG/SPERRZEIT) + MANUELLE Kontrollen (auto:false).
+ *  Auto-Kontrollen werden bewusst NICHT geladen. */
+async function loadScheduledDirectives(userId: string, now: Date): Promise<ScheduledDirective[]> {
+  const [anforderungen, kontrollen] = await Promise.all([
+    // Kein per-Query orderBy — die zusammengeführte Liste wird unten ohnehin nach wirksamAb sortiert.
+    prisma.verschlussAnforderung.findMany({
+      where: { userId, withdrawnAt: null, fulfilledAt: null, wirksamAb: { gt: now } },
+    }),
+    prisma.kontrollAnforderung.findMany({
+      where: { userId, withdrawnAt: null, entryId: null, auto: false, wirksamAb: { gt: now } },
+    }),
+  ]);
+  const out: ScheduledDirective[] = [
+    ...anforderungen.map((a) => ({
+      id: a.id,
+      kind: (a.art === "SPERRZEIT" ? "lock_period" : "lock_request") as ScheduledDirective["kind"],
+      wirksamAb: iso(a.wirksamAb)!,
+      endetAt: iso(a.endetAt),
+      message: a.nachricht,
+    })),
+    ...kontrollen.map((k) => ({
+      id: k.id,
+      kind: "inspection" as const,
+      wirksamAb: iso(k.wirksamAb)!,
+      endetAt: iso(k.deadline),
+      message: k.kommentar,
+    })),
+  ];
+  return out.sort((a, b) => a.wirksamAb.localeCompare(b.wirksamAb));
 }
 
 const BOX_ONLINE_THRESHOLD_MS = 10 * 60 * 1000;
@@ -130,7 +181,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
   const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices);
 
-  const [overview, rec, periods, ledger, pinned, boxState, healthHold] = await Promise.all([
+  const [overview, rec, periods, ledger, pinned, boxState, healthHold, scheduledDirectives] = await Promise.all([
     buildOverview(username, { iso: true }),
     records(username, trackingCtx, sessions),
     periodSummary(username, trackingCtx),
@@ -138,6 +189,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     queryNotes(username, { pinned: true, status: "active", limit: 50 }),
     loadBoxState(trackingCtx.userId, now),
     loadActiveHealthHold(trackingCtx.userId),
+    loadScheduledDirectives(trackingCtx.userId, now),
   ]);
 
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
@@ -189,6 +241,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     },
     goals: { kg: periods.kg, categories: periods.categories },
     openOffenses: { count: ledger.openOffenseCount, pendingPenalties: ledger.pendingPenaltyCount, top: openOffenseRows.slice(0, 5) },
+    scheduledDirectives,
     standingDirectives: pinned.notes.filter((n) => n.type === "DIRECTIVE"),
     boundaries: pinned.notes.filter((n) => n.type === "BOUNDARY"),
     boxState,

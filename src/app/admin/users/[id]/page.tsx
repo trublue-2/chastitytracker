@@ -10,7 +10,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, aktiveKontrolleWhere } from "@/lib/queries";
+import { getActiveVorgabe, getKeyholderSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
@@ -53,15 +53,19 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const flagOn = deviceCategoriesEnabled();
   const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, wearSessions, allNonKgCategories] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { categoryId: true } } } }),
-    prisma.kontrollAnforderung.findMany({ where: { userId: id, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
+    prisma.kontrollAnforderung.findMany({ where: { userId: id, ...keyholderVisibleKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
-    getActiveSperrzeit(id),
+    getKeyholderSperrzeit(id),
     flagOn ? getActiveWearSessions(id) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(id) : Promise.resolve([]),
   ]);
 
   const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
-  const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
+  // Aktiv offene Kontrolle für das grosse Banner — geplante (wirksamAb in der Zukunft) ausschliessen:
+  // die erscheinen unten in der Kontroll-Liste mit "geplant"-Pill, nicht als aktiver Alarm.
+  const offeneKontrolle = alleAnforderungen.find(
+    k => !k.entryId && !k.withdrawnAt && !(k.wirksamAb && k.wirksamAb > now),
+  ) ?? null;
 
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
 
@@ -106,8 +110,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           now={now}
           events={sessionEvents}
           sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
-          sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
+          sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null && !activeSperrzeit.wirksamAb}
           sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
+          sperrzeitScheduledFor={activeSperrzeit?.wirksamAb && activeSperrzeit.wirksamAb > now ? activeSperrzeit.wirksamAb : null}
           activeVorgabe={activeVorgabe}
           tagH={tagH}
           wocheH={wocheH}

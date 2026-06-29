@@ -22,7 +22,7 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const canWithdraw = !!kontrolleId && (anforderungStatus === "open" || anforderungStatus === "overdue");
+  const canWithdraw = !!kontrolleId && (anforderungStatus === "open" || anforderungStatus === "overdue" || anforderungStatus === "scheduled");
   const canDelete = !!kontrolleId && anforderungStatus === "withdrawn";
   const canManuallyVerify = !!entryId && verifikationStatus !== "manual" && verifikationStatus !== "ai";
   const canReject = !!entryId && verifikationStatus !== "rejected";

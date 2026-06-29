@@ -19,6 +19,8 @@ export interface KontrolleRow {
   fulfilledAt: Date | null;
   submittedAt: Date | null;
   withdrawnAt: Date | null;
+  /** Geplanter Auslöse-Zeitpunkt (wirksamAb), nur bei "scheduled"-Rows gesetzt. */
+  scheduledFor: Date | null;
   kommentar: string | null;
   note: string | null;
   kontrolleId: string | null;
@@ -45,6 +47,8 @@ type KontrollAnforderung = {
   createdAt: Date;
   fulfilledAt: Date | null;
   withdrawnAt: Date | null;
+  /** Geplante (noch nicht ausgelöste) Kontrolle, wenn in der Zukunft. Treibt den "scheduled"-Status. */
+  wirksamAb?: Date | null;
   kommentar: string | null;
   entryId: string | null;
   user?: { username: string };
@@ -80,6 +84,7 @@ export function buildKontrolleRows(
       fulfilledAt: e.startTime,
       submittedAt: ka?.fulfilledAt ?? null,
       withdrawnAt: ka?.withdrawnAt ?? null,
+      scheduledFor: null,
       kommentar: ka?.kommentar ?? null,
       note: e.note,
       kontrolleId: ka?.id ?? null,
@@ -104,6 +109,7 @@ export function buildKontrolleRows(
       fulfilledAt: null,
       submittedAt: null,
       withdrawnAt: k.withdrawnAt,
+      scheduledFor: k.wirksamAb && k.wirksamAb > now ? k.wirksamAb : null,
       kommentar: k.kommentar,
       note: null,
       kontrolleId: k.id,
@@ -116,6 +122,8 @@ export function buildKontrolleRows(
 /** Returns true if the row should count as "alarming" (unresolved, overdue, or unverified). */
 export function isKontrolleAlarm(row: KontrolleRow): boolean {
   if (row.anforderungStatus === "withdrawn") return false;
+  // Geplante (noch nicht ausgelöste) Kontrollen sind kein Alarm — nur ein Hinweis "liegt in der Pipeline".
+  if (row.anforderungStatus === "scheduled") return false;
   if (!row.entryId) return true;
   if (row.verifikationStatus === "unverified") return true;
   if (row.anforderungStatus === "open" || row.anforderungStatus === "overdue") return true;
@@ -148,6 +156,7 @@ export function mapKontrolleRow(
     deadlineStr: row.deadline ? formatDateTime(row.deadline, dl) : null,
     createdAtStr: row.createdAt ? formatDateTime(row.createdAt, dl) : null,
     withdrawnAtStr: row.withdrawnAt ? formatDateTime(row.withdrawnAt, dl) : null,
+    scheduledForStr: row.scheduledFor ? formatDateTime(row.scheduledFor, dl) : null,
     timeCorrectedStr: timeCorrected
       ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(row.fulfilledAt!, dl)} · ${t("systemLabel")}: ${formatDateTime(row.submittedAt!, dl)}`
       : null,

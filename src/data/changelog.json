@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.42.0",
+    "date": "2026-06-29",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Terminierte Direktiven sind jetzt für die Keyholderin sichtbar und stornierbar — vorher waren zeitversetzt geplante Sperrzeiten, Verschluss-Anforderungen und Kontrollen bis zur Auslösung auch im Admin-Bereich und im KI-Keyholder-Dashboard unsichtbar. Neu: eigener „Geplant\"-Abschnitt pro Nutzer in der Admin-Übersicht (mit Stornieren-Button) und ein scheduledDirectives-Feld im MCP keyholder_dashboard. Der Sub sieht geplante Direktiven weiterhin nicht; automatische Zufalls-Kontrollen bleiben bewusst verborgen (Überraschungseffekt)."
+      },
+      {
+        "type": "fix",
+        "text": "withdraw (MCP) storniert nun nachweislich auch noch nicht ausgelöste, geplante Direktiven — die Tool-Beschreibung war irreführend, die Funktion arbeitete bereits per id (ohne wirksamAb-Filter)."
+      }
+    ]
+  },
+  {
     "version": "4.41.2",
     "date": "2026-06-29",
     "changes": [

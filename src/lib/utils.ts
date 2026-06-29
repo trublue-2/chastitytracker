@@ -189,18 +189,23 @@ export function isTimeCorrected(time: Date, submittedAt: Date | null | undefined
   return time.getTime() < submittedAt.getTime() - TIME_CORRECTION_THRESHOLD_MS;
 }
 
-export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn";
+export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn" | "scheduled";
 export type VerifikationStatus = "unverified" | "ai" | "manual" | "rejected";
 
 /** Derives AnforderungStatus: was the kontrolle submitted, and was it on time?
- *  fulfilledAt is server-set at submission time and immutable – never use entryTime for deadline comparison. */
+ *  fulfilledAt is server-set at submission time and immutable – never use entryTime for deadline comparison.
+ *  `scheduled`: keyholder-set, not yet triggered (wirksamAb in the future) — only ever surfaced in
+ *  keyholder views (the Sub never sees scheduled directives). */
 export function mapAnforderungStatus(
-  k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date; fulfilledAt?: Date | null },
+  k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date; fulfilledAt?: Date | null; wirksamAb?: Date | null },
   _entryTime: Date | null,
   now: Date
 ): AnforderungStatus {
   if (k.withdrawnAt) return "withdrawn";
-  if (!k.entryId) return k.deadline < now ? "overdue" : "open";
+  if (!k.entryId) {
+    if (k.wirksamAb && k.wirksamAb > now) return "scheduled";
+    return k.deadline < now ? "overdue" : "open";
+  }
   const submittedAt = k.fulfilledAt ?? null;
   if (!submittedAt) return k.deadline < now ? "late" : "fulfilled"; // Fallback für alte Daten ohne fulfilledAt
   return submittedAt > k.deadline ? "late" : "fulfilled";
@@ -530,6 +535,7 @@ export function calculateWearingHoursByRange<
 type KontrollAnforderungIn = {
   id: string; code: string; deadline: Date; kommentar: string | null;
   fulfilledAt: Date | null; createdAt: Date; withdrawnAt: Date | null; entryId: string | null;
+  wirksamAb?: Date | null;
   entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null } | null;
 };
 type PruefungEntryIn = {

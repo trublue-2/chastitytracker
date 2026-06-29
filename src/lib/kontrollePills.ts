@@ -4,6 +4,7 @@ export const ANFORDERUNG_PILLS: Record<string, { labelKey: string; cls: string }
   fulfilled: { labelKey: "pillFulfilled", cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
   late:      { labelKey: "pillLate",      cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
   withdrawn: { labelKey: "pillWithdrawn", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
+  scheduled: { labelKey: "pillScheduled", cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
 };
 
 export const VERIFIKATION_PILLS: Record<string, { labelKey: string; cls: string }> = {
@@ -30,6 +31,7 @@ const ANFORDERUNG_KEYS: Record<string, string> = {
   fulfilled:   "pillFulfilled",
   late:        "pillLate",
   withdrawn:   "pillWithdrawn",
+  scheduled:   "pillScheduled",
   selfcontrol: "pillSelfcontrol",
 };
 

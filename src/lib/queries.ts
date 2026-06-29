@@ -24,6 +24,18 @@ export function activeVerschlussAnforderungWhere(now: Date = new Date()): Prisma
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
 }
 
+/**
+ * Where-Fragment für KEYHOLDER-Sichten (Admin-UI + MCP) — anders als `aktiveKontrolleWhere`
+ * (Sub/Enforcement): zeigt zusätzlich MANUELL terminierte Kontrollen (`auto: false`), bevor sie
+ * feuern, damit der Keyholder seine eigene geplante Kontrolle sehen und stornieren kann. Verborgen
+ * bleiben nur ZUKÜNFTIGE Auto-/Zufalls-Kontrollen (`auto: true`, wirksamAb > now) — deren
+ * Überraschungseffekt darf auch der Keyholder-UI nicht entgehen, sie sind ohnehin nicht
+ * keyholder-gesetzt.
+ */
+export function keyholderVisibleKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
+  return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }, { auto: false }] };
+}
+
 // ── Shared types ────────────────────────────────────────────────────────────
 
 /** Prisma transaction client — parameter type passed to callbacks of `$transaction`. */
@@ -247,17 +259,28 @@ export async function validateDeviceOwnership(
   return device;
 }
 
-/** Shared `where` for currently-active Sperrzeiten (not withdrawn, already triggered, not ended).
- *  `wirksamAb` filter (via AND) excludes scheduled-for-the-future lock periods — they must not
- *  block opening before their planned send time. */
-function activeSperrzeitWhere(userIdFilter: string | { in: string[] }, now: Date) {
+/** Shared base `where` for KEYHOLDER Sperrzeit-Sichten: nicht zurückgezogen, noch nicht beendet —
+ *  ABER OHNE wirksamAb-Gate, damit GEPLANTE Sperrzeiten dem Keyholder sichtbar/stornierbar sind.
+ *  `activeSperrzeitWhere` baut darauf auf und ergänzt das wirksamAb-Gate für Sub/Enforcement. */
+function keyholderSperrzeitWhere(userIdFilter: string | { in: string[] }, now: Date) {
   return {
     userId: userIdFilter,
     art: "SPERRZEIT" as const,
     withdrawnAt: null,
+    OR: [{ endetAt: { gt: now } }, { endetAt: null }],
+  };
+}
+
+/** Shared `where` for currently-active Sperrzeiten (not withdrawn, already triggered, not ended).
+ *  Erweitert `keyholderSperrzeitWhere` um das `wirksamAb`-Gate: schliesst geplante (zukünftige)
+ *  Sperrzeiten aus — sie dürfen vor ihrem Versand das Öffnen nicht blockieren. */
+function activeSperrzeitWhere(userIdFilter: string | { in: string[] }, now: Date) {
+  const { OR, ...base } = keyholderSperrzeitWhere(userIdFilter, now);
+  return {
+    ...base,
     AND: [
       activeVerschlussAnforderungWhere(now),
-      { OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
+      { OR },
     ],
   };
 }
@@ -284,6 +307,27 @@ export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
     // device additiv mitladen — vom get_overview (deviceName) genutzt, für alle
     // anderen Aufrufer harmlos (lesen nur Skalarfelder).
     include: { device: { select: { name: true } } },
+  });
+}
+
+/** Returns the single Sperrzeit (active OR scheduled) for a KEYHOLDER view, or null.
+ *  Unlike getActiveSperrzeit it includes a future-scheduled Sperrzeit (wirksamAb > now). */
+export async function getKeyholderSperrzeit(userId: string, tx?: PrismaTx) {
+  const client = tx ?? prisma;
+  const now = new Date();
+  return client.verschlussAnforderung.findFirst({
+    where: keyholderSperrzeitWhere(userId, now),
+    orderBy: { createdAt: "desc" },
+    include: { device: { select: { name: true } } },
+  });
+}
+
+/** Returns all Sperrzeiten (active OR scheduled) for a KEYHOLDER view across users. */
+export async function getKeyholderSperrzeiten(userIds: string[]) {
+  if (userIds.length === 0) return [];
+  return prisma.verschlussAnforderung.findMany({
+    where: keyholderSperrzeitWhere({ in: userIds }, new Date()),
+    orderBy: { createdAt: "desc" },
   });
 }
 

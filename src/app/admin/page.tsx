@@ -13,10 +13,10 @@ import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
-import { Lock, LockOpen, UserPlus, Users, ShieldAlert } from "lucide-react";
+import { Lock, LockOpen, UserPlus, Users, ShieldAlert, CalendarClock } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration } from "@/lib/utils";
-import { getActiveSperrzeiten, aktiveKontrolleWhere } from "@/lib/queries";
+import { toDateLocale, formatDuration, formatDateTime } from "@/lib/utils";
+import { getKeyholderSperrzeiten, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -55,18 +55,30 @@ export default async function AdminPage() {
     prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.kontrollAnforderung.findMany({
-      where: { userId: { in: userIds }, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
+      where: { userId: { in: userIds }, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
     prisma.verschlussAnforderung.findMany({
       where: { userId: { in: userIds }, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
-    getActiveSperrzeiten({ userIds }),
+    getKeyholderSperrzeiten(userIds),
   ]);
 
   // Build lookup maps from groupBy results
   const verschlussMap = new Map(latestVerschluss.map(v => [v.userId, v._max.startTime]));
   const oeffnenMap = new Map(latestOeffnen.map(o => [o.userId, o._max.startTime]));
+
+  // Bucket directives by userId once (O(M)) instead of re-scanning each full array per user (O(N×M)).
+  const groupByUser = <T extends { userId: string }>(rows: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const r of rows) (m.get(r.userId) ?? m.set(r.userId, []).get(r.userId)!).push(r);
+    return m;
+  };
+  const kontrolleByUser = groupByUser(allKontrolle);
+  const anforderungByUser = groupByUser(allVerschlussAnf);
+  const sperrzeitByUser = groupByUser(allSperrzeiten);
+
+  const isScheduled = (wirksamAb: Date | null) => !!wirksamAb && wirksamAb > now;
 
   function getUserStats(userId: string) {
     const lastV = verschlussMap.get(userId);
@@ -74,9 +86,21 @@ export default async function AdminPage() {
     const latestType = !lastV && !lastO ? null : (!lastO || (lastV && lastV > lastO)) ? "VERSCHLUSS" : "OEFFNEN";
     const latestTime = latestType === "VERSCHLUSS" ? lastV : lastO;
 
-    const offeneKontrolle = allKontrolle.find(k => k.userId === userId) ?? null;
-    const offeneVerschlussAnforderung = allVerschlussAnf.find(v => v.userId === userId) ?? null;
-    const activeSperrzeit = allSperrzeiten.find(s => s.userId === userId) ?? null;
+    // Keyholder-Sichten zeigen geplante (wirksamAb > now) Direktiven separat — sie sind kein aktiver
+    // Alarm, aber sichtbar + stornierbar. Aktive Banner zeigen nur bereits ausgelöste Direktiven.
+    const userKontrollen = kontrolleByUser.get(userId) ?? [];
+    const userAnforderungen = anforderungByUser.get(userId) ?? [];
+    const userSperrzeiten = sperrzeitByUser.get(userId) ?? [];
+
+    const offeneKontrolle = userKontrollen.find(k => !isScheduled(k.wirksamAb)) ?? null;
+    const offeneVerschlussAnforderung = userAnforderungen.find(v => !isScheduled(v.wirksamAb)) ?? null;
+    const activeSperrzeit = userSperrzeiten.find(s => !isScheduled(s.wirksamAb)) ?? null;
+
+    const scheduled = [
+      ...userKontrollen.filter(k => isScheduled(k.wirksamAb)).map(k => ({ id: k.id, kind: "inspection" as const, wirksamAb: k.wirksamAb!, message: k.kommentar })),
+      ...userAnforderungen.filter(v => isScheduled(v.wirksamAb)).map(v => ({ id: v.id, kind: "lock_request" as const, wirksamAb: v.wirksamAb!, message: v.nachricht })),
+      ...userSperrzeiten.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.nachricht })),
+    ].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
 
     return {
       currentStatus: latestType,
@@ -92,6 +116,7 @@ export default async function AdminPage() {
       activeSperrzeit: activeSperrzeit
         ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt }
         : null,
+      scheduled,
     };
   }
 
@@ -223,6 +248,32 @@ export default async function AdminPage() {
                         showRemaining={!!u.stats.activeSperrzeit.endetAt}
                         withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
                       />
+                    )}
+
+                    {/* Geplante (noch nicht ausgelöste) Direktiven — sichtbar + stornierbar, kein Alarm */}
+                    {u.stats.scheduled.length > 0 && (
+                      <div className="relative z-20 rounded-xl border border-border-subtle bg-surface-raised px-3 py-2 flex flex-col gap-1.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
+                          <CalendarClock size={12} /> {t("scheduledTitle")}
+                        </p>
+                        {u.stats.scheduled.map((s) => {
+                          const kindLabel = s.kind === "inspection"
+                            ? t("scheduledInspection")
+                            : s.kind === "lock_request" ? t("scheduledLockRequest") : t("scheduledLockPeriod");
+                          const apiPath = s.kind === "inspection" ? "/api/admin/kontrollen" : "/api/admin/verschluss-anforderung";
+                          const colorToken = s.kind === "inspection" ? "inspect" as const : "sperrzeit" as const;
+                          return (
+                            <div key={s.id} className="flex items-center gap-2 text-xs text-foreground-muted">
+                              <span className="font-semibold text-foreground">{kindLabel}</span>
+                              <span className="text-foreground-faint">{t("scheduledForPrefix")} {formatDateTime(s.wirksamAb, dl)}</span>
+                              {s.message && <span className="truncate opacity-80">· {s.message}</span>}
+                              <span className="ml-auto flex-shrink-0">
+                                <WithdrawButton id={s.id} apiPath={apiPath} titleKey="scheduledWithdrawTitle" colorToken={colorToken} />
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
 
                     {/* Quick actions — z-20 so they're above the stretched link */}
