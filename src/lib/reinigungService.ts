@@ -63,6 +63,43 @@ export async function reinigungVerbrauchtHeute(userId: string, now: Date): Promi
   });
 }
 
+/** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für get_overview.reinigung (V1) und
+ *  get_context.cleaning (V2): allowed = Öffnungen erlaubt; maxMinutesPerBreak = max Minuten je Öffnung;
+ *  maxPausesPerDay = max Öffnungen/Tag (COUNT, null = unbegrenzt); usedToday = heute verbraucht;
+ *  windows = erlaubte Tages-Zeitfenster (leer = nicht zeitgebunden); windowOpenNow = aktuell offenes
+ *  Fenster (until = dessen Ende HH:MM) oder null. */
+export interface ReinigungView {
+  allowed: boolean;
+  maxMinutesPerBreak: number;
+  maxPausesPerDay: number | null;
+  usedToday: number;
+  windows: ReinigungsFenster[];
+  windowOpenNow: { until: string } | null;
+}
+
+/** User-Reinigungs-Spalten, die `buildReinigungView` braucht (für Prisma-Select bei den Aufrufern). */
+export interface ReinigungUserFields {
+  reinigungErlaubt: boolean | null;
+  reinigungMaxMinuten: number | null;
+  reinigungMaxProTag: number | null;
+  reinigungsFenster: unknown;
+}
+
+/** Baut die ReinigungView aus den User-Feldern + heute-verbraucht + jetzt. Kapselt die load-bearing
+ *  Null-Sentinel-Regel (maxProTag>0 ? : null) und die windowOpenNow-Ableitung an EINER Stelle. */
+export function buildReinigungView(user: ReinigungUserFields, usedToday: number, now: Date): ReinigungView {
+  const maxProTag = user.reinigungMaxProTag ?? 0;
+  const windowEnd = aktivesReinigungsFenster(user.reinigungsFenster, now); // "HH:MM" oder null
+  return {
+    allowed: user.reinigungErlaubt ?? false,
+    maxMinutesPerBreak: user.reinigungMaxMinuten ?? 15,
+    maxPausesPerDay: maxProTag > 0 ? maxProTag : null,
+    usedToday,
+    windows: parseReinigungsFenster(user.reinigungsFenster),
+    windowOpenNow: windowEnd ? { until: windowEnd } : null,
+  };
+}
+
 /** Max minutes per cleaning pause is clamped to this range. */
 const MAX_MINUTEN_RANGE = { min: 1, max: 120, fallback: 15 } as const;
 /** Max cleaning pauses per day is clamped to this range (0 = unlimited). */

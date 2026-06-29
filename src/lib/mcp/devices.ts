@@ -14,6 +14,8 @@ export interface DeviceMetaView {
   isKg: boolean;
   archived: boolean;
   description: string | null;
+  purchasePrice: number | null;
+  currency: string | null;
   securityLevel: string | null;
   lookalikeClusterId: string | null;
   abstreifbar: boolean;
@@ -35,6 +37,7 @@ export interface DeviceListResult {
 /** Vollständiger Select für die angereicherte Geräte-Ansicht (von Liste + Single-Re-Fetch geteilt). */
 const deviceViewSelect = {
   id: true, name: true, description: true, archivedAt: true, createdAt: true,
+  purchasePrice: true, currency: true,
   securityLevel: true, lookalikeClusterId: true, abstreifbar: true,
   material: true, bauform: true, healthFlags: true, retentionNotes: true,
   category: { select: { name: true, isBuiltIn: true } },
@@ -43,6 +46,7 @@ const deviceViewSelect = {
 
 type DeviceViewRow = {
   id: string; name: string; description: string | null; archivedAt: Date | null; createdAt: Date;
+  purchasePrice: number | null; currency: string | null;
   securityLevel: string | null; lookalikeClusterId: string | null; abstreifbar: boolean;
   material: string | null; bauform: string | null; healthFlags: string | null; retentionNotes: string | null;
   category: { name: string; isBuiltIn: boolean } | null;
@@ -58,6 +62,8 @@ function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[]): DeviceMetaView {
     isKg: d.category?.isBuiltIn ?? false,
     archived: d.archivedAt !== null,
     description: d.description,
+    purchasePrice: d.purchasePrice,
+    currency: d.currency,
     securityLevel: d.securityLevel,
     lookalikeClusterId: d.lookalikeClusterId,
     abstreifbar: d.abstreifbar,

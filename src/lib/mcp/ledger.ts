@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { mcpStrafbuch, type OffenseJudgment } from "@/lib/mcpOverview";
-import { resolveUserId, notesForEntities, entityKey, type NoteDTO } from "@/lib/mcp/common";
+import { resolveUserId, notesForEntities, entityKey, iso, APP_TZ, type NoteDTO } from "@/lib/mcp/common";
 
 /** Disziplin-Ledger (§4) — vereinheitlicht die getrennten Strafbuch-Kategorien zu EINER
  *  Offense-Liste mit durchgängiger Taxonomie, open-vs-judged, Auslöser und Folge. Reines
@@ -38,6 +38,8 @@ export interface OffenseRow {
 export interface LedgerResult {
   schemaVersion: 2;
   user: string;
+  generatedAt: string;
+  timezone: string;
   detectedOffenseCount: number;
   openOffenseCount: number;
   pendingPenaltyCount: number;
@@ -72,8 +74,8 @@ export async function getOffenses(username: string): Promise<LedgerResult> {
 
   const rows: OffenseRow[] = [
     ...sb.unauthorizedOpenings.map((o) => toRow(o.time, o, { note: o.note, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite })),
-    ...sb.lateControls.map((c) => toRow(c.entryTime ?? c.deadline, c, { code: c.code, deadline: c.deadline, fulfilledAt: c.fulfilledAt, backdated: c.backdated, comment: c.comment })),
-    ...sb.rejectedControls.map((c) => toRow(c.entryTime ?? c.deadline, c, { code: c.code, deadline: c.deadline, fulfilledAt: c.fulfilledAt, comment: c.comment })),
+    ...sb.lateControls.map((c) => toRow(c.entryTime ?? c.deadline, c, { code: c.code, deadline: c.deadline, fulfilledAt: c.fulfilledAt, backdated: c.backdated, comment: c.comment, entryNote: c.entryNote })),
+    ...sb.rejectedControls.map((c) => toRow(c.entryTime ?? c.deadline, c, { code: c.code, deadline: c.deadline, fulfilledAt: c.fulfilledAt, comment: c.comment, entryNote: c.entryNote })),
     ...sb.cleaningLimitViolations.map((v) => toRow(v.time, v, { note: v.note })),
     ...sb.wrongDeviceViolations.map((v) => {
       const dev = v.deviceName ? clusterByName.get(v.deviceName) : null;
@@ -96,6 +98,8 @@ export async function getOffenses(username: string): Promise<LedgerResult> {
   return {
     schemaVersion: 2,
     user: username,
+    generatedAt: iso(new Date())!,
+    timezone: APP_TZ,
     detectedOffenseCount: sb.detectedOffenseCount,
     openOffenseCount: sb.openOffenseCount,
     pendingPenaltyCount: sb.pendingPenaltyCount,

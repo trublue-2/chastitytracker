@@ -5,7 +5,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, aktiveKontrolleWhere } from "@/lib/queries";
-import { parseReinigungsFenster, aktivesReinigungsFenster, reinigungVerbrauchtHeute } from "@/lib/reinigungService";
+import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView, type ReinigungUserFields } from "@/lib/reinigungService";
 import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
@@ -45,20 +45,13 @@ export interface TrackerOverview {
   };
   wearingHoursKg: { today: number; week: number; month: number };
   trainingGoalKg: (GoalProgress & { note: string | null }) | null;
-  /** Cleaning-pause rules.
+  /** Cleaning-pause rules (shared shape, see ReinigungView).
    *  - windows: allowed daily TIME WINDOWS (HH:MM, CH local time). EMPTY = NOT time-bound (any time of day).
    *  - windowOpenNow: the currently open window (until = its end HH:MM), or null if outside all windows.
    *  - maxPausesPerDay = max cleaning OPENINGS per day (a COUNT, not minutes; null = unlimited).
    *  - usedToday = openings already used today (resets at CH midnight). maxMinutesPerBreak = max minutes per opening.
    *  A DEVICE CHANGE runs through this same cleaning path and consumes one opening. */
-  reinigung: {
-    allowed: boolean;
-    windows: { start: string; end: string }[];
-    windowOpenNow: { until: string } | null;
-    maxMinutesPerBreak: number;
-    maxPausesPerDay: number | null;
-    usedToday: number;
-  };
+  reinigung: ReinigungView;
   /** Automatische Kontrollen: das System sendet selbsttätig `proTag` zufällig verteilte Kontrollen
    *  pro Tag (Frist nie im Schlaf-Fenster ruheVon–ruheBis, Erfüllungsdauer zufällig fristVon–fristBis
    *  Min). aktiv=false → keine Auto-Kontrollen. Geplante, noch nicht ausgelöste sind absichtlich
@@ -117,8 +110,9 @@ const goalProgress = (
   minPerMonthH: monthH, monthPct: pct(monatH, monthH),
 });
 
-/** Resolves a username to its id and Reinigung settings. Throws if the user does not exist. */
-async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungMaxProTag: number; reinigungsFensterRaw: unknown; keyholderInstructions: string | null; autoKontrolle: AutoKontrolleSettings }> {
+/** Resolves a username to its id and Reinigung settings. Throws if the user does not exist.
+ *  `reinigungUser` trägt die rohen User-Felder für buildReinigungView (geteilte Cleaning-Sicht). */
+async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungUser: ReinigungUserFields; keyholderInstructions: string | null; autoKontrolle: AutoKontrolleSettings }> {
   const user = await prisma.user.findUnique({
     where: { username },
     select: {
@@ -130,8 +124,7 @@ async function loadUserContext(username: string): Promise<{ userId: string; rein
   return {
     userId: user.id,
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
-    reinigungMaxProTag: user.reinigungMaxProTag ?? 0,
-    reinigungsFensterRaw: user.reinigungsFenster,
+    reinigungUser: user,
     keyholderInstructions: user.mcpKeyholderInstructions ?? null,
     autoKontrolle: autoKontrolleSettingsFromUser(user),
   };
@@ -139,7 +132,7 @@ async function loadUserContext(username: string): Promise<{ userId: string; rein
 
 /** Builds the overview for a user identified by username. Throws if the user does not exist. */
 export async function buildOverview(username: string, opts: McpFormatOptions = {}): Promise<TrackerOverview> {
-  const { userId, reinigung, reinigungMaxProTag, reinigungsFensterRaw, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
+  const { userId, reinigung, reinigungUser, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
   const now = new Date();
   const fmt = pickFmt(opts.iso);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
@@ -196,10 +189,6 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
   // ── Wearing hours + KG training goal ──
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
-  const cleaningWindowEnd = aktivesReinigungsFenster(reinigungsFensterRaw, now); // "HH:MM" oder null
-
-
-
   return {
     schemaVersion: 1 as const,
     user: username,
@@ -217,14 +206,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
       ...goalProgress(tagH, wocheH, monatH, activeVorgabe.minProTagH, activeVorgabe.minProWocheH, activeVorgabe.minProMonatH),
       note: activeVorgabe.notiz,
     } : null,
-    reinigung: {
-      allowed: reinigung.erlaubt,
-      windows: parseReinigungsFenster(reinigungsFensterRaw),
-      windowOpenNow: cleaningWindowEnd ? { until: cleaningWindowEnd } : null,
-      maxMinutesPerBreak: reinigung.maxMinuten,
-      maxPausesPerDay: reinigungMaxProTag > 0 ? reinigungMaxProTag : null,
-      usedToday: cleaningUsedToday,
-    },
+    reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now),
     autoKontrolle: {
       aktiv: autoKontrolle.aktiv,
       proTag: autoKontrolle.proTag,

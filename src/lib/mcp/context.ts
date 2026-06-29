@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { resolveUserId, iso, parseIsoDate } from "@/lib/mcp/common";
 import { diffFields, type WriteDef } from "@/lib/mcp/writeFramework";
+import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
+import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
 
 /** Kontext & Kalender (§8) — wiederkehrender Wochen-Kontext, Einzeltermine, HealthHold. Damit der
  *  Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
@@ -24,23 +26,57 @@ export interface ContextResult {
   schemaVersion: 2;
   user: string;
   healthHold: HealthHoldView | null;
+  /** Einstellungen der AUTOMATISCHEN Kontrollen (read-only; über den MCP nicht änderbar — Kontrollen
+   *  werden manuell via request_inspection veranlasst). active=false → keine Auto-Kontrollen. perDay =
+   *  selbsttätig verteilte Kontrollen pro Tag; sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
+   *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. */
+  autoInspections: { active: boolean; perDay: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number };
+  /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie get_overview.reinigung). */
+  cleaning: ReinigungView;
   recurringContext: { id: string; label: string; weekday: number; weekdayLabel: string; deviceFree: boolean; note: string | null }[];
   appointments: { id: string; when: string; typ: string | null; deviceFree: boolean; note: string | null }[];
 }
 
-/** Liefert HealthHold + Wochen-Kontext + anstehende Termine (ab jetzt). Throws bei unbekanntem User. */
+const contextUserSelect = {
+  id: true,
+  reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true,
+  autoKontrolleAktiv: true, autoKontrolleProTag: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
+  autoKontrolleFristVon: true, autoKontrolleFristBis: true,
+} as const;
+
+/** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
+ *  Termine (ab jetzt). Throws bei unbekanntem User. */
 export async function getContext(username: string): Promise<ContextResult> {
-  const userId = await resolveUserId(username);
   const now = new Date();
-  const [healthHold, recurring, appts] = await Promise.all([
+  // id + Config-Felder in EINER Abfrage per username (wie loadUserContext in mcpOverview.ts) — keine
+  // separate resolveUserId-Runde.
+  const user = await prisma.user.findUnique({ where: { username }, select: contextUserSelect });
+  if (!user) throw new Error(`User not found: ${username}`);
+  const userId = user.id;
+
+  const [healthHold, recurring, appts, cleaningUsedToday] = await Promise.all([
     loadActiveHealthHold(userId),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: { gte: now } }, orderBy: { when: "asc" } }),
+    reinigungVerbrauchtHeute(userId, now),
   ]);
+
+  // Auto-Kontroll-Einstellungen + Reinigung über DIESELBEN Helfer wie get_overview/mcpOverview.ts.
+  const auto = autoKontrolleSettingsFromUser(user);
+
   return {
     schemaVersion: 2,
     user: username,
     healthHold,
+    autoInspections: {
+      active: auto.aktiv,
+      perDay: auto.proTag,
+      sleepFrom: auto.ruheVon,
+      sleepUntil: auto.ruheBis,
+      deadlineMinFrom: auto.fristVon,
+      deadlineMinTo: auto.fristBis,
+    },
+    cleaning: buildReinigungView(user, cleaningUsedToday, now),
     recurringContext: recurring.map((r) => ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", deviceFree: r.deviceFree, note: r.note })),
     appointments: appts.map((a) => ({ id: a.id, when: iso(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note })),
   };

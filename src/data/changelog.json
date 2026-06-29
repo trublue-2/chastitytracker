@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.41.1",
+    "date": "2026-06-29",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "MCP: Die verbindlichen Keyholder-Regeln erscheinen jetzt direkt mit der Tool-Liste — die Server-Instructions verweisen fest auf keyholder_dashboard.keyholderInstructions (immer frisch) und betten zusätzlich beim Server-Start ein Abbild der aktuellen Regeln ein."
+      },
+      {
+        "type": "feat",
+        "text": "MCP V2 vervollständigt: get_context liefert jetzt die Auto-Kontroll-Einstellungen (autoInspections) und die Reinigungs-Regeln (cleaning); get_devices ergänzt Kaufpreis/Währung; get_offenses bekommt Header (generatedAt/timezone) und entryNote. Damit decken die V2-Tools alle Angaben der alten V1-Read-Tools ab."
+      },
+      {
+        "type": "chore",
+        "text": "MCP: Die LEGACY-V1-Read-Tools (get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes, add/delete_keyholder_note) sind als VERALTET markiert und per ENABLE_LEGACY_MCP=false abschaltbar (Default an). Direktiv-Writes, list_entries und explain_model bleiben unverändert."
+      }
+    ]
+  },
+  {
     "version": "4.41.0",
     "date": "2026-06-29",
     "changes": [

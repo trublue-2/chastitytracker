@@ -90,6 +90,9 @@ async function runV2Write<A, T>(
   }
 }
 
+/** Default-AN, abschaltbar mit "false": registriert die LEGACY-V1-Read-Tools (siehe Part 2b). */
+const ENABLE_LEGACY_MCP = process.env.ENABLE_LEGACY_MCP !== "false";
+
 /** Server-Instructions (MCP `initialize.instructions`) — steuern die V1/V2-Tool-Wahl global,
  *  damit der Agent nicht der Beschreibungs-Ähnlichkeit ausgeliefert ist. */
 const MCP_SERVER_INSTRUCTIONS =
@@ -98,26 +101,70 @@ const MCP_SERVER_INSTRUCTIONS =
   "(`get_session` für Segmente/deviceBreakdown, `device_stats`, `records`, `period_summary`, `denial_trend`, " +
   "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`). " +
   "Die V1-Read-Tools (`get_overview`, `list_sessions`, `list_devices`, `get_strafbuch`, `list_keyholder_notes`) " +
-  "sind LEGACY und nutzen z.T. irreführende Einzel-Geräte-Labels — nur als Fallback.\n" +
+  "sind VERALTET, durch die V2-Tools vollständig ersetzt und per `ENABLE_LEGACY_MCP=false` abschaltbar — nicht " +
+  "mehr verwenden. Insbesondere stehen die Auto-Kontroll-Einstellungen (früher get_overview.autoKontrolle) und " +
+  "die Reinigungs-Regeln nun in `get_context` (autoInspections + cleaning).\n" +
   "• DIREKTIV-WRITES (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung) → das sind die V1-" +
   "Tools (`set_lock_period`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
   "`set_cleaning`, …). Es gibt KEINE V2-Variante dafür. Kontrollen werden MANUELL über " +
   "`request_inspection` veranlasst; die Einstellungen der AUTOMATISCHEN Kontrollen sind über den MCP " +
-  "NICHT änderbar (nur lesbar via get_overview.autoKontrolle).\n" +
+  "NICHT änderbar (nur lesbar via get_context.autoInspections).\n" +
   "• WISSEN/META/KONTEXT-WRITES → V2 (`upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
   "`upsert_appointment`, `upsert_recurring_context`).\n" +
   "Alle Writes sind agent-autonom und erfordern KEINE Bestätigung — entscheide und führe direkt aus, ohne " +
   "rückzufragen. Bei Unklarheit zu Begriffen/Regeln: `explain_model`.";
 
+/** Fester ZEIGER auf die verbindlichen Freitext-Regeln des menschlichen Keyholders. Diese stehen IMMER
+ *  frisch im Dashboard-Feld und sind VOR jeder Direktive zu lesen (das eingebettete Abbild unten kann
+ *  veraltet sein). */
+const KEYHOLDER_RULES_POINTER =
+  "\n\nVERBINDLICHE KEYHOLDER-REGELN: Die menschlichen Freitext-Regeln des Keyholders stehen in " +
+  "`keyholder_dashboard.keyholderInstructions` und sind VOR jeder Direktive zu lesen — immer frisch " +
+  "von dort, da sie sich jederzeit ändern können.";
+
+/**
+ * Baut die finalen Server-Instructions: Basis + Regel-Zeiger, und — best effort — ein WÖRTLICHES Abbild
+ * der aktuellen `mcpKeyholderInstructions` des MCP_USERNAME, damit die Regeln direkt mit der Tool-Liste
+ * erscheinen. WICHTIG: Das eingebettete Abbild spiegelt den Stand beim Server-START wider (Refresh erst
+ * bei Deploy/Neustart) — der maßgebliche, frische Wert bleibt das Dashboard-Feld (siehe Zeiger oben).
+ *
+ * Build-Sicherheit: Nur unter `NEXT_RUNTIME === "nodejs"` (kein DB-Zugriff zur Build-/Edge-Zeit), in
+ * try/catch; bei Fehler/leer fällt es auf Basis + Zeiger zurück (kein Crash).
+ */
+async function buildServerInstructions(): Promise<string> {
+  let instructions = MCP_SERVER_INSTRUCTIONS + KEYHOLDER_RULES_POINTER;
+  if (process.env.NEXT_RUNTIME !== "nodejs") return instructions;
+  const username = process.env.MCP_USERNAME;
+  if (!username) return instructions;
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const user = await prisma.user.findUnique({ where: { username }, select: { mcpKeyholderInstructions: true } });
+    const rules = user?.mcpKeyholderInstructions?.trim();
+    if (rules) {
+      instructions +=
+        "\n\nAKTUELLE KEYHOLDER-REGELN (Abbild beim Server-Start — der frische Stand bleibt " +
+        "keyholder_dashboard.keyholderInstructions):\n" + rules;
+    }
+  } catch {
+    // DB nicht verfügbar (z.B. Build) → nur Basis + Zeiger. Bewusst still.
+  }
+  return instructions;
+}
+
 /** Read-only MCP server. Exposes tools so an AI assistant can query the tracker state and
  *  propose measures. Gated behind ENABLE_MCP + a static bearer token (MCP_TOKEN); all data
  *  is for the user named in MCP_USERNAME. */
-const handler = createMcpHandler(
-  (server) => {
-    // V1-Read-Tools, die eine genauere V2-Entsprechung haben, als Legacy markieren (Steuerimpuls
-    // zusätzlich zu den Server-Instructions). Direktiv-Writes bleiben unmarkiert (kein V2-Ersatz).
-    const LEGACY = (replacement: string) => `[LEGACY V1 — bevorzuge ${replacement}; dieses Tool nur als Fallback.] `;
+type McpServer = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 
+/** Registriert alle MCP-Tools auf dem Server. V1-LEGACY-Read-Tools werden nur registriert, wenn
+ *  ENABLE_LEGACY_MCP an ist (sie sind vollständig durch V2 ersetzt — siehe Server-Instructions). */
+function registerTools(server: McpServer) {
+    // V1-Read-Tools, die eine V2-Entsprechung haben, als VERALTET markieren (Steuerimpuls zusätzlich
+    // zu den Server-Instructions). Direktiv-Writes bleiben unmarkiert (kein V2-Ersatz).
+    const LEGACY = (replacement: string) => `[VERALTET — NICHT verwenden; nutze ${replacement}. Wird entfernt.] `;
+
+    // ── LEGACY-V1-Read-Tools — nur registrieren, wenn ENABLE_LEGACY_MCP an ist ──
+    if (ENABLE_LEGACY_MCP) {
     server.registerTool(
       "get_overview",
       {
@@ -156,6 +203,7 @@ const handler = createMcpHandler(
       },
       (args) => runTool("list_sessions", (username) => listSessions(username, args)),
     );
+    } // end ENABLE_LEGACY_MCP (get_overview, list_sessions)
 
     server.registerTool(
       "list_entries",
@@ -178,6 +226,8 @@ const handler = createMcpHandler(
       (args) => runTool("list_entries", (username) => listEntries(username, args)),
     );
 
+    // ── Weitere LEGACY-V1-Read-Tools (list_devices, get_strafbuch, list_keyholder_notes) ──
+    if (ENABLE_LEGACY_MCP) {
     server.registerTool(
       "list_devices",
       {
@@ -228,6 +278,7 @@ const handler = createMcpHandler(
       },
       (args) => runTool("list_keyholder_notes", (username) => listKeyholderNotes(username, args)),
     );
+    } // end ENABLE_LEGACY_MCP (list_devices, get_strafbuch, list_keyholder_notes)
 
     server.registerTool(
       "explain_model",
@@ -391,8 +442,11 @@ const handler = createMcpHandler(
         title: "Get life context (recurring + appointments + health hold)",
         description:
           "MCP V2 — Kontext um das echte Leben (§8): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
-          "wiederkehrender Wochen-Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree) " +
-          "und anstehende Termine (ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen.",
+          "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDay/Schlaf-Fenster/" +
+          "Fristen — read-only, nicht via MCP änderbar), die Reinigungs-Regeln (cleaning: allowed/" +
+          "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow), der wiederkehrende Wochen-" +
+          "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree) und anstehende Termine " +
+          "(ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen.",
         inputSchema: {},
       },
       () => runTool("get_context", getContext),
@@ -697,6 +751,8 @@ const handler = createMcpHandler(
       (args, extra) => runWriteTool("edit_lock_period", extra, (u) => mcpEditLockPeriod(u, args)),
     );
 
+    // ── LEGACY-V1-Note-Writes (add_keyholder_note, delete_keyholder_note) — durch upsert_note ersetzt ──
+    if (ENABLE_LEGACY_MCP) {
     server.registerTool(
       "add_keyholder_note",
       {
@@ -730,6 +786,7 @@ const handler = createMcpHandler(
       },
       (args, extra) => runWriteTool("delete_keyholder_note", extra, (u) => mcpDeleteKeyholderNote(u, args)),
     );
+    } // end ENABLE_LEGACY_MCP (add_keyholder_note, delete_keyholder_note)
 
     // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──
     // ── Dry-Run + Transaktion + Diff). Alle agent-autonom (keine Berechtigungs-Stufen). ──
@@ -875,10 +932,22 @@ const handler = createMcpHandler(
       },
       (args, extra) => runV2Write(upsertRecurringContextDef, extra, args),
     );
-  },
-  { instructions: MCP_SERVER_INSTRUCTIONS },
-  { basePath: "/api", maxDuration: 60 },
-);
+}
+
+/** Baut den auth-umhüllten MCP-Handler. Async, weil die Server-Instructions erst per await-Helfer
+ *  (best-effort DB-Read der Keyholder-Regeln) befüllt werden. */
+async function buildAuthHandler(): Promise<(req: Request) => Promise<Response>> {
+  const instructions = await buildServerInstructions();
+  const handler = createMcpHandler(registerTools, { instructions }, { basePath: "/api", maxDuration: 60 });
+  return withMcpAuth(handler, verifyToken, { required: true });
+}
+
+/** Memoisierter Handler: einmal beim ersten Request gebaut (Instructions = Stand beim Start; Refresh
+ *  bei Deploy/Neustart). Der frische Wert der Keyholder-Regeln bleibt das Dashboard-Feld. */
+let authHandlerPromise: Promise<(req: Request) => Promise<Response>> | null = null;
+function getAuthHandler(): Promise<(req: Request) => Promise<Response>> {
+  return (authHandlerPromise ??= buildAuthHandler());
+}
 
 /** Constant-time bearer-token comparison — avoids timing side-channels on MCP_TOKEN.
  *  Compares SHA-256 digests so the comparison is always fixed-length regardless of
@@ -913,15 +982,15 @@ const verifyToken = async (_req: Request, token?: string) => {
   return undefined;
 };
 
-const authHandler = withMcpAuth(handler, verifyToken, { required: true });
-
-/** Gate the whole endpoint behind ENABLE_MCP — disabled instances return 404. */
-function gated(h: (req: Request) => Promise<Response>) {
+/** Gate the whole endpoint behind ENABLE_MCP — disabled instances return 404. Der Handler wird lazy
+ *  beim ersten Request gebaut (await-befüllte Instructions), danach memoisiert. */
+function gated() {
   return async (req: Request): Promise<Response> => {
     if (process.env.ENABLE_MCP !== "true") return new Response("Not Found", { status: 404 });
-    return h(req);
+    const authHandler = await getAuthHandler();
+    return authHandler(req);
   };
 }
 
-export const GET = gated(authHandler);
-export const POST = gated(authHandler);
+export const GET = gated();
+export const POST = gated();
