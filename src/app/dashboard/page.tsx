@@ -11,7 +11,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { deviceCategoriesEnabled, orgasmusArtLabel } from "@/lib/constants";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
@@ -46,8 +46,9 @@ export default async function DashboardPage() {
     // Zeitversetzt geplante Kontrollen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
     prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(userId, now),
+    // Zeitversetzt geplante Anforderungen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
     prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere(now) },
       include: { device: { select: { name: true } } },
     }),
     getActiveSperrzeit(userId),

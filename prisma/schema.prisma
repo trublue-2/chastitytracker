@@ -278,8 +278,13 @@ model VerschlussAnforderung {
   createdAt   DateTime  @default(now())
   fulfilledAt DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt DateTime?
+  // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub
+  // unsichtbar (gilt nicht als aktiv), Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
+  wirksamAb        DateTime?
+  benachrichtigtAt DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
 
   @@index([userId, art, withdrawnAt])
+  @@index([wirksamAb])
 }
 
 // n:m relationship between admins and the users they supervise.

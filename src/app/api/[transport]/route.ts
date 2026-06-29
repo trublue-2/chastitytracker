@@ -467,13 +467,16 @@ const handler = createMcpHandler(
         description:
           "Asks the user to lock up within a deadline (creates a VerschlussAnforderung). Only valid " +
           "when the user is currently open. Optionally enforce a minimum wearing duration and/or a " +
-          "specific device." + KEYHOLDER_NOTE,
+          "specific device. Can be scheduled/time-delayed so the user does not know exactly when it " +
+          "strikes; the deadline then counts from the trigger time." + KEYHOLDER_NOTE,
         inputSchema: {
-          deadlineHours: z.number().positive().optional().describe("Hours from now to lock up by. Use this or deadlineAt."),
+          deadlineHours: z.number().positive().optional().describe("Hours to lock up by, counted from when the request is triggered. Use this or deadlineAt."),
           deadlineAt: z.string().optional().describe("Absolute deadline (ISO 8601). Overrides deadlineHours."),
           minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) enforced after lock-up via an auto lock period."),
           deviceName: z.string().optional().describe("Require a specific device by name."),
           message: z.string().optional().describe("Message shown to the user."),
+          delayMinutes: z.number().optional().describe("Delay before the request reaches the user, in minutes. Omit/0 = immediate."),
+          scheduledAt: z.string().optional().describe("Absolute send time (ISO 8601). Overrides delayMinutes. The user cannot see the request until then."),
         },
       },
       (args, extra) => runWriteTool("request_lock", extra, (u) => mcpRequestLock(u, args)),
@@ -485,13 +488,16 @@ const handler = createMcpHandler(
         title: "Set lock period (Sperrzeit)",
         description:
           "Sets a lock period during which the user may not open (creates a SPERRZEIT). Only valid " +
-          "when the user is currently locked. Provide untilAt or durationHours, or set indefinite=true." + KEYHOLDER_NOTE,
+          "when the user is currently locked. Provide untilAt or durationHours, or set indefinite=true. " +
+          "Can be scheduled/time-delayed so it starts (and the user is notified) only later." + KEYHOLDER_NOTE,
         inputSchema: {
           untilAt: z.string().optional().describe("Lock until this absolute time (ISO 8601)."),
-          durationHours: z.number().positive().optional().describe("Lock for this many hours from now."),
+          durationHours: z.number().positive().optional().describe("Lock for this many hours. Counts from when the lock period starts (after any delay)."),
           indefinite: z.boolean().optional().describe("Lock indefinitely (no end). Overrides untilAt/durationHours."),
           reinigungErlaubt: z.boolean().optional().describe("Allow cleaning openings without breaking the lock period."),
           message: z.string().optional().describe("Message shown to the user."),
+          delayMinutes: z.coerce.number().optional().describe("Delay before the lock period starts/sends, in minutes. Omit/0 = immediate."),
+          scheduledAt: z.string().optional().describe("Absolute start/send time (ISO 8601). Overrides delayMinutes."),
         },
       },
       (args, extra) => runWriteTool("set_lock_period", extra, (u) => mcpSetLockPeriod(u, args)),

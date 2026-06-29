@@ -72,6 +72,10 @@ export interface RequestLockArgs {
   minDurationHours?: number;
   deviceName?: string;
   message?: string;
+  /** Delay before the request reaches the user, in minutes (>0). Omit/0 = immediate. */
+  delayMinutes?: number;
+  /** Absolute send time (ISO 8601). Overrides delayMinutes. */
+  scheduledAt?: string;
 }
 export async function mcpRequestLock(username: string, args: RequestLockArgs) {
   const userId = await resolveTargetUserId(username);
@@ -84,8 +88,18 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     fristH: args.deadlineHours,
     dauerH: args.minDurationHours,
     deviceId,
+    delayMinutes: args.delayMinutes,
+    wirksamAbAt: args.scheduledAt,
   }));
-  return { ok: true, id: data.id, message: "Lock request created; the user was notified by e-mail + push." };
+  if (data.scheduledFor) {
+    return {
+      ok: true,
+      id: data.id,
+      scheduledFor: data.scheduledFor,
+      message: `Lock request scheduled — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.`,
+    };
+  }
+  return { ok: true, id: data.id, scheduledFor: null, message: "Lock request created; the user was notified by e-mail + push." };
 }
 
 export interface SetLockPeriodArgs {
@@ -94,6 +108,10 @@ export interface SetLockPeriodArgs {
   indefinite?: boolean;
   reinigungErlaubt?: boolean;
   message?: string;
+  /** Delay before the lock period is sent/starts, in minutes (>0). Omit/0 = immediate. */
+  delayMinutes?: number;
+  /** Absolute send/start time (ISO 8601). Overrides delayMinutes. */
+  scheduledAt?: string;
 }
 export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs) {
   const userId = await resolveTargetUserId(username);
@@ -104,8 +122,18 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
     endetAt: args.indefinite ? null : args.untilAt,
     fristH: args.indefinite ? null : args.durationHours,
     reinigungErlaubt: args.reinigungErlaubt,
+    delayMinutes: args.delayMinutes,
+    wirksamAbAt: args.scheduledAt,
   }));
-  return { ok: true, id: data.id, message: "Lock period set; the user was notified by e-mail + push." };
+  if (data.scheduledFor) {
+    return {
+      ok: true,
+      id: data.id,
+      scheduledFor: data.scheduledFor,
+      message: `Lock period scheduled — it starts at ${data.scheduledFor}. It does not enforce and the user is not notified until then.`,
+    };
+  }
+  return { ok: true, id: data.id, scheduledFor: null, message: "Lock period set; the user was notified by e-mail + push." };
 }
 
 export interface RequestInspectionArgs {

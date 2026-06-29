@@ -6,7 +6,7 @@ import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 import { checkDeviceInPhoto } from "@/lib/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
@@ -119,7 +119,9 @@ export async function POST(req: NextRequest) {
       // VerschlussAnforderung (ANFORDERUNG) als erfüllt markieren + ggf. SPERRZEIT erstellen
       if (type === "VERSCHLUSS") {
         const offeneAnforderung = await tx.verschlussAnforderung.findFirst({
-          where: { userId: session.user.id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+          // Nur bereits ausgelöste (wirksamAb erreicht) Anforderungen — eine geplante, noch
+          // nicht versendete darf nicht vorzeitig als erfüllt markiert werden.
+          where: { userId: session.user.id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere(new Date()) },
         });
         if (offeneAnforderung) {
           await tx.verschlussAnforderung.update({

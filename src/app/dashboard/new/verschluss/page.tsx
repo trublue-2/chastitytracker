@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions, getIsLocked } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { bildersafeEnabled } from "@/lib/constants";
 
 export default async function NewVerschlussPage() {
@@ -16,7 +16,7 @@ export default async function NewVerschlussPage() {
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
     getUserDeviceOptions(userId),
     prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere() },
       select: { deviceId: true },
     }),
   ]);

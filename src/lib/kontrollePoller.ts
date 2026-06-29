@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendKontrolleNotification, deriveSealCode } from "@/lib/kontrolleService";
+import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen } from "@/lib/autoKontrolleService";
 import { midnightInTZ } from "@/lib/utils";
 
@@ -58,8 +59,61 @@ async function processDue(): Promise<void> {
         console.error(`[kontrollePoller] Auslösung fehlgeschlagen (${ka.id}):`, (e as Error).message);
       }
     }
+
+    // Zeitversetzte VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) im selben Tick — kein zweiter Timer.
+    await processDueVerschlussAnforderungen(now);
   } finally {
     running = false;
+  }
+}
+
+/**
+ * Verschickt fällige, zeitversetzte VerschlussAnforderungen (wirksamAb erreicht, noch nicht
+ * benachrichtigt). Sanity-Check analog Auto-Kontrolle: passt der aktuelle Lock-Zustand nicht
+ * mehr zur Art (ANFORDERUNG bei bereits verschlossenem User, SPERRZEIT bei offenem User), wird
+ * statt gesendet zurückgezogen. Fehler → benachrichtigtAt bleibt null (Retry nächster Tick).
+ */
+async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
+  const due = await prisma.verschlussAnforderung.findMany({
+    where: {
+      wirksamAb: { not: null, lte: now },
+      benachrichtigtAt: null,
+      withdrawnAt: null,
+      fulfilledAt: null,
+    },
+    include: { user: { select: { id: true, email: true, username: true } } },
+    take: 50,
+  });
+
+  for (const va of due) {
+    try {
+      const latest = await prisma.entry.findFirst({
+        where: { userId: va.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+        orderBy: { startTime: "desc" },
+        select: { type: true },
+      });
+      const isLocked = latest?.type === "VERSCHLUSS";
+      const art = va.art as "ANFORDERUNG" | "SPERRZEIT";
+
+      // Auslösung sinnlos geworden → zurückziehen statt senden.
+      if ((art === "ANFORDERUNG" && isLocked) || (art === "SPERRZEIT" && !isLocked)) {
+        await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { withdrawnAt: new Date() } });
+        continue;
+      }
+
+      await sendVerschlussAnforderungNotifications({
+        userId: va.userId,
+        user: va.user,
+        art,
+        nachricht: va.nachricht,
+        endetAtDate: va.endetAt,
+        dauerH: va.dauerH,
+      });
+      await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { benachrichtigtAt: new Date() } });
+    } catch (e) {
+      // benachrichtigtAt bleibt null → nächster Lauf versucht es erneut.
+      console.error(`[kontrollePoller] Verschluss-Auslösung fehlgeschlagen (${va.id}):`, (e as Error).message);
+    }
   }
 }
 

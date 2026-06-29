@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { mapAnforderungStatus, tzDateParts } from "@/lib/utils";
+import { activeVerschlussAnforderungWhere } from "@/lib/queries";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
@@ -65,7 +66,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const [user, oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
-    prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
+    prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...activeVerschlussAnforderungWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: { not: null } },
       include: { entry: true },

@@ -13,6 +13,17 @@ export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnf
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
 }
 
+/**
+ * Where-Fragment: bereits AKTIVE VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) — sofortige
+ * (wirksamAb null) und zeitversetzte, die schon ausgelöst haben (wirksamAb <= jetzt). Eine
+ * ZUKÜNFTIG geplante (wirksamAb in der Zukunft) gilt NICHT als aktiv: eine geplante SPERRZEIT
+ * darf vor ihrem Versand nicht durchsetzen/Öffnen blockieren, eine geplante ANFORDERUNG nicht
+ * vorzeitig als erfüllt gelten.
+ */
+export function activeVerschlussAnforderungWhere(now: Date = new Date()): Prisma.VerschlussAnforderungWhereInput {
+  return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
+}
+
 // ── Shared types ────────────────────────────────────────────────────────────
 
 /** Prisma transaction client — parameter type passed to callbacks of `$transaction`. */
@@ -236,13 +247,18 @@ export async function validateDeviceOwnership(
   return device;
 }
 
-/** Shared `where` for currently-active Sperrzeiten (not withdrawn, not ended). */
+/** Shared `where` for currently-active Sperrzeiten (not withdrawn, already triggered, not ended).
+ *  `wirksamAb` filter (via AND) excludes scheduled-for-the-future lock periods — they must not
+ *  block opening before their planned send time. */
 function activeSperrzeitWhere(userIdFilter: string | { in: string[] }, now: Date) {
   return {
     userId: userIdFilter,
     art: "SPERRZEIT" as const,
     withdrawnAt: null,
-    OR: [{ endetAt: { gt: now } }, { endetAt: null }],
+    AND: [
+      activeVerschlussAnforderungWhere(now),
+      { OR: [{ endetAt: { gt: now } }, { endetAt: null }] },
+    ],
   };
 }
 

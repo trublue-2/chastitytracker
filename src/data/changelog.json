@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.41.0",
+    "date": "2026-06-29",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Verschluss-Aufforderungen und Sperrzeiten lassen sich jetzt — wie Kontrollen — terminieren: zeitversetzt (Verzögerung in Minuten/Stunden) oder zu einem festgelegten Zeitpunkt versenden. Eine geplante Anforderung bleibt bis zur Auslösung unsichtbar und wird vom Poller bei Fälligkeit zugestellt; relative Fristen zählen ab dem Versand. Einstellbar im Admin-Formular sowie über den Keyholder (MCP: request_lock / set_lock_period)."
+      }
+    ]
+  },
+  {
     "version": "4.40.4",
     "date": "2026-06-28",
     "changes": [

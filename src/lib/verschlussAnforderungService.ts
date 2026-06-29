@@ -18,6 +18,10 @@ export interface CreateVerschlussAnforderungParams {
   dauerH?: number | null;
   deviceId?: string | null;
   reinigungErlaubt?: boolean;
+  /** Verzögerte Auslösung in Minuten (>0). Fehlt/0 = sofort (sofern kein wirksamAbAt). */
+  delayMinutes?: number | null;
+  /** Absoluter Versandzeitpunkt (ISO-String oder Date). Hat Vorrang vor delayMinutes. */
+  wirksamAbAt?: string | Date | null;
 }
 
 /**
@@ -28,8 +32,8 @@ export interface CreateVerschlussAnforderungParams {
  */
 export async function createVerschlussAnforderung(
   params: CreateVerschlussAnforderungParams,
-): Promise<ServiceResult<{ id: string }>> {
-  const { userId, art, nachricht, endetAt, fristH, dauerH, deviceId, reinigungErlaubt } = params;
+): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
+  const { userId, art, nachricht, endetAt, fristH, dauerH, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
 
   if (!userId) return { ok: false, status: 400, error: "userId fehlt" };
   if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
@@ -42,13 +46,28 @@ export async function createVerschlussAnforderung(
     return { ok: false, status: 400, error: "User hat keine E-Mail-Adresse" };
   }
 
-  // endetAt berechnen (Frist zum Einschliessen / Sperrzeit-Ende)
+  const now = new Date();
+
+  // Geplanten Versand (wirksamAb) berechnen: absoluter Zeitpunkt hat Vorrang, sonst relative
+  // Verzögerung. Liegt der berechnete Zeitpunkt nicht in der Zukunft → sofort (null).
+  let wirksamAb: Date | null = null;
+  if (wirksamAbAt) {
+    wirksamAb = new Date(wirksamAbAt);
+    if (Number.isNaN(wirksamAb.getTime())) return { ok: false, status: 400, error: "Ungültiger Versandzeitpunkt" };
+  } else if (typeof delayMinutes === "number" && delayMinutes > 0) {
+    wirksamAb = new Date(now.getTime() + delayMinutes * 60 * 1000);
+  }
+  if (wirksamAb && wirksamAb.getTime() <= now.getTime()) wirksamAb = null;
+
+  // endetAt berechnen (Frist zum Einschliessen / Sperrzeit-Ende).
+  // Absolute endetAt-Angaben bleiben absolut; relative Frist (fristH) zählt ab dem geplanten
+  // Versand (wirksamAb), nicht ab Erstellung.
   let endetAtDate: Date | null = null;
   if (endetAt) {
     endetAtDate = new Date(endetAt);
     if (Number.isNaN(endetAtDate.getTime())) return { ok: false, status: 400, error: "Ungültiger Zeitpunkt" };
   } else if (fristH) {
-    endetAtDate = new Date(Date.now() + fristH * 60 * 60 * 1000);
+    endetAtDate = new Date((wirksamAb ?? now).getTime() + fristH * 60 * 60 * 1000);
   }
   if (art === "ANFORDERUNG" && !endetAtDate) {
     return { ok: false, status: 400, error: "Frist zum Einschliessen ist erforderlich" };
@@ -92,6 +111,8 @@ export async function createVerschlussAnforderung(
           dauerH: effectiveDauerH,
           deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
           reinigungErlaubt: effectiveReinigung,
+          wirksamAb,
+          benachrichtigtAt: wirksamAb ? null : now, // sofort = jetzt benachrichtigt; geplant = Poller
         },
       });
     });
@@ -102,14 +123,18 @@ export async function createVerschlussAnforderung(
     throw e;
   }
 
-  await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH });
+  // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
+  if (!wirksamAb) {
+    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH });
+  }
 
-  return { ok: true, data: { id: anforderung.id } };
+  return { ok: true, data: { id: anforderung.id, scheduledFor: wirksamAb?.toISOString() ?? null } };
 }
 
 /** Wraps email body HTML in the standard frame + "Zum Dashboard →" button. */
-/** Sends the e-mail (ANFORDERUNG/SPERRZEIT) + push to the user. Fire-and-forget for push. */
-async function sendVerschlussAnforderungNotifications(opts: {
+/** Sends the e-mail (ANFORDERUNG/SPERRZEIT) + push to the user. Fire-and-forget for push.
+ *  Reused by the immediate path in createVerschlussAnforderung and by the delayed-trigger poller. */
+export async function sendVerschlussAnforderungNotifications(opts: {
   userId: string;
   user: { email: string | null; username: string };
   art: "ANFORDERUNG" | "SPERRZEIT";
