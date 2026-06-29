@@ -29,6 +29,9 @@ export interface DashboardResult {
   user: string;
   generatedAt: string;
   timezone: string;
+  /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
+   *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
+  keyholderInstructions: string | null;
   currentRun: {
     isLocked: boolean;
     since: string | null;
@@ -161,6 +164,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     user: username,
     generatedAt: iso(now)!,
     timezone: APP_TZ,
+    keyholderInstructions: overview.keyholderInstructions,
     currentRun: {
       isLocked: overview.lock.isLocked,
       since: overview.lock.since,

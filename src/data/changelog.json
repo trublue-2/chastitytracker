@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.40.4",
+    "date": "2026-06-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "MCP keyholder_dashboard: Die Freitext-Regeln des Keyholders (keyholderInstructions) stehen jetzt als erstes Inhaltsfeld in der Dashboard-Ausgabe. So sieht der virtuelle Keyholder die verbindlichen Regeln zuerst, bevor er Direktiven vergibt."
+      }
+    ]
+  },
+  {
     "version": "4.40.3",
     "date": "2026-06-27",
     "changes": [
