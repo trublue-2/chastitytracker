@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.40.2-blue)
+![Version](https://img.shields.io/badge/version-4.42.0-blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -33,8 +33,10 @@
 - **User management** — create, edit, delete, demo-user generation, password reset
 - **Training goals** per user (daily / weekly / monthly minimum wear hours)
 - **Inspection requests** with 5-digit verification codes and configurable deadlines
+- **Automatic inspections** — randomly scheduled across the day within a configurable wake window
 - **Lock requests** — request a user locks up by a deadline, optionally with a minimum wear duration
 - **Lock periods (Sperrzeiten)** — enforced lock periods with automatic or manual end time; optional flag allowing cleaning openings during the period
+- **Scheduled directives** — lock requests, lock periods, and inspections can be sent time-delayed or at a fixed time; the directive stays invisible to the sub until it fires, while the keyholder sees pending ones in a "Scheduled" section (admin overview + MCP `keyholder_dashboard.scheduledDirectives`) and can cancel them ahead of time
 - **Orgasm requirements** — grant a time-boxed orgasm window for a user, optionally tied to a permitted opening and a required orgasm type
 - **Device requirements** — admin can require a specific KG for a lock request; wrong-device usage is flagged automatically
 - **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
@@ -163,6 +165,12 @@ VAPID_SUBJECT=mailto:admin@yourdomain.com
 # Passkey / WebAuthn (optional — defaults to localhost for dev)
 WEBAUTHN_RP_ID=yourdomain.com
 WEBAUTHN_RP_ORIGIN=https://yourdomain.com
+
+# MCP keyholder interface (optional — virtual keyholder over the Model Context Protocol; see docs/mcp.md)
+ENABLE_MCP=true                    # master switch; without it the /api/[transport] endpoint returns 404
+MCP_USERNAME=<username>            # the single user whose data the MCP server exposes
+MCP_TOKEN=<static-bearer-token>    # optional static bearer token (alternative to the OAuth 2.0 flow)
+ENABLE_LEGACY_MCP=false            # optional: set false to hide the deprecated V1 read tools (default on)
 
 # Optional integrations
 PORTAL_SHARED_SECRET=<secret>      # JWT secret for the self-service portal's login flow
@@ -401,7 +409,9 @@ default and not required for a standard install:
 - **[MCP Keyholder Interface](docs/mcp.md)** — expose an instance as a *virtual
   keyholder* over the Model Context Protocol so an AI client can read the tracker
   state and issue keyholder directives. Covers enabling (`ENABLE_MCP`,
-  `MCP_USERNAME`), the OAuth 2.0 flow, the available tools, and the data model.
+  `MCP_USERNAME`, `MCP_TOKEN`, `ENABLE_LEGACY_MCP`), the OAuth 2.0 flow, the
+  available tools (V2 reads + directive writes, with the V1 reads deprecated),
+  and the data model.
   For the domain model the agent reasons over, see
   [`docs/mcp-keyholder-guide.md`](docs/mcp-keyholder-guide.md).
 - **[Heimdall Box Integration](docs/heimdall-box.md)** — connect a physical
