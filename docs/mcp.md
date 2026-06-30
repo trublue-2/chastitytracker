@@ -26,6 +26,7 @@ Set per instance (these are read from the environment, not the database):
 | `ENABLE_MCP` | yes | Master switch. If `!= "true"`, the whole MCP endpoint returns **404**. Also reveals the "AI keyholder rules" field in the admin user settings. |
 | `MCP_USERNAME` | yes | The username whose data the keyholder reads and controls. Missing → tools return "Server misconfigured". |
 | `MCP_TOKEN` | no | Static bearer token for the **read-only** legacy path (see below). |
+| `ENABLE_LEGACY_MCP` | no | Default on. Set to `"false"` to stop registering the deprecated V1 read tools entirely. |
 
 ## Endpoints
 
@@ -76,29 +77,54 @@ rejected ("the static MCP token is read-only"). Use it only for read-only access
 
 ## Tools
 
-The server instructions steer clients to a **V2-first** workflow. Legacy V1 read
-tools still exist as a fallback but use misleading single-device labels.
+The server instructions steer clients to a **V2-first** workflow. The legacy V1
+read tools are **deprecated** — fully replaced by the V2 reads below and hidden
+when `ENABLE_LEGACY_MCP=false` (they use misleading single-device labels). The
+server `instructions` returned at connect time also embed the human keyholder's
+binding rules (see [Keyholder rules](#keyholder-rules-human-in-the-loop)) so the
+agent sees them alongside the tool list.
 
 **V2 reads (preferred)** — start with `keyholder_dashboard` (answers ~90 %), then
 drill in: `get_session` (segments / per-device breakdown), `device_stats`,
 `records`, `period_summary`, `denial_trend`, `get_offenses`, `get_context`,
 `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`.
 
+Notable V2 read fields:
+- `keyholder_dashboard` — `keyholderInstructions` (the human keyholder's binding
+  rules, surfaced **first**), plus `scheduledDirectives`: the keyholder's
+  time-delayed/scheduled directives that have not fired yet (`lock_request` /
+  `lock_period` / manual `inspection`, with `wirksamAb`), each cancelable via
+  `withdraw`. Auto/random inspections are deliberately **not** listed (surprise).
+- `get_context` — `autoInspections` (the automatic-inspection settings:
+  active / perDay / sleep window / deadline window — read-only) and `cleaning`
+  (allowed / maxMinutesPerBreak / maxPausesPerDay / usedToday / windows /
+  windowOpenNow). These moved here from the now-deprecated `get_overview`.
+- `get_devices` — includes `purchasePrice` and `currency` per device.
+- `get_offenses` — includes a `generatedAt` / `timezone` header and `entryNote`
+  on late/rejected controls.
+
 **V1 directive writes** (no V2 equivalent) — `request_lock`, `set_lock_period`,
 `edit_lock_period`, `request_inspection`, `resolve_inspection`, `request_orgasm`,
 `judge_offense`, `withdraw`, `set_training_goal` / `edit_training_goal` /
 `delete_training_goal` / `list_training_goals`, `set_cleaning`. Lock, lock-period,
 inspection, orgasm, resolve, withdraw and "punish" verdicts notify the sub
-(email + push); the rest are silent.
+(email + push); the rest are silent. `request_lock` and `set_lock_period` accept
+optional `delayMinutes` or `scheduledAt` to **schedule** the directive — it stays
+invisible to the sub until it fires and surfaces under
+`keyholder_dashboard.scheduledDirectives` meanwhile. `withdraw` also cancels a
+scheduled (not-yet-triggered) directive of the same kind.
 
 **V2 knowledge / context writes** — `upsert_note`, `link_note`, `set_device_meta`,
 `set_health_hold`, `upsert_appointment`, `upsert_recurring_context`. Each takes a
 mandatory `reason` (audited), supports `dryRun`, and runs in a transaction with a
 recorded field diff. All silent.
 
-**Legacy V1 reads (fallback only):** `get_overview`, `list_sessions`,
-`list_devices`, `get_strafbuch`, `list_keyholder_notes`. (`list_entries` and
-`explain_model` are V1 but have no V2 replacement.)
+**Legacy V1 reads (deprecated):** `get_overview`, `list_sessions`,
+`list_devices`, `get_strafbuch`, `list_keyholder_notes` (plus the V1 note writes
+`add_keyholder_note` / `delete_keyholder_note`). Fully replaced by the V2 tools
+above; set `ENABLE_LEGACY_MCP=false` to stop registering them entirely (default
+on). (`list_entries` and `explain_model` are V1 but have no V2 replacement and
+stay available.)
 
 ## Data models
 
@@ -134,12 +160,15 @@ tools.
   openings", "never require an inspection at night", "no orgasm directives during
   her exam week". There is no fixed syntax; write them as instructions to the
   agent.
-- **How the agent sees them:** they are surfaced to the client as
-  **`get_overview.keyholderInstructions`**.
+- **How the agent sees them:** they are surfaced **first** in
+  **`keyholder_dashboard.keyholderInstructions`** (always fresh), and the MCP
+  server `instructions` returned at connect time both point to that field and
+  embed a copy of the rules as of server start — so they appear with the tool
+  list.
 - **Binding:** the MCP server instructions and **every write tool description**
-  state that writes must respect `get_overview.keyholderInstructions`. So the
-  human's rules constrain the agent's autonomous directives without a per-action
-  confirmation step.
+  state that writes must respect `keyholder_dashboard.keyholderInstructions`. So
+  the human's rules constrain the agent's autonomous directives without a
+  per-action confirmation step.
 
 > Set these rules before letting the agent act. They are the primary way to keep
 > the autonomous writes aligned with the keyholder's intent. For richer,
