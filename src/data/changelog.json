@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.42.5",
+    "date": "2026-07-01",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "MCP upsert_recurring_context: wiederkehrende Wochen-Kontexte lassen sich jetzt zusätzlich auf den n-ten Wochentag im Monat (ordinal 1-5) oder den letzten (-1) eingrenzen — z.B. „erster Mittwoch im Monat\" wird als weekday+ordinal berechenbar statt nur als Freitext-Notiz abgelegt. Erscheint im get_context als ordinal/ordinalLabel."
+      }
+    ]
+  },
+  {
     "version": "4.42.4",
     "date": "2026-07-01",
     "changes": [

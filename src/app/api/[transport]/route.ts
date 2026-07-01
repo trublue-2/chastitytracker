@@ -447,8 +447,9 @@ function registerTools(server: McpServer) {
           "MCP V2 — Kontext um das echte Leben (§8): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
           "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDay/Schlaf-Fenster/" +
           "Fristen — read-only, nicht via MCP änderbar), die Reinigungs-Regeln (cleaning: allowed/" +
-          "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow), der wiederkehrende Wochen-" +
-          "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree) und anstehende Termine " +
+          "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow), der wiederkehrende " +
+          "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree; ordinal/ordinalLabel " +
+          "grenzt monatliche Slots ein — z.B. 'erster Mittwoch im Monat') und anstehende Termine " +
           "(ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen.",
         inputSchema: {},
       },
@@ -926,15 +927,19 @@ function registerTools(server: McpServer) {
     server.registerTool(
       "upsert_recurring_context",
       {
-        title: "Create / edit a recurring weekly context (v2)",
+        title: "Create / edit a recurring weekly/monthly context (v2)",
         description:
-          "Legt einen wiederkehrenden Wochen-Slot an oder bearbeitet ihn (id): HO-Tage, Bürotage, " +
-          "Pilates-Slots. weekday 0=So..6=Sa, deviceFree markiert geräte-freie Slots." + V2_WRITE_NOTE,
+          "Legt einen wiederkehrenden Slot an oder bearbeitet ihn (id): HO-Tage, Bürotage, Pilates-Slots. " +
+          "weekday 0=So..6=Sa. Ohne ordinal = JEDE Woche. Mit ordinal = nur der n-te <weekday> im Monat " +
+          "(1..5) oder der letzte (-1) — z.B. 'erster Mittwoch im Monat' = weekday:3, ordinal:1. " +
+          "deviceFree markiert geräte-freie Slots." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           id: z.string().optional().describe("Bestehenden Slot bearbeiten; weglassen = neuer."),
           label: z.string().optional().describe("Bezeichnung, z.B. 'Home Office' (Pflicht beim Anlegen)."),
           weekday: z.number().int().min(0).max(6).optional().describe("Wochentag 0=So..6=Sa (Pflicht beim Anlegen)."),
+          ordinal: z.union([z.literal(-1), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).nullable().optional()
+            .describe("Weglassen/null = jede Woche. 1..5 = n-ter <weekday> im Monat, -1 = letzter <weekday> im Monat."),
           deviceFree: z.boolean().optional().describe("Geräte-freier Slot?"),
           note: z.string().nullable().optional().describe("Notiz zum Slot."),
         },

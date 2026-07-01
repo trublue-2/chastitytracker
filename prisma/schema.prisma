@@ -79,6 +79,9 @@ model RecurringContext {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   label     String   // z.B. "Home Office", "Pilates"
   weekday   Int      // 0=So .. 6=Sa
+  // null = jede Woche (Default, bisheriges Verhalten). 1..5 = n-ter <weekday> im Monat.
+  // -1 = letzter <weekday> im Monat (z.B. "erster Mittwoch" = weekday:3, ordinal:1).
+  ordinal   Int?
   deviceFree Boolean @default(false)
   note      String?
   createdAt DateTime @default(now())

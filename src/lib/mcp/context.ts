@@ -9,6 +9,12 @@ import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from
 
 const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
+/** null = jede Woche, 1..5 = "1./2./…​/5. <weekday> im Monat", -1 = "letzter <weekday> im Monat". */
+function ordinalLabel(ordinal: number | null): string | null {
+  if (ordinal == null) return null;
+  return ordinal === -1 ? "letzter" : `${ordinal}.`;
+}
+
 export interface HealthHoldView {
   id: string;
   active: boolean;
@@ -33,7 +39,7 @@ export interface ContextResult {
   autoInspections: { active: boolean; perDay: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number };
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung). */
   cleaning: ReinigungView;
-  recurringContext: { id: string; label: string; weekday: number; weekdayLabel: string; deviceFree: boolean; note: string | null }[];
+  recurringContext: ReturnType<typeof recurringView>[];
   appointments: { id: string; when: string; typ: string | null; deviceFree: boolean; note: string | null }[];
 }
 
@@ -77,7 +83,7 @@ export async function getContext(username: string): Promise<ContextResult> {
       deadlineMinTo: auto.fristBis,
     },
     cleaning: buildReinigungView(user, cleaningUsedToday, now),
-    recurringContext: recurring.map((r) => ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", deviceFree: r.deviceFree, note: r.note })),
+    recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => ({ id: a.id, when: iso(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note })),
   };
 }
@@ -167,21 +173,28 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
 
 // ── Write: upsert_recurring_context ──────────────────────────────────────────
 
+const ORDINAL_VALUES: readonly number[] = [-1, 1, 2, 3, 4, 5];
+
 export interface UpsertRecurringContextArgs {
   id?: string;
   label?: string;
   weekday?: number;
+  /** null = jede Woche, 1..5 = n-ter <weekday> im Monat, -1 = letzter <weekday> im Monat. */
+  ordinal?: number | null;
   deviceFree?: boolean;
   note?: string | null;
 }
 
-const recurringView = (r: { id: string; label: string; weekday: number; deviceFree: boolean; note: string | null }) =>
-  ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", deviceFree: r.deviceFree, note: r.note });
+const recurringView = (r: { id: string; label: string; weekday: number; ordinal: number | null; deviceFree: boolean; note: string | null }) =>
+  ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", ordinal: r.ordinal, ordinalLabel: ordinalLabel(r.ordinal), deviceFree: r.deviceFree, note: r.note });
 
 export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, ReturnType<typeof recurringView>> = {
   tool: "upsert_recurring_context",
   validate(args) {
     if (args.weekday != null && (args.weekday < 0 || args.weekday > 6)) throw new Error("weekday must be 0 (So) .. 6 (Sa).");
+    if (args.ordinal != null && !ORDINAL_VALUES.includes(args.ordinal)) {
+      throw new Error("ordinal must be -1 (letzter) or 1..5 (n-ter).");
+    }
     if (!args.id && (!args.label?.trim() || args.weekday == null)) throw new Error("A new recurring context requires label + weekday.");
     return args;
   },
@@ -202,6 +215,7 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
         data: {
           ...(args.label != null ? { label: args.label } : {}),
           ...(args.weekday != null ? { weekday: args.weekday } : {}),
+          ...(args.ordinal !== undefined ? { ordinal: args.ordinal } : {}),
           ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
           ...(args.note !== undefined ? { note: args.note } : {}),
         },
@@ -209,7 +223,7 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
       return { newState: recurringView(updated), resultRef: updated.id, diff: diffFields(recurringView(existing), recurringView(updated)) };
     }
     const created = await tx.recurringContext.create({
-      data: { userId: ctx.targetUserId, label: args.label!, weekday: args.weekday!, deviceFree: args.deviceFree ?? false, note: args.note ?? null },
+      data: { userId: ctx.targetUserId, label: args.label!, weekday: args.weekday!, ordinal: args.ordinal ?? null, deviceFree: args.deviceFree ?? false, note: args.note ?? null },
     });
     return { newState: recurringView(created), resultRef: created.id };
   },
