@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendKontrolleNotification, deriveSealCode } from "@/lib/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
-import { ensureDailyAutoKontrollen } from "@/lib/autoKontrolleService";
+import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { midnightInTZ } from "@/lib/utils";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
@@ -23,6 +23,9 @@ async function processDue(): Promise<void> {
     if (g.__autoKontrolleDay !== dayKey) {
       g.__autoKontrolleDay = dayKey;
       await ensureDailyAutoKontrollen(now).catch((e) => console.error("[autoKontrolle]", e));
+      // Tageswechsel: von der Automatik zurückgezogene Auto-Kontrollen der Vortage hart löschen
+      // (Listen-Rauschen, kein History-Wert).
+      await deleteWithdrawnAutoKontrollen(now).catch((e) => console.error("[autoKontrolle:cleanup]", e));
     }
 
     const due = await prisma.kontrollAnforderung.findMany({

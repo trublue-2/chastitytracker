@@ -158,6 +158,17 @@ export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
   }
 }
 
+/** Löscht am Tageswechsel die von der Automatik zurückgezogenen Auto-Kontrollen vergangener Tage
+ *  (auto + withdrawnAt gesetzt, createdAt vor der heutigen CH-Mitternacht) — reines Listen-Rauschen
+ *  ohne History-Wert. Erfüllte Auto-Kontrollen (withdrawnAt null) bleiben unberührt. createdAt <
+ *  heute-Mitternacht schützt die heutigen Zeilen, die der Keyholder tagsüber noch sehen darf. */
+export async function deleteWithdrawnAutoKontrollen(now: Date): Promise<number> {
+  const res = await prisma.kontrollAnforderung.deleteMany({
+    where: { auto: true, withdrawnAt: { not: null }, createdAt: { lt: midnightInTZ(now) } },
+  });
+  return res.count;
+}
+
 /** Speichert die Auto-Kontroll-Settings eines Users (nur übergebene Felder; Zahlen geklemmt, HH:MM
  *  validiert, FristBis ≥ FristVon). Geteilt von PATCH /api/admin/users/[id]. */
 export async function setAutoKontrolleSettings(userId: string, params: SetAutoKontrolleParams): Promise<ServiceResult<null>> {

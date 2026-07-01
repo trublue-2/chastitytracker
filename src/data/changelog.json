@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.42.2",
+    "date": "2026-07-01",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Von der Automatik zurückgezogene Auto-Kontrollen (z.B. weil bei Fälligkeit kein KG verschlossen war) werden beim Tageswechsel automatisch gelöscht, statt die Anforderungsliste dauerhaft mit „Zurückgezogen\"-Einträgen zu füllen. Erfüllte Kontrollen bleiben als Verlauf erhalten; die heutigen Einträge bleiben bis zum nächsten Tag sichtbar."
+      }
+    ]
+  },
+  {
     "version": "4.42.1",
     "date": "2026-06-29",
     "changes": [
