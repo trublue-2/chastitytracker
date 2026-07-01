@@ -5,7 +5,7 @@
     "changes": [
       {
         "type": "fix",
-        "text": "MCP keyholder_dashboard: Die laufende Sperrzeit zeigt jetzt reinigungErlaubt (erlaubt die Sperre Reinigungsöffnungen?) samt Nachricht und verlangtem Gerät — vorher nur im veralteten get_overview sichtbar. Damit erkennt der KI-Keyholder die Falle „Sperrzeit-Text verspricht Reinigung, Flag steht aber auf false" direkt im V2-Dashboard. Auch geplante Direktiven (scheduledDirectives) führen den Flag."
+        "text": "MCP keyholder_dashboard: Die laufende Sperrzeit zeigt jetzt reinigungErlaubt (erlaubt die Sperre Reinigungsöffnungen?) samt Nachricht und verlangtem Gerät — vorher nur im veralteten get_overview sichtbar. Damit erkennt der KI-Keyholder die Falle „Sperrzeit-Text verspricht Reinigung, Flag steht aber auf false“ direkt im V2-Dashboard. Auch geplante Direktiven (scheduledDirectives) führen den Flag."
       }
     ]
   },

@@ -44,6 +44,7 @@ describe("withdrawVerschlussAnforderung — storniert auch TERMINIERTE Direktive
   it("count 0 → keine Benachrichtigung", async () => {
     updateManyMock.mockResolvedValue({ count: 0 });
     const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG");
+    if (!res.ok) throw new Error("expected ok result");
     expect(res.data.count).toBe(0);
     expect(notifyMock).not.toHaveBeenCalled();
   });
