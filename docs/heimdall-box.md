@@ -89,10 +89,15 @@ into the existing cleaning system (window, quota).
 ## Keyholder view (MCP)
 
 The MCP tool **`get_box_state`** (and the `keyholder_dashboard`) expose
-`BoxStateView`: `name, locked, lockUntil, hardwareEnforced, battery, charging,
-online, lastSeen`. `hardwareEnforced` mirrors `BoxStatus.keyholderLocked` — `true`
-means the tracker lock period is physically enforced by the box; `false` means it
-is honor-system only; `null` means no box is registered. See
+`BoxStateView`: `name, locked, lockUntil, hardwareEnforced, hardwareEnforcedEffective,
+lockUntilStale, battery, charging, online, lastSeen`. `hardwareEnforced` mirrors
+`BoxStatus.keyholderLocked` as last reported — a stale honesty gap if the box has
+since gone offline (the field never updates without a fresh sync). Prefer
+`hardwareEnforcedEffective` (`online && hardwareEnforced`) for the real-world
+answer: `false` whenever the box is offline, regardless of the last reported
+state — an offline box cannot verifiably enforce anything, so the lock is honor-
+system in practice. `lockUntilStale` flags a `lockUntil` in the past that the box
+hasn't been online since to confirm/clear. `null` means no box is registered. See
 [`mcp.md`](mcp.md).
 
 ## Setup

@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.42.4",
+    "date": "2026-07-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "MCP set_health_hold: Das Aktivieren eines Gesundheits-Holds schlug IMMER mit „requires a reason\" fehl, auch wenn ein Grund angegeben wurde — das Feld hiess zufällig genauso wie das interne Pflicht-Audit-Feld reason und wurde dadurch verschluckt, bevor es die Validierung erreichte. Umbenannt in healthReason."
+      },
+      {
+        "type": "fix",
+        "text": "MCP get_box_state/keyholder_dashboard: hardwareEnforced zeigte weiterhin true, obwohl die Box längst offline war (der Wert wird nur bei Sync aktualisiert). Neu: hardwareEnforcedEffective (reale Vollstreckung JETZT, false sobald offline) und lockUntilStale (Sperrzeit-Ende in der Vergangenheit, seither nicht bestätigt)."
+      }
+    ]
+  },
+  {
     "version": "4.42.3",
     "date": "2026-07-01",
     "changes": [

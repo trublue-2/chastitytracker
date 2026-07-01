@@ -16,8 +16,17 @@ export interface BoxStateView {
   name: string;
   locked: boolean;
   lockUntil: string | null;
-  /** true = Tracker-Sperrzeit hält die Box physisch (Sub kann lokal nicht öffnen). */
+  /** Konfigurierte ABSICHT (letzter von Heimdall gemeldeter Wert): true = Sperrzeit soll die Box
+   *  physisch halten. Bleibt unverändert stehen, solange die Box nicht wieder synct — bei offline
+   *  KEINE Garantie, dass gerade tatsächlich vollstreckt wird. Für die reale Lage `hardwareEnforcedEffective`. */
   hardwareEnforced: boolean;
+  /** Reale Vollstreckung JETZT: nur true, wenn die Box sowohl online ist als auch hardwareEnforced
+   *  meldet. Offline → immer false (nicht verifizierbar; Box kann nicht mehr lokal blockieren) —
+   *  die Sperre ist dann faktisch Ehrensache, unabhängig vom zuletzt gemeldeten Zustand. */
+  hardwareEnforcedEffective: boolean;
+  /** true = lockUntil liegt in der Vergangenheit UND die Box hat seither nicht mehr gesynct (online:false)
+   *  — der Wert ist veraltet/unbestätigt, nicht zwingend noch gültig. */
+  lockUntilStale: boolean;
   battery: number | null;
   charging: boolean | null;
   online: boolean;
@@ -152,14 +161,17 @@ function collectImageConflicts(sessions: Session[]): DiscrepancyItem[] {
 async function loadBoxState(userId: string, now: Date): Promise<BoxStateView | null> {
   const box = await prisma.boxStatus.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" } });
   if (!box) return null;
+  const online = box.lastSyncAt ? now.getTime() - box.lastSyncAt.getTime() < BOX_ONLINE_THRESHOLD_MS : false;
   return {
     name: box.name,
     locked: box.locked,
     lockUntil: iso(box.lockUntil),
     hardwareEnforced: box.keyholderLocked,
+    hardwareEnforcedEffective: online && box.keyholderLocked,
+    lockUntilStale: !online && box.lockUntil !== null && box.lockUntil < now,
     battery: box.battery,
     charging: box.charging,
-    online: box.lastSyncAt ? now.getTime() - box.lastSyncAt.getTime() < BOX_ONLINE_THRESHOLD_MS : false,
+    online,
     lastSeen: iso(box.lastSyncAt),
   };
 }

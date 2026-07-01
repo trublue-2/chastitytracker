@@ -497,9 +497,11 @@ function registerTools(server: McpServer) {
         title: "Heimdall box state (hardware enforcement)",
         description:
           "MCP V2 — Zustand der elektronischen Schlüsselbox (§11): locked, lockUntil, battery, charging, " +
-          "online (lastSync < 10 min), lastSeen und v.a. hardwareEnforced — vollstreckt die Box eine " +
-          "Sperrzeit physisch (Sub kann lokal nicht öffnen) oder ist sie Ehrensache? null = keine Box " +
-          "registriert. Auch im keyholder_dashboard enthalten.",
+          "online (lastSync < 10 min), lastSeen. hardwareEnforced ist die zuletzt GEMELDETE Absicht " +
+          "(bleibt bei offline unverändert stehen!) — für die reale Lage IMMER hardwareEnforcedEffective " +
+          "nutzen (nur true, wenn online UND hardwareEnforced; offline = faktisch Ehrensache, nicht " +
+          "verifizierbar). lockUntilStale = lockUntil liegt in der Vergangenheit UND die Box war seither " +
+          "nicht mehr online (Wert unbestätigt). null = keine Box registriert. Auch im keyholder_dashboard enthalten.",
         inputSchema: {},
       },
       () => runTool("get_box_state", getBoxState),
@@ -888,13 +890,15 @@ function registerTools(server: McpServer) {
       {
         title: "Set / clear health hold (v2)",
         description:
-          "Setzt oder löst die Gesundheits-Zurückhaltung (§8). active=true braucht einen reason " +
+          "Setzt oder löst die Gesundheits-Zurückhaltung (§8). active=true braucht healthReason " +
           "(z.B. 'Migräne/Aura', 'Nacht-Auszeit'); active=false löst den aktiven Hold. Erscheint im " +
-          "keyholder_dashboard.healthHold." + V2_WRITE_NOTE,
+          "keyholder_dashboard.healthHold. Hinweis: `healthReason` ist der medizinische Grund für den " +
+          "Hold selbst — zusätzlich zum separaten PFLICHT-`reason` (Audit-Begründung der Aktion, siehe " +
+          "unten)." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
-          active: z.boolean().describe("true = Hold aktivieren (reason nötig), false = aktiven Hold lösen."),
-          reason: z.string().optional().describe("Grund der Zurückhaltung (Pflicht bei active=true)."),
+          active: z.boolean().describe("true = Hold aktivieren (healthReason nötig), false = aktiven Hold lösen."),
+          healthReason: z.string().optional().describe("Medizinischer Grund der Zurückhaltung (Pflicht bei active=true)."),
         },
       },
       (args, extra) => runV2Write(setHealthHoldDef, extra, args),

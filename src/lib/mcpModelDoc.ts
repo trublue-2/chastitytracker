@@ -174,8 +174,9 @@ und Grenzen sind gepinnt und versioniert.**
 - **Kontext (\`get_context\` / set_health_hold / upsert_appointment / upsert_recurring_context)** —
   HealthHold (Gesundheits-Zurückhaltung), Wochen-Kontext, Termine (deviceFree).
 - **\`timeline\`** — alle Ereignisse auf einer Achse (Segment-basiert). **\`get_action_log\`** —
-  Audit aller V2-Writes (warum/wann). **\`get_box_state\`** — \`hardwareEnforced\` = physisch
-  vollstreckt vs Ehrensache.
+  Audit aller V2-Writes (warum/wann). **\`get_box_state\`** — \`hardwareEnforced\` = zuletzt
+  gemeldete Absicht (physisch vollstreckt vs Ehrensache); \`hardwareEnforcedEffective\` = reale
+  Lage JETZT (false, sobald die Box offline ist — unabhängig vom letzten gemeldeten Stand).
 
 ### V2-Write-Disziplin
 Jeder V2-Write braucht **\`reason\`** (Pflicht, Audit) und unterstützt **\`dryRun:true\`** (zeigt

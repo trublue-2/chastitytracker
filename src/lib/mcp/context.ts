@@ -86,18 +86,21 @@ export async function getContext(username: string): Promise<ContextResult> {
 
 export interface SetHealthHoldArgs {
   active: boolean;
-  reason?: string;
+  // NICHT `reason` nennen: runV2Write destrukturiert `reason` bereits als PFLICHT-Audit-Feld aus den
+  // rohen Tool-Args (siehe route.ts runV2Write) — ein gleichnamiges Domain-Feld würde dort verschluckt
+  // und käme hier immer als undefined an ("requires a reason" trotz Angabe). Daher healthReason.
+  healthReason?: string;
 }
 
 export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null> = {
   tool: "set_health_hold",
   validate(args) {
-    if (args.active && !args.reason?.trim()) throw new Error("Activating a health hold requires a reason.");
+    if (args.active && !args.healthReason?.trim()) throw new Error("Activating a health hold requires a reason.");
     return args;
   },
   async preview(ctx, args) {
     const current = await loadActiveHealthHold(ctx.targetUserId);
-    return { current, willBe: args.active ? { active: true, reason: args.reason } : { active: false } };
+    return { current, willBe: args.active ? { active: true, reason: args.healthReason } : { active: false } };
   },
   async apply(tx, ctx, args) {
     // "Höchstens ein aktiver Hold pro User" — Invariante NUR hier im Code erzwungen (kein Partial-
@@ -107,7 +110,7 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
     if (!args.active) {
       return { newState: null, diff: { active: [true, false] } };
     }
-    const created = await tx.healthHold.create({ data: { userId: ctx.targetUserId, active: true, reason: args.reason! } });
+    const created = await tx.healthHold.create({ data: { userId: ctx.targetUserId, active: true, reason: args.healthReason! } });
     return { newState: { id: created.id, active: true, reason: created.reason, since: iso(created.createdAt)! }, resultRef: created.id, diff: { active: [false, true] } };
   },
 };
