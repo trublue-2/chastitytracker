@@ -56,7 +56,7 @@ export interface DashboardResult {
    *  (remainingMinutes zählt bis `endetAt`). */
   nextRelevant: {
     openControl: { code: string; deadline: string; overdue: boolean; remainingMinutes: number } | null;
-    activeLockPeriod: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null } | null;
+    activeLockPeriod: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; reinigungErlaubt: boolean; message: string | null; deviceName: string | null } | null;
     openOrgasmWindow: { art: string; beginntAt: string; endetAt: string; active: boolean; requiredType: string | null; remainingMinutes: number } | null;
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
@@ -87,6 +87,9 @@ export interface ScheduledDirective {
   endetAt: string | null;
   /** Freitext: Kontroll-Kommentar bzw. Anforderungs-/Sperrzeit-Nachricht. */
   message: string | null;
+  /** Nur lock_request/lock_period: erlaubt die (geplante) Sperre Reinigungsöffnungen? Deckt die
+   *  „Text sagt Reinigung erlaubt, Flag steht aber auf false"-Falle auf. null bei inspection. */
+  reinigungErlaubt: boolean | null;
 }
 
 /** Lädt die vom Keyholder terminierten, noch nicht ausgelösten Direktiven (wirksamAb > now):
@@ -109,6 +112,7 @@ async function loadScheduledDirectives(userId: string, now: Date): Promise<Sched
       wirksamAb: iso(a.wirksamAb)!,
       endetAt: iso(a.endetAt),
       message: a.nachricht,
+      reinigungErlaubt: a.reinigungErlaubt,
     })),
     ...kontrollen.map((k) => ({
       id: k.id,
@@ -116,6 +120,7 @@ async function loadScheduledDirectives(userId: string, now: Date): Promise<Sched
       wirksamAb: iso(k.wirksamAb)!,
       endetAt: iso(k.deadline),
       message: k.kommentar,
+      reinigungErlaubt: null,
     })),
   ];
   return out.sort((a, b) => a.wirksamAb.localeCompare(b.wirksamAb));
@@ -233,7 +238,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
         ? { code: overview.openKontrolle.code, deadline: overview.openKontrolle.deadline, overdue: overview.openKontrolle.overdue, remainingMinutes: overview.openKontrolle.remainingMinutes }
         : null,
       activeLockPeriod: overview.activeSperrzeit
-        ? { endetAt: overview.activeSperrzeit.endetAt, indefinite: overview.activeSperrzeit.indefinite, remainingMinutes: overview.activeSperrzeit.remainingMinutes }
+        ? { endetAt: overview.activeSperrzeit.endetAt, indefinite: overview.activeSperrzeit.indefinite, remainingMinutes: overview.activeSperrzeit.remainingMinutes, reinigungErlaubt: overview.activeSperrzeit.reinigungErlaubt, message: overview.activeSperrzeit.message, deviceName: overview.activeSperrzeit.deviceName }
         : null,
       openOrgasmWindow: overview.openOrgasmusAnforderung
         ? { art: overview.openOrgasmusAnforderung.art, beginntAt: overview.openOrgasmusAnforderung.beginntAt, endetAt: overview.openOrgasmusAnforderung.endetAt, active: overview.openOrgasmusAnforderung.active, requiredType: overview.openOrgasmusAnforderung.requiredType, remainingMinutes: overview.openOrgasmusAnforderung.remainingMinutes }

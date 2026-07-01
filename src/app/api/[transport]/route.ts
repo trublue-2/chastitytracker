@@ -357,7 +357,8 @@ function registerTools(server: McpServer) {
         title: "Keyholder dashboard (one call answers ~90%)",
         description:
           "MCP V2 — DER Einstiegs-Call: currentRun vs. Personal Best, was JETZT getragen wird (KG + " +
-          "alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit / offenes Orgasmus-Fenster), " +
+          "alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit inkl. reinigungErlaubt = " +
+          "erlaubt die Sperre Reinigungsöffnungen? / offenes Orgasmus-Fenster), " +
           "Ziele + Adhärenz (Tag/Woche/Monat-Erfüllung), offene Vergehen (Top 5), gepinnte " +
           "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), scheduledDirectives " +
           "(vom Keyholder TERMINIERTE, noch nicht ausgelöste lock_request/lock_period/manuelle inspection — " +
