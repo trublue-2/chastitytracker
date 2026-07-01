@@ -418,7 +418,7 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
 // ── Urteil über ein erkanntes Vergehen (Strafbuch-Loop) ─────────────────────
 
 export interface JudgeOffenseArgs {
-  /** Vergehens-ref aus get_strafbuch (das Feld `ref.id`). */
+  /** Vergehens-ref aus get_offenses (das Feld `ref.id`). */
   ref: string;
   action: "dismiss" | "punish" | "complete" | "reopen";
   /** Freitext: die Strafe (bei punish, erforderlich — z.B. „20 Schläge") bzw. ein Grund (bei dismiss). */

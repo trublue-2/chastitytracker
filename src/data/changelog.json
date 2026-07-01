@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.42.1",
+    "date": "2026-06-29",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "MCP: veraltete Verweise in immer geladenen V2-Tool-Beschreibungen bereinigt — sie zeigten teils noch auf die abgeschalteten V1-Tools. Der virtuelle Keyholder wird jetzt konsistent auf die aktiven V2-Endpunkte verwiesen (keyholder_dashboard.keyholderInstructions, get_offenses, get_session, get_context.autoInspections)."
+      }
+    ]
+  },
+  {
     "version": "4.42.0",
     "date": "2026-06-29",
     "changes": [

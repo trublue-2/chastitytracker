@@ -216,8 +216,8 @@ function registerTools(server: McpServer) {
           "the device-check (deviceCheck: was the locked device recognised in the control photo — " +
           "status ok/wrong/missing + detected/expected device), " +
           "whether a photo exists (+ its EXIF capture time) and whether the time was back-/post-dated. " +
-          "Newest first. Use this for the narrative context that the aggregate tools (get_overview, " +
-          "list_sessions, get_strafbuch) leave out.",
+          "Newest first. Use this for the narrative context that the aggregate tools (keyholder_dashboard, " +
+          "get_session, get_offenses) leave out.",
         inputSchema: {
           type: z.enum(VALID_TYPES).optional().describe("Filter by entry type. Omit for all types."),
           limit: z.number().int().min(1).max(200).optional().describe("Max rows to return (default 50)."),
@@ -432,7 +432,7 @@ function registerTools(server: McpServer) {
           "late_control, rejected_control, cleaning_limit, wrong_device, missed_orgasm) als EINE Liste mit " +
           "status (open|judged), judgment, Folge (consequence) und Kontext + inline Notes. Bei wrong_device " +
           "kommt der Cluster-Kontext des getragenen Geräts mit (possiblyClusterInternal) — Cluster-interne " +
-          "Mismatches sind nie ein echtes Vergehen; urteile via judge_offense. Counts wie in get_strafbuch.",
+          "Mismatches sind nie ein echtes Vergehen; urteile via judge_offense.",
         inputSchema: {},
       },
       () => runTool("get_offenses", getOffenses),
@@ -505,11 +505,11 @@ function registerTools(server: McpServer) {
     );
 
     // ── WRITE tools — keyholder directives (require an admin OAuth token; act on MCP_USERNAME) ──
-    // All write tools MUST respect the human keyholder's rules in get_overview.keyholderInstructions.
+    // All write tools MUST respect the human keyholder's rules in keyholder_dashboard.keyholderInstructions.
     const KEYHOLDER_BASE =
       " Keyholder action (requires an admin OAuth token). Execute directly — NO confirmation step is " +
       "required or enforced; act on your own judgement per the human keyholder's rules in " +
-      "get_overview.keyholderInstructions. Do not ask the user to confirm before calling this.";
+      "keyholder_dashboard.keyholderInstructions. Do not ask the user to confirm before calling this.";
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
     // STILLE Keyholder-Tools → KEIN aktiver Notify (weder E-Mail noch Push). Nur die
@@ -641,14 +641,14 @@ function registerTools(server: McpServer) {
       {
         title: "Judge a detected offense",
         description:
-          "Rules on a detected offense (from get_strafbuch). action=dismiss → no penalty (binding, " +
+          "Rules on a detected offense (from get_offenses). action=dismiss → no penalty (binding, " +
           "immediate); action=punish → records a free-text penalty (text, e.g. \"20 strokes\") — the " +
           "penalty is whatever you write, the field is dumb; action=complete → marks a recorded penalty " +
           "as carried out (closes the loop); action=reopen → undoes a prior judgment. An offense stays " +
           "relevant (openOffenseCount) until dismissed or its penalty is completed. Use the offense's " +
-          "ref.id from get_strafbuch." + KEYHOLDER_BASE + " On punish, the user is notified by e-mail + push; dismiss/complete/reopen are silent.",
+          "ref.id from get_offenses." + KEYHOLDER_BASE + " On punish, the user is notified by e-mail + push; dismiss/complete/reopen are silent.",
         inputSchema: {
-          ref: z.string().describe("The offense ref.id from get_strafbuch."),
+          ref: z.string().describe("The offense ref.id from get_offenses."),
           action: z.enum(["dismiss", "punish", "complete", "reopen"]).describe("dismiss = no penalty; punish = record a penalty; complete = mark penalty done; reopen = undo a prior judgment."),
           text: z.string().optional().describe("Free text: the penalty (required for punish, e.g. \"20 strokes\") or an optional reason (dismiss)."),
         },
@@ -723,7 +723,7 @@ function registerTools(server: McpServer) {
     // set_auto_inspections wird BEWUSST NICHT als MCP-Tool angeboten: der virtuelle Keyholder soll
     // Kontrollen weiterhin MANUELL über request_inspection veranlassen, aber die Einstellungen der
     // AUTOMATISCHEN Kontrollen (perDay/Schlaf-Fenster/Fristen) nicht ändern. Die autoKontrolle-Config
-    // bleibt nur LESBAR (get_overview.autoKontrolle).
+    // bleibt nur LESBAR (get_context.autoInspections).
 
     server.registerTool(
       "resolve_inspection",

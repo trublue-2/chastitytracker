@@ -31,7 +31,7 @@ export interface ContextResult {
    *  selbsttätig verteilte Kontrollen pro Tag; sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
    *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. */
   autoInspections: { active: boolean; perDay: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number };
-  /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie get_overview.reinigung). */
+  /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung). */
   cleaning: ReinigungView;
   recurringContext: { id: string; label: string; weekday: number; weekdayLabel: string; deviceFree: boolean; note: string | null }[];
   appointments: { id: string; when: string; typ: string | null; deviceFree: boolean; note: string | null }[];
