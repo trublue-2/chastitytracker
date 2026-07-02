@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.42.0-blue)
+![Version](https://img.shields.io/badge/version-4.42.7-blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -529,6 +529,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `POST` | `/api/admin/verschluss-anforderung` | Create lock request or lock period (admin). Supports `dauerH` (min wear), `deviceId` (required device), `reinigungErlaubt` (allow cleaning openings) |
 | `PATCH` | `/api/admin/verschluss-anforderung/[id]` | Withdraw a lock request or period (admin) |
 | `POST` | `/api/admin/orgasmus-anforderung` | Create an orgasm requirement / window for a user (admin) |
+| `PATCH` | `/api/admin/orgasmus-anforderung/[id]` | Withdraw an orgasm requirement (admin) |
 
 ### Admin
 
