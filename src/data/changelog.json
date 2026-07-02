@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.4",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Härtung gegen fehlkonfigurierte, vorgeschaltete Caches (Reverse-Proxy/CDN): authentifizierte Seiten werden jetzt als privat markiert (Cache-Control private), pro Nutzer getrennt (Vary) und pro Anfrage frisch gerendert (force-dynamic)."
+      }
+    ]
+  },
+  {
     "version": "4.43.3",
     "date": "2026-07-02",
     "changes": [

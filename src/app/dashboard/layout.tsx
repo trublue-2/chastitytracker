@@ -12,6 +12,12 @@ import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
 
+// SECURITY: user-spezifisch (auth() → Rolle/Avatar/Daten). Nie statisch/geteilt cachen — erzwingt
+// per-Request-Rendering inkl. der RSC-Navigations-Payloads. Härtet gegen einen fehlkonfigurierten
+// vorgeschalteten Shared-Cache, der sonst die Seite eines Users an einen anderen ausliefern könnte
+// (Cross-User-Identity-Leak).
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const user = session?.user;

@@ -6,6 +6,10 @@ import { auth } from "@/lib/auth";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 
+// SECURITY: admin-only, user-spezifisch — nie statisch/geteilt cachen (per-Request inkl. RSC).
+// Gleiche Härtung wie das Dashboard-Layout gegen vorgeschaltete Shared-Caches.
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const user = session?.user;
