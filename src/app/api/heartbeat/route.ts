@@ -4,12 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere } from "@/lib/queries";
 
 /**
- * Konsolidierter Client-Heartbeat: EIN Endpoint + EIN Poll deckt drei Belange ab, die vorher je
+ * Konsolidierter Client-Heartbeat: EIN Endpoint + EIN Poll deckt vier Belange ab, die vorher je
  * einen eigenen Timer/Endpoint hatten:
  *  - buildDate     → neue App-Version verfügbar (Reload-Banner)
  *  - sessionUserId → Account-Wechsel in einem anderen Tab (Hard-Reload)
  *  - pendingSig    → Signatur der offenen keyholder-initiierten Anforderungen (router.refresh,
  *                    damit z.B. neu angeforderte Kontrollen ohne manuellen Reload erscheinen)
+ *                    + wartende KI-Verifikationen (verifikationStatus "pending") — sobald eine
+ *                    davon abgeschlossen ist (ai/rejected/unverified), ändert sich die Signatur
+ *                    und der Client aktualisiert automatisch, ohne manuellen Reload.
  * Nur leichte Werte/IDs; ohne Session bleiben die per-User-Felder leer (Version funktioniert auch
  * ausgeloggt).
  */
@@ -22,7 +25,7 @@ export async function GET() {
 
   const userId = session.user.id;
   const now = new Date();
-  const [kontrollen, verschluss, sperrzeit, orgasmus] = await Promise.all([
+  const [kontrollen, verschluss, sperrzeit, orgasmus, pendingVerifications] = await Promise.all([
     prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       select: { id: true },
@@ -33,6 +36,15 @@ export async function GET() {
     }),
     getActiveSperrzeit(userId),
     getActiveOrgasmusAnforderung(userId, now),
+    // Nutzt den bestehenden Index [userId, type, startTime desc]; verifikationStatus ist nicht
+    // indiziert, aber pending-Fälle sind normalerweise wenige und kurzlebig (KI-Check läuft
+    // Sekunden). take + orderBy grenzen den Scan trotzdem nach oben ab.
+    prisma.entry.findMany({
+      where: { userId, type: "PRUEFUNG", verifikationStatus: "pending" },
+      select: { id: true },
+      orderBy: { startTime: "desc" },
+      take: 10,
+    }),
   ]);
 
   const pendingSig = [
@@ -40,6 +52,7 @@ export async function GET() {
     "v:" + (verschluss?.id ?? ""),
     "s:" + (sperrzeit?.id ?? ""),
     "o:" + (orgasmus?.id ?? ""),
+    "p:" + pendingVerifications.map((p) => p.id).sort().join(","),
   ].join("|");
 
   return NextResponse.json({ buildDate, sessionUserId: userId, pendingSig }, { headers: { "Cache-Control": "no-store" } });

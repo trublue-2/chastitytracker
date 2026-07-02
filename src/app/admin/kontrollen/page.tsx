@@ -51,7 +51,6 @@ export default async function AdminKontrollenPage({
   const labels = {
     fulfilledLabel: t("fulfilledLabel"),
     fristLabel: t("frist"),
-    createdLabel: t("createdLabel"),
     withdrawnLabel: t("withdrawnLabel"),
     scheduledForLabel: t("scheduledForLabel"),
     instructionLabel: t("instructionLabel"),

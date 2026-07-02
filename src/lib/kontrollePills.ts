@@ -9,6 +9,7 @@ export const ANFORDERUNG_PILLS: Record<string, { labelKey: string; cls: string }
 
 export const VERIFIKATION_PILLS: Record<string, { labelKey: string; cls: string }> = {
   unverified: { labelKey: "pillUnverified", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
+  pending:    { labelKey: "pillPending",    cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
   ai:         { labelKey: "pillAi",         cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
   manual:     { labelKey: "pillManual",     cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
   rejected:   { labelKey: "pillRejected",   cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
@@ -37,6 +38,7 @@ const ANFORDERUNG_KEYS: Record<string, string> = {
 
 const VERIFIKATION_KEYS: Record<string, string> = {
   unverified: "pillUnverified",
+  pending:    "pillPending",
   ai:         "pillAi",
   manual:     "pillManual",
   rejected:   "pillRejected",
@@ -61,6 +63,11 @@ export function getKombinierterPill(
   const aLabel = t(ANFORDERUNG_KEYS[aKey] ?? "pillSelfcontrol");
   const vLabel = verifikationStatus ? t(VERIFIKATION_KEYS[verifikationStatus] ?? "pillUnverified") : null;
   const label = vLabel ? `${aLabel} – ${vLabel}` : aLabel;
+
+  // Verifizierung läuft noch (KI-Check nicht abgeschlossen): unabhängig vom Anforderungs-Status
+  // immer ORANGE ("in Arbeit", kein Problem) — muss vor den verified/rejected-Checks stehen, sonst
+  // fällt "pending" fälschlich auf den rejected/grau-Default durch.
+  if (verifikationStatus === "pending") return { label, cls: ORANGE };
 
   const verified = verifikationStatus === "manual" || verifikationStatus === "ai";
   const rejected = verifikationStatus === "rejected";

@@ -190,7 +190,7 @@ export function isTimeCorrected(time: Date, submittedAt: Date | null | undefined
 }
 
 export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn" | "scheduled";
-export type VerifikationStatus = "unverified" | "ai" | "manual" | "rejected";
+export type VerifikationStatus = "unverified" | "pending" | "ai" | "manual" | "rejected";
 
 /** Derives AnforderungStatus: was the kontrolle submitted, and was it on time?
  *  fulfilledAt is server-set at submission time and immutable – never use entryTime for deadline comparison.
@@ -216,6 +216,7 @@ export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
   if (vs === "ai") return "ai";
   if (vs === "manual") return "manual";
   if (vs === "rejected") return "rejected";
+  if (vs === "pending") return "pending";
   return "unverified";
 }
 

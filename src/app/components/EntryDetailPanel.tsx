@@ -64,7 +64,11 @@ export default function EntryDetailPanel({
           <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">
             {kontrollCode}
             {verifikationStatus && (
-              <span className="ml-2 text-xs font-sans font-medium text-ok-text">✓ {tc("verified")}</span>
+              verifikationStatus === "pending" ? (
+                <span className="ml-2 text-xs font-sans font-medium text-foreground-muted">{tc("verifying")}</span>
+              ) : (
+                <span className="ml-2 text-xs font-sans font-medium text-ok-text">✓ {tc("verified")}</span>
+              )
             )}
           </p>
         </div>

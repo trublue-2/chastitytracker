@@ -87,6 +87,7 @@
     "sealNumber": "Siegel-Nr.",
     "verified": "Verifiziert",
     "notVerified": "Nicht verifiziert",
+    "verifying": "Verifizierung läuft",
     "reason": "Grund"
   },
   "adminNav": {
@@ -731,6 +732,7 @@
     "pillFulfilled": "Erfüllt",
     "pillLate": "Zu spät erfüllt",
     "pillUnverified": "Unverifiziert",
+    "pillPending": "Verifizierung läuft",
     "pillAi": "KI-verifiziert",
     "pillManual": "Bestätigt",
     "pillRejected": "Abgelehnt",
@@ -743,6 +745,7 @@
     "alarmeCount": "{count, plural, one {# Alarm} other {# Alarme}}",
     "codeLabel": "Code",
     "createdLabel": "Erstellt",
+    "sentLabel": "Versand",
     "fulfilledLabel": "Zeitpunkt",
     "timeCorrected": "Zeit korrigiert",
     "givenLabel": "Angegeben",

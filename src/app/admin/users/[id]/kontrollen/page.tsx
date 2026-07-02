@@ -45,7 +45,6 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const labels = {
     fulfilledLabel: ta("fulfilledLabel"),
     fristLabel: ta("frist"),
-    createdLabel: ta("createdLabel"),
     withdrawnLabel: ta("withdrawnLabel"),
     scheduledForLabel: ta("scheduledForLabel"),
     instructionLabel: ta("instructionLabel"),

@@ -87,6 +87,7 @@
     "sealNumber": "Seal no.",
     "verified": "Verified",
     "notVerified": "Not verified",
+    "verifying": "Verifying…",
     "reason": "Reason"
   },
   "adminNav": {
@@ -731,6 +732,7 @@
     "pillFulfilled": "Fulfilled",
     "pillLate": "Fulfilled late",
     "pillUnverified": "Unverified",
+    "pillPending": "Verifying…",
     "pillAi": "AI verified",
     "pillManual": "Confirmed",
     "pillRejected": "Rejected",
@@ -743,6 +745,7 @@
     "alarmeCount": "{count, plural, one {# alarm} other {# alarms}}",
     "codeLabel": "Code",
     "createdLabel": "Created",
+    "sentLabel": "Sent",
     "fulfilledLabel": "Time",
     "timeCorrected": "Time corrected",
     "givenLabel": "Given",

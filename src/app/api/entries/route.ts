@@ -89,6 +89,12 @@ export async function POST(req: NextRequest) {
         withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx);
       }
 
+      // PRUEFUNG mit Foto+Code durchläuft danach die async KI-Verifikation (siehe unten) — bis die
+      // fertig ist, soll die UI "Verifizierung läuft" statt "Nicht verifiziert" zeigen. Ohne Foto/Code
+      // findet nie eine Verifikation statt → bleibt korrekt bei null ("unverified").
+      const initialVerifikationStatus =
+        type === "PRUEFUNG" && imageUrl && kontrollCode ? "pending" : null;
+
       const created = await tx.entry.create({
         data: {
           userId: session.user.id,
@@ -100,7 +106,7 @@ export async function POST(req: NextRequest) {
           oeffnenGrund: oeffnenGrund || null,
           orgasmusArt: orgasmusArt || null,
           kontrollCode: kontrollCode || null,
-          verifikationStatus: null,
+          verifikationStatus: initialVerifikationStatus,
           deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
           // Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur VERSCHLUSS)
           codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,

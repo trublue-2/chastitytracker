@@ -38,6 +38,8 @@ export interface AdminKontrolleRowData {
   fulfilledAtStr: string | null;
   deadlineStr: string | null;
   createdAtStr: string | null;
+  /** Label für createdAtStr — "Erstellt" normalerweise, "Versand" bei Auto-Kontrollen mit bekanntem Versand-Zeitpunkt. */
+  createdLabel: string;
   withdrawnAtStr: string | null;
   /** "geplant für <wirksamAb>" — nur bei geplanten (noch nicht ausgelösten) Kontrollen gesetzt. */
   scheduledForStr: string | null;
@@ -58,7 +60,6 @@ export interface AdminKontrolleRowData {
 interface Labels {
   fulfilledLabel: string;
   fristLabel: string;
-  createdLabel: string;
   withdrawnLabel: string;
   scheduledForLabel: string;
   instructionLabel: string;
@@ -132,7 +133,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
               )}
               {row.createdAtStr && (
                 <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.createdLabel}</p>
+                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{row.createdLabel}</p>
                   <p className="text-sm text-foreground-muted">{row.createdAtStr}</p>
                 </div>
               )}
@@ -202,7 +203,7 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
                 {row.scheduledForStr && <span>{labels.scheduledForLabel}: {row.scheduledForStr}</span>}
                 {row.fulfilledAtStr && <span>{labels.fulfilledLabel}: {row.fulfilledAtStr}</span>}
                 {row.deadlineStr && <span>{labels.fristLabel}: {row.deadlineStr}</span>}
-                {row.createdAtStr && <span>{labels.createdLabel}: {row.createdAtStr}</span>}
+                {row.createdAtStr && <span>{row.createdLabel}: {row.createdAtStr}</span>}
                 {row.withdrawnAtStr && <span>{labels.withdrawnLabel}: {row.withdrawnAtStr}</span>}
               </div>
               {row.timeCorrectedStr && (

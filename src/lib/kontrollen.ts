@@ -25,6 +25,10 @@ export interface KontrolleRow {
   note: string | null;
   kontrolleId: string | null;
   entryId: string | null;
+  /** True bei automatisch generierten Kontrollen (KontrollAnforderung.auto). */
+  auto: boolean;
+  /** Zeitpunkt, zu dem eine Auto-Kontrolle tatsächlich versendet wurde. */
+  benachrichtigtAt: Date | null;
 }
 
 type PruefungEntry = {
@@ -51,6 +55,8 @@ type KontrollAnforderung = {
   wirksamAb?: Date | null;
   kommentar: string | null;
   entryId: string | null;
+  auto: boolean;
+  benachrichtigtAt: Date | null;
   user?: { username: string };
 };
 
@@ -89,6 +95,8 @@ export function buildKontrolleRows(
       note: e.note,
       kontrolleId: ka?.id ?? null,
       entryId: e.id,
+      auto: ka?.auto ?? false,
+      benachrichtigtAt: ka?.benachrichtigtAt ?? null,
     };
   });
 
@@ -114,6 +122,8 @@ export function buildKontrolleRows(
       note: null,
       kontrolleId: k.id,
       entryId: null,
+      auto: k.auto,
+      benachrichtigtAt: k.benachrichtigtAt,
     }));
 
   return { pruefungRows, offeneRows };
@@ -145,6 +155,12 @@ export function mapKontrolleRow(
     ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
     : anfPill ? { label: t(anfPill.labelKey), cls: anfPill.cls } : null;
   const timeCorrected = row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt);
+  // Auto-Kontrollen: das technische createdAt (Batch-Erstellzeitpunkt, meist Mitternacht) ist
+  // für den Keyholder irreführend — anzeigen soll man, wann sie tatsächlich versendet wurde. Das
+  // Label wird hier (statt am Client) einmal aufgelöst, damit beide Render-Stellen in
+  // AdminKontrolleListClient identisch bleiben, ohne die Umschalt-Logik zu duplizieren.
+  const createdIsSent = row.auto && !!row.benachrichtigtAt;
+  const effectiveCreated = createdIsSent ? row.benachrichtigtAt : row.createdAt;
   return {
     imageUrl: row.imageUrl,
     kommentar: row.kommentar,
@@ -154,7 +170,8 @@ export function mapKontrolleRow(
     code: row.code,
     fulfilledAtStr: row.fulfilledAt ? formatDateTime(row.fulfilledAt, dl) : null,
     deadlineStr: row.deadline ? formatDateTime(row.deadline, dl) : null,
-    createdAtStr: row.createdAt ? formatDateTime(row.createdAt, dl) : null,
+    createdAtStr: effectiveCreated ? formatDateTime(effectiveCreated, dl) : null,
+    createdLabel: createdIsSent ? t("sentLabel") : t("createdLabel"),
     withdrawnAtStr: row.withdrawnAt ? formatDateTime(row.withdrawnAt, dl) : null,
     scheduledForStr: row.scheduledFor ? formatDateTime(row.scheduledFor, dl) : null,
     timeCorrectedStr: timeCorrected

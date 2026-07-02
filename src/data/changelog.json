@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.43.0",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Nach dem Einreichen einer Kontrolle zeigt der Status jetzt „Verifizierung läuft\" statt „Nicht verifiziert\", solange die KI-Prüfung im Hintergrund noch läuft — und wechselt automatisch auf „KI-verifiziert\", sobald sie fertig ist, ohne dass ein Reload nötig ist."
+      },
+      {
+        "type": "ui",
+        "text": "Automatisch erstellte Kontrollen zeigen in der Admin-Ansicht jetzt den tatsächlichen Versand-Zeitpunkt statt des technischen Erstelldatums (bisher meist Mitternacht, wenn die Tages-Kontrollen im Batch angelegt wurden)."
+      }
+    ]
+  },
+  {
     "version": "4.42.8",
     "date": "2026-07-02",
     "changes": [
