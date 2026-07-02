@@ -89,9 +89,11 @@ sie verhindert die häufigsten Fehldeutungen.
   Reinigungsregeln; die Box enforced sie lokal (auch offline).
 
 ## 8. Keyholder-Notizen
-- \`add_keyholder_note\` / \`list_keyholder_notes\` / \`delete_keyholder_note\`: deine privaten
-  Beobachtungen zum Trageverhalten (optional getaggt mit KG + Kategorie). Die jüngsten 8 stehen
-  in \`get_overview.keyholderNotes\`. **Nur über den MCP** — der Sub sieht sie nie.
+- \`upsert_note\` / \`query_notes\` / \`link_note\` (V2): deine privaten, strukturierten Beobachtungen
+  (type, pinned, refs an Objekte, Supersession statt Delete). Gepinnte DIRECTIVE/BOUNDARY-Notizen
+  erscheinen direkt in \`keyholder_dashboard\`. **Nur über den MCP** — der Sub sieht sie nie.
+  (\`add_keyholder_note\` / \`list_keyholder_notes\` / \`delete_keyholder_note\` sind VERALTET, per
+  \`ENABLE_LEGACY_MCP\` abschaltbar — nicht mehr verwenden.)
 
 ## 9. Die Abhängigkeiten in einem Satz
 Geräte-Wechsel → wird als Reinigungsöffnung geloggt → verbraucht das Tageskontingent

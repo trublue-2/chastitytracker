@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.42.8",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Weitere tote V1-Referenzen bereinigt: KeyholderInstructionsForm-Kommentar zeigte noch auf get_overview.keyholderInstructions (jetzt keyholder_dashboard). Der Keyholder-Notizen-Abschnitt in mcpModelDoc.ts (explain_model) und docs/mcp-keyholder-guide.md beschrieb noch die veralteten add_keyholder_note/list_keyholder_notes/delete_keyholder_note als primären Weg statt der V2-Tools upsert_note/query_notes/link_note."
+      }
+    ]
+  },
+  {
     "version": "4.42.7",
     "date": "2026-07-02",
     "changes": [

@@ -8,7 +8,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 
 /** Free-text rules the human keyholder sets for the AI keyholder acting over the MCP.
- *  Soft guidance — exposed to the agent via get_overview.keyholderInstructions, not enforced. */
+ *  Soft guidance — exposed to the agent via keyholder_dashboard.keyholderInstructions, not enforced. */
 export default function KeyholderInstructionsForm({ userId, initial }: { userId: string; initial: string }) {
   const t = useTranslations("admin");
   const router = useRouter();
