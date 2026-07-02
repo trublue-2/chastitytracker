@@ -340,6 +340,33 @@ export async function getActiveOrgasmusAnforderung(userId: string, now: Date = n
   });
 }
 
+/** Shared base `where` for KEYHOLDER OrgasmusAnforderung-Sichten: offen (nicht erfüllt, nicht
+ *  zurückgezogen) — ABER OHNE endetAt-Gate, damit ein bereits abgelaufenes, noch nicht aufgeräumtes
+ *  Fenster dem Keyholder weiterhin sichtbar/stornierbar ist. `getActiveOrgasmusAnforderung` (Sub/
+ *  Enforcement-Sicht, z.B. Öffnen-Gate) filtert bewusst `endetAt: { gte: now }` — dasselbe Muster wie
+ *  `keyholderSperrzeitWhere` vs. `activeSperrzeitWhere`. */
+function keyholderOrgasmusAnforderungWhere(userIdFilter: string | { in: string[] }) {
+  return { userId: userIdFilter, fulfilledAt: null, withdrawnAt: null } as const;
+}
+
+/** Returns the single open OrgasmusAnforderung for a KEYHOLDER view (active OR already expired but
+ *  not yet fulfilled/withdrawn), or null. */
+export async function getKeyholderOrgasmusAnforderung(userId: string) {
+  return prisma.orgasmusAnforderung.findFirst({
+    where: keyholderOrgasmusAnforderungWhere(userId),
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/** Returns all open OrgasmusAnforderungen (active OR expired-but-open) for a KEYHOLDER view across users. */
+export async function getKeyholderOrgasmusAnforderungen(userIds: string[]) {
+  if (userIds.length === 0) return [];
+  return prisma.orgasmusAnforderung.findMany({
+    where: keyholderOrgasmusAnforderungWhere({ in: userIds }),
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /**
  * Live-Antwort auf „darf der Sub JETZT öffnen?" — spiegelt die Regel aus strafbuch.ts/oeffnen:
  * keine aktive Sperrzeit ODER ein aktives, erlaubtes Reinigungsfenster ODER ein Orgasmus-

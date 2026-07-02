@@ -80,6 +80,12 @@ export function orgasmusArtLabel(art: string, t: (key: string) => string): strin
 /** Charakter einer Orgasmus-Aufforderung: ANWEISUNG = Pflicht, GELEGENHEIT = Erlaubnis. */
 export const ORGASMUS_ANFORDERUNG_ARTEN = ["ANWEISUNG", "GELEGENHEIT"] as const;
 export type OrgasmusAnforderungArt = typeof ORGASMUS_ANFORDERUNG_ARTEN[number];
+/** Translates an OrgasmusAnforderung `art` (ANWEISUNG/GELEGENHEIT) via the admin namespace.
+ *  Shared by the request form and the admin banners (overview + user detail) to avoid a
+ *  duplicated ternary at each call site. */
+export function orgasmusAnforderungArtLabel(art: OrgasmusAnforderungArt, t: (key: string) => string): string {
+  return art === "ANWEISUNG" ? t("orgasmReqModeAnweisung") : t("orgasmReqModeGelegenheit");
+}
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
 export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.42.7",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Offene Orgasmus-Anforderungen (Anweisung/Gelegenheit) waren nach dem Anlegen für die Keyholderin nirgends mehr einsehbar und liessen sich nur über den MCP-Keyholder zurückziehen — die Admin-UI konnte sie nur erstellen, nicht mehr verwalten. Jetzt sichtbar und stornierbar in der Admin-Übersicht sowie auf der User-Detailseite, inklusive Kennzeichnung bereits abgelaufener Fenster."
+      }
+    ]
+  },
+  {
     "version": "4.42.6",
     "date": "2026-07-02",
     "changes": [

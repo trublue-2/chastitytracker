@@ -16,7 +16,8 @@ import EmptyState from "@/app/components/EmptyState";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert, CalendarClock } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDateTime } from "@/lib/utils";
-import { getKeyholderSperrzeiten, keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -50,8 +51,8 @@ export default async function AdminPage() {
   const userIds = users.map(u => u.id);
   const now = new Date();
 
-  // Bulk-fetch all data in 4 queries instead of 4×N
-  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allSperrzeiten] = await Promise.all([
+  // Bulk-fetch all data in 5 queries instead of 5×N
+  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allSperrzeiten, allOrgasmusAnf] = await Promise.all([
     prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.kontrollAnforderung.findMany({
@@ -62,6 +63,7 @@ export default async function AdminPage() {
       where: { userId: { in: userIds }, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
     getKeyholderSperrzeiten(userIds),
+    getKeyholderOrgasmusAnforderungen(userIds),
   ]);
 
   // Build lookup maps from groupBy results
@@ -77,6 +79,7 @@ export default async function AdminPage() {
   const kontrolleByUser = groupByUser(allKontrolle);
   const anforderungByUser = groupByUser(allVerschlussAnf);
   const sperrzeitByUser = groupByUser(allSperrzeiten);
+  const orgasmusAnfByUser = groupByUser(allOrgasmusAnf);
 
   const isScheduled = (wirksamAb: Date | null) => !!wirksamAb && wirksamAb > now;
 
@@ -91,6 +94,8 @@ export default async function AdminPage() {
     const userKontrollen = kontrolleByUser.get(userId) ?? [];
     const userAnforderungen = anforderungByUser.get(userId) ?? [];
     const userSperrzeiten = sperrzeitByUser.get(userId) ?? [];
+    // OrgasmusAnforderung hat kein wirksamAb (keine Terminierung) — die neueste offene reicht.
+    const offeneOrgasmusAnforderung = orgasmusAnfByUser.get(userId)?.[0] ?? null;
 
     const offeneKontrolle = userKontrollen.find(k => !isScheduled(k.wirksamAb)) ?? null;
     const offeneVerschlussAnforderung = userAnforderungen.find(v => !isScheduled(v.wirksamAb)) ?? null;
@@ -115,6 +120,9 @@ export default async function AdminPage() {
         : null,
       activeSperrzeit: activeSperrzeit
         ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt }
+        : null,
+      offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
+        ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endetAt: offeneOrgasmusAnforderung.endetAt, expired: offeneOrgasmusAnforderung.endetAt < now }
         : null,
       scheduled,
     };
@@ -247,6 +255,20 @@ export default async function AdminPage() {
                         endetAt={u.stats.activeSperrzeit.endetAt}
                         showRemaining={!!u.stats.activeSperrzeit.endetAt}
                         withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
+                      />
+                    )}
+                    {u.stats.offeneOrgasmusAnforderung && (
+                      <LockRequestBanner
+                        variant="compact"
+                        colorScheme="orgasm"
+                        label={
+                          orgasmusAnforderungArtLabel(u.stats.offeneOrgasmusAnforderung.art, t)
+                          + (u.stats.offeneOrgasmusAnforderung.expired ? ` · ${t("orgasmAnforderungExpired")}` : "")
+                        }
+                        overdue={u.stats.offeneOrgasmusAnforderung.expired}
+                        endetAt={u.stats.offeneOrgasmusAnforderung.endetAt}
+                        locale={dl}
+                        withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
                       />
                     )}
 

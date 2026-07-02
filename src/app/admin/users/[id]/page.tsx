@@ -10,8 +10,8 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getKeyholderSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
@@ -19,6 +19,8 @@ import ActiveWearSessions from "@/app/dashboard/ActiveWearSessions";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
+import LockRequestBanner from "@/app/components/LockRequestBanner";
+import WithdrawButton from "@/app/admin/WithdrawButton";
 import SessionList from "@/app/dashboard/SessionList";
 import WearSessionList from "@/app/dashboard/WearSessionList";
 import CategoryGoalsToday from "@/app/dashboard/CategoryGoalsToday";
@@ -51,11 +53,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const now = new Date();
 
   const flagOn = deviceCategoriesEnabled();
-  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, wearSessions, allNonKgCategories] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { categoryId: true } } } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id, ...keyholderVisibleKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     getKeyholderSperrzeit(id),
+    getKeyholderOrgasmusAnforderung(id),
     flagOn ? getActiveWearSessions(id) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(id) : Promise.resolve([]),
   ]);
@@ -145,6 +148,24 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           variant="large"
         />
       )}
+
+      {offeneOrgasmusAnforderung && (() => {
+        const orgasmusExpired = offeneOrgasmusAnforderung.endetAt < now;
+        return (
+          <LockRequestBanner
+            variant="compact"
+            colorScheme="orgasm"
+            label={
+              orgasmusAnforderungArtLabel(offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", t)
+              + (orgasmusExpired ? ` · ${t("orgasmAnforderungExpired")}` : "")
+            }
+            overdue={orgasmusExpired}
+            endetAt={offeneOrgasmusAnforderung.endetAt}
+            locale={dl}
+            withdrawAction={<WithdrawButton id={offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
+          />
+        );
+      })()}
 
       {/* Statistik kompakt */}
       <Card>

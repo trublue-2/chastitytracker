@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toDatetimeLocal } from "@/lib/utils";
-import { ORGASMUS_ARTEN, orgasmusArtLabel, ORGASMUS_ANFORDERUNG_ARTEN } from "@/lib/constants";
+import { ORGASMUS_ARTEN, orgasmusArtLabel, ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
@@ -32,7 +32,7 @@ export default function OrgasmusAnforderungForm({ userId }: { userId: string }) 
 
   const artOptions = ORGASMUS_ANFORDERUNG_ARTEN.map((a) => ({
     value: a,
-    label: a === "ANWEISUNG" ? t("orgasmReqModeAnweisung") : t("orgasmReqModeGelegenheit"),
+    label: orgasmusAnforderungArtLabel(a, t),
   }));
   const vorgabeOptions = [
     { value: "", label: t("orgasmReqArtAny") },

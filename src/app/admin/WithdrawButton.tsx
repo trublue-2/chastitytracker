@@ -13,12 +13,13 @@ interface Props {
   /** i18n key within "admin" namespace for the button title */
   titleKey: string;
   /** Semantic color token, e.g. "inspect" or "sperrzeit" */
-  colorToken: "inspect" | "sperrzeit";
+  colorToken: "inspect" | "sperrzeit" | "orgasm";
 }
 
 const colorClasses: Record<Props["colorToken"], string> = {
   inspect:   "text-[var(--color-inspect)] hover:bg-[var(--color-inspect-bg)]",
   sperrzeit: "text-[var(--color-sperrzeit)] hover:bg-[var(--color-sperrzeit-bg)]",
+  orgasm:    "text-[var(--color-orgasm)] hover:bg-[var(--color-orgasm-bg)]",
 };
 
 export default function WithdrawButton({ id, apiPath, titleKey, colorToken }: Props) {

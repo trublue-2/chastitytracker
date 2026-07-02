@@ -79,18 +79,42 @@ export async function createOrgasmusAnforderung(
   return { ok: true, data: { id: anforderung.id } };
 }
 
-/** Withdraws the user's currently open orgasm directive(s) (not yet fulfilled/withdrawn). */
+/** Notification text shown to the user when an open orgasm directive is withdrawn — shared by the
+ *  per-userId (MCP) and per-id (admin route) withdraw paths so the text isn't duplicated. */
+export function orgasmusWithdrawNotice(): { subject: string; message: string } {
+  return {
+    subject: "Orgasmus-Anweisung zurückgezogen",
+    message: "Der Keyholder hat die offene Orgasmus-Anweisung/-Gelegenheit zurückgezogen.",
+  };
+}
+
+/** Withdraws the user's currently open orgasm directive(s) (not yet fulfilled/withdrawn).
+ *  Used by the MCP `withdraw` tool (userId-scoped — "neuste offene"). */
 export async function withdrawOrgasmusAnforderung(userId: string): Promise<ServiceResult<{ count: number }>> {
   const res = await prisma.orgasmusAnforderung.updateMany({
     where: { userId, fulfilledAt: null, withdrawnAt: null },
     data: { withdrawnAt: new Date() },
   });
   if (res.count > 0) {
-    await notifyUser(userId, {
-      subject: "Orgasmus-Anweisung zurückgezogen",
-      message: "Der Keyholder hat die offene Orgasmus-Anweisung/-Gelegenheit zurückgezogen.",
-    });
+    await notifyUser(userId, orgasmusWithdrawNotice());
   }
+  return { ok: true, data: { count: res.count } };
+}
+
+/** Withdraws a single OrgasmusAnforderung by id (not yet fulfilled/withdrawn). Used by the admin
+ *  PATCH route — targets exactly one directive instead of all open ones. The route already looks
+ *  up the row's `userId` for the auth guard, so it's passed in here to avoid a second fetch of the
+ *  same row (single `updateMany` scoped by id + open-status does the existence/open check via
+ *  `count`, matching the one-round-trip shape of `withdrawVerschlussAnforderung`). */
+export async function withdrawOrgasmusAnforderungById(id: string, userId: string): Promise<ServiceResult<{ count: number }>> {
+  const res = await prisma.orgasmusAnforderung.updateMany({
+    where: { id, fulfilledAt: null, withdrawnAt: null },
+    data: { withdrawnAt: new Date() },
+  });
+  if (res.count === 0) {
+    return { ok: false, status: 400, error: "Anforderung ist nicht mehr offen" };
+  }
+  await notifyUser(userId, orgasmusWithdrawNotice());
   return { ok: true, data: { count: res.count } };
 }
 
