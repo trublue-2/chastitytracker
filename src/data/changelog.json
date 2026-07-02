@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.3",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Nach einem Update konnte ein normaler User ungewollt zum Admin befördert werden: Das Start-Skript suchte Admin und Username-/E-Mail-Treffer in einer einzigen Abfrage und beförderte den erstbesten Treffer — traf es dabei einen Nicht-Admin, der zufällig auf ADMIN_USERNAME/ADMIN_EMAIL aus der Konfiguration passte (z.B. den ursprünglichen Portal-Registranten nach einem Rollentausch), wurde dieser bei jedem Container-Start erneut zum Admin gemacht („nach dem Update sind beide Admin\"). Jetzt gilt: Existiert bereits ein Admin, verändert der Start nichts mehr; Beförderung/Anlage greift nur noch, wenn kein Admin existiert (Erststart/Recovery). Betroffene Instanzen: die fälschlich beförderten User einmalig im Admin-Bereich auf „User\" zurückstufen."
+      }
+    ]
+  },
+  {
     "version": "4.43.2",
     "date": "2026-07-02",
     "changes": [

@@ -59,48 +59,52 @@ async function main() {
   const passwordFromEnv = !!process.env.ADMIN_PASSWORD;
   const password = process.env.ADMIN_PASSWORD || crypto.randomBytes(18).toString("base64url");
 
-  // Single query: find an existing admin OR a user that matches the configured credentials.
-  // This handles first-start, re-deployments, and the case where a user exists but isn't admin.
-  const matchedUser = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { role: "admin" },
-        { username },
-        ...(email ? [{ email }] : []),
-      ],
-    },
-  });
+  // SECURITY: Existiert bereits IRGENDEIN Admin, wird hier NICHTS verändert. Die frühere
+  // Ein-Query-Variante (findFirst mit OR über role/username/email, ohne orderBy) konnte statt
+  // des Admins einen NORMALEN User zurückgeben, der zufällig auf ADMIN_USERNAME/ADMIN_EMAIL
+  // matcht (z.B. gemeinsame E-Mail des Paars) — und beförderte ihn bei jedem Container-Start
+  // zum Admin, obwohl längst ein Admin existierte ("nach dem Update sind beide Admin").
+  // Promotion/Erstellung ist nur als Erststart-/Recovery-Pfad gedacht: wenn KEIN Admin existiert.
+  // orderBy spiegelt src/app/api/portal-login/route.ts ("der" Admin = ältester Admin), damit
+  // seed.js und Portal-Login bei mehreren Admins denselben User wählen.
+  const existingAdmin = await prisma.user.findFirst({ where: { role: "admin" }, orderBy: { createdAt: "asc" } });
 
   let adminUser;
 
-  if (matchedUser?.role === "admin") {
-    adminUser = matchedUser;
-    console.log("→ Benutzer bereits vorhanden.");
-  } else if (matchedUser) {
-    // User exists (matching username/email) but isn't admin — promote.
-    adminUser = await prisma.user.update({
-      where: { id: matchedUser.id },
-      data: { role: "admin" },
-    });
-    console.log(`→ Benutzer '${matchedUser.username}' zum Admin befördert.`);
+  if (existingAdmin) {
+    adminUser = existingAdmin;
+    console.log("→ Admin bereits vorhanden — keine Änderung.");
   } else {
-    const passwordHash = await bcrypt.hash(password, 12);
-    adminUser = await prisma.user.create({
-      data: { username, email, passwordHash, role: "admin" },
+    const matchedUser = await prisma.user.findFirst({
+      where: { OR: [{ username }, ...(email ? [{ email }] : [])] },
     });
-    console.log("┌─────────────────────────────────────────────────────┐");
-    console.log("│  ERSTER START – Zugangsdaten                        │");
-    console.log(`│  Benutzername: ${username.padEnd(37)}│`);
-    if (passwordFromEnv) {
-      console.log("│  Passwort:     (aus ADMIN_PASSWORD)                 │");
-      console.log("│  Bitte nach dem ersten Einloggen ändern!            │");
+    if (matchedUser) {
+      // Kein Admin vorhanden, aber ein User matcht die konfigurierten Zugangsdaten — befördern
+      // (Recovery-Pfad, z.B. wenn der einzige Admin versehentlich zurückgestuft wurde).
+      adminUser = await prisma.user.update({
+        where: { id: matchedUser.id },
+        data: { role: "admin" },
+      });
+      console.log(`→ Kein Admin vorhanden — Benutzer '${matchedUser.username}' zum Admin befördert.`);
     } else {
-      // Einmaliges Anzeigen des generierten Passworts — JETZT notieren, es wird nie wieder geloggt.
-      console.log(`│  Passwort:     ${password.padEnd(37)}│`);
-      console.log("│  ⚠ Generiert (kein ADMIN_PASSWORD gesetzt) — JETZT  │");
-      console.log("│    notieren und nach dem Login ändern!              │");
+      const passwordHash = await bcrypt.hash(password, 12);
+      adminUser = await prisma.user.create({
+        data: { username, email, passwordHash, role: "admin" },
+      });
+      console.log("┌─────────────────────────────────────────────────────┐");
+      console.log("│  ERSTER START – Zugangsdaten                        │");
+      console.log(`│  Benutzername: ${username.padEnd(37)}│`);
+      if (passwordFromEnv) {
+        console.log("│  Passwort:     (aus ADMIN_PASSWORD)                 │");
+        console.log("│  Bitte nach dem ersten Einloggen ändern!            │");
+      } else {
+        // Einmaliges Anzeigen des generierten Passworts — JETZT notieren, es wird nie wieder geloggt.
+        console.log(`│  Passwort:     ${password.padEnd(37)}│`);
+        console.log("│  ⚠ Generiert (kein ADMIN_PASSWORD gesetzt) — JETZT  │");
+        console.log("│    notieren und nach dem Login ändern!              │");
+      }
+      console.log("└─────────────────────────────────────────────────────┘");
     }
-    console.log("└─────────────────────────────────────────────────────┘");
   }
 
   await ensureKgCategory(adminUser.id);
