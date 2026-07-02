@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.1",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Korrektur: v4.43.0 wurde fälschlich als Minor-Version (neues Feature) geführt — inhaltlich waren es UX-Verbesserungen an bestehendem Verhalten (Verifizierungs-Status, Versand-Datum-Anzeige), kein neues Feature. Kein Code-Änderung, nur Klarstellung im Changelog; die Versionsnummer selbst läuft vorwärts weiter (kein rückwirkendes History-Rewrite auf bereits deployten Commits)."
+      }
+    ]
+  },
+  {
     "version": "4.43.0",
     "date": "2026-07-02",
     "changes": [
