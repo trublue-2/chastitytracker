@@ -356,9 +356,11 @@ function registerTools(server: McpServer) {
       {
         title: "Keyholder dashboard (one call answers ~90%)",
         description:
-          "MCP V2 — DER Einstiegs-Call: currentRun vs. Personal Best, was JETZT getragen wird (KG + " +
-          "alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit inkl. reinigungErlaubt = " +
-          "erlaubt die Sperre Reinigungsöffnungen? / offenes Orgasmus-Fenster), " +
+          "MCP V2 — DER Einstiegs-Call: WICHTIG: keyholderInstructions (erstes Feld) sind die " +
+          "verbindlichen Freitext-Regeln des menschlichen Keyholders — vor jeder Direktive lesen und " +
+          "befolgen, nicht nur zur Kenntnis nehmen. Ausserdem: currentRun vs. Personal Best, was JETZT " +
+          "getragen wird (KG + alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit inkl. " +
+          "reinigungErlaubt = erlaubt die Sperre Reinigungsöffnungen? / offenes Orgasmus-Fenster), " +
           "Ziele + Adhärenz (Tag/Woche/Monat-Erfüllung), offene Vergehen (Top 5), gepinnte " +
           "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), scheduledDirectives " +
           "(vom Keyholder TERMINIERTE, noch nicht ausgelöste lock_request/lock_period/manuelle inspection — " +
@@ -481,7 +483,9 @@ function registerTools(server: McpServer) {
           "MCP V2 — append-only Audit aller mutierenden V2-Aktionen mit reason + source: was hat welche " +
           "Instanz wann mit welcher Begründung entschieden. Die nächste Instanz erbt Entscheidungen samt " +
           "Begründung. Für die AUTORITATIVE Ziel-Historie (auch UI-gesetzte Ziele) list_training_goals " +
-          "nutzen; dieses Log liefert nur das Warum/Wann der MCP-Änderungen (filter tool=\"set_training_goal\").",
+          "nutzen; dieses Log liefert nur das Warum/Wann der MCP-Änderungen (filter tool=\"set_training_goal\"). " +
+          "Achtung: `reason`-Texte hier sind wie Notes NICHT für den Sub gedacht — beim Formulieren keinen " +
+          "Note-Inhalt verbatim wiederholen, der geheim bleiben soll.",
         inputSchema: {
           tool: z.string().optional().describe("Nur Aktionen dieses Tools (z.B. set_training_goal)."),
           from: z.string().optional().describe("Ab Zeitpunkt (ISO 8601)."),
@@ -519,6 +523,12 @@ function registerTools(server: McpServer) {
     // STILLE Keyholder-Tools → KEIN aktiver Notify (weder E-Mail noch Push). Nur die
     // notifizierenden Aktionen (Lock, Lock-Periode, Inspektion, Orgasmus) senden eine Nachricht.
     const KEYHOLDER_SILENT = KEYHOLDER_BASE + " The user is NOT notified (no e-mail/push).";
+    // Für alle Tools mit delayMinutes/scheduledAt (request_lock, set_lock_period, request_inspection):
+    // der Trigger-Zeitpunkt selbst darf dem Sub nie mitgeteilt werden (nicht in message/comment, nicht
+    // im Gespräch) — sonst ist der Überraschungseffekt der Terminierung hinfällig.
+    const NO_SCHEDULE_DISCLOSURE =
+      " IMPORTANT: never disclose the scheduled trigger time (delayMinutes/scheduledAt) to the user — " +
+      "not in the message/comment field, not in conversation. Revealing it defeats the point of scheduling.";
 
     server.registerTool(
       "request_lock",
@@ -528,7 +538,7 @@ function registerTools(server: McpServer) {
           "Asks the user to lock up within a deadline (creates a VerschlussAnforderung). Only valid " +
           "when the user is currently open. Optionally enforce a minimum wearing duration and/or a " +
           "specific device. Can be scheduled/time-delayed so the user does not know exactly when it " +
-          "strikes; the deadline then counts from the trigger time." + KEYHOLDER_NOTE,
+          "strikes; the deadline then counts from the trigger time." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Hours to lock up by, counted from when the request is triggered. Use this or deadlineAt."),
           deadlineAt: z.string().optional().describe("Absolute deadline (ISO 8601). Overrides deadlineHours."),
@@ -549,7 +559,7 @@ function registerTools(server: McpServer) {
         description:
           "Sets a lock period during which the user may not open (creates a SPERRZEIT). Only valid " +
           "when the user is currently locked. Provide untilAt or durationHours, or set indefinite=true. " +
-          "Can be scheduled/time-delayed so it starts (and the user is notified) only later." + KEYHOLDER_NOTE,
+          "Can be scheduled/time-delayed so it starts (and the user is notified) only later." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
           untilAt: z.string().optional().describe("Lock until this absolute time (ISO 8601)."),
           durationHours: z.number().positive().optional().describe("Lock for this many hours. Counts from when the lock period starts (after any delay)."),
@@ -570,7 +580,7 @@ function registerTools(server: McpServer) {
         description:
           "Requests a photo inspection: e-mails the user a code they must show in a photo within a " +
           "deadline (default 4h). Only valid when the user is currently locked. Can be triggered " +
-          "time-delayed so the user does not know exactly when it strikes." + KEYHOLDER_NOTE,
+          "time-delayed so the user does not know exactly when it strikes." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
@@ -802,6 +812,10 @@ function registerTools(server: McpServer) {
       " MCP V2 keyholder write. `reason` ist PFLICHT (Audit). `dryRun:true` zeigt die Wirkung ohne zu " +
       "committen. Der User wird NICHT benachrichtigt (still). Requires an admin OAuth token. Direkt " +
       "ausführen — KEINE Bestätigung nötig oder erzwungen; nicht beim User rückfragen.";
+    // Für upsert_appointment/upsert_recurring_context: dieselbe Qualitäts-Erwartung an Kontext-Einträge.
+    const CONTEXT_QUALITY_NOTE =
+      " Lege sinnvollen, konkreten Kontext an statt trivialer oder lückenhafter Einträge — der Kontext " +
+      "dient der Planung von Ankern/Kontrollen.";
     const reasonField = z.string().min(1).describe("PFLICHT: Begründung der Aktion (Audit-Log).");
     const dryRunField = z.boolean().optional().describe("true = nur Vorschau/Konflikte, NICHT committen.");
     const decisionSourceField = z.enum(["agent", "user-stated"]).optional().describe("Audit-Quelle der Entscheidung: agent (eigener Schluss) | user-stated (vom Nutzer gesagt). Default agent.");
@@ -817,7 +831,8 @@ function registerTools(server: McpServer) {
       {
         title: "Create / edit / supersede a keyholder note (v2)",
         description:
-          "Legt eine strukturierte Note v2 an oder bearbeitet sie (id). Supersession statt Delete: mit " +
+          "Legt eine strukturierte Note v2 an oder bearbeitet sie (id). Notes sind explizit NICHT für " +
+          "den Sub gedacht — er sieht sie nie, auch nicht indirekt. Supersession statt Delete: mit " +
           "`supersedesId` wird die alte Note auf status=superseded gesetzt und eine neue erstellt (auditierbar, " +
           "kein Churn). type=BOUNDARY nutzt `doDont` (was tun / was nie tun). `refs` hängt die Note typisiert " +
           "an Objekte (inline-Abruf via get_session/get_devices)." + V2_WRITE_NOTE,
@@ -893,9 +908,11 @@ function registerTools(server: McpServer) {
         description:
           "Setzt oder löst die Gesundheits-Zurückhaltung (§8). active=true braucht healthReason " +
           "(z.B. 'Migräne/Aura', 'Nacht-Auszeit'); active=false löst den aktiven Hold. Erscheint im " +
-          "keyholder_dashboard.healthHold. Hinweis: `healthReason` ist der medizinische Grund für den " +
-          "Hold selbst — zusätzlich zum separaten PFLICHT-`reason` (Audit-Begründung der Aktion, siehe " +
-          "unten)." + V2_WRITE_NOTE,
+          "keyholder_dashboard.healthHold. NUR nutzen bei gesundheitlichen Themen, die EFFEKTIV einen " +
+          "Einfluss auf die Keuschhaltung haben (z.B. verhindern sie das Tragen, eine Kontrolle, eine " +
+          "Direktive) — nicht bei beliebigen gesundheitlichen Erwähnungen ohne Bezug zur Keuschhaltung. " +
+          "Hinweis: `healthReason` ist der medizinische Grund für den Hold selbst — zusätzlich zum " +
+          "separaten PFLICHT-`reason` (Audit-Begründung der Aktion, siehe unten)." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           active: z.boolean().describe("true = Hold aktivieren (healthReason nötig), false = aktiven Hold lösen."),
@@ -911,7 +928,8 @@ function registerTools(server: McpServer) {
         title: "Create / edit an appointment (v2)",
         description:
           "Legt einen Einzeltermin an oder bearbeitet ihn (id): geräte-frei-Termine (Arzt, Therapie), " +
-          "Hitze-Ausnahmen. deviceFree markiert geräte-freie Termine." + V2_WRITE_NOTE,
+          "Hitze-Ausnahmen. deviceFree markiert geräte-freie Termine. Echte Termine mit belastbarem " +
+          "`when`/`typ` anlegen." + CONTEXT_QUALITY_NOTE + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           id: z.string().optional().describe("Bestehenden Termin bearbeiten; weglassen = neuer."),
@@ -932,7 +950,8 @@ function registerTools(server: McpServer) {
           "Legt einen wiederkehrenden Slot an oder bearbeitet ihn (id): HO-Tage, Bürotage, Pilates-Slots. " +
           "weekday 0=So..6=Sa. Ohne ordinal = JEDE Woche. Mit ordinal = nur der n-te <weekday> im Monat " +
           "(1..5) oder der letzte (-1) — z.B. 'erster Mittwoch im Monat' = weekday:3, ordinal:1. " +
-          "deviceFree markiert geräte-freie Slots." + V2_WRITE_NOTE,
+          "deviceFree markiert geräte-freie Slots. Echte, wiederkehrende Muster mit klarem `label` " +
+          "anlegen." + CONTEXT_QUALITY_NOTE + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           id: z.string().optional().describe("Bestehenden Slot bearbeiten; weglassen = neuer."),

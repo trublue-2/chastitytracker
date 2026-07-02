@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.42.6",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "MCP-Tool-Beschreibungen um fünf Verhaltensregeln für den Keyholder ergänzt: request_lock/set_lock_period/request_inspection dürfen den geplanten Auslöse-Zeitpunkt nie an den Sub verraten; set_health_hold nur bei gesundheitlichen Themen mit echtem Bezug zur Keuschhaltung; keyholder_dashboard betont, dass keyholderInstructions verbindlich sind; upsert_note stellt klar, dass Notizen nie für den Sub sichtbar werden (get_action_log entsprechend ergänzt); upsert_appointment/upsert_recurring_context fordern sinnvollen statt trivialen Kontext."
+      }
+    ]
+  },
+  {
     "version": "4.42.5",
     "date": "2026-07-01",
     "changes": [
