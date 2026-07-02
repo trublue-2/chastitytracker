@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.2",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "„Verifizierung läuft\" blieb dauerhaft hängen, wenn die KI keinen Code im Foto erkannte oder kein Match fand (der häufigste Fall) — der Status wurde nur bei erfolgreicher Erkennung zurückgeschrieben, sonst blieb der Eintrag für immer auf „läuft\" stehen statt korrekt auf „Unverifiziert\" zu wechseln. Betraf auch echte Fehler bei der KI-Prüfung selbst. Wird jetzt in jedem Fall zurückgeschrieben."
+      }
+    ]
+  },
+  {
     "version": "4.43.1",
     "date": "2026-07-02",
     "changes": [

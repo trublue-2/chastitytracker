@@ -381,8 +381,11 @@ export async function POST(req: NextRequest) {
 
   // Server-side AI verification for PRUEFUNG entries — never trusted from client.
   // Fire-and-forget (blockiert die Antwort NICHT, konsistent zum Geräte-Check oben): der Eintrag ist
-  // bereits committed; verifikationStatus füllt sich asynchron nach. Failure lässt verifikationStatus:
-  // null (Keyholder kann manuell verifizieren). Verhindert Handy-Timeouts bei langsamem Vision-Modell.
+  // bereits committed mit verifikationStatus:"pending" ("Verifizierung läuft" in der UI, siehe oben).
+  // WICHTIG: das Ergebnis muss IMMER zurückgeschrieben werden — auch bei null (kein Code erkannt/kein
+  // Match, der häufigste Fall) und bei einer Exception — sonst bleibt der Eintrag für immer auf
+  // "pending" hängen. null → "unverified" (Keyholder kann manuell verifizieren); "rejected" wird nie
+  // automatisch gesetzt, nur vom Admin (siehe kontrolleService.ts resolveKontrolle).
   if (type === "PRUEFUNG" && imageUrl && kontrollCode) {
     const entryId = entry.id;
     const photoUrl = imageUrl;
@@ -391,13 +394,16 @@ export async function POST(req: NextRequest) {
     // even though the client preview matched.
     const safeRotation: Rotation = VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0;
     (async () => {
+      let status: "ai" | null = null;
       try {
-        const status = await verifyKontrolleCode(photoUrl, code, safeRotation);
-        if (status) {
-          await prisma.entry.update({ where: { id: entryId }, data: { verifikationStatus: status } });
-        }
+        status = await verifyKontrolleCode(photoUrl, code, safeRotation);
       } catch (err) {
         console.error("[POST /api/entries] AI verification failed for entry", entryId, err);
+      }
+      try {
+        await prisma.entry.update({ where: { id: entryId }, data: { verifikationStatus: status } });
+      } catch (err) {
+        console.error("[POST /api/entries] verifikationStatus write failed for entry", entryId, err);
       }
     })();
   }
