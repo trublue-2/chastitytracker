@@ -9,7 +9,10 @@ on:
         type: boolean
         default: true
       instances:
-        description: "Instanzen updaten (kommagetrennt, z.B. kunde1,kunde2). Leer = alle."
+        # ⚠ Explizite Namen erscheinen im ÖFFENTLICHEN Dispatch-Input-Record des Runs (Repo ist
+        # public). Für gezielte Einzel-Deploys lieber privat per SSH auf dem Server. "Leer = alle"
+        # verrät keine Namen (Auto-Discovery serverseitig, Log ist anonymisiert).
+        description: "Instanzen updaten (kommagetrennt). Leer = alle (empfohlen; keine Namen im Log)."
         required: false
         default: ""
       channel:
@@ -135,16 +138,22 @@ jobs:
             # (z.B. :latest = stable, oder :feat-xyz für ein Feature-Image). Daher pro Instanz
             # ein eigenes `docker compose pull` statt eines globalen Pulls.
 
-            # Instanzen parallel updaten
+            # Instanzen parallel updaten.
+            # Logging bewusst ANONYM: nur Index "$IDX/$TOTAL", NIE der Instanzname — sonst landen
+            # bei öffentlichem Repo alle Subdomains im öffentlichen Actions-Log. Intern iteriert die
+            # Schleife weiter über die echten Ordnernamen; nur die Ausgabe ist anonymisiert.
+            TOTAL=${#TARGETS[@]}
             PIDS=()
+            IDX=0
             for INSTANCE in "${TARGETS[@]}"; do
+              IDX=$((IDX + 1))
               DIR="$INSTANCES_DIR/$INSTANCE"
               if [ ! -f "$DIR/docker-compose.yml" ]; then
-                echo "⚠ Instanz '$INSTANCE' nicht gefunden, übersprungen."
+                echo "⚠ Instanz $IDX/$TOTAL nicht gefunden, übersprungen."
                 continue
               fi
               (
-                echo "→ Update $INSTANCE ..."
+                echo "→ Update Instanz $IDX/$TOTAL ..."
                 cd "$DIR"
                 # Optional: Instanz auf einen anderen Image-Tag umpinnen (z.B. :feature, :latest).
                 # CHANNEL_INPUT ist auf ein striktes Tag-Muster validiert (keine Shell-/sed-Injection).
@@ -152,14 +161,14 @@ jobs:
                   case "$CHANNEL_INPUT" in
                     *[!A-Za-z0-9._-]*) echo "⚠ Ungültiger channel '$CHANNEL_INPUT' — übersprungen." ;;
                     *)
-                      echo "→ Pinne $INSTANCE auf :$CHANNEL_INPUT"
+                      echo "→ Pinne Instanz $IDX/$TOTAL auf :$CHANNEL_INPUT"
                       sed -i "s#\(ghcr.io/trublue-2/chastitytracker\):[A-Za-z0-9._-]*#\1:$CHANNEL_INPUT#" docker-compose.yml
                       ;;
                   esac
                 fi
                 docker compose pull
                 docker compose up -d --force-recreate
-                echo "✓ $INSTANCE aktualisiert."
+                echo "✓ Instanz $IDX/$TOTAL aktualisiert."
               ) &
               PIDS+=($!)
             done
@@ -176,4 +185,4 @@ jobs:
               echo "⚠ $FAILED Instanz(en) fehlgeschlagen!"
               exit 1
             fi
-            echo "✓ Alle ${#TARGETS[@]} Instanzen aktualisiert."
+            echo "✓ Alle $TOTAL Instanzen aktualisiert."
