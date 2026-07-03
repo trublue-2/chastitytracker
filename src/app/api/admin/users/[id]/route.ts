@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
-import { isValidEmail, validatePassword } from "@/lib/constants";
+import { isValidEmail, passwordErrorCode } from "@/lib/constants";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
@@ -57,7 +57,7 @@ export async function PATCH(
   if (err) return err;
 
   if (body.password !== undefined) {
-    const pwErr = validatePassword(body.password);
+    const pwErr = passwordErrorCode(body.password);
     if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
     const passwordHash = await bcrypt.hash(body.password, 12);
     await prisma.user.update({ where: { id }, data: { passwordHash } });
@@ -67,14 +67,14 @@ export async function PATCH(
   if (body.email !== undefined) {
     const email = body.email?.trim() || null;
     if (!isValidEmail(email)) {
-      return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
+      return NextResponse.json({ error: "emailInvalid" }, { status: 400 });
     }
     try {
       const user = await prisma.user.update({ where: { id }, data: { email } });
       return NextResponse.json({ id: user.id, email: user.email });
     } catch (err) {
       if (isUniqueConstraintOn(err, "email")) {
-        return NextResponse.json({ error: "E-Mail-Adresse bereits vergeben" }, { status: 409 });
+        return NextResponse.json({ error: "emailTaken" }, { status: 409 });
       }
       throw err;
     }
@@ -119,7 +119,7 @@ export async function PATCH(
   }
 
   if (!["admin", "user"].includes(body.role)) {
-    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    return NextResponse.json({ error: "invalidRole" }, { status: 400 });
   }
 
   const user = await prisma.user.update({ where: { id }, data: { role: body.role } });
@@ -137,7 +137,7 @@ export async function DELETE(
   const { id } = await params;
 
   if (id === session!.user.id) {
-    return NextResponse.json({ error: "Eigenen Account kann man nicht löschen" }, { status: 400 });
+    return NextResponse.json({ error: "cannotDeleteSelf" }, { status: 400 });
   }
 
   // H5 (Recht auf Vergessenwerden): alle Foto-Dateien des Nutzers VOR dem Cascade-Delete einsammeln,

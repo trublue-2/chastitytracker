@@ -16,8 +16,9 @@ import PasskeyManager from "@/app/components/PasskeyManager";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
-import { LOCALES_LONG, PASSWORD_MIN_LENGTH, BCRYPT_MAX_BYTES } from "@/lib/constants";
+import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
+import { useApiError } from "@/app/hooks/useApiError";
 
 interface SettingsFormProps {
   username: string;
@@ -31,6 +32,7 @@ interface SettingsFormProps {
 export default function SettingsForm({ username, email, timezone, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
+  const apiError = useApiError();
   const locale = useLocale();
   const switchLocale = useLocaleSwitcher();
 
@@ -61,9 +63,7 @@ export default function SettingsForm({ username, email, timezone, version, build
       setNext(""); setConfirm("");
     } else {
       const data = await res.json();
-      if (data.error === "passwordTooShort") setPwError(t("passwordTooShort", { min: PASSWORD_MIN_LENGTH }));
-      else if (data.error === "passwordTooLong") setPwError(t("passwordTooLong", { max: BCRYPT_MAX_BYTES }));
-      else setPwError(tc("error"));
+      setPwError(apiError(data.error));
     }
   }
 
@@ -86,7 +86,7 @@ export default function SettingsForm({ username, email, timezone, version, build
       setEmailSuccess(true);
     } else {
       const data = await res.json();
-      setEmailError(data.error ?? tc("error"));
+      setEmailError(apiError(data.error));
     }
   }
 

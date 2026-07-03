@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
-import { validatePassword, isValidEmail } from "@/lib/constants";
+import { passwordErrorCode, isValidEmail } from "@/lib/constants";
 import { ensureKgCategory } from "@/lib/deviceCategories";
 import { ensureNotificationPreferences } from "@/lib/notificationPrefs";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
@@ -48,17 +48,17 @@ export async function POST(req: NextRequest) {
   const { username, password, role, email } = await req.json();
 
   if (!username?.trim() || !password?.trim()) {
-    return NextResponse.json({ error: "username and password required" }, { status: 400 });
+    return NextResponse.json({ error: "usernameRequired" }, { status: 400 });
   }
   if (typeof username !== "string" || username.trim().length < 3 || username.trim().length > 50) {
-    return NextResponse.json({ error: "Benutzername muss 3–50 Zeichen haben" }, { status: 400 });
+    return NextResponse.json({ error: "usernameLength" }, { status: 400 });
   }
-  const pwErr = validatePassword(password);
+  const pwErr = passwordErrorCode(password);
   if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 
   const trimmedEmail = email?.trim() || null;
   if (trimmedEmail && !isValidEmail(trimmedEmail)) {
-    return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
+    return NextResponse.json({ error: "emailInvalid" }, { status: 400 });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -74,10 +74,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     if (isUniqueConstraintOn(err, "username")) {
-      return NextResponse.json({ error: "Benutzername bereits vergeben" }, { status: 409 });
+      return NextResponse.json({ error: "usernameTaken" }, { status: 409 });
     }
     if (isUniqueConstraintOn(err, "email")) {
-      return NextResponse.json({ error: "E-Mail-Adresse bereits vergeben" }, { status: 409 });
+      return NextResponse.json({ error: "emailTaken" }, { status: 409 });
     }
     throw err;
   }

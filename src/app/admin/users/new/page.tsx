@@ -10,10 +10,12 @@ import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import { useApiError } from "@/app/hooks/useApiError";
 
 export default function NewUserPage() {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -41,7 +43,7 @@ export default function NewUserPage() {
     setSaving(false);
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? t("createError"));
+      setError(apiError(data.error));
       return;
     }
 

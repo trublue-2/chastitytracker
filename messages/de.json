@@ -1,4 +1,17 @@
 {
+  "errors": {
+    "passwordTooShort": "Passwort zu kurz (min. {min} Zeichen)",
+    "passwordTooLong": "Passwort zu lang (max. {max} Bytes)",
+    "missingFields": "Fehlende Felder",
+    "tokenInvalid": "Token ungültig oder abgelaufen",
+    "usernameRequired": "Benutzername und Passwort erforderlich",
+    "usernameLength": "Benutzername muss 3–50 Zeichen haben",
+    "emailInvalid": "Ungültige E-Mail-Adresse",
+    "usernameTaken": "Benutzername bereits vergeben",
+    "emailTaken": "E-Mail-Adresse bereits vergeben",
+    "invalidRole": "Ungültige Rolle",
+    "cannotDeleteSelf": "Eigenen Account kann man nicht löschen"
+  },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
     "unlockFaceId": "Mit Face ID entsperren",
@@ -363,8 +376,6 @@
     "newPassword": "Neues Passwort",
     "confirmPassword": "Bestätigen",
     "passwordMismatch": "Passwörter stimmen nicht überein",
-    "passwordTooShort": "Passwort zu kurz (min. {min} Zeichen)",
-    "passwordTooLong": "Passwort zu lang (max. {max} Bytes)",
     "passwordChanged": "Passwort erfolgreich geändert.",
     "saveBtn": "Passwort ändern",
     "saving": "Wird gespeichert…",
@@ -725,7 +736,6 @@
     "emailOptional": "(optional)",
     "createUserBtn": "Benutzer erstellen",
     "creatingUser": "Wird erstellt…",
-    "createError": "Fehler beim Erstellen",
     "demoTitle": "Demo-User anlegen",
     "demoDesc": "Erstellt «DemoUser» mit 20 Sessions, Trainingsvorgaben & Orgasmen. Passwort:",
     "demoCreateBtn": "✦ Demo-User erstellen",

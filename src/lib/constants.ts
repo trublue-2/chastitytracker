@@ -155,15 +155,6 @@ export function passwordErrorCode(password: string): PasswordErrorCode | null {
   return null;
 }
 
-/** Returns a German error message if invalid, null if OK (raw-string display sites). */
-export function validatePassword(password: string): string | null {
-  switch (passwordErrorCode(password)) {
-    case "passwordTooShort": return `Passwort zu kurz (min. ${PASSWORD_MIN_LENGTH} Zeichen)`;
-    case "passwordTooLong": return `Passwort zu lang (max. ${BCRYPT_MAX_BYTES} Bytes)`;
-    case null: return null;
-  }
-}
-
 // ── Orgasmus Art parsing ────────────────────────────────────────────────────
 
 /** Extracts base orgasmusArt before the " – " detail separator */

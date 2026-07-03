@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { hashToken } from "@/lib/oauth";
-import { validatePassword } from "@/lib/constants";
+import { passwordErrorCode } from "@/lib/constants";
 
 export async function POST(req: Request) {
   const { token, password } = await req.json();
-  if (!token || !password) return NextResponse.json({ error: "Fehlende Felder" }, { status: 400 });
-  const pwErr = validatePassword(password);
+  if (!token || !password) return NextResponse.json({ error: "missingFields" }, { status: 400 });
+  const pwErr = passwordErrorCode(password);
   if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 
   // L1: Token wird nur als SHA-256-Hash gespeichert — eingehenden Klartext-Token hashen und so suchen.
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   });
 
   if (!resetToken || resetToken.expiresAt < new Date()) {
-    return NextResponse.json({ error: "Token ungültig oder abgelaufen" }, { status: 400 });
+    return NextResponse.json({ error: "tokenInvalid" }, { status: 400 });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);

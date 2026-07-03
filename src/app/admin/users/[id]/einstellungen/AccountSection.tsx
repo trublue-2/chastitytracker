@@ -7,6 +7,7 @@ import Card from "@/app/components/Card";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import { useApiError } from "@/app/hooks/useApiError";
 
 interface Props {
   userId: string;
@@ -20,6 +21,7 @@ export default function AccountSection({ userId, username, email, role, isSelf }
   const t = useTranslations("admin");
   const ts = useTranslations("settings");
   const tc = useTranslations("common");
+  const apiError = useApiError();
 
   const [expandPassword, setExpandPassword] = useState(false);
   const [expandEmail, setExpandEmail] = useState(false);
@@ -45,7 +47,7 @@ export default function AccountSection({ userId, username, email, role, isSelf }
       setPassword("");
     } else {
       const data = await res.json();
-      setPwError(data.error ?? tc("error"));
+      setPwError(apiError(data.error));
     }
   }
 
@@ -68,7 +70,8 @@ export default function AccountSection({ userId, username, email, role, isSelf }
     if (res.ok) {
       setEmailSuccess(true);
     } else {
-      setEmailError(tc("error"));
+      const data = await res.json();
+      setEmailError(apiError(data.error));
     }
   }
 

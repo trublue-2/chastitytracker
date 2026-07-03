@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest) {
   const value = trimmed || null;
 
   if (!isValidEmail(value)) {
-    return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
+    return NextResponse.json({ error: "emailInvalid" }, { status: 400 });
   }
 
   try {
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest) {
     });
   } catch (e: unknown) {
     if (isUniqueConstraintOn(e, "email")) {
-      return NextResponse.json({ error: "E-Mail-Adresse bereits vergeben" }, { status: 409 });
+      return NextResponse.json({ error: "emailTaken" }, { status: 409 });
     }
     throw e;
   }

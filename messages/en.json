@@ -1,4 +1,17 @@
 {
+  "errors": {
+    "passwordTooShort": "Password too short (min. {min} characters)",
+    "passwordTooLong": "Password too long (max. {max} bytes)",
+    "missingFields": "Missing fields",
+    "tokenInvalid": "Token invalid or expired",
+    "usernameRequired": "Username and password required",
+    "usernameLength": "Username must be 3–50 characters",
+    "emailInvalid": "Invalid email address",
+    "usernameTaken": "Username already taken",
+    "emailTaken": "Email address already taken",
+    "invalidRole": "Invalid role",
+    "cannotDeleteSelf": "You cannot delete your own account"
+  },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
     "unlockFaceId": "Unlock with Face ID",
@@ -363,8 +376,6 @@
     "newPassword": "New password",
     "confirmPassword": "Confirm",
     "passwordMismatch": "Passwords do not match",
-    "passwordTooShort": "Password too short (min. {min} characters)",
-    "passwordTooLong": "Password too long (max. {max} bytes)",
     "passwordChanged": "Password changed successfully.",
     "saveBtn": "Change password",
     "saving": "Saving…",
@@ -725,7 +736,6 @@
     "emailOptional": "(optional)",
     "createUserBtn": "Create user",
     "creatingUser": "Creating…",
-    "createError": "Error creating user",
     "demoTitle": "Create demo user",
     "demoDesc": "Creates «DemoUser» with 20 sessions, training goals & orgasms. Password:",
     "demoCreateBtn": "✦ Create demo user",

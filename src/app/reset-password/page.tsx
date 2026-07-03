@@ -4,9 +4,11 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useApiError } from "@/app/hooks/useApiError";
 
 function ResetPasswordForm() {
   const t = useTranslations("resetPassword");
+  const apiError = useApiError();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const router = useRouter();
@@ -28,7 +30,7 @@ function ResetPasswordForm() {
     });
     const data = await res.json();
     setLoading(false);
-    if (!res.ok) { setError(data.error ?? t("mismatch")); return; }
+    if (!res.ok) { setError(apiError(data.error)); return; }
     router.push("/login?reset=1");
   }
 
