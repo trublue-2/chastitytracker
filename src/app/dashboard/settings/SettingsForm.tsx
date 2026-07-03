@@ -16,7 +16,7 @@ import PasskeyManager from "@/app/components/PasskeyManager";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
-import { LOCALES_LONG } from "@/lib/constants";
+import { LOCALES_LONG, PASSWORD_MIN_LENGTH, BCRYPT_MAX_BYTES } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 
 interface SettingsFormProps {
@@ -39,7 +39,6 @@ export default function SettingsForm({ username, email, timezone, version, build
     setExpanded((prev) => (prev === section ? null : section));
   }
 
-  const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [pwError, setPwError] = useState<string | null>(null);
@@ -54,16 +53,17 @@ export default function SettingsForm({ username, email, timezone, version, build
     const res = await fetch("/api/settings/password", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      body: JSON.stringify({ newPassword: next }),
     });
     setPwSaving(false);
     if (res.ok) {
       setPwSuccess(true);
-      setCurrent(""); setNext(""); setConfirm("");
+      setNext(""); setConfirm("");
     } else {
       const data = await res.json();
-      const errorKey = data.error === "wrongPassword" ? t("wrongPassword") : (data.error ?? tc("error"));
-      setPwError(errorKey);
+      if (data.error === "passwordTooShort") setPwError(t("passwordTooShort", { min: PASSWORD_MIN_LENGTH }));
+      else if (data.error === "passwordTooLong") setPwError(t("passwordTooLong", { max: BCRYPT_MAX_BYTES }));
+      else setPwError(tc("error"));
     }
   }
 
@@ -148,14 +148,6 @@ export default function SettingsForm({ username, email, timezone, version, build
               <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("passwordChanged")}</p>
             ) : (
               <form onSubmit={handlePassword} className="flex flex-col gap-4">
-                <Input
-                  label={t("currentPassword")}
-                  type="password"
-                  value={current}
-                  onChange={(e) => setCurrent(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
                 <Input
                   label={t("newPassword")}
                   type="password"

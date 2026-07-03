@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.43.10",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Passwort-Änderung in den Einstellungen funktioniert wieder. Das Feld «Aktuelles Passwort» ist entfallen — geändert wird nur noch mit dem neuen Passwort (die bestehende Anmeldung gilt als Nachweis)."
+      },
+      {
+        "type": "fix",
+        "text": "Fehlermeldungen bei der Passwort-Änderung werden jetzt in der eingestellten Sprache angezeigt (bisher teils nur auf Deutsch)."
+      }
+    ]
+  },
+  {
     "version": "4.43.9",
     "date": "2026-07-03",
     "changes": [

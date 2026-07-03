@@ -146,11 +146,22 @@ export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
 export const PASSWORD_MIN_LENGTH = 8;
 export const BCRYPT_MAX_BYTES = 72;
 
-/** Returns error message string if invalid, null if OK */
-export function validatePassword(password: string): string | null {
-  if (!password || password.length < PASSWORD_MIN_LENGTH) return `Passwort zu kurz (min. ${PASSWORD_MIN_LENGTH} Zeichen)`;
-  if (Buffer.byteLength(password, "utf8") > BCRYPT_MAX_BYTES) return `Passwort zu lang (max. ${BCRYPT_MAX_BYTES} Bytes)`;
+export type PasswordErrorCode = "passwordTooShort" | "passwordTooLong";
+
+/** Returns a stable i18n error code if invalid, null if OK. */
+export function passwordErrorCode(password: string): PasswordErrorCode | null {
+  if (!password || password.length < PASSWORD_MIN_LENGTH) return "passwordTooShort";
+  if (Buffer.byteLength(password, "utf8") > BCRYPT_MAX_BYTES) return "passwordTooLong";
   return null;
+}
+
+/** Returns a German error message if invalid, null if OK (raw-string display sites). */
+export function validatePassword(password: string): string | null {
+  switch (passwordErrorCode(password)) {
+    case "passwordTooShort": return `Passwort zu kurz (min. ${PASSWORD_MIN_LENGTH} Zeichen)`;
+    case "passwordTooLong": return `Passwort zu lang (max. ${BCRYPT_MAX_BYTES} Bytes)`;
+    case null: return null;
+  }
 }
 
 // ── Orgasmus Art parsing ────────────────────────────────────────────────────

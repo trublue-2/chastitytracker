@@ -360,11 +360,11 @@
   "settings": {
     "title": "Settings",
     "changePassword": "Change password",
-    "currentPassword": "Current password",
     "newPassword": "New password",
     "confirmPassword": "Confirm",
     "passwordMismatch": "Passwords do not match",
-    "wrongPassword": "Current password is incorrect.",
+    "passwordTooShort": "Password too short (min. {min} characters)",
+    "passwordTooLong": "Password too long (max. {max} bytes)",
     "passwordChanged": "Password changed successfully.",
     "saveBtn": "Change password",
     "saving": "Saving…",
