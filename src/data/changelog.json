@@ -1,5 +1,35 @@
 [
   {
+    "version": "4.44.1",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Bearbeiten eines Orgasmus- oder Öffnungs-Eintrags, dessen Art/Grund inzwischen aus der Liste entfernt oder umbenannt wurde, überschreibt den erfassten Wert nicht mehr und blockiert auch reine Zeit-Änderungen nicht (der Bestandswert bleibt erhalten)."
+      },
+      {
+        "type": "fix",
+        "text": "Eine umbenannte Orgasmus-Art zeigt ihren neuen Namen jetzt überall (Sessions, Detailansicht, Einträge-Liste sowie E-Mail/Push) statt der eingebauten Standardbezeichnung."
+      },
+      {
+        "type": "fix",
+        "text": "Die Keyholder-Direktive per E-Mail/Push zeigt bei einer angepassten Orgasmus-Art wieder das Label statt eines internen Codes."
+      },
+      {
+        "type": "fix",
+        "text": "Die Zeichen «/» und «|» in eigenen Bezeichnungen bleiben erhalten und werden nicht mehr als Trennzeichen für Unterarten interpretiert."
+      },
+      {
+        "type": "fix",
+        "text": "Die Fehlermeldung bei ungültiger Zeitzone erscheint jetzt in der eingestellten Sprache."
+      },
+      {
+        "type": "chore",
+        "text": "Interne Härtung und Aufräumarbeiten: Der Auswahllisten-Editor speichert nur noch bei tatsächlicher Änderung, verhindert paralleles Speichern und zeigt bei einem Fehler eine Meldung; die Start-Migration bricht bei einem Einzelfehler nicht mehr den ganzen Start ab, und mehrere Hilfsfunktionen wurden zentralisiert."
+      }
+    ]
+  },
+  {
     "version": "4.44.0",
     "date": "2026-07-03",
     "changes": [

@@ -95,6 +95,11 @@ export default function OeffnenFormCore({
   }
 
   const grundSelectOptions = grundOptions.map((r) => ({ value: r.code, label: r.label }));
+  // Bestandswert erhalten: ein entfernter/umbenannter Grund (nicht mehr in der Liste) wird als Option
+  // ergänzt, damit ein reiner Zeit-Edit nicht an einem fehlenden Match scheitert.
+  if (initial?.oeffnenGrund && !grundSelectOptions.some((o) => o.value === initial.oeffnenGrund)) {
+    grundSelectOptions.push({ value: initial.oeffnenGrund, label: initial.oeffnenGrund });
+  }
 
   const defaultLabel = isEdit ? tCommon("update") : t("saveBtn");
 

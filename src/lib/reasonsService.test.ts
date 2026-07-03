@@ -7,6 +7,7 @@ import {
   validOeffnenCodes,
   orgasmusValueAllowed,
   resolveOrgasmusOptions,
+  resolveOrgasmusArtDisplay,
   backfillOrgasmusArtenConfig,
   DEFAULT_ORGASM_ARTEN,
   PROTECTED_OPENING_CODE,
@@ -129,13 +130,13 @@ describe("resolveReasonList (opening) + validOeffnenCodes", () => {
 });
 
 describe("orgasm sub-types (Kaskade)", () => {
-  it("normalizes separators / | and spaced - to ' – ' in orgasm labels", () => {
+  it("normalizes spaced - / en-dash to ' – ' but keeps / and | as literals", () => {
     const out = parseReasonConfig([
       { code: "c_1111111111", label: "Foo / Bar" },
       { code: "c_2222222222", label: "Baz | Qux" },
       { code: "c_3333333333", label: "Ga - Zonk" },
     ], "orgasm");
-    expect(out.map((e) => e.label)).toEqual(["Foo – Bar", "Baz – Qux", "Ga – Zonk"]);
+    expect(out.map((e) => e.label)).toEqual(["Foo / Bar", "Baz | Qux", "Ga – Zonk"]);
   });
   it("does NOT split an un-spaced hyphen inside a word", () => {
     expect(parseReasonConfig([{ code: "c_4444444444", label: "Anal-Sex" }], "orgasm")[0].label).toBe("Anal-Sex");
@@ -155,6 +156,33 @@ describe("orgasm sub-types (Kaskade)", () => {
   it("resolveOrgasmusOptions: a custom label override is shown raw (no translation)", () => {
     const opts = resolveOrgasmusOptions([{ code: "c_5555555555", label: "Gipfel – Allein" }], t);
     expect(opts[0]).toEqual({ code: "c_5555555555", mainToken: "Gipfel", mainLabel: "Gipfel", subLabel: "Allein" });
+  });
+});
+
+describe("normalizeSeparators (via parseReasonConfig orgasm labels)", () => {
+  const label = (raw: string) => parseReasonConfig([{ code: "c_abcdef01", label: raw }], "orgasm")[0].label;
+  it("keeps `/` and `|` as literals (no false main/sub split)", () => {
+    expect(label("Partner/Partnerin")).toBe("Partner/Partnerin");
+    expect(label("BDSM | soft")).toBe("BDSM | soft");
+  });
+  it("normalizes en-dash and spaced hyphen to the canonical ` – `", () => {
+    expect(label("Haupt–Sub")).toBe("Haupt – Sub");
+    expect(label("Haupt - Sub")).toBe("Haupt – Sub");
+    expect(label("Haupt  –  Sub")).toBe("Haupt – Sub");
+  });
+});
+
+describe("resolveOrgasmusArtDisplay", () => {
+  it("returns the custom label of a RENAMED built-in combo (full-code lookup, not base)", () => {
+    const cfg: ReasonEntry[] = [{ code: "Orgasmus – Masturbation", label: "Höhepunkt" }];
+    expect(resolveOrgasmusArtDisplay("Orgasmus – Masturbation", cfg, t)).toBe("Höhepunkt");
+  });
+  it("falls back to translated base + raw detail for an un-renamed default combo", () => {
+    expect(resolveOrgasmusArtDisplay("Orgasmus – Masturbation", ORGASM_DEFAULT, t)).toBe("T:artOrgasmus – Masturbation");
+  });
+  it("resolves a bare built-in main via i18n; null/empty → null", () => {
+    expect(resolveOrgasmusArtDisplay("ruinierter Orgasmus", ORGASM_DEFAULT, t)).toBe("T:artRuiniert");
+    expect(resolveOrgasmusArtDisplay(null, [], t)).toBeNull();
   });
 });
 

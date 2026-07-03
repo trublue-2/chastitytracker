@@ -10,7 +10,8 @@
     "usernameTaken": "Username already taken",
     "emailTaken": "Email address already taken",
     "invalidRole": "Invalid role",
-    "cannotDeleteSelf": "You cannot delete your own account"
+    "cannotDeleteSelf": "You cannot delete your own account",
+    "invalidTimezone": "Invalid timezone"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",

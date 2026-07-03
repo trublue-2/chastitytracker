@@ -30,18 +30,20 @@ export async function PATCH(
     return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
   }
   // Reason-Codes gegen die Listen DES ENTRY-EIGENTÜMERS validieren (Admin darf einen fremden Eintrag
-  // bearbeiten → dessen Config, nicht die des Admins). null-Config → Built-ins. Config nur laden, wenn
-  // tatsächlich ein Grund/eine Art geändert wird (reine Zeit-Edits sparen die Query).
-  const editsReason = (oeffnenGrund !== undefined && oeffnenGrund !== null) || (orgasmusArt !== undefined && orgasmusArt !== null);
-  if (editsReason) {
+  // bearbeiten → dessen Config, nicht die des Admins). null-Config → Built-ins. Nur validieren, wenn
+  // der Grund/die Art sich tatsächlich ÄNDERT — ein unveränderter Bestandswert (z.B. bei reinem
+  // Zeit-Edit) bleibt immer gültig, auch wenn die Art inzwischen aus der Liste entfernt wurde.
+  const changesOeffnen = oeffnenGrund !== undefined && oeffnenGrund !== null && oeffnenGrund !== existing.oeffnenGrund;
+  const changesOrgasmus = orgasmusArt !== undefined && orgasmusArt !== null && orgasmusArt !== existing.orgasmusArt;
+  if (changesOeffnen || changesOrgasmus) {
     const reasonOwner = await prisma.user.findUnique({
       where: { id: existing.userId },
       select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true },
     });
-    if (oeffnenGrund !== undefined && oeffnenGrund !== null && !validOeffnenCodes(reasonOwner?.oeffnenGruendeConfig).has(oeffnenGrund)) {
+    if (changesOeffnen && !validOeffnenCodes(reasonOwner?.oeffnenGruendeConfig).has(oeffnenGrund)) {
       return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
     }
-    if (orgasmusArt !== undefined && orgasmusArt !== null && !orgasmusValueAllowed(orgasmusArt as string, reasonOwner?.orgasmusArtenConfig)) {
+    if (changesOrgasmus && !orgasmusValueAllowed(orgasmusArt as string, reasonOwner?.orgasmusArtenConfig)) {
       return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
     }
   }

@@ -1,6 +1,5 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import type { ServiceResult } from "@/lib/serviceResult";
 import {
   ORGASMUS_ARTEN,
   OEFFNEN_GRUENDE,
@@ -8,10 +7,19 @@ import {
   GRUND_I18N_KEYS,
   parseOrgasmusArtBase,
   orgasmusArtLabel,
+  ART_SEP,
 } from "@/lib/constants";
 
-/** Kanonisches Trennzeichen zwischen Hauptart und Unterart einer Orgasmus-Art. */
-export const ART_SEP = " – ";
+// ART_SEP ist die zentrale Konstante in constants.ts (K4); hier re-exportiert für bestehende Importeure.
+export { ART_SEP };
+
+/** Zerlegt einen Orgasmus-Text (`Hauptart – Unterart` oder blanke Hauptart) am kanonischen Trennzeichen. */
+export function splitOrgasmusArt(text: string): { mainToken: string; subLabel: string } {
+  const sepAt = text.indexOf(ART_SEP);
+  return sepAt === -1
+    ? { mainToken: text, subLabel: "" }
+    : { mainToken: text.slice(0, sepAt), subLabel: text.slice(sepAt + ART_SEP.length) };
+}
 /**
  * Eingebaute Orgasmus-Standardliste als volle Kombinationen (Hauptart + Unterart) — bewahrt die
  * bisherigen Unterarten. Codes = diese Strings (bestehende Einträge matchen weiterhin). Text VOR
@@ -56,8 +64,9 @@ function reservedCodes(kind: ReasonKind): readonly string[] {
   return kind === "orgasm" ? [...DEFAULT_ORGASM_ARTEN, ...ORGASMUS_ARTEN] : OEFFNEN_GRUENDE;
 }
 
-/** Trennzeichen-Normalisierung für Orgasmus-Labels: `/`, `|`, `–` sowie umleertes `-` → kanonisches ` – `. */
-const SEP_RE = /\s*[/|–]\s*|\s+-\s+/g;
+/** Trennzeichen-Normalisierung für Orgasmus-Labels: `–` sowie umleertes `-` → kanonisches ` – `.
+ *  `/` und `|` bleiben bewusst Literale (kämen in echten Labels vor, z.B. „Partner/Partnerin"). */
+const SEP_RE = /\s*–\s*|\s+-\s+/g;
 function normalizeSeparators(s: string): string {
   return s.replace(SEP_RE, ART_SEP);
 }
@@ -211,6 +220,11 @@ export function resolveOrgasmusArtDisplay(
   t: (key: string) => string,
 ): string | null {
   if (!orgasmusArt) return null;
+  // Voller Code zuerst: eine umbenannte Kombi- oder Custom-Art trägt ihr Label am VOLLEN Code
+  // (z.B. `{code:"Orgasmus – Masturbation", label:"Höhepunkt"}`) — sonst würde die Basis-Auflösung
+  // („Orgasmus") das Override ignorieren.
+  const full = cfg.find((e) => e.code === orgasmusArt);
+  if (full?.label) return full.label;
   const base = parseOrgasmusArtBase(orgasmusArt);
   if (!base) return orgasmusArt;
   const baseLabel = resolveReasonLabel(base, cfg, "orgasm", t);
@@ -239,10 +253,7 @@ export interface OrgasmusOption { code: string; mainToken: string; mainLabel: st
  *  + Unterart-Label (roh; leer wenn keine Unterart). Der Sub baut daraus die zwei abhängigen Dropdowns. */
 export function resolveOrgasmusOptions(cfg: ReasonEntry[], t: (key: string) => string): OrgasmusOption[] {
   return cfg.map((e) => {
-    const text = e.label ?? e.code;
-    const sepAt = text.indexOf(ART_SEP);
-    const mainToken = sepAt === -1 ? text : text.slice(0, sepAt);
-    const subLabel = sepAt === -1 ? "" : text.slice(sepAt + ART_SEP.length);
+    const { mainToken, subLabel } = splitOrgasmusArt(e.label ?? e.code);
     // Hauptart-Anzeige: Override roh übernehmen, sonst Built-in-i18n der Hauptart.
     const mainLabel = e.label ? mainToken : orgasmusArtLabel(mainToken, t);
     return { code: e.code, mainToken, mainLabel, subLabel };
@@ -262,9 +273,9 @@ export function resolveReasonList(
  *  PATCH-Route. Für Öffnungsgründe ist REINIGUNG nach der Normalisierung garantiert enthalten. Gibt die
  *  normalisierte Liste zurück (u.a. server-generierte Custom-Codes) — der Editor re-seedet damit, sonst
  *  bekämen neu angelegte Zeilen bei jedem weiteren Speichern erneut einen Code (Duplikate). */
-export async function setReasonConfig(userId: string, kind: ReasonKind, raw: unknown): Promise<ServiceResult<ReasonEntry[]>> {
+export async function setReasonConfig(userId: string, kind: ReasonKind, raw: unknown): Promise<ReasonEntry[]> {
   const normalized = parseReasonConfig(raw, kind);
   const field = kind === "orgasm" ? "orgasmusArtenConfig" : "oeffnenGruendeConfig";
   await prisma.user.update({ where: { id: userId }, data: { [field]: JSON.stringify(normalized) } });
-  return { ok: true, data: normalized };
+  return normalized;
 }

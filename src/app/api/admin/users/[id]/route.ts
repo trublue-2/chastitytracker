@@ -109,12 +109,12 @@ export async function PATCH(
   }
 
   if (body.orgasmusArtenConfig !== undefined) {
-    const res = await setReasonConfig(id, "orgasm", body.orgasmusArtenConfig);
-    return NextResponse.json({ ok: true, config: res.ok ? res.data : [] });
+    const config = await setReasonConfig(id, "orgasm", body.orgasmusArtenConfig);
+    return NextResponse.json({ ok: true, config });
   }
   if (body.oeffnenGruendeConfig !== undefined) {
-    const res = await setReasonConfig(id, "opening", body.oeffnenGruendeConfig);
-    return NextResponse.json({ ok: true, config: res.ok ? res.data : [] });
+    const config = await setReasonConfig(id, "opening", body.oeffnenGruendeConfig);
+    return NextResponse.json({ ok: true, config });
   }
 
   if (body.mobileDesktopUpload !== undefined) {

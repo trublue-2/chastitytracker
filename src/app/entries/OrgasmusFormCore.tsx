@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Droplets } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
-import type { OrgasmusOption } from "@/lib/reasonsService";
+import { splitOrgasmusArt, type OrgasmusOption } from "@/lib/reasonsService";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -42,7 +42,17 @@ export default function OrgasmusFormCore({
 }: Props) {
   const t = useTranslations("orgasmForm");
   const tc = useTranslations("common");
-  const init = initFromStored(initial?.orgasmusArt, artOptions);
+  // Bestandswert erhalten: matcht der gespeicherte Wert weder Code noch Hauptart (entfernte/umbenannte/
+  // Legacy-Art wie „ruinierter Orgasmus – Verschlossen"), als synthetische Option einschleusen — sonst
+  // fiele initFromStored auf die erste Hauptart zurück und Speichern überschriebe den erfassten Wert.
+  const options = useMemo(() => {
+    const stored = initial?.orgasmusArt;
+    if (!stored || artOptions.some((o) => o.code === stored || o.mainToken === stored)) return artOptions;
+    const { mainToken, subLabel } = splitOrgasmusArt(stored);
+    const mainLabel = artOptions.find((o) => o.mainToken === mainToken)?.mainLabel ?? mainToken;
+    return [...artOptions, { code: stored, mainToken, mainLabel, subLabel }];
+  }, [artOptions, initial?.orgasmusArt]);
+  const init = initFromStored(initial?.orgasmusArt, options);
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [art, setArt] = useState(init.main); // Haupt-Token
@@ -62,12 +72,12 @@ export default function OrgasmusFormCore({
   }
 
   // Haupt-Dropdown: eindeutige Hauptarten in Listenreihenfolge.
-  const mainOptions = artOptions.reduce<{ value: string; label: string }[]>((acc, o) => {
+  const mainOptions = options.reduce<{ value: string; label: string }[]>((acc, o) => {
     if (!acc.some((m) => m.value === o.mainToken)) acc.push({ value: o.mainToken, label: o.mainLabel });
     return acc;
   }, []);
   // Unterart-Dropdown: Einträge der gewählten Hauptart, die eine Unterart haben.
-  const subArtOptions = artOptions.filter((o) => o.mainToken === art && o.subLabel).map((o) => ({ value: o.code, label: o.subLabel }));
+  const subArtOptions = options.filter((o) => o.mainToken === art && o.subLabel).map((o) => ({ value: o.code, label: o.subLabel }));
   const defaultLabel = isEdit ? tc("update") : t("saveBtn");
 
   return (

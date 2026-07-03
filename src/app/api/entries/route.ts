@@ -298,10 +298,10 @@ export async function POST(req: NextRequest) {
 
       // Labels über die Reason-Config des Entry-Owners (= handelnder User) auflösen — Custom-Labels
       // erscheinen so auch in Push/Mail, mit Built-in-i18n/Rohwert als Fallback.
-      const grundLabel = (g: string) =>
-        resolveReasonLabel(g, effectiveOeffnenGruende(reasonUser?.oeffnenGruendeConfig), "opening", tOpen);
-      const orgasmusArtLabel = (a: string) =>
-        resolveOrgasmusArtDisplay(a, effectiveOrgasmusArten(reasonUser?.orgasmusArtenConfig), tOrgasm) ?? a;
+      const openingCfg = effectiveOeffnenGruende(reasonUser?.oeffnenGruendeConfig);
+      const orgasmCfg = effectiveOrgasmusArten(reasonUser?.orgasmusArtenConfig);
+      const grundLabel = (g: string) => resolveReasonLabel(g, openingCfg, "opening", tOpen);
+      const orgasmusArtLabel = (a: string) => resolveOrgasmusArtDisplay(a, orgasmCfg, tOrgasm) ?? a;
 
       if (type === "VERSCHLUSS") {
         title = `${username} hat sich eingeschlossen`;

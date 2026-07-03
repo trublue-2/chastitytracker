@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import FormError from "@/app/components/FormError";
 import type { ReasonEntry } from "@/lib/reasonsService";
+
+/** Zeile im Editor: ReasonEntry plus optionaler stabiler Client-Key für noch nicht gespeicherte Zeilen. */
+type EditorRow = ReasonEntry & { _k?: string };
 
 /**
  * Admin-Editor für eine anpassbare Auswahlliste (Orgasmus-Arten ODER Öffnungsgründe) eines Subs.
@@ -27,42 +31,66 @@ export default function ReasonsEditor({
   protectedCode?: string;
 }) {
   const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const router = useRouter();
-  const [rows, setRows] = useState<ReasonEntry[]>(initial);
+  const [rows, setRows] = useState<EditorRow[]>(initial);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function save(next: ReasonEntry[]) {
+  // Sendbare Form: leere Zeilen raus, Labels getrimmt. Einzige Quelle für PATCH-Body UND Dirty-Check.
+  const toSendable = (rs: EditorRow[]) =>
+    rs.filter((r) => r.code || (r.label ?? "").trim()).map((r) => ({ code: r.code, label: (r.label ?? "").trim() }));
+  const serialize = (rs: EditorRow[]) => JSON.stringify(toSendable(rs));
+  const savedRef = useRef(serialize(initial)); // Stand der letzten gespeicherten Zeilen
+  const rowsRef = useRef(rows);                 // stets aktuelle Zeilen → kein Stale-Closure beim onBlur
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
+  const savingRef = useRef(false);              // synchroner In-Flight-Guard gegen paralleles/re-entrantes Speichern
+  const keyCounter = useRef(0);
+
+  async function commit(next: EditorRow[]) {
+    if (savingRef.current) return; // ein Speichern zur Zeit — verhindert Doppel-PATCH / Lost-Update
+    savingRef.current = true;
     setRows(next);
     setSaving(true);
-    // Brand-neue, leere Zeilen (kein Code, kein Label) nicht senden.
-    const toSend = next
-      .filter((r) => !(!r.code && !(r.label ?? "").trim()))
-      .map((r) => ({ code: r.code, label: (r.label ?? "").trim() }));
+    setError(null);
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [configKey]: toSend }),
+        body: JSON.stringify({ [configKey]: toSendable(next) }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.config)) setRows(data.config as ReasonEntry[]);
+      if (!res.ok) throw new Error("save failed");
+      const data = await res.json();
+      if (Array.isArray(data.config)) {
+        setRows(data.config as EditorRow[]);
+        savedRef.current = serialize(data.config as EditorRow[]);
       }
+    } catch {
+      setError(tc("savingError"));
     } finally {
+      savingRef.current = false;
       setSaving(false);
       router.refresh();
     }
+  }
+
+  // Nur speichern, wenn sich gegenüber dem letzten Stand wirklich etwas geändert hat — aus den
+  // AKTUELLEN Zeilen (rowsRef), nicht dem Closure-Stand, damit kein Tastendruck bei Blur verlorengeht.
+  function saveIfDirty() {
+    const cur = rowsRef.current;
+    if (serialize(cur) !== savedRef.current) void commit(cur);
   }
 
   function setLabel(i: number, label: string) {
     setRows((prev) => prev.map((r, j) => (j === i ? { ...r, label } : r)));
   }
   function move(i: number, dir: -1 | 1) {
+    const cur = rowsRef.current; // aktuelle Zeilen (inkl. evtl. ungespeicherter Tastatureingabe)
     const j = i + dir;
-    if (j < 0 || j >= rows.length) return;
-    const next = [...rows];
+    if (j < 0 || j >= cur.length) return;
+    const next = [...cur];
     [next[i], next[j]] = [next[j], next[i]];
-    save(next);
+    void commit(next);
   }
 
   const inputCls = "flex-1 min-w-0 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
@@ -72,7 +100,7 @@ export default function ReasonsEditor({
       {rows.map((r, i) => {
         const locked = !!protectedCode && r.code === protectedCode;
         return (
-          <div key={r.code || `new-${i}`} className="flex items-center gap-1.5">
+          <div key={r.code || r._k} className="flex items-center gap-1.5">
             <div className="flex flex-col">
               <button type="button" onClick={() => move(i, -1)} disabled={saving || i === 0}
                 aria-label={t("reasonMoveUp")} className="p-0.5 text-foreground-faint hover:text-foreground disabled:opacity-30">
@@ -90,7 +118,7 @@ export default function ReasonsEditor({
               maxLength={40}
               disabled={saving}
               onChange={(e) => setLabel(i, e.target.value)}
-              onBlur={() => save(rows)}
+              onBlur={saveIfDirty}
               className={inputCls}
             />
             {locked ? (
@@ -98,7 +126,7 @@ export default function ReasonsEditor({
                 <Trash2 size={16} />
               </span>
             ) : (
-              <button type="button" onClick={() => save(rows.filter((_, j) => j !== i))} disabled={saving}
+              <button type="button" onClick={() => void commit(rowsRef.current.filter((_, j) => j !== i))} disabled={saving}
                 aria-label={t("reasonRemove")} className="p-1 text-foreground-faint hover:text-warn disabled:opacity-50 shrink-0">
                 <Trash2 size={16} />
               </button>
@@ -108,12 +136,13 @@ export default function ReasonsEditor({
       })}
       <button
         type="button"
-        onClick={() => setRows((prev) => [...prev, { code: "", label: "" }])}
+        onClick={() => setRows((prev) => [...prev, { code: "", label: "", _k: `n${keyCounter.current++}` }])}
         disabled={saving || rows.length >= 12}
         className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground disabled:opacity-50 w-fit mt-1"
       >
         <Plus size={14} /> {t("reasonAdd")}
       </button>
+      <FormError message={error} />
     </div>
   );
 }

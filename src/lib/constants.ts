@@ -157,9 +157,12 @@ export function passwordErrorCode(password: string): PasswordErrorCode | null {
 
 // ── Orgasmus Art parsing ────────────────────────────────────────────────────
 
-/** Extracts base orgasmusArt before the " – " detail separator */
+/** Kanonisches Trennzeichen zwischen Hauptart und Unterart einer Orgasmus-Art (Single Source). */
+export const ART_SEP = " – ";
+
+/** Extracts base orgasmusArt before the ART_SEP detail separator */
 export function parseOrgasmusArtBase(orgasmusArt: string | null | undefined): string | undefined {
-  return orgasmusArt?.split(" – ")[0];
+  return orgasmusArt?.split(ART_SEP)[0];
 }
 
 // ── Validation ───────────────────────────────────────────────────────────────

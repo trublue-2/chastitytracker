@@ -160,10 +160,16 @@ async function main() {
   const cfgUsers = await prisma.user.findMany({ select: { id: true, orgasmusArtenConfig: true } });
   let migratedConfigs = 0;
   for (const u of cfgUsers) {
-    const next = backfillOrgasmusArtenConfig(u.orgasmusArtenConfig);
-    if (next !== null) {
-      await prisma.user.update({ where: { id: u.id }, data: { orgasmusArtenConfig: next } });
-      migratedConfigs++;
+    try {
+      const next = backfillOrgasmusArtenConfig(u.orgasmusArtenConfig);
+      if (next !== null) {
+        await prisma.user.update({ where: { id: u.id }, data: { orgasmusArtenConfig: next } });
+        migratedConfigs++;
+      }
+    } catch (e) {
+      // Ein einzelner fehlgeschlagener Backfill (z.B. transientes SQLITE_BUSY) darf den ganzen
+      // Container-Start NICHT fällen — loggen und mit der nächsten Instanz weitermachen.
+      console.error(`⚠ Orgasmus-Config-Migration für User ${u.id} übersprungen:`, e);
     }
   }
   if (migratedConfigs > 0) {
@@ -177,9 +183,15 @@ async function main() {
   }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+// Beim direkten Ausführen (Container-Entrypoint) läuft main(); beim `require` (Unit-Test des Mirrors)
+// nur die Exports, ohne DB-Verbindung/Seed.
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
+
+module.exports = { backfillOrgasmusArtenConfig, ORGASM_MAIN_WITH_SUBS, ART_SEP };

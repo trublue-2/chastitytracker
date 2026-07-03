@@ -110,7 +110,7 @@ export default function SettingsForm({ username, email, timezone, version, build
         setTzSuccess(true);
       } else {
         const data = await res.json();
-        setTzError(data.error ?? tc("error"));
+        setTzError(apiError(data.error));
       }
     } catch {
       setTzError(tc("error"));

@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest) {
 
   const { timezone } = await req.json();
   if (!isValidTimezone(timezone)) {
-    return NextResponse.json({ error: "Ungültige Zeitzone" }, { status: 400 });
+    return NextResponse.json({ error: "invalidTimezone" }, { status: 400 });
   }
 
   await prisma.user.update({

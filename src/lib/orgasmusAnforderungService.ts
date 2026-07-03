@@ -3,8 +3,9 @@ import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
 import { ORGASMUS_ANFORDERUNG_ARTEN } from "@/lib/constants";
-import { orgasmusValueAllowed } from "@/lib/reasonsService";
+import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
 import { notifyUser } from "@/lib/notify";
+import { getTranslations } from "next-intl/server";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateOrgasmusAnforderungParams {
@@ -122,7 +123,7 @@ export async function withdrawOrgasmusAnforderungById(id: string, userId: string
 /** Sends the directive e-mail + push to the user. Push is fire-and-forget. */
 async function sendOrgasmusAnforderungNotifications(opts: {
   userId: string;
-  user: { email: string | null; username: string };
+  user: { email: string | null; username: string; orgasmusArtenConfig: string | null };
   art: "ANWEISUNG" | "GELEGENHEIT";
   nachricht?: string | null;
   beginnt: Date;
@@ -137,12 +138,19 @@ async function sendOrgasmusAnforderungNotifications(opts: {
     ? "Der Keyholder weist dich an, in diesem Zeitfenster einen Orgasmus zu erfassen."
     : "Der Keyholder gibt dir in diesem Zeitfenster die Gelegenheit für einen Orgasmus.";
 
+  // Reason-Code → Anzeige-Label gegen die Config des Ziel-Subs auflösen (sonst zeigt eine Custom-Art
+  // den rohen `c_…`-Code in Mail/Push). Deutsch, wie der restliche Direktiv-Text.
+  const tOrgasm = await getTranslations({ locale: "de", namespace: "orgasmForm" });
+  const artLabel = vorgegebeneArt
+    ? resolveOrgasmusArtDisplay(vorgegebeneArt, effectiveOrgasmusArten(user.orgasmusArtenConfig), tOrgasm) ?? vorgegebeneArt
+    : null;
+
   if (user.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const nachrichtHtml = nachricht?.trim()
       ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Nachricht des Keyholders:</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
       : "";
-    const artHtml = vorgegebeneArt ? `<p><strong>Vorgegebene Art:</strong> ${escHtml(vorgegebeneArt)}</p>` : "";
+    const artHtml = artLabel ? `<p><strong>Vorgegebene Art:</strong> ${escHtml(artLabel)}</p>` : "";
     const oeffnenHtml = oeffnenErlaubt ? `<p><strong>Öffnen erlaubt:</strong> Du darfst dich in diesem Fenster zum Orgasmus öffnen.</p>` : "";
     await sendMail(
       user.email,
@@ -167,7 +175,7 @@ async function sendOrgasmusAnforderungNotifications(opts: {
   }
 
   const pushParts: string[] = [`Fenster: ${formatDateTime(beginnt)} – ${formatDateTime(endet)}`];
-  if (vorgegebeneArt) pushParts.push(vorgegebeneArt);
+  if (artLabel) pushParts.push(artLabel);
   if (nachricht?.trim()) pushParts.push(nachricht.trim());
   sendPushToUser(userId, betreff, pushParts.join(" · "), "/dashboard").catch(() => { /* ignore push errors */ });
 }

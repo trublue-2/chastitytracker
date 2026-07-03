@@ -10,7 +10,8 @@
     "usernameTaken": "Benutzername bereits vergeben",
     "emailTaken": "E-Mail-Adresse bereits vergeben",
     "invalidRole": "Ungültige Rolle",
-    "cannotDeleteSelf": "Eigenen Account kann man nicht löschen"
+    "cannotDeleteSelf": "Eigenen Account kann man nicht löschen",
+    "invalidTimezone": "Ungültige Zeitzone"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
