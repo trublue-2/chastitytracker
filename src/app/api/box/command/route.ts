@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { aktivesReinigungsFenster, reinigungVerbrauchtHeute } from "@/lib/reinigungService";
+import { APP_TZ } from "@/lib/utils";
 import { heimdallEnabled } from "@/lib/constants";
 
 const VALID = ["lock", "open", "clean_open"] as const;
@@ -45,19 +46,20 @@ export async function POST(req: NextRequest) {
       getActiveSperrzeit(userId),
       prisma.user.findUnique({
         where: { id: userId },
-        select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true },
+        select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, timezone: true },
       }),
     ]);
     if (!sperre?.reinigungErlaubt || !user?.reinigungErlaubt) {
       return NextResponse.json({ error: "Reinigung nicht erlaubt" }, { status: 400 });
     }
-    const fensterEnd = aktivesReinigungsFenster(user.reinigungsFenster, now);
+    const tz = user.timezone ?? APP_TZ;
+    const fensterEnd = aktivesReinigungsFenster(user.reinigungsFenster, now, tz);
     if (!fensterEnd) {
       return NextResponse.json({ error: "Ausserhalb des Reinigungsfensters" }, { status: 400 });
     }
     if (user.reinigungMaxProTag > 0) {
       const inFlight = await prisma.boxStatus.count({ where: { userId, pendingCommand: "clean_open" } });
-      const used = (await reinigungVerbrauchtHeute(userId, now)) + inFlight;
+      const used = (await reinigungVerbrauchtHeute(userId, now, tz)) + inFlight;
       if (used >= user.reinigungMaxProTag) {
         return NextResponse.json({ error: "Reinigungs-Kontingent für heute aufgebraucht" }, { status: 400 });
       }

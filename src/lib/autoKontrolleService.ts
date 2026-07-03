@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ServiceResult } from "@/lib/serviceResult";
-import { midnightInTZ, clamp } from "@/lib/utils";
+import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
 import { generateKontrollCode } from "@/lib/kontrolleService";
 
 /**
@@ -50,6 +50,7 @@ export function generateAutoKontrollen(
   settings: AutoKontrolleSettings,
   now: Date,
   rand: () => number = Math.random,
+  tz: string = APP_TZ,
 ): { wirksamAb: Date; deadline: Date }[] {
   const x = clamp(settings.proTag, PRO_TAG_RANGE);
   if (x <= 0) return [];
@@ -64,7 +65,7 @@ export function generateAutoKontrollen(
   const span = awakeEnd - awakeStart;
   if (span <= 0) return [];
 
-  const dayBaseMs = midnightInTZ(now).getTime();
+  const dayBaseMs = midnightInTZ(now, tz).getTime();
   const segSize = span / x;
   const out: { wirksamAb: Date; deadline: Date }[] = [];
 
@@ -102,7 +103,7 @@ export function autoKontrolleSettingsFromUser(u: {
 }
 
 const AUTO_USER_SELECT = {
-  id: true, autoKontrolleAktiv: true, autoKontrolleProTag: true,
+  id: true, timezone: true, autoKontrolleAktiv: true, autoKontrolleProTag: true,
   autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
 } as const;
@@ -122,28 +123,28 @@ async function createAutoKontrollen(userId: string, slots: { wirksamAb: Date; de
 /** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (CH-Tag)
  *  angelegte Auto-Zeilen, passiert nichts. (Vom Poller, einmal pro Tag.) */
 export async function ensureDailyAutoKontrollenForUser(
-  userId: string, settings: AutoKontrolleSettings, now: Date,
+  userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
 ): Promise<number> {
   if (!settings.aktiv || settings.proTag <= 0) return 0;
   const already = await prisma.kontrollAnforderung.count({
-    where: { userId, auto: true, createdAt: { gte: midnightInTZ(now) } },
+    where: { userId, auto: true, createdAt: { gte: midnightInTZ(now, tz) } },
   });
   if (already > 0) return 0;
-  return createAutoKontrollen(userId, generateAutoKontrollen(settings, now));
+  return createAutoKontrollen(userId, generateAutoKontrollen(settings, now, Math.random, tz));
 }
 
 /** Plant die Auto-Kontrollen für den LAUFENDEN Tag neu (für sofort wirksame Settings-Änderungen): noch
  *  nicht versendete Auto-Zeilen von heute verwerfen und die Resttag-Slots nach den neuen Settings anlegen.
  *  Bereits versendete Kontrollen bleiben unberührt; Deaktivieren entfernt nur die noch offenen. */
 export async function replanTodayAutoKontrollenForUser(
-  userId: string, settings: AutoKontrolleSettings, now: Date,
+  userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
 ): Promise<number> {
   // Noch nicht versendete (und nicht zurückgezogene) Auto-Zeilen von heute löschen — sie waren nie sichtbar.
   await prisma.kontrollAnforderung.deleteMany({
-    where: { userId, auto: true, benachrichtigtAt: null, withdrawnAt: null, createdAt: { gte: midnightInTZ(now) } },
+    where: { userId, auto: true, benachrichtigtAt: null, withdrawnAt: null, createdAt: { gte: midnightInTZ(now, tz) } },
   });
   if (!settings.aktiv || settings.proTag <= 0) return 0;
-  return createAutoKontrollen(userId, generateAutoKontrollen(settings, now));
+  return createAutoKontrollen(userId, generateAutoKontrollen(settings, now, Math.random, tz));
 }
 
 /** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro CH-Tag). */
@@ -151,7 +152,7 @@ export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
   const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_USER_SELECT });
   for (const u of users) {
     try {
-      await ensureDailyAutoKontrollenForUser(u.id, autoKontrolleSettingsFromUser(u), now);
+      await ensureDailyAutoKontrollenForUser(u.id, autoKontrolleSettingsFromUser(u), now, u.timezone ?? APP_TZ);
     } catch (e) {
       console.error(`[autoKontrolle] Tagesplanung fehlgeschlagen (${u.id}):`, (e as Error).message);
     }
@@ -163,9 +164,17 @@ export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
  *  ohne History-Wert. Erfüllte Auto-Kontrollen (withdrawnAt null) bleiben unberührt. createdAt <
  *  heute-Mitternacht schützt die heutigen Zeilen, die der Keyholder tagsüber noch sehen darf. */
 export async function deleteWithdrawnAutoKontrollen(now: Date): Promise<number> {
-  const res = await prisma.kontrollAnforderung.deleteMany({
-    where: { auto: true, withdrawnAt: { not: null }, createdAt: { lt: midnightInTZ(now) } },
+  // Per-User-Tag-Grenze: die "heutige Mitternacht" hängt an der Sub-Zeitzone, deshalb kann nicht ein
+  // globales midnightInTZ(now) alle Zeilen filtern — sonst würde für Nicht-CH-Subs zu früh/spät gelöscht.
+  const candidates = await prisma.kontrollAnforderung.findMany({
+    where: { auto: true, withdrawnAt: { not: null } },
+    select: { id: true, createdAt: true, user: { select: { timezone: true } } },
   });
+  const toDelete = candidates
+    .filter((c) => c.createdAt < midnightInTZ(now, c.user.timezone ?? APP_TZ))
+    .map((c) => c.id);
+  if (toDelete.length === 0) return 0;
+  const res = await prisma.kontrollAnforderung.deleteMany({ where: { id: { in: toDelete } } });
   return res.count;
 }
 
@@ -193,7 +202,7 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_USER_SELECT });
 
   // Änderung sofort auf den laufenden Tag anwenden (mit den neuen, effektiven Settings neu planen).
-  await replanTodayAutoKontrollenForUser(userId, autoKontrolleSettingsFromUser(user), new Date())
+  await replanTodayAutoKontrollenForUser(userId, autoKontrolleSettingsFromUser(user), new Date(), user.timezone ?? APP_TZ)
     .catch((e) => console.error(`[autoKontrolle] Replan nach Settings-Änderung fehlgeschlagen (${userId}):`, (e as Error).message));
   return { ok: true, data: null };
 }

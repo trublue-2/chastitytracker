@@ -161,7 +161,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
     prisma.strafeRecord.count({ where: { userId, status: "PUNISHED" } }),
     prisma.keyholderNote.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
     getActiveOrgasmusAnforderung(userId, now),
-    reinigungVerbrauchtHeute(userId, now),
+    reinigungVerbrauchtHeute(userId, now, timezone),
   ]);
 
   // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
@@ -209,7 +209,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
       ...goalProgress(tagH, wocheH, monatH, activeVorgabe.minProTagH, activeVorgabe.minProWocheH, activeVorgabe.minProMonatH),
       note: activeVorgabe.notiz,
     } : null,
-    reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now),
+    reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now, timezone),
     autoKontrolle: {
       aktiv: autoKontrolle.aktiv,
       proTag: autoKontrolle.proTag,

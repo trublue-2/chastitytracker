@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.8",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Reinigungs- und Schlaf-Fenster (automatische Kontrollen) richten sich jetzt nach der Zeitzone des Nutzers: die täglichen Öffnungs-Zeitfenster und die zufälligen Kontroll-Zeiten werden in der lokalen Uhrzeit des Subs berechnet statt fix in Schweizer Zeit. Für Nutzer mit Standard-Zeitzone (Europe/Zurich) ändert sich nichts."
+      }
+    ]
+  },
+  {
     "version": "4.43.7",
     "date": "2026-07-03",
     "changes": [

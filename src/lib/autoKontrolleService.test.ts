@@ -76,3 +76,27 @@ describe("generateAutoKontrollen", () => {
     }
   });
 });
+
+describe("generateAutoKontrollen — per-user timezone anchor", () => {
+  const settings: AutoKontrolleSettings = { aktiv: true, proTag: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60 };
+
+  it("anchors the day + awake window to the given tz (New York)", () => {
+    const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), "America/New_York");
+    const slots = generateAutoKontrollen(settings, now, () => 0.5, "America/New_York");
+    expect(slots.length).toBeGreaterThan(0);
+    const nyMidnight = midnightInTZ(now, "America/New_York").getTime();
+    for (const s of slots) {
+      const offsetMin = (s.wirksamAb.getTime() - nyMidnight) / 60_000;
+      // awake window 06:00–22:00 in NY-local minutes
+      expect(offsetMin).toBeGreaterThanOrEqual(360);
+      expect(offsetMin).toBeLessThan(1320);
+    }
+  });
+
+  it("default tz === Europe/Zurich (regression: existing users unchanged)", () => {
+    const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), "Europe/Zurich");
+    const withDefault = generateAutoKontrollen(settings, now, () => 0.5).map((s) => s.wirksamAb.getTime());
+    const withZurich = generateAutoKontrollen(settings, now, () => 0.5, "Europe/Zurich").map((s) => s.wirksamAb.getTime());
+    expect(withDefault).toEqual(withZurich);
+  });
+});

@@ -390,9 +390,9 @@ export async function isOpeningPermittedNow(userId: string, now: Date = new Date
   if (sperre.reinigungErlaubt) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { reinigungErlaubt: true, reinigungsFenster: true },
+      select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
     });
-    if (user?.reinigungErlaubt && aktivesReinigungsFenster(user.reinigungsFenster, now)) return true;
+    if (user?.reinigungErlaubt && aktivesReinigungsFenster(user.reinigungsFenster, now, user.timezone ?? APP_TZ)) return true;
   }
 
   // Orgasmus-Öffnungsfenster (oeffnenErlaubt + im Zeitfenster)

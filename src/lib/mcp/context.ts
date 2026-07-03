@@ -66,7 +66,7 @@ export async function getContext(username: string): Promise<ContextResult> {
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: { gte: now } }, orderBy: { when: "asc" } }),
-    reinigungVerbrauchtHeute(userId, now),
+    reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
   ]);
 
   // Auto-Kontroll-Einstellungen + Reinigung über DIESELBEN Helfer wie get_overview/mcpOverview.ts.
@@ -84,7 +84,7 @@ export async function getContext(username: string): Promise<ContextResult> {
       deadlineMinFrom: auto.fristVon,
       deadlineMinTo: auto.fristBis,
     },
-    cleaning: buildReinigungView(user, cleaningUsedToday, now),
+    cleaning: buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ),
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => ({ id: a.id, when: iso(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note })),
   };
