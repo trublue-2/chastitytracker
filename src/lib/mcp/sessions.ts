@@ -1,6 +1,6 @@
 import { buildSessions, type Session, type Segment, type LinkedControl } from "@/lib/mcp/segments";
 import { msToHours } from "@/lib/mcp/format";
-import { resolveUserId, iso, notesForEntities, entityKey, loadTrackingData, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, notesForEntities, entityKey, loadTrackingData, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
 
 /** get_session — KG-Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes
  *  + Daten-Qualitäts-Flags. Rein lesend, MCP-only. */
@@ -61,7 +61,7 @@ function refsOfSession(s: Session): EntityRef[] {
   return refs;
 }
 
-function controlView(c: LinkedControl, notesByEntity: Map<string, NoteDTO[]>) {
+function controlView(c: LinkedControl, notesByEntity: Map<string, NoteDTO[]>, iso: Iso) {
   return {
     id: c.controlId,
     time: iso(c.time)!,
@@ -74,7 +74,7 @@ function controlView(c: LinkedControl, notesByEntity: Map<string, NoteDTO[]>) {
   };
 }
 
-function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>): SegmentView {
+function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>, iso: Iso): SegmentView {
   return {
     id: seg.id,
     index: seg.index,
@@ -86,13 +86,13 @@ function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>): Segme
     deviceEffective: seg.deviceEffective,
     deviceConfidence: seg.deviceConfidence,
     endedBy: seg.endedBy,
-    controls: seg.controls.map((c) => controlView(c, notesByEntity)),
+    controls: seg.controls.map((c) => controlView(c, notesByEntity, iso)),
     notes: notesByEntity.get(entityKey("segment", seg.id)) ?? [],
   };
 }
 
-function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>): SessionView {
-  const segments = s.segments.map((seg) => segmentView(seg, notesByEntity));
+function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>, iso: Iso): SessionView {
+  const segments = s.segments.map((seg) => segmentView(seg, notesByEntity, iso));
   const dataQualityFlags: string[] = [];
   for (const seg of s.segments) {
     if (seg.deviceConfidence === "image-conflict") {
@@ -120,7 +120,8 @@ function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>): Session
  *  deviceBreakdown und inline verknüpften Notes. Throws, wenn der User unbekannt ist. */
 export async function getSession(username: string, opts: GetSessionOptions = {}): Promise<SessionListResult> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung, devices } = await loadTrackingData(userId);
+  const { entries, reinigung, devices, timezone } = await loadTrackingData(userId);
+  const iso = makeIso(timezone);
   const now = new Date();
   // Sessions sind abgeleitet (Segment-/Pausen-Logik über benachbarte Entries) → die ganze Serie
   // wird gebaut, auch wenn nur eine sessionId gefragt ist. Bei sehr langer Historie der dominante
@@ -133,12 +134,12 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
 
   // Inline-Notes für alle ausgewählten Sessions in EINEM Query.
   const refs = selected.flatMap(refsOfSession);
-  const notesByEntity = await notesForEntities(userId, refs);
+  const notesByEntity = await notesForEntities(userId, refs, {}, undefined, timezone);
 
   return {
     schemaVersion: 2,
     user: username,
     returnedCount: selected.length,
-    sessions: selected.map((s) => sessionView(s, notesByEntity)),
+    sessions: selected.map((s) => sessionView(s, notesByEntity, iso)),
   };
 }

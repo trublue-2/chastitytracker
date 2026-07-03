@@ -48,6 +48,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
   ]);
 
   if (!user) redirect("/admin");
+  const tz = user.timezone;
 
   return (
     <div className="flex flex-col gap-6">
@@ -167,7 +168,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
               userId={id}
               vorgabeId={v.id}
               active={isActive(v)}
-              dateLabel={`${formatDate(v.gueltigAb, dl)}${v.gueltigBis ? ` → ${formatDate(v.gueltigBis, dl)}` : ` → ${tc("open")}`}`}
+              dateLabel={`${formatDate(v.gueltigAb, dl, tz)}${v.gueltigBis ? ` → ${formatDate(v.gueltigBis, dl, tz)}` : ` → ${tc("open")}`}`}
               tagH={v.minProTagH}
               wocheH={v.minProWocheH}
               monatH={v.minProMonatH}

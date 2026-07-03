@@ -1,5 +1,6 @@
 import Card from "@/app/components/Card";
 import { prisma } from "@/lib/prisma";
+import { getUserTimezone } from "@/lib/queries";
 import {
   buildWearPairs,
   wearingHoursFromPairs,
@@ -32,7 +33,7 @@ function completedDurationsMs(pairs: WearPair[], now: Date): number[] {
  *  totals plus records (longest session, count, avg, all-time total). */
 export default async function WearStatsByCategory({ userId }: Props) {
   const now = new Date();
-  const [categories, entries, t] = await Promise.all([
+  const [categories, entries, t, tz] = await Promise.all([
     prisma.deviceCategory.findMany({
       where: { userId, isBuiltIn: false },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -48,14 +49,15 @@ export default async function WearStatsByCategory({ userId }: Props) {
       },
     }),
     getTranslations("stats"),
+    getUserTimezone(userId),
   ]);
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   if (categories.length === 0) return null;
 
-  const tagStart = getMidnightToday(now);
-  const wocheStart = getWeekStart(now);
-  const monatStart = getMonthStart(now);
+  const tagStart = getMidnightToday(now, tz);
+  const wocheStart = getWeekStart(now, tz);
+  const monatStart = getMonthStart(now, tz);
 
   const blocks = categories.map((c) => {
     const pairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: c.id });

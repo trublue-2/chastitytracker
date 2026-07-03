@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
-  resolveUserId, toNoteDTO, noteSelect, parseIsoDate, type NoteDTO, type EntityRef, type EntityType,
+  resolveUserContext, makeIso, tzOf, toNoteDTO, noteSelect, parseIsoDate,
+  type NoteDTO, type EntityRef, type EntityType,
 } from "@/lib/mcp/common";
 import { diffFields, type WriteDef } from "@/lib/mcp/writeFramework";
 
@@ -35,7 +36,8 @@ export interface NotesResult {
 /** Liefert Notes gefiltert nach type/status/pinned/kg/Objekt. Default: nur aktive, neueste zuerst,
  *  gepinnte oben. Throws, wenn der User unbekannt ist. */
 export async function queryNotes(username: string, opts: QueryNotesOptions = {}): Promise<NotesResult> {
-  const userId = await resolveUserId(username);
+  const { id: userId, timezone } = await resolveUserContext(username);
+  const iso = makeIso(timezone);
   const refFilter = opts.entityType
     ? { refs: { some: { entityType: opts.entityType, ...(opts.entityId ? { entityId: opts.entityId } : {}) } } }
     : {};
@@ -53,7 +55,7 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
     take: Math.min(Math.max(1, opts.limit ?? 50), 200),
     select: noteSelect,
   });
-  return { schemaVersion: 2, user: username, notes: notes.map(toNoteDTO) };
+  return { schemaVersion: 2, user: username, notes: notes.map((n) => toNoteDTO(n, iso)) };
 }
 
 // ── Write: upsert_note ──────────────────────────────────────────────────────
@@ -113,9 +115,12 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
   validate: validateUpsert,
   async preview(ctx, args) {
     if (args.id) {
-      const existing = await prisma.keyholderNote.findFirst({ where: { id: args.id, userId: ctx.targetUserId }, select: noteSelect });
+      const [existing, tz] = await Promise.all([
+        prisma.keyholderNote.findFirst({ where: { id: args.id, userId: ctx.targetUserId }, select: noteSelect }),
+        tzOf(ctx.targetUserId),
+      ]);
       if (!existing) throw new Error(`Note not found: ${args.id}`);
-      return { action: "edit", before: toNoteDTO(existing) };
+      return { action: "edit", before: toNoteDTO(existing, makeIso(tz)) };
     }
     return {
       action: "create",
@@ -127,6 +132,7 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
   async apply(tx, ctx, args) {
     const validFrom = parseIsoDate(args.validFrom, "validFrom");
     const validUntil = parseIsoDate(args.validUntil, "validUntil");
+    const iso = makeIso(await tzOf(ctx.targetUserId, tx));
 
     // ── Edit bestehender Note ──
     if (args.id) {
@@ -151,7 +157,7 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
         },
         select: noteSelect,
       });
-      return { newState: toNoteDTO(updated), resultRef: updated.id, diff: diffFields(noteScalarSnapshot(existing), noteScalarSnapshot(updated)) };
+      return { newState: toNoteDTO(updated, iso), resultRef: updated.id, diff: diffFields(noteScalarSnapshot(existing), noteScalarSnapshot(updated)) };
     }
 
     // ── Neue Note (optional mit Supersession + refs) ──
@@ -179,7 +185,7 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
       },
       select: noteSelect,
     });
-    return { newState: toNoteDTO(created), resultRef: created.id };
+    return { newState: toNoteDTO(created, iso), resultRef: created.id };
   },
 };
 
@@ -216,8 +222,11 @@ export const linkNoteDef: WriteDef<LinkNoteArgs, NoteDTO> = {
       await tx.noteRef.createMany({ data: fresh.map((r) => ({ noteId: args.noteId, entityType: r.entityType, entityId: r.entityId })) });
     }
     // newState trägt die aktualisierten refs bereits — kein separates diff-Feld nötig.
-    const updated = await tx.keyholderNote.findUniqueOrThrow({ where: { id: args.noteId }, select: noteSelect });
-    return { newState: toNoteDTO(updated), resultRef: args.noteId };
+    const [updated, tz] = await Promise.all([
+      tx.keyholderNote.findUniqueOrThrow({ where: { id: args.noteId }, select: noteSelect }),
+      tzOf(ctx.targetUserId, tx),
+    ]);
+    return { newState: toNoteDTO(updated, makeIso(tz)), resultRef: args.noteId };
   },
 };
 

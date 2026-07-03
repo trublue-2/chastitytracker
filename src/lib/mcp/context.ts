@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserId, iso, parseIsoDate } from "@/lib/mcp/common";
+import { iso, makeIso, tzOf, APP_TZ, parseIsoDate, type Iso } from "@/lib/mcp/common";
 import { diffFields, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
@@ -22,10 +22,11 @@ export interface HealthHoldView {
   since: string;
 }
 
-/** Aktiver HealthHold des Users (oder null) — auch vom Dashboard genutzt. */
-export async function loadActiveHealthHold(userId: string): Promise<HealthHoldView | null> {
+/** Aktiver HealthHold des Users (oder null) — auch vom Dashboard genutzt. `isoFn` formatiert in der
+ *  Sub-Zeitzone; ohne Wert der APP_TZ-Default (byte-identisch zum bisherigen Verhalten). */
+export async function loadActiveHealthHold(userId: string, isoFn: Iso = iso): Promise<HealthHoldView | null> {
   const h = await prisma.healthHold.findFirst({ where: { userId, active: true }, orderBy: { createdAt: "desc" } });
-  return h ? { id: h.id, active: true, reason: h.reason, since: iso(h.createdAt)! } : null;
+  return h ? { id: h.id, active: true, reason: h.reason, since: isoFn(h.createdAt)! } : null;
 }
 
 export interface ContextResult {
@@ -44,7 +45,7 @@ export interface ContextResult {
 }
 
 const contextUserSelect = {
-  id: true,
+  id: true, timezone: true,
   reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true,
   autoKontrolleAktiv: true, autoKontrolleProTag: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
@@ -59,9 +60,10 @@ export async function getContext(username: string): Promise<ContextResult> {
   const user = await prisma.user.findUnique({ where: { username }, select: contextUserSelect });
   if (!user) throw new Error(`User not found: ${username}`);
   const userId = user.id;
+  const iso = makeIso(user.timezone ?? APP_TZ);
 
   const [healthHold, recurring, appts, cleaningUsedToday] = await Promise.all([
-    loadActiveHealthHold(userId),
+    loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: { gte: now } }, orderBy: { when: "asc" } }),
     reinigungVerbrauchtHeute(userId, now),
@@ -105,7 +107,7 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
     return args;
   },
   async preview(ctx, args) {
-    const current = await loadActiveHealthHold(ctx.targetUserId);
+    const current = await loadActiveHealthHold(ctx.targetUserId, makeIso(await tzOf(ctx.targetUserId)));
     return { current, willBe: args.active ? { active: true, reason: args.healthReason } : { active: false } };
   },
   async apply(tx, ctx, args) {
@@ -117,6 +119,7 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
       return { newState: null, diff: { active: [true, false] } };
     }
     const created = await tx.healthHold.create({ data: { userId: ctx.targetUserId, active: true, reason: args.healthReason! } });
+    const iso = makeIso(await tzOf(ctx.targetUserId, tx));
     return { newState: { id: created.id, active: true, reason: created.reason, since: iso(created.createdAt)! }, resultRef: created.id, diff: { active: [false, true] } };
   },
 };
@@ -131,8 +134,8 @@ export interface UpsertAppointmentArgs {
   note?: string | null;
 }
 
-const apptView = (a: { id: string; when: Date; typ: string | null; deviceFree: boolean; note: string | null }) =>
-  ({ id: a.id, when: iso(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note });
+const apptView = (a: { id: string; when: Date; typ: string | null; deviceFree: boolean; note: string | null }, isoFn: Iso) =>
+  ({ id: a.id, when: isoFn(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note });
 
 export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<typeof apptView>> = {
   tool: "upsert_appointment",
@@ -142,14 +145,18 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
   },
   async preview(ctx, args) {
     if (args.id) {
-      const existing = await prisma.appointment.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
+      const [existing, tz] = await Promise.all([
+        prisma.appointment.findFirst({ where: { id: args.id, userId: ctx.targetUserId } }),
+        tzOf(ctx.targetUserId),
+      ]);
       if (!existing) throw new Error(`Appointment not found: ${args.id}`);
-      return { action: "edit", before: apptView(existing) };
+      return { action: "edit", before: apptView(existing, makeIso(tz)) };
     }
     return { action: "create", when: args.when };
   },
   async apply(tx, ctx, args) {
     const when = parseIsoDate(args.when, "when");
+    const iso = makeIso(await tzOf(ctx.targetUserId, tx));
     if (args.id) {
       const existing = await tx.appointment.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
       if (!existing) throw new Error(`Appointment not found: ${args.id}`);
@@ -162,12 +169,12 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
           ...(args.note !== undefined ? { note: args.note } : {}),
         },
       });
-      return { newState: apptView(updated), resultRef: updated.id, diff: diffFields(apptView(existing), apptView(updated)) };
+      return { newState: apptView(updated, iso), resultRef: updated.id, diff: diffFields(apptView(existing, iso), apptView(updated, iso)) };
     }
     const created = await tx.appointment.create({
       data: { userId: ctx.targetUserId, when: when!, typ: args.typ ?? null, deviceFree: args.deviceFree ?? false, note: args.note ?? null },
     });
-    return { newState: apptView(created), resultRef: created.id };
+    return { newState: apptView(created, iso), resultRef: created.id };
   },
 };
 

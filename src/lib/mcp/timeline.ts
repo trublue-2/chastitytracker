@@ -1,5 +1,5 @@
 import { buildSessions } from "@/lib/mcp/segments";
-import { resolveUserId, iso, loadTrackingData, parseIsoDate, type TrackingEntry } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, loadTrackingData, parseIsoDate, type TrackingEntry } from "@/lib/mcp/common";
 
 /** timeline (§12) — KG-SEGMENTE (nicht rohe Lock/Unlock-Pulse), Wear-Sessions, Kontrollen und
  *  Orgasmen auf EINER Zeitachse. Der KG-Backbone kommt aus buildSessions, damit Reinigungspausen
@@ -39,7 +39,8 @@ const WEAR_EVENT: Record<string, TimelineEventType> = { WEAR_BEGIN: "wear_begin"
 
 export async function timeline(username: string, opts: TimelineOptions = {}): Promise<TimelineResult> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung, devices } = await loadTrackingData(userId);
+  const { entries, reinigung, devices, timezone } = await loadTrackingData(userId);
+  const iso = makeIso(timezone);
   const now = new Date();
   const from = parseIsoDate(opts.from, "from");
   const to = parseIsoDate(opts.to, "to");

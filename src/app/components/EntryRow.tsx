@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Lock, LockOpen, ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, APP_TZ } from "@/lib/utils";
 import { TYPE_COLORS, TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
@@ -41,11 +41,13 @@ interface Entry {
 interface Props {
   entry: Entry;
   locale: string;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
   /** Optional action slot (e.g. EntryActions menu) */
   actions?: ReactNode;
 }
 
-export default function EntryRow({ entry: e, locale, actions }: Props) {
+export default function EntryRow({ entry: e, locale, tz = APP_TZ, actions }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const tStats = useTranslations("stats");
 
@@ -89,7 +91,7 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
             </span>
           )}
           <span className="text-sm text-foreground tabular-nums">
-            {formatDateTime(startTime, locale)}
+            {formatDateTime(startTime, locale, tz)}
           </span>
           {e.imageUrl && (
             <Camera size={12} className="text-foreground-faint flex-shrink-0" />
@@ -117,6 +119,7 @@ export default function EntryRow({ entry: e, locale, actions }: Props) {
             <EntryDetailPanel
               startTime={startTime}
               locale={locale}
+              tz={tz}
               imageExifTime={e.imageExifTime}
               oeffnenGrund={e.oeffnenGrund}
               orgasmusArt={e.orgasmusArt}

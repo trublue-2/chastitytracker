@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { buildWearPairs, wearingHoursFromPairs, getWeekStart, KG_PAIR, WEAR_PAIR } from "@/lib/utils";
+import { buildWearPairs, wearingHoursFromPairs, getWeekStart, KG_PAIR, WEAR_PAIR, APP_TZ } from "@/lib/utils";
 import CategoriesClient from "./CategoriesClient";
 
 export default async function CategoriesPage() {
@@ -11,8 +11,9 @@ export default async function CategoriesPage() {
   if (!session) redirect("/login");
 
   const userId = session.user.id;
+  const tz = session.user.timezone ?? APP_TZ;
   const now = new Date();
-  const wocheStart = getWeekStart(now);
+  const wocheStart = getWeekStart(now, tz);
 
   const [categories, entries] = await Promise.all([
     prisma.deviceCategory.findMany({

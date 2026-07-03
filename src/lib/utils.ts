@@ -75,59 +75,59 @@ export function formatBuildDate(): string {
   });
 }
 
-/** dd.mm.yyyy, HH:mm – server-side, always CET/CEST */
-export function formatDateTime(date: Date | string, locale = "de-CH"): string {
+/** dd.mm.yyyy, HH:mm – formatted in `tz` (default APP_TZ = the sub's governing timezone) */
+export function formatDateTime(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleString(locale, {
     day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
+    hour: "2-digit", minute: "2-digit", timeZone: tz,
   });
 }
 
-/** dd.mm.yyyy – server-side, always CET/CEST */
-export function formatDate(date: Date | string, locale = "de-CH"): string {
+/** dd.mm.yyyy – formatted in `tz` (default APP_TZ) */
+export function formatDate(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleDateString(locale, {
-    day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ,
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: tz,
   });
 }
 
-/** HH:mm – server-side, always CET/CEST */
-export function formatTime(date: Date | string, locale = "de-CH"): string {
+/** HH:mm – formatted in `tz` (default APP_TZ) */
+export function formatTime(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleTimeString(locale, {
-    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
+    hour: "2-digit", minute: "2-digit", timeZone: tz,
   });
 }
 
-/** dd.mm. (no year) – APP_TZ */
-export function formatDayMonth(date: Date | string, locale = "de-CH"): string {
+/** dd.mm. (no year) – formatted in `tz` (default APP_TZ) */
+export function formatDayMonth(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleDateString(locale, {
-    day: "2-digit", month: "2-digit", timeZone: APP_TZ,
+    day: "2-digit", month: "2-digit", timeZone: tz,
   });
 }
 
-/** "Month YYYY" – APP_TZ */
-export function formatMonthYear(date: Date | string, locale = "de-CH"): string {
+/** "Month YYYY" – formatted in `tz` (default APP_TZ) */
+export function formatMonthYear(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleDateString(locale, {
-    month: "long", year: "numeric", timeZone: APP_TZ,
+    month: "long", year: "numeric", timeZone: tz,
   });
 }
 
-/** Returns { year, 0-based month, day } of `d` in APP_TZ. */
-export function tzDateParts(d: Date): { year: number; month: number; day: number } {
+/** Returns { year, 0-based month, day } of `d` in `tz` (default APP_TZ). */
+export function tzDateParts(d: Date, tz = APP_TZ): { year: number; month: number; day: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TZ,
+    timeZone: tz,
     year: "numeric", month: "numeric", day: "numeric",
   }).formatToParts(d);
   const get = (type: string) => +(parts.find(p => p.type === type)?.value ?? "0");
   return { year: get("year"), month: get("month") - 1, day: get("day") };
 }
 
-/** Returns the Date representing 00:00:00 in APP_TZ on the same calendar date as `d`. */
-export function midnightInTZ(d: Date): Date {
-  const { year, month, day } = tzDateParts(d);
+/** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
+export function midnightInTZ(d: Date, tz = APP_TZ): Date {
+  const { year, month, day } = tzDateParts(d, tz);
   // Compute TZ offset at noon of that calendar day (safe from DST edge cases)
   const noonUTC = Date.UTC(year, month, day, 12);
   const p = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TZ,
+    timeZone: tz,
     year: "numeric", month: "numeric", day: "numeric",
     hour: "numeric", minute: "numeric", second: "numeric",
     hour12: false,
@@ -138,23 +138,23 @@ export function midnightInTZ(d: Date): Date {
   return new Date(Date.UTC(year, month, day) + (noonUTC - tzNoonMs));
 }
 
-/** Today at 00:00:00 in APP_TZ */
-export function getMidnightToday(now: Date): Date {
-  return midnightInTZ(now);
+/** Today at 00:00:00 in `tz` (default APP_TZ) */
+export function getMidnightToday(now: Date, tz = APP_TZ): Date {
+  return midnightInTZ(now, tz);
 }
 
-/** Start of the current ISO week (Monday 00:00:00 in APP_TZ) */
-export function getWeekStart(now: Date): Date {
-  const p = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" }).formatToParts(now);
+/** Start of the current ISO week (Monday 00:00:00 in `tz`, default APP_TZ) */
+export function getWeekStart(now: Date, tz = APP_TZ): Date {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).formatToParts(now);
   const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   const dow = ((map[p.find(x => x.type === "weekday")!.value] ?? 0) + 6) % 7;
-  return new Date(midnightInTZ(now).getTime() - dow * 86_400_000);
+  return new Date(midnightInTZ(now, tz).getTime() - dow * 86_400_000);
 }
 
-/** First day of the current month at 00:00:00 in APP_TZ */
-export function getMonthStart(now: Date): Date {
-  const { year, month } = tzDateParts(now);
-  return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)));
+/** First day of the current month at 00:00:00 in `tz` (default APP_TZ) */
+export function getMonthStart(now: Date, tz = APP_TZ): Date {
+  const { year, month } = tzDateParts(now, tz);
+  return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)), tz);
 }
 
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
@@ -629,11 +629,11 @@ export function buildWearSessionRows(
     }));
 }
 
-export function toDatetimeLocal(date: Date | string | null | undefined): string {
+export function toDatetimeLocal(date: Date | string | null | undefined, tz = APP_TZ): string {
   if (!date) return "";
   const d = new Date(date);
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: APP_TZ,
+    timeZone: tz,
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(d);

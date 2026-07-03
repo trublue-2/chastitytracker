@@ -1,12 +1,14 @@
 "use client";
 
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, APP_TZ } from "@/lib/utils";
 import { GRUND_I18N_KEYS } from "@/lib/constants";
 import { useTranslations } from "next-intl";
 
 interface Props {
   startTime: Date;
   locale: string;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
   imageExifTime?: Date | string | null;
   oeffnenGrund?: string | null;
   orgasmusArt?: string | null;
@@ -16,7 +18,7 @@ interface Props {
 }
 
 export default function EntryDetailPanel({
-  startTime, locale, imageExifTime, oeffnenGrund, orgasmusArt,
+  startTime, locale, tz = APP_TZ, imageExifTime, oeffnenGrund, orgasmusArt,
   kontrollCode, verifikationStatus, note,
 }: Props) {
   const tc = useTranslations("common");
@@ -30,13 +32,13 @@ export default function EntryDetailPanel({
     <div className="flex flex-col gap-3">
       <div>
         <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
-        <p className="text-sm font-semibold text-foreground">{formatDateTime(startTime, locale)}</p>
+        <p className="text-sm font-semibold text-foreground">{formatDateTime(startTime, locale, tz)}</p>
       </div>
 
       {exifTime && (
         <div>
           <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
-          <p className="text-sm text-foreground-muted">{formatDateTime(exifTime, locale)}</p>
+          <p className="text-sm text-foreground-muted">{formatDateTime(exifTime, locale, tz)}</p>
         </div>
       )}
 

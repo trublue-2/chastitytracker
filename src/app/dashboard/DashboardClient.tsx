@@ -55,6 +55,9 @@ export interface DashboardProps {
   elapsedTagH: number;
   elapsedWocheH: number;
   elapsedMonatH: number;
+
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
 }
 
 // ── Helpers ──────────────────────────────────
@@ -90,6 +93,7 @@ export default function DashboardClient(props: DashboardProps) {
     elapsedTagH: baseElapsedTagH,
     elapsedWocheH: baseElapsedWocheH,
     elapsedMonatH: baseElapsedMonatH,
+    tz,
   } = props;
 
   const isLocked = currentStatus?.type === "VERSCHLUSS";
@@ -178,6 +182,7 @@ export default function DashboardClient(props: DashboardProps) {
           variant="large"
           href={offeneKontrolle.href}
           openLabel={t("inspectionRequired")}
+          tz={tz}
         />
       )}
 

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.6",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Zeitanzeige lokalisiert: Datums- und Zeitangaben im Dashboard, in der Statistik, in den Keyholder-/Admin-Ansichten und in der MCP-Ausgabe werden jetzt in der Zeitzone des jeweiligen Nutzers dargestellt (in Keyholder-Ansichten in der Zeitzone des betrachteten Subs). Für Nutzer mit Standard-Zeitzone (Europe/Zurich) ändert sich nichts."
+      }
+    ]
+  },
+  {
     "version": "4.43.5",
     "date": "2026-07-03",
     "changes": [

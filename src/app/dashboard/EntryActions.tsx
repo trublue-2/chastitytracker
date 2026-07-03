@@ -9,12 +9,14 @@ import ActionModal from "@/app/components/ActionModal";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 
 interface Props {
   id: string;
   editHref: string;
   showDelete?: boolean;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
 }
 
 interface PartnerInfo {
@@ -23,7 +25,7 @@ interface PartnerInfo {
   startTime: string;
 }
 
-export default function EntryActions({ id, editHref, showDelete = true }: Props) {
+export default function EntryActions({ id, editHref, showDelete = true, tz = APP_TZ }: Props) {
   const t = useTranslations("entryActions");
   const tc = useTranslations("common");
   const tStats = useTranslations("stats");
@@ -197,7 +199,7 @@ export default function EntryActions({ id, editHref, showDelete = true }: Props)
           <p className="text-sm text-foreground-muted">
             {t("chainBreakWarning", {
               type: tStats(TYPE_STATS_KEYS[partnerInfo.type] ?? "lock"),
-              date: formatDateTime(new Date(partnerInfo.startTime), dl),
+              date: formatDateTime(new Date(partnerInfo.startTime), dl, tz),
             })}
           </p>
         )}

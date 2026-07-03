@@ -51,6 +51,8 @@ interface CompactProps {
   overdue?: boolean;
   endetAt?: Date | null;
   locale: string;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
   withdrawAction?: ReactNode;
   /** Shows a live countdown "Rest: …" next to the date. Requires endetAt. */
   showRemaining?: boolean;
@@ -69,7 +71,7 @@ type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endetAt, locale, withdrawAction, showRemaining } = props;
+    const { colorScheme, label, overdue, endetAt, locale, tz = APP_TZ, withdrawAction, showRemaining } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
@@ -80,7 +82,7 @@ export default function LockRequestBanner(props: Props) {
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
           {endetAt && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>
-              bis {new Date(endetAt).toLocaleString(locale, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
+              bis {new Date(endetAt).toLocaleString(locale, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}
             </span>
           )}
           {showRemaining && endetAt && (

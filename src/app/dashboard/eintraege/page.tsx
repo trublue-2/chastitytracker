@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale } from "@/lib/utils";
+import { toDateLocale, APP_TZ } from "@/lib/utils";
 import { ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import Card from "@/app/components/Card";
@@ -20,6 +20,7 @@ export default async function EintraegePage({
   if (!session) redirect("/login");
 
   const userId = session.user.id;
+  const tz = session.user.timezone ?? APP_TZ;
   const { page: pageStr } = await searchParams;
   const page = Math.max(0, parseInt(pageStr ?? "0", 10) || 0);
 
@@ -70,6 +71,7 @@ export default async function EintraegePage({
                     : null,
                 }}
                 locale={dl}
+                tz={tz}
               />
             ))}
           </div>
