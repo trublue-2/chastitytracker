@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ClipboardCheck, WifiOff } from "lucide-react";
-import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
@@ -196,7 +196,7 @@ export default function PruefungFormCore({
           <div className="flex items-start gap-4">
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
             <div className="flex flex-col gap-2 flex-1 pt-1">
-              {imageExifTime && <p className="text-xs text-foreground-faint">{tc("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>}
+              {imageExifTime && <p className="text-xs text-foreground-faint">{tc("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>}
               {exifWarning && !uploading && <p className="text-xs text-warn font-medium">{exifWarning}</p>}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact mobileDesktopMode={mobileDesktopMode} />
             </div>
