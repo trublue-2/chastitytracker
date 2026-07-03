@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund } from "@/lib/constants";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
+import { APP_TZ } from "@/lib/utils";
 
 /**
  * Where-Fragment: bereits AKTIVE Kontroll-Anforderungen — sofortige (wirksamAb null) und
@@ -48,6 +49,15 @@ export interface DeviceOption {
 }
 
 // ── Queries ─────────────────────────────────────────────────────────────────
+
+/** Resolves a user's governing IANA timezone (falls back to APP_TZ default if the row is missing).
+ *  Used by admin/keyholder pages, the upload route and MCP tools that render/interpret a specific
+ *  sub's data — the SUB's timezone always governs, never the viewer's. Self/dashboard paths should
+ *  prefer `session.user.timezone` (on the JWT) to avoid this extra query. */
+export async function getUserTimezone(userId: string): Promise<string> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  return u?.timezone ?? APP_TZ;
+}
 
 /** Returns active (non-archived) KG devices for a user, ordered by creation date.
  *  KG-specific filter: includes only devices in the built-in KG category — Plug, Collar

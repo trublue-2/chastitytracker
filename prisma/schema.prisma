@@ -30,6 +30,10 @@ model User {
   autoKontrolleFristVon Int                    @default(15)
   autoKontrolleFristBis Int                    @default(60)
   mobileDesktopUpload   Boolean                @default(false)
+  // IANA-Zeitzone des Nutzers (z.B. "America/New_York"). Governiert Anzeige, Eingabe-Defaults und
+  // die Wanduhr-Fenster (Reinigung/Schlaf) für DIESEN Nutzer. Default "Europe/Zurich" = bisheriges
+  // Verhalten für alle Bestandsnutzer (keine sichtbare Änderung).
+  timezone              String                 @default("Europe/Zurich")
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions String?
   entries               Entry[]
