@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.42.7-blue)
+![Version](https://img.shields.io/badge/version-4.44.0-blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -19,7 +19,7 @@
 - **Photo upload** with EXIF metadata extraction and rotation correction
 - **Real-time wear duration timer** and live countdown of remaining lock period
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
-- **Orgasm tracking** with categorization and sub-types (Masturbation, Geschlechtsverkehr, ruinierter, feuchter Traum, etc.)
+- **Orgasm tracking** with type and sub-type selection via two dependent dropdowns (e.g. Orgasmus → Masturbation); the type/sub-type list is admin-customizable per user
 - **Offline-first** — IndexedDB-cached dashboard and queued entry creation with background sync
 - **Password self-service** (change and reset via email)
 - **Push notifications** (PWA web-push + native iOS/Android app) for lock/unlock, inspections, lock requests, and penalties; tapping a native push opens the relevant in-app page
@@ -38,6 +38,7 @@
 - **Lock periods (Sperrzeiten)** — enforced lock periods with automatic or manual end time; optional flag allowing cleaning openings during the period
 - **Scheduled directives** — lock requests, lock periods, and inspections can be sent time-delayed or at a fixed time; the directive stays invisible to the sub until it fires, while the keyholder sees pending ones in a "Scheduled" section (admin overview + MCP `keyholder_dashboard.scheduledDirectives`) and can cancel them ahead of time
 - **Orgasm requirements** — grant a time-boxed orgasm window for a user, optionally tied to a permitted opening and a required orgasm type
+- **Customizable selection lists** — per user, edit the orgasm-type and opening-reason lists (add / rename / remove / reorder) under User → Settings. Orgasm sub-types use a `Main – Sub` convention (`/`, `|`, `-` are auto-normalized) that drives the two dependent dropdowns. The cleaning reason (`REINIGUNG`) is fixed and can only be renamed; the rest is free. Untouched, every user keeps the built-in defaults
 - **Device requirements** — admin can require a specific KG for a lock request; wrong-device usage is flagged automatically
 - **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
 - **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Penalties / Settings / Devices
@@ -580,7 +581,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 
 | Model | Purpose |
 |-------|---------|
-| `User` | Accounts with username, email, role (`user` / `admin`), cleaning-policy settings |
+| `User` | Accounts with username, email, role (`user` / `admin`), timezone, cleaning-policy settings, and per-user customizable orgasm-type / opening-reason lists |
 | `Entry` | Events: lock, unlock, inspection, orgasm, wear-begin/end (with photo, EXIF, notes, device, optional sealed key-box code photo) |
 | `Device` | Chastity belts (and other category devices) per user — name, description, photo, purchase price, archived state |
 | `DeviceCategory` | Device categories for multi-category wear tracking |
