@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.7",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Datum/Zeit-Eingabefelder verwenden jetzt die Zeitzone des Nutzers: neue Einträge werden mit der lokalen Uhrzeit vorbelegt (statt fix Schweizer Zeit), und beim Speichern wird die eingegebene Wanduhrzeit korrekt in die gewählte Zeitzone interpretiert. Behebt, dass Nutzer ausserhalb der Schweiz den Zeitstempel jedes Mal korrigieren mussten. Für Nutzer mit Standard-Zeitzone (Europe/Zurich) ändert sich nichts."
+      }
+    ]
+  },
+  {
     "version": "4.43.6",
     "date": "2026-07-03",
     "changes": [

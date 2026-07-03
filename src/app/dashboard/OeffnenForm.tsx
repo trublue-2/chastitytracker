@@ -10,12 +10,14 @@ import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } fr
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
   maxTime?: string;
+  tz: string;
+  nowDefault: string;
   sperrzeit?: SperrzeitState;
   reinigung?: ReinigungConfig;
   redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, maxTime, sperrzeit, reinigung, redirectTo }: Props) {
+export default function OeffnenForm({ initial, maxTime, tz, nowDefault, sperrzeit, reinigung, redirectTo }: Props) {
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -49,6 +51,8 @@ export default function OeffnenForm({ initial, maxTime, sperrzeit, reinigung, re
     <OeffnenFormCore
       initial={initial}
       maxTime={maxTime}
+      tz={tz}
+      nowDefault={nowDefault}
       sperrzeit={sperrzeit}
       reinigung={reinigung}
       isEdit={!!initial}

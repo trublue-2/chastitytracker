@@ -8,7 +8,7 @@ import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
 import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
 import type { DeviceOption } from "@/lib/queries";
 
-export default function VerschlussForm({ userId, devices = [] }: { userId: string; devices?: DeviceOption[] }) {
+export default function VerschlussForm({ userId, devices = [], tz, nowDefault }: { userId: string; devices?: DeviceOption[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tLock = useTranslations("lockForm");
   const tc = useTranslations("common");
@@ -37,6 +37,8 @@ export default function VerschlussForm({ userId, devices = [] }: { userId: strin
     >
       <VerschlussFormCore
         devices={devices}
+        tz={tz}
+        nowDefault={nowDefault}
         submitFn={submitFn}
         onSuccess={() => router.push(target)}
         onCancel={() => router.push(target)}

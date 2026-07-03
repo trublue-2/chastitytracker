@@ -7,7 +7,7 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import PruefungFormCore from "@/app/entries/PruefungFormCore";
 import type { PruefungPayload, SubmitResult } from "@/app/entries/types";
 
-export default function PruefungForm({ userId }: { userId: string }) {
+export default function PruefungForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tInspection = useTranslations("inspectionForm");
   const tc = useTranslations("common");
@@ -35,6 +35,8 @@ export default function PruefungForm({ userId }: { userId: string }) {
       title={tInspection("title")}
     >
       <PruefungFormCore
+        tz={tz}
+        nowDefault={nowDefault}
         submitFn={submitFn}
         onSuccess={() => router.push(target)}
         onCancel={() => router.push(target)}

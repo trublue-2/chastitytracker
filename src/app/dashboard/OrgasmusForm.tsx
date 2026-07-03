@@ -10,10 +10,12 @@ import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; orgasmusArt?: string | null };
   maxTime?: string;
+  tz: string;
+  nowDefault: string;
   redirectTo?: string;
 }
 
-export default function OrgasmusForm({ initial, maxTime, redirectTo }: Props) {
+export default function OrgasmusForm({ initial, maxTime, tz, nowDefault, redirectTo }: Props) {
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -42,6 +44,8 @@ export default function OrgasmusForm({ initial, maxTime, redirectTo }: Props) {
     <OrgasmusFormCore
       initial={initial}
       maxTime={maxTime}
+      tz={tz}
+      nowDefault={nowDefault}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={() => router.push(target)}

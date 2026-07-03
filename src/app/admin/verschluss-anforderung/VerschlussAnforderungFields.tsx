@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { toDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
@@ -50,11 +50,17 @@ export default function VerschlussAnforderungFields({
   userId,
   art,
   devices,
+  tz,
+  minNow,
   onSuccess,
 }: {
   userId: string;
   art: "ANFORDERUNG" | "SPERRZEIT";
   devices: DeviceOption[];
+  /** Governing timezone of the sub (data owner) — formats datetime-local defaults + submit. */
+  tz: string;
+  /** Server-computed "now" wall-clock in the sub's tz — the datetime-local min (replaces the UTC-bug min). */
+  minNow: string;
   onSuccess: () => void;
 }) {
   const t = useTranslations("admin");
@@ -66,10 +72,12 @@ export default function VerschlussAnforderungFields({
   const [mode, setMode] = useState<"duration" | "datetime">("duration");
   const defaultDurationH = isSperrzeit ? "24" : "4";
   const [deadlineH, setDeadlineH] = useState(defaultDurationH);
-  // Datetime default = current time + default duration, so switching between
-  // tabs preserves intent. Computed once at mount.
+  // Base all datetime defaults on the SERVER-provided `minNow` (not client `Date.now()`) so the
+  // initializers are deterministic across SSR + hydration.
+  const nowBaseMs = fromDatetimeLocal(minNow, tz).getTime();
+  // Datetime default = now + default duration, so switching between tabs preserves intent.
   const [endetAt, setEndetAt] = useState(() =>
-    toDatetimeLocal(new Date(Date.now() + parseFloat(defaultDurationH) * 60 * 60 * 1000))
+    toDatetimeLocal(new Date(nowBaseMs + parseFloat(defaultDurationH) * 60 * 60 * 1000), tz)
   );
   const [withMinDauer, setWithMinDauer] = useState(false);
   const [minDauerH, setMinDauerH] = useState("24");
@@ -80,18 +88,18 @@ export default function VerschlussAnforderungFields({
   const [delayValue, setDelayValue] = useState("30");
   const [delayUnit, setDelayUnit] = useState<"minutes" | "hours">("minutes");
   const [scheduledAt, setScheduledAt] = useState(() =>
-    toDatetimeLocal(new Date(Date.now() + 60 * 60 * 1000))
+    toDatetimeLocal(new Date(nowBaseMs + 60 * 60 * 1000), tz)
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "datetime" && endetAt && new Date(endetAt) <= new Date()) {
+    if (mode === "datetime" && endetAt && fromDatetimeLocal(endetAt, tz) <= new Date()) {
       setError(t("futureDateRequired"));
       return;
     }
-    if (scheduleMode === "datetime" && scheduledAt && new Date(scheduledAt) <= new Date()) {
+    if (scheduleMode === "datetime" && scheduledAt && fromDatetimeLocal(scheduledAt, tz) <= new Date()) {
       setError(t("scheduleFutureRequired"));
       return;
     }
@@ -103,12 +111,12 @@ export default function VerschlussAnforderungFields({
         nachricht: nachricht.trim() || undefined,
       };
       if (mode === "datetime" && endetAt) {
-        payload.endetAt = new Date(endetAt).toISOString();
+        payload.endetAt = fromDatetimeLocal(endetAt, tz).toISOString();
       } else {
         payload.fristH = parseFloat(deadlineH) || (isSperrzeit ? 24 : 4);
       }
       if (scheduleMode === "datetime" && scheduledAt) {
-        payload.wirksamAbAt = new Date(scheduledAt).toISOString();
+        payload.wirksamAbAt = fromDatetimeLocal(scheduledAt, tz).toISOString();
       } else if (scheduleMode === "delay") {
         const v = parseFloat(delayValue) || 0;
         payload.delayMinutes = delayUnit === "hours" ? v * 60 : v;
@@ -180,7 +188,7 @@ export default function VerschlussAnforderungFields({
         <DateTimePicker
           value={endetAt}
           onChange={(e) => setEndetAt(e.target.value)}
-          min={new Date().toISOString().slice(0, 16)}
+          min={minNow}
           hint={isSperrzeit ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
         />
       )}
@@ -255,7 +263,7 @@ export default function VerschlussAnforderungFields({
         <DateTimePicker
           value={scheduledAt}
           onChange={(e) => setScheduledAt(e.target.value)}
-          min={new Date().toISOString().slice(0, 16)}
+          min={minNow}
           hint={t("scheduleAtHint")}
         />
       )}

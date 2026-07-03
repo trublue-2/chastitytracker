@@ -6,10 +6,12 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getUserDeviceOptions, getIsLocked, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { bildersafeEnabled } from "@/lib/constants";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 export default async function NewVerschlussPage() {
   const session = await auth();
   const userId = session!.user.id;
+  const tz = session!.user.timezone ?? APP_TZ;
 
   const [isLocked, dbUser, devices, offeneAnforderung] = await Promise.all([
     getIsLocked(userId),
@@ -30,6 +32,8 @@ export default async function NewVerschlussPage() {
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
       <VerschlussForm
+        tz={tz}
+        nowDefault={nowDatetimeLocal(tz)}
         mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
         devices={devices}
         anforderungDeviceId={offeneAnforderung?.deviceId ?? null}

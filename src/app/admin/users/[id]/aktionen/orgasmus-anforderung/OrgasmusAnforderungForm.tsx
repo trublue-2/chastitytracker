@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { toDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
 import { ORGASMUS_ARTEN, orgasmusArtLabel, ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -14,7 +14,7 @@ import Textarea from "@/app/components/Textarea";
 import Checkbox from "@/app/components/Checkbox";
 import Button from "@/app/components/Button";
 
-export default function OrgasmusAnforderungForm({ userId }: { userId: string }) {
+export default function OrgasmusAnforderungForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const tOrgasm = useTranslations("orgasmForm");
@@ -22,8 +22,10 @@ export default function OrgasmusAnforderungForm({ userId }: { userId: string }) 
   const target = `/admin/users/${userId}/aktionen`;
 
   const [art, setArt] = useState<(typeof ORGASMUS_ANFORDERUNG_ARTEN)[number]>("ANWEISUNG");
-  const [beginntAt, setBeginntAt] = useState(() => toDatetimeLocal(new Date()));
-  const [endetAt, setEndetAt] = useState(() => toDatetimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+  const [beginntAt, setBeginntAt] = useState(nowDefault);
+  // Derive the +24h default from the SERVER-provided `nowDefault` (not client `Date.now()`), so the
+  // initializer is deterministic across SSR + hydration.
+  const [endetAt, setEndetAt] = useState(() => toDatetimeLocal(new Date(fromDatetimeLocal(nowDefault, tz).getTime() + 24 * 60 * 60 * 1000), tz));
   const [vorgegebeneArt, setVorgegebeneArt] = useState("");
   const [oeffnenErlaubt, setOeffnenErlaubt] = useState(false);
   const [nachricht, setNachricht] = useState("");
@@ -54,8 +56,8 @@ export default function OrgasmusAnforderungForm({ userId }: { userId: string }) 
         body: JSON.stringify({
           userId,
           art,
-          beginntAt: new Date(beginntAt).toISOString(),
-          endetAt: new Date(endetAt).toISOString(),
+          beginntAt: fromDatetimeLocal(beginntAt, tz).toISOString(),
+          endetAt: fromDatetimeLocal(endetAt, tz).toISOString(),
           vorgegebeneArt: vorgegebeneArt || undefined,
           oeffnenErlaubt,
           nachricht: nachricht.trim() || undefined,

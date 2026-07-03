@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Droplets } from "lucide-react";
-import { toDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
 import { ORGASMUS_ARTEN, orgasmusArtLabel } from "@/lib/constants";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -29,6 +29,8 @@ function parseArt(stored: string | null | undefined): { art: string; subArt: str
 interface Props {
   initial?: { startTime: string; note?: string | null; orgasmusArt?: string | null };
   maxTime?: string;
+  tz: string;
+  nowDefault: string;
   isEdit?: boolean;
   submitFn: (payload: OrgasmusPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
@@ -38,13 +40,13 @@ interface Props {
 }
 
 export default function OrgasmusFormCore({
-  initial, maxTime, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
+  initial, maxTime, tz, nowDefault, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("orgasmForm");
   const tc = useTranslations("common");
   const parsed = parseArt(initial?.orgasmusArt);
 
-  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date()));
+  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [art, setArt] = useState(parsed.art);
   const [subArt, setSubArt] = useState(parsed.subArt);
   const [note, setNote] = useState(initial?.note ?? "");
@@ -63,7 +65,7 @@ export default function OrgasmusFormCore({
     e.preventDefault();
     await submit({
       type: "ORGASMUS",
-      startTime: new Date(startTime).toISOString(),
+      startTime: fromDatetimeLocal(startTime, tz).toISOString(),
       orgasmusArt: subArt ? `${art} – ${subArt}` : art,
       note: note.trim() || null,
     });

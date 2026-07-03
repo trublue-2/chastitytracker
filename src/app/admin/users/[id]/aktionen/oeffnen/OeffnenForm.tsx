@@ -7,7 +7,7 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
 
-export default function OeffnenForm({ userId }: { userId: string }) {
+export default function OeffnenForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tOffen = useTranslations("openForm");
   const tc = useTranslations("common");
@@ -35,6 +35,8 @@ export default function OeffnenForm({ userId }: { userId: string }) {
       title={tOffen("title")}
     >
       <OeffnenFormCore
+        tz={tz}
+        nowDefault={nowDefault}
         submitFn={submitFn}
         onSuccess={() => router.push(target)}
         onCancel={() => router.push(target)}

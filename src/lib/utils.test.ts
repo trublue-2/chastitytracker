@@ -8,6 +8,7 @@ import {
   WEAR_PAIR,
   formatDateTime,
   toDatetimeLocal,
+  fromDatetimeLocal,
   midnightInTZ,
   getWeekStart,
   type ReinigungSettings,
@@ -514,6 +515,31 @@ describe("per-user timezone formatters", () => {
     });
     it("summer DST", () => {
       expect(toDatetimeLocal(summer, "America/New_York")).toBe("2026-07-15T05:30");
+    });
+  });
+
+  describe("fromDatetimeLocal parses a wall-clock string AS the given tz → UTC", () => {
+    it("winter: 10:30 Zurich = 09:30 UTC", () => {
+      expect(fromDatetimeLocal("2026-01-15T10:30", "Europe/Zurich").toISOString()).toBe("2026-01-15T09:30:00.000Z");
+    });
+    it("winter: 04:30 New York = 09:30 UTC", () => {
+      expect(fromDatetimeLocal("2026-01-15T04:30", "America/New_York").toISOString()).toBe("2026-01-15T09:30:00.000Z");
+    });
+    it("summer DST: 05:30 New York = 09:30 UTC", () => {
+      expect(fromDatetimeLocal("2026-07-15T05:30", "America/New_York").toISOString()).toBe("2026-07-15T09:30:00.000Z");
+    });
+    it("invalid input → Invalid Date", () => {
+      expect(Number.isNaN(fromDatetimeLocal("", "Europe/Zurich").getTime())).toBe(true);
+      expect(Number.isNaN(fromDatetimeLocal(null).getTime())).toBe(true);
+    });
+    it("round-trips with toDatetimeLocal at minute precision (across zones + DST)", () => {
+      for (const tz of ["Europe/Zurich", "America/New_York", "Asia/Tokyo", "UTC"]) {
+        for (const iso of ["2026-01-15T09:30:00Z", "2026-07-15T09:30:00Z", "2026-03-29T00:30:00Z"]) {
+          const d = new Date(iso);
+          const round = fromDatetimeLocal(toDatetimeLocal(d, tz), tz);
+          expect(round.getTime()).toBe(d.getTime());
+        }
+      }
     });
   });
 

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
-import { midnightInTZ, APP_TZ } from "@/lib/utils";
+import { midnightInTZ, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 export default async function NewOeffnenPage() {
   const session = await auth();
@@ -32,6 +32,8 @@ export default async function NewOeffnenPage() {
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
       <OeffnenForm
+        tz={tz}
+        nowDefault={nowDatetimeLocal(tz)}
         sperrzeit={{
           endetAt: activeSperrzeit?.endetAt?.toISOString() ?? null,
           unbefristet: !!activeSperrzeit && activeSperrzeit.endetAt === null,

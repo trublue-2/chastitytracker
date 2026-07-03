@@ -15,7 +15,7 @@ import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert, CalendarClock } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDateTime } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDateTime, nowDatetimeLocal } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 
@@ -316,6 +316,8 @@ export default async function AdminPage() {
                         isLocked={isLocked}
                         hasOffeneAnforderung={u.stats.hasOffeneAnforderung}
                         hasActiveSperrzeit={u.stats.hasActiveSperrzeit}
+                        tz={rowTz}
+                        minNow={nowDatetimeLocal(rowTz)}
                       />
                     </div>
                   </div>

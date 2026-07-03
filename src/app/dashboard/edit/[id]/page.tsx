@@ -8,8 +8,8 @@ import PruefungForm from "../../PruefungForm";
 import OrgasmusForm from "../../OrgasmusForm";
 import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
-import { toDatetimeLocal } from "@/lib/utils";
-import { getUserDeviceOptions } from "@/lib/queries";
+import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
+import { getUserDeviceOptions, getUserTimezone } from "@/lib/queries";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 
 export default async function EditEntryPage({
@@ -44,23 +44,26 @@ export default async function EditEntryPage({
   // Allow access if own entry OR admin
   if (entry.userId !== currentUserId && !isAdmin) notFound();
 
-  // Only load devices for VERSCHLUSS entries (other types don't use them)
-  const devices = entry.type === "VERSCHLUSS"
-    ? await getUserDeviceOptions(entry.userId)
-    : [];
-
-  // Devices for WEAR_BEGIN edit (filtered to its category, so user can correct device).
-  const wearDevices = entry.type === "WEAR_BEGIN" && entry.device?.categoryId
-    ? await prisma.device.findMany({
-        where: { userId: entry.userId, categoryId: entry.device.categoryId, archivedAt: null },
-        orderBy: { createdAt: "asc" },
-        select: { id: true, name: true },
-      })
-    : [];
+  // All three depend only on entry.userId → run in parallel (one round-trip instead of three serial).
+  // devices: only VERSCHLUSS uses them. wearDevices: only WEAR_BEGIN. tz: the data owner (entry.userId)
+  // governs — an admin may edit a sub's entry, and the sub's tz must format the datetime-local value +
+  // anti-cheat min/max, never the admin viewer's.
+  const [devices, wearDevices, tz] = await Promise.all([
+    entry.type === "VERSCHLUSS" ? getUserDeviceOptions(entry.userId) : Promise.resolve([]),
+    entry.type === "WEAR_BEGIN" && entry.device?.categoryId
+      ? prisma.device.findMany({
+          where: { userId: entry.userId, categoryId: entry.device.categoryId, archivedAt: null },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    getUserTimezone(entry.userId),
+  ]);
+  const nowDefault = nowDatetimeLocal(tz);
 
   // Anti-cheat: non-admins may only shift times in the allowed direction.
   // WEAR_BEGIN behaves like VERSCHLUSS (forward only), WEAR_END like OEFFNEN (backward only).
-  const originalTime = toDatetimeLocal(entry.startTime);
+  const originalTime = toDatetimeLocal(entry.startTime, tz);
   const minTime = !isAdmin && (entry.type === "VERSCHLUSS" || entry.type === "PRUEFUNG" || entry.type === "WEAR_BEGIN") ? originalTime : undefined;
   const maxTime = !isAdmin && (entry.type === "OEFFNEN" || entry.type === "ORGASMUS" || entry.type === "WEAR_END") ? originalTime : undefined;
 
@@ -77,14 +80,14 @@ export default async function EditEntryPage({
       </h1>
       <div>
       {entry.type === "OEFFNEN" && (
-        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} maxTime={maxTime} redirectTo={redirectTo} />
+        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} maxTime={maxTime} tz={tz} nowDefault={nowDefault} redirectTo={redirectTo} />
       )}
       {entry.type === "VERSCHLUSS" && (
         <VerschlussForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null,
           note: entry.note, kontrollCode: entry.kontrollCode, deviceId: entry.deviceId,
-        }} minTime={minTime} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo}
+        }} minTime={minTime} tz={tz} nowDefault={nowDefault} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo}
           devices={devices}
         />
       )}
@@ -93,13 +96,13 @@ export default async function EditEntryPage({
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
           kontrollCode: entry.kontrollCode,
-        }} minTime={minTime} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
+        }} minTime={minTime} tz={tz} nowDefault={nowDefault} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
       )}
       {entry.type === "ORGASMUS" && (
         <OrgasmusForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           note: entry.note, orgasmusArt: entry.orgasmusArt,
-        }} maxTime={maxTime} redirectTo={redirectTo} />
+        }} maxTime={maxTime} tz={tz} nowDefault={nowDefault} redirectTo={redirectTo} />
       )}
       {(entry.type === "WEAR_BEGIN" || entry.type === "WEAR_END") && entry.device?.category && (
         <WearForm
@@ -116,6 +119,8 @@ export default async function EditEntryPage({
           }}
           minTime={minTime}
           maxTime={maxTime}
+          tz={tz}
+          nowDefault={nowDefault}
           redirectTo={redirectTo}
         />
       )}

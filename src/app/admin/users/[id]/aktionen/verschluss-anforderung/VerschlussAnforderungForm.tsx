@@ -11,9 +11,11 @@ interface Props {
   userId: string;
   art: "ANFORDERUNG" | "SPERRZEIT";
   devices?: DeviceOption[];
+  tz: string;
+  minNow: string;
 }
 
-export default function VerschlussAnforderungForm({ userId, art, devices = [] }: Props) {
+export default function VerschlussAnforderungForm({ userId, art, devices = [], tz, minNow }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
   const isSperrzeit = art === "SPERRZEIT";
@@ -34,6 +36,8 @@ export default function VerschlussAnforderungForm({ userId, art, devices = [] }:
         userId={userId}
         art={art}
         devices={devices}
+        tz={tz}
+        minNow={minNow}
         onSuccess={close}
       />
     </ActionModal>
