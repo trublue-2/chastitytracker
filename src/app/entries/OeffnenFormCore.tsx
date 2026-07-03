@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AlertCircle, Lock, LockOpen } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
-import { OEFFNEN_GRUENDE, type OeffnenGrund } from "@/lib/constants";
+import { type OeffnenGrund } from "@/lib/constants";
+import type { ResolvedReason } from "@/lib/reasonsService";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -18,6 +19,9 @@ import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } fr
 
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };
+  /** Owner-scoped, display-ready opening reasons (built-in defaults when the owner has no custom config).
+   *  REINIGUNG is always present (its code is frozen); only its label may be customized. */
+  grundOptions: ResolvedReason[];
   maxTime?: string;
   tz: string;
   nowDefault: string;
@@ -33,7 +37,7 @@ interface Props {
 }
 
 export default function OeffnenFormCore({
-  initial, maxTime, tz, nowDefault, sperrzeit, reinigung,
+  initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
 }: Props) {
   const t = useTranslations("openForm");
@@ -90,13 +94,7 @@ export default function OeffnenFormCore({
     else doSave(true);
   }
 
-  const grundOptions = OEFFNEN_GRUENDE.map((g) => ({
-    value: g,
-    label: g === "REINIGUNG" ? t("grundReinigung")
-      : g === "KEYHOLDER" ? t("grundKeyholder")
-      : g === "NOTFALL" ? t("grundNotfall")
-      : t("grundAnderes"),
-  }));
+  const grundSelectOptions = grundOptions.map((r) => ({ value: r.code, label: r.label }));
 
   const defaultLabel = isEdit ? tCommon("update") : t("saveBtn");
 
@@ -192,7 +190,7 @@ export default function OeffnenFormCore({
           onChange={(e) => { setGrund(e.target.value as OeffnenGrund | ""); if (e.target.value) setError(""); }}
           required
           placeholder="–"
-          options={grundOptions}
+          options={grundSelectOptions}
         />
 
         {grund === "REINIGUNG" && (

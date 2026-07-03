@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
-import { ORGASMUS_ANFORDERUNG_ARTEN, ORGASMUS_ARTEN } from "@/lib/constants";
+import { ORGASMUS_ANFORDERUNG_ARTEN } from "@/lib/constants";
+import { orgasmusValueAllowed } from "@/lib/reasonsService";
 import { notifyUser } from "@/lib/notify";
 import type { ServiceResult } from "@/lib/serviceResult";
 
@@ -46,12 +47,12 @@ export async function createOrgasmusAnforderung(
   if (endet <= beginnt) {
     return { ok: false, status: 400, error: "Ende muss nach dem Start liegen" };
   }
-  if (vorgegebeneArt && !(ORGASMUS_ARTEN as readonly string[]).includes(vorgegebeneArt)) {
-    return { ok: false, status: 400, error: "Ungültige Orgasmus-Art" };
-  }
-
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { ok: false, status: 404, error: "User nicht gefunden" };
+  // vorgegebeneArt gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
+  if (vorgegebeneArt && !orgasmusValueAllowed(vorgegebeneArt, user.orgasmusArtenConfig)) {
+    return { ok: false, status: 400, error: "Ungültige Orgasmus-Art" };
+  }
 
   // Withdraw existing open request + create the new one atomically (one active at a time).
   const anforderung = await prisma.$transaction(async (tx) => {

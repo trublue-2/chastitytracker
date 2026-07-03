@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Droplets } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
-import { ORGASMUS_ARTEN, orgasmusArtLabel } from "@/lib/constants";
+import type { OrgasmusOption } from "@/lib/reasonsService";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -14,20 +14,18 @@ import Button from "@/app/components/Button";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import type { OrgasmusPayload, SubmitResult } from "./types";
 
-const SUB_ARTEN: Record<string, string[]> = {
-  "Orgasmus": ["Masturbation", "Geschlechtsverkehr", "durch andere Person", "durch Technik"],
-  "ruinierter Orgasmus": ["Verschlossen", "Anal"],
-};
-
-function parseArt(stored: string | null | undefined): { art: string; subArt: string } {
-  if (!stored) return { art: ORGASMUS_ARTEN[0], subArt: "" };
-  const sep = stored.indexOf(" – ");
-  if (sep === -1) return { art: stored, subArt: "" };
-  return { art: stored.slice(0, sep), subArt: stored.slice(sep + 3) };
+/** Leitet aus einem gespeicherten Wert (voller Kombi-Code ODER blanke Hauptart) die Auswahl ab. */
+function initFromStored(stored: string | null | undefined, options: OrgasmusOption[]): { main: string; subCode: string } {
+  const byCode = stored ? options.find((o) => o.code === stored) : undefined;
+  if (byCode) return { main: byCode.mainToken, subCode: byCode.subLabel ? byCode.code : "" };
+  const main = stored && options.some((o) => o.mainToken === stored) ? stored : (options[0]?.mainToken ?? "");
+  return { main, subCode: "" };
 }
 
 interface Props {
   initial?: { startTime: string; note?: string | null; orgasmusArt?: string | null };
+  /** Owner-scoped Kaskaden-Optionen (Built-in-Defaults, wenn der Owner keine eigene Config hat). */
+  artOptions: OrgasmusOption[];
   maxTime?: string;
   tz: string;
   nowDefault: string;
@@ -40,39 +38,36 @@ interface Props {
 }
 
 export default function OrgasmusFormCore({
-  initial, maxTime, tz, nowDefault, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
+  initial, artOptions, maxTime, tz, nowDefault, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("orgasmForm");
   const tc = useTranslations("common");
-  const parsed = parseArt(initial?.orgasmusArt);
+  const init = initFromStored(initial?.orgasmusArt, artOptions);
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
-  const [art, setArt] = useState(parsed.art);
-  const [subArt, setSubArt] = useState(parsed.subArt);
+  const [art, setArt] = useState(init.main); // Haupt-Token
+  const [subCode, setSubCode] = useState(init.subCode); // voller Code der gewählten Unterart, "" = keine Angabe
   const [note, setNote] = useState(initial?.note ?? "");
   const { saving, error, submit } = useEntrySubmit<OrgasmusPayload>(submitFn, onSuccess);
-
-  const SUB_ARTEN_LABELS: Record<string, string> = {
-    "Masturbation": t("subMasturbation"),
-    "Geschlechtsverkehr": t("subGeschlecht"),
-    "durch andere Person": t("subPerson"),
-    "durch Technik": t("subTechnik"),
-    "Verschlossen": t("subVerschlossen"),
-    "Anal": t("subAnal"),
-  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     await submit({
       type: "ORGASMUS",
       startTime: fromDatetimeLocal(startTime, tz).toISOString(),
-      orgasmusArt: subArt ? `${art} – ${subArt}` : art,
+      // Unterart gewählt → deren voller Code; sonst nur die Hauptart (Haupt-Token).
+      orgasmusArt: subCode || art,
       note: note.trim() || null,
     });
   }
 
-  const artOptions = ORGASMUS_ARTEN.map((a) => ({ value: a, label: orgasmusArtLabel(a, t) }));
-  const subArtOptions = (SUB_ARTEN[art] ?? []).map((s) => ({ value: s, label: SUB_ARTEN_LABELS[s] ?? s }));
+  // Haupt-Dropdown: eindeutige Hauptarten in Listenreihenfolge.
+  const mainOptions = artOptions.reduce<{ value: string; label: string }[]>((acc, o) => {
+    if (!acc.some((m) => m.value === o.mainToken)) acc.push({ value: o.mainToken, label: o.mainLabel });
+    return acc;
+  }, []);
+  // Unterart-Dropdown: Einträge der gewählten Hauptart, die eine Unterart haben.
+  const subArtOptions = artOptions.filter((o) => o.mainToken === art && o.subLabel).map((o) => ({ value: o.code, label: o.subLabel }));
   const defaultLabel = isEdit ? tc("update") : t("saveBtn");
 
   return (
@@ -89,16 +84,16 @@ export default function OrgasmusFormCore({
       <Select
         label={t("type")}
         value={art}
-        onChange={(e) => { setArt(e.target.value); setSubArt(""); }}
+        onChange={(e) => { setArt(e.target.value); setSubCode(""); }}
         required
-        options={artOptions}
+        options={mainOptions}
       />
 
       {subArtOptions.length > 0 && (
         <Select
           label={t("subType")}
-          value={subArt}
-          onChange={(e) => setSubArt(e.target.value)}
+          value={subCode}
+          onChange={(e) => setSubCode(e.target.value)}
           placeholder={t("noSubType")}
           options={subArtOptions}
         />

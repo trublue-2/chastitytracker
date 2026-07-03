@@ -12,7 +12,8 @@ import {
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere } from "@/lib/queries";
-import { deviceCategoriesEnabled, orgasmusArtLabel } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/constants";
+import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import LaufendeSessionCard from "./LaufendeSessionCard";
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
       include: { device: { select: { name: true } } },
     }),
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
@@ -86,7 +87,10 @@ export default async function DashboardPage() {
     .filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
-  const rawSessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
+  const orgasmCfg = effectiveOrgasmusArten(userSettings?.orgasmusArtenConfig);
+  const rawSessionEvents = activePair
+    ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm))
+    : [];
 
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
@@ -101,7 +105,7 @@ export default async function DashboardPage() {
   const anfOverdue = offeneVerschlussAnf ? (offeneVerschlussAnf.endetAt ? offeneVerschlussAnf.endetAt < now : false) : false;
 
   const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
-    ? orgasmusArtLabel(offeneOrgasmusAnf.vorgegebeneArt, tOrgasm)
+    ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
     : null;
 
   const clientProps: DashboardProps = {
@@ -202,7 +206,7 @@ export default async function DashboardPage() {
       <DashboardClient {...clientProps} tz={tz} />
       {pairs.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-6">
-          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} />
+          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} />
         </div>
       )}
       {wearSessionRows.length > 0 && (

@@ -8,6 +8,7 @@ import { getActiveSperrzeit } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
+import { setReasonConfig } from "@/lib/reasonsService";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 
 export async function GET(
@@ -105,6 +106,15 @@ export async function PATCH(
       fristVon: body.autoKontrolleFristVon, fristBis: body.autoKontrolleFristBis,
     });
     return NextResponse.json({ ok: true });
+  }
+
+  if (body.orgasmusArtenConfig !== undefined) {
+    const res = await setReasonConfig(id, "orgasm", body.orgasmusArtenConfig);
+    return NextResponse.json({ ok: true, config: res.ok ? res.data : [] });
+  }
+  if (body.oeffnenGruendeConfig !== undefined) {
+    const res = await setReasonConfig(id, "opening", body.oeffnenGruendeConfig);
+    return NextResponse.json({ ok: true, config: res.ok ? res.data : [] });
   }
 
   if (body.mobileDesktopUpload !== undefined) {

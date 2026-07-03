@@ -20,6 +20,47 @@ const NOTIFICATION_EVENT_TYPES = [
   "WEAR_END_ANY",
 ];
 
+// Mirror of src/lib/reasonsService.ts (ART_SEP + DEFAULT_ORGASM_ARTEN sub-combos + backfill logic).
+// seed.js is plain CJS and can't import from src — keep in sync. Tested there via
+// backfillOrgasmusArtenConfig in reasonsService.test.ts.
+const ART_SEP = " – ";
+const ORGASM_MAIN_WITH_SUBS = {
+  Orgasmus: [
+    `Orgasmus${ART_SEP}Masturbation`,
+    `Orgasmus${ART_SEP}Geschlechtsverkehr`,
+    `Orgasmus${ART_SEP}durch andere Person`,
+    `Orgasmus${ART_SEP}durch Technik`,
+  ],
+};
+
+/** Expandiert blanke Built-in-Hauptart mit Unterarten → Kombis. Rückgabe: neuer JSON-String bei
+ *  Änderung, sonst null (idempotent; null/schon-Kombis/custom → keine Änderung). */
+function backfillOrgasmusArtenConfig(raw) {
+  if (raw == null) return null;
+  let arr;
+  try { arr = typeof raw === "string" ? JSON.parse(raw) : raw; } catch { return null; }
+  if (!Array.isArray(arr)) return null;
+  const seen = new Set();
+  const out = [];
+  let changed = false;
+  for (const item of arr) {
+    const code = item && item.code;
+    const label = item && typeof item.label === "string" ? item.label.trim() : "";
+    if (typeof code === "string" && !label && ORGASM_MAIN_WITH_SUBS[code]) {
+      for (const combo of ORGASM_MAIN_WITH_SUBS[code]) {
+        if (!seen.has(combo)) { seen.add(combo); out.push({ code: combo }); }
+      }
+      changed = true;
+      continue;
+    }
+    if (typeof code === "string" && !seen.has(code)) {
+      seen.add(code);
+      out.push(label ? { code, label } : { code });
+    }
+  }
+  return changed ? JSON.stringify(out) : null;
+}
+
 async function ensureKgCategory(userId) {
   const categoryId = `kgcat_${userId}`;
   await prisma.deviceCategory.upsert({
@@ -113,6 +154,21 @@ async function main() {
   // createMany + skipDuplicates means existing explicit opt-outs are preserved.
   const allUsers = await prisma.user.findMany({ select: { id: true } });
   await Promise.all(allUsers.map((u) => ensureNotificationPrefs(u.id)));
+
+  // Backfill: Orgasmus-Configs, die vor der Unterarten-Version gespeichert wurden (nur Hauptarten),
+  // auf volle Kombis migrieren — sonst fehlt im Formular das Unterart-Dropdown. Idempotent.
+  const cfgUsers = await prisma.user.findMany({ select: { id: true, orgasmusArtenConfig: true } });
+  let migratedConfigs = 0;
+  for (const u of cfgUsers) {
+    const next = backfillOrgasmusArtenConfig(u.orgasmusArtenConfig);
+    if (next !== null) {
+      await prisma.user.update({ where: { id: u.id }, data: { orgasmusArtenConfig: next } });
+      migratedConfigs++;
+    }
+  }
+  if (migratedConfigs > 0) {
+    console.log(`→ ${migratedConfigs} Orgasmus-Config(s) auf Unterarten-Kombis migriert.`);
+  }
 
   // Assign orphaned entries (no userId) to the admin — raw SQL because userId is non-nullable in schema.
   const orphaned = await prisma.$executeRaw`UPDATE "Entry" SET "userId" = ${adminUser.id} WHERE "userId" IS NULL`;

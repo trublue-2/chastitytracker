@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
 
@@ -13,12 +14,17 @@ export async function POST(req: NextRequest) {
 
   const err = await requireKeyholderOrAdminApi(userId);
   if (err) return err;
-  const devBypass = isDevBypassEnabled(req.headers.get("host"));
-  const validationError = validateEntryPayload(body, { requirePhotoForPruefung: false, allowFuture: devBypass });
-  if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
 
+  // Ziel-User (= Entry-Eigentümer) laden — dessen Reason-Listen governieren die Validierung.
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: "Benutzer nicht gefunden" }, { status: 404 });
+
+  const devBypass = isDevBypassEnabled(req.headers.get("host"));
+  const validationError = validateEntryPayload(body, { requirePhotoForPruefung: false, allowFuture: devBypass }, {
+    orgasmAllowed: (v) => orgasmusValueAllowed(v, user.orgasmusArtenConfig),
+    openingCodes: validOeffnenCodes(user.oeffnenGruendeConfig),
+  });
+  if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
 
   let entry;
   try {

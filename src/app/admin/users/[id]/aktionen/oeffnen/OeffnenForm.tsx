@@ -6,8 +6,9 @@ import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
+import type { ResolvedReason } from "@/lib/reasonsService";
 
-export default function OeffnenForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
+export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { userId: string; grundOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tOffen = useTranslations("openForm");
   const tc = useTranslations("common");
@@ -35,6 +36,7 @@ export default function OeffnenForm({ userId, tz, nowDefault }: { userId: string
       title={tOffen("title")}
     >
       <OeffnenFormCore
+        grundOptions={grundOptions}
         tz={tz}
         nowDefault={nowDefault}
         submitFn={submitFn}

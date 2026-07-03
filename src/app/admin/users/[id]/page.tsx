@@ -12,6 +12,7 @@ import {
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
@@ -44,11 +45,14 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const ts = await getTranslations("stats");
   const td = await getTranslations("dashboard");
   const tc = await getTranslations("common");
+  const tOrgasm = await getTranslations("orgasmForm");
   const dl = toDateLocale(await getLocale());
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
   const tz = user.timezone;
+  // Der Sub (Eintrag-Owner) governt die Anzeige-Labels seiner Orgasmus-/Öffnungs-Codes.
+  const orgasmCfg = effectiveOrgasmusArten(user.orgasmusArtenConfig);
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
@@ -100,7 +104,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   })();
 
   const activePair = pairs.find(p => p.active) ?? null;
-  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl) : [];
+  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm)) : [];
   const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
   const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
@@ -225,7 +229,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
       <CategoryGoalsToday userId={id} />
 
-      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} tz={tz} />
+      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} />
 
       {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
 
@@ -271,7 +275,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           <OrgasmenListClient
             items={orgasmusEntries.slice(0, 5).map((e): OrgasmusItemData => ({
               id: e.id, dateStr: formatDate(e.startTime, dl, tz), timeStr: formatTime(e.startTime, dl, tz),
-              orgasmusArt: e.orgasmusArt, note: e.note, editHref: `/dashboard/edit/${e.id}`,
+              orgasmusArt: resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm), note: e.note, editHref: `/dashboard/edit/${e.id}`,
             }))}
           />
         </Card>

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
-import { ORGASMUS_ARTEN, orgasmusArtLabel, ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import type { ResolvedReason } from "@/lib/reasonsService";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
@@ -14,10 +15,9 @@ import Textarea from "@/app/components/Textarea";
 import Checkbox from "@/app/components/Checkbox";
 import Button from "@/app/components/Button";
 
-export default function OrgasmusAnforderungForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
+export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDefault }: { userId: string; artOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
-  const tOrgasm = useTranslations("orgasmForm");
   const router = useRouter();
   const target = `/admin/users/${userId}/aktionen`;
 
@@ -32,13 +32,13 @@ export default function OrgasmusAnforderungForm({ userId, tz, nowDefault }: { us
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const artOptions = ORGASMUS_ANFORDERUNG_ARTEN.map((a) => ({
+  const modeOptions = ORGASMUS_ANFORDERUNG_ARTEN.map((a) => ({
     value: a,
     label: orgasmusAnforderungArtLabel(a, t),
   }));
   const vorgabeOptions = [
     { value: "", label: t("orgasmReqArtAny") },
-    ...ORGASMUS_ARTEN.map((a) => ({ value: a, label: orgasmusArtLabel(a, tOrgasm) })),
+    ...artOptions.map((r) => ({ value: r.code, label: r.label })),
   ];
 
   async function handleSubmit(e: React.FormEvent) {
@@ -85,7 +85,7 @@ export default function OrgasmusAnforderungForm({ userId, tz, nowDefault }: { us
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Select
           label={t("orgasmReqMode")}
-          options={artOptions}
+          options={modeOptions}
           value={art}
           onChange={(e) => setArt(e.target.value as (typeof ORGASMUS_ANFORDERUNG_ARTEN)[number])}
         />

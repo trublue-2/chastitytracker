@@ -11,6 +11,7 @@ import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
 import { getUserDeviceOptions, getUserTimezone } from "@/lib/queries";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
 
 export default async function EditEntryPage({
   params,
@@ -19,13 +20,15 @@ export default async function EditEntryPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string; userId?: string }>;
 }) {
-  const [{ id }, sp, session, t, tStats, tCommon] = await Promise.all([
+  const [{ id }, sp, session, t, tStats, tCommon, tOrgasm, tOpen] = await Promise.all([
     params,
     searchParams,
     auth(),
     getTranslations("nav"),
     getTranslations("stats"),
     getTranslations("common"),
+    getTranslations("orgasmForm"),
+    getTranslations("openForm"),
   ]);
   const { from, userId: adminUserId } = sp;
   const isAdmin = session?.user?.role === "admin";
@@ -48,7 +51,7 @@ export default async function EditEntryPage({
   // devices: only VERSCHLUSS uses them. wearDevices: only WEAR_BEGIN. tz: the data owner (entry.userId)
   // governs — an admin may edit a sub's entry, and the sub's tz must format the datetime-local value +
   // anti-cheat min/max, never the admin viewer's.
-  const [devices, wearDevices, tz] = await Promise.all([
+  const [devices, wearDevices, tz, ownerReasons] = await Promise.all([
     entry.type === "VERSCHLUSS" ? getUserDeviceOptions(entry.userId) : Promise.resolve([]),
     entry.type === "WEAR_BEGIN" && entry.device?.categoryId
       ? prisma.device.findMany({
@@ -58,8 +61,14 @@ export default async function EditEntryPage({
         })
       : Promise.resolve([]),
     getUserTimezone(entry.userId),
+    // Reason-Configs des Eintrag-Owners (Sub) — nur für ORGASMUS/OEFFNEN benötigt.
+    entry.type === "ORGASMUS" || entry.type === "OEFFNEN"
+      ? prisma.user.findUnique({ where: { id: entry.userId }, select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true } })
+      : Promise.resolve(null),
   ]);
   const nowDefault = nowDatetimeLocal(tz);
+  const artOptions = resolveOrgasmusOptions(effectiveOrgasmusArten(ownerReasons?.orgasmusArtenConfig), tOrgasm);
+  const grundOptions = resolveReasonList(effectiveOeffnenGruende(ownerReasons?.oeffnenGruendeConfig), "opening", tOpen);
 
   // Anti-cheat: non-admins may only shift times in the allowed direction.
   // WEAR_BEGIN behaves like VERSCHLUSS (forward only), WEAR_END like OEFFNEN (backward only).
@@ -80,7 +89,7 @@ export default async function EditEntryPage({
       </h1>
       <div>
       {entry.type === "OEFFNEN" && (
-        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} maxTime={maxTime} tz={tz} nowDefault={nowDefault} redirectTo={redirectTo} />
+        <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} grundOptions={grundOptions} maxTime={maxTime} tz={tz} nowDefault={nowDefault} redirectTo={redirectTo} />
       )}
       {entry.type === "VERSCHLUSS" && (
         <VerschlussForm initial={{
@@ -102,7 +111,7 @@ export default async function EditEntryPage({
         <OrgasmusForm initial={{
           id: entry.id, startTime: entry.startTime.toISOString(),
           note: entry.note, orgasmusArt: entry.orgasmusArt,
-        }} maxTime={maxTime} tz={tz} nowDefault={nowDefault} redirectTo={redirectTo} />
+        }} artOptions={artOptions} maxTime={maxTime} tz={tz} nowDefault={nowDefault} redirectTo={redirectTo} />
       )}
       {(entry.type === "WEAR_BEGIN" || entry.type === "WEAR_END") && entry.device?.category && (
         <WearForm

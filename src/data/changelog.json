@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.44.0",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Admins können jetzt pro Nutzer die Auswahllisten für Orgasmus-Arten und Öffnungsgründe anpassen (Einträge hinzufügen, umbenennen, entfernen, sortieren) — unter Benutzer → Einstellungen → Auswahllisten. «Reinigung» bleibt fest und kann nur umbenannt werden. Solange ein Admin nichts ändert, bleiben die bisherigen Standard-Einträge unverändert."
+      },
+      {
+        "type": "feat",
+        "text": "Orgasmus-Unterarten sind jetzt Teil der anpassbaren Liste: Ein Admin trägt Einträge als «Hauptart – Unterart» ein (Trennzeichen /, |, - werden automatisch umgewandelt); der Sub wählt dann über zwei abhängige Auswahlfelder (Hauptart → Unterart, Unterart optional). Standard bleiben die bisherigen Unterarten — ohne Anpassung ändert sich nichts."
+      },
+      {
+        "type": "fix",
+        "text": "Orgasmus-Unterarten, die bei Instanzen mit einer bereits vor der Unterarten-Version gespeicherten Auswahlliste (nur Hauptarten) verschwunden waren, werden beim Start automatisch als volle «Hauptart – Unterart»-Einträge wiederhergestellt (idempotente Migration). Zusätzlich zeigt der Admin-Editor die Standard-Unterart-Zeilen jetzt sichtbar statt leer, damit sie nicht versehentlich zu einer Hauptart zusammenfallen."
+      }
+    ]
+  },
+  {
     "version": "4.43.11",
     "date": "2026-07-03",
     "changes": [

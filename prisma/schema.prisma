@@ -34,6 +34,11 @@ model User {
   // die Wanduhr-Fenster (Reinigung/Schlaf) für DIESEN Nutzer. Default "Europe/Zurich" = bisheriges
   // Verhalten für alle Bestandsnutzer (keine sichtbare Änderung).
   timezone              String                 @default("Europe/Zurich")
+  // Pro-User anpassbare Auswahllisten als JSON-Array [{code,label?}] (TEXT). null = eingebaute
+  // Standardliste (Bestandsnutzer unverändert). Öffnungsgründe enthalten IMMER den geschützten
+  // Built-in "REINIGUNG" (Code fix, nur Label umbenennbar). Siehe reasonsService.ts.
+  orgasmusArtenConfig   String?
+  oeffnenGruendeConfig  String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions String?
   entries               Entry[]

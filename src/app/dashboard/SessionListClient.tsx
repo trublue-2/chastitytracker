@@ -6,12 +6,12 @@ import { ChevronDown, ChevronUp, Lock, LockOpen, Timer } from "lucide-react";
 import { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import { toDateLocale } from "@/lib/utils";
-import { GRUND_I18N_KEYS } from "@/lib/constants";
 
 interface OeffnenFooter {
   dateStr: string;
   timeStr: string;
-  grund: string | null;
+  /** Already resolved via the data-owner's config (SessionList). null = kein Grund gesetzt. */
+  grundLabel: string | null;
   note: string | null;
 }
 
@@ -37,7 +37,6 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
   const [page, setPage] = useState(0);
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
-  const tOpen = useTranslations("openForm");
   const locale = useLocale();
   const dl = toDateLocale(locale);
   // Freeze "now" at mount: historical sessions don't care about live time, and
@@ -135,11 +134,9 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                         <span className="text-sm font-semibold text-foreground-muted">
                           {session.oeffnen.dateStr}, {session.oeffnen.timeStr}
                         </span>
-                        {session.oeffnen.grund && (
+                        {session.oeffnen.grundLabel && (
                           <span className="text-xs font-semibold text-unlock-text bg-unlock-bg border border-unlock-border px-2 py-0.5 rounded-full">
-                            {GRUND_I18N_KEYS[session.oeffnen.grund as keyof typeof GRUND_I18N_KEYS]
-                              ? tOpen(GRUND_I18N_KEYS[session.oeffnen.grund as keyof typeof GRUND_I18N_KEYS])
-                              : session.oeffnen.grund}
+                            {session.oeffnen.grundLabel}
                           </span>
                         )}
                         {session.oeffnen.note && (

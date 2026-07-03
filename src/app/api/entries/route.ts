@@ -4,7 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { validateEntryPayload, GRUND_I18N_KEYS, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
+import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
+import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
@@ -43,7 +44,15 @@ export async function POST(req: NextRequest) {
   const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable } = body;
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
-  const validationError = validateEntryPayload(body, { allowFuture: devBypass });
+  // Reason-Codes gegen die (ggf. angepasste) Liste DES SESSION-USERS validieren; null-Config → Built-ins.
+  const reasonUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true },
+  });
+  const validationError = validateEntryPayload(body, { allowFuture: devBypass }, {
+    orgasmAllowed: (v) => orgasmusValueAllowed(v, reasonUser?.orgasmusArtenConfig),
+    openingCodes: validOeffnenCodes(reasonUser?.oeffnenGruendeConfig),
+  });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races
@@ -280,14 +289,19 @@ export async function POST(req: NextRequest) {
       // Build descriptive message
       const username = session.user.name ?? "User";
       const time = formatDateTime(new Date(startTime));
-      const tOpen = await getTranslations({ locale: "de", namespace: "openForm" });
+      const [tOpen, tOrgasm] = await Promise.all([
+        getTranslations({ locale: "de", namespace: "openForm" }),
+        getTranslations({ locale: "de", namespace: "orgasmForm" }),
+      ]);
       let title = "";
       let pushBody = "";
 
+      // Labels über die Reason-Config des Entry-Owners (= handelnder User) auflösen — Custom-Labels
+      // erscheinen so auch in Push/Mail, mit Built-in-i18n/Rohwert als Fallback.
       const grundLabel = (g: string) =>
-        GRUND_I18N_KEYS[g as keyof typeof GRUND_I18N_KEYS]
-          ? tOpen(GRUND_I18N_KEYS[g as keyof typeof GRUND_I18N_KEYS])
-          : g;
+        resolveReasonLabel(g, effectiveOeffnenGruende(reasonUser?.oeffnenGruendeConfig), "opening", tOpen);
+      const orgasmusArtLabel = (a: string) =>
+        resolveOrgasmusArtDisplay(a, effectiveOrgasmusArten(reasonUser?.orgasmusArtenConfig), tOrgasm) ?? a;
 
       if (type === "VERSCHLUSS") {
         title = `${username} hat sich eingeschlossen`;
@@ -297,7 +311,7 @@ export async function POST(req: NextRequest) {
         pushBody = oeffnenGrund ? `${time} · Grund: ${grundLabel(oeffnenGrund)}` : time;
       } else if (type === "ORGASMUS") {
         title = `${username} — Orgasmus`;
-        pushBody = orgasmusArt ? `${time} · ${orgasmusArt}` : time;
+        pushBody = orgasmusArt ? `${time} · ${orgasmusArtLabel(orgasmusArt)}` : time;
       } else if (type === "PRUEFUNG") {
         title = kontrollCode ? `${username} hat Kontrolle erfüllt` : `${username} — Selbstkontrolle`;
         pushBody = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
@@ -336,7 +350,7 @@ export async function POST(req: NextRequest) {
           details.push(`<strong>Grund:</strong> ${escHtml(grundLabel(oeffnenGrund))}`);
         }
         if (type === "ORGASMUS" && orgasmusArt) {
-          details.push(`<strong>Art:</strong> ${escHtml(orgasmusArt)}`);
+          details.push(`<strong>Art:</strong> ${escHtml(orgasmusArtLabel(orgasmusArt))}`);
         }
         if (kontrollCode) {
           details.push(`<strong>Siegel / Code:</strong> <span style="font-family:monospace;font-weight:bold;color:#f97316">${escHtml(kontrollCode)}</span>`);
