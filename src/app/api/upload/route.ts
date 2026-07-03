@@ -6,6 +6,7 @@ import exifr from "exifr";
 import sharp from "sharp";
 import { trackEvent } from "@/lib/telemetry";
 import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
+import { fromDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 function isAllowedImageBuffer(buf: Buffer): boolean {
   // JPEG: FF D8 FF
@@ -48,6 +49,9 @@ export async function POST(req: NextRequest) {
 
   // Client-side EXIF (sent from browser before iOS strips it)
   const clientExifTime = formData.get("clientExifTime") as string | null;
+  // Upload ist immer das eigene Foto → die Zeitzone des hochladenden Subs governiert die Auslegung
+  // einer nackten (tz-losen) EXIF-Wanduhrzeit.
+  const tz = session.user.timezone ?? APP_TZ;
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
@@ -74,14 +78,18 @@ export async function POST(req: NextRequest) {
   } catch { /* keine/unlesbare GPS-Daten */ }
   if (!exifTime) {
     try {
-      const exif = await exifr.parse(buffer, { pick: ["DateTimeOriginal", "DateTime"] });
+      // reviveValues:false → DateTimeOriginal kommt als ROHER String ("YYYY:MM:DD HH:MM:SS"): eine
+      // Kamera-WANDUHRZEIT ohne Zeitzone. Diese in der Sub-Zeitzone auslegen → korrektes UTC. Vorher
+      // wurde sie via `new Date(...)`/exifr als Server-Lokalzeit (UTC im Container) fehlinterpretiert →
+      // über Zeitzonen falscher Instant und dadurch falsche „Zeit korrigiert"-Warnungen.
+      const exif = await exifr.parse(buffer, { pick: ["DateTimeOriginal", "DateTime"], reviveValues: false });
       const raw = exif?.DateTimeOriginal ?? exif?.DateTime ?? null;
-      if (raw instanceof Date) {
-        exifTime = raw.toISOString();
-      } else if (typeof raw === "string") {
-        const normalized = raw.replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3");
-        const parsed = new Date(normalized);
-        if (!isNaN(parsed.getTime())) exifTime = parsed.toISOString();
+      if (typeof raw === "string") {
+        const m = /^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2})/.exec(raw);
+        if (m) {
+          const parsed = fromDatetimeLocal(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`, tz);
+          if (!isNaN(parsed.getTime())) exifTime = parsed.toISOString();
+        }
       }
     } catch { /* keine EXIF-Zeit verfügbar */ }
   }

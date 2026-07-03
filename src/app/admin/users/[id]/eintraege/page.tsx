@@ -24,6 +24,7 @@ export default async function AdminUserEintraegePage({
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
+  const tz = user.timezone;
 
   const [locale, t, tStats] = await Promise.all([
     getLocale(),
@@ -72,7 +73,8 @@ export default async function AdminUserEintraegePage({
                     : null,
                 }}
                 locale={dl}
-                actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=admin&userId=${id}`} />}
+                tz={tz}
+                actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=admin&userId=${id}`} tz={tz} />}
               />
             ))}
           </div>

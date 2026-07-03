@@ -16,8 +16,10 @@ import { round1, msToHours, pct, isoWithOffset } from "@/lib/mcp/format";
  *  Vertrag), V2-Composer (dashboard, ledger) ziehen via opts.iso ISO-8601 mit Offset.
  *  TODO(altitude): langfristig roh-Date zurückgeben + am Tool-Rand formatieren, sobald der V1-
  *  Vertrag versioniert wird — dann entfällt dieser Interim-Schalter im V1-Aggregat. */
-const isoFmt = (d: Date) => isoWithOffset(d, APP_TZ)!;
-const pickFmt = (iso?: boolean) => (iso ? isoFmt : formatDateTime);
+/** Formatiert in der ZEITZONE des Ziel-Subs: ISO-8601 mit Offset (iso:true, für V2-Composer) oder
+ *  das Instanz-lokale Human-Format (V1-Vertrag). Ohne tz greift APP_TZ (byte-identisch für Bestands-User). */
+const pickFmt = (iso?: boolean, tz: string = APP_TZ) =>
+  iso ? (d: Date) => isoWithOffset(d, tz)! : (d: Date) => formatDateTime(d, undefined, tz);
 export interface McpFormatOptions { iso?: boolean }
 
 /** Read-only overview snapshot for the MCP `get_overview` tool.
@@ -112,17 +114,18 @@ const goalProgress = (
 
 /** Resolves a username to its id and Reinigung settings. Throws if the user does not exist.
  *  `reinigungUser` trägt die rohen User-Felder für buildReinigungView (geteilte Cleaning-Sicht). */
-async function loadUserContext(username: string): Promise<{ userId: string; reinigung: ReinigungSettings; reinigungUser: ReinigungUserFields; keyholderInstructions: string | null; autoKontrolle: AutoKontrolleSettings }> {
+async function loadUserContext(username: string): Promise<{ userId: string; timezone: string; reinigung: ReinigungSettings; reinigungUser: ReinigungUserFields; keyholderInstructions: string | null; autoKontrolle: AutoKontrolleSettings }> {
   const user = await prisma.user.findUnique({
     where: { username },
     select: {
-      id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, mcpKeyholderInstructions: true,
+      id: true, timezone: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, mcpKeyholderInstructions: true,
       autoKontrolleAktiv: true, autoKontrolleProTag: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true, autoKontrolleFristVon: true, autoKontrolleFristBis: true,
     },
   });
   if (!user) throw new Error(`User not found: ${username}`);
   return {
     userId: user.id,
+    timezone: user.timezone ?? APP_TZ,
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
     reinigungUser: user,
     keyholderInstructions: user.mcpKeyholderInstructions ?? null,
@@ -132,9 +135,9 @@ async function loadUserContext(username: string): Promise<{ userId: string; rein
 
 /** Builds the overview for a user identified by username. Throws if the user does not exist. */
 export async function buildOverview(username: string, opts: McpFormatOptions = {}): Promise<TrackerOverview> {
-  const { userId, reinigung, reinigungUser, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
+  const { userId, timezone, reinigung, reinigungUser, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
   const now = new Date();
-  const fmt = pickFmt(opts.iso);
+  const fmt = pickFmt(opts.iso, timezone);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
   const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes, openOrgasmusAnf, cleaningUsedToday] = await Promise.all([
@@ -158,7 +161,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
     prisma.strafeRecord.count({ where: { userId, status: "PUNISHED" } }),
     prisma.keyholderNote.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
     getActiveOrgasmusAnforderung(userId, now),
-    reinigungVerbrauchtHeute(userId, now),
+    reinigungVerbrauchtHeute(userId, now, timezone),
   ]);
 
   // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
@@ -193,7 +196,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
     schemaVersion: 1 as const,
     user: username,
     generatedAt: fmt(now),
-    timezone: APP_TZ,
+    timezone,
     keyholderInstructions,
     lock: {
       isLocked,
@@ -206,7 +209,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
       ...goalProgress(tagH, wocheH, monatH, activeVorgabe.minProTagH, activeVorgabe.minProWocheH, activeVorgabe.minProMonatH),
       note: activeVorgabe.notiz,
     } : null,
-    reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now),
+    reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now, timezone),
     autoKontrolle: {
       aktiv: autoKontrolle.aktiv,
       proTag: autoKontrolle.proTag,
@@ -339,7 +342,7 @@ function completedWearSessions(
 
 /** Lists completed sessions (KG + non-KG wear), newest first. Throws if the user does not exist. */
 export async function listSessions(username: string, opts: ListSessionsOptions = {}): Promise<SessionList> {
-  const { userId, reinigung } = await loadUserContext(username);
+  const { userId, timezone, reinigung } = await loadUserContext(username);
 
   const [entries, nonKgCategories] = await Promise.all([
     prisma.entry.findMany({
@@ -372,8 +375,8 @@ export async function listSessions(username: string, opts: ListSessionsOptions =
     .map((s) => ({
       category: s.category,
       deviceName: s.deviceName,
-      start: formatDateTime(s.start),
-      end: formatDateTime(s.end),
+      start: formatDateTime(s.start, undefined, timezone),
+      end: formatDateTime(s.end, undefined, timezone),
       durationHours: msToHours(s.durationMs),
     }));
   return { schemaVersion: 1 as const, sessions };
@@ -426,7 +429,7 @@ export interface ListEntriesOptions {
 
 /** Lists raw entries with full per-entry detail, newest first. Throws if the user does not exist. */
 export async function listEntries(username: string, opts: ListEntriesOptions = {}): Promise<EntryList> {
-  const { userId } = await loadUserContext(username);
+  const { userId, timezone } = await loadUserContext(username);
   const typeFilter = opts.type?.trim().toUpperCase();
   const limit = Math.min(Math.max(1, opts.limit ?? 50), 200);
   const where = { userId, ...(typeFilter ? { type: typeFilter } : {}) };
@@ -444,13 +447,13 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
   return {
     schemaVersion: 1 as const,
     user: username,
-    generatedAt: formatDateTime(new Date()),
-    timezone: APP_TZ,
+    generatedAt: formatDateTime(new Date(), undefined, timezone),
+    timezone,
     totalCount,
     returnedCount: entries.length,
     entries: entries.map((e) => ({
       type: e.type,
-      time: formatDateTime(e.startTime),
+      time: formatDateTime(e.startTime, undefined, timezone),
       note: e.note,
       oeffnenGrund: e.oeffnenGrund,
       orgasmusArt: e.orgasmusArt,
@@ -459,7 +462,7 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
       deviceName: e.device?.name ?? null,
       deviceCheck: mapDeviceCheck(e),
       hasImage: !!e.imageUrl,
-      imageExifTime: e.imageExifTime ? formatDateTime(e.imageExifTime) : null,
+      imageExifTime: e.imageExifTime ? formatDateTime(e.imageExifTime, undefined, timezone) : null,
       timeCorrected: isTimeCorrected(e.startTime, e.createdAt),
     })),
   };
@@ -486,7 +489,7 @@ export interface DeviceList {
 
 /** Lists the user's devices (KG + non-KG categories), active first then archived. Throws if the user does not exist. */
 export async function listDevices(username: string): Promise<DeviceList> {
-  const { userId } = await loadUserContext(username);
+  const { userId, timezone } = await loadUserContext(username);
   const devices = await prisma.device.findMany({
     where: { userId },
     orderBy: [{ archivedAt: "asc" }, { createdAt: "asc" }],
@@ -503,7 +506,7 @@ export async function listDevices(username: string): Promise<DeviceList> {
       currency: d.currency,
       hasImage: !!d.imageUrl,
       archived: d.archivedAt !== null,
-      createdAt: formatDateTime(d.createdAt),
+      createdAt: formatDateTime(d.createdAt, undefined, timezone),
     })),
   };
 }
@@ -564,9 +567,9 @@ export interface StrafbuchOverview {
 
 /** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
 export async function mcpStrafbuch(username: string, opts: McpFormatOptions = {}): Promise<StrafbuchOverview> {
-  const { userId } = await loadUserContext(username);
+  const { userId, timezone } = await loadUserContext(username);
   const now = new Date();
-  const fmt = pickFmt(opts.iso);
+  const fmt = pickFmt(opts.iso, timezone);
   const sb = await buildStrafbuch(userId, now);
 
   // Urteil pro Vergehen (per refId aufgelöst).
@@ -613,7 +616,7 @@ export async function mcpStrafbuch(username: string, opts: McpFormatOptions = {}
     schemaVersion: 1 as const,
     user: username,
     generatedAt: fmt(now),
-    timezone: APP_TZ,
+    timezone,
     detectedOffenseCount: detected.length,
     openOffenseCount,
     pendingPenaltyCount,
@@ -651,8 +654,8 @@ export interface ListNotesOptions { kg?: string; kategorie?: string; limit?: num
 /** Volle Keyholder-Notiz-Historie (Beobachtungen zum Trageverhalten), optional nach KG/Kategorie
  *  gefiltert. Read-only Gegenstück zu add/delete; get_overview zeigt nur die jüngsten 8. */
 export async function listKeyholderNotes(username: string, opts: ListNotesOptions = {}) {
-  const { userId } = await loadUserContext(username);
-  const fmt = (d: Date) => formatDateTime(d);
+  const { userId, timezone } = await loadUserContext(username);
+  const fmt = (d: Date) => formatDateTime(d, undefined, timezone);
   const notes = await prisma.keyholderNote.findMany({
     where: { userId, ...(opts.kg ? { kg: opts.kg } : {}), ...(opts.kategorie ? { kategorie: opts.kategorie } : {}) },
     orderBy: { createdAt: "desc" },

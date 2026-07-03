@@ -15,7 +15,7 @@ import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import { Lock, LockOpen, UserPlus, Users, ShieldAlert, CalendarClock } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDateTime } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDateTime, nowDatetimeLocal } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 
@@ -26,7 +26,9 @@ export default async function AdminPage() {
   const t = await getTranslations("admin");
   const dl = toDateLocale(await getLocale());
 
-  const userSelect = { id: true, username: true, role: true, email: true, createdAt: true };
+  // MULTI-SUB view: each row belongs to a different sub → carry each user's timezone so per-row
+  // timestamps/banners render in THAT sub's zone (not the viewing keyholder's).
+  const userSelect = { id: true, username: true, role: true, email: true, createdAt: true, timezone: true };
 
   let users;
   if (isGlobalAdmin) {
@@ -173,6 +175,7 @@ export default async function AdminPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {usersWithStats.map((u) => {
+            const rowTz = u.timezone; // this row's sub governs its own timestamps
             const isLocked = u.stats.currentStatus === "VERSCHLUSS";
             const sinceDisplay = u.stats.since
               ? formatDuration(u.stats.since, now, dl)
@@ -232,6 +235,7 @@ export default async function AdminPage() {
                         kommentar={u.stats.offeneKontrolle.kommentar}
                         overdue={u.stats.offeneKontrolle.overdue}
                         variant="compact"
+                        tz={rowTz}
                         withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" titleKey="withdrawKontrolleTitle" colorToken="inspect" />}
                       />
                     )}
@@ -243,6 +247,7 @@ export default async function AdminPage() {
                         overdue={u.stats.offeneAnforderung.overdue}
                         endetAt={u.stats.offeneAnforderung.endetAt}
                         locale={dl}
+                        tz={rowTz}
                         withdrawAction={<WithdrawButton id={u.stats.offeneAnforderung.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
                       />
                     )}
@@ -252,6 +257,7 @@ export default async function AdminPage() {
                         colorScheme="sperrzeit"
                         label={u.stats.activeSperrzeit.endetAt ? t("lockedUntil") : t("lockedIndefinite")}
                         locale={dl}
+                        tz={rowTz}
                         endetAt={u.stats.activeSperrzeit.endetAt}
                         showRemaining={!!u.stats.activeSperrzeit.endetAt}
                         withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
@@ -268,6 +274,7 @@ export default async function AdminPage() {
                         overdue={u.stats.offeneOrgasmusAnforderung.expired}
                         endetAt={u.stats.offeneOrgasmusAnforderung.endetAt}
                         locale={dl}
+                        tz={rowTz}
                         withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
                       />
                     )}
@@ -287,7 +294,7 @@ export default async function AdminPage() {
                           return (
                             <div key={s.id} className="flex items-center gap-2 text-xs text-foreground-muted">
                               <span className="font-semibold text-foreground">{kindLabel}</span>
-                              <span className="text-foreground-faint">{t("scheduledForPrefix")} {formatDateTime(s.wirksamAb, dl)}</span>
+                              <span className="text-foreground-faint">{t("scheduledForPrefix")} {formatDateTime(s.wirksamAb, dl, rowTz)}</span>
                               {s.message && <span className="truncate opacity-80">· {s.message}</span>}
                               <span className="ml-auto flex-shrink-0">
                                 <WithdrawButton id={s.id} apiPath={apiPath} titleKey="scheduledWithdrawTitle" colorToken={colorToken} />
@@ -309,6 +316,8 @@ export default async function AdminPage() {
                         isLocked={isLocked}
                         hasOffeneAnforderung={u.stats.hasOffeneAnforderung}
                         hasActiveSperrzeit={u.stats.hasActiveSperrzeit}
+                        tz={rowTz}
+                        minNow={nowDatetimeLocal(rowTz)}
                       />
                     </div>
                   </div>

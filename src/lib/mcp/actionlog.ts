@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserId, iso, parseIsoDate } from "@/lib/mcp/common";
+import { resolveUserContext, makeIso, parseIsoDate } from "@/lib/mcp/common";
 
 /** get_action_log (§9.2) — append-only Audit aller mutierenden V2-Aktionen: was hat welche Instanz
  *  wann mit welcher Begründung entschieden. Damit erbt die nächste Instanz Entscheidungen samt
@@ -48,7 +48,8 @@ function safeParse(json: string | null): unknown {
 
 /** Liefert das Action-Log, neueste zuerst, optional nach Tool/Zeit gefiltert. Throws bei unbekanntem User. */
 export async function getActionLog(username: string, opts: ActionLogOptions = {}): Promise<ActionLogResult> {
-  const userId = await resolveUserId(username);
+  const { id: userId, timezone } = await resolveUserContext(username);
+  const iso = makeIso(timezone);
   const from = parseIsoDate(opts.from, "from");
   const to = parseIsoDate(opts.to, "to");
   const rows = await prisma.keyholderActionLog.findMany({

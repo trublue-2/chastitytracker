@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
-import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
@@ -30,6 +30,8 @@ interface Props {
     deviceId?: string | null;
   };
   minTime?: string;
+  tz: string;
+  nowDefault: string;
   mobileDesktopMode?: boolean;
   devices?: DeviceOption[];
   /** Device ID requested by keyholder via VerschlussAnforderung */
@@ -45,14 +47,14 @@ interface Props {
 }
 
 export default function VerschlussFormCore({
-  initial, minTime, mobileDesktopMode, devices = [], anforderungDeviceId, bildersafe = false,
+  initial, minTime, tz, nowDefault, mobileDesktopMode, devices = [], anforderungDeviceId, bildersafe = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
   const dl = toDateLocale(useLocale());
 
-  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date()));
+  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [note, setNote] = useState(initial?.note ?? "");
 
   // Device defaulting: anforderung > single-device auto-pick > initial > empty
@@ -125,7 +127,7 @@ export default function VerschlussFormCore({
     e.preventDefault();
     await submit({
       type: "VERSCHLUSS",
-      startTime: new Date(startTime).toISOString(),
+      startTime: fromDatetimeLocal(startTime, tz).toISOString(),
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
       note: note.trim() || null,
@@ -192,7 +194,7 @@ export default function VerschlussFormCore({
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && (
-                <p className="text-xs text-foreground-faint">{t("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>
+                <p className="text-xs text-foreground-faint">{t("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>
               )}
               {exifWarning && !uploading && (
                 <p className="text-xs text-warn font-medium">{exifWarning}</p>

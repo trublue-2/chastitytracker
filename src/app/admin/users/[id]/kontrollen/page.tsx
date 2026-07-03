@@ -28,10 +28,12 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
     prisma.entry.findMany({
       where: { userId: id, type: "PRUEFUNG" },
       orderBy: { startTime: "desc" },
+      include: { user: { select: { username: true, timezone: true } } },
     }),
     prisma.kontrollAnforderung.findMany({
       where: { userId: id, ...keyholderVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
+      include: { user: { select: { username: true, timezone: true } } },
     }),
     getIsLocked(id),
   ]);

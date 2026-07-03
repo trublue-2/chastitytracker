@@ -16,6 +16,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
+  const tz = user.timezone;
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/strafbuch`);
 
@@ -23,24 +24,24 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const reinigungLimitVergehen: ReinigungLimitRow[] = sb.reinigungLimitViolations.map((v) => ({
     entryId: v.entryId,
-    startTimeStr: v.startTime ? formatDateTime(v.startTime, dl) : "–",
+    startTimeStr: v.startTime ? formatDateTime(v.startTime, dl, tz) : "–",
     note: v.note,
   }));
 
   const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = sb.unauthorizedOpenings.map((o) => ({
     id: o.id,
-    startTimeStr: formatDateTime(o.startTime, dl),
+    startTimeStr: formatDateTime(o.startTime, dl, tz),
     note: o.note,
-    sperrzetEndetAtStr: o.sperrzeitEndetAt ? formatDateTime(o.sperrzeitEndetAt, dl) : null,
+    sperrzetEndetAtStr: o.sperrzeitEndetAt ? formatDateTime(o.sperrzeitEndetAt, dl, tz) : null,
     sperrzetUnbefristet: o.sperrzeitIndefinite,
   }));
 
   const toKontrollRow = (k: StrafbuchControlOffense, backdated: boolean): KontrollRow => ({
     id: k.id,
     code: k.code,
-    deadlineStr: formatDateTime(k.deadline, dl),
-    fulfilledAtStr: k.fulfilledAt ? formatDateTime(k.fulfilledAt, dl) : null,
-    entryStartTimeStr: k.entryStartTime ? formatDateTime(k.entryStartTime, dl) : null,
+    deadlineStr: formatDateTime(k.deadline, dl, tz),
+    fulfilledAtStr: k.fulfilledAt ? formatDateTime(k.fulfilledAt, dl, tz) : null,
+    entryStartTimeStr: k.entryStartTime ? formatDateTime(k.entryStartTime, dl, tz) : null,
     backdated,
     kommentar: k.kommentar,
     entryNote: k.entryNote,
@@ -51,12 +52,12 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
     status: r.status,
-    bestraftDatumStr: formatDate(r.bestraftDatum, dl),
+    bestraftDatumStr: formatDate(r.bestraftDatum, dl, tz),
     notiz: r.notiz,
     reason: r.reason,
     judgedBy: r.judgedBy,
     done: r.erledigtAt !== null,
-    erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl) : null,
+    erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl, tz) : null,
   }));
 
   const labels = {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AlertCircle, Lock, LockOpen } from "lucide-react";
-import { toDatetimeLocal, toDateLocale, APP_TZ } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { OEFFNEN_GRUENDE, type OeffnenGrund } from "@/lib/constants";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
@@ -19,6 +19,8 @@ import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } fr
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };
   maxTime?: string;
+  tz: string;
+  nowDefault: string;
   sperrzeit?: SperrzeitState;
   reinigung?: ReinigungConfig;
   isEdit?: boolean;
@@ -31,7 +33,7 @@ interface Props {
 }
 
 export default function OeffnenFormCore({
-  initial, maxTime, sperrzeit, reinigung,
+  initial, maxTime, tz, nowDefault, sperrzeit, reinigung,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
 }: Props) {
   const t = useTranslations("openForm");
@@ -46,7 +48,7 @@ export default function OeffnenFormCore({
   const reinigungMaxProTag = reinigung?.maxProTag ?? 0;
   const reinigungHeuteAnzahl = reinigung?.heuteAnzahl ?? 0;
 
-  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date()));
+  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [grund, setGrund] = useState<OeffnenGrund | "">((initial?.oeffnenGrund as OeffnenGrund) ?? defaultGrund ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [showWarning, setShowWarning] = useState(false);
@@ -64,7 +66,7 @@ export default function OeffnenFormCore({
   async function doSave(forced = false) {
     const payload: OeffnenPayload = {
       type: "OEFFNEN",
-      startTime: new Date(startTime).toISOString(),
+      startTime: fromDatetimeLocal(startTime, tz).toISOString(),
       oeffnenGrund: grund,
       note: note.trim() || null,
     };
@@ -141,7 +143,7 @@ export default function OeffnenFormCore({
                 {sperrzeitUnbefristet
                   ? t("modalLockedIndefinite")
                   : sperrzeitEndetAt
-                    ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })
+                    ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })
                     : null}
               </p>
             </div>
@@ -169,7 +171,7 @@ export default function OeffnenFormCore({
                 <p className="text-xs text-sperrzeit mt-0.5">
                   {sperrzeitUnbefristet
                     ? t("lockedWarningTextIndefinite")
-                    : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ }) })}
+                    : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })}
                 </p>
               </div>
             </div>

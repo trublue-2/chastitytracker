@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserId, iso, notesForEntities, entityKey, parseStringArray, type NoteDTO } from "@/lib/mcp/common";
+import { resolveUserContext, makeIso, notesForEntities, entityKey, parseStringArray, tzOf, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { diffFields, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
 
 /** Geräte-Metadaten, die Keyholder-Entscheidungen tragen (§2) + angereicherte Geräteliste mit
@@ -54,7 +54,7 @@ type DeviceViewRow = {
 };
 
 /** Mappt eine Geräte-Zeile (+ inline Notes) auf das stabile MCP-DTO. Eine Quelle für Liste + Write. */
-function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[]): DeviceMetaView {
+function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[], iso: Iso): DeviceMetaView {
   return {
     id: d.id,
     name: d.name,
@@ -79,17 +79,18 @@ function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[]): DeviceMetaView {
 
 /** Angereicherte Geräteliste: Inventar + Entscheidungs-Metadaten + verknüpfte Notes inline. */
 export async function listDevicesV2(username: string): Promise<DeviceListResult> {
-  const userId = await resolveUserId(username);
+  const { id: userId, timezone } = await resolveUserContext(username);
+  const iso = makeIso(timezone);
   const devices = await prisma.device.findMany({
     where: { userId },
     orderBy: [{ archivedAt: "asc" }, { createdAt: "asc" }],
     select: deviceViewSelect,
   });
-  const notesByEntity = await notesForEntities(userId, devices.map((d) => ({ entityType: "device" as const, entityId: d.id })));
+  const notesByEntity = await notesForEntities(userId, devices.map((d) => ({ entityType: "device" as const, entityId: d.id })), {}, undefined, timezone);
   return {
     schemaVersion: 2,
     user: username,
-    devices: devices.map((d) => toDeviceMetaView(d, notesByEntity.get(entityKey("device", d.id)) ?? [])),
+    devices: devices.map((d) => toDeviceMetaView(d, notesByEntity.get(entityKey("device", d.id)) ?? [], iso)),
   };
 }
 
@@ -174,9 +175,12 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
     });
     // Echten, vollständigen View nach dem Update liefern (kein erfundener Platzhalter-State).
     // ALLE Reads über `tx` — globaler prisma-Client hier würde gegen die offene Transaktion deadlocken.
-    const fresh = await tx.device.findUniqueOrThrow({ where: { id: d.id }, select: deviceViewSelect });
-    const notesByEntity = await notesForEntities(ctx.targetUserId, [{ entityType: "device", entityId: d.id }], {}, tx);
-    const view = toDeviceMetaView(fresh, notesByEntity.get(entityKey("device", d.id)) ?? []);
+    const [fresh, tz] = await Promise.all([
+      tx.device.findUniqueOrThrow({ where: { id: d.id }, select: deviceViewSelect }),
+      tzOf(ctx.targetUserId, tx),
+    ]);
+    const notesByEntity = await notesForEntities(ctx.targetUserId, [{ entityType: "device", entityId: d.id }], {}, tx, tz);
+    const view = toDeviceMetaView(fresh, notesByEntity.get(entityKey("device", d.id)) ?? [], makeIso(tz));
     return { newState: view, resultRef: d.id, diff: diffFields(before, metaSnapshot(fresh)) };
   },
 };

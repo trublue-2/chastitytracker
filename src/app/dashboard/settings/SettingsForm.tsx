@@ -17,16 +17,18 @@ import ThemeToggle from "@/app/components/ThemeToggle";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
+import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 
 interface SettingsFormProps {
   username: string;
   email: string | null;
+  timezone: string;
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
 }
 
-export default function SettingsForm({ username, email, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, timezone, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const locale = useLocale();
@@ -85,6 +87,35 @@ export default function SettingsForm({ username, email, version, buildDate, feed
     } else {
       const data = await res.json();
       setEmailError(data.error ?? tc("error"));
+    }
+  }
+
+  const [tzValue, setTzValue] = useState(timezone);
+  const [tzSuccess, setTzSuccess] = useState(false);
+  const [tzError, setTzError] = useState<string | null>(null);
+  const [tzSaving, setTzSaving] = useState(false);
+
+  async function handleTimezone(value: string) {
+    setTzValue(value);
+    setTzSuccess(false);
+    setTzError(null);
+    setTzSaving(true);
+    try {
+      const res = await fetch("/api/settings/timezone", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timezone: value }),
+      });
+      if (res.ok) {
+        setTzSuccess(true);
+      } else {
+        const data = await res.json();
+        setTzError(data.error ?? tc("error"));
+      }
+    } catch {
+      setTzError(tc("error"));
+    } finally {
+      setTzSaving(false);
     }
   }
 
@@ -189,6 +220,23 @@ export default function SettingsForm({ username, email, version, buildDate, feed
               onChange={(e) => switchLocale(e.target.value)}
               options={LOCALES_LONG}
             />
+          </ExpandRow>
+
+          {/* Timezone */}
+          <ExpandRow
+            label={t("timezone")}
+            open={expanded === "timezone"}
+            onToggle={() => toggle("timezone")}
+          >
+            <Select
+              value={tzValue}
+              onChange={(e) => handleTimezone(e.target.value)}
+              options={TIMEZONE_OPTIONS}
+              disabled={tzSaving}
+              hint={t("timezoneHint")}
+            />
+            {tzSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
+            <FormError message={tzError} />
           </ExpandRow>
 
           {/* Feedback */}

@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { getActiveWearSessionForCategory } from "@/lib/queries";
+import { getActiveWearSessionForCategory, getUserTimezone } from "@/lib/queries";
+import { nowDatetimeLocal } from "@/lib/utils";
 import WearForm from "@/app/dashboard/WearForm";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { Circle } from "lucide-react";
@@ -20,7 +21,7 @@ export default async function AdminWearEndPage({
   const { category: categoryId } = await searchParams;
   if (!categoryId) redirect(`/admin/users/${userId}/aktionen`);
 
-  const [t, tw, category, active] = await Promise.all([
+  const [t, tw, category, active, tz] = await Promise.all([
     getTranslations("admin"),
     getTranslations("wearForm"),
     prisma.deviceCategory.findUnique({
@@ -28,6 +29,7 @@ export default async function AdminWearEndPage({
       select: { id: true, userId: true, name: true, color: true, icon: true, isBuiltIn: true },
     }),
     getActiveWearSessionForCategory(userId, categoryId),
+    getUserTimezone(userId),
   ]);
   if (!category || category.userId !== userId || category.isBuiltIn) notFound();
   if (!active) redirect(`/admin/users/${userId}/aktionen/wear-begin?category=${categoryId}`);
@@ -47,6 +49,8 @@ export default async function AdminWearEndPage({
         activeSession={{ deviceId: active.deviceId, deviceName: active.deviceName, since: active.since.toISOString() }}
         adminUserId={userId}
         redirectTo={`/admin/users/${userId}/aktionen`}
+        tz={tz}
+        nowDefault={nowDatetimeLocal(tz)}
       />
     </AdminActionFormShell>
   );

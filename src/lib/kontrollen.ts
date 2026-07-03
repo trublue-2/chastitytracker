@@ -1,4 +1,4 @@
-import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected, formatDateTime } from "@/lib/utils";
+import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected, formatDateTime, APP_TZ } from "@/lib/utils";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
@@ -8,6 +8,9 @@ export interface KontrolleRow {
   sortTime: Date;
   imageUrl: string | null;
   username: string | null;
+  /** IANA-Zeitzone des Sub, dem diese Zeile gehört — governiert die Zeit-Anzeige (Multi-Sub-Liste:
+   *  jede Zeile in IHRER Zone, nicht der des Keyholders). */
+  timezone: string;
   anforderungStatus: AnforderungStatus | null;
   verifikationStatus: VerifikationStatus | null;
   deviceCheck: string | null;
@@ -41,7 +44,7 @@ type PruefungEntry = {
   deviceCheck?: string | null;
   deviceCheckNote?: string | null;
   deviceCheckExpected?: string | null;
-  user?: { username: string };
+  user?: { username: string; timezone: string };
 };
 
 type KontrollAnforderung = {
@@ -57,7 +60,7 @@ type KontrollAnforderung = {
   entryId: string | null;
   auto: boolean;
   benachrichtigtAt: Date | null;
-  user?: { username: string };
+  user?: { username: string; timezone: string };
 };
 
 /**
@@ -79,6 +82,7 @@ export function buildKontrolleRows(
       sortTime: e.startTime,
       imageUrl: e.imageUrl,
       username: e.user?.username ?? null,
+      timezone: e.user?.timezone ?? APP_TZ,
       anforderungStatus: ka ? mapAnforderungStatus(ka, e.startTime, now) : null,
       verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
       deviceCheck: e.deviceCheck ?? null,
@@ -106,6 +110,7 @@ export function buildKontrolleRows(
       sortTime: k.createdAt,
       imageUrl: null,
       username: k.user?.username ?? null,
+      timezone: k.user?.timezone ?? APP_TZ,
       anforderungStatus: mapAnforderungStatus(k, null, now),
       verifikationStatus: null,
       deviceCheck: null,
@@ -150,6 +155,8 @@ export function mapKontrolleRow(
   },
 ): AdminKontrolleRowData {
   const { t, dl, includeUsername } = opts;
+  const tz = row.timezone; // the row's own sub governs its timestamps
+
   const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
   const kPill = row.entryId
     ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
@@ -168,14 +175,14 @@ export function mapKontrolleRow(
     pillCls: kPill?.cls ?? null,
     username: includeUsername ? row.username : null,
     code: row.code,
-    fulfilledAtStr: row.fulfilledAt ? formatDateTime(row.fulfilledAt, dl) : null,
-    deadlineStr: row.deadline ? formatDateTime(row.deadline, dl) : null,
-    createdAtStr: effectiveCreated ? formatDateTime(effectiveCreated, dl) : null,
+    fulfilledAtStr: row.fulfilledAt ? formatDateTime(row.fulfilledAt, dl, tz) : null,
+    deadlineStr: row.deadline ? formatDateTime(row.deadline, dl, tz) : null,
+    createdAtStr: effectiveCreated ? formatDateTime(effectiveCreated, dl, tz) : null,
     createdLabel: createdIsSent ? t("sentLabel") : t("createdLabel"),
-    withdrawnAtStr: row.withdrawnAt ? formatDateTime(row.withdrawnAt, dl) : null,
-    scheduledForStr: row.scheduledFor ? formatDateTime(row.scheduledFor, dl) : null,
+    withdrawnAtStr: row.withdrawnAt ? formatDateTime(row.withdrawnAt, dl, tz) : null,
+    scheduledForStr: row.scheduledFor ? formatDateTime(row.scheduledFor, dl, tz) : null,
     timeCorrectedStr: timeCorrected
-      ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(row.fulfilledAt!, dl)} · ${t("systemLabel")}: ${formatDateTime(row.submittedAt!, dl)}`
+      ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(row.fulfilledAt!, dl, tz)} · ${t("systemLabel")}: ${formatDateTime(row.submittedAt!, dl, tz)}`
       : null,
     note: row.note,
     kontrolleId: row.kontrolleId,

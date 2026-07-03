@@ -7,13 +7,15 @@ import { Lock } from "lucide-react";
 import ActionModal from "@/app/components/ActionModal";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 
 interface Props {
   userId: string;
   sperrzeitId: string;
   endetAt: Date | null;
   nachricht: string | null;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
 }
 
 /** Edit / withdraw view for an active Sperrzeit. Two paths:
@@ -21,7 +23,7 @@ interface Props {
  *  - "Ersetzen": PATCH withdraw, then redirect to verschluss-anforderung form
  *    (which only renders SPERRZEIT mode when no active sperrzeit exists — so the
  *    withdraw must complete first). */
-export default function SperrdauerEditForm({ userId, sperrzeitId, endetAt, nachricht }: Props) {
+export default function SperrdauerEditForm({ userId, sperrzeitId, endetAt, nachricht, tz = APP_TZ }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -53,7 +55,7 @@ export default function SperrdauerEditForm({ userId, sperrzeitId, endetAt, nachr
 
   const close = () => router.push(`/admin/users/${userId}/aktionen`);
   const endsLabel = endetAt
-    ? t("lockDurationActiveUntil", { date: formatDateTime(endetAt, dl) })
+    ? t("lockDurationActiveUntil", { date: formatDateTime(endetAt, dl, tz) })
     : t("lockDurationIndefinite");
 
   return (

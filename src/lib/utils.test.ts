@@ -6,6 +6,11 @@ import {
   wearingHoursInRange,
   interruptionPauseMs,
   WEAR_PAIR,
+  formatDateTime,
+  toDatetimeLocal,
+  fromDatetimeLocal,
+  midnightInTZ,
+  getWeekStart,
   type ReinigungSettings,
 } from "./utils";
 
@@ -466,5 +471,86 @@ describe("wearingHoursInRange", () => {
 
   it("returns 0 for empty entries", () => {
     expect(wearingHoursInRange([], t("2026-05-01T00:00:00Z"), t("2026-05-02T00:00:00Z"))).toBe(0);
+  });
+});
+
+describe("per-user timezone formatters", () => {
+  // Winter instant (no DST): Zurich = UTC+1, New York = UTC-5
+  const winter = new Date("2026-01-15T09:30:00Z");
+  // Summer instant (DST): Zurich = UTC+2, New York = UTC-4
+  const summer = new Date("2026-07-15T09:30:00Z");
+
+  describe("regression guarantee — default tz === explicit Europe/Zurich (existing users byte-identical)", () => {
+    for (const d of [winter, summer, new Date("2026-01-14T02:00:00Z")]) {
+      it(`formatDateTime default === Europe/Zurich for ${d.toISOString()}`, () => {
+        expect(formatDateTime(d, "de-CH")).toBe(formatDateTime(d, "de-CH", "Europe/Zurich"));
+      });
+      it(`toDatetimeLocal default === Europe/Zurich for ${d.toISOString()}`, () => {
+        expect(toDatetimeLocal(d)).toBe(toDatetimeLocal(d, "Europe/Zurich"));
+      });
+      it(`midnightInTZ default === Europe/Zurich for ${d.toISOString()}`, () => {
+        expect(midnightInTZ(d).getTime()).toBe(midnightInTZ(d, "Europe/Zurich").getTime());
+      });
+      it(`getWeekStart default === Europe/Zurich for ${d.toISOString()}`, () => {
+        expect(getWeekStart(d).getTime()).toBe(getWeekStart(d, "Europe/Zurich").getTime());
+      });
+    }
+  });
+
+  describe("formatDateTime renders in the given tz (independent of process.env.TZ)", () => {
+    it("winter: Zurich +1 vs New York -5", () => {
+      expect(formatDateTime(winter, "de-CH", "Europe/Zurich")).toBe("15.01.2026, 10:30");
+      expect(formatDateTime(winter, "de-CH", "America/New_York")).toBe("15.01.2026, 04:30");
+    });
+    it("summer DST: Zurich +2 vs New York -4", () => {
+      expect(formatDateTime(summer, "de-CH", "Europe/Zurich")).toBe("15.07.2026, 11:30");
+      expect(formatDateTime(summer, "de-CH", "America/New_York")).toBe("15.07.2026, 05:30");
+    });
+  });
+
+  describe("toDatetimeLocal renders wall-clock in the given tz", () => {
+    it("winter", () => {
+      expect(toDatetimeLocal(winter, "Europe/Zurich")).toBe("2026-01-15T10:30");
+      expect(toDatetimeLocal(winter, "America/New_York")).toBe("2026-01-15T04:30");
+    });
+    it("summer DST", () => {
+      expect(toDatetimeLocal(summer, "America/New_York")).toBe("2026-07-15T05:30");
+    });
+  });
+
+  describe("fromDatetimeLocal parses a wall-clock string AS the given tz → UTC", () => {
+    it("winter: 10:30 Zurich = 09:30 UTC", () => {
+      expect(fromDatetimeLocal("2026-01-15T10:30", "Europe/Zurich").toISOString()).toBe("2026-01-15T09:30:00.000Z");
+    });
+    it("winter: 04:30 New York = 09:30 UTC", () => {
+      expect(fromDatetimeLocal("2026-01-15T04:30", "America/New_York").toISOString()).toBe("2026-01-15T09:30:00.000Z");
+    });
+    it("summer DST: 05:30 New York = 09:30 UTC", () => {
+      expect(fromDatetimeLocal("2026-07-15T05:30", "America/New_York").toISOString()).toBe("2026-07-15T09:30:00.000Z");
+    });
+    it("invalid input → Invalid Date", () => {
+      expect(Number.isNaN(fromDatetimeLocal("", "Europe/Zurich").getTime())).toBe(true);
+      expect(Number.isNaN(fromDatetimeLocal(null).getTime())).toBe(true);
+    });
+    it("round-trips with toDatetimeLocal at minute precision (across zones + DST)", () => {
+      for (const tz of ["Europe/Zurich", "America/New_York", "Asia/Tokyo", "UTC"]) {
+        for (const iso of ["2026-01-15T09:30:00Z", "2026-07-15T09:30:00Z", "2026-03-29T00:30:00Z"]) {
+          const d = new Date(iso);
+          const round = fromDatetimeLocal(toDatetimeLocal(d, tz), tz);
+          expect(round.getTime()).toBe(d.getTime());
+        }
+      }
+    });
+  });
+
+  describe("midnightInTZ resolves the calendar-day boundary in the given tz", () => {
+    // 02:00 UTC on Jan 15 = 03:00 Zurich (still Jan 15) but 21:00 New York (still Jan 14)
+    const d = new Date("2026-01-15T02:00:00Z");
+    it("Zurich midnight of Jan 15 = 23:00 UTC Jan 14", () => {
+      expect(midnightInTZ(d, "Europe/Zurich").toISOString()).toBe("2026-01-14T23:00:00.000Z");
+    });
+    it("New York midnight of Jan 14 = 05:00 UTC Jan 14", () => {
+      expect(midnightInTZ(d, "America/New_York").toISOString()).toBe("2026-01-14T05:00:00.000Z");
+    });
   });
 });

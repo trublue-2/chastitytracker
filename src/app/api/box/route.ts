@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { aktivesReinigungsFenster, reinigungVerbrauchtHeute } from "@/lib/reinigungService";
+import { APP_TZ } from "@/lib/utils";
 import { heimdallEnabled } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -26,21 +27,22 @@ export async function GET() {
     getActiveSperrzeit(userId),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true },
+      select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, timezone: true },
     }),
   ]);
+  const tz = user?.timezone ?? APP_TZ;
 
   // Reinigung ist nur möglich, wenn eine Sperrzeit mit reinigungErlaubt aktiv ist UND der User
   // Reinigung grundsätzlich erlaubt hat UND wir gerade in einem Fenster sind. Kontingent: heutige
   // CLEAN_OPEN-Fakten + bereits angeforderte (noch nicht vollzogene) clean_open zählen mit.
   const fensterEnd =
     sperre?.reinigungErlaubt && user?.reinigungErlaubt
-      ? aktivesReinigungsFenster(user.reinigungsFenster, now)
+      ? aktivesReinigungsFenster(user.reinigungsFenster, now, tz)
       : null;
   let cleaningBase: { endHHMM: string; used: number; max: number; maxMinutes: number } | null = null;
   if (fensterEnd && user) {
     const inFlight = boxes.filter((b) => b.pendingCommand === "clean_open").length;
-    const used = (await reinigungVerbrauchtHeute(userId, now)) + inFlight;
+    const used = (await reinigungVerbrauchtHeute(userId, now, tz)) + inFlight;
     cleaningBase = { endHHMM: fensterEnd, used, max: user.reinigungMaxProTag, maxMinutes: user.reinigungMaxMinuten };
   }
 

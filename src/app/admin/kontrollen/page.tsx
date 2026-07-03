@@ -29,14 +29,14 @@ export default async function AdminKontrollenPage({
     prisma.entry.findMany({
       where: { type: "PRUEFUNG", ...(userId ? { userId } : {}) },
       orderBy: { startTime: "desc" },
-      include: { user: { select: { username: true } } },
+      include: { user: { select: { username: true, timezone: true } } },
     }),
     prisma.kontrollAnforderung.findMany({
       // Keyholder-Sicht: manuell geplante Kontrollen ZEIGEN (stornierbar), nur zukünftige
       // Auto-/Zufalls-Kontrollen verbergen (Überraschungseffekt).
       where: { ...keyholderVisibleKontrolleWhere(now), ...(userId ? { userId } : {}) },
       orderBy: { createdAt: "desc" },
-      include: { user: { select: { username: true } } },
+      include: { user: { select: { username: true, timezone: true } } },
     }),
   ]);
 

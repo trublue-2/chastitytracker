@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, APP_TZ, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
+import { APP_TZ, formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -33,15 +33,15 @@ type Vorgabe = {
 
 // buildWearPairs + wearingHoursFromPairs imported from @/lib/utils
 
-function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>): Map<string, { hours: number; hasOrgasm: boolean }> {
+function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>, tz: string): Map<string, { hours: number; hasOrgasm: boolean }> {
   const map = new Map<string, { hours: number; hasOrgasm: boolean }>();
   for (const pair of wearPairs) {
-    let d = midnightInTZ(pair.start);
+    let d = midnightInTZ(pair.start, tz);
     while (d.getTime() < pair.end.getTime()) {
       const nextD = new Date(d.getTime() + 86_400_000);
       const overlap = Math.min(pair.end.getTime(), nextD.getTime()) - Math.max(pair.start.getTime(), d.getTime());
       if (overlap > 0) {
-        const { year, month, day } = tzDateParts(new Date(d.getTime() + 43_200_000));
+        const { year, month, day } = tzDateParts(new Date(d.getTime() + 43_200_000), tz);
         const key = `${year}-${month}-${day}`;
         const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
         existing.hours += overlap / 3_600_000;
@@ -58,19 +58,19 @@ function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>): Map<st
   return map;
 }
 
-function tzYearMonth(d: Date): string {
-  const parts = new Intl.DateTimeFormat("de-CH", { year: "numeric", month: "2-digit", timeZone: APP_TZ }).formatToParts(d);
+function tzYearMonth(d: Date, tz: string): string {
+  const parts = new Intl.DateTimeFormat("de-CH", { year: "numeric", month: "2-digit", timeZone: tz }).formatToParts(d);
   const y = parts.find(p => p.type === "year")!.value;
   const m = parts.find(p => p.type === "month")!.value;
   return `${y}-${m}`;
 }
 
-function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben: Vorgabe[], dl = "de-CH"): MonthStat[] {
+function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben: Vorgabe[], dl: string, tz: string): MonthStat[] {
   const map = new Map<string, Omit<MonthStat, "wearHours" | "targetH">>();
   for (const p of pairs) {
     const d = p.verschluss.startTime;
-    const key = tzYearMonth(d);
-    const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
+    const key = tzYearMonth(d, tz);
+    const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
     const existing = map.get(key) ?? { key, label, count: 0, totalMs: 0, longestMs: 0 };
     existing.count++;
     existing.totalMs += p.durationMs;
@@ -79,9 +79,9 @@ function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben
   }
   for (const wp of wearPairs) {
     for (const d of [wp.start, wp.end]) {
-      const key = tzYearMonth(d);
+      const key = tzYearMonth(d, tz);
       if (!map.has(key)) {
-        const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
+        const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
         map.set(key, { key, label, count: 0, totalMs: 0, longestMs: 0 });
       }
     }
@@ -90,8 +90,8 @@ function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben
     .sort((a, b) => b[0].localeCompare(a[0]))
     .map(([, v]) => {
       const [y, m] = v.key.split("-").map(Number);
-      const monthStart = midnightInTZ(new Date(Date.UTC(y, m - 1, 1, 12)));
-      const monthEnd = midnightInTZ(new Date(Date.UTC(y, m, 1, 12)));
+      const monthStart = midnightInTZ(new Date(Date.UTC(y, m - 1, 1, 12)), tz);
+      const monthEnd = midnightInTZ(new Date(Date.UTC(y, m, 1, 12)), tz);
       const wearHours = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
       const applicableVorgabe = vorgaben.find(
         (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
@@ -113,16 +113,17 @@ function buildCalendarMonths(opts: {
   orgasmDateSet: Set<string>;
   now: Date;
   dl: string;
+  tz: string;
 }): CalendarMonthData[] {
-  const { entries, wearPairs, vorgaben, orgasmDateSet, now, dl } = opts;
-  const dailyData = buildDailyData(wearPairs, orgasmDateSet);
-  const { year: nowYear, month: nowMonth } = tzDateParts(now);
+  const { entries, wearPairs, vorgaben, orgasmDateSet, now, dl, tz } = opts;
+  const dailyData = buildDailyData(wearPairs, orgasmDateSet, tz);
+  const { year: nowYear, month: nowMonth } = tzDateParts(now, tz);
   const jsWeekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
   // Bucket entries by YMD once so day-cells become O(1) lookups instead of O(N) filters.
   const entriesByYMD = new Map<string, Entry[]>();
   for (const e of entries) {
-    const { year, month, day } = tzDateParts(e.startTime);
+    const { year, month, day } = tzDateParts(e.startTime, tz);
     const key = `${year}-${month}-${day}`;
     const list = entriesByYMD.get(key);
     if (list) list.push(e); else entriesByYMD.set(key, [e]);
@@ -130,16 +131,16 @@ function buildCalendarMonths(opts: {
 
   const calMonthsData: CalendarMonthData[] = [];
   for (let i = 0; i <= 3; i++) {
-    const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)));
+    const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)), tz);
     const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
     const firstDayNoon = new Date(Date.UTC(year, month, 1, 12));
-    const firstDayWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
+    const firstDayWd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
       .formatToParts(firstDayNoon).find(p => p.type === "weekday")!.value;
     const startOffset = (jsWeekdayMap[firstDayWd] + 6) % 7;
-    const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: APP_TZ });
+    const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
 
-    const monthStartDate = midnightInTZ(firstDayNoon);
-    const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)));
+    const monthStartDate = midnightInTZ(firstDayNoon, tz);
+    const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)), tz);
     const vorgabe = vorgaben.find(
       (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
     ) ?? null;
@@ -163,10 +164,10 @@ function buildCalendarMonths(opts: {
       let weekH = 0;
       if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
         const anchorNoon = new Date(Date.UTC(year, month, firstDayOfRow, 12));
-        const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" })
+        const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
           .formatToParts(anchorNoon).find(p => p.type === "weekday")!.value;
         const dow = (jsWeekdayMap[anchorWd] + 6) % 7;
-        const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)));
+        const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)), tz);
         const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
         weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
       }
@@ -187,7 +188,7 @@ function buildCalendarMonths(opts: {
         // entries arrived from prisma sorted by startTime asc, so per-day buckets are too.
         const dayEntries: DayEntry[] = (entriesByYMD.get(key) ?? []).map((e) => ({
           type: e.type,
-          time: formatTime(e.startTime, dl),
+          time: formatTime(e.startTime, dl, tz),
           note: e.note,
           orgasmusArt: e.orgasmusArt,
         }));
@@ -195,7 +196,7 @@ function buildCalendarMonths(opts: {
           minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
           minProMonatH: vorgabe.minProMonatH, notiz: vorgabe.notiz,
         } : null;
-        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: APP_TZ });
+        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: tz });
         return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
       }));
     }
@@ -235,7 +236,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     }),
     prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
     prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true } }),
     prisma.deviceCategory.findMany({
       where: { userId, isBuiltIn: false },
@@ -243,6 +244,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       select: { id: true, name: true, color: true, icon: true },
     }),
   ]);
+
+  // Sub's own timezone governs all boundary/format math (self or admin-viewed). Read from the
+  // user row already loaded above — no extra query.
+  const tz = userSettings?.timezone ?? APP_TZ;
 
   const reinigung: ReinigungSettings = {
     erlaubt: userSettings?.reinigungErlaubt ?? false,
@@ -280,15 +285,15 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const kontrolleRows: StatsKontrolleRow[] = unifiedKontrollen.map((k) => {
     const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
     const primaryLine = k.entryTime
-      ? `${t("fulfilled")}: ${new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}`
-      : `${t("created")}: ${formatDateTime(k.time, dl)}`;
+      ? `${t("fulfilled")}: ${new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}`
+      : `${t("created")}: ${formatDateTime(k.time, dl, tz)}`;
     return {
       id: k.id,
       code: k.code,
       pillLabel: pill?.label ?? null,
       pillCls: pill?.cls ?? null,
       primaryLine,
-      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(new Date(k.deadline), dl)}` : null,
+      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(new Date(k.deadline), dl, tz)}` : null,
     };
   });
 
@@ -320,11 +325,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   // The Trainingsziele cards below render ALL active vorgaben across categories.
   const kgVorgaben = vorgaben.filter(isKgVorgabe);
   const wearPairs = buildWearPairs(entries, now);
-  const monthStats = buildMonthStats(completed, wearPairs, kgVorgaben, dl);
+  const monthStats = buildMonthStats(completed, wearPairs, kgVorgaben, dl, tz);
 
-  const todayStart = getMidnightToday(now);
-  const weekStart = getWeekStart(now);
-  const monthStart = getMonthStart(now);
+  const todayStart = getMidnightToday(now, tz);
+  const weekStart = getWeekStart(now, tz);
+  const monthStart = getMonthStart(now, tz);
 
   // Build one goal-card per currently-active vorgabe (KG first, then others by name).
   const activeVorgaben = vorgaben.filter(isActive).sort((a, b) => {
@@ -353,7 +358,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
 
   const orgasmDateSet = new Set<string>(
     entries.filter((e) => e.type === "ORGASMUS")
-      .map((e) => { const { year, month, day } = tzDateParts(e.startTime); return `${year}-${month}-${day}`; })
+      .map((e) => { const { year, month, day } = tzDateParts(e.startTime, tz); return `${year}-${month}-${day}`; })
   );
 
   // Build calendar variants — one per category that has wear data.
@@ -366,7 +371,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       color: "cat-steel",
       icon: "Lock",
       isKG: true,
-      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl }),
+      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl, tz }),
     });
   }
   for (const cat of nonKgCategories) {
@@ -382,7 +387,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       color: cat.color,
       icon: cat.icon,
       isKG: false,
-      months: buildCalendarMonths({ entries: catEntries, wearPairs: catPairs, vorgaben: catVorgaben, orgasmDateSet: new Set(), now, dl }),
+      months: buildCalendarMonths({ entries: catEntries, wearPairs: catPairs, vorgaben: catVorgaben, orgasmDateSet: new Set(), now, dl, tz }),
     });
   }
 
@@ -477,7 +482,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
           </div>
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <p className="text-sm text-orgasm-text">
-              {t("lastOrgasm")}: <span className="font-semibold">{formatDateTime(lastOrgasmus!.startTime, dl)}</span>
+              {t("lastOrgasm")}: <span className="font-semibold">{formatDateTime(lastOrgasmus!.startTime, dl, tz)}</span>
             </p>
             <span className="text-xl sm:text-2xl font-bold text-[var(--color-orgasm)] whitespace-nowrap tabular-nums">
               {formatMs(orgasmusFreiMs, dl)}
@@ -503,7 +508,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
           </div>
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <p className="text-sm text-[var(--color-lock-text)]">
-              {t("lockedSince")} <span className="font-semibold">{formatDateTime(activeEntry.startTime, dl)}</span>
+              {t("lockedSince")} <span className="font-semibold">{formatDateTime(activeEntry.startTime, dl, tz)}</span>
             </p>
             <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap tabular-nums">{formatMs(activeDurationMs, dl)}</span>
           </div>
@@ -566,8 +571,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <p className="text-sm font-bold text-foreground">{t("records")}</p>
           </div>
           <div className="divide-y divide-border-subtle">
-            <RecordRow label={t("longestSession")} value={formatMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl)} />
-            <RecordRow label={t("shortestSession")} value={formatMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl)} />
+            <RecordRow label={t("longestSession")} value={formatMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl, tz)} />
+            <RecordRow label={t("shortestSession")} value={formatMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />
           </div>
         </Card>
       )}
@@ -632,7 +637,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             {unerlaubteOeffnungen.map((e) => (
               <div key={e.id} className="px-5 py-3 flex items-center gap-3">
                 <span className="text-sm tabular-nums text-warn-text font-medium shrink-0">
-                  {formatDateTime(e.startTime, dl)}
+                  {formatDateTime(e.startTime, dl, tz)}
                 </span>
                 {e.note
                   ? <span className="text-sm text-warn italic truncate">„{e.note}"</span>

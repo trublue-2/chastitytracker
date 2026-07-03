@@ -48,6 +48,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
+  const tz = user.timezone;
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}`);
   const now = new Date();
@@ -120,9 +121,10 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           tagH={tagH}
           wocheH={wocheH}
           monatH={monatH}
+          tz={tz}
         />
       ) : (
-        <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} />
+        <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} tz={tz} />
       )}
 
       {wearSessions.length > 0 && (
@@ -146,6 +148,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           kommentar={offeneKontrolle.kommentar}
           overdue={offeneKontrolle.deadline < now}
           variant="large"
+          tz={tz}
         />
       )}
 
@@ -162,6 +165,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             overdue={orgasmusExpired}
             endetAt={offeneOrgasmusAnforderung.endetAt}
             locale={dl}
+            tz={tz}
             withdrawAction={<WithdrawButton id={offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
           />
         );
@@ -188,7 +192,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             <div className="rounded-xl bg-orgasm-bg border border-orgasm-border px-4 py-3 col-span-2 sm:col-span-1">
               <p className="text-xs text-orgasm-text font-semibold mb-0.5 uppercase tracking-wider">{ts("orgasmFreeTime")}</p>
               <p className="text-2xl font-bold text-orgasm tracking-tight">{orgasmusFreiDisplay}</p>
-              {lastOrgasmus && <p className="text-xs text-orgasm-text opacity-60 mt-0.5">{ts("lastOrgasm")}: {formatDateTime(lastOrgasmus.startTime, dl)}</p>}
+              {lastOrgasmus && <p className="text-xs text-orgasm-text opacity-60 mt-0.5">{ts("lastOrgasm")}: {formatDateTime(lastOrgasmus.startTime, dl, tz)}</p>}
             </div>
           )}
         </div>
@@ -206,7 +210,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             <span className="text-xs font-bold text-request-text bg-request-bg border border-request-border px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                {formatDate(activeVorgabe.gueltigAb, dl)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl) : tc("open")}
+                {formatDate(activeVorgabe.gueltigAb, dl, tz)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl, tz) : tc("open")}
               </p>
               <div className="flex flex-wrap gap-3 mt-1">
                 {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{td("day")}: <strong className="text-foreground">{formatHours(activeVorgabe.minProTagH, dl)}</strong></span>}
@@ -221,7 +225,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
       <CategoryGoalsToday userId={id} />
 
-      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} />
+      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} tz={tz} />
 
       {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
 
@@ -244,12 +248,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 id: k.id, imageUrl: k.imageUrl, kommentar: k.kommentar,
                 pill1Label: aPill ? t(aPill.labelKey) : null, pill1Cls: aPill?.cls ?? null,
                 pill2Label: vPill ? t(vPill.labelKey) : null, pill2Cls: vPill?.cls ?? null,
-                code: k.code, dateTimeStr: formatDateTime(k.time, dl), dateTimePrefix: null,
-                deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
+                code: k.code, dateTimeStr: formatDateTime(k.time, dl, tz), dateTimePrefix: null,
+                deadlineStr: k.deadline ? formatDateTime(k.deadline, dl, tz) : null,
                 deadlinePrefix: t("frist"), note: null, entryId: k.entryId,
                 editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
                 timeCorrectedStr: isTimeCorrected(k.time, k.submittedAt)
-                  ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(k.time, dl)} · ${t("systemLabel")}: ${formatDateTime(k.submittedAt!, dl)}`
+                  ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(k.time, dl, tz)} · ${t("systemLabel")}: ${formatDateTime(k.submittedAt!, dl, tz)}`
                   : null,
               };
             })}
@@ -266,7 +270,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           </div>
           <OrgasmenListClient
             items={orgasmusEntries.slice(0, 5).map((e): OrgasmusItemData => ({
-              id: e.id, dateStr: formatDate(e.startTime, dl), timeStr: formatTime(e.startTime, dl),
+              id: e.id, dateStr: formatDate(e.startTime, dl, tz), timeStr: formatTime(e.startTime, dl, tz),
               orgasmusArt: e.orgasmusArt, note: e.note, editHref: `/dashboard/edit/${e.id}`,
             }))}
           />

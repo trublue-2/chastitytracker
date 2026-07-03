@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { AlertCircle, AlertTriangle } from "lucide-react";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   kommentar?: string | null;
   overdue: boolean;
   variant: "large" | "compact";
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
   /** large only – renders as <Link> and shows "→ Jetzt erfassen" */
   href?: string;
   /** large only – slot for action buttons (e.g. KontrolleActions) */
@@ -32,6 +34,7 @@ export default function KontrolleBanner({
   actions,
   openLabel,
   withdrawAction,
+  tz = APP_TZ,
 }: Props) {
   const t = useTranslations("kontrolleBanner");
   const dl = toDateLocale(useLocale());
@@ -50,7 +53,7 @@ export default function KontrolleBanner({
             : <AlertTriangle size={13} className="flex-shrink-0 text-inspect" />
           }
           {overdue ? t("overdue") : t("until")}
-          {" "}{formatDateTime(deadline, dl)}
+          {" "}{formatDateTime(deadline, dl, tz)}
           <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>
           {withdrawAction && <div className="relative z-20 flex-shrink-0">{withdrawAction}</div>}
         </div>
@@ -68,7 +71,7 @@ export default function KontrolleBanner({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold">{overdue ? t("overdueTitle") : (openLabel ?? defaultOpenLabel)}</p>
         <p className="text-xs opacity-80">
-          {overdue ? t("overduePrefix") : t("untilPrefix")} {formatDateTime(deadline, dl)} · {t("code")}:{" "}
+          {overdue ? t("overduePrefix") : t("untilPrefix")} {formatDateTime(deadline, dl, tz)} · {t("code")}:{" "}
           <span className="font-mono font-bold">{code}</span>
         </p>
         {kommentar && (

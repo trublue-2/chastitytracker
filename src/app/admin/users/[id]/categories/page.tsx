@@ -2,7 +2,7 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { buildWearPairs, wearingHoursFromPairs, getWeekStart, KG_PAIR, WEAR_PAIR } from "@/lib/utils";
+import { APP_TZ, buildWearPairs, wearingHoursFromPairs, getWeekStart, KG_PAIR, WEAR_PAIR } from "@/lib/utils";
 import CategoriesClient from "@/app/dashboard/categories/CategoriesClient";
 
 export default async function AdminCategoriesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -10,10 +10,9 @@ export default async function AdminCategoriesPage({ params }: { params: Promise<
   const { id } = await params;
   await assertKeyholderOrAdmin(id);
   const now = new Date();
-  const wocheStart = getWeekStart(now);
 
   const [user, categories, entries] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { id: true, username: true } }),
+    prisma.user.findUnique({ where: { id }, select: { id: true, username: true, timezone: true } }),
     prisma.deviceCategory.findMany({
       where: { userId: id },
       orderBy: [{ isBuiltIn: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
@@ -39,6 +38,9 @@ export default async function AdminCategoriesPage({ params }: { params: Promise<
     }),
   ]);
   if (!user) notFound();
+
+  // Sub's own timezone governs the week boundary — read from the loaded user row.
+  const wocheStart = getWeekStart(now, user.timezone ?? APP_TZ);
 
   return (
     <CategoriesClient

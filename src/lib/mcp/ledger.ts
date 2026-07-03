@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { mcpStrafbuch, type OffenseJudgment } from "@/lib/mcpOverview";
-import { resolveUserId, notesForEntities, entityKey, iso, APP_TZ, type NoteDTO } from "@/lib/mcp/common";
+import { resolveUserContext, notesForEntities, entityKey, makeIso, type NoteDTO } from "@/lib/mcp/common";
 
 /** Disziplin-Ledger (§4) — vereinheitlicht die getrennten Strafbuch-Kategorien zu EINER
  *  Offense-Liste mit durchgängiger Taxonomie, open-vs-judged, Auslöser und Folge. Reines
@@ -65,7 +65,8 @@ function toRow(detectedAt: string | null, j: OffenseJudgment, context: Record<st
 
 /** Liefert das vereinheitlichte Disziplin-Ledger mit Cluster-Kontext bei wrongDevice + inline Notes. */
 export async function getOffenses(username: string): Promise<LedgerResult> {
-  const userId = await resolveUserId(username);
+  const { id: userId, timezone } = await resolveUserContext(username);
+  const iso = makeIso(timezone);
   const [sb, deviceClusters] = await Promise.all([
     mcpStrafbuch(username, { iso: true }),
     prisma.device.findMany({ where: { userId }, select: { name: true, lookalikeClusterId: true, securityLevel: true } }),
@@ -92,14 +93,14 @@ export async function getOffenses(username: string): Promise<LedgerResult> {
   ];
 
   // Inline-Notes je Offense in EINEM Query.
-  const notesByEntity = await notesForEntities(userId, rows.map((r) => ({ entityType: "offense" as const, entityId: r.id })));
+  const notesByEntity = await notesForEntities(userId, rows.map((r) => ({ entityType: "offense" as const, entityId: r.id })), {}, undefined, timezone);
   for (const r of rows) r.notes = notesByEntity.get(entityKey("offense", r.id)) ?? [];
 
   return {
     schemaVersion: 2,
     user: username,
     generatedAt: iso(new Date())!,
-    timezone: APP_TZ,
+    timezone,
     detectedOffenseCount: sb.detectedOffenseCount,
     openOffenseCount: sb.openOffenseCount,
     pendingPenaltyCount: sb.pendingPenaltyCount,

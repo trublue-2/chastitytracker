@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { sendKontrolleNotification, deriveSealCode } from "@/lib/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
-import { midnightInTZ } from "@/lib/utils";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -16,15 +15,18 @@ async function processDue(): Promise<void> {
   try {
     const now = new Date();
 
-    // Einmal pro CH-Tag die Auto-Kontrollen aller aktiven User für heute einplanen (idempotent;
-    // DB-Check als Restart-Backstop). Schlägt das fehl, läuft das Versenden trotzdem weiter.
-    const dayKey = midnightInTZ(now).getTime();
-    const g = globalThis as unknown as { __autoKontrolleDay?: number };
-    if (g.__autoKontrolleDay !== dayKey) {
-      g.__autoKontrolleDay = dayKey;
-      await ensureDailyAutoKontrollen(now).catch((e) => console.error("[autoKontrolle]", e));
-      // Tageswechsel: von der Automatik zurückgezogene Auto-Kontrollen der Vortage hart löschen
-      // (Listen-Rauschen, kein History-Wert).
+    // Auto-Kontrollen aller aktiven User für „heute" einplanen — JEDEN Tick aufrufen, nicht nur zur
+    // CH-Mitternacht: die per-User-Funktion ist idempotent je SUB-Zeitzone-Tag (DB-Check), sodass jeder
+    // Sub seine Kontrollen zu SEINEM lokalen Tagesbeginn bekommt (ein globaler CH-Tages-Gate würde
+    // Nicht-CH-Subs erst zur CH-Mitternacht einplanen → verschobene/fehlende Fenster). Für CH-Subs ist
+    // das Ergebnis identisch (heute schon geplant → 0). Schlägt es fehl, läuft das Versenden weiter.
+    await ensureDailyAutoKontrollen(now).catch((e) => console.error("[autoKontrolle]", e));
+    // Cleanup (Listen-Rauschen, kein History-Wert) nur bei UTC-Tageswechsel — Timing unkritisch, spart
+    // den findMany je Tick. deleteWithdrawnAutoKontrollen filtert intern per Sub-Zeitzone.
+    const utcDayKey = Math.floor(now.getTime() / 86_400_000);
+    const g = globalThis as unknown as { __autoKontrolleCleanupDay?: number };
+    if (g.__autoKontrolleCleanupDay !== utcDayKey) {
+      g.__autoKontrolleCleanupDay = utcDayKey;
       await deleteWithdrawnAutoKontrollen(now).catch((e) => console.error("[autoKontrolle:cleanup]", e));
     }
 

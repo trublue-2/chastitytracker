@@ -9,15 +9,17 @@ export default async function SettingsPage() {
 
   let username = session?.user?.name ?? "";
   let email: string | null = null;
+  let timezone = "Europe/Zurich";
 
   if (userId) {
     const dbUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, email: true },
+      select: { username: true, email: true, timezone: true },
     });
     if (dbUser) {
       username = dbUser.username;
       email = dbUser.email ?? null;
+      timezone = dbUser.timezone;
     }
   }
 
@@ -29,6 +31,7 @@ export default async function SettingsPage() {
     <SettingsForm
       username={username}
       email={email}
+      timezone={timezone}
       version={version}
       buildDate={buildDate}
       feedbackEnabled={feedbackEnabled}

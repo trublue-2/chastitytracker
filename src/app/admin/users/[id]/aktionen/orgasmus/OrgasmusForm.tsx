@@ -7,7 +7,7 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
 import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
 
-export default function OrgasmusForm({ userId }: { userId: string }) {
+export default function OrgasmusForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tOrgasm = useTranslations("orgasmForm");
   const tc = useTranslations("common");
@@ -35,6 +35,8 @@ export default function OrgasmusForm({ userId }: { userId: string }) {
       title={tOrgasm("title")}
     >
       <OrgasmusFormCore
+        tz={tz}
+        nowDefault={nowDefault}
         submitFn={submitFn}
         onSuccess={() => router.push(target)}
         onCancel={() => router.push(target)}

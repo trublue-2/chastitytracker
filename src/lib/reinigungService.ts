@@ -40,26 +40,27 @@ export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
   return out;
 }
 
-/** „HH:MM" der aktuellen Uhrzeit in CH-Lokalzeit (24h, fix mit ":" für lexikalischen Vergleich). */
-function hhmmInTZ(now: Date): string {
+/** „HH:MM" der aktuellen Uhrzeit in `tz` (default APP_TZ; 24h, fix mit ":" für lexikalischen Vergleich). */
+function hhmmInTZ(now: Date, tz = APP_TZ): string {
   return new Intl.DateTimeFormat("en-GB", {
-    timeZone: APP_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
   }).format(now);
 }
 
-/** Liegt `now` (CH-Lokalzeit) in einem Reinigungs-Fenster? Liefert dessen Ende „HH:MM", sonst null. */
-export function aktivesReinigungsFenster(raw: unknown, now: Date): string | null {
-  const hhmm = hhmmInTZ(now);
+/** Liegt `now` (Sub-Lokalzeit `tz`, default APP_TZ) in einem Reinigungs-Fenster? Liefert dessen Ende „HH:MM", sonst null.
+ *  Die Fenster sind Wanduhrzeit des Subs — deshalb muss `tz` die Sub-Zeitzone sein, nicht die des Betrachters. */
+export function aktivesReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): string | null {
+  const hhmm = hhmmInTZ(now, tz);
   for (const f of parseReinigungsFenster(raw)) {
     if (f.start <= hhmm && hhmm < f.end) return f.end;
   }
   return null;
 }
 
-/** Heute (CH-Tag) bereits verbrauchte Reinigungs-Öffnungen — gezählt über CLEAN_OPEN-Fakten (Spur 2). */
-export async function reinigungVerbrauchtHeute(userId: string, now: Date): Promise<number> {
+/** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt über CLEAN_OPEN-Fakten (Spur 2). */
+export async function reinigungVerbrauchtHeute(userId: string, now: Date, tz = APP_TZ): Promise<number> {
   return prisma.boxEvent.count({
-    where: { userId, type: "CLEAN_OPEN", at: { gte: midnightInTZ(now) } },
+    where: { userId, type: "CLEAN_OPEN", at: { gte: midnightInTZ(now, tz) } },
   });
 }
 
@@ -86,10 +87,13 @@ export interface ReinigungUserFields {
 }
 
 /** Baut die ReinigungView aus den User-Feldern + heute-verbraucht + jetzt. Kapselt die load-bearing
- *  Null-Sentinel-Regel (maxProTag>0 ? : null) und die windowOpenNow-Ableitung an EINER Stelle. */
-export function buildReinigungView(user: ReinigungUserFields, usedToday: number, now: Date): ReinigungView {
+ *  Null-Sentinel-Regel (maxProTag>0 ? : null) und die windowOpenNow-Ableitung an EINER Stelle.
+ *  `tz` = Sub-Zeitzone (default APP_TZ) — governiert das Wanduhr-Fenster; explizit übergeben statt aus
+ *  `user` gelesen, damit ein fehlendes Select nicht still auf APP_TZ zurückfällt (Konsistenz mit den
+ *  übrigen tz-Callsites). */
+export function buildReinigungView(user: ReinigungUserFields, usedToday: number, now: Date, tz = APP_TZ): ReinigungView {
   const maxProTag = user.reinigungMaxProTag ?? 0;
-  const windowEnd = aktivesReinigungsFenster(user.reinigungsFenster, now); // "HH:MM" oder null
+  const windowEnd = aktivesReinigungsFenster(user.reinigungsFenster, now, tz); // "HH:MM" oder null
   return {
     allowed: user.reinigungErlaubt ?? false,
     maxMinutesPerBreak: user.reinigungMaxMinuten ?? 15,

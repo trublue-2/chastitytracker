@@ -16,7 +16,7 @@ import FormField from "@/app/components/FormField";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
-import { toDatetimeLocal, toDateLocale, formatDuration, APP_TZ } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, toDateLocale, formatDuration } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import type { WearBeginPayload, WearEndPayload, SubmitResult } from "@/app/entries/types";
@@ -67,9 +67,13 @@ interface Props {
   minTime?: string;
   /** Latest allowed startTime (anti-cheat for non-admin edits). Maps to <input max="...">. */
   maxTime?: string;
+  /** Governing timezone of the data owner (sub). Formats datetime-local defaults + submit. */
+  tz: string;
+  /** Server-computed "now" wall-clock in tz (hydration-safe). Used as create default + max fallback. */
+  nowDefault: string;
 }
 
-export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime }: Props) {
+export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime, tz, nowDefault }: Props) {
   const t = useTranslations("wearForm");
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
@@ -80,7 +84,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   const isEdit = !!initial;
 
   const [startTime, setStartTime] = useState(
-    initial ? toDatetimeLocal(initial.startTime) : toDatetimeLocal(new Date()),
+    toDatetimeLocal(initial?.startTime, tz) || nowDefault,
   );
   const [deviceId, setDeviceId] = useState<string>(
     initial?.deviceId
@@ -121,7 +125,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
     // Edit-mode: PATCH with the editable subset (startTime + note + photo, plus deviceId for WEAR_BEGIN).
     if (isEdit && initial) {
       const patchBody: Record<string, unknown> = {
-        startTime: new Date(startTime).toISOString(),
+        startTime: fromDatetimeLocal(startTime, tz).toISOString(),
         note: note.trim() || null,
         imageUrl: imageUrl || null,
         imageExifTime: imageExifTime || null,
@@ -146,7 +150,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
     // Create-mode: POST a full payload (with offline-queue support for user-mode).
     const payload: WearBeginPayload | WearEndPayload = {
       type: kind === "begin" ? "WEAR_BEGIN" : "WEAR_END",
-      startTime: new Date(startTime).toISOString(),
+      startTime: fromDatetimeLocal(startTime, tz).toISOString(),
       deviceId,
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
@@ -205,7 +209,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
           <div className="text-sm text-foreground-muted bg-background-subtle rounded-lg px-3 py-2">
             {t("endingSession", {
               device: activeSession.deviceName,
-              duration: formatDuration(new Date(activeSession.since), new Date(startTime), dl.startsWith("en") ? "en" : "de"),
+              duration: formatDuration(new Date(activeSession.since), fromDatetimeLocal(startTime, tz), dl.startsWith("en") ? "en" : "de"),
             })}
           </div>
         )}
@@ -227,10 +231,10 @@ export default function WearForm({ kind, category, devices, activeSession, admin
           value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
           min={minTime}
-          max={maxTime ?? toDatetimeLocal(new Date())}
+          max={maxTime ?? nowDefault}
           required
           disabled={saving}
-          hint={`${t("timezone")}: ${APP_TZ}`}
+          hint={`${t("timezone")}: ${tz}`}
         />
 
         {/* Photo — shown for WEAR_BEGIN. Required if category.requirePhoto. */}

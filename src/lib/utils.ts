@@ -75,59 +75,59 @@ export function formatBuildDate(): string {
   });
 }
 
-/** dd.mm.yyyy, HH:mm – server-side, always CET/CEST */
-export function formatDateTime(date: Date | string, locale = "de-CH"): string {
+/** dd.mm.yyyy, HH:mm – formatted in `tz` (default APP_TZ = the sub's governing timezone) */
+export function formatDateTime(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleString(locale, {
     day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
+    hour: "2-digit", minute: "2-digit", timeZone: tz,
   });
 }
 
-/** dd.mm.yyyy – server-side, always CET/CEST */
-export function formatDate(date: Date | string, locale = "de-CH"): string {
+/** dd.mm.yyyy – formatted in `tz` (default APP_TZ) */
+export function formatDate(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleDateString(locale, {
-    day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TZ,
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: tz,
   });
 }
 
-/** HH:mm – server-side, always CET/CEST */
-export function formatTime(date: Date | string, locale = "de-CH"): string {
+/** HH:mm – formatted in `tz` (default APP_TZ) */
+export function formatTime(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleTimeString(locale, {
-    hour: "2-digit", minute: "2-digit", timeZone: APP_TZ,
+    hour: "2-digit", minute: "2-digit", timeZone: tz,
   });
 }
 
-/** dd.mm. (no year) – APP_TZ */
-export function formatDayMonth(date: Date | string, locale = "de-CH"): string {
+/** dd.mm. (no year) – formatted in `tz` (default APP_TZ) */
+export function formatDayMonth(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleDateString(locale, {
-    day: "2-digit", month: "2-digit", timeZone: APP_TZ,
+    day: "2-digit", month: "2-digit", timeZone: tz,
   });
 }
 
-/** "Month YYYY" – APP_TZ */
-export function formatMonthYear(date: Date | string, locale = "de-CH"): string {
+/** "Month YYYY" – formatted in `tz` (default APP_TZ) */
+export function formatMonthYear(date: Date | string, locale = "de-CH", tz = APP_TZ): string {
   return new Date(date).toLocaleDateString(locale, {
-    month: "long", year: "numeric", timeZone: APP_TZ,
+    month: "long", year: "numeric", timeZone: tz,
   });
 }
 
-/** Returns { year, 0-based month, day } of `d` in APP_TZ. */
-export function tzDateParts(d: Date): { year: number; month: number; day: number } {
+/** Returns { year, 0-based month, day } of `d` in `tz` (default APP_TZ). */
+export function tzDateParts(d: Date, tz = APP_TZ): { year: number; month: number; day: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TZ,
+    timeZone: tz,
     year: "numeric", month: "numeric", day: "numeric",
   }).formatToParts(d);
   const get = (type: string) => +(parts.find(p => p.type === type)?.value ?? "0");
   return { year: get("year"), month: get("month") - 1, day: get("day") };
 }
 
-/** Returns the Date representing 00:00:00 in APP_TZ on the same calendar date as `d`. */
-export function midnightInTZ(d: Date): Date {
-  const { year, month, day } = tzDateParts(d);
+/** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
+export function midnightInTZ(d: Date, tz = APP_TZ): Date {
+  const { year, month, day } = tzDateParts(d, tz);
   // Compute TZ offset at noon of that calendar day (safe from DST edge cases)
   const noonUTC = Date.UTC(year, month, day, 12);
   const p = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TZ,
+    timeZone: tz,
     year: "numeric", month: "numeric", day: "numeric",
     hour: "numeric", minute: "numeric", second: "numeric",
     hour12: false,
@@ -138,23 +138,23 @@ export function midnightInTZ(d: Date): Date {
   return new Date(Date.UTC(year, month, day) + (noonUTC - tzNoonMs));
 }
 
-/** Today at 00:00:00 in APP_TZ */
-export function getMidnightToday(now: Date): Date {
-  return midnightInTZ(now);
+/** Today at 00:00:00 in `tz` (default APP_TZ) */
+export function getMidnightToday(now: Date, tz = APP_TZ): Date {
+  return midnightInTZ(now, tz);
 }
 
-/** Start of the current ISO week (Monday 00:00:00 in APP_TZ) */
-export function getWeekStart(now: Date): Date {
-  const p = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "short" }).formatToParts(now);
+/** Start of the current ISO week (Monday 00:00:00 in `tz`, default APP_TZ) */
+export function getWeekStart(now: Date, tz = APP_TZ): Date {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).formatToParts(now);
   const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   const dow = ((map[p.find(x => x.type === "weekday")!.value] ?? 0) + 6) % 7;
-  return new Date(midnightInTZ(now).getTime() - dow * 86_400_000);
+  return new Date(midnightInTZ(now, tz).getTime() - dow * 86_400_000);
 }
 
-/** First day of the current month at 00:00:00 in APP_TZ */
-export function getMonthStart(now: Date): Date {
-  const { year, month } = tzDateParts(now);
-  return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)));
+/** First day of the current month at 00:00:00 in `tz` (default APP_TZ) */
+export function getMonthStart(now: Date, tz = APP_TZ): Date {
+  const { year, month } = tzDateParts(now, tz);
+  return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)), tz);
 }
 
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
@@ -629,15 +629,50 @@ export function buildWearSessionRows(
     }));
 }
 
-export function toDatetimeLocal(date: Date | string | null | undefined): string {
+export function toDatetimeLocal(date: Date | string | null | undefined, tz = APP_TZ): string {
   if (!date) return "";
   const d = new Date(date);
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: APP_TZ,
+    timeZone: tz,
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(d);
   const get = (type: string) => parts.find(p => p.type === type)?.value ?? "00";
   const hour = get("hour") === "24" ? "00" : get("hour");
   return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}`;
+}
+
+/** "Now" as a datetime-local wall-clock string in `tz` — the server-computed default for a fresh
+ *  `<input type="datetime-local">`. Passing this fixed string from server to client keeps the
+ *  useState initializer hydration-safe (no nondeterministic `new Date()` on the client). */
+export const nowDatetimeLocal = (tz = APP_TZ): string => toDatetimeLocal(new Date(), tz);
+
+/**
+ * Inverse of `toDatetimeLocal`: interprets a "YYYY-MM-DDTHH:mm" wall-clock string as being in `tz`
+ * and returns the corresponding UTC instant. Use for the submit path of `<input type="datetime-local">`
+ * — the raw string is a naked wall-clock, so `new Date(string)` (which parses as BROWSER-local) is
+ * wrong once the governing tz differs from the browser. Invalid input → Invalid Date.
+ * `fromDatetimeLocal(toDatetimeLocal(d, tz), tz)` round-trips to `d` at minute precision.
+ */
+export function fromDatetimeLocal(local: string | null | undefined, tz = APP_TZ): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local ?? "");
+  if (!m) return new Date(NaN);
+  const [y, mo, d, h, mi] = [+m[1], +m[2], +m[3], +m[4], +m[5]];
+  const guessUTC = Date.UTC(y, mo - 1, d, h, mi);
+  // How far `tz` sits ahead of UTC at a given instant (ms).
+  const offsetAt = (utcMs: number): number => {
+    const p = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    }).formatToParts(new Date(utcMs));
+    const g = (type: string) => +(p.find(x => x.type === type)?.value ?? "0");
+    const gh = g("hour") === 24 ? 0 : g("hour");
+    return Date.UTC(g("year"), g("month") - 1, g("day"), gh, g("minute"), g("second")) - utcMs;
+  };
+  // Two-pass: the offset measured at the raw guess can land on the wrong side of a DST change; the
+  // second pass evaluates it at the candidate instant, which is correct except inside the ~1h
+  // spring-forward gap (a wall-clock that doesn't exist locally — the result stays a valid instant).
+  const candidate = guessUTC - offsetAt(guessUTC);
+  return new Date(guessUTC - offsetAt(candidate));
 }

@@ -8,10 +8,12 @@ import { toDateLocale, formatElapsedMs, APP_TZ } from "@/lib/utils";
 interface Props {
   type: "VERSCHLUSS" | "OEFFNEN" | null;
   since: string | null;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
 }
 
 
-export default function StatusBanner({ type, since }: Props) {
+export default function StatusBanner({ type, since, tz = APP_TZ }: Props) {
   const t = useTranslations("statusBanner");
   const locale = useLocale();
   const dl = toDateLocale(locale);
@@ -65,7 +67,7 @@ export default function StatusBanner({ type, since }: Props) {
           </div>
         </div>
         <p className="text-xs opacity-60 mt-1">
-          {t("since")} {sinceDate.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: APP_TZ })}
+          {t("since")} {sinceDate.toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz })}
         </p>
       </div>
     </div>

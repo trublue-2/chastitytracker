@@ -8,14 +8,36 @@ import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";
 
 export { APP_TZ };
 
-/** ISO-8601 mit Instanz-Offset (Kurzform für die V2-Tools). */
-export const iso = (d: Date | null | undefined): string | null => isoWithOffset(d, APP_TZ);
+/** Formatier-Funktion für ISO-8601-Zeitstempel eines bestimmten Subs (Kurzform der V2-Tools). */
+export type Iso = (d: Date | null | undefined) => string | null;
 
-/** Löst MCP_USERNAME (Ziel der Direktiven/Abfragen) zu seiner User-id auf. Wirft, wenn unbekannt. */
-export async function resolveUserId(username: string): Promise<string> {
-  const u = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+/** Baut eine `iso`-Funktion, die in der Zeitzone `tz` des Ziel-Subs formatiert. Jedes Tool löst
+ *  seinen einen Ziel-Sub auf und baut damit sein lokales `iso` (schattet den Modul-Default). */
+export const makeIso = (tz: string): Iso => (d) => isoWithOffset(d, tz);
+
+/** ISO-8601 mit APP_TZ-Offset — Fallback für Call-Sites ohne aufgelösten Sub-Kontext (bleibt
+ *  byte-identisch zum bisherigen Verhalten für den Default "Europe/Zurich"). */
+export const iso: Iso = makeIso(APP_TZ);
+
+/** Löst MCP_USERNAME (Ziel der Direktiven/Abfragen) zu id + Zeitzone auf. Wirft, wenn unbekannt.
+ *  Die Zeitzone des Subs regiert die Zeitdarstellung all seiner Daten. */
+export async function resolveUserContext(username: string): Promise<{ id: string; timezone: string }> {
+  const u = await prisma.user.findUnique({ where: { username }, select: { id: true, timezone: true } });
   if (!u) throw new Error(`User not found: ${username}`);
-  return u.id;
+  return { id: u.id, timezone: u.timezone ?? APP_TZ };
+}
+
+/** Löst MCP_USERNAME zu seiner User-id auf. Wirft, wenn unbekannt. */
+export async function resolveUserId(username: string): Promise<string> {
+  return (await resolveUserContext(username)).id;
+}
+
+/** Zeitzone eines Subs per User-id über den gegebenen Client. `client` MUSS `tx` sein, wenn dies
+ *  innerhalb eines write-apply läuft (sonst Deadlock auf der SQLite-Verbindung der offenen
+ *  Transaktion); Default `prisma` für Read-Pfade. Fallback APP_TZ, wenn die Zeile fehlt. */
+export async function tzOf(userId: string, client: TxClient = prisma): Promise<string> {
+  const u = await client.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  return u?.timezone ?? APP_TZ;
 }
 
 export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
@@ -56,6 +78,9 @@ export interface DeviceMeta {
  *  Reinigung + Geräte-Meta + User-id EINMAL zu laden und an mehrere Berechnungen durchzureichen. */
 export interface TrackingContext {
   userId: string;
+  /** Zeitzone des Ziel-Subs — regiert die Zeitdarstellung aller seiner Daten (an komponierende
+   *  Tools wie keyholder_dashboard durchgereicht, damit alle Aggregate dasselbe iso teilen). */
+  timezone: string;
   entries: TrackingEntry[];
   reinigung: ReinigungSettings;
   devices: DeviceMeta[];
@@ -65,15 +90,15 @@ export interface TrackingContext {
 /** Lädt resolveUserId + loadTrackingData zu einem TrackingContext (eine Quelle für komponierende Tools). */
 export async function loadTrackingContext(username: string, now: Date = new Date()): Promise<TrackingContext> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung, devices } = await loadTrackingData(userId);
-  return { userId, entries, reinigung, devices, now };
+  const { entries, reinigung, devices, timezone } = await loadTrackingData(userId);
+  return { userId, timezone, entries, reinigung, devices, now };
 }
 
-/** Lädt Entries (mit Device-Include) + Reinigungs-Settings + Geräte-Meta — die geteilte
+/** Lädt Entries (mit Device-Include) + Reinigungs-Settings + Geräte-Meta + Sub-Zeitzone — die geteilte
  *  Datenbasis aller V2-Read-Tools (get_session, device_stats, records, denial_trend …). */
-export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[] }> {
+export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[]; timezone: string }> {
   const [user, entries, devices] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true } }),
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -90,6 +115,7 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
     entries,
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
     devices,
+    timezone: user.timezone ?? APP_TZ,
   };
 }
 
@@ -162,14 +188,15 @@ function parseDoDont(raw: string | null): { do: string[]; dont: string[] } | nul
   }
 }
 
-/** Mappt eine Note (inkl. refs) auf das stabile MCP-DTO. */
-export function toNoteDTO(n: NoteWithRefs): NoteDTO {
+/** Mappt eine Note (inkl. refs) auf das stabile MCP-DTO. Zeiten in der Zeitzone des Ziel-Subs
+ *  (`isoFn`); ohne expliziten Wert der APP_TZ-Default (byte-identisch zum bisherigen Verhalten). */
+export function toNoteDTO(n: NoteWithRefs, isoFn: Iso = iso): NoteDTO {
   return {
     id: n.id, type: n.type, status: n.status, pinned: n.pinned, source: n.source,
     confidence: n.confidence, kg: n.kg, kategorie: n.kategorie, text: n.text,
     doDont: parseDoDont(n.doDont),
-    validFrom: iso(n.validFrom), validUntil: iso(n.validUntil),
-    supersedesId: n.supersedesId, createdAt: iso(n.createdAt)!,
+    validFrom: isoFn(n.validFrom), validUntil: isoFn(n.validUntil),
+    supersedesId: n.supersedesId, createdAt: isoFn(n.createdAt)!,
     refs: n.refs.map((r) => ({ entityType: r.entityType as EntityType, entityId: r.entityId })),
   };
 }
@@ -194,9 +221,11 @@ export async function notesForEntities(
   refs: EntityRef[],
   opts: { includeSuperseded?: boolean } = {},
   client: TxClient = prisma,
+  tz: string = APP_TZ,
 ): Promise<Map<string, NoteDTO[]>> {
   const out = new Map<string, NoteDTO[]>();
   if (refs.length === 0) return out;
+  const isoFn = makeIso(tz);
 
   const notes = await client.keyholderNote.findMany({
     where: {
@@ -210,7 +239,7 @@ export async function notesForEntities(
 
   const wanted = new Set(refs.map((r) => `${r.entityType}:${r.entityId}`));
   for (const n of notes) {
-    const dto = toNoteDTO(n);
+    const dto = toNoteDTO(n, isoFn);
     for (const r of n.refs) {
       const key = `${r.entityType}:${r.entityId}`;
       if (!wanted.has(key)) continue;

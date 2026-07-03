@@ -43,9 +43,11 @@ interface Props {
   /** Whether the user has any devices — gates the "Gerät: —" row on lock entries.
    *  Omitted (e.g. admin view) → no device row. */
   userHasDevices?: boolean;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
 }
 
-export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false }: Props) {
+export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   const ta = await getTranslations("admin");
@@ -53,8 +55,8 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
   const sessions: SessionListData[] = pairs.map((pair) => {
     const { verschluss, oeffnen, active, kontrollen } = pair;
 
-    const dateStr = formatDate(verschluss.startTime, dl);
-    const timeStr = formatTime(verschluss.startTime, dl);
+    const dateStr = formatDate(verschluss.startTime, dl, tz);
+    const timeStr = formatTime(verschluss.startTime, dl, tz);
     const pauseMs = interruptionPauseMs(pair.interruptions ?? []);
     const durationMs = oeffnen ? oeffnen.startTime.getTime() - verschluss.startTime.getTime() - pauseMs : null;
     const durationStr = durationMs !== null
@@ -69,10 +71,10 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
       const sMonth = verschluss.startTime.getMonth();
       const eMonth = oeffnen.startTime.getMonth();
       if (sYear === eYear && sMonth === eMonth) {
-        const s = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", timeZone: APP_TZ });
+        const s = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", timeZone: tz });
         startAbbrevStr = s.endsWith(".") ? s : s + ".";
       } else if (sYear === eYear) {
-        const s = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", month: "numeric", timeZone: APP_TZ });
+        const s = verschluss.startTime.toLocaleDateString(dl, { day: "numeric", month: "numeric", timeZone: tz });
         startAbbrevStr = s.endsWith(".") ? s : s + ".";
       }
       // different year: null → use full dateStr
@@ -91,7 +93,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         timeStr,
         imageUrl: verschluss.imageUrl,
         exifStr: verschluss.imageExifTime && hasExifMismatch(verschluss.imageExifTime, verschluss.startTime)
-          ? formatDateTime(verschluss.imageExifTime, dl)
+          ? formatDateTime(verschluss.imageExifTime, dl, tz)
           : null,
         note: verschluss.note,
         entryId: verschluss.id,
@@ -116,14 +118,14 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             type: "kontrolle" as const,
             time: k.time,
             timeIso: k.time.toISOString(),
-            dateStr: formatDate(k.time, dl),
-            timeStr: formatTime(k.time, dl),
+            dateStr: formatDate(k.time, dl, tz),
+            timeStr: formatTime(k.time, dl, tz),
             imageUrl: k.imageUrl,
             exifStr: null,
             note: k.note,
             entryId: k.entryId,
             captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
-            deadlineStr: k.deadline ? formatDateTime(k.deadline, dl) : null,
+            deadlineStr: k.deadline ? formatDateTime(k.deadline, dl, tz) : null,
             isOverdue: k.anforderungStatus === "overdue",
             kontrolleCode: k.code,
             kontrolleKommentar: k.kommentar,
@@ -131,15 +133,15 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             kombiniertePillCls: pill?.cls ?? null,
             orgasmusArt: null,
             timeCorrected: corrected,
-            timeCorrectedSystemStr: corrected ? formatDateTime(k.submittedAt!, dl) : null,
+            timeCorrectedSystemStr: corrected ? formatDateTime(k.submittedAt!, dl, tz) : null,
           };
         }),
       ...sessionOrgasmen.map((e) => ({
         type: "orgasmus" as const,
         time: e.startTime,
         timeIso: e.startTime.toISOString(),
-        dateStr: formatDate(e.startTime, dl),
-        timeStr: formatTime(e.startTime, dl),
+        dateStr: formatDate(e.startTime, dl, tz),
+        timeStr: formatTime(e.startTime, dl, tz),
         imageUrl: e.imageUrl,
         exifStr: null,
         note: e.note,
@@ -158,8 +160,8 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         type: "reinigung" as const,
         time: intr.oeffnen.startTime,
         timeIso: intr.oeffnen.startTime.toISOString(),
-        dateStr: formatDate(intr.oeffnen.startTime, dl),
-        timeStr: formatTime(intr.oeffnen.startTime, dl),
+        dateStr: formatDate(intr.oeffnen.startTime, dl, tz),
+        timeStr: formatTime(intr.oeffnen.startTime, dl, tz),
         imageUrl: intr.verschluss.imageUrl,
         exifStr: null,
         note: intr.oeffnen.note,
@@ -191,8 +193,8 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
       sessionEndIso: oeffnen ? oeffnen.startTime.toISOString() : null,
       oeffnen: oeffnen
         ? {
-            dateStr: formatDate(oeffnen.startTime, dl),
-            timeStr: formatTime(oeffnen.startTime, dl),
+            dateStr: formatDate(oeffnen.startTime, dl, tz),
+            timeStr: formatTime(oeffnen.startTime, dl, tz),
             grund: oeffnen.oeffnenGrund,
             note: oeffnen.note,
           }

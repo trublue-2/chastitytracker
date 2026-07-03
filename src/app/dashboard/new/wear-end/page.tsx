@@ -5,12 +5,14 @@ import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getActiveWearSessionForCategory } from "@/lib/queries";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import WearForm from "../../WearForm";
 
 export default async function NewWearEndPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
   if (!deviceCategoriesEnabled()) notFound();
   const session = await auth();
   if (!session) redirect("/login");
+  const tz = session.user.timezone ?? APP_TZ;
 
   const { category: categoryId } = await searchParams;
   if (!categoryId) redirect("/dashboard/categories");
@@ -39,6 +41,8 @@ export default async function NewWearEndPage({ searchParams }: { searchParams: P
           deviceName: active.deviceName,
           since: active.since.toISOString(),
         }}
+        tz={tz}
+        nowDefault={nowDatetimeLocal(tz)}
       />
     </div>
   );

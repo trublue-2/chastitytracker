@@ -1,5 +1,5 @@
 import { Lock } from "lucide-react";
-import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected } from "@/lib/utils";
+import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getKombinierterPill } from "@/lib/kontrollePills";
@@ -30,6 +30,8 @@ interface Props {
   tagH: number;
   wocheH: number;
   monatH: number;
+  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
+  tz?: string;
 }
 
 export default async function LaufendeSessionCard({
@@ -45,15 +47,16 @@ export default async function LaufendeSessionCard({
   tagH,
   wocheH,
   monatH,
+  tz = APP_TZ,
 }: Props) {
   const t = await getTranslations("dashboard");
   const tCommon = await getTranslations("common");
   const ta = await getTranslations("admin");
   const dl = toDateLocale(await getLocale());
 
-  const sessionStartStr = formatDateTime(sessionStart, dl);
-  const sperrzeitStr = sperrzeitEndetAt ? formatDateTime(sperrzeitEndetAt, dl) : null;
-  const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl) : null;
+  const sessionStartStr = formatDateTime(sessionStart, dl, tz);
+  const sperrzeitStr = sperrzeitEndetAt ? formatDateTime(sperrzeitEndetAt, dl, tz) : null;
+  const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl, tz) : null;
   const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet || scheduledForStr !== null;
 
   const hasVorgabe =
@@ -116,10 +119,10 @@ export default async function LaufendeSessionCard({
       {/* ── Timeline (buckets + flat fallback for short sessions) ── */}
       <SessionTimeline
         events={events.map<SessionEventData>((ev) => {
-          const dateStr = formatDate(ev.time, dl);
-          const timeStr = formatTime(ev.time, dl);
+          const dateStr = formatDate(ev.time, dl, tz);
+          const timeStr = formatTime(ev.time, dl, tz);
           const exifStr = ev.imageExifTime && hasExifMismatch(ev.imageExifTime, ev.time)
-            ? formatDateTime(ev.imageExifTime, dl)
+            ? formatDateTime(ev.imageExifTime, dl, tz)
             : null;
           const kombiniertePill = getKombinierterPill(
             ev.kontrolleAnforderungStatus ?? null,
@@ -139,7 +142,7 @@ export default async function LaufendeSessionCard({
             captureHref: !ev.entryId && ev.type === "kontrolle" && ev.kontrolleCode
               ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
               : null,
-            deadlineStr: ev.deadline ? formatDateTime(ev.deadline, dl) : null,
+            deadlineStr: ev.deadline ? formatDateTime(ev.deadline, dl, tz) : null,
             isOverdue: ev.kontrolleAnforderungStatus === "overdue",
             kontrolleCode: ev.kontrolleCode ?? null,
             kontrolleKommentar: ev.kontrolleKommentar ?? null,
@@ -149,7 +152,7 @@ export default async function LaufendeSessionCard({
             pauseDurationStr: ev.pauseDurationStr ?? null,
             timeCorrected: isTimeCorrected(ev.time, ev.submittedAt),
             timeCorrectedSystemStr: isTimeCorrected(ev.time, ev.submittedAt)
-              ? formatDateTime(ev.submittedAt!, dl) : null,
+              ? formatDateTime(ev.submittedAt!, dl, tz) : null,
           };
         })}
         sessionStart={sessionStart.toISOString()}

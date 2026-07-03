@@ -17,13 +17,15 @@ interface Props {
     verifikationStatus?: string | null;
   };
   minTime?: string;
+  tz: string;
+  nowDefault: string;
   initialCode?: string;
   initialKommentar?: string;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
 }
 
-export default function PruefungForm({ initial, minTime, initialCode, initialKommentar, mobileDesktopMode, redirectTo }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, mobileDesktopMode, redirectTo }: Props) {
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -48,6 +50,8 @@ export default function PruefungForm({ initial, minTime, initialCode, initialKom
     <PruefungFormCore
       initial={initial}
       minTime={minTime}
+      tz={tz}
+      nowDefault={nowDefault}
       initialCode={initialCode}
       initialKommentar={initialKommentar}
       mobileDesktopMode={mobileDesktopMode}

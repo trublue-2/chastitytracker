@@ -3,7 +3,7 @@ import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/mcp/segments";
 import { round1, msToHours, pct } from "@/lib/mcp/format";
-import { iso, loadTrackingContext, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
+import { makeIso, loadTrackingContext, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
 /** Vorberechnete Statistiken & Rekorde aus SEGMENTEN (nicht Labels) — §5/§6/§7. Rein lesend.
  *  Jedes Tool nimmt optional einen vorgeladenen TrackingContext (vom keyholder_dashboard), um
@@ -46,7 +46,8 @@ export interface DeviceStatsResult {
 
 /** Pro Gerät total/avg/median/min/max + längste Strecke + zuletzt getragen, aus allen Segmenten. */
 export async function deviceStats(username: string, ctx?: TrackingContext): Promise<DeviceStatsResult> {
-  const { entries, reinigung, devices, now } = await ctxOf(username, ctx);
+  const { entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
+  const iso = makeIso(timezone);
   const sessions = buildSessions(entries, reinigung, now, devices);
 
   const byDevice = new Map<string, { id: string | null; name: string | null; durations: number[]; lastWorn: Date }>();
@@ -111,7 +112,8 @@ function longestOrgasmGapMs(times: Date[], now: Date): number | null {
 }
 
 export async function records(username: string, ctx?: TrackingContext, presessions?: Session[]): Promise<RecordsResult> {
-  const { entries, reinigung, devices, now } = await ctxOf(username, ctx);
+  const { entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
+  const iso = makeIso(timezone);
   // Vorgebaute Sessions (vom Dashboard) wiederverwenden, statt buildSessions doppelt zu rechnen.
   const sessions = presessions ?? buildSessions(entries, reinigung, now, devices);
 
@@ -179,7 +181,8 @@ function deviceContextAt(segs: FlatSegment[], t: number): string | null {
 }
 
 export async function denialTrend(username: string, opts: { limit?: number } = {}, ctx?: TrackingContext): Promise<DenialTrendResult> {
-  const { entries, reinigung, devices, now } = await ctxOf(username, ctx);
+  const { entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
+  const iso = makeIso(timezone);
   const sessions = buildSessions(entries, reinigung, now, devices);
   const segs = flattenSegments(sessions, now);
   const times = orgasmTimes(entries);

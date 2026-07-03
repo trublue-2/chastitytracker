@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { buildOverview } from "@/lib/mcpOverview";
-import { iso, APP_TZ, resolveUserId, loadTrackingContext, type NoteDTO } from "@/lib/mcp/common";
+import { makeIso, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { buildSessions, type Session } from "@/lib/mcp/segments";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
@@ -104,7 +104,7 @@ export interface ScheduledDirective {
 /** Lädt die vom Keyholder terminierten, noch nicht ausgelösten Direktiven (wirksamAb > now):
  *  VerschlussAnforderung (ANFORDERUNG/SPERRZEIT) + MANUELLE Kontrollen (auto:false).
  *  Auto-Kontrollen werden bewusst NICHT geladen. */
-async function loadScheduledDirectives(userId: string, now: Date): Promise<ScheduledDirective[]> {
+async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Promise<ScheduledDirective[]> {
   const [anforderungen, kontrollen] = await Promise.all([
     // Kein per-Query orderBy — die zusammengeführte Liste wird unten ohnehin nach wirksamAb sortiert.
     prisma.verschlussAnforderung.findMany({
@@ -150,7 +150,7 @@ export interface DiscrepancyItem {
 
 /** Sammelt echte (cross-cluster) Bild-Konflikte aus den Sessions — cluster-interne Verwechslungen
  *  (cluster-ambiguous) bleiben bewusst draussen (keine Vergehen). */
-function collectImageConflicts(sessions: Session[]): DiscrepancyItem[] {
+function collectImageConflicts(sessions: Session[], iso: Iso): DiscrepancyItem[] {
   return sessions.flatMap((s) =>
     s.segments
       .filter((seg) => seg.deviceConfidence === "image-conflict")
@@ -158,7 +158,7 @@ function collectImageConflicts(sessions: Session[]): DiscrepancyItem[] {
   );
 }
 
-async function loadBoxState(userId: string, now: Date): Promise<BoxStateView | null> {
+async function loadBoxState(userId: string, now: Date, iso: Iso): Promise<BoxStateView | null> {
   const box = await prisma.boxStatus.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" } });
   if (!box) return null;
   const online = box.lastSyncAt ? now.getTime() - box.lastSyncAt.getTime() < BOX_ONLINE_THRESHOLD_MS : false;
@@ -185,8 +185,8 @@ export interface BoxStateResult {
 /** Dedizierter BoxState-Read (§11): hardwareEnforced unterscheidet physische Vollstreckung von
  *  Ehrensache. null = keine Box registriert. Throws, wenn der User unbekannt ist. */
 export async function getBoxState(username: string): Promise<BoxStateResult> {
-  const userId = await resolveUserId(username);
-  return { schemaVersion: 2, user: username, boxState: await loadBoxState(userId, new Date()) };
+  const { id: userId, timezone } = await resolveUserContext(username);
+  return { schemaVersion: 2, user: username, boxState: await loadBoxState(userId, new Date(), makeIso(timezone)) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */
@@ -195,6 +195,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // Entries/Reinigung/User-id EINMAL laden und an die segment-basierten Aggregate durchreichen,
   // statt sie pro Aggregat erneut zu scannen. (buildOverview/getOffenses sind V1-Reuse mit eigenem Load.)
   const trackingCtx = await loadTrackingContext(username, now);
+  const iso = makeIso(trackingCtx.timezone);
   // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
   const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices);
 
@@ -204,9 +205,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     periodSummary(username, trackingCtx),
     getOffenses(username),
     queryNotes(username, { pinned: true, status: "active", limit: 50 }),
-    loadBoxState(trackingCtx.userId, now),
-    loadActiveHealthHold(trackingCtx.userId),
-    loadScheduledDirectives(trackingCtx.userId, now),
+    loadBoxState(trackingCtx.userId, now, iso),
+    loadActiveHealthHold(trackingCtx.userId, iso),
+    loadScheduledDirectives(trackingCtx.userId, now, iso),
   ]);
 
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
@@ -226,13 +227,13 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     rec.currentRunHours != null && periods.kg.today - rec.currentRunHours > ROUND_EPSILON_H;
 
   // CT-004: echte (cross-cluster) Bild-Diskrepanzen als Daten-Hinweis (keine Vergehen).
-  const discrepancyItems = collectImageConflicts(sessions);
+  const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
     schemaVersion: 2,
     user: username,
     generatedAt: iso(now)!,
-    timezone: APP_TZ,
+    timezone: trackingCtx.timezone,
     keyholderInstructions: overview.keyholderInstructions,
     currentRun: {
       isLocked: overview.lock.isLocked,

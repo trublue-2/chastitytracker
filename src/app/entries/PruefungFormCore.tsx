@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ClipboardCheck, WifiOff } from "lucide-react";
-import { toDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
@@ -33,6 +33,8 @@ interface Props {
     verifikationStatus?: string | null;
   };
   minTime?: string;
+  tz: string;
+  nowDefault: string;
   initialCode?: string;
   initialKommentar?: string;
   mobileDesktopMode?: boolean;
@@ -45,7 +47,7 @@ interface Props {
 }
 
 export default function PruefungFormCore({
-  initial, minTime, initialCode, initialKommentar, mobileDesktopMode,
+  initial, minTime, tz, nowDefault, initialCode, initialKommentar, mobileDesktopMode,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
@@ -65,7 +67,7 @@ export default function PruefungFormCore({
     };
   }, []);
 
-  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime) || toDatetimeLocal(new Date()));
+  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [note, setNote] = useState(initial?.note ?? "");
   const [kontrollCode, setKontrollCode] = useState(initial?.kontrollCode ?? initialCode ?? "");
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
@@ -137,7 +139,7 @@ export default function PruefungFormCore({
     if (!imageUrl) { setError(t("photoRequired")); return; }
     await submit({
       type: "PRUEFUNG",
-      startTime: new Date(startTime).toISOString(),
+      startTime: fromDatetimeLocal(startTime, tz).toISOString(),
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
       note: note.trim() || null,
@@ -194,7 +196,7 @@ export default function PruefungFormCore({
           <div className="flex items-start gap-4">
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
             <div className="flex flex-col gap-2 flex-1 pt-1">
-              {imageExifTime && <p className="text-xs text-foreground-faint">{tc("exifDate")}: {new Date(imageExifTime).toLocaleString(dl)}</p>}
+              {imageExifTime && <p className="text-xs text-foreground-faint">{tc("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>}
               {exifWarning && !uploading && <p className="text-xs text-warn font-medium">{exifWarning}</p>}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact mobileDesktopMode={mobileDesktopMode} />
             </div>

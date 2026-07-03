@@ -371,6 +371,8 @@
     "signOut": "Sign out",
     "signOutConfirm": "Really sign out?",
     "language": "Language",
+    "timezone": "Time zone",
+    "timezoneHint": "Display, input defaults, and the cleaning and sleep windows all follow this time zone.",
     "reinigungTitle": "Cleaning interruption",
     "reinigungErlaubt": "Allow cleaning interruptions",
     "reinigungMaxMinuten": "Maximum cleaning duration",

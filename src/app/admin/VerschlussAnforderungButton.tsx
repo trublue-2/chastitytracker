@@ -14,10 +14,14 @@ interface Props {
   isLocked: boolean;
   hasOffeneAnforderung: boolean;
   hasActiveSperrzeit: boolean;
+  /** Governing timezone of this row's sub (data owner). */
+  tz: string;
+  /** Server-computed "now" wall-clock in the sub's tz — datetime-local min (hydration-safe). */
+  minNow: string;
 }
 
 export default function VerschlussAnforderungButton({
-  userId, hasEmail, isLocked, hasOffeneAnforderung, hasActiveSperrzeit,
+  userId, hasEmail, isLocked, hasOffeneAnforderung, hasActiveSperrzeit, tz, minNow,
 }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
@@ -74,6 +78,8 @@ export default function VerschlussAnforderungButton({
           userId={userId}
           art={art}
           devices={devices}
+          tz={tz}
+          minNow={minNow}
           onSuccess={() => { close(); router.refresh(); }}
         />
       </ActionModal>

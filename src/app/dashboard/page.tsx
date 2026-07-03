@@ -7,7 +7,7 @@ import {
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
   buildWearSessionRows,
-  buildWearPairs, wearingHoursFromPairs, WEAR_PAIR,
+  buildWearPairs, wearingHoursFromPairs, WEAR_PAIR, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
@@ -33,6 +33,7 @@ export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
   const tOrgasm = await getTranslations("orgasmForm");
   const dl = toDateLocale(await getLocale());
+  const tz = session.user.timezone ?? APP_TZ;
   const now = new Date();
 
   // ── Parallel data fetch ──
@@ -119,29 +120,29 @@ export default async function DashboardPage() {
       endetAt: offeneVerschlussAnf.endetAt?.toISOString() ?? null,
       nachricht: offeneVerschlussAnf.nachricht,
       overdue: anfOverdue,
-      endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl) }) : null,
+      endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl, tz) }) : null,
       deviceName: offeneVerschlussAnf.device?.name ?? null,
     } : null,
 
     activeSperrzeit: activeSperrzeit ? {
       endetAt: activeSperrzeit.endetAt?.toISOString() ?? null,
       nachricht: activeSperrzeit.nachricht,
-      endetAtLabel: activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl) }) : null,
+      endetAtLabel: activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl, tz) }) : null,
     } : null,
 
     offeneOrgasmusAnf: offeneOrgasmusAnf ? {
       label: offeneOrgasmusAnf.art === "ANWEISUNG" ? t("orgasmInstructed") : t("orgasmOpportunity"),
       nachricht: [orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null, offeneOrgasmusAnf.nachricht].filter(Boolean).join(" · ") || null,
-      windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl), until: formatDateTime(offeneOrgasmusAnf.endetAt, dl) }),
+      windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endetAt, dl, tz) }),
     } : null,
 
     tagH,
     wocheH,
     monatH,
     serverNow: now.toISOString(),
-    elapsedTagH: (now.getTime() - getMidnightToday(now).getTime()) / 3_600_000,
-    elapsedWocheH: (now.getTime() - getWeekStart(now).getTime()) / 3_600_000,
-    elapsedMonatH: (now.getTime() - getMonthStart(now).getTime()) / 3_600_000,
+    elapsedTagH: (now.getTime() - getMidnightToday(now, tz).getTime()) / 3_600_000,
+    elapsedWocheH: (now.getTime() - getWeekStart(now, tz).getTime()) / 3_600_000,
+    elapsedMonatH: (now.getTime() - getMonthStart(now, tz).getTime()) / 3_600_000,
   };
 
   const username = session.user.name ?? "";
@@ -169,6 +170,7 @@ export default async function DashboardPage() {
             tagH={tagH}
             wocheH={wocheH}
             monatH={monatH}
+            tz={tz}
           />
         </div>
       )}
@@ -192,15 +194,15 @@ export default async function DashboardPage() {
             ...c,
             todayHours: wearingHoursFromPairs(
               buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: c.id }),
-              getMidnightToday(now),
+              getMidnightToday(now, tz),
               now,
             ),
           }))}
       />
-      <DashboardClient {...clientProps} />
+      <DashboardClient {...clientProps} tz={tz} />
       {pairs.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pb-6">
-          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} />
+          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} />
         </div>
       )}
       {wearSessionRows.length > 0 && (
