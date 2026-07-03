@@ -7,7 +7,24 @@ import {
   ORGASMUS_ART_I18N_KEYS,
   GRUND_I18N_KEYS,
   parseOrgasmusArtBase,
+  orgasmusArtLabel,
 } from "@/lib/constants";
+
+/** Kanonisches Trennzeichen zwischen Hauptart und Unterart einer Orgasmus-Art. */
+export const ART_SEP = " – ";
+/**
+ * Eingebaute Orgasmus-Standardliste als volle Kombinationen (Hauptart + Unterart) — bewahrt die
+ * bisherigen Unterarten. Codes = diese Strings (bestehende Einträge matchen weiterhin). Text VOR
+ * dem Trennzeichen = Hauptart, danach = Unterart.
+ */
+export const DEFAULT_ORGASM_ARTEN = [
+  `Orgasmus${ART_SEP}Masturbation`,
+  `Orgasmus${ART_SEP}Geschlechtsverkehr`,
+  `Orgasmus${ART_SEP}durch andere Person`,
+  `Orgasmus${ART_SEP}durch Technik`,
+  "ruinierter Orgasmus",
+  "feuchter Traum",
+] as const;
 
 /**
  * Per-User anpassbare Auswahllisten (Orgasmus-Arten + Öffnungsgründe). Jede Liste ist ein geordnetes
@@ -34,7 +51,15 @@ const CUSTOM_CODE_RE = /^c_[0-9a-f]{8,}$/;
 const CONTROL_CHARS_RE = new RegExp("[\u0000-\u001F\u007F]", "g");
 
 function reservedCodes(kind: ReasonKind): readonly string[] {
-  return kind === "orgasm" ? ORGASMUS_ARTEN : OEFFNEN_GRUENDE;
+  // Orgasmus: sowohl die Kombinations-Codes (Standardliste) als auch die blanken Hauptarten gelten
+  // als stabile Built-in-Codes (Backward-Compat mit Alt-Einträgen ohne Unterart).
+  return kind === "orgasm" ? [...DEFAULT_ORGASM_ARTEN, ...ORGASMUS_ARTEN] : OEFFNEN_GRUENDE;
+}
+
+/** Trennzeichen-Normalisierung für Orgasmus-Labels: `/`, `|`, `–` sowie umleertes `-` → kanonisches ` – `. */
+const SEP_RE = /\s*[/|–]\s*|\s+-\s+/g;
+function normalizeSeparators(s: string): string {
+  return s.replace(SEP_RE, ART_SEP);
 }
 
 function builtinI18nKey(code: string, kind: ReasonKind): string | undefined {
@@ -43,13 +68,16 @@ function builtinI18nKey(code: string, kind: ReasonKind): string | undefined {
 
 /** Eingebaute Standardliste (bei `null`-Config) — Codes = Konstanten, kein Label-Override. */
 function defaultConfig(kind: ReasonKind): ReasonEntry[] {
-  return reservedCodes(kind).map((code) => ({ code }));
+  const codes = kind === "orgasm" ? DEFAULT_ORGASM_ARTEN : OEFFNEN_GRUENDE;
+  return codes.map((code) => ({ code }));
 }
 
-/** Trimmt/entfernt Steuerzeichen und kappt auf LABEL_MAX; leeres Ergebnis → undefined. */
-function sanitizeLabel(raw: unknown): string | undefined {
+/** Trimmt/entfernt Steuerzeichen, normalisiert (bei Orgasmus) Trennzeichen, kappt auf LABEL_MAX; leer → undefined. */
+function sanitizeLabel(raw: unknown, kind: ReasonKind): string | undefined {
   if (typeof raw !== "string") return undefined;
-  const clean = raw.replace(CONTROL_CHARS_RE, "").trim().slice(0, LABEL_MAX);
+  let clean = raw.replace(CONTROL_CHARS_RE, "");
+  if (kind === "orgasm") clean = normalizeSeparators(clean);
+  clean = clean.trim().slice(0, LABEL_MAX);
   return clean.length > 0 ? clean : undefined;
 }
 
@@ -84,7 +112,7 @@ export function parseReasonConfig(raw: unknown, kind: ReasonKind): ReasonEntry[]
   for (const item of arr) {
     if (out.length >= MAX_ENTRIES) break;
     const rawCode = (item as { code?: unknown })?.code;
-    const label = sanitizeLabel((item as { label?: unknown })?.label);
+    const label = sanitizeLabel((item as { label?: unknown })?.label, kind);
     // Code übernehmen, wenn reserviert ODER gültiges Custom-Muster; sonst frisch generieren.
     const code = typeof rawCode === "string" && (reserved.has(rawCode) || CUSTOM_CODE_RE.test(rawCode))
       ? rawCode
@@ -109,10 +137,8 @@ export function effectiveOeffnenGruende(cfgRaw: unknown): ReasonEntry[] {
   return parseReasonConfig(cfgRaw, "opening");
 }
 
-/** Menge der für diesen User gültigen Codes (Built-ins bei `null`) — für die Payload-Validierung. */
-export function validOrgasmusCodes(cfgRaw: unknown): Set<string> {
-  return new Set(effectiveOrgasmusArten(cfgRaw).map((e) => e.code));
-}
+/** Menge der für diesen User gültigen Öffnungsgründe-Codes (Built-ins bei `null`) — für die Validierung.
+ *  (Orgasmus nutzt `orgasmusValueAllowed`, weil dort auch blanke Hauptarten gültig sind.) */
 export function validOeffnenCodes(cfgRaw: unknown): Set<string> {
   return new Set(effectiveOeffnenGruende(cfgRaw).map((e) => e.code));
 }
@@ -143,6 +169,37 @@ export function resolveOrgasmusArtDisplay(
   const baseLabel = resolveReasonLabel(base, cfg, "orgasm", t);
   const detail = orgasmusArt.slice(base.length);
   return baseLabel + detail;
+}
+
+/** Haupt-Token (Text vor ` – `) eines Orgasmus-Eintrags — stabile Identität für Kaskade-Gruppierung
+ *  und den „keine Unterart"-Fall. Für Kombi-Codes aus dem Code, sonst aus dem Custom-Label. */
+export function orgasmMainToken(e: ReasonEntry): string {
+  return (e.label ?? e.code).split(ART_SEP)[0];
+}
+
+/** Gültiger gespeicherter `orgasmusArt`-Wert? Erlaubt sind alle vollen Codes der Liste UND alle
+ *  Haupt-Tokens (Wahl nur der Hauptart ohne Unterart / „keine Angabe"). `null`-Config → Standardliste. */
+export function orgasmusValueAllowed(value: string, cfgRaw: unknown): boolean {
+  const cfg = effectiveOrgasmusArten(cfgRaw);
+  return cfg.some((e) => e.code === value) || cfg.some((e) => orgasmMainToken(e) === value);
+}
+
+/** Eine Auswahl-Option fürs abhängige Orgasmus-Dropdown: stabiler Wert (`code` bei Unterart, sonst
+ *  `mainToken`), plus aufgelöste Anzeige-Labels für Haupt- und Unterart. */
+export interface OrgasmusOption { code: string; mainToken: string; mainLabel: string; subLabel: string }
+
+/** Löst die Orgasmus-Config in Kaskaden-Optionen auf: Haupt-Label (Built-in übersetzt, Override roh)
+ *  + Unterart-Label (roh; leer wenn keine Unterart). Der Sub baut daraus die zwei abhängigen Dropdowns. */
+export function resolveOrgasmusOptions(cfg: ReasonEntry[], t: (key: string) => string): OrgasmusOption[] {
+  return cfg.map((e) => {
+    const text = e.label ?? e.code;
+    const sepAt = text.indexOf(ART_SEP);
+    const mainToken = sepAt === -1 ? text : text.slice(0, sepAt);
+    const subLabel = sepAt === -1 ? "" : text.slice(sepAt + ART_SEP.length);
+    // Hauptart-Anzeige: Override roh übernehmen, sonst Built-in-i18n der Hauptart.
+    const mainLabel = e.label ? mainToken : orgasmusArtLabel(mainToken, t);
+    return { code: e.code, mainToken, mainLabel, subLabel };
+  });
 }
 
 /** Löst eine ganze Config zu anzeigefertigen `{code,label}` auf (Select-Optionen + Zeilen). */

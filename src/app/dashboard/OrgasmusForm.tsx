@@ -6,11 +6,11 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
 import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
-import type { ResolvedReason } from "@/lib/reasonsService";
+import type { OrgasmusOption } from "@/lib/reasonsService";
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; orgasmusArt?: string | null };
-  artOptions: ResolvedReason[];
+  artOptions: OrgasmusOption[];
   maxTime?: string;
   tz: string;
   nowDefault: string;

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
-import { validOrgasmusCodes, validOeffnenCodes } from "@/lib/reasonsService";
+import { isValidImageUrl } from "@/lib/constants";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
@@ -41,11 +41,8 @@ export async function PATCH(
     if (oeffnenGrund !== undefined && oeffnenGrund !== null && !validOeffnenCodes(reasonOwner?.oeffnenGruendeConfig).has(oeffnenGrund)) {
       return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
     }
-    if (orgasmusArt !== undefined && orgasmusArt !== null) {
-      const base = parseOrgasmusArtBase(orgasmusArt as string);
-      if (!base || !validOrgasmusCodes(reasonOwner?.orgasmusArtenConfig).has(base)) {
-        return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
-      }
+    if (orgasmusArt !== undefined && orgasmusArt !== null && !orgasmusValueAllowed(orgasmusArt as string, reasonOwner?.orgasmusArtenConfig)) {
+      return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
     }
   }
 

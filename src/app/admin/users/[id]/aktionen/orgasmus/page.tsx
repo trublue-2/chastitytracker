@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getUserTimezone } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
-import { effectiveOrgasmusArten, resolveReasonList } from "@/lib/reasonsService";
+import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/reasonsService";
 import OrgasmusForm from "./OrgasmusForm";
 
 export default async function AdminOrgasmusPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +16,7 @@ export default async function AdminOrgasmusPage({ params }: { params: Promise<{ 
     getTranslations("orgasmForm"),
   ]);
 
-  const artOptions = resolveReasonList(effectiveOrgasmusArten(user?.orgasmusArtenConfig), "orgasm", tOrgasm);
+  const artOptions = resolveOrgasmusOptions(effectiveOrgasmusArten(user?.orgasmusArtenConfig), tOrgasm);
 
   return <OrgasmusForm userId={id} artOptions={artOptions} tz={tz} nowDefault={nowDatetimeLocal(tz)} />;
 }

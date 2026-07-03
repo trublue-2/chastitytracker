@@ -117,6 +117,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <div className="px-5 py-4 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold text-foreground-muted">{t("reasonOrgasmTitle")}</p>
+            <p className="text-xs text-foreground-faint">{t("reasonOrgasmNote")}</p>
             <ReasonsEditor
               userId={user.id}
               configKey="orgasmusArtenConfig"

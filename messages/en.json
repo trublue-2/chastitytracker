@@ -349,13 +349,7 @@
     "noSubType": "– no selection –",
     "artOrgasmus": "Orgasm",
     "artRuiniert": "Ruined orgasm",
-    "artTraum": "Wet dream",
-    "subMasturbation": "Masturbation",
-    "subGeschlecht": "Sexual intercourse",
-    "subPerson": "by another person",
-    "subTechnik": "by device",
-    "subVerschlossen": "While locked",
-    "subAnal": "Anal"
+    "artTraum": "Wet dream"
   },
   "settings": {
     "title": "Settings",
@@ -685,6 +679,7 @@
     "sectionReinigung": "Cleaning",
     "sectionReasons": "Selection lists",
     "reasonOrgasmTitle": "Orgasm types",
+    "reasonOrgasmNote": "For a sub-type write “Main – Sub” (e.g. “Orgasmus – Masturbation”). The sub then sees two dependent dropdowns.",
     "reasonOpeningTitle": "Opening reasons",
     "reasonReinigungNote": "“Cleaning” is fixed and cannot be removed (only renamed).",
     "reasonAdd": "Add entry",

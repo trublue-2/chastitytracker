@@ -114,13 +114,22 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
       );
       expect(result?.status).toBe(400);
     });
-    it("accepts a custom orgasm code when passed in reasonCtx", () => {
+    it("accepts an orgasm value allowed by the reasonCtx predicate", () => {
+      const allow = new Set(["c_quickie", "Orgasmus"]);
       const result = validateEntryPayload(
         { type: "ORGASMUS", startTime: FUTURE_SAFE_TIME, orgasmusArt: "c_quickie" },
         { allowFuture: true },
-        { orgasmCodes: new Set(["c_quickie"]) },
+        { orgasmAllowed: (v) => allow.has(v) },
       );
       expect(result).toBeNull();
+    });
+    it("rejects an orgasm value the reasonCtx predicate disallows", () => {
+      const result = validateEntryPayload(
+        { type: "ORGASMUS", startTime: FUTURE_SAFE_TIME, orgasmusArt: "verboten" },
+        { allowFuture: true },
+        { orgasmAllowed: () => false },
+      );
+      expect(result?.status).toBe(400);
     });
     it("without reasonCtx, built-in constants still apply (backward-compat)", () => {
       expect(validateEntryPayload(

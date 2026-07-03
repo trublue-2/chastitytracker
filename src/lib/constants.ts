@@ -197,9 +197,10 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
 export function validateEntryPayload(
   body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string },
   opts: { requirePhotoForPruefung?: boolean; allowFuture?: boolean } = {},
-  // Per-User gültige Reason-Codes (aus reasonsService). Fehlen sie, gelten die eingebauten Konstanten
-  // (Default-Verhalten für null-Config / Aufrufer ohne User-Kontext) — unverändert.
-  reasonCtx?: { orgasmCodes?: Set<string>; openingCodes?: Set<string> },
+  // Per-User Reason-Validierung (aus reasonsService). Fehlt sie, gelten die eingebauten Konstanten
+  // (Default-Verhalten für null-Config / Aufrufer ohne User-Kontext) — unverändert. `orgasmAllowed`
+  // prüft den VOLLEN Wert (Kombi-Code ODER blanke Hauptart), nicht nur die Basis.
+  reasonCtx?: { orgasmAllowed?: (value: string) => boolean; openingCodes?: Set<string> },
 ): { error: string; status: number } | null {
   const { requirePhotoForPruefung = true, allowFuture = false } = opts;
   const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note } = body;
@@ -225,11 +226,10 @@ export function validateEntryPayload(
   if (type === "PRUEFUNG" && requirePhotoForPruefung && !imageUrl) {
     return { error: "Foto ist bei Kontrolle zwingend", status: 400 };
   }
-  const orgasmusArtBase = parseOrgasmusArtBase(orgasmusArt);
   if (type === "ORGASMUS") {
-    const orgasmOk = reasonCtx?.orgasmCodes
-      ? reasonCtx.orgasmCodes.has(orgasmusArtBase ?? "")
-      : (ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "");
+    const orgasmOk = reasonCtx?.orgasmAllowed
+      ? reasonCtx.orgasmAllowed(orgasmusArt ?? "")
+      : (ORGASMUS_ARTEN as readonly string[]).includes(parseOrgasmusArtBase(orgasmusArt) ?? "");
     if (!orgasmOk) return { error: "Ungültige Art", status: 400 };
   }
   return null;

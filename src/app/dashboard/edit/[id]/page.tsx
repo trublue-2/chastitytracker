@@ -11,7 +11,7 @@ import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
 import { getUserDeviceOptions, getUserTimezone } from "@/lib/queries";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
-import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
 
 export default async function EditEntryPage({
   params,
@@ -67,7 +67,7 @@ export default async function EditEntryPage({
       : Promise.resolve(null),
   ]);
   const nowDefault = nowDatetimeLocal(tz);
-  const artOptions = resolveReasonList(effectiveOrgasmusArten(ownerReasons?.orgasmusArtenConfig), "orgasm", tOrgasm);
+  const artOptions = resolveOrgasmusOptions(effectiveOrgasmusArten(ownerReasons?.orgasmusArtenConfig), tOrgasm);
   const grundOptions = resolveReasonList(effectiveOeffnenGruende(ownerReasons?.oeffnenGruendeConfig), "opening", tOpen);
 
   // Anti-cheat: non-admins may only shift times in the allowed direction.

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
-import { validOrgasmusCodes, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
+import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true },
   });
   const validationError = validateEntryPayload(body, { allowFuture: devBypass }, {
-    orgasmCodes: validOrgasmusCodes(reasonUser?.orgasmusArtenConfig),
+    orgasmAllowed: (v) => orgasmusValueAllowed(v, reasonUser?.orgasmusArtenConfig),
     openingCodes: validOeffnenCodes(reasonUser?.oeffnenGruendeConfig),
   });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });

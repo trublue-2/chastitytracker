@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
-import { validOrgasmusCodes, validOeffnenCodes } from "@/lib/reasonsService";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
   const validationError = validateEntryPayload(body, { requirePhotoForPruefung: false, allowFuture: devBypass }, {
-    orgasmCodes: validOrgasmusCodes(user.orgasmusArtenConfig),
+    orgasmAllowed: (v) => orgasmusValueAllowed(v, user.orgasmusArtenConfig),
     openingCodes: validOeffnenCodes(user.oeffnenGruendeConfig),
   });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });

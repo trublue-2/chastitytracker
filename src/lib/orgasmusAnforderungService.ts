@@ -3,7 +3,7 @@ import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
 import { ORGASMUS_ANFORDERUNG_ARTEN } from "@/lib/constants";
-import { validOrgasmusCodes } from "@/lib/reasonsService";
+import { orgasmusValueAllowed } from "@/lib/reasonsService";
 import { notifyUser } from "@/lib/notify";
 import type { ServiceResult } from "@/lib/serviceResult";
 
@@ -50,7 +50,7 @@ export async function createOrgasmusAnforderung(
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { ok: false, status: 404, error: "User nicht gefunden" };
   // vorgegebeneArt gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
-  if (vorgegebeneArt && !validOrgasmusCodes(user.orgasmusArtenConfig).has(vorgegebeneArt)) {
+  if (vorgegebeneArt && !orgasmusValueAllowed(vorgegebeneArt, user.orgasmusArtenConfig)) {
     return { ok: false, status: 400, error: "Ungültige Orgasmus-Art" };
   }
 

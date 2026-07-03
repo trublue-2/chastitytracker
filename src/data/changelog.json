@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.11",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Orgasmus-Unterarten sind jetzt Teil der anpassbaren Liste: Ein Admin trägt Einträge als «Hauptart – Unterart» ein (Trennzeichen /, |, - werden automatisch umgewandelt); der Sub wählt dann über zwei abhängige Auswahlfelder (Hauptart → Unterart, Unterart optional). Standard bleiben die bisherigen Unterarten — ohne Anpassung ändert sich nichts."
+      }
+    ]
+  },
+  {
     "version": "4.43.10",
     "date": "2026-07-03",
     "changes": [

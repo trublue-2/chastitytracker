@@ -4,24 +4,28 @@ import {
   generateReasonCode,
   resolveReasonLabel,
   resolveReasonList,
-  validOrgasmusCodes,
   validOeffnenCodes,
+  orgasmusValueAllowed,
+  resolveOrgasmusOptions,
+  DEFAULT_ORGASM_ARTEN,
   PROTECTED_OPENING_CODE,
   type ReasonEntry,
 } from "./reasonsService";
-import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE } from "./constants";
+import { OEFFNEN_GRUENDE } from "./constants";
+
+const ORGASM_DEFAULT = DEFAULT_ORGASM_ARTEN.map((code) => ({ code }));
 
 const t = (k: string) => `T:${k}`;
 
 describe("parseReasonConfig — defaults & backward-compat", () => {
-  it("null → built-in orgasm list (order + codes unchanged)", () => {
-    expect(parseReasonConfig(null, "orgasm")).toEqual(ORGASMUS_ARTEN.map((code) => ({ code })));
+  it("null → built-in orgasm list (combos preserving the sub-types)", () => {
+    expect(parseReasonConfig(null, "orgasm")).toEqual(ORGASM_DEFAULT);
   });
   it("null → built-in opening list (REINIGUNG first)", () => {
     expect(parseReasonConfig(null, "opening")).toEqual(OEFFNEN_GRUENDE.map((code) => ({ code })));
   });
   it("garbage string → defaults", () => {
-    expect(parseReasonConfig("not json", "orgasm")).toEqual(ORGASMUS_ARTEN.map((code) => ({ code })));
+    expect(parseReasonConfig("not json", "orgasm")).toEqual(ORGASM_DEFAULT);
     expect(parseReasonConfig("{}", "opening")).toEqual(OEFFNEN_GRUENDE.map((code) => ({ code })));
   });
   it("accepts a JSON string (stored form)", () => {
@@ -106,19 +110,49 @@ describe("resolveReasonLabel — fallback chain", () => {
   });
 });
 
-describe("resolveReasonList + valid*Codes", () => {
-  it("resolveReasonList maps every entry to a display label", () => {
-    expect(resolveReasonList(parseReasonConfig(null, "orgasm"), "orgasm", t)).toEqual([
-      { code: "Orgasmus", label: "T:artOrgasmus" },
-      { code: "ruinierter Orgasmus", label: "T:artRuiniert" },
-      { code: "feuchter Traum", label: "T:artTraum" },
+describe("resolveReasonList (opening) + validOeffnenCodes", () => {
+  it("resolveReasonList maps every opening entry to a display label", () => {
+    expect(resolveReasonList(parseReasonConfig(null, "opening"), "opening", t)).toEqual([
+      { code: "REINIGUNG", label: "T:grundReinigung" },
+      { code: "KEYHOLDER", label: "T:grundKeyholder" },
+      { code: "NOTFALL", label: "T:grundNotfall" },
+      { code: "ANDERES", label: "T:grundAnderes" },
     ]);
   });
-  it("valid*Codes returns built-ins for null config", () => {
-    expect(validOrgasmusCodes(null)).toEqual(new Set(ORGASMUS_ARTEN));
+  it("validOeffnenCodes returns built-ins for null config", () => {
     expect(validOeffnenCodes(null)).toEqual(new Set(OEFFNEN_GRUENDE));
   });
   it("valid opening codes always include REINIGUNG", () => {
     expect(validOeffnenCodes([{ code: "KEYHOLDER" }]).has("REINIGUNG")).toBe(true);
+  });
+});
+
+describe("orgasm sub-types (Kaskade)", () => {
+  it("normalizes separators / | and spaced - to ' – ' in orgasm labels", () => {
+    const out = parseReasonConfig([
+      { code: "c_1111111111", label: "Foo / Bar" },
+      { code: "c_2222222222", label: "Baz | Qux" },
+      { code: "c_3333333333", label: "Ga - Zonk" },
+    ], "orgasm");
+    expect(out.map((e) => e.label)).toEqual(["Foo – Bar", "Baz – Qux", "Ga – Zonk"]);
+  });
+  it("does NOT split an un-spaced hyphen inside a word", () => {
+    expect(parseReasonConfig([{ code: "c_4444444444", label: "Anal-Sex" }], "orgasm")[0].label).toBe("Anal-Sex");
+  });
+  it("orgasmusValueAllowed: full combo codes AND bare main tokens (keine Angabe), else false", () => {
+    expect(orgasmusValueAllowed("Orgasmus – Masturbation", null)).toBe(true); // full combo
+    expect(orgasmusValueAllowed("Orgasmus", null)).toBe(true);                // main only (keine Angabe)
+    expect(orgasmusValueAllowed("ruinierter Orgasmus", null)).toBe(true);      // bare built-in
+    expect(orgasmusValueAllowed("nonsense", null)).toBe(false);
+  });
+  it("resolveOrgasmusOptions splits main/sub and translates the built-in main", () => {
+    const opts = resolveOrgasmusOptions(parseReasonConfig(null, "orgasm"), t);
+    expect(opts[0]).toEqual({ code: "Orgasmus – Masturbation", mainToken: "Orgasmus", mainLabel: "T:artOrgasmus", subLabel: "Masturbation" });
+    const bare = opts.find((o) => o.code === "ruinierter Orgasmus")!;
+    expect(bare).toEqual({ code: "ruinierter Orgasmus", mainToken: "ruinierter Orgasmus", mainLabel: "T:artRuiniert", subLabel: "" });
+  });
+  it("resolveOrgasmusOptions: a custom label override is shown raw (no translation)", () => {
+    const opts = resolveOrgasmusOptions([{ code: "c_5555555555", label: "Gipfel – Allein" }], t);
+    expect(opts[0]).toEqual({ code: "c_5555555555", mainToken: "Gipfel", mainLabel: "Gipfel", subLabel: "Allein" });
   });
 });
