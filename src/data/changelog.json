@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.44.0",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Orgasmus-Unterarten, die bei Instanzen mit einer bereits vor der Unterarten-Version gespeicherten Auswahlliste (nur Hauptarten) verschwunden waren, werden beim Start automatisch als volle «Hauptart – Unterart»-Einträge wiederhergestellt (idempotente Migration). Zusätzlich zeigt der Admin-Editor die Standard-Unterart-Zeilen jetzt sichtbar statt leer, damit sie nicht versehentlich zu einer Hauptart zusammenfallen."
+      }
+    ]
+  },
+  {
     "version": "4.43.11",
     "date": "2026-07-03",
     "changes": [

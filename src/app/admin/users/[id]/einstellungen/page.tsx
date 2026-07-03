@@ -5,7 +5,7 @@ import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
-import { parseReasonConfig } from "@/lib/reasonsService";
+import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
 import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS } from "@/lib/constants";
 import AccountSection from "./AccountSection";
@@ -54,8 +54,17 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   if (!user) redirect("/admin");
   const tz = user.timezone;
-  // Built-in-Codes → i18n-Label (Placeholder im Editor, wenn kein Override gesetzt ist).
-  const orgasmBuiltinLabels = Object.fromEntries(ORGASMUS_ARTEN.map((c) => [c, tOrgasm(ORGASMUS_ART_I18N_KEYS[c])]));
+  // Built-in-Codes → i18n-Label (Placeholder im Editor, wenn kein Override gesetzt ist). Deckt auch
+  // die Default-Kombi-Codes (`Orgasmus – Masturbation` …) ab, damit deren Editor-Zeilen nicht leer
+  // erscheinen (leere Zeilen verleiten dazu, versehentlich eine Unterart zu einer Hauptart zu machen).
+  const orgasmBuiltinLabels: Record<string, string> = {
+    ...Object.fromEntries(ORGASMUS_ARTEN.map((c) => [c, tOrgasm(ORGASMUS_ART_I18N_KEYS[c])])),
+    ...Object.fromEntries(
+      resolveOrgasmusOptions(parseReasonConfig(null, "orgasm"), tOrgasm)
+        .filter((o) => o.subLabel)
+        .map((o) => [o.code, `${o.mainLabel}${ART_SEP}${o.subLabel}`]),
+    ),
+  };
   const openingBuiltinLabels = Object.fromEntries(OEFFNEN_GRUENDE.map((c) => [c, tOpen(GRUND_I18N_KEYS[c])]));
 
   return (

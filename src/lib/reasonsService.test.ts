@@ -7,6 +7,7 @@ import {
   validOeffnenCodes,
   orgasmusValueAllowed,
   resolveOrgasmusOptions,
+  backfillOrgasmusArtenConfig,
   DEFAULT_ORGASM_ARTEN,
   PROTECTED_OPENING_CODE,
   type ReasonEntry,
@@ -154,5 +155,44 @@ describe("orgasm sub-types (Kaskade)", () => {
   it("resolveOrgasmusOptions: a custom label override is shown raw (no translation)", () => {
     const opts = resolveOrgasmusOptions([{ code: "c_5555555555", label: "Gipfel – Allein" }], t);
     expect(opts[0]).toEqual({ code: "c_5555555555", mainToken: "Gipfel", mainLabel: "Gipfel", subLabel: "Allein" });
+  });
+});
+
+describe("backfillOrgasmusArtenConfig", () => {
+  it("expands a bare built-in main WITH sub-types into its default combos", () => {
+    const out = backfillOrgasmusArtenConfig('[{"code":"Orgasmus"},{"code":"ruinierter Orgasmus"},{"code":"feuchter Traum"}]');
+    expect(out).not.toBeNull();
+    expect(JSON.parse(out!)).toEqual([
+      { code: "Orgasmus – Masturbation" },
+      { code: "Orgasmus – Geschlechtsverkehr" },
+      { code: "Orgasmus – durch andere Person" },
+      { code: "Orgasmus – durch Technik" },
+      { code: "ruinierter Orgasmus" },
+      { code: "feuchter Traum" },
+    ]);
+  });
+
+  it("is a no-op (null) for null / already-combo / default configs", () => {
+    expect(backfillOrgasmusArtenConfig(null)).toBeNull();
+    expect(backfillOrgasmusArtenConfig(JSON.stringify(DEFAULT_ORGASM_ARTEN.map((code) => ({ code }))))).toBeNull();
+  });
+
+  it("leaves a bare main with a custom label untouched (deliberate customization)", () => {
+    expect(backfillOrgasmusArtenConfig('[{"code":"Orgasmus","label":"Höhepunkt"}]')).toBeNull();
+  });
+
+  it("does not duplicate combos already present alongside the bare main", () => {
+    const out = backfillOrgasmusArtenConfig('[{"code":"Orgasmus – Masturbation"},{"code":"Orgasmus"}]');
+    expect(JSON.parse(out!)).toEqual([
+      { code: "Orgasmus – Masturbation" },
+      { code: "Orgasmus – Geschlechtsverkehr" },
+      { code: "Orgasmus – durch andere Person" },
+      { code: "Orgasmus – durch Technik" },
+    ]);
+  });
+
+  it("returns null for garbage input (nothing to migrate)", () => {
+    expect(backfillOrgasmusArtenConfig("not json")).toBeNull();
+    expect(backfillOrgasmusArtenConfig('{"not":"array"}')).toBeNull();
   });
 });

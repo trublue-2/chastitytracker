@@ -130,6 +130,53 @@ export function parseReasonConfig(raw: unknown, kind: ReasonKind): ReasonEntry[]
   return out.length > 0 ? out : defaultConfig(kind);
 }
 
+/** Built-in-Hauptart → ihre Standard-Unterart-Kombis (nur Hauptarten, die überhaupt Unterarten haben). */
+const ORGASM_MAIN_WITH_SUBS: Record<string, string[]> = (() => {
+  const m: Record<string, string[]> = {};
+  for (const code of DEFAULT_ORGASM_ARTEN) {
+    const sepAt = code.indexOf(ART_SEP);
+    if (sepAt === -1) continue;
+    (m[code.slice(0, sepAt)] ??= []).push(code);
+  }
+  return m;
+})();
+
+/**
+ * Einmalige DB-Migration für gespeicherte `orgasmusArtenConfig`: expandiert eine blanke
+ * Built-in-Hauptart MIT Standard-Unterarten (z.B. `Orgasmus`) und OHNE Custom-Label in ihre
+ * Kombis (`Orgasmus – …`) — damit die Unterarten wieder als volle Codes in der DB stehen und im
+ * Formular als abhängiges Dropdown erscheinen. Nötig für Configs, die vor der Unterarten-Version
+ * gespeichert wurden (nur Hauptarten). Idempotent: bereits expandierte / rein custom / `null`
+ * Configs bleiben unverändert. Rückgabe: neuer JSON-String bei Änderung, sonst `null` (nichts zu tun).
+ */
+export function backfillOrgasmusArtenConfig(raw: unknown): string | null {
+  if (raw == null) return null;
+  let arr: unknown = raw;
+  if (typeof raw === "string") { try { arr = JSON.parse(raw); } catch { return null; } }
+  if (!Array.isArray(arr)) return null;
+
+  const seen = new Set<string>();
+  const out: ReasonEntry[] = [];
+  let changed = false;
+  for (const item of arr) {
+    const code = (item as { code?: unknown })?.code;
+    const rawLabel = (item as { label?: unknown })?.label;
+    const label = typeof rawLabel === "string" ? rawLabel.trim() : "";
+    if (typeof code === "string" && !label && ORGASM_MAIN_WITH_SUBS[code]) {
+      for (const combo of ORGASM_MAIN_WITH_SUBS[code]) {
+        if (!seen.has(combo)) { seen.add(combo); out.push({ code: combo }); }
+      }
+      changed = true;
+      continue;
+    }
+    if (typeof code === "string" && !seen.has(code)) {
+      seen.add(code);
+      out.push(label ? { code, label } : { code });
+    }
+  }
+  return changed ? JSON.stringify(out) : null;
+}
+
 export function effectiveOrgasmusArten(cfgRaw: unknown): ReasonEntry[] {
   return parseReasonConfig(cfgRaw, "orgasm");
 }
