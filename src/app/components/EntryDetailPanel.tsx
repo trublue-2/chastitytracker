@@ -12,6 +12,10 @@ interface Props {
   imageExifTime?: Date | string | null;
   oeffnenGrund?: string | null;
   orgasmusArt?: string | null;
+  /** Pre-resolved display labels via the data-owner's reason config (from a server parent). When
+   *  omitted, falls back to built-in i18n (oeffnenGrund) / the raw stored value (orgasmusArt). */
+  openingLabel?: string | null;
+  orgasmusLabel?: string | null;
   kontrollCode?: string | null;
   verifikationStatus?: string | null;
   note?: string | null;
@@ -19,7 +23,7 @@ interface Props {
 
 export default function EntryDetailPanel({
   startTime, locale, tz = APP_TZ, imageExifTime, oeffnenGrund, orgasmusArt,
-  kontrollCode, verifikationStatus, note,
+  openingLabel, orgasmusLabel, kontrollCode, verifikationStatus, note,
 }: Props) {
   const tc = useTranslations("common");
   const tOpen = useTranslations("openForm");
@@ -46,9 +50,10 @@ export default function EntryDetailPanel({
         <div>
           <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("reason")}</p>
           <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
-            {GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS]
-              ? tOpen(GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS])
-              : oeffnenGrund}
+            {openingLabel
+              ?? (GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS]
+                ? tOpen(GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS])
+                : oeffnenGrund)}
           </span>
         </div>
       )}
@@ -56,7 +61,7 @@ export default function EntryDetailPanel({
       {orgasmusArt && (
         <div>
           <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("type")}</p>
-          <span className="text-xs text-[var(--color-orgasm)] font-medium">{orgasmusArt}</span>
+          <span className="text-xs text-[var(--color-orgasm)] font-medium">{orgasmusLabel ?? orgasmusArt}</span>
         </div>
       )}
 

@@ -6,6 +6,7 @@ import {
   OEFFNEN_GRUENDE,
   ORGASMUS_ART_I18N_KEYS,
   GRUND_I18N_KEYS,
+  parseOrgasmusArtBase,
 } from "@/lib/constants";
 
 /**
@@ -129,6 +130,21 @@ export function resolveReasonLabel(
   return key ? t(key) : code;
 }
 
+/** Anzeige-Label eines gespeicherten `orgasmusArt` (Basis-Code plus optionalem " – Detail"-Suffix):
+ *  löst die Basis über die Config auf und hängt das Detail unverändert wieder an. `null`/leer → null. */
+export function resolveOrgasmusArtDisplay(
+  orgasmusArt: string | null | undefined,
+  cfg: ReasonEntry[],
+  t: (key: string) => string,
+): string | null {
+  if (!orgasmusArt) return null;
+  const base = parseOrgasmusArtBase(orgasmusArt);
+  if (!base) return orgasmusArt;
+  const baseLabel = resolveReasonLabel(base, cfg, "orgasm", t);
+  const detail = orgasmusArt.slice(base.length);
+  return baseLabel + detail;
+}
+
 /** Löst eine ganze Config zu anzeigefertigen `{code,label}` auf (Select-Optionen + Zeilen). */
 export function resolveReasonList(
   cfg: ReasonEntry[],
@@ -139,10 +155,12 @@ export function resolveReasonList(
 }
 
 /** Speichert eine Reason-Config (validiert/normalisiert via parseReasonConfig). Geteilt von der
- *  PATCH-Route. Für Öffnungsgründe ist REINIGUNG nach der Normalisierung garantiert enthalten. */
-export async function setReasonConfig(userId: string, kind: ReasonKind, raw: unknown): Promise<ServiceResult<null>> {
+ *  PATCH-Route. Für Öffnungsgründe ist REINIGUNG nach der Normalisierung garantiert enthalten. Gibt die
+ *  normalisierte Liste zurück (u.a. server-generierte Custom-Codes) — der Editor re-seedet damit, sonst
+ *  bekämen neu angelegte Zeilen bei jedem weiteren Speichern erneut einen Code (Duplikate). */
+export async function setReasonConfig(userId: string, kind: ReasonKind, raw: unknown): Promise<ServiceResult<ReasonEntry[]>> {
   const normalized = parseReasonConfig(raw, kind);
   const field = kind === "orgasm" ? "orgasmusArtenConfig" : "oeffnenGruendeConfig";
   await prisma.user.update({ where: { id: userId }, data: { [field]: JSON.stringify(normalized) } });
-  return { ok: true, data: null };
+  return { ok: true, data: normalized };
 }

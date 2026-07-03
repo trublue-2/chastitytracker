@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
+import { isValidImageUrl, parseOrgasmusArtBase } from "@/lib/constants";
+import { validOrgasmusCodes, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
@@ -28,13 +29,23 @@ export async function PATCH(
   if (!isValidImageUrl(imageUrl)) {
     return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
   }
-  if (oeffnenGrund !== undefined && oeffnenGrund !== null && !OEFFNEN_GRUENDE.includes(oeffnenGrund)) {
-    return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
-  }
-  if (orgasmusArt !== undefined && orgasmusArt !== null) {
-    const base = parseOrgasmusArtBase(orgasmusArt as string);
-    if (!base || !(ORGASMUS_ARTEN as readonly string[]).includes(base)) {
-      return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
+  // Reason-Codes gegen die Listen DES ENTRY-EIGENTÜMERS validieren (Admin darf einen fremden Eintrag
+  // bearbeiten → dessen Config, nicht die des Admins). null-Config → Built-ins. Config nur laden, wenn
+  // tatsächlich ein Grund/eine Art geändert wird (reine Zeit-Edits sparen die Query).
+  const editsReason = (oeffnenGrund !== undefined && oeffnenGrund !== null) || (orgasmusArt !== undefined && orgasmusArt !== null);
+  if (editsReason) {
+    const reasonOwner = await prisma.user.findUnique({
+      where: { id: existing.userId },
+      select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true },
+    });
+    if (oeffnenGrund !== undefined && oeffnenGrund !== null && !validOeffnenCodes(reasonOwner?.oeffnenGruendeConfig).has(oeffnenGrund)) {
+      return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
+    }
+    if (orgasmusArt !== undefined && orgasmusArt !== null) {
+      const base = parseOrgasmusArtBase(orgasmusArt as string);
+      if (!base || !validOrgasmusCodes(reasonOwner?.orgasmusArtenConfig).has(base)) {
+        return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
+      }
     }
   }
 

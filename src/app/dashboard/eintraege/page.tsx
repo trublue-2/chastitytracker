@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, APP_TZ } from "@/lib/utils";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import Card from "@/app/components/Card";
@@ -24,14 +25,16 @@ export default async function EintraegePage({
   const { page: pageStr } = await searchParams;
   const page = Math.max(0, parseInt(pageStr ?? "0", 10) || 0);
 
-  const [locale, t, tCommon] = await Promise.all([
+  const [locale, t, tCommon, tOrgasm, tOpen] = await Promise.all([
     getLocale(),
     getTranslations("settings"),
     getTranslations("common"),
+    getTranslations("orgasmForm"),
+    getTranslations("openForm"),
   ]);
   const dl = toDateLocale(locale);
 
-  const [total, entries] = await Promise.all([
+  const [total, entries, cfgUser] = await Promise.all([
     prisma.entry.count({ where: { userId } }),
     prisma.entry.findMany({
       where: { userId },
@@ -42,8 +45,11 @@ export default async function EintraegePage({
         device: { select: { category: { select: { name: true, color: true, icon: true, isBuiltIn: true } } } },
       },
     }),
+    prisma.user.findUnique({ where: { id: userId }, select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
   ]);
 
+  const orgasmCfg = effectiveOrgasmusArten(cfgUser?.orgasmusArtenConfig);
+  const openCfg = effectiveOeffnenGruende(cfgUser?.oeffnenGruendeConfig);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -72,6 +78,8 @@ export default async function EintraegePage({
                 }}
                 locale={dl}
                 tz={tz}
+                orgasmusLabel={resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm)}
+                openingLabel={e.oeffnenGrund ? resolveReasonLabel(e.oeffnenGrund, openCfg, "opening", tOpen) : null}
               />
             ))}
           </div>

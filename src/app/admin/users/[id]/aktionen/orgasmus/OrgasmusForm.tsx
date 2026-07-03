@@ -6,8 +6,9 @@ import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
 import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
+import type { ResolvedReason } from "@/lib/reasonsService";
 
-export default function OrgasmusForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
+export default function OrgasmusForm({ userId, artOptions, tz, nowDefault }: { userId: string; artOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tOrgasm = useTranslations("orgasmForm");
   const tc = useTranslations("common");
@@ -35,6 +36,7 @@ export default function OrgasmusForm({ userId, tz, nowDefault }: { userId: strin
       title={tOrgasm("title")}
     >
       <OrgasmusFormCore
+        artOptions={artOptions}
         tz={tz}
         nowDefault={nowDefault}
         submitFn={submitFn}

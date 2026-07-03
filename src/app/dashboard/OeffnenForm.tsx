@@ -6,9 +6,11 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "@/app/entries/types";
+import type { ResolvedReason } from "@/lib/reasonsService";
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
+  grundOptions: ResolvedReason[];
   maxTime?: string;
   tz: string;
   nowDefault: string;
@@ -17,7 +19,7 @@ interface Props {
   redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, maxTime, tz, nowDefault, sperrzeit, reinigung, redirectTo }: Props) {
+export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, redirectTo }: Props) {
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -50,6 +52,7 @@ export default function OeffnenForm({ initial, maxTime, tz, nowDefault, sperrzei
   return (
     <OeffnenFormCore
       initial={initial}
+      grundOptions={grundOptions}
       maxTime={maxTime}
       tz={tz}
       nowDefault={nowDefault}

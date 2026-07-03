@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.43.10",
+    "date": "2026-07-03",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Admins können jetzt pro Nutzer die Auswahllisten für Orgasmus-Arten und Öffnungsgründe anpassen (Einträge hinzufügen, umbenennen, entfernen, sortieren) — unter Benutzer → Einstellungen → Auswahllisten. «Reinigung» bleibt fest und kann nur umbenannt werden. Solange ein Admin nichts ändert, bleiben die bisherigen Standard-Einträge unverändert."
+      }
+    ]
+  },
+  {
     "version": "4.43.9",
     "date": "2026-07-03",
     "changes": [

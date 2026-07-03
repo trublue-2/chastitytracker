@@ -605,7 +605,9 @@ function registerTools(server: McpServer) {
           beginsAt: z.string().optional().describe("Window start (ISO 8601). Default: now."),
           endsAt: z.string().optional().describe("Window end (ISO 8601). Use this or windowHours."),
           windowHours: z.number().positive().optional().describe("Window length in hours from beginsAt, when endsAt is omitted."),
-          requiredType: z.enum(ORGASMUS_ARTEN).optional().describe("Require a specific orgasm type. Omit = any orgasm counts."),
+          // Kein statisches Enum: die gültigen Arten sind pro Sub anpassbar (reasonsService). Der
+          // Write-Service validiert `vorgegebeneArt` gegen die effektive Liste des Ziel-Subs.
+          requiredType: z.string().optional().describe(`Require a specific orgasm type (must be one of the sub's configured types; built-in defaults: ${ORGASMUS_ARTEN.join(", ")}). Omit = any orgasm counts.`),
           openAllowed: z.boolean().optional().describe("Allow opening the device to perform the orgasm during the window (no lock break / penalty)."),
           message: z.string().optional().describe("Message shown to the user."),
         },

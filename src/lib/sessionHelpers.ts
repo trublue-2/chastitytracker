@@ -31,11 +31,14 @@ type ActivePair = {
 
 type OrgasmusEntry = { id: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt: string | null };
 
-/** Builds the sorted SessionEvent array for the active session timeline. */
+/** Builds the sorted SessionEvent array for the active session timeline.
+ *  `resolveOrgasmus` maps a stored orgasmusArt code (+ optional detail suffix) to its owner-config
+ *  display label; omitted → the raw stored value is shown (built-in-compatible). */
 export function buildSessionEvents(
   activePair: ActivePair,
   orgasmusEntries: OrgasmusEntry[],
-  dl: string
+  dl: string,
+  resolveOrgasmus?: (art: string | null) => string | null,
 ): SessionEvent[] {
   return [
     {
@@ -73,7 +76,7 @@ export function buildSessionEvents(
         imageExifTime: null,
         note: e.note,
         entryId: e.id,
-        orgasmusArt: e.orgasmusArt,
+        orgasmusArt: resolveOrgasmus ? resolveOrgasmus(e.orgasmusArt) : e.orgasmusArt,
       })),
     ...activePair.interruptions.map(intr => ({
       type: "reinigung" as const,

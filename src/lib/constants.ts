@@ -197,6 +197,9 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
 export function validateEntryPayload(
   body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string },
   opts: { requirePhotoForPruefung?: boolean; allowFuture?: boolean } = {},
+  // Per-User gültige Reason-Codes (aus reasonsService). Fehlen sie, gelten die eingebauten Konstanten
+  // (Default-Verhalten für null-Config / Aufrufer ohne User-Kontext) — unverändert.
+  reasonCtx?: { orgasmCodes?: Set<string>; openingCodes?: Set<string> },
 ): { error: string; status: number } | null {
   const { requirePhotoForPruefung = true, allowFuture = false } = opts;
   const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note } = body;
@@ -211,7 +214,10 @@ export function validateEntryPayload(
     return { error: "Device-Kategorien sind nicht aktiviert", status: 400 };
   }
   if (type === "OEFFNEN") {
-    if (!oeffnenGrund || !OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number])) {
+    const openingOk = reasonCtx?.openingCodes
+      ? !!oeffnenGrund && reasonCtx.openingCodes.has(oeffnenGrund)
+      : !!oeffnenGrund && OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number]);
+    if (!openingOk) {
       return { error: "Grund der Öffnung ist erforderlich", status: 400 };
     }
     if (!note?.trim()) return { error: "Kommentar ist erforderlich", status: 400 };
@@ -220,8 +226,11 @@ export function validateEntryPayload(
     return { error: "Foto ist bei Kontrolle zwingend", status: 400 };
   }
   const orgasmusArtBase = parseOrgasmusArtBase(orgasmusArt);
-  if (type === "ORGASMUS" && !(ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "")) {
-    return { error: "Ungültige Art", status: 400 };
+  if (type === "ORGASMUS") {
+    const orgasmOk = reasonCtx?.orgasmCodes
+      ? reasonCtx.orgasmCodes.has(orgasmusArtBase ?? "")
+      : (ORGASMUS_ARTEN as readonly string[]).includes(orgasmusArtBase ?? "");
+    if (!orgasmOk) return { error: "Ungültige Art", status: 400 };
   }
   return null;
 }

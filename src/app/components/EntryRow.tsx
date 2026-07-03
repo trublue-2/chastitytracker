@@ -43,11 +43,15 @@ interface Props {
   locale: string;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
+  /** Pre-resolved display labels via the data-owner's reason config (from a server parent). When
+   *  omitted, the raw stored value (orgasmusArt) / built-in i18n (oeffnenGrund) is shown. */
+  orgasmusLabel?: string | null;
+  openingLabel?: string | null;
   /** Optional action slot (e.g. EntryActions menu) */
   actions?: ReactNode;
 }
 
-export default function EntryRow({ entry: e, locale, tz = APP_TZ, actions }: Props) {
+export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, actions }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const tStats = useTranslations("stats");
 
@@ -97,7 +101,7 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, actions }: Pro
             <Camera size={12} className="text-foreground-faint flex-shrink-0" />
           )}
           {e.orgasmusArt && (
-            <span className="text-xs text-[var(--color-orgasm)] font-medium">{e.orgasmusArt}</span>
+            <span className="text-xs text-[var(--color-orgasm)] font-medium">{orgasmusLabel ?? e.orgasmusArt}</span>
           )}
           {e.type === "VERSCHLUSS" && e.kontrollCode && (
             <span className="text-xs text-[var(--color-lock)] font-mono tabular-nums">#{e.kontrollCode}</span>
@@ -123,6 +127,8 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, actions }: Pro
               imageExifTime={e.imageExifTime}
               oeffnenGrund={e.oeffnenGrund}
               orgasmusArt={e.orgasmusArt}
+              openingLabel={openingLabel}
+              orgasmusLabel={orgasmusLabel}
               kontrollCode={e.kontrollCode}
               verifikationStatus={e.verifikationStatus}
               note={e.note}

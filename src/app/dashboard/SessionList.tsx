@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, APP_TZ, isTimeCorrected, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
 interface KontrolleItem {
@@ -45,12 +46,22 @@ interface Props {
   userHasDevices?: boolean;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
+  /** Data-owner's per-user reason configs (JSON strings, null = built-in defaults). Govern the
+   *  display labels of orgasmusArt / oeffnenGrund codes. Omitted → built-in i18n labels. */
+  orgasmusArtenConfig?: string | null;
+  oeffnenGruendeConfig?: string | null;
 }
 
-export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ }: Props) {
+export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   const ta = await getTranslations("admin");
+  const tOrgasm = await getTranslations("orgasmForm");
+  const tOpen = await getTranslations("openForm");
+  const orgasmCfg = effectiveOrgasmusArten(orgasmusArtenConfig);
+  const openCfg = effectiveOeffnenGruende(oeffnenGruendeConfig);
+  const orgasmLabel = (art: string | null) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm);
+  const openLabel = (grund: string | null) => grund ? resolveReasonLabel(grund, openCfg, "opening", tOpen) : null;
 
   const sessions: SessionListData[] = pairs.map((pair) => {
     const { verschluss, oeffnen, active, kontrollen } = pair;
@@ -153,7 +164,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         kontrolleKommentar: null,
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
-        orgasmusArt: e.orgasmusArt,
+        orgasmusArt: orgasmLabel(e.orgasmusArt),
         timeCorrected: false,
       })),
       ...(pair.interruptions ?? []).map((intr) => ({
@@ -195,7 +206,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         ? {
             dateStr: formatDate(oeffnen.startTime, dl, tz),
             timeStr: formatTime(oeffnen.startTime, dl, tz),
-            grund: oeffnen.oeffnenGrund,
+            grundLabel: openLabel(oeffnen.oeffnenGrund),
             note: oeffnen.note,
           }
         : null,

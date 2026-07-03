@@ -5,6 +5,9 @@ import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
+import { parseReasonConfig } from "@/lib/reasonsService";
+import ReasonsEditor from "@/app/admin/ReasonsEditor";
+import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS } from "@/lib/constants";
 import AccountSection from "./AccountSection";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
@@ -32,7 +35,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
 
-  const [user, vorgaben, categories, keyholders, t, tc, dl] = await Promise.all([
+  const [user, vorgaben, categories, keyholders, t, tc, dl, tOrgasm, tOpen] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id }, orderBy: { gueltigAb: "desc" } }),
     // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
@@ -45,10 +48,15 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     getTranslations("admin"),
     getTranslations("common"),
     getLocale().then(toDateLocale),
+    getTranslations("orgasmForm"),
+    getTranslations("openForm"),
   ]);
 
   if (!user) redirect("/admin");
   const tz = user.timezone;
+  // Built-in-Codes → i18n-Label (Placeholder im Editor, wenn kein Override gesetzt ist).
+  const orgasmBuiltinLabels = Object.fromEntries(ORGASMUS_ARTEN.map((c) => [c, tOrgasm(ORGASMUS_ART_I18N_KEYS[c])]));
+  const openingBuiltinLabels = Object.fromEntries(OEFFNEN_GRUENDE.map((c) => [c, tOpen(GRUND_I18N_KEYS[c])]));
 
   return (
     <div className="flex flex-col gap-6">
@@ -98,6 +106,35 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             initialMaxProTag={user.reinigungMaxProTag}
             initialFenster={parseReinigungsFenster(user.reinigungsFenster)}
           />
+        </div>
+      </Card>
+
+      {/* Anpassbare Auswahllisten: Orgasmus-Arten + Öffnungsgründe */}
+      <Card padding="none" className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionReasons")}</p>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold text-foreground-muted">{t("reasonOrgasmTitle")}</p>
+            <ReasonsEditor
+              userId={user.id}
+              configKey="orgasmusArtenConfig"
+              initial={parseReasonConfig(user.orgasmusArtenConfig, "orgasm")}
+              builtinLabels={orgasmBuiltinLabels}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold text-foreground-muted">{t("reasonOpeningTitle")}</p>
+            <p className="text-xs text-foreground-faint">{t("reasonReinigungNote")}</p>
+            <ReasonsEditor
+              userId={user.id}
+              configKey="oeffnenGruendeConfig"
+              initial={parseReasonConfig(user.oeffnenGruendeConfig, "opening")}
+              builtinLabels={openingBuiltinLabels}
+              protectedCode="REINIGUNG"
+            />
+          </div>
         </div>
       </Card>
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Droplets } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
-import { ORGASMUS_ARTEN, orgasmusArtLabel } from "@/lib/constants";
+import type { ResolvedReason } from "@/lib/reasonsService";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -19,8 +19,8 @@ const SUB_ARTEN: Record<string, string[]> = {
   "ruinierter Orgasmus": ["Verschlossen", "Anal"],
 };
 
-function parseArt(stored: string | null | undefined): { art: string; subArt: string } {
-  if (!stored) return { art: ORGASMUS_ARTEN[0], subArt: "" };
+function parseArt(stored: string | null | undefined, fallbackArt: string): { art: string; subArt: string } {
+  if (!stored) return { art: fallbackArt, subArt: "" };
   const sep = stored.indexOf(" – ");
   if (sep === -1) return { art: stored, subArt: "" };
   return { art: stored.slice(0, sep), subArt: stored.slice(sep + 3) };
@@ -28,6 +28,8 @@ function parseArt(stored: string | null | undefined): { art: string; subArt: str
 
 interface Props {
   initial?: { startTime: string; note?: string | null; orgasmusArt?: string | null };
+  /** Owner-scoped, display-ready orgasm types (built-in defaults when the owner has no custom config). */
+  artOptions: ResolvedReason[];
   maxTime?: string;
   tz: string;
   nowDefault: string;
@@ -40,11 +42,11 @@ interface Props {
 }
 
 export default function OrgasmusFormCore({
-  initial, maxTime, tz, nowDefault, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
+  initial, artOptions, maxTime, tz, nowDefault, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("orgasmForm");
   const tc = useTranslations("common");
-  const parsed = parseArt(initial?.orgasmusArt);
+  const parsed = parseArt(initial?.orgasmusArt, artOptions[0]?.code ?? "");
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [art, setArt] = useState(parsed.art);
@@ -71,7 +73,7 @@ export default function OrgasmusFormCore({
     });
   }
 
-  const artOptions = ORGASMUS_ARTEN.map((a) => ({ value: a, label: orgasmusArtLabel(a, t) }));
+  const artSelectOptions = artOptions.map((r) => ({ value: r.code, label: r.label }));
   const subArtOptions = (SUB_ARTEN[art] ?? []).map((s) => ({ value: s, label: SUB_ARTEN_LABELS[s] ?? s }));
   const defaultLabel = isEdit ? tc("update") : t("saveBtn");
 
@@ -91,7 +93,7 @@ export default function OrgasmusFormCore({
         value={art}
         onChange={(e) => { setArt(e.target.value); setSubArt(""); }}
         required
-        options={artOptions}
+        options={artSelectOptions}
       />
 
       {subArtOptions.length > 0 && (

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import Link from "next/link";
 import EntryRow from "@/app/components/EntryRow";
@@ -26,12 +27,16 @@ export default async function AdminUserEintraegePage({
   if (!user) redirect("/admin");
   const tz = user.timezone;
 
-  const [locale, t, tStats] = await Promise.all([
+  const [locale, t, tStats, tOrgasm, tOpen] = await Promise.all([
     getLocale(),
     getTranslations("common"),
     getTranslations("stats"),
+    getTranslations("orgasmForm"),
+    getTranslations("openForm"),
   ]);
   const dl = toDateLocale(locale);
+  const orgasmCfg = effectiveOrgasmusArten(user.orgasmusArtenConfig);
+  const openCfg = effectiveOeffnenGruende(user.oeffnenGruendeConfig);
 
   const [total, entries] = await Promise.all([
     prisma.entry.count({ where: { userId: id } }),
@@ -74,6 +79,8 @@ export default async function AdminUserEintraegePage({
                 }}
                 locale={dl}
                 tz={tz}
+                orgasmusLabel={resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm)}
+                openingLabel={e.oeffnenGrund ? resolveReasonLabel(e.oeffnenGrund, openCfg, "opening", tOpen) : null}
                 actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=admin&userId=${id}`} tz={tz} />}
               />
             ))}

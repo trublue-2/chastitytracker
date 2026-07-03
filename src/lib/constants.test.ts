@@ -96,4 +96,41 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
     );
     expect(result).toBeNull();
   });
+
+  describe("reasonCtx (per-user custom reason codes)", () => {
+    it("accepts a custom opening code when passed in reasonCtx", () => {
+      const result = validateEntryPayload(
+        { type: "OEFFNEN", startTime: FUTURE_SAFE_TIME, oeffnenGrund: "c_custom01", note: "x" },
+        { allowFuture: true },
+        { openingCodes: new Set(["REINIGUNG", "c_custom01"]) },
+      );
+      expect(result).toBeNull();
+    });
+    it("rejects an opening code not in the user's list", () => {
+      const result = validateEntryPayload(
+        { type: "OEFFNEN", startTime: FUTURE_SAFE_TIME, oeffnenGrund: "KEYHOLDER", note: "x" },
+        { allowFuture: true },
+        { openingCodes: new Set(["REINIGUNG"]) },
+      );
+      expect(result?.status).toBe(400);
+    });
+    it("accepts a custom orgasm code when passed in reasonCtx", () => {
+      const result = validateEntryPayload(
+        { type: "ORGASMUS", startTime: FUTURE_SAFE_TIME, orgasmusArt: "c_quickie" },
+        { allowFuture: true },
+        { orgasmCodes: new Set(["c_quickie"]) },
+      );
+      expect(result).toBeNull();
+    });
+    it("without reasonCtx, built-in constants still apply (backward-compat)", () => {
+      expect(validateEntryPayload(
+        { type: "OEFFNEN", startTime: FUTURE_SAFE_TIME, oeffnenGrund: "REINIGUNG", note: "x" },
+        { allowFuture: true },
+      )).toBeNull();
+      expect(validateEntryPayload(
+        { type: "OEFFNEN", startTime: FUTURE_SAFE_TIME, oeffnenGrund: "c_nope", note: "x" },
+        { allowFuture: true },
+      )?.status).toBe(400);
+    });
+  });
 });
