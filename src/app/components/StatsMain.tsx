@@ -264,21 +264,21 @@ function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<string>, no
       }
     }
 
-    const columns: (HeatmapDay | null)[][] = [];
+    const weeks: (HeatmapDay | null)[][] = [];
     for (let i = 0; i < cells.length; i += 7) {
-      const col = cells.slice(i, i + 7);
-      while (col.length < 7) col.push(null);
-      columns.push(col);
+      const week = cells.slice(i, i + 7);
+      while (week.length < 7) week.push(null);
+      weeks.push(week);
     }
 
-    const monthLabels: { col: number; label: string }[] = [];
+    const monthLabels: { week: number; label: string }[] = [];
     let lastMonth = -1;
-    columns.forEach((week, col) => {
+    weeks.forEach((week, row) => {
       const firstCell = week.find((c) => c != null);
       if (!firstCell) return;
       const m = Number(firstCell.key.split("-")[1]);
       if (m !== lastMonth) {
-        monthLabels.push({ col, label: new Date(Date.UTC(year, m, 1, 12)).toLocaleDateString(dl, { month: "short", timeZone: tz }) });
+        monthLabels.push({ week: row, label: new Date(Date.UTC(year, m, 1, 12)).toLocaleDateString(dl, { month: "short", timeZone: tz }) });
         lastMonth = m;
       }
     });
@@ -289,7 +289,7 @@ function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<string>, no
     const elapsedH = (elapsedEnd.getTime() - yearStart.getTime()) / 3_600_000;
     return {
       year,
-      columns,
+      weeks,
       monthLabels,
       totalHours: formatHours(totalHours, dl),
       percentLocked: elapsedH > 0 ? Math.round((totalHours / elapsedH) * 100) : 0,
