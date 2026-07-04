@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.46.2",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Jahresübersicht-Heatmap ist jetzt responsiv: auf schmalen Karten (Hochformat-Handy) vertikal (Januar oben → Dezember unten), auf breiten Karten (Desktop/Admin) das klassische horizontale GitHub-Raster — automatisch nach verfügbarer Breite."
+      }
+    ]
+  },
+  {
     "version": "4.46.1",
     "date": "2026-07-04",
     "changes": [

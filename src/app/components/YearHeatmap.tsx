@@ -16,9 +16,9 @@ export interface HeatmapDay {
 export interface YearHeatmapData {
   year: number;
   /** ISO weeks (Mon-start), earliest first; each week is 7 cells Mon..Sun (null = padding / future).
-   *  Rendered as rows (top = January, bottom = December) so the grid is only 7 cells wide → fits portrait. */
+   *  Rendered as rows on narrow cards (portrait phone) and as columns on wide cards (GitHub style). */
   weeks: (HeatmapDay | null)[][];
-  /** Month label anchored to the week (row index) where the month first appears. */
+  /** Month label anchored to the week index where the month first appears. */
   monthLabels: { week: number; label: string }[];
   /** Total worn hours in the year + share of the (elapsed) year spent locked. */
   totalHours: string;
@@ -27,6 +27,75 @@ export interface YearHeatmapData {
 
 // Shared 5-tier blue scale — identical thresholds to the month calendar (hours/24).
 const LEVEL_CLASS = ["bg-surface-raised", "bg-blue-100", "bg-blue-200", "bg-blue-400", "bg-blue-600"];
+
+/** A single coloured day square. `size`/`dot` classes let both layouts pick their own cell scale. */
+function DayCell({ day, size, dot }: { day: HeatmapDay; size: string; dot: string }) {
+  return (
+    <div title={day.title} className={`${size} rounded-[3px] ${LEVEL_CLASS[day.level]} relative`}>
+      {day.hasOrgasm && <span className={`absolute -top-px -right-px ${dot} bg-[var(--color-orgasm)] rounded-full`} />}
+    </div>
+  );
+}
+
+/** Portrait layout: 7 columns (Mon..Sun), weeks stacked as rows (Jan top → Dec bottom). Fits phone width. */
+function VerticalGrid({ data, weekdayLabels }: { data: YearHeatmapData; weekdayLabels: string[] }) {
+  return (
+    <div className="flex flex-col gap-[3px] w-fit">
+      <div className="flex gap-[3px]">
+        <div className="w-8 shrink-0" />
+        {weekdayLabels.map((wd, i) => (
+          <div key={i} className="w-[15px] text-[9px] text-foreground-faint text-center leading-none">{wd}</div>
+        ))}
+      </div>
+      {data.weeks.map((week, row) => {
+        const monthLabel = data.monthLabels.find((m) => m.week === row)?.label ?? "";
+        return (
+          <div key={row} className="flex gap-[3px] items-center">
+            <div className="w-8 shrink-0 text-[10px] text-foreground-faint text-right pr-1 leading-none">{monthLabel}</div>
+            {week.map((day, col) =>
+              day ? <DayCell key={day.key} day={day} size="w-[15px] h-[15px]" dot="w-[4px] h-[4px]" />
+                  : <div key={`${row}-${col}`} className="w-[15px] h-[15px]" />,
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Wide layout (GitHub style): weeks as columns (Jan left → Dec right), weekdays as rows. */
+function HorizontalGrid({ data, weekdayLabels }: { data: YearHeatmapData; weekdayLabels: string[] }) {
+  return (
+    <div className="inline-flex flex-col gap-1">
+      {/* Month labels aligned to their starting column */}
+      <div className="flex gap-[3px] pl-7 h-4">
+        {data.weeks.map((_, col) => (
+          <div key={col} className="w-[11px] text-[10px] text-foreground-faint leading-none whitespace-nowrap">
+            {data.monthLabels.find((m) => m.week === col)?.label ?? ""}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-[3px]">
+        {/* Weekday labels (Mon/Wed/Fri) */}
+        <div className="flex flex-col gap-[3px] pr-1 w-6 shrink-0">
+          {weekdayLabels.map((wd, row) => (
+            <div key={row} className="h-[11px] text-[9px] text-foreground-faint leading-[11px] text-right">
+              {row % 2 === 0 ? wd : ""}
+            </div>
+          ))}
+        </div>
+        {data.weeks.map((week, col) => (
+          <div key={col} className="flex flex-col gap-[3px]">
+            {week.map((day, row) =>
+              day ? <DayCell key={day.key} day={day} size="w-[11px] h-[11px]" dot="w-[3px] h-[3px]" />
+                  : <div key={`${col}-${row}`} className="w-[11px] h-[11px]" />,
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function YearHeatmap({
   years,
@@ -66,57 +135,25 @@ export default function YearHeatmap({
         )}
       </div>
 
-      <div className="px-6 py-4 flex flex-col gap-3">
+      {/* Container-Query: schmale Karte (Hochformat-Handy, kompakte Stats) → vertikal; breite Karte
+          (Desktop/Admin-Stats) → horizontales GitHub-Grid. Umschaltung nach KARTEN-Breite, nicht Viewport. */}
+      <div className="@container px-6 py-4 flex flex-col gap-3">
         <p className="text-xs text-foreground-muted">
           {t("yearTotal", { hours: data.totalHours })} · {t("percentLocked", { percent: data.percentLocked })}
         </p>
 
-        {/* Vertikales Grid: 7 Spalten (Mo..So), Wochen als Zeilen (Jan oben → Dez unten) — passt in
-            die Handybreite ohne horizontales Scrollen. Monats-Labels links, Wochentage oben. */}
-        <div className="flex flex-col gap-[3px] w-fit">
-          {/* Header: weekday labels (Mo..So), with a left gutter for the month labels */}
-          <div className="flex gap-[3px]">
-            <div className="w-8 shrink-0" />
-            {weekdayLabels.map((wd, i) => (
-              <div key={i} className="w-[15px] text-[9px] text-foreground-faint text-center leading-none">
-                {wd}
-              </div>
-            ))}
-          </div>
-
-          {/* One row per ISO week */}
-          {data.weeks.map((week, row) => {
-            const monthLabel = data.monthLabels.find((m) => m.week === row)?.label ?? "";
-            return (
-              <div key={row} className="flex gap-[3px] items-center">
-                <div className="w-8 shrink-0 text-[10px] text-foreground-faint text-right pr-1 leading-none">
-                  {monthLabel}
-                </div>
-                {week.map((day, col) =>
-                  day ? (
-                    <div
-                      key={day.key}
-                      title={day.title}
-                      className={`w-[15px] h-[15px] rounded-[3px] ${LEVEL_CLASS[day.level]} relative`}
-                    >
-                      {day.hasOrgasm && (
-                        <span className="absolute -top-px -right-px w-[4px] h-[4px] bg-[var(--color-orgasm)] rounded-full" />
-                      )}
-                    </div>
-                  ) : (
-                    <div key={`${row}-${col}`} className="w-[15px] h-[15px]" />
-                  ),
-                )}
-              </div>
-            );
-          })}
+        <div className="@[760px]:hidden">
+          <VerticalGrid data={data} weekdayLabels={weekdayLabels} />
+        </div>
+        <div className="hidden @[760px]:block overflow-x-auto">
+          <HorizontalGrid data={data} weekdayLabels={weekdayLabels} />
         </div>
 
         {/* Legend */}
         <div className="flex items-center gap-1.5 text-[10px] text-foreground-faint">
           <span>{t("heatmapLess")}</span>
           {LEVEL_CLASS.map((cls, i) => (
-            <span key={i} className={`w-[15px] h-[15px] rounded-[3px] ${cls}`} />
+            <span key={i} className={`w-[13px] h-[13px] rounded-[3px] ${cls}`} />
           ))}
           <span>{t("heatmapMore")}</span>
         </div>
