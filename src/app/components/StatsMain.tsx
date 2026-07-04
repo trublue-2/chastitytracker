@@ -7,6 +7,7 @@ import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "./CategoryIcon";
 import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitcher";
+import YearHeatmap, { type HeatmapDay, type YearHeatmapData } from "./YearHeatmap";
 import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
 import type { DayEntry, DayVorgabe } from "./CalendarContainer";
 import MonthStats, { type MonthStat } from "./MonthStats";
@@ -34,6 +35,22 @@ type Vorgabe = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // buildWearPairs + wearingHoursFromPairs imported from @/lib/utils
+
+/** Shared 5-tier wear-intensity level (0..4) from hours/24 — same thresholds for the month calendar
+ *  and the year heatmap so a day's colour is identical in both views. */
+function wearIntensityLevel(hours: number): number {
+  const p = Math.min(hours / 24, 1);
+  return p === 0 ? 0 : p < 0.2 ? 1 : p < 0.4 ? 2 : p < 0.65 ? 3 : 4;
+}
+
+/** Calendar cell classes per intensity level (blue scale + readable text colour on the day number). */
+const CALENDAR_LEVEL_CLASS = [
+  "bg-surface-raised text-foreground-faint",
+  "bg-blue-100 text-blue-900",
+  "bg-blue-200 text-blue-900",
+  "bg-blue-400 text-white",
+  "bg-blue-600 text-white",
+];
 
 function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>, tz: string): Map<string, { hours: number; hasOrgasm: boolean }> {
   const map = new Map<string, { hours: number; hasOrgasm: boolean }>();
@@ -185,16 +202,11 @@ function buildCalendarMonths(opts: {
         if (!day) return null;
         const key = `${year}-${month}-${day}`;
         const data = dailyData.get(key);
-        const pct = data ? Math.min(data.hours / 24, 1) : 0;
         const dayStart = midnightInTZ(new Date(Date.UTC(year, month, day, 12)), tz);
         const dayEnd = new Date(dayStart.getTime() + 86_400_000);
         const dayTarget = vorgabe ? proratedTargetH(vorgabe.minProTagH, dayStart, dayEnd, vorgabe) : null;
         const dailyGoalMet = dayTarget && data != null ? data.hours >= dayTarget : null; // 0 = Tag ausserhalb Vorgabe-Fenster → kein Marker
-        const colorClass = pct === 0 ? "bg-surface-raised text-foreground-faint"
-          : pct < 0.2 ? "bg-blue-100 text-blue-900"
-          : pct < 0.4 ? "bg-blue-200 text-blue-900"
-          : pct < 0.65 ? "bg-blue-400 text-white"
-          : "bg-blue-600 text-white";
+        const colorClass = CALENDAR_LEVEL_CLASS[wearIntensityLevel(data?.hours ?? 0)];
         // entries arrived from prisma sorted by startTime asc, so per-day buckets are too.
         const dayEntries: DayEntry[] = (entriesByYMD.get(key) ?? []).map((e) => ({
           type: e.type,
@@ -214,6 +226,83 @@ function buildCalendarMonths(opts: {
     calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet, monthGoalPct });
   }
   return calMonthsData;
+}
+
+/** Monday-based weekday index (Mon=0 … Sun=6) of `d` in `tz`. */
+function mondayIndex(d: Date, tz: string): number {
+  const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).formatToParts(d).find(p => p.type === "weekday")!.value;
+  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return ((map[wd] ?? 0) + 6) % 7;
+}
+
+/** GitHub-style per-day wear heatmap, one entry per year that has data (newest first). Reuses the
+ *  month calendar's per-day map + the shared blue intensity scale (hours/24). */
+function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<string>, now: Date, tz: string, dl: string): YearHeatmapData[] {
+  const dailyData = buildDailyData(wearPairs, orgasmDateSet, tz);
+  const { year: nowYear, month: nowMonth, day: nowDay } = tzDateParts(now, tz);
+  const years = new Set<number>([nowYear]);
+  for (const key of dailyData.keys()) years.add(Number(key.split("-")[0]));
+
+  return [...years].sort((a, b) => b - a).map((year) => {
+    const jan1 = new Date(Date.UTC(year, 0, 1, 12));
+    const cells: (HeatmapDay | null)[] = Array(mondayIndex(jan1, tz)).fill(null); // Leerzellen bis zum 1. Jan
+    let totalHours = 0;
+    for (let month = 0; month < 12 && !(year === nowYear && month > nowMonth); month++) {
+      const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        if (year === nowYear && month === nowMonth && day > nowDay) break; // aktuelles Jahr nur bis heute
+        const cell = dailyData.get(`${year}-${month}-${day}`);
+        const hours = cell?.hours ?? 0;
+        totalHours += hours;
+        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: tz });
+        cells.push({
+          key: `${year}-${month}-${day}`,
+          title: `${dateLabel} · ${formatHours(hours, dl)}`,
+          level: wearIntensityLevel(hours),
+          hasOrgasm: cell?.hasOrgasm ?? false,
+        });
+      }
+    }
+
+    const columns: (HeatmapDay | null)[][] = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      const col = cells.slice(i, i + 7);
+      while (col.length < 7) col.push(null);
+      columns.push(col);
+    }
+
+    const monthLabels: { col: number; label: string }[] = [];
+    let lastMonth = -1;
+    columns.forEach((week, col) => {
+      const firstCell = week.find((c) => c != null);
+      if (!firstCell) return;
+      const m = Number(firstCell.key.split("-")[1]);
+      if (m !== lastMonth) {
+        monthLabels.push({ col, label: new Date(Date.UTC(year, m, 1, 12)).toLocaleDateString(dl, { month: "short", timeZone: tz }) });
+        lastMonth = m;
+      }
+    });
+
+    const yearStart = midnightInTZ(jan1, tz);
+    const yearEnd = midnightInTZ(new Date(Date.UTC(year + 1, 0, 1, 12)), tz);
+    const elapsedEnd = year === nowYear ? now : yearEnd;
+    const elapsedH = (elapsedEnd.getTime() - yearStart.getTime()) / 3_600_000;
+    return {
+      year,
+      columns,
+      monthLabels,
+      totalHours: formatHours(totalHours, dl),
+      percentLocked: elapsedH > 0 ? Math.round((totalHours / elapsedH) * 100) : 0,
+    };
+  });
+}
+
+/** 7 short weekday names Mon..Sun in the given locale (for the heatmap's row labels). */
+function buildWeekdayLabels(dl: string, tz: string): string[] {
+  return Array.from({ length: 7 }, (_, i) =>
+    // 2024-01-01 was a Monday; +i days walks Mon..Sun.
+    new Date(Date.UTC(2024, 0, 1 + i, 12)).toLocaleDateString(dl, { weekday: "short", timeZone: tz }),
+  );
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -372,6 +461,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     entries.filter((e) => e.type === "ORGASMUS")
       .map((e) => { const { year, month, day } = tzDateParts(e.startTime, tz); return `${year}-${month}-${day}`; })
   );
+
+  // Jahres-Heatmap (KG-Tragezeit pro Tag, GitHub-Stil) — nur wenn Tragedaten existieren.
+  const yearHeatmaps = wearPairs.length > 0 ? buildYearHeatmaps(wearPairs, orgasmDateSet, now, tz, dl) : [];
+  const weekdayLabels = buildWeekdayLabels(dl, tz);
 
   // Build calendar variants — one per category that has wear data.
   // KG always shows orgasm dots; non-KG categories don't (orgasms are not device-specific).
@@ -579,6 +672,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       {/* Tragekalender */}
       {calendarVariants.length > 0 && (
         <WearCalendarSwitcher variants={calendarVariants} />
+      )}
+
+      {/* Jahresübersicht (Heatmap) */}
+      {yearHeatmaps.length > 0 && (
+        <YearHeatmap years={yearHeatmaps} weekdayLabels={weekdayLabels} />
       )}
 
       {/* Rekorde */}

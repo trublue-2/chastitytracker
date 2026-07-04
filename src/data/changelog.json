@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.46.0",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Neue Jahresübersicht in der Statistik: eine kompakte Tages-Heatmap (GitHub-Stil) zeigt die Tragedauer jedes Tages im Jahr auf einen Blick, inkl. Umschalter für frühere Jahre und Gesamt-/Verschlossen-Anteil des Jahres."
+      }
+    ]
+  },
+  {
     "version": "4.45.0",
     "date": "2026-07-04",
     "changes": [
