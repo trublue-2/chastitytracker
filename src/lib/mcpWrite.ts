@@ -281,10 +281,12 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
 
 // ── Training goals: list / edit / delete ────────────────────────────────────
 
-/** Loads a training goal and asserts it belongs to `userId` (scopes id-based tools to the target). */
-async function assertOwnedVorgabe(id: string, userId: string): Promise<void> {
-  const v = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+/** Loads a training goal and asserts it belongs to `userId` (scopes id-based tools to the target).
+ *  Returns the full row so partial-edit callers can backfill omitted fields without a second load. */
+async function loadOwnedVorgabe(id: string, userId: string) {
+  const v = await prisma.trainingVorgabe.findUnique({ where: { id } });
   if (!v || v.userId !== userId) throw new Error(`Training goal not found: ${id}`);
+  return v;
 }
 
 export interface ListTrainingGoalsArgs {
@@ -320,13 +322,25 @@ export interface EditTrainingGoalArgs extends SetTrainingGoalArgs {
 }
 export async function mcpEditTrainingGoal(username: string, args: EditTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
-  await assertOwnedVorgabe(args.id, userId);
+  // Bestand laden (inkl. Ownership-Check) — edit ist ein PARTIAL-Update: jedes weggelassene
+  // Argument behält seinen Bestandswert. updateVorgabe überschreibt alle Felder, daher müssen
+  // ausgelassene hier explizit aus dem Bestand nachgereicht werden (sonst würden Startdatum,
+  // manuelles Enddatum, Stundenziele und Notiz still auf Defaults zurückgesetzt).
+  const existing = await loadOwnedVorgabe(args.id, userId);
 
   // Category: only change when provided (omit = keep existing).
   const categoryId = args.category !== undefined ? await resolveCategoryId(userId, args.category) : undefined;
-  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : new Date();
-  const gueltigBis = args.validUntil ? parseGoalDate(args.validUntil, "validUntil") : null;
-  if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
+  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : existing.gueltigAb;
+  // validUntil gesetzt → neues, bewusst gesetztes Ende (manuell). Weggelassen/leer → Bestand
+  // behalten, inkl. des bestehenden manuell-Flags (abgeleitetes Ende bleibt abgeleitet).
+  // Truthy-Check bewusst: "" bedeutet „nicht angegeben" (nicht „parse Invalid Date").
+  const validUntilGesetzt = !!args.validUntil;
+  const gueltigBis = validUntilGesetzt ? parseGoalDate(args.validUntil!, "validUntil") : existing.gueltigBis;
+  const gueltigBisManuell = validUntilGesetzt ? true : existing.gueltigBisManuell;
+  // Datums-Guard nur prüfen, wenn dieser Edit ein Datum wirklich anfasst — sonst würde ein reiner
+  // Notiz-/Stunden-Edit auf Bestandsdaten (z.B. verkettetes Ende == Start bei gleichem gueltigAb)
+  // fälschlich „validUntil must be after validFrom" werfen, obwohl kein Datum geändert wurde.
+  if ((args.validFrom || validUntilGesetzt) && gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
     throw new Error("validUntil must be after validFrom.");
   }
 
@@ -334,10 +348,11 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     categoryId,
     gueltigAb,
     gueltigBis,
-    minProTagH: args.minPerDayHours,
-    minProWocheH: args.minPerWeekHours,
-    minProMonatH: args.minPerMonthHours,
-    notiz: args.note,
+    gueltigBisManuell,
+    minProTagH: args.minPerDayHours ?? existing.minProTagH,
+    minProWocheH: args.minPerWeekHours ?? existing.minProWocheH,
+    minProMonatH: args.minPerMonthHours ?? existing.minProMonatH,
+    notiz: args.note ?? existing.notiz,
   }));
   return { ok: true, id: args.id, message: "Training goal updated." };
 }
@@ -347,7 +362,7 @@ export interface DeleteTrainingGoalArgs {
 }
 export async function mcpDeleteTrainingGoal(username: string, args: DeleteTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
-  await assertOwnedVorgabe(args.id, userId);
+  await loadOwnedVorgabe(args.id, userId);
   unwrap(await deleteVorgabe(args.id));
   return { ok: true, id: args.id, message: "Training goal deleted." };
 }

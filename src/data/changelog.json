@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.44.3",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Trainingsziel per Keyholder-Assistent bearbeiten ist jetzt ein echter Teil-Edit: Ein nur teilweise geändertes Ziel (z.B. nur die Stunden) behält Startdatum, Enddatum und die übrigen Werte, statt sie versehentlich zurückzusetzen."
+      }
+    ]
+  },
+  {
     "version": "4.44.2",
     "date": "2026-07-04",
     "changes": [
