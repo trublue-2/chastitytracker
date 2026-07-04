@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
 import { APP_TZ, formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
 import { proratedTargetH, proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { wearIntensityLevel } from "@/lib/wearIntensity";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -35,13 +36,6 @@ type Vorgabe = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // buildWearPairs + wearingHoursFromPairs imported from @/lib/utils
-
-/** Shared 5-tier wear-intensity level (0..4) from hours/24 — same thresholds for the month calendar
- *  and the year heatmap so a day's colour is identical in both views. */
-function wearIntensityLevel(hours: number): number {
-  const p = Math.min(hours / 24, 1);
-  return p === 0 ? 0 : p < 0.2 ? 1 : p < 0.4 ? 2 : p < 0.65 ? 3 : 4;
-}
 
 /** Calendar cell classes per intensity level (blue scale + readable text colour on the day number). */
 const CALENDAR_LEVEL_CLASS = [

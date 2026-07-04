@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.46.3",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Jahresübersicht: Übersichtstext + eine Farb-Legende mit konkreten Prozent-Bändern (0 / 0–20 / 20–40 / 40–80 / 80–100 % pro Tag) stehen jetzt rechts neben der Heatmap — im Hoch- wie im Querformat."
+      },
+      {
+        "type": "ui",
+        "text": "Farbskala angepasst: das dunkelste Blau (voller Tag) beginnt erst ab 80% Tragezeit pro Tag statt 65% — einheitlich in Jahres-Heatmap und Monatskalender."
+      }
+    ]
+  },
+  {
     "version": "4.46.2",
     "date": "2026-07-04",
     "changes": [
