@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendKontrolleNotification, deriveSealCode } from "@/lib/kontrolleService";
+import { sendKontrolleNotification, deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 
@@ -44,18 +44,16 @@ async function processDue(): Promise<void> {
     for (const ka of due) {
       try {
         // Siegel-Code-Erkennung fürs Mail-Label (wie beim Anlegen).
-        const latest = await prisma.entry.findFirst({
-          where: { userId: ka.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-          select: { type: true, kontrollCode: true },
-        });
+        const latest = await getLatestKgEntry(ka.userId);
         // Auto-Kontrolle bei offenem KG ist sinnlos → bei Fälligkeit zurückziehen statt senden.
         if (ka.auto && latest?.type !== "VERSCHLUSS") {
           await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: new Date() } });
           continue;
         }
-        // Label „Siegel-Nummer" nur, wenn der gespeicherte Code die aktuelle Siegel-Nummer ist.
-        const sealCode = deriveSealCode(latest) === ka.code ? ka.code : null;
+        // Aktive Siegel-Nummer mitgeben: ≠ Code → Mail verlangt das Siegel zusätzlich auf dem
+        // Foto; = Code (Legacy-Zeile) → altes „Siegel-Nummer"-Label. Beides entscheidet die
+        // Notification selbst.
+        const sealCode = deriveSealCode(latest);
 
         await sendKontrolleNotification({ user: ka.user, code: ka.code, sealCode, kommentar: ka.kommentar, deadline: ka.deadline });
         await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: new Date() } });

@@ -37,47 +37,62 @@ export async function localComplete(req: VisionRequest): Promise<VisionResponse>
   const apiKey = process.env.LOCAL_VISION_API_KEY || "local"; // Ollama ignoriert den Key
   const timeoutMs = Number(process.env.LOCAL_VISION_TIMEOUT_MS) || 120_000;
 
-  // OpenAI-Format: Text bleibt Text, Bilder werden zu data:-URIs.
-  const content = req.content.map((b) =>
-    b.type === "text"
-      ? { type: "text" as const, text: b.text }
-      : {
-          type: "image_url" as const,
-          image_url: { url: `data:${b.mediaType};base64,${b.base64}` },
-        }
-  );
+  // OpenAI-Format: Text bleibt Text, Bilder werden zu data:-URIs. Body EINMAL serialisieren (enthält
+  // das Base64-Bild, mehrere MB) — der Retry-Pfad soll nicht neu stringifyen, und das content-
+  // Zwischenarray wird nach dem Stringify GC-fähig (eine Bild-Kopie weniger über die Call-Dauer).
+  const body = JSON.stringify({
+    model: modelFor(req.task),
+    max_tokens: req.maxTokens,
+    temperature: 0, // deterministisch — OCR/Klassifikation, keine Kreativität
+    messages: [{
+      role: "user",
+      content: req.content.map((b) =>
+        b.type === "text"
+          ? { type: "text" as const, text: b.text }
+          : { type: "image_url" as const, image_url: { url: `data:${b.mediaType};base64,${b.base64}` } }
+      ),
+    }],
+  });
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: modelFor(req.task),
-        max_tokens: req.maxTokens,
-        temperature: 0, // deterministisch — OCR/Klassifikation, keine Kreativität
-        messages: [{ role: "user", content }],
-      }),
-      signal: ctrl.signal,
-    });
+  async function attempt(): Promise<VisionResponse> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body,
+        signal: ctrl.signal,
+      });
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`local vision HTTP ${res.status}: ${body.slice(0, 200)}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`local vision HTTP ${res.status}: ${body.slice(0, 200)}`);
+      }
+
+      const data = (await res.json()) as OpenAIChatResponse;
+      const text = data.choices?.[0]?.message?.content ?? "";
+      return {
+        text,
+        requestId: data.id,
+        stopReason: data.choices?.[0]?.finish_reason ?? null,
+      };
+    } finally {
+      clearTimeout(timer);
     }
+  }
 
-    const data = (await res.json()) as OpenAIChatResponse;
-    const text = data.choices?.[0]?.message?.content ?? "";
-    return {
-      text,
-      requestId: data.id,
-      stopReason: data.choices?.[0]?.finish_reason ?? null,
-    };
-  } finally {
-    clearTimeout(timer);
+  // Der erste Call nach Leerlauf kann in den Modell-Cold-Start laufen (Laden dauert länger als
+  // der Timeout); der Abbruch stoppt das server-seitige Laden nicht. GENAU EIN zweiter Versuch
+  // trifft dann das inzwischen geladene Modell. Andere Fehler (HTTP, Config) nicht wiederholen.
+  try {
+    return await attempt();
+  } catch (e) {
+    if ((e as Error).name !== "AbortError") throw e;
+    console.warn(`[vision:local] Timeout nach ${timeoutMs}ms (task ${req.task}) — zweiter Versuch (Cold Start?)`);
+    return attempt();
   }
 }

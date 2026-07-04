@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
+import { deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
@@ -28,11 +29,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
   }
 
-  // route:start sorgt fuer User-Correlation; das ergebnis-Log macht
-  // verifyKontrolleCodeDetailed selbst (verify:result), keine Doppelung hier.
+  // Aktive Siegel-Nummer server-seitig ableiten (nie vom Client): bei aktivem Siegel prüft die
+  // Vision Kontroll-Code UND Siegel-Nummer im selben Foto (Dual-Prüfung).
+  const sealCode = deriveSealCode(await getLatestKgEntry(session.user.id));
+
+  // route:start sorgt fuer User-Correlation; das ergebnis-Log (inkl. sealChecked) macht
+  // verifyKontrolleCodeDetailed selbst (verify:vision_call/verify:result), keine Doppelung hier.
   const safeRotation: Rotation = VALID_ROTATIONS.includes(rotation) ? rotation : 0;
   log("route:start", { user: session.user.id, codeLen: expectedCode.length, rotation: safeRotation });
-  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode, safeRotation);
+  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode, safeRotation, sealCode);
   if (result === null) {
     return NextResponse.json({ detected: null, match: false, error: true });
   }

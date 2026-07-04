@@ -355,7 +355,10 @@
     "codeMismatchHint": "Bitte Code deutlich sichtbar auf dem Foto – trotzdem speicherbar.",
     "policyError": "Bild konnte nicht geprüft werden",
     "policyErrorHint": "Das Bild entspricht nicht den Inhaltsrichtlinien – trotzdem speicherbar.",
-    "photoRequired": "Foto ist bei Kontrolle zwingend erforderlich"
+    "photoRequired": "Foto ist bei Kontrolle zwingend erforderlich",
+    "sealAlsoRequired": "Zusätzlich muss die Siegel-Nummer deines Verschlusses auf dem Foto lesbar sein.",
+    "verifyError": "Live-Prüfung derzeit nicht möglich",
+    "verifyErrorHint": "Beim Speichern wird das Foto automatisch erneut geprüft."
   },
   "orgasmForm": {
     "title": "Orgasmus erfassen",
@@ -489,8 +492,6 @@
     "goalCol": "Vorgabe",
     "longestCol": "Längste",
     "today": "Heute",
-    "week": "Woche",
-    "month": "Monat",
     "showAll": "Alle {count} anzeigen",
     "collapse": "Weniger anzeigen",
     "unlawfulOpenings": "Unerlaubte Öffnungen",
@@ -507,7 +508,6 @@
     "thisWeek": "Diese Woche",
     "thisMonth": "Dieser Monat",
     "thisYear": "Dieses Jahr",
-    "longestSession": "Längste Session",
     "shortestSession": "Kürzeste Session",
     "reached": "✓ Erreicht",
     "deadlineLabel": "Frist",
@@ -929,7 +929,7 @@
   },
   "offline": {
     "youAreOffline": "Keine Verbindung",
-    "syncing": "Einträge werden synchronisiert\u2026",
+    "syncing": "Einträge werden synchronisiert…",
     "synced": "Einträge synchronisiert",
     "syncFailed": "Synchronisierung fehlgeschlagen",
     "photoRequiresConnection": "Foto-Upload benötigt eine Internetverbindung.",

@@ -355,7 +355,10 @@
     "codeMismatchHint": "Please show the code clearly in the photo – can still be saved.",
     "policyError": "Image could not be verified",
     "policyErrorHint": "The image does not comply with content guidelines – can still be saved.",
-    "photoRequired": "A photo is required for an inspection"
+    "photoRequired": "A photo is required for an inspection",
+    "sealAlsoRequired": "The seal number of your lock must also be readable in the photo.",
+    "verifyError": "Live check currently unavailable",
+    "verifyErrorHint": "The photo is automatically re-checked when saving."
   },
   "orgasmForm": {
     "title": "Log orgasm",
@@ -489,8 +492,6 @@
     "goalCol": "Goal",
     "longestCol": "Longest",
     "today": "Today",
-    "week": "Week",
-    "month": "Month",
     "showAll": "Show all {count}",
     "collapse": "Show less",
     "unlawfulOpenings": "Unlawful openings",
@@ -507,7 +508,6 @@
     "thisWeek": "This week",
     "thisMonth": "This month",
     "thisYear": "This year",
-    "longestSession": "Longest session",
     "shortestSession": "Shortest session",
     "reached": "✓ Reached",
     "deadlineLabel": "Deadline",
@@ -929,7 +929,7 @@
   },
   "offline": {
     "youAreOffline": "No connection",
-    "syncing": "Syncing entries\u2026",
+    "syncing": "Syncing entries…",
     "synced": "Entries synced",
     "syncFailed": "Sync failed",
     "photoRequiresConnection": "Photo upload requires an internet connection.",

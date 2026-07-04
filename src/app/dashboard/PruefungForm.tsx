@@ -21,11 +21,13 @@ interface Props {
   nowDefault: string;
   initialCode?: string;
   initialKommentar?: string;
+  /** Aktives Siegel: die Siegel-Nummer muss zusätzlich zum Code auf dem Foto lesbar sein. */
+  sealRequired?: boolean;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
 }
 
-export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, mobileDesktopMode, redirectTo }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, mobileDesktopMode, redirectTo }: Props) {
   const tCommon = useTranslations("common");
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -54,6 +56,7 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       nowDefault={nowDefault}
       initialCode={initialCode}
       initialKommentar={initialKommentar}
+      sealRequired={sealRequired}
       mobileDesktopMode={mobileDesktopMode}
       isEdit={!!initial}
       submitFn={submitFn}

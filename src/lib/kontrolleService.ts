@@ -5,6 +5,7 @@ import { sendPushToUser } from "@/lib/push";
 import { trackEvent } from "@/lib/telemetry";
 import { notifyUser } from "@/lib/notify";
 import type { ServiceResult } from "@/lib/serviceResult";
+import type { PrismaTx } from "@/lib/queries";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
 
@@ -46,6 +47,25 @@ export function deriveSealCode(latest: { type: string; kontrollCode: string | nu
     : null;
 }
 
+/** Letzter KG-Entry (VERSCHLUSS/OEFFNEN) eines Users — Basis für Lock-Zustand + Siegel-Ableitung.
+ *  Optionaler tx-Client für Transaktionen (Muster wie queries.ts). Single source der „letzter
+ *  Lock-Entry"-Query, damit sie nicht über Route/Page/Poller driftet (Feed für deriveSealCode). */
+export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = prisma) {
+  return tx.entry.findFirst({
+    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+    orderBy: { startTime: "desc" },
+    select: { type: true, kontrollCode: true },
+  });
+}
+
+/** Die Siegel-Nummer, die bei der Kontrolle ZUSÄTZLICH zum Kontroll-Code auf dem Foto lesbar sein
+ *  muss — oder null. Legacy-Zeilen (Siegel == Code, aus der Zeit vor der Zufallscode-Umstellung)
+ *  liefern null: der Code IST dort die Siegel-Nummer, keine Dual-Prüfung. Single source der
+ *  „Siegel ≠ Code"-Regel für alle Aufrufer (Mail-Text, Formular-Hinweis). */
+export function requiredSealCode(code: string, sealCode: string | null): string | null {
+  return sealCode && sealCode !== code ? sealCode : null;
+}
+
 /** Frische 5-stellige Kontroll-Code-Nummer (10000–99999). */
 export function generateKontrollCode(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
@@ -62,10 +82,12 @@ export interface RequestKontrolleParams {
 }
 
 /**
- * Requests an inspection (KontrollAnforderung): generates a 5-digit code (or reuses the active
- * seal code), sets a deadline, withdraws any open request. Sends e-mail + push immediately —
- * or, with delayMinutes, schedules it (wirksamAb): the request stays invisible to the user and
- * the deadline starts at trigger; the poller (kontrollePoller) sends the notification when due.
+ * Requests an inspection (KontrollAnforderung): generates a fresh random 5-digit code (proof the
+ * photo is current), sets a deadline, withdraws any open request. If a seal is active, its number
+ * is additionally required on the photo (verified at submission via deriveSealCode — the code
+ * itself is always random). Sends e-mail + push immediately — or, with delayMinutes, schedules it
+ * (wirksamAb): the request stays invisible to the user and the deadline starts at trigger; the
+ * poller (kontrollePoller) sends the notification when due.
  * Shared by POST /api/admin/kontrolle and the MCP write tool. User must be currently locked.
  */
 export async function requestKontrolle(
@@ -92,10 +114,7 @@ export async function requestKontrolle(
   let sealCode: string | null;
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const latest = await tx.entry.findFirst({
-        where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-        orderBy: { startTime: "desc" },
-      });
+      const latest = await getLatestKgEntry(userId, tx);
       if (!latest || latest.type !== "VERSCHLUSS") {
         throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
       }
@@ -106,8 +125,10 @@ export async function requestKontrolle(
         data: { withdrawnAt: now },
       });
 
+      // Immer frischer Zufallscode (Frische-Beweis) — die Siegel-Nummer wird bei der
+      // Verifikation ZUSÄTZLICH geprüft, nicht mehr als Kontroll-Code wiederverwendet.
       const seal = deriveSealCode(latest);
-      const c = seal ?? generateKontrollCode();
+      const c = generateKontrollCode();
 
       await tx.kontrollAnforderung.create({
         data: {
@@ -142,6 +163,9 @@ export async function requestKontrolle(
 /**
  * Sends the inspection e-mail (code + deadline + link) and a push to the user.
  * Reused by the immediate path in requestKontrolle and by the delayed-trigger poller.
+ * `sealCode` = aktive Siegel-Nummer (oder null): weicht sie vom Code ab, verlangt die Mail
+ * zusätzlich das Siegel auf dem Foto; ist sie gleich dem Code (Legacy-Zeilen von vor der
+ * Zufallscode-Umstellung), bleibt das alte „Siegel-Nummer"-Label.
  * No-op if the user has no e-mail. Push is fire-and-forget.
  */
 export async function sendKontrolleNotification(opts: {
@@ -153,6 +177,7 @@ export async function sendKontrolleNotification(opts: {
 }): Promise<void> {
   const { user, code, sealCode, kommentar, deadline } = opts;
   if (!user.email) return;
+  const sealRequired = requiredSealCode(code, sealCode) !== null;
 
   const hoursLeft = Math.max(1, Math.round((deadline.getTime() - Date.now()) / (60 * 60 * 1000)));
   const kommentarHtml = kommentar
@@ -163,9 +188,12 @@ export async function sendKontrolleNotification(opts: {
   const kommentarParam = kommentar ? `&kommentar=${encodeURIComponent(kommentar)}` : "";
   const link = `${baseUrl}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
   const deadlineStr = formatDateTime(deadline);
-  const codeLabel = sealCode
+  const codeLabel = sealCode && !sealRequired
     ? "Deine Siegel-Nummer (muss auf dem Foto erkennbar sein):"
     : "Dein Kontroll-Code (muss auf dem Foto erkennbar sein):";
+  const sealHintHtml = sealRequired
+    ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0;font-size:14px;color:#1e3a8a"><strong>Zusätzlich:</strong> Die Siegel-Nummer deines Verschlusses muss auf demselben Foto lesbar sein.</p></div>'
+    : "";
 
   await sendMail(
     user.email,
@@ -178,6 +206,7 @@ export async function sendKontrolleNotification(opts: {
       ${kommentarHtml}
       <p><strong>${codeLabel}</strong></p>
       <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
+      ${sealHintHtml}
       <p><strong>Frist:</strong> ${deadlineStr}</p>
       <p>
         <a href="${link}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
@@ -189,10 +218,13 @@ export async function sendKontrolleNotification(opts: {
     `,
   );
 
+  const pushParts = [`Code: ${code}`, `Frist: ${deadlineStr}`];
+  if (sealRequired) pushParts.push("Siegel-Nummer mitfotografieren");
+  if (kommentar) pushParts.push(kommentar);
   sendPushToUser(
     user.id,
     "Kontrolle erforderlich",
-    kommentar ? `Code: ${code} · Frist: ${deadlineStr} · ${kommentar}` : `Code: ${code} · Frist: ${deadlineStr}`,
+    pushParts.join(" · "),
     `/dashboard/new/pruefung?code=${code}`,
   ).catch(() => { /* ignore push errors */ });
 }

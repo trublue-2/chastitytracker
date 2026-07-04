@@ -4,10 +4,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
+import { deriveSealCode } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere } from "@/lib/queries";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 import { checkDeviceInPhoto } from "@/lib/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
@@ -123,10 +124,15 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // KontrollAnforderung verknüpfen + fulfilledAt server-seitig setzen (unveränderlich)
+      // KontrollAnforderung verknüpfen + fulfilledAt server-seitig setzen (unveränderlich).
+      // Nur bereits AUSGELÖSTE Anforderungen (wirksamAb erreicht) — sonst könnte ein zufällig
+      // kollidierender Selbstkontroll-Code eine noch unsichtbare, geplante Auto-Kontrolle erfüllen.
       if (type === "PRUEFUNG" && kontrollCode) {
         await tx.kontrollAnforderung.updateMany({
-          where: { userId: session.user.id, code: kontrollCode, entryId: null, withdrawnAt: null },
+          where: {
+            userId: session.user.id, code: kontrollCode, entryId: null, withdrawnAt: null,
+            ...aktiveKontrolleWhere(),
+          },
           data: { entryId: created.id, fulfilledAt: new Date() },
         });
       }
@@ -232,6 +238,18 @@ export async function POST(req: NextRequest) {
     trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
   }
 
+  // Beide Fire-and-forget-Blöcke unten (Geräte-Check + KI-Verifikation) brauchen denselben letzten
+  // Lock-Entry — einmal laden, teilen (spart einen SQLite-Roundtrip je PRUEFUNG-Foto). deviceId für
+  // den Geräte-Check, kontrollCode (via deriveSealCode) für die Siegel-Prüfung.
+  const latestLockPromise =
+    type === "PRUEFUNG" && imageUrl
+      ? prisma.entry.findFirst({
+          where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+          orderBy: { startTime: "desc" },
+          select: { type: true, deviceId: true, kontrollCode: true },
+        })
+      : null;
+
   // Kontroll-Geräte-Check (advisory): ist das aktuell verschlossene Gerät im Kontroll-Foto sichtbar?
   // Server-seitig + fire-and-forget (blockiert die Antwort NICHT); Ergebnis landet als entry.deviceCheck,
   // das der Keyholder sieht. Läuft nur, wenn der Nutzer verschlossen ist und ein Gerät hinterlegt hat.
@@ -241,11 +259,7 @@ export async function POST(req: NextRequest) {
     const photoUrl = imageUrl;
     (async () => {
       try {
-        const lockEntry = await prisma.entry.findFirst({
-          where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-          select: { type: true, deviceId: true },
-        });
+        const lockEntry = await latestLockPromise;
         if (lockEntry?.type !== "VERSCHLUSS" || !lockEntry.deviceId) return; // nicht verschlossen / kein Gerät
         const references = await gatherDeviceReferences(userId);
         const result = await checkDeviceInPhoto(photoUrl, references, lockEntry.deviceId);
@@ -410,7 +424,10 @@ export async function POST(req: NextRequest) {
     (async () => {
       let status: "ai" | null = null;
       try {
-        status = await verifyKontrolleCode(photoUrl, code, safeRotation);
+        // Aktive Siegel-Nummer server-seitig ableiten (nie vom Client): bei aktivem Siegel müssen
+        // Kontroll-Code UND Siegel-Nummer im Foto lesbar sein (Dual-Prüfung). Lock-Entry geteilt
+        // mit dem Geräte-Check (latestLockPromise).
+        status = await verifyKontrolleCode(photoUrl, code, safeRotation, deriveSealCode(await latestLockPromise));
       } catch (err) {
         console.error("[POST /api/entries] AI verification failed for entry", entryId, err);
       }

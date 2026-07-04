@@ -2,6 +2,7 @@ import Link from "next/link";
 import PruefungForm from "../../PruefungForm";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deriveSealCode, generateKontrollCode, getLatestKgEntry, requiredSealCode } from "@/lib/kontrolleService";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
@@ -10,27 +11,25 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
   const userId = session?.user?.id;
   const tz = session?.user?.timezone ?? APP_TZ;
 
-  const [dbUser, activeVerschluss] = await Promise.all([
+  const [dbUser, latest] = await Promise.all([
     userId ? prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }) : null,
-    // Wenn keine Admin-Anforderung vorliegt: Siegel-Nummer aus aktivem Verschluss laden
-    (!code && userId)
-      ? prisma.entry.findFirst({
-          where: { userId, type: "VERSCHLUSS" },
-          orderBy: { startTime: "desc" },
-          select: { kontrollCode: true },
-        })
-      : null,
+    userId ? getLatestKgEntry(userId) : null,
   ]);
 
-  // Admin-Code hat Vorrang; sonst Siegel-Nummer des aktiven Verschlusses
-  const effectiveCode = code || activeVerschluss?.kontrollCode || undefined;
+  // Angeforderter Code (Mail-Link) hat Vorrang; sonst bekommt die Selbstkontrolle bei aktivem
+  // Verschluss einen frischen Zufallscode (Frische-Beweis statt wiederverwendbarem Siegel-Foto).
+  // Bei aktivem Siegel prüft die Verifikation die Siegel-Nummer zusätzlich (Server-seitig).
+  const isLocked = latest?.type === "VERSCHLUSS";
+  const effectiveCode = code || (isLocked ? generateKontrollCode() : undefined);
+  const seal = deriveSealCode(latest ?? null);
+  const sealRequired = !!effectiveCode && requiredSealCode(effectiveCode, seal) !== null;
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("inspectionForm");
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-6">
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
-      <PruefungForm tz={tz} nowDefault={nowDatetimeLocal(tz)} initialCode={effectiveCode} initialKommentar={kommentar} mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false} />
+      <PruefungForm tz={tz} nowDefault={nowDatetimeLocal(tz)} initialCode={effectiveCode} initialKommentar={kommentar} sealRequired={sealRequired} mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false} />
     </div>
   );
 }

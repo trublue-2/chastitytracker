@@ -23,6 +23,12 @@ import type { PruefungPayload, SubmitResult } from "./types";
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;
 
+/** Titel/Hint-i18n-Keys für die zwei strukturgleichen Hinweis-Cards (Policy-Block bzw. Prüf-Fehler). */
+const HINT_CARDS = {
+  policy: { title: "policyError", hint: "policyErrorHint" },
+  error: { title: "verifyError", hint: "verifyErrorHint" },
+} as const;
+
 interface Props {
   initial?: {
     startTime: string;
@@ -37,6 +43,8 @@ interface Props {
   nowDefault: string;
   initialCode?: string;
   initialKommentar?: string;
+  /** Aktives Siegel: die Siegel-Nummer muss zusätzlich zum Code auf dem Foto lesbar sein. */
+  sealRequired?: boolean;
   mobileDesktopMode?: boolean;
   isEdit?: boolean;
   submitFn: (payload: PruefungPayload) => Promise<SubmitResult>;
@@ -47,7 +55,7 @@ interface Props {
 }
 
 export default function PruefungFormCore({
-  initial, minTime, tz, nowDefault, initialCode, initialKommentar, mobileDesktopMode,
+  initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, mobileDesktopMode,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
@@ -178,6 +186,9 @@ export default function PruefungFormCore({
               {kontrollCode || "–"}
             </span>
           </div>
+          {sealRequired && (
+            <p className="text-xs text-foreground-muted mt-2">{t("sealAlsoRequired")}</p>
+          )}
         </Card>
       )}
 
@@ -222,10 +233,10 @@ export default function PruefungFormCore({
           <p className="text-xs text-warn mt-1">{t("codeMismatchHint")}</p>
         </Card>
       )}
-      {verifyStatus === "policy" && (
+      {(verifyStatus === "policy" || verifyStatus === "error") && (
         <Card padding="compact">
-          <p className="text-sm text-foreground-muted font-medium">{t("policyError")}</p>
-          <p className="text-xs text-foreground-faint mt-0.5">{t("policyErrorHint")}</p>
+          <p className="text-sm text-foreground-muted font-medium">{t(HINT_CARDS[verifyStatus].title)}</p>
+          <p className="text-xs text-foreground-faint mt-0.5">{t(HINT_CARDS[verifyStatus].hint)}</p>
         </Card>
       )}
 

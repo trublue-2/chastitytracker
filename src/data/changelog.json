@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.46.5",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Kontrollen bei aktivem Siegel pruefen jetzt Siegel-Nummer UND einen frischen Kontroll-Code im selben Foto: die Siegel-Nummer belegt, dass der Verschluss intakt ist, der Zufallscode, dass das Foto aktuell ist."
+      },
+      {
+        "type": "ui",
+        "text": "Angeforderte und selbst ausgeloeste Kontrollen bekommen immer einen frischen Zufallscode (statt der wiederverwendbaren Siegel-Nummer). Bei aktivem Siegel weist das Formular darauf hin, dass zusaetzlich die Siegel-Nummer lesbar sein muss."
+      },
+      {
+        "type": "fix",
+        "text": "Live-Code-Pruefung: bei langsamem lokalem Vision-Modell brach die Pruefung nach Timeout ohne Rueckmeldung ab (Spinner verschwand kommentarlos). Jetzt gibt es einen automatischen Zweitversuch nach Timeout und eine sichtbare Fehlermeldung."
+      }
+    ]
+  },
+  {
     "version": "4.46.4",
     "date": "2026-07-04",
     "changes": [
