@@ -334,13 +334,13 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
   // validUntil gesetzt → neues, bewusst gesetztes Ende (manuell). Weggelassen/leer → Bestand
   // behalten, inkl. des bestehenden manuell-Flags (abgeleitetes Ende bleibt abgeleitet).
   // Truthy-Check bewusst: "" bedeutet „nicht angegeben" (nicht „parse Invalid Date").
-  const validUntilGesetzt = !!args.validUntil;
-  const gueltigBis = validUntilGesetzt ? parseGoalDate(args.validUntil!, "validUntil") : existing.gueltigBis;
-  const gueltigBisManuell = validUntilGesetzt ? true : existing.gueltigBisManuell;
+  const validUntilProvided = !!args.validUntil;
+  const gueltigBis = validUntilProvided ? parseGoalDate(args.validUntil!, "validUntil") : existing.gueltigBis;
+  const validUntilManual = validUntilProvided ? true : existing.validUntilManual;
   // Datums-Guard nur prüfen, wenn dieser Edit ein Datum wirklich anfasst — sonst würde ein reiner
   // Notiz-/Stunden-Edit auf Bestandsdaten (z.B. verkettetes Ende == Start bei gleichem gueltigAb)
   // fälschlich „validUntil must be after validFrom" werfen, obwohl kein Datum geändert wurde.
-  if ((args.validFrom || validUntilGesetzt) && gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
+  if ((args.validFrom || validUntilProvided) && gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
     throw new Error("validUntil must be after validFrom.");
   }
 
@@ -348,7 +348,7 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     categoryId,
     gueltigAb,
     gueltigBis,
-    gueltigBisManuell,
+    validUntilManual,
     minProTagH: args.minPerDayHours ?? existing.minProTagH,
     minProWocheH: args.minPerWeekHours ?? existing.minProWocheH,
     minProMonatH: args.minPerMonthHours ?? existing.minProMonatH,

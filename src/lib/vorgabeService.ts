@@ -11,7 +11,7 @@ export interface CreateVorgabeParams {
   // gilt jedes gesetzte Enddatum als manuell (`!!gueltigBis`) — korrekt für Create und MCP. Nur
   // das Admin-Edit-Formular übergibt ihn explizit, um vorbefüllte (abgeleitete) Enden nicht
   // versehentlich als manuell einzufrieren.
-  gueltigBisManuell?: boolean;
+  validUntilManual?: boolean;
   minProTagH?: number | null;
   minProWocheH?: number | null;
   minProMonatH?: number | null;
@@ -61,7 +61,7 @@ export async function createVorgabe(params: CreateVorgabeParams): Promise<Servic
       categoryId: categoryId || null,
       gueltigAb: new Date(gueltigAb),
       gueltigBis: gueltigBis ? new Date(gueltigBis) : null,
-      gueltigBisManuell: params.gueltigBisManuell ?? !!gueltigBis, // explizit gesetztes Ende gegen Auto-Verkettung schützen
+      validUntilManual: params.validUntilManual ?? !!gueltigBis, // explizit gesetztes Ende gegen Auto-Verkettung schützen
       minProTagH: minProTagH ?? null,
       minProWocheH: minProWocheH ?? null,
       minProMonatH: minProMonatH ?? null,
@@ -96,7 +96,7 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
       ...(categoryId !== undefined ? { categoryId: categoryId || null } : {}),
       gueltigAb: new Date(gueltigAb),
       gueltigBis: gueltigBis ? new Date(gueltigBis) : null,
-      gueltigBisManuell: params.gueltigBisManuell ?? !!gueltigBis, // explizit gesetztes Ende gegen Auto-Verkettung schützen
+      validUntilManual: params.validUntilManual ?? !!gueltigBis, // explizit gesetztes Ende gegen Auto-Verkettung schützen
       minProTagH: minProTagH ?? null,
       minProWocheH: minProWocheH ?? null,
       minProMonatH: minProMonatH ?? null,

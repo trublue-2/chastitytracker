@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.44.5",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Internes Feld der Trainingsvorgabe auf Englisch umbenannt (validUntilManual) — keine sichtbare Änderung."
+      }
+    ]
+  },
+  {
     "version": "4.44.4",
     "date": "2026-07-04",
     "changes": [

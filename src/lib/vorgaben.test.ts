@@ -16,7 +16,7 @@ type Row = {
   categoryId: string | null;
   gueltigAb: Date;
   gueltigBis: Date | null;
-  gueltigBisManuell: boolean;
+  validUntilManual: boolean;
 };
 
 function setRows(rows: Row[]) {
@@ -41,17 +41,17 @@ const AB2 = new Date("2026-07-10T00:00:00Z");
 const MANUAL_END = new Date("2026-07-04T00:00:00Z");
 
 describe("reorderVorgabenDates — manuelles Enddatum schützen", () => {
-  it("einzige Vorgabe mit gueltigBisManuell behält ihr Enddatum (kein Update)", async () => {
+  it("einzige Vorgabe mit validUntilManual behält ihr Enddatum (kein Update)", async () => {
     // Regression: einzige Vorgabe galt als „neueste" → wurde zwangsweise auf offen (null) gesetzt.
-    setRows([{ id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: MANUAL_END, gueltigBisManuell: true }]);
+    setRows([{ id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: MANUAL_END, validUntilManual: true }]);
     await reorderVorgabenDates("u1");
     expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("manuelles Ende bleibt auch mit späterer Vorgabe unangetastet", async () => {
     setRows([
-      { id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: MANUAL_END, gueltigBisManuell: true },
-      { id: "b", categoryId: "c1", gueltigAb: AB2, gueltigBis: null, gueltigBisManuell: false },
+      { id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: MANUAL_END, validUntilManual: true },
+      { id: "b", categoryId: "c1", gueltigAb: AB2, gueltigBis: null, validUntilManual: false },
     ]);
     await reorderVorgabenDates("u1");
     // a wird übersprungen (manuell), b ist letzte & bereits offen → gar kein Update.
@@ -60,8 +60,8 @@ describe("reorderVorgabenDates — manuelles Enddatum schützen", () => {
 
   it("nicht-manuelle Vorgaben werden weiterhin verkettet (Vorgänger endet am Start der nächsten)", async () => {
     setRows([
-      { id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: null, gueltigBisManuell: false },
-      { id: "b", categoryId: "c1", gueltigAb: AB2, gueltigBis: null, gueltigBisManuell: false },
+      { id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: null, validUntilManual: false },
+      { id: "b", categoryId: "c1", gueltigAb: AB2, gueltigBis: null, validUntilManual: false },
     ]);
     await reorderVorgabenDates("u1");
     const updated = updatedBisById();
@@ -71,7 +71,7 @@ describe("reorderVorgabenDates — manuelles Enddatum schützen", () => {
 
   it("nach Löschen der Folge-Vorgabe geht eine nicht-manuelle Vorgabe wieder auf", async () => {
     // a hatte via Verkettung ein Enddatum (manuell=false); b existiert nicht mehr → a muss offen werden.
-    setRows([{ id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: AB2, gueltigBisManuell: false }]);
+    setRows([{ id: "a", categoryId: "c1", gueltigAb: AB1, gueltigBis: AB2, validUntilManual: false }]);
     await reorderVorgabenDates("u1");
     expect(updatedBisById().a).toBeNull();
   });

@@ -226,7 +226,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
               initialValues={{
                 gueltigAb: toDateInput(v.gueltigAb),
                 gueltigBis: v.gueltigBis ? toDateInput(v.gueltigBis) : "",
-                gueltigBisManuell: v.gueltigBisManuell,
+                validUntilManual: v.validUntilManual,
                 tagVal: v.minProTagH != null ? String(v.minProTagH) : "",
                 wocheVal: v.minProWocheH != null ? String(v.minProWocheH) : "",
                 monatVal: v.minProMonatH != null ? String(v.minProMonatH) : "",

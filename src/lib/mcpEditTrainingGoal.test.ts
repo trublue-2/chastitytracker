@@ -37,14 +37,14 @@ describe("mcpEditTrainingGoal — echter Teil-Edit", () => {
     // Regression: früher setzte ein Teil-Edit gueltigAb=now(), gueltigBis=null (Ende weg) und
     // die nicht genannten Stundenziele auf null.
     vorgabeFind.mockResolvedValue({
-      userId: "u1", gueltigAb: AB, gueltigBis: MANUAL_END, gueltigBisManuell: true,
+      userId: "u1", gueltigAb: AB, gueltigBis: MANUAL_END, validUntilManual: true,
       minProTagH: 6, minProWocheH: null, minProMonatH: null, notiz: "Stufe 2",
     });
     await mcpEditTrainingGoal("kg", { id: "g1", minPerDayHours: 8 });
     expect(updateMock).toHaveBeenCalledWith("g1", expect.objectContaining({
       gueltigAb: AB,
       gueltigBis: MANUAL_END,
-      gueltigBisManuell: true,
+      validUntilManual: true,
       minProTagH: 8,
       minProWocheH: null,
       minProMonatH: null,
@@ -54,41 +54,41 @@ describe("mcpEditTrainingGoal — echter Teil-Edit", () => {
 
   it("validUntil setzen markiert das Ende als manuell", async () => {
     vorgabeFind.mockResolvedValue({
-      userId: "u1", gueltigAb: AB, gueltigBis: null, gueltigBisManuell: false,
+      userId: "u1", gueltigAb: AB, gueltigBis: null, validUntilManual: false,
       minProTagH: 6, minProWocheH: null, minProMonatH: null, notiz: null,
     });
     await mcpEditTrainingGoal("kg", { id: "g1", validUntil: "2026-08-01" });
     const arg = updateMock.mock.calls[0][1];
-    expect(arg.gueltigBisManuell).toBe(true);
+    expect(arg.validUntilManual).toBe(true);
     expect(arg.gueltigBis).toEqual(new Date("2026-08-01"));
   });
 
   it("validUntil weglassen behält ein abgeleitetes Ende abgeleitet (manuell bleibt false)", async () => {
     vorgabeFind.mockResolvedValue({
-      userId: "u1", gueltigAb: AB, gueltigBis: MANUAL_END, gueltigBisManuell: false,
+      userId: "u1", gueltigAb: AB, gueltigBis: MANUAL_END, validUntilManual: false,
       minProTagH: 6, minProWocheH: null, minProMonatH: null, notiz: null,
     });
     await mcpEditTrainingGoal("kg", { id: "g1", minPerDayHours: 8 });
     const arg = updateMock.mock.calls[0][1];
     expect(arg.gueltigBis).toEqual(MANUAL_END);
-    expect(arg.gueltigBisManuell).toBe(false);
+    expect(arg.validUntilManual).toBe(false);
   });
 
   it("validUntil='' wird als „nicht angegeben\" behandelt (kein Parse-Fehler, Bestand bleibt)", async () => {
     vorgabeFind.mockResolvedValue({
-      userId: "u1", gueltigAb: AB, gueltigBis: MANUAL_END, gueltigBisManuell: true,
+      userId: "u1", gueltigAb: AB, gueltigBis: MANUAL_END, validUntilManual: true,
       minProTagH: 6, minProWocheH: null, minProMonatH: null, notiz: null,
     });
     await mcpEditTrainingGoal("kg", { id: "g1", validUntil: "", minPerDayHours: 8 });
     const arg = updateMock.mock.calls[0][1];
     expect(arg.gueltigBis).toEqual(MANUAL_END);
-    expect(arg.gueltigBisManuell).toBe(true);
+    expect(arg.validUntilManual).toBe(true);
   });
 
   it("reiner Notiz-/Stunden-Edit wirft nicht, wenn Bestands-Ende == Start (verkettet, gleicher Tag)", async () => {
     // Regression: der Datums-Guard lief auch ohne Datums-Argument und warf bei gueltigBis == gueltigAb.
     vorgabeFind.mockResolvedValue({
-      userId: "u1", gueltigAb: AB, gueltigBis: AB, gueltigBisManuell: false,
+      userId: "u1", gueltigAb: AB, gueltigBis: AB, validUntilManual: false,
       minProTagH: 6, minProWocheH: null, minProMonatH: null, notiz: null,
     });
     await expect(mcpEditTrainingGoal("kg", { id: "g1", minPerDayHours: 8 })).resolves.toMatchObject({ ok: true });
