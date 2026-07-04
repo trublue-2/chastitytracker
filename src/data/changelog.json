@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.44.2",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Ein bei einer Trainingsvorgabe gesetztes „Gültig bis\"-Datum wird jetzt gespeichert und bleibt erhalten. Bisher überschrieb die automatische Verkettung (jede Vorgabe endet am Start der nächsten, die neueste bleibt offen) ein bewusst gesetztes Enddatum sofort wieder auf „offen\"."
+      },
+      {
+        "type": "fix",
+        "text": "Beim Bearbeiten anderer Felder einer automatisch verketteten Vorgabe wird ihr abgeleitetes Enddatum nicht mehr versehentlich als fix eingefroren — nur ein selbst gesetztes oder geändertes Datum gilt als manuell."
+      }
+    ]
+  },
+  {
     "version": "4.44.1",
     "date": "2026-07-03",
     "changes": [

@@ -243,6 +243,10 @@ model TrainingVorgabe {
   category      DeviceCategory? @relation(fields: [categoryId], references: [id])
   gueltigAb     DateTime
   gueltigBis    DateTime?
+  // true = Enddatum bewusst vom Keyholder gesetzt → Auto-Verkettung (reorderVorgabenDates)
+  // darf es NICHT überschreiben. false = Ende ergibt sich aus der Verkettung (Start der Folge-
+  // Vorgabe) bzw. offen, wenn es die neueste ihrer Kategorie ist.
+  gueltigBisManuell Boolean @default(false)
   minProTagH    Float?
   minProWocheH  Float?
   minProMonatH  Float?

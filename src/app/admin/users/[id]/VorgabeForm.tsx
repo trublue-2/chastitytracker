@@ -66,6 +66,7 @@ function InputWithUnit({
 export interface VorgabeInitialValues {
   gueltigAb: string;
   gueltigBis: string;
+  gueltigBisManuell: boolean;
   tagVal: string;
   wocheVal: string;
   monatVal: string;
@@ -108,11 +109,18 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
     setError("");
     setSaving(true);
 
+    // „Manuell" nur, wenn ein Enddatum steht UND es entweder schon manuell war oder gerade
+    // geändert wurde. So bleibt ein bloss vorbefülltes (per Verkettung abgeleitetes) Datum
+    // weiter automatisch verkettbar, statt beim Bearbeiten anderer Felder einzufrieren.
+    const gueltigBisManuell = !!gueltigBis &&
+      ((initialValues?.gueltigBisManuell ?? false) || gueltigBis !== (initialValues?.gueltigBis ?? ""));
+
     const payload = {
       userId,
       categoryId: categoryId || null,
       gueltigAb,
       gueltigBis: gueltigBis || null,
+      gueltigBisManuell,
       minProTagH: toHours(tagVal, tagUnit, HOURS_PER_DAY),
       minProWocheH: toHours(wocheVal, wocheUnit, HOURS_PER_WEEK),
       minProMonatH: toHours(monatVal, monatUnit, HOURS_PER_MONTH),

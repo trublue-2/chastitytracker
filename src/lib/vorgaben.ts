@@ -18,6 +18,9 @@ export function isKgVorgabe(v: {
  *
  * Verkettung über Kategorien hinweg wäre falsch, weil pro Kategorie genau
  * eine Vorgabe gleichzeitig aktiv sein soll — KG und Plug laufen parallel.
+ *
+ * Ausnahme: Vorgaben mit `gueltigBisManuell` (Keyholder hat bewusst ein Enddatum
+ * gesetzt) werden NIE überschrieben — weder verkettet noch auf offen gesetzt.
  */
 export async function reorderVorgabenDates(userId: string) {
   const all = await prisma.trainingVorgabe.findMany({
@@ -36,6 +39,7 @@ export async function reorderVorgabenDates(userId: string) {
 
   for (const list of byCategory.values()) {
     for (let i = 0; i < list.length; i++) {
+      if (list[i].gueltigBisManuell) continue; // bewusst gesetztes Ende nie automatisch anfassen
       const expectedBis = list[i + 1]?.gueltigAb ?? null;
       const currentBis = list[i].gueltigBis;
 
