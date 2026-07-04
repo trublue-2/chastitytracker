@@ -10,6 +10,7 @@ import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
 import { getUserDeviceOptions, getUserTimezone } from "@/lib/queries";
+import { getLatestKgEntry, sealRequiredForCode } from "@/lib/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
 
@@ -51,7 +52,7 @@ export default async function EditEntryPage({
   // devices: only VERSCHLUSS uses them. wearDevices: only WEAR_BEGIN. tz: the data owner (entry.userId)
   // governs — an admin may edit a sub's entry, and the sub's tz must format the datetime-local value +
   // anti-cheat min/max, never the admin viewer's.
-  const [devices, wearDevices, tz, ownerReasons] = await Promise.all([
+  const [devices, wearDevices, tz, ownerReasons, latestKgEntry] = await Promise.all([
     entry.type === "VERSCHLUSS" ? getUserDeviceOptions(entry.userId) : Promise.resolve([]),
     entry.type === "WEAR_BEGIN" && entry.device?.categoryId
       ? prisma.device.findMany({
@@ -65,8 +66,13 @@ export default async function EditEntryPage({
     entry.type === "ORGASMUS" || entry.type === "OEFFNEN"
       ? prisma.user.findUnique({ where: { id: entry.userId }, select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true } })
       : Promise.resolve(null),
+    // Siegel-Hinweis nur für PRUEFUNG relevant — aktives Siegel des Eintrag-Owners (nicht des Admins).
+    entry.type === "PRUEFUNG" ? getLatestKgEntry(entry.userId) : Promise.resolve(null),
   ]);
   const nowDefault = nowDatetimeLocal(tz);
+  // Bei aktivem Siegel muss die Prüfung zusätzlich die Siegel-Nummer zeigen (Server-Live-Check prüft sie);
+  // spiegelt die Logik der Neuanlage-Seite, damit der Hinweis auch beim Bearbeiten erscheint.
+  const pruefungSealRequired = sealRequiredForCode(entry.kontrollCode, latestKgEntry);
   const artOptions = resolveOrgasmusOptions(effectiveOrgasmusArten(ownerReasons?.orgasmusArtenConfig), tOrgasm);
   const grundOptions = resolveReasonList(effectiveOeffnenGruende(ownerReasons?.oeffnenGruendeConfig), "opening", tOpen);
 
@@ -105,7 +111,7 @@ export default async function EditEntryPage({
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
           kontrollCode: entry.kontrollCode,
-        }} minTime={minTime} tz={tz} nowDefault={nowDefault} mobileDesktopMode={mobileDesktopMode} redirectTo={redirectTo} />
+        }} minTime={minTime} tz={tz} nowDefault={nowDefault} mobileDesktopMode={mobileDesktopMode} sealRequired={pruefungSealRequired} redirectTo={redirectTo} />
       )}
       {entry.type === "ORGASMUS" && (
         <OrgasmusForm initial={{

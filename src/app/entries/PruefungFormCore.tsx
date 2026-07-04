@@ -29,6 +29,12 @@ const HINT_CARDS = {
   error: { title: "verifyError", hint: "verifyErrorHint" },
 } as const;
 
+/** Titel/Hint-i18n-Keys für die zwei strukturgleichen Mismatch-Cards (Code bzw. Siegel-Nummer). */
+const MISMATCH_CARDS = {
+  mismatch: { title: "codeMismatch", hint: "codeMismatchHint" },
+  sealMismatch: { title: "sealMismatch", hint: "sealMismatchHint" },
+} as const;
+
 interface Props {
   initial?: {
     startTime: string;
@@ -78,7 +84,7 @@ export default function PruefungFormCore({
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [note, setNote] = useState(initial?.note ?? "");
   const [kontrollCode, setKontrollCode] = useState(initial?.kontrollCode ?? initialCode ?? "");
-  const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "error" | "policy" | null>(null);
+  const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "sealMismatch" | "error" | "policy" | null>(null);
   const [verifyReason, setVerifyReason] = useState<string | null>(null);
   const [aiMatch, setAiMatch] = useState<boolean | null>(null);
   const lastVerifiedKey = useRef<string>("");
@@ -126,7 +132,9 @@ export default function PruefungFormCore({
           if (v.error === "policy") setVerifyStatus("policy");
           else if (v.error) setVerifyStatus("error");
           else {
-            setVerifyStatus(v.match ? "match" : "mismatch");
+            // Dual-Prüfung: schlägt speziell die Siegel-Nummer fehl (Code passt oder nicht), einen
+            // siegel-spezifischen Status zeigen statt des generischen „Code nicht erkannt".
+            setVerifyStatus(v.match ? "match" : (v.sealMatch === false ? "sealMismatch" : "mismatch"));
             setVerifyReason(v.reason ?? null);
             setAiMatch(!!v.match);
           }
@@ -226,11 +234,11 @@ export default function PruefungFormCore({
         </div>
       )}
       {verifyStatus === "match" && <Badge variant="ok" label={t("codeMatch")} />}
-      {verifyStatus === "mismatch" && (
+      {(verifyStatus === "mismatch" || verifyStatus === "sealMismatch") && (
         <Card variant="semantic" semantic="warn">
-          <p className="text-sm text-warn-text font-medium">{t("codeMismatch")}</p>
+          <p className="text-sm text-warn-text font-medium">{t(MISMATCH_CARDS[verifyStatus].title)}</p>
           {verifyReason && <p className="text-xs text-warn mt-0.5">{verifyReason}</p>}
-          <p className="text-xs text-warn mt-1">{t("codeMismatchHint")}</p>
+          <p className="text-xs text-warn mt-1">{t(MISMATCH_CARDS[verifyStatus].hint)}</p>
         </Card>
       )}
       {(verifyStatus === "policy" || verifyStatus === "error") && (

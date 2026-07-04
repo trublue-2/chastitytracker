@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.46.6",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Kontroll-Formular: die Live-Pruefung unterscheidet jetzt, ob der Kontroll-Code oder die Siegel-Nummer nicht erkannt wurde (statt pauschal Code nicht erkannt). Der Siegel-Hinweis erscheint zudem auch beim Bearbeiten einer Pruefung, nicht nur beim Erfassen."
+      }
+    ]
+  },
+  {
     "version": "4.46.5",
     "date": "2026-07-04",
     "changes": [

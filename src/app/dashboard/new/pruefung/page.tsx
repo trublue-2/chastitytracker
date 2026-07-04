@@ -2,7 +2,7 @@ import Link from "next/link";
 import PruefungForm from "../../PruefungForm";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { deriveSealCode, generateKontrollCode, getLatestKgEntry, requiredSealCode } from "@/lib/kontrolleService";
+import { generateKontrollCode, getLatestKgEntry, sealRequiredForCode } from "@/lib/kontrolleService";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
@@ -21,8 +21,7 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
   // Bei aktivem Siegel prüft die Verifikation die Siegel-Nummer zusätzlich (Server-seitig).
   const isLocked = latest?.type === "VERSCHLUSS";
   const effectiveCode = code || (isLocked ? generateKontrollCode() : undefined);
-  const seal = deriveSealCode(latest ?? null);
-  const sealRequired = !!effectiveCode && requiredSealCode(effectiveCode, seal) !== null;
+  const sealRequired = sealRequiredForCode(effectiveCode, latest ?? null);
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("inspectionForm");
   return (

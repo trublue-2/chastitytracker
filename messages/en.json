@@ -353,6 +353,8 @@
     "codeMatch": "✅ Code recognised",
     "codeMismatch": "⚠ Code not recognised",
     "codeMismatchHint": "Please show the code clearly in the photo – can still be saved.",
+    "sealMismatch": "⚠ Seal number not recognised",
+    "sealMismatchHint": "Please show the seal number clearly in the photo – can still be saved.",
     "policyError": "Image could not be verified",
     "policyErrorHint": "The image does not comply with content guidelines – can still be saved.",
     "photoRequired": "A photo is required for an inspection",

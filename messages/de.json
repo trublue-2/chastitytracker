@@ -353,6 +353,8 @@
     "codeMatch": "✅ Code erkannt",
     "codeMismatch": "⚠ Code nicht erkannt",
     "codeMismatchHint": "Bitte Code deutlich sichtbar auf dem Foto – trotzdem speicherbar.",
+    "sealMismatch": "⚠ Siegel-Nummer nicht erkannt",
+    "sealMismatchHint": "Bitte Siegel-Nummer deutlich sichtbar auf dem Foto – trotzdem speicherbar.",
     "policyError": "Bild konnte nicht geprüft werden",
     "policyErrorHint": "Das Bild entspricht nicht den Inhaltsrichtlinien – trotzdem speicherbar.",
     "photoRequired": "Foto ist bei Kontrolle zwingend erforderlich",

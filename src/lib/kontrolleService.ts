@@ -66,6 +66,17 @@ export function requiredSealCode(code: string, sealCode: string | null): string 
   return sealCode && sealCode !== code ? sealCode : null;
 }
 
+/** Verlangt eine Kontrolle mit diesem Code ZUSÄTZLICH die Siegel-Nummer im Foto? True, wenn ein
+ *  aktives Siegel existiert, das vom Code abweicht. Bündelt die Kette (Lock-Entry → deriveSealCode →
+ *  requiredSealCode) für Formular-Hinweis (Neuanlage + Edit) — eine Regel, eine Stelle. `latest` wird
+ *  übergeben (kein interner Query), damit Aufrufer ihr bestehendes Fetch/Batch behalten. */
+export function sealRequiredForCode(
+  code: string | null | undefined,
+  latest: { type: string; kontrollCode: string | null } | null,
+): boolean {
+  return !!code && requiredSealCode(code, deriveSealCode(latest)) !== null;
+}
+
 /** Frische 5-stellige Kontroll-Code-Nummer (10000–99999). */
 export function generateKontrollCode(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
