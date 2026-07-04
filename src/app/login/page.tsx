@@ -31,9 +31,9 @@ export default function LoginPage() {
       setError(lockData.locked ? t("accountLocked") : t("invalidCredentials"));
     } else {
       clearSwUserCache();
-      const session = await getSession();
-      const dest = (session?.user as { role?: string })?.role === "admin" ? "/admin" : "/dashboard";
-      router.push(dest);
+      await getSession(); // Session-Cookie sicher gesetzt, bevor der Landing-Resolver auf "/" greift.
+      // Ziel entscheidet der serverseitige Resolver (src/lib/landing.ts) anhand der startPage-Präferenz.
+      router.push("/");
       router.refresh();
     }
   }

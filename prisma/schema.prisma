@@ -36,6 +36,9 @@ model User {
   // die Wanduhr-Fenster (Reinigung/Schlaf) für DIESEN Nutzer. Default "Europe/Zurich" = bisheriges
   // Verhalten für alle Bestandsnutzer (keine sichtbare Änderung).
   timezone              String                 @default("Europe/Zurich")
+  // Startseite nach Login (pro User): "auto" = rollen-/sub-abhängig (Keyholder→Übersicht bzw. einziger
+  // Sub direkt, sonst eigener Tracker), "overview" = Keyholder-Übersicht, "dashboard" = eigener Tracker.
+  startPage             String                 @default("auto")
   // Pro-User anpassbare Auswahllisten als JSON-Array [{code,label?}] (TEXT). null = eingebaute
   // Standardliste (Bestandsnutzer unverändert). Öffnungsgründe enthalten IMMER den geschützten
   // Built-in "REINIGUNG" (Code fix, nur Label umbenennbar). Siehe reasonsService.ts.

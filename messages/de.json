@@ -11,7 +11,8 @@
     "emailTaken": "E-Mail-Adresse bereits vergeben",
     "invalidRole": "Ungültige Rolle",
     "cannotDeleteSelf": "Eigenen Account kann man nicht löschen",
-    "invalidTimezone": "Ungültige Zeitzone"
+    "invalidTimezone": "Ungültige Zeitzone",
+    "invalidStartPage": "Ungültige Startseite"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -380,6 +381,11 @@
     "language": "Sprache",
     "timezone": "Zeitzone",
     "timezoneHint": "Anzeige, Eingabe-Vorgaben sowie Reinigungs- und Schlaf-Fenster richten sich nach dieser Zeitzone.",
+    "startPage": "Startseite nach Login",
+    "startPageHint": "Wohin es nach dem Login springt. Automatisch = als Keyholderin zur Übersicht (bei genau einem Sub direkt in diesen), sonst zum eigenen Tracker.",
+    "startPageAuto": "Automatisch",
+    "startPageOverview": "Keyholder-Übersicht",
+    "startPageDashboard": "Eigener KG-Tracker",
     "reinigungTitle": "Reinigungsunterbrechung",
     "reinigungErlaubt": "Reinigungsunterbrechung zulassen",
     "reinigungMaxMinuten": "Maximale Reinigungsdauer",

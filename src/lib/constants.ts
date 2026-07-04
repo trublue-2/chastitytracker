@@ -148,6 +148,13 @@ export const HOURS_PER_WEEK = 168;
 export const HOURS_PER_MONTH = 730;
 export const HOURS_PER_YEAR = 8766;
 
+// ── Startseite nach Login (pro-User-Präferenz) ───────────────────────────────
+export const START_PAGES = ["auto", "overview", "dashboard"] as const;
+export type StartPage = (typeof START_PAGES)[number];
+export function isValidStartPage(v: unknown): v is StartPage {
+  return typeof v === "string" && (START_PAGES as readonly string[]).includes(v);
+}
+
 // ── Password validation ─────────────────────────────────────────────────────
 
 export const PASSWORD_MIN_LENGTH = 8;

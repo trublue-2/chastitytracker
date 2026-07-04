@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.46.4",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Neue Einstellung Startseite nach Login: Keyholder können wählen, ob sie nach dem Login automatisch (Übersicht bzw. bei genau einem Sub direkt in diesen), immer auf die Keyholder-Übersicht oder auf den eigenen KG-Tracker geleitet werden. Für normale Nutzer ohne Sub bleibt alles wie bisher."
+      }
+    ]
+  },
+  {
     "version": "4.46.3",
     "date": "2026-07-04",
     "changes": [

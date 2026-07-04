@@ -11,7 +11,8 @@
     "emailTaken": "Email address already taken",
     "invalidRole": "Invalid role",
     "cannotDeleteSelf": "You cannot delete your own account",
-    "invalidTimezone": "Invalid timezone"
+    "invalidTimezone": "Invalid timezone",
+    "invalidStartPage": "Invalid start page"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -380,6 +381,11 @@
     "language": "Language",
     "timezone": "Time zone",
     "timezoneHint": "Display, input defaults, and the cleaning and sleep windows all follow this time zone.",
+    "startPage": "Start page after login",
+    "startPageHint": "Where you land after logging in. Automatic = keyholders go to the overview (straight into the sub if there's exactly one), everyone else to their own tracker.",
+    "startPageAuto": "Automatic",
+    "startPageOverview": "Keyholder overview",
+    "startPageDashboard": "Own tracker",
     "reinigungTitle": "Cleaning interruption",
     "reinigungErlaubt": "Allow cleaning interruptions",
     "reinigungMaxMinuten": "Maximum cleaning duration",

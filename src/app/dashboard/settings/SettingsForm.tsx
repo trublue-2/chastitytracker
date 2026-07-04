@@ -24,12 +24,15 @@ interface SettingsFormProps {
   username: string;
   email: string | null;
   timezone: string;
+  startPage: string;
+  /** Nur Keyholder/Admins sehen die Startseiten-Wahl (nur sie haben eine Übersicht). */
+  showStartPage: boolean;
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
 }
 
-export default function SettingsForm({ username, email, timezone, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, timezone, startPage, showStartPage, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const apiError = useApiError();
@@ -118,6 +121,41 @@ export default function SettingsForm({ username, email, timezone, version, build
       setTzSaving(false);
     }
   }
+
+  const [startPageValue, setStartPageValue] = useState(startPage);
+  const [startPageSuccess, setStartPageSuccess] = useState(false);
+  const [startPageError, setStartPageError] = useState<string | null>(null);
+  const [startPageSaving, setStartPageSaving] = useState(false);
+
+  async function handleStartPage(value: string) {
+    setStartPageValue(value);
+    setStartPageSuccess(false);
+    setStartPageError(null);
+    setStartPageSaving(true);
+    try {
+      const res = await fetch("/api/settings/start-page", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startPage: value }),
+      });
+      if (res.ok) {
+        setStartPageSuccess(true);
+      } else {
+        const data = await res.json();
+        setStartPageError(apiError(data.error));
+      }
+    } catch {
+      setStartPageError(tc("error"));
+    } finally {
+      setStartPageSaving(false);
+    }
+  }
+
+  const startPageOptions = [
+    { value: "auto", label: t("startPageAuto") },
+    { value: "overview", label: t("startPageOverview") },
+    { value: "dashboard", label: t("startPageDashboard") },
+  ];
 
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
@@ -230,6 +268,25 @@ export default function SettingsForm({ username, email, timezone, version, build
             {tzSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
             <FormError message={tzError} />
           </ExpandRow>
+
+          {/* Startseite nach Login — nur für Keyholder/Admins sinnvoll */}
+          {showStartPage && (
+            <ExpandRow
+              label={t("startPage")}
+              open={expanded === "startPage"}
+              onToggle={() => toggle("startPage")}
+            >
+              <Select
+                value={startPageValue}
+                onChange={(e) => handleStartPage(e.target.value)}
+                options={startPageOptions}
+                disabled={startPageSaving}
+                hint={t("startPageHint")}
+              />
+              {startPageSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
+              <FormError message={startPageError} />
+            </ExpandRow>
+          )}
 
           {/* Feedback */}
           {feedbackEnabled && <FeedbackButton variant="menu" />}
