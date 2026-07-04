@@ -16,6 +16,7 @@ describe("evaluateVerifyResponse — Einzel-Prüfung (kein Siegel)", () => {
   it("Override: richtige Ziffern, aber match=false vom Modell", () => {
     const r = evaluateVerifyResponse({ detected: "12345", match: false, reason: "?" }, CODE, null);
     expect(r.match).toBe(true);
+    expect(r.overridden).toBe(true);
     expect(r.reason).toBeNull();
   });
 
@@ -84,20 +85,31 @@ describe("evaluateVerifyResponse — Dual-Prüfung (Code + Siegel)", () => {
     expect(r.reason).toBe("Kontroll-Code und Siegel-Nummer nicht erkannt");
   });
 
-  it("Siegel mit Fuzzy-Toleranz 0↔6", () => {
+  it("Siegel wird NICHT fuzzy-toleriert (exakter Match) — transponiertes Fremd-Siegel bleibt Mismatch", () => {
     const r = evaluateVerifyResponse(
       { detectedCode: "12345", matchCode: true, detectedSeal: "6067321", matchSeal: false },
       CODE, SEAL,
     );
-    expect(r.match).toBe(true);
-    expect(r.sealMatch).toBe(true);
+    expect(r.match).toBe(false);
+    expect(r.sealMatch).toBe(false);
+    expect(r.sealDetected).toBe("6067321");
+    expect(r.reason).toBe("Siegel-Nummer nicht erkannt");
   });
 
-  it("Override auch je Teil: richtige Ziffern trotz matchSeal=false", () => {
+  it("Der handgeschriebene Code bleibt fuzzy-tolerant (1↔7), auch im Dual-Modus", () => {
+    const r = evaluateVerifyResponse(
+      { detectedCode: "72345", matchCode: false, detectedSeal: "0067321", matchSeal: true },
+      CODE, SEAL,
+    );
+    expect(r.match).toBe(true);
+  });
+
+  it("Override je Teil: exakte Siegel-Ziffern trotz matchSeal=false zählen als Match", () => {
     const r = evaluateVerifyResponse(
       { detectedCode: "12345", matchCode: true, detectedSeal: "0067321", matchSeal: false },
       CODE, SEAL,
     );
     expect(r.match).toBe(true);
+    expect(r.overridden).toBe(true);
   });
 });

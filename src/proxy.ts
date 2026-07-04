@@ -91,7 +91,9 @@ export default auth((req) => {
   }
 
   if (pathname === "/login" && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    // Auf die Wurzel leiten (nicht hart /dashboard) → page.tsx/resolveLandingPath entscheidet das
+    // Ziel anhand der startPage-Präferenz (Keyholder-Übersicht etc.), konsistent zum Login-Flow.
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   // Access-Log: nur Seiten-Aufrufe (keine API-Calls, keine statischen Assets)

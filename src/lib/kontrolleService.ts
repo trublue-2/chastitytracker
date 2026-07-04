@@ -49,12 +49,14 @@ export function deriveSealCode(latest: { type: string; kontrollCode: string | nu
 
 /** Letzter KG-Entry (VERSCHLUSS/OEFFNEN) eines Users — Basis für Lock-Zustand + Siegel-Ableitung.
  *  Optionaler tx-Client für Transaktionen (Muster wie queries.ts). Single source der „letzter
- *  Lock-Entry"-Query, damit sie nicht über Route/Page/Poller driftet (Feed für deriveSealCode). */
+ *  Lock-Entry"-Query, damit sie nicht über Route/Page/Poller driftet (Feed für deriveSealCode).
+ *  `deviceId` wird mitgeladen (winziges Feld), damit auch der Geräte-Check im entries-POST dieselbe
+ *  Query teilen kann statt eine eigene Kopie zu halten — deriveSealCode ignoriert es. */
 export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = prisma) {
   return tx.entry.findFirst({
     where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
     orderBy: { startTime: "desc" },
-    select: { type: true, kontrollCode: true },
+    select: { type: true, kontrollCode: true, deviceId: true },
   });
 }
 

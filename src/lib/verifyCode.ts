@@ -101,9 +101,12 @@ export type VerifyDetailedResult = {
 };
 
 /** Bewertet EINE erkannte Nummer gegen den Erwartungswert: normalisieren (Whitespace/
- *  Nicht-Ziffern), exakter Vergleich, Modell-match-Flag, Fuzzy-Toleranz (1↔7, 0↔6).
- *  Override-Fall: Modell liest die richtigen Ziffern, meldet aber match=false. */
-function evaluateDetected(rawDetected: unknown, modelMatch: unknown, expected: string): {
+ *  Nicht-Ziffern), exakter Vergleich, Modell-match-Flag, optionale Fuzzy-Toleranz (1↔7, 0↔6).
+ *  Override-Fall: Modell liest die richtigen Ziffern, meldet aber match=false.
+ *  `allowFuzzy`: nur für den HANDGESCHRIEBENEN Kontroll-Code (dort ist 1↔7/0↔6-Verwechslung real).
+ *  Für die GEDRUCKTE Siegel-Nummer aus → exakter Match, damit ein transponiertes Fremd-Siegel
+ *  nicht durchrutscht (die Siegel-Prüfung ist der Manipulations-/Frische-Nachweis). */
+function evaluateDetected(rawDetected: unknown, modelMatch: unknown, expected: string, allowFuzzy: boolean = true): {
   detected: string | null;
   match: boolean;
   overridden: boolean;
@@ -113,7 +116,7 @@ function evaluateDetected(rawDetected: unknown, modelMatch: unknown, expected: s
   const exact = normalized !== null && normalized === expected;
   return {
     detected,
-    match: modelMatch === true || exact || (detected !== null && fuzzyMatch(detected, expected)),
+    match: modelMatch === true || exact || (allowFuzzy && detected !== null && fuzzyMatch(detected, expected)),
     overridden: modelMatch !== true && exact,
   };
 }
@@ -134,7 +137,9 @@ export function evaluateVerifyResponse(
   }
 
   const code = evaluateDetected(parsed.detectedCode, parsed.matchCode, expectedCode);
-  const seal = evaluateDetected(parsed.detectedSeal, parsed.matchSeal, sealCode);
+  // Siegel-Nummer ist gedruckt → exakter Match (kein Fuzzy), sonst würde ein transponiertes
+  // Fremd-Siegel (0↔6/1↔7) als gültig durchgehen und den Siegel-Nachweis aushebeln.
+  const seal = evaluateDetected(parsed.detectedSeal, parsed.matchSeal, sealCode, false);
   const match = code.match && seal.match;
   const fallbackReason =
     !code.match && !seal.match ? "Kontroll-Code und Siegel-Nummer nicht erkannt"
@@ -220,6 +225,7 @@ export async function verifyKontrolleCodeDetailed(
       claudeOverridden: result.overridden ?? false,
       sealChecked: !!effectiveSeal,
       sealMatch: result.sealMatch ?? null,
+      hasSealDetected: result.sealDetected != null,
       reason: result.reason,
     });
     return result;

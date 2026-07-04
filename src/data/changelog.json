@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.46.7",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "security",
+        "text": "Siegel-Pruefung: die gedruckte Siegel-Nummer wird jetzt exakt verglichen (keine 0/6- bzw. 1/7-Ziffern-Toleranz mehr, die nur fuer den handgeschriebenen Code gedacht war). Ein transponiertes Fremd-Siegel rutscht damit nicht mehr als gueltig durch."
+      },
+      {
+        "type": "fix",
+        "text": "Startseite nach Login wird jetzt auch respektiert, wenn eine bereits eingeloggte Person die Login-Seite erneut oeffnet (Bookmark/Zurueck) — vorher landete sie pauschal auf dem eigenen Tracker."
+      },
+      {
+        "type": "fix",
+        "text": "Die Wurzelseite faellt bei einem kurzzeitigen Datenbank-Problem auf den eigenen Tracker zurueck, statt eine Fehlerseite zu zeigen."
+      }
+    ]
+  },
+  {
     "version": "4.46.6",
     "date": "2026-07-04",
     "changes": [

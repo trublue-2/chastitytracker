@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCode } from "@/lib/verifyCode";
-import { deriveSealCode } from "@/lib/kontrolleService";
+import { deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
@@ -239,16 +239,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Beide Fire-and-forget-Blöcke unten (Geräte-Check + KI-Verifikation) brauchen denselben letzten
-  // Lock-Entry — einmal laden, teilen (spart einen SQLite-Roundtrip je PRUEFUNG-Foto). deviceId für
-  // den Geräte-Check, kontrollCode (via deriveSealCode) für die Siegel-Prüfung.
+  // Lock-Entry — einmal laden, teilen (spart einen SQLite-Roundtrip je PRUEFUNG-Foto). getLatestKgEntry
+  // liefert type + deviceId (Geräte-Check) + kontrollCode (via deriveSealCode für die Siegel-Prüfung).
   const latestLockPromise =
-    type === "PRUEFUNG" && imageUrl
-      ? prisma.entry.findFirst({
-          where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-          select: { type: true, deviceId: true, kontrollCode: true },
-        })
-      : null;
+    type === "PRUEFUNG" && imageUrl ? getLatestKgEntry(session.user.id) : null;
 
   // Kontroll-Geräte-Check (advisory): ist das aktuell verschlossene Gerät im Kontroll-Foto sichtbar?
   // Server-seitig + fire-and-forget (blockiert die Antwort NICHT); Ergebnis landet als entry.deviceCheck,
