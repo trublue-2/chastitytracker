@@ -166,9 +166,16 @@ jobs:
                       ;;
                   esac
                 fi
-                docker compose pull
-                docker compose up -d --force-recreate
-                echo "✓ Instanz $IDX/$TOTAL aktualisiert."
+                # docker-compose druckt sonst „Pulling kg-<name>…" / „Container kg-<name> Started"
+                # → Instanzname im öffentlichen CI-Log. Ausgabe daher server-seitig ins private
+                # .deploy.log umleiten; ins CI-Log nur die anonyme Index-Zeile.
+                if docker compose pull                    >"$DIR/.deploy.log" 2>&1 \
+                && docker compose up -d --force-recreate >>"$DIR/.deploy.log" 2>&1; then
+                  echo "✓ Instanz $IDX/$TOTAL aktualisiert."
+                else
+                  echo "⚠ Instanz $IDX/$TOTAL fehlgeschlagen (Details serverseitig in .deploy.log)."
+                  exit 1
+                fi
               ) &
               PIDS+=($!)
             done
@@ -179,7 +186,7 @@ jobs:
               wait "$pid" || FAILED=$((FAILED + 1))
             done
 
-            docker image prune -f
+            docker image prune -f >/dev/null 2>&1
 
             if [ "$FAILED" -gt 0 ]; then
               echo "⚠ $FAILED Instanz(en) fehlgeschlagen!"
