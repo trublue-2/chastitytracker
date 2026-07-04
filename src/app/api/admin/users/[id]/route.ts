@@ -95,13 +95,14 @@ export async function PATCH(
   }
 
   if (
-    body.autoKontrolleAktiv !== undefined || body.autoKontrolleProTag !== undefined ||
+    body.autoKontrolleAktiv !== undefined || body.autoKontrollePerDayMin !== undefined ||
+    body.autoKontrollePerDayMax !== undefined ||
     body.autoKontrolleRuheVon !== undefined || body.autoKontrolleRuheBis !== undefined ||
     body.autoKontrolleFristVon !== undefined || body.autoKontrolleFristBis !== undefined
   ) {
     // Felder roh durchreichen — setAutoKontrolleSettings klemmt/validiert (HH:MM, Bereiche, Bis≥Von).
     await setAutoKontrolleSettings(id, {
-      aktiv: body.autoKontrolleAktiv, proTag: body.autoKontrolleProTag,
+      aktiv: body.autoKontrolleAktiv, perDayMin: body.autoKontrollePerDayMin, perDayMax: body.autoKontrollePerDayMax,
       ruheVon: body.autoKontrolleRuheVon, ruheBis: body.autoKontrolleRuheBis,
       fristVon: body.autoKontrolleFristVon, fristBis: body.autoKontrolleFristBis,
     });

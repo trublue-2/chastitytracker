@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.44.4",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Automatische Kontrollen: Die Anzahl pro Tag lässt sich jetzt als Bereich (Min–Max) einstellen. Das System würfelt täglich eine zufällige Anzahl daraus — so ist am Tagesende nicht absehbar, ob noch eine Kontrolle kommt. Min = Max verhält sich wie bisher (feste Anzahl); bestehende Einstellungen bleiben unverändert."
+      }
+    ]
+  },
+  {
     "version": "4.44.3",
     "date": "2026-07-04",
     "changes": [

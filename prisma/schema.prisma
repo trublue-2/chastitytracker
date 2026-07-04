@@ -21,10 +21,12 @@ model User {
   // Tägliche Öffnungs-Fenster für Reinigung als JSON-String, z.B. [{"start":"19:00","end":"20:00"}]
   // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseReinigungsFenster deserialisiert.
   reinigungsFenster     String?
-  // Automatische Kontrollen: X zufällig verteilte Kontrollen/Tag. Frist darf nicht ins Schlaf-
-  // Fenster (RuheVon–RuheBis, CH-Lokalzeit) fallen; Erfüllungsdauer zufällig in [FristVon, FristBis] Min.
-  autoKontrolleAktiv    Boolean                @default(false)
-  autoKontrolleProTag   Int                    @default(0)
+  // Automatische Kontrollen: pro Tag zufällig X Kontrollen, wobei X selbst zufällig aus
+  // [PerDayMin, PerDayMax] gewürfelt wird. Frist darf nicht ins Schlaf-Fenster (RuheVon–RuheBis,
+  // CH-Lokalzeit) fallen; Erfüllungsdauer zufällig in [FristVon, FristBis] Min.
+  autoKontrolleAktiv     Boolean               @default(false)
+  autoKontrollePerDayMin Int                   @default(0)  // Min-Anzahl/Tag
+  autoKontrollePerDayMax Int                   @default(0)  // Max-Anzahl/Tag (< Min → als Min behandelt)
   autoKontrolleRuheVon  String                 @default("22:00")
   autoKontrolleRuheBis  String                 @default("06:00")
   autoKontrolleFristVon Int                    @default(15)

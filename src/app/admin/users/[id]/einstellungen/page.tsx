@@ -157,7 +157,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           <AutoKontrolleToggle
             userId={user.id}
             initialAktiv={user.autoKontrolleAktiv}
-            initialProTag={user.autoKontrolleProTag}
+            initialPerDayMin={user.autoKontrollePerDayMin}
+            initialPerDayMax={user.autoKontrollePerDayMax}
             initialRuheVon={user.autoKontrolleRuheVon}
             initialRuheBis={user.autoKontrolleRuheBis}
             initialFristVon={user.autoKontrolleFristVon}

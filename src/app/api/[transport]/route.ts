@@ -447,7 +447,7 @@ function registerTools(server: McpServer) {
         title: "Get life context (recurring + appointments + health hold)",
         description:
           "MCP V2 — Kontext um das echte Leben (§8): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
-          "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDay/Schlaf-Fenster/" +
+          "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDayMin/perDayMax/Schlaf-Fenster/" +
           "Fristen — read-only, nicht via MCP änderbar), die Reinigungs-Regeln (cleaning: allowed/" +
           "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow), der wiederkehrende " +
           "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree; ordinal/ordinalLabel " +
@@ -738,7 +738,7 @@ function registerTools(server: McpServer) {
 
     // set_auto_inspections wird BEWUSST NICHT als MCP-Tool angeboten: der virtuelle Keyholder soll
     // Kontrollen weiterhin MANUELL über request_inspection veranlassen, aber die Einstellungen der
-    // AUTOMATISCHEN Kontrollen (perDay/Schlaf-Fenster/Fristen) nicht ändern. Die autoKontrolle-Config
+    // AUTOMATISCHEN Kontrollen (perDayMin/perDayMax/Schlaf-Fenster/Fristen) nicht ändern. Die autoKontrolle-Config
     // bleibt nur LESBAR (get_context.autoInspections).
 
     server.registerTool(

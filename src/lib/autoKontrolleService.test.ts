@@ -34,18 +34,19 @@ describe("generateAutoKontrollen", () => {
   // now = CH-Mitternacht → das ganze Wach-Fenster liegt in der Zukunft (alle Slots werden behalten).
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"));
   const dayBase = midnightInTZ(now).getTime();
-  const base: AutoKontrolleSettings = { aktiv: true, proTag: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60 };
+  // Min == Max ⇒ fixe Anzahl (Verhalten wie vor der Min–Max-Erweiterung).
+  const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60 };
 
   const deadlineMin = (s: { deadline: Date }) => Math.round((s.deadline.getTime() - dayBase) / 60_000);
   const durationMin = (s: { wirksamAb: Date; deadline: Date }) => Math.round((s.deadline.getTime() - s.wirksamAb.getTime()) / 60_000);
 
-  it("returns 0 slots when proTag is 0", () => {
-    expect(generateAutoKontrollen({ ...base, proTag: 0 }, now)).toHaveLength(0);
+  it("returns 0 slots when max is 0", () => {
+    expect(generateAutoKontrollen({ ...base, perDayMin: 0, perDayMax: 0 }, now)).toHaveLength(0);
   });
 
-  it("respects proTag count and all constraints (standard 22–06 window)", () => {
+  it("respects perDayMin count and all constraints (standard 22–06 window)", () => {
     const slots = generateAutoKontrollen(base, now, () => 0.5);
-    expect(slots.length).toBeLessThanOrEqual(base.proTag);
+    expect(slots.length).toBeLessThanOrEqual(base.perDayMax);
     expect(slots.length).toBeGreaterThan(0);
     for (const s of slots) {
       // Frist im Wach-Fenster (NICHT im Schlaf-Fenster 22–06)
@@ -77,8 +78,37 @@ describe("generateAutoKontrollen", () => {
   });
 });
 
+describe("generateAutoKontrollen — zufällige Tages-Anzahl aus [Min, Max]", () => {
+  // now = CH-Mitternacht → ganzer Tag Zukunft, Segmente gross genug → slots.length == gewürfelte Anzahl.
+  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"));
+  const range: AutoKontrolleSettings = { aktiv: true, perDayMin: 2, perDayMax: 6, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60 };
+
+  it("rand→0 wählt die Min-Anzahl", () => {
+    expect(generateAutoKontrollen(range, now, () => 0)).toHaveLength(2);
+  });
+
+  it("rand→1 wählt die Max-Anzahl", () => {
+    expect(generateAutoKontrollen(range, now, () => 0.999999)).toHaveLength(6);
+  });
+
+  it("mittlerer rand-Wert wählt einen Wert innerhalb [Min, Max]", () => {
+    // Erster rand()-Aufruf bestimmt die Anzahl: 2 + floor(0.5·(6−2+1)) = 2 + floor(2.5) = 4.
+    const n = generateAutoKontrollen(range, now, () => 0.5).length;
+    expect(n).toBe(4);
+    expect(n).toBeGreaterThanOrEqual(range.perDayMin);
+    expect(n).toBeLessThanOrEqual(range.perDayMax);
+  });
+
+  it("Max < Min wird als Min behandelt (fixe Anzahl, kein Absturz)", () => {
+    const settings = { ...range, perDayMin: 5, perDayMax: 2 };
+    for (const r of [0, 0.5, 0.999999]) {
+      expect(generateAutoKontrollen(settings, now, () => r)).toHaveLength(5);
+    }
+  });
+});
+
 describe("generateAutoKontrollen — per-user timezone anchor", () => {
-  const settings: AutoKontrolleSettings = { aktiv: true, proTag: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60 };
+  const settings: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60 };
 
   it("anchors the day + awake window to the given tz (New York)", () => {
     const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), "America/New_York");

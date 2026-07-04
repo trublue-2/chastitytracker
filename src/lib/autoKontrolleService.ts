@@ -4,7 +4,8 @@ import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
 import { generateKontrollCode } from "@/lib/kontrolleService";
 
 /**
- * Automatische Kontrollen: X zufällig verteilte Kontrollen pro Tag und Sub. Die FRIST darf nicht ins
+ * Automatische Kontrollen: pro Tag und Sub eine ZUFÄLLIGE Anzahl `x ∈ [perDayMin, perDayMax]` zufällig
+ * verteilter Kontrollen (so weiß der Sub nicht, ob am Tagesende noch eine kommt). Die FRIST darf nicht ins
  * Schlaf-Fenster (RuheVon–RuheBis, CH-Lokalzeit) fallen; die Erfüllungsdauer ist je Kontrolle zufällig
  * in [FristVon, FristBis] Minuten. Die Zeilen werden vorab als KontrollAnforderung mit Zukunfts-
  * `wirksamAb` angelegt; der bestehende Minuten-Poller verschickt sie bei Fälligkeit.
@@ -12,7 +13,8 @@ import { generateKontrollCode } from "@/lib/kontrolleService";
 
 export interface AutoKontrolleSettings {
   aktiv: boolean;
-  proTag: number;
+  perDayMin: number; // Min-Anzahl Kontrollen/Tag
+  perDayMax: number; // Max-Anzahl Kontrollen/Tag (< Min → als Min behandelt)
   ruheVon: string; // "HH:MM" Schlaf-Fenster Start
   ruheBis: string; // "HH:MM" Schlaf-Fenster Ende
   fristVon: number; // min Erfüllungsdauer (Min)
@@ -21,8 +23,18 @@ export interface AutoKontrolleSettings {
 
 export type SetAutoKontrolleParams = Partial<AutoKontrolleSettings>;
 
-const PRO_TAG_RANGE = { min: 0, max: 12, fallback: 0 } as const;
+const PER_DAY_RANGE = { min: 0, max: 12, fallback: 0 } as const;
 const FRIST_RANGE = { min: 5, max: 240, fallback: 15 } as const;
+
+/** Effektive Max-Anzahl/Tag (geklemmt, ≥ Min). 0 ⇒ keine Kontrollen. */
+function effectiveMaxPerDay(s: { perDayMin: number; perDayMax: number }): number {
+  return Math.max(clamp(s.perDayMin, PER_DAY_RANGE), clamp(s.perDayMax, PER_DAY_RANGE));
+}
+
+/** Hebt einen „Bis"-Wert auf „Von" an, falls er darunter liegt (Von-/Bis-Paar-Konsistenz). */
+function raiseMaxToMin(min: number | undefined, max: number): number {
+  return min !== undefined && max < min ? min : max;
+}
 
 export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 /** "HH:MM" → Minuten seit Mitternacht (0–1439). */
@@ -40,11 +52,11 @@ export function isInQuietMinutes(vonMin: number, bisMin: number, min: number): b
 }
 
 /**
- * Erzeugt bis zu `proTag` Slots `{ wirksamAb, deadline }` für den heutigen CH-Tag. Das Wach-Fenster
- * (Komplement des Schlaf-Fensters) wird in proTag gleiche Segmente geteilt; je Segment liegen Trigger
- * UND Frist innerhalb des Segments → keine Überlappung, und die Frist liegt garantiert außerhalb des
- * Schlaf-Fensters. Nur Slots mit `wirksamAb > now` werden zurückgegeben (Teiltag bei Mittags-Start).
- * Reine Funktion (Zufall injizierbar für Tests).
+ * Würfelt zuerst eine Tages-Anzahl `x ∈ [perDayMin, perDayMax]` und erzeugt bis zu `x` Slots
+ * `{ wirksamAb, deadline }` für den heutigen CH-Tag. Das Wach-Fenster (Komplement des Schlaf-Fensters)
+ * wird in `x` gleiche Segmente geteilt; je Segment liegen Trigger UND Frist innerhalb des Segments →
+ * keine Überlappung, und die Frist liegt garantiert außerhalb des Schlaf-Fensters. Nur Slots mit
+ * `wirksamAb > now` werden zurückgegeben (Teiltag bei Mittags-Start). Reine Funktion (Zufall injizierbar).
  */
 export function generateAutoKontrollen(
   settings: AutoKontrolleSettings,
@@ -52,7 +64,11 @@ export function generateAutoKontrollen(
   rand: () => number = Math.random,
   tz: string = APP_TZ,
 ): { wirksamAb: Date; deadline: Date }[] {
-  const x = clamp(settings.proTag, PRO_TAG_RANGE);
+  const min = clamp(settings.perDayMin, PER_DAY_RANGE);
+  const max = Math.max(min, clamp(settings.perDayMax, PER_DAY_RANGE)); // ≥ min, geklemmt
+  if (max <= 0) return [];
+  // Anzahl zufällig aus [min, max] (min == max → fixe Anzahl, wie bisher).
+  const x = min + Math.floor(rand() * (max - min + 1));
   if (x <= 0) return [];
   const fristVon = clamp(settings.fristVon, FRIST_RANGE);
   const fristBis = Math.max(fristVon, clamp(settings.fristBis, FRIST_RANGE));
@@ -88,13 +104,14 @@ export function generateAutoKontrollen(
 
 /** Liest die Auto-Kontroll-Settings aus einer User-Zeile. */
 export function autoKontrolleSettingsFromUser(u: {
-  autoKontrolleAktiv: boolean; autoKontrolleProTag: number;
+  autoKontrolleAktiv: boolean; autoKontrollePerDayMin: number; autoKontrollePerDayMax: number;
   autoKontrolleRuheVon: string; autoKontrolleRuheBis: string;
   autoKontrolleFristVon: number; autoKontrolleFristBis: number;
 }): AutoKontrolleSettings {
   return {
     aktiv: u.autoKontrolleAktiv,
-    proTag: u.autoKontrolleProTag,
+    perDayMin: u.autoKontrollePerDayMin,
+    perDayMax: u.autoKontrollePerDayMax,
     ruheVon: u.autoKontrolleRuheVon,
     ruheBis: u.autoKontrolleRuheBis,
     fristVon: u.autoKontrolleFristVon,
@@ -103,7 +120,7 @@ export function autoKontrolleSettingsFromUser(u: {
 }
 
 const AUTO_USER_SELECT = {
-  id: true, timezone: true, autoKontrolleAktiv: true, autoKontrolleProTag: true,
+  id: true, timezone: true, autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true,
   autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
 } as const;
@@ -125,7 +142,7 @@ async function createAutoKontrollen(userId: string, slots: { wirksamAb: Date; de
 export async function ensureDailyAutoKontrollenForUser(
   userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
 ): Promise<number> {
-  if (!settings.aktiv || settings.proTag <= 0) return 0;
+  if (!settings.aktiv || effectiveMaxPerDay(settings) <= 0) return 0;
   const already = await prisma.kontrollAnforderung.count({
     where: { userId, auto: true, createdAt: { gte: midnightInTZ(now, tz) } },
   });
@@ -143,7 +160,7 @@ export async function replanTodayAutoKontrollenForUser(
   await prisma.kontrollAnforderung.deleteMany({
     where: { userId, auto: true, benachrichtigtAt: null, withdrawnAt: null, createdAt: { gte: midnightInTZ(now, tz) } },
   });
-  if (!settings.aktiv || settings.proTag <= 0) return 0;
+  if (!settings.aktiv || effectiveMaxPerDay(settings) <= 0) return 0;
   return createAutoKontrollen(userId, generateAutoKontrollen(settings, now, Math.random, tz));
 }
 
@@ -182,21 +199,22 @@ export async function deleteWithdrawnAutoKontrollen(now: Date): Promise<number> 
  *  validiert, FristBis ≥ FristVon). Geteilt von PATCH /api/admin/users/[id]. */
 export async function setAutoKontrolleSettings(userId: string, params: SetAutoKontrolleParams): Promise<ServiceResult<null>> {
   const data: {
-    autoKontrolleAktiv?: boolean; autoKontrolleProTag?: number;
+    autoKontrolleAktiv?: boolean; autoKontrollePerDayMin?: number; autoKontrollePerDayMax?: number;
     autoKontrolleRuheVon?: string; autoKontrolleRuheBis?: string;
     autoKontrolleFristVon?: number; autoKontrolleFristBis?: number;
   } = {};
 
   if (params.aktiv !== undefined) data.autoKontrolleAktiv = Boolean(params.aktiv);
-  if (params.proTag !== undefined) data.autoKontrolleProTag = clamp(params.proTag, PRO_TAG_RANGE);
+  if (params.perDayMin !== undefined) data.autoKontrollePerDayMin = clamp(params.perDayMin, PER_DAY_RANGE);
+  if (params.perDayMax !== undefined) data.autoKontrollePerDayMax = clamp(params.perDayMax, PER_DAY_RANGE);
   if (params.ruheVon !== undefined && HHMM.test(params.ruheVon)) data.autoKontrolleRuheVon = params.ruheVon;
   if (params.ruheBis !== undefined && HHMM.test(params.ruheBis)) data.autoKontrolleRuheBis = params.ruheBis;
   if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, FRIST_RANGE);
   if (params.fristBis !== undefined) data.autoKontrolleFristBis = clamp(params.fristBis, FRIST_RANGE);
-  // FristBis ≥ FristVon sicherstellen, wenn beide bekannt (oder einer geändert wird).
-  if (data.autoKontrolleFristVon !== undefined && data.autoKontrolleFristBis !== undefined && data.autoKontrolleFristBis < data.autoKontrolleFristVon) {
-    data.autoKontrolleFristBis = data.autoKontrolleFristVon;
-  }
+  // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay & Frist).
+  // Nur die vorhandenen Bis-Keys anfassen, sonst würde undefined den „keine Felder"-Guard aushebeln.
+  if (data.autoKontrollePerDayMax !== undefined) data.autoKontrollePerDayMax = raiseMaxToMin(data.autoKontrollePerDayMin, data.autoKontrollePerDayMax);
+  if (data.autoKontrolleFristBis !== undefined) data.autoKontrolleFristBis = raiseMaxToMin(data.autoKontrolleFristVon, data.autoKontrolleFristBis);
 
   if (Object.keys(data).length === 0) return { ok: false, status: 400, error: "Keine Felder zum Aktualisieren" };
   const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_USER_SELECT });

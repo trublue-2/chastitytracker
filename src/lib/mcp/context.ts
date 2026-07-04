@@ -34,10 +34,11 @@ export interface ContextResult {
   user: string;
   healthHold: HealthHoldView | null;
   /** Einstellungen der AUTOMATISCHEN Kontrollen (read-only; über den MCP nicht änderbar — Kontrollen
-   *  werden manuell via request_inspection veranlasst). active=false → keine Auto-Kontrollen. perDay =
-   *  selbsttätig verteilte Kontrollen pro Tag; sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
+   *  werden manuell via request_inspection veranlasst). active=false → keine Auto-Kontrollen. Pro Tag
+   *  wird eine ZUFÄLLIGE Anzahl aus [perDayMin, perDayMax] selbsttätig über den Tag verteilt
+   *  (perDayMin==perDayMax ⇒ fixe Anzahl); sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
    *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. */
-  autoInspections: { active: boolean; perDay: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number };
+  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number };
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung). */
   cleaning: ReinigungView;
   recurringContext: ReturnType<typeof recurringView>[];
@@ -47,7 +48,7 @@ export interface ContextResult {
 const contextUserSelect = {
   id: true, timezone: true,
   reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true,
-  autoKontrolleAktiv: true, autoKontrolleProTag: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
+  autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
 } as const;
 
@@ -78,7 +79,8 @@ export async function getContext(username: string): Promise<ContextResult> {
     healthHold,
     autoInspections: {
       active: auto.aktiv,
-      perDay: auto.proTag,
+      perDayMin: auto.perDayMin,
+      perDayMax: auto.perDayMax,
       sleepFrom: auto.ruheVon,
       sleepUntil: auto.ruheBis,
       deadlineMinFrom: auto.fristVon,

@@ -54,11 +54,12 @@ export interface TrackerOverview {
    *  - usedToday = openings already used today (resets at CH midnight). maxMinutesPerBreak = max minutes per opening.
    *  A DEVICE CHANGE runs through this same cleaning path and consumes one opening. */
   reinigung: ReinigungView;
-  /** Automatische Kontrollen: das System sendet selbsttätig `proTag` zufällig verteilte Kontrollen
-   *  pro Tag (Frist nie im Schlaf-Fenster ruheVon–ruheBis, Erfüllungsdauer zufällig fristVon–fristBis
+  /** Automatische Kontrollen: das System sendet selbsttätig pro Tag eine ZUFÄLLIGE Anzahl Kontrollen —
+   *  gewürfelt aus [perDayMin, perDayMax] (perDayMin==perDayMax ⇒ fixe Anzahl), zufällig über den Tag
+   *  verteilt (Frist nie im Schlaf-Fenster ruheVon–ruheBis, Erfüllungsdauer zufällig fristVon–fristBis
    *  Min). aktiv=false → keine Auto-Kontrollen. Geplante, noch nicht ausgelöste sind absichtlich
    *  unsichtbar (auch hier). */
-  autoKontrolle: { aktiv: boolean; proTag: number; ruheVon: string; ruheBis: string; fristVon: number; fristBis: number };
+  autoKontrolle: { aktiv: boolean; perDayMin: number; perDayMax: number; ruheVon: string; ruheBis: string; fristVon: number; fristBis: number };
   /** Non-KG tracking categories (Plug, Collar, …) — wearing hours + their training goal (null if none). */
   categories: {
     name: string;
@@ -119,7 +120,7 @@ async function loadUserContext(username: string): Promise<{ userId: string; time
     where: { username },
     select: {
       id: true, timezone: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, mcpKeyholderInstructions: true,
-      autoKontrolleAktiv: true, autoKontrolleProTag: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true, autoKontrolleFristVon: true, autoKontrolleFristBis: true,
+      autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true, autoKontrolleFristVon: true, autoKontrolleFristBis: true,
     },
   });
   if (!user) throw new Error(`User not found: ${username}`);
@@ -212,7 +213,8 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
     reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now, timezone),
     autoKontrolle: {
       aktiv: autoKontrolle.aktiv,
-      proTag: autoKontrolle.proTag,
+      perDayMin: autoKontrolle.perDayMin,
+      perDayMax: autoKontrolle.perDayMax,
       ruheVon: autoKontrolle.ruheVon,
       ruheBis: autoKontrolle.ruheBis,
       fristVon: autoKontrolle.fristVon,
