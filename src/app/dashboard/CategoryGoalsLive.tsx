@@ -41,6 +41,7 @@ function CategoryRow({ row, serverNow }: { row: CategoryGoalRow; serverNow: stri
   const tagH = useLiveHours(row.tagH, serverNow, row.active);
   const wocheH = useLiveHours(row.wocheH, serverNow, row.active);
   const monatH = useLiveHours(row.monatH, serverNow, row.active);
+  const jahrH = useLiveHours(row.jahrH, serverNow, row.active);
   const style = categoryStyle(row.color);
 
   return (
@@ -59,6 +60,7 @@ function CategoryRow({ row, serverNow }: { row: CategoryGoalRow; serverNow: stri
         {row.goalDayH != null && <Goal label={t("day")} actual={tagH} target={row.goalDayH} />}
         {row.goalWeekH != null && <Goal label={t("week")} actual={wocheH} target={row.goalWeekH} />}
         {row.goalMonthH != null && <Goal label={t("month")} actual={monatH} target={row.goalMonthH} />}
+        {row.goalYearH != null && <Goal label={t("year")} actual={jahrH} target={row.goalYearH} />}
       </div>
     </li>
   );

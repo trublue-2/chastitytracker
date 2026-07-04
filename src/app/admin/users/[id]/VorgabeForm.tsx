@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
-
-const HOURS_PER_DAY = 24;
-const HOURS_PER_WEEK = 168;
-const HOURS_PER_MONTH = 730;
+import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
 
 function toHours(value: string, unit: string, basis: number): number | null {
   const n = parseFloat(value);
@@ -70,6 +67,7 @@ export interface VorgabeInitialValues {
   tagVal: string;
   wocheVal: string;
   monatVal: string;
+  jahrVal: string;
   notiz: string;
   categoryId: string;
 }
@@ -99,6 +97,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
   const [tagVal, setTagVal] = useState(initialValues?.tagVal ?? "");   const [tagUnit, setTagUnit] = useState("h");
   const [wocheVal, setWocheVal] = useState(initialValues?.wocheVal ?? ""); const [wocheUnit, setWocheUnit] = useState("h");
   const [monatVal, setMonatVal] = useState(initialValues?.monatVal ?? ""); const [monatUnit, setMonatUnit] = useState("h");
+  const [jahrVal, setJahrVal] = useState(initialValues?.jahrVal ?? ""); const [jahrUnit, setJahrUnit] = useState("h");
   const [notiz, setNotiz] = useState(initialValues?.notiz ?? "");
   const [categoryId, setCategoryId] = useState(initialValues?.categoryId ?? categories?.[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
@@ -124,6 +123,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       minProTagH: toHours(tagVal, tagUnit, HOURS_PER_DAY),
       minProWocheH: toHours(wocheVal, wocheUnit, HOURS_PER_WEEK),
       minProMonatH: toHours(monatVal, monatUnit, HOURS_PER_MONTH),
+      minProJahrH: toHours(jahrVal, jahrUnit, HOURS_PER_YEAR),
       notiz: notiz || null,
     };
 
@@ -148,7 +148,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       onCancel?.();
     } else {
       setGueltigAb(""); setGueltigBis("");
-      setTagVal(""); setWocheVal(""); setMonatVal(""); setNotiz("");
+      setTagVal(""); setWocheVal(""); setMonatVal(""); setJahrVal(""); setNotiz("");
       router.refresh();
     }
   }
@@ -191,13 +191,15 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <InputWithUnit label={t("vorgabeDay")} value={tagVal} unit={tagUnit}
-          onValue={setTagVal} onUnit={setTagUnit} basis={HOURS_PER_DAY} max={24} />
+          onValue={setTagVal} onUnit={setTagUnit} basis={HOURS_PER_DAY} max={HOURS_PER_DAY} />
         <InputWithUnit label={t("vorgabeWeek")} value={wocheVal} unit={wocheUnit}
-          onValue={setWocheVal} onUnit={setWocheUnit} basis={HOURS_PER_WEEK} max={168} />
+          onValue={setWocheVal} onUnit={setWocheUnit} basis={HOURS_PER_WEEK} max={HOURS_PER_WEEK} />
         <InputWithUnit label={t("vorgabeMonth")} value={monatVal} unit={monatUnit}
-          onValue={setMonatVal} onUnit={setMonatUnit} basis={HOURS_PER_MONTH} max={730} />
+          onValue={setMonatVal} onUnit={setMonatUnit} basis={HOURS_PER_MONTH} max={HOURS_PER_MONTH} />
+        <InputWithUnit label={t("vorgabeYear")} value={jahrVal} unit={jahrUnit}
+          onValue={setJahrVal} onUnit={setJahrUnit} basis={HOURS_PER_YEAR} max={HOURS_PER_YEAR} />
       </div>
 
       <div>

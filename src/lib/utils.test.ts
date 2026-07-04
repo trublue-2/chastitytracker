@@ -11,6 +11,9 @@ import {
   fromDatetimeLocal,
   midnightInTZ,
   getWeekStart,
+  getMonthEnd,
+  getYearStart,
+  getYearEnd,
   type ReinigungSettings,
 } from "./utils";
 
@@ -551,6 +554,29 @@ describe("per-user timezone formatters", () => {
     });
     it("New York midnight of Jan 14 = 05:00 UTC Jan 14", () => {
       expect(midnightInTZ(d, "America/New_York").toISOString()).toBe("2026-01-14T05:00:00.000Z");
+    });
+  });
+
+  describe("getYearStart / getYearEnd resolve the calendar-year boundary in the given tz", () => {
+    const mid = new Date("2026-07-04T12:00:00Z");
+    it("Zurich: year start = Jan 1 00:00 local (= 2025-12-31T23:00Z)", () => {
+      expect(getYearStart(mid, "Europe/Zurich").toISOString()).toBe("2025-12-31T23:00:00.000Z");
+    });
+    it("Zurich: year end = next Jan 1 00:00 local (= 2026-12-31T23:00Z)", () => {
+      expect(getYearEnd(mid, "Europe/Zurich").toISOString()).toBe("2026-12-31T23:00:00.000Z");
+    });
+    it("year window is a full non-leap year (365 days) for 2026", () => {
+      const days = (getYearEnd(mid, "Europe/Zurich").getTime() - getYearStart(mid, "Europe/Zurich").getTime()) / 86_400_000;
+      expect(days).toBe(365);
+    });
+  });
+
+  describe("getMonthEnd resolves the first of next month in the given tz", () => {
+    it("mid-month → first of next month 00:00 local", () => {
+      expect(getMonthEnd(new Date("2026-07-15T12:00:00Z"), "Europe/Zurich").toISOString()).toBe("2026-07-31T22:00:00.000Z"); // 1. Aug 00:00 CEST
+    });
+    it("December rolls over to next January", () => {
+      expect(getMonthEnd(new Date("2026-12-20T12:00:00Z"), "Europe/Zurich").toISOString()).toBe("2026-12-31T23:00:00.000Z"); // 1. Jan 2027 00:00 CET
     });
   });
 });

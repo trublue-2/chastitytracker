@@ -9,6 +9,7 @@ import {
   buildWearSessionRows,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
@@ -105,7 +106,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   const activePair = pairs.find(p => p.active) ?? null;
   const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm)) : [];
-  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, reinigung);
+  // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
+  const proratedVorgabe = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
 
   const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
 
@@ -121,10 +124,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null && !activeSperrzeit.wirksamAb}
           sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
           sperrzeitScheduledFor={activeSperrzeit?.wirksamAb && activeSperrzeit.wirksamAb > now ? activeSperrzeit.wirksamAb : null}
-          activeVorgabe={activeVorgabe}
+          activeVorgabe={proratedVorgabe}
           tagH={tagH}
           wocheH={wocheH}
           monatH={monatH}
+          jahrH={jahrH}
           tz={tz}
         />
       ) : (

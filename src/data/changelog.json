@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.45.0",
+    "date": "2026-07-04",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Trainingsvorgaben können jetzt auch ein Jahresziel haben (Min. pro Jahr, neben Tag/Woche/Monat) — inkl. Anzeige in Statistik, Kalender-Details und Keyholder-Assistent."
+      },
+      {
+        "type": "feat",
+        "text": "Startet oder endet eine Trainingsvorgabe mitten in einer Woche/Monat/Jahr, wird das Ziel jetzt anteilig auf den abgedeckten Teil der Periode heruntergerechnet — der Erfüllungsgrad ist damit fair, statt die volle Periode zu verlangen."
+      }
+    ]
+  },
+  {
     "version": "4.44.5",
     "date": "2026-07-04",
     "changes": [

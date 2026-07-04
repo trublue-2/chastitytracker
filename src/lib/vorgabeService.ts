@@ -15,6 +15,7 @@ export interface CreateVorgabeParams {
   minProTagH?: number | null;
   minProWocheH?: number | null;
   minProMonatH?: number | null;
+  minProJahrH?: number | null;
   notiz?: string | null;
 }
 
@@ -38,9 +39,9 @@ async function validateVorgabeCategory(
   return null;
 }
 
-/** At least one of the three period targets must be set. */
-function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null }): boolean {
-  return !!(p.minProTagH || p.minProWocheH || p.minProMonatH);
+/** At least one of the four period targets must be set. */
+function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null }): boolean {
+  return !!(p.minProTagH || p.minProWocheH || p.minProMonatH || p.minProJahrH);
 }
 
 /**
@@ -48,7 +49,7 @@ function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number 
  * Shared by POST /api/admin/vorgaben and the MCP write tool. At least one period target required.
  */
 export async function createVorgabe(params: CreateVorgabeParams): Promise<ServiceResult<{ id: string }>> {
-  const { userId, categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz } = params;
+  const { userId, categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, minProJahrH, notiz } = params;
 
   if (!userId || !gueltigAb) return { ok: false, status: 400, error: "userId und gueltigAb sind erforderlich" };
   if (!hasPeriodTarget(params)) return { ok: false, status: 400, error: "Mindestens ein Zeitwert ist erforderlich" };
@@ -65,6 +66,7 @@ export async function createVorgabe(params: CreateVorgabeParams): Promise<Servic
       minProTagH: minProTagH ?? null,
       minProWocheH: minProWocheH ?? null,
       minProMonatH: minProMonatH ?? null,
+      minProJahrH: minProJahrH ?? null,
       notiz: notiz || null,
     },
   });
@@ -84,7 +86,7 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
   const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
   if (!existing) return { ok: false, status: 404, error: "Trainingsvorgabe nicht gefunden" };
 
-  const { categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, notiz } = params;
+  const { categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, minProJahrH, notiz } = params;
   if (!gueltigAb) return { ok: false, status: 400, error: "gueltigAb ist erforderlich" };
   if (!hasPeriodTarget(params)) return { ok: false, status: 400, error: "Mindestens ein Zeitwert ist erforderlich" };
   const catErr = await validateVorgabeCategory(categoryId, existing.userId);
@@ -100,6 +102,7 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
       minProTagH: minProTagH ?? null,
       minProWocheH: minProWocheH ?? null,
       minProMonatH: minProMonatH ?? null,
+      minProJahrH: minProJahrH ?? null,
       notiz: notiz ?? null,
     },
   });

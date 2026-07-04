@@ -38,7 +38,7 @@ describe("mcpEditTrainingGoal — echter Teil-Edit", () => {
     // die nicht genannten Stundenziele auf null.
     vorgabeFind.mockResolvedValue({
       userId: "u1", gueltigAb: AB, gueltigBis: MANUAL_END, validUntilManual: true,
-      minProTagH: 6, minProWocheH: null, minProMonatH: null, notiz: "Stufe 2",
+      minProTagH: 6, minProWocheH: null, minProMonatH: null, minProJahrH: 2000, notiz: "Stufe 2",
     });
     await mcpEditTrainingGoal("kg", { id: "g1", minPerDayHours: 8 });
     expect(updateMock).toHaveBeenCalledWith("g1", expect.objectContaining({
@@ -48,8 +48,20 @@ describe("mcpEditTrainingGoal — echter Teil-Edit", () => {
       minProTagH: 8,
       minProWocheH: null,
       minProMonatH: null,
+      minProJahrH: 2000, // weggelassen → Jahresziel bleibt erhalten
       notiz: "Stufe 2",
     }));
+  });
+
+  it("nur Jahresziel setzen: übrige Felder bleiben erhalten", async () => {
+    vorgabeFind.mockResolvedValue({
+      userId: "u1", gueltigAb: AB, gueltigBis: null, validUntilManual: false,
+      minProTagH: 6, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null,
+    });
+    await mcpEditTrainingGoal("kg", { id: "g1", minPerYearHours: 3000 });
+    const arg = updateMock.mock.calls[0][1];
+    expect(arg.minProJahrH).toBe(3000);
+    expect(arg.minProTagH).toBe(6); // unverändert
   });
 
   it("validUntil setzen markiert das Ende als manuell", async () => {

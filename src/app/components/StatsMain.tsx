@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { APP_TZ, formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
+import { APP_TZ, formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
+import { proratedTargetH, proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -26,6 +27,7 @@ type Vorgabe = {
   minProTagH: number | null;
   minProWocheH: number | null;
   minProMonatH: number | null;
+  minProJahrH: number | null;
   notiz: string | null;
 };
 
@@ -96,7 +98,7 @@ function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben
       const applicableVorgabe = vorgaben.find(
         (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
       );
-      return { ...v, wearHours, targetH: applicableVorgabe?.minProMonatH ?? null };
+      return { ...v, wearHours, targetH: applicableVorgabe ? proratedTargetH(applicableVorgabe.minProMonatH, monthStart, monthEnd, applicableVorgabe) : null };
     });
 }
 
@@ -145,8 +147,11 @@ function buildCalendarMonths(opts: {
       (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
     ) ?? null;
     const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
-    const monthGoalMet = vorgabe?.minProMonatH != null ? monthTotalH >= vorgabe.minProMonatH : null;
-    const monthGoalPct = vorgabe?.minProMonatH ? Math.round((monthTotalH / vorgabe.minProMonatH) * 100) : null;
+    const monthTarget = vorgabe ? proratedTargetH(vorgabe.minProMonatH, monthStartDate, monthEndDate, vorgabe) : null;
+    // Truthy-Guard (nicht `!= null`): prorata-Ziel 0 = Vorgabe deckt diese Periode nicht ab → kein
+    // „erreicht"-Marker (sonst wäre `ist >= 0` trivial immer erfüllt).
+    const monthGoalMet = monthTarget ? monthTotalH >= monthTarget : null;
+    const monthGoalPct = monthTarget ? Math.round((monthTotalH / monthTarget) * 100) : null;
 
     const cells: (number | null)[] = [
       ...Array(startOffset).fill(null),
@@ -162,6 +167,7 @@ function buildCalendarMonths(opts: {
       const weekCells = cells.slice(w, w + 7);
       const firstDayOfRow = weekCells.find((x) => x != null);
       let weekH = 0;
+      let weekTarget: number | null = null;
       if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
         const anchorNoon = new Date(Date.UTC(year, month, firstDayOfRow, 12));
         const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
@@ -170,16 +176,20 @@ function buildCalendarMonths(opts: {
         const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)), tz);
         const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
         weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
+        weekTarget = proratedTargetH(vorgabe.minProWocheH, wkStart, wkEnd, vorgabe);
       }
-      weekGoalMet.push(vorgabe?.minProWocheH != null && firstDayOfRow != null ? weekH >= vorgabe.minProWocheH : null);
-      weekGoalPct.push(vorgabe?.minProWocheH && firstDayOfRow != null ? Math.round((weekH / vorgabe.minProWocheH) * 100) : null);
+      weekGoalMet.push(weekTarget ? weekH >= weekTarget : null); // 0 = Woche ausserhalb Vorgabe-Fenster → kein Marker
+      weekGoalPct.push(weekTarget ? Math.round((weekH / weekTarget) * 100) : null);
 
       weeks.push(weekCells.map((day): CalendarDayData | null => {
         if (!day) return null;
         const key = `${year}-${month}-${day}`;
         const data = dailyData.get(key);
         const pct = data ? Math.min(data.hours / 24, 1) : 0;
-        const dailyGoalMet = vorgabe?.minProTagH != null && data != null ? data.hours >= vorgabe.minProTagH : null;
+        const dayStart = midnightInTZ(new Date(Date.UTC(year, month, day, 12)), tz);
+        const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+        const dayTarget = vorgabe ? proratedTargetH(vorgabe.minProTagH, dayStart, dayEnd, vorgabe) : null;
+        const dailyGoalMet = dayTarget && data != null ? data.hours >= dayTarget : null; // 0 = Tag ausserhalb Vorgabe-Fenster → kein Marker
         const colorClass = pct === 0 ? "bg-surface-raised text-foreground-faint"
           : pct < 0.2 ? "bg-blue-100 text-blue-900"
           : pct < 0.4 ? "bg-blue-200 text-blue-900"
@@ -194,7 +204,7 @@ function buildCalendarMonths(opts: {
         }));
         const dayVorgabe: DayVorgabe | null = vorgabe ? {
           minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
-          minProMonatH: vorgabe.minProMonatH, notiz: vorgabe.notiz,
+          minProMonatH: vorgabe.minProMonatH, minProJahrH: vorgabe.minProJahrH, notiz: vorgabe.notiz,
         } : null;
         const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: tz });
         return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
@@ -330,6 +340,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const todayStart = getMidnightToday(now, tz);
   const weekStart = getWeekStart(now, tz);
   const monthStart = getMonthStart(now, tz);
+  const yearStart = getYearStart(now, tz);
 
   // Build one goal-card per currently-active vorgabe (KG first, then others by name).
   const activeVorgaben = vorgaben.filter(isActive).sort((a, b) => {
@@ -346,13 +357,14 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       name: v.category?.name ?? "KG",
       color: v.category?.color ?? null,
       icon: v.category?.icon ?? null,
-      minProTagH: v.minProTagH,
-      minProWocheH: v.minProWocheH,
-      minProMonatH: v.minProMonatH,
+      // Ziele prorata: startet/endet die Vorgabe mitten in der Periode, wird das Ziel anteilig
+      // auf die Überschneidung mit der Periode heruntergerechnet (Anzeige + %-Nenner).
+      ...proratedVorgabeTargets(v, now, tz),
       notiz: v.notiz,
       hoursToday: wearingHoursFromPairs(pairs, todayStart, now),
       hoursWeek: wearingHoursFromPairs(pairs, weekStart, now),
       hoursMonth: wearingHoursFromPairs(pairs, monthStart, now),
+      hoursYear: wearingHoursFromPairs(pairs, yearStart, now),
     };
   });
 
@@ -551,6 +563,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
               {g.minProMonatH && (
                 <GoalBar label={t("thisMonth")} actual={g.hoursMonth} target={g.minProMonatH}
                   sub={`${formatHours(g.hoursMonth, dl)} ${tc("of")} ${formatHours(g.minProMonatH, dl)}`}
+                  reachedLabel={t("reached")} />
+              )}
+              {g.minProJahrH && (
+                <GoalBar label={t("thisYear")} actual={g.hoursYear} target={g.minProJahrH}
+                  sub={`${formatHours(g.hoursYear, dl)} ${tc("of")} ${formatHours(g.minProJahrH, dl)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}

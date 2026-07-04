@@ -213,6 +213,7 @@ export interface SetTrainingGoalArgs {
   minPerDayHours?: number;
   minPerWeekHours?: number;
   minPerMonthHours?: number;
+  minPerYearHours?: number;
   validFrom?: string;
   validUntil?: string;
   note?: string;
@@ -246,6 +247,7 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
     minProTagH: args.minPerDayHours,
     minProWocheH: args.minPerWeekHours,
     minProMonatH: args.minPerMonthHours,
+    minProJahrH: args.minPerYearHours,
     notiz: args.note,
   }));
   const when = args.validFrom ? `scheduled from ${gueltigAb.toISOString().slice(0, 10)}` : "active now";
@@ -311,6 +313,7 @@ export async function mcpListTrainingGoals(username: string, args: ListTrainingG
         minPerDayHours: g.minProTagH,
         minPerWeekHours: g.minProWocheH,
         minPerMonthHours: g.minProMonatH,
+        minPerYearHours: g.minProJahrH,
         note: g.notiz,
       };
     });
@@ -352,6 +355,7 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     minProTagH: args.minPerDayHours ?? existing.minProTagH,
     minProWocheH: args.minPerWeekHours ?? existing.minProWocheH,
     minProMonatH: args.minPerMonthHours ?? existing.minProMonatH,
+    minProJahrH: args.minPerYearHours ?? existing.minProJahrH,
     notiz: args.note ?? existing.notiz,
   }));
   return { ok: true, id: args.id, message: "Training goal updated." };

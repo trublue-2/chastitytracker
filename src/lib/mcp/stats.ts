@@ -1,4 +1,5 @@
 import { calculateWearingHoursByRange } from "@/lib/utils";
+import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/mcp/segments";
@@ -216,9 +217,9 @@ export async function denialTrend(username: string, opts: { limit?: number } = {
 // ── period_summary ─────────────────────────────────────────────────────────────
 
 export interface PeriodGoal {
-  today: number; week: number; month: number;
-  goalDayH: number | null; goalWeekH: number | null; goalMonthH: number | null;
-  todayPct: number | null; weekPct: number | null; monthPct: number | null;
+  today: number; week: number; month: number; year: number;
+  goalDayH: number | null; goalWeekH: number | null; goalMonthH: number | null; goalYearH: number | null;
+  todayPct: number | null; weekPct: number | null; monthPct: number | null; yearPct: number | null;
 }
 
 export interface PeriodSummaryResult {
@@ -229,12 +230,12 @@ export interface PeriodSummaryResult {
 }
 
 const periodGoal = (
-  today: number, week: number, month: number,
-  goalDayH: number | null, goalWeekH: number | null, goalMonthH: number | null,
+  today: number, week: number, month: number, year: number,
+  goalDayH: number | null, goalWeekH: number | null, goalMonthH: number | null, goalYearH: number | null,
 ): PeriodGoal => ({
-  today: round1(today), week: round1(week), month: round1(month),
-  goalDayH, goalWeekH, goalMonthH,
-  todayPct: pct(today, goalDayH), weekPct: pct(week, goalWeekH), monthPct: pct(month, goalMonthH),
+  today: round1(today), week: round1(week), month: round1(month), year: round1(year),
+  goalDayH, goalWeekH, goalMonthH, goalYearH,
+  todayPct: pct(today, goalDayH), weekPct: pct(week, goalWeekH), monthPct: pct(month, goalMonthH), yearPct: pct(year, goalYearH),
 });
 
 /** Tag/Woche/Monat für KG und je Kategorie inkl. Ziel-Erfüllung. KG nutzt die geteilte
@@ -248,13 +249,24 @@ export async function periodSummary(username: string, ctx?: TrackingContext): Pr
   ]);
   const kg = calculateWearingHoursByRange(entries, now, reinigung);
 
+  // KG-Ziele prorata: startet/endet die aktive Vorgabe mitten in einer Periode, wird das Ziel
+  // anteilig auf die Überschneidung mit der Periode heruntergerechnet (Nenner der %-Erfüllung).
+  const kgGoal = proratedVorgabeTargets(kgVorgabe, now);
+
   return {
     schemaVersion: 2,
     user: username,
-    kg: periodGoal(kg.tagH, kg.wocheH, kg.monatH, kgVorgabe?.minProTagH ?? null, kgVorgabe?.minProWocheH ?? null, kgVorgabe?.minProMonatH ?? null),
+    kg: periodGoal(
+      kg.tagH, kg.wocheH, kg.monatH, kg.jahrH,
+      kgGoal.minProTagH, kgGoal.minProWocheH, kgGoal.minProMonatH, kgGoal.minProJahrH,
+    ),
     categories: categoryGoals.map((c) => ({
       name: c.name,
-      ...periodGoal(c.tagH, c.wocheH, c.monatH, hasAnyGoal(c) ? c.goalDayH : null, hasAnyGoal(c) ? c.goalWeekH : null, hasAnyGoal(c) ? c.goalMonthH : null),
+      ...periodGoal(
+        c.tagH, c.wocheH, c.monatH, c.jahrH,
+        hasAnyGoal(c) ? c.goalDayH : null, hasAnyGoal(c) ? c.goalWeekH : null,
+        hasAnyGoal(c) ? c.goalMonthH : null, hasAnyGoal(c) ? c.goalYearH : null,
+      ),
     })),
   };
 }

@@ -10,6 +10,7 @@ import {
   buildWearPairs, wearingHoursFromPairs, WEAR_PAIR, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
@@ -92,7 +93,7 @@ export default async function DashboardPage() {
     ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm))
     : [];
 
-  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, reinigung);
 
   const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
 
@@ -166,14 +167,11 @@ export default async function DashboardPage() {
             sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
             sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
             sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
-            activeVorgabe={activeVorgabe ? {
-              minProTagH: activeVorgabe.minProTagH,
-              minProWocheH: activeVorgabe.minProWocheH,
-              minProMonatH: activeVorgabe.minProMonatH,
-            } : null}
+            activeVorgabe={activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null}
             tagH={tagH}
             wocheH={wocheH}
             monatH={monatH}
+            jahrH={jahrH}
             tz={tz}
           />
         </div>

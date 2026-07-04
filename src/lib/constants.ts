@@ -141,6 +141,13 @@ export const NOTIFICATION_EVENT_TYPES = [
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
 
+// ── Trainingsvorgabe: Perioden-Stundenbasis (nur für h↔% Umrechnung im Admin-Formular) ──
+// Durchschnittswerte; Monat = 365.25/12·24, Jahr = 365.25·24 (berücksichtigt Schaltjahre).
+export const HOURS_PER_DAY = 24;
+export const HOURS_PER_WEEK = 168;
+export const HOURS_PER_MONTH = 730;
+export const HOURS_PER_YEAR = 8766;
+
 // ── Password validation ─────────────────────────────────────────────────────
 
 export const PASSWORD_MIN_LENGTH = 8;

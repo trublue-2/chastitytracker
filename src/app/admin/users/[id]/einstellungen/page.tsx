@@ -220,6 +220,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
               tagH={v.minProTagH}
               wocheH={v.minProWocheH}
               monatH={v.minProMonatH}
+              jahrH={v.minProJahrH}
               notiz={v.notiz}
               categories={categories}
               categoryName={showHeaders ? null : (categories.find((c) => c.id === v.categoryId)?.name ?? null)}
@@ -230,6 +231,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
                 tagVal: v.minProTagH != null ? String(v.minProTagH) : "",
                 wocheVal: v.minProWocheH != null ? String(v.minProWocheH) : "",
                 monatVal: v.minProMonatH != null ? String(v.minProMonatH) : "",
+                jahrVal: v.minProJahrH != null ? String(v.minProJahrH) : "",
                 notiz: v.notiz ?? "",
                 categoryId: v.categoryId ?? "",
               }}

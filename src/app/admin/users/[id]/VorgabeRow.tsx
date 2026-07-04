@@ -4,6 +4,7 @@ import { useState } from "react";
 import VorgabeForm, { type VorgabeInitialValues, type CategoryOption } from "./VorgabeForm";
 import DeleteVorgabeButton from "./DeleteVorgabeButton";
 import { useTranslations, useLocale } from "next-intl";
+import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
 
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
   tagH: number | null;
   wocheH: number | null;
   monatH: number | null;
+  jahrH: number | null;
   notiz: string | null;
   initialValues: VorgabeInitialValues;
   categories?: CategoryOption[];
@@ -30,7 +32,7 @@ function formatHoursLocal(h: number, locale: string): string {
   return parts.join(" ");
 }
 
-export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH, wocheH, monatH, notiz, initialValues, categories, categoryName }: Props) {
+export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH, wocheH, monatH, jahrH, notiz, initialValues, categories, categoryName }: Props) {
   const t = useTranslations("admin");
   const td = useTranslations("dashboard");
   const locale = useLocale();
@@ -62,19 +64,25 @@ export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH,
           {tagH != null && (
             <span className="text-xs text-foreground-muted">
               {td("day")}: <strong>{formatHoursLocal(tagH, locale)}</strong>
-              <span className="text-foreground-faint"> ({Math.round((tagH / 24) * 100)}%)</span>
+              <span className="text-foreground-faint"> ({Math.round((tagH / HOURS_PER_DAY) * 100)}%)</span>
             </span>
           )}
           {wocheH != null && (
             <span className="text-xs text-foreground-muted">
               {td("week")}: <strong>{formatHoursLocal(wocheH, locale)}</strong>
-              <span className="text-foreground-faint"> ({Math.round((wocheH / 168) * 100)}%)</span>
+              <span className="text-foreground-faint"> ({Math.round((wocheH / HOURS_PER_WEEK) * 100)}%)</span>
             </span>
           )}
           {monatH != null && (
             <span className="text-xs text-foreground-muted">
               {td("month")}: <strong>{formatHoursLocal(monatH, locale)}</strong>
-              <span className="text-foreground-faint"> ({Math.round((monatH / 730) * 100)}%)</span>
+              <span className="text-foreground-faint"> ({Math.round((monatH / HOURS_PER_MONTH) * 100)}%)</span>
+            </span>
+          )}
+          {jahrH != null && (
+            <span className="text-xs text-foreground-muted">
+              {td("year")}: <strong>{formatHoursLocal(jahrH, locale)}</strong>
+              <span className="text-foreground-faint"> ({Math.round((jahrH / HOURS_PER_YEAR) * 100)}%)</span>
             </span>
           )}
         </div>

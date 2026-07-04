@@ -629,6 +629,7 @@ function registerTools(server: McpServer) {
           minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
           minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
           minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
+          minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year. Prorated to the goal's overlap with the year when it starts/ends mid-year."),
           validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start now. May be a future date to schedule a goal in advance."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),
@@ -691,18 +692,18 @@ function registerTools(server: McpServer) {
       {
         title: "Edit a training goal",
         description:
-          "Replaces a training goal's values by id (get the id from list_training_goals). Overwrite semantics: " +
-          "provide the full desired state. Omitting category keeps the current one. At least one period target " +
-          "is required." + KEYHOLDER_SILENT,
+          "Partial edit of a training goal by id (get the id from list_training_goals). Any omitted field keeps " +
+          "its current value — send only what you want to change. At least one period target must remain set." + KEYHOLDER_SILENT,
         inputSchema: {
           id: z.string().describe("Goal id from list_training_goals."),
           category: z.string().optional().describe('Category name, e.g. "Plug" or "KG". Omit to keep current.'),
-          minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
-          minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
-          minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
-          validFrom: z.string().optional().describe("Goal start (ISO 8601). Omit = now."),
-          validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit = open-ended."),
-          note: z.string().optional().describe("Note shown with the goal."),
+          minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day. Omit to keep current."),
+          minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week. Omit to keep current."),
+          minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month. Omit to keep current."),
+          minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year. Omit to keep current."),
+          validFrom: z.string().optional().describe("Goal start (ISO 8601). Omit to keep current."),
+          validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit to keep current."),
+          note: z.string().optional().describe("Note shown with the goal. Omit to keep current."),
         },
       },
       (args, extra) => runWriteTool("edit_training_goal", extra, (u) => mcpEditTrainingGoal(u, args)),

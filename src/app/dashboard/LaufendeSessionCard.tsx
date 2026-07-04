@@ -26,10 +26,12 @@ interface Props {
     minProTagH: number | null;
     minProWocheH: number | null;
     minProMonatH: number | null;
+    minProJahrH: number | null;
   } | null;
   tagH: number;
   wocheH: number;
   monatH: number;
+  jahrH: number;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
 }
@@ -47,6 +49,7 @@ export default async function LaufendeSessionCard({
   tagH,
   wocheH,
   monatH,
+  jahrH,
   tz = APP_TZ,
 }: Props) {
   const t = await getTranslations("dashboard");
@@ -63,7 +66,8 @@ export default async function LaufendeSessionCard({
     activeVorgabe &&
     (activeVorgabe.minProTagH != null ||
       activeVorgabe.minProWocheH != null ||
-      activeVorgabe.minProMonatH != null);
+      activeVorgabe.minProMonatH != null ||
+      activeVorgabe.minProJahrH != null);
 
   return (
     <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">
@@ -111,6 +115,7 @@ export default async function LaufendeSessionCard({
             tagH={tagH}
             wocheH={wocheH}
             monatH={monatH}
+            jahrH={jahrH}
             activeVorgabe={activeVorgabe}
           />
         )}

@@ -157,6 +157,24 @@ export function getMonthStart(now: Date, tz = APP_TZ): Date {
   return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)), tz);
 }
 
+/** Exclusive end of the current month: first day of the NEXT month at 00:00:00 in `tz` (default APP_TZ) */
+export function getMonthEnd(now: Date, tz = APP_TZ): Date {
+  const { year, month } = tzDateParts(now, tz);
+  return midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)), tz);
+}
+
+/** Jan 1 of the year of `now` at 00:00:00 in `tz` (default APP_TZ) */
+export function getYearStart(now: Date, tz = APP_TZ): Date {
+  const { year } = tzDateParts(now, tz);
+  return midnightInTZ(new Date(Date.UTC(year, 0, 1, 12)), tz);
+}
+
+/** Exclusive end of the year of `now`: Jan 1 of the NEXT year at 00:00:00 in `tz` (default APP_TZ) */
+export function getYearEnd(now: Date, tz = APP_TZ): Date {
+  const { year } = tzDateParts(now, tz);
+  return midnightInTZ(new Date(Date.UTC(year + 1, 0, 1, 12)), tz);
+}
+
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
 export function formatElapsedMs(ms: number, locale: string, showSeconds = false): string {
   const safe = Math.max(0, ms);
@@ -520,7 +538,7 @@ export function calculateWearingHoursByRange<
   entries: E[],
   now: Date,
   optionsOrReinigung?: ReinigungSettings | WearPairOptions,
-): { tagH: number; wocheH: number; monatH: number } {
+): { tagH: number; wocheH: number; monatH: number; jahrH: number } {
   const isLegacy = isLegacyReinigungArg(optionsOrReinigung);
   const wearOptions: WearPairOptions = isLegacy
     ? {}
@@ -530,6 +548,7 @@ export function calculateWearingHoursByRange<
     tagH: wearingHoursFromPairs(pairs, getMidnightToday(now), now),
     wocheH: wearingHoursFromPairs(pairs, getWeekStart(now), now),
     monatH: wearingHoursFromPairs(pairs, getMonthStart(now), now),
+    jahrH: wearingHoursFromPairs(pairs, getYearStart(now), now),
   };
 }
 

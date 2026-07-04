@@ -25,18 +25,21 @@ interface Props {
   tagH: number;
   wocheH: number;
   monatH: number;
+  jahrH: number;
   activeVorgabe: {
     minProTagH: number | null;
     minProWocheH: number | null;
     minProMonatH: number | null;
+    minProJahrH: number | null;
   };
 }
 
-export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: baseWocheH, monatH: baseMonatH, activeVorgabe }: Props) {
+export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: baseWocheH, monatH: baseMonatH, jahrH: baseJahrH, activeVorgabe }: Props) {
   const t = useTranslations("dashboard");
   const tagH = useLiveHours(baseTagH, serverNow, true);
   const wocheH = useLiveHours(baseWocheH, serverNow, true);
   const monatH = useLiveHours(baseMonatH, serverNow, true);
+  const jahrH = useLiveHours(baseJahrH, serverNow, true);
 
   return (
     <div className="mt-4 pt-3 border-t border-white/20 flex flex-col gap-2">
@@ -51,6 +54,9 @@ export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: b
       )}
       {activeVorgabe.minProMonatH != null && (
         <ProgressBar actual={monatH} target={activeVorgabe.minProMonatH} label={t("month")} />
+      )}
+      {activeVorgabe.minProJahrH != null && (
+        <ProgressBar actual={jahrH} target={activeVorgabe.minProJahrH} label={t("year")} />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveO
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView, type ReinigungUserFields } from "@/lib/reinigungService";
 import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
+import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
 import { round1, msToHours, pct, isoWithOffset } from "@/lib/mcp/format";
@@ -206,10 +207,12 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
       deviceName: isLocked ? (currentLock?.device?.name ?? null) : null,
     },
     wearingHoursKg: { today: round1(tagH), week: round1(wocheH), month: round1(monatH) },
-    trainingGoalKg: activeVorgabe ? {
-      ...goalProgress(tagH, wocheH, monatH, activeVorgabe.minProTagH, activeVorgabe.minProWocheH, activeVorgabe.minProMonatH),
-      note: activeVorgabe.notiz,
-    } : null,
+    trainingGoalKg: activeVorgabe ? (() => {
+      // Ziele prorata (wie die Kategorie-Ziele aus buildCategoryWearGoals) — sonst hätten KG und
+      // Kategorien in derselben V1-Antwort unterschiedliche %-Nenner bei mitten-in-Periode-Vorgaben.
+      const t = proratedVorgabeTargets(activeVorgabe, now);
+      return { ...goalProgress(tagH, wocheH, monatH, t.minProTagH, t.minProWocheH, t.minProMonatH), note: activeVorgabe.notiz };
+    })() : null,
     reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now, timezone),
     autoKontrolle: {
       aktiv: autoKontrolle.aktiv,

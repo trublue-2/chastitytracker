@@ -252,6 +252,9 @@ model TrainingVorgabe {
   minProTagH    Float?
   minProWocheH  Float?
   minProMonatH  Float?
+  // 4. Zielperiode „Jahr" (Stunden). Folgt bewusst der deutschen Feld-Familie minProTagH/WocheH/MonatH
+  // (Konsistenz der Geschwister), obwohl neue Identifier sonst englisch benannt werden.
+  minProJahrH   Float?
   notiz         String?
   createdAt     DateTime  @default(now())
 

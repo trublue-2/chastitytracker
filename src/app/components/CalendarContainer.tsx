@@ -15,6 +15,7 @@ export type DayVorgabe = {
   minProTagH?: number | null;
   minProWocheH?: number | null;
   minProMonatH?: number | null;
+  minProJahrH?: number | null;
   notiz?: string | null;
 };
 
@@ -184,6 +185,12 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-request-text">{t("minPerMonth")}</span>
                     <span className="text-xs font-bold text-[var(--color-request)]">{formatHours(selected.vorgabe.minProMonatH, locale)}</span>
+                  </div>
+                )}
+                {selected.vorgabe.minProJahrH != null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-request-text">{t("minPerYear")}</span>
+                    <span className="text-xs font-bold text-[var(--color-request)]">{formatHours(selected.vorgabe.minProJahrH, locale)}</span>
                   </div>
                 )}
                 {selected.vorgabe.notiz && <p className="text-xs text-request-text italic mt-0.5 opacity-70">{selected.vorgabe.notiz}</p>}
