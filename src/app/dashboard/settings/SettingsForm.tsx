@@ -23,7 +23,7 @@ import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { SettingsFormProps } from "./getSettingsProps";
 
-export default function SettingsForm({ username, email, timezone, startPage, showStartPage, isAdmin, hideOwnTracker, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -152,6 +152,8 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
     { value: "overview", label: t("startPageOverview") },
     // Benutzerverwaltung als Startseite nur für globale Admins — die Seite ist admin-only.
     ...(isAdmin ? [{ value: "users", label: t("startPageUsers") }] : []),
+    // Direkt auf die Detailseite eines bestimmten Subs landen.
+    ...controlledSubs.map((s) => ({ value: s.id, label: t("startPageSub", { name: s.username }) })),
     // "Eigener KG-Tracker" entfällt bei "kein eigener Tracker" — dieser Nutzer hat keinen grünen Bereich.
     ...(hideOwnValue ? [] : [{ value: "dashboard", label: t("startPageDashboard") }]),
   ];

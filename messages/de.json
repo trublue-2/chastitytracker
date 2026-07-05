@@ -396,6 +396,7 @@
     "startPageAuto": "Automatisch",
     "startPageOverview": "Keyholder-Übersicht",
     "startPageUsers": "Benutzerverwaltung",
+    "startPageSub": "Sub-Seite: {name}",
     "startPageDashboard": "Eigener KG-Tracker",
     "hideOwnTracker": "Kein eigener Tracker",
     "hideOwnTrackerHint": "Für Keyholder ohne eigenen KG-Tracker: blendet die eigene Karte in der Übersicht, die Navigation Meine Sicht und den grünen Tracker-Bereich aus. Es werden keine Daten gelöscht — schaltest du es wieder aus, ist alles zurück.",

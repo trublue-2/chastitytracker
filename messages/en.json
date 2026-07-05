@@ -396,6 +396,7 @@
     "startPageAuto": "Automatic",
     "startPageOverview": "Keyholder overview",
     "startPageUsers": "User management",
+    "startPageSub": "Sub page: {name}",
     "startPageDashboard": "Own tracker",
     "hideOwnTracker": "No own tracker",
     "hideOwnTrackerHint": "For keyholders without their own chastity tracker: hides your own card in the overview, the My view navigation and the green tracker area. No data is deleted — turn it back off and everything returns.",

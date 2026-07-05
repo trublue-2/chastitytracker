@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.48.0",
+    "date": "2026-07-06",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Startseite nach Login: Keyholder und Admins koennen jetzt einen bestimmten Sub als Startseite waehlen — nach dem Login landet man direkt auf dessen Detailseite. Zur Auswahl stehen 'Automatisch', die Keyholder-Uebersicht und jeder kontrollierte Sub namentlich. Faellt der Sub weg, wird automatisch die Uebersicht angezeigt."
+      }
+    ]
+  },
+  {
     "version": "4.47.2",
     "date": "2026-07-05",
     "changes": [

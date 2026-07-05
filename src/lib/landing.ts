@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { getControlledSubs } from "@/lib/keyholder";
-import type { StartPage } from "@/lib/constants";
+import { getControlledSubs, canControlSub } from "@/lib/keyholder";
+import { isValidStartPage } from "@/lib/constants";
 
 /** Session shape the landing resolver needs (subset of the NextAuth session). */
 interface LandingSession {
@@ -22,14 +22,23 @@ export async function resolveLandingPath(session: LandingSession): Promise<strin
     where: { id },
     select: { startPage: true, hideOwnTracker: true },
   });
-  const pref = (user?.startPage ?? "auto") as StartPage;
+  // startPage ist entweder ein fester Wert (auto/overview/users/dashboard) ODER eine Sub-ID
+  // (direkt auf dessen Detailseite landen).
+  const pref = user?.startPage ?? "auto";
 
   // "Kein eigener Tracker": nie im grünen Bereich landen (auch nicht bei pref="dashboard").
   if (pref === "dashboard" && !user?.hideOwnTracker) return "/dashboard";
-  // "overview"/"users"/"auto" only mean something for keyholders/admins; everyone else lands on their tracker.
+  // "overview"/"users"/"auto"/Sub-ID gelten nur für Keyholder/Admins; alle anderen landen auf ihrem Tracker.
   if (!isKeyholderOrAdmin) return "/dashboard";
   if (pref === "overview") return "/admin";
   if (pref === "users") return role === "admin" ? "/admin/users" : "/admin";
+  if (pref !== "auto") {
+    // Ein fester Wert, der oben nicht behandelt wurde (z.B. künftig neuer StartPage-Wert, oder
+    // "dashboard" bei aktivem hideOwnTracker) → sichere Übersicht statt als Sub-ID zu deuten.
+    if (isValidStartPage(pref)) return "/admin";
+    // Sonst: konkrete Sub-ID → dessen Detailseite, wenn der Actor ihn (noch) kontrolliert; sonst Übersicht.
+    return (await canControlSub(id, role, pref)) ? `/admin/users/${pref}` : "/admin";
+  }
 
   // auto: adaptiv — genau ein gesteuerter Sub → direkt in diesen, sonst die Übersicht.
   // Globale Admins steuern alle User über die Rolle (keine AdminUserRelationship-Zeilen), darum

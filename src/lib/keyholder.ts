@@ -36,6 +36,37 @@ export async function getControlledSubs(keyholderId: string): Promise<{ id: stri
   return rels.map((r) => r.user);
 }
 
+/** Alle Subs, auf deren Detailseite ein Nutzer als Startseite landen darf: globaler Admin → jeder
+ *  Nicht-Admin-Nutzer; Keyholder → seine zugewiesenen Subs. Niemals man selbst. Alphabetisch. */
+export async function getControllableSubs(
+  userId: string,
+  role: string | undefined,
+): Promise<{ id: string; username: string }[]> {
+  if (role === "admin") {
+    return prisma.user.findMany({
+      where: { role: { not: "admin" }, id: { not: userId } },
+      select: { id: true, username: true },
+      orderBy: { username: "asc" },
+    });
+  }
+  return getControlledSubs(userId);
+}
+
+/** Darf `userId` (mit `role`) den Sub `subId` kontrollieren / auf dessen Seite landen? Globaler Admin
+ *  kontrolliert jeden Nicht-Admin-Nutzer; Keyholder nur seine zugewiesenen Subs. Nie sich selbst. */
+export async function canControlSub(
+  userId: string,
+  role: string | undefined,
+  subId: string,
+): Promise<boolean> {
+  if (!subId || subId === userId) return false;
+  if (role === "admin") {
+    const u = await prisma.user.findUnique({ where: { id: subId }, select: { role: true } });
+    return !!u && u.role !== "admin";
+  }
+  return isKeyholderOf(userId, subId);
+}
+
 /** The keyholders assigned to a sub (for the admin provisioning UI). */
 export async function getKeyholdersOfUser(subId: string): Promise<{ id: string; username: string; role: string }[]> {
   const rels = await prisma.adminUserRelationship.findMany({

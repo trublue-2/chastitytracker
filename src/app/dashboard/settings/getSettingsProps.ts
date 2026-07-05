@@ -1,5 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getControllableSubs } from "@/lib/keyholder";
+import { isValidStartPage } from "@/lib/constants";
 import pkg from "@/../package.json";
 
 export interface SettingsFormProps {
@@ -9,6 +11,8 @@ export interface SettingsFormProps {
   startPage: string;
   /** Nur Keyholder/Admins (= haben das blaue Portal): steuert Startseiten-Wahl + Admin-Theme-Umschalter. */
   showStartPage: boolean;
+  /** Subs, die als konkrete Startseite (Detailseite) wählbar sind — leer für normale Subs. */
+  controlledSubs: { id: string; username: string }[];
   /** Globaler Admin — steuert die "Benutzerverwaltung"-Startseiten-Option (admin-only Seite). */
   isAdmin: boolean;
   hideOwnTracker: boolean;
@@ -49,13 +53,21 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   const isAdmin = session?.user?.role === "admin";
   const showStartPage =
     isAdmin || !!(session?.user as { controlsSubs?: boolean } | undefined)?.controlsSubs;
+  // Nur wenn die Startseiten-Wahl sichtbar ist: die als Startseite wählbaren Subs laden.
+  const controlledSubs =
+    showStartPage && userId ? await getControllableSubs(userId, session?.user?.role) : [];
+  // Eine gespeicherte Sub-ID, die nicht (mehr) wählbar ist (Sub entfernt/entzogen), würde im Select als
+  // leerer Wert erscheinen → für die Anzeige auf "auto" zurückfallen (Landing tut das zur Laufzeit ohnehin).
+  const startPageDisplay =
+    isValidStartPage(startPage) || controlledSubs.some((s) => s.id === startPage) ? startPage : "auto";
 
   return {
     username,
     email,
     timezone,
-    startPage,
+    startPage: startPageDisplay,
     showStartPage,
+    controlledSubs,
     isAdmin,
     hideOwnTracker,
     version: pkg.version,
