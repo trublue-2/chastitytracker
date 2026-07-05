@@ -20,9 +20,10 @@ interface UserListItem {
 interface Props {
   version: string;
   isGlobalAdmin: boolean;
+  hideOwnTracker?: boolean;
 }
 
-export default function AdminDesktopSidebar({ version, isGlobalAdmin }: Props) {
+export default function AdminDesktopSidebar({ version, isGlobalAdmin, hideOwnTracker }: Props) {
   const t = useTranslations("adminNav");
   const tAdmin = useTranslations("admin");
   const pathname = usePathname();
@@ -32,7 +33,7 @@ export default function AdminDesktopSidebar({ version, isGlobalAdmin }: Props) {
   const [userList, setUserList] = useState<UserListItem[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const navItems = adminNavItems(isGlobalAdmin);
+  const navItems = adminNavItems(isGlobalAdmin, hideOwnTracker);
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
 

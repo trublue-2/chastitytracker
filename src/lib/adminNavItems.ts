@@ -17,12 +17,13 @@ export interface AdminNavItem {
  *  and the mobile bottom nav so the two never drift. Benutzerverwaltung is deliberately NOT here —
  *  it's a rare instance-management task and lives in the avatar menu (see AvatarMenu), which keeps
  *  the tight mobile bottom nav focused on frequent control tasks. */
-export function adminNavItems(isGlobalAdmin: boolean): AdminNavItem[] {
+export function adminNavItems(isGlobalAdmin: boolean, hideOwnTracker = false): AdminNavItem[] {
   return [
     { href: ADMIN_HOME_HREF, icon: LayoutDashboard, labelKey: "overview", exact: true },
     ...(isGlobalAdmin
       ? [{ href: "/admin/kontrollen", icon: ClipboardList, labelKey: "kontrollen", exact: false }]
       : []),
-    { href: "/dashboard", icon: Home, labelKey: "myView", exact: true },
+    // "Meine Sicht" (eigener grüner Tracker) entfällt für Nutzer mit "kein eigener Tracker".
+    ...(hideOwnTracker ? [] : [{ href: "/dashboard", icon: Home, labelKey: "myView", exact: true }]),
   ];
 }

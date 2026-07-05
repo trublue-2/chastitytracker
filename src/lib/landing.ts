@@ -18,10 +18,14 @@ export async function resolveLandingPath(session: LandingSession): Promise<strin
   const { id, role, controlsSubs } = session.user;
   const isKeyholderOrAdmin = role === "admin" || !!controlsSubs;
 
-  const user = await prisma.user.findUnique({ where: { id }, select: { startPage: true } });
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { startPage: true, hideOwnTracker: true },
+  });
   const pref = (user?.startPage ?? "auto") as StartPage;
 
-  if (pref === "dashboard") return "/dashboard";
+  // "Kein eigener Tracker": nie im grünen Bereich landen (auch nicht bei pref="dashboard").
+  if (pref === "dashboard" && !user?.hideOwnTracker) return "/dashboard";
   // "overview"/"users"/"auto" only mean something for keyholders/admins; everyone else lands on their tracker.
   if (!isKeyholderOrAdmin) return "/dashboard";
   if (pref === "overview") return "/admin";

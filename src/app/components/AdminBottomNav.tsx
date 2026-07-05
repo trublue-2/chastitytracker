@@ -10,16 +10,17 @@ import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator"
 interface Props {
   version?: string;
   isGlobalAdmin: boolean;
+  hideOwnTracker?: boolean;
 }
 
-export default function AdminBottomNav({ version, isGlobalAdmin }: Props) {
+export default function AdminBottomNav({ version, isGlobalAdmin, hideOwnTracker }: Props) {
   const t = useTranslations("adminNav");
   const pathname = usePathname();
 
   // Split the shared nav around the center FAB: the area home (/admin) on the left, the rest on the
   // right. Keyed on the home href, not an index, so a reorder in adminNavItems() can't misplace a
   // tab. Same source as the desktop sidebar so the two never drift.
-  const items = adminNavItems(isGlobalAdmin);
+  const items = adminNavItems(isGlobalAdmin, hideOwnTracker);
   const leftTabs = items.filter((i) => i.href === ADMIN_HOME_HREF);
   const rightTabs = items.filter((i) => i.href !== ADMIN_HOME_HREF);
 

@@ -26,7 +26,7 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
-export default auth((req) => {
+export default auth(async (req) => {
   // Ungültige Server Action IDs (Bots/Scanner) frühzeitig abweisen
   const actionId = req.headers.get("Next-Action");
   if (actionId !== null && !/^[0-9a-f]{40}$/i.test(actionId)) {
@@ -89,6 +89,28 @@ export default auth((req) => {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  // "Kein eigener Tracker": der grüne Tracker ist gesperrt und wird nach /admin umgeleitet.
+  // /dashboard/settings + /dashboard/changelog bleiben erreichbar (Einstellung zurückschalten, Version).
+  // Frisch aus der DB (nur auf betroffenen /dashboard-Routen abgefragt), damit ein Umschalten sofort greift.
+  if (
+    isLoggedIn &&
+    user?.id &&
+    // Nur Admins/Keyholder können "kein eigener Tracker" überhaupt setzen (Toggle-Gate = showStartPage).
+    // Reine Subs — der Grossteil des /dashboard-Traffics — sparen so die DB-Query komplett.
+    (role === "admin" || user.controlsSubs === true) &&
+    pathname.startsWith("/dashboard") &&
+    !pathname.startsWith("/dashboard/settings") &&
+    !pathname.startsWith("/dashboard/changelog")
+  ) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { hideOwnTracker: true },
+    });
+    if (dbUser?.hideOwnTracker) {
+      return NextResponse.redirect(new URL("/admin", req.url));
+    }
   }
 
   if (pathname === "/login" && isLoggedIn) {

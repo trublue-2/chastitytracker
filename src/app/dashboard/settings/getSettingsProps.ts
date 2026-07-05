@@ -9,7 +9,7 @@ export interface SettingsFormProps {
   startPage: string;
   /** Nur Keyholder/Admins (= haben das blaue Portal): steuert Startseiten-Wahl + Admin-Theme-Umschalter. */
   showStartPage: boolean;
-  /** Globaler Admin — nur er sieht die eigene Karte in der Übersicht → nur ihm die Ausblenden-Option. */
+  /** Globaler Admin — steuert die "Benutzerverwaltung"-Startseiten-Option (admin-only Seite). */
   isAdmin: boolean;
   hideOwnTracker: boolean;
   version: string;

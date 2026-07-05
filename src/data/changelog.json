@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.47.0",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Neuer Modus 'Kein eigener Tracker' (fuer Keyholder ohne eigenen KG-Tracker): blendet die eigene Karte, den Navigationspunkt 'Meine Sicht' und den gruenen Tracker-Bereich aus — man landet immer im Keyholder-/Adminbereich. Rein Anzeige und Routing, es werden keine Daten geloescht und die Option ist jederzeit wieder ausschaltbar. Einstellungen und Changelog bleiben erreichbar."
+      }
+    ]
+  },
+  {
     "version": "4.46.14",
     "date": "2026-07-05",
     "changes": [

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { User } from "lucide-react";
@@ -29,6 +30,7 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
   const apiError = useApiError();
   const locale = useLocale();
   const switchLocale = useLocaleSwitcher();
+  const router = useRouter();
 
   const [expanded, setExpanded] = useState<string | null>(null);
   function toggle(section: string) {
@@ -142,16 +144,18 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
     }
   }
 
+  const [hideOwnValue, setHideOwnValue] = useState(hideOwnTracker);
+  const [hideOwnError, setHideOwnError] = useState<string | null>(null);
+
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },
     { value: "overview", label: t("startPageOverview") },
     // Benutzerverwaltung als Startseite nur für globale Admins — die Seite ist admin-only.
     ...(isAdmin ? [{ value: "users", label: t("startPageUsers") }] : []),
-    { value: "dashboard", label: t("startPageDashboard") },
+    // "Eigener KG-Tracker" entfällt bei "kein eigener Tracker" — dieser Nutzer hat keinen grünen Bereich.
+    ...(hideOwnValue ? [] : [{ value: "dashboard", label: t("startPageDashboard") }]),
   ];
 
-  const [hideOwnValue, setHideOwnValue] = useState(hideOwnTracker);
-  const [hideOwnError, setHideOwnError] = useState<string | null>(null);
   async function handleHideOwn(checked: boolean) {
     setHideOwnValue(checked);
     setHideOwnError(null);
@@ -165,6 +169,12 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
         setHideOwnValue(!checked); // Rollback bei Fehler
         const data = await res.json();
         setHideOwnError(apiError(data.error));
+      } else {
+        // "Eigener KG-Tracker" als Startseite ergibt ohne grünen Bereich keinen Sinn und verschwindet aus
+        // dem Select → gespeicherte Präferenz auf "auto" zurücksetzen, damit kein optionsloser Wert bleibt.
+        if (checked && startPageValue === "dashboard") await handleStartPage("auto");
+        // Nav (Meine Sicht) + Routing lesen hideOwnTracker frisch server-seitig → sofort wirksam machen.
+        router.refresh();
       }
     } catch {
       setHideOwnValue(!checked);
@@ -312,8 +322,9 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
             </ExpandRow>
           )}
 
-          {/* Eigene Karte in der Keyholder-Übersicht ausblenden — nur globale Admins sehen sie dort. */}
-          {isAdmin && (
+          {/* "Kein eigener Tracker" — für alle mit blauem Portal (Admins + reine Keyholder). Blendet die
+              eigene Karte, "Meine Sicht" und den grünen Tracker aus (rein UI/Routing, keine Datenänderung). */}
+          {showStartPage && (
             <div className="px-5 py-2">
               <Toggle
                 label={t("hideOwnTracker")}
