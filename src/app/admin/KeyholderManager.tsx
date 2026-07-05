@@ -1,15 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
+import Badge from "@/app/components/Badge";
 import FormError from "@/app/components/FormError";
 
 interface Person { id: string; username: string }
 interface Candidate extends Person { role?: string }
+
+/** One user row in the keyholder lists — username left, a trailing control right (remove button for
+ *  assigned keyholders, an "Admin" badge for implicit ones). Shared shell so the layout stays in sync. */
+function PersonRow({ username, trailing }: { username: string; trailing: ReactNode }) {
+  return (
+    <li className="flex items-center justify-between gap-2 bg-surface-raised rounded-lg px-3 py-2">
+      <span className="text-sm text-foreground">{username}</span>
+      {trailing}
+    </li>
+  );
+}
 
 /** Admin assigns/removes keyholders for a sub (AdminUserRelationship). Self-control is rejected. */
 export default function KeyholderManager({ subId, initial }: { subId: string; initial: Person[] }) {
@@ -42,6 +54,14 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
     .map((c) => ({ value: c.id, label: c.username }));
   // Kandidaten sind geladen (>0), aber keiner ist zuweisbar → erklärender Hinweis statt leerem Nichts.
   const noAssignable = candidates.length > 0 && options.length === 0;
+  // Admins kontrollieren diesen Sub ohnehin automatisch (Keyholder-über-alle). Sie werden hier rein zur
+  // ANZEIGE gelistet (nicht entfernbar — Kontrolle kommt aus der Rolle, nicht aus einem Eintrag), damit
+  // sichtbar ist, wer den Sub wirklich kontrolliert. Sub selbst ausgeschlossen (kein Selbst-Keyholder);
+  // bereits explizit zugewiesene raus (ein zum Admin beförderter Ex-Keyholder mit noch bestehender
+  // Relationship-Zeile soll nicht doppelt — hier UND in der entfernbaren Liste oben — erscheinen).
+  const admins = candidates.filter(
+    (c) => c.role === "admin" && c.id !== subId && !assignedIds.has(c.id),
+  );
 
   async function mutate(method: "POST" | "DELETE", keyholderId: string) {
     setSaving(true);
@@ -73,19 +93,36 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
       ) : (
         <ul className="flex flex-col gap-1.5">
           {initial.map((k) => (
-            <li key={k.id} className="flex items-center justify-between gap-2 bg-surface-raised rounded-lg px-3 py-2">
-              <span className="text-sm text-foreground">{k.username}</span>
-              <button
-                onClick={() => mutate("DELETE", k.id)}
-                disabled={saving}
-                title={tc("delete")}
-                className="p-1 text-warn hover:bg-warn-bg rounded-full disabled:opacity-50 transition"
-              >
-                <X size={16} />
-              </button>
-            </li>
+            <PersonRow
+              key={k.id}
+              username={k.username}
+              trailing={
+                <button
+                  onClick={() => mutate("DELETE", k.id)}
+                  disabled={saving}
+                  title={tc("delete")}
+                  className="p-1 text-warn hover:bg-warn-bg rounded-full disabled:opacity-50 transition"
+                >
+                  <X size={16} />
+                </button>
+              }
+            />
           ))}
         </ul>
+      )}
+      {admins.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-xs text-foreground-faint">{t("keyholdersAdminsNote")}</p>
+          <ul className="flex flex-col gap-1.5">
+            {admins.map((a) => (
+              <PersonRow
+                key={a.id}
+                username={a.username}
+                trailing={<Badge variant="neutral" label={t("roleAdmin")} size="sm" />}
+              />
+            ))}
+          </ul>
+        </div>
       )}
       {options.length > 0 && (
         <div className="flex items-end gap-2">

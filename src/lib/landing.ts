@@ -22,9 +22,10 @@ export async function resolveLandingPath(session: LandingSession): Promise<strin
   const pref = (user?.startPage ?? "auto") as StartPage;
 
   if (pref === "dashboard") return "/dashboard";
-  // "overview"/"auto" only mean something for keyholders/admins; everyone else lands on their tracker.
+  // "overview"/"users"/"auto" only mean something for keyholders/admins; everyone else lands on their tracker.
   if (!isKeyholderOrAdmin) return "/dashboard";
   if (pref === "overview") return "/admin";
+  if (pref === "users") return role === "admin" ? "/admin/users" : "/admin";
 
   // auto: adaptiv — genau ein gesteuerter Sub → direkt in diesen, sonst die Übersicht.
   // Globale Admins steuern alle User über die Rolle (keine AdminUserRelationship-Zeilen), darum

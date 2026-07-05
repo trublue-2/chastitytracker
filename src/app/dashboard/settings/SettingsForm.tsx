@@ -145,6 +145,8 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },
     { value: "overview", label: t("startPageOverview") },
+    // Benutzerverwaltung als Startseite nur für globale Admins — die Seite ist admin-only.
+    ...(isAdmin ? [{ value: "users", label: t("startPageUsers") }] : []),
     { value: "dashboard", label: t("startPageDashboard") },
   ];
 

@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.46.14",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Keyholder dieses Subs: Admins werden jetzt zusaetzlich (nur zur Anzeige) als Keyholder gelistet — sie kontrollieren jeden Sub automatisch. So ist auf einen Blick sichtbar, wer den Sub wirklich kontrolliert."
+      },
+      {
+        "type": "ui",
+        "text": "Neue Startseiten-Option 'Benutzerverwaltung' (nur Admins): nach dem Login direkt zur Benutzerliste springen."
+      }
+    ]
+  },
+  {
     "version": "4.46.13",
     "date": "2026-07-05",
     "changes": [
