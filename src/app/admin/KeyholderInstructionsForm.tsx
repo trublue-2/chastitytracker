@@ -39,7 +39,6 @@ export default function KeyholderInstructionsForm({ userId, initial }: { userId:
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-foreground-faint">{t("keyholderInstructionsDesc")}</p>
       <Textarea
         value={text}
         onChange={(e) => { setText(e.target.value); setSaved(false); }}

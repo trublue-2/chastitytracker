@@ -75,7 +75,10 @@ export default function NotificationToggles({ userId }: { userId: string }) {
     <Card padding="none" className="overflow-hidden">
       {/* Column header */}
       <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notifyTitle")}</p>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notifyTitle")}</p>
+          <p className="text-xs text-foreground-muted mt-1">{t("notifyDesc")}</p>
+        </div>
         <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-faint shrink-0">
           <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyPushTitle")}>
             <Bell size={12} aria-hidden /> {t("notifyChannelPush")}

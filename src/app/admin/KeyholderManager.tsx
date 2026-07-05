@@ -87,7 +87,6 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-foreground-faint">{t("keyholdersDesc")}</p>
       {initial.length === 0 ? (
         <p className="text-sm text-foreground-muted">{t("keyholdersNone")}</p>
       ) : (

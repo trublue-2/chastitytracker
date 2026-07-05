@@ -15,7 +15,7 @@ import KeyholderManager from "@/app/admin/KeyholderManager";
 import { getKeyholdersOfUser } from "@/lib/keyholder";
 import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
-import Card from "@/app/components/Card";
+import SettingsSection from "@/app/components/SettingsSection";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -80,49 +80,31 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
       {/* Rolle */}
       {isGlobalAdmin && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-5 py-3 border-b border-border-subtle">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("roleLabel")}</p>
-          </div>
-          <div className="px-5 py-4">
-            <RoleSelect id={user.id} currentRole={user.role} />
-          </div>
-        </Card>
+        <SettingsSection title={t("roleLabel")} description={t("roleDesc")} bodyPadded>
+          <RoleSelect id={user.id} currentRole={user.role} />
+        </SettingsSection>
       )}
 
       {/* Keyholder dieses Subs */}
       {isGlobalAdmin && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-5 py-3 border-b border-border-subtle">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionKeyholders")}</p>
-          </div>
-          <div className="px-5 py-4">
-            <KeyholderManager subId={user.id} initial={keyholders.map((k) => ({ id: k.id, username: k.username }))} />
-          </div>
-        </Card>
+        <SettingsSection title={t("sectionKeyholders")} description={t("keyholdersDesc")} bodyPadded>
+          <KeyholderManager subId={user.id} initial={keyholders.map((k) => ({ id: k.id, username: k.username }))} />
+        </SettingsSection>
       )}
 
       {/* Reinigung */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionReinigung")}</p>
-        </div>
-        <div className="px-5 py-4">
-          <ReinigungToggle
-            userId={user.id}
-            initialErlaubt={user.reinigungErlaubt}
-            initialMaxMinuten={user.reinigungMaxMinuten}
-            initialMaxProTag={user.reinigungMaxProTag}
-            initialFenster={parseReinigungsFenster(user.reinigungsFenster)}
-          />
-        </div>
-      </Card>
+      <SettingsSection title={t("sectionReinigung")} description={t("sectionReinigungDesc")} bodyPadded>
+        <ReinigungToggle
+          userId={user.id}
+          initialErlaubt={user.reinigungErlaubt}
+          initialMaxMinuten={user.reinigungMaxMinuten}
+          initialMaxProTag={user.reinigungMaxProTag}
+          initialFenster={parseReinigungsFenster(user.reinigungsFenster)}
+        />
+      </SettingsSection>
 
       {/* Anpassbare Auswahllisten: Orgasmus-Arten + Öffnungsgründe */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionReasons")}</p>
-        </div>
+      <SettingsSection title={t("sectionReasons")} description={t("sectionReasonsDesc")}>
         <div className="px-5 py-4 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold text-foreground-muted">{t("reasonOrgasmTitle")}</p>
@@ -146,57 +128,39 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             />
           </div>
         </div>
-      </Card>
+      </SettingsSection>
 
       {/* Automatische Kontrollen */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionAutoKontrolle")}</p>
-        </div>
-        <div className="px-5 py-4">
-          <AutoKontrolleToggle
-            userId={user.id}
-            initialAktiv={user.autoKontrolleAktiv}
-            initialPerDayMin={user.autoKontrollePerDayMin}
-            initialPerDayMax={user.autoKontrollePerDayMax}
-            initialRuheVon={user.autoKontrolleRuheVon}
-            initialRuheBis={user.autoKontrolleRuheBis}
-            initialFristVon={user.autoKontrolleFristVon}
-            initialFristBis={user.autoKontrolleFristBis}
-          />
-        </div>
-      </Card>
+      <SettingsSection title={t("sectionAutoKontrolle")} description={t("sectionAutoKontrolleDesc")} bodyPadded>
+        <AutoKontrolleToggle
+          userId={user.id}
+          initialAktiv={user.autoKontrolleAktiv}
+          initialPerDayMin={user.autoKontrollePerDayMin}
+          initialPerDayMax={user.autoKontrollePerDayMax}
+          initialRuheVon={user.autoKontrolleRuheVon}
+          initialRuheBis={user.autoKontrolleRuheBis}
+          initialFristVon={user.autoKontrolleFristVon}
+          initialFristBis={user.autoKontrolleFristBis}
+        />
+      </SettingsSection>
 
       {/* App */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionApp")}</p>
-        </div>
-        <div className="px-5 py-4">
-          <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
-        </div>
-      </Card>
+      <SettingsSection title={t("sectionApp")} description={t("sectionAppDesc")} bodyPadded>
+        <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
+      </SettingsSection>
 
       {/* KI-Keyholder-Regeln (MCP) — nur wenn der MCP-Server aktiviert ist */}
       {process.env.ENABLE_MCP === "true" && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-5 py-3 border-b border-border-subtle">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionKeyholder")}</p>
-          </div>
-          <div className="px-5 py-4">
-            <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
-          </div>
-        </Card>
+        <SettingsSection title={t("sectionKeyholder")} description={t("keyholderInstructionsDesc")} bodyPadded>
+          <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
+        </SettingsSection>
       )}
 
       {/* Benachrichtigungen */}
       <NotificationToggles userId={user.id} />
 
       {/* Trainingsvorgaben */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionVorgaben")}</p>
-        </div>
+      <SettingsSection title={t("sectionVorgaben")} description={t("sectionVorgabenDesc")}>
         <div className="flex flex-col gap-4 px-5 py-4">
           <VorgabeForm userId={id} categories={categories} />
         </div>
@@ -265,14 +229,13 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             </div>
           );
         })()}
-      </Card>
+      </SettingsSection>
 
       {/* Gefahrenbereich */}
       {isGlobalAdmin && (
-        <Card>
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-3">{t("sectionDanger")}</p>
+        <SettingsSection title={t("sectionDanger")} description={t("sectionDangerDesc")} bodyPadded>
           <DeleteUserButton id={user.id} username={user.username} isSelf={actorId === user.id} />
-        </Card>
+        </SettingsSection>
       )}
     </div>
   );

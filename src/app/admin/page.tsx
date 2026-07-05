@@ -148,6 +148,7 @@ export default async function AdminPage() {
       <div className="flex items-start justify-between mb-6 gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-foreground">{t("overviewTitle")}</h1>
+          <p className="text-sm text-foreground-muted mt-1">{t("overviewDesc")}</p>
           <div className="flex items-center gap-4 mt-2">
             <span className="flex items-center gap-1.5 text-sm text-foreground-muted">
               <Users size={14} strokeWidth={1.75} />

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
-import Card from "@/app/components/Card";
+import SettingsSection from "@/app/components/SettingsSection";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
@@ -76,10 +76,7 @@ export default function AccountSection({ userId, username, email, role, isSelf }
   }
 
   return (
-    <Card padding="none" className="overflow-hidden">
-      <div className="px-5 py-3 border-b border-border-subtle">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sectionAccount")}</p>
-      </div>
+    <SettingsSection title={t("sectionAccount")} description={t("sectionAccountDesc")}>
       <div className="divide-y divide-border-subtle">
 
         {/* Username (read-only) */}
@@ -167,6 +164,6 @@ export default function AccountSection({ userId, username, email, role, isSelf }
         </div>
 
       </div>
-    </Card>
+    </SettingsSection>
   );
 }

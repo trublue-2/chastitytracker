@@ -24,7 +24,10 @@ export default async function UserManagementPage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+      <div>
+        <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+        <p className="text-sm text-foreground-muted mt-1">{t("userManagementDesc")}</p>
+      </div>
 
       {users.length === 0 ? (
         <Card padding="none">
