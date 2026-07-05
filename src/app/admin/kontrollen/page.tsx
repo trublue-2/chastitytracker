@@ -70,7 +70,7 @@ export default async function AdminKontrollenPage({
           </Link>
         ) : (
           <Link href="/admin" className="text-sm text-foreground-faint hover:text-foreground-muted transition">
-            {t("backToUsers")}
+            {t("backToOverview")}
           </Link>
         )}
         <h1 className="text-xl font-bold text-foreground mt-1">

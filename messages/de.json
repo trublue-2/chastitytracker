@@ -108,7 +108,9 @@
   },
   "adminNav": {
     "overview": "Übersicht",
-    "users": "Benutzer",
+    "myView": "Meine Sicht",
+    "portalAdmin": "Adminportal",
+    "portalKeyholder": "Keyholder-Portal",
     "kontrollen": "Kontrollen",
     "settings": "Einstellungen",
     "new": "Neu",
@@ -129,6 +131,7 @@
     "stats": "Statistik",
     "new": "Neu",
     "settings": "Einstellungen",
+    "userManagement": "Benutzerverwaltung",
     "admin": "Admin",
     "keyholder": "Keyholder",
     "signOut": "Abmelden",
@@ -531,6 +534,8 @@
   },
   "admin": {
     "title": "Benutzerverwaltung",
+    "overviewTitle": "Übersicht",
+    "backToOverview": "← Übersicht",
     "newUser": "Neuer Benutzer",
     "createDemo": "DemoUser anlegen",
     "noUsers": "Keine Benutzer",

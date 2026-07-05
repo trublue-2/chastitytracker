@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ClipboardList, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { adminNavItems, ADMIN_HOME_HREF, type AdminNavItem } from "@/lib/adminNavItems";
 import AdminFAB from "./AdminFAB";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 
@@ -16,16 +16,14 @@ export default function AdminBottomNav({ version, isGlobalAdmin }: Props) {
   const t = useTranslations("adminNav");
   const pathname = usePathname();
 
-  const leftTabs = [
-    { href: "/admin", icon: LayoutDashboard, label: t("overview"), exact: true },
-  ];
+  // Split the shared nav around the center FAB: the area home (/admin) on the left, the rest on the
+  // right. Keyed on the home href, not an index, so a reorder in adminNavItems() can't misplace a
+  // tab. Same source as the desktop sidebar so the two never drift.
+  const items = adminNavItems(isGlobalAdmin);
+  const leftTabs = items.filter((i) => i.href === ADMIN_HOME_HREF);
+  const rightTabs = items.filter((i) => i.href !== ADMIN_HOME_HREF);
 
-  const rightTabs = [
-    ...(isGlobalAdmin ? [{ href: "/admin/kontrollen", icon: ClipboardList, label: t("kontrollen"), exact: false }] : []),
-    { href: "/dashboard", icon: Users, label: t("users"), exact: true },
-  ];
-
-  const renderTab = (tab: { href: string; icon: React.ElementType; label: string; exact: boolean }) => {
+  const renderTab = (tab: AdminNavItem) => {
     const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
     const Icon = tab.icon;
     return (
@@ -37,7 +35,7 @@ export default function AdminBottomNav({ version, isGlobalAdmin }: Props) {
         }`}
       >
         <Icon size={22} strokeWidth={active ? 2 : 1.5} />
-        <span className="text-[10px] font-medium">{tab.label}</span>
+        <span className="text-[10px] font-medium">{t(tab.labelKey)}</span>
       </Link>
     );
   };

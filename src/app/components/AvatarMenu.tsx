@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Settings, LogOut, Lock } from "lucide-react";
+import { Settings, LogOut, Lock, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { LOCALES } from "@/lib/constants";
@@ -15,9 +15,11 @@ interface Props {
   settingsHref: string;
   theme: "user" | "admin";
   version?: string;
+  /** Show the instance-management (Benutzerverwaltung) entry — global admins only. */
+  isGlobalAdmin?: boolean;
 }
 
-export default function AvatarMenu({ username, settingsHref, theme, version }: Props) {
+export default function AvatarMenu({ username, settingsHref, theme, version, isGlobalAdmin }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("nav");
@@ -73,6 +75,12 @@ export default function AvatarMenu({ username, settingsHref, theme, version }: P
               <Settings size={16} strokeWidth={1.75} />
               {t("settings")}
             </Link>
+            {isGlobalAdmin && (
+              <Link href="/admin/users" onClick={() => setOpen(false)} className={itemNormal}>
+                <Users size={16} strokeWidth={1.75} />
+                {t("userManagement")}
+              </Link>
+            )}
             {theme === "user" && (
               <Link href="/dashboard/geraete" onClick={() => setOpen(false)} className={itemNormal}>
                 <Lock size={16} strokeWidth={1.75} />

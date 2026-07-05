@@ -7,6 +7,7 @@ import { ChevronLeft, ArrowLeftRight, Lock, LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "@/app/components/Sheet";
 import TimerDisplay from "@/app/components/TimerDisplay";
+import UserAvatar from "@/app/components/UserAvatar";
 
 interface UserEntry {
   id: string;
@@ -90,11 +91,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                 u.id === userId ? "bg-surface-raised" : ""
               }`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                u.isLocked ? "bg-lock-bg text-lock" : "bg-surface-raised text-foreground-muted"
-              }`}>
-                {u.username[0].toUpperCase()}
-              </div>
+              <UserAvatar username={u.username} size="sm" locked={u.isLocked} />
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-semibold ${u.id === userId ? "text-foreground" : "text-foreground-muted"}`}>
                   {u.username}

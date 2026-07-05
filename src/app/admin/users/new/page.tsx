@@ -47,7 +47,7 @@ export default function NewUserPage() {
       return;
     }
 
-    router.push("/admin");
+    router.push("/admin/users");
   }
 
   const roleOptions = [
@@ -57,7 +57,7 @@ export default function NewUserPage() {
 
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      <Link href="/admin" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{t("backToUsers")}</Link>
+      <Link href="/admin/users" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{t("backToUsers")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("newUser")}</h1>
 
       <Card>

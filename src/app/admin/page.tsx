@@ -10,10 +10,9 @@ import WithdrawButton from "./WithdrawButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import Card from "@/app/components/Card";
-import Badge from "@/app/components/Badge";
-import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
-import { Lock, LockOpen, UserPlus, Users, ShieldAlert, CalendarClock } from "lucide-react";
+import UserAvatar from "@/app/components/UserAvatar";
+import { Lock, LockOpen, Users, ShieldAlert, CalendarClock } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere } from "@/lib/queries";
@@ -148,7 +147,7 @@ export default async function AdminPage() {
       {/* ── Summary Header ── */}
       <div className="flex items-start justify-between mb-6 gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+          <h1 className="text-xl font-bold text-foreground">{t("overviewTitle")}</h1>
           <div className="flex items-center gap-4 mt-2">
             <span className="flex items-center gap-1.5 text-sm text-foreground-muted">
               <Users size={14} strokeWidth={1.75} />
@@ -176,7 +175,7 @@ export default async function AdminPage() {
             icon={<Users size={36} />}
             title={t("noUsers")}
             description={t("noUsersDesc")}
-            action={isGlobalAdmin ? { label: t("newUser"), href: "/admin/users/new" } : undefined}
+            action={isGlobalAdmin ? { label: t("title"), href: "/admin/users" } : undefined}
           />
         </Card>
       ) : (
@@ -203,19 +202,12 @@ export default async function AdminPage() {
                   <div className="flex flex-col gap-3">
                     {/* Header: avatar + name + status icon */}
                     <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                        isLocked ? "bg-lock-bg text-lock" : "bg-surface-raised text-foreground-muted"
-                      }`}>
-                        {u.username[0].toUpperCase()}
-                      </div>
+                      <UserAvatar username={u.username} size="lg" locked={isLocked} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-foreground">{u.username}</p>
                           {hasAlarm && (
                             <span className="w-2 h-2 rounded-full bg-warn flex-shrink-0" />
-                          )}
-                          {u.role === "admin" && (
-                            <Badge variant="neutral" label="Admin" size="sm" />
                           )}
                         </div>
                         <p className={`text-xs mt-0.5 font-medium ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
@@ -339,16 +331,6 @@ export default async function AdminPage() {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {isGlobalAdmin && (
-        <div className="mt-4">
-          <Link href="/admin/users/new">
-            <Button variant="secondary" icon={<UserPlus size={15} strokeWidth={2} />} fullWidth>
-              {t("newUser")}
-            </Button>
-          </Link>
         </div>
       )}
     </main>

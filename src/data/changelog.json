@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.46.13",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Admin-Bereich aufgeraeumt: Die Benutzerverwaltung (Nutzer anlegen, Rollen, loeschen) ist jetzt ueber das Avatar-Menue (oben rechts) erreichbar und nicht mehr mit der Keyholder-Uebersicht vermischt. Die Uebersicht zeigt nur noch die Subs mit Status und Direktiven."
+      },
+      {
+        "type": "ui",
+        "text": "Wer nur Keyholder ist (kein globaler Admin), sieht im blauen Bereich neu den Titel 'Keyholder-Portal' statt 'Adminportal' — die Rolle wird damit klarer benannt."
+      }
+    ]
+  },
+  {
     "version": "4.46.12",
     "date": "2026-07-05",
     "changes": [

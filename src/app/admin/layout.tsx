@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div id="admin-root" data-theme="admin" className="min-h-screen bg-background text-foreground">
       <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("admin") }} />
       <ThemeApplicator role="admin" />
-      <AdminHeader username={user?.name ?? ""} />
+      <AdminHeader username={user?.name ?? ""} isGlobalAdmin={isGlobalAdmin} />
       <AdminDesktopSidebar version={pkg.version} isGlobalAdmin={isGlobalAdmin} />
 
       {/* Content */}
