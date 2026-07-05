@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.46.10",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Die Einstellungen im Avatar-Menue sind jetzt in beiden Ansichten (Adminportal und eigener Tracker) identisch: beide zeigen dasselbe vollstaendige persoenliche Einstellungsformular (u.a. Zeitzone, Startseite, Passkeys). Vorher zeigte das Adminportal eine abgespeckte Variante, und fuer Keyholder war der Einstellungen-Link dort sogar wirkungslos (Weiterleitung aufs Dashboard). Beide Design-Umschalter (Adminportal blau + Tracker gruen) sind fuer Keyholder/Admins jetzt in beiden Ansichten verfuegbar."
+      }
+    ]
+  },
+  {
     "version": "4.46.9",
     "date": "2026-07-05",
     "changes": [

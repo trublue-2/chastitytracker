@@ -81,6 +81,7 @@ export default auth((req) => {
     user?.controlsSubs === true &&
     (pathname.startsWith("/api/admin/") ||
       pathname === "/admin" ||
+      pathname === "/admin/settings" || // eigene persönliche Einstellungen (identisch zu /dashboard/settings)
       /^\/admin\/users\/[a-z0-9]{20,}(?:\/.*)?$/.test(pathname));
 
   if (isAdminRoute && role !== "admin" && !keyholderAllowed) {

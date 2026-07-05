@@ -1,29 +1,21 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { assertAdmin } from "@/lib/authGuards";
-import { formatBuildDate } from "@/lib/utils";
-import AdminSettingsForm from "./AdminSettingsForm";
-import pkg from "../../../../package.json";
+import SettingsForm from "@/app/dashboard/settings/SettingsForm";
+import { getSettingsProps } from "@/app/dashboard/settings/getSettingsProps";
 
+/**
+ * Persönliche Einstellungen im blauen Adminportal — bewusst DIESELBEN wie unter /dashboard/settings
+ * (identisches SettingsForm + geteiltes getSettingsProps), damit ein User in beiden Ansichten exakt
+ * die gleichen Einstellungen sieht. Zugang wie zum Portal: Admins ODER Keyholder (controlsSubs);
+ * der Proxy lässt Keyholder zusätzlich auf /admin/settings.
+ */
 export default async function AdminSettingsPage() {
-  await assertAdmin();
   const session = await auth();
-  if (!session?.user) return null;
+  if (!session?.user?.id) redirect("/login");
+  const isAdmin = session.user.role === "admin";
+  const controlsSubs = !!(session.user as { controlsSubs?: boolean }).controlsSubs;
+  if (!isAdmin && !controlsSubs) redirect("/dashboard");
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, username: true, email: true, role: true },
-  });
-  if (!user) return null;
-
-  return (
-    <AdminSettingsForm
-      userId={user.id}
-      username={user.username}
-      email={user.email}
-      version={pkg.version}
-      buildDate={formatBuildDate()}
-      feedbackEnabled={process.env.DISABLE_FEEDBACK !== "true"}
-    />
-  );
+  const props = await getSettingsProps();
+  return <SettingsForm {...props} />;
 }

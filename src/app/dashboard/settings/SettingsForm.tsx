@@ -19,22 +19,12 @@ import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
-
-interface SettingsFormProps {
-  username: string;
-  email: string | null;
-  timezone: string;
-  startPage: string;
-  /** Nur Keyholder/Admins sehen die Startseiten-Wahl (nur sie haben eine Übersicht). */
-  showStartPage: boolean;
-  version: string;
-  buildDate?: string;
-  feedbackEnabled?: boolean;
-}
+import type { SettingsFormProps } from "./getSettingsProps";
 
 export default function SettingsForm({ username, email, timezone, startPage, showStartPage, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
+  const ta = useTranslations("admin");
   const apiError = useApiError();
   const locale = useLocale();
   const switchLocale = useLocaleSwitcher();
@@ -236,8 +226,17 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
             )}
           </ExpandRow>
 
-          {/* Theme */}
-          <ThemeToggle role="user" />
+          {/* Theme — Keyholder/Admins (haben das blaue Portal, gleiche Bedingung wie showStartPage)
+              stellen beide Designs ein: Admin-Portal (blau) UND eigener Tracker (grün). Reine Subs
+              sehen nur ihr eigenes. So sind die Einstellungen in grüner und blauer Ansicht identisch. */}
+          {showStartPage ? (
+            <>
+              <ThemeToggle role="admin" label={ta("designAdmin")} />
+              <ThemeToggle role="user" label={ta("designUser")} />
+            </>
+          ) : (
+            <ThemeToggle role="user" />
+          )}
 
           {/* Language */}
           <ExpandRow
