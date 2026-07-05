@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.47.2",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Einstellung 'Startseite nach Login': Der Hinweistext passt sich jetzt an 'Kein eigener Tracker' an — der widerspruechliche Verweis auf den eigenen Tracker verschwindet, wenn man keinen hat."
+      }
+    ]
+  },
+  {
     "version": "4.47.1",
     "date": "2026-07-05",
     "changes": [

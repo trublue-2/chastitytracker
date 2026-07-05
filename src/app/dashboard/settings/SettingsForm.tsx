@@ -315,7 +315,7 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
                 onChange={(e) => handleStartPage(e.target.value)}
                 options={startPageOptions}
                 disabled={startPageSaving}
-                hint={t("startPageHint")}
+                hint={hideOwnValue ? t("startPageHintNoTracker") : t("startPageHint")}
               />
               {startPageSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
               <FormError message={startPageError} />

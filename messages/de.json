@@ -392,6 +392,7 @@
     "timezoneHint": "Anzeige, Eingabe-Vorgaben sowie Reinigungs- und Schlaf-Fenster richten sich nach dieser Zeitzone.",
     "startPage": "Startseite nach Login",
     "startPageHint": "Wohin es nach dem Login springt. Automatisch = als Keyholderin zur Übersicht (bei genau einem Sub direkt in diesen), sonst zum eigenen Tracker.",
+    "startPageHintNoTracker": "Wohin es nach dem Login springt. Automatisch = bei genau einem gesteuerten Sub direkt in diesen, sonst zur Keyholder-Übersicht.",
     "startPageAuto": "Automatisch",
     "startPageOverview": "Keyholder-Übersicht",
     "startPageUsers": "Benutzerverwaltung",
