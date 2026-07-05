@@ -19,6 +19,37 @@ export function localAvailable(): boolean {
   return !!process.env.LOCAL_VISION_BASE_URL;
 }
 
+/** Health-Probe: winzige echte Mini-Inferenz (Text-only „ping", max_tokens 1) gegen den lokalen
+ *  Vision-Dienst → bestätigt, dass der Host erreichbar ist UND das Modell antwortet (nicht nur der
+ *  TCP-Port offen ist). Kein Bild, minimale Last, keine relevanten Kosten (lokal). Wirft nie —
+ *  liefert {ok, latencyMs, error?} für den Health-Check. */
+export async function visionHealthProbe(
+  timeoutMs = 20_000,
+): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+  const base = process.env.LOCAL_VISION_BASE_URL;
+  if (!base) return { ok: false, latencyMs: 0, error: "LOCAL_VISION_BASE_URL not set" };
+  const url = `${base.replace(/\/+$/, "")}/chat/completions`;
+  const apiKey = process.env.LOCAL_VISION_API_KEY || "local";
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: modelFor("code-verify"), max_tokens: 1, temperature: 0, messages: [{ role: "user", content: "ping" }] }),
+      signal: ctrl.signal,
+    });
+    const latencyMs = Date.now() - startedAt;
+    await res.text().catch(() => {}); // Body verwerfen (nur Status relevant) → hält sonst den Socket bis GC
+    return res.ok ? { ok: true, latencyMs } : { ok: false, latencyMs, error: `HTTP ${res.status}` };
+  } catch (e) {
+    return { ok: false, latencyMs: Date.now() - startedAt, error: (e as Error).message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface OpenAIChatResponse {
   id?: string;
   choices?: { message?: { content?: string }; finish_reason?: string | null }[];

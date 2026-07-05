@@ -690,6 +690,7 @@
     "sectionKeyholders": "Keyholder dieses Subs",
     "keyholdersDesc": "User, die diesen Sub kontrollieren dürfen (Keyholder). Sie sehen den Sub und können später Direktiven setzen — aber nie sich selbst kontrollieren.",
     "keyholdersNone": "Noch keine Keyholder zugewiesen.",
+    "keyholdersNoCandidates": "Keine zuweisbaren Nutzer — als Keyholder kommen nur Nicht-Admins in Frage (Admins kontrollieren ohnehin alle Subs). Lege dafür einen Nutzer mit der Rolle Benutzer an.",
     "keyholderSelect": "User wählen …",
     "keyholderAdd": "Hinzufügen",
     "designAdmin": "Admin-Design",

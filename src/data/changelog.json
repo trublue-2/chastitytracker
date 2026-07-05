@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.46.8",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Selfhosted-KI (Vision + Embedding) wird regelmaessig auf Erreichbarkeit geprueft (Intervall per Env, Default 5 min). Bei Ausfall gibt es einen Log-Eintrag und optional eine Warn-Mail; gemeldet wird bei Zustandswechsel plus stuendlicher Erinnerung. Vision und Embedding einzeln abschaltbar. Fuer Instanzen ohne eigene KI ohne Effekt."
+      },
+      {
+        "type": "ui",
+        "text": "Admin-Einstellungen: erklaerender Hinweis, wenn fuer einen Sub kein Keyholder zuweisbar ist — als Keyholder kommen nur Nicht-Admins in Frage (Admins kontrollieren ohnehin alle Subs)."
+      }
+    ]
+  },
+  {
     "version": "4.46.7",
     "date": "2026-07-04",
     "changes": [

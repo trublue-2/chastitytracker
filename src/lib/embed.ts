@@ -15,6 +15,41 @@ export function embedAvailable(): boolean {
   return !!process.env.EMBED_BASE_URL;
 }
 
+/** 1×1-Pixel-Testbild (transparentes PNG) für die Health-Probe des Embedding-Diensts. */
+const HEALTH_PROBE_PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+/** Health-Probe: echte Mini-Inferenz (bettet ein 1×1-Pixel-Bild ein) → bestätigt, dass der
+ *  Embedding-Dienst erreichbar ist UND einen Vektor liefert (nicht nur der Port offen ist). Wirft
+ *  nie — liefert {ok, latencyMs, error?} für den Health-Check. */
+export async function embedHealthProbe(
+  timeoutMs = 20_000,
+): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+  const base = process.env.EMBED_BASE_URL;
+  if (!base) return { ok: false, latencyMs: 0, error: "EMBED_BASE_URL not set" };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(`${base.replace(/\/+$/, "")}/embed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ images: [HEALTH_PROBE_PNG_1PX] }),
+      signal: ctrl.signal,
+    });
+    const latencyMs = Date.now() - startedAt;
+    if (!res.ok) {
+      await res.text().catch(() => {}); // Body verwerfen → Socket freigeben
+      return { ok: false, latencyMs, error: `HTTP ${res.status}` };
+    }
+    const data = (await res.json().catch(() => null)) as { embeddings?: number[][] } | null;
+    return data?.embeddings?.length === 1 ? { ok: true, latencyMs } : { ok: false, latencyMs, error: "bad response" };
+  } catch (e) {
+    return { ok: false, latencyMs: Date.now() - startedAt, error: (e as Error).message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Modellname für die Invalidierung gespeicherter Embeddings (muss zum Dienst passen). */
 export function embedModel(): string {
   return process.env.EMBED_MODEL || "clip-ViT-L-14";

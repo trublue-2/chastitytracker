@@ -110,6 +110,13 @@ USE_ADMIN_RELATIONSHIPS=true       # optional: Admin↔User n:m Zuordnung aktivi
 TELEMETRY_URL=<url>                # optional: Telemetrie-Endpunkt
 TELEMETRY_INSTANCE_ID=<id>         # optional: Instanz-Kennung
 BUILD_DATE=<iso-date>              # optional: wird beim Build gesetzt
+# Selfhosted-KI Health-Check (nur relevant bei lokalem Vision-/Embedding-Backend):
+HEALTHCHECK_INTERVAL_MIN=5         # optional: Prüfintervall in Minuten (Default 5)
+HEALTHCHECK_ALERT_EMAIL=<email>    # optional: Mail-Alarm bei Ausfall (leer = nur Log). Bei mehreren
+                                   #   Instanzen auf demselben KI-Host nur auf EINER setzen (Alarm-Sturm)
+HEALTHCHECK_VISION=<true|false>    # optional: Vision-Probe abschalten (Default: an, wenn Vision self-hosted)
+HEALTHCHECK_EMBED=<true|false>     # optional: Embedding-Probe abschalten (Default: an, wenn EMBED_BASE_URL gesetzt)
+HEALTHCHECK_TIMEOUT_MS=20000       # optional: Timeout je Probe (Default 20s)
 ```
 
 

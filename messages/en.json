@@ -690,6 +690,7 @@
     "sectionKeyholders": "Keyholders of this sub",
     "keyholdersDesc": "Users allowed to control this sub (keyholders). They can see the sub and later issue directives — but never control themselves.",
     "keyholdersNone": "No keyholders assigned yet.",
+    "keyholdersNoCandidates": "No assignable users — only non-admins can be keyholders (admins already control every sub). Create a user with the User role for this.",
     "keyholderSelect": "Choose user …",
     "keyholderAdd": "Add",
     "designAdmin": "Admin theme",

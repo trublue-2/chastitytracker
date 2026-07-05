@@ -29,10 +29,19 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
   }, []);
 
   const assignedIds = new Set(initial.map((k) => k.id));
-  // Admins can't be keyholders (they already have full access) — excluded from candidates.
+  // Zuweisbar ist nur ein ANDERER Nicht-Admin-User, der nicht schon Keyholder ist:
+  //  - der Sub selbst scheidet aus (niemand ist sein eigener Keyholder),
+  //  - Admins scheiden aus, weil sie ohnehin ALLE Subs kontrollieren — ein Keyholder-Eintrag wäre
+  //    redundant (die Route lehnt es zusätzlich serverseitig ab). Der „Keyholder dieses Subs"-
+  //    Mechanismus ist genau für den Nicht-Admin-Fall: ein normaler User, der NUR diesen Sub
+  //    kontrollieren soll (chirurgischer /admin-Zugang).
+  // Folge: Gibt es ausser dem Sub nur Admins, ist die Liste leer und das Dropdown erscheint nicht —
+  // dann greift der Hinweis unten (keyholdersNoCandidates).
   const options = candidates
     .filter((c) => c.id !== subId && c.role !== "admin" && !assignedIds.has(c.id))
     .map((c) => ({ value: c.id, label: c.username }));
+  // Kandidaten sind geladen (>0), aber keiner ist zuweisbar → erklärender Hinweis statt leerem Nichts.
+  const noAssignable = candidates.length > 0 && options.length === 0;
 
   async function mutate(method: "POST" | "DELETE", keyholderId: string) {
     setSaving(true);
@@ -91,6 +100,9 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
             {t("keyholderAdd")}
           </Button>
         </div>
+      )}
+      {noAssignable && (
+        <p className="text-xs text-foreground-faint">{t("keyholdersNoCandidates")}</p>
       )}
       <FormError message={error} variant="compact" />
     </div>

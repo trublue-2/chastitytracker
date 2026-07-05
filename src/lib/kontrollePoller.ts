@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendKontrolleNotification, deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
+import { maybeRunHealthChecks } from "@/lib/healthCheck";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -65,6 +66,12 @@ async function processDue(): Promise<void> {
 
     // Zeitversetzte VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) im selben Tick — kein zweiter Timer.
     await processDueVerschlussAnforderungen(now);
+
+    // Selfhosted-KI-Erreichbarkeit prüfen (intern alle HEALTHCHECK_INTERVAL_MIN gedrosselt; No-op ohne
+    // konfigurierte selfhosted-KI). FIRE-AND-FORGET: die Probes können bis zum Timeout hängen — das darf
+    // den zeitkritischen Poller-Tick (fällige Kontroll-/Sperrzeit-Mails) NICHT verzögern. Der State liegt
+    // in globalThis, nicht am Tick gekoppelt; ohne `now`-Argument nutzt der Check die echte Ausführungszeit.
+    void maybeRunHealthChecks().catch((e) => console.error("[health]", e));
   } finally {
     running = false;
   }
