@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.46.12",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Startseite 'Automatisch': ein Keyholder/Admin mit genau einem Sub springt nach dem Login jetzt direkt in dessen Ansicht. Vorher landete ein globaler Admin immer auf der Uebersicht, weil nur explizite Keyholder-Zuordnungen gezaehlt wurden."
+      },
+      {
+        "type": "feat",
+        "text": "Neue Einstellung 'Eigenen Benutzer ausblenden' (nur Admins): blendet die eigene Karte in der Keyholder-Uebersicht aus — praktisch, wenn man selbst keinen KG-Tracker nutzt. Der eigene Tracker bleibt ueber das Avatar-Menue erreichbar."
+      }
+    ]
+  },
+  {
     "version": "4.46.11",
     "date": "2026-07-05",
     "changes": [

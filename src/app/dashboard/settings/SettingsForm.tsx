@@ -11,6 +11,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Divider from "@/app/components/Divider";
 import ExpandRow from "@/app/components/ExpandRow";
+import Toggle from "@/app/components/Toggle";
 import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
 import ThemeToggle from "@/app/components/ThemeToggle";
@@ -21,7 +22,7 @@ import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { SettingsFormProps } from "./getSettingsProps";
 
-export default function SettingsForm({ username, email, timezone, startPage, showStartPage, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, timezone, startPage, showStartPage, isAdmin, hideOwnTracker, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -146,6 +147,28 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
     { value: "overview", label: t("startPageOverview") },
     { value: "dashboard", label: t("startPageDashboard") },
   ];
+
+  const [hideOwnValue, setHideOwnValue] = useState(hideOwnTracker);
+  const [hideOwnError, setHideOwnError] = useState<string | null>(null);
+  async function handleHideOwn(checked: boolean) {
+    setHideOwnValue(checked);
+    setHideOwnError(null);
+    try {
+      const res = await fetch("/api/settings/hide-own-tracker", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hideOwnTracker: checked }),
+      });
+      if (!res.ok) {
+        setHideOwnValue(!checked); // Rollback bei Fehler
+        const data = await res.json();
+        setHideOwnError(apiError(data.error));
+      }
+    } catch {
+      setHideOwnValue(!checked);
+      setHideOwnError(tc("error"));
+    }
+  }
 
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
@@ -285,6 +308,19 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
               {startPageSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
               <FormError message={startPageError} />
             </ExpandRow>
+          )}
+
+          {/* Eigene Karte in der Keyholder-Übersicht ausblenden — nur globale Admins sehen sie dort. */}
+          {isAdmin && (
+            <div className="px-5 py-2">
+              <Toggle
+                label={t("hideOwnTracker")}
+                description={t("hideOwnTrackerHint")}
+                checked={hideOwnValue}
+                onChange={handleHideOwn}
+              />
+              <FormError message={hideOwnError} />
+            </div>
           )}
 
           {/* Feedback */}

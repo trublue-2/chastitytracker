@@ -9,6 +9,9 @@ export interface SettingsFormProps {
   startPage: string;
   /** Nur Keyholder/Admins (= haben das blaue Portal): steuert Startseiten-Wahl + Admin-Theme-Umschalter. */
   showStartPage: boolean;
+  /** Globaler Admin — nur er sieht die eigene Karte in der Übersicht → nur ihm die Ausblenden-Option. */
+  isAdmin: boolean;
+  hideOwnTracker: boolean;
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
@@ -27,23 +30,25 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let email: string | null = null;
   let timezone = "Europe/Zurich";
   let startPage = "auto";
+  let hideOwnTracker = false;
 
   if (userId) {
     const dbUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, email: true, timezone: true, startPage: true },
+      select: { username: true, email: true, timezone: true, startPage: true, hideOwnTracker: true },
     });
     if (dbUser) {
       username = dbUser.username;
       email = dbUser.email ?? null;
       timezone = dbUser.timezone;
       startPage = dbUser.startPage;
+      hideOwnTracker = dbUser.hideOwnTracker;
     }
   }
 
+  const isAdmin = session?.user?.role === "admin";
   const showStartPage =
-    session?.user?.role === "admin" ||
-    !!(session?.user as { controlsSubs?: boolean } | undefined)?.controlsSubs;
+    isAdmin || !!(session?.user as { controlsSubs?: boolean } | undefined)?.controlsSubs;
 
   return {
     username,
@@ -51,6 +56,8 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     timezone,
     startPage,
     showStartPage,
+    isAdmin,
+    hideOwnTracker,
     version: pkg.version,
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedbackEnabled: process.env.DISABLE_FEEDBACK !== "true",

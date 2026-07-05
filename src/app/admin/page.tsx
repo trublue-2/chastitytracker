@@ -32,7 +32,7 @@ export default async function AdminPage() {
 
   // MULTI-SUB view: each row belongs to a different sub → carry each user's timezone so per-row
   // timestamps/banners render in THAT sub's zone (not the viewing keyholder's).
-  const userSelect = { id: true, username: true, role: true, email: true, createdAt: true, timezone: true };
+  const userSelect = { id: true, username: true, role: true, email: true, createdAt: true, timezone: true, hideOwnTracker: true };
 
   let users;
   if (isGlobalAdmin) {
@@ -54,6 +54,9 @@ export default async function AdminPage() {
       select: userSelect,
     });
   }
+  // „Eigene Karte ausblenden": der eingeloggte Admin/Keyholder entfernt seine eigene Karte aus der
+  // Übersicht (relevant v.a. für globale Admins — Keyholder sehen ihre eigene ohnehin nicht).
+  users = users.filter(u => !(u.id === currentUserId && u.hideOwnTracker));
   const userIds = users.map(u => u.id);
   const now = new Date();
 

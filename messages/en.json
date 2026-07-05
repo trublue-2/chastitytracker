@@ -12,7 +12,8 @@
     "invalidRole": "Invalid role",
     "cannotDeleteSelf": "You cannot delete your own account",
     "invalidTimezone": "Invalid timezone",
-    "invalidStartPage": "Invalid start page"
+    "invalidStartPage": "Invalid start page",
+    "invalidHideOwnTracker": "Invalid value"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -391,6 +392,8 @@
     "startPageAuto": "Automatic",
     "startPageOverview": "Keyholder overview",
     "startPageDashboard": "Own tracker",
+    "hideOwnTracker": "Hide my own user",
+    "hideOwnTrackerHint": "Hides your own card from the keyholder overview — handy if you don't use a chastity tracker yourself. You can still reach your own tracker via the avatar menu.",
     "reinigungTitle": "Cleaning interruption",
     "reinigungErlaubt": "Allow cleaning interruptions",
     "reinigungMaxMinuten": "Maximum cleaning duration",
