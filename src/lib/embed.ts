@@ -15,10 +15,12 @@ export function embedAvailable(): boolean {
   return !!process.env.EMBED_BASE_URL;
 }
 
-/** 1×1-Pixel-Testbild (transparentes PNG) für die Health-Probe des Embedding-Diensts. */
-const HEALTH_PROBE_PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+/** Testbild für die Health-Probe des Embedding-Diensts: valides 64×64-PNG (nicht 1×1!) — ein
+ *  degeneriertes 1-Pixel-Bild lässt viele CLIP/SigLIP-Preprocessoren (Resize/Center-Crop auf 224px)
+ *  mit HTTP 500 abbrechen und würde einen Fehlalarm erzeugen. 64×64 übersteht das Preprocessing. */
+const HEALTH_PROBE_PNG = "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAS0lEQVR42u3PMQ0AAAwDoEqv9ErYvQQckD4XAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAYHLAB8+AWnmfUycAAAAAElFTkSuQmCC";
 
-/** Health-Probe: echte Mini-Inferenz (bettet ein 1×1-Pixel-Bild ein) → bestätigt, dass der
+/** Health-Probe: echte Mini-Inferenz (bettet das kleine 64×64-Testbild ein) → bestätigt, dass der
  *  Embedding-Dienst erreichbar ist UND einen Vektor liefert (nicht nur der Port offen ist). Wirft
  *  nie — liefert {ok, latencyMs, error?} für den Health-Check. */
 export async function embedHealthProbe(
@@ -33,7 +35,7 @@ export async function embedHealthProbe(
     const res = await fetch(`${base.replace(/\/+$/, "")}/embed`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ images: [HEALTH_PROBE_PNG_1PX] }),
+      body: JSON.stringify({ images: [HEALTH_PROBE_PNG] }),
       signal: ctrl.signal,
     });
     const latencyMs = Date.now() - startedAt;

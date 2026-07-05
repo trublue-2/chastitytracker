@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.46.9",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Health-Check der Embedding-KI meldete faelschlich Ausfall: die Probe schickte ein 1x1-Pixel-Testbild, an dem der Embedding-Dienst (CLIP-Preprocessing) mit HTTP 500 scheiterte. Jetzt ein valides 64x64-Testbild — echte Geraeteerkennung war nie betroffen."
+      }
+    ]
+  },
+  {
     "version": "4.46.8",
     "date": "2026-07-05",
     "changes": [
