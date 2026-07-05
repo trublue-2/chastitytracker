@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
-import { toDateLocale } from "@/lib/utils";
+import { toDateLocale, APP_TZ } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ClipboardCheck } from "lucide-react";
 import KontrolleButton from "@/app/admin/KontrolleButton";
@@ -41,7 +41,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const { pruefungRows, offeneRows } = buildKontrolleRows(pruefungen, alleAnforderungen, now);
   const sortedOffene = [...offeneRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
   const sortedPruefungen = [...pruefungRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
-  const mapOpts = { t: ta, dl, includeUsername: false };
+  const mapOpts = { t: ta, dl, includeUsername: false, viewerTz: session?.user?.timezone ?? APP_TZ };
 
   const tc = await getTranslations("common");
   const labels = {

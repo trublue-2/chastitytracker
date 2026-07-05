@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { assertAdmin } from "@/lib/authGuards";
-import { toDateLocale } from "@/lib/utils";
+import { toDateLocale, APP_TZ } from "@/lib/utils";
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -17,6 +18,8 @@ export default async function AdminKontrollenPage({
 }) {
   await assertAdmin();
   const { userId } = await searchParams;
+  const session = await auth();
+  const viewerTz = session?.user?.timezone ?? APP_TZ;
   const [t, tc] = await Promise.all([getTranslations("admin"), getTranslations("common")]);
   const dl = toDateLocale(await getLocale());
   const now = new Date();
@@ -44,7 +47,7 @@ export default async function AdminKontrollenPage({
   const allRows = [...pruefungRows, ...offeneRows]
     .sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
-  const mapOpts = { t, dl, includeUsername: !userId };
+  const mapOpts = { t, dl, includeUsername: !userId, viewerTz };
   const items = allRows.filter(isKontrolleAlarm).map((r) => mapKontrolleRow(r, mapOpts));
   const allItems = allRows.map((r) => mapKontrolleRow(r, mapOpts));
 

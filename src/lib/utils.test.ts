@@ -14,6 +14,8 @@ import {
   getMonthEnd,
   getYearStart,
   getYearEnd,
+  formatDateTimeDual,
+  formatDayTimeDual,
   type ReinigungSettings,
 } from "./utils";
 
@@ -578,5 +580,56 @@ describe("per-user timezone formatters", () => {
     it("December rolls over to next January", () => {
       expect(getMonthEnd(new Date("2026-12-20T12:00:00Z"), "Europe/Zurich").toISOString()).toBe("2026-12-31T23:00:00.000Z"); // 1. Jan 2027 00:00 CET
     });
+  });
+});
+
+describe("formatDateTimeDual / formatDayTimeDual — Betrachter-Zeit + Sub-Zusatz bei Abweichung", () => {
+  const sameDay = new Date("2026-07-06T15:00:00Z"); // ZH 17:00, NY 11:00 — beide 06.07.
+  const crossDay = new Date("2026-07-06T00:30:00Z"); // ZH 02:30 (06.07.), NY 20:30 (05.07.)
+  const winter = new Date("2026-01-15T09:30:00Z"); // ZH 10:30, NY 04:30 — beide 15.01.
+
+  it("gleiche tz → nur ein Wert, kein Zusatz", () => {
+    const r = formatDateTimeDual(sameDay, "de-CH", "Europe/Zurich", "Europe/Zurich", "Sub");
+    expect(r).toBe(formatDateTime(sameDay, "de-CH", "Europe/Zurich"));
+    expect(r).not.toContain("·");
+  });
+
+  it("viewerTz undefined → reine Sub-Zeit (grüne Invariante)", () => {
+    const r = formatDateTimeDual(sameDay, "de-CH", undefined, "America/New_York", "Sub");
+    expect(r).toBe(formatDateTime(sameDay, "de-CH", "America/New_York"));
+    expect(r).not.toContain("·");
+  });
+
+  it("andere tz, gleicher Kalendertag → nur Uhrzeit-Zusatz", () => {
+    expect(formatDateTimeDual(sameDay, "de-CH", "Europe/Zurich", "America/New_York", "Sub"))
+      .toBe("06.07.2026, 17:00 · Sub 11:00");
+  });
+
+  it("andere tz, anderer Kalendertag → Datum+Uhrzeit-Zusatz", () => {
+    expect(formatDateTimeDual(crossDay, "de-CH", "Europe/Zurich", "America/New_York", "Sub"))
+      .toBe("06.07.2026, 02:30 · Sub 05.07. 20:30");
+  });
+
+  it("Winter/DST: korrekter Offset im Zusatz", () => {
+    expect(formatDateTimeDual(winter, "de-CH", "Europe/Zurich", "America/New_York", "Sub"))
+      .toBe("15.01.2026, 10:30 · Sub 04:30");
+  });
+
+  it("andere tz-ID aber gleicher Offset (Zürich vs Berlin) → kein redundanter Zusatz", () => {
+    const r = formatDateTimeDual(sameDay, "de-CH", "Europe/Zurich", "Europe/Berlin", "Sub");
+    expect(r).toBe(formatDateTime(sameDay, "de-CH", "Europe/Zurich"));
+    expect(r).not.toContain("·");
+  });
+
+  it("formatDayTimeDual: Primär ohne Jahr + Sub-Zusatz", () => {
+    expect(formatDayTimeDual(sameDay, "de-CH", "Europe/Zurich", "America/New_York", "Sub"))
+      .toBe("06.07. 17:00 · Sub 11:00");
+  });
+
+  it("Regressions-Garantie: gleiche tz identisch zu formatDateTime", () => {
+    for (const d of [sameDay, crossDay, winter]) {
+      expect(formatDateTimeDual(d, "de-CH", "Europe/Zurich", "Europe/Zurich", "Sub"))
+        .toBe(formatDateTime(d, "de-CH", "Europe/Zurich"));
+    }
   });
 });

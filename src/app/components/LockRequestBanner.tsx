@@ -1,5 +1,5 @@
 import { Lock, Droplets } from "lucide-react";
-import { APP_TZ } from "@/lib/utils";
+import { APP_TZ, formatDayTimeDual } from "@/lib/utils";
 import type { ComponentType, ReactNode } from "react";
 import SperrzeitRemaining from "./SperrzeitRemaining";
 
@@ -53,6 +53,11 @@ interface CompactProps {
   locale: string;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
+  /** Betrachter-Zeitzone (Keyholder). Weicht sie von `tz` ab, wird die Sub-Lokalzeit als Zusatz
+   *  gezeigt. Nur im Admin-Portal gesetzt (dort mit `subTimePrefix`); im Dashboard weglassen. */
+  viewerTz?: string;
+  /** Label des Sub-Zusatzes (i18n, z.B. „Sub"). Nur relevant, wenn `viewerTz` von `tz` abweicht. */
+  subTimePrefix?: string;
   withdrawAction?: ReactNode;
   /** Shows a live countdown "Rest: …" next to the date. Requires endetAt. */
   showRemaining?: boolean;
@@ -71,7 +76,7 @@ type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endetAt, locale, tz = APP_TZ, withdrawAction, showRemaining } = props;
+    const { colorScheme, label, overdue, endetAt, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
@@ -82,7 +87,9 @@ export default function LockRequestBanner(props: Props) {
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
           {endetAt && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>
-              bis {new Date(endetAt).toLocaleString(locale, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}
+              {/* viewerTz wirkt nur mit Label — verhindert ein „· <leer> HH:mm", falls ein Aufrufer
+                  viewerTz ohne subTimePrefix übergibt (ohne Label → reine Sub-Zeit). */}
+              bis {formatDayTimeDual(endetAt, locale, subTimePrefix ? viewerTz : undefined, tz, subTimePrefix ?? "")}
             </span>
           )}
           {showRemaining && endetAt && (

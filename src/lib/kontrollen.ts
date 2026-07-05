@@ -1,4 +1,4 @@
-import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected, formatDateTime, APP_TZ } from "@/lib/utils";
+import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected, formatDateTimeDual, APP_TZ } from "@/lib/utils";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
@@ -152,10 +152,15 @@ export function mapKontrolleRow(
     t: (key: string, values?: Record<string, string | number | Date>) => string;
     dl: string;
     includeUsername: boolean;
+    /** Zeitzone des Betrachters (Keyholder-Session). Weicht sie von der Sub-Zeitzone ab, wird die
+     *  Sub-Lokalzeit als Zusatz angezeigt (nur Admin; ohne viewerTz bleibt es reine Sub-Zeit). */
+    viewerTz?: string;
   },
 ): AdminKontrolleRowData {
-  const { t, dl, includeUsername } = opts;
-  const tz = row.timezone; // the row's own sub governs its timestamps
+  const { t, dl, includeUsername, viewerTz } = opts;
+  const tz = row.timezone; // Sub-Zeitzone der Zeile — Basis; viewerTz (falls ≠) ergänzt sie
+  const subLabel = t("subTimePrefix");
+  const fmt = (d: Date) => formatDateTimeDual(d, dl, viewerTz, tz, subLabel);
 
   const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
   const kPill = row.entryId
@@ -175,14 +180,14 @@ export function mapKontrolleRow(
     pillCls: kPill?.cls ?? null,
     username: includeUsername ? row.username : null,
     code: row.code,
-    fulfilledAtStr: row.fulfilledAt ? formatDateTime(row.fulfilledAt, dl, tz) : null,
-    deadlineStr: row.deadline ? formatDateTime(row.deadline, dl, tz) : null,
-    createdAtStr: effectiveCreated ? formatDateTime(effectiveCreated, dl, tz) : null,
+    fulfilledAtStr: row.fulfilledAt ? fmt(row.fulfilledAt) : null,
+    deadlineStr: row.deadline ? fmt(row.deadline) : null,
+    createdAtStr: effectiveCreated ? fmt(effectiveCreated) : null,
     createdLabel: createdIsSent ? t("sentLabel") : t("createdLabel"),
-    withdrawnAtStr: row.withdrawnAt ? formatDateTime(row.withdrawnAt, dl, tz) : null,
-    scheduledForStr: row.scheduledFor ? formatDateTime(row.scheduledFor, dl, tz) : null,
+    withdrawnAtStr: row.withdrawnAt ? fmt(row.withdrawnAt) : null,
+    scheduledForStr: row.scheduledFor ? fmt(row.scheduledFor) : null,
     timeCorrectedStr: timeCorrected
-      ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(row.fulfilledAt!, dl, tz)} · ${t("systemLabel")}: ${formatDateTime(row.submittedAt!, dl, tz)}`
+      ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmt(row.fulfilledAt!)} · ${t("systemLabel")}: ${fmt(row.submittedAt!)}`
       : null,
     note: row.note,
     kontrolleId: row.kontrolleId,

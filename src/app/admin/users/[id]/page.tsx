@@ -3,7 +3,7 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDuration, formatDateTime, formatDate, formatTime, formatHours, toDateLocale,
+  formatDuration, formatDateTimeDual, formatDate, formatTime, formatHours, toDateLocale, APP_TZ,
   buildPairs, interruptionPauseMs, isTimeCorrected,
   buildKontrolleItems, calculateWearingHoursByRange,
   buildWearSessionRows,
@@ -52,6 +52,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
   const tz = user.timezone;
+  // Betrachter-Zeitzone (Keyholder): Zeit-Widgets primär in dieser tz, Sub-Lokalzeit als Zusatz bei
+  // Abweichung. `tz` (Sub) bleibt die Basis; `subLabel` beschriftet den Zusatz.
+  const viewerTz = session?.user?.timezone ?? APP_TZ;
+  const subLabel = t("subTimePrefix");
+  const fmtDual = (d: Date) => formatDateTimeDual(d, dl, viewerTz, tz, subLabel);
   // Der Sub (Eintrag-Owner) governt die Anzeige-Labels seiner Orgasmus-/Öffnungs-Codes.
   const orgasmCfg = effectiveOrgasmusArten(user.orgasmusArtenConfig);
 
@@ -157,6 +162,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           overdue={offeneKontrolle.deadline < now}
           variant="large"
           tz={tz}
+          viewerTz={viewerTz}
         />
       )}
 
@@ -174,6 +180,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             endetAt={offeneOrgasmusAnforderung.endetAt}
             locale={dl}
             tz={tz}
+            viewerTz={viewerTz}
+            subTimePrefix={subLabel}
             withdrawAction={<WithdrawButton id={offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
           />
         );
@@ -200,7 +208,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             <div className="rounded-xl bg-orgasm-bg border border-orgasm-border px-4 py-3 col-span-2 sm:col-span-1">
               <p className="text-xs text-orgasm-text font-semibold mb-0.5 uppercase tracking-wider">{ts("orgasmFreeTime")}</p>
               <p className="text-2xl font-bold text-orgasm tracking-tight">{orgasmusFreiDisplay}</p>
-              {lastOrgasmus && <p className="text-xs text-orgasm-text opacity-60 mt-0.5">{ts("lastOrgasm")}: {formatDateTime(lastOrgasmus.startTime, dl, tz)}</p>}
+              {lastOrgasmus && <p className="text-xs text-orgasm-text opacity-60 mt-0.5">{ts("lastOrgasm")}: {fmtDual(lastOrgasmus.startTime)}</p>}
             </div>
           )}
         </div>
@@ -256,12 +264,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 id: k.id, imageUrl: k.imageUrl, kommentar: k.kommentar,
                 pill1Label: aPill ? t(aPill.labelKey) : null, pill1Cls: aPill?.cls ?? null,
                 pill2Label: vPill ? t(vPill.labelKey) : null, pill2Cls: vPill?.cls ?? null,
-                code: k.code, dateTimeStr: formatDateTime(k.time, dl, tz), dateTimePrefix: null,
-                deadlineStr: k.deadline ? formatDateTime(k.deadline, dl, tz) : null,
+                code: k.code, dateTimeStr: fmtDual(k.time), dateTimePrefix: null,
+                deadlineStr: k.deadline ? fmtDual(k.deadline) : null,
                 deadlinePrefix: t("frist"), note: null, entryId: k.entryId,
                 editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
                 timeCorrectedStr: isTimeCorrected(k.time, k.submittedAt)
-                  ? `${t("timeCorrected")} – ${t("givenLabel")}: ${formatDateTime(k.time, dl, tz)} · ${t("systemLabel")}: ${formatDateTime(k.submittedAt!, dl, tz)}`
+                  ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmtDual(k.time)} · ${t("systemLabel")}: ${fmtDual(k.submittedAt!)}`
                   : null,
               };
             })}

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.46.11",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Admin-/Keyholder-Ansicht: Zeit-Anzeigen (Deadlines, gesendet, geplant, Sperrzeit-Ende, Strafbuch) erscheinen jetzt in DEINER Zeitzone; weicht die Zeitzone des Subs ab, wird dessen Lokalzeit zusaetzlich gezeigt (z.B. '06.07.2026, 17:00 . Sub 14:00'). Die eigene Ansicht des Subs und alle Eingabefelder bleiben unveraendert in der Sub-Zeit."
+      }
+    ]
+  },
+  {
     "version": "4.46.10",
     "date": "2026-07-05",
     "changes": [

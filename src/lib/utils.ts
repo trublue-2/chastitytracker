@@ -121,6 +121,43 @@ export function tzDateParts(d: Date, tz = APP_TZ): { year: number; month: number
   return { year: get("year"), month: get("month") - 1, day: get("day") };
 }
 
+/** Kern der „Dual"-Formatierer: Primär in der Betrachter-Zeitzone plus — nur wenn `viewerTz` gesetzt
+ *  ist, von `subTz` abweicht UND ein anderer Wert herauskommt — die Sub-Lokalzeit als Zusatz
+ *  „· <subLabel> …". Tag-Grenzen-sicher via `tzDateParts` (DST/Mitternacht): gleicher Kalendertag →
+ *  nur Uhrzeit, anderer Tag → Datum+Uhrzeit. `primaryFn` bestimmt das Primär-Format (mit/ohne Jahr).
+ *  Ohne `viewerTz` oder bei gleicher tz → reiner Primärwert (grüne Ansicht bleibt unverändert). */
+function formatDual(
+  date: Date | string,
+  locale: string,
+  viewerTz: string | undefined,
+  subTz: string,
+  subLabel: string,
+  primaryFn: (d: Date, l: string, tz: string) => string,
+): string {
+  const d = new Date(date);
+  const primary = primaryFn(d, locale, viewerTz ?? subTz);
+  if (!viewerTz || viewerTz === subTz) return primary;
+  const v = tzDateParts(d, viewerTz);
+  const s = tzDateParts(d, subTz);
+  const sameDay = v.year === s.year && v.month === s.month && v.day === s.day;
+  const subTime = formatTime(d, locale, subTz);
+  // Gleicher Offset zum Instant (z.B. Zürich vs Berlin) → identische Wanduhr → kein redundanter Zusatz.
+  if (sameDay && subTime === formatTime(d, locale, viewerTz)) return primary;
+  const sub = sameDay ? subTime : `${formatDayMonth(d, locale, subTz)} ${subTime}`;
+  return `${primary} · ${subLabel} ${sub}`;
+}
+
+/** dd.mm.yyyy, HH:mm in der Betrachter-Zeitzone; bei abweichender Sub-Zeitzone zusätzlich die
+ *  Sub-Lokalzeit. Siehe `formatDual`. */
+export function formatDateTimeDual(date: Date | string, locale: string, viewerTz: string | undefined, subTz: string, subLabel: string): string {
+  return formatDual(date, locale, viewerTz, subTz, subLabel, formatDateTime);
+}
+
+/** Wie `formatDateTimeDual`, aber Primär OHNE Jahr (dd.mm. HH:mm) — für kompakte Zeilen (Banner). */
+export function formatDayTimeDual(date: Date | string, locale: string, viewerTz: string | undefined, subTz: string, subLabel: string): string {
+  return formatDual(date, locale, viewerTz, subTz, subLabel, (d, l, tz) => `${formatDayMonth(d, l, tz)} ${formatTime(d, l, tz)}`);
+}
+
 /** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
 export function midnightInTZ(d: Date, tz = APP_TZ): Date {
   const { year, month, day } = tzDateParts(d, tz);

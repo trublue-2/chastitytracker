@@ -451,6 +451,7 @@
     "overduePrefix": "Überfällig seit",
     "untilPrefix": "Bis",
     "code": "Code",
+    "subTimePrefix": "Sub",
     "instruction": "Anweisung",
     "capture": "→ Jetzt erfassen"
   },
@@ -781,6 +782,7 @@
     "codeLabel": "Code",
     "createdLabel": "Erstellt",
     "sentLabel": "Versand",
+    "subTimePrefix": "Sub",
     "fulfilledLabel": "Zeitpunkt",
     "timeCorrected": "Zeit korrigiert",
     "givenLabel": "Angegeben",

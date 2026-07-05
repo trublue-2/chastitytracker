@@ -451,6 +451,7 @@
     "overduePrefix": "Overdue since",
     "untilPrefix": "By",
     "code": "Code",
+    "subTimePrefix": "sub",
     "instruction": "Instruction",
     "capture": "→ Submit now"
   },
@@ -781,6 +782,7 @@
     "codeLabel": "Code",
     "createdLabel": "Created",
     "sentLabel": "Sent",
+    "subTimePrefix": "sub",
     "fulfilledLabel": "Time",
     "timeCorrected": "Time corrected",
     "givenLabel": "Given",
