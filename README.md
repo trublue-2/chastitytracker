@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.44.0-blue)
+![Version](https://img.shields.io/badge/version-4.48.0-blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -43,7 +43,10 @@
 - **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
 - **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Penalties / Settings / Devices
 - **Per-user notification preferences** (email + push, per event type)
-- **Keyholder relationships** — a non-admin user can be assigned as keyholder for specific subs, gaining scoped access to their data, photos, and notifications — always active, independent of any flag. The optional `USE_ADMIN_RELATIONSHIPS` flag additionally restricts global admins to only their assigned users
+- **Keyholder relationships** — a non-admin user can be assigned as keyholder for specific subs, gaining scoped access to their data, photos, and notifications — always active, independent of any flag. The optional `USE_ADMIN_RELATIONSHIPS` flag additionally restricts global admins to only their assigned users. Global admins additionally appear as implicit, read-only keyholders in a sub's keyholder list, so it is always clear who controls whom
+- **Separate keyholder overview & user management** — the blue portal splits the **keyholder overview** (`/admin` — sub cards, status, directives, quick actions) from **user management** (`/admin/users` — create / edit / delete users, roles). The portal title is role-aware ("Keyholder portal" for non-admin keyholders, "Admin portal" for global admins)
+- **"No own tracker" mode** — a pure keyholder can hide their own green tracker: no "My view" navigation and the green dashboard redirects to the keyholder overview. Purely UI and routing — **no data is deleted**, the switch is fully reversible, and settings / changelog stay reachable
+- **Configurable start page** — after login, keyholders and admins land where they choose: the keyholder overview, the user-management page, or straight on a specific sub's detail page
 - **User statistics overview** and inspection history with alarm filter
 
 ### Optional features (toggleable)
