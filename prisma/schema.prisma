@@ -42,6 +42,9 @@ model User {
   // Keyholder/Admin-Präferenz: eigene Karte in der Keyholder-Übersicht ausblenden (für Keyholder,
   // die keinen eigenen Tracker nutzen). Nur relevant, wenn die eigene Karte dort überhaupt erscheint.
   hideOwnTracker        Boolean                @default(false)
+  // Per-user UI + notification language ("de" | "en"). Drives the app locale AND the language of
+  // all e-mails / push sent to this user (rendered server-side from this field, not the browser cookie).
+  locale                String                 @default("de")
   // Pro-User anpassbare Auswahllisten als JSON-Array [{code,label?}] (TEXT). null = eingebaute
   // Standardliste (Bestandsnutzer unverändert). Öffnungsgründe enthalten IMMER den geschützten
   // Built-in "REINIGUNG" (Code fix, nur Label umbenennbar). Siehe reasonsService.ts.

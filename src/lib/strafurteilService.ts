@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, type NotifyContent } from "@/lib/notify";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
@@ -75,11 +75,10 @@ export interface JudgeOffenseResult {
  */
 /** Betreff + Text der „Strafe verhängt"-Benachrichtigung — geteilt von judgeOffense (MCP) und
  *  der Admin-Strafe-Route, damit beide Wege identisch benachrichtigen. */
-export function strafeVerhaengtNotice(reason: string | null): { subject: string; message: string } {
-  return {
-    subject: "Strafe verhängt",
-    message: reason ? `Der Keyholder hat eine Strafe verhängt: ${reason}` : "Der Keyholder hat eine Strafe verhängt.",
-  };
+export function strafeVerhaengtNotice(reason: string | null): NotifyContent {
+  return reason
+    ? { subjectKey: "penaltySubject", messageKey: "penaltyMessage", params: { reason } }
+    : { subjectKey: "penaltySubject", messageKey: "penaltyMessageNoReason" };
 }
 
 export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult<JudgeOffenseResult>> {

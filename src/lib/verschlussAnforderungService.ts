@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml, dashboardEmailHtml } from "@/lib/mail";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, type NotifyContent } from "@/lib/notify";
+import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
@@ -136,59 +137,61 @@ export async function createVerschlussAnforderung(
  *  Reused by the immediate path in createVerschlussAnforderung and by the delayed-trigger poller. */
 export async function sendVerschlussAnforderungNotifications(opts: {
   userId: string;
-  user: { email: string | null; username: string };
+  user: { email: string | null; username: string; locale: string };
   art: "ANFORDERUNG" | "SPERRZEIT";
   nachricht?: string | null;
   endetAtDate: Date | null;
   dauerH?: number | null;
 }) {
   const { userId, user, art, nachricht, endetAtDate, dauerH } = opts;
+  const t = await emailT(user.locale);
   const nachrichtHtml = nachricht?.trim()
-    ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Nachricht des Admins:</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
+    ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">${t("lockNoticeLabel")}</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
     : "";
+  const greeting = emailGreeting(t, user.username);
 
   if (art === "SPERRZEIT" && user.email) {
     const bisHtml = endetAtDate
-      ? `<p><strong>Gesperrt bis:</strong> ${formatDateTime(endetAtDate)}</p>`
-      : `<p><strong>Dauer:</strong> Unbefristet</p>`;
+      ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(endetAtDate)}</p>`
+      : `<p><strong>${t("lockDurationLabel")}</strong> ${t("lockIndefinite")}</p>`;
     await sendMail(
       user.email,
-      "KG-Tracker – Sperrzeit gesetzt",
-      dashboardEmailHtml("Sperrzeit gesetzt",
-        `<p>Hallo ${escHtml(user.username)},</p>
-        <p>Der Admin hat eine Sperrzeit gesetzt. Du darfst dich in dieser Zeit nicht öffnen.</p>
+      `KG-Tracker – ${t("lockPeriodSetSubject")}`,
+      dashboardEmailHtml(t("lockPeriodSetSubject"),
+        `${greeting}
+        <p>${escHtml(t("lockPeriodSetBody"))}</p>
         ${nachrichtHtml}
-        ${bisHtml}`),
+        ${bisHtml}`, t("dashboardButton")),
     );
   }
 
   if (art === "ANFORDERUNG" && user.email) {
     const deadlineHtml = endetAtDate
-      ? `<p><strong>Bitte einschliessen bis:</strong> ${formatDateTime(endetAtDate)}</p>`
+      ? `<p><strong>${t("lockUntilLabel")}</strong> ${formatDateTime(endetAtDate)}</p>`
       : "";
     const dauerHtml = dauerH
-      ? `<p><strong>Mindest-Tragedauer nach Einschliessen:</strong> ${dauerH >= 24 ? `${Math.floor(dauerH / 24)}T ${dauerH % 24 > 0 ? `${dauerH % 24}h` : ""}`.trim() : `${dauerH}h`}</p>`
+      ? `<p><strong>${t("lockMinWearLabel")}</strong> ${dauerH >= 24 ? `${Math.floor(dauerH / 24)}${t("dayUnitShort")} ${dauerH % 24 > 0 ? `${dauerH % 24}h` : ""}`.trim() : `${dauerH}h`}</p>`
       : "";
     await sendMail(
       user.email,
-      "KG-Tracker – Einschliessen angefordert",
-      dashboardEmailHtml("Einschliessen angefordert",
-        `<p>Hallo ${escHtml(user.username)},</p>
-        <p>Der Admin hat dich aufgefordert, dich einzuschliessen.</p>
+      `KG-Tracker – ${t("lockRequestSubject")}`,
+      dashboardEmailHtml(t("lockRequestSubject"),
+        `${greeting}
+        <p>${escHtml(t("lockRequestBody"))}</p>
         ${nachrichtHtml}
         ${deadlineHtml}
-        ${dauerHtml}`),
+        ${dauerHtml}`, t("dashboardButton")),
     );
   }
 
   // Push (fire-and-forget)
-  const pushTitle = art === "ANFORDERUNG" ? "Bitte einschliessen" : "Sperrzeit gesetzt";
+  const pushTitle = art === "ANFORDERUNG" ? t("lockPushRequestTitle") : t("lockPushPeriodTitle");
   const pushParts: string[] = [];
   if (art === "ANFORDERUNG") {
-    pushParts.push("Der Admin fordert dich auf, dich einzuschliessen.");
-    if (endetAtDate) pushParts.push(`Frist: ${formatDateTime(endetAtDate)}`);
+    pushParts.push(t("lockPushRequestBody"));
+    if (endetAtDate) pushParts.push(t("lockPushDeadline", { date: formatDateTime(endetAtDate) }));
   } else {
-    pushParts.push(endetAtDate ? `Bis: ${formatDateTime(endetAtDate)}` : "Unbefristet");
+    pushParts.push(endetAtDate ? t("lockPushUntil", { date: formatDateTime(endetAtDate) }) : t("lockIndefinite"));
   }
   if (nachricht?.trim()) pushParts.push(nachricht.trim());
   sendPushToUser(userId, pushTitle, pushParts.join(" · "), "/dashboard").catch(() => { /* ignore push errors */ });
@@ -214,21 +217,18 @@ export async function updateSperrzeitEnde(
   }
 
   await prisma.verschlussAnforderung.update({ where: { id }, data: { endetAt } });
-  await notifyUser(va.userId, {
-    subject: "Sperrzeit geändert",
-    message: endetAt
-      ? `Der Keyholder hat das Ende deiner Sperrzeit auf ${formatDateTime(endetAt)} geändert.`
-      : "Der Keyholder hat deine Sperrzeit auf unbefristet gesetzt.",
-  });
+  await notifyUser(va.userId, endetAt
+    ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endetAt) } }
+    : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite" });
   return { ok: true, data: { id, userId: va.userId } };
 }
 
 /** Betreff + Text der Withdraw-Benachrichtigung — geteilt von Service (MCP, per art) und
  *  Admin-Route (per id), damit die Meldung nicht divergiert. */
-export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT"): { subject: string; message: string } {
+export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT"): NotifyContent {
   return art === "SPERRZEIT"
-    ? { subject: "Sperrzeit aufgehoben", message: "Der Keyholder hat deine aktive Sperrzeit aufgehoben." }
-    : { subject: "Anforderung zurückgezogen", message: "Der Keyholder hat die Einschliess-Anforderung zurückgezogen." };
+    ? { subjectKey: "lockPeriodWithdrawnSubject", messageKey: "lockPeriodWithdrawnMessage" }
+    : { subjectKey: "lockRequestWithdrawnSubject", messageKey: "lockRequestWithdrawnMessage" };
 }
 
 /**

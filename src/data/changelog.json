@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.49.0",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Sprache pro Konto: Die Sprachwahl (Deutsch/Englisch) wird jetzt am Benutzerkonto gespeichert statt nur im Browser. Sie gilt damit geraeteuebergreifend und bestimmt neu auch die Sprache aller E-Mail- und Push-Benachrichtigungen (z.B. Kontroll-Erinnerungen) — bisher waren diese immer auf Deutsch."
+      },
+      {
+        "type": "ui",
+        "text": "Kontroll-Erinnerung (E-Mail) und das Kontroll-Banner im Dashboard verlinken neu auf eine kurze Erklaerung, was bei einer Kontrolle wann verlangt ist."
+      }
+    ]
+  },
+  {
     "version": "4.48.0",
     "date": "2026-07-06",
     "changes": [

@@ -9,6 +9,7 @@ declare module "next-auth" {
       image?: string | null;
       role: string;
       timezone?: string;
+      locale?: string;
     };
   }
 }
@@ -20,5 +21,6 @@ declare module "next-auth/jwt" {
     roleCheckedAt?: number;
     controlsSubs?: boolean;
     timezone?: string;
+    locale?: string;
   }
 }

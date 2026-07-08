@@ -21,6 +21,9 @@ interface Props {
   href?: string;
   /** large only – slot for action buttons (e.g. KontrolleActions) */
   actions?: ReactNode;
+  /** large only – link to the public "how inspections work" help (marketing site). Rendered as a
+   *  small line beneath the banner so it stays outside the clickable capture Link. */
+  helpHref?: string;
   /** large only – label when not overdue; pass translated string */
   openLabel?: string;
   /** compact only – slot for withdraw X button */
@@ -35,6 +38,7 @@ export default function KontrolleBanner({
   variant,
   href,
   actions,
+  helpHref,
   openLabel,
   withdrawAction,
   tz = APP_TZ,
@@ -89,9 +93,22 @@ export default function KontrolleBanner({
   );
 
   const cls = `rounded-2xl px-5 py-4 flex items-center gap-3 border ${colorCls}`;
+  const card = href
+    ? <Link href={href} className={cls}>{inner}</Link>
+    : <div className={cls}>{inner}</div>;
 
-  if (href) {
-    return <Link href={href} className={cls}>{inner}</Link>;
-  }
-  return <div className={cls}>{inner}</div>;
+  if (!helpHref) return card;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {card}
+      <a
+        href={helpHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="self-start text-xs font-medium text-inspect underline underline-offset-2 opacity-80 hover:opacity-100"
+      >
+        {t("help")}
+      </a>
+    </div>
+  );
 }

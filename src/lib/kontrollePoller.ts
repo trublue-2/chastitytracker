@@ -38,7 +38,7 @@ async function processDue(): Promise<void> {
         withdrawnAt: null,
         entryId: null,
       },
-      include: { user: { select: { id: true, email: true, username: true } } },
+      include: { user: { select: { id: true, email: true, username: true, locale: true } } },
       take: 50,
     });
 
@@ -91,7 +91,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
       withdrawnAt: null,
       fulfilledAt: null,
     },
-    include: { user: { select: { id: true, email: true, username: true } } },
+    include: { user: { select: { id: true, email: true, username: true, locale: true } } },
     take: 50,
   });
 
