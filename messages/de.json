@@ -275,6 +275,24 @@
     "back": "← Neu",
     "notCaptured": "nicht erfasst"
   },
+  "boxStatus": {
+    "istOpen": "Offen",
+    "istLocked": "Verschlossen",
+    "istLockedBolt": "Verschlossen · Riegel zu",
+    "sollLabel": "Soll",
+    "sollLockedUntil": "Sperre bis {date}",
+    "sollLockedIndefinite": "Sperre ohne Zeitlimit",
+    "sollUntil": "verschlossen bis {date}",
+    "sollIndefinite": "verschlossen, ohne Zeitlimit",
+    "sollNone": "kein Verschluss verlangt",
+    "neverSynced": "noch nie gesynct",
+    "live": "gerade aktiv",
+    "lastSeenMinutes": "zuletzt vor {count} Min",
+    "lastSeenHours": "zuletzt vor {count} Std",
+    "lastSeenDays": "zuletzt vor {count} Tg",
+    "jumpLock": "tippen zum Verschliessen",
+    "jumpOpen": "tippen zum Öffnen"
+  },
   "lockForm": {
     "title": "Verschluss erfassen",
     "saveBtn": "Verschluss speichern",

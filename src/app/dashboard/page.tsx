@@ -13,7 +13,7 @@ import {
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere } from "@/lib/queries";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
@@ -24,6 +24,7 @@ import ActiveWearSessions from "./ActiveWearSessions";
 import CategoriesPromoCard from "./CategoriesPromoCard";
 import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
+import BoxStatusCard from "@/app/components/BoxStatusCard";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -157,6 +158,7 @@ export default async function DashboardPage() {
       <div className="w-full max-w-2xl mx-auto px-4 pt-6">
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
       </div>
+      {heimdallEnabled() && <BoxStatusCard tz={tz} />}
       {activePair && rawSessionEvents.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pt-6 pb-2">
           <LaufendeSessionCard

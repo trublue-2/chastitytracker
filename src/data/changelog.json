@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.48.4",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Box-Anbindung (nur Instanzen mit Box-Feature): Das Dashboard zeigt jetzt eine Box-Status-Karte (Ist: offen/verschlossen · Soll: Sperre bis / ohne Zeitlimit · Frische: zuletzt gesynct). Im (+)-Menue ist die Box-Zeile reine Status-Anzeige mit Sprung in den Verschluss-/Oeffnen-Ablauf — die frueheren Direkt-Buttons (verschliessen/oeffnen/Reinigung oeffnen) entfallen, weil die Box jetzt den Verschluss-/Oeffnen-Eintraegen folgt. Reinigung laeuft ueber Oeffnen(Grund Reinigung) + spaeteres Verschliessen."
+      },
+      {
+        "type": "chore",
+        "text": "Internes Aufraeumen der Box-Kopplung: der separate Box-Kommando-Endpunkt und der clean_open-Sondermechanismus wurden entfernt (durch die Eintrags-Kopplung ersetzt)."
+      }
+    ]
+  },
+  {
     "version": "4.48.3",
     "date": "2026-07-09",
     "changes": [

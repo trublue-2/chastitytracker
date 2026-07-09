@@ -1,64 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound, Loader2, type LucideIcon } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
-
-type BoxRow = {
-  boxId: string;
-  name: string;
-  locked: boolean;
-  lockUntil: string | null;
-  simpleLock: boolean;
-  keyholderLocked: boolean;
-  // gesetzt, wenn die Box durch eine Sperrzeit gehalten wird, aber gerade zur Reinigung
-  // geöffnet werden darf (Fenster aktiv + Kontingent übrig). max 0 = unbegrenzt.
-  cleaning: { endHHMM: string; used: number; max: number; maxMinutes: number } | null;
-};
-
-function cleaningDesc(c: NonNullable<BoxRow["cleaning"]>): string {
-  const rest = c.max === 0 ? "unbegrenzt" : `noch ${Math.max(0, c.max - c.used)}/${c.max}`;
-  return `Fenster bis ${c.endHHMM} · ${rest} · max ${c.maxMinutes} Min`;
-}
-
-function boxStateLabel(b: BoxRow): string {
-  if (b.keyholderLocked) return b.lockUntil ? `zu · Sperrzeit bis ${fmtTime(b.lockUntil)}` : "zu · Sperrzeit";
-  if (b.lockUntil) return `zu · bis ${fmtTime(b.lockUntil)}`;
-  if (b.simpleLock) return "zu · ohne Zeitlimit";
-  return "zu";
-}
-
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
-}
-
-function BoxAction({ busy, icon: Icon, color, title, desc, onClick }: {
-  busy: boolean;
-  icon: LucideIcon;
-  color: string;
-  title: string;
-  desc: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full disabled:opacity-50"
-    >
-      {busy ? <Loader2 size={22} className={`${color} shrink-0 animate-spin`} /> : <Icon size={22} className={`${color} shrink-0`} />}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-xs text-foreground-muted">{desc}</p>
-      </div>
-    </button>
-  );
-}
+import { boxIstLabel, boxJumpHref } from "@/lib/boxStatus";
+import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -82,51 +31,12 @@ interface Props {
 export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
+  const tBox = useTranslations("boxStatus");
   const router = useRouter();
 
-  const [boxes, setBoxes] = useState<BoxRow[]>([]);
-  const [boxBusy, setBoxBusy] = useState<string | null>(null);
-  const [requested, setRequested] = useState<Record<string, "lock" | "open" | "clean_open">>({});
-
-  // Box-Status holen, sobald das Menü offen ist, und alle 3s nachladen — so werden
-  // Box-Syncs, zeitlich abgelaufene Sperrzeiten und erledigte Kommandos sichtbar, ohne
-  // das Menü zu schliessen. Ein erledigtes "angefordert" wird gelöscht, sobald die Box
-  // den passenden Zustand meldet.
-  useEffect(() => {
-    if (!open) return;
-    const tick = () =>
-      fetch("/api/box")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((rows: BoxRow[]) => {
-          setBoxes(rows);
-          setRequested((prev) => {
-            const next = { ...prev };
-            for (const [boxId, cmd] of Object.entries(prev)) {
-              const b = rows.find((x) => x.boxId === boxId);
-              if (b && b.locked === (cmd === "lock")) delete next[boxId];
-            }
-            return next;
-          });
-        })
-        .catch(() => {});
-    tick();
-    const iv = setInterval(tick, 3000);
-    return () => clearInterval(iv);
-  }, [open]);
-
-  async function sendCommand(boxId: string, command: "lock" | "open" | "clean_open") {
-    setBoxBusy(boxId);
-    try {
-      const r = await fetch("/api/box/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ boxId, command }),
-      });
-      if (r.ok) setRequested((s) => ({ ...s, [boxId]: command }));
-    } finally {
-      setBoxBusy(null);
-    }
-  }
+  // Reine Box-Status-Anzeige, nur solange das (+)-Menü offen ist — die Box folgt den
+  // Verschluss-/Öffnen-Einträgen, keine Direkt-Kommandos mehr.
+  const { boxes } = useBoxStatus(open);
 
   const options = [
     {
@@ -271,61 +181,24 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
           </>
         )}
 
-        {/* Heimdall-Box(en): zustands-bewusst — offen → verschliessen, eigene "ohne Zeit"-Sperre →
-            öffnen, Zeit/Sperrzeit → nur Status (Notfall-Öffnen bleibt in Heimdall). */}
-        {boxes.map((b) => {
-          const req = requested[b.boxId];
-          const busy = boxBusy === b.boxId;
-          if (req) {
-            return (
-              <div key={b.boxId} className="flex items-center gap-4 px-4 py-3.5 rounded-xl opacity-60">
-                <KeyRound size={22} className="text-foreground-faint shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{b.name}</p>
-                  <p className="text-xs text-foreground-muted">
-                    {req === "lock"
-                      ? "Verschluss angefordert — schliesst beim nächsten Box-Sync"
-                      : req === "clean_open"
-                        ? "Reinigung angefordert — öffnet beim nächsten Box-Sync"
-                        : "Öffnen angefordert — geht beim nächsten Box-Sync auf"}
-                  </p>
-                </div>
-              </div>
-            );
-          }
-          if (!b.locked) {
-            return (
-              <BoxAction key={b.boxId} busy={busy} icon={KeyRound} color="text-lock"
-                title={`${b.name} verschliessen`} desc="Schlüssel ist jetzt in der Box"
-                onClick={() => sendCommand(b.boxId, "lock")} />
-            );
-          }
-          // zu: eigene "ohne Zeit"-Sperre → öffenbar; Zeit/Sperrzeit → nicht (nur Status).
-          if (b.simpleLock && !b.keyholderLocked && !b.lockUntil) {
-            return (
-              <BoxAction key={b.boxId} busy={busy} icon={LockOpen} color="text-unlock"
-                title={`${b.name} öffnen`} desc="ohne Zeitlimit zu — du kannst öffnen"
-                onClick={() => sendCommand(b.boxId, "open")} />
-            );
-          }
-          // durch Sperrzeit gehalten, aber Reinigung gerade erlaubt (Fenster + Kontingent).
-          if (b.cleaning) {
-            return (
-              <BoxAction key={b.boxId} busy={busy} icon={Droplets} color="text-inspect"
-                title={`🧽 ${b.name}: Reinigung öffnen`} desc={cleaningDesc(b.cleaning)}
-                onClick={() => sendCommand(b.boxId, "clean_open")} />
-            );
-          }
-          return (
-            <div key={b.boxId} className="flex items-center gap-4 px-4 py-3.5 rounded-xl opacity-50">
-              <KeyRound size={22} className="text-foreground-faint shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{b.name}</p>
-                <p className="text-xs text-foreground-faint">{boxStateLabel(b)}</p>
-              </div>
+        {/* Heimdall-Box(en): reine Status-Anzeige + Sprung in den passenden Flow. Die Box folgt den
+            Verschluss-/Öffnen-Einträgen — keine Direkt-Kommandos mehr (Notfall-Öffnen bleibt in Heimdall). */}
+        {boxes.map((b) => (
+          <button
+            key={b.boxId}
+            type="button"
+            onClick={() => handleSelect(boxJumpHref(b))}
+            className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
+          >
+            <KeyRound size={22} className={`${b.locked ? "text-lock" : "text-unlock"} shrink-0`} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">{b.name}</p>
+              <p className="text-xs text-foreground-muted">
+                {boxIstLabel(b, tBox)} · {b.locked ? tBox("jumpOpen") : tBox("jumpLock")}
+              </p>
             </div>
-          );
-        })}
+          </button>
+        ))}
       </div>
     </Sheet>
   );

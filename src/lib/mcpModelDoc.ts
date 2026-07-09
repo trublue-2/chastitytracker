@@ -81,10 +81,12 @@ sie verhindert die häufigsten Fehldeutungen.
   — du entscheidest, ob du ihn wertest.
 
 ## 7. Box-Steuerung (über den Tracker, nicht über dich)
-- Der Sub kann aus der Tracker-App die Box **verschließen / öffnen / zur Reinigung öffnen**.
-- **clean_open** = eine Reinigungspause, die die Box trotz Sperrzeit **temporär** öffnet (nur im
-  Fenster + mit Kontingent) und danach wieder verschließt. **Die Sperrzeit bleibt bestehen** und
-  greift nach der Frist weiter.
+- Die Box hat keine eigene Bedienung — sie **folgt den Einträgen**: ein VERSCHLUSS-Eintrag schließt
+  sie, ein OEFFNEN-Eintrag öffnet sie. Der Sub steuert die Box also, indem er im Tracker verschließt
+  bzw. öffnet.
+- Eine **Reinigungspause** ist kein Sondermechanismus: sie ist schlicht ein OEFFNEN(Grund REINIGUNG)
+  (öffnet die Box; nur im Fenster + mit Kontingent erlaubt) und ein späteres VERSCHLUSS (schließt
+  wieder). **Die Sperrzeit bleibt bestehen** und greift nach der Frist weiter.
 - Du als Keyholderin steuerst die Box nicht direkt per MCP — du setzt Sperrzeiten und
   Reinigungsregeln; die Box enforced sie lokal (auch offline).
 

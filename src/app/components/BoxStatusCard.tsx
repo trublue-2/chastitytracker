@@ -1,0 +1,49 @@
+"use client";
+
+import { Lock, LockOpen, AlertTriangle } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
+import { boxIstLabel, boxSollLabel, boxFreshnessLabel } from "@/lib/boxStatus";
+import { useBoxStatus } from "@/app/hooks/useBoxStatus";
+
+/** Reine Status-Anzeige der Heimdall-Box(en) auf dem Dashboard (Ist + Soll + Frische). Keine
+ *  Box-Kommandos — die Box folgt den Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding,
+ *  wenn keine Box existiert oder Heimdall aus ist → `[]`). */
+export default function BoxStatusCard({ tz = APP_TZ }: { tz?: string }) {
+  const t = useTranslations("boxStatus");
+  const dl = toDateLocale(useLocale());
+  const { boxes, now } = useBoxStatus();
+
+  if (boxes.length === 0) return null;
+
+  const fmtDateTime = (iso: string) => formatDateTime(iso, dl, tz);
+
+  return (
+    <div className="w-full max-w-2xl mx-auto px-4 pt-6">
+      <div className="flex flex-col gap-2">
+        {boxes.map((b) => {
+          // „Offen, obwohl das Soll verschlossen verlangt" (z.B. Reinigungspause) → Warn-Optik.
+          const shouldBeLocked = b.keyholderLocked || !!b.lockUntil || b.simpleLock;
+          const conflict = !b.locked && shouldBeLocked;
+          const scheme = conflict
+            ? { bg: "bg-warn-bg", border: "border-warn-border", accent: "text-warn", text: "text-warn-text", Icon: AlertTriangle }
+            : b.locked
+              ? { bg: "bg-sperrzeit-bg", border: "border-sperrzeit-border", accent: "text-sperrzeit", text: "text-sperrzeit-text", Icon: Lock }
+              : { bg: "bg-background-subtle", border: "border-border", accent: "text-unlock", text: "text-foreground", Icon: LockOpen };
+          const Icon = scheme.Icon;
+          return (
+            <div key={b.boxId} className={`flex flex-col gap-1.5 ${scheme.bg} border ${scheme.border} rounded-2xl px-5 py-4`}>
+              <div className="flex items-center gap-2">
+                <Icon size={15} className={`${scheme.accent} shrink-0`} />
+                <p className={`text-sm font-bold ${scheme.text}`}>{b.name}</p>
+                <span className={`text-sm ${scheme.accent}`}>· {boxIstLabel(b, t)}</span>
+              </div>
+              <p className={`text-xs ${scheme.accent}`}>{t("sollLabel")}: {boxSollLabel(b, t, fmtDateTime)}</p>
+              <p className="text-xs text-foreground-faint">{boxFreshnessLabel(b.lastSyncAt, now, t)}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

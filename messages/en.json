@@ -275,6 +275,24 @@
     "back": "← New",
     "notCaptured": "Not captured"
   },
+  "boxStatus": {
+    "istOpen": "Open",
+    "istLocked": "Locked",
+    "istLockedBolt": "Locked · bolt confirmed",
+    "sollLabel": "Target",
+    "sollLockedUntil": "Locked until {date}",
+    "sollLockedIndefinite": "Locked, no time limit",
+    "sollUntil": "locked until {date}",
+    "sollIndefinite": "locked, no time limit",
+    "sollNone": "no lock required",
+    "neverSynced": "never synced",
+    "live": "active now",
+    "lastSeenMinutes": "last seen {count} min ago",
+    "lastSeenHours": "last seen {count} h ago",
+    "lastSeenDays": "last seen {count} d ago",
+    "jumpLock": "tap to lock",
+    "jumpOpen": "tap to open"
+  },
   "lockForm": {
     "title": "Log lock",
     "saveBtn": "Save lock",
