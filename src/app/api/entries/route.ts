@@ -150,13 +150,20 @@ export async function POST(req: NextRequest) {
             data: { fulfilledAt: new Date() },
           });
           fulfilledAnforderungDeviceId = offeneAnforderung.deviceId;
-          if (offeneAnforderung.dauerH) {
+          // SPERRZEIT-Ende: absolutes sperrEndetAt (Wanduhr) gewinnt und bleibt fix, egal wann tatsächlich
+          // verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
+          const sperrEnde =
+            offeneAnforderung.sperrEndetAt ??
+            (offeneAnforderung.dauerH
+              ? new Date(Date.now() + offeneAnforderung.dauerH * 60 * 60 * 1000)
+              : null);
+          if (sperrEnde) {
             await tx.verschlussAnforderung.create({
               data: {
                 userId: session.user.id,
                 art: "SPERRZEIT",
                 nachricht: offeneAnforderung.nachricht,
-                endetAt: new Date(Date.now() + offeneAnforderung.dauerH * 60 * 60 * 1000),
+                endetAt: sperrEnde,
                 reinigungErlaubt: offeneAnforderung.reinigungErlaubt,
               },
             });

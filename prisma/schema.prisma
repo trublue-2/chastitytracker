@@ -298,7 +298,8 @@ model VerschlussAnforderung {
   art         String    // "ANFORDERUNG" | "SPERRZEIT"
   nachricht   String?
   endetAt     DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
-  dauerH      Float?    // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT
+  dauerH      Float?    // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
+  sperrEndetAt DateTime? // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endetAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
   deviceId    String?
   device      Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   reinigungErlaubt Boolean @default(false) // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
