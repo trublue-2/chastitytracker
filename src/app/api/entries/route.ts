@@ -10,6 +10,7 @@ import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effect
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere } from "@/lib/queries";
 import { setBoxCommandForUser } from "@/lib/boxCommand";
+import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 import { checkDeviceInPhoto } from "@/lib/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
@@ -222,6 +223,12 @@ export async function POST(req: NextRequest) {
     if (code === "WEAR_PHOTO_REQUIRED") return NextResponse.json({ error: "Foto ist bei dieser Kategorie zwingend" }, { status: 400 });
     throw e;
   }
+
+  // Instant-Push an Heimdall: eine LIVE Box vollzieht das Box-Kommando sofort per MQTT — der
+  // pendingCommand-Pull beim nächsten Box-Sync (in der Transaktion oben gesetzt) bleibt der Fallback.
+  // Gleiche Gate-Logik wie setBoxCommandForUser; no-op ohne HEIMDALL_BASE_URL.
+  if (type === "VERSCHLUSS") notifyHeimdall(session.user.name, "lock");
+  else if (type === "OEFFNEN" && !withdrawnSperrzeit) notifyHeimdall(session.user.name, "open");
 
   // REINIGUNG-Limit wird NICHT mehr automatisch bestraft: eine Reinigungsöffnung über dem
   // Tageskontingent (auch ein Geräte-Wechsel) wird im Strafbuch nur noch ERKANNT (live in

@@ -34,9 +34,10 @@ server, which in turn calls the tracker's integration API. Users are mapped by
 
 | Variable | Purpose |
 |----------|---------|
-| `HEIMDALL_SYNC_SECRET` | The only box-related secret. Does **both**: (1) machine auth for all `/api/integration/box/*` routes (bearer token, constant-time compare), and (2) feature gate — when set, the box UI and commands are active. Unset → no box UI, commands rejected, integration routes deny. |
+| `HEIMDALL_SYNC_SECRET` | The box-related secret. Does **both**: (1) machine auth for all `/api/integration/box/*` routes (bearer token, constant-time compare), and (2) feature gate — when set, the box UI and commands are active. Unset → no box UI, commands rejected, integration routes deny. Also used as the outbound Bearer for the instant-push below. |
+| `HEIMDALL_BASE_URL` | *Optional.* Base URL of the Heimdall server (e.g. `https://heimdall.trublue.ch`). When set, the tracker fires a fire-and-forget notify to `…/api/tracker/notify` on box-relevant changes (Verschluss/Öffnen entry, Sperrzeit set/change/withdraw) so a **live** box gets the command instantly via MQTT instead of at its next sync. No-op if unset — the `pendingCommand`/config pull on the next box sync remains the fallback. |
 
-There are no other box-specific environment variables. Treat the secret like a
+Treat `HEIMDALL_SYNC_SECRET` like a
 production credential: if it leaks, anyone can read lock periods and write
 `BoxStatus`/`BoxEvent` for any username. It is rotatable (rotating briefly
 disables the feature).

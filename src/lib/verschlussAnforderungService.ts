@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser } from "@/lib/notify";
+import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
@@ -128,6 +129,8 @@ export async function createVerschlussAnforderung(
     await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH });
   }
 
+  // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
+  void notifyHeimdallForUserId(userId);
   return { ok: true, data: { id: anforderung.id, scheduledFor: wirksamAb?.toISOString() ?? null } };
 }
 
@@ -220,6 +223,7 @@ export async function updateSperrzeitEnde(
       ? `Der Keyholder hat das Ende deiner Sperrzeit auf ${formatDateTime(endetAt)} geändert.`
       : "Der Keyholder hat deine Sperrzeit auf unbefristet gesetzt.",
   });
+  void notifyHeimdallForUserId(va.userId);
   return { ok: true, data: { id, userId: va.userId } };
 }
 
@@ -244,6 +248,9 @@ export async function withdrawVerschlussAnforderung(
     ? { userId, art, fulfilledAt: null, withdrawnAt: null }
     : { userId, art, withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] };
   const res = await prisma.verschlussAnforderung.updateMany({ where, data: { withdrawnAt: now } });
-  if (res.count > 0) await notifyUser(userId, verschlussWithdrawNotice(art));
+  if (res.count > 0) {
+    await notifyUser(userId, verschlussWithdrawNotice(art));
+    void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
+  }
   return { ok: true, data: { count: res.count } };
 }

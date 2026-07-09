@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.48.2",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "chore",
+        "text": "Box-Anbindung (intern, Vorbereitung): Der Tracker meldet box-relevante Aenderungen (Verschluss/Oeffnen, Sperrzeit setzen/aendern/zurueckziehen) sofort an den Heimdall-Server, damit eine eingeschaltete Box das Kommando unmittelbar per MQTT vollzieht statt erst beim naechsten Sync. Nur aktiv mit gesetztem HEIMDALL_BASE_URL; ohne bleibt alles wie bisher (Box holt es beim naechsten Sync). Noch keine sichtbare Aenderung."
+      }
+    ]
+  },
+  {
     "version": "4.48.1",
     "date": "2026-07-09",
     "changes": [
