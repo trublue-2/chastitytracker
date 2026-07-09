@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Sparkles, Bug, Lock, Zap, Wrench, Palette, Download } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { fetchUpstreamChangelog, type UpstreamRelease } from "@/lib/upstreamChangelog";
 import { compareVersions } from "@/lib/semver";
+import { pickChangelogText } from "@/lib/changelogText";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
@@ -21,6 +22,7 @@ const TYPE_STYLE: Record<EntryType, { icon: React.ElementType; color: string }> 
  *  at the top of the changelog page, with a banner explaining the situation. */
 export default function UpstreamSection({ currentVersion, locale }: { currentVersion: string; locale: string }) {
   const t = useTranslations("changelog");
+  const appLocale = useLocale();
   const [newer, setNewer] = useState<UpstreamRelease[]>([]);
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export default function UpstreamSection({ currentVersion, locale }: { currentVer
                 return (
                   <li key={j} className="flex items-start gap-2 text-sm text-foreground-muted">
                     <Icon size={14} strokeWidth={2} className={`mt-0.5 flex-shrink-0 ${cfg.color}`} />
-                    {change.text}
+                    {pickChangelogText(change.text, appLocale)}
                   </li>
                 );
               })}
