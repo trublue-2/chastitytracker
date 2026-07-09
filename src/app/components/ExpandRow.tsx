@@ -27,7 +27,7 @@ export default function ExpandRow({ label, subtitle, open, onToggle, children }:
         />
       </button>
       {open && (
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 pt-2">
           {children}
         </div>
       )}

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.4",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Einstellungen: aufgeklappte Auswahl-Felder (z.B. Sprache, Zeitzone) haben jetzt oben etwas Abstand und kleben nicht mehr direkt am grauen Titel.",
+          "en": "Settings: expanded selection fields (e.g. language, time zone) now have a bit of top spacing and no longer sit flush against the grey header."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.3",
     "date": "2026-07-09",
     "changes": [
