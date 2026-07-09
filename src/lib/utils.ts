@@ -175,6 +175,28 @@ export function midnightInTZ(d: Date, tz = APP_TZ): Date {
   return new Date(Date.UTC(year, month, day) + (noonUTC - tzNoonMs));
 }
 
+/** Returns the Date at `minutesSinceMidnight` local wall-clock time in `tz` (default APP_TZ), on the
+ *  same calendar date as `d`. DST-safe for times reasonably far from a transition: looks up the UTC
+ *  offset actually in effect AT that wall-clock instant (same technique as `midnightInTZ`, but
+ *  anchored at the target time itself instead of at midnight/noon) — so e.g. a window end of 04:00
+ *  on a spring-forward day still resolves correctly, unlike naively adding a flat millisecond offset
+ *  to `midnightInTZ`. Not exact for a target that falls exactly inside the 1-hour DST gap/fold itself
+ *  (01:00–03:00 local on the ~2 transition days/year) — no real cleaning window is configured there. */
+export function dateAtLocalMinutes(d: Date, minutesSinceMidnight: number, tz = APP_TZ): Date {
+  const { year, month, day } = tzDateParts(d, tz);
+  const guessUTC = Date.UTC(year, month, day, 0, minutesSinceMidnight);
+  const p = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric",
+    hour12: false,
+  }).formatToParts(new Date(guessUTC));
+  const g = (type: string) => +(p.find(x => x.type === type)?.value ?? "0");
+  const h = g("hour");
+  const tzMs = Date.UTC(g("year"), g("month") - 1, g("day"), h === 24 ? 0 : h, g("minute"), g("second"));
+  return new Date(guessUTC + (guessUTC - tzMs));
+}
+
 /** Today at 00:00:00 in `tz` (default APP_TZ) */
 export function getMidnightToday(now: Date, tz = APP_TZ): Date {
   return midnightInTZ(now, tz);

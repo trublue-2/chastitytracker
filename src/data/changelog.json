@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.49.6",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Reinigung-Frist präzisiert: die Frist zum Wieder-Verschliessen nach einer Reinigungspause richtet sich jetzt primär nach dem Ende des konfigurierten Reinigungs-Zeitfensters (statt nur nach den erlaubten Minuten je Öffnung).",
+          "en": "Cleaning deadline refined: the re-lock deadline after a cleaning pause now primarily follows the end of the configured daily cleaning window (instead of just the allowed minutes per opening)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.49.5",
     "date": "2026-07-09",
     "changes": [
