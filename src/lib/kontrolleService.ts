@@ -86,12 +86,16 @@ export function generateKontrollCode(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
 }
 
-/** True, wenn der User bereits eine AKTIVE Kontrolle hat — angelegt, nicht erfüllt, nicht
- *  zurückgezogen, und bereits sichtbar (sofort, oder wirksamAb bereits erreicht). Eine noch in
- *  der Zukunft geplante Kontrolle zählt NICHT — es gibt (noch) nichts, womit sie überschneiden
- *  könnte, solange sie unsichtbar ist. Gemeinsamer Guard für requestKontrolle (Anlegen) UND den
- *  Poller (Ausliefern), damit Keyholder, KI und Auto-Kontrollen sich nie überschneiden.
- *  `excludeId` lässt den Poller "irgendeine ANDERE aktive" prüfen, wenn die zu prüfende Zeile
+/** True, wenn der User eine LAUFENDE Kontrolle hat — angelegt, nicht erfüllt, nicht zurückgezogen,
+ *  bereits sichtbar (sofort oder wirksamAb erreicht) UND noch innerhalb der Frist (deadline >= now).
+ *  Das entspricht genau Status "open" aus mapAnforderungStatus. Bewusst NICHT blockierend sind:
+ *  - geplante (wirksamAb in Zukunft) — noch unsichtbar, es gibt nichts zu überschneiden;
+ *  - überfällige (deadline < now) — das Fenster ist abgelaufen; eine solche Zeile würde sonst,
+ *    wenn der Sub sie nie beantwortet und die Auto-Markierung aus ist, JEDE künftige (auch Auto-)
+ *    Kontrolle dauerhaft blockieren. Überfällige werden weiter normal eskaliert/bestraft — sie
+ *    zählen hier nur nicht mehr als "aktiv". Gemeinsamer Guard für requestKontrolle (Anlegen) UND
+ *    den Poller (Ausliefern), damit sich echte laufende Kontrollen nie überschneiden.
+ *  `excludeId` lässt den Poller "irgendeine ANDERE laufende" prüfen, wenn die zu prüfende Zeile
  *  selbst bereits auf die Kriterien passt. Kompatibel mit der Eskalations-Auto-Markierung: die
  *  setzt withdrawnAt, fällt also korrekt aus diesem Guard heraus, ohne Sonderfall-Code. */
 export async function hasActiveKontrolle(
@@ -103,7 +107,8 @@ export async function hasActiveKontrolle(
   const existing = await client.kontrollAnforderung.findFirst({
     where: {
       userId, entryId: null, withdrawnAt: null,
-      OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }],
+      OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }], // sichtbar
+      deadline: { gte: now },                                 // noch innerhalb der Frist (nicht überfällig)
       ...(opts?.excludeId ? { id: { not: opts.excludeId } } : {}),
     },
     select: { id: true },
@@ -159,10 +164,14 @@ export async function requestKontrolle(
         throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
       }
 
-      // Überschneidungs-Schutz: ablehnen statt eine bereits aktive Kontrolle stillschweigend zu
-      // ersetzen — egal ob die aktive von Keyholder, KI oder Auto-Kontrolle stammt. Läuft in
-      // DERSELBEN Transaktion wie das Anlegen unten, schliesst damit die Race zwischen zwei
-      // nahezu gleichzeitigen Anfragen (Keyholder + KI im selben Moment).
+      // Überschneidungs-Schutz: ablehnen statt eine bereits laufende Kontrolle stillschweigend zu
+      // ersetzen — egal ob die laufende von Keyholder, KI oder Auto-Kontrolle stammt. Der Check
+      // läuft in derselben Transaktion wie das Anlegen; das deckt den Alltag ab. Es ist ein
+      // Best-Effort-Read-then-Write, KEIN harter Ausschluss: bei exakt gleichzeitigen Anfragen
+      // können unter SQLite-Snapshot-Isolation beide "keine laufende" lesen und je eine Zeile
+      // anlegen. Bei zwei Schreibern (Keyholder + KI) ist das vernachlässigbar, und die Folge wäre
+      // nur zwei transiente Zeilen, von denen eine ohnehin abläuft — ein DB-Constraint kann
+      // "aktiv innerhalb der Frist" (now-abhängig) nicht ausdrücken, daher bewusst kein Index.
       if (await hasActiveKontrolle(userId, now, { tx })) {
         throw Object.assign(new Error(), { _code: "ALREADY_ACTIVE" });
       }
