@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.48.5",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Verschluss fuer Box-Nutzer (nur Instanzen mit Box-Feature): Statt des Bildersafe-Code-Fotos bestaetigt man beim Verschliessen aktiv „Schluessel ist in der Box\" — die Box verschliesst mit diesem Eintrag. Beim Beenden einer Reinigungspause (Wieder-Verschliessen im Reinigungsfenster) genuegt die Bestaetigung allein, ohne neues Foto/Siegel/Geraetewahl."
+      }
+    ]
+  },
+  {
     "version": "4.48.4",
     "date": "2026-07-09",
     "changes": [

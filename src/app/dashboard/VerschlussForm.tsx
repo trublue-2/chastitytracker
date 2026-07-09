@@ -26,9 +26,13 @@ interface Props {
   devices?: DeviceOption[];
   anforderungDeviceId?: string | null;
   bildersafe?: boolean;
+  /** Box-User: „Schlüssel ist in der Box"-Bestätigung statt Bildersafe. */
+  boxConfirm?: boolean;
+  /** Reinigungs-Re-Lock: leichte Variante (nur Bestätigung, kein Foto/Siegel/Gerät). */
+  lightRelock?: boolean;
 }
 
-export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe }: Props) {
+export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe, boxConfirm, lightRelock }: Props) {
   const t = useTranslations("common");
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -70,6 +74,8 @@ export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobil
       devices={devices}
       anforderungDeviceId={anforderungDeviceId}
       bildersafe={bildersafe}
+      boxConfirm={boxConfirm}
+      lightRelock={lightRelock}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}

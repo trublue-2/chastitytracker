@@ -4,26 +4,47 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions, getIsLocked, activeVerschlussAnforderungWhere } from "@/lib/queries";
-import { bildersafeEnabled } from "@/lib/constants";
+import { getUserDeviceOptions, getIsLocked, getActiveSperrzeit, activeVerschlussAnforderungWhere } from "@/lib/queries";
+import { bildersafeEnabled, heimdallEnabled } from "@/lib/constants";
+import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 export default async function NewVerschlussPage() {
   const session = await auth();
   const userId = session!.user.id;
   const tz = session!.user.timezone ?? APP_TZ;
+  const now = new Date();
+  const heimdall = heimdallEnabled();
 
-  const [isLocked, dbUser, devices, offeneAnforderung] = await Promise.all([
+  const [isLocked, dbUser, devices, offeneAnforderung, boxCount, sperre, latest] = await Promise.all([
     getIsLocked(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true, reinigungErlaubt: true, reinigungsFenster: true } }),
     getUserDeviceOptions(userId),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere() },
       select: { deviceId: true },
     }),
+    heimdall ? prisma.boxStatus.count({ where: { userId } }) : Promise.resolve(0),
+    heimdall ? getActiveSperrzeit(userId) : Promise.resolve(null),
+    heimdall
+      ? prisma.entry.findFirst({
+          where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+          orderBy: { startTime: "desc" },
+          select: { type: true, oeffnenGrund: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   if (isLocked) redirect("/dashboard");
+
+  // Box-User (Heimdall aktiv + eigene Box): „Schlüssel ist in der Box"-Bestätigung statt Bildersafe.
+  const boxConfirm = heimdall && boxCount > 0;
+  // Reinigungs-Re-Lock: aktive Sperre (mit Reinigung erlaubt) + letzter Eintrag OEFFNEN(Reinigung) +
+  // im Fenster → leichte Variante (nur Bestätigung, kein Foto/Siegel/Gerät).
+  const imFenster = !!aktivesReinigungsFenster(dbUser?.reinigungsFenster, now, tz);
+  const lightRelock =
+    boxConfirm && !!sperre && sperre.reinigungErlaubt && (dbUser?.reinigungErlaubt ?? false) &&
+    latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG" && imFenster;
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("lockForm");
@@ -37,7 +58,9 @@ export default async function NewVerschlussPage() {
         mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
         devices={devices}
         anforderungDeviceId={offeneAnforderung?.deviceId ?? null}
-        bildersafe={bildersafeEnabled()}
+        bildersafe={!boxConfirm && bildersafeEnabled()}
+        boxConfirm={boxConfirm}
+        lightRelock={lightRelock}
       />
     </div>
   );
