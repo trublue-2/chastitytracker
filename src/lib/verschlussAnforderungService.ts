@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMail, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
-import { sendPushToUser } from "@/lib/push";
+import { firePush } from "@/lib/push";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVerschlussAnforderungParams {
@@ -162,9 +162,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
 }) {
   const { userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate } = opts;
   const t = await emailT(user.locale);
-  const nachrichtHtml = nachricht?.trim()
-    ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">${t("lockNoticeLabel")}</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
-    : "";
+  const nachrichtHtml = nachricht?.trim() ? noticeBoxHtml(t("lockNoticeLabel"), nachricht.trim()) : "";
   const greeting = emailGreeting(t, user.username);
 
   if (art === "SPERRZEIT" && user.email) {
@@ -216,7 +214,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     pushParts.push(endetAtDate ? t("lockPushUntil", { date: formatDateTime(endetAtDate) }) : t("lockIndefinite"));
   }
   if (nachricht?.trim()) pushParts.push(nachricht.trim());
-  sendPushToUser(userId, pushTitle, pushParts.join(" · "), "/dashboard").catch(() => { /* ignore push errors */ });
+  firePush(userId, pushTitle, pushParts.join(" · "), "/dashboard");
 }
 
 /**

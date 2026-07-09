@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml } from "@/lib/mail";
+import { sendMail, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
-import { sendPushToUser } from "@/lib/push";
+import { firePush } from "@/lib/push";
 import { trackEvent } from "@/lib/telemetry";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
-import { toLocale, inspectionHelpUrl } from "@/lib/constants";
+import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import type { ServiceResult } from "@/lib/serviceResult";
 import type { PrismaTx } from "@/lib/queries";
 
@@ -237,13 +237,10 @@ export async function sendKontrolleNotification(opts: {
   const t = await emailT(locale);
 
   const hoursLeft = Math.max(1, Math.round((deadline.getTime() - Date.now()) / (60 * 60 * 1000)));
-  const kommentarHtml = kommentar
-    ? `<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">${t("inspectionAdminLabel")}</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(kommentar)}</p></div>`
-    : "";
+  const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const kommentarParam = kommentar ? `&kommentar=${encodeURIComponent(kommentar)}` : "";
-  const link = `${baseUrl}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
+  const link = `${appBaseUrl()}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
   const helpUrl = inspectionHelpUrl(locale);
   const deadlineStr = formatDateTime(deadline);
   const codeLabel = sealCode && !sealRequired
@@ -256,34 +253,34 @@ export async function sendKontrolleNotification(opts: {
   await sendMail(
     user.email,
     `KG-Tracker – ${t("inspectionRequestedSubject")}`,
-    `
-    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-      <h2 style="color:#1e293b">${t("inspectionRequestedSubject")}</h2>
-      ${emailGreeting(t, user.username)}
+    dashboardEmailHtml(
+      t("inspectionRequestedSubject"),
+      `${emailGreeting(t, user.username)}
       <p>${escHtml(t("inspectionRequestedIntro", { hours: hoursLeft }))}</p>
       ${kommentarHtml}
       <p><strong>${codeLabel}</strong></p>
       <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
       ${sealHintHtml}
-      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>
-      <p>
-        <a href="${link}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
-          ${t("inspectionButton")}
-        </a>
-      </p>
-      <p style="color:#94a3b8;font-size:12px">${escHtml(t("inspectionLinkFallback", { link }))}</p>
-      <p style="color:#64748b;font-size:13px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px">${escHtml(t("inspectionHelpText"))} <a href="${helpUrl}" style="color:#4f46e5">${escHtml(t("inspectionHelpLink"))}</a></p>
-    </div>
-    `,
+      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>`,
+      t("inspectionButton"),
+      {
+        buttonColor: EMAIL_BUTTON_COLORS.inspection,
+        buttonHref: link,
+        // Link-Fallback + Hilfe-Footer stehen NACH dem Button — dafür gibt es den afterHtml-Slot.
+        afterHtml:
+          `<p style="color:#94a3b8;font-size:12px">${escHtml(t("inspectionLinkFallback", { link }))}</p>` +
+          `<p style="color:#64748b;font-size:13px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px">${escHtml(t("inspectionHelpText"))} <a href="${helpUrl}" style="color:${EMAIL_BUTTON_COLORS.default}">${escHtml(t("inspectionHelpLink"))}</a></p>`,
+      },
+    ),
   );
 
   const pushParts = [t("inspectionPushCode", { code }), t("inspectionPushDeadline", { deadline: deadlineStr })];
   if (sealRequired) pushParts.push(t("inspectionPushSeal"));
   if (kommentar) pushParts.push(kommentar);
-  sendPushToUser(
+  firePush(
     user.id,
     t("inspectionPushTitle"),
     pushParts.join(" · "),
     `/dashboard/new/pruefung?code=${code}`,
-  ).catch(() => { /* ignore push errors */ });
+  );
 }

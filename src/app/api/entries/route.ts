@@ -16,7 +16,7 @@ import { checkDeviceInPhoto } from "@/lib/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { sendMail, escHtml } from "@/lib/mail";
+import { sendMail, escHtml, appBaseUrl } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
 
@@ -361,8 +361,7 @@ export async function POST(req: NextRequest) {
       }
 
       const adminUrl = `/admin/users/${session.user.id}`;
-      const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-      const adminLink = `${baseUrl}${adminUrl}`;
+      const adminLink = `${appBaseUrl()}${adminUrl}`;
 
       // Recipients = global admins + the sub's keyholders (controllers via AdminUserRelationship).
       // Keyholders are role "user", so a role:"admin" query alone would miss them.

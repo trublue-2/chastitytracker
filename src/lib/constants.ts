@@ -144,6 +144,18 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
   ORGASMUS: "#8b5cf6",
 };
 
+/** Call-to-Action-Button-Farben für HTML-Mails (in E-Mail keine CSS-Variablen → Hex).
+ *  Bewusst getrennt von TYPE_EMAIL_COLORS: das ist der Akzent je Eintrags-TYP, nicht die
+ *  Button-Farbe eines Benachrichtigungs-Mails (eine Orgasmus-ANWEISUNG ist kein Orgasmus-Eintrag). */
+export const EMAIL_BUTTON_COLORS = {
+  /** Standard: Dashboard-Button. */
+  default: "#4f46e5",
+  /** Kontroll-Anforderung („Kontrolle erfüllen"). */
+  inspection: "#f97316",
+  /** Orgasmus-Anweisung / -Gelegenheit. */
+  orgasm: "#be185d",
+} as const;
+
 export const TYPE_COLORS: Record<string, string> = {
   VERSCHLUSS: "text-foreground-muted",
   OEFFNEN: "text-foreground-muted",

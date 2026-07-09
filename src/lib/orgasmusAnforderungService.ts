@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml } from "@/lib/mail";
+import { sendMail, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
-import { sendPushToUser } from "@/lib/push";
-import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale } from "@/lib/constants";
+import { firePush } from "@/lib/push";
+import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
@@ -145,36 +145,28 @@ async function sendOrgasmusAnforderungNotifications(opts: {
     : null;
 
   if (user.email) {
-    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-    const nachrichtHtml = nachricht?.trim()
-      ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">${t("orgasmNoticeLabel")}</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
-      : "";
+    const nachrichtHtml = nachricht?.trim() ? noticeBoxHtml(t("orgasmNoticeLabel"), nachricht.trim()) : "";
     const artHtml = artLabel ? `<p><strong>${t("orgasmArtLabel")}</strong> ${escHtml(artLabel)}</p>` : "";
     const oeffnenHtml = oeffnenErlaubt ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
     await sendMail(
       user.email,
       `KG-Tracker – ${betreff}`,
-      `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <h2 style="color:#1e293b">${escHtml(betreff)}</h2>
-          ${emailGreeting(t, user.username)}
+      dashboardEmailHtml(
+        escHtml(betreff),
+        `${emailGreeting(t, user.username)}
           <p>${escHtml(einleitung)}</p>
           ${nachrichtHtml}
           <p><strong>${t("orgasmWindowLabel")}</strong> ${windowStr}</p>
           ${artHtml}
-          ${oeffnenHtml}
-          <p>
-            <a href="${baseUrl}/dashboard" style="display:inline-block;background:#be185d;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
-              ${t("dashboardButton")}
-            </a>
-          </p>
-        </div>
-        `
+          ${oeffnenHtml}`,
+        t("dashboardButton"),
+        { buttonColor: EMAIL_BUTTON_COLORS.orgasm },
+      ),
     );
   }
 
   const pushParts: string[] = [`${t("orgasmWindowLabel")} ${windowStr}`];
   if (artLabel) pushParts.push(artLabel);
   if (nachricht?.trim()) pushParts.push(nachricht.trim());
-  sendPushToUser(userId, betreff, pushParts.join(" · "), "/dashboard").catch(() => { /* ignore push errors */ });
+  firePush(userId, betreff, pushParts.join(" · "), "/dashboard");
 }

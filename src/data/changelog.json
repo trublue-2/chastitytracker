@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.3",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die gelbe Notiz-Box in der Kontroll-Anforderungs-Mail hat jetzt denselben Gelbton wie in den Verschluss- und Orgasmus-Mails (vorher minimal abweichend).",
+          "en": "The yellow notice box in the inspection-request e-mail now uses the same shade of yellow as the lock and orgasm e-mails (previously slightly different)."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der E-Mail- und Push-Bausteine: gemeinsamer Mail-Rahmen, gemeinsame Notiz-Box, eine Quelle für die Basis-URL und ein zentraler Fire-and-Forget-Wrapper für Push-Benachrichtigungen.",
+          "en": "Internal consolidation of the e-mail and push building blocks: one shared mail frame, one shared notice box, a single source for the base URL, and a central fire-and-forget wrapper for push notifications."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.2",
     "date": "2026-07-09",
     "changes": [
