@@ -49,6 +49,8 @@ export interface AdminKontrolleRowData {
   entryId: string | null;
   anforderungStatus: AnforderungStatus;
   verifikationStatus: VerifikationStatus | null;
+  /** Warum die automatische Verifikation nicht gematcht hat (localized), nur bei "unverified" gesetzt. */
+  verifikationReasonStr: string | null;
   /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" · "missing". */
   deviceCheck: "ok" | "wrong" | "missing" | null;
   /** Im Foto erkanntes Gerät (Name) oder null. */
@@ -111,6 +113,9 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
             <div className="flex flex-col gap-3">
               {row.pillLabel && (
                 <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
+              )}
+              {row.verifikationReasonStr && (
+                <p className="text-xs text-warn">{row.verifikationReasonStr}</p>
               )}
               <DeviceFact t={t} row={row} />
               {row.scheduledForStr && (
@@ -188,6 +193,9 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
                   {row.username && <span className="font-semibold text-foreground text-sm">{row.username}</span>}
                   {row.pillLabel && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${row.pillCls}`}>{row.pillLabel}</span>}
                 </div>
+              )}
+              {row.verifikationReasonStr && (
+                <p className="text-xs text-warn">{row.verifikationReasonStr}</p>
               )}
               {(row.code || row.deviceCheck) && (
                 <div className="flex items-center gap-2 flex-wrap">

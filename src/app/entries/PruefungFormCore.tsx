@@ -19,19 +19,10 @@ import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
 import type { PruefungPayload, SubmitResult } from "./types";
-import type { VerifyReason } from "@/lib/verifyCode";
+import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
 
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;
-
-/** Verify-Reason-Code → i18n-Key. Die KI liefert einen sprachneutralen Code; der Text kommt aus
- *  der Nutzersprache (statt früher hartcodiert Deutsch aus dem Modell). `*Wrong` nutzt {detected}. */
-const REASON_KEYS = {
-  codeMissing: "reasonCodeMissing",
-  codeWrong: "reasonCodeWrong",
-  sealMissing: "reasonSealMissing",
-  sealWrong: "reasonSealWrong",
-} as const satisfies Record<VerifyReason, string>;
 
 /** Titel/Hint-i18n-Keys für die zwei strukturgleichen Hinweis-Cards (Policy-Block bzw. Prüf-Fehler). */
 const HINT_CARDS = {
@@ -249,7 +240,7 @@ export default function PruefungFormCore({
       {(verifyStatus === "mismatch" || verifyStatus === "sealMismatch") && (
         <Card variant="semantic" semantic="warn">
           <p className="text-sm text-warn-text font-medium">{t(MISMATCH_CARDS[verifyStatus].title)}</p>
-          {verifyReason && <p className="text-xs text-warn mt-0.5">{t(REASON_KEYS[verifyReason.code], { detected: verifyReason.detected ?? "" })}</p>}
+          {verifyReason && <p className="text-xs text-warn mt-0.5">{formatVerifyReason(verifyReason.code, verifyReason.detected, t)}</p>}
           <p className="text-xs text-warn mt-1">{t(MISMATCH_CARDS[verifyStatus].hint)}</p>
         </Card>
       )}

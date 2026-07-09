@@ -88,10 +88,10 @@ function fuzzyMatch(a: string, b: string): boolean {
   return a.split("").every((ch, i) => ch === b[i] || similar[ch] === b[i]);
 }
 
-/** Stable, language-agnostic reason code for a failed check. The UI maps it to a localized string
- *  (inspectionForm.reason*) — the model is NOT asked for free German text anymore, so the reason
- *  follows the user's language like the rest of the app. `*Wrong` carries the detected number. */
-export type VerifyReason = "codeMissing" | "codeWrong" | "sealMissing" | "sealWrong";
+// VerifyReason + its i18n formatting live in verifyReason.ts (client-safe — no sharp/fs/next-headers)
+// so client components can import the formatter without bundling this server-only vision module.
+export type { VerifyReason } from "@/lib/verifyReason";
+import type { VerifyReason } from "@/lib/verifyReason";
 
 export type VerifyDetailedResult = {
   detected: string | null;
@@ -245,19 +245,6 @@ export async function verifyKontrolleCodeDetailed(
     vlog("verify:exception", { imageUrl, codeLen, name: err.name, status: err.status, message: err.message });
     return null;
   }
-}
-
-/**
- * Convenience wrapper: returns "ai" if match, null otherwise.
- */
-export async function verifyKontrolleCode(
-  imageUrl: string,
-  expectedCode: string,
-  rotation: Rotation = 0,
-  sealCode: string | null = null,
-): Promise<"ai" | null> {
-  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode, rotation, sealCode);
-  return result?.match ? "ai" : null;
 }
 
 /**

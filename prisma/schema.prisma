@@ -515,6 +515,13 @@ model Entry {
   orgasmusArt         String?
   kontrollCode        String?
   verifikationStatus  String?
+  // Warum die automatische Foto-Verifikation NICHT gematcht hat (nur gesetzt, wenn
+  // verifikationStatus null ist, d.h. "unverified"). VerifyReason-Code aus verifyCode.ts
+  // (codeMissing/codeWrong/sealMissing/sealWrong) — sprachneutral, UI übersetzt ihn.
+  verifikationReason         String?
+  // Bei codeWrong/sealWrong: die abweichend erkannte Nummer, für die {detected}-Interpolation
+  // der Reason-Message. Bei *Missing ungesetzt.
+  verifikationReasonDetected String?
   // Geräte-Check der Kontrolle (PRUEFUNG): wird das verschlossene Gerät im Foto erkannt?
   // null = nicht geprüft · "ok" = passendes Gerät sichtbar · "wrong" = anderes Gerät · "missing" = kein Gerät.
   // Advisory (Keyholder sieht es), blockiert nicht. Server-seitig per Vision gesetzt.
