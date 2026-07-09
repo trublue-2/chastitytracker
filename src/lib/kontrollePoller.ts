@@ -118,6 +118,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         nachricht: va.nachricht,
         endetAtDate: va.endetAt,
         dauerH: va.dauerH,
+        sperrEndetAtDate: va.sperrEndetAt,
       });
       await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { benachrichtigtAt: new Date() } });
     } catch (e) {

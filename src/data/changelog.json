@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.48.6",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Verschluss anfordern: Der Keyholder kann jetzt statt einer relativen Mindest-Tragedauer ein absolutes Sperr-Ende („Sperre bis\") setzen. Dieses Ende bleibt fix — schliesst der Sub spaeter ein, verschiebt sich das Ende NICHT (die relative Dauer schob es bisher mit). Anforderungs-Mail und Push nennen das Sperr-Ende mit."
+      },
+      {
+        "type": "ui",
+        "text": "Reinigungs-Fenster-Einstellungen (Benutzerverwaltung) sind jetzt uebersetzt (DE/EN) statt fest deutsch."
+      }
+    ]
+  },
+  {
     "version": "4.48.5",
     "date": "2026-07-09",
     "changes": [

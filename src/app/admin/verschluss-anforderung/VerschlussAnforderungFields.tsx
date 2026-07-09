@@ -80,7 +80,12 @@ export default function VerschlussAnforderungFields({
     toDatetimeLocal(new Date(nowBaseMs + parseFloat(defaultDurationH) * 60 * 60 * 1000), tz)
   );
   const [withMinDauer, setWithMinDauer] = useState(false);
+  // Min-Sperre nach dem Verschliessen: relative Dauer (dauerH) ODER absolutes Ende (sperrEndetAt).
+  const [sperrMode, setSperrMode] = useState<"duration" | "datetime">("duration");
   const [minDauerH, setMinDauerH] = useState("24");
+  const [sperrEndetAt, setSperrEndetAt] = useState(() =>
+    toDatetimeLocal(new Date(nowBaseMs + 24 * 60 * 60 * 1000), tz)
+  );
   const [deviceId, setDeviceId] = useState("");
   const [reinigungErlaubt, setReinigungErlaubt] = useState(false);
   // Terminierung: sofort (default), relative Verzögerung, oder absoluter Zeitpunkt.
@@ -103,6 +108,10 @@ export default function VerschlussAnforderungFields({
       setError(t("scheduleFutureRequired"));
       return;
     }
+    if (!isSperrzeit && withMinDauer && sperrMode === "datetime" && sperrEndetAt && fromDatetimeLocal(sperrEndetAt, tz) <= new Date()) {
+      setError(t("futureDateRequired"));
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -122,7 +131,11 @@ export default function VerschlussAnforderungFields({
         payload.delayMinutes = delayUnit === "hours" ? v * 60 : v;
       }
       if (!isSperrzeit && withMinDauer) {
-        payload.dauerH = parseFloat(minDauerH) || 24;
+        if (sperrMode === "datetime" && sperrEndetAt) {
+          payload.sperrEndetAt = fromDatetimeLocal(sperrEndetAt, tz).toISOString();
+        } else {
+          payload.dauerH = parseFloat(minDauerH) || 24;
+        }
       }
       if (!isSperrzeit && deviceId) {
         payload.deviceId = deviceId;
@@ -201,14 +214,34 @@ export default function VerschlussAnforderungFields({
             <span className="text-xs text-foreground-faint">{t("minDurationLabel")}</span>
           </label>
           {withMinDauer && (
-            <div className="flex flex-col gap-1.5 pl-6">
-              <div className="flex items-center gap-2">
-                <div className="w-24">
-                  <Input type="number" value={minDauerH} onChange={(e) => setMinDauerH(e.target.value)} min={1} step={1} />
-                </div>
-                <span className="text-xs text-foreground-faint">h</span>
-              </div>
-              <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
+            <div className="flex flex-col gap-2 pl-6">
+              <FieldTabs
+                label={t("sperrEndeLabel")}
+                value={sperrMode}
+                onChange={setSperrMode}
+                options={[
+                  { value: "duration", label: t("durationHours") },
+                  { value: "datetime", label: t("sperrUntilDate") },
+                ]}
+              />
+              {sperrMode === "duration" ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="w-24">
+                      <Input type="number" value={minDauerH} onChange={(e) => setMinDauerH(e.target.value)} min={1} step={1} />
+                    </div>
+                    <span className="text-xs text-foreground-faint">h</span>
+                  </div>
+                  <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
+                </>
+              ) : (
+                <DateTimePicker
+                  value={sperrEndetAt}
+                  onChange={(e) => setSperrEndetAt(e.target.value)}
+                  min={minNow}
+                  hint={t("sperrUntilHint")}
+                />
+              )}
               <div className="mt-1">{reinigungCheckbox}</div>
             </div>
           )}

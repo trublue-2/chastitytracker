@@ -111,9 +111,9 @@ export default function ReinigungToggle({
             <span className="text-xs text-foreground-faint">{t("reinigungMaxProTagHint")}</span>
           </div>
           <div className="flex flex-col gap-2 pl-1">
-            <span className="text-xs text-foreground-faint">Reinigungs-Fenster (täglich)</span>
+            <span className="text-xs text-foreground-faint">{t("reinigungFensterLabel")}</span>
             {fenster.length === 0 && (
-              <span className="text-xs text-foreground-faint italic">Kein Fenster — Reinigung jederzeit (im Rahmen Sperrzeit + Kontingent).</span>
+              <span className="text-xs text-foreground-faint italic">{t("reinigungFensterEmpty")}</span>
             )}
             {fenster.map((f, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export default function ReinigungToggle({
                   type="button"
                   onClick={() => saveFenster(fenster.filter((_, j) => j !== i))}
                   disabled={saving}
-                  aria-label="Fenster entfernen"
+                  aria-label={t("reinigungFensterRemove")}
                   className="p-1 text-foreground-faint hover:text-foreground disabled:opacity-50"
                 >
                   <X size={16} />
@@ -149,7 +149,7 @@ export default function ReinigungToggle({
               disabled={saving}
               className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground disabled:opacity-50 w-fit"
             >
-              <Plus size={14} /> Fenster hinzufügen
+              <Plus size={14} /> {t("reinigungFensterAdd")}
             </button>
           </div>
         </>

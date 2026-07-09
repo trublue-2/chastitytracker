@@ -17,6 +17,9 @@ export interface CreateVerschlussAnforderungParams {
   fristH?: number | null;
   /** ANFORDERUNG only: min wearing duration (h) → inherited by the auto-created SPERRZEIT on lock. */
   dauerH?: number | null;
+  /** ANFORDERUNG only: absolute lock end (wall clock, ISO string or Date). Taken 1:1 as the
+   *  auto-created SPERRZEIT.endetAt on fulfill — a late lock does NOT shift it. Alternative to dauerH. */
+  sperrEndetAt?: string | Date | null;
   deviceId?: string | null;
   reinigungErlaubt?: boolean;
   /** Verzögerte Auslösung in Minuten (>0). Fehlt/0 = sofort (sofern kein wirksamAbAt). */
@@ -34,7 +37,7 @@ export interface CreateVerschlussAnforderungParams {
 export async function createVerschlussAnforderung(
   params: CreateVerschlussAnforderungParams,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, nachricht, endetAt, fristH, dauerH, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
+  const { userId, art, nachricht, endetAt, fristH, dauerH, sperrEndetAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
 
   if (!userId) return { ok: false, status: 400, error: "userId fehlt" };
   if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
@@ -74,6 +77,13 @@ export async function createVerschlussAnforderung(
     return { ok: false, status: 400, error: "Frist zum Einschliessen ist erforderlich" };
   }
 
+  // Absolutes Sperr-Ende (nur ANFORDERUNG, Alternative zu dauerH). Wird beim Fulfill 1:1 zur SPERRZEIT.
+  let sperrEndetAtDate: Date | null = null;
+  if (art === "ANFORDERUNG" && sperrEndetAt) {
+    sperrEndetAtDate = new Date(sperrEndetAt);
+    if (Number.isNaN(sperrEndetAtDate.getTime())) return { ok: false, status: 400, error: "Ungültiges Sperr-Ende" };
+  }
+
   if (deviceId && art === "ANFORDERUNG") {
     const device = await validateDeviceOwnership(deviceId, userId);
     if (!device) return { ok: false, status: 400, error: "Ungültiges Gerät" };
@@ -97,10 +107,11 @@ export async function createVerschlussAnforderung(
         data: { withdrawnAt: new Date() },
       });
 
-      // reinigungErlaubt: SPERRZEIT always, ANFORDERUNG only with dauerH (inherited by auto-created SPERRZEIT)
+      // reinigungErlaubt: SPERRZEIT always, ANFORDERUNG nur wenn eine SPERRZEIT entsteht — also mit
+      // dauerH ODER absolutem sperrEndetAt (beide werden auf die auto-erzeugte SPERRZEIT vererbt).
       const effectiveDauerH = art === "ANFORDERUNG" ? (dauerH || null) : null;
       const effectiveReinigung = Boolean(
-        reinigungErlaubt && (art === "SPERRZEIT" || effectiveDauerH !== null),
+        reinigungErlaubt && (art === "SPERRZEIT" || effectiveDauerH !== null || sperrEndetAtDate !== null),
       );
 
       return tx.verschlussAnforderung.create({
@@ -110,6 +121,7 @@ export async function createVerschlussAnforderung(
           nachricht: nachricht?.trim() || null,
           endetAt: endetAtDate,
           dauerH: effectiveDauerH,
+          sperrEndetAt: sperrEndetAtDate,
           deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
           reinigungErlaubt: effectiveReinigung,
           wirksamAb,
@@ -126,7 +138,7 @@ export async function createVerschlussAnforderung(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH });
+    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate });
   }
 
   // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
@@ -144,8 +156,10 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   nachricht?: string | null;
   endetAtDate: Date | null;
   dauerH?: number | null;
+  /** ANFORDERUNG mit absolutem Sperr-Ende (statt dauerH): fürs „Gesperrt bis" in Mail/Push. */
+  sperrEndetAtDate?: Date | null;
 }) {
-  const { userId, user, art, nachricht, endetAtDate, dauerH } = opts;
+  const { userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate } = opts;
   const nachrichtHtml = nachricht?.trim()
     ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Nachricht des Admins:</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
     : "";
@@ -172,6 +186,9 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     const dauerHtml = dauerH
       ? `<p><strong>Mindest-Tragedauer nach Einschliessen:</strong> ${dauerH >= 24 ? `${Math.floor(dauerH / 24)}T ${dauerH % 24 > 0 ? `${dauerH % 24}h` : ""}`.trim() : `${dauerH}h`}</p>`
       : "";
+    const sperrBisHtml = sperrEndetAtDate
+      ? `<p><strong>Gesperrt bis:</strong> ${formatDateTime(sperrEndetAtDate)}</p>`
+      : "";
     await sendMail(
       user.email,
       "KG-Tracker – Einschliessen angefordert",
@@ -180,7 +197,8 @@ export async function sendVerschlussAnforderungNotifications(opts: {
         <p>Der Admin hat dich aufgefordert, dich einzuschliessen.</p>
         ${nachrichtHtml}
         ${deadlineHtml}
-        ${dauerHtml}`),
+        ${dauerHtml}
+        ${sperrBisHtml}`),
     );
   }
 
@@ -190,6 +208,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   if (art === "ANFORDERUNG") {
     pushParts.push("Der Admin fordert dich auf, dich einzuschliessen.");
     if (endetAtDate) pushParts.push(`Frist: ${formatDateTime(endetAtDate)}`);
+    if (sperrEndetAtDate) pushParts.push(`Gesperrt bis: ${formatDateTime(sperrEndetAtDate)}`);
   } else {
     pushParts.push(endetAtDate ? `Bis: ${formatDateTime(endetAtDate)}` : "Unbefristet");
   }
