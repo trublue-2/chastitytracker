@@ -4,10 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Settings, LogOut, Lock, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useTranslations, useLocale } from "next-intl";
-import { LOCALES } from "@/lib/constants";
-import SegmentedControl from "@/app/components/SegmentedControl";
-import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
+import { useTranslations } from "next-intl";
 import { clearSwUserCache } from "@/lib/swMessages";
 
 interface Props {
@@ -23,8 +20,6 @@ export default function AvatarMenu({ username, settingsHref, theme, version, isG
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("nav");
-  const locale = useLocale();
-  const switchLocale = useLocaleSwitcher();
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -62,15 +57,6 @@ export default function AvatarMenu({ username, settingsHref, theme, version, isG
             <div className="px-4 py-3 border-b border-border text-foreground-faint text-xs font-semibold uppercase tracking-wider">
               {username}
             </div>
-            <div className="flex items-center gap-2 px-4 py-2">
-              <span className="text-xs font-medium text-foreground-faint mr-auto">{t("language")}</span>
-              <SegmentedControl
-                options={LOCALES}
-                value={locale}
-                onChange={switchLocale}
-              />
-            </div>
-            <div className="border-t border-border-subtle" />
             <Link href={settingsHref} onClick={() => setOpen(false)} className={itemNormal}>
               <Settings size={16} strokeWidth={1.75} />
               {t("settings")}

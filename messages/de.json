@@ -143,7 +143,6 @@
     "dashboard": "Dashboard",
     "userDesign": "Benutzer",
     "adminDesign": "Admin",
-    "language": "Sprache",
     "menu": "Menü öffnen",
     "devices": "Meine Devices"
   },
@@ -364,7 +363,11 @@
     "photoRequired": "Foto ist bei Kontrolle zwingend erforderlich",
     "sealAlsoRequired": "Zusätzlich muss die Siegel-Nummer deines Verschlusses auf dem Foto lesbar sein.",
     "verifyError": "Live-Prüfung derzeit nicht möglich",
-    "verifyErrorHint": "Beim Speichern wird das Foto automatisch erneut geprüft."
+    "verifyErrorHint": "Beim Speichern wird das Foto automatisch erneut geprüft.",
+    "reasonCodeMissing": "Kein Code sichtbar",
+    "reasonCodeWrong": "Falscher Code sichtbar: {detected}",
+    "reasonSealMissing": "Siegel-Nummer nicht sichtbar",
+    "reasonSealWrong": "Falsche Siegel-Nummer: {detected}"
   },
   "orgasmForm": {
     "title": "Orgasmus erfassen",

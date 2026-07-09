@@ -7,6 +7,9 @@ import pkg from "@/../package.json";
 export interface SettingsFormProps {
   username: string;
   email: string | null;
+  /** The account's stored language (User.locale) — the single source of truth the language control
+   *  displays and writes, so /dashboard/settings and /admin/settings always show the same value. */
+  locale: string;
   timezone: string;
   startPage: string;
   /** Nur Keyholder/Admins (= haben das blaue Portal): steuert Startseiten-Wahl + Admin-Theme-Umschalter. */
@@ -32,6 +35,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
 
   let username = session?.user?.name ?? "";
   let email: string | null = null;
+  let locale = "de";
   let timezone = "Europe/Zurich";
   let startPage = "auto";
   let hideOwnTracker = false;
@@ -39,11 +43,12 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   if (userId) {
     const dbUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, email: true, timezone: true, startPage: true, hideOwnTracker: true },
+      select: { username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true },
     });
     if (dbUser) {
       username = dbUser.username;
       email = dbUser.email ?? null;
+      locale = dbUser.locale;
       timezone = dbUser.timezone;
       startPage = dbUser.startPage;
       hideOwnTracker = dbUser.hideOwnTracker;
@@ -64,6 +69,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   return {
     username,
     email,
+    locale,
     timezone,
     startPage: startPageDisplay,
     showStartPage,

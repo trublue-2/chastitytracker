@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.49.1",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Foto-Pruefung: Der Hinweis, warum ein Code oder eine Siegel-Nummer nicht erkannt wurde, erscheint jetzt in der eingestellten Sprache statt immer auf Deutsch."
+      },
+      {
+        "type": "fix",
+        "text": "Siegel-Erkennung: Offensichtliche Platzhalter wie fortlaufende oder gleichfoermige Ziffernfolgen (z.B. 01234567) werden nicht mehr faelschlich als Siegel-Nummer uebernommen."
+      },
+      {
+        "type": "ui",
+        "text": "Sprachumschaltung vereinheitlicht: der doppelte Umschalter direkt im Avatar-Menue entfaellt. Die Sprache wird in den Einstellungen gewaehlt und zeigt/setzt dort den am Konto gespeicherten Wert (gleich in gruener und blauer Ansicht)."
+      }
+    ]
+  },
+  {
     "version": "4.49.0",
     "date": "2026-07-09",
     "changes": [

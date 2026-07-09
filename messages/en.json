@@ -143,7 +143,6 @@
     "dashboard": "Dashboard",
     "userDesign": "User",
     "adminDesign": "Admin",
-    "language": "Language",
     "menu": "Open menu",
     "devices": "My Devices"
   },
@@ -364,7 +363,11 @@
     "photoRequired": "A photo is required for an inspection",
     "sealAlsoRequired": "The seal number of your lock must also be readable in the photo.",
     "verifyError": "Live check currently unavailable",
-    "verifyErrorHint": "The photo is automatically re-checked when saving."
+    "verifyErrorHint": "The photo is automatically re-checked when saving.",
+    "reasonCodeMissing": "No code visible",
+    "reasonCodeWrong": "Wrong code visible: {detected}",
+    "reasonSealMissing": "Seal number not visible",
+    "reasonSealWrong": "Wrong seal number: {detected}"
   },
   "orgasmForm": {
     "title": "Log orgasm",

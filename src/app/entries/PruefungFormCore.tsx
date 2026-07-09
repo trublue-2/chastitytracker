@@ -19,9 +19,19 @@ import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
 import type { PruefungPayload, SubmitResult } from "./types";
+import type { VerifyReason } from "@/lib/verifyCode";
 
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;
+
+/** Verify-Reason-Code → i18n-Key. Die KI liefert einen sprachneutralen Code; der Text kommt aus
+ *  der Nutzersprache (statt früher hartcodiert Deutsch aus dem Modell). `*Wrong` nutzt {detected}. */
+const REASON_KEYS = {
+  codeMissing: "reasonCodeMissing",
+  codeWrong: "reasonCodeWrong",
+  sealMissing: "reasonSealMissing",
+  sealWrong: "reasonSealWrong",
+} as const satisfies Record<VerifyReason, string>;
 
 /** Titel/Hint-i18n-Keys für die zwei strukturgleichen Hinweis-Cards (Policy-Block bzw. Prüf-Fehler). */
 const HINT_CARDS = {
@@ -85,7 +95,7 @@ export default function PruefungFormCore({
   const [note, setNote] = useState(initial?.note ?? "");
   const [kontrollCode, setKontrollCode] = useState(initial?.kontrollCode ?? initialCode ?? "");
   const [verifyStatus, setVerifyStatus] = useState<"pending" | "match" | "mismatch" | "sealMismatch" | "error" | "policy" | null>(null);
-  const [verifyReason, setVerifyReason] = useState<string | null>(null);
+  const [verifyReason, setVerifyReason] = useState<{ code: VerifyReason; detected?: string } | null>(null);
   const [aiMatch, setAiMatch] = useState<boolean | null>(null);
   const lastVerifiedKey = useRef<string>("");
   const { saving, error, setError, submit } = useEntrySubmit<PruefungPayload>(submitFn, onSuccess);
@@ -135,7 +145,9 @@ export default function PruefungFormCore({
             // Dual-Prüfung: schlägt speziell die Siegel-Nummer fehl (Code passt oder nicht), einen
             // siegel-spezifischen Status zeigen statt des generischen „Code nicht erkannt".
             setVerifyStatus(v.match ? "match" : (v.sealMatch === false ? "sealMismatch" : "mismatch"));
-            setVerifyReason(v.reason ?? null);
+            // Für die „falsch erkannt"-Gründe die passende erkannte Nummer mitgeben (Siegel bzw. Code).
+            const detected = v.reason === "sealWrong" ? v.sealDetected : v.detected;
+            setVerifyReason(v.reason ? { code: v.reason, detected: detected ?? undefined } : null);
             setAiMatch(!!v.match);
           }
         })
@@ -237,7 +249,7 @@ export default function PruefungFormCore({
       {(verifyStatus === "mismatch" || verifyStatus === "sealMismatch") && (
         <Card variant="semantic" semantic="warn">
           <p className="text-sm text-warn-text font-medium">{t(MISMATCH_CARDS[verifyStatus].title)}</p>
-          {verifyReason && <p className="text-xs text-warn mt-0.5">{verifyReason}</p>}
+          {verifyReason && <p className="text-xs text-warn mt-0.5">{t(REASON_KEYS[verifyReason.code], { detected: verifyReason.detected ?? "" })}</p>}
           <p className="text-xs text-warn mt-1">{t(MISMATCH_CARDS[verifyStatus].hint)}</p>
         </Card>
       )}
