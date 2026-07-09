@@ -872,7 +872,9 @@
     "switchUser": "Benutzer wechseln",
     "switchUserDesc": "Wähle einen Benutzer",
     "switchShort": "Wechseln",
-    "active": "aktiv"
+    "active": "aktiv",
+    "sectionLanguage": "Sprache",
+    "sectionLanguageDesc": "Sprache dieses Subs für App, E-Mails und Push-Benachrichtigungen (z. B. Kontroll-Erinnerungen). Du kannst sie hier setzen — der Sub kann sie auch selbst in seinen Einstellungen ändern."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

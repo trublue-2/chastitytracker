@@ -10,6 +10,7 @@ import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import FormSuccess from "@/app/components/FormSuccess";
 import Divider from "@/app/components/Divider";
 import ExpandRow from "@/app/components/ExpandRow";
 import Toggle from "@/app/components/Toggle";
@@ -300,7 +301,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               disabled={tzSaving}
               hint={t("timezoneHint")}
             />
-            {tzSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
+            <FormSuccess message={tzSuccess ? t("saved") : null} variant="inline" />
             <FormError message={tzError} />
           </ExpandRow>
 
@@ -318,7 +319,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
                 disabled={startPageSaving}
                 hint={hideOwnValue ? t("startPageHintNoTracker") : t("startPageHint")}
               />
-              {startPageSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
+              <FormSuccess message={startPageSuccess ? t("saved") : null} variant="inline" />
               <FormError message={startPageError} />
             </ExpandRow>
           )}

@@ -872,7 +872,9 @@
     "switchUser": "Switch user",
     "switchUserDesc": "Select a user to manage",
     "switchShort": "Switch",
-    "active": "active"
+    "active": "active",
+    "sectionLanguage": "Language",
+    "sectionLanguageDesc": "This sub's language for the app, e-mails and push notifications (e.g. inspection reminders). You can set it here — the sub can also change it in their own settings."
   },
   "forgotPassword": {
     "title": "Forgot password",

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.49.2",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "Keyholder koennen die Sprache ihres Subs jetzt direkt in der Sub-Verwaltung setzen (Einstellungen → Sprache). Sie steuert die App sowie alle E-Mail- und Push-Benachrichtigungen des Subs (z.B. Kontroll-Erinnerungen)."
+      }
+    ]
+  },
+  {
     "version": "4.49.1",
     "date": "2026-07-09",
     "changes": [
