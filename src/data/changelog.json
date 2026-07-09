@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.48.3",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Reinigungs-Tageszaehler zaehlt jetzt die tatsaechlichen Reinigungs-Oeffnungen des Tages (OEFFNEN mit Grund Reinigung). Zuvor zaehlte er ein internes Ereignis, das nie geschrieben wurde — der Tageszaehler war faktisch immer 0, das Reinigungs-Tageslimit griff nie und die Keyholder-Ansicht zeigte 0 verbrauchte Reinigungen. Jetzt greift das Tageslimit korrekt."
+      },
+      {
+        "type": "chore",
+        "text": "Box-Status liefert intern zusaetzlich den Zeitpunkt des letzten Box-Syncs (Vorbereitung fuer die Frische-Anzeige der kommenden Box-Status-Karte). Noch keine sichtbare Aenderung."
+      }
+    ]
+  },
+  {
     "version": "4.48.2",
     "date": "2026-07-09",
     "changes": [

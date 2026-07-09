@@ -22,7 +22,7 @@ export async function GET() {
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, pendingCommand: true },
+      select: { boxId: true, name: true, locked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, pendingCommand: true, lastSyncAt: true },
     }),
     getActiveSperrzeit(userId),
     prisma.user.findUnique({
@@ -34,7 +34,7 @@ export async function GET() {
 
   // Reinigung ist nur möglich, wenn eine Sperrzeit mit reinigungErlaubt aktiv ist UND der User
   // Reinigung grundsätzlich erlaubt hat UND wir gerade in einem Fenster sind. Kontingent: heutige
-  // CLEAN_OPEN-Fakten + bereits angeforderte (noch nicht vollzogene) clean_open zählen mit.
+  // OEFFNEN(REINIGUNG)-Einträge + bereits angeforderte (noch nicht vollzogene) clean_open zählen mit.
   const fensterEnd =
     sperre?.reinigungErlaubt && user?.reinigungErlaubt
       ? aktivesReinigungsFenster(user.reinigungsFenster, now, tz)
@@ -60,6 +60,8 @@ export async function GET() {
         simpleLock: b.simpleLock,
         keyholderLocked,
         lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,
+        // Frische: wann die Box zuletzt gesynct hat (für „live / zuletzt vor X" in der Status-Karte).
+        lastSyncAt: b.lastSyncAt?.toISOString() ?? null,
         cleaning: held && kontingentFrei ? cleaningBase : null,
       };
     }),

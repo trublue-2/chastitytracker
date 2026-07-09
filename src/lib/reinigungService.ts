@@ -57,10 +57,12 @@ export function aktivesReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): 
   return null;
 }
 
-/** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt über CLEAN_OPEN-Fakten (Spur 2). */
+/** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt
+ *  über die OEFFNEN(REINIGUNG)-Einträge des Tages. (Die frühere CLEAN_OPEN-BoxEvent-Zählung war tot:
+ *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.) */
 export async function reinigungVerbrauchtHeute(userId: string, now: Date, tz = APP_TZ): Promise<number> {
-  return prisma.boxEvent.count({
-    where: { userId, type: "CLEAN_OPEN", at: { gte: midnightInTZ(now, tz) } },
+  return prisma.entry.count({
+    where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: midnightInTZ(now, tz) } },
   });
 }
 
