@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.3",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Sprachumschaltung wirkt jetzt sofort mit einem Klick. Bisher musste man auf eingeloggten Seiten mehrfach umschalten (en→de→en→de), bis die Sprache tatsächlich wechselte, weil der Seiten-Cache die neue Sprache nicht sofort übernahm.",
+          "en": "Language switching now takes effect immediately with a single click. Previously, on logged-in pages you had to toggle several times (en→de→en→de) before the language actually changed, because the page cache did not pick up the new language right away."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.2",
     "date": "2026-07-09",
     "changes": [
