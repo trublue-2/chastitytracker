@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
+import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hashToken } from "@/lib/oauth";
 import crypto from "crypto";
@@ -40,15 +41,16 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
+  const t = await emailT(user.locale);
   await sendMail(
     user.email,
-    "KG-Tracker – Passwort zurücksetzen",
+    `KG-Tracker – ${t("passwordResetSubject")}`,
     `
-    <p>Hallo ${escHtml(user.username)},</p>
-    <p>du hast eine Passwort-Zurücksetzung angefordert.</p>
-    <p><a href="${resetUrl}">Passwort jetzt zurücksetzen</a></p>
-    <p>Der Link ist 1 Stunde gültig.</p>
-    <p>Falls du diese Anfrage nicht gestellt hast, kannst du diese Mail ignorieren.</p>
+    ${emailGreeting(t, user.username)}
+    <p>${escHtml(t("passwordResetIntro"))}</p>
+    <p><a href="${resetUrl}">${escHtml(t("passwordResetLinkText"))}</a></p>
+    <p>${escHtml(t("passwordResetValidity"))}</p>
+    <p>${escHtml(t("passwordResetIgnore"))}</p>
     `
   );
 

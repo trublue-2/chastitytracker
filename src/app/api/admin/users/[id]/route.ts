@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
-import { isValidEmail, passwordErrorCode } from "@/lib/constants";
+import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
@@ -120,6 +120,14 @@ export async function PATCH(
 
   if (body.mobileDesktopUpload !== undefined) {
     await prisma.user.update({ where: { id }, data: { mobileDesktopUpload: Boolean(body.mobileDesktopUpload) } });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.locale !== undefined) {
+    if (!isValidLocale(body.locale)) {
+      return NextResponse.json({ error: "invalidLocale" }, { status: 400 });
+    }
+    await prisma.user.update({ where: { id }, data: { locale: body.locale } });
     return NextResponse.json({ ok: true });
   }
 

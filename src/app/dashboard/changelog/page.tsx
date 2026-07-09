@@ -5,12 +5,13 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
+import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
 interface ChangeEntry {
   type: EntryType;
-  text: string;
+  text: ChangelogText;
 }
 
 interface Release {
@@ -37,7 +38,8 @@ const TYPE_STYLE: Record<EntryType, { icon: React.ElementType; color: string; do
 export default async function ChangelogPage() {
   const t = await getTranslations("changelog");
   const currentVersion = pkg.version;
-  const dl = toDateLocale(await getLocale());
+  const locale = await getLocale();
+  const dl = toDateLocale(locale);
 
   const typeConfig: Record<EntryType, { icon: React.ElementType; label: string; color: string; dot: string }> = {
     feat: { ...TYPE_STYLE.feat, label: t("feat") },
@@ -117,7 +119,7 @@ export default async function ChangelogPage() {
                     return (
                       <li key={j} className="flex items-start gap-2 text-sm text-foreground-muted">
                         <Icon size={14} strokeWidth={2} className={`mt-0.5 flex-shrink-0 ${cfg.color}`} />
-                        {change.text}
+                        {pickChangelogText(change.text, locale)}
                       </li>
                     );
                   })}

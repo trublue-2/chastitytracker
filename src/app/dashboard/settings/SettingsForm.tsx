@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { User } from "lucide-react";
 import Card from "@/app/components/Card";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import FormSuccess from "@/app/components/FormSuccess";
 import Divider from "@/app/components/Divider";
 import ExpandRow from "@/app/components/ExpandRow";
 import Toggle from "@/app/components/Toggle";
@@ -23,12 +24,11 @@ import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { SettingsFormProps } from "./getSettingsProps";
 
-export default function SettingsForm({ username, email, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
   const apiError = useApiError();
-  const locale = useLocale();
   const switchLocale = useLocaleSwitcher();
   const router = useRouter();
 
@@ -301,7 +301,7 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
               disabled={tzSaving}
               hint={t("timezoneHint")}
             />
-            {tzSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
+            <FormSuccess message={tzSuccess ? t("saved") : null} variant="inline" />
             <FormError message={tzError} />
           </ExpandRow>
 
@@ -319,7 +319,7 @@ export default function SettingsForm({ username, email, timezone, startPage, sho
                 disabled={startPageSaving}
                 hint={hideOwnValue ? t("startPageHintNoTracker") : t("startPageHint")}
               />
-              {startPageSuccess && <p className="mt-2 text-sm text-ok-text">{t("saved")}</p>}
+              <FormSuccess message={startPageSuccess ? t("saved") : null} variant="inline" />
               <FormError message={startPageError} />
             </ExpandRow>
           )}

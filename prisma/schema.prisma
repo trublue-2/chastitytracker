@@ -42,6 +42,9 @@ model User {
   // Keyholder/Admin-Präferenz: eigene Karte in der Keyholder-Übersicht ausblenden (für Keyholder,
   // die keinen eigenen Tracker nutzen). Nur relevant, wenn die eigene Karte dort überhaupt erscheint.
   hideOwnTracker        Boolean                @default(false)
+  // Per-user UI + notification language ("de" | "en"). Drives the app locale AND the language of
+  // all e-mails / push sent to this user (rendered server-side from this field, not the browser cookie).
+  locale                String                 @default("de")
   // Pro-User anpassbare Auswahllisten als JSON-Array [{code,label?}] (TEXT). null = eingebaute
   // Standardliste (Bestandsnutzer unverändert). Öffnungsgründe enthalten IMMER den geschützten
   // Built-in "REINIGUNG" (Code fix, nur Label umbenennbar). Siehe reasonsService.ts.
@@ -513,6 +516,13 @@ model Entry {
   orgasmusArt         String?
   kontrollCode        String?
   verifikationStatus  String?
+  // Warum die automatische Foto-Verifikation NICHT gematcht hat (nur gesetzt, wenn
+  // verifikationStatus null ist, d.h. "unverified"). VerifyReason-Code aus verifyCode.ts
+  // (codeMissing/codeWrong/sealMissing/sealWrong) — sprachneutral, UI übersetzt ihn.
+  verifikationReason         String?
+  // Bei codeWrong/sealWrong: die abweichend erkannte Nummer, für die {detected}-Interpolation
+  // der Reason-Message. Bei *Missing ungesetzt.
+  verifikationReasonDetected String?
   // Geräte-Check der Kontrolle (PRUEFUNG): wird das verschlossene Gerät im Foto erkannt?
   // null = nicht geprüft · "ok" = passendes Gerät sichtbar · "wrong" = anderes Gerät · "missing" = kein Gerät.
   // Advisory (Keyholder sieht es), blockiert nicht. Server-seitig per Vision gesetzt.

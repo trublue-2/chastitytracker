@@ -9,6 +9,7 @@ import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reason
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
 import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS } from "@/lib/constants";
 import AccountSection from "./AccountSection";
+import UserLocaleSelect from "@/app/admin/UserLocaleSelect";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
 import KeyholderManager from "@/app/admin/KeyholderManager";
@@ -91,6 +92,11 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           <KeyholderManager subId={user.id} initial={keyholders.map((k) => ({ id: k.id, username: k.username }))} />
         </SettingsSection>
       )}
+
+      {/* Sprache des Subs — App, E-Mails, Push (Keyholder darf setzen, wie E-Mail/Reinigung) */}
+      <SettingsSection title={t("sectionLanguage")} description={t("sectionLanguageDesc")} bodyPadded>
+        <UserLocaleSelect userId={user.id} initialLocale={user.locale} />
+      </SettingsSection>
 
       {/* Reinigung */}
       <SettingsSection title={t("sectionReinigung")} description={t("sectionReinigungDesc")} bodyPadded>

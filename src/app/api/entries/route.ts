@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
-import { verifyKontrolleCode } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 import { deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
@@ -440,16 +440,33 @@ export async function POST(req: NextRequest) {
     const safeRotation: Rotation = VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0;
     (async () => {
       let status: "ai" | null = null;
+      let reason: string | null = null;
+      let reasonDetected: string | null = null;
       try {
         // Aktive Siegel-Nummer server-seitig ableiten (nie vom Client): bei aktivem Siegel müssen
         // Kontroll-Code UND Siegel-Nummer im Foto lesbar sein (Dual-Prüfung). Lock-Entry geteilt
         // mit dem Geräte-Check (latestLockPromise).
-        status = await verifyKontrolleCode(photoUrl, code, safeRotation, deriveSealCode(await latestLockPromise));
+        const result = await verifyKontrolleCodeDetailed(photoUrl, code, safeRotation, deriveSealCode(await latestLockPromise));
+        status = result?.match ? "ai" : null;
+        // Persist WHY it didn't match, so "Unverified" isn't a dead end for the keyholder/admin
+        // (see src/lib/kontrollen.ts mapKontrolleRow + AdminKontrolleListClient).
+        if (result && !result.match) {
+          reason = result.reason ?? null;
+          // Nur *Wrong-Gründe interpolieren {detected} (siehe formatVerifyReason) — bei *Missing
+          // gäbe es sonst einen irreführenden Wert in der DB, der nie gerendert wird.
+          reasonDetected =
+            reason === "codeWrong" ? result.detected
+            : reason === "sealWrong" ? (result.sealDetected ?? null)
+            : null;
+        }
       } catch (err) {
         console.error("[POST /api/entries] AI verification failed for entry", entryId, err);
       }
       try {
-        await prisma.entry.update({ where: { id: entryId }, data: { verifikationStatus: status } });
+        await prisma.entry.update({
+          where: { id: entryId },
+          data: { verifikationStatus: status, verifikationReason: reason, verifikationReasonDetected: reasonDetected },
+        });
       } catch (err) {
         console.error("[POST /api/entries] verifikationStatus write failed for entry", entryId, err);
       }

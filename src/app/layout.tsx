@@ -7,9 +7,12 @@ import Heartbeat from "@/app/components/Heartbeat";
 import NativePushRouter from "@/app/components/NativePushRouter";
 import ToastProvider from "@/app/components/ToastProvider";
 import AppLockLoader from "@/app/components/AppLockLoader";
+import LocaleCookieSync from "@/app/components/LocaleCookieSync";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
+import { isValidLocale } from "@/lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,6 +74,13 @@ export default async function RootLayout({
   const session = await auth();
   const sessionUserId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
+  // Cross-device adoption: if this browser has no locale cookie yet but the account has a stored
+  // language, adopt it once. Guarded on cookie-absence (not mismatch) so it never fights a choice
+  // the user just made on this device while the JWT still carries the previous value.
+  const hasLocaleCookie = (await cookies()).has("locale");
+  const sessionLocale = (session?.user as { locale?: string } | undefined)?.locale;
+  const localeToAdopt = !hasLocaleCookie && isValidLocale(sessionLocale) ? sessionLocale : null;
+
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
@@ -90,6 +100,7 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${jetbrainsMono.variable} antialiased`} suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
           <ToastProvider>
+            {localeToAdopt && <LocaleCookieSync locale={localeToAdopt} />}
             {children}
             <AppLockLoader />
             <Heartbeat buildDate={process.env.BUILD_DATE ?? "local"} initialUserId={sessionUserId ?? null} />

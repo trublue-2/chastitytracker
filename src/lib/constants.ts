@@ -1,3 +1,22 @@
+export const VALID_LOCALES = ["de", "en"] as const;
+export type Locale = (typeof VALID_LOCALES)[number];
+/** Single source for locale validation — shared by i18n/request.ts, the settings API and the sync. */
+export function isValidLocale(v: unknown): v is Locale {
+  return typeof v === "string" && (VALID_LOCALES as readonly string[]).includes(v);
+}
+
+/** Clamp any value to a valid locale, falling back to "de" (the default). */
+export function toLocale(v: unknown): Locale {
+  return isValidLocale(v) ? v : "de";
+}
+
+/** Public marketing site — hosts the user-facing how-to / FAQ content linked from the app. */
+export const MARKETING_URL = "https://chastitytracker.ch";
+/** Locale-aware link to the public inspection explanation (marketing FAQ; EN lives under /en). */
+export function inspectionHelpUrl(locale: string): string {
+  return locale === "en" ? `${MARKETING_URL}/en/faq` : `${MARKETING_URL}/faq`;
+}
+
 export const LOCALES = [
   { value: "de", label: "DE" },
   { value: "en", label: "EN" },

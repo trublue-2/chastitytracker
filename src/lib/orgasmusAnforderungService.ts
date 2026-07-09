@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { sendPushToUser } from "@/lib/push";
-import { ORGASMUS_ANFORDERUNG_ARTEN } from "@/lib/constants";
+import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale } from "@/lib/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, type NotifyContent } from "@/lib/notify";
+import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
 import type { ServiceResult } from "@/lib/serviceResult";
 
@@ -83,11 +84,8 @@ export async function createOrgasmusAnforderung(
 
 /** Notification text shown to the user when an open orgasm directive is withdrawn — shared by the
  *  per-userId (MCP) and per-id (admin route) withdraw paths so the text isn't duplicated. */
-export function orgasmusWithdrawNotice(): { subject: string; message: string } {
-  return {
-    subject: "Orgasmus-Anweisung zurückgezogen",
-    message: "Der Keyholder hat die offene Orgasmus-Anweisung/-Gelegenheit zurückgezogen.",
-  };
+export function orgasmusWithdrawNotice(): NotifyContent {
+  return { subjectKey: "orgasmWithdrawnSubject", messageKey: "orgasmWithdrawnMessage" };
 }
 
 /** Withdraws the user's currently open orgasm directive(s) (not yet fulfilled/withdrawn).
@@ -123,7 +121,7 @@ export async function withdrawOrgasmusAnforderungById(id: string, userId: string
 /** Sends the directive e-mail + push to the user. Push is fire-and-forget. */
 async function sendOrgasmusAnforderungNotifications(opts: {
   userId: string;
-  user: { email: string | null; username: string; orgasmusArtenConfig: string | null };
+  user: { email: string | null; username: string; orgasmusArtenConfig: string | null; locale: string };
   art: "ANWEISUNG" | "GELEGENHEIT";
   nachricht?: string | null;
   beginnt: Date;
@@ -133,14 +131,15 @@ async function sendOrgasmusAnforderungNotifications(opts: {
 }) {
   const { userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt } = opts;
   const istAnweisung = art === "ANWEISUNG";
-  const betreff = istAnweisung ? "Orgasmus angewiesen" : "Orgasmus-Gelegenheit";
-  const einleitung = istAnweisung
-    ? "Der Keyholder weist dich an, in diesem Zeitfenster einen Orgasmus zu erfassen."
-    : "Der Keyholder gibt dir in diesem Zeitfenster die Gelegenheit für einen Orgasmus.";
+  const locale = toLocale(user.locale);
+  const t = await emailT(locale);
+  const betreff = istAnweisung ? t("orgasmAnweisungSubject") : t("orgasmGelegenheitSubject");
+  const einleitung = istAnweisung ? t("orgasmAnweisungIntro") : t("orgasmGelegenheitIntro");
+  const windowStr = `${formatDateTime(beginnt)} – ${formatDateTime(endet)}`;
 
   // Reason-Code → Anzeige-Label gegen die Config des Ziel-Subs auflösen (sonst zeigt eine Custom-Art
-  // den rohen `c_…`-Code in Mail/Push). Deutsch, wie der restliche Direktiv-Text.
-  const tOrgasm = await getTranslations({ locale: "de", namespace: "orgasmForm" });
+  // den rohen `c_…`-Code in Mail/Push). In der Sprache des Empfängers, wie der restliche Text.
+  const tOrgasm = await getTranslations({ locale, namespace: "orgasmForm" });
   const artLabel = vorgegebeneArt
     ? resolveOrgasmusArtDisplay(vorgegebeneArt, effectiveOrgasmusArten(user.orgasmusArtenConfig), tOrgasm) ?? vorgegebeneArt
     : null;
@@ -148,25 +147,25 @@ async function sendOrgasmusAnforderungNotifications(opts: {
   if (user.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const nachrichtHtml = nachricht?.trim()
-      ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">Nachricht des Keyholders:</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
+      ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">${t("orgasmNoticeLabel")}</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(nachricht.trim())}</p></div>`
       : "";
-    const artHtml = artLabel ? `<p><strong>Vorgegebene Art:</strong> ${escHtml(artLabel)}</p>` : "";
-    const oeffnenHtml = oeffnenErlaubt ? `<p><strong>Öffnen erlaubt:</strong> Du darfst dich in diesem Fenster zum Orgasmus öffnen.</p>` : "";
+    const artHtml = artLabel ? `<p><strong>${t("orgasmArtLabel")}</strong> ${escHtml(artLabel)}</p>` : "";
+    const oeffnenHtml = oeffnenErlaubt ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
     await sendMail(
       user.email,
       `KG-Tracker – ${betreff}`,
       `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
           <h2 style="color:#1e293b">${escHtml(betreff)}</h2>
-          <p>Hallo ${escHtml(user.username)},</p>
+          ${emailGreeting(t, user.username)}
           <p>${escHtml(einleitung)}</p>
           ${nachrichtHtml}
-          <p><strong>Fenster:</strong> ${formatDateTime(beginnt)} – ${formatDateTime(endet)}</p>
+          <p><strong>${t("orgasmWindowLabel")}</strong> ${windowStr}</p>
           ${artHtml}
           ${oeffnenHtml}
           <p>
             <a href="${baseUrl}/dashboard" style="display:inline-block;background:#be185d;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
-              Zum Dashboard →
+              ${t("dashboardButton")}
             </a>
           </p>
         </div>
@@ -174,7 +173,7 @@ async function sendOrgasmusAnforderungNotifications(opts: {
     );
   }
 
-  const pushParts: string[] = [`Fenster: ${formatDateTime(beginnt)} – ${formatDateTime(endet)}`];
+  const pushParts: string[] = [`${t("orgasmWindowLabel")} ${windowStr}`];
   if (artLabel) pushParts.push(artLabel);
   if (nachricht?.trim()) pushParts.push(nachricht.trim());
   sendPushToUser(userId, betreff, pushParts.join(" · "), "/dashboard").catch(() => { /* ignore push errors */ });

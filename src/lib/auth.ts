@@ -39,7 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const user = await prisma.user.findUnique({ where: { id: userId } });
           if (!user) return null;
           console.log(`${ts()} [auth] Passkey-Login für "${user.username}"`);
-          return { id: user.id, name: user.username, role: user.role, timezone: user.timezone };
+          return { id: user.id, name: user.username, role: user.role, timezone: user.timezone, locale: user.locale };
         }
 
         // ── Standard credentials flow ──
@@ -63,7 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         await recordSuccess(username);
-        return { id: user.id, name: user.username, role: user.role, timezone: user.timezone };
+        return { id: user.id, name: user.username, role: user.role, timezone: user.timezone, locale: user.locale };
       },
     }),
   ],
@@ -73,6 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.timezone = (user as { timezone?: string }).timezone;
+        token.locale = (user as { locale?: string }).locale;
         token.roleCheckedAt = Date.now();
         token.controlsSubs = await controlsAnySub(user.id as string);
       } else if (token.id) {
@@ -85,11 +86,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (Date.now() - checkedAt > RECHECK_MS) {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { role: true, timezone: true },
+            select: { role: true, timezone: true, locale: true },
           });
           if (!dbUser) return null; // user deleted — NextAuth clears the session cookie
           token.role = dbUser.role;
           token.timezone = dbUser.timezone;
+          token.locale = dbUser.locale;
           token.roleCheckedAt = Date.now();
           token.controlsSubs = await controlsAnySub(token.id as string);
         }
@@ -105,6 +107,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.controlsSubs as boolean | undefined;
         (session.user as { timezone?: string }).timezone =
           token.timezone as string | undefined;
+        (session.user as { locale?: string }).locale =
+          token.locale as string | undefined;
       }
       return session;
     },

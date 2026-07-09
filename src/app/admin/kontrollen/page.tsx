@@ -20,7 +20,11 @@ export default async function AdminKontrollenPage({
   const { userId } = await searchParams;
   const session = await auth();
   const viewerTz = session?.user?.timezone ?? APP_TZ;
-  const [t, tc] = await Promise.all([getTranslations("admin"), getTranslations("common")]);
+  const [t, tc, tReason] = await Promise.all([
+    getTranslations("admin"),
+    getTranslations("common"),
+    getTranslations("inspectionForm"),
+  ]);
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
@@ -47,7 +51,7 @@ export default async function AdminKontrollenPage({
   const allRows = [...pruefungRows, ...offeneRows]
     .sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
 
-  const mapOpts = { t, dl, includeUsername: !userId, viewerTz };
+  const mapOpts = { t, dl, includeUsername: !userId, viewerTz, tReason };
   const items = allRows.filter(isKontrolleAlarm).map((r) => mapKontrolleRow(r, mapOpts));
   const allItems = allRows.map((r) => mapKontrolleRow(r, mapOpts));
 

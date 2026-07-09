@@ -61,9 +61,14 @@ async function main() {
       console.log(`  Ungültig. Erlaubt: ${VALID_TYPES.join(", ")}`);
       continue;
     }
-    const text = await ask("Beschreibung: ");
-    if (!text) break;
-    changes.push({ type, text });
+    const de = await ask("Beschreibung (DE): ");
+    if (!de) break;
+    const en = await ask("Beschreibung (EN): ");
+    if (!en) {
+      console.log("  Englische Beschreibung ist erforderlich (Changelog ist zweisprachig) — Eintrag verworfen.\n");
+      continue;
+    }
+    changes.push({ type, text: { de, en } });
     console.log("  ✓ Eintrag gespeichert\n");
   }
 

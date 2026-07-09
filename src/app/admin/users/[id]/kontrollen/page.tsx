@@ -16,7 +16,11 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const session = await auth();
   const { id } = await params;
   await assertKeyholderOrAdmin(id);
-  const [ta, dl] = [await getTranslations("admin"), toDateLocale(await getLocale())];
+  const [ta, tReason, dl] = [
+    await getTranslations("admin"),
+    await getTranslations("inspectionForm"),
+    toDateLocale(await getLocale()),
+  ];
   const now = new Date();
 
   const user = await prisma.user.findUnique({ where: { id } });
@@ -41,7 +45,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   const { pruefungRows, offeneRows } = buildKontrolleRows(pruefungen, alleAnforderungen, now);
   const sortedOffene = [...offeneRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
   const sortedPruefungen = [...pruefungRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
-  const mapOpts = { t: ta, dl, includeUsername: false, viewerTz: session?.user?.timezone ?? APP_TZ };
+  const mapOpts = { t: ta, dl, includeUsername: false, viewerTz: session?.user?.timezone ?? APP_TZ, tReason };
 
   const tc = await getTranslations("common");
   const labels = {

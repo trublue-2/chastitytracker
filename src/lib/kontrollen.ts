@@ -1,6 +1,7 @@
 import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected, formatDateTimeDual, APP_TZ } from "@/lib/utils";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
+import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
 
 /** Raw row built from PRUEFUNG entries + KontrollAnforderungen, ready for display mapping. */
@@ -13,6 +14,10 @@ export interface KontrolleRow {
   timezone: string;
   anforderungStatus: AnforderungStatus | null;
   verifikationStatus: VerifikationStatus | null;
+  /** Warum die automatische Verifikation nicht gematcht hat (VerifyReason-Code); nur bei
+   *  verifikationStatus "unverified" aussagekräftig. */
+  verifikationReason: string | null;
+  verifikationReasonDetected: string | null;
   deviceCheck: string | null;
   deviceCheckNote: string | null;
   deviceCheckExpected: string | null;
@@ -41,6 +46,8 @@ type PruefungEntry = {
   note: string | null;
   kontrollCode: string | null;
   verifikationStatus: string | null;
+  verifikationReason?: string | null;
+  verifikationReasonDetected?: string | null;
   deviceCheck?: string | null;
   deviceCheckNote?: string | null;
   deviceCheckExpected?: string | null;
@@ -85,6 +92,8 @@ export function buildKontrolleRows(
       timezone: e.user?.timezone ?? APP_TZ,
       anforderungStatus: ka ? mapAnforderungStatus(ka, e.startTime, now) : null,
       verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
+      verifikationReason: e.verifikationReason ?? null,
+      verifikationReasonDetected: e.verifikationReasonDetected ?? null,
       deviceCheck: e.deviceCheck ?? null,
       deviceCheckNote: e.deviceCheckNote ?? null,
       deviceCheckExpected: e.deviceCheckExpected ?? null,
@@ -113,6 +122,8 @@ export function buildKontrolleRows(
       timezone: k.user?.timezone ?? APP_TZ,
       anforderungStatus: mapAnforderungStatus(k, null, now),
       verifikationStatus: null,
+      verifikationReason: null,
+      verifikationReasonDetected: null,
       deviceCheck: null,
       deviceCheckNote: null,
       deviceCheckExpected: null,
@@ -155,9 +166,12 @@ export function mapKontrolleRow(
     /** Zeitzone des Betrachters (Keyholder-Session). Weicht sie von der Sub-Zeitzone ab, wird die
      *  Sub-Lokalzeit als Zusatz angezeigt (nur Admin; ohne viewerTz bleibt es reine Sub-Zeit). */
     viewerTz?: string;
+    /** Übersetzer für die `inspectionForm`-Namespace-Reason-Keys (reasonCodeMissing etc.) — dieselben
+     *  Keys wie in der Sub-Ansicht (PruefungFormCore), damit „Unverified" nicht ohne Grund dasteht. */
+    tReason?: (key: string, values?: Record<string, string>) => string;
   },
 ): AdminKontrolleRowData {
-  const { t, dl, includeUsername, viewerTz } = opts;
+  const { t, dl, includeUsername, viewerTz, tReason } = opts;
   const tz = row.timezone; // Sub-Zeitzone der Zeile — Basis; viewerTz (falls ≠) ergänzt sie
   const subLabel = t("subTimePrefix");
   const fmt = (d: Date) => formatDateTimeDual(d, dl, viewerTz, tz, subLabel);
@@ -173,6 +187,12 @@ export function mapKontrolleRow(
   // AdminKontrolleListClient identisch bleiben, ohne die Umschalt-Logik zu duplizieren.
   const createdIsSent = row.auto && !!row.benachrichtigtAt;
   const effectiveCreated = createdIsSent ? row.benachrichtigtAt : row.createdAt;
+  // Nur bei "unverified" aussagekräftig — bei manual/ai/rejected ist der (evtl. noch gespeicherte)
+  // Grund der letzten Auto-Prüfung nicht mehr relevant für den aktuellen Status.
+  const verifikationReasonStr =
+    row.verifikationStatus === "unverified" && tReason
+      ? formatVerifyReason(row.verifikationReason as VerifyReason | null, row.verifikationReasonDetected, tReason)
+      : null;
   return {
     imageUrl: row.imageUrl,
     kommentar: row.kommentar,
@@ -194,6 +214,7 @@ export function mapKontrolleRow(
     entryId: row.entryId,
     anforderungStatus: row.anforderungStatus ?? "open",
     verifikationStatus: row.verifikationStatus,
+    verifikationReasonStr,
     deviceCheck: (row.deviceCheck as AdminKontrolleRowData["deviceCheck"]) ?? null,
     deviceCheckNote: row.deviceCheckNote,
     deviceCheckExpected: row.deviceCheckExpected,

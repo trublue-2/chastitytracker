@@ -23,8 +23,9 @@ export async function sendMail(to: string, subject: string, html: string) {
   });
 }
 
-/** Standard-E-Mail-Layout mit „Zum Dashboard"-Button. Geteilt von allen Benachrichtigungen. */
-export function dashboardEmailHtml(heading: string, innerHtml: string): string {
+/** Standard-E-Mail-Layout mit Dashboard-Button. Geteilt von allen Benachrichtigungen.
+ *  `buttonLabel` wird in der Sprache des Empfängers übergeben (siehe emailI18n.ts). */
+export function dashboardEmailHtml(heading: string, innerHtml: string, buttonLabel: string): string {
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   return `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
@@ -32,7 +33,7 @@ export function dashboardEmailHtml(heading: string, innerHtml: string): string {
         ${innerHtml}
         <p>
           <a href="${baseUrl}/dashboard" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
-            Zum Dashboard →
+            ${buttonLabel}
           </a>
         </p>
       </div>

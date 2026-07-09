@@ -24,6 +24,31 @@ npm run test:watch                           # Watch-Mode
 npx vitest run <pfad/zur/datei.test.ts>      # einzelne Datei
 ```
 
+## Deployment
+
+Deploys laufen über den GitHub-Actions-Workflow `.github/workflows/docker.yml` (manueller `workflow_dispatch`, kein Auto-Deploy bei Push). Er baut das Docker-Image, pusht es nach GHCR und kann anschliessend Instanzen aktualisieren.
+
+**Image-Tags:**
+- `:latest` — Produktions-Tag, gebaut vom `main`-Branch.
+- `:feature` — Vorab-Tag für Instanzen, die neue Arbeit vor dem Merge (oder zusätzlich zu `:latest`) testen sollen. trublues eigene Instanz ist dauerhaft auf `:feature` gepinnt.
+
+**Regel — bei jedem `:latest`-Build auf `main` IMMER auch `:feature` mittaggen** (`tagFeature=true`), damit `:feature`-gepinnte Instanzen (trublue) nie hinter `main` zurückfallen. Ausnahme: ein Dispatch von einem noch ungemergten Feature-Branch soll NUR `:feature` taggen (kein `tagFeature` nötig — das ist bereits der Tag dieses Builds), damit `:latest` unberührt bleibt, bis gemergt ist.
+
+```bash
+# main → Produktion (:latest) UND :feature gleichzeitig aktuell halten (Standardfall)
+gh workflow run docker.yml --ref main -f tagFeature=true
+
+# Feature-Branch (noch nicht gemergt) → nur :feature, :latest bleibt unberührt
+gh workflow run docker.yml --ref <feature-branch> -f tagFeature=true
+
+# Instanz einmalig auf einen Tag umpinnen (z.B. trublue dauerhaft auf :feature)
+gh workflow run docker.yml --ref <branch> -f tagFeature=true -f channel=feature -f instances=trublue
+```
+
+Weitere Dispatch-Inputs: `deploy` (Default `true` — nach dem Build auch deployen), `instances` (leer = alle Instanzen, empfohlen — explizite Namen erscheinen im öffentlichen Dispatch-Log, da das Repo public ist), `channel` (pinnt Ziel-Instanzen auf einen Tag um; leer = bestehende Pins beibehalten).
+
+Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <run-id>` prüfen, ob `typecheck`, `build-and-push` und `deploy` grün sind.
+
 ## Architecture
 
 **Stack:** Next.js 16 (App Router) · React 19 · NextAuth.js v5 (Credentials) · Prisma 5 + SQLite · Tailwind CSS v4 · next-intl v4

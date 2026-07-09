@@ -20,9 +20,9 @@ const HANDWRITING_NOTE = `Note: in handwriting "1" often looks like "7" and vice
  *  Siegel-Nummer). Nur der jeweils benötigte Prompt wird gebaut. */
 function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): string {
   if (!effectiveSeal) {
-    return `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.\nThe target number may appear in any of these forms:\n• handwritten on a slip of paper or card,\n• printed/typed on a tag, sticker or label,\n• printed on a ${SEAL_VOCAB}\n${HANDWRITING_NOTE}\nReply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false, "reason": "<brief reason in German if match is false, else null>"}.\nIf you find a different number than ${expectedCode}, set detected to that other number and match to false.\nPossible reasons (pick the most fitting, keep it short): "Kein Code sichtbar", "Bild zu unscharf", "Code verdeckt oder abgeschnitten", "Schrift nicht lesbar", "Falscher Code sichtbar: <detected>", "Bild zu dunkel", "Kein Code gefunden".`;
+    return `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.\nThe target number may appear in any of these forms:\n• handwritten on a slip of paper or card,\n• printed/typed on a tag, sticker or label,\n• printed on a ${SEAL_VOCAB}\n${HANDWRITING_NOTE}\nReply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false}.\nIf you find a different number than ${expectedCode}, set detected to that other number and match to false.`;
   }
-  return `Look for TWO specific numbers in this image. Only these two numbers matter — ignore other numbers, barcodes, prices, or device serials that may also be visible.\n1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, or printed/typed on a tag, sticker or label.\n2. SEAL NUMBER ${effectiveSeal}: printed on a ${SEAL_VOCAB}\n${HANDWRITING_NOTE}\nReply with JSON only: {"detectedCode": "<the control code you found, else null>", "matchCode": true if it matches ${expectedCode} else false, "detectedSeal": "<the seal number you found, else null>", "matchSeal": true if it matches ${effectiveSeal} else false, "reason": "<brief reason in German if a number is missing or wrong, else null>"}.\nIf you find different numbers than expected, set the detected fields to those other numbers and the match fields to false.\nPossible reasons (pick the most fitting, keep it short): "Kein Kontroll-Code sichtbar", "Siegel-Nummer nicht sichtbar", "Bild zu unscharf", "Code verdeckt oder abgeschnitten", "Falscher Code sichtbar: <detectedCode>", "Falsche Siegel-Nummer: <detectedSeal>", "Bild zu dunkel".`;
+  return `Look for TWO specific numbers in this image. Only these two numbers matter — ignore other numbers, barcodes, prices, or device serials that may also be visible.\n1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, or printed/typed on a tag, sticker or label.\n2. SEAL NUMBER ${effectiveSeal}: printed on a ${SEAL_VOCAB}\n${HANDWRITING_NOTE}\nReply with JSON only: {"detectedCode": "<the control code you found, else null>", "matchCode": true if it matches ${expectedCode} else false, "detectedSeal": "<the seal number you found, else null>", "matchSeal": true if it matches ${effectiveSeal} else false}.\nIf you find different numbers than expected, set the detected fields to those other numbers and the match fields to false.`;
 }
 
 /** Normalisiert das `detected`-Feld der Vision-Antwort: liefert den String oder `null`, wenn keine
@@ -88,10 +88,15 @@ function fuzzyMatch(a: string, b: string): boolean {
   return a.split("").every((ch, i) => ch === b[i] || similar[ch] === b[i]);
 }
 
+// VerifyReason + its i18n formatting live in verifyReason.ts (client-safe — no sharp/fs/next-headers)
+// so client components can import the formatter without bundling this server-only vision module.
+export type { VerifyReason } from "@/lib/verifyReason";
+import type { VerifyReason } from "@/lib/verifyReason";
+
 export type VerifyDetailedResult = {
   detected: string | null;
   match: boolean;
-  reason: string | null;
+  reason: VerifyReason | null;
   /** Nur bei Dual-Prüfung (aktives Siegel) gesetzt: erkannte Siegel-Nummer + Teil-Ergebnis. */
   sealDetected?: string | null;
   sealMatch?: boolean;
@@ -129,11 +134,14 @@ export function evaluateVerifyResponse(
   expectedCode: string,
   sealCode: string | null,
 ): VerifyDetailedResult {
-  const modelReason = typeof parsed.reason === "string" ? parsed.reason : null;
-
   if (!sealCode) {
     const code = evaluateDetected(parsed.detected, parsed.match, expectedCode);
-    return { detected: code.detected, match: code.match, reason: code.match ? null : modelReason, overridden: code.overridden };
+    return {
+      detected: code.detected,
+      match: code.match,
+      reason: code.match ? null : (code.detected ? "codeWrong" : "codeMissing"),
+      overridden: code.overridden,
+    };
   }
 
   const code = evaluateDetected(parsed.detectedCode, parsed.matchCode, expectedCode);
@@ -141,14 +149,17 @@ export function evaluateVerifyResponse(
   // Fremd-Siegel (0↔6/1↔7) als gültig durchgehen und den Siegel-Nachweis aushebeln.
   const seal = evaluateDetected(parsed.detectedSeal, parsed.matchSeal, sealCode, false);
   const match = code.match && seal.match;
-  const fallbackReason =
-    !code.match && !seal.match ? "Kontroll-Code und Siegel-Nummer nicht erkannt"
-    : !code.match ? "Kontroll-Code nicht erkannt"
-    : "Siegel-Nummer nicht erkannt";
+  // Grund spiegelt die Card-Auswahl im Form (seal-first: `sealMatch === false → sealMismatch`):
+  // scheitert das Siegel, ein Siegel-Grund; sonst (Siegel ok, also Code schuld) ein Code-Grund. So
+  // stimmen Card-Titel und Grund-Zeile auch im Fall überein, dass BEIDE fehlschlagen.
+  const reason: VerifyReason | null = match
+    ? null
+    : !seal.match ? (seal.detected ? "sealWrong" : "sealMissing")
+    : (code.detected ? "codeWrong" : "codeMissing");
   return {
     detected: code.detected,
     match,
-    reason: match ? null : (modelReason ?? fallbackReason),
+    reason,
     overridden: code.overridden || seal.overridden,
     sealDetected: seal.detected,
     sealMatch: seal.match,
@@ -237,19 +248,6 @@ export async function verifyKontrolleCodeDetailed(
 }
 
 /**
- * Convenience wrapper: returns "ai" if match, null otherwise.
- */
-export async function verifyKontrolleCode(
-  imageUrl: string,
-  expectedCode: string,
-  rotation: Rotation = 0,
-  sealCode: string | null = null,
-): Promise<"ai" | null> {
-  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode, rotation, sealCode);
-  return result?.match ? "ai" : null;
-}
-
-/**
  * Gemeinsames Gerüst der Ziffern-Erkennung aus einem Code-/Siegelbild: ohne Vision-Provider
  * lokales OCR (min..max Ziffern), sonst visionComplete (task seal-detect) → JSON {detected}
  * → Längen-/Format-Validierung. Genutzt von detectSealNumber (Plombe) und detectLockboxCode (Dial).
@@ -314,12 +312,32 @@ async function detectSealDigits(
  * @param rotation  Clockwise rotation in degrees applied before sending to the vision model.
  */
 export async function detectSealNumber(imageUrl: string, rotation: Rotation = 0): Promise<string | null> {
-  return detectSealDigits(imageUrl, rotation, {
+  const detected = await detectSealDigits(imageUrl, rotation, {
     minLen: 5,
     maxLen: 8,
     logPrefix: "seal",
     prompt: `Look for a ${SEAL_VOCAB}\nThe number is usually 5–8 digits.\nReply with JSON only: {"detected": "<number with leading zeros or null>"}. If no seal or number is visible, use null.`,
   });
+  // Guard gegen Halluzinationen: strikt fortlaufende (01234567) oder gleichförmige (00000000)
+  // „Nummern" sind praktisch nie echte Plomben-Nummern. Als nicht erkannt behandeln, statt einen
+  // Platzhalter als Siegel zu speichern. NUR für die Plombe — Zahlenschloss-Codes (detectLockboxCode)
+  // dürfen fortlaufend sein (z.B. 1234), daher greift der Guard dort bewusst nicht.
+  if (isImplausibleSeal(detected)) {
+    vlog("seal:implausible_rejected", { detectedLen: detected?.length });
+    return null;
+  }
+  return detected;
+}
+
+/** True für strikt fortlaufende (auf-/absteigende) oder gleichförmige Ziffernfolgen — klassische
+ *  Platzhalter-/Halluzinations-Muster (01234567, 76543210, 00000000), die nie echte Siegel sind. */
+export function isImplausibleSeal(s: string | null): boolean {
+  if (!s) return false;
+  const d = s.trim();
+  if (d.length < 5 || !/^\d+$/.test(d)) return false;
+  if (/^(\d)\1+$/.test(d)) return true;
+  const isRun = (step: number) => [...d].every((_, i) => i === 0 || d.charCodeAt(i) === d.charCodeAt(i - 1) + step);
+  return isRun(1) || isRun(-1);
 }
 
 /**
