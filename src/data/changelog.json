@@ -1,10 +1,10 @@
 [
   {
-    "version": "4.50.0",
+    "version": "4.49.4",
     "date": "2026-07-09",
     "changes": [
       {
-        "type": "feat",
+        "type": "fix",
         "text": {
           "de": "Kontrollen zeigen jetzt den Grund an, wenn die automatische KI-Prüfung eines Kontroll-Fotos nicht bestätigt werden konnte (z.B. Code nicht sichtbar, falsche Siegel-Nummer) — bisher stand bei \"Unverified\" kein Grund.",
           "en": "Inspections now show why the automatic AI check of a photo could not be confirmed (e.g. code not visible, wrong seal number) — previously \"Unverified\" showed no reason at all."
