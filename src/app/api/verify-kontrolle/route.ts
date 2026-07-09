@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
-import { deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
+import { deriveSealCode } from "@/lib/kontrolleService";
+import { getLatestKgEntry } from "@/lib/queries";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";

@@ -78,18 +78,28 @@ export async function getUserDeviceOptions(userId: string): Promise<DeviceOption
   });
 }
 
+/** Letzter KG-Entry (VERSCHLUSS/OEFFNEN) eines Users — die EINE Quelle für den Lock-Zustand.
+ *  Optionaler tx-Client für Transaktionen; in einer Transaktion IMMER `tx` durchreichen, sonst
+ *  liest der Aufruf ausserhalb der Transaktion (TOCTOU).
+ *
+ *  Das schmale `select` trägt genau die Felder, die die Aufrufer brauchen: `type` (Lock-Zustand),
+ *  `startTime` (Zeit-Guards), `kontrollCode` (deriveSealCode) und `deviceId` (Geräte-Check). */
+export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = prisma) {
+  return tx.entry.findFirst({
+    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+    orderBy: { startTime: "desc" },
+    select: { type: true, startTime: true, kontrollCode: true, deviceId: true },
+  });
+}
+
 /** Returns true if the user is currently locked (latest VERSCHLUSS/OEFFNEN entry is VERSCHLUSS).
  *
  *  KG-only by design: Sperrzeiten, VerschlussAnforderung, Strafen, Kontroll-Anforderungen and
  *  the "Verschlossen seit X" banner all rely on this single global lock state. Per-category
  *  wear status (Plug, Collar, ...) is determined separately from `buildPairs` results in the
  *  pages that need it — never via this function. */
-export async function getIsLocked(userId: string): Promise<boolean> {
-  const latest = await prisma.entry.findFirst({
-    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-    orderBy: { startTime: "desc" },
-    select: { type: true },
-  });
+export async function getIsLocked(userId: string, tx: PrismaTx | typeof prisma = prisma): Promise<boolean> {
+  const latest = await getLatestKgEntry(userId, tx);
   return latest?.type === "VERSCHLUSS";
 }
 

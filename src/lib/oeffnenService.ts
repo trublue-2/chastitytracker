@@ -1,4 +1,4 @@
-import { releaseSperrzeitenOnOpen, type PrismaTx } from "@/lib/queries";
+import { releaseSperrzeitenOnOpen, getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
 export interface CreateOeffnenParams {
   userId: string;
@@ -30,10 +30,8 @@ export interface CreateOeffnenResult {
 export async function createOeffnenEntryTx(tx: PrismaTx, params: CreateOeffnenParams): Promise<CreateOeffnenResult> {
   const { userId, startTime, oeffnenGrund, note, source } = params;
 
-  const latest = await tx.entry.findFirst({
-    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-    orderBy: { startTime: "desc" },
-  });
+  // tx zwingend durchreichen: der Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
+  const latest = await getLatestKgEntry(userId, tx);
   if (!latest || latest.type !== "VERSCHLUSS") {
     throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
   }

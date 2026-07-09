@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
-import { getActiveSperrzeit } from "@/lib/queries";
+import { getActiveSperrzeit, getIsLocked } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
@@ -21,13 +21,9 @@ export async function GET(
   const err = await requireKeyholderOrAdminApi(id);
   if (err) return err;
 
-  const [user, latestLockEntry, offeneAnforderung, activeSperrzeit] = await Promise.all([
+  const [user, isLocked, offeneAnforderung, activeSperrzeit] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
-    prisma.entry.findFirst({
-      where: { userId: id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-      orderBy: { startTime: "desc" },
-      select: { type: true },
-    }),
+    getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
     }),
@@ -39,7 +35,7 @@ export async function GET(
   return NextResponse.json({
     username: user.username,
     email: user.email,
-    isLocked: latestLockEntry?.type === "VERSCHLUSS",
+    isLocked,
     hasOffeneAnforderung: !!offeneAnforderung,
     hasActiveSperrzeit: !!activeSperrzeit,
   });

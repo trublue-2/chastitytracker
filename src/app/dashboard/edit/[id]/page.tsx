@@ -9,8 +9,8 @@ import OrgasmusForm from "../../OrgasmusForm";
 import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
-import { getUserDeviceOptions, getUserTimezone } from "@/lib/queries";
-import { getLatestKgEntry, sealRequiredForCode } from "@/lib/kontrolleService";
+import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry } from "@/lib/queries";
+import { sealRequiredForCode } from "@/lib/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
 

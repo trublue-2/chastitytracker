@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { sendKontrolleNotification, deriveSealCode, getLatestKgEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { getLatestKgEntry, getIsLocked } from "@/lib/queries";
 import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
@@ -180,12 +181,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
 
   for (const va of due) {
     try {
-      const latest = await prisma.entry.findFirst({
-        where: { userId: va.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-        orderBy: { startTime: "desc" },
-        select: { type: true },
-      });
-      const isLocked = latest?.type === "VERSCHLUSS";
+      const isLocked = await getIsLocked(va.userId);
       const art = va.art as "ANFORDERUNG" | "SPERRZEIT";
 
       // Auslösung sinnlos geworden → zurückziehen statt senden.

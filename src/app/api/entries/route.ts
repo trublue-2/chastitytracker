@@ -4,11 +4,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
-import { deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
+import { deriveSealCode } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { setBoxCommandForUser } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
@@ -77,21 +77,16 @@ export async function POST(req: NextRequest) {
         if (!wearResult.ok) throw Object.assign(new Error(), { _code: wearResult.code });
       }
 
+      // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
       if (type === "VERSCHLUSS") {
-        const latest = await tx.entry.findFirst({
-          where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-        });
+        const latest = await getLatestKgEntry(session.user.id, tx);
         if (latest?.type === "VERSCHLUSS") throw Object.assign(new Error(), { _code: "ALREADY_LOCKED" });
         if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
           throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
         }
       }
       if (type === "OEFFNEN") {
-        const latest = await tx.entry.findFirst({
-          where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-        });
+        const latest = await getLatestKgEntry(session.user.id, tx);
         if (!latest || latest.type !== "VERSCHLUSS") throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
         if (new Date(startTime) <= latest.startTime) throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
         lockStartTime = latest.startTime;

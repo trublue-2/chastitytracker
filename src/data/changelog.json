@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.4",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Der Verschluss-Zustand („ist gerade verschlossen?\") wird jetzt überall aus einer einzigen, gemeinsamen Abfrage abgeleitet statt aus sieben Kopien. Das schliesst aus, dass die Zustandsprüfungen mit der Zeit auseinanderlaufen.",
+          "en": "The lock state (\"currently locked?\") is now derived everywhere from one single shared query instead of seven copies. This prevents the state checks from drifting apart over time."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.3",
     "date": "2026-07-10",
     "changes": [

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, getLatestKgEntry } from "@/lib/queries";
 import { isDevBypassEnabled } from "@/lib/devMode";
 
 export async function POST(req: NextRequest) {
@@ -41,19 +41,15 @@ export async function POST(req: NextRequest) {
         if (!wearResult.ok) throw Object.assign(new Error(), { _code: wearResult.code });
       }
 
+      // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
+      // Hinweis: die Admin-Route hat bewusst KEINEN TIME_BEFORE-Guard (Backdating ist erlaubt).
       if (type === "VERSCHLUSS") {
-        const latest = await tx.entry.findFirst({
-          where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-        });
+        const latest = await getLatestKgEntry(userId, tx);
         if (latest?.type === "VERSCHLUSS") throw Object.assign(new Error(), { _code: "ALREADY_LOCKED" });
       }
 
       if (type === "OEFFNEN") {
-        const latest = await tx.entry.findFirst({
-          where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-        });
+        const latest = await getLatestKgEntry(userId, tx);
         if (!latest || latest.type !== "VERSCHLUSS") throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
         // Admin-opened entries must release the lock period too, otherwise the
         // user still appears locked. Reinigung-erlaubt-Flag aus vorab geladenem User.

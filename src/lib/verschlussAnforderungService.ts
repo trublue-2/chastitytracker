@@ -3,7 +3,7 @@ import { sendMail, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
-import { validateDeviceOwnership } from "@/lib/queries";
+import { validateDeviceOwnership, getIsLocked } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import type { ServiceResult } from "@/lib/serviceResult";
@@ -94,11 +94,8 @@ export async function createVerschlussAnforderung(
   let anforderung;
   try {
     anforderung = await prisma.$transaction(async (tx) => {
-      const latest = await tx.entry.findFirst({
-        where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-        orderBy: { startTime: "desc" },
-      });
-      const isLocked = latest?.type === "VERSCHLUSS";
+      // tx zwingend durchreichen: der Zustands-Check muss in DERSELBEN Transaktion lesen (TOCTOU).
+      const isLocked = await getIsLocked(userId, tx);
 
       if (art === "ANFORDERUNG" && isLocked) throw Object.assign(new Error(), { _code: "ALREADY_LOCKED" });
       if (art === "SPERRZEIT" && !isLocked) throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
