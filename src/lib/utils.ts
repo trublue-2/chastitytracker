@@ -247,6 +247,13 @@ export function isTimeCorrected(time: Date, submittedAt: Date | null | undefined
 export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn" | "scheduled";
 export type VerifikationStatus = "unverified" | "pending" | "ai" | "manual" | "rejected";
 
+/** True if a deadline passed without a timely completion — completed after the deadline, or not
+ *  yet completed and the deadline is already past. Shared primitive behind the Kontrolle "late"
+ *  status and the Strafbuch late-lock / cleaning-relock detectors (src/lib/strafbuch.ts). */
+export function isPastDeadlineUnfulfilled(deadline: Date, completedAt: Date | null, now: Date): boolean {
+  return completedAt ? completedAt > deadline : deadline < now;
+}
+
 /** Derives AnforderungStatus: was the kontrolle submitted, and was it on time?
  *  fulfilledAt is server-set at submission time and immutable – never use entryTime for deadline comparison.
  *  `scheduled`: keyholder-set, not yet triggered (wirksamAb in the future) — only ever surfaced in
@@ -261,9 +268,7 @@ export function mapAnforderungStatus(
     if (k.wirksamAb && k.wirksamAb > now) return "scheduled";
     return k.deadline < now ? "overdue" : "open";
   }
-  const submittedAt = k.fulfilledAt ?? null;
-  if (!submittedAt) return k.deadline < now ? "late" : "fulfilled"; // Fallback für alte Daten ohne fulfilledAt
-  return submittedAt > k.deadline ? "late" : "fulfilled";
+  return isPastDeadlineUnfulfilled(k.deadline, k.fulfilledAt ?? null, now) ? "late" : "fulfilled";
 }
 
 /** Normalizes a raw verifikationStatus string to VerifikationStatus */

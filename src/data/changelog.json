@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.49.5",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Strafbuch erkennt jetzt zwei weitere Vergehen: „Spät verschlossen\" (Verschluss-Anforderung nicht bis zur Frist erfüllt) und „Reinigung nicht rechtzeitig wieder verschlossen\" (Reinigungspause länger offen als erlaubt). Beide erscheinen im Disziplin-Ledger und können wie gewohnt beurteilt werden.",
+          "en": "The Strafbuch now detects two more offenses: \"locked too late\" (a lock request wasn't fulfilled by its deadline) and \"cleaning not relocked in time\" (a cleaning pause stayed open longer than allowed). Both show up in the discipline ledger and can be judged as usual."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.49.4",
     "date": "2026-07-09",
     "changes": [

@@ -19,15 +19,21 @@ export type OffenseCanonicalType =
   | "rejected_control"
   | "cleaning_limit"
   | "wrong_device"
-  | "missed_orgasm";
+  | "missed_orgasm"
+  | "late_lock"
+  | "cleaning_not_relocked";
 
-const STORED_TYPE: Record<OffenseCanonicalType, string> = {
+/** Canonical offense type → stored StrafeRecord.offenseType. Exported so the manual-punish route
+ *  (src/app/api/admin/strafe/route.ts) can validate against the same list instead of a hand-copied one. */
+export const STORED_TYPE: Record<OffenseCanonicalType, string> = {
   unauthorized_opening: "OEFFNEN_ENTRY",
   late_control: "KONTROLLANFORDERUNG",
   rejected_control: "KONTROLLANFORDERUNG",
   cleaning_limit: "REINIGUNG_LIMIT",
   wrong_device: "FALSCHES_GERAET",
   missed_orgasm: "ORGASMUS_ANWEISUNG",
+  late_lock: "VERSCHLUSS_ANFORDERUNG",
+  cleaning_not_relocked: "REINIGUNG_NICHT_VERSCHLOSSEN",
 };
 
 export interface DetectedOffense {
@@ -35,6 +41,18 @@ export interface DetectedOffense {
   offenseType: string;
   refId: string;
   at: Date | null;
+}
+
+/** cleaning_not_relocked shares its underlying OEFFNEN entry with cleaning_limit (both can fire on
+ *  the same REINIGUNG opening — over the daily quota AND not relocked in time). StrafeRecord.refId
+ *  is globally `@unique`, so the two offenses need disjoint ref namespaces — prefixed here rather
+ *  than using the bare entry id. Exported so mcpOverview.ts's `judge()` call constructs the exact
+ *  same ref (round-trips through judge_offense) and the admin route can reverse it for its IDOR check. */
+export function cleaningNotRelockedRef(entryId: string): string {
+  return `relock:${entryId}`;
+}
+export function entryIdFromCleaningNotRelockedRef(refId: string): string | null {
+  return refId.startsWith("relock:") ? refId.slice("relock:".length) : null;
 }
 
 /** Flacht die buildStrafbuch-Listen zu einer einheitlichen Liste erkannter Vergehen mit stabiler ref.
@@ -49,6 +67,8 @@ export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
     ...sb.reinigungLimitViolations.map((v) => mk("cleaning_limit", v.entryId, v.startTime)),
     ...sb.wrongDeviceViolations.map((v) => mk("wrong_device", v.entryId, v.startTime)),
     ...sb.missedOrgasmInstructions.map((m) => mk("missed_orgasm", m.id, m.endetAt)),
+    ...sb.lateLocks.map((a) => mk("late_lock", a.id, a.fulfilledAt ?? a.endetAt)),
+    ...sb.cleaningNotRelocked.map((c) => mk("cleaning_not_relocked", cleaningNotRelockedRef(c.entryId), c.relockAt ?? c.deadline)),
   ];
 }
 

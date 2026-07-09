@@ -16,6 +16,7 @@ import { resolveUserContext, notesForEntities, entityKey, makeIso, type NoteDTO 
 export const OFFENSE_TYPES = [
   "unauthorized_opening", "late_control", "rejected_control",
   "cleaning_limit", "wrong_device", "missed_orgasm",
+  "late_lock", "cleaning_not_relocked",
 ] as const;
 
 export interface OffenseRow {
@@ -90,6 +91,8 @@ export async function getOffenses(username: string): Promise<LedgerResult> {
       });
     }),
     ...sb.missedOrgasmInstructions.map((m) => toRow(m.windowEndedAt, m, { message: m.message, requiredType: m.requiredType })),
+    ...sb.lateLocks.map((a) => toRow(a.fulfilledAt ?? a.deadline, a, { deadline: a.deadline, fulfilledAt: a.fulfilledAt, message: a.message })),
+    ...sb.cleaningNotRelocked.map((c) => toRow(c.relockedAt ?? c.deadline, c, { time: c.time, deadline: c.deadline, relockedAt: c.relockedAt, note: c.note })),
   ];
 
   // Inline-Notes je Offense in EINEM Query.

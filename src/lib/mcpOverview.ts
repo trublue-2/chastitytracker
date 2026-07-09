@@ -10,7 +10,7 @@ import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
-import { collectDetectedOffenses } from "@/lib/strafurteilService";
+import { collectDetectedOffenses, cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { round1, msToHours, pct, isoWithOffset } from "@/lib/mcp/format";
 
 /** Zeitformat der MCP-Ausgabe: V1-Tools nutzen das Instanz-lokale Human-Format (bewusster V1-
@@ -568,6 +568,10 @@ export interface StrafbuchOverview {
   wrongDeviceViolations: ({ time: string | null; note: string | null; deviceName: string | null } & OffenseJudgment)[];
   /** Mandatory orgasm directives (ANWEISUNG) whose window ended without a matching orgasm. */
   missedOrgasmInstructions: ({ windowEndedAt: string; message: string | null; requiredType: string | null } & OffenseJudgment)[];
+  /** Lock requests whose deadline passed without a timely VERSCHLUSS. */
+  lateLocks: ({ deadline: string; fulfilledAt: string | null; message: string | null } & OffenseJudgment)[];
+  /** REINIGUNG openings not (or too late) followed by a VERSCHLUSS within the re-lock deadline. */
+  cleaningNotRelocked: ({ time: string; deadline: string; relockedAt: string | null; note: string | null } & OffenseJudgment)[];
 }
 
 /** Builds the Strafbuch snapshot for the user. Throws if the user does not exist. */
@@ -650,6 +654,19 @@ export async function mcpStrafbuch(username: string, opts: McpFormatOptions = {}
       message: m.nachricht,
       requiredType: m.requiredArt,
       ...judge("missed_orgasm", m.id),
+    })),
+    lateLocks: sb.lateLocks.map((a) => ({
+      deadline: fmt(a.endetAt),
+      fulfilledAt: a.fulfilledAt ? fmt(a.fulfilledAt) : null,
+      message: a.nachricht,
+      ...judge("late_lock", a.id),
+    })),
+    cleaningNotRelocked: sb.cleaningNotRelocked.map((c) => ({
+      time: fmt(c.startTime),
+      deadline: fmt(c.deadline),
+      relockedAt: c.relockAt ? fmt(c.relockAt) : null,
+      note: c.note,
+      ...judge("cleaning_not_relocked", cleaningNotRelockedRef(c.entryId)),
     })),
   };
 }

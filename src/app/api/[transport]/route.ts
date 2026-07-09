@@ -432,7 +432,8 @@ function registerTools(server: McpServer) {
         title: "Discipline ledger (unified offense list)",
         description:
           "MCP V2 — vereinheitlichtes Disziplin-Ledger: alle erkannten Vergehen (unauthorized_opening, " +
-          "late_control, rejected_control, cleaning_limit, wrong_device, missed_orgasm) als EINE Liste mit " +
+          "late_control, rejected_control, cleaning_limit, wrong_device, missed_orgasm, late_lock, " +
+          "cleaning_not_relocked) als EINE Liste mit " +
           "status (open|judged), judgment, Folge (consequence) und Kontext + inline Notes. Bei wrong_device " +
           "kommt der Cluster-Kontext des getragenen Geräts mit (possiblyClusterInternal) — Cluster-interne " +
           "Mismatches sind nie ein echtes Vergehen; urteile via judge_offense.",

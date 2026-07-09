@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { mapAnforderungStatus, tzDateParts } from "@/lib/utils";
+import { mapAnforderungStatus, tzDateParts, isPastDeadlineUnfulfilled } from "@/lib/utils";
 import { activeVerschlussAnforderungWhere } from "@/lib/queries";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
@@ -46,6 +46,22 @@ export interface StrafbuchData {
     nachricht: string | null;
     requiredArt: string | null;
   }[];
+  /** Verschluss-Anforderungen (lock requests) whose deadline (`endetAt`) passed without a timely VERSCHLUSS. */
+  lateLocks: {
+    id: string;
+    endetAt: Date;
+    fulfilledAt: Date | null;
+    nachricht: string | null;
+  }[];
+  /** REINIGUNG-Öffnungen during an active, cleaning-permitted Sperrzeit whose re-lock deadline
+   *  (open time + reinigungMaxMinuten) passed without (or with a late) following VERSCHLUSS. */
+  cleaningNotRelocked: {
+    entryId: string;
+    startTime: Date;
+    deadline: Date;
+    relockAt: Date | null;
+    note: string | null;
+  }[];
   /** Judgment records — each marks an offense (by `refId`) as PUNISHED or DISMISSED. */
   strafeRecords: {
     refId: string;
@@ -59,14 +75,54 @@ export interface StrafbuchData {
   }[];
 }
 
+/** True if a Verschluss-Anforderung (lock request) deadline has passed without a timely
+ *  VERSCHLUSS — still open past `endetAt`, or fulfilled after `endetAt`. */
+export function isLateLock(a: { endetAt: Date; fulfilledAt: Date | null }, now: Date): boolean {
+  return isPastDeadlineUnfulfilled(a.endetAt, a.fulfilledAt, now);
+}
+
+/** Re-lock deadline for a REINIGUNG-Öffnung: open time + the user's max minutes per pause. */
+export function reinigungRelockDeadline(openStartTime: Date, maxMinuten: number): Date {
+  return new Date(openStartTime.getTime() + maxMinuten * 60 * 1000);
+}
+
+/** True if a REINIGUNG-Öffnung was not (or too late) followed by a VERSCHLUSS within `deadline`. */
+export function isCleaningNotRelocked(deadline: Date, relockAt: Date | null, now: Date): boolean {
+  return isPastDeadlineUnfulfilled(deadline, relockAt, now);
+}
+
+/** Finds the Sperrzeit active at `openTime` (if any) — shared by unauthorizedOpenings and
+ *  cleaningNotRelocked, which both need to know whether an OEFFNEN fell inside an active lock period. */
+function findActiveSperrzeit<S extends { createdAt: Date; endetAt: Date | null; withdrawnAt: Date | null }>(
+  openTime: Date, sperrzeiten: S[],
+): S | undefined {
+  return sperrzeiten.find((s) =>
+    openTime >= s.createdAt &&
+    (s.endetAt === null || openTime < s.endetAt) &&
+    (s.withdrawnAt === null || s.withdrawnAt > openTime),
+  );
+}
+
+/** True if a REINIGUNG opening inside `sperre` doesn't break the Sperrzeit — both the user flag
+ *  and the Sperrzeit itself must allow cleaning. Shared by unauthorizedOpenings (inverted: an
+ *  opening that ISN'T allowed is unauthorized) and cleaningNotRelocked (only allowed openings can
+ *  incur a missed-re-lock offense). */
+function isAllowedReinigungOpening(
+  o: { oeffnenGrund: string | null }, sperre: { reinigungErlaubt: boolean } | undefined, userReinigungErlaubt: boolean,
+): boolean {
+  return !!sperre && o.oeffnenGrund === "REINIGUNG" && userReinigungErlaubt && sperre.reinigungErlaubt;
+}
+
 /** Computes the Strafbuch for a user: unauthorized openings during Sperrzeiten, late and
- *  rejected Kontrollen, REINIGUNG-limit violations, plus the punished-marker records.
- *  Single source of truth shared by the admin Strafbuch page and the MCP tool. */
+ *  rejected Kontrollen, REINIGUNG-limit violations, late locks, missed cleaning re-locks, plus
+ *  the punished-marker records. Single source of truth shared by the admin Strafbuch page and the MCP tool. */
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
-  const [user, oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true } }),
+  const [user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
+    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...activeVerschlussAnforderungWhere(now) } }),
+    prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...activeVerschlussAnforderungWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: { not: null } },
       include: { entry: true },
@@ -86,6 +142,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     );
   const userReinigungErlaubt = user?.reinigungErlaubt ?? false;
   const reinigungMaxProTag = user?.reinigungMaxProTag ?? 0;
+  const reinigungMaxMinuten = user?.reinigungMaxMinuten ?? 15;
 
   // Wrong-device: StrafeRecord.refId points at the offending VERSCHLUSS entry (für Geräte-Namen laden).
   const wrongDeviceRecords = strafeRecordsRaw.filter((r) => r.offenseType === "FALSCHES_GERAET");
@@ -124,22 +181,16 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     reinigungLimitViolations.reverse(); // neueste zuerst (Anzeige)
   }
 
+  // Each OEFFNEN paired with the Sperrzeit active at its startTime (if any) — computed once,
+  // shared by unauthorizedOpenings and cleaningNotRelocked below.
+  const oeffnungenMitSperre = oeffnungen.map((o) => ({ o, sperre: findActiveSperrzeit(o.startTime, sperrzeiten) }));
+
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
   // permitted when both the user flag and the Sperrzeit allow cleaning.
-  const unauthorizedOpenings = oeffnungen
-    .map((o) => ({
-      o,
-      sperre: sperrzeiten.find((s) =>
-        o.startTime >= s.createdAt &&
-        (s.endetAt === null || o.startTime < s.endetAt) &&
-        (s.withdrawnAt === null || s.withdrawnAt > o.startTime),
-      ),
-    }))
-    .filter(({ o, sperre }) => {
-      if (!sperre) return false;
-      const allowedReinigung = o.oeffnenGrund === "REINIGUNG" && userReinigungErlaubt && sperre.reinigungErlaubt;
-      return !allowedReinigung && !isOrgasmusOpenAllowed(o.startTime);
-    })
+  const unauthorizedOpenings = oeffnungenMitSperre
+    .filter(({ o, sperre }) =>
+      !!sperre && !isAllowedReinigungOpening(o, sperre, userReinigungErlaubt) && !isOrgasmusOpenAllowed(o.startTime),
+    )
     .map(({ o, sperre }) => ({
       id: o.id,
       startTime: o.startTime,
@@ -147,6 +198,23 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       sperrzeitEndetAt: sperre!.endetAt,
       sperrzeitIndefinite: sperre!.endetAt === null,
     }));
+
+  // Late locks — an ANFORDERUNG (lock request) whose deadline passed without a timely VERSCHLUSS.
+  const lateLocks = lockRequests
+    .filter((a): a is typeof a & { endetAt: Date } => a.endetAt !== null)
+    .filter((a) => isLateLock(a, now))
+    .map((a) => ({ id: a.id, endetAt: a.endetAt, fulfilledAt: a.fulfilledAt, nachricht: a.nachricht }));
+
+  // Cleaning not relocked — a REINIGUNG opening during an active, cleaning-permitted Sperrzeit
+  // whose re-lock deadline passed without a timely VERSCHLUSS.
+  const cleaningNotRelocked = oeffnungenMitSperre
+    .filter(({ o, sperre }) => isAllowedReinigungOpening(o, sperre, userReinigungErlaubt))
+    .map(({ o }) => {
+      const deadline = reinigungRelockDeadline(o.startTime, reinigungMaxMinuten);
+      const relockAt = verschluesse.find((v) => v.startTime > o.startTime)?.startTime ?? null;
+      return { entryId: o.id, startTime: o.startTime, deadline, relockAt, note: o.note };
+    })
+    .filter(({ deadline, relockAt }) => isCleaningNotRelocked(deadline, relockAt, now));
 
   const toControl = (k: typeof kontrollAnforderungen[number]): StrafbuchControlOffense => ({
     id: k.id,
@@ -175,6 +243,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endetAt < now)
       .sort((a, b) => b.endetAt.getTime() - a.endetAt.getTime())
       .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
+    lateLocks,
+    cleaningNotRelocked,
     strafeRecords: strafeRecordsRaw.map((r) => ({
       refId: r.refId,
       offenseType: r.offenseType,

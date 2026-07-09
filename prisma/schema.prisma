@@ -385,7 +385,7 @@ model StrafeRecord {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  offenseType   String   // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" | "FALSCHES_GERAET" | "ORGASMUS_ANWEISUNG"
+  offenseType   String   // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "VERSCHLUSS_ANFORDERUNG" | "REINIGUNG_LIMIT" | "FALSCHES_GERAET" | "ORGASMUS_ANWEISUNG" | "REINIGUNG_NICHT_VERSCHLOSSEN"
   refId         String   @unique
   bestraftDatum DateTime // Urteilszeitpunkt (bei PUNISHED = Strafdatum)
   notiz         String?
