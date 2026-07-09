@@ -39,6 +39,16 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
     expect(arg.where.wirksamAb).toBeUndefined();
   });
 
+  it("blockiert nur LAUFENDE: deadline muss noch in der Zukunft liegen (überfällige zählen nicht)", async () => {
+    findFirstMock.mockResolvedValue(null);
+    await hasActiveKontrolle("u1", NOW);
+    const arg = findFirstMock.mock.calls[0][0];
+    // deadline >= now grenzt Status "open" von "overdue" ab. Eine überfällige, nie beantwortete
+    // Kontrolle (deadline < now) würde sonst jede künftige (auch Auto-)Kontrolle dauerhaft
+    // blockieren — genau das verhindert diese Bedingung.
+    expect(arg.where.deadline).toEqual({ gte: NOW });
+  });
+
   it("excludeId schliesst die geprüfte Zeile selbst aus (Poller-Fall: 'irgendeine ANDERE aktive')", async () => {
     findFirstMock.mockResolvedValue(null);
     await hasActiveKontrolle("u1", NOW, { excludeId: "self-id" });

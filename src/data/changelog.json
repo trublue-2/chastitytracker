@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.2",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Überschneidungs-Schutz nachgebessert: Nur eine noch laufende Kontrolle (innerhalb ihrer Frist) blockiert eine neue. Eine überfällige, nie beantwortete Kontrolle blockiert nicht mehr — sie fror sonst alle künftigen (auch automatischen) Kontrollen dauerhaft ein. Überfällige werden weiterhin normal eskaliert und bestraft.",
+          "en": "Overlap protection refined: only an inspection still within its deadline blocks a new one. An overdue, never-answered inspection no longer blocks — it previously froze all future (including automatic) inspections indefinitely. Overdue inspections are still escalated and penalized as before."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.1",
     "date": "2026-07-09",
     "changes": [

@@ -40,6 +40,9 @@ async function processDue(): Promise<void> {
         entryId: null,
       },
       include: { user: { select: { id: true, email: true, username: true, locale: true } } },
+      // Chronologisch: werden mehrere Kontrollen desselben Users im selben Tick fällig, überlebt die
+      // früheste (wird zuerst zugestellt), die späteren verwirft der Überschneidungs-Schutz unten.
+      orderBy: { wirksamAb: "asc" },
       take: 50,
     });
 
