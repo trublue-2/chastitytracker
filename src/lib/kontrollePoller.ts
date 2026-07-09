@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendKontrolleNotification, deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
+import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
@@ -64,6 +65,9 @@ async function processDue(): Promise<void> {
       }
     }
 
+    // Kontroll-Eskalation (Mahnung, dann ggf. automatisch als abgelegt markieren) im selben Tick.
+    await processInspectionEscalation(now);
+
     // Zeitversetzte VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) im selben Tick — kein zweiter Timer.
     await processDueVerschlussAnforderungen(now);
 
@@ -74,6 +78,75 @@ async function processDue(): Promise<void> {
     void maybeRunHealthChecks().catch((e) => console.error("[health]", e));
   } finally {
     running = false;
+  }
+}
+
+/**
+ * Zweistufige Kontroll-Eskalation, beide Stufen opt-in pro User (default aus):
+ * Stufe 1 (Mahnung) stempelt IMMER `benachrichtigtReminderAt`, sobald die konfigurierte
+ * Verzögerung nach der Deadline abgelaufen ist — unabhängig von `inspectionReminderEnabled`
+ * (nur der eigentliche Versand ist gegated, siehe sendInspectionReminder). Das entkoppelt den
+ * Uhr-Anker von der sichtbaren Benachrichtigung, damit Stufe 2 auch ohne aktivierte Stufe 1
+ * funktioniert (getrennte Schalter). Stufe 2 (Auto-Mark) ist zusätzlich per
+ * `inspectionAutoMarkEnabled` gegated und zählt ab `benachrichtigtReminderAt`, nicht ab der
+ * ursprünglichen Deadline. Grobfilter (Deadline/Flags) läuft in SQL, der genaue Minuten-Delay pro
+ * Zeile in JS — dieselbe Zwei-Stufen-Filterung wie beim Auto-Kontrolle-Zeitfenster.
+ */
+async function processInspectionEscalation(now: Date): Promise<void> {
+  const reminderDue = await prisma.kontrollAnforderung.findMany({
+    where: {
+      deadline: { lt: now },
+      benachrichtigtAt: { not: null },
+      benachrichtigtReminderAt: null,
+      withdrawnAt: null,
+      entryId: null,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          inspectionReminderEnabled: true,
+          inspectionReminderDelayMinutes: true,
+          inspectionAutoMarkEnabled: true,
+          inspectionAutoMarkDelayMinutes: true,
+        },
+      },
+    },
+    take: 50,
+  });
+  for (const ka of reminderDue) {
+    const dueAt = ka.deadline.getTime() + ka.user.inspectionReminderDelayMinutes * 60_000;
+    if (dueAt > now.getTime()) continue;
+    try {
+      await sendInspectionReminder({ id: ka.id, code: ka.code, user: ka.user });
+    } catch (e) {
+      console.error(`[kontrollePoller] Kontroll-Mahnung fehlgeschlagen (${ka.id}):`, (e as Error).message);
+    }
+  }
+
+  const autoMarkDue = await prisma.kontrollAnforderung.findMany({
+    where: {
+      benachrichtigtReminderAt: { not: null },
+      autoMarkedRemovedAt: null,
+      withdrawnAt: null,
+      entryId: null,
+      user: { inspectionAutoMarkEnabled: true },
+    },
+    include: { user: { select: { id: true, username: true, inspectionAutoMarkDelayMinutes: true } } },
+    take: 50,
+  });
+  for (const ka of autoMarkDue) {
+    const dueAt = ka.benachrichtigtReminderAt!.getTime() + ka.user.inspectionAutoMarkDelayMinutes * 60_000;
+    if (dueAt > now.getTime()) continue;
+    try {
+      const result = await autoMarkInspectionRemoved({ id: ka.id, userId: ka.userId });
+      if (!result.skipped) {
+        // Notifications are not transactional — send only after the state change committed.
+        await notifyInspectionAutoMarked({ userId: ka.userId, username: ka.user.username, code: ka.code });
+      }
+    } catch (e) {
+      console.error(`[kontrollePoller] Kontroll-Auto-Mark fehlgeschlagen (${ka.id}):`, (e as Error).message);
+    }
   }
 }
 

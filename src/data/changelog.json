@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.0",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Kontroll-Eskalation (optional, standardmässig aus): Bei einer überfälligen Kontrolle kann nach einer wählbaren Frist eine Mahnung gesendet werden. Bleibt auch diese unbeantwortet, kann das System den Sub nach einer weiteren Frist automatisch als abgelegt markieren (Öffnen-Eintrag) — sichtbar und rückgängig machbar wie jeder andere Eintrag, und im Strafbuch als eigenes Vergehen erfasst.",
+          "en": "Inspection escalation (opt-in, off by default): when an inspection is overdue, a reminder can be sent after a configurable delay. If that is also ignored, the system can automatically mark the sub as removed (an opening entry) after a further delay — visible and reversible like any other entry, and logged in the penalty log as its own offense."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.49.4",
     "date": "2026-07-09",
     "changes": [

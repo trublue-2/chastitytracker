@@ -344,7 +344,9 @@
     "reinigungLimitTitle": "Tägliches Reinigungslimit erreicht",
     "reinigungLimitSubtext": "Du hast heute bereits {count} von {max} erlaubten Reinigungsöffnungen genutzt. Eine weitere Öffnung wird im Strafbuch vermerkt.",
     "reinigungLimitStay": "Verstanden – bleibt zu",
-    "reinigungLimitOpenAnyway": "Trotzdem öffnen"
+    "reinigungLimitOpenAnyway": "Trotzdem öffnen",
+    "grundAutoEntfernt": "Automatisch: Kontrolle verpasst",
+    "autoEntferntNote": "Automatisch erzeugt: Kontrolle nicht beantwortet."
   },
   "inspectionForm": {
     "title": "Kontrolle erfassen",
@@ -874,7 +876,17 @@
     "switchShort": "Wechseln",
     "active": "aktiv",
     "sectionLanguage": "Sprache",
-    "sectionLanguageDesc": "Sprache dieses Subs für App, E-Mails und Push-Benachrichtigungen (z. B. Kontroll-Erinnerungen). Du kannst sie hier setzen — der Sub kann sie auch selbst in seinen Einstellungen ändern."
+    "sectionLanguageDesc": "Sprache dieses Subs für App, E-Mails und Push-Benachrichtigungen (z. B. Kontroll-Erinnerungen). Du kannst sie hier setzen — der Sub kann sie auch selbst in seinen Einstellungen ändern.",
+    "sectionInspectionEscalation": "Kontroll-Eskalation",
+    "sectionInspectionEscalationDesc": "Mahnt bei überfälligen Kontrollen und kann das Gerät bei anhaltendem Ausbleiben automatisch als abgelegt markieren.",
+    "inspectionReminderLabel": "Mahnung senden",
+    "inspectionReminderDesc": "Sendet eine zusätzliche Erinnerung, wenn die Kontroll-Deadline verstrichen ist.",
+    "inspectionReminderDelayLabel": "Nach wie vielen Minuten Überfälligkeit",
+    "inspectionAutoMarkLabel": "Danach automatisch als abgelegt markieren",
+    "inspectionAutoMarkDesc": "Reagiert der Sub auch auf die Mahnung nicht, legt das System selbständig einen Öffnen-Eintrag an.",
+    "inspectionAutoMarkDelayLabel": "Minuten nach der Mahnung",
+    "strafbuchAutoEntfernt": "Automatisch entfernt",
+    "strafbuchAutoEntferntAm": "automatisch geöffnet am"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
@@ -1150,6 +1162,12 @@
     "passwordResetLinkText": "Passwort jetzt zurücksetzen",
     "passwordResetValidity": "Der Link ist 1 Stunde gültig.",
     "passwordResetIgnore": "Falls du diese Anfrage nicht gestellt hast, kannst du diese Mail ignorieren.",
-    "dayUnitShort": "T"
+    "dayUnitShort": "T",
+    "inspectionReminderSubject": "Erinnerung: Kontrolle noch ausstehend",
+    "inspectionReminderMessage": "Deine Kontrolle mit Code {code} ist überfällig. Bitte reiche sie zeitnah ein.",
+    "inspectionAutoRemovedSubjectSub": "Kontrolle automatisch als entfernt markiert",
+    "inspectionAutoRemovedMessageSub": "Deine Kontrolle mit Code {code} wurde nicht rechtzeitig beantwortet und wurde automatisch als Öffnen erfasst.",
+    "inspectionAutoRemovedSubjectKeyholder": "{username}: Kontrolle automatisch als entfernt markiert",
+    "inspectionAutoRemovedMessageKeyholder": "{username} hat die Kontrolle mit Code {code} nicht beantwortet. Das System hat automatisch eine Öffnen-Buchung erstellt — bitte im Strafbuch prüfen."
   }
 }

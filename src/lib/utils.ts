@@ -66,6 +66,13 @@ export function clamp(value: number, { min, max, fallback }: { min: number; max:
   return Math.max(min, Math.min(max, Math.round(value) || fallback));
 }
 
+/** Client-side sibling of {@link clamp}: parses a raw `<input type="number">` string value and
+ *  clamps it. Shared by admin number-input toggles (AutoKontrolleToggle, InspectionEscalationToggle)
+ *  so the parse+clamp behavior can't drift between them. */
+export function clampInputValue(v: string, min: number, max: number, fallback: number): number {
+  return Math.max(min, Math.min(max, Number(v) || fallback));
+}
+
 /** Formats the BUILD_DATE env var as "dd.mm.yyyy, HH:mm" in APP_TZ, or "local" if unset. */
 export function formatBuildDate(): string {
   if (!process.env.BUILD_DATE) return "local";

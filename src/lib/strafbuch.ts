@@ -27,6 +27,10 @@ export interface StrafbuchData {
   }[];
   lateControls: StrafbuchControlOffense[];
   rejectedControls: StrafbuchControlOffense[];
+  /** Kontrollen, deren Eskalations-Mahnung ignoriert wurde — System hat automatisch als abgelegt
+   *  markiert (siehe inspectionEscalationService.ts). Nie zusammen mit lateControls/rejectedControls
+   *  für dieselbe Zeile, da autoMarkedRemovedAt niemals mit gesetztem entryId koexistiert. */
+  autoRemovedControls: StrafbuchControlOffense[];
   reinigungLimitViolations: {
     entryId: string;
     startTime: Date | null;
@@ -68,8 +72,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...activeVerschlussAnforderungWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
-      where: { userId, entryId: { not: null } },
-      include: { entry: true },
+      where: { userId, OR: [{ entryId: { not: null } }, { autoMarkedRemovedAt: { not: null } }] },
+      include: { entry: true, autoMarkedEntry: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.strafeRecord.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
@@ -125,8 +129,12 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   }
 
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
-  // permitted when both the user flag and the Sperrzeit allow cleaning.
+  // permitted when both the user flag and the Sperrzeit allow cleaning. System-authored openings
+  // (source="system", the inspection-escalation auto-mark) are EXCLUDED: that's the sub's
+  // presumed removal already counted once as `autoRemovedControls` — it's not a willful action by
+  // the sub, so flagging it a second time here would double-punish a single ambiguous event.
   const unauthorizedOpenings = oeffnungen
+    .filter((o) => o.source !== "system")
     .map((o) => ({
       o,
       sperre: sperrzeiten.find((s) =>
@@ -161,6 +169,19 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     entryNote: k.entry?.note ?? null,
   });
 
+  // Wie toControl, aber liest den erzeugten Eintrag aus autoMarkedEntry statt entry (die
+  // Kontrolle wurde nie erfüllt — das ist ja der Punkt — und `backdated` ist hier bedeutungslos).
+  const toAutoRemovedControl = (k: typeof kontrollAnforderungen[number]): StrafbuchControlOffense => ({
+    id: k.id,
+    code: k.code,
+    deadline: k.deadline,
+    fulfilledAt: null,
+    entryStartTime: k.autoMarkedEntry?.startTime ?? null,
+    backdated: false,
+    kommentar: k.kommentar,
+    entryNote: k.autoMarkedEntry?.note ?? null,
+  });
+
   return {
     unauthorizedOpenings,
     lateControls: kontrollAnforderungen
@@ -169,6 +190,9 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     rejectedControls: kontrollAnforderungen
       .filter((k) => k.entry?.verifikationStatus === "rejected")
       .map(toControl),
+    autoRemovedControls: kontrollAnforderungen
+      .filter((k) => k.autoMarkedRemovedAt !== null)
+      .map(toAutoRemovedControl),
     reinigungLimitViolations,
     wrongDeviceViolations,
     missedOrgasmInstructions: orgasmusAnforderungen

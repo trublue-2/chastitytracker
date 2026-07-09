@@ -344,7 +344,9 @@
     "reinigungLimitTitle": "Daily cleaning limit reached",
     "reinigungLimitSubtext": "You have already used {count} of your {max} allowed cleaning openings today. Another opening will be noted in the punishment log.",
     "reinigungLimitStay": "Understood – stay locked",
-    "reinigungLimitOpenAnyway": "Open anyway"
+    "reinigungLimitOpenAnyway": "Open anyway",
+    "grundAutoEntfernt": "Automatic: missed inspection",
+    "autoEntferntNote": "Automatically created: inspection not answered."
   },
   "inspectionForm": {
     "title": "Log inspection",
@@ -874,7 +876,17 @@
     "switchShort": "Switch",
     "active": "active",
     "sectionLanguage": "Language",
-    "sectionLanguageDesc": "This sub's language for the app, e-mails and push notifications (e.g. inspection reminders). You can set it here — the sub can also change it in their own settings."
+    "sectionLanguageDesc": "This sub's language for the app, e-mails and push notifications (e.g. inspection reminders). You can set it here — the sub can also change it in their own settings.",
+    "sectionInspectionEscalation": "Inspection escalation",
+    "sectionInspectionEscalationDesc": "Sends a reminder for overdue inspections and can automatically mark the device as removed if it keeps going unanswered.",
+    "inspectionReminderLabel": "Send reminder",
+    "inspectionReminderDesc": "Sends an additional reminder once the inspection deadline has passed.",
+    "inspectionReminderDelayLabel": "Minutes overdue before reminder",
+    "inspectionAutoMarkLabel": "Then automatically mark as removed",
+    "inspectionAutoMarkDesc": "If the sub also ignores the reminder, the system automatically creates an opening entry.",
+    "inspectionAutoMarkDelayLabel": "Minutes after the reminder",
+    "strafbuchAutoEntfernt": "Automatically removed",
+    "strafbuchAutoEntferntAm": "automatically opened on"
   },
   "forgotPassword": {
     "title": "Forgot password",
@@ -1150,6 +1162,12 @@
     "passwordResetLinkText": "Reset password now",
     "passwordResetValidity": "The link is valid for 1 hour.",
     "passwordResetIgnore": "If you didn't make this request, you can ignore this e-mail.",
-    "dayUnitShort": "d"
+    "dayUnitShort": "d",
+    "inspectionReminderSubject": "Reminder: inspection still pending",
+    "inspectionReminderMessage": "Your inspection with code {code} is overdue. Please submit it soon.",
+    "inspectionAutoRemovedSubjectSub": "Inspection automatically marked as removed",
+    "inspectionAutoRemovedMessageSub": "Your inspection with code {code} was not answered in time and was automatically recorded as an opening.",
+    "inspectionAutoRemovedSubjectKeyholder": "{username}: inspection automatically marked as removed",
+    "inspectionAutoRemovedMessageKeyholder": "{username} did not answer the inspection with code {code}. The system automatically created an opening entry — please review it in the penalty log."
   }
 }

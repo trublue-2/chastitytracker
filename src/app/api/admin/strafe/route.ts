@@ -21,12 +21,14 @@ export async function POST(req: Request) {
 
   const err = await requireKeyholderOrAdminApi(userId);
   if (err) return err;
-  if (!["KONTROLLANFORDERUNG", "OEFFNEN_ENTRY", "VERSCHLUSS_ANFORDERUNG", "FALSCHES_GERAET", "REINIGUNG_LIMIT", "ORGASMUS_ANWEISUNG"].includes(offenseType)) {
+  if (!["KONTROLLANFORDERUNG", "OEFFNEN_ENTRY", "VERSCHLUSS_ANFORDERUNG", "FALSCHES_GERAET", "REINIGUNG_LIMIT", "ORGASMUS_ANWEISUNG", "AUTO_ENTFERNT"].includes(offenseType)) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
 
   // IDOR check: verify the referenced record belongs to userId
-  if (offenseType === "KONTROLLANFORDERUNG") {
+  // AUTO_ENTFERNT's refId is a KontrollAnforderung.id too (see collectDetectedOffenses), not an
+  // Entry.id — same lookup as KONTROLLANFORDERUNG, else it would wrongly fall into the Entry branch.
+  if (offenseType === "KONTROLLANFORDERUNG" || offenseType === "AUTO_ENTFERNT") {
     const ka = await prisma.kontrollAnforderung.findUnique({ where: { id: refId } });
     if (!ka || ka.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   } else if (offenseType === "VERSCHLUSS_ANFORDERUNG") {

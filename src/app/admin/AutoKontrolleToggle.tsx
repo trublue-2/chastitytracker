@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
+import { clampInputValue } from "@/lib/utils";
 
 const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
 const faintCls = "text-xs text-foreground-faint";
-const clampInput = (v: string, min: number, max: number, fb: number) => Math.max(min, Math.min(max, Number(v) || fb));
+const clampInput = clampInputValue;
 
 /** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit; committet je Feld einzeln (onBlur). */
 function NumberRangeRow({
