@@ -9,6 +9,7 @@ import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmus
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere } from "@/lib/queries";
+import { setBoxCommandForUser } from "@/lib/boxCommand";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 import { checkDeviceInPhoto } from "@/lib/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
@@ -196,6 +197,14 @@ export async function POST(req: NextRequest) {
           });
         }
       }
+
+      // Box-Kopplung (vereinheitlichtes Modell): die Heimdall-Box folgt dem Eintrag — VERSCHLUSS→zu,
+      // OEFFNEN→auf. ABER: ein VERBOTENES Öffnen (das eine erzwungene Sperrzeit gebrochen hat →
+      // withdrawnSperrzeit=true) darf die Box NICHT physisch öffnen — sonst würde das Dokumentieren des
+      // Verstosses den Verstoss vollstrecken. Erlaubte Reinigungs-Öffnung und Öffnen nach Ablauf lassen
+      // withdrawnSperrzeit=false → Box folgt. No-op ohne Heimdall/Box; Instant-Push (MQTT) folgt Stage 1.
+      if (type === "VERSCHLUSS") await setBoxCommandForUser(tx, session.user.id, "lock");
+      else if (type === "OEFFNEN" && !withdrawnSperrzeit) await setBoxCommandForUser(tx, session.user.id, "open");
 
       return created;
     });
