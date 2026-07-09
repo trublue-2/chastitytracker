@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { APP_TZ } from "@/lib/utils";
+// ReinigungSettings wird NUR lokal gebraucht — der Typ gehört utils.ts (wo buildPairs ihn
+// definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
+import { APP_TZ, type ReinigungSettings } from "@/lib/utils";
 import { isoWithOffset } from "@/lib/mcp/format";
 import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";
 
@@ -40,14 +42,18 @@ export async function tzOf(userId: string, client: TxClient = prisma): Promise<s
   return u?.timezone ?? APP_TZ;
 }
 
-export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
 
-/** Parst einen ISO-String zu Date; wirft bei ungültigem Wert (geteilter Guardrail aller V2-Tools).
- *  undefined-Input → undefined (Feld nicht gesetzt). */
+/** Parst einen ISO-String zu Date; wirft bei ungültigem Wert (geteilter Guardrail ALLER MCP-Tools,
+ *  V1 wie V2). undefined-Input → undefined (Feld nicht gesetzt). Die Überladung hält den Rückgabetyp
+ *  bei einem garantiert vorhandenen String auf `Date`, damit Aufrufer kein `!` brauchen. */
+export function parseIsoDate(value: string, field: string): Date;
+export function parseIsoDate(value: string | undefined, field: string): Date | undefined;
 export function parseIsoDate(value: string | undefined, field: string): Date | undefined {
   if (value == null) return undefined;
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ISO date for ${field}: "${value}"`);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Invalid ISO date for ${field}: "${value}". Use ISO 8601, e.g. 2026-06-12.`);
+  }
   return d;
 }
 

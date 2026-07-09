@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.5",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Fehlermeldungen in der Benutzerverwaltung (Benutzer löschen, Rolle ändern, Vorgabe löschen) sehen jetzt aus wie überall sonst in der App — mit Warnsymbol und für Screenreader als Fehler ausgezeichnet.",
+          "en": "Error messages in user management (delete user, change role, delete goal) now look like everywhere else in the app — with a warning icon and announced as errors to screen readers."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Aufräumarbeiten: doppelter Datums-Parser und doppelte Typdeklaration entfernt, gemeinsame Fehlerkonstante für die Einstellungs-Services.",
+          "en": "Internal cleanup: removed a duplicate date parser and a duplicate type declaration, shared error constant for the settings services."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.4",
     "date": "2026-07-10",
     "changes": [

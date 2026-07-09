@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import FormError from "@/app/components/FormError";
 
 export default function DeleteVorgabeButton({ id }: { id: string }) {
   const router = useRouter();
@@ -32,11 +33,7 @@ export default function DeleteVorgabeButton({ id }: { id: string }) {
         className="text-xs font-medium text-warn-text bg-warn-bg border border-warn-border hover:opacity-80 rounded-lg px-2 py-1 transition disabled:opacity-50">
         {saving ? "…" : t("vorgabeDelete")}
       </button>
-      {error && (
-        <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </>
   );
 }

@@ -144,6 +144,11 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
   ORGASMUS: "#8b5cf6",
 };
 
+/** Fehlertext der Settings-Services, wenn ein Patch kein einziges Feld setzt. Geteilt von
+ *  setReinigungSettings / setAutoKontrolleSettings / setInspectionEscalationSettings, damit die
+ *  drei Geschwister nicht auseinanderlaufen. */
+export const NO_FIELDS_TO_UPDATE = "Keine Felder zum Aktualisieren";
+
 /** Call-to-Action-Button-Farben für HTML-Mails (in E-Mail keine CSS-Variablen → Hex).
  *  Bewusst getrennt von TYPE_EMAIL_COLORS: das ist der Akzent je Eintrags-TYP, nicht die
  *  Button-Farbe eines Benachrichtigungs-Mails (eine Orgasmus-ANWEISUNG ist kein Orgasmus-Eintrag). */

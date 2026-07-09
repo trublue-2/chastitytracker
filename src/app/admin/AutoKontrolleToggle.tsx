@@ -8,7 +8,6 @@ import { clampInputValue } from "@/lib/utils";
 
 const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
 const faintCls = "text-xs text-foreground-faint";
-const clampInput = clampInputValue;
 
 /** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit; committet je Feld einzeln (onBlur). */
 function NumberRangeRow({
@@ -22,11 +21,11 @@ function NumberRangeRow({
     <div className="flex items-center gap-2 pl-1">
       <span className={faintCls}>{label}</span>
       <input type="number" min={min} max={max} value={from}
-        onChange={(e) => setFrom(clampInput(e.target.value, min, max, fromFallback))}
+        onChange={(e) => setFrom(clampInputValue(e.target.value, min, max, fromFallback))}
         onBlur={commitFrom} disabled={disabled} className={inputCls} />
       <span className={faintCls}>–</span>
       <input type="number" min={min} max={max} value={to}
-        onChange={(e) => setTo(clampInput(e.target.value, min, max, toFallback))}
+        onChange={(e) => setTo(clampInputValue(e.target.value, min, max, toFallback))}
         onBlur={commitTo} disabled={disabled} className={inputCls} />
       <span className={faintCls}>{unit}</span>
     </div>

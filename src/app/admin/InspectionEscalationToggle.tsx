@@ -8,7 +8,6 @@ import { clampInputValue } from "@/lib/utils";
 
 const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
 const faintCls = "text-xs text-foreground-faint";
-const clampInput = clampInputValue;
 const DELAY_MIN = 5;
 const DELAY_MAX = 1440;
 
@@ -21,7 +20,7 @@ function MinutesInput({ label, value, fallback, setValue, commit, disabled }: {
     <div className="flex items-center gap-2 pl-1">
       <span className={faintCls}>{label}</span>
       <input type="number" min={DELAY_MIN} max={DELAY_MAX} value={value}
-        onChange={(e) => setValue(clampInput(e.target.value, DELAY_MIN, DELAY_MAX, fallback))}
+        onChange={(e) => setValue(clampInputValue(e.target.value, DELAY_MIN, DELAY_MAX, fallback))}
         onBlur={commit} disabled={disabled} className={inputCls} />
       <span className={faintCls}>min</span>
     </div>

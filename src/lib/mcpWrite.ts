@@ -6,6 +6,7 @@ import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense } from "@/lib/strafurteilService";
+import { parseIsoDate } from "@/lib/mcp/common";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 /**
@@ -182,10 +183,10 @@ export interface RequestOrgasmArgs {
 }
 export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs) {
   const userId = await resolveTargetUserId(username);
-  const beginnt = args.beginsAt ? parseGoalDate(args.beginsAt, "beginsAt") : new Date();
+  const beginnt = args.beginsAt ? parseIsoDate(args.beginsAt, "beginsAt") : new Date();
   let endet: Date;
   if (args.endsAt) {
-    endet = parseGoalDate(args.endsAt, "endsAt");
+    endet = parseIsoDate(args.endsAt, "endsAt");
   } else if (args.windowHours && args.windowHours > 0) {
     endet = new Date(beginnt.getTime() + args.windowHours * 60 * 60 * 1000);
   } else {
@@ -219,22 +220,14 @@ export interface SetTrainingGoalArgs {
   note?: string;
 }
 
-/** Parses an ISO date arg, throwing a clean tool error on garbage. */
-function parseGoalDate(value: string, field: string): Date {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    throw new Error(`Invalid ${field} date: "${value}". Use ISO 8601, e.g. 2026-06-12.`);
-  }
-  return d;
-}
 
 export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
   const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
 
   // Default to now; validFrom may be a future date to schedule a goal in advance.
-  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : new Date();
-  const gueltigBis = args.validUntil ? parseGoalDate(args.validUntil, "validUntil") : null;
+  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : new Date();
+  const gueltigBis = args.validUntil ? parseIsoDate(args.validUntil, "validUntil") : null;
   if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
     throw new Error("validUntil must be after validFrom.");
   }
@@ -333,12 +326,12 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
 
   // Category: only change when provided (omit = keep existing).
   const categoryId = args.category !== undefined ? await resolveCategoryId(userId, args.category) : undefined;
-  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : existing.gueltigAb;
+  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : existing.gueltigAb;
   // validUntil gesetzt → neues, bewusst gesetztes Ende (manuell). Weggelassen/leer → Bestand
   // behalten, inkl. des bestehenden manuell-Flags (abgeleitetes Ende bleibt abgeleitet).
   // Truthy-Check bewusst: "" bedeutet „nicht angegeben" (nicht „parse Invalid Date").
   const validUntilProvided = !!args.validUntil;
-  const gueltigBis = validUntilProvided ? parseGoalDate(args.validUntil!, "validUntil") : existing.gueltigBis;
+  const gueltigBis = validUntilProvided ? parseIsoDate(args.validUntil!, "validUntil") : existing.gueltigBis;
   const validUntilManual = validUntilProvided ? true : existing.validUntilManual;
   // Datums-Guard nur prüfen, wenn dieser Edit ein Datum wirklich anfasst — sonst würde ein reiner
   // Notiz-/Stunden-Edit auf Bestandsdaten (z.B. verkettetes Ende == Start bei gleichem gueltigAb)
@@ -421,7 +414,7 @@ export interface EditLockPeriodArgs {
 export async function mcpEditLockPeriod(username: string, args: EditLockPeriodArgs) {
   const userId = await resolveTargetUserId(username);
   if (!args.indefinite && !args.untilAt) throw new Error("Provide untilAt (ISO date) or indefinite=true.");
-  const endetAt = args.indefinite ? null : parseGoalDate(args.untilAt!, "untilAt");
+  const endetAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
 
   const now = new Date();
   const sz = await prisma.verschlussAnforderung.findFirst({

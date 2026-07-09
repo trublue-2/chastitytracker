@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import FormError from "@/app/components/FormError";
 
 export default function RoleSelect({ id, currentRole }: { id: string; currentRole: string }) {
   const t = useTranslations("admin");
@@ -44,11 +45,7 @@ export default function RoleSelect({ id, currentRole }: { id: string; currentRol
         <option value="user">{t("roleUser")}</option>
         <option value="admin">{t("roleAdmin")}</option>
       </select>
-      {error && (
-        <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </>
   );
 }

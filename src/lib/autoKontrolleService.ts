@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
+import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
 
 /**
@@ -216,7 +217,12 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   if (data.autoKontrollePerDayMax !== undefined) data.autoKontrollePerDayMax = raiseMaxToMin(data.autoKontrollePerDayMin, data.autoKontrollePerDayMax);
   if (data.autoKontrolleFristBis !== undefined) data.autoKontrolleFristBis = raiseMaxToMin(data.autoKontrolleFristVon, data.autoKontrolleFristBis);
 
-  if (Object.keys(data).length === 0) return { ok: false, status: 400, error: "Keine Felder zum Aktualisieren" };
+  // Leeres `data` heisst hier ZWEIERLEI: gar kein Feld übergeben — oder nur ungültige HH:MM-Werte,
+  // die oben still verworfen wurden. Deshalb 400 statt `{ok:true}`.
+  // ACHTUNG: aktuell folgenlos — PATCH /api/admin/users/[id] verwirft das ServiceResult und
+  // antwortet immer `{ok:true}`. Eine kaputte Uhrzeit meldet dem Client also heute Erfolg.
+  // Das ist ein echter, hier NICHT behobener Bug (Route müsste .ok auswerten + HH:MM explizit prüfen).
+  if (Object.keys(data).length === 0) return { ok: false, status: 400, error: NO_FIELDS_TO_UPDATE };
   const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_USER_SELECT });
 
   // Änderung sofort auf den laufenden Tag anwenden (mit den neuen, effektiven Settings neu planen).
