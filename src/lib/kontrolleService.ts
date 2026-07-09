@@ -86,6 +86,31 @@ export function generateKontrollCode(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
 }
 
+/** True, wenn der User bereits eine AKTIVE Kontrolle hat — angelegt, nicht erfüllt, nicht
+ *  zurückgezogen, und bereits sichtbar (sofort, oder wirksamAb bereits erreicht). Eine noch in
+ *  der Zukunft geplante Kontrolle zählt NICHT — es gibt (noch) nichts, womit sie überschneiden
+ *  könnte, solange sie unsichtbar ist. Gemeinsamer Guard für requestKontrolle (Anlegen) UND den
+ *  Poller (Ausliefern), damit Keyholder, KI und Auto-Kontrollen sich nie überschneiden.
+ *  `excludeId` lässt den Poller "irgendeine ANDERE aktive" prüfen, wenn die zu prüfende Zeile
+ *  selbst bereits auf die Kriterien passt. Kompatibel mit der Eskalations-Auto-Markierung: die
+ *  setzt withdrawnAt, fällt also korrekt aus diesem Guard heraus, ohne Sonderfall-Code. */
+export async function hasActiveKontrolle(
+  userId: string,
+  now: Date,
+  opts?: { excludeId?: string; tx?: PrismaTx },
+): Promise<boolean> {
+  const client = opts?.tx ?? prisma;
+  const existing = await client.kontrollAnforderung.findFirst({
+    where: {
+      userId, entryId: null, withdrawnAt: null,
+      OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }],
+      ...(opts?.excludeId ? { id: { not: opts.excludeId } } : {}),
+    },
+    select: { id: true },
+  });
+  return existing !== null;
+}
+
 export interface RequestKontrolleParams {
   userId: string;
   kommentar?: string | null;
@@ -134,11 +159,13 @@ export async function requestKontrolle(
         throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
       }
 
-      // Nur andere MANUELLE offene Kontrollen zurückziehen — geplante Auto-Kontrollen bleiben.
-      await tx.kontrollAnforderung.updateMany({
-        where: { userId, entryId: null, withdrawnAt: null, auto: false },
-        data: { withdrawnAt: now },
-      });
+      // Überschneidungs-Schutz: ablehnen statt eine bereits aktive Kontrolle stillschweigend zu
+      // ersetzen — egal ob die aktive von Keyholder, KI oder Auto-Kontrolle stammt. Läuft in
+      // DERSELBEN Transaktion wie das Anlegen unten, schliesst damit die Race zwischen zwei
+      // nahezu gleichzeitigen Anfragen (Keyholder + KI im selben Moment).
+      if (await hasActiveKontrolle(userId, now, { tx })) {
+        throw Object.assign(new Error(), { _code: "ALREADY_ACTIVE" });
+      }
 
       // Immer frischer Zufallscode (Frische-Beweis) — die Siegel-Nummer wird bei der
       // Verifikation ZUSÄTZLICH geprüft, nicht mehr als Kontroll-Code wiederverwendet.
@@ -163,6 +190,9 @@ export async function requestKontrolle(
   } catch (e: unknown) {
     if ((e as { _code?: string })?._code === "NOT_LOCKED") {
       return { ok: false, status: 400, error: "User ist nicht verschlossen" };
+    }
+    if ((e as { _code?: string })?._code === "ALREADY_ACTIVE") {
+      return { ok: false, status: 409, error: "Es ist bereits eine Kontrolle aktiv – zuerst abschliessen oder zurückziehen." };
     }
     throw e;
   }

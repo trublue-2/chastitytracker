@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.1",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Kontrollen können sich nicht mehr überschneiden: Fordert der Keyholder, die KI oder eine automatische Kontrolle eine neue Kontrolle an, während bereits eine aktiv ist, wird sie abgelehnt bzw. verworfen statt eine zweite parallel zuzustellen. Eine neue manuelle Anfrage ersetzt eine offene nicht mehr stillschweigend — sie muss zuerst zurückgezogen werden.",
+          "en": "Inspections can no longer overlap: if the keyholder, the AI, or an automatic inspection tries to request a new one while another is already active, it is now rejected or discarded instead of being delivered on top of it. A new manual request no longer silently replaces an open one — it must be withdrawn first."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.0",
     "date": "2026-07-09",
     "changes": [

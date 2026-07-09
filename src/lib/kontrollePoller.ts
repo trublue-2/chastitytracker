@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendKontrolleNotification, deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
+import { sendKontrolleNotification, deriveSealCode, getLatestKgEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
@@ -49,6 +49,13 @@ async function processDue(): Promise<void> {
         const latest = await getLatestKgEntry(ka.userId);
         // Auto-Kontrolle bei offenem KG ist sinnlos → bei Fälligkeit zurückziehen statt senden.
         if (ka.auto && latest?.type !== "VERSCHLUSS") {
+          await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: new Date() } });
+          continue;
+        }
+        // Überschneidungs-Schutz: eine andere Kontrolle ist schon aktiv (Keyholder, KI, oder eine
+        // andere Auto-Kontrolle) → diese hier verwerfen statt ausliefern (User-Entscheidung: kein
+        // Nachholen, gilt für ALLE Quellen, nicht nur Auto).
+        if (await hasActiveKontrolle(ka.userId, now, { excludeId: ka.id })) {
           await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: new Date() } });
           continue;
         }
