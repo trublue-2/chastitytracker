@@ -28,7 +28,9 @@ export async function POST(req: Request) {
   }
 
   // IDOR check: verify the referenced record belongs to userId
-  if (offenseType === "KONTROLLANFORDERUNG") {
+  // AUTO_ENTFERNT's refId is a KontrollAnforderung.id too (see collectDetectedOffenses), not an
+  // Entry.id — same lookup as KONTROLLANFORDERUNG, else it would wrongly fall into the Entry branch.
+  if (offenseType === "KONTROLLANFORDERUNG" || offenseType === "AUTO_ENTFERNT") {
     const ka = await prisma.kontrollAnforderung.findUnique({ where: { id: refId } });
     if (!ka || ka.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   } else if (offenseType === "VERSCHLUSS_ANFORDERUNG") {

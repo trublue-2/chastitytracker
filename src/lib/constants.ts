@@ -105,8 +105,15 @@ export type OrgasmusAnforderungArt = typeof ORGASMUS_ANFORDERUNG_ARTEN[number];
 export function orgasmusAnforderungArtLabel(art: OrgasmusAnforderungArt, t: (key: string) => string): string {
   return art === "ANWEISUNG" ? t("orgasmReqModeAnweisung") : t("orgasmReqModeGelegenheit");
 }
-export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES"] as const;
+// AUTO_ENTFERNT: system-only reason for the auto-created OEFFNEN entry when a Kontrolle's
+// escalation reminder is ignored (see inspectionEscalationService.ts). Protected like REINIGUNG
+// (reservedCodes() covers all of OEFFNEN_GRUENDE), but unlike REINIGUNG it must never be
+// user-selectable — see SYSTEM_ONLY_OPENING_CODES below, filtered out of the sub's own dropdown.
+export const AUTO_ENTFERNT_REASON = "AUTO_ENTFERNT";
+export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES", AUTO_ENTFERNT_REASON] as const;
 export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
+/** Reserved AND hidden from the user-facing opening-reason picker — system-only codes. */
+export const SYSTEM_ONLY_OPENING_CODES: readonly string[] = [AUTO_ENTFERNT_REASON];
 
 /** Maps OEFFNEN_GRUENDE values to openForm i18n keys */
 export const GRUND_I18N_KEYS: Record<typeof OEFFNEN_GRUENDE[number], string> = {
@@ -114,6 +121,7 @@ export const GRUND_I18N_KEYS: Record<typeof OEFFNEN_GRUENDE[number], string> = {
   KEYHOLDER: "grundKeyholder",
   NOTFALL: "grundNotfall",
   ANDERES: "grundAnderes",
+  AUTO_ENTFERNT: "grundAutoEntfernt",
 };
 
 // ── Entry display constants (shared by dashboard + admin entry lists) ─────────
@@ -253,6 +261,13 @@ export function validateEntryPayload(
     return { error: "Device-Kategorien sind nicht aktiviert", status: 400 };
   }
   if (type === "OEFFNEN") {
+    // System-only reason codes (e.g. AUTO_ENTFERNT) are reserved/protected like REINIGUNG, but
+    // must NEVER be user-submittable — otherwise a sub could pick the "auto-marked" label
+    // themselves via a hand-crafted request, even though `source` (system vs. user) is never
+    // client-controlled. Block unconditionally, before the openingCodes/OEFFNEN_GRUENDE check.
+    if (oeffnenGrund && SYSTEM_ONLY_OPENING_CODES.includes(oeffnenGrund)) {
+      return { error: "Grund der Öffnung ist erforderlich", status: 400 };
+    }
     const openingOk = reasonCtx?.openingCodes
       ? !!oeffnenGrund && reasonCtx.openingCodes.has(oeffnenGrund)
       : !!oeffnenGrund && OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number]);

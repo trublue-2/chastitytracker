@@ -4,6 +4,7 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
+import InspectionEscalationToggle from "@/app/admin/InspectionEscalationToggle";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
@@ -147,6 +148,17 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialRuheBis={user.autoKontrolleRuheBis}
           initialFristVon={user.autoKontrolleFristVon}
           initialFristBis={user.autoKontrolleFristBis}
+        />
+      </SettingsSection>
+
+      {/* Kontroll-Eskalation: Mahnung (Stufe 1) + optional automatisch als abgelegt markieren (Stufe 2) */}
+      <SettingsSection title={t("sectionInspectionEscalation")} description={t("sectionInspectionEscalationDesc")} bodyPadded>
+        <InspectionEscalationToggle
+          userId={user.id}
+          initialReminderEnabled={user.inspectionReminderEnabled}
+          initialReminderDelayMinutes={user.inspectionReminderDelayMinutes}
+          initialAutoMarkEnabled={user.inspectionAutoMarkEnabled}
+          initialAutoMarkDelayMinutes={user.inspectionAutoMarkDelayMinutes}
         />
       </SettingsSection>
 

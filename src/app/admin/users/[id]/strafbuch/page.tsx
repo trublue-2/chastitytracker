@@ -52,6 +52,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   });
   const zuSpaet: KontrollRow[] = sb.lateControls.map((k) => toKontrollRow(k, k.backdated));
   const abgelehnt: KontrollRow[] = sb.rejectedControls.map((k) => toKontrollRow(k, false));
+  const autoEntfernt: KontrollRow[] = sb.autoRemovedControls.map((k) => toKontrollRow(k, false));
 
   const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
@@ -76,6 +77,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchUnerlaubteOeffnungen: t("strafbuchUnerlaubteOeffnungen"),
     strafbuchZuSpaet: t("strafbuchZuSpaet"),
     strafbuchAbgelehnt: t("strafbuchAbgelehnt"),
+    strafbuchAutoEntfernt: t("strafbuchAutoEntfernt"),
+    strafbuchAutoEntferntAm: t("strafbuchAutoEntferntAm"),
     strafbuchEmpty: t("strafbuchEmpty"),
     strafbuchNoEntries: t("strafbuchNoEntries"),
     strafbuchWurdeBestraft: t("strafbuchWurdeBestraft"),
@@ -116,6 +119,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       unerlaubteOeffnungen={unerlaubteOeffnungen}
       zuSpaet={zuSpaet}
       abgelehnt={abgelehnt}
+      autoEntfernt={autoEntfernt}
       reinigungLimitVergehen={reinigungLimitVergehen}
       strafeRecords={strafeRecords}
       labels={labels}

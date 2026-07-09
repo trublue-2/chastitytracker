@@ -50,6 +50,8 @@ interface Labels {
   strafbuchUnerlaubteOeffnungen: string;
   strafbuchZuSpaet: string;
   strafbuchAbgelehnt: string;
+  strafbuchAutoEntfernt: string;
+  strafbuchAutoEntferntAm: string;
   strafbuchNoEntries: string;
   strafbuchWurdeBestraft: string;
   strafbuchAbbrechen: string;
@@ -88,6 +90,7 @@ interface Props {
   unerlaubteOeffnungen: UnerlaubteOeffnungRow[];
   zuSpaet: KontrollRow[];
   abgelehnt: KontrollRow[];
+  autoEntfernt: KontrollRow[];
   reinigungLimitVergehen: ReinigungLimitRow[];
   strafeRecords: StrafeRecordData[];
   labels: Labels;
@@ -95,7 +98,7 @@ interface Props {
 
 const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, reinigungLimitVergehen, strafeRecords, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
@@ -110,12 +113,13 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const openOeffnungen = unerlaubteOeffnungen.filter(o => !closedIds.has(o.id));
   const openZuSpaet = zuSpaet.filter(k => !closedIds.has(k.id));
   const openAbgelehnt = abgelehnt.filter(k => !closedIds.has(k.id));
+  const openAutoEntfernt = autoEntfernt.filter(k => !closedIds.has(k.id));
 
-  const hasAnyOpen = openOeffnungen.length > 0 || openZuSpaet.length > 0 || openAbgelehnt.length > 0;
-  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0 || reinigungLimitVergehen.length > 0;
+  const hasAnyOpen = openOeffnungen.length > 0 || openZuSpaet.length > 0 || openAbgelehnt.length > 0 || openAutoEntfernt.length > 0;
+  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0 || autoEntfernt.length > 0 || reinigungLimitVergehen.length > 0;
   const hasPunished = strafeRecords.filter(r => r.refId && !reinigungLimitVergehen.some(rl => rl.entryId === r.refId)).length > 0;
 
-  type OffenseType = "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT";
+  type OffenseType = "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" | "AUTO_ENTFERNT";
 
   function Section({ title, openCount, totalCount, children }: {
     title: string; openCount: number; totalCount: number; children: React.ReactNode;
@@ -309,7 +313,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  function WurdeBestraftButton({ refId, offenseType }: { refId: string; offenseType: "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" }) {
+  function WurdeBestraftButton({ refId, offenseType }: { refId: string; offenseType: OffenseType }) {
     const isOpen = openFormId === refId;
     return (
       <div className="mt-2">
@@ -328,6 +332,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const oeffnungDisplay = showAll ? unerlaubteOeffnungen : openOeffnungen;
   const zuSpaetDisplay  = showAll ? zuSpaet : openZuSpaet;
   const abgelehntDisplay = showAll ? abgelehnt : openAbgelehnt;
+  const autoEntferntDisplay = showAll ? autoEntfernt : openAutoEntfernt;
   // Reinigung-Limit offenses are auto-logged — always shown (no open/closed split)
   const reinigungDisplay = reinigungLimitVergehen;
 
@@ -420,6 +425,30 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
                 {k.entryNote && <span className="text-xs text-foreground-faint italic">{labels.strafbuchAblehnungsgrund}: „{k.entryNote}"</span>}
                 {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
                 <JudgmentSlot refId={k.id} offenseType="KONTROLLANFORDERUNG" />
+              </div>
+            );
+          })}
+        </Section>
+      )}
+
+      {autoEntferntDisplay.length > 0 && (
+        <Section title={labels.strafbuchAutoEntfernt}
+          openCount={openAutoEntfernt.length}
+          totalCount={autoEntfernt.length}>
+          {autoEntferntDisplay.map((k) => {
+            const judged = closedIds.has(k.id);
+            return (
+              <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
+                <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
+                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix} {k.code}</span>
+                  {" — "}
+                  <span className="text-warn font-normal">
+                    {labels.strafbuchAutoEntferntAm} {k.entryStartTimeStr ?? k.deadlineStr}
+                  </span>
+                </p>
+                <p className="text-xs text-foreground-faint">{labels.frist}: {k.deadlineStr}</p>
+                {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
+                <JudgmentSlot refId={k.id} offenseType="AUTO_ENTFERNT" />
               </div>
             );
           })}

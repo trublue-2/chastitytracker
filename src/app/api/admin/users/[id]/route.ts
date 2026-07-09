@@ -8,6 +8,7 @@ import { getActiveSperrzeit } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
+import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 
@@ -105,6 +106,17 @@ export async function PATCH(
       aktiv: body.autoKontrolleAktiv, perDayMin: body.autoKontrollePerDayMin, perDayMax: body.autoKontrollePerDayMax,
       ruheVon: body.autoKontrolleRuheVon, ruheBis: body.autoKontrolleRuheBis,
       fristVon: body.autoKontrolleFristVon, fristBis: body.autoKontrolleFristBis,
+    });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (
+    body.inspectionReminderEnabled !== undefined || body.inspectionReminderDelayMinutes !== undefined ||
+    body.inspectionAutoMarkEnabled !== undefined || body.inspectionAutoMarkDelayMinutes !== undefined
+  ) {
+    await setInspectionEscalationSettings(id, {
+      reminderEnabled: body.inspectionReminderEnabled, reminderDelayMinutes: body.inspectionReminderDelayMinutes,
+      autoMarkEnabled: body.inspectionAutoMarkEnabled, autoMarkDelayMinutes: body.inspectionAutoMarkDelayMinutes,
     });
     return NextResponse.json({ ok: true });
   }

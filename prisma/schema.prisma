@@ -9,71 +9,79 @@ datasource db {
 }
 
 model User {
-  id                    String                 @id @default(cuid())
-  username              String                 @unique
-  passwordHash          String
-  role                  String                 @default("user")
-  email                 String?                @unique
-  createdAt             DateTime               @default(now())
-  reinigungErlaubt      Boolean                @default(false)
-  reinigungMaxMinuten   Int                    @default(15)
-  reinigungMaxProTag    Int                    @default(0)
+  id                             String                   @id @default(cuid())
+  username                       String                   @unique
+  passwordHash                   String
+  role                           String                   @default("user")
+  email                          String?                  @unique
+  createdAt                      DateTime                 @default(now())
+  reinigungErlaubt               Boolean                  @default(false)
+  reinigungMaxMinuten            Int                      @default(15)
+  reinigungMaxProTag             Int                      @default(0)
   // Tägliche Öffnungs-Fenster für Reinigung als JSON-String, z.B. [{"start":"19:00","end":"20:00"}]
   // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseReinigungsFenster deserialisiert.
-  reinigungsFenster     String?
+  reinigungsFenster              String?
   // Automatische Kontrollen: pro Tag zufällig X Kontrollen, wobei X selbst zufällig aus
   // [PerDayMin, PerDayMax] gewürfelt wird. Frist darf nicht ins Schlaf-Fenster (RuheVon–RuheBis,
   // CH-Lokalzeit) fallen; Erfüllungsdauer zufällig in [FristVon, FristBis] Min.
-  autoKontrolleAktiv     Boolean               @default(false)
-  autoKontrollePerDayMin Int                   @default(0)  // Min-Anzahl/Tag
-  autoKontrollePerDayMax Int                   @default(0)  // Max-Anzahl/Tag (< Min → als Min behandelt)
-  autoKontrolleRuheVon  String                 @default("22:00")
-  autoKontrolleRuheBis  String                 @default("06:00")
-  autoKontrolleFristVon Int                    @default(15)
-  autoKontrolleFristBis Int                    @default(60)
-  mobileDesktopUpload   Boolean                @default(false)
+  autoKontrolleAktiv             Boolean                  @default(false)
+  autoKontrollePerDayMin         Int                      @default(0) // Min-Anzahl/Tag
+  autoKontrollePerDayMax         Int                      @default(0) // Max-Anzahl/Tag (< Min → als Min behandelt)
+  autoKontrolleRuheVon           String                   @default("22:00")
+  autoKontrolleRuheBis           String                   @default("06:00")
+  autoKontrolleFristVon          Int                      @default(15)
+  autoKontrolleFristBis          Int                      @default(60)
+  // Kontroll-Eskalation (Stufe 1: Mahnung, Stufe 2: automatisch als abgelegt markieren). Beide
+  // Stufen sind unabhängig voneinander schaltbar und standardmässig AUS (Opt-in, kein
+  // Verhaltenswechsel für Bestandsnutzer). Delay-Werte in Minuten; Stufe 2 zählt ab dem Zeitpunkt
+  // der Mahnung (KontrollAnforderung.benachrichtigtReminderAt), nicht ab der Deadline.
+  inspectionReminderEnabled      Boolean                  @default(false)
+  inspectionReminderDelayMinutes Int                      @default(5)
+  inspectionAutoMarkEnabled      Boolean                  @default(false)
+  inspectionAutoMarkDelayMinutes Int                      @default(60)
+  mobileDesktopUpload            Boolean                  @default(false)
   // IANA-Zeitzone des Nutzers (z.B. "America/New_York"). Governiert Anzeige, Eingabe-Defaults und
   // die Wanduhr-Fenster (Reinigung/Schlaf) für DIESEN Nutzer. Default "Europe/Zurich" = bisheriges
   // Verhalten für alle Bestandsnutzer (keine sichtbare Änderung).
-  timezone              String                 @default("Europe/Zurich")
+  timezone                       String                   @default("Europe/Zurich")
   // Startseite nach Login (pro User): "auto" = rollen-/sub-abhängig (Keyholder→Übersicht bzw. einziger
   // Sub direkt, sonst eigener Tracker), "overview" = Keyholder-Übersicht, "dashboard" = eigener Tracker.
-  startPage             String                 @default("auto")
+  startPage                      String                   @default("auto")
   // Keyholder/Admin-Präferenz: eigene Karte in der Keyholder-Übersicht ausblenden (für Keyholder,
   // die keinen eigenen Tracker nutzen). Nur relevant, wenn die eigene Karte dort überhaupt erscheint.
-  hideOwnTracker        Boolean                @default(false)
+  hideOwnTracker                 Boolean                  @default(false)
   // Per-user UI + notification language ("de" | "en"). Drives the app locale AND the language of
   // all e-mails / push sent to this user (rendered server-side from this field, not the browser cookie).
-  locale                String                 @default("de")
+  locale                         String                   @default("de")
   // Pro-User anpassbare Auswahllisten als JSON-Array [{code,label?}] (TEXT). null = eingebaute
   // Standardliste (Bestandsnutzer unverändert). Öffnungsgründe enthalten IMMER den geschützten
   // Built-in "REINIGUNG" (Code fix, nur Label umbenennbar). Siehe reasonsService.ts.
-  orgasmusArtenConfig   String?
-  oeffnenGruendeConfig  String?
+  orgasmusArtenConfig            String?
+  oeffnenGruendeConfig           String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
-  mcpKeyholderInstructions String?
-  entries               Entry[]
-  notificationPrefs     NotificationPreference[]
-  vorgaben              TrainingVorgabe[]
-  passwordResetTokens   PasswordResetToken[]
-  kontrollAnforderungen   KontrollAnforderung[]
-  verschlussAnforderungen VerschlussAnforderung[]
-  orgasmusAnforderungen   OrgasmusAnforderung[]
-  devices                 Device[]
-  strafeRecords           StrafeRecord[]
-  adminRelationships      AdminUserRelationship[] @relation("AdminRelationships")
-  userRelationships       AdminUserRelationship[] @relation("UserRelationships")
-  pushSubscriptions       PushSubscription[]
-  nativePushTokens        NativePushToken[]
-  passkeys                Passkey[]
-  deviceCategories        DeviceCategory[]
-  boxEvents               BoxEvent[]
-  boxStatuses             BoxStatus[]
-  keyholderNotes          KeyholderNote[]
-  keyholderActionLogs     KeyholderActionLog[]
-  healthHolds             HealthHold[]
-  recurringContexts       RecurringContext[]
-  appointments            Appointment[]
+  mcpKeyholderInstructions       String?
+  entries                        Entry[]
+  notificationPrefs              NotificationPreference[]
+  vorgaben                       TrainingVorgabe[]
+  passwordResetTokens            PasswordResetToken[]
+  kontrollAnforderungen          KontrollAnforderung[]
+  verschlussAnforderungen        VerschlussAnforderung[]
+  orgasmusAnforderungen          OrgasmusAnforderung[]
+  devices                        Device[]
+  strafeRecords                  StrafeRecord[]
+  adminRelationships             AdminUserRelationship[]  @relation("AdminRelationships")
+  userRelationships              AdminUserRelationship[]  @relation("UserRelationships")
+  pushSubscriptions              PushSubscription[]
+  nativePushTokens               NativePushToken[]
+  passkeys                       Passkey[]
+  deviceCategories               DeviceCategory[]
+  boxEvents                      BoxEvent[]
+  boxStatuses                    BoxStatus[]
+  keyholderNotes                 KeyholderNote[]
+  keyholderActionLogs            KeyholderActionLog[]
+  healthHolds                    HealthHold[]
+  recurringContexts              RecurringContext[]
+  appointments                   Appointment[]
 }
 
 // Gesundheits-Zurückhaltung (§8): ein Signal, dass aus Gesundheitsgründen (Migräne/Aura, Schlaf,
@@ -94,17 +102,17 @@ model HealthHold {
 // Wiederkehrender Wochen-Kontext (§8): HO-Tage, Bürotage, Pilates-Slots … damit der Keyholder
 // Anker/Kontrollen ums echte Leben plant. weekday: 0=So .. 6=Sa. deviceFree = Slot ist gerätefrei.
 model RecurringContext {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label     String   // z.B. "Home Office", "Pilates"
-  weekday   Int      // 0=So .. 6=Sa
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label      String // z.B. "Home Office", "Pilates"
+  weekday    Int // 0=So .. 6=Sa
   // null = jede Woche (Default, bisheriges Verhalten). 1..5 = n-ter <weekday> im Monat.
   // -1 = letzter <weekday> im Monat (z.B. "erster Mittwoch" = weekday:3, ordinal:1).
-  ordinal   Int?
-  deviceFree Boolean @default(false)
-  note      String?
-  createdAt DateTime @default(now())
+  ordinal    Int?
+  deviceFree Boolean  @default(false)
+  note       String?
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
@@ -115,7 +123,7 @@ model Appointment {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   when       DateTime
-  typ        String?  // z.B. "Therapie", "Arzt"
+  typ        String? // z.B. "Therapie", "Arzt"
   deviceFree Boolean  @default(false)
   note       String?
   createdAt  DateTime @default(now())
@@ -129,14 +137,14 @@ model Appointment {
 // schreibt/liest diese Tabelle nicht.
 model KeyholderActionLog {
   id        String   @id @default(cuid())
-  userId    String   // Ziel-User der Aktion (MCP_USERNAME)
+  userId    String // Ziel-User der Aktion (MCP_USERNAME)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tool      String   // MCP-Tool-Name, z.B. "set_training_goal" | "judge_offense" | "upsert_note"
-  actor     String?  // OAuth-userId des handelnden Keyholders (null = unbekannt/legacy)
-  reason    String   // Pflicht-Begründung — nie stille Mutation
+  tool      String // MCP-Tool-Name, z.B. "set_training_goal" | "judge_offense" | "upsert_note"
+  actor     String? // OAuth-userId des handelnden Keyholders (null = unbekannt/legacy)
+  reason    String // Pflicht-Begründung — nie stille Mutation
   source    String   @default("agent") // agent | user-stated
-  argsJson  String?  // Tool-Input als JSON (Audit)
-  resultRef String?  // erzeugte/betroffene Entity-id (Goal, Sperrzeit, Note ...)
+  argsJson  String? // Tool-Input als JSON (Audit)
+  resultRef String? // erzeugte/betroffene Entity-id (Goal, Sperrzeit, Note ...)
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -156,22 +164,22 @@ model KeyholderNote {
 
   // ── Notes v2 (MCP-only, additiv — Tracker liest diese Felder nicht) ──
   // type: DIRECTIVE | BOUNDARY | OBSERVATION | CORRECTION | EQUIPMENT | DATA | HISTORY
-  type        String    @default("OBSERVATION")
+  type         String    @default("OBSERVATION")
   // status: active | superseded | archived  (Supersession statt Delete)
-  status      String    @default("active")
-  pinned      Boolean   @default(false)
+  status       String    @default("active")
+  pinned       Boolean   @default(false)
   // Vorgänger-Note, die diese hier ablöst (status der alten → superseded). Reiner id-Pointer.
   supersedesId String?
   // source: user-stated | inferred  — trennt Nutzer-Fakt von Agenten-Schluss
-  source      String    @default("inferred")
+  source       String    @default("inferred")
   // confidence: low | medium | high (optional, v.a. für inferred)
-  confidence  String?
-  validFrom   DateTime?
-  validUntil  DateTime?
+  confidence   String?
+  validFrom    DateTime?
+  validUntil   DateTime?
   // doDont: JSON {"do":[...],"dont":[...]} — strukturiert für BOUNDARY-Notes
-  doDont      String?
+  doDont       String?
 
-  refs        NoteRef[]
+  refs NoteRef[]
 
   @@index([userId, createdAt])
   @@index([userId, status, pinned])
@@ -202,14 +210,14 @@ model DeviceCategory {
   id              String   @id @default(cuid())
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name            String   // user-editable display name
-  slug            String   // stable identifier; "kg" for built-in
-  color           String   // CSS-variable suffix (e.g. "cat-steel", "cat-plum")
-  icon            String   // lucide-react icon name (e.g. "Lock", "Crown")
+  name            String // user-editable display name
+  slug            String // stable identifier; "kg" for built-in
+  color           String // CSS-variable suffix (e.g. "cat-steel", "cat-plum")
+  icon            String // lucide-react icon name (e.g. "Lock", "Crown")
   isBuiltIn       Boolean  @default(false) // true only for KG; cannot be deleted
-  trackingEnabled Boolean  @default(true)  // when false: inventory-only, no wear sessions
+  trackingEnabled Boolean  @default(true) // when false: inventory-only, no wear sessions
   requirePhoto    Boolean  @default(false) // when true: WEAR_BEGIN entries require an imageUrl
-  allowVorgaben   Boolean  @default(true)  // when false: category cannot be linked to TrainingVorgaben
+  allowVorgaben   Boolean  @default(true) // when false: category cannot be linked to TrainingVorgaben
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
 
@@ -223,15 +231,15 @@ model DeviceCategory {
 // WebAuthn passkeys for biometric login (Face ID, Touch ID, Fingerprint, Windows Hello).
 // One user can have multiple passkeys (e.g. phone + laptop).
 model Passkey {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  credentialId String   @unique // base64url-encoded credential ID
-  publicKey    String   // base64url-encoded public key
-  counter      Int      @default(0)
-  transports   String?  // JSON array of transport strings (e.g. ["internal","hybrid"])
-  deviceName   String?  // user-chosen label (e.g. "iPhone 15")
-  createdAt    DateTime @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique // base64url-encoded credential ID
+  publicKey    String // base64url-encoded public key
+  counter      Int       @default(0)
+  transports   String? // JSON array of transport strings (e.g. ["internal","hybrid"])
+  deviceName   String? // user-chosen label (e.g. "iPhone 15")
+  createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
 
   @@index([userId])
@@ -247,68 +255,79 @@ model PasswordResetToken {
 }
 
 model TrainingVorgabe {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId    String?   // nullable until backfilled; future: required
-  category      DeviceCategory? @relation(fields: [categoryId], references: [id])
-  gueltigAb     DateTime
-  gueltigBis    DateTime?
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId       String? // nullable until backfilled; future: required
+  category         DeviceCategory? @relation(fields: [categoryId], references: [id])
+  gueltigAb        DateTime
+  gueltigBis       DateTime?
   // true = Enddatum bewusst vom Keyholder gesetzt → Auto-Verkettung (reorderVorgabenDates)
   // darf es NICHT überschreiben. false = Ende ergibt sich aus der Verkettung (Start der Folge-
   // Vorgabe) bzw. offen, wenn es die neueste ihrer Kategorie ist.
-  validUntilManual Boolean @default(false)
-  minProTagH    Float?
-  minProWocheH  Float?
-  minProMonatH  Float?
+  validUntilManual Boolean         @default(false)
+  minProTagH       Float?
+  minProWocheH     Float?
+  minProMonatH     Float?
   // 4. Zielperiode „Jahr" (Stunden). Folgt bewusst der deutschen Feld-Familie minProTagH/WocheH/MonatH
   // (Konsistenz der Geschwister), obwohl neue Identifier sonst englisch benannt werden.
-  minProJahrH   Float?
-  notiz         String?
-  createdAt     DateTime  @default(now())
+  minProJahrH      Float?
+  notiz            String?
+  createdAt        DateTime        @default(now())
 
   @@index([userId])
   @@index([categoryId])
 }
 
 model KontrollAnforderung {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code        String
-  kommentar   String?
-  deadline    DateTime
-  createdAt   DateTime  @default(now())
-  fulfilledAt DateTime? // Server-seitig gesetzt beim Erstellen des PRUEFUNG-Eintrags – nie editierbar
-  withdrawnAt DateTime?
+  id                       String    @id @default(cuid())
+  userId                   String
+  user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code                     String
+  kommentar                String?
+  deadline                 DateTime
+  createdAt                DateTime  @default(now())
+  fulfilledAt              DateTime? // Server-seitig gesetzt beim Erstellen des PRUEFUNG-Eintrags – nie editierbar
+  withdrawnAt              DateTime?
   // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub
   // unsichtbar, Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
-  wirksamAb        DateTime?
-  benachrichtigtAt DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
-  auto        Boolean   @default(false) // automatisch generiert (Auto-Kontrollen); manuelle = false
-  entryId     String?   @unique
-  entry       Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)
+  wirksamAb                DateTime?
+  benachrichtigtAt         DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
+  auto                     Boolean   @default(false) // automatisch generiert (Auto-Kontrollen); manuelle = false
+  entryId                  String?   @unique
+  entry                    Entry?    @relation("KontrolleEntry", fields: [entryId], references: [id], onDelete: SetNull)
+  // Kontroll-Eskalation: benachrichtigtReminderAt wird gestempelt, sobald die Stufe-1-Verzögerung
+  // abgelaufen ist (unabhängig davon, ob die Mahnung dem Sub tatsächlich zugestellt wird — dient
+  // als Uhr-Anker für Stufe 2, siehe inspectionEscalationService.ts). autoMarkedRemovedAt markiert,
+  // dass Stufe 2 ausgelöst hat; autoMarkedEntryId ist eine EIGENE FK zur dabei erzeugten
+  // OEFFNEN-Entry — NICHT die entryId/"KontrolleEntry"-Relation, die exklusiv für die erfüllende
+  // PRUEFUNG reserviert bleibt (ein Auto-Mark ist das Gegenteil von Erfüllung).
+  benachrichtigtReminderAt DateTime?
+  autoMarkedRemovedAt      DateTime?
+  autoMarkedEntryId        String?   @unique
+  autoMarkedEntry          Entry?    @relation("KontrolleAutoMarkedEntry", fields: [autoMarkedEntryId], references: [id], onDelete: SetNull)
 
   @@index([userId, withdrawnAt])
   @@index([userId, entryId])
   @@index([wirksamAb])
+  @@index([userId, autoMarkedRemovedAt])
 }
 
 model VerschlussAnforderung {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  art         String    // "ANFORDERUNG" | "SPERRZEIT"
-  nachricht   String?
-  endetAt     DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
-  dauerH      Float?    // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
-  sperrEndetAt DateTime? // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endetAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
-  deviceId    String?
-  device      Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  reinigungErlaubt Boolean @default(false) // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
-  createdAt   DateTime  @default(now())
-  fulfilledAt DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
-  withdrawnAt DateTime?
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  art              String // "ANFORDERUNG" | "SPERRZEIT"
+  nachricht        String?
+  endetAt          DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
+  dauerH           Float? // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
+  sperrEndetAt     DateTime? // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endetAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
+  deviceId         String?
+  device           Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  reinigungErlaubt Boolean   @default(false) // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
+  createdAt        DateTime  @default(now())
+  fulfilledAt      DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
+  withdrawnAt      DateTime?
   // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub
   // unsichtbar (gilt nicht als aktiv), Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
   wirksamAb        DateTime?
@@ -344,13 +363,13 @@ model PortalTokenUsed {
 // Native push tokens for Capacitor apps (APNs on iOS, FCM on Android).
 // One row per device per user; token is the unique device push token.
 model NativePushToken {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  platform   String   // "ios" | "android"
-  token      String   @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform  String // "ios" | "android"
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
@@ -382,35 +401,35 @@ model RateLimit {
 // verworfen (status=DISMISSED) | bestraft (status=PUNISHED). Identität des Vergehens
 // über (offenseType, refId); refId ist die Entry-/Kontrolle-/Anforderungs-id.
 model StrafeRecord {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  offenseType   String   // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "VERSCHLUSS_ANFORDERUNG" | "REINIGUNG_LIMIT" | "FALSCHES_GERAET" | "ORGASMUS_ANWEISUNG" | "REINIGUNG_NICHT_VERSCHLOSSEN"
-  refId         String   @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offenseType   String // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "AUTO_ENTFERNT" | "VERSCHLUSS_ANFORDERUNG" | "REINIGUNG_LIMIT" | "FALSCHES_GERAET" | "ORGASMUS_ANWEISUNG" | "REINIGUNG_NICHT_VERSCHLOSSEN"
+  refId         String    @unique
   bestraftDatum DateTime // Urteilszeitpunkt (bei PUNISHED = Strafdatum)
   notiz         String?
   // Urteils-Status + Audit
-  status        String   @default("PUNISHED") // "PUNISHED" | "DISMISSED"
-  reason        String?  // DAS eine Freitextfeld: Strafe-Text bei PUNISHED, optionaler Grund bei DISMISSED
-  judgedBy      String?  // "ai" | "admin" | "system"
+  status        String    @default("PUNISHED") // "PUNISHED" | "DISMISSED"
+  reason        String? // DAS eine Freitextfeld: Strafe-Text bei PUNISHED, optionaler Grund bei DISMISSED
+  judgedBy      String? // "ai" | "admin" | "system"
   erledigtAt    DateTime? // nur PUNISHED: null = Strafe offen, gesetzt = erledigt (Loop geschlossen)
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
   @@index([userId])
 }
 
 model Device {
-  id            String    @id @default(cuid())
+  id            String          @id @default(cuid())
   userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId    String?   // nullable until backfilled; future: required for new devices
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    String? // nullable until backfilled; future: required for new devices
   category      DeviceCategory? @relation(fields: [categoryId], references: [id])
   name          String
   description   String?
   imageUrl      String?
   purchasePrice Float?
-  currency      String?   // "CHF" | "EUR" | "USD"
-  createdAt     DateTime  @default(now())
+  currency      String? // "CHF" | "EUR" | "USD"
+  createdAt     DateTime        @default(now())
   archivedAt    DateTime? // Soft-delete: null = active, set = archived
 
   // ── Geräte-Metadaten für Keyholder-Entscheidungen (MCP-only, additiv) ──
@@ -424,10 +443,10 @@ model Device {
   healthFlags        String? // JSON string[] — Druckstellen, scheuert, rutscht ...
   retentionNotes     String? // z.B. "njoy: rutscht beim Entspannen"
 
-  entries               Entry[]
+  entries                 Entry[]
   verschlussAnforderungen VerschlussAnforderung[]
-  boxEvents             BoxEvent[]
-  referenceImages       DeviceReferenceImage[]
+  boxEvents               BoxEvent[]
+  referenceImages         DeviceReferenceImage[]
 
   @@index([userId, archivedAt])
   @@index([categoryId])
@@ -442,11 +461,11 @@ model DeviceReferenceImage {
   id             String   @id @default(cuid())
   deviceId       String
   device         Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  imageUrl       String   // /api/uploads/<filename>, wie Entry.imageUrl
-  sourceEntryId  String?  // Herkunft, falls aus einem bestehenden Entry importiert
+  imageUrl       String // /api/uploads/<filename>, wie Entry.imageUrl
+  sourceEntryId  String? // Herkunft, falls aus einem bestehenden Entry importiert
   note           String?
-  embedding      Bytes?   // Phase 3: Float32-Vektor als Blob; vorerst leer
-  embeddingModel String?  // welches Modell den Vektor erzeugt hat (Invalidierung)
+  embedding      Bytes? // Phase 3: Float32-Vektor als Blob; vorerst leer
+  embeddingModel String? // welches Modell den Vektor erzeugt hat (Invalidierung)
   createdAt      DateTime @default(now())
 
   @@index([deviceId])
@@ -461,9 +480,9 @@ model BoxEvent {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceId   String?
   device     Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  type       String   // "LOCKED" | "UNLOCKED" | "EARLY_OPEN" | "UNAUTHORIZED_OPEN"
-  wakeReason String?  // gemeldeter Öffnungsgrund der Box
-  battery    Int?     // 0–100
+  type       String // "LOCKED" | "UNLOCKED" | "EARLY_OPEN" | "UNAUTHORIZED_OPEN"
+  wakeReason String? // gemeldeter Öffnungsgrund der Box
+  battery    Int? // 0–100
   fwVersion  String?
   at         DateTime // Zeitpunkt des Box-Ereignisses (server-autoritativ vom Heimdall-Sync)
   createdAt  DateTime @default(now())
@@ -475,65 +494,70 @@ model BoxEvent {
 // gepusht. Zeigt den Box-Status im Tracker (statt zweiter App). pendingCommand = vom Sub
 // im Tracker ausgelöste Aktion, die Heimdall beim nächsten Sync zieht & anwendet.
 model BoxStatus {
-  id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  boxId           String    // Heimdall-Geräte-id (stabil)
-  name            String
-  locked          Boolean   @default(false)
-  lockUntil       DateTime? // effektive Sperre (eigene + Tracker-Sperrzeit, gekappt)
-  simpleLock      Boolean   @default(false)
-  keyholderLocked Boolean   @default(false) // durch Tracker-Sperrzeit gehalten (Sub kann lokal nicht öffnen)
-  battery         Int?
-  charging        Boolean?
-  boltPos         String?
-  fwVersion       String?
-  lastSyncAt      DateTime?
+  id                     String    @id @default(cuid())
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boxId                  String // Heimdall-Geräte-id (stabil)
+  name                   String
+  locked                 Boolean   @default(false)
+  lockUntil              DateTime? // effektive Sperre (eigene + Tracker-Sperrzeit, gekappt)
+  simpleLock             Boolean   @default(false)
+  keyholderLocked        Boolean   @default(false) // durch Tracker-Sperrzeit gehalten (Sub kann lokal nicht öffnen)
+  battery                Int?
+  charging               Boolean?
+  boltPos                String?
+  fwVersion              String?
+  lastSyncAt             DateTime?
   // Vom Sub ausgelöstes, noch nicht vollzogenes Kommando.
-  pendingCommand         String?   // "lock" | "open" | "clean_open"
+  pendingCommand         String? // "lock" | "open" | "clean_open"
   pendingCommandRelockBy DateTime? // nur clean_open: Re-Lock-Frist
   pendingCommandAt       DateTime?
-  updatedAt       DateTime  @updatedAt
+  updatedAt              DateTime  @updatedAt
 
   @@unique([userId, boxId])
   @@index([userId])
 }
 
 model Entry {
-  id                  String               @id @default(cuid())
-  userId              String
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type                String               @default("VERSCHLUSS")
-  startTime           DateTime
-  imageUrl            String?
-  imageExifTime       DateTime?
+  id                            String               @id @default(cuid())
+  userId                        String
+  user                          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                          String               @default("VERSCHLUSS")
+  startTime                     DateTime
+  imageUrl                      String?
+  imageExifTime                 DateTime?
   // Bildersafe (Schlüssel-Verwahrung): versiegeltes Foto des Schlüsselbox-Codes. Getrennt von
   // imageUrl (offenes Siegel/Gerät). Wird erst freigegeben, wenn Öffnen erlaubt ist.
-  codeImageUrl        String?
-  codeReadable        Boolean?             // detectSealNumber hat Ziffern erkannt (nur "lesbar ✓", Zahl wird NICHT gespeichert)
-  note                String?
-  oeffnenGrund        String?
-  orgasmusArt         String?
-  kontrollCode        String?
-  verifikationStatus  String?
+  codeImageUrl                  String?
+  codeReadable                  Boolean? // detectSealNumber hat Ziffern erkannt (nur "lesbar ✓", Zahl wird NICHT gespeichert)
+  note                          String?
+  oeffnenGrund                  String?
+  orgasmusArt                   String?
+  kontrollCode                  String?
+  verifikationStatus            String?
   // Warum die automatische Foto-Verifikation NICHT gematcht hat (nur gesetzt, wenn
   // verifikationStatus null ist, d.h. "unverified"). VerifyReason-Code aus verifyCode.ts
   // (codeMissing/codeWrong/sealMissing/sealWrong) — sprachneutral, UI übersetzt ihn.
-  verifikationReason         String?
+  verifikationReason            String?
   // Bei codeWrong/sealWrong: die abweichend erkannte Nummer, für die {detected}-Interpolation
   // der Reason-Message. Bei *Missing ungesetzt.
-  verifikationReasonDetected String?
+  verifikationReasonDetected    String?
   // Geräte-Check der Kontrolle (PRUEFUNG): wird das verschlossene Gerät im Foto erkannt?
   // null = nicht geprüft · "ok" = passendes Gerät sichtbar · "wrong" = anderes Gerät · "missing" = kein Gerät.
   // Advisory (Keyholder sieht es), blockiert nicht. Server-seitig per Vision gesetzt.
-  deviceCheck         String?
-  deviceCheckNote     String?              // erkanntes Gerät (Name) oder null, wenn keins erkannt
-  deviceCheckExpected String?              // erwartetes (verschlossenes) Gerät zur Check-Zeit
-  deviceId            String?
-  device              Device?              @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  createdAt           DateTime             @default(now())
-  kontrollAnforderung KontrollAnforderung? @relation("KontrolleEntry")
-  orgasmusAnforderung OrgasmusAnforderung? @relation("OrgasmusAnforderungEntry")
+  deviceCheck                   String?
+  deviceCheckNote               String? // erkanntes Gerät (Name) oder null, wenn keins erkannt
+  deviceCheckExpected           String? // erwartetes (verschlossenes) Gerät zur Check-Zeit
+  deviceId                      String?
+  device                        Device?              @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  createdAt                     DateTime             @default(now())
+  // Wer/was diesen Eintrag angelegt hat — generischer Marker, nicht auf ein Feature beschränkt.
+  // "system" bislang nur für die automatisch erzeugte OEFFNEN-Entry der Kontroll-Eskalation
+  // (Stufe 2), siehe inspectionEscalationService.ts.
+  source                        String               @default("user") // "user" | "system"
+  kontrollAnforderung           KontrollAnforderung? @relation("KontrolleEntry")
+  kontrollAnforderungAutoMarked KontrollAnforderung? @relation("KontrolleAutoMarkedEntry")
+  orgasmusAnforderung           OrgasmusAnforderung? @relation("OrgasmusAnforderungEntry")
 
   @@index([userId])
   @@index([userId, type, startTime(sort: Desc)])
@@ -546,11 +570,11 @@ model OrgasmusAnforderung {
   id             String    @id @default(cuid())
   userId         String
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  art            String    // "ANWEISUNG" | "GELEGENHEIT"
+  art            String // "ANWEISUNG" | "GELEGENHEIT"
   nachricht      String?
-  beginntAt      DateTime  // Fenster-Start
-  endetAt        DateTime  // Fenster-Ende
-  vorgegebeneArt String?   // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal
+  beginntAt      DateTime // Fenster-Start
+  endetAt        DateTime // Fenster-Ende
+  vorgegebeneArt String? // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal
   oeffnenErlaubt Boolean   @default(false) // während des Fensters darf zum Orgasmus geöffnet werden, ohne Sperre zu brechen / Strafe
   createdAt      DateTime  @default(now())
   fulfilledAt    DateTime? // gesetzt wenn passender ORGASMUS-Eintrag im Fenster erstellt
@@ -565,7 +589,7 @@ model NotificationPreference {
   id        String  @id @default(cuid())
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventType String  // VERSCHLUSS | OEFFNUNG_IMMER | OEFFNUNG_VERBOTEN | ORGASMUS | KONTROLLE_FREIWILLIG | KONTROLLE_ANGEFORDERT
+  eventType String // VERSCHLUSS | OEFFNUNG_IMMER | OEFFNUNG_VERBOTEN | ORGASMUS | KONTROLLE_FREIWILLIG | KONTROLLE_ANGEFORDERT
   mail      Boolean @default(true)
   push      Boolean @default(true)
 
@@ -589,7 +613,7 @@ model OAuthClient {
   id           String   @id @default(cuid())
   clientId     String   @unique
   clientName   String
-  redirectUris String   // JSON array of allowed redirect URIs
+  redirectUris String // JSON array of allowed redirect URIs
   createdAt    DateTime @default(now())
 
   codes         OAuthCode[]
@@ -605,11 +629,11 @@ model OAuthCode {
   client              OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   userId              String
   redirectUri         String
-  scopes              String      // space-separated list, e.g. "read"
-  codeChallenge       String      // PKCE S256 challenge
+  scopes              String // space-separated list, e.g. "read"
+  codeChallenge       String // PKCE S256 challenge
   codeChallengeMethod String      @default("S256")
   expiresAt           DateTime
-  usedAt              DateTime?   // set when exchanged — single-use enforcement
+  usedAt              DateTime? // set when exchanged — single-use enforcement
   createdAt           DateTime    @default(now())
 
   @@index([code])
@@ -623,8 +647,8 @@ model OAuthToken {
   clientId  String
   client    OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   userId    String
-  scopes    String      // space-separated list, e.g. "read"
-  expiresAt DateTime    // short (1 h) — refresh via OAuthRefreshToken
+  scopes    String // space-separated list, e.g. "read"
+  expiresAt DateTime // short (1 h) — refresh via OAuthRefreshToken
   createdAt DateTime    @default(now())
 
   @@index([tokenHash])
@@ -640,8 +664,8 @@ model OAuthRefreshToken {
   clientId  String
   client    OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   userId    String
-  scopes    String      // space-separated list, e.g. "read"
-  expiresAt DateTime    // long (1 year)
+  scopes    String // space-separated list, e.g. "read"
+  expiresAt DateTime // long (1 year)
   createdAt DateTime    @default(now())
 
   @@index([tokenHash])

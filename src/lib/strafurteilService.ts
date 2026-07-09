@@ -17,6 +17,7 @@ export type OffenseCanonicalType =
   | "unauthorized_opening"
   | "late_control"
   | "rejected_control"
+  | "auto_removed_control"
   | "cleaning_limit"
   | "wrong_device"
   | "missed_orgasm"
@@ -29,6 +30,9 @@ export const STORED_TYPE: Record<OffenseCanonicalType, string> = {
   unauthorized_opening: "OEFFNEN_ENTRY",
   late_control: "KONTROLLANFORDERUNG",
   rejected_control: "KONTROLLANFORDERUNG",
+  // Eigener Typ statt "KONTROLLANFORDERUNG" — eine vermutete Entfernung (Kontrolle nicht
+  // beantwortet, System hat automatisch geöffnet) ist etwas anderes als eine verspätete Einreichung.
+  auto_removed_control: "AUTO_ENTFERNT",
   cleaning_limit: "REINIGUNG_LIMIT",
   wrong_device: "FALSCHES_GERAET",
   missed_orgasm: "ORGASMUS_ANWEISUNG",
@@ -64,6 +68,7 @@ export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
     ...sb.unauthorizedOpenings.map((o) => mk("unauthorized_opening", o.id, o.startTime)),
     ...sb.lateControls.map((k) => mk("late_control", k.id, k.entryStartTime ?? k.deadline)),
     ...sb.rejectedControls.map((k) => mk("rejected_control", k.id, k.entryStartTime ?? k.deadline)),
+    ...sb.autoRemovedControls.map((k) => mk("auto_removed_control", k.id, k.entryStartTime ?? k.deadline)),
     ...sb.reinigungLimitViolations.map((v) => mk("cleaning_limit", v.entryId, v.startTime)),
     ...sb.wrongDeviceViolations.map((v) => mk("wrong_device", v.entryId, v.startTime)),
     ...sb.missedOrgasmInstructions.map((m) => mk("missed_orgasm", m.id, m.endetAt)),
