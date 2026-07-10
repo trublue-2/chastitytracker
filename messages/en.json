@@ -367,7 +367,11 @@
     "lastSeenHours": "last seen {count} h ago",
     "lastSeenDays": "last seen {count} d ago",
     "jumpLock": "tap to lock",
-    "jumpOpen": "tap to open"
+    "jumpOpen": "tap to open",
+    "cleaningWindowOpen": "Cleaning window open until {until}",
+    "cleaningWindowNext": "Next cleaning window: {start}–{end}",
+    "cleaningNoWindows": "Cleaning not tied to specific times",
+    "cleaningQuota": "{count} of {max} used today"
   },
   "lockForm": {
     "title": "Log lock",
@@ -444,7 +448,14 @@
     "reinigungLimitStay": "Understood – stay locked",
     "reinigungLimitOpenAnyway": "Open anyway",
     "grundAutoEntfernt": "Automatic: missed inspection",
-    "autoEntferntNote": "Automatically created: inspection not answered."
+    "autoEntferntNote": "Automatically created: inspection not answered.",
+    "boxWontOpenTitle": "The box will not open right now.",
+    "boxStaysShutBreak": "This opening breaks the lock period. It is recorded and noted in the penalty log — the bolt stays shut.",
+    "boxHoldsUntil": "The box holds until {date}.",
+    "boxNextWindow": "Next cleaning window: {start}–{end}.",
+    "boxStillCountsCleaning": "The entry is recorded anyway, uses up one cleaning opening and interrupts the running session.",
+    "boxStillCounts": "The entry is recorded anyway and interrupts the running session.",
+    "boxHoldsIndefinitely": "The box holds indefinitely — until the keyholder lifts the lock period."
   },
   "inspectionForm": {
     "title": "Log inspection",
@@ -503,9 +514,6 @@
     "startPageDashboard": "Own tracker",
     "hideOwnTracker": "No own tracker",
     "hideOwnTrackerHint": "For keyholders without their own chastity tracker: hides your own card in the overview, the My view navigation and the green tracker area. No data is deleted — turn it back off and everything returns.",
-    "reinigungTitle": "Cleaning interruption",
-    "reinigungErlaubt": "Allow cleaning interruptions",
-    "reinigungMaxMinuten": "Maximum cleaning duration",
     "minutes": "minutes",
     "saved": "Saved",
     "saveBtnGeneric": "Save",

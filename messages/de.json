@@ -367,7 +367,11 @@
     "lastSeenHours": "zuletzt vor {count} Std",
     "lastSeenDays": "zuletzt vor {count} Tg",
     "jumpLock": "tippen zum Verschliessen",
-    "jumpOpen": "tippen zum Öffnen"
+    "jumpOpen": "tippen zum Öffnen",
+    "cleaningWindowOpen": "Reinigungsfenster offen bis {until}",
+    "cleaningWindowNext": "Nächstes Reinigungsfenster: {start}–{end}",
+    "cleaningNoWindows": "Reinigung nicht an Uhrzeiten gebunden",
+    "cleaningQuota": "heute {count} von {max}"
   },
   "lockForm": {
     "title": "Verschluss erfassen",
@@ -444,7 +448,14 @@
     "reinigungLimitStay": "Verstanden – bleibt zu",
     "reinigungLimitOpenAnyway": "Trotzdem öffnen",
     "grundAutoEntfernt": "Automatisch: Kontrolle verpasst",
-    "autoEntferntNote": "Automatisch erzeugt: Kontrolle nicht beantwortet."
+    "autoEntferntNote": "Automatisch erzeugt: Kontrolle nicht beantwortet.",
+    "boxWontOpenTitle": "Die Box öffnet jetzt nicht.",
+    "boxStaysShutBreak": "Diese Öffnung bricht die Sperrzeit. Sie wird erfasst und im Strafbuch vermerkt — der Riegel bleibt zu.",
+    "boxHoldsUntil": "Die Box hält bis {date}.",
+    "boxNextWindow": "Nächstes Reinigungsfenster: {start}–{end}.",
+    "boxStillCountsCleaning": "Der Eintrag wird trotzdem erfasst, verbraucht eine Reinigungsöffnung und unterbricht die laufende Session.",
+    "boxStillCounts": "Der Eintrag wird trotzdem erfasst und unterbricht die laufende Session.",
+    "boxHoldsIndefinitely": "Die Box hält bis auf Weiteres — bis die Keyholderin die Sperrzeit aufhebt."
   },
   "inspectionForm": {
     "title": "Kontrolle erfassen",
@@ -503,9 +514,6 @@
     "startPageDashboard": "Eigener KG-Tracker",
     "hideOwnTracker": "Kein eigener Tracker",
     "hideOwnTrackerHint": "Für Keyholder ohne eigenen KG-Tracker: blendet die eigene Karte in der Übersicht, die Navigation Meine Sicht und den grünen Tracker-Bereich aus. Es werden keine Daten gelöscht — schaltest du es wieder aus, ist alles zurück.",
-    "reinigungTitle": "Reinigungsunterbrechung",
-    "reinigungErlaubt": "Reinigungsunterbrechung zulassen",
-    "reinigungMaxMinuten": "Maximale Reinigungsdauer",
     "minutes": "Minuten",
     "saved": "Gespeichert",
     "saveBtnGeneric": "Speichern",

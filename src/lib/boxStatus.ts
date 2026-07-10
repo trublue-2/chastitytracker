@@ -2,6 +2,8 @@
 // Dashboard-Box-Status-Karte (BoxStatusCard) UND der (+)-Menü-Box-Zeile (NewEntrySheet). Keine
 // Server-Imports — reine Formatierung; i18n bleibt beim Aufrufer (Labels via übergebenem `t`).
 
+import type { ReinigungView, ReinigungsFenster } from "@/lib/reinigungService";
+
 export type BoxRow = {
   boxId: string;
   name: string;
@@ -14,7 +16,33 @@ export type BoxRow = {
   lastSyncAt: string | null;
 };
 
+/** Reinigungs-Regeln des Subs: die `ReinigungView` des Servers plus das nächste Fenster.
+ *  Nicht neu deklariert — sonst müsste ein neues Feld in `buildReinigungView` hier von Hand
+ *  nachgezogen werden und die Karte läse still `undefined`. `import type` wird zur Laufzeit
+ *  gelöscht, zieht also kein Prisma in dieses client-sichere Modul. */
+export type BoxReinigungView = ReinigungView & { nextWindow: ReinigungsFenster | null };
+
 export type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+/**
+ * Die Zeile „wann gibt die Box den Schlüssel frei" — bisher sah der Sub sie NIRGENDS: die Fenster
+ * standen nur in der Admin-Oberfläche und im MCP. null = nichts anzuzeigen (Reinigung nicht erlaubt).
+ *
+ * Reihenfolge nach Dringlichkeit: offenes Fenster zuerst (jetzt handeln), sonst das nächste, sonst
+ * der Hinweis, dass keine Fenster konfiguriert sind (= nicht zeitgebunden).
+ */
+export function boxReinigungLabel(r: BoxReinigungView | null, t: Translate): string | null {
+  if (!r?.allowed) return null;
+  if (r.windowOpenNow) return t("cleaningWindowOpen", { until: r.windowOpenNow.until });
+  if (r.nextWindow) return t("cleaningWindowNext", { start: r.nextWindow.start, end: r.nextWindow.end });
+  return t("cleaningNoWindows");
+}
+
+/** „Heute 1 von 2 Reinigungsöffnungen" — null, wenn kein Tages-Limit gesetzt ist. */
+export function boxReinigungQuotaLabel(r: BoxReinigungView | null, t: Translate): string | null {
+  if (!r?.allowed || r.maxPausesPerDay === null) return null;
+  return t("cleaningQuota", { count: r.usedToday, max: r.maxPausesPerDay });
+}
 
 /** Frischer als das → „gerade aktiv"; darüber → „zuletzt vor X". */
 const LIVE_THRESHOLD_MS = 2 * 60_000;

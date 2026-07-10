@@ -6,6 +6,7 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "@/app/entries/types";
+import type { BoxHold } from "@/lib/boxOpenOutlook";
 import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
@@ -18,10 +19,11 @@ interface Props {
   nowDefault: string;
   sperrzeit?: SperrzeitState;
   reinigung?: ReinigungConfig;
+  boxHold?: BoxHold | null;
   redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, redirectTo }: Props) {
+export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, redirectTo }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -53,6 +55,7 @@ export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDef
       nowDefault={nowDefault}
       sperrzeit={sperrzeit}
       reinigung={reinigung}
+      boxHold={boxHold}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}

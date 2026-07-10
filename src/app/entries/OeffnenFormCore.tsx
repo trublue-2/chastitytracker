@@ -16,6 +16,7 @@ import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Sheet from "@/app/components/Sheet";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
+import type { BoxHold } from "@/lib/boxOpenOutlook";
 
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };
@@ -27,6 +28,8 @@ interface Props {
   nowDefault: string;
   sperrzeit?: SperrzeitState;
   reinigung?: ReinigungConfig;
+  /** Serverseitig gefälltes Urteil: hält die Box? null = der Riegel folgt (oder es gibt keine Box). */
+  boxHold?: BoxHold | null;
   isEdit?: boolean;
   submitFn: (payload: OeffnenPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
@@ -37,7 +40,7 @@ interface Props {
 }
 
 export default function OeffnenFormCore({
-  initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung,
+  initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
 }: Props) {
   const t = useTranslations("openForm");
@@ -66,6 +69,11 @@ export default function OeffnenFormCore({
   // Reinigung erlauben (spiegelt die Strafbuch-Regel) — dann keine „Öffnen nicht erlaubt"-Warnung.
   const istErlaubteReinigungsOeffnung = grund === "REINIGUNG" && reinigungErlaubt && sperrzeitReinigungErlaubt;
   const isGesperrtBlockiert = isGesperrt && !istErlaubteReinigungsOeffnung;
+
+  // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Es hängt NICHT vom
+  // gewählten Grund ab — der Bruch-Fall gehört `isGesperrtBlockiert`, das ihn ohnehin schon kennt,
+  // und wird von der bestehenden Sperrzeit-Karte plus dem Absende-Sheet abgedeckt.
+  const zeigeBoxHalt = !initial && !!boxHold && !isGesperrtBlockiert;
 
   async function doSave(forced = false) {
     const payload: OeffnenPayload = {
@@ -197,6 +205,26 @@ export default function OeffnenFormCore({
           placeholder="–"
           options={grundSelectOptions}
         />
+
+        {zeigeBoxHalt && (
+          <Card variant="semantic" semantic="warn" padding="compact">
+            <div className="flex items-start gap-2">
+              <Lock size={15} className="text-warn shrink-0 mt-0.5" />
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-bold text-warn-text">{t("boxWontOpenTitle")}</p>
+                <p className="text-xs text-warn-text">
+                  {boxHold!.until
+                    ? t("boxHoldsUntil", { date: new Date(boxHold!.until).toLocaleString(dl, { hour: "2-digit", minute: "2-digit", timeZone: tz }) })
+                    : t("boxHoldsIndefinitely")}
+                  {reinigung?.nextWindow ? " " + t("boxNextWindow", { start: reinigung.nextWindow.start, end: reinigung.nextWindow.end }) : ""}
+                </p>
+                <p className="text-xs text-warn-text">
+                  {grund === "REINIGUNG" ? t("boxStillCountsCleaning") : t("boxStillCounts")}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {grund === "REINIGUNG" && (
           <Card variant="semantic" semantic={isReinigungLimitReached ? "warn" : "inspect"} padding="compact">

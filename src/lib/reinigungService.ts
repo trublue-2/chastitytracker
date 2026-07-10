@@ -58,6 +58,21 @@ export function aktivesReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): 
   return null;
 }
 
+/**
+ * Das nächste Reinigungs-Fenster, das nach `now` (Sub-Lokalzeit `tz`) BEGINNT — sonst das früheste
+ * des Tages (dann liegt es morgen). null, wenn keine Fenster konfiguriert sind (= nicht zeitgebunden).
+ *
+ * Läuft `now` gerade IN einem Fenster, liefert das trotzdem das darauffolgende: „aktuell offen"
+ * beantwortet {@link aktivesReinigungsFenster}, hier geht es um „wann wieder".
+ */
+export function nextReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): ReinigungsFenster | null {
+  const fenster = parseReinigungsFenster(raw);
+  if (fenster.length === 0) return null;
+  const hhmm = hhmmInTZ(now, tz);
+  const sortiert = [...fenster].sort((a, b) => a.start.localeCompare(b.start));
+  return sortiert.find((f) => f.start > hhmm) ?? sortiert[0];
+}
+
 /** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt
  *  über die OEFFNEN(REINIGUNG)-Einträge des Tages. (Die frühere CLEAN_OPEN-BoxEvent-Zählung war tot:
  *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.) */

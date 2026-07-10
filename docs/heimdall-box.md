@@ -13,7 +13,7 @@ true`); otherwise the lock is honor-system only.
 > **Maturity: MVP ("P1").** The box reads the active lock period and reports its
 > status and real-world events. The reconciliation of box events against tracker
 > entries (penalty-book surfacing of early/unauthorized opens), device binding,
-> and cleaning/range rules in the config feed are **not yet implemented** — see
+> and range rules in the config feed are **not yet implemented** — see
 > [Maturity & limitations](#maturity--limitations).
 
 ## Architecture
@@ -48,7 +48,7 @@ disables the feature).
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| `GET` | `/api/integration/box/config?username=<name>` | Tracker → Heimdall **intent**: the active keyholder lock period (`{ sperrzeit: { endetAt, indefinite, reinigungErlaubt } \| null }`), which Heimdall folds into its own `lockUntil`. |
+| `GET` | `/api/integration/box/config?username=<name>` | Tracker → Heimdall **intent**: the active keyholder lock period (`{ sperrzeit: { endetAt, indefinite, reinigungErlaubt } \| null }`), which Heimdall folds into its own `lockUntil`, **plus** the sub's cleaning rules (`{ reinigung: { erlaubt, maxMinutenProPause, maxProTag, fenster: [{start,end}], timezone } }`). `fenster` is the sub's wall-clock time — read it in `timezone`, not the box's own zone. Additive: a box that does not know `reinigung` ignores it. |
 | `POST` | `/api/integration/box/status` | Heimdall pushes the live box state on every sync (`username, boxId, name, locked` + optional `lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt`). Upserts `BoxStatus`. Returns any `pendingCommand` (+`relockBy`) and **deletes it on read** (consume-on-read; no ack). |
 | `POST` | `/api/integration/box/event` | Heimdall reports real box transitions: `type ∈ {LOCKED, UNLOCKED, EARLY_OPEN, UNAUTHORIZED_OPEN}` + optional `wakeReason, battery, fwVersion, at`. Stored as `BoxEvent`. |
 
@@ -121,7 +121,13 @@ This is an MVP. Not yet implemented:
 - **Device binding** — `BoxEvent.deviceId` exists in the schema but is never set;
   the box is treated as generic (which belt is worn is inferred from the lock
   session).
-- **Cleaning / range rules in `config`** — only the bare lock period is delivered.
+- **Cleaning windows are delivered but not yet honoured** — `config` now carries
+  `reinigung.fenster` (the sub's cleaning time windows) alongside the lock period.
+  Until Heimdall reads that field, the box keeps whatever windows are configured
+  on it locally, and an edit in the tracker's admin UI has no effect on the
+  hardware. The tracker cannot verify the box's window behaviour, so it never
+  claims the bolt will follow just because a window is open — it only ever
+  predicts a hold from the box's own reported `lockUntil`.
 - **Multi-box per user** — the schema allows it (`@@unique([userId, boxId])`), but
   `get_box_state` only considers the most recently updated box.
 - **No command ack** — commands are consume-on-read; idempotency is the sub

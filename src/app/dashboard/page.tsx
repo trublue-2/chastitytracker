@@ -14,6 +14,7 @@ import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
+import { buildReinigungView, reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
@@ -56,7 +57,7 @@ export default async function DashboardPage() {
       include: { device: { select: { name: true } } },
     }),
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
@@ -68,6 +69,16 @@ export default async function DashboardPage() {
     erlaubt: userSettings?.reinigungErlaubt ?? false,
     maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
   };
+
+  // Reinigungs-Regeln für die Box-Karte: einmal je Seitenaufbau, nicht im 5s-Poll. Dieselbe Quelle
+  // wie `get_context.cleaning` im MCP — der Sub sah die Fenster bisher nirgends.
+  const jetzt = new Date();
+  const boxReinigung = heimdallEnabled() && userSettings
+    ? {
+        ...buildReinigungView(userSettings, await reinigungVerbrauchtHeute(userId, jetzt, tz), jetzt, tz),
+        nextWindow: nextReinigungsFenster(userSettings.reinigungsFenster, jetzt, tz),
+      }
+    : null;
 
   // ── Compute derived state ──
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
@@ -158,7 +169,7 @@ export default async function DashboardPage() {
       <div className="w-full max-w-2xl mx-auto px-4 pt-6">
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
       </div>
-      {heimdallEnabled() && <BoxStatusCard tz={tz} />}
+      {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
       {activePair && rawSessionEvents.length > 0 && (
         <div className="w-full max-w-2xl mx-auto px-4 pt-6 pb-2">
           <LaufendeSessionCard

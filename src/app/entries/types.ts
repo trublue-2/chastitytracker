@@ -6,6 +6,9 @@
  *   { ok: false, error: string }   → Core displays the error inline.
  *   { ok: true, offline: true }    → caller handled queuing, Core calls onSuccess().
  */
+
+// `import type` — zur Laufzeit gelöscht, zieht also kein Prisma in das Client-Bundle.
+import type { ReinigungsFenster } from "@/lib/reinigungService";
 export type SubmitResult =
   | { ok: true; offline?: boolean }
   | { ok: false; error: string };
@@ -77,6 +80,8 @@ export interface ReinigungConfig {
   maxMinuten: number;
   maxProTag: number;
   heuteAnzahl: number;
+  /** Das nächste beginnende Reinigungsfenster — rein informativ (die Box entscheidet selbst). */
+  nextWindow?: ReinigungsFenster | null;
 }
 
 /** Bundled Sperrzeit state (user-dashboard only — admin skips these warnings). */

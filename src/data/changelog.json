@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.23",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Erfassen einer Öffnung steht jetzt da, wenn die Box nicht aufgehen wird: der Eintrag entsteht trotzdem, verbraucht eine Reinigungsöffnung und unterbricht die Session — bisher passierte das ohne jeden Hinweis.",
+          "en": "When recording an opening, it now says when the box will not open: the entry is still created, uses up a cleaning opening and interrupts the session — previously this happened without any notice."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Box-Karte auf der Übersicht zeigt die Reinigungsfenster und das heutige Kontingent. Der Sub konnte bisher nirgends nachsehen, wann die Box den Schlüssel freigibt.",
+          "en": "The box card on the overview now shows the cleaning windows and today's quota. Until now the sub had no way to look up when the box releases the key."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.22",
     "date": "2026-07-10",
     "changes": [

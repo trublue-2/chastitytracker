@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
-import { midnightInTZ, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
+import { reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
+import { boxHoldOutlook } from "@/lib/boxOpenOutlook";
 
 export default async function NewOeffnenPage() {
   const session = await auth();
@@ -15,15 +17,26 @@ export default async function NewOeffnenPage() {
 
   if (!(await getIsLocked(userId))) redirect("/dashboard");
 
-  // „pro Tag" = Kalendertag (des Users), nicht rollendes 24h-Fenster — sonst zählt eine Öffnung von
-  // gestern Abend heute noch mit und löst eine falsche Limit-Warnung aus. Muss zur
-  // Strafbuch-Ableitung (buildStrafbuch, ebenfalls Kalendertag) passen.
-  const dayStart = midnightInTZ(new Date(), tz);
-  const [activeSperrzeit, user, reinigungHeute] = await Promise.all([
+  const now = new Date();
+  // Tages-Zählung über `reinigungVerbrauchtHeute` — dieselbe Kalendertag-Regel wie die
+  // Strafbuch-Ableitung (buildStrafbuch), statt sie hier ein zweites Mal auszuformulieren.
+  const [activeSperrzeit, user, reinigungHeute, box] = await Promise.all([
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, oeffnenGruendeConfig: true } }),
-    prisma.entry.count({ where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: dayStart } } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, oeffnenGruendeConfig: true } }),
+    reinigungVerbrauchtHeute(userId, now, tz),
+    // Die Selbstauskunft der Box: ihre eigene Frist.
+    prisma.boxStatus.findFirst({ where: { userId }, orderBy: { name: "asc" }, select: { lockUntil: true } }),
   ]);
+
+  // Das Urteil fällt hier, nicht im Client: der Server kennt die Sub-Zeitzone und hat EINE Uhr.
+  // Rechnete der Client mit `new Date()` nach, flackerte die Karte an der Fristgrenze zwischen
+  // Server-Render und Hydration. `box.lockUntil` ist die Selbstauskunft der Box — nicht das
+  // Sperrzeit-Ende, das sie erst beim nächsten Sync einfaltet.
+  const boxHold = boxHoldOutlook({
+    sperrzeit: activeSperrzeit ? { endetAt: activeSperrzeit.endetAt?.toISOString() ?? null, unbefristet: activeSperrzeit.endetAt === null } : null,
+    box: box ? { lockUntil: box.lockUntil?.toISOString() ?? null } : null,
+    now,
+  });
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("openForm");
@@ -47,7 +60,9 @@ export default async function NewOeffnenPage() {
           maxMinuten: user?.reinigungMaxMinuten ?? 15,
           maxProTag: user?.reinigungMaxProTag ?? 0,
           heuteAnzahl: reinigungHeute,
+          nextWindow: nextReinigungsFenster(user?.reinigungsFenster, now, tz),
         }}
+        boxHold={boxHold}
       />
     </div>
   );

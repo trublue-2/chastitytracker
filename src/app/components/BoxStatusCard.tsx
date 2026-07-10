@@ -3,13 +3,16 @@
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
-import { boxIstLabel, boxSollLabel, boxFreshnessLabel } from "@/lib/boxStatus";
+import { boxIstLabel, boxSollLabel, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 
 /** Reine Status-Anzeige der Heimdall-Box(en) auf dem Dashboard (Ist + Soll + Frische). Keine
  *  Box-Kommandos — die Box folgt den Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding,
  *  wenn keine Box existiert oder Heimdall aus ist → `[]`). */
-export default function BoxStatusCard({ tz = APP_TZ }: { tz?: string }) {
+/** `reinigung` kommt als Prop von der Dashboard-Server-Komponente, NICHT aus dem 5s-Poll: die Regeln
+ *  ändern sich, wenn der Keyholder sie editiert oder eine Reinigung eingetragen wird — nicht im
+ *  Sekundentakt. Der Poll bleibt für die Hardware-Frische zuständig, die ihn wirklich braucht. */
+export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string; reinigung?: BoxReinigungView | null }) {
   const t = useTranslations("boxStatus");
   const dl = toDateLocale(useLocale());
   const { boxes, now } = useBoxStatus();
@@ -17,6 +20,9 @@ export default function BoxStatusCard({ tz = APP_TZ }: { tz?: string }) {
   if (boxes.length === 0) return null;
 
   const fmtDateTime = (iso: string) => formatDateTime(iso, dl, tz);
+  // Die Reinigungs-Regeln hängen am User, nicht an der Box — einmal ableiten, unter jeder Box zeigen.
+  const reinigungLabel = boxReinigungLabel(reinigung ?? null, t);
+  const quotaLabel = boxReinigungQuotaLabel(reinigung ?? null, t);
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 pt-6">
@@ -39,6 +45,11 @@ export default function BoxStatusCard({ tz = APP_TZ }: { tz?: string }) {
                 <span className={`text-sm ${scheme.accent}`}>· {boxIstLabel(b, t)}</span>
               </div>
               <p className={`text-xs ${scheme.accent}`}>{t("sollLabel")}: {boxSollLabel(b, t, fmtDateTime)}</p>
+              {reinigungLabel && (
+                <p className="text-xs text-foreground-muted">
+                  {reinigungLabel}{quotaLabel ? ` · ${quotaLabel}` : ""}
+                </p>
+              )}
               <p className="text-xs text-foreground-faint">{boxFreshnessLabel(b.lastSyncAt, now, t)}</p>
             </div>
           );
