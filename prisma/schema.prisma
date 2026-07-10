@@ -508,9 +508,9 @@ model BoxStatus {
   boltPos                String?
   fwVersion              String?
   lastSyncAt             DateTime?
-  // Vom Sub ausgelöstes, noch nicht vollzogenes Kommando.
-  pendingCommand         String? // "lock" | "open" | "clean_open"
-  pendingCommandRelockBy DateTime? // nur clean_open: Re-Lock-Frist
+  // Aus einem Eintrag abgeleitetes, noch nicht vollzogenes Kommando. Kein Reinigungs-Kommando und
+  // keine Frist: die Box öffnet auf "open" und bleibt offen, bis ein "lock" kommt.
+  pendingCommand         String? // "lock" | "open"
   pendingCommandAt       DateTime?
   updatedAt              DateTime  @updatedAt
 

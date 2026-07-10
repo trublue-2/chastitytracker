@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund } from "@/lib/constants";
-import { aktivesReinigungsFenster } from "@/lib/reinigungService";
+import { aktivesReinigungsFenster, parseReinigungsFenster } from "@/lib/reinigungService";
 import { APP_TZ } from "@/lib/utils";
 
 /**
@@ -397,6 +397,17 @@ export async function getKeyholderOrgasmusAnforderungen(userIds: string[]) {
   });
 }
 
+/** Liegt `at` in einem erlaubten Reinigungs-Zeitfenster des Subs? **Keine Fenster konfiguriert =
+ *  nicht zeitgebunden** → immer offen (so liest `/api/integration/box/config` die leere Liste
+ *  ebenfalls). Sind Fenster gesetzt, sind sie eine echte Schranke: ausserhalb ist eine
+ *  Reinigungsöffnung ein Verstoss. Einzige Quelle für diese Frage — von `isAllowedCleaningOpen`
+ *  (Öffnen bricht die Sperrzeit?) und `isOpeningPermittedNow` (Bildersafe-Gate) geteilt, die sonst
+ *  auseinanderliefen. `tz` ist die Zone des SUBS: die Fenster sind seine Wanduhrzeit. */
+export function cleaningWindowOpen(reinigungsFenster: unknown, at: Date, tz: string): boolean {
+  const fenster = parseReinigungsFenster(reinigungsFenster);
+  return fenster.length === 0 || aktivesReinigungsFenster(fenster, at, tz) !== null;
+}
+
 /**
  * Live-Antwort auf „darf der Sub JETZT öffnen?" — spiegelt die Regel aus strafbuch.ts/oeffnen:
  * keine aktive Sperrzeit ODER ein aktives, erlaubtes Reinigungsfenster ODER ein Orgasmus-
@@ -412,7 +423,7 @@ export async function isOpeningPermittedNow(userId: string, now: Date = new Date
       where: { id: userId },
       select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
     });
-    if (user?.reinigungErlaubt && aktivesReinigungsFenster(user.reinigungsFenster, now, user.timezone ?? APP_TZ)) return true;
+    if (user?.reinigungErlaubt && cleaningWindowOpen(user.reinigungsFenster, now, user.timezone ?? APP_TZ)) return true;
   }
 
   // Orgasmus-Öffnungsfenster (oeffnenErlaubt + im Zeitfenster)
@@ -443,42 +454,78 @@ export async function isCodePhotoRevealed(
   return isOpeningPermittedNow(entry.userId, now);
 }
 
+/** Der Teil des Users, den die Reinigungs-Erlaubnis braucht. Aufrufer, die ihn ohnehin geladen
+ *  haben, reichen ihn durch (spart den Refetch); sonst lädt {@link releaseSperrzeitenOnOpen} ihn. */
+export interface CleaningPermissionUser {
+  reinigungErlaubt: boolean;
+  /** JSON-String ODER Array — `parseReinigungsFenster` ist tolerant. Leer = nicht zeitgebunden. */
+  reinigungsFenster: unknown;
+  /** IANA-Zone des SUBS: die Fenster sind seine Wanduhrzeit, nicht die des Betrachters. */
+  timezone: string;
+}
+
+/** Darf diese Öffnung während einer aktiven Sperrzeit stattfinden, ohne sie zu brechen?
+ *
+ *  Drei Bedingungen, alle nötig: Grund REINIGUNG, der User darf reinigen, und JEDE aktive
+ *  Sperrzeit erlaubt es. Dazu — sofern Fenster konfiguriert sind — muss `now` in einem liegen.
+ *  **Keine Fenster = nicht zeitgebunden**, jederzeit erlaubt (so liest der Config-Endpunkt die leere
+ *  Liste ebenfalls). Ausserhalb eines konfigurierten Fensters ist die Öffnung ein Verstoss: die
+ *  Sperrzeit fällt, das Strafbuch bucht, und die Box bekommt kein Kommando.
+ *
+ *  `now`, NICHT die `startTime` des Eintrags: der Riegel fährt in diesem Moment auf. Die `startTime`
+ *  ist frei wählbar (rückdatierbar) — ein in ein vergangenes Fenster zurückdatierter Eintrag würde
+ *  die Schranke aushebeln und die Box ausserhalb jedes Fensters öffnen. Die Wiederverschluss-Frist
+ *  im Strafbuch rechnet weiterhin ab `startTime` (`reinigungRelockDeadline`); das ist Buchführung
+ *  über die Vergangenheit, hier geht es um eine physische Handlung in der Gegenwart.
+ *
+ *  Das Tageskontingent (`reinigungMaxProTag`) gehört bewusst NICHT hierher: es wird im Strafbuch
+ *  nur erkannt, nicht durchgesetzt — die Keyholderin entscheidet über die Ahndung. */
+function isAllowedCleaningOpen(
+  oeffnenGrund: OeffnenGrund | string | null | undefined,
+  now: Date,
+  user: CleaningPermissionUser,
+  activeSperrzeiten: { reinigungErlaubt: boolean }[],
+): boolean {
+  if (oeffnenGrund !== "REINIGUNG" || !user.reinigungErlaubt) return false;
+  if (!activeSperrzeiten.every((s) => s.reinigungErlaubt)) return false;
+  return cleaningWindowOpen(user.reinigungsFenster, now, user.timezone);
+}
+
 /**
  * Releases active SPERRZEIT periods when a user opens their device.
- * The release is skipped (Sperrzeit kept active) for cleaning openings where
- * both `user.reinigungErlaubt` and *every* active Sperrzeit's `reinigungErlaubt`
- * are true. Must be called inside a transaction.
+ * The release is skipped (Sperrzeit kept active) only for a permitted cleaning opening — see
+ * {@link isAllowedCleaningOpen}. Must be called inside a transaction.
  *
- * `userReinigungErlaubt` may be passed by callers that already loaded the user
- * to avoid a redundant fetch — otherwise the function loads it itself.
+ * `user` may be passed by callers that already loaded it to avoid a redundant fetch.
  *
- * Returns true if at least one Sperrzeit was withdrawn (for notification routing).
+ * Returns true if at least one Sperrzeit was withdrawn (for notification routing). The caller uses
+ * that to decide whether the box may follow the entry: a withdrawn Sperrzeit means the opening was
+ * FORBIDDEN, and the box must stay shut — otherwise documenting the offense would execute it.
  */
 export async function releaseSperrzeitenOnOpen(
   userId: string,
   oeffnenGrund: OeffnenGrund | string | null | undefined,
   tx: PrismaTx,
-  userReinigungErlaubt?: boolean,
+  user?: CleaningPermissionUser,
 ): Promise<boolean> {
+  // EINE Uhr für beide Fragen: welche Sperrzeiten laufen, und ist ein Fenster offen.
+  const now = new Date();
   const activeSperrzeiten = await tx.verschlussAnforderung.findMany({
-    where: activeSperrzeitWhere(userId, new Date()),
+    where: activeSperrzeitWhere(userId, now),
     select: { id: true, reinigungErlaubt: true },
   });
   if (activeSperrzeiten.length === 0) return false;
 
-  const effectiveUserErlaubt = userReinigungErlaubt ?? (
-    await tx.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true } })
-  )?.reinigungErlaubt ?? false;
+  const effectiveUser = user ?? await tx.user.findUnique({
+    where: { id: userId },
+    select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
+  }) ?? { reinigungErlaubt: false, reinigungsFenster: null, timezone: APP_TZ };
 
-  const allowedCleaning =
-    oeffnenGrund === "REINIGUNG" &&
-    effectiveUserErlaubt === true &&
-    activeSperrzeiten.every((s) => s.reinigungErlaubt);
-  if (allowedCleaning) return false;
+  if (isAllowedCleaningOpen(oeffnenGrund, now, effectiveUser, activeSperrzeiten)) return false;
 
   await tx.verschlussAnforderung.updateMany({
     where: { id: { in: activeSperrzeiten.map((s) => s.id) } },
-    data: { withdrawnAt: new Date() },
+    data: { withdrawnAt: now },
   });
   return true;
 }

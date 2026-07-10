@@ -80,7 +80,11 @@ export interface ReinigungConfig {
   maxMinuten: number;
   maxProTag: number;
   heuteAnzahl: number;
-  /** Das nächste beginnende Reinigungsfenster — rein informativ (die Box entscheidet selbst). */
+  /** Serverseitig gefälltes Urteil (eine Uhr, Sub-Zeitzone): liegt JETZT ein Reinigungsfenster
+   *  offen? Ohne konfigurierte Fenster ist die Reinigung nicht zeitgebunden → true. Spiegelt
+   *  `cleaningWindowOpen()`, das serverseitig auch über den Sperrzeit-Bruch entscheidet. */
+  windowOpen: boolean;
+  /** Das nächste beginnende Reinigungsfenster — rein informativ. */
   nextWindow?: ReinigungsFenster | null;
 }
 

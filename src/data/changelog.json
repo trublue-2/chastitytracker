@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.50.24",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine erlaubte Reinigungsöffnung öffnet die Box jetzt tatsächlich. Bisher entstand der Eintrag, das Tageskontingent wurde verbraucht und die Session unterbrochen — der Riegel blieb aber zu, ohne Vergehen und ohne Meldung.",
+          "en": "A permitted cleaning opening now actually opens the box. Previously the entry was created, the daily quota was used up and the session interrupted — but the bolt stayed shut, with no offense and no notice."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Reinigungsfenster sind jetzt eine echte Schranke: Wer ausserhalb eines konfigurierten Fensters zur Reinigung öffnet, bricht die Sperrzeit — die Box bleibt zu und das Strafbuch bucht. Bisher wurden die Fenster beim Öffnen gar nicht geprüft. Sind keine Fenster eingestellt, ist die Reinigung wie bisher jederzeit erlaubt.",
+          "en": "The cleaning windows are now a real gate: opening for cleaning outside a configured window breaks the lock period — the box stays shut and the offense is booked. Until now the windows were never checked when opening. With no windows configured, cleaning remains permitted at any time."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Die Box verriegelt nach einer Reinigungspause nicht mehr von selbst. Sie bleibt offen, bis der Verschluss eingetragen wird — der Riegel fährt nur noch, wenn jemand davorsteht.",
+          "en": "The box no longer re-locks itself after a cleaning pause. It stays open until the lock entry is recorded — the bolt only moves when someone is present."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.23",
     "date": "2026-07-10",
     "changes": [

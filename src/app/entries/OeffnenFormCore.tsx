@@ -54,6 +54,9 @@ export default function OeffnenFormCore({
   const reinigungMaxMinuten = reinigung?.maxMinuten ?? 15;
   const reinigungMaxProTag = reinigung?.maxProTag ?? 0;
   const reinigungHeuteAnzahl = reinigung?.heuteAnzahl ?? 0;
+  // Ohne `reinigung`-Prop (Admin-Formular) gibt es keine Fenster-Schranke — dort greifen die
+  // Sub-Warnungen ohnehin nicht, und ein `false` würde jede Reinigungsöffnung als Bruch anzeigen.
+  const reinigungWindowOpen = reinigung?.windowOpen ?? true;
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [grund, setGrund] = useState<OeffnenGrund | "">((initial?.oeffnenGrund as OeffnenGrund) ?? defaultGrund ?? "");
@@ -65,15 +68,19 @@ export default function OeffnenFormCore({
 
   const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
   const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
-  // Eine REINIGUNG-Öffnung verletzt die Sperre NICHT, wenn sowohl der User als auch DIESE Sperrzeit
-  // Reinigung erlauben (spiegelt die Strafbuch-Regel) — dann keine „Öffnen nicht erlaubt"-Warnung.
-  const istErlaubteReinigungsOeffnung = grund === "REINIGUNG" && reinigungErlaubt && sperrzeitReinigungErlaubt;
+  // Eine REINIGUNG-Öffnung verletzt die Sperre NICHT, wenn User und DIESE Sperrzeit Reinigung
+  // erlauben UND ein Fenster offen ist (spiegelt `isAllowedCleaningOpen` in lib/queries.ts, die
+  // serverseitige Entscheidung). Ausserhalb eines konfigurierten Fensters ist die Öffnung ein
+  // Bruch: Sperrzeit fällt, Strafbuch bucht, Box bleibt zu.
+  const istErlaubteReinigungsOeffnung =
+    grund === "REINIGUNG" && reinigungErlaubt && sperrzeitReinigungErlaubt && reinigungWindowOpen;
   const isGesperrtBlockiert = isGesperrt && !istErlaubteReinigungsOeffnung;
 
-  // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Es hängt NICHT vom
-  // gewählten Grund ab — der Bruch-Fall gehört `isGesperrtBlockiert`, das ihn ohnehin schon kennt,
-  // und wird von der bestehenden Sperrzeit-Karte plus dem Absende-Sheet abgedeckt.
-  const zeigeBoxHalt = !initial && !!boxHold && !isGesperrtBlockiert;
+  // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Bei einer erlaubten
+  // Reinigungsöffnung folgt der Riegel trotz laufender Sperrzeit (der Tracker setzt den Dauerauftrag
+  // in Heimdall aus) — dann wäre die Halte-Warnung falsch. Der Bruch-Fall gehört `isGesperrtBlockiert`
+  // und wird von der Sperrzeit-Karte plus dem Absende-Sheet abgedeckt.
+  const zeigeBoxHalt = !initial && !!boxHold && !isGesperrtBlockiert && !istErlaubteReinigungsOeffnung;
 
   async function doSave(forced = false) {
     const payload: OeffnenPayload = {

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { getIsLocked, getActiveSperrzeit, cleaningWindowOpen } from "@/lib/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
 import { reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
@@ -60,6 +60,7 @@ export default async function NewOeffnenPage() {
           maxMinuten: user?.reinigungMaxMinuten ?? 15,
           maxProTag: user?.reinigungMaxProTag ?? 0,
           heuteAnzahl: reinigungHeute,
+          windowOpen: cleaningWindowOpen(user?.reinigungsFenster, now, tz),
           nextWindow: nextReinigungsFenster(user?.reinigungsFenster, now, tz),
         }}
         boxHold={boxHold}
