@@ -1,5 +1,6 @@
 "use client";
 
+import { parseApiError } from "@/lib/apiClient";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreVertical, CheckCircle2, X, MinusCircle, Trash2 } from "lucide-react";
@@ -76,8 +77,7 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
         });
       }
       if (res && !res.ok) {
-        const body = await res.json().catch(() => null);
-        setError(body?.error ?? tc("savingError"));
+        setError(await parseApiError(res, tc("savingError")));
         return;
       }
       router.refresh();

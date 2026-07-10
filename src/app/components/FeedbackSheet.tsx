@@ -10,6 +10,7 @@ import Input from "./Input";
 import Button from "./Button";
 import FormError from "./FormError";
 import Checkbox from "./Checkbox";
+import { parseApiError } from "@/lib/apiClient";
 
 type FeedbackType = "BUG" | "IDEA" | "QUESTION" | "THANKS";
 
@@ -74,8 +75,7 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || tc("networkError"));
+        setError(await parseApiError(res, tc("networkError")));
       } else {
         setSuccess(true);
         setMessage("");

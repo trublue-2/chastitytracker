@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown, XCircle } from "lucide-react";
+import { parseApiError } from "@/lib/apiClient";
 
 export interface StrafeRecordData {
   refId: string;
@@ -41,6 +42,10 @@ export interface KontrollRow {
 }
 
 interface Labels {
+  /** Generische Fehlermeldung, wenn die API keine eigene liefert (common.error). */
+  errorFallback: string;
+  /** Meldung bei Netzwerkfehler (common.networkError). */
+  networkError: string;
   frist: string;
   systemLabel: string;
   givenLabel: string;
@@ -154,18 +159,23 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       e.preventDefault();
       setSaving(true);
       setError("");
-      const res = await fetch("/api/admin/strafe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, offenseType, refId, status, reason: text }),
-      });
-      setSaving(false);
-      if (res.ok) {
-        onClose();
-        router.refresh();
-      } else {
-        const d = await res.json();
-        setError(d.error || "Fehler");
+      try {
+        const res = await fetch("/api/admin/strafe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, offenseType, refId, status, reason: text }),
+        });
+        setSaving(false);
+        if (res.ok) {
+          onClose();
+          router.refresh();
+        } else {
+          setError(await parseApiError(res, labels.errorFallback));
+        }
+      } catch {
+        // Netzwerkfehler (offline/DNS) — sonst bliebe die Promise unbehandelt.
+        setSaving(false);
+        setError(labels.networkError);
       }
     }
 

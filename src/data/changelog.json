@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.50.7",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bricht die Verbindung beim Speichern einer Trainingsvorgabe oder beim Verhängen einer Strafe ab, erscheint jetzt ein Netzwerkfehler statt einer stehenbleibenden Ladeanzeige ohne Meldung.",
+          "en": "If the connection drops while saving a training goal or recording a penalty, a network error is now shown instead of a stuck loading indicator with no message."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die generische Fehlermeldung im Strafbuch erscheint jetzt in der eingestellten Sprache statt immer auf Deutsch.",
+          "en": "The generic error message in the penalty log now appears in the selected language instead of always German."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der Client-Seite: das Auslesen von Fehlermeldungen aus API-Antworten und der Aufbau von Eintrags-Anfragen laufen jetzt über gemeinsame Helfer statt über 23 handgeschriebene Kopien.",
+          "en": "Internal consolidation on the client side: reading error messages from API responses and building entry requests now go through shared helpers instead of 23 hand-written copies."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.6",
     "date": "2026-07-10",
     "changes": [

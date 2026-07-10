@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import PruefungFormCore from "@/app/entries/PruefungFormCore";
 import type { PruefungPayload, SubmitResult } from "@/app/entries/types";
+import { entryRequest, parseApiError } from "@/lib/apiClient";
 
 interface Props {
   initial?: {
@@ -35,15 +36,10 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
   const target = redirectTo ?? "/dashboard";
 
   async function submitFn(payload: PruefungPayload): Promise<SubmitResult> {
-    const res = await fetch(initial ? `/api/entries/${initial.id}` : "/api/entries", {
-      method: initial ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return { ok: false, error: err.error || tCommon("savingError") };
-    }
+    // Bewusst ohne offlineFetch: ein Pruefungs-Foto laesst sich nicht sinnvoll queuen.
+    const [url, init] = entryRequest(initial?.id, payload);
+    const res = await fetch(url, init);
+    if (!res.ok) return { ok: false, error: await parseApiError(res, tCommon("savingError")) };
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
     return { ok: true };
   }

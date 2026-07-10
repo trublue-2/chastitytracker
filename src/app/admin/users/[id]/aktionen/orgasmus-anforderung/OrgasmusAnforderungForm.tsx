@@ -14,6 +14,7 @@ import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Checkbox from "@/app/components/Checkbox";
 import Button from "@/app/components/Button";
+import { parseApiError } from "@/lib/apiClient";
 
 export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDefault }: { userId: string; artOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
@@ -63,9 +64,8 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
           nachricht: nachricht.trim() || undefined,
         }),
       });
-      const data = await res.json().catch(() => ({}));
       if (res.ok) router.push(target);
-      else setError(data.error || tc("error"));
+      else setError(await parseApiError(res, tc("error")));
     } catch {
       setError(tc("networkError"));
     } finally {

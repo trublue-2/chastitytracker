@@ -13,6 +13,7 @@ import useToast from "@/app/hooks/useToast";
 import { compressImage } from "@/lib/compressImage";
 import { VALID_CURRENCIES } from "@/lib/constants";
 import type { DeviceRow, CategoryOption } from "./DevicesClient";
+import { parseApiError } from "@/lib/apiClient";
 
 const CURRENCY_OPTIONS = VALID_CURRENCIES.map((c) => ({ value: c, label: c }));
 
@@ -102,8 +103,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setError(err.error || tCommon("savingError"));
+        setError(await parseApiError(res, tCommon("savingError")));
         setSaving(false);
         return;
       }

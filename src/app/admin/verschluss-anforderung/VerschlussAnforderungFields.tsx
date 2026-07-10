@@ -11,6 +11,7 @@ import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import type { DeviceOption } from "@/lib/queries";
+import { parseApiError } from "@/lib/apiClient";
 
 /** Labeled full-width tab group (segmented selector). Local to this form — shared by the
  *  deadline (frist) and the scheduling selector so the markup is not duplicated. */
@@ -149,9 +150,8 @@ export default function VerschlussAnforderungFields({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
       if (res.ok) onSuccess();
-      else setError(data.error || tc("error"));
+      else setError(await parseApiError(res, tc("error")));
     } catch {
       setError(tc("networkError"));
     } finally {

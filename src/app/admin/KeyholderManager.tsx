@@ -8,6 +8,7 @@ import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import Badge from "@/app/components/Badge";
 import FormError from "@/app/components/FormError";
+import { parseApiError } from "@/lib/apiClient";
 
 interface Person { id: string; username: string }
 interface Candidate extends Person { role?: string }
@@ -73,8 +74,7 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
         body: JSON.stringify({ keyholderId }),
       });
       if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || tc("error"));
+        throw new Error(await parseApiError(res, tc("error")));
       }
       setSelected("");
       router.refresh();

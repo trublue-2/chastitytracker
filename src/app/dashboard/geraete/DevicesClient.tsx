@@ -14,6 +14,7 @@ import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
 import useToast from "@/app/hooks/useToast";
 import DeviceForm from "./DeviceFormSheet";
+import { parseApiError } from "@/lib/apiClient";
 
 export interface DeviceRow {
   id: string;
@@ -106,8 +107,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
     try {
       const res = await fetch(`/api/devices/${deleteModal.id}`, { method: "DELETE" });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.error || tCommon("error"));
+        toast.error(await parseApiError(res, tCommon("error")));
         setDeleting(false);
         return;
       }
@@ -130,8 +130,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
         body: JSON.stringify({ action: "restore" }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.error || tCommon("error"));
+        toast.error(await parseApiError(res, tCommon("error")));
         return;
       }
       toast.success(t("restored"));

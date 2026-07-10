@@ -6,6 +6,7 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "@/app/entries/types";
+import { entryRequest, parseApiError } from "@/lib/apiClient";
 import type { ResolvedReason } from "@/lib/reasonsService";
 
 interface Props {
@@ -28,18 +29,11 @@ export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDef
   const target = redirectTo ?? "/dashboard";
 
   async function submitFn(payload: OeffnenPayload): Promise<SubmitResult> {
-    const url = initial ? `/api/entries/${initial.id}` : "/api/entries";
-    const init: RequestInit = {
-      method: initial ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    };
+    const [url, init] = entryRequest(initial?.id, payload);
+    // Nur beim Anlegen offline-queuefaehig; ein Edit braucht den echten Server.
     const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
     if (res === null) return { ok: true, offline: true };
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return { ok: false, error: err.error || tCommon("savingError") };
-    }
+    if (!res.ok) return { ok: false, error: await parseApiError(res, tCommon("savingError")) };
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
     return { ok: true };
   }

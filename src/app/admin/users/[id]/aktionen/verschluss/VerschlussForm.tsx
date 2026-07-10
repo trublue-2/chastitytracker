@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
 import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
+import { submitAdminEntry } from "@/lib/apiClient";
 import type { DeviceOption } from "@/lib/queries";
 
 export default function VerschlussForm({ userId, devices = [], tz, nowDefault }: { userId: string; devices?: DeviceOption[]; tz: string; nowDefault: string }) {
@@ -16,14 +17,7 @@ export default function VerschlussForm({ userId, devices = [], tz, nowDefault }:
   const target = `/admin/users/${userId}/aktionen`;
 
   async function submitFn(payload: VerschlussPayload): Promise<SubmitResult> {
-    const res = await fetch("/api/admin/entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, ...payload }),
-    });
-    if (res.ok) return { ok: true };
-    const err = await res.json().catch(() => ({}));
-    return { ok: false, error: err.error || tc("error") };
+    return submitAdminEntry(userId, payload, tc("error"));
   }
 
   return (

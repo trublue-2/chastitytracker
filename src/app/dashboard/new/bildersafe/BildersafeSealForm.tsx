@@ -8,6 +8,7 @@ import PhotoCapture from "@/app/components/PhotoCapture";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import useToast from "@/app/hooks/useToast";
+import { parseApiError } from "@/lib/apiClient";
 
 /**
  * Standalone-Aufnahme eines versiegelten Schlüsselbox-Code-Fotos (Bildersafe), die das Foto an den
@@ -63,8 +64,7 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
       toast.success(tn("bildersafeSealed"));
       window.location.href = "/dashboard";
     } else {
-      const d = await res.json().catch(() => ({}));
-      setError(d.error || tc("savingError"));
+      setError(await parseApiError(res, tc("savingError")));
     }
   }
 

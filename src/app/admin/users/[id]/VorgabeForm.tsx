@@ -1,5 +1,6 @@
 "use client";
 
+import { parseApiError } from "@/lib/apiClient";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -127,29 +128,35 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       notiz: notiz || null,
     };
 
-    const res = await fetch(
-      isEdit ? `/api/admin/vorgaben/${vorgabeId}` : "/api/admin/vorgaben",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+    try {
+      const res = await fetch(
+        isEdit ? `/api/admin/vorgaben/${vorgabeId}` : "/api/admin/vorgaben",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      setSaving(false);
+      if (!res.ok) {
+        setError(await parseApiError(res, tc("error")));
+        return;
       }
-    );
 
-    setSaving(false);
-    if (!res.ok) {
-      const d = await res.json();
-      setError(d.error ?? tc("error"));
-      return;
-    }
-
-    if (isEdit) {
-      router.refresh();
-      onCancel?.();
-    } else {
-      setGueltigAb(""); setGueltigBis("");
-      setTagVal(""); setWocheVal(""); setMonatVal(""); setJahrVal(""); setNotiz("");
-      router.refresh();
+      if (isEdit) {
+        router.refresh();
+        onCancel?.();
+      } else {
+        setGueltigAb(""); setGueltigBis("");
+        setTagVal(""); setWocheVal(""); setMonatVal(""); setJahrVal(""); setNotiz("");
+        router.refresh();
+      }
+    } catch {
+      // Netzwerkfehler (offline/DNS) — ohne dies bliebe die Promise unbehandelt und der Nutzer
+      // saehe nur den gestoppten Spinner ohne Meldung. Muster wie in den Geschwister-Formularen.
+      setSaving(false);
+      setError(tc("networkError"));
     }
   }
 

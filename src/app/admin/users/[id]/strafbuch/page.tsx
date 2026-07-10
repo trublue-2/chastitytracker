@@ -11,7 +11,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const session = await auth();
   const { id } = await params;
   await assertKeyholderOrAdmin(id);
-  const [t, dl] = [await getTranslations("admin"), toDateLocale(await getLocale())];
+  const [t, tCommon, dl] = [await getTranslations("admin"), await getTranslations("common"), toDateLocale(await getLocale())];
   const now = new Date();
 
   const user = await prisma.user.findUnique({ where: { id } });
@@ -66,6 +66,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   }));
 
   const labels = {
+    errorFallback: tCommon("error"),
+    networkError: tCommon("networkError"),
     lockedUntil: t("lockedUntil"),
     lockedIndefinite: t("lockedIndefinite"),
     frist: t("frist"),
