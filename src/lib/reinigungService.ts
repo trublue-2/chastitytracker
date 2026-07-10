@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
 import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 
@@ -128,7 +128,7 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
   // Als JSON-String ablegen (TEXT-Spalte) — nur validierte Paare.
   if (params.fenster !== undefined) data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
 
-  if (Object.keys(data).length === 0) return { ok: false, status: 400, error: NO_FIELDS_TO_UPDATE };
+  if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
 
   await prisma.user.update({ where: { id: userId }, data });
   return { ok: true, data: null };

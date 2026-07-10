@@ -8,6 +8,7 @@ import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/or
 import { judgeOffense } from "@/lib/strafurteilService";
 import { parseIsoDate } from "@/lib/mcp/common";
 import type { ServiceResult } from "@/lib/serviceResult";
+import en from "../../messages/en.json";
 
 /**
  * MCP write tools — keyholder directives issued over the MCP. The acting authority is the
@@ -61,9 +62,19 @@ async function resolveCategoryId(userId: string, name: string): Promise<string> 
   return match.id;
 }
 
-/** Unwraps a ServiceResult, throwing its error message so the tool wrapper surfaces it. */
+/** Die englischen Sätze zu den Service-Fehler-Codes. Bewusst aus `messages/en.json` gelesen statt
+ *  aus einer zweiten Tabelle: sonst hätte derselbe Code zwei Texte, die auseinanderlaufen, sobald
+ *  einer davon gepflegt wird. Der Parity-Test (serviceErrorCodes.test.ts) hält die Datei vollständig. */
+const EN_ERRORS: Record<string, string> = en.errors;
+
+/** Unwraps a ServiceResult, throwing the error as an English sentence so the tool wrapper surfaces
+ *  something an MCP agent can act on. Services return stable CODES (`LOCK_USER_ALREADY_LOCKED`), and
+ *  an agent has no `errors` namespace to resolve them against — so the boundary translates here.
+ *  `Object.hasOwn` statt `EN_ERRORS[code]`: ein Code wie "constructor" träfe sonst eine geerbte
+ *  Object-Property und würde eine Funktion als Fehlertext werfen. Unbekannter Code → roher Token,
+ *  besser als eine irreführende Meldung. */
 function unwrap<T>(r: ServiceResult<T>): T {
-  if (!r.ok) throw new Error(r.error);
+  if (!r.ok) throw new Error(Object.hasOwn(EN_ERRORS, r.error) ? EN_ERRORS[r.error] : r.error);
   return r.data;
 }
 

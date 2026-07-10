@@ -7,7 +7,7 @@ import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
+import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
@@ -18,19 +18,19 @@ export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
  */
 export async function resolveKontrolle(id: string, action: KontrolleAction): Promise<ServiceResult<{ userId: string }>> {
   const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
-  if (!ka) return { ok: false, status: 404, error: "Kontrolle nicht gefunden" };
+  if (!ka) return serviceFail(404, "INSPECTION_NOT_FOUND");
 
   if (action === "withdraw") {
-    if (ka.withdrawnAt) return { ok: false, status: 400, error: "Bereits zurückgezogen" };
+    if (ka.withdrawnAt) return serviceFail(400, "INSPECTION_ALREADY_WITHDRAWN");
     await prisma.kontrollAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
     trackEvent("kontrolle.withdrawn");
   } else if (action === "manuallyVerify" || action === "reject") {
-    if (!ka.entryId) return { ok: false, status: 400, error: "Keine Einreichung vorhanden" };
+    if (!ka.entryId) return serviceFail(400, "INSPECTION_NO_SUBMISSION");
     const verifikationStatus = action === "manuallyVerify" ? "manual" : "rejected";
     await prisma.entry.update({ where: { id: ka.entryId }, data: { verifikationStatus } });
     trackEvent(action === "manuallyVerify" ? "kontrolle.verified" : "kontrolle.rejected");
   } else {
-    return { ok: false, status: 400, error: "Unbekannte Aktion" };
+    return serviceFail(400, "UNKNOWN_ACTION");
   }
 
   const notif: NotifyContent =
@@ -127,11 +127,11 @@ export async function requestKontrolle(
   params: RequestKontrolleParams,
 ): Promise<ServiceResult<{ code: string; deadline: string; scheduledFor: string | null }>> {
   const { userId, kommentar, deadlineH, delayMinutes } = params;
-  if (!userId) return { ok: false, status: 400, error: "userId fehlt" };
+  if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return { ok: false, status: 404, error: "User nicht gefunden" };
-  if (!user.email) return { ok: false, status: 400, error: "User hat keine E-Mail-Adresse" };
+  if (!user) return serviceFail(404, "USER_NOT_FOUND");
+  if (!user.email) return serviceFail(400, "USER_NO_EMAIL");
 
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
   const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
@@ -145,8 +145,8 @@ export async function requestKontrolle(
   // Wurf- und Fang-Seite hängen an derselben Tabelle: `fail()` akzeptiert nur Codes, die unten
   // auch gemappt werden — ein Tippfehler ist ein Compile-Fehler, kein stiller 500.
   const { table: ERRORS, fail } = serviceErrors({
-    NOT_LOCKED: { status: 400, error: "User ist nicht verschlossen" },
-    ALREADY_ACTIVE: { status: 409, error: "Es ist bereits eine Kontrolle aktiv – zuerst abschliessen oder zurückziehen." },
+    NOT_LOCKED: { status: 400, error: "USER_NOT_LOCKED" },
+    ALREADY_ACTIVE: { status: 409, error: "INSPECTION_ALREADY_ACTIVE" },
   });
   try {
     const result = await prisma.$transaction(async (tx) => {

@@ -1,5 +1,39 @@
 [
   {
+    "version": "4.50.15",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fehlermeldungen von Kontrollen, Sperrzeiten, Orgasmus-Anforderungen, Trainingszielen und Geräte-Referenzfotos erscheinen jetzt in der eingestellten Sprache statt immer auf Deutsch.",
+          "en": "Error messages for inspections, lock periods, orgasm directives, training goals and device reference photos now appear in the selected language instead of always German."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Schlägt das Hochladen eines Referenzfotos fehl (etwa weil die Datei zu gross ist), erscheint jetzt eine Upload-Meldung statt eines generischen „Fehler“.",
+          "en": "If uploading a reference photo fails (for example because the file is too large), an upload-specific message now appears instead of a generic \"Error\"."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Löschen einer bereits entfernten Kontrolle oder Sperrzeit stand fälschlich „Eintrag nicht gefunden“ — jetzt „Nicht gefunden“.",
+          "en": "Deleting an already-removed inspection or lock period wrongly said \"Entry not found\" — now \"Not found\"."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Dienste geben Fehler jetzt als stabile Codes zurück, die ein Test gegen beide Sprachdateien abgleicht — ein fehlender Übersetzungstext fällt beim Bauen auf statt erst beim Benutzer.",
+          "en": "The services now return errors as stable codes that a test checks against both language files — a missing translation surfaces at build time instead of in front of a user."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.14",
     "date": "2026-07-10",
     "changes": [

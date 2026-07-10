@@ -7,7 +7,7 @@ import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateOrgasmusAnforderungParams {
   userId: string;
@@ -34,26 +34,26 @@ export async function createOrgasmusAnforderung(
 ): Promise<ServiceResult<{ id: string }>> {
   const { userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt } = params;
 
-  if (!userId) return { ok: false, status: 400, error: "userId fehlt" };
+  if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   if (!(ORGASMUS_ANFORDERUNG_ARTEN as readonly string[]).includes(art)) {
-    return { ok: false, status: 400, error: "art muss ANWEISUNG oder GELEGENHEIT sein" };
+    return serviceFail(400, "ORGASM_INVALID_ART");
   }
   if (!beginntAt || !endetAt) {
-    return { ok: false, status: 400, error: "Start und Ende des Fensters sind erforderlich" };
+    return serviceFail(400, "ORGASM_WINDOW_REQUIRED");
   }
   const beginnt = new Date(beginntAt);
   const endet = new Date(endetAt);
   if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endet.getTime())) {
-    return { ok: false, status: 400, error: "Ungültiger Zeitpunkt" };
+    return serviceFail(400, "INVALID_DATETIME");
   }
   if (endet <= beginnt) {
-    return { ok: false, status: 400, error: "Ende muss nach dem Start liegen" };
+    return serviceFail(400, "ORGASM_END_BEFORE_START");
   }
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return { ok: false, status: 404, error: "User nicht gefunden" };
+  if (!user) return serviceFail(404, "USER_NOT_FOUND");
   // vorgegebeneArt gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
   if (vorgegebeneArt && !orgasmusValueAllowed(vorgegebeneArt, user.orgasmusArtenConfig)) {
-    return { ok: false, status: 400, error: "Ungültige Orgasmus-Art" };
+    return serviceFail(400, "INVALID_ORGASM_TYPE");
   }
 
   // Withdraw existing open request + create the new one atomically (one active at a time).
@@ -112,7 +112,7 @@ export async function withdrawOrgasmusAnforderungById(id: string, userId: string
     data: { withdrawnAt: new Date() },
   });
   if (res.count === 0) {
-    return { ok: false, status: 400, error: "Anforderung ist nicht mehr offen" };
+    return serviceFail(400, "ORGASM_NOT_OPEN");
   }
   await notifyUser(userId, orgasmusWithdrawNotice());
   return { ok: true, data: { count: res.count } };

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { updateSperrzeitEnde, verschlussWithdrawNotice } from "@/lib/verschlussAnforderungService";
 import { notifyUser } from "@/lib/notify";
+import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function PATCH(
   req: NextRequest,
@@ -14,7 +15,7 @@ export async function PATCH(
     where: { id },
     select: { userId: true, art: true },
   });
-  if (!va) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+  if (!va) return errorResponse(404, "NOT_FOUND");
 
   const err = await requireKeyholderOrAdminApi(va.userId);
   if (err) return err;
@@ -34,12 +35,12 @@ export async function PATCH(
   if (body.action === "setEnd") {
     const endetAt = body.indefinite ? null : new Date(body.endetAt);
     if (!body.indefinite && Number.isNaN(endetAt!.getTime())) {
-      return NextResponse.json({ error: "Ungültiges Ende" }, { status: 400 });
+      return errorResponse(400, "INVALID_DATETIME");
     }
     const result = await updateSperrzeitEnde(id, endetAt);
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });
+  return errorResponse(400, "UNKNOWN_ACTION");
 }

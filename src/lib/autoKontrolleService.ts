@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp } from "@/lib/utils";
 import { NO_FIELDS_TO_UPDATE, INVALID_TIME } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
@@ -377,11 +377,11 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   // Ungültige Uhrzeit ist ein eigener Fehler — früher still verworfen, was sie mit dem
   // „keine Felder"-Fall vermischte und (über die Route) als Erfolg gemeldet wurde.
   if (params.ruheVon !== undefined) {
-    if (!HHMM.test(params.ruheVon)) return { ok: false, status: 400, error: INVALID_TIME };
+    if (!HHMM.test(params.ruheVon)) return serviceFail(400, INVALID_TIME);
     data.autoKontrolleRuheVon = params.ruheVon;
   }
   if (params.ruheBis !== undefined) {
-    if (!HHMM.test(params.ruheBis)) return { ok: false, status: 400, error: INVALID_TIME };
+    if (!HHMM.test(params.ruheBis)) return serviceFail(400, INVALID_TIME);
     data.autoKontrolleRuheBis = params.ruheBis;
   }
   if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, FRIST_RANGE);
@@ -393,7 +393,7 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
 
   // Leeres `data` heisst jetzt eindeutig: gar kein Feld übergeben (ungültige Uhrzeiten sind oben
   // schon als INVALID_TIME rausgeflogen).
-  if (Object.keys(data).length === 0) return { ok: false, status: 400, error: NO_FIELDS_TO_UPDATE };
+  if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
   const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_USER_SELECT });
 
   // Änderung sofort auf den laufenden Tag anwenden. Der Replan ist idempotent: ändert der Patch nichts

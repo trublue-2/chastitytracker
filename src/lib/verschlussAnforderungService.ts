@@ -7,7 +7,7 @@ import { validateDeviceOwnership, getIsLocked } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
+import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVerschlussAnforderungParams {
   userId: string;
@@ -41,15 +41,15 @@ export async function createVerschlussAnforderung(
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
   const { userId, art, nachricht, endetAt, fristH, dauerH, sperrEndetAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
 
-  if (!userId) return { ok: false, status: 400, error: "userId fehlt" };
+  if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
-    return { ok: false, status: 400, error: "art muss ANFORDERUNG oder SPERRZEIT sein" };
+    return serviceFail(400, "LOCK_INVALID_ART");
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return { ok: false, status: 404, error: "User nicht gefunden" };
+  if (!user) return serviceFail(404, "USER_NOT_FOUND");
   if (art === "ANFORDERUNG" && !user.email) {
-    return { ok: false, status: 400, error: "User hat keine E-Mail-Adresse" };
+    return serviceFail(400, "USER_NO_EMAIL");
   }
 
   const now = new Date();
@@ -59,7 +59,7 @@ export async function createVerschlussAnforderung(
   if (wirksamAbAt) {
     wirksamAbParsed = new Date(wirksamAbAt);
     if (Number.isNaN(wirksamAbParsed.getTime())) {
-      return { ok: false, status: 400, error: "Ungültiger Versandzeitpunkt" };
+      return serviceFail(400, "LOCK_INVALID_SEND_TIME");
     }
   }
   const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, { delayMinutes, wirksamAbAt: wirksamAbParsed });
@@ -70,32 +70,32 @@ export async function createVerschlussAnforderung(
   let endetAtDate: Date | null = null;
   if (endetAt) {
     endetAtDate = new Date(endetAt);
-    if (Number.isNaN(endetAtDate.getTime())) return { ok: false, status: 400, error: "Ungültiger Zeitpunkt" };
+    if (Number.isNaN(endetAtDate.getTime())) return serviceFail(400, "INVALID_DATETIME");
   } else if (fristH) {
     endetAtDate = new Date((wirksamAb ?? now).getTime() + fristH * 60 * 60 * 1000);
   }
   if (art === "ANFORDERUNG" && !endetAtDate) {
-    return { ok: false, status: 400, error: "Frist zum Einschliessen ist erforderlich" };
+    return serviceFail(400, "LOCK_DEADLINE_REQUIRED");
   }
 
   // Absolutes Sperr-Ende (nur ANFORDERUNG, Alternative zu dauerH). Wird beim Fulfill 1:1 zur SPERRZEIT.
   let sperrEndetAtDate: Date | null = null;
   if (art === "ANFORDERUNG" && sperrEndetAt) {
     sperrEndetAtDate = new Date(sperrEndetAt);
-    if (Number.isNaN(sperrEndetAtDate.getTime())) return { ok: false, status: 400, error: "Ungültiges Sperr-Ende" };
+    if (Number.isNaN(sperrEndetAtDate.getTime())) return serviceFail(400, "LOCK_INVALID_LOCK_END");
   }
 
   if (deviceId && art === "ANFORDERUNG") {
     const device = await validateDeviceOwnership(deviceId, userId);
-    if (!device) return { ok: false, status: 400, error: "Ungültiges Gerät" };
+    if (!device) return serviceFail(400, "INVALID_DEVICE");
   }
 
   // Wrap state-check + withdraw + create in transaction to prevent TOCTOU race
   let anforderung;
   // Wurf- und Fang-Seite hängen an derselben Tabelle — siehe kontrolleService.
   const { table: ERRORS, fail } = serviceErrors({
-    ALREADY_LOCKED: { status: 400, error: "User ist bereits verschlossen" },
-    NOT_LOCKED: { status: 400, error: "User ist nicht verschlossen" },
+    ALREADY_LOCKED: { status: 400, error: "USER_ALREADY_LOCKED" },
+    NOT_LOCKED: { status: 400, error: "USER_NOT_LOCKED" },
   });
   try {
     anforderung = await prisma.$transaction(async (tx) => {
@@ -230,11 +230,11 @@ export async function updateSperrzeitEnde(
     where: { id },
     select: { userId: true, art: true, withdrawnAt: true },
   });
-  if (!va) return { ok: false, status: 404, error: "Sperrzeit nicht gefunden" };
-  if (va.art !== "SPERRZEIT") return { ok: false, status: 400, error: "Nur Sperrzeiten haben ein Ende" };
-  if (va.withdrawnAt) return { ok: false, status: 400, error: "Sperrzeit ist bereits aufgehoben" };
+  if (!va) return serviceFail(404, "LOCK_PERIOD_NOT_FOUND");
+  if (va.art !== "SPERRZEIT") return serviceFail(400, "LOCK_PERIOD_ONLY_HAS_END");
+  if (va.withdrawnAt) return serviceFail(400, "LOCK_PERIOD_ALREADY_WITHDRAWN");
   if (endetAt && endetAt.getTime() <= Date.now()) {
-    return { ok: false, status: 400, error: "Das neue Ende muss in der Zukunft liegen" };
+    return serviceFail(400, "LOCK_PERIOD_END_MUST_BE_FUTURE");
   }
 
   await prisma.verschlussAnforderung.update({ where: { id }, data: { endetAt } });

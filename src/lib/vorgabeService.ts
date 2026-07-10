@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { reorderVorgabenDates } from "@/lib/vorgaben";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVorgabeParams {
   userId: string;
@@ -26,15 +26,15 @@ async function validateVorgabeCategory(
   userId: string,
 ): Promise<ServiceResult<never> | null> {
   if (categoryId === undefined || categoryId === null) return null;
-  if (typeof categoryId !== "string") return { ok: false, status: 400, error: "Ungültige Kategorie" };
+  if (typeof categoryId !== "string") return serviceFail(400, "INVALID_CATEGORY");
   const cat = await prisma.deviceCategory.findUnique({
     where: { id: categoryId },
     select: { userId: true, allowVorgaben: true, isBuiltIn: true },
   });
-  if (!cat || cat.userId !== userId) return { ok: false, status: 400, error: "Ungültige Kategorie" };
+  if (!cat || cat.userId !== userId) return serviceFail(400, "INVALID_CATEGORY");
   // Built-in (KG) always allows vorgaben; user-defined respects the toggle.
   if (!cat.isBuiltIn && !cat.allowVorgaben) {
-    return { ok: false, status: 400, error: "Diese Kategorie erlaubt keine Trainingsvorgaben" };
+    return serviceFail(400, "CATEGORY_DISALLOWS_GOALS");
   }
   return null;
 }
@@ -51,8 +51,8 @@ function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number 
 export async function createVorgabe(params: CreateVorgabeParams): Promise<ServiceResult<{ id: string }>> {
   const { userId, categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, minProJahrH, notiz } = params;
 
-  if (!userId || !gueltigAb) return { ok: false, status: 400, error: "userId und gueltigAb sind erforderlich" };
-  if (!hasPeriodTarget(params)) return { ok: false, status: 400, error: "Mindestens ein Zeitwert ist erforderlich" };
+  if (!userId || !gueltigAb) return serviceFail(400, "GOAL_USER_AND_START_REQUIRED");
+  if (!hasPeriodTarget(params)) return serviceFail(400, "GOAL_PERIOD_TARGET_REQUIRED");
   const catErr = await validateVorgabeCategory(categoryId, userId);
   if (catErr) return catErr;
 
@@ -84,11 +84,11 @@ export type UpdateVorgabeParams = Omit<CreateVorgabeParams, "userId">;
  */
 export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Promise<ServiceResult<{ id: string; userId: string }>> {
   const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
-  if (!existing) return { ok: false, status: 404, error: "Trainingsvorgabe nicht gefunden" };
+  if (!existing) return serviceFail(404, "GOAL_NOT_FOUND");
 
   const { categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, minProJahrH, notiz } = params;
-  if (!gueltigAb) return { ok: false, status: 400, error: "gueltigAb ist erforderlich" };
-  if (!hasPeriodTarget(params)) return { ok: false, status: 400, error: "Mindestens ein Zeitwert ist erforderlich" };
+  if (!gueltigAb) return serviceFail(400, "GOAL_START_REQUIRED");
+  if (!hasPeriodTarget(params)) return serviceFail(400, "GOAL_PERIOD_TARGET_REQUIRED");
   const catErr = await validateVorgabeCategory(categoryId, existing.userId);
   if (catErr) return catErr;
 
@@ -113,7 +113,7 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
 /** Deletes a TrainingVorgabe by id. Shared by DELETE /api/admin/vorgaben/[id] and the MCP tool. */
 export async function deleteVorgabe(id: string): Promise<ServiceResult<{ userId: string }>> {
   const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
-  if (!existing) return { ok: false, status: 404, error: "Trainingsvorgabe nicht gefunden" };
+  if (!existing) return serviceFail(404, "GOAL_NOT_FOUND");
   await prisma.trainingVorgabe.delete({ where: { id } });
   await reorderVorgabenDates(existing.userId);
   return { ok: true, data: { userId: existing.userId } };

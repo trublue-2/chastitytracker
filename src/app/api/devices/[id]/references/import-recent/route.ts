@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { importRecentVerschluss } from "@/lib/deviceReferenceService";
+import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,12 +18,12 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const device = await prisma.device.findUnique({ where: { id }, select: { userId: true } });
   if (!device || (device.userId !== session.user.id && session.user.role !== "admin")) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return errorResponse(404, "NOT_FOUND");
   }
 
   const body = await req.json().catch(() => ({}));
   const limit = typeof body.limit === "number" ? body.limit : 5;
   const result = await importRecentVerschluss(id, device.userId, limit);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (!result.ok) return serviceFailure(result);
   return NextResponse.json(result.data);
 }

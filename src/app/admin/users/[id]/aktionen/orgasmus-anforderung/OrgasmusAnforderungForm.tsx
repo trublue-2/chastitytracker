@@ -14,11 +14,13 @@ import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Checkbox from "@/app/components/Checkbox";
 import Button from "@/app/components/Button";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDefault }: { userId: string; artOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const target = `/admin/users/${userId}/aktionen`;
 
@@ -65,7 +67,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
         }),
       });
       if (res.ok) router.push(target);
-      else setError(await parseApiError(res, tc("error")));
+      else setError(apiError(await parseApiErrorCode(res)));
     } catch {
       setError(tc("networkError"));
     } finally {

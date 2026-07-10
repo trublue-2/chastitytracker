@@ -1,6 +1,7 @@
 "use client";
 
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -89,6 +90,7 @@ interface Props {
 export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel, categories }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const isEdit = !!vorgabeId;
   const showCategoryPicker = (categories?.length ?? 0) > 1;
@@ -140,7 +142,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
 
       setSaving(false);
       if (!res.ok) {
-        setError(await parseApiError(res, tc("error")));
+        setError(apiError(await parseApiErrorCode(res)));
         return;
       }
 

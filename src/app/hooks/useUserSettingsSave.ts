@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
 
 /**
  * Geteilter Saver für die Admin-Settings-Toggles (PATCH /api/admin/users/[id]).
@@ -32,9 +32,9 @@ export function useUserSettingsSave(userId: string) {
         body: JSON.stringify(patch),
       });
       if (!res.ok) {
-        // Die Route liefert stabile Fehler-Codes, keine Prosa — der leere Fallback bedeutet
-        // „kein Code lesbar", woraufhin useApiError() die generische Meldung nimmt.
-        toast.error(apiError(await parseApiError(res, "")));
+        // Die Route liefert stabile Fehler-Codes, keine Prosa — deshalb der Code-Parser. `null`
+        // (kein Code lesbar) löst useApiError() zur generischen Meldung auf.
+        toast.error(apiError(await parseApiErrorCode(res)));
         return false;
       }
       // Nur nach einer angenommenen Änderung neu laden — ein abgelehnter Patch hat den Server-Stand

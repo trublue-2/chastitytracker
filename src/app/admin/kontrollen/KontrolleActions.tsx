@@ -1,6 +1,7 @@
 "use client";
 
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreVertical, CheckCircle2, X, MinusCircle, Trash2 } from "lucide-react";
@@ -17,6 +18,7 @@ interface Props {
 export default function KontrolleActions({ kontrolleId, entryId, anforderungStatus, verifikationStatus }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
@@ -77,7 +79,7 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
         });
       }
       if (res && !res.ok) {
-        setError(await parseApiError(res, tc("savingError")));
+        setError(apiError(await parseApiErrorCode(res)));
         return;
       }
       router.refresh();

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { uploadsDirPath, generateUploadFilename, deleteUploadedFiles } from "@/lib/imageUtils";
 import { visionMaxRefsPerDevice } from "@/lib/constants";
 import type { DeviceReference } from "@/lib/detectDevice";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /**
  * Sammelt die Referenzbilder JE aktivem KG-Gerät für die Vision-Erkennung: bevorzugt kuratierte
@@ -107,10 +107,10 @@ export async function importEntryAsReference(
     where: { id: entryId, userId },
     select: { id: true, imageUrl: true },
   });
-  if (!entry?.imageUrl) return { ok: false, status: 404, error: "Entry oder Foto nicht gefunden" };
+  if (!entry?.imageUrl) return serviceFail(404, "REFERENCE_ENTRY_NOT_FOUND");
 
   const copied = await copyUploadFile(entry.imageUrl);
-  if (!copied) return { ok: false, status: 500, error: "Foto konnte nicht kopiert werden" };
+  if (!copied) return serviceFail(500, "REFERENCE_COPY_FAILED");
 
   const ref = await prisma.deviceReferenceImage.create({
     data: { deviceId, imageUrl: copied, sourceEntryId: entry.id },
@@ -157,7 +157,7 @@ export async function deleteReference(refId: string, userId: string | null): Pro
     where: { id: refId, ...(userId ? { device: { userId } } : {}) },
     select: { id: true, imageUrl: true },
   });
-  if (!ref) return { ok: false, status: 404, error: "Referenz nicht gefunden" };
+  if (!ref) return serviceFail(404, "REFERENCE_NOT_FOUND");
   await prisma.deviceReferenceImage.delete({ where: { id: ref.id } });
   void deleteUploadedFiles([ref.imageUrl]);
   return { ok: true, data: null };

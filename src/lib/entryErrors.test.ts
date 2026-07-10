@@ -2,10 +2,6 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { codedError } from "./codedError";
 import { ENTRY_ERROR_CODES, entryGuardError, entryGuardCode } from "./entryErrors";
-import de from "../../messages/de.json";
-import en from "../../messages/en.json";
-
-const LOCALES = [["de", de], ["en", en]] as const;
 
 /** Die Entry-Routen, die stabile Codes als `{ error: "CODE" }` beantworten. */
 const ENTRY_ROUTES = [
@@ -14,16 +10,9 @@ const ENTRY_ROUTES = [
   "src/app/api/admin/entries/route.ts",
 ];
 
-// Ein Entry-Fehler-Code ohne Key im `errors`-Namespace fällt in useApiError() still auf die
-// generische Meldung zurück — kein Typfehler, kein Laufzeitfehler. Diese Tests sind die einzige
-// Absicherung gegen Tippfehler und vergessene Übersetzungen.
-describe("entry error codes have translations", () => {
-  it.each(LOCALES)("%s.json defines every entry error code", (_locale, messages) => {
-    const errors: Record<string, string> = messages.errors;
-    const missing = ENTRY_ERROR_CODES.filter((code) => !errors[code]);
-    expect(missing).toEqual([]);
-  });
-});
+// Die i18n-Parity (jeder Code hat einen Key in de.json UND en.json) prüft serviceErrorCodes.test.ts
+// über die Vereinigung beider Registries — ENTRY_ERROR_CODES ist dort enthalten. Hier bleibt nur,
+// was entry-spezifisch ist: dass die Routen keine undeklarierten Codes ausschreiben.
 
 /** Die als `{ error: "CODE" }` ausgeschriebenen Literale einer Route. `{ error: entryGuardCode(e) }`
  *  und `{ error: validationError }` fehlen hier bewusst — die sind über EntryGuardCode /
