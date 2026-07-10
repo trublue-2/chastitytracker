@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
-import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import { NO_FIELDS_TO_UPDATE, INVALID_TIME } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
 
 /**
@@ -208,8 +208,16 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   if (params.aktiv !== undefined) data.autoKontrolleAktiv = Boolean(params.aktiv);
   if (params.perDayMin !== undefined) data.autoKontrollePerDayMin = clamp(params.perDayMin, PER_DAY_RANGE);
   if (params.perDayMax !== undefined) data.autoKontrollePerDayMax = clamp(params.perDayMax, PER_DAY_RANGE);
-  if (params.ruheVon !== undefined && HHMM.test(params.ruheVon)) data.autoKontrolleRuheVon = params.ruheVon;
-  if (params.ruheBis !== undefined && HHMM.test(params.ruheBis)) data.autoKontrolleRuheBis = params.ruheBis;
+  // Ungültige Uhrzeit ist ein eigener Fehler — früher still verworfen, was sie mit dem
+  // „keine Felder"-Fall vermischte und (über die Route) als Erfolg gemeldet wurde.
+  if (params.ruheVon !== undefined) {
+    if (!HHMM.test(params.ruheVon)) return { ok: false, status: 400, error: INVALID_TIME };
+    data.autoKontrolleRuheVon = params.ruheVon;
+  }
+  if (params.ruheBis !== undefined) {
+    if (!HHMM.test(params.ruheBis)) return { ok: false, status: 400, error: INVALID_TIME };
+    data.autoKontrolleRuheBis = params.ruheBis;
+  }
   if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, FRIST_RANGE);
   if (params.fristBis !== undefined) data.autoKontrolleFristBis = clamp(params.fristBis, FRIST_RANGE);
   // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay & Frist).
@@ -217,11 +225,8 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   if (data.autoKontrollePerDayMax !== undefined) data.autoKontrollePerDayMax = raiseMaxToMin(data.autoKontrollePerDayMin, data.autoKontrollePerDayMax);
   if (data.autoKontrolleFristBis !== undefined) data.autoKontrolleFristBis = raiseMaxToMin(data.autoKontrolleFristVon, data.autoKontrolleFristBis);
 
-  // Leeres `data` heisst hier ZWEIERLEI: gar kein Feld übergeben — oder nur ungültige HH:MM-Werte,
-  // die oben still verworfen wurden. Deshalb 400 statt `{ok:true}`.
-  // ACHTUNG: aktuell folgenlos — PATCH /api/admin/users/[id] verwirft das ServiceResult und
-  // antwortet immer `{ok:true}`. Eine kaputte Uhrzeit meldet dem Client also heute Erfolg.
-  // Das ist ein echter, hier NICHT behobener Bug (Route müsste .ok auswerten + HH:MM explizit prüfen).
+  // Leeres `data` heisst jetzt eindeutig: gar kein Feld übergeben (ungültige Uhrzeiten sind oben
+  // schon als INVALID_TIME rausgeflogen).
   if (Object.keys(data).length === 0) return { ok: false, status: 400, error: NO_FIELDS_TO_UPDATE };
   const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_USER_SELECT });
 

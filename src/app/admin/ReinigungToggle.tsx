@@ -1,12 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, X } from "lucide-react";
 import Toggle from "@/app/components/Toggle";
+import TimeInput from "@/app/components/TimeInput";
+import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import useToast from "@/app/hooks/useToast";
+import { useApiError } from "@/app/hooks/useApiError";
+import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
+import { clampInputValue } from "@/lib/utils";
 
 type Fenster = { start: string; end: string };
+
+/** Ein Fenster zählt nur mit vollständigem, aufsteigendem Paar — genau das speichert der Service. */
+function isCompleteFenster(f: Fenster): boolean {
+  return Boolean(f.start && f.end && f.start < f.end);
+}
 
 export default function ReinigungToggle({
   userId,
@@ -22,54 +32,37 @@ export default function ReinigungToggle({
   initialFenster: Fenster[];
 }) {
   const t = useTranslations("admin");
-  const router = useRouter();
+  const tc = useTranslations("common");
+  const toast = useToast();
+  const apiError = useApiError();
+  const { saving, save } = useUserSettingsSave(userId);
   const [erlaubt, setErlaubt] = useState(initialErlaubt);
   const [maxMin, setMaxMin] = useState(initialMaxMinuten);
   const [maxProTag, setMaxProTag] = useState(initialMaxProTag);
   const [fenster, setFenster] = useState<Fenster[]>(initialFenster);
-  const [saving, setSaving] = useState(false);
 
-  async function save(newErlaubt: boolean, newMaxMin: number, newMaxProTag: number) {
-    setSaving(true);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reinigungErlaubt: newErlaubt, reinigungMaxMinuten: newMaxMin, reinigungMaxProTag: newMaxProTag }),
-    });
-    setSaving(false);
-    router.refresh();
+  function saveSettings(newErlaubt: boolean, newMaxMin: number, newMaxProTag: number) {
+    return save({ reinigungErlaubt: newErlaubt, reinigungMaxMinuten: newMaxMin, reinigungMaxProTag: newMaxProTag });
   }
 
   // Fenster separat speichern (nur reinigungsFenster) — der Service lässt die anderen Felder
-  // unberührt. Nur vollständige, sinnvolle Paare (start < end) gehen serverseitig durch.
-  async function saveFenster(next: Fenster[]) {
-    setFenster(next);
-    setSaving(true);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reinigungsFenster: next.filter((f) => f.start && f.end && f.start < f.end) }),
-    });
-    setSaving(false);
-    router.refresh();
+  // unberührt. Unvollständige/rückwärts laufende Paare verwirft der Service still; die würde ein
+  // `{ok:true}` sonst als gespeichert ausweisen, obwohl sie nie in der DB landen. Deshalb hier
+  // vorab ablehnen — und lokal erst übernehmen, wenn der Server den Stand angenommen hat.
+  async function saveFenster(next: Fenster[]): Promise<boolean> {
+    if (!next.every(isCompleteFenster)) {
+      toast.error(apiError("timeRangeInvalid"));
+      return false;
+    }
+    const ok = await save({ reinigungsFenster: next });
+    if (ok) setFenster(next);
+    return ok;
   }
 
   function handleToggle(checked: boolean) {
     setErlaubt(checked);
-    save(checked, maxMin, maxProTag);
+    saveSettings(checked, maxMin, maxProTag);
   }
-
-  function handleMinuten(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = Math.max(1, Math.min(120, Number(e.target.value) || 15));
-    setMaxMin(val);
-  }
-
-  function handleMaxProTag(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = Math.max(0, Math.min(20, Number(e.target.value) || 0));
-    setMaxProTag(val);
-  }
-
-  const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
 
   return (
     <div className="flex flex-col gap-3">
@@ -83,54 +76,52 @@ export default function ReinigungToggle({
       {erlaubt && (
         <>
           <div className="flex items-center gap-2 pl-1">
-            <span className="text-xs text-foreground-faint">{t("reinigungMaxLabel")}</span>
+            <span className={faintCls}>{t("reinigungMaxLabel")}</span>
             <input
               type="number"
               min={1}
               max={120}
               value={maxMin}
-              onChange={handleMinuten}
-              onBlur={() => save(erlaubt, maxMin, maxProTag)}
+              onChange={(e) => setMaxMin(clampInputValue(e.target.value, 1, 120, 15))}
+              onBlur={() => saveSettings(erlaubt, maxMin, maxProTag)}
               disabled={saving}
               className={inputCls}
             />
-            <span className="text-xs text-foreground-faint">min</span>
+            <span className={faintCls}>min</span>
           </div>
           <div className="flex items-center gap-2 pl-1">
-            <span className="text-xs text-foreground-faint">{t("reinigungMaxProTagLabel")}</span>
+            <span className={faintCls}>{t("reinigungMaxProTagLabel")}</span>
             <input
               type="number"
               min={0}
               max={20}
               value={maxProTag}
-              onChange={handleMaxProTag}
-              onBlur={() => save(erlaubt, maxMin, maxProTag)}
+              onChange={(e) => setMaxProTag(clampInputValue(e.target.value, 0, 20, 0))}
+              onBlur={() => saveSettings(erlaubt, maxMin, maxProTag)}
               disabled={saving}
               className={inputCls}
             />
-            <span className="text-xs text-foreground-faint">{t("reinigungMaxProTagHint")}</span>
+            <span className={faintCls}>{t("reinigungMaxProTagHint")}</span>
           </div>
           <div className="flex flex-col gap-2 pl-1">
-            <span className="text-xs text-foreground-faint">{t("reinigungFensterLabel")}</span>
+            <span className={faintCls}>{t("reinigungFensterLabel")}</span>
             {fenster.length === 0 && (
-              <span className="text-xs text-foreground-faint italic">{t("reinigungFensterEmpty")}</span>
+              <span className={`${faintCls} italic`}>{t("reinigungFensterEmpty")}</span>
             )}
             {fenster.map((f, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input
-                  type="time"
+                <TimeInput
                   value={f.start}
                   disabled={saving}
-                  onChange={(e) => saveFenster(fenster.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))}
-                  className={inputCls}
+                  ariaLabel={`${t("reinigungFensterLabel")} ${tc("from")}`}
+                  onCommit={(v) => saveFenster(fenster.map((x, j) => (j === i ? { ...x, start: v } : x)))}
                 />
-                <span className="text-xs text-foreground-faint">–</span>
-                <input
-                  type="time"
+                <span className={faintCls}>–</span>
+                <TimeInput
                   value={f.end}
                   disabled={saving}
-                  onChange={(e) => saveFenster(fenster.map((x, j) => (j === i ? { ...x, end: e.target.value } : x)))}
-                  className={inputCls}
+                  ariaLabel={`${t("reinigungFensterLabel")} ${tc("to")}`}
+                  onCommit={(v) => saveFenster(fenster.map((x, j) => (j === i ? { ...x, end: v } : x)))}
                 />
                 <button
                   type="button"

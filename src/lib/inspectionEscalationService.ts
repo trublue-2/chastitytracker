@@ -137,7 +137,7 @@ export async function setInspectionEscalationSettings(
 
   // Gleicher Kontrakt wie setReinigungSettings/setAutoKontrolleSettings: ein leerer Patch ist ein
   // Aufruferfehler. Reine Geschwister-Konsistenz — über die Route unerreichbar (sie prüft vorher
-  // „mind. ein Feld") und derzeit ohnehin folgenlos, da sie das ServiceResult verwirft.
+  // „mind. ein Feld"), aber ihr Ergebnis wird dort ausgewertet und durchgereicht.
   if (Object.keys(data).length === 0) return { ok: false, status: 400, error: NO_FIELDS_TO_UPDATE };
   await prisma.user.update({ where: { id: userId }, data });
   return { ok: true, data: null };

@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
+import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { clampInputValue } from "@/lib/utils";
 
-const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
-const faintCls = "text-xs text-foreground-faint";
 const DELAY_MIN = 5;
 const DELAY_MAX = 1440;
 
@@ -41,23 +40,11 @@ export default function InspectionEscalationToggle({
   initialAutoMarkDelayMinutes: number;
 }) {
   const t = useTranslations("admin");
-  const router = useRouter();
+  const { saving, save } = useUserSettingsSave(userId);
   const [reminderEnabled, setReminderEnabled] = useState(initialReminderEnabled);
   const [reminderDelayMinutes, setReminderDelayMinutes] = useState(initialReminderDelayMinutes);
   const [autoMarkEnabled, setAutoMarkEnabled] = useState(initialAutoMarkEnabled);
   const [autoMarkDelayMinutes, setAutoMarkDelayMinutes] = useState(initialAutoMarkDelayMinutes);
-  const [saving, setSaving] = useState(false);
-
-  async function save(patch: Record<string, unknown>) {
-    setSaving(true);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    setSaving(false);
-    router.refresh();
-  }
 
   return (
     <div className="flex flex-col gap-3">

@@ -13,7 +13,10 @@
     "cannotDeleteSelf": "Eigenen Account kann man nicht löschen",
     "invalidTimezone": "Ungültige Zeitzone",
     "invalidStartPage": "Ungültige Startseite",
-    "invalidHideOwnTracker": "Ungültiger Wert"
+    "invalidHideOwnTracker": "Ungültiger Wert",
+    "invalidTime": "Ungültige Uhrzeit",
+    "noFieldsToUpdate": "Keine Felder zum Aktualisieren",
+    "timeRangeInvalid": "Ende muss nach dem Start liegen"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -104,7 +107,8 @@
     "verified": "Verifiziert",
     "notVerified": "Nicht verifiziert",
     "verifying": "Verifizierung läuft",
-    "reason": "Grund"
+    "reason": "Grund",
+    "from": "von"
   },
   "adminNav": {
     "overview": "Übersicht",

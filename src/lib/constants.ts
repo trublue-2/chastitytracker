@@ -153,10 +153,13 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
 export const SELF_EDITABLE_USER_FIELDS = ["timezone", "locale", "hideOwnTracker", "startPage"] as const;
 export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
 
-/** Fehlertext der Settings-Services, wenn ein Patch kein einziges Feld setzt. Geteilt von
+/** Stabiler Fehler-Code der Settings-Services, wenn ein Patch kein einziges Feld setzt. Geteilt von
  *  setReinigungSettings / setAutoKontrolleSettings / setInspectionEscalationSettings, damit die
- *  drei Geschwister nicht auseinanderlaufen. */
-export const NO_FIELDS_TO_UPDATE = "Keine Felder zum Aktualisieren";
+ *  drei Geschwister nicht auseinanderlaufen. Der Client löst ihn über den `errors`-Namespace auf. */
+export const NO_FIELDS_TO_UPDATE = "noFieldsToUpdate";
+
+/** Stabiler Fehler-Code für ein Feld, das keine gültige „HH:MM"-Uhrzeit ist. */
+export const INVALID_TIME = "invalidTime";
 
 /** Call-to-Action-Button-Farben für HTML-Mails (in E-Mail keine CSS-Variablen → Hex).
  *  Bewusst getrennt von TYPE_EMAIL_COLORS: das ist der Akzent je Eintrags-TYP, nicht die

@@ -13,7 +13,10 @@
     "cannotDeleteSelf": "You cannot delete your own account",
     "invalidTimezone": "Invalid timezone",
     "invalidStartPage": "Invalid start page",
-    "invalidHideOwnTracker": "Invalid value"
+    "invalidHideOwnTracker": "Invalid value",
+    "invalidTime": "Invalid time",
+    "noFieldsToUpdate": "No fields to update",
+    "timeRangeInvalid": "End must be after start"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -104,7 +107,8 @@
     "verified": "Verified",
     "notVerified": "Not verified",
     "verifying": "Verifying…",
-    "reason": "Reason"
+    "reason": "Reason",
+    "from": "from"
   },
   "adminNav": {
     "overview": "Overview",

@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
+import TimeInput from "@/app/components/TimeInput";
+import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { clampInputValue } from "@/lib/utils";
-
-const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
-const faintCls = "text-xs text-foreground-faint";
 
 /** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit; committet je Feld einzeln (onBlur). */
 function NumberRangeRow({
@@ -52,26 +51,13 @@ export default function AutoKontrolleToggle({
   initialFristBis: number;
 }) {
   const t = useTranslations("admin");
-  const router = useRouter();
+  const tc = useTranslations("common");
+  const { saving, save } = useUserSettingsSave(userId);
   const [aktiv, setAktiv] = useState(initialAktiv);
   const [perDayMin, setPerDayMin] = useState(initialPerDayMin);
   const [perDayMax, setPerDayMax] = useState(initialPerDayMax);
-  const [ruheVon, setRuheVon] = useState(initialRuheVon);
-  const [ruheBis, setRuheBis] = useState(initialRuheBis);
   const [fristVon, setFristVon] = useState(initialFristVon);
   const [fristBis, setFristBis] = useState(initialFristBis);
-  const [saving, setSaving] = useState(false);
-
-  async function save(patch: Record<string, unknown>) {
-    setSaving(true);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    setSaving(false);
-    router.refresh();
-  }
 
   function handleToggle(checked: boolean) {
     setAktiv(checked);
@@ -101,20 +87,18 @@ export default function AutoKontrolleToggle({
           {/* Schlaf-Fenster (Frist darf hier nicht liegen) */}
           <div className="flex items-center gap-2 pl-1">
             <span className={faintCls}>{t("autoKontrolleRuheLabel")}</span>
-            <input
-              type="time"
-              value={ruheVon}
+            <TimeInput
+              value={initialRuheVon}
               disabled={saving}
-              onChange={(e) => { setRuheVon(e.target.value); save({ autoKontrolleRuheVon: e.target.value }); }}
-              className={inputCls}
+              ariaLabel={`${t("autoKontrolleRuheLabel")} ${tc("from")}`}
+              onCommit={(v) => save({ autoKontrolleRuheVon: v })}
             />
             <span className={faintCls}>–</span>
-            <input
-              type="time"
-              value={ruheBis}
+            <TimeInput
+              value={initialRuheBis}
               disabled={saving}
-              onChange={(e) => { setRuheBis(e.target.value); save({ autoKontrolleRuheBis: e.target.value }); }}
-              className={inputCls}
+              ariaLabel={`${t("autoKontrolleRuheLabel")} ${tc("to")}`}
+              onCommit={(v) => save({ autoKontrolleRuheBis: v })}
             />
           </div>
 
