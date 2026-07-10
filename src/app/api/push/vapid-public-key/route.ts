@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 
 export async function GET() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const key = process.env.VAPID_PUBLIC_KEY;
   if (!key) return NextResponse.json({ error: "Push not configured" }, { status: 503 });

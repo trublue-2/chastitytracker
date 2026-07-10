@@ -206,7 +206,8 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/hooks/usePhotoUpload.ts` — Upload + EXIF + Seal-Detect (für alle Foto-Forms)
 
 **Utilities:**
-- `src/lib/authGuards.ts` — `requireAdminApi()`, `assertAdmin()`
+- `src/lib/authGuards.ts` — `requireApi()` (Plain-Session-Guard, gibt die Session zurück), `requireAdminApi()`, `requireKeyholderOrAdminApi()`, `assertAdmin()`, `assertKeyholderOrAdmin()`
+- `src/lib/userSelfField.ts` — `userSelfFieldRoute()` für „User ändert EIN eigenes Feld"-PATCH-Routen (nur `SELF_EDITABLE_USER_FIELDS`)
 - `src/lib/constants.ts` — `VALID_TYPES`, `OEFFNEN_GRUENDE`, `ORGASMUS_ARTEN`, `isValidImageUrl()`, `validatePassword()`, `parseOrgasmusArtBase()`, `PASSWORD_MIN_LENGTH`, `BCRYPT_MAX_BYTES`
 - `src/lib/utils.ts` — `buildWearPairs()`, `wearingHoursFromPairs()`, `isTimeCorrected()`, `formatDuration()`, `formatDateTime()`, `toDatetimeLocal()`
 - `src/lib/queries.ts` — `getIsLocked()`, `getActiveVorgabe()`

@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.6",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "security",
+        "text": {
+          "de": "Die Einstellungs-Routen, über die man eigene Felder ändert (Zeitzone, Sprache, Startseite, eigene Karte ausblenden), sind jetzt technisch darauf beschränkt — admin-gesetzte Felder wie die Rolle lassen sich über diesen Weg nicht mehr versehentlich freischalten.",
+          "en": "The settings routes for changing your own fields (timezone, language, start page, hide own card) are now technically restricted to exactly those — admin-set fields such as the role can no longer be accidentally exposed through this path."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der API-Zugriffsprüfung: ein gemeinsamer Login-Guard ersetzt 30 handgeschriebene Kopien und liefert überall dieselbe Antwort bei fehlender Anmeldung.",
+          "en": "Internal consolidation of the API access check: one shared login guard replaces 30 hand-written copies and returns the same response everywhere when not signed in."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.5",
     "date": "2026-07-10",
     "changes": [

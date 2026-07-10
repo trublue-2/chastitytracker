@@ -144,6 +144,15 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
   ORGASMUS: "#8b5cf6",
 };
 
+/** User-Spalten, die ein Nutzer über den generischen `userSelfFieldRoute`-Handler SELBST ändern
+ *  darf. Bewusst eng gehalten und compilerseitig erzwungen: admin-gesetzte Felder (`role`,
+ *  `reinigungErlaubt`, `mobileDesktopUpload`, …) gehören NICHT hierher — die brauchen laut
+ *  CLAUDE.md („Admin-Felder in User-Settings") zwingend `requireAdminApi()`.
+ *  `email`/`passwordHash` sind ebenfalls Self-Felder, laufen aber über eigene Handler
+ *  (Trim/409 bzw. anderer Body-Key + bcrypt) und stehen deshalb nicht in dieser Liste. */
+export const SELF_EDITABLE_USER_FIELDS = ["timezone", "locale", "hideOwnTracker", "startPage"] as const;
+export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
+
 /** Fehlertext der Settings-Services, wenn ein Patch kein einziges Feld setzt. Geteilt von
  *  setReinigungSettings / setAutoKontrolleSettings / setInspectionEscalationSettings, damit die
  *  drei Geschwister nicht auseinanderlaufen. */

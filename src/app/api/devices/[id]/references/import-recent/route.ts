@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { importRecentVerschluss } from "@/lib/deviceReferenceService";
 
@@ -11,8 +11,8 @@ type Params = { params: Promise<{ id: string }> };
  * Referenzen — Startbestand „Trainingsmaterial der letzten Wochen". Idempotent (per sourceEntryId).
  */
 export async function POST(req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
   const device = await prisma.device.findUnique({ where: { id }, select: { userId: true } });

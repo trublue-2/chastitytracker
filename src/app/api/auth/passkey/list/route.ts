@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -7,8 +7,8 @@ import { prisma } from "@/lib/prisma";
  * List all passkeys for the authenticated user.
  */
 export async function GET() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const passkeys = await prisma.passkey.findMany({
     where: { userId: session.user.id },
@@ -30,8 +30,8 @@ export async function GET() {
  * Body: { id }
  */
 export async function DELETE(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

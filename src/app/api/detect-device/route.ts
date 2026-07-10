@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl } from "@/lib/constants";
 import { detectDevice } from "@/lib/detectDevice";
@@ -20,8 +20,8 @@ import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
  * Response: { deviceId: string | null, deviceName: string | null }
  */
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const rl = await checkRateLimit(`detect-device:${session.user.id}`, 10, 60_000);
   if (rl.limited) {

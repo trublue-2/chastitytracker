@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { heimdallEnabled } from "@/lib/constants";
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 // Box-Status-Karte und die (+)-Menü-Box-Zeile. KEINE Kommandos mehr: die Box FOLGT den
 // Verschluss-/Öffnen-Einträgen (Kopplung in /api/entries), Reinigung = OEFFNEN(Reinigung)+Verschluss.
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
   // Heimdall-Box ist ein eigenständiges Feature: ohne Sync-Secret keine Box-UI (auch wenn
   // noch alte BoxStatus-Zeilen in der DB liegen).
   if (!heimdallEnabled()) return NextResponse.json([]);

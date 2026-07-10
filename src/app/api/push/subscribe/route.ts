@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { endpoint, keys } = await req.json();
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { endpoint } = await req.json();
   if (!endpoint) return NextResponse.json({ error: "endpoint required" }, { status: 400 });

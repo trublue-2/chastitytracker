@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
@@ -12,8 +12,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
 
@@ -144,8 +144,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
 import { listDeviceReferences, addReferenceFromUpload, importEntryAsReference } from "@/lib/deviceReferenceService";
@@ -16,8 +16,8 @@ async function ownedDeviceUserId(id: string, sessionUserId: string, role: string
 
 /** GET /api/devices/[id]/references — kuratierte Referenzfotos des Geräts. */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
   const ownerId = await ownedDeviceUserId(id, session.user.id, session.user.role);
@@ -31,8 +31,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * Body: { imageUrl } (frisch hochgeladen) ODER { entryId } (aus bestehendem Foto übernehmen).
  */
 export async function POST(req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
   const ownerId = await ownedDeviceUserId(id, session.user.id, session.user.role);

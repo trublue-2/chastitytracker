@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { detectSealNumber, detectLockboxCode } from "@/lib/verifyCode";
 import { localCodeReadable } from "@/lib/imageReadability";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const rl = await checkRateLimit(`user:${session.user.id}`, 10, 60_000);
   if (rl.limited) {

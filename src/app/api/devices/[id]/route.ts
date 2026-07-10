@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
@@ -19,8 +19,8 @@ async function getOwnedDevice(id: string, sessionUserId: string, sessionRole: st
  * Update device fields or restore an archived device (action: "restore").
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
   const device = await getOwnedDevice(id, session.user.id, session.user.role);
@@ -108,8 +108,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
  * Returns { deleted: true } or { archived: true }.
  */
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
   const device = await getOwnedDevice(id, session.user.id, session.user.role);

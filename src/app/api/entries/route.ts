@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
@@ -21,8 +21,8 @@ import { formatDateTime, formatDuration } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
 
 export async function GET() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const entries = await prisma.entry.findMany({
     where: { userId: session.user.id },
@@ -39,8 +39,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only

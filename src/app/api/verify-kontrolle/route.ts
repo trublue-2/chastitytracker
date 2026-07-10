@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 import { deriveSealCode } from "@/lib/kontrolleService";
 import { getLatestKgEntry } from "@/lib/queries";
@@ -10,8 +10,8 @@ import { structuredLog } from "@/lib/serverLog";
 const log = (label: string, fields: Record<string, unknown>) => structuredLog("verify", label, fields);
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const rl = await checkRateLimit(`user:${session.user.id}`, 10, 60_000);
   if (rl.limited) {

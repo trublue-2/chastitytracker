@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 
@@ -10,8 +10,8 @@ import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCR
  * Pass ?includeArchived=true to include soft-deleted devices.
  */
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { searchParams } = req.nextUrl;
   const includeArchived = searchParams.get("includeArchived") === "true";
@@ -53,8 +53,8 @@ export async function GET(req: NextRequest) {
  * Admin may pass userId in the body to create for another user.
  */
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const body = await req.json();
   const { name, description, imageUrl, purchasePrice, currency, categoryId } = body;
