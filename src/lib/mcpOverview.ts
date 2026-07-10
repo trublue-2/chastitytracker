@@ -143,7 +143,9 @@ async function loadUserContext(username: string): Promise<{ userId: string; time
  * spart mit dieser Form drei Rechnungen pro Aufruf: `buildCategoryWearGoals` (eigener Query),
  * `calculateWearingHoursByRange` und `getActiveVorgabe`.
  */
-export type TrackerOverviewLean = Omit<TrackerOverview, "wearingHoursKg" | "trainingGoalKg" | "categories">;
+export const LEAN_OMITTED_KEYS = ["wearingHoursKg", "trainingGoalKg", "categories"] as const;
+
+export type TrackerOverviewLean = Omit<TrackerOverview, (typeof LEAN_OMITTED_KEYS)[number]>;
 
 /** V1 `get_overview`: der vollständige Snapshot. Feldbestand UND Schlüsselreihenfolge sind Teil des
  *  Vertrags gegenüber bestehenden MCP-Clients — deshalb unten bedingte Spreads an Ort und Stelle,
@@ -153,7 +155,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
   // Der Cast unten ist für TypeScript unüberprüfbar: `withGoals` ist ein Laufzeit-Wert. Fiele einer
   // der drei bedingten Spreads weg, kompilierte das weiterhin und jede V1-Antwort verlöre still ein
   // Feld. Diese Zusicherung macht daraus einen lauten Fehler.
-  for (const k of ["wearingHoursKg", "trainingGoalKg", "categories"] as const) {
+  for (const k of LEAN_OMITTED_KEYS) {
     if (!(k in o)) throw new Error(`buildOverview: V1-Feld "${k}" fehlt — get_overview-Vertrag verletzt`);
   }
   return o as TrackerOverview;

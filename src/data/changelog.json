@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.21",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Antwort der MCP-Keyholder-Übersicht ist jetzt durch Tests abgesichert: Feldbestand und Reihenfolge der Felder werden festgehalten, damit eine Umstellung sie nicht mehr unbemerkt verändern kann.",
+          "en": "The MCP keyholder overview response is now covered by tests: its field set and field order are pinned, so a refactor can no longer change them unnoticed."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.20",
     "date": "2026-07-10",
     "changes": [
