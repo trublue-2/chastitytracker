@@ -9,6 +9,7 @@
 
 // `import type` — zur Laufzeit gelöscht, zieht also kein Prisma in das Client-Bundle.
 import type { ReinigungsFenster } from "@/lib/reinigungService";
+import type { CleaningBlockReason } from "@/lib/queries";
 export type SubmitResult =
   | { ok: true; offline?: boolean }
   | { ok: false; error: string };
@@ -74,24 +75,26 @@ export interface WearEndPayload {
   note: string | null;
 }
 
-/** Bundled user-cleaning config (kept together to avoid prop sprawl). */
+/** Bundled user-cleaning config (kept together to avoid prop sprawl). Enthält bewusst KEIN
+ *  `erlaubt`-Flag mehr: ob gereinigt werden darf, beantwortet `cleaningBlock` vollständig — samt
+ *  Grund. Zwei Quellen für dieselbe Frage waren der Ursprung dieser ganzen Fehlerfamilie. */
 export interface ReinigungConfig {
-  erlaubt: boolean;
   maxMinuten: number;
   maxProTag: number;
   heuteAnzahl: number;
-  /** Serverseitig gefälltes Urteil (eine Uhr, Sub-Zeitzone): liegt JETZT ein Reinigungsfenster
-   *  offen? Ohne konfigurierte Fenster ist die Reinigung nicht zeitgebunden → true. Spiegelt
-   *  `cleaningWindowOpen()`, das serverseitig auch über den Sperrzeit-Bruch entscheidet. */
-  windowOpen: boolean;
+  /** Serverseitig gefälltes Urteil (eine Uhr, Sub-Zeitzone): darf JETZT gereinigt werden, und wenn
+   *  nein — warum nicht? `null` = erlaubt. Kommt aus `cleaningBlockReason()`, derselben Regel, die
+   *  serverseitig über den Sperrzeit-Bruch entscheidet. Fehlt die Prop (Admin-Formular, Edit-Seite),
+   *  gilt „nicht blockieren": dort ist der Grund nie REINIGUNG bzw. wird nichts neu geöffnet. */
+  cleaningBlock?: CleaningBlockReason | null;
   /** Das nächste beginnende Reinigungsfenster — rein informativ. */
   nextWindow?: ReinigungsFenster | null;
 }
 
-/** Bundled Sperrzeit state (user-dashboard only — admin skips these warnings). */
+/** Bundled Sperrzeit state (user-dashboard only — admin skips these warnings). Das Sperr-Flag
+ *  `reinigungErlaubt` steckt in `ReinigungConfig.cleaningBlock`, wo es mit dem User-Flag und dem
+ *  Zeitfenster zu EINEM Urteil verrechnet ist. */
 export interface SperrzeitState {
   endetAt: string | null;
   unbefristet: boolean;
-  /** Ob DIESE Sperrzeit Reinigungsöffnungen erlaubt — dann ist ein REINIGUNG-Öffnen keine Sperrverletzung. */
-  reinigungErlaubt: boolean;
 }

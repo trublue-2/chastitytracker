@@ -417,13 +417,14 @@ export async function isOpeningPermittedNow(userId: string, now: Date = new Date
   const sperre = await getActiveSperrzeit(userId);
   if (!sperre) return true;
 
-  // Erlaubtes, aktives Reinigungsfenster (User- UND Sperrzeit-Flag + im Zeitfenster)
+  // Erlaubte Reinigungsöffnung — dieselbe Quelle wie Durchsetzung und Strafbuch. Der äussere Guard
+  // spart nur die User-Abfrage, wenn die Sperrzeit Reinigung ohnehin verbietet.
   if (sperre.reinigungErlaubt) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
     });
-    if (user?.reinigungErlaubt && cleaningWindowOpen(user.reinigungsFenster, now, user.timezone ?? APP_TZ)) return true;
+    if (user && cleaningBlockReason(user, [sperre], now) === null) return true;
   }
 
   // Orgasmus-Öffnungsfenster (oeffnenErlaubt + im Zeitfenster)
@@ -464,31 +465,51 @@ export interface CleaningPermissionUser {
   timezone: string;
 }
 
-/** Darf diese Öffnung während einer aktiven Sperrzeit stattfinden, ohne sie zu brechen?
+/** Warum eine Reinigungsöffnung gerade NICHT erlaubt ist. Reihenfolge = Spezifität: das Speziellere
+ *  gewinnt, damit die Texte den nützlichsten Grund nennen (wer gar nicht reinigen darf, braucht
+ *  keinen Fenster-Hinweis). */
+export type CleaningBlockReason = "userNotAllowed" | "lockPeriodForbids" | "outsideWindow";
+
+/**
+ * Darf zu `at` eine Reinigungsöffnung stattfinden, ohne die Sperrzeit zu brechen? `null` = ja.
  *
- *  Drei Bedingungen, alle nötig: Grund REINIGUNG, der User darf reinigen, und JEDE aktive
- *  Sperrzeit erlaubt es. Dazu — sofern Fenster konfiguriert sind — muss `now` in einem liegen.
- *  **Keine Fenster = nicht zeitgebunden**, jederzeit erlaubt (so liest der Config-Endpunkt die leere
- *  Liste ebenfalls). Ausserhalb eines konfigurierten Fensters ist die Öffnung ein Verstoss: die
- *  Sperrzeit fällt, das Strafbuch bucht, und die Box bekommt kein Kommando.
+ * DIE eine Quelle dieser Frage. Sie beantwortet nicht nur „ob", sondern „warum nicht" — denn die
+ * Anzeigen (Box-Karte, Öffnen-Dialog) müssen dem Sub den Grund nennen und würden ihn sonst selbst
+ * ausrechnen. Genau diese Nachrechnung war die Fehlerquelle: dieselbe Regel stand in
+ * `strafbuch.ts` (ohne Fenster-Prüfung) und in `OeffnenFormCore.tsx` (nur User-Flag) noch einmal.
  *
- *  `now`, NICHT die `startTime` des Eintrags: der Riegel fährt in diesem Moment auf. Die `startTime`
- *  ist frei wählbar (rückdatierbar) — ein in ein vergangenes Fenster zurückdatierter Eintrag würde
- *  die Schranke aushebeln und die Box ausserhalb jedes Fensters öffnen. Die Wiederverschluss-Frist
- *  im Strafbuch rechnet weiterhin ab `startTime` (`reinigungRelockDeadline`); das ist Buchführung
- *  über die Vergangenheit, hier geht es um eine physische Handlung in der Gegenwart.
+ * Drei Bedingungen, alle nötig: der User darf reinigen, JEDE aktive Sperrzeit erlaubt es, und —
+ * sofern Fenster konfiguriert sind — `at` liegt in einem. **Keine Fenster = nicht zeitgebunden**,
+ * jederzeit erlaubt. Ausserhalb eines konfigurierten Fensters ist die Öffnung ein Verstoss: die
+ * Sperrzeit fällt, das Strafbuch bucht, und die Box bekommt kein Kommando.
  *
- *  Das Tageskontingent (`reinigungMaxProTag`) gehört bewusst NICHT hierher: es wird im Strafbuch
- *  nur erkannt, nicht durchgesetzt — die Keyholderin entscheidet über die Ahndung. */
+ * `at` ist NICHT dasselbe für alle Aufrufer: die Durchsetzung
+ * ({@link releaseSperrzeitenOnOpen}) prüft `now`, weil der Riegel in DIESEM Moment auffährt und eine
+ * rückdatierte `startTime` die Schranke sonst aushebelte. Das Strafbuch prüft `startTime`, weil es
+ * Buch über die Vergangenheit führt.
+ *
+ * Das Tageskontingent (`reinigungMaxProTag`) gehört bewusst NICHT hierher: es wird nur erkannt, nicht
+ * durchgesetzt — die Keyholderin entscheidet über die Ahndung.
+ */
+export function cleaningBlockReason(
+  user: CleaningPermissionUser,
+  activeSperrzeiten: { reinigungErlaubt: boolean }[],
+  at: Date,
+): CleaningBlockReason | null {
+  if (!user.reinigungErlaubt) return "userNotAllowed";
+  if (!activeSperrzeiten.every((s) => s.reinigungErlaubt)) return "lockPeriodForbids";
+  if (!cleaningWindowOpen(user.reinigungsFenster, at, user.timezone)) return "outsideWindow";
+  return null;
+}
+
+/** Ist DIESE Öffnung eine erlaubte Reinigungsöffnung? Grund + {@link cleaningBlockReason}. */
 function isAllowedCleaningOpen(
   oeffnenGrund: OeffnenGrund | string | null | undefined,
   now: Date,
   user: CleaningPermissionUser,
   activeSperrzeiten: { reinigungErlaubt: boolean }[],
 ): boolean {
-  if (oeffnenGrund !== "REINIGUNG" || !user.reinigungErlaubt) return false;
-  if (!activeSperrzeiten.every((s) => s.reinigungErlaubt)) return false;
-  return cleaningWindowOpen(user.reinigungsFenster, now, user.timezone);
+  return oeffnenGrund === "REINIGUNG" && cleaningBlockReason(user, activeSperrzeiten, now) === null;
 }
 
 /**

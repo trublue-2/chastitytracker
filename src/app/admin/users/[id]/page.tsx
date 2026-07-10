@@ -128,6 +128,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null && !activeSperrzeit.wirksamAb}
           sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
           sperrzeitScheduledFor={activeSperrzeit?.wirksamAb && activeSperrzeit.wirksamAb > now ? activeSperrzeit.wirksamAb : null}
+          // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
+          // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
+          cleaningNote={activeSperrzeit ? t(activeSperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
           activeVorgabe={proratedVorgabe}
           tagH={tagH}
           wocheH={wocheH}

@@ -127,7 +127,7 @@ export default async function AdminPage() {
         ? { id: offeneVerschlussAnforderung.id, nachricht: offeneVerschlussAnforderung.nachricht, endetAt: offeneVerschlussAnforderung.endetAt, overdue: !!offeneVerschlussAnforderung.endetAt && offeneVerschlussAnforderung.endetAt < now }
         : null,
       activeSperrzeit: activeSperrzeit
-        ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt }
+        ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt, reinigungErlaubt: activeSperrzeit.reinigungErlaubt }
         : null,
       offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
         ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endetAt: offeneOrgasmusAnforderung.endetAt, expired: offeneOrgasmusAnforderung.endetAt < now }
@@ -265,6 +265,9 @@ export default async function AdminPage() {
                         subTimePrefix={subLabel}
                         endetAt={u.stats.activeSperrzeit.endetAt}
                         showRemaining={!!u.stats.activeSperrzeit.endetAt}
+                        // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den
+                        // Benutzer-Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
+                        cleaningNote={t(u.stats.activeSperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
                         withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
                       />
                     )}

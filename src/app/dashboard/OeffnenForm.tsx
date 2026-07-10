@@ -20,10 +20,11 @@ interface Props {
   sperrzeit?: SperrzeitState;
   reinigung?: ReinigungConfig;
   boxHold?: BoxHold | null;
+  hasBox?: boolean;
   redirectTo?: string;
 }
 
-export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, redirectTo }: Props) {
+export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox, redirectTo }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -56,6 +57,7 @@ export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDef
       sperrzeit={sperrzeit}
       reinigung={reinigung}
       boxHold={boxHold}
+      hasBox={hasBox}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}

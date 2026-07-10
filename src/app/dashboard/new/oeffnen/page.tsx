@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getIsLocked, getActiveSperrzeit, cleaningWindowOpen } from "@/lib/queries";
+import { getIsLocked, getActiveSperrzeit, cleaningBlockReason } from "@/lib/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
 import { reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
@@ -53,17 +53,28 @@ export default async function NewOeffnenPage() {
         sperrzeit={{
           endetAt: activeSperrzeit?.endetAt?.toISOString() ?? null,
           unbefristet: !!activeSperrzeit && activeSperrzeit.endetAt === null,
-          reinigungErlaubt: activeSperrzeit?.reinigungErlaubt ?? false,
         }}
         reinigung={{
-          erlaubt: user?.reinigungErlaubt ?? false,
           maxMinuten: user?.reinigungMaxMinuten ?? 15,
           maxProTag: user?.reinigungMaxProTag ?? 0,
           heuteAnzahl: reinigungHeute,
-          windowOpen: cleaningWindowOpen(user?.reinigungsFenster, now, tz),
+          // Das Urteil fällt der Server, aus derselben Regel wie die Durchsetzung. Der Client
+          // bekommt den Grund, damit er ihn nennen kann — nicht die Zutaten, um ihn nachzurechnen.
+          //
+          // Ohne aktive Sperrzeit gibt es nichts zu brechen: Fenster und Sperr-Flag sind dann
+          // bedeutungslos, und ein „ausserhalb des Reinigungsfensters" wäre eine Mahnung ohne
+          // Gegenstand. Nur `userNotAllowed` gilt immer — dem Sub fehlt die Erlaubnis so oder so.
+          cleaningBlock: activeSperrzeit
+            ? cleaningBlockReason(
+                { reinigungErlaubt: user?.reinigungErlaubt ?? false, reinigungsFenster: user?.reinigungsFenster, timezone: tz },
+                [activeSperrzeit],
+                now,
+              )
+            : (user?.reinigungErlaubt ? null : "userNotAllowed"),
           nextWindow: nextReinigungsFenster(user?.reinigungsFenster, now, tz),
         }}
         boxHold={boxHold}
+        hasBox={!!box}
       />
     </div>
   );

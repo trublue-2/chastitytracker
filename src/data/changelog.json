@@ -1,5 +1,46 @@
 [
   {
+    "version": "4.50.26",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "security",
+        "text": {
+          "de": "Eine Reinigungsöffnung ausserhalb des Reinigungsfensters brach die Sperrzeit, erschien aber in keinem Strafbuch. Sie wird jetzt als unerlaubtes Öffnen gebucht. Ältere Einträge bleiben unangetastet — niemand wird für eine Regel belangt, die es zur Zeit der Tat nicht gab.",
+          "en": "A cleaning opening outside the cleaning window broke the lock period but appeared in no offense record. It is now booked as an unauthorised opening. Older entries are left untouched — nobody is charged under a rule that did not exist at the time."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Verbietet die laufende Sperrzeit Reinigungsöffnungen, versprach die Box-Karte trotzdem „Reinigungsfenster offen bis …\". Sie nennt jetzt den Grund, und das Tageskontingent verschwindet.",
+          "en": "When the active lock period forbids cleaning openings, the box card still promised “cleaning window open until …”. It now states the reason, and the daily quota disappears."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Öffnen-Dialog sagt jetzt, warum eine Reinigungsöffnung nicht geht: keine Erlaubnis, diese Sperre verbietet es, oder ausserhalb des Fensters. Bisher stand dort in allen drei Fällen dasselbe.",
+          "en": "The opening dialog now says why a cleaning opening is not possible: no permission, this lock period forbids it, or outside the window. Previously all three cases showed the same text."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "„Trotzdem öffnen\" nennt bei Box-Nutzern die wahre Folge: die Box öffnet nicht, der Eintrag dokumentiert nur. Der Riegel löst sich allein mit dem Notschlüssel.",
+          "en": "For box users, “Open anyway” now names the real consequence: the box does not open, the entry only records. The bolt releases only with the emergency key."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Jede Sperrzeit-Anzeige nennt jetzt, ob sie Reinigungsöffnungen erlaubt. Die Beschriftungen der beiden Reinigungs-Einstellungen sagen, wofür sie gelten.",
+          "en": "Every lock-period display now states whether it permits cleaning openings. The labels of the two cleaning settings now say what they apply to."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.25",
     "date": "2026-07-10",
     "changes": [

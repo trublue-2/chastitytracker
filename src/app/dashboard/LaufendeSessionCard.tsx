@@ -22,6 +22,10 @@ interface Props {
   /** Nur Keyholder-Sicht: geplante (noch nicht ausgelöste) Sperrzeit → Footer zeigt "geplant für"
    *  statt "gesperrt bis". Sub-Sichten setzen dies NIE (geplante bleiben für den Sub unsichtbar). */
   sperrzeitScheduledFor?: Date | null;
+  /** Erlaubt diese Sperre Reinigungsöffnungen? Fertig übersetzt (i18n bleibt beim Aufrufer).
+   *  Weglassen = nicht anzeigen — ein Sub, der grundsätzlich nicht reinigen darf, soll keine Zeile
+   *  über etwas lesen, das seine Einstellung ohnehin verbietet. */
+  cleaningNote?: string | null;
   activeVorgabe: {
     minProTagH: number | null;
     minProWocheH: number | null;
@@ -45,6 +49,7 @@ export default async function LaufendeSessionCard({
   sperrzeitUnbefristet = false,
   sperrzeitNachricht,
   sperrzeitScheduledFor = null,
+  cleaningNote,
   activeVorgabe,
   tagH,
   wocheH,
@@ -184,6 +189,9 @@ export default async function LaufendeSessionCard({
           )}
           {sperrzeitNachricht && (
             <span className="text-xs text-sperrzeit truncate">· {sperrzeitNachricht}</span>
+          )}
+          {cleaningNote && (
+            <span className="text-xs text-sperrzeit shrink-0">· {cleaningNote}</span>
           )}
         </div>
       )}

@@ -12,7 +12,7 @@ import {
 } from "@/lib/utils";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere, cleaningBlockReason } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { buildReinigungView, reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
@@ -71,12 +71,19 @@ export default async function DashboardPage() {
   };
 
   // Reinigungs-Regeln für die Box-Karte: einmal je Seitenaufbau, nicht im 5s-Poll. Dieselbe Quelle
-  // wie `get_context.cleaning` im MCP — der Sub sah die Fenster bisher nirgends.
+  // wie `get_context.cleaning` im MCP — der Sub sah die Fenster bisher nirgends. `blockedBy` kommt
+  // aus derselben Regel wie die Durchsetzung und kennt als einziges die AKTIVE Sperrzeit: ohne es
+  // versprach die Karte Fenster, die eine reinigungsverbietende Sperre längst gesperrt hatte.
   const jetzt = new Date();
   const boxReinigung = heimdallEnabled() && userSettings
     ? {
         ...buildReinigungView(userSettings, await reinigungVerbrauchtHeute(userId, jetzt, tz), jetzt, tz),
         nextWindow: nextReinigungsFenster(userSettings.reinigungsFenster, jetzt, tz),
+        blockedBy: cleaningBlockReason(
+          { reinigungErlaubt: userSettings.reinigungErlaubt, reinigungsFenster: userSettings.reinigungsFenster, timezone: tz },
+          activeSperrzeit ? [activeSperrzeit] : [],
+          jetzt,
+        ),
       }
     : null;
 
@@ -180,6 +187,13 @@ export default async function DashboardPage() {
             sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
             sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
             sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
+            // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
+            // das seine Benutzer-Einstellung ohnehin verbietet.
+            cleaningNote={
+              activeSperrzeit && userSettings?.reinigungErlaubt
+                ? t(activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
+                : null
+            }
             activeVorgabe={activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null}
             tagH={tagH}
             wocheH={wocheH}

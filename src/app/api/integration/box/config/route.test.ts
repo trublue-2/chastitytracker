@@ -55,13 +55,13 @@ describe("GET /api/integration/box/config — Vertrag zur Box", () => {
   it("eine befristete Sperrzeit kommt als ISO-Zeitpunkt, indefinite=false", async () => {
     db.verschlussAnforderung.findFirst.mockResolvedValue({ endetAt: new Date("2026-07-10T17:19:48+02:00"), reinigungErlaubt: true });
     const body = await (await GET(req())).json();
-    expect(body.sperrzeit).toEqual({ endetAt: "2026-07-10T15:19:48.000Z", indefinite: false, reinigungErlaubt: true });
+    expect(body.sperrzeit).toEqual({ endetAt: "2026-07-10T15:19:48.000Z", indefinite: false });
   });
 
   it("eine unbefristete Sperrzeit trägt indefinite=true und endetAt=null", async () => {
     db.verschlussAnforderung.findFirst.mockResolvedValue({ endetAt: null, reinigungErlaubt: false });
     const body = await (await GET(req())).json();
-    expect(body.sperrzeit).toEqual({ endetAt: null, indefinite: true, reinigungErlaubt: false });
+    expect(body.sperrzeit).toEqual({ endetAt: null, indefinite: true });
   });
 
   it("die Reinigungs-Regeln verlassen den Tracker NICHT — die Box kennt keinen Reinigungs-Begriff", async () => {

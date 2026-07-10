@@ -1,8 +1,9 @@
 // Geteilte, client-sichere Box-Status-Ableitung. EINE Quelle für Ist/Soll/Frische, genutzt von der
-// Dashboard-Box-Status-Karte (BoxStatusCard) UND der (+)-Menü-Box-Zeile (NewEntrySheet). Keine
-// Server-Imports — reine Formatierung; i18n bleibt beim Aufrufer (Labels via übergebenem `t`).
+// Dashboard-Box-Status-Karte (BoxStatusCard). Keine Server-Imports — reine Formatierung; i18n bleibt
+// beim Aufrufer (Labels via übergebenem `t`).
 
 import type { ReinigungView, ReinigungsFenster } from "@/lib/reinigungService";
+import type { CleaningBlockReason } from "@/lib/queries";
 
 export type BoxRow = {
   boxId: string;
@@ -20,27 +21,39 @@ export type BoxRow = {
  *  Nicht neu deklariert — sonst müsste ein neues Feld in `buildReinigungView` hier von Hand
  *  nachgezogen werden und die Karte läse still `undefined`. `import type` wird zur Laufzeit
  *  gelöscht, zieht also kein Prisma in dieses client-sichere Modul. */
-export type BoxReinigungView = ReinigungView & { nextWindow: ReinigungsFenster | null };
+export type BoxReinigungView = ReinigungView & {
+  nextWindow: ReinigungsFenster | null;
+  /** Das Live-Urteil des Servers (`cleaningBlockReason`), inklusive der AKTIVEN Sperrzeit. `allowed`
+   *  allein kennt sie nicht — deshalb versprach die Karte Fenster, die eine reinigungsverbietende
+   *  Sperre längst gesperrt hatte. */
+  blockedBy: CleaningBlockReason | null;
+};
 
 export type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 /**
- * Die Zeile „wann gibt die Box den Schlüssel frei" — bisher sah der Sub sie NIRGENDS: die Fenster
- * standen nur in der Admin-Oberfläche und im MCP. null = nichts anzuzeigen (Reinigung nicht erlaubt).
+ * Die Zeile „wann gibt die Box den Schlüssel frei". null = nichts anzuzeigen (Reinigung ist für
+ * diesen Sub kein Begriff).
  *
- * Reihenfolge nach Dringlichkeit: offenes Fenster zuerst (jetzt handeln), sonst das nächste, sonst
- * der Hinweis, dass keine Fenster konfiguriert sind (= nicht zeitgebunden).
+ * Verbietet die AKTIVE Sperrzeit Reinigung, nennt die Zeile genau das — sonst lüde sie zu einer
+ * Öffnung ein, die der Server als Sperrbruch wertet. Ein noch nicht offenes Fenster blendet nichts
+ * aus: dort zeigt die Karte wie bisher das nächste.
+ *
+ * Reihenfolge nach Dringlichkeit: Sperre zuerst (nichts geht), dann offenes Fenster (jetzt handeln),
+ * sonst das nächste, sonst der Hinweis, dass keine Fenster konfiguriert sind (= nicht zeitgebunden).
  */
 export function boxReinigungLabel(r: BoxReinigungView | null, t: Translate): string | null {
   if (!r?.allowed) return null;
+  if (r.blockedBy === "lockPeriodForbids") return t("cleaningBlockedByLockPeriod");
   if (r.windowOpenNow) return t("cleaningWindowOpen", { until: r.windowOpenNow.until });
   if (r.nextWindow) return t("cleaningWindowNext", { start: r.nextWindow.start, end: r.nextWindow.end });
   return t("cleaningNoWindows");
 }
 
-/** „Heute 1 von 2 Reinigungsöffnungen" — null, wenn kein Tages-Limit gesetzt ist. */
+/** „Heute 1 von 2 Reinigungsöffnungen" — null ohne Tages-Limit, und null während einer Sperrzeit,
+ *  die Reinigung ohnehin verbietet: ein Kontingent, das niemand ausschöpfen darf, ist kein Angebot. */
 export function boxReinigungQuotaLabel(r: BoxReinigungView | null, t: Translate): string | null {
-  if (!r?.allowed || r.maxPausesPerDay === null) return null;
+  if (!r?.allowed || r.blockedBy === "lockPeriodForbids" || r.maxPausesPerDay === null) return null;
   return t("cleaningQuota", { count: r.usedToday, max: r.maxPausesPerDay });
 }
 

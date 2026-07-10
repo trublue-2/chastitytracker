@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseSperrzeitenOnOpen, cleaningWindowOpen, type CleaningPermissionUser } from "./queries";
+import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, type CleaningPermissionUser } from "./queries";
 import type { PrismaTx } from "./queries";
 
 const TZ = "Europe/Zurich";
@@ -78,6 +78,39 @@ describe("cleaningWindowOpen", () => {
   it("verwirft ungültige und über Mitternacht laufende Fenster (parseReinigungsFenster)", () => {
     // Beide Paare fallen weg → leere Liste → nicht zeitgebunden.
     expect(cleaningWindowOpen([{ start: "22:00", end: "02:00" }, { start: "quatsch", end: "07:00" }], NACHTS, TZ)).toBe(true);
+  });
+});
+
+describe("cleaningBlockReason", () => {
+  const erlaubt = [{ reinigungErlaubt: true }];
+
+  it("alles erfüllt → null", () => {
+    expect(cleaningBlockReason(user(), erlaubt, IM_FENSTER)).toBeNull();
+  });
+
+  it("User darf nicht reinigen → userNotAllowed (das Speziellere gewinnt)", () => {
+    // Auch ausserhalb des Fensters und bei verbietender Sperre: wer gar nicht reinigen darf,
+    // braucht keinen Fenster-Hinweis.
+    expect(cleaningBlockReason(user({ reinigungErlaubt: false }), [{ reinigungErlaubt: false }], NACHTS))
+      .toBe("userNotAllowed");
+  });
+
+  it("eine Sperrzeit verbietet Reinigung → lockPeriodForbids, auch im Fenster", () => {
+    expect(cleaningBlockReason(user(), [{ reinigungErlaubt: true }, { reinigungErlaubt: false }], IM_FENSTER))
+      .toBe("lockPeriodForbids");
+  });
+
+  it("ausserhalb eines konfigurierten Fensters → outsideWindow", () => {
+    expect(cleaningBlockReason(user(), erlaubt, NACHTS)).toBe("outsideWindow");
+  });
+
+  it("ohne konfigurierte Fenster → null (nicht zeitgebunden)", () => {
+    expect(cleaningBlockReason(user({ reinigungsFenster: [] }), erlaubt, NACHTS)).toBeNull();
+  });
+
+  it("ohne aktive Sperrzeit entscheiden nur User-Flag und Fenster", () => {
+    expect(cleaningBlockReason(user(), [], IM_FENSTER)).toBeNull();
+    expect(cleaningBlockReason(user(), [], NACHTS)).toBe("outsideWindow");
   });
 });
 

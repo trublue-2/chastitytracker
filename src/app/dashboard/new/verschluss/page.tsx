@@ -4,9 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions, getIsLocked, getActiveSperrzeit, activeVerschlussAnforderungWhere } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked, getActiveSperrzeit, activeVerschlussAnforderungWhere, cleaningBlockReason } from "@/lib/queries";
 import { bildersafeEnabled, heimdallEnabled } from "@/lib/constants";
-import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 export default async function NewVerschlussPage() {
@@ -39,12 +38,22 @@ export default async function NewVerschlussPage() {
 
   // Box-User (Heimdall aktiv + eigene Box): „Schlüssel ist in der Box"-Bestätigung statt Bildersafe.
   const boxConfirm = heimdall && boxCount > 0;
-  // Reinigungs-Re-Lock: aktive Sperre (mit Reinigung erlaubt) + letzter Eintrag OEFFNEN(Reinigung) +
-  // im Fenster → leichte Variante (nur Bestätigung, kein Foto/Siegel/Gerät).
-  const imFenster = !!aktivesReinigungsFenster(dbUser?.reinigungsFenster, now, tz);
+  // Reinigungs-Re-Lock: eine erlaubte Reinigungspause läuft (aktive Sperre + letzter Eintrag
+  // OEFFNEN(Reinigung)) → leichte Variante (nur Bestätigung, kein Foto/Siegel/Gerät).
+  //
+  // Die Erlaubnis kommt aus `cleaningBlockReason` — derselben Quelle wie Durchsetzung, Strafbuch und
+  // Öffnen-Dialog. Die frühere Handrechnung prüfte `aktivesReinigungsFenster(...) !== null` und wich
+  // damit ab: ein Sub OHNE konfigurierte Fenster darf jederzeit reinigen, verlor hier aber den
+  // leichten Re-Lock und musste jedes Mal durch den vollen Foto-Flow.
+  const reinigungsPauseErlaubt =
+    !!sperre &&
+    cleaningBlockReason(
+      { reinigungErlaubt: dbUser?.reinigungErlaubt ?? false, reinigungsFenster: dbUser?.reinigungsFenster, timezone: tz },
+      [sperre],
+      now,
+    ) === null;
   const lightRelock =
-    boxConfirm && !!sperre && sperre.reinigungErlaubt && (dbUser?.reinigungErlaubt ?? false) &&
-    latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG" && imFenster;
+    boxConfirm && reinigungsPauseErlaubt && latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("lockForm");
