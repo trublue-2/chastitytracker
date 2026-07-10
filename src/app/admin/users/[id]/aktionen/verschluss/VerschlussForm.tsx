@@ -7,17 +7,18 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
 import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 import type { DeviceOption } from "@/lib/queries";
 
 export default function VerschlussForm({ userId, devices = [], tz, nowDefault }: { userId: string; devices?: DeviceOption[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tLock = useTranslations("lockForm");
-  const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const target = `/admin/users/${userId}/aktionen`;
 
   async function submitFn(payload: VerschlussPayload): Promise<SubmitResult> {
-    return submitAdminEntry(userId, payload, tc("error"));
+    return submitAdminEntry(userId, payload, apiError);
   }
 
   return (

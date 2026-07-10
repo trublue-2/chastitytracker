@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership } from "@/lib/queries";
+import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
+import { codedError, codeOf } from "@/lib/codedError";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 
@@ -18,16 +20,16 @@ export async function PATCH(
   const { id } = await params;
 
   const existing = await prisma.entry.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   if (existing.userId !== session.user.id && session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   const body = await req.json();
   const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus, deviceId } = body;
 
   if (!isValidImageUrl(imageUrl)) {
-    return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
+    return NextResponse.json({ error: "INVALID_IMAGE_URL" }, { status: 400 });
   }
   // Reason-Codes gegen die Listen DES ENTRY-EIGENTÜMERS validieren (Admin darf einen fremden Eintrag
   // bearbeiten → dessen Config, nicht die des Admins). null-Config → Built-ins. Nur validieren, wenn
@@ -41,10 +43,10 @@ export async function PATCH(
       select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true },
     });
     if (changesOeffnen && !validOeffnenCodes(reasonOwner?.oeffnenGruendeConfig).has(oeffnenGrund)) {
-      return NextResponse.json({ error: "Ungültiger Öffnungsgrund" }, { status: 400 });
+      return NextResponse.json({ error: "INVALID_OPENING_REASON" }, { status: 400 });
     }
     if (changesOrgasmus && !orgasmusValueAllowed(orgasmusArt as string, reasonOwner?.orgasmusArtenConfig)) {
-      return NextResponse.json({ error: "Ungültige Art" }, { status: 400 });
+      return NextResponse.json({ error: "INVALID_ORGASM_TYPE" }, { status: 400 });
     }
   }
 
@@ -57,11 +59,11 @@ export async function PATCH(
     const oldTime = existing.startTime;
     // Forward-only: VERSCHLUSS, PRUEFUNG, WEAR_BEGIN
     if ((existing.type === "VERSCHLUSS" || existing.type === "PRUEFUNG" || existing.type === "WEAR_BEGIN") && newTime < oldTime) {
-      return NextResponse.json({ error: "Zeitpunkt darf nur nach vorne verschoben werden" }, { status: 400 });
+      return NextResponse.json({ error: "TIME_FORWARD_ONLY" }, { status: 400 });
     }
     // Backward-only: OEFFNEN, ORGASMUS, WEAR_END
     if ((existing.type === "OEFFNEN" || existing.type === "ORGASMUS" || existing.type === "WEAR_END") && newTime > oldTime) {
-      return NextResponse.json({ error: "Zeitpunkt darf nur nach hinten verschoben werden" }, { status: 400 });
+      return NextResponse.json({ error: "TIME_BACKWARD_ONLY" }, { status: 400 });
     }
   }
 
@@ -69,7 +71,7 @@ export async function PATCH(
   const persistsDevice = existing.type === "VERSCHLUSS" || existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
   if (deviceId && persistsDevice) {
     const device = await validateDeviceOwnership(deviceId, existing.userId);
-    if (!device) return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
+    if (!device) return NextResponse.json({ error: "INVALID_DEVICE" }, { status: 400 });
   }
 
   let entry;
@@ -82,7 +84,7 @@ export async function PATCH(
       const isWearPair = existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
       if (!devBypass && startTime && (isKgPair || isWearPair)) {
         const newTime = new Date(startTime);
-        if (newTime > new Date()) throw Object.assign(new Error(), { _code: "FUTURE" });
+        if (newTime > new Date()) throw entryGuardError("TIME_IN_FUTURE");
         const pairTypes = isKgPair
           ? (["VERSCHLUSS", "OEFFNEN"] as const)
           : (["WEAR_BEGIN", "WEAR_END"] as const);
@@ -103,7 +105,7 @@ export async function PATCH(
         const prev = insertIdx === -1 ? others[others.length - 1] : others[insertIdx - 1];
         const next = insertIdx === -1 ? null : others[insertIdx];
         if ((prev && prev.type === existing.type) || (next && next.type === existing.type)) {
-          throw Object.assign(new Error(), { _code: "INVALID_ORDER" });
+          throw entryGuardError("INVALID_ORDER");
         }
       }
 
@@ -126,10 +128,7 @@ export async function PATCH(
       });
     });
   } catch (e: unknown) {
-    const code = (e as { _code?: string })?._code;
-    if (code === "FUTURE") return NextResponse.json({ error: "Zeitpunkt darf nicht in der Zukunft liegen" }, { status: 400 });
-    if (code === "INVALID_ORDER") return NextResponse.json({ error: "Zeitpunkt verletzt die chronologische Reihenfolge" }, { status: 400 });
-    throw e;
+    return NextResponse.json({ error: entryGuardCode(e) }, { status: 400 });
   }
 
   // H5: wird das Foto ersetzt, die alte verwaiste Datei löschen (fire-and-forget).
@@ -150,9 +149,9 @@ export async function DELETE(
   const { id } = await params;
 
   const existing = await prisma.entry.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   if (existing.userId !== session.user.id && session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   const force = req.nextUrl.searchParams.get("force") === "true";
@@ -194,17 +193,17 @@ export async function DELETE(
 
       if (withPartner) {
         if (partnerId && partnerId !== partner.id) {
-          return NextResponse.json({ error: "Partner changed" }, { status: 409 });
+          return NextResponse.json({ error: "PARTNER_CHANGED" }, { status: 409 });
         }
         try {
           await prisma.$transaction(async (tx) => {
             const verified = await tx.entry.findUnique({ where: { id: partner.id }, select: { id: true } });
-            if (!verified) throw Object.assign(new Error(), { _code: "PARTNER_GONE" });
+            if (!verified) throw codedError("PARTNER_GONE");
             await tx.entry.deleteMany({ where: { id: { in: [id, partner.id] } } });
           });
         } catch (e: unknown) {
-          if ((e as { _code?: string })?._code === "PARTNER_GONE") {
-            return NextResponse.json({ error: "Partner changed" }, { status: 409 });
+          if (codeOf(e) === "PARTNER_GONE") {
+            return NextResponse.json({ error: "PARTNER_CHANGED" }, { status: 409 });
           }
           throw e;
         }

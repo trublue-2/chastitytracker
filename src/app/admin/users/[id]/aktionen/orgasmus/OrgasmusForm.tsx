@@ -7,17 +7,18 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
 import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 import type { OrgasmusOption } from "@/lib/reasonsService";
 
 export default function OrgasmusForm({ userId, artOptions, tz, nowDefault }: { userId: string; artOptions: OrgasmusOption[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tOrgasm = useTranslations("orgasmForm");
-  const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const target = `/admin/users/${userId}/aktionen`;
 
   async function submitFn(payload: OrgasmusPayload): Promise<SubmitResult> {
-    return submitAdminEntry(userId, payload, tc("error"));
+    return submitAdminEntry(userId, payload, apiError);
   }
 
   return (

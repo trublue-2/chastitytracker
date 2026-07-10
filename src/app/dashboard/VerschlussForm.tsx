@@ -6,7 +6,8 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
 import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
-import { entryRequest, parseApiError } from "@/lib/apiClient";
+import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 import type { DeviceOption } from "@/lib/queries";
 
 interface Props {
@@ -34,7 +35,7 @@ interface Props {
 }
 
 export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe, boxConfirm, lightRelock }: Props) {
-  const t = useTranslations("common");
+  const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
   const toast = useToast();
@@ -46,7 +47,7 @@ export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobil
     // Nur beim Anlegen offline-queuefaehig; ein Edit braucht den echten Server.
     const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
     if (res === null) return { ok: true, offline: true };
-    if (!res.ok) return { ok: false, error: await parseApiError(res, t("savingError")) };
+    if (!res.ok) return { ok: false, error: apiError(await parseApiErrorCode(res)) };
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
     return { ok: true };
   }

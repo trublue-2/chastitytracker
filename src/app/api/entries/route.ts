@@ -9,6 +9,7 @@ import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmus
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
     orgasmAllowed: (v) => orgasmusValueAllowed(v, reasonUser?.orgasmusArtenConfig),
     openingCodes: validOeffnenCodes(reasonUser?.oeffnenGruendeConfig),
   });
-  if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
+  if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;
@@ -68,27 +69,27 @@ export async function POST(req: NextRequest) {
       // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
       if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
         const device = await validateDeviceOwnership(deviceId, session.user.id, tx);
-        if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
+        if (!device) throw entryGuardError("INVALID_DEVICE");
       }
 
       // WEAR_BEGIN / WEAR_END: shared validation lives in lib/queries.ts (single source of truth).
       if (type === "WEAR_BEGIN" || type === "WEAR_END") {
         const wearResult = await prepareWearEntry(tx, session.user.id, type, deviceId, startTime, imageUrl);
-        if (!wearResult.ok) throw Object.assign(new Error(), { _code: wearResult.code });
+        if (!wearResult.ok) throw entryGuardError(wearResult.code);
       }
 
       // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
       if (type === "VERSCHLUSS") {
         const latest = await getLatestKgEntry(session.user.id, tx);
-        if (latest?.type === "VERSCHLUSS") throw Object.assign(new Error(), { _code: "ALREADY_LOCKED" });
+        if (latest?.type === "VERSCHLUSS") throw entryGuardError("ALREADY_LOCKED");
         if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
-          throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
+          throw entryGuardError("TIME_BEFORE");
         }
       }
       if (type === "OEFFNEN") {
         const latest = await getLatestKgEntry(session.user.id, tx);
-        if (!latest || latest.type !== "VERSCHLUSS") throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
-        if (new Date(startTime) <= latest.startTime) throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
+        if (!latest || latest.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
+        if (new Date(startTime) <= latest.startTime) throw entryGuardError("TIME_BEFORE");
         lockStartTime = latest.startTime;
       }
 
@@ -205,18 +206,7 @@ export async function POST(req: NextRequest) {
       return created;
     });
   } catch (e: unknown) {
-    const code = (e as { _code?: string })?._code;
-    if (code === "INVALID_DEVICE") return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
-    if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
-    if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
-    if (code === "TIME_BEFORE") return NextResponse.json({ error: "Zeitpunkt muss nach dem vorherigen Eintrag liegen" }, { status: 400 });
-    if (code === "WEAR_DEVICE_REQUIRED") return NextResponse.json({ error: "Gerät ist erforderlich" }, { status: 400 });
-    if (code === "WEAR_DEVICE_NO_CATEGORY") return NextResponse.json({ error: "Gerät hat keine Kategorie" }, { status: 400 });
-    if (code === "WEAR_DEVICE_KG") return NextResponse.json({ error: "KG-Geräte verwenden Verschluss/Öffnen, nicht WEAR_BEGIN/END" }, { status: 400 });
-    if (code === "ALREADY_WEARING") return NextResponse.json({ error: "Bereits aktive Session in dieser Kategorie" }, { status: 400 });
-    if (code === "NOT_WEARING") return NextResponse.json({ error: "Keine aktive Session in dieser Kategorie" }, { status: 400 });
-    if (code === "WEAR_PHOTO_REQUIRED") return NextResponse.json({ error: "Foto ist bei dieser Kategorie zwingend" }, { status: 400 });
-    throw e;
+    return NextResponse.json({ error: entryGuardCode(e) }, { status: 400 });
   }
 
   // Instant-Push an Heimdall: eine LIVE Box vollzieht das Box-Kommando sofort per MQTT — der

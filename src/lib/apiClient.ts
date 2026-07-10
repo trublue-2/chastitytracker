@@ -1,16 +1,26 @@
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
 /**
- * Liest die Fehlermeldung aus einer fehlgeschlagenen API-Antwort. Ein nicht-JSON-Body (HTML-
- * Fehlerseite, leerer 502-Body) darf dabei nie werfen — dann greift `fallback`.
+ * Liest das `error`-Feld aus einer fehlgeschlagenen API-Antwort (nie werfend — ein nicht-JSON-Body
+ * wie eine HTML-Fehlerseite oder ein leerer 502-Body ergibt `null`).
  *
- * Achtung Abgrenzung: Routen, die STABILE Fehler-CODES liefern (settings/*, auth/*), werden
- * client-seitig über `useApiError()` in den `errors`-Namespace aufgelöst. Dieser Helper ist für
- * die Routen, deren `error` bereits eine anzeigbare Meldung ist (z.B. /api/entries).
+ * Bei Routen mit STABILEN Fehler-CODES (settings/*, auth/*, entries/*) ist das Ergebnis der Code,
+ * den `useApiError()` in den `errors`-Namespace auflöst; unbekannte/fehlende Codes fallen dort auf
+ * die generische Meldung zurück.
+ */
+export async function parseApiErrorCode(res: Response): Promise<string | null> {
+  const body = await res.json().catch(() => ({}));
+  return typeof body?.error === "string" && body.error ? body.error : null;
+}
+
+/**
+ * Wie `parseApiErrorCode()`, gibt aber direkt eine anzeigbare Meldung zurück.
+ *
+ * Achtung Abgrenzung: NUR für Routen, deren `error` bereits eine anzeigbare Meldung ist. Routen mit
+ * stabilen Fehler-Codes (siehe oben) gehören über `parseApiErrorCode()` + `useApiError()`.
  */
 export async function parseApiError(res: Response, fallback: string): Promise<string> {
-  const body = await res.json().catch(() => ({}));
-  return body?.error || fallback;
+  return (await parseApiErrorCode(res)) ?? fallback;
 }
 
 /** URL + RequestInit für einen Eintrag: `entryId` gesetzt = Bearbeiten (PATCH), sonst Anlegen (POST). */
@@ -31,14 +41,16 @@ export function postAdminEntry(userId: string, payload: object): Promise<Respons
 }
 
 /** Admin-Entry anlegen + Antwort auf die Form-Core-Kontrakt-Form abbilden.
+ *  `resolveError` ist der `useApiError()`-Resolver des aufrufenden Formulars — die Route liefert
+ *  stabile Fehler-Codes, die Übersetzung passiert im Client.
  *  Rückgabetyp strukturell statt `SubmitResult` aus `@/app/entries/types` — ein `lib/`-Modul
  *  soll nicht auf `app/` zeigen. Zuweisungskompatibel zu `SubmitResult`. */
 export async function submitAdminEntry(
   userId: string,
   payload: object,
-  fallbackError: string,
+  resolveError: (code: string | null) => string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const res = await postAdminEntry(userId, payload);
   if (res.ok) return { ok: true };
-  return { ok: false, error: await parseApiError(res, fallbackError) };
+  return { ok: false, error: resolveError(await parseApiErrorCode(res)) };
 }

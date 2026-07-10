@@ -20,7 +20,8 @@ import { toDatetimeLocal, fromDatetimeLocal, toDateLocale, formatDuration } from
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import type { WearBeginPayload, WearEndPayload } from "@/app/entries/types";
-import { entryRequest, postAdminEntry, parseApiError } from "@/lib/apiClient";
+import { entryRequest, postAdminEntry, parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 interface Category {
   id: string;
@@ -77,6 +78,7 @@ interface Props {
 export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime, tz, nowDefault }: Props) {
   const t = useTranslations("wearForm");
   const tCommon = useTranslations("common");
+  const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const dl = toDateLocale(useLocale());
   const router = useRouter();
@@ -134,7 +136,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
       if (kind === "begin") patchBody.deviceId = deviceId;
       const res = await fetch(...entryRequest(initial.id, patchBody));
       if (!res.ok) {
-        setError(await parseApiError(res, tCommon("savingError")));
+        setError(apiError(await parseApiErrorCode(res)));
         setSaving(false);
         return;
       }
@@ -164,7 +166,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
       return;
     }
     if (!res.ok) {
-      setError(await parseApiError(res, tCommon("savingError")));
+      setError(apiError(await parseApiErrorCode(res)));
       setSaving(false);
       return;
     }

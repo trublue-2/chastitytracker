@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.14",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fehlermeldungen beim Erfassen und Bearbeiten von Eintraegen erschienen immer auf Deutsch, auch bei englischer Spracheinstellung. Sie werden jetzt in der eingestellten Sprache angezeigt.",
+          "en": "Error messages when creating or editing entries always appeared in German, even with the language set to English. They now follow the selected language."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Eintrags-Routen antworten mit stabilen Fehler-Codes statt fertiger Saetze; ein Test stellt sicher, dass zu jedem Code eine Uebersetzung in beiden Sprachen existiert.",
+          "en": "The entry routes now answer with stable error codes instead of finished sentences; a test enforces that every code has a translation in both languages."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.13",
     "date": "2026-07-10",
     "changes": [

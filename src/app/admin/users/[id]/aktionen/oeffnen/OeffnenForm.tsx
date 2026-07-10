@@ -7,17 +7,18 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
 
 export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { userId: string; grundOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tOffen = useTranslations("openForm");
-  const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const target = `/admin/users/${userId}/aktionen`;
 
   async function submitFn(payload: OeffnenPayload): Promise<SubmitResult> {
-    return submitAdminEntry(userId, payload, tc("error"));
+    return submitAdminEntry(userId, payload, apiError);
   }
 
   return (

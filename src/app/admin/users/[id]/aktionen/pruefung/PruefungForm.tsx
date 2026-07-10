@@ -7,16 +7,17 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import PruefungFormCore from "@/app/entries/PruefungFormCore";
 import type { PruefungPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 export default function PruefungForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
   const tInspection = useTranslations("inspectionForm");
-  const tc = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const target = `/admin/users/${userId}/aktionen`;
 
   async function submitFn(payload: PruefungPayload): Promise<SubmitResult> {
-    return submitAdminEntry(userId, payload, tc("error"));
+    return submitAdminEntry(userId, payload, apiError);
   }
 
   return (
