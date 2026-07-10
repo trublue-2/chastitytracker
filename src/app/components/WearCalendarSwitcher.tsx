@@ -6,7 +6,7 @@ import Card from "./Card";
 import CalendarExpand from "./CalendarExpand";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
-import type { CalendarMonthData } from "./CalendarContainer";
+import type { CalendarMonthData } from "@/lib/statsTypes";
 
 /** One picker entry — built server-side from KG + each non-KG category with wear data. */
 export type CalendarVariant = {

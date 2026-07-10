@@ -3,31 +3,11 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
-import { WEAR_LEVEL_UPPER } from "@/lib/wearIntensity";
+import { WEAR_LEVEL_UPPER, WEAR_LEVEL_BG } from "@/lib/wearIntensity";
+import type { HeatmapDay, YearHeatmapData } from "@/lib/statsTypes";
 
-/** One day cell in the year heatmap. `level` 0..4 maps to the shared blue intensity scale. */
-export interface HeatmapDay {
-  key: string;
-  /** Native-tooltip text, e.g. "15. Juli 2026 · 12.5 h". */
-  title: string;
-  level: number;
-  hasOrgasm: boolean;
-}
-
-export interface YearHeatmapData {
-  year: number;
-  /** ISO weeks (Mon-start), earliest first; each week is 7 cells Mon..Sun (null = padding / future).
-   *  Rendered as rows on narrow cards (portrait phone) and as columns on wide cards (GitHub style). */
-  weeks: (HeatmapDay | null)[][];
-  /** Month label anchored to the week index where the month first appears. */
-  monthLabels: { week: number; label: string }[];
-  /** Total worn hours in the year + share of the (elapsed) year spent locked. */
-  totalHours: string;
-  percentLocked: number;
-}
-
-// Shared 5-tier blue scale — identical thresholds to the month calendar (via wearIntensityLevel).
-const LEVEL_CLASS = ["bg-surface-raised", "bg-blue-100", "bg-blue-200", "bg-blue-400", "bg-blue-600"];
+// Blau-Skala aus wearIntensity.ts — dieselbe Quelle wie der Monatskalender (via WEAR_LEVEL_BG).
+const LEVEL_CLASS = WEAR_LEVEL_BG;
 
 // Legend rows: swatch + the day-share (%) band each level represents, derived from the shared
 // thresholds so the legend never drifts from the actual colouring. [0, 20, 40, 80, 100].

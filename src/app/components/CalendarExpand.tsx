@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import CalendarContainer, { type CalendarMonthData } from "./CalendarContainer";
+import CalendarContainer from "./CalendarContainer";
+import type { CalendarMonthData } from "@/lib/statsTypes";
 import { useTranslations } from "next-intl";
 
 export default function CalendarExpand({ months }: { months: CalendarMonthData[] }) {

@@ -250,12 +250,18 @@ export function getMidnightToday(now: Date, tz = APP_TZ): Date {
   return midnightInTZ(now, tz);
 }
 
+const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** Wochentag von `d` in `tz`, montagsbasiert: Mo=0 … So=6. */
+export function mondayIndex(d: Date, tz = APP_TZ): number {
+  const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
+    .formatToParts(d).find(p => p.type === "weekday")!.value;
+  return ((WEEKDAY_INDEX[wd] ?? 0) + 6) % 7;
+}
+
 /** Start of the current ISO week (Monday 00:00:00 in `tz`, default APP_TZ) */
 export function getWeekStart(now: Date, tz = APP_TZ): Date {
-  const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).formatToParts(now);
-  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  const dow = ((map[p.find(x => x.type === "weekday")!.value] ?? 0) + 6) % 7;
-  return new Date(midnightInTZ(now, tz).getTime() - dow * 86_400_000);
+  return new Date(midnightInTZ(now, tz).getTime() - mondayIndex(now, tz) * 86_400_000);
 }
 
 /** First day of the current month at 00:00:00 in `tz` (default APP_TZ) */

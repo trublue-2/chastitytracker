@@ -1,5 +1,39 @@
 [
   {
+    "version": "4.50.19",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Wochentags-Beschriftung der Statistik begann in Zeitzonen weit östlich (z.B. Neuseeland) fälschlich mit Dienstag statt Montag.",
+          "en": "The weekday labels in the statistics wrongly started with Tuesday instead of Monday in far-eastern timezones (e.g. New Zealand)."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Statistik-Seite berechnet die Tagesübersicht für Kalender und Jahres-Heatmap nur noch einmal statt zweimal pro Aufruf.",
+          "en": "The statistics page now computes the per-day overview for the calendar and the year heatmap once instead of twice per request."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Statistik-Berechnungen (Kalender, Heatmap, Monatsübersicht) liegen jetzt getrennt von der Darstellung und sind durch 25 eigene Tests abgedeckt.",
+          "en": "The statistics calculations (calendar, heatmap, month overview) now live separately from the presentation and are covered by 25 dedicated tests."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Blau-Skala der Tragezeit hat nur noch eine Quelle — Monatskalender, Jahres-Heatmap und deren Legende können nicht mehr auseinanderdriften.",
+          "en": "The blue wear-time scale now has a single source — the month calendar, the year heatmap and its legend can no longer drift apart."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.18",
     "date": "2026-07-10",
     "changes": [

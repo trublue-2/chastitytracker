@@ -1,303 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { APP_TZ, formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
-import { proratedTargetH, proratedVorgabeTargets } from "@/lib/goalFulfillment";
-import { wearIntensityLevel } from "@/lib/wearIntensity";
+import { APP_TZ, formatDateTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
+import {
+  buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
+  type Entry, type Vorgabe,
+} from "@/lib/statsBuilders";
+import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "./CategoryIcon";
 import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitcher";
-import YearHeatmap, { type HeatmapDay, type YearHeatmapData } from "./YearHeatmap";
-import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
-import type { DayEntry, DayVorgabe } from "./CalendarContainer";
-import MonthStats, { type MonthStat } from "./MonthStats";
+import YearHeatmap from "./YearHeatmap";
+import MonthStats from "./MonthStats";
 import Card from "./Card";
 import StatsCard from "./StatsCard";
 import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
 import EmptyState from "./EmptyState";
 import { ShieldAlert, BarChart2 } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null; oeffnenGrund?: string | null; deviceId?: string | null };
-type CompletedPair = { verschluss: Entry; oeffnen: Entry; durationMs: number };
-type Vorgabe = {
-  gueltigAb: Date;
-  gueltigBis: Date | null;
-  minProTagH: number | null;
-  minProWocheH: number | null;
-  minProMonatH: number | null;
-  minProJahrH: number | null;
-  notiz: string | null;
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// buildWearPairs + wearingHoursFromPairs imported from @/lib/utils
-
-/** Calendar cell classes per intensity level (blue scale + readable text colour on the day number). */
-const CALENDAR_LEVEL_CLASS = [
-  "bg-surface-raised text-foreground-faint",
-  "bg-blue-100 text-blue-900",
-  "bg-blue-200 text-blue-900",
-  "bg-blue-400 text-white",
-  "bg-blue-600 text-white",
-];
-
-function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>, tz: string): Map<string, { hours: number; hasOrgasm: boolean }> {
-  const map = new Map<string, { hours: number; hasOrgasm: boolean }>();
-  for (const pair of wearPairs) {
-    let d = midnightInTZ(pair.start, tz);
-    while (d.getTime() < pair.end.getTime()) {
-      const nextD = new Date(d.getTime() + 86_400_000);
-      const overlap = Math.min(pair.end.getTime(), nextD.getTime()) - Math.max(pair.start.getTime(), d.getTime());
-      if (overlap > 0) {
-        const { year, month, day } = tzDateParts(new Date(d.getTime() + 43_200_000), tz);
-        const key = `${year}-${month}-${day}`;
-        const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
-        existing.hours += overlap / 3_600_000;
-        map.set(key, existing);
-      }
-      d = nextD;
-    }
-  }
-  for (const key of orgasmDates) {
-    const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
-    existing.hasOrgasm = true;
-    map.set(key, existing);
-  }
-  return map;
-}
-
-function tzYearMonth(d: Date, tz: string): string {
-  const parts = new Intl.DateTimeFormat("de-CH", { year: "numeric", month: "2-digit", timeZone: tz }).formatToParts(d);
-  const y = parts.find(p => p.type === "year")!.value;
-  const m = parts.find(p => p.type === "month")!.value;
-  return `${y}-${m}`;
-}
-
-function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben: Vorgabe[], dl: string, tz: string): MonthStat[] {
-  const map = new Map<string, Omit<MonthStat, "wearHours" | "targetH">>();
-  for (const p of pairs) {
-    const d = p.verschluss.startTime;
-    const key = tzYearMonth(d, tz);
-    const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
-    const existing = map.get(key) ?? { key, label, count: 0, totalMs: 0, longestMs: 0 };
-    existing.count++;
-    existing.totalMs += p.durationMs;
-    if (p.durationMs > existing.longestMs) existing.longestMs = p.durationMs;
-    map.set(key, existing);
-  }
-  for (const wp of wearPairs) {
-    for (const d of [wp.start, wp.end]) {
-      const key = tzYearMonth(d, tz);
-      if (!map.has(key)) {
-        const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
-        map.set(key, { key, label, count: 0, totalMs: 0, longestMs: 0 });
-      }
-    }
-  }
-  return Array.from(map.entries())
-    .sort((a, b) => b[0].localeCompare(a[0]))
-    .map(([, v]) => {
-      const [y, m] = v.key.split("-").map(Number);
-      const monthStart = midnightInTZ(new Date(Date.UTC(y, m - 1, 1, 12)), tz);
-      const monthEnd = midnightInTZ(new Date(Date.UTC(y, m, 1, 12)), tz);
-      const wearHours = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
-      const applicableVorgabe = vorgaben.find(
-        (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
-      );
-      return { ...v, wearHours, targetH: applicableVorgabe ? proratedTargetH(applicableVorgabe.minProMonatH, monthStart, monthEnd, applicableVorgabe) : null };
-    });
-}
-
-function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {
-  const now = new Date();
-  return v.gueltigAb <= now && (v.gueltigBis === null || v.gueltigBis >= now);
-}
-
-
-function buildCalendarMonths(opts: {
-  entries: Entry[];
-  wearPairs: WearPair[];
-  vorgaben: Vorgabe[];
-  orgasmDateSet: Set<string>;
-  now: Date;
-  dl: string;
-  tz: string;
-}): CalendarMonthData[] {
-  const { entries, wearPairs, vorgaben, orgasmDateSet, now, dl, tz } = opts;
-  const dailyData = buildDailyData(wearPairs, orgasmDateSet, tz);
-  const { year: nowYear, month: nowMonth } = tzDateParts(now, tz);
-  const jsWeekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-  // Bucket entries by YMD once so day-cells become O(1) lookups instead of O(N) filters.
-  const entriesByYMD = new Map<string, Entry[]>();
-  for (const e of entries) {
-    const { year, month, day } = tzDateParts(e.startTime, tz);
-    const key = `${year}-${month}-${day}`;
-    const list = entriesByYMD.get(key);
-    if (list) list.push(e); else entriesByYMD.set(key, [e]);
-  }
-
-  const calMonthsData: CalendarMonthData[] = [];
-  for (let i = 0; i <= 3; i++) {
-    const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)), tz);
-    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    const firstDayNoon = new Date(Date.UTC(year, month, 1, 12));
-    const firstDayWd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
-      .formatToParts(firstDayNoon).find(p => p.type === "weekday")!.value;
-    const startOffset = (jsWeekdayMap[firstDayWd] + 6) % 7;
-    const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
-
-    const monthStartDate = midnightInTZ(firstDayNoon, tz);
-    const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)), tz);
-    const vorgabe = vorgaben.find(
-      (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
-    ) ?? null;
-    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
-    const monthTarget = vorgabe ? proratedTargetH(vorgabe.minProMonatH, monthStartDate, monthEndDate, vorgabe) : null;
-    // Truthy-Guard (nicht `!= null`): prorata-Ziel 0 = Vorgabe deckt diese Periode nicht ab → kein
-    // „erreicht"-Marker (sonst wäre `ist >= 0` trivial immer erfüllt).
-    const monthGoalMet = monthTarget ? monthTotalH >= monthTarget : null;
-    const monthGoalPct = monthTarget ? Math.round((monthTotalH / monthTarget) * 100) : null;
-
-    const cells: (number | null)[] = [
-      ...Array(startOffset).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, k) => k + 1),
-    ];
-    while (cells.length % 7 !== 0) cells.push(null);
-
-    const weeks: (CalendarDayData | null)[][] = [];
-    const weekGoalMet: (boolean | null)[] = [];
-    const weekGoalPct: (number | null)[] = [];
-
-    for (let w = 0; w < cells.length; w += 7) {
-      const weekCells = cells.slice(w, w + 7);
-      const firstDayOfRow = weekCells.find((x) => x != null);
-      let weekH = 0;
-      let weekTarget: number | null = null;
-      if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
-        const anchorNoon = new Date(Date.UTC(year, month, firstDayOfRow, 12));
-        const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
-          .formatToParts(anchorNoon).find(p => p.type === "weekday")!.value;
-        const dow = (jsWeekdayMap[anchorWd] + 6) % 7;
-        const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)), tz);
-        const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
-        weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
-        weekTarget = proratedTargetH(vorgabe.minProWocheH, wkStart, wkEnd, vorgabe);
-      }
-      weekGoalMet.push(weekTarget ? weekH >= weekTarget : null); // 0 = Woche ausserhalb Vorgabe-Fenster → kein Marker
-      weekGoalPct.push(weekTarget ? Math.round((weekH / weekTarget) * 100) : null);
-
-      weeks.push(weekCells.map((day): CalendarDayData | null => {
-        if (!day) return null;
-        const key = `${year}-${month}-${day}`;
-        const data = dailyData.get(key);
-        const dayStart = midnightInTZ(new Date(Date.UTC(year, month, day, 12)), tz);
-        const dayEnd = new Date(dayStart.getTime() + 86_400_000);
-        const dayTarget = vorgabe ? proratedTargetH(vorgabe.minProTagH, dayStart, dayEnd, vorgabe) : null;
-        const dailyGoalMet = dayTarget && data != null ? data.hours >= dayTarget : null; // 0 = Tag ausserhalb Vorgabe-Fenster → kein Marker
-        const colorClass = CALENDAR_LEVEL_CLASS[wearIntensityLevel(data?.hours ?? 0)];
-        // entries arrived from prisma sorted by startTime asc, so per-day buckets are too.
-        const dayEntries: DayEntry[] = (entriesByYMD.get(key) ?? []).map((e) => ({
-          type: e.type,
-          time: formatTime(e.startTime, dl, tz),
-          note: e.note,
-          orgasmusArt: e.orgasmusArt,
-        }));
-        const dayVorgabe: DayVorgabe | null = vorgabe ? {
-          minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
-          minProMonatH: vorgabe.minProMonatH, minProJahrH: vorgabe.minProJahrH, notiz: vorgabe.notiz,
-        } : null;
-        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: tz });
-        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
-      }));
-    }
-
-    calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet, monthGoalPct });
-  }
-  return calMonthsData;
-}
-
-/** Monday-based weekday index (Mon=0 … Sun=6) of `d` in `tz`. */
-function mondayIndex(d: Date, tz: string): number {
-  const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).formatToParts(d).find(p => p.type === "weekday")!.value;
-  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  return ((map[wd] ?? 0) + 6) % 7;
-}
-
-/** GitHub-style per-day wear heatmap, one entry per year that has data (newest first). Reuses the
- *  month calendar's per-day map + the shared blue intensity scale (hours/24). */
-function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<string>, now: Date, tz: string, dl: string): YearHeatmapData[] {
-  const dailyData = buildDailyData(wearPairs, orgasmDateSet, tz);
-  const { year: nowYear, month: nowMonth, day: nowDay } = tzDateParts(now, tz);
-  const years = new Set<number>([nowYear]);
-  for (const key of dailyData.keys()) years.add(Number(key.split("-")[0]));
-
-  return [...years].sort((a, b) => b - a).map((year) => {
-    const jan1 = new Date(Date.UTC(year, 0, 1, 12));
-    const cells: (HeatmapDay | null)[] = Array(mondayIndex(jan1, tz)).fill(null); // Leerzellen bis zum 1. Jan
-    let totalHours = 0;
-    for (let month = 0; month < 12 && !(year === nowYear && month > nowMonth); month++) {
-      const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-      for (let day = 1; day <= daysInMonth; day++) {
-        if (year === nowYear && month === nowMonth && day > nowDay) break; // aktuelles Jahr nur bis heute
-        const cell = dailyData.get(`${year}-${month}-${day}`);
-        const hours = cell?.hours ?? 0;
-        totalHours += hours;
-        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: tz });
-        cells.push({
-          key: `${year}-${month}-${day}`,
-          title: `${dateLabel} · ${formatHours(hours, dl)}`,
-          level: wearIntensityLevel(hours),
-          hasOrgasm: cell?.hasOrgasm ?? false,
-        });
-      }
-    }
-
-    const weeks: (HeatmapDay | null)[][] = [];
-    for (let i = 0; i < cells.length; i += 7) {
-      const week = cells.slice(i, i + 7);
-      while (week.length < 7) week.push(null);
-      weeks.push(week);
-    }
-
-    const monthLabels: { week: number; label: string }[] = [];
-    let lastMonth = -1;
-    weeks.forEach((week, row) => {
-      const firstCell = week.find((c) => c != null);
-      if (!firstCell) return;
-      const m = Number(firstCell.key.split("-")[1]);
-      if (m !== lastMonth) {
-        monthLabels.push({ week: row, label: new Date(Date.UTC(year, m, 1, 12)).toLocaleDateString(dl, { month: "short", timeZone: tz }) });
-        lastMonth = m;
-      }
-    });
-
-    const yearStart = midnightInTZ(jan1, tz);
-    const yearEnd = midnightInTZ(new Date(Date.UTC(year + 1, 0, 1, 12)), tz);
-    const elapsedEnd = year === nowYear ? now : yearEnd;
-    const elapsedH = (elapsedEnd.getTime() - yearStart.getTime()) / 3_600_000;
-    return {
-      year,
-      weeks,
-      monthLabels,
-      totalHours: formatHours(totalHours, dl),
-      percentLocked: elapsedH > 0 ? Math.round((totalHours / elapsedH) * 100) : 0,
-    };
-  });
-}
-
-/** 7 short weekday names Mon..Sun in the given locale (for the heatmap's row labels). */
-function buildWeekdayLabels(dl: string, tz: string): string[] {
-  return Array.from({ length: 7 }, (_, i) =>
-    // 2024-01-01 was a Monday; +i days walks Mon..Sun.
-    new Date(Date.UTC(2024, 0, 1 + i, 12)).toLocaleDateString(dl, { weekday: "short", timeZone: tz }),
-  );
-}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -426,7 +147,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const yearStart = getYearStart(now, tz);
 
   // Build one goal-card per currently-active vorgabe (KG first, then others by name).
-  const activeVorgaben = vorgaben.filter(isActive).sort((a, b) => {
+  // Nicht `filter(isActive)`: Array.filter reicht den Index als zweites Argument durch, der dort
+  // auf den optionalen `now`-Parameter träfe.
+  const activeVorgaben = vorgaben.filter(v => isActive(v)).sort((a, b) => {
     const aKG = isKgVorgabe(a) ? 0 : 1;
     const bKG = isKgVorgabe(b) ? 0 : 1;
     if (aKG !== bKG) return aKG - bKG;
@@ -456,9 +179,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       .map((e) => { const { year, month, day } = tzDateParts(e.startTime, tz); return `${year}-${month}-${day}`; })
   );
 
+  // Heatmap und KG-Kalender brauchen dieselbe Tages-Karte — einmal bauen, zweimal nutzen.
+  const kgDailyData = wearPairs.length > 0 ? buildDailyData(wearPairs, orgasmDateSet, tz) : undefined;
+
   // Jahres-Heatmap (KG-Tragezeit pro Tag, GitHub-Stil) — nur wenn Tragedaten existieren.
-  const yearHeatmaps = wearPairs.length > 0 ? buildYearHeatmaps(wearPairs, orgasmDateSet, now, tz, dl) : [];
-  const weekdayLabels = buildWeekdayLabels(dl, tz);
+  const yearHeatmaps = kgDailyData ? buildYearHeatmaps(wearPairs, orgasmDateSet, now, tz, dl, kgDailyData) : [];
+  const weekdayLabels = buildWeekdayLabels(dl);
 
   // Build calendar variants — one per category that has wear data.
   // KG always shows orgasm dots; non-KG categories don't (orgasms are not device-specific).
@@ -470,7 +196,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       color: "cat-steel",
       icon: "Lock",
       isKG: true,
-      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl, tz }),
+      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl, tz, dailyData: kgDailyData }),
     });
   }
   for (const cat of nonKgCategories) {

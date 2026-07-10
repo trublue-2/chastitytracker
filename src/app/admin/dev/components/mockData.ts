@@ -1,5 +1,4 @@
-import type { CalendarMonthData, CalendarDayData, DayVorgabe } from "@/app/components/CalendarContainer";
-import type { MonthStat } from "@/app/components/MonthStats";
+import type { CalendarMonthData, CalendarDayData, DayVorgabe, MonthStat } from "@/lib/statsTypes";
 import type { KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import type { OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 
