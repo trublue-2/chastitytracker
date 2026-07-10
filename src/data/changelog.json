@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.50.21",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP keyholder_dashboard: Die offene Kontrolle zeigt jetzt den Kommentar des Keyholders, das Orgasmus-Fenster seine Nachricht — beides war bisher nur im veralteten get_overview sichtbar.",
+          "en": "MCP keyholder_dashboard: the open inspection now shows the keyholder's comment and the orgasm window its message — both were previously only visible in the deprecated get_overview."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "MCP keyholder_dashboard führt vier überflüssige Datenbank-Abfragen weniger aus: es holte seinen Live-Zustand über die Antwort des veralteten get_overview und schleppte deren ungenutzte Felder mit.",
+          "en": "MCP keyholder_dashboard now runs four fewer redundant database queries: it obtained its live state through the deprecated get_overview response and carried along its unused fields."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Verschluss- und Anforderungs-Ableitungen der MCP-Werkzeuge liegen jetzt in einer gemeinsamen, datenbankfreien Schicht mit eigenen Tests — statt dass ein Werkzeug durch das andere hindurchgreift.",
+          "en": "The lock and request derivations of the MCP tools now live in a shared, database-free layer with its own tests — instead of one tool reaching through the other."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.20",
     "date": "2026-07-10",
     "changes": [

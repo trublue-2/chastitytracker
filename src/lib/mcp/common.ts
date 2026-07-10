@@ -91,20 +91,22 @@ export interface TrackingContext {
   reinigung: ReinigungSettings;
   devices: DeviceMeta[];
   now: Date;
+  /** Freitext-Regeln des menschlichen Keyholders. Kommt aus derselben User-Zeile wie tz/reinigung. */
+  keyholderInstructions: string | null;
 }
 
 /** Lädt resolveUserId + loadTrackingData zu einem TrackingContext (eine Quelle für komponierende Tools). */
 export async function loadTrackingContext(username: string, now: Date = new Date()): Promise<TrackingContext> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung, devices, timezone } = await loadTrackingData(userId);
-  return { userId, timezone, entries, reinigung, devices, now };
+  const { entries, reinigung, devices, timezone, keyholderInstructions } = await loadTrackingData(userId);
+  return { userId, timezone, entries, reinigung, devices, now, keyholderInstructions };
 }
 
 /** Lädt Entries (mit Device-Include) + Reinigungs-Settings + Geräte-Meta + Sub-Zeitzone — die geteilte
  *  Datenbasis aller V2-Read-Tools (get_session, device_stats, records, denial_trend …). */
-export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[]; timezone: string }> {
+export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[]; timezone: string; keyholderInstructions: string | null }> {
   const [user, entries, devices] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true, mcpKeyholderInstructions: true } }),
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -122,6 +124,7 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
     devices,
     timezone: user.timezone ?? APP_TZ,
+    keyholderInstructions: user.mcpKeyholderInstructions ?? null,
   };
 }
 

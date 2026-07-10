@@ -318,6 +318,16 @@ export async function getActiveSperrzeiten(
   });
 }
 
+/** Die aktuell OFFENE (noch nicht eingereichte) Kontroll-Anforderung, oder null. Geplante, noch
+ *  nicht ausgelöste Kontrollen bleiben unsichtbar (`aktiveKontrolleWhere`).
+ *  Geteilt von `get_overview` (V1) und `keyholder_dashboard` (V2). */
+export async function getOpenKontrolle(userId: string, now: Date = new Date()) {
+  return prisma.kontrollAnforderung.findFirst({
+    where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /** Returns the single active Sperrzeit for a user, or null. */
 export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
   const client = tx ?? prisma;

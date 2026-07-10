@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import {
-  buildPairs, interruptionPauseMs, summarizeSessions, completedPairsFrom,
+  buildPairs, summarizeSessions, completedPairsFrom,
   calculateWearingHoursByRange, formatDateTime, isTimeCorrected, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, aktiveKontrolleWhere } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getOpenKontrolle } from "@/lib/queries";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView, type ReinigungUserFields } from "@/lib/reinigungService";
 import { autoKontrolleSettingsFromUser, type AutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
@@ -12,7 +12,10 @@ import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { round1, msToHours, pct, isoWithOffset } from "@/lib/mcp/format";
-import type { TrackingContext } from "@/lib/mcp/common";
+import {
+  buildLockStateFromPairs, mapOpenKontrolle, mapActiveSperrzeit, mapOpenVerschlussAnforderung,
+  mapOpenOrgasmusAnforderung, mapActiveWearSessions,
+} from "@/lib/mcp/liveState";
 
 /** Zeitformat der MCP-Ausgabe: V1-Tools nutzen das Instanz-lokale Human-Format (bewusster V1-
  *  Vertrag), V2-Composer (dashboard, ledger) ziehen via opts.iso ISO-8601 mit Offset.
@@ -136,53 +139,18 @@ async function loadUserContext(username: string): Promise<{ userId: string; time
   };
 }
 
-/**
- * `TrackerOverview` ohne die drei Ziel-/Stunden-Felder.
- *
- * Das `keyholder_dashboard` verwirft sie ohnehin — seine Ziele kommen aus `periodSummary` — und
- * spart mit dieser Form drei Rechnungen pro Aufruf: `buildCategoryWearGoals` (eigener Query),
- * `calculateWearingHoursByRange` und `getActiveVorgabe`.
- */
-export type TrackerOverviewLean = Omit<TrackerOverview, "wearingHoursKg" | "trainingGoalKg" | "categories">;
-
-/** V1 `get_overview`: der vollständige Snapshot. Feldbestand UND Schlüsselreihenfolge sind Teil des
- *  Vertrags gegenüber bestehenden MCP-Clients — deshalb unten bedingte Spreads an Ort und Stelle,
- *  statt die Ziel-Felder hinten anzuhängen. */
+/** Builds the overview for a user identified by username. Throws if the user does not exist.
+ *  V1-Tool `get_overview`. Der Live-Zustand (Lock, offene Anforderungen, Wear-Sessions) kommt aus
+ *  `mcp/liveState.ts` — dieselbe Quelle, aus der `keyholder_dashboard` komponiert. */
 export async function buildOverview(username: string, opts: McpFormatOptions = {}): Promise<TrackerOverview> {
-  const o = await buildOverviewInternal(username, opts, true);
-  // Der Cast unten ist für TypeScript unüberprüfbar: `withGoals` ist ein Laufzeit-Wert. Fiele einer
-  // der drei bedingten Spreads weg, kompilierte das weiterhin und jede V1-Antwort verlöre still ein
-  // Feld. Diese Zusicherung macht daraus einen lauten Fehler.
-  for (const k of ["wearingHoursKg", "trainingGoalKg", "categories"] as const) {
-    if (!(k in o)) throw new Error(`buildOverview: V1-Feld "${k}" fehlt — get_overview-Vertrag verletzt`);
-  }
-  return o as TrackerOverview;
-}
-
-/**
- * Wie {@link buildOverview}, aber ohne Ziele/Stunden — für Aufrufer, die diese Felder nicht lesen
- * (aktuell nur `keyholder_dashboard`).
- *
- * `ctx` erspart den zweiten vollständigen Entry-Scan: das Dashboard hat die Entries bereits geladen.
- * Sein `now` wird mitübernommen, damit alle Aggregate desselben Dashboard-Calls denselben Zeitpunkt
- * teilen (vorher konnten Restzeiten um Millisekunden auseinanderliegen).
- */
-export async function buildOverviewLean(username: string, opts: McpFormatOptions = {}, ctx?: TrackingContext): Promise<TrackerOverviewLean> {
-  return buildOverviewInternal(username, opts, false, ctx);
-}
-
-async function buildOverviewInternal(username: string, opts: McpFormatOptions, withGoals: boolean, ctx?: TrackingContext): Promise<TrackerOverviewLean> {
   const { userId, timezone, reinigung, reinigungUser, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
-  if (ctx && ctx.userId !== userId) throw new Error("buildOverview: übergebener TrackingContext gehört zu einem anderen User");
-  const now = ctx?.now ?? new Date();
+  const now = new Date();
   const fmt = pickFmt(opts.iso, timezone);
-  const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
   const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes, openOrgasmusAnf, cleaningUsedToday] = await Promise.all([
-    // Select deckungsgleich mit `TrackingEntry` (mcp/common.ts) — nur so ist ein vom Dashboard
-    // durchgereichter `ctx.entries` typkompatibel, und der Compiler bewacht, dass hier kein Feld
-    // gelesen wird, das dort fehlt.
-    ctx?.entries ?? prisma.entry.findMany({
+    // Schmaler Select statt `include`: der Compiler bewacht damit, dass hier kein Entry-Feld
+    // gelesen wird, das nicht ausdrücklich angefordert wurde.
+    prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
       select: {
@@ -192,12 +160,9 @@ async function buildOverviewInternal(username: string, opts: McpFormatOptions, w
         device: { select: { id: true, name: true, categoryId: true } },
       },
     }),
-    prisma.kontrollAnforderung.findFirst({
-      // geplante (noch nicht ausgelöste) Kontrollen sind auch im get_overview unsichtbar
-      where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
-      orderBy: { createdAt: "desc" },
-    }),
-    withGoals ? getActiveVorgabe(userId, now) : null,
+    // geplante (noch nicht ausgelöste) Kontrollen sind auch im get_overview unsichtbar
+    getOpenKontrolle(userId, now),
+    getActiveVorgabe(userId, now),
     getActiveSperrzeit(userId),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
@@ -211,32 +176,16 @@ async function buildOverviewInternal(username: string, opts: McpFormatOptions, w
   ]);
 
   // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
-  const categoryGoals = withGoals ? await buildCategoryWearGoals(userId, now, entries) : [];
-
-  // ── Lock state ──
-  const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
-  const isLocked = latest?.type === "VERSCHLUSS";
-
-  const pairs = buildPairs(entries, [], reinigung);
-  const activePair = pairs.find((p) => p.active) ?? null;
-  const currentDurationHours = isLocked && activePair
-    ? msToHours(now.getTime() - activePair.verschluss.startTime.getTime() - interruptionPauseMs(activePair.interruptions))
-    : null;
-  // Currently worn device = newest re-lock of the session (the lock following the last
-  // REINIGUNG pause), falling back to the session-start lock. A device swap during a
-  // cleaning pause does not change the session head, so reading activePair.verschluss
-  // alone would report the pre-pause device.
-  const currentLock = activePair
-    ? (activePair.interruptions.at(-1)?.verschluss ?? activePair.verschluss)
-    : null;
+  const categoryGoals = await buildCategoryWearGoals(userId, now, entries);
 
   // ── Completed sessions ──
+  const pairs = buildPairs(entries, [], reinigung); // einmal — geteilt von lock + sessionSummary
   const summary = summarizeSessions(completedPairsFrom(pairs));
 
   const lastOrgasmus = entries.find((e) => e.type === "ORGASMUS") ?? null;
 
-  // ── Wearing hours + KG training goal ── (nur für den vollen V1-Snapshot)
-  const kgHours = withGoals ? calculateWearingHoursByRange(entries, now, reinigung) : null;
+  // ── Wearing hours + KG training goal ──
+  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
 
   return {
     schemaVersion: 1 as const,
@@ -244,21 +193,14 @@ async function buildOverviewInternal(username: string, opts: McpFormatOptions, w
     generatedAt: fmt(now),
     timezone,
     keyholderInstructions,
-    lock: {
-      isLocked,
-      since: latest ? fmt(latest.startTime) : null,
-      currentDurationHours,
-      deviceName: isLocked ? (currentLock?.device?.name ?? null) : null,
-    },
-    ...(kgHours ? {
-      wearingHoursKg: { today: round1(kgHours.tagH), week: round1(kgHours.wocheH), month: round1(kgHours.monatH) },
-      trainingGoalKg: activeVorgabe ? (() => {
-        // Ziele prorata (wie die Kategorie-Ziele aus buildCategoryWearGoals) — sonst hätten KG und
-        // Kategorien in derselben V1-Antwort unterschiedliche %-Nenner bei mitten-in-Periode-Vorgaben.
-        const t = proratedVorgabeTargets(activeVorgabe, now);
-        return { ...goalProgress(kgHours.tagH, kgHours.wocheH, kgHours.monatH, t.minProTagH, t.minProWocheH, t.minProMonatH), note: activeVorgabe.notiz };
-      })() : null,
-    } satisfies Pick<TrackerOverview, "wearingHoursKg" | "trainingGoalKg"> : {}),
+    lock: buildLockStateFromPairs(entries, pairs, now, fmt),
+    wearingHoursKg: { today: round1(tagH), week: round1(wocheH), month: round1(monatH) },
+    trainingGoalKg: activeVorgabe ? (() => {
+      // Ziele prorata (wie die Kategorie-Ziele aus buildCategoryWearGoals) — sonst hätten KG und
+      // Kategorien in derselben V1-Antwort unterschiedliche %-Nenner bei mitten-in-Periode-Vorgaben.
+      const t = proratedVorgabeTargets(activeVorgabe, now);
+      return { ...goalProgress(tagH, wocheH, monatH, t.minProTagH, t.minProWocheH, t.minProMonatH), note: activeVorgabe.notiz };
+    })() : null,
     reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now, timezone),
     autoKontrolle: {
       aktiv: autoKontrolle.aktiv,
@@ -269,20 +211,12 @@ async function buildOverviewInternal(username: string, opts: McpFormatOptions, w
       fristVon: autoKontrolle.fristVon,
       fristBis: autoKontrolle.fristBis,
     },
-    ...(withGoals ? {
-      categories: categoryGoals.map((c) => ({
-        name: c.name,
-        wearingHours: { today: round1(c.tagH), week: round1(c.wocheH), month: round1(c.monatH) },
-        goal: hasAnyGoal(c) ? goalProgress(c.tagH, c.wocheH, c.monatH, c.goalDayH, c.goalWeekH, c.goalMonthH) : null,
-      })),
-    } satisfies Pick<TrackerOverview, "categories"> : {}),
-    openKontrolle: openKontrolle ? {
-      code: openKontrolle.code,
-      deadline: fmt(openKontrolle.deadline),
-      overdue: openKontrolle.deadline < now,
-      remainingMinutes: minutesUntil(openKontrolle.deadline),
-      comment: openKontrolle.kommentar,
-    } : null,
+    categories: categoryGoals.map((c) => ({
+      name: c.name,
+      wearingHours: { today: round1(c.tagH), week: round1(c.wocheH), month: round1(c.monatH) },
+      goal: hasAnyGoal(c) ? goalProgress(c.tagH, c.wocheH, c.monatH, c.goalDayH, c.goalWeekH, c.goalMonthH) : null,
+    })),
+    openKontrolle: mapOpenKontrolle(openKontrolle, now, fmt),
     lastKontrolle: (() => {
       // Jüngste eingereichte Kontrolle (PRUEFUNG) aus den bereits geladenen entries — kein Extra-Query.
       const p = entries.find((e) => e.type === "PRUEFUNG");
@@ -293,32 +227,9 @@ async function buildOverviewInternal(username: string, opts: McpFormatOptions, w
         deviceCheck: mapDeviceCheck(p),
       } : null;
     })(),
-    activeSperrzeit: activeSperrzeit ? {
-      endetAt: activeSperrzeit.endetAt ? fmt(activeSperrzeit.endetAt) : null,
-      indefinite: activeSperrzeit.endetAt === null,
-      remainingMinutes: activeSperrzeit.endetAt ? minutesUntil(activeSperrzeit.endetAt) : null,
-      message: activeSperrzeit.nachricht,
-      reinigungErlaubt: activeSperrzeit.reinigungErlaubt,
-      deviceName: activeSperrzeit.device?.name ?? null,
-    } : null,
-    openVerschlussAnforderung: openAnf ? {
-      endetAt: openAnf.endetAt ? fmt(openAnf.endetAt) : null,
-      overdue: openAnf.endetAt ? openAnf.endetAt < now : false,
-      remainingMinutes: openAnf.endetAt ? minutesUntil(openAnf.endetAt) : null,
-      message: openAnf.nachricht,
-      dauerH: openAnf.dauerH,
-      reinigungErlaubt: openAnf.reinigungErlaubt,
-      deviceName: openAnf.device?.name ?? null,
-    } : null,
-    openOrgasmusAnforderung: openOrgasmusAnf ? {
-      art: openOrgasmusAnf.art,
-      beginntAt: fmt(openOrgasmusAnf.beginntAt),
-      endetAt: fmt(openOrgasmusAnf.endetAt),
-      active: openOrgasmusAnf.beginntAt <= now,
-      requiredType: openOrgasmusAnf.vorgegebeneArt,
-      message: openOrgasmusAnf.nachricht,
-      remainingMinutes: minutesUntil(openOrgasmusAnf.endetAt),
-    } : null,
+    activeSperrzeit: mapActiveSperrzeit(activeSperrzeit, now, fmt),
+    openVerschlussAnforderung: mapOpenVerschlussAnforderung(openAnf, now, fmt),
+    openOrgasmusAnforderung: mapOpenOrgasmusAnforderung(openOrgasmusAnf, now, fmt),
     sessionSummary: summary.count > 0 ? {
       totalSessions: summary.count,
       totalHours: msToHours(summary.totalMs),
@@ -329,12 +240,7 @@ async function buildOverviewInternal(username: string, opts: McpFormatOptions, w
       orgasmFreeHours: lastOrgasmus ? msToHours(now.getTime() - lastOrgasmus.startTime.getTime()) : null,
     } : null,
     penalties: { punishedCount },
-    activeWearSessions: activeWear.map((s) => ({
-      category: s.categoryName,
-      deviceName: s.deviceName,
-      since: fmt(s.since),
-      durationHours: msToHours(now.getTime() - s.since.getTime()),
-    })),
+    activeWearSessions: mapActiveWearSessions(activeWear, now, fmt),
     keyholderNotes: recentNotes.map((n) => ({
       id: n.id, kg: n.kg, kategorie: n.kategorie, text: n.text, at: fmt(n.createdAt),
     })),

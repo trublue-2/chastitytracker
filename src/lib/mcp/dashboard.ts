@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { buildOverviewLean } from "@/lib/mcpOverview";
+import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung } from "@/lib/queries";
+import {
+  buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
+  mapActiveWearSessions,
+  type Fmt, type OpenKontrolleView, type ActiveSperrzeitView, type OpenOrgasmusAnforderungView,
+} from "@/lib/mcp/liveState";
 import { makeIso, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { buildSessions, type Session } from "@/lib/mcp/segments";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
@@ -59,14 +64,20 @@ export interface DashboardResult {
   /** Was JETZT getragen wird — KG + alle Kategorien vereint. */
   wornNow: { category: string; deviceName: string | null; since: string | null; durationHours: number | null }[];
   /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / Orgasmus-Fenster.
-   *  Zeiten ISO-8601 mit Offset (buildOverview wird mit iso:true komponiert); zusätzlich
+   *  Zeiten ISO-8601 mit Offset (die liveState-Mapper bekommen das `iso`-Format durchgereicht); zusätzlich
    *  remainingMinutes/overdue für direkte Fristfragen. Beim Orgasmus-Fenster zeigt `active` an,
    *  ob der Start (`beginntAt`) schon erreicht ist — `active:false` = geplant, läuft noch NICHT
-   *  (remainingMinutes zählt bis `endetAt`). */
+   *  (remainingMinutes zählt bis `endetAt`).
+   *
+   *  Die Sichten aus `mcp/liveState.ts` werden unverändert übernommen, statt sie hier erneut zu
+   *  beschreiben und Feld für Feld umzukopieren: sonst müsste jedes neue Feld an zwei Stellen
+   *  nachgezogen werden, und wer es vergisst, lässt es stillschweigend aus dem Dashboard fallen.
+   *  Dadurch trägt `openControl` jetzt auch den Kommentar des Keyholders und `openOrgasmWindow`
+   *  dessen Nachricht — beides bisher nur im veralteten `get_overview` sichtbar. */
   nextRelevant: {
-    openControl: { code: string; deadline: string; overdue: boolean; remainingMinutes: number } | null;
-    activeLockPeriod: { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; reinigungErlaubt: boolean; message: string | null; deviceName: string | null } | null;
-    openOrgasmWindow: { art: string; beginntAt: string; endetAt: string; active: boolean; requiredType: string | null; remainingMinutes: number } | null;
+    openControl: OpenKontrolleView | null;
+    activeLockPeriod: ActiveSperrzeitView | null;
+    openOrgasmWindow: OpenOrgasmusAnforderungView | null;
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
@@ -192,16 +203,25 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */
 export async function keyholderDashboard(username: string): Promise<DashboardResult> {
   const now = new Date();
-  // Entries/Reinigung/User-id EINMAL laden und an die segment-basierten Aggregate durchreichen,
-  // statt sie pro Aggregat erneut zu scannen — auch buildOverviewLean bekommt sie durchgereicht.
-  // „lean" = ohne Ziele/Stunden; die kommen hier aus periodSummary. (getOffenses lädt noch selbst.)
+  // Entries/Reinigung/User-id/Keyholder-Regeln EINMAL laden und an alle Aggregate durchreichen,
+  // statt sie pro Aggregat erneut zu scannen. (getOffenses lädt noch selbst.)
   const trackingCtx = await loadTrackingContext(username, now);
   const iso = makeIso(trackingCtx.timezone);
+  // `iso` nimmt auch null; die liveState-Mapper übergeben immer ein Date. Ein Adapter statt eines
+  // Casts an jeder Aufrufstelle.
+  const fmt: Fmt = (d) => iso(d)!;
   // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
   const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices);
 
-  const [overview, rec, periods, ledger, pinned, boxState, healthHold, scheduledDirectives] = await Promise.all([
-    buildOverviewLean(username, { iso: true }, trackingCtx),
+  // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
+  // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
+  // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
+  const [openKontrolleRow, activeSperrzeitRow, activeWearRows, openOrgasmusRow,
+         rec, periods, ledger, pinned, boxState, healthHold, scheduledDirectives] = await Promise.all([
+    getOpenKontrolle(trackingCtx.userId, now),
+    getActiveSperrzeit(trackingCtx.userId),
+    getActiveWearSessions(trackingCtx.userId),
+    getActiveOrgasmusAnforderung(trackingCtx.userId, now),
     records(username, trackingCtx, sessions),
     periodSummary(username, trackingCtx),
     getOffenses(username),
@@ -211,12 +231,15 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     loadScheduledDirectives(trackingCtx.userId, now, iso),
   ]);
 
+  const lock = buildLockState(trackingCtx.entries, trackingCtx.reinigung, now, fmt);
+  const activeWearSessions = mapActiveWearSessions(activeWearRows, now, fmt);
+
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
   const wornNow: DashboardResult["wornNow"] = [];
-  if (overview.lock.isLocked) {
-    wornNow.push({ category: "KG", deviceName: overview.lock.deviceName, since: overview.lock.since, durationHours: overview.lock.currentDurationHours });
+  if (lock.isLocked) {
+    wornNow.push({ category: "KG", deviceName: lock.deviceName, since: lock.since, durationHours: lock.currentDurationHours });
   }
-  for (const w of overview.activeWearSessions) {
+  for (const w of activeWearSessions) {
     wornNow.push({ category: w.category, deviceName: w.deviceName, since: w.since, durationHours: w.durationHours });
   }
 
@@ -235,12 +258,12 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     user: username,
     generatedAt: iso(now)!,
     timezone: trackingCtx.timezone,
-    keyholderInstructions: overview.keyholderInstructions,
+    keyholderInstructions: trackingCtx.keyholderInstructions,
     currentRun: {
-      isLocked: overview.lock.isLocked,
-      since: overview.lock.since,
-      durationHours: overview.lock.currentDurationHours,
-      deviceName: overview.lock.deviceName,
+      isLocked: lock.isLocked,
+      since: lock.since,
+      durationHours: lock.currentDurationHours,
+      deviceName: lock.deviceName,
       personalBestHours: rec.longestRunHours,
       vsPersonalBestPct: rec.currentRunVsPbPct,
       todayIncludesPriorSession,
@@ -248,15 +271,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     dataDiscrepancies: { count: discrepancyItems.length, items: discrepancyItems.slice(0, 5) },
     wornNow,
     nextRelevant: {
-      openControl: overview.openKontrolle
-        ? { code: overview.openKontrolle.code, deadline: overview.openKontrolle.deadline, overdue: overview.openKontrolle.overdue, remainingMinutes: overview.openKontrolle.remainingMinutes }
-        : null,
-      activeLockPeriod: overview.activeSperrzeit
-        ? { endetAt: overview.activeSperrzeit.endetAt, indefinite: overview.activeSperrzeit.indefinite, remainingMinutes: overview.activeSperrzeit.remainingMinutes, reinigungErlaubt: overview.activeSperrzeit.reinigungErlaubt, message: overview.activeSperrzeit.message, deviceName: overview.activeSperrzeit.deviceName }
-        : null,
-      openOrgasmWindow: overview.openOrgasmusAnforderung
-        ? { art: overview.openOrgasmusAnforderung.art, beginntAt: overview.openOrgasmusAnforderung.beginntAt, endetAt: overview.openOrgasmusAnforderung.endetAt, active: overview.openOrgasmusAnforderung.active, requiredType: overview.openOrgasmusAnforderung.requiredType, remainingMinutes: overview.openOrgasmusAnforderung.remainingMinutes }
-        : null,
+      openControl: mapOpenKontrolle(openKontrolleRow, now, fmt),
+      activeLockPeriod: mapActiveSperrzeit(activeSperrzeitRow, now, fmt),
+      openOrgasmWindow: mapOpenOrgasmusAnforderung(openOrgasmusRow, now, fmt),
     },
     goals: { kg: periods.kg, categories: periods.categories },
     openOffenses: { count: ledger.openOffenseCount, pendingPenalties: ledger.pendingPenaltyCount, top: openOffenseRows.slice(0, 5) },
