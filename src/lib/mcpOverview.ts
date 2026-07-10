@@ -12,6 +12,7 @@ import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { round1, msToHours, pct, isoWithOffset } from "@/lib/mcp/format";
+import type { TrackingContext } from "@/lib/mcp/common";
 
 /** Zeitformat der MCP-Ausgabe: V1-Tools nutzen das Instanz-lokale Human-Format (bewusster V1-
  *  Vertrag), V2-Composer (dashboard, ledger) ziehen via opts.iso ISO-8601 mit Offset.
@@ -135,25 +136,68 @@ async function loadUserContext(username: string): Promise<{ userId: string; time
   };
 }
 
-/** Builds the overview for a user identified by username. Throws if the user does not exist. */
+/**
+ * `TrackerOverview` ohne die drei Ziel-/Stunden-Felder.
+ *
+ * Das `keyholder_dashboard` verwirft sie ohnehin — seine Ziele kommen aus `periodSummary` — und
+ * spart mit dieser Form drei Rechnungen pro Aufruf: `buildCategoryWearGoals` (eigener Query),
+ * `calculateWearingHoursByRange` und `getActiveVorgabe`.
+ */
+export type TrackerOverviewLean = Omit<TrackerOverview, "wearingHoursKg" | "trainingGoalKg" | "categories">;
+
+/** V1 `get_overview`: der vollständige Snapshot. Feldbestand UND Schlüsselreihenfolge sind Teil des
+ *  Vertrags gegenüber bestehenden MCP-Clients — deshalb unten bedingte Spreads an Ort und Stelle,
+ *  statt die Ziel-Felder hinten anzuhängen. */
 export async function buildOverview(username: string, opts: McpFormatOptions = {}): Promise<TrackerOverview> {
+  const o = await buildOverviewInternal(username, opts, true);
+  // Der Cast unten ist für TypeScript unüberprüfbar: `withGoals` ist ein Laufzeit-Wert. Fiele einer
+  // der drei bedingten Spreads weg, kompilierte das weiterhin und jede V1-Antwort verlöre still ein
+  // Feld. Diese Zusicherung macht daraus einen lauten Fehler.
+  for (const k of ["wearingHoursKg", "trainingGoalKg", "categories"] as const) {
+    if (!(k in o)) throw new Error(`buildOverview: V1-Feld "${k}" fehlt — get_overview-Vertrag verletzt`);
+  }
+  return o as TrackerOverview;
+}
+
+/**
+ * Wie {@link buildOverview}, aber ohne Ziele/Stunden — für Aufrufer, die diese Felder nicht lesen
+ * (aktuell nur `keyholder_dashboard`).
+ *
+ * `ctx` erspart den zweiten vollständigen Entry-Scan: das Dashboard hat die Entries bereits geladen.
+ * Sein `now` wird mitübernommen, damit alle Aggregate desselben Dashboard-Calls denselben Zeitpunkt
+ * teilen (vorher konnten Restzeiten um Millisekunden auseinanderliegen).
+ */
+export async function buildOverviewLean(username: string, opts: McpFormatOptions = {}, ctx?: TrackingContext): Promise<TrackerOverviewLean> {
+  return buildOverviewInternal(username, opts, false, ctx);
+}
+
+async function buildOverviewInternal(username: string, opts: McpFormatOptions, withGoals: boolean, ctx?: TrackingContext): Promise<TrackerOverviewLean> {
   const { userId, timezone, reinigung, reinigungUser, keyholderInstructions, autoKontrolle } = await loadUserContext(username);
-  const now = new Date();
+  if (ctx && ctx.userId !== userId) throw new Error("buildOverview: übergebener TrackingContext gehört zu einem anderen User");
+  const now = ctx?.now ?? new Date();
   const fmt = pickFmt(opts.iso, timezone);
   const minutesUntil = (d: Date) => Math.round((d.getTime() - now.getTime()) / 60_000);
 
   const [entries, openKontrolle, activeVorgabe, activeSperrzeit, openAnf, activeWear, punishedCount, recentNotes, openOrgasmusAnf, cleaningUsedToday] = await Promise.all([
-    prisma.entry.findMany({
+    // Select deckungsgleich mit `TrackingEntry` (mcp/common.ts) — nur so ist ein vom Dashboard
+    // durchgereichter `ctx.entries` typkompatibel, und der Compiler bewacht, dass hier kein Feld
+    // gelesen wird, das dort fehlt.
+    ctx?.entries ?? prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
-      include: { device: { select: { name: true, categoryId: true } } },
+      select: {
+        id: true, type: true, startTime: true, oeffnenGrund: true, orgasmusArt: true,
+        kontrollCode: true, verifikationStatus: true,
+        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true,
+        device: { select: { id: true, name: true, categoryId: true } },
+      },
     }),
     prisma.kontrollAnforderung.findFirst({
       // geplante (noch nicht ausgelöste) Kontrollen sind auch im get_overview unsichtbar
       where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
-    getActiveVorgabe(userId, now),
+    withGoals ? getActiveVorgabe(userId, now) : null,
     getActiveSperrzeit(userId),
     prisma.verschlussAnforderung.findFirst({
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
@@ -167,7 +211,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
   ]);
 
   // Reuse the already-loaded entries for per-category wear hours (no second entries scan).
-  const categoryGoals = await buildCategoryWearGoals(userId, now, entries);
+  const categoryGoals = withGoals ? await buildCategoryWearGoals(userId, now, entries) : [];
 
   // ── Lock state ──
   const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
@@ -191,8 +235,8 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
 
   const lastOrgasmus = entries.find((e) => e.type === "ORGASMUS") ?? null;
 
-  // ── Wearing hours + KG training goal ──
-  const { tagH, wocheH, monatH } = calculateWearingHoursByRange(entries, now, reinigung);
+  // ── Wearing hours + KG training goal ── (nur für den vollen V1-Snapshot)
+  const kgHours = withGoals ? calculateWearingHoursByRange(entries, now, reinigung) : null;
 
   return {
     schemaVersion: 1 as const,
@@ -206,13 +250,15 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
       currentDurationHours,
       deviceName: isLocked ? (currentLock?.device?.name ?? null) : null,
     },
-    wearingHoursKg: { today: round1(tagH), week: round1(wocheH), month: round1(monatH) },
-    trainingGoalKg: activeVorgabe ? (() => {
-      // Ziele prorata (wie die Kategorie-Ziele aus buildCategoryWearGoals) — sonst hätten KG und
-      // Kategorien in derselben V1-Antwort unterschiedliche %-Nenner bei mitten-in-Periode-Vorgaben.
-      const t = proratedVorgabeTargets(activeVorgabe, now);
-      return { ...goalProgress(tagH, wocheH, monatH, t.minProTagH, t.minProWocheH, t.minProMonatH), note: activeVorgabe.notiz };
-    })() : null,
+    ...(kgHours ? {
+      wearingHoursKg: { today: round1(kgHours.tagH), week: round1(kgHours.wocheH), month: round1(kgHours.monatH) },
+      trainingGoalKg: activeVorgabe ? (() => {
+        // Ziele prorata (wie die Kategorie-Ziele aus buildCategoryWearGoals) — sonst hätten KG und
+        // Kategorien in derselben V1-Antwort unterschiedliche %-Nenner bei mitten-in-Periode-Vorgaben.
+        const t = proratedVorgabeTargets(activeVorgabe, now);
+        return { ...goalProgress(kgHours.tagH, kgHours.wocheH, kgHours.monatH, t.minProTagH, t.minProWocheH, t.minProMonatH), note: activeVorgabe.notiz };
+      })() : null,
+    } satisfies Pick<TrackerOverview, "wearingHoursKg" | "trainingGoalKg"> : {}),
     reinigung: buildReinigungView(reinigungUser, cleaningUsedToday, now, timezone),
     autoKontrolle: {
       aktiv: autoKontrolle.aktiv,
@@ -223,11 +269,13 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
       fristVon: autoKontrolle.fristVon,
       fristBis: autoKontrolle.fristBis,
     },
-    categories: categoryGoals.map((c) => ({
-      name: c.name,
-      wearingHours: { today: round1(c.tagH), week: round1(c.wocheH), month: round1(c.monatH) },
-      goal: hasAnyGoal(c) ? goalProgress(c.tagH, c.wocheH, c.monatH, c.goalDayH, c.goalWeekH, c.goalMonthH) : null,
-    })),
+    ...(withGoals ? {
+      categories: categoryGoals.map((c) => ({
+        name: c.name,
+        wearingHours: { today: round1(c.tagH), week: round1(c.wocheH), month: round1(c.monatH) },
+        goal: hasAnyGoal(c) ? goalProgress(c.tagH, c.wocheH, c.monatH, c.goalDayH, c.goalWeekH, c.goalMonthH) : null,
+      })),
+    } satisfies Pick<TrackerOverview, "categories"> : {}),
     openKontrolle: openKontrolle ? {
       code: openKontrolle.code,
       deadline: fmt(openKontrolle.deadline),

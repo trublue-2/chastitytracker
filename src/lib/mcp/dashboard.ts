@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { buildOverview } from "@/lib/mcpOverview";
+import { buildOverviewLean } from "@/lib/mcpOverview";
 import { makeIso, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { buildSessions, type Session } from "@/lib/mcp/segments";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
@@ -193,14 +193,15 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
 export async function keyholderDashboard(username: string): Promise<DashboardResult> {
   const now = new Date();
   // Entries/Reinigung/User-id EINMAL laden und an die segment-basierten Aggregate durchreichen,
-  // statt sie pro Aggregat erneut zu scannen. (buildOverview/getOffenses sind V1-Reuse mit eigenem Load.)
+  // statt sie pro Aggregat erneut zu scannen — auch buildOverviewLean bekommt sie durchgereicht.
+  // „lean" = ohne Ziele/Stunden; die kommen hier aus periodSummary. (getOffenses lädt noch selbst.)
   const trackingCtx = await loadTrackingContext(username, now);
   const iso = makeIso(trackingCtx.timezone);
   // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
   const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices);
 
   const [overview, rec, periods, ledger, pinned, boxState, healthHold, scheduledDirectives] = await Promise.all([
-    buildOverview(username, { iso: true }),
+    buildOverviewLean(username, { iso: true }, trackingCtx),
     records(username, trackingCtx, sessions),
     periodSummary(username, trackingCtx),
     getOffenses(username),

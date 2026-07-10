@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.20",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Keyholder-Übersicht im MCP antwortet schneller: sie las die Eintrags-Historie zweimal pro Aufruf und berechnete Trainingsziele und Tragestunden doppelt. Beides läuft jetzt einmal.",
+          "en": "The keyholder overview in the MCP responds faster: it read the entry history twice per call and computed training goals and wear hours twice. Both now run once."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.19",
     "date": "2026-07-10",
     "changes": [
