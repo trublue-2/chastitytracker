@@ -35,17 +35,27 @@ Deploys laufen über den GitHub-Actions-Workflow `.github/workflows/docker.yml` 
 **Regel — bei jedem `:latest`-Build auf `main` IMMER auch `:feature` mittaggen** (`tagFeature=true`), damit `:feature`-gepinnte Instanzen (trublue) nie hinter `main` zurückfallen. Ausnahme: ein Dispatch von einem noch ungemergten Feature-Branch soll NUR `:feature` taggen (kein `tagFeature` nötig — das ist bereits der Tag dieses Builds), damit `:latest` unberührt bleibt, bis gemergt ist.
 
 ```bash
-# main → Produktion (:latest) UND :feature gleichzeitig aktuell halten (Standardfall)
+# main → Produktion (:latest) UND :feature gleichzeitig aktuell halten (Standardfall).
+# Hier ist `instances` bewusst leer: ALLE Instanzen sollen den neuen Stand bekommen.
 gh workflow run docker.yml --ref main -f tagFeature=true
 
-# Feature-Branch (noch nicht gemergt) → nur :feature, :latest bleibt unberührt
-gh workflow run docker.yml --ref <feature-branch> -f tagFeature=true
+# Feature-Branch (noch nicht gemergt) → nur :feature, :latest bleibt unberührt.
+# `instances=trublue` ist PFLICHT — ohne das werden alle 27 Instanzen neu gestartet.
+gh workflow run docker.yml --ref <feature-branch> -f tagFeature=true -f instances=trublue
 
 # Instanz einmalig auf einen Tag umpinnen (z.B. trublue dauerhaft auf :feature)
 gh workflow run docker.yml --ref <branch> -f tagFeature=true -f channel=feature -f instances=trublue
 ```
 
-Weitere Dispatch-Inputs: `deploy` (Default `true` — nach dem Build auch deployen), `instances` (leer = alle Instanzen, empfohlen — explizite Namen erscheinen im öffentlichen Dispatch-Log, da das Repo public ist), `channel` (pinnt Ziel-Instanzen auf einen Tag um; leer = bestehende Pins beibehalten).
+Weitere Dispatch-Inputs: `deploy` (Default `true` — nach dem Build auch deployen), `instances`, `channel` (pinnt Ziel-Instanzen auf einen Tag um; leer = bestehende Pins beibehalten).
+
+**`instances` bei Feature-Tests IMMER explizit setzen (`-f instances=trublue`).** Leer bedeutet **alle 27 Instanzen** — das Deploy-Skript iteriert dann über jeden Ordner in `~/instances` und startet jede Instanz neu. Instanzen, die auf `:latest` gepinnt sind, ziehen zwar ihr unverändertes Image, kassieren aber trotzdem einen Neustart: eine vermeidbare Unterbrechung für fremde Nutzer, für einen Test, der nur die eigene Instanz betrifft.
+
+Der Instanzname `trublue` ist **nicht** schützenswert — es ist der Name des Repo-Inhabers und steht ohnehin in der Repo-URL (`trublue-2/chastitytracker`). Das Deploy-Skript anonymisiert seine Ausgabe ohnehin auf `Instanz <i>/<n>`, damit keine fremden Subdomains ins öffentliche Actions-Log gelangen. Fremde Instanznamen gehören nach wie vor nicht in einen Dispatch-Input.
+
+**Faustregel:** `instances` leer lassen nur bei einem echten Rollout auf `main`, wo alle Instanzen den neuen Stand bekommen sollen. Für jeden Feature-Test die Zielinstanz benennen.
+
+*(Vorfall 2026-07-10: ein `:feature`-Test wurde ohne `instances` dispatcht — 27 Instanzen neu gestartet, nötig gewesen wäre eine. Die frühere Fassung dieser Zeile empfahl ausdrücklich das Leerlassen.)*
 
 Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <run-id>` prüfen, ob `typecheck`, `build-and-push` und `deploy` grün sind.
 
