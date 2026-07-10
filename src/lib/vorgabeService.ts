@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { reorderVorgabenDates } from "@/lib/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
 
 export interface CreateVorgabeParams {
   userId: string;
@@ -20,20 +21,17 @@ export interface CreateVorgabeParams {
 }
 
 /** Validates that a category exists, belongs to `userId`, and allows Vorgaben.
- *  Returns an error ServiceResult on failure, or null when valid / no category given. */
+ *  Returns an error ServiceResult on failure, or null when valid / no category given.
+ *  Existenz + Besitz kommen aus `resolveOwnedCategory` (geteilt mit den Geräte-Routen); nur die
+ *  `allowVorgaben`-Regel unten ist eine Vorgaben-Regel und bleibt hier. */
 async function validateVorgabeCategory(
   categoryId: string | null | undefined,
   userId: string,
 ): Promise<ServiceResult<never> | null> {
-  if (categoryId === undefined || categoryId === null) return null;
-  if (typeof categoryId !== "string") return serviceFail(400, "INVALID_CATEGORY");
-  const cat = await prisma.deviceCategory.findUnique({
-    where: { id: categoryId },
-    select: { userId: true, allowVorgaben: true, isBuiltIn: true },
-  });
-  if (!cat || cat.userId !== userId) return serviceFail(400, "INVALID_CATEGORY");
+  const owned = await resolveOwnedCategory(categoryId, userId);
+  if (!owned.ok) return owned;
   // Built-in (KG) always allows vorgaben; user-defined respects the toggle.
-  if (!cat.isBuiltIn && !cat.allowVorgaben) {
+  if (owned.data && !owned.data.isBuiltIn && !owned.data.allowVorgaben) {
     return serviceFail(400, "CATEGORY_DISALLOWS_GOALS");
   }
   return null;

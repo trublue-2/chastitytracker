@@ -23,13 +23,20 @@
  */
 
 /** Codes that are not specific to one service. `NOT_FOUND`, `USER_ID_REQUIRED`, `USER_NOT_FOUND`,
- *  `INVALID_DEVICE` and `INVALID_ORGASM_TYPE` already exist for the entry routes with the same
- *  meaning and wording, and are deliberately reused rather than duplicated. */
+ *  `INVALID_DEVICE`, `INVALID_ORGASM_TYPE`, `FORBIDDEN` and `INVALID_IMAGE_URL` already exist for the
+ *  entry routes with the same meaning and wording, and are deliberately reused rather than
+ *  duplicated.
+ *
+ *  `INVALID_CATEGORY` lives here rather than with the goal codes: it is raised wherever a category
+ *  is assigned to something the caller owns — training goals AND devices. */
 export const SHARED_SERVICE_CODES = [
   "NOT_FOUND",
+  "FORBIDDEN",
   "USER_ID_REQUIRED",
   "USER_NOT_FOUND",
   "INVALID_DEVICE",
+  "INVALID_IMAGE_URL",
+  "INVALID_CATEGORY",
   "INVALID_ORGASM_TYPE",
   "USER_NO_EMAIL",
   "INVALID_DATETIME",
@@ -48,10 +55,9 @@ export const INSPECTION_CODES = [
   "INSPECTION_NOT_WITHDRAWN",
 ] as const;
 
-/** vorgabeService (training goals). `INVALID_CATEGORY` sitzt hier und nicht bei den geteilten
- *  Codes: es ist ein Vorgaben-Begriff mit genau einem Aufrufer. */
+/** vorgabeService (training goals). `INVALID_CATEGORY` sass hier, solange der vorgabeService der
+ *  einzige Aufrufer war; seit die Geräte-Routen dieselbe Besitz-Prüfung teilen, steht es oben. */
 export const GOAL_CODES = [
-  "INVALID_CATEGORY",
   "GOAL_NOT_FOUND",
   "GOAL_USER_AND_START_REQUIRED",
   "GOAL_START_REQUIRED",
@@ -97,6 +103,24 @@ export const REFERENCE_CODES = [
   "REFERENCE_SOURCE_REQUIRED",
 ] as const;
 
+/** Die /api/devices-Routen (Geräte anlegen, bearbeiten, archivieren, wiederherstellen).
+ *  `INVALID_CATEGORY` und `INVALID_IMAGE_URL` teilen sie sich mit den geteilten Codes oben.
+ *
+ *  Die beiden Längen-Codes nennen ihr Limit bewusst NICHT: eine Meldung wie „max. {max} Zeichen"
+ *  bräuchte einen ICU-Parameter, den `unwrap()` an der MCP-Grenze nicht füllen kann (der Agent sähe
+ *  `{max}` wörtlich) und den `useApiError()` nur mit den Passwort-Konstanten belegt — also mit der
+ *  falschen Zahl. Die Zahl gehört ans Eingabefeld (`maxLength`), nicht in den Fehlertext. */
+export const DEVICE_CODES = [
+  "DEVICE_NAME_REQUIRED",
+  "DEVICE_NAME_TOO_LONG",
+  "DEVICE_DESCRIPTION_TOO_LONG",
+  "DEVICE_INVALID_PRICE",
+  "DEVICE_INVALID_CURRENCY",
+  "DEVICE_CURRENCY_REQUIRED",
+  "DEVICE_NOT_ARCHIVED",
+  "DEVICE_ARCHIVED_NOT_EDITABLE",
+] as const;
+
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
@@ -115,6 +139,7 @@ export const SERVICE_ERROR_CODES = [
     ...ORGASM_DIRECTIVE_CODES,
     ...JUDGMENT_CODES,
     ...REFERENCE_CODES,
+    ...DEVICE_CODES,
     ...SETTINGS_CODES,
   ]),
 ] as readonly string[];
@@ -131,4 +156,5 @@ export type ServiceErrorCode =
   | (typeof ORGASM_DIRECTIVE_CODES)[number]
   | (typeof JUDGMENT_CODES)[number]
   | (typeof REFERENCE_CODES)[number]
+  | (typeof DEVICE_CODES)[number]
   | (typeof SETTINGS_CODES)[number];

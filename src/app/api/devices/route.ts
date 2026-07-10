@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
 
 /**
  * GET /api/devices
@@ -21,7 +23,7 @@ export async function GET(req: NextRequest) {
   const queryUserId = searchParams.get("userId");
   if (queryUserId) {
     if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return errorResponse(403, "FORBIDDEN");
     }
     userId = queryUserId;
   }
@@ -63,38 +65,35 @@ export async function POST(req: NextRequest) {
   let userId = session.user.id;
   if (body.userId && body.userId !== session.user.id) {
     if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return errorResponse(403, "FORBIDDEN");
     }
     userId = body.userId;
   }
 
   // Validation
   if (!name || typeof name !== "string" || !name.trim()) {
-    return NextResponse.json({ error: "Name ist erforderlich" }, { status: 400 });
+    return errorResponse(400, "DEVICE_NAME_REQUIRED");
   }
   if (name.trim().length > DEVICE_NAME_MAX_LENGTH) {
-    return NextResponse.json({ error: `Name zu lang (max. ${DEVICE_NAME_MAX_LENGTH} Zeichen)` }, { status: 400 });
+    return errorResponse(400, "DEVICE_NAME_TOO_LONG");
   }
   if (description && typeof description === "string" && description.length > DEVICE_DESCRIPTION_MAX_LENGTH) {
-    return NextResponse.json({ error: `Beschreibung zu lang (max. ${DEVICE_DESCRIPTION_MAX_LENGTH} Zeichen)` }, { status: 400 });
+    return errorResponse(400, "DEVICE_DESCRIPTION_TOO_LONG");
   }
   if (!isValidImageUrl(imageUrl)) {
-    return NextResponse.json({ error: "Ungültige imageUrl" }, { status: 400 });
+    return errorResponse(400, "INVALID_IMAGE_URL");
   }
   if (purchasePrice != null && (typeof purchasePrice !== "number" || purchasePrice < 0)) {
-    return NextResponse.json({ error: "Ungültiger Preis" }, { status: 400 });
+    return errorResponse(400, "DEVICE_INVALID_PRICE");
   }
   if (currency && !(VALID_CURRENCIES as readonly string[]).includes(currency)) {
-    return NextResponse.json({ error: "Ungültige Währung" }, { status: 400 });
+    return errorResponse(400, "DEVICE_INVALID_CURRENCY");
   }
   if (purchasePrice != null && !currency) {
-    return NextResponse.json({ error: "Währung ist erforderlich wenn Preis angegeben" }, { status: 400 });
+    return errorResponse(400, "DEVICE_CURRENCY_REQUIRED");
   }
-  if (categoryId !== undefined && categoryId !== null) {
-    if (typeof categoryId !== "string") return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
-    const cat = await prisma.deviceCategory.findUnique({ where: { id: categoryId }, select: { userId: true } });
-    if (!cat || cat.userId !== userId) return NextResponse.json({ error: "Ungültige Kategorie" }, { status: 400 });
-  }
+  const category = await resolveOwnedCategory(categoryId, userId);
+  if (!category.ok) return serviceFailure(category);
 
   const device = await prisma.device.create({
     data: {

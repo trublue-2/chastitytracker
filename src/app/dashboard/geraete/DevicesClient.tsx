@@ -14,7 +14,8 @@ import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
 import useToast from "@/app/hooks/useToast";
 import DeviceForm from "./DeviceFormSheet";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 export interface DeviceRow {
   id: string;
@@ -48,6 +49,7 @@ interface Props {
 export default function DevicesClient({ devices: initialDevices, categories, userId, username, showCategoriesLink = false }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
+  const apiError = useApiError();
   const router = useRouter();
   const toast = useToast();
 
@@ -107,7 +109,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
     try {
       const res = await fetch(`/api/devices/${deleteModal.id}`, { method: "DELETE" });
       if (!res.ok) {
-        toast.error(await parseApiError(res, tCommon("error")));
+        toast.error(apiError(await parseApiErrorCode(res)));
         setDeleting(false);
         return;
       }
@@ -130,7 +132,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
         body: JSON.stringify({ action: "restore" }),
       });
       if (!res.ok) {
-        toast.error(await parseApiError(res, tCommon("error")));
+        toast.error(apiError(await parseApiErrorCode(res)));
         return;
       }
       toast.success(t("restored"));

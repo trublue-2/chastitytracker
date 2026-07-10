@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.16",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fehlermeldungen beim Anlegen und Bearbeiten von Geräten erscheinen jetzt in der eingestellten Sprache statt immer auf Deutsch.",
+          "en": "Error messages when creating and editing devices now appear in the selected language instead of always German."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Beschreibungsfeld eines Geräts begrenzt die Eingabe jetzt direkt, statt sie erst beim Speichern abzulehnen.",
+          "en": "A device's description field now limits input directly, instead of only rejecting it on save."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.15",
     "date": "2026-07-10",
     "changes": [

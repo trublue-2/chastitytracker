@@ -81,7 +81,15 @@
     "UNKNOWN_ACTION": "Unknown action",
     "REFERENCE_SOURCE_REQUIRED": "An entry or a valid image URL is required",
     "USER_NOT_LOCKED": "The user is not locked",
-    "USER_ALREADY_LOCKED": "The user is already locked"
+    "USER_ALREADY_LOCKED": "The user is already locked",
+    "DEVICE_NAME_REQUIRED": "Name is required",
+    "DEVICE_NAME_TOO_LONG": "Name is too long",
+    "DEVICE_DESCRIPTION_TOO_LONG": "Description is too long",
+    "DEVICE_INVALID_PRICE": "Invalid price",
+    "DEVICE_INVALID_CURRENCY": "Invalid currency",
+    "DEVICE_CURRENCY_REQUIRED": "Currency is required when a price is given",
+    "DEVICE_NOT_ARCHIVED": "The device is not archived",
+    "DEVICE_ARCHIVED_NOT_EDITABLE": "Archived devices cannot be edited"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
