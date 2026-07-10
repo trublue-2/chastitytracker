@@ -1,6 +1,7 @@
 "use client";
 
 import useTick from "@/app/hooks/useTick";
+import { decomposeMs } from "@/lib/utils";
 
 type TimerMode = "countup" | "countdown";
 type TimerFormat = "long" | "short";
@@ -16,10 +17,7 @@ interface TimerDisplayProps {
 }
 
 function formatLong(totalMs: number): string {
-  const totalMinutes = Math.floor(Math.abs(totalMs) / 60_000);
-  const d = Math.floor(totalMinutes / 1440);
-  const h = Math.floor((totalMinutes % 1440) / 60);
-  const m = totalMinutes % 60;
+  const { days: d, hours: h, minutes: m } = decomposeMs(Math.abs(totalMs));
 
   const parts: string[] = [];
   if (d > 0) parts.push(`${d}d`);
@@ -28,6 +26,8 @@ function formatLong(totalMs: number): string {
   return parts.join(" ");
 }
 
+/** Bewusst NICHT über `decomposeMs`: die Uhr-Darstellung `h:mm:ss` faltet Tage in die Stunden
+ *  (49h statt „2T 1h"), `decomposeMs` trennt sie ab. Ein Umbau änderte jede Anzeige über 24 h. */
 function formatShort(totalMs: number): string {
   const totalSeconds = Math.floor(Math.abs(totalMs) / 1000);
   const h = Math.floor(totalSeconds / 3600);

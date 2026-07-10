@@ -6,6 +6,7 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
+import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVerschlussAnforderungParams {
@@ -53,16 +54,15 @@ export async function createVerschlussAnforderung(
 
   const now = new Date();
 
-  // Geplanten Versand (wirksamAb) berechnen: absoluter Zeitpunkt hat Vorrang, sonst relative
-  // Verzögerung. Liegt der berechnete Zeitpunkt nicht in der Zukunft → sofort (null).
-  let wirksamAb: Date | null = null;
+  // Parsen/Validieren des Client-Datums gehört hierher (an den Rand), nicht in die Zeit-Policy.
+  let wirksamAbParsed: Date | null = null;
   if (wirksamAbAt) {
-    wirksamAb = new Date(wirksamAbAt);
-    if (Number.isNaN(wirksamAb.getTime())) return { ok: false, status: 400, error: "Ungültiger Versandzeitpunkt" };
-  } else if (typeof delayMinutes === "number" && delayMinutes > 0) {
-    wirksamAb = new Date(now.getTime() + delayMinutes * 60 * 1000);
+    wirksamAbParsed = new Date(wirksamAbAt);
+    if (Number.isNaN(wirksamAbParsed.getTime())) {
+      return { ok: false, status: 400, error: "Ungültiger Versandzeitpunkt" };
+    }
   }
-  if (wirksamAb && wirksamAb.getTime() <= now.getTime()) wirksamAb = null;
+  const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, { delayMinutes, wirksamAbAt: wirksamAbParsed });
 
   // endetAt berechnen (Frist zum Einschliessen / Sperrzeit-Ende).
   // Absolute endetAt-Angaben bleiben absolut; relative Frist (fristH) zählt ab dem geplanten
@@ -123,7 +123,7 @@ export async function createVerschlussAnforderung(
           deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
           reinigungErlaubt: effectiveReinigung,
           wirksamAb,
-          benachrichtigtAt: wirksamAb ? null : now, // sofort = jetzt benachrichtigt; geplant = Poller
+          benachrichtigtAt, // sofort = jetzt benachrichtigt; geplant = Poller
         },
       });
     });

@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/telemetry";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
+import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import type { ServiceResult } from "@/lib/serviceResult";
 import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
@@ -135,10 +136,7 @@ export async function requestKontrolle(
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
   const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
   const now = new Date();
-  const wirksamAb =
-    typeof delayMinutes === "number" && delayMinutes > 0
-      ? new Date(now.getTime() + delayMinutes * 60 * 1000)
-      : null;
+  const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, { delayMinutes });
   // Frist läuft ab Auslösung (bei sofort = jetzt, bei geplant = wirksamAb).
   const deadline = new Date((wirksamAb ?? now).getTime() + hours * 60 * 60 * 1000);
 
@@ -175,7 +173,7 @@ export async function requestKontrolle(
           deadline,
           kommentar: kommentarTrimmed || null,
           wirksamAb,
-          benachrichtigtAt: wirksamAb ? null : now, // sofort = jetzt benachrichtigt; geplant = Poller
+          benachrichtigtAt, // sofort = jetzt benachrichtigt; geplant = Poller
         },
       });
 

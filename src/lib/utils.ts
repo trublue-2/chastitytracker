@@ -11,23 +11,42 @@ export function formatHoursHMCompact(h: number): string {
   return formatHoursHM(h).slice(0, -1);
 }
 
+/** Einheiten-Kürzel für „Tage" nach Locale. Bewusst NICHT von `formatElapsedMs` genutzt: dort
+ *  steht `locale === "en"`, was für `"en-US"` fälschlich "T" liefert. Diese Abweichung ist bekannt
+ *  und in `utils.time.test.ts` festgehalten — sie wird in einem eigenen `fix`-Commit behoben, nicht
+ *  in einem verhaltenserhaltenden Refactor. Bis dahin macht dieser Helper den Ausreisser sichtbar. */
+function dayUnit(locale: string): string {
+  return locale.startsWith("en") ? "d" : "T";
+}
+
 export function formatHours(h: number, locale = "de"): string {
   const days = Math.floor(h / 24);
   const hours = Math.round(h % 24);
-  const d = locale.startsWith("en") ? "d" : "T";
+  const d = dayUnit(locale);
   const parts: string[] = [];
   if (days > 0) parts.push(`${days}${d}`);
   if (hours > 0 || parts.length === 0) parts.push(`${hours}h`);
   return parts.join(" ");
 }
 
+/** Zerlegt eine Dauer in Tage/Stunden/Minuten/Sekunden (jeweils abgerundet, Rest-basiert).
+ *  Nur die ZERLEGUNG ist geteilt — die Zusammensetzung bleibt je Formatter eigen, weil sich
+ *  Einheiten ("m" vs "min"), Null-Behandlung ("–") und Minuten-Unterdrückung unterscheiden. */
+export function decomposeMs(ms: number): { days: number; hours: number; minutes: number; seconds: number } {
+  const totalSeconds = Math.floor(ms / 1000);
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  return {
+    days: Math.floor(totalMinutes / 1440),
+    hours: Math.floor((totalMinutes % 1440) / 60),
+    minutes: totalMinutes % 60,
+    seconds: totalSeconds % 60,
+  };
+}
+
 export function formatMs(ms: number, locale = "de"): string {
   if (ms <= 0) return "–";
-  const totalMinutes = Math.floor(ms / 60000);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const mins = totalMinutes % 60;
-  const d = locale.startsWith("en") ? "d" : "T";
+  const { days, hours, minutes: mins } = decomposeMs(ms);
+  const d = dayUnit(locale);
   const parts: string[] = [];
   if (days > 0) parts.push(`${days}${d}`);
   if (hours > 0) parts.push(`${hours}h`);
@@ -39,11 +58,8 @@ export function formatDuration(start: Date, end: Date, locale = "de"): string {
   const ms = end.getTime() - start.getTime();
   if (ms < 0) return "–";
 
-  const totalMinutes = Math.floor(ms / 60000);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  const d = locale.startsWith("en") ? "d" : "T";
+  const { days, hours, minutes } = decomposeMs(ms);
+  const d = dayUnit(locale);
 
   const parts: string[] = [];
   if (days > 0) parts.push(`${days}${d}`);
@@ -165,21 +181,47 @@ export function formatDayTimeDual(date: Date | string, locale: string, viewerTz:
   return formatDual(date, locale, viewerTz, subTz, subLabel, (d, l, tz) => `${formatDayMonth(d, l, tz)} ${formatTime(d, l, tz)}`);
 }
 
+/** `Intl.DateTimeFormat` ist teuer im Bau (Locale-/TZ-Daten-Lookup), aber zustandslos und damit
+ *  beliebig wiederverwendbar. Gecacht pro Zeitzone: `StatsMain` ruft `midnightInTZ` einmal pro
+ *  Kalendertag auf (~120 pro Render) — ohne Cache wären das ebenso viele Wegwerf-Formatter.
+ *  Der Schlüsselraum ist durch die IANA-Zonen der User beschränkt, ein LRU wäre Overkill. */
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+function offsetFormatter(tz: string): Intl.DateTimeFormat {
+  let fmt = offsetFormatters.get(tz);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+    offsetFormatters.set(tz, fmt);
+  }
+  return fmt;
+}
+
+/**
+ * Wie weit `tz` zum Instant `utcMs` VOR UTC liegt, in Millisekunden (CET = +1h → 3_600_000).
+ *
+ * Das ist nur das Mess-Primitiv. Welcher Instant als ANKER gemessen wird — und ob ein zweiter
+ * Pass nötig ist — entscheidet jeder Aufrufer selbst, denn genau darin unterscheiden sie sich:
+ *   · `midnightInTZ`      – Anker Mittag (nie in einer DST-Lücke), 1 Pass
+ *   · `dateAtLocalMinutes` – Anker der Ziel-Instant selbst, 1 Pass
+ *   · `fromDatetimeLocal`  – 2 Pässe (Nachmessen am Kandidaten), am genauesten
+ * Diese Anker/Pass-Wahl NICHT vereinheitlichen: das änderte Ergebnisse rund um Zeitumstellungen.
+ */
+export function tzOffsetMsAt(utcMs: number, tz: string): number {
+  const p = offsetFormatter(tz).formatToParts(new Date(utcMs));
+  const g = (type: string) => +(p.find(x => x.type === type)?.value ?? "0");
+  const h = g("hour") === 24 ? 0 : g("hour");
+  return Date.UTC(g("year"), g("month") - 1, g("day"), h, g("minute"), g("second")) - utcMs;
+}
+
 /** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
 export function midnightInTZ(d: Date, tz = APP_TZ): Date {
   const { year, month, day } = tzDateParts(d, tz);
-  // Compute TZ offset at noon of that calendar day (safe from DST edge cases)
+  // Offset am MITTAG des Kalendertags messen — nie in einer DST-Lücke, ein Pass genügt.
   const noonUTC = Date.UTC(year, month, day, 12);
-  const p = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric", month: "numeric", day: "numeric",
-    hour: "numeric", minute: "numeric", second: "numeric",
-    hour12: false,
-  }).formatToParts(new Date(noonUTC));
-  const g = (type: string) => +(p.find(x => x.type === type)?.value ?? "0");
-  const h = g("hour");
-  const tzNoonMs = Date.UTC(g("year"), g("month") - 1, g("day"), h === 24 ? 0 : h, g("minute"), g("second"));
-  return new Date(Date.UTC(year, month, day) + (noonUTC - tzNoonMs));
+  return new Date(Date.UTC(year, month, day) - tzOffsetMsAt(noonUTC, tz));
 }
 
 /** Returns the Date at `minutesSinceMidnight` local wall-clock time in `tz` (default APP_TZ), on the
@@ -192,16 +234,8 @@ export function midnightInTZ(d: Date, tz = APP_TZ): Date {
 export function dateAtLocalMinutes(d: Date, minutesSinceMidnight: number, tz = APP_TZ): Date {
   const { year, month, day } = tzDateParts(d, tz);
   const guessUTC = Date.UTC(year, month, day, 0, minutesSinceMidnight);
-  const p = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric", month: "numeric", day: "numeric",
-    hour: "numeric", minute: "numeric", second: "numeric",
-    hour12: false,
-  }).formatToParts(new Date(guessUTC));
-  const g = (type: string) => +(p.find(x => x.type === type)?.value ?? "0");
-  const h = g("hour");
-  const tzMs = Date.UTC(g("year"), g("month") - 1, g("day"), h === 24 ? 0 : h, g("minute"), g("second"));
-  return new Date(guessUTC + (guessUTC - tzMs));
+  // Anker ist der Ziel-Instant selbst (ein Pass) — siehe tzOffsetMsAt.
+  return new Date(guessUTC - tzOffsetMsAt(guessUTC, tz));
 }
 
 /** Today at 00:00:00 in `tz` (default APP_TZ) */
@@ -243,13 +277,8 @@ export function getYearEnd(now: Date, tz = APP_TZ): Date {
 
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
 export function formatElapsedMs(ms: number, locale: string, showSeconds = false): string {
-  const safe = Math.max(0, ms);
-  const totalSeconds = Math.floor(safe / 1000);
-  const totalMinutes = Math.floor(totalSeconds / 60);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  const seconds = totalSeconds % 60;
+  const { days, hours, minutes, seconds } = decomposeMs(Math.max(0, ms));
+  // Bewusst exakter Vergleich (nicht startsWith wie bei formatMs/formatDuration) — Bestandsverhalten.
   const d = locale === "en" ? "d" : "T";
   const parts: string[] = [];
   if (days > 0) parts.push(`${days}${d}`);
@@ -749,20 +778,9 @@ export function fromDatetimeLocal(local: string | null | undefined, tz = APP_TZ)
   if (!m) return new Date(NaN);
   const [y, mo, d, h, mi] = [+m[1], +m[2], +m[3], +m[4], +m[5]];
   const guessUTC = Date.UTC(y, mo - 1, d, h, mi);
-  // How far `tz` sits ahead of UTC at a given instant (ms).
-  const offsetAt = (utcMs: number): number => {
-    const p = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, hour12: false,
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    }).formatToParts(new Date(utcMs));
-    const g = (type: string) => +(p.find(x => x.type === type)?.value ?? "0");
-    const gh = g("hour") === 24 ? 0 : g("hour");
-    return Date.UTC(g("year"), g("month") - 1, g("day"), gh, g("minute"), g("second")) - utcMs;
-  };
   // Two-pass: the offset measured at the raw guess can land on the wrong side of a DST change; the
   // second pass evaluates it at the candidate instant, which is correct except inside the ~1h
   // spring-forward gap (a wall-clock that doesn't exist locally — the result stays a valid instant).
-  const candidate = guessUTC - offsetAt(guessUTC);
-  return new Date(guessUTC - offsetAt(candidate));
+  const candidate = guessUTC - tzOffsetMsAt(guessUTC, tz);
+  return new Date(guessUTC - tzOffsetMsAt(candidate, tz));
 }

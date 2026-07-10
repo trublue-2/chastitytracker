@@ -4,7 +4,7 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTimeDual, formatDate, formatTime, formatHours, toDateLocale, APP_TZ,
-  buildPairs, interruptionPauseMs, isTimeCorrected,
+  buildPairs, interruptionPauseMs, isTimeCorrected, decomposeMs,
   buildKontrolleItems, calculateWearingHoursByRange,
   buildWearSessionRows,
   type ReinigungSettings,
@@ -104,8 +104,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const orgasmusFreiMs = lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null;
   const orgasmusFreiDisplay = (() => {
     if (!orgasmusFreiMs) return null;
-    const days = Math.floor(orgasmusFreiMs / 86_400_000);
-    const hours = Math.floor((orgasmusFreiMs % 86_400_000) / 3_600_000);
+    const { days, hours } = decomposeMs(orgasmusFreiMs);
     return days > 0 ? `${days}T ${hours}h` : `${hours}h`;
   })();
 

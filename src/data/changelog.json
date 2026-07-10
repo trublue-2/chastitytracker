@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.50.8",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Statistik-Seiten bauen ihre Kalender spürbar schneller auf: die Zeitzonen-Umrechnung legt ihre Formatierer jetzt einmal an statt hunderte Male pro Seitenaufbau.",
+          "en": "Statistics pages build their calendars noticeably faster: the timezone conversion now creates its formatters once instead of hundreds of times per page render."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der Zeit-Bausteine: Zeitzonen-Offset und die Zerlegung einer Dauer in Tage/Stunden/Minuten laufen jetzt über je einen gemeinsamen Helfer statt über sieben Kopien.",
+          "en": "Internal consolidation of the time building blocks: timezone offset and splitting a duration into days/hours/minutes now each go through one shared helper instead of seven copies."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Terminierung von Kontroll- und Verschluss-Anforderungen (sofort oder auf einen Zeitpunkt gelegt) folgt jetzt einer gemeinsamen Regel statt zwei getrennt gepflegten.",
+          "en": "Scheduling of inspection and lock requests (immediate or set for a later time) now follows one shared rule instead of two separately maintained ones."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.7",
     "date": "2026-07-10",
     "changes": [
