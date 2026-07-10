@@ -5,6 +5,7 @@ import { notifyUser } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
 import { AUTO_ENTFERNT_REASON, toLocale, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import { codeOf } from "@/lib/codedError";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 const DELAY_RANGE = { min: 5, max: 1440 } as const; // 5 min – 24 h, mirrors autoKontrolleService's FRIST_RANGE
@@ -75,7 +76,7 @@ export async function autoMarkInspectionRemoved(ka: { id: string; userId: string
       });
       entryId = created.entryId;
     } catch (e: unknown) {
-      if ((e as { _code?: string })?._code === "NOT_LOCKED") {
+      if (codeOf(e) === "NOT_LOCKED") {
         // Sub already opened themselves without ever answering — nothing to auto-mark. Withdraw so
         // this row drops out of the due-query instead of being re-checked every tick forever.
         await tx.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: now } });

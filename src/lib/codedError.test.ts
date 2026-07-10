@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { codedError, codeOf, mapServiceError, serviceErrors } from "./codedError";
+import { readFileSync } from "node:fs";
+import { codedError, codeOf } from "./codedError";
+
+// Die Importfreiheit ist eine Bundle-Zusicherung, kein Stil: `constants.ts` → `entryErrors.ts` →
+// hier, und `constants.ts` ist aus Client-Komponenten erreichbar. Ein einziger Server-Import
+// (`next/server`, `prisma`) zöge den Server-Code ins Client-Bundle — ohne Typfehler, ohne Testrot.
+// Darum wird die Eigenschaft geprüft statt nur im Header behauptet.
+describe("codedError.ts bleibt importfrei", () => {
+  it("enthält keine import-/require-Anweisung", () => {
+    const source = readFileSync("src/lib/codedError.ts", "utf8");
+    const imports = source.match(/^\s*import\s|[^.\w]require\s*\(/gm) ?? [];
+    expect(imports).toEqual([]);
+  });
+});
 
 describe("codedError / codeOf", () => {
   it("taggt den Fehler und nutzt den Code auch als Message (Stacktrace-Lesbarkeit)", () => {
@@ -21,51 +34,5 @@ describe("codedError / codeOf", () => {
     expect(codeOf(null)).toBeUndefined();
     expect(codeOf(undefined)).toBeUndefined();
     expect(codeOf("NOT_LOCKED")).toBeUndefined(); // ein blosser String ist kein codierter Fehler
-  });
-});
-
-describe("mapServiceError", () => {
-  const table = {
-    NOT_LOCKED: { status: 400, error: "User ist nicht verschlossen" },
-    ALREADY_ACTIVE: { status: 409, error: "Bereits aktiv" },
-  };
-
-  it("übersetzt einen bekannten Code in ein ServiceResult", () => {
-    expect(mapServiceError(codedError("ALREADY_ACTIVE"), table))
-      .toEqual({ ok: false, status: 409, error: "Bereits aktiv" });
-  });
-
-  it("gibt null für einen UNBEKANNTEN Code zurück, damit der Aufrufer weiterwirft", () => {
-    // Sonst würde ein Tippfehler in der Tabelle einen echten Defekt still als 400 ausliefern.
-    expect(mapServiceError(codedError("WAS_AUCH_IMMER"), table)).toBeNull();
-  });
-
-  it("gibt null für einen echten Defekt zurück (kein Code)", () => {
-    expect(mapServiceError(new TypeError("undefined is not a function"), table)).toBeNull();
-    expect(mapServiceError(null, table)).toBeNull();
-  });
-
-  it("greift nicht auf geerbte Object-Properties zu", () => {
-    // `table["constructor"]` wäre ohne eigene Prüfung wahrheitswertig → falsches 200/400.
-    expect(mapServiceError(codedError("constructor"), table)).toBeNull();
-    expect(mapServiceError(codedError("toString"), table)).toBeNull();
-  });
-});
-
-describe("serviceErrors", () => {
-  const { table, fail } = serviceErrors({
-    NOT_LOCKED: { status: 400, error: "User ist nicht verschlossen" },
-    ALREADY_ACTIVE: { status: 409, error: "Bereits aktiv" },
-  });
-
-  it("was `fail()` wirft, findet `mapServiceError` in derselben Tabelle wieder", () => {
-    expect(mapServiceError(fail("ALREADY_ACTIVE"), table))
-      .toEqual({ ok: false, status: 409, error: "Bereits aktiv" });
-  });
-
-  it("ein Code ausserhalb der Tabelle ist ein Compile-Fehler", () => {
-    // @ts-expect-error — nur Keys der Tabelle sind erlaubt; genau das verhindert, dass Wurf- und
-    // Fang-Seite auseinanderlaufen und ein erwarteter 409 still zum 500 wird.
-    expect(() => fail("GIBT_ES_NICHT")).toBeTruthy();
   });
 });

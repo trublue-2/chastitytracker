@@ -7,8 +7,7 @@ import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { serviceErrors, mapServiceError } from "@/lib/codedError";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
 import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";

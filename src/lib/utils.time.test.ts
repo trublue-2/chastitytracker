@@ -45,12 +45,15 @@ describe("decomposeMs", () => {
   });
 });
 
-describe("midnightInTZ — Golden (Anker Mittag, DST-fest)", () => {
+describe("midnightInTZ — Golden (Anker Ziel-Instant, DST-fest)", () => {
   const rows: [string, string][] = [
-    ["2026-03-29T00:30:00Z", "2026-03-28T22:00:00.000Z"], // Umstellungstag, vor der Wende
-    ["2026-03-29T12:00:00Z", "2026-03-28T22:00:00.000Z"], // Umstellungstag, nach der Wende
-    ["2026-10-25T00:30:00Z", "2026-10-24T23:00:00.000Z"],
-    ["2026-10-25T12:00:00Z", "2026-10-24T23:00:00.000Z"],
+    // Frühjahrs-Umstellungstag: 00:00 des 29.03. liegt noch in CET (+1) → 23:00Z des Vortags. Vor und
+    // nach der Wende gemessen — der Anker ist die Ziel-Mitternacht, nicht der Mess-Instant.
+    ["2026-03-29T00:30:00Z", "2026-03-28T23:00:00.000Z"],
+    ["2026-03-29T12:00:00Z", "2026-03-28T23:00:00.000Z"],
+    // Herbst-Umstellungstag: 00:00 des 25.10. liegt noch in CEST (+2) → 22:00Z des Vortags.
+    ["2026-10-25T00:30:00Z", "2026-10-24T22:00:00.000Z"],
+    ["2026-10-25T12:00:00Z", "2026-10-24T22:00:00.000Z"],
     ["2026-07-09T22:30:00Z", "2026-07-09T22:00:00.000Z"], // 00:30 Ortszeit → Mitternacht desselben Tages
   ];
   it.each(rows)("%s → %s", (instant, expected) => {
@@ -62,13 +65,6 @@ describe("midnightInTZ — Golden (Anker Mittag, DST-fest)", () => {
     const a = midnightInTZ(new Date("2026-03-29T00:30:00Z"), TZ).getTime();
     const b = midnightInTZ(new Date("2026-03-29T20:00:00Z"), TZ).getTime();
     expect(a).toBe(b);
-  });
-
-  it("am Frühjahrs-Umstellungstag misst der Mittags-Anker mit dem Nachher-Offset (CEST)", () => {
-    // Vor-Refactor-Verhalten, bewusst festgehalten: die echte lokale Mitternacht des 29.03. liegt
-    // bei 23:00Z (noch CET), der Mittags-Anker liefert 22:00Z. Für die Konsumenten (Tages-Buckets,
-    // „heute verbraucht") folgenlos, da über den ganzen Tag derselbe Wert herauskommt (Test oben).
-    expect(midnightInTZ(new Date("2026-03-29T12:00:00Z"), TZ).toISOString()).toBe("2026-03-28T22:00:00.000Z");
   });
 });
 
@@ -125,12 +121,17 @@ describe("Formatter — Golden (Rundungs-/Einheiten-/Locale-Regeln)", () => {
     expect(formatElapsedMs(ms, locale, true)).toBe(expElapsed);
   });
 
-  it("BEKANNTE Drift, hier nur festgehalten: bei 'en-US' nutzt formatElapsedMs 'T', formatMs 'd'", () => {
-    // formatMs/formatDuration prüfen locale.startsWith("en"), formatElapsedMs prüft locale === "en".
-    // Bewusst NICHT in diesem verhaltenserhaltenden Refactor korrigiert — siehe eigener Fix-Task.
+  it("alle vier Formatter nutzen dieselbe Tages-Einheit bei regionalen Locale-Tags", () => {
+    // Einzige Stelle, die die Regionaltag-Regel festhält — alle vier gehen über dayUnit().
     expect(formatMs(86_400_000, "en-US")).toBe("1d");
     expect(formatDuration(new Date(0), new Date(86_400_000), "en-US")).toBe("1d");
-    expect(formatElapsedMs(86_400_000, "en-US", true)).toBe("1T 0min 00s"); // ← die Drift
+    expect(formatElapsedMs(86_400_000, "en-US", true)).toBe("1d 0min 00s");
+    expect(formatHours(24, "en-US")).toBe("1d");
+
+    expect(formatMs(86_400_000, "de-CH")).toBe("1T");
+    expect(formatDuration(new Date(0), new Date(86_400_000), "de-CH")).toBe("1T");
+    expect(formatElapsedMs(86_400_000, "de-CH", true)).toBe("1T 0min 00s");
+    expect(formatHours(24, "de-CH")).toBe("1T");
   });
 
   it("formatHours rundet (nicht floor) und nutzt decomposeMs bewusst nicht", () => {

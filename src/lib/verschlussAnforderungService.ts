@@ -7,8 +7,7 @@ import { validateDeviceOwnership, getIsLocked } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { serviceErrors, mapServiceError } from "@/lib/codedError";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVerschlussAnforderungParams {
   userId: string;

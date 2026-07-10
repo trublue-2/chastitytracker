@@ -11,10 +11,8 @@ export function formatHoursHMCompact(h: number): string {
   return formatHoursHM(h).slice(0, -1);
 }
 
-/** Einheiten-Kürzel für „Tage" nach Locale. Bewusst NICHT von `formatElapsedMs` genutzt: dort
- *  steht `locale === "en"`, was für `"en-US"` fälschlich "T" liefert. Diese Abweichung ist bekannt
- *  und in `utils.time.test.ts` festgehalten — sie wird in einem eigenen `fix`-Commit behoben, nicht
- *  in einem verhaltenserhaltenden Refactor. Bis dahin macht dieser Helper den Ausreisser sichtbar. */
+/** Einheiten-Kürzel für „Tage" nach Locale. Prefix-Vergleich, damit auch regionale Tags
+ *  (`"en-US"`, `"en-GB"`) als Englisch zählen — `"de-CH"` bleibt bei "T". */
 function dayUnit(locale: string): string {
   return locale.startsWith("en") ? "d" : "T";
 }
@@ -134,10 +132,14 @@ export function formatMonthYear(date: Date | string, locale = "de-CH", tz = APP_
   });
 }
 
+/** Eigener Formatter statt `offsetFormatter`: dessen `hour12:false` liefert an lokaler Mitternacht
+ *  je nach ICU `hour: "24"` MIT dem Datum des Vortags — für reine Datums-Teile wäre das der falsche
+ *  Tag. Ohne Stunden-Feld tritt der Fall nicht auf. Cache-Begründung siehe `memoFormatter`. */
+const datePartsFormatters = new Map<string, Intl.DateTimeFormat>();
+
 /** Returns { year, 0-based month, day } of `d` in `tz` (default APP_TZ). */
 export function tzDateParts(d: Date, tz = APP_TZ): { year: number; month: number; day: number } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
+  const parts = memoFormatter(datePartsFormatters, tz, {
     year: "numeric", month: "numeric", day: "numeric",
   }).formatToParts(d);
   const get = (type: string) => +(parts.find(p => p.type === type)?.value ?? "0");
@@ -185,29 +187,37 @@ export function formatDayTimeDual(date: Date | string, locale: string, viewerTz:
  *  beliebig wiederverwendbar. Gecacht pro Zeitzone: `StatsMain` ruft `midnightInTZ` einmal pro
  *  Kalendertag auf (~120 pro Render) — ohne Cache wären das ebenso viele Wegwerf-Formatter.
  *  Der Schlüsselraum ist durch die IANA-Zonen der User beschränkt, ein LRU wäre Overkill. */
-const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
-function offsetFormatter(tz: string): Intl.DateTimeFormat {
-  let fmt = offsetFormatters.get(tz);
+function memoFormatter(cache: Map<string, Intl.DateTimeFormat>, tz: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  let fmt = cache.get(tz);
   if (!fmt) {
-    fmt = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, hour12: false,
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    });
-    offsetFormatters.set(tz, fmt);
+    fmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, ...options });
+    cache.set(tz, fmt);
   }
   return fmt;
 }
+
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+function offsetFormatter(tz: string): Intl.DateTimeFormat {
+  return memoFormatter(offsetFormatters, tz, {
+    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+}
+
 
 /**
  * Wie weit `tz` zum Instant `utcMs` VOR UTC liegt, in Millisekunden (CET = +1h → 3_600_000).
  *
  * Das ist nur das Mess-Primitiv. Welcher Instant als ANKER gemessen wird — und ob ein zweiter
- * Pass nötig ist — entscheidet jeder Aufrufer selbst, denn genau darin unterscheiden sie sich:
- *   · `midnightInTZ`      – Anker Mittag (nie in einer DST-Lücke), 1 Pass
- *   · `dateAtLocalMinutes` – Anker der Ziel-Instant selbst, 1 Pass
+ * Pass nötig ist — entscheidet jeder Aufrufer selbst:
+ *   · `dateAtLocalMinutes` – Anker der Ziel-Instant selbst, 1 Pass (`midnightInTZ` = Minute 0)
  *   · `fromDatetimeLocal`  – 2 Pässe (Nachmessen am Kandidaten), am genauesten
- * Diese Anker/Pass-Wahl NICHT vereinheitlichen: das änderte Ergebnisse rund um Zeitumstellungen.
+ * Die verbleibende 1-Pass/2-Pass-Trennung NICHT aufheben. Der zweite Pass löst Wanduhrzeiten in der
+ * Stunde nach einer Vorwärts-Wende korrekt auf, faltet aber eine nicht existierende Mitternacht auf
+ * den VORTAG zurück — in Zonen mit Wende um 00:00 (America/Santiago, Asia/Beirut) bekäme
+ * `midnightInTZ` damit den falschen Kalendertag. Für Wanduhrzeiten aus User-Eingaben ist der zweite
+ * Pass richtig, für Tages-Grenzen der erste.
  */
 export function tzOffsetMsAt(utcMs: number, tz: string): number {
   const p = offsetFormatter(tz).formatToParts(new Date(utcMs));
@@ -216,26 +226,23 @@ export function tzOffsetMsAt(utcMs: number, tz: string): number {
   return Date.UTC(g("year"), g("month") - 1, g("day"), h, g("minute"), g("second")) - utcMs;
 }
 
-/** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
-export function midnightInTZ(d: Date, tz = APP_TZ): Date {
-  const { year, month, day } = tzDateParts(d, tz);
-  // Offset am MITTAG des Kalendertags messen — nie in einer DST-Lücke, ein Pass genügt.
-  const noonUTC = Date.UTC(year, month, day, 12);
-  return new Date(Date.UTC(year, month, day) - tzOffsetMsAt(noonUTC, tz));
-}
-
 /** Returns the Date at `minutesSinceMidnight` local wall-clock time in `tz` (default APP_TZ), on the
  *  same calendar date as `d`. DST-safe for times reasonably far from a transition: looks up the UTC
- *  offset actually in effect AT that wall-clock instant (same technique as `midnightInTZ`, but
- *  anchored at the target time itself instead of at midnight/noon) — so e.g. a window end of 04:00
- *  on a spring-forward day still resolves correctly, unlike naively adding a flat millisecond offset
- *  to `midnightInTZ`. Not exact for a target that falls exactly inside the 1-hour DST gap/fold itself
- *  (01:00–03:00 local on the ~2 transition days/year) — no real cleaning window is configured there. */
+ *  offset actually in effect AT that wall-clock instant, anchored at the target time itself — so e.g.
+ *  a window end of 04:00 on a spring-forward day still resolves correctly, unlike naively adding a
+ *  flat millisecond offset to the day's midnight. Not exact for a target that falls exactly inside
+ *  the 1-hour DST gap/fold itself (01:00–03:00 local on the ~2 transition days/year) — no real
+ *  cleaning window is configured there. */
 export function dateAtLocalMinutes(d: Date, minutesSinceMidnight: number, tz = APP_TZ): Date {
   const { year, month, day } = tzDateParts(d, tz);
   const guessUTC = Date.UTC(year, month, day, 0, minutesSinceMidnight);
   // Anker ist der Ziel-Instant selbst (ein Pass) — siehe tzOffsetMsAt.
   return new Date(guessUTC - tzOffsetMsAt(guessUTC, tz));
+}
+
+/** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
+export function midnightInTZ(d: Date, tz = APP_TZ): Date {
+  return dateAtLocalMinutes(d, 0, tz);
 }
 
 /** Today at 00:00:00 in `tz` (default APP_TZ) */
@@ -278,8 +285,7 @@ export function getYearEnd(now: Date, tz = APP_TZ): Date {
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
 export function formatElapsedMs(ms: number, locale: string, showSeconds = false): string {
   const { days, hours, minutes, seconds } = decomposeMs(Math.max(0, ms));
-  // Bewusst exakter Vergleich (nicht startsWith wie bei formatMs/formatDuration) — Bestandsverhalten.
-  const d = locale === "en" ? "d" : "T";
+  const d = dayUnit(locale);
   const parts: string[] = [];
   if (days > 0) parts.push(`${days}${d}`);
   if (hours > 0) parts.push(`${hours}h`);
