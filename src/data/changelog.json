@@ -1,6 +1,6 @@
 [
   {
-    "version": "4.50.16",
+    "version": "4.50.18",
     "date": "2026-07-10",
     "changes": [
       {
@@ -20,7 +20,7 @@
     ]
   },
   {
-    "version": "4.50.15",
+    "version": "4.50.17",
     "date": "2026-07-10",
     "changes": [
       {
@@ -54,7 +54,7 @@
     ]
   },
   {
-    "version": "4.50.14",
+    "version": "4.50.16",
     "date": "2026-07-10",
     "changes": [
       {
@@ -74,7 +74,7 @@
     ]
   },
   {
-    "version": "4.50.13",
+    "version": "4.50.15",
     "date": "2026-07-10",
     "changes": [
       {
@@ -115,7 +115,7 @@
     ]
   },
   {
-    "version": "4.50.12",
+    "version": "4.50.14",
     "date": "2026-07-10",
     "changes": [
       {
@@ -135,7 +135,7 @@
     ]
   },
   {
-    "version": "4.50.11",
+    "version": "4.50.13",
     "date": "2026-07-10",
     "changes": [
       {
@@ -155,7 +155,7 @@
     ]
   },
   {
-    "version": "4.50.10",
+    "version": "4.50.12",
     "date": "2026-07-10",
     "changes": [
       {
@@ -175,7 +175,7 @@
     ]
   },
   {
-    "version": "4.50.9",
+    "version": "4.50.11",
     "date": "2026-07-10",
     "changes": [
       {
@@ -188,7 +188,7 @@
     ]
   },
   {
-    "version": "4.50.8",
+    "version": "4.50.10",
     "date": "2026-07-10",
     "changes": [
       {
@@ -215,7 +215,7 @@
     ]
   },
   {
-    "version": "4.50.7",
+    "version": "4.50.9",
     "date": "2026-07-10",
     "changes": [
       {
@@ -242,7 +242,7 @@
     ]
   },
   {
-    "version": "4.50.6",
+    "version": "4.50.8",
     "date": "2026-07-10",
     "changes": [
       {
@@ -262,7 +262,7 @@
     ]
   },
   {
-    "version": "4.50.5",
+    "version": "4.50.7",
     "date": "2026-07-10",
     "changes": [
       {
@@ -282,7 +282,7 @@
     ]
   },
   {
-    "version": "4.50.4",
+    "version": "4.50.6",
     "date": "2026-07-10",
     "changes": [
       {
@@ -295,7 +295,7 @@
     ]
   },
   {
-    "version": "4.50.3",
+    "version": "4.50.5",
     "date": "2026-07-10",
     "changes": [
       {
@@ -310,6 +310,32 @@
         "text": {
           "de": "Interne Vereinheitlichung der E-Mail- und Push-Bausteine: gemeinsamer Mail-Rahmen, gemeinsame Notiz-Box, eine Quelle für die Basis-URL und ein zentraler Fire-and-Forget-Wrapper für Push-Benachrichtigungen.",
           "en": "Internal consolidation of the e-mail and push building blocks: one shared mail frame, one shared notice box, a single source for the base URL, and a central fire-and-forget wrapper for push notifications."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.4",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Einstellungen: aufgeklappte Auswahl-Felder (z.B. Sprache, Zeitzone) haben jetzt oben etwas Abstand und kleben nicht mehr direkt am grauen Titel.",
+          "en": "Settings: expanded selection fields (e.g. language, time zone) now have a bit of top spacing and no longer sit flush against the grey header."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.3",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Sprachumschaltung wirkt jetzt sofort mit einem Klick. Bisher musste man auf eingeloggten Seiten mehrfach umschalten (en→de→en→de), bis die Sprache tatsächlich wechselte, weil der Seiten-Cache die neue Sprache nicht sofort übernahm.",
+          "en": "Language switching now takes effect immediately with a single click. Previously, on logged-in pages you had to toggle several times (en→de→en→de) before the language actually changed, because the page cache did not pick up the new language right away."
         }
       }
     ]
