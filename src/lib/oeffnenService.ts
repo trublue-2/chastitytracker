@@ -1,4 +1,5 @@
 import { releaseSperrzeitenOnOpen, getLatestKgEntry, type PrismaTx } from "@/lib/queries";
+import { codedError } from "@/lib/codedError";
 
 export interface CreateOeffnenParams {
   userId: string;
@@ -33,10 +34,10 @@ export async function createOeffnenEntryTx(tx: PrismaTx, params: CreateOeffnenPa
   // tx zwingend durchreichen: der Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
   const latest = await getLatestKgEntry(userId, tx);
   if (!latest || latest.type !== "VERSCHLUSS") {
-    throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
+    throw codedError("NOT_LOCKED");
   }
   if (startTime <= latest.startTime) {
-    throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
+    throw codedError("TIME_BEFORE");
   }
 
   const withdrawnSperrzeit = await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx);

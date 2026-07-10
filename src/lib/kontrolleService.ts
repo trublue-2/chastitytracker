@@ -7,6 +7,7 @@ import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
+import { serviceErrors, mapServiceError } from "@/lib/codedError";
 import type { ServiceResult } from "@/lib/serviceResult";
 import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
@@ -142,11 +143,17 @@ export async function requestKontrolle(
 
   let code: string;
   let sealCode: string | null;
+  // Wurf- und Fang-Seite hängen an derselben Tabelle: `fail()` akzeptiert nur Codes, die unten
+  // auch gemappt werden — ein Tippfehler ist ein Compile-Fehler, kein stiller 500.
+  const { table: ERRORS, fail } = serviceErrors({
+    NOT_LOCKED: { status: 400, error: "User ist nicht verschlossen" },
+    ALREADY_ACTIVE: { status: 409, error: "Es ist bereits eine Kontrolle aktiv – zuerst abschliessen oder zurückziehen." },
+  });
   try {
     const result = await prisma.$transaction(async (tx) => {
       const latest = await getLatestKgEntry(userId, tx);
       if (!latest || latest.type !== "VERSCHLUSS") {
-        throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
+        throw fail("NOT_LOCKED");
       }
 
       // Überschneidungs-Schutz: ablehnen statt eine bereits laufende Kontrolle stillschweigend zu
@@ -158,7 +165,7 @@ export async function requestKontrolle(
       // nur zwei transiente Zeilen, von denen eine ohnehin abläuft — ein DB-Constraint kann
       // "aktiv innerhalb der Frist" (now-abhängig) nicht ausdrücken, daher bewusst kein Index.
       if (await hasActiveKontrolle(userId, now, { tx })) {
-        throw Object.assign(new Error(), { _code: "ALREADY_ACTIVE" });
+        throw fail("ALREADY_ACTIVE");
       }
 
       // Immer frischer Zufallscode (Frische-Beweis) — die Siegel-Nummer wird bei der
@@ -182,12 +189,8 @@ export async function requestKontrolle(
     code = result.code;
     sealCode = result.sealCode;
   } catch (e: unknown) {
-    if ((e as { _code?: string })?._code === "NOT_LOCKED") {
-      return { ok: false, status: 400, error: "User ist nicht verschlossen" };
-    }
-    if ((e as { _code?: string })?._code === "ALREADY_ACTIVE") {
-      return { ok: false, status: 409, error: "Es ist bereits eine Kontrolle aktiv – zuerst abschliessen oder zurückziehen." };
-    }
+    const mapped = mapServiceError(e, ERRORS);
+    if (mapped) return mapped;
     throw e;
   }
 

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.9",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der Fehlerbehandlung in den Anforderungs-Diensten: erwartete Zustandsfehler (etwa „bereits verschlossen\") laufen jetzt über eine gemeinsame Fehlertabelle, die der Compiler gegen die tatsächlich geworfenen Fälle prüft.",
+          "en": "Internal consolidation of error handling in the request services: expected state errors (such as \"already locked\") now go through a shared error table that the compiler checks against the cases actually raised."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.8",
     "date": "2026-07-10",
     "changes": [

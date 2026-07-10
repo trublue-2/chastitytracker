@@ -7,6 +7,7 @@ import { validateDeviceOwnership, getIsLocked } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
+import { serviceErrors, mapServiceError } from "@/lib/codedError";
 import type { ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVerschlussAnforderungParams {
@@ -92,13 +93,18 @@ export async function createVerschlussAnforderung(
 
   // Wrap state-check + withdraw + create in transaction to prevent TOCTOU race
   let anforderung;
+  // Wurf- und Fang-Seite hängen an derselben Tabelle — siehe kontrolleService.
+  const { table: ERRORS, fail } = serviceErrors({
+    ALREADY_LOCKED: { status: 400, error: "User ist bereits verschlossen" },
+    NOT_LOCKED: { status: 400, error: "User ist nicht verschlossen" },
+  });
   try {
     anforderung = await prisma.$transaction(async (tx) => {
       // tx zwingend durchreichen: der Zustands-Check muss in DERSELBEN Transaktion lesen (TOCTOU).
       const isLocked = await getIsLocked(userId, tx);
 
-      if (art === "ANFORDERUNG" && isLocked) throw Object.assign(new Error(), { _code: "ALREADY_LOCKED" });
-      if (art === "SPERRZEIT" && !isLocked) throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
+      if (art === "ANFORDERUNG" && isLocked) throw fail("ALREADY_LOCKED");
+      if (art === "SPERRZEIT" && !isLocked) throw fail("NOT_LOCKED");
 
       await tx.verschlussAnforderung.updateMany({
         where: { userId, art, fulfilledAt: null, withdrawnAt: null },
@@ -128,9 +134,8 @@ export async function createVerschlussAnforderung(
       });
     });
   } catch (e: unknown) {
-    const code = (e as { _code?: string })?._code;
-    if (code === "ALREADY_LOCKED") return { ok: false, status: 400, error: "User ist bereits verschlossen" };
-    if (code === "NOT_LOCKED") return { ok: false, status: 400, error: "User ist nicht verschlossen" };
+    const mapped = mapServiceError(e, ERRORS);
+    if (mapped) return mapped;
     throw e;
   }
 
