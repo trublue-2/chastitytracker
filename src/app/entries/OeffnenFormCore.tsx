@@ -81,6 +81,14 @@ export default function OeffnenFormCore({
     : cleaningBlock === "outsideWindow" ? "reinigungHintOutsideWindow"
     : cleaningBlock === "userNotAllowed" ? "reinigungHintNoConfig"
     : null;
+  /** Der Reinigungs-Hinweistext (Sheet + Inline-Karte teilen ihn). Ist die Öffnung ausserhalb des
+   *  Fensters, hängt „Nächstes Reinigungsfenster …" an — sonst weiss der Sub nicht, wann es wieder
+   *  geht. `nextWindow` ist dieselbe Quelle wie die Box-Karte auf der Übersicht. */
+  const reinigungHintText =
+    (reinigungHintKey ? t(reinigungHintKey) : t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })) +
+    (cleaningBlock === "outsideWindow" && reinigung?.nextWindow
+      ? " " + t("boxNextWindow", { start: reinigung.nextWindow.start, end: reinigung.nextWindow.end })
+      : "");
 
   // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Bei einer erlaubten
   // Reinigungsöffnung folgt der Riegel trotz laufender Sperrzeit (der Tracker setzt den Dauerauftrag
@@ -157,11 +165,7 @@ export default function OeffnenFormCore({
                 {grund === "REINIGUNG" ? t("modalTitleReinigung") : t("modalTitle")}
               </p>
               <p className="text-sm text-foreground-muted">
-                {grund !== "REINIGUNG"
-                  ? t("modalSubtext")
-                  : reinigungHintKey
-                    ? t(reinigungHintKey)
-                    : t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })}
+                {grund !== "REINIGUNG" ? t("modalSubtext") : reinigungHintText}
               </p>
               {/* Der Eintrag dokumentiert die Öffnung — er vollzieht sie nicht. Bei einem VERBOTENEN
                   Öffnen sendet der Server bewusst kein Box-Kommando (sonst vollstreckte das
@@ -251,9 +255,7 @@ export default function OeffnenFormCore({
         {grund === "REINIGUNG" && (
           <Card variant="semantic" semantic={isReinigungLimitReached ? "warn" : "inspect"} padding="compact">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-inspect-text">
-                {reinigungHintKey ? t(reinigungHintKey) : t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })}
-              </p>
+              <p className="text-xs text-inspect-text">{reinigungHintText}</p>
               {reinigungMaxProTag > 0 && (
                 <p className={`text-xs font-semibold ${isReinigungLimitReached ? "text-warn" : "text-inspect-text"}`}>
                   {t("reinigungLimitHint", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}

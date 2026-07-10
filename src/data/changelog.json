@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.27",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Wird eine Reinigungsöffnung ausserhalb des Fensters abgelehnt, nennt der Öffnen-Dialog jetzt das nächste Reinigungsfenster — bisher stand nur da, dass es gerade nicht geht.",
+          "en": "When a cleaning opening is rejected outside the window, the opening dialog now names the next cleaning window — previously it only said it was not possible right now."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.26",
     "date": "2026-07-10",
     "changes": [
