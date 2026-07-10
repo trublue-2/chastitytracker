@@ -10,8 +10,7 @@ import { clampInputValue } from "@/lib/utils";
 const DELAY_MIN = 5;
 const DELAY_MAX = 1440;
 
-/** Single "N minutes" input, committed on blur — mirrors AutoKontrolleToggle's NumberRangeRow
- *  pattern, but for one value instead of a from–to pair. */
+/** Single "N minutes" input, committed on blur. */
 function MinutesInput({ label, value, fallback, setValue, commit, disabled }: {
   label: string; value: number; fallback: number; setValue: (n: number) => void; commit: () => void; disabled: boolean;
 }) {

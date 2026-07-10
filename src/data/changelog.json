@@ -1,5 +1,86 @@
 [
   {
+    "version": "4.50.13",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Ändern der Einstellungen für automatische Kontrollen würfelte den kompletten Tagesplan neu. Bestehende Kontrollzeiten bleiben jetzt stehen, solange sie die neuen Einstellungen erfüllen — nur Zeiten, die gegen Ruhefenster oder Frist verstossen, werden ersetzt.",
+          "en": "Changing the automatic inspection settings re-rolled the entire day’s schedule. Existing inspection times now stay put as long as they still satisfy the new settings — only times that violate the sleep window or the deadline range are replaced."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Einstellungen werden nun mit einem Speichern-Knopf gemeinsam übernommen. Vorher löste jedes einzelne Feld beim Verlassen eine eigene Neuplanung aus, sodass der gerade gesehene Plan bis zu viermal verworfen wurde.",
+          "en": "The settings are now committed together via a single save button. Previously each field triggered its own replan on blur, so the schedule just shown was discarded up to four times."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Lag ein „bis“-Wert unter dem zugehörigen „von“-Wert, hob ihn der Server an, das Formular zeigte aber weiter den alten Wert als gespeichert an.",
+          "en": "When a “to” value was below its matching “from” value, the server raised it while the form kept displaying the old value as saved."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle, die der Versand-Poller im selben Moment zustellte, konnte durch eine gleichzeitige Einstellungsänderung gelöscht werden — der Code war dann bereits verschickt, die Kontrolle aber weg.",
+          "en": "An inspection being delivered by the notification poller could be deleted by a concurrent settings change — the code had already been sent while the inspection was gone."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Nachgeplante Kontrollen lagen an Zeitumstellungstagen eine Stunde neben den bestehenden, wenn die Umstellung ins Wach-Fenster fiel.",
+          "en": "Newly scheduled inspections landed an hour off from the existing ones on daylight-saving days when the transition fell inside the awake window."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.12",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Fehler-Codes werden nur noch an einer einzigen Stelle erzeugt und ausgelesen. Die von Hand nachgebauten Kopien in den Eintrags- und Kontroll-Abläufen sind entfernt; das Verhalten nach aussen bleibt unverändert.",
+          "en": "Internal error codes are now created and read in a single place. The hand-rolled copies in the entry and inspection flows have been removed; outward behaviour is unchanged."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Das Fehler-Grundgerüst hat keine Abhängigkeiten mehr und kann so keinen Server-Code versehentlich ins Browser-Bundle ziehen — ein Test hält diese Eigenschaft künftig fest.",
+          "en": "The error primitive no longer has any dependencies and thus cannot pull server code into the browser bundle by accident — a test now locks that property in place."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.11",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Regionale Sprach-Einstellungen wie „en-US\" zeigten im Live-Timer die deutsche Tages-Abkürzung „1T\", während direkt daneben „1d\" stand. Alle Zeit-Formatierer nutzen jetzt dieselbe Regel.",
+          "en": "Regional locales such as \"en-US\" showed the German day abbreviation \"1T\" in the live timer while \"1d\" appeared right next to it. All time formatters now use the same rule."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Vorgaben-Zeile hatte eine eigene Kopie der Stunden-Formatierung mit derselben Abweichung — sie nutzt jetzt den gemeinsamen Helper.",
+          "en": "The training-goal row carried its own copy of the hours formatting with the same deviation — it now uses the shared helper."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.10",
     "date": "2026-07-10",
     "changes": [
