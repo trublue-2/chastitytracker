@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.30",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Keyholder können Einträge ihrer zugewiesenen Subs jetzt bearbeiten und löschen. Bisher war das Bearbeiten nur für globale Admins freigeschaltet — Keyholder landeten beim Öffnen des Formulars zurück auf der Übersicht.",
+          "en": "Keyholders can now edit and delete entries of their assigned subs. Previously editing was only enabled for global admins — keyholders were bounced back to the overview when opening the form."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.29",
     "date": "2026-07-11",
     "changes": [
