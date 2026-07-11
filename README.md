@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.48.0-blue)
+![Version](https://img.shields.io/badge/version-4.50.4-blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -25,14 +25,16 @@
 - **Push notifications** (PWA web-push + native iOS/Android app) for lock/unlock, inspections, lock requests, and penalties; tapping a native push opens the relevant in-app page
 - **Passkey login** (Face ID, Touch ID, Fingerprint, Windows Hello) alongside password
 - **View Transitions** for smooth navigation between dashboard pages
-- **Full i18n** support (German and English)
+- **Per-account language** (German and English) — the chosen locale is stored on the account (not just the browser) and drives the full UI **and every recipient-facing notification** (email + push: inspections, lock/lock-period, orgasm, penalty, password reset). A keyholder can set a sub's language from the sub-management page
 - **Installable PWA** with splash screens, app shortcuts, and iOS/Android wrappers
 
 ### Admin Features
 
 - **User management** — create, edit, delete, demo-user generation, password reset
 - **Training goals** per user (daily / weekly / monthly minimum wear hours)
-- **Inspection requests** with 5-digit verification codes and configurable deadlines
+- **Inspection requests** with 5-digit verification codes and configurable deadlines. Only one inspection can be active per sub at a time — a keyholder, the AI keyholder (MCP), and the automatic scheduler can no longer stack overlapping requests
+- **Two-stage inspection escalation** (opt-in, off by default) — a missed inspection first triggers a reminder notification, and, if still ignored, auto-marks itself as removed (a system-authored opening entry) so it lands in the penalty log instead of sitting "overdue" forever. Both stages are independently switchable per sub and fully reversible
+- **AI-verification transparency** — when an automatic photo check can't confirm an inspection ("Fulfilled – Unverified"), the keyholder now sees *why* (missing code, wrong seal number, …) next to the status
 - **Automatic inspections** — randomly scheduled across the day within a configurable wake window
 - **Lock requests** — request a user locks up by a deadline, optionally with a minimum wear duration
 - **Lock periods (Sperrzeiten)** — enforced lock periods with automatic or manual end time; optional flag allowing cleaning openings during the period
@@ -304,7 +306,7 @@ SMTP_PASS=<smtp-password>
 SMTP_FROM="KG Tracker <no-reply@example.com>"
 
 # Initial admin (only used on first container start if no admin exists).
-# ⚠ If you omit ADMIN_PASSWORD, a strong RANDOM password is generated and printed ONCE in the
+# NOTE: If you omit ADMIN_PASSWORD, a strong RANDOM password is generated and printed ONCE in the
 # startup logs — note it and change it after the first login. Set your own to avoid that.
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=<strong-password>
@@ -565,6 +567,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `POST` | `/api/auth/lockout` | Check login lockout status |
 | `PATCH` | `/api/settings/password` | Change own password |
 | `PATCH` | `/api/settings/email` | Change own email |
+| `PATCH` | `/api/settings/locale` | Change own account language (drives UI + notifications) |
 
 ### Misc
 
@@ -584,8 +587,8 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 
 | Model | Purpose |
 |-------|---------|
-| `User` | Accounts with username, email, role (`user` / `admin`), timezone, cleaning-policy settings, and per-user customizable orgasm-type / opening-reason lists |
-| `Entry` | Events: lock, unlock, inspection, orgasm, wear-begin/end (with photo, EXIF, notes, device, optional sealed key-box code photo) |
+| `User` | Accounts with username, email, role (`user` / `admin`), account language (`locale`), timezone, cleaning-policy settings, and per-user customizable orgasm-type / opening-reason lists |
+| `Entry` | Events: lock, unlock, inspection, orgasm, wear-begin/end (with photo, EXIF, notes, device, optional sealed key-box code photo, AI-verification reason for unconfirmed inspections) |
 | `Device` | Chastity belts (and other category devices) per user — name, description, photo, purchase price, archived state |
 | `DeviceCategory` | Device categories for multi-category wear tracking |
 | `DeviceReferenceImage` | Reference photos per device for automatic recognition |
