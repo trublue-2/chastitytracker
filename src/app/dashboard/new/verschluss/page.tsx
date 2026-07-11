@@ -15,7 +15,7 @@ export default async function NewVerschlussPage() {
   const now = new Date();
   const heimdall = heimdallEnabled();
 
-  const [isLocked, dbUser, devices, offeneAnforderung, boxCount, sperre, latest] = await Promise.all([
+  const [isLocked, dbUser, devices, offeneAnforderung, boxes, sperre, latest] = await Promise.all([
     getIsLocked(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true, reinigungErlaubt: true, reinigungsFenster: true } }),
     getUserDeviceOptions(userId),
@@ -23,7 +23,7 @@ export default async function NewVerschlussPage() {
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere() },
       select: { deviceId: true },
     }),
-    heimdall ? prisma.boxStatus.count({ where: { userId } }) : Promise.resolve(0),
+    heimdall ? prisma.boxStatus.findMany({ where: { userId }, select: { name: true } }) : Promise.resolve([]),
     heimdall ? getActiveSperrzeit(userId) : Promise.resolve(null),
     heimdall
       ? prisma.entry.findFirst({
@@ -37,7 +37,8 @@ export default async function NewVerschlussPage() {
   if (isLocked) redirect("/dashboard");
 
   // Box-User (Heimdall aktiv + eigene Box): „Schlüssel ist in der Box"-Bestätigung statt Bildersafe.
-  const boxConfirm = heimdall && boxCount > 0;
+  const boxConfirm = heimdall && boxes.length > 0;
+  const boxName = boxes.map((b) => b.name).filter(Boolean).join(", ");
   // Reinigungs-Re-Lock: eine erlaubte Reinigungspause läuft (aktive Sperre + letzter Eintrag
   // OEFFNEN(Reinigung)) → leichte Variante (nur Bestätigung, kein Foto/Siegel/Gerät).
   //
@@ -69,6 +70,7 @@ export default async function NewVerschlussPage() {
         anforderungDeviceId={offeneAnforderung?.deviceId ?? null}
         bildersafe={!boxConfirm && bildersafeEnabled()}
         boxConfirm={boxConfirm}
+        boxName={boxName}
         lightRelock={lightRelock}
       />
     </div>

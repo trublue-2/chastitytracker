@@ -379,6 +379,7 @@
   "lockForm": {
     "title": "Log lock",
     "saveBtn": "Save lock",
+    "keyInBoxName": "Box: {name}",
     "keyInBoxLabel": "The key is in the box",
     "keyInBoxDesc": "I confirm it — the box locks with this entry.",
     "relockLightHint": "Ending the cleaning break — the confirmation is enough, no new photo needed.",

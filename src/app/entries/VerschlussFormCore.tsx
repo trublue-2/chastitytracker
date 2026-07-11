@@ -41,6 +41,8 @@ interface Props {
   bildersafe?: boolean;
   /** Box-User: „Schlüssel ist in der Box"-Bestätigung (ersetzt Bildersafe); Submit verlangt sie. */
   boxConfirm?: boolean;
+  /** Name(n) der Box(en) — in der „Schlüssel in Box"-Bestätigung angezeigt. */
+  boxName?: string;
   /** Reinigungs-Re-Lock: leichte Variante — nur Bestätigung, kein Foto/Siegel/Gerät. */
   lightRelock?: boolean;
   isEdit?: boolean;
@@ -53,7 +55,7 @@ interface Props {
 
 export default function VerschlussFormCore({
   initial, minTime, tz, nowDefault, mobileDesktopMode, devices = [], anforderungDeviceId, bildersafe = false,
-  boxConfirm = false, lightRelock = false,
+  boxConfirm = false, boxName, lightRelock = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("common");
@@ -285,6 +287,9 @@ export default function VerschlussFormCore({
             </Card>
           )}
           <Card variant="semantic" semantic={keyInBox ? "sperrzeit" : "warn"} padding="compact">
+            {boxName && (
+              <p className="mb-2 text-xs font-medium text-foreground-muted">{tForm("keyInBoxName", { name: boxName })}</p>
+            )}
             <Toggle
               label={tForm("keyInBoxLabel")}
               description={tForm("keyInBoxDesc")}

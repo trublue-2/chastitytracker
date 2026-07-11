@@ -30,11 +30,13 @@ interface Props {
   bildersafe?: boolean;
   /** Box-User: „Schlüssel ist in der Box"-Bestätigung statt Bildersafe. */
   boxConfirm?: boolean;
+  /** Name(n) der Box(en) des Users — in der „Schlüssel in Box"-Bestätigung angezeigt. */
+  boxName?: string;
   /** Reinigungs-Re-Lock: leichte Variante (nur Bestätigung, kein Foto/Siegel/Gerät). */
   lightRelock?: boolean;
 }
 
-export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe, boxConfirm, lightRelock }: Props) {
+export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe, boxConfirm, boxName, lightRelock }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -70,6 +72,7 @@ export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobil
       anforderungDeviceId={anforderungDeviceId}
       bildersafe={bildersafe}
       boxConfirm={boxConfirm}
+      boxName={boxName}
       lightRelock={lightRelock}
       isEdit={!!initial}
       submitFn={submitFn}

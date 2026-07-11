@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.28",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Verschliessen mit einer Box nennt die Schlüssel-in-Box-Bestätigung jetzt den Namen der Box.",
+          "en": "When locking with a box, the key-in-box confirmation now shows the box name."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Alle vom KI-Keyholder (MCP) gesendeten Direktiven werden jetzt in den Serverlogs protokolliert.",
+          "en": "All directives sent by the AI keyholder (MCP) are now recorded in the server logs."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.27",
     "date": "2026-07-10",
     "changes": [

@@ -3,6 +3,7 @@ import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch, listKeyholderNotes } from "@/lib/mcpOverview";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
+import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
@@ -48,14 +49,50 @@ async function runTool<T>(label: string, fn: (username: string) => Promise<T>): 
  *  authorizing user's id under authInfo.extra.userId. */
 type ToolExtra = { authInfo?: { extra?: { userId?: string } } };
 
+/** Freitext-Felder der Write-Args — nur hier könnte ein Keyholder einen Code eintippen, also NUR
+ *  diese redigieren. IDs (cuids), Zeitstempel und Zahlenwerte bleiben intakt, damit die Audit-Zeile
+ *  nachvollziehbar bleibt (welcher Datensatz, welche Deadline). */
+const MCP_FREE_TEXT_KEYS = new Set(["message", "comment", "note", "kommentar", "reason"]);
+
+/** Serialisiert die Write-Args für das Log und redigiert Ziffernfolgen NUR in Freitext-Feldern
+ *  (redactDigits gegen versehentliches Code-Leak), nicht in IDs/Zeitstempeln. */
+function serializeMcpArgs(args: unknown): string {
+  if (!args || typeof args !== "object") return JSON.stringify(args ?? {});
+  const cleaned = Object.fromEntries(
+    Object.entries(args).map(([k, v]) =>
+      MCP_FREE_TEXT_KEYS.has(k) && typeof v === "string" ? [k, redactDigits(v)] : [k, v],
+    ),
+  );
+  return JSON.stringify(cleaned);
+}
+
+/** Loggt jeden MCP-Write-Event (Direktive) in die Container-Logs: Tool, Ziel-User, Ausgang und die
+ *  Aufruf-Args (Freitext ziffern-redigiert). Reads werden bewusst NICHT geloggt — nur die vom MCP
+ *  gesendeten Zustandsänderungen. */
+function logMcpWrite(tool: string, args: unknown, outcome: "ok" | "error" | "denied" | "dryrun") {
+  structuredLog("MCP", "write", {
+    tool,
+    user: process.env.MCP_USERNAME ?? "unknown",
+    outcome,
+    args: serializeMcpArgs(args),
+  });
+}
+
+/** Loggt einen abgelehnten Write und baut die einheitliche Deny-Antwort — von beiden Write-Wrappern
+ *  genutzt, damit Log-Zeile und Fehlertext an einer Stelle liegen. */
+function denyWrite(tool: string, args: unknown, reason: string): ToolResult {
+  logMcpWrite(tool, args, "denied");
+  return { content: [{ type: "text", text: `Write denied: ${reason}.` }], isError: true };
+}
+
 /** Wrapper for WRITE tools: enforces keyholder (admin OAuth) authorization, then delegates to
  *  runTool. The static MCP_TOKEN has no user identity and is therefore always rejected here. */
-async function runWriteTool<T>(label: string, extra: ToolExtra, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+async function runWriteTool<T>(label: string, extra: ToolExtra, args: unknown, fn: (username: string) => Promise<T>): Promise<ToolResult> {
   const check = await checkMcpKeyholder(extra?.authInfo?.extra?.userId);
-  if (!check.ok) {
-    return { content: [{ type: "text", text: `Write denied: ${check.reason}.` }], isError: true };
-  }
-  return runTool(label, fn);
+  if (!check.ok) return denyWrite(label, args, check.reason);
+  const result = await runTool(label, fn);
+  logMcpWrite(label, args, result.isError ? "error" : "ok");
+  return result;
 }
 
 /** Wrapper für MCP-V2-WRITE-Tools: prüft Keyholder-Autorisierung, baut den WriteContext und führt
@@ -67,11 +104,10 @@ async function runV2Write<A, T>(
   raw: Record<string, unknown>,
 ): Promise<ToolResult> {
   const check = await checkMcpKeyholder(extra?.authInfo?.extra?.userId);
-  if (!check.ok) {
-    return { content: [{ type: "text", text: `Write denied: ${check.reason}.` }], isError: true };
-  }
+  if (!check.ok) return denyWrite(def.tool, raw, check.reason);
   const username = process.env.MCP_USERNAME;
   if (!username) {
+    logMcpWrite(def.tool, raw, "error");
     return { content: [{ type: "text", text: "Server misconfigured: MCP_USERNAME is not set." }], isError: true };
   }
   // `decisionSource` ist die Audit-Quelle (wer hat entschieden) — bewusst NICHT `source`, damit es
@@ -84,8 +120,10 @@ async function runV2Write<A, T>(
       source: decisionSource as WriteSource | undefined,
       dryRun: dryRun as boolean | undefined,
     });
+    logMcpWrite(def.tool, raw, dryRun ? "dryrun" : "ok");
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   } catch (e) {
+    logMcpWrite(def.tool, raw, "error");
     return { content: [{ type: "text", text: `${def.tool} failed: ${(e as Error).message}` }], isError: true };
   }
 }
@@ -550,7 +588,7 @@ function registerTools(server: McpServer) {
           scheduledAt: z.string().optional().describe("Absolute send time (ISO 8601). Overrides delayMinutes. The user cannot see the request until then."),
         },
       },
-      (args, extra) => runWriteTool("request_lock", extra, (u) => mcpRequestLock(u, args)),
+      (args, extra) => runWriteTool("request_lock", extra, args, (u) => mcpRequestLock(u, args)),
     );
 
     server.registerTool(
@@ -571,7 +609,7 @@ function registerTools(server: McpServer) {
           scheduledAt: z.string().optional().describe("Absolute start/send time (ISO 8601). Overrides delayMinutes."),
         },
       },
-      (args, extra) => runWriteTool("set_lock_period", extra, (u) => mcpSetLockPeriod(u, args)),
+      (args, extra) => runWriteTool("set_lock_period", extra, args, (u) => mcpSetLockPeriod(u, args)),
     );
 
     server.registerTool(
@@ -588,7 +626,7 @@ function registerTools(server: McpServer) {
           delayMinutes: z.coerce.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
         },
       },
-      (args, extra) => runWriteTool("request_inspection", extra, (u) => mcpRequestInspection(u, args)),
+      (args, extra) => runWriteTool("request_inspection", extra, args, (u) => mcpRequestInspection(u, args)),
     );
 
     server.registerTool(
@@ -613,7 +651,7 @@ function registerTools(server: McpServer) {
           message: z.string().optional().describe("Message shown to the user."),
         },
       },
-      (args, extra) => runWriteTool("request_orgasm", extra, (u) => mcpRequestOrgasm(u, args)),
+      (args, extra) => runWriteTool("request_orgasm", extra, args, (u) => mcpRequestOrgasm(u, args)),
     );
 
     server.registerTool(
@@ -636,7 +674,7 @@ function registerTools(server: McpServer) {
           note: z.string().optional().describe("Note shown with the goal."),
         },
       },
-      (args, extra) => runWriteTool("set_training_goal", extra, (u) => mcpSetTrainingGoal(u, args)),
+      (args, extra) => runWriteTool("set_training_goal", extra, args, (u) => mcpSetTrainingGoal(u, args)),
     );
 
     server.registerTool(
@@ -651,7 +689,7 @@ function registerTools(server: McpServer) {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
         },
       },
-      (args, extra) => runWriteTool("withdraw", extra, (u) => mcpWithdraw(u, args)),
+      (args, extra) => runWriteTool("withdraw", extra, args, (u) => mcpWithdraw(u, args)),
     );
 
     server.registerTool(
@@ -671,7 +709,7 @@ function registerTools(server: McpServer) {
           text: z.string().optional().describe("Free text: the penalty (required for punish, e.g. \"20 strokes\") or an optional reason (dismiss)."),
         },
       },
-      (args, extra) => runWriteTool("judge_offense", extra, (u) => mcpJudgeOffense(u, args)),
+      (args, extra) => runWriteTool("judge_offense", extra, args, (u) => mcpJudgeOffense(u, args)),
     );
 
     server.registerTool(
@@ -707,7 +745,7 @@ function registerTools(server: McpServer) {
           note: z.string().optional().describe("Note shown with the goal. Omit to keep current."),
         },
       },
-      (args, extra) => runWriteTool("edit_training_goal", extra, (u) => mcpEditTrainingGoal(u, args)),
+      (args, extra) => runWriteTool("edit_training_goal", extra, args, (u) => mcpEditTrainingGoal(u, args)),
     );
 
     server.registerTool(
@@ -719,7 +757,7 @@ function registerTools(server: McpServer) {
           id: z.string().describe("Goal id from list_training_goals."),
         },
       },
-      (args, extra) => runWriteTool("delete_training_goal", extra, (u) => mcpDeleteTrainingGoal(u, args)),
+      (args, extra) => runWriteTool("delete_training_goal", extra, args, (u) => mcpDeleteTrainingGoal(u, args)),
     );
 
     server.registerTool(
@@ -735,7 +773,7 @@ function registerTools(server: McpServer) {
           maxPerDay: z.number().int().nonnegative().optional().describe("Max pauses per day, 0 = unlimited (clamped to 0–20)."),
         },
       },
-      (args, extra) => runWriteTool("set_cleaning", extra, (u) => mcpSetCleaning(u, args)),
+      (args, extra) => runWriteTool("set_cleaning", extra, args, (u) => mcpSetCleaning(u, args)),
     );
 
     // set_auto_inspections wird BEWUSST NICHT als MCP-Tool angeboten: der virtuelle Keyholder soll
@@ -754,7 +792,7 @@ function registerTools(server: McpServer) {
           action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
         },
       },
-      (args, extra) => runWriteTool("resolve_inspection", extra, (u) => mcpResolveInspection(u, args)),
+      (args, extra) => runWriteTool("resolve_inspection", extra, args, (u) => mcpResolveInspection(u, args)),
     );
 
     server.registerTool(
@@ -770,7 +808,7 @@ function registerTools(server: McpServer) {
           indefinite: z.boolean().optional().describe("Make the lock period open-ended."),
         },
       },
-      (args, extra) => runWriteTool("edit_lock_period", extra, (u) => mcpEditLockPeriod(u, args)),
+      (args, extra) => runWriteTool("edit_lock_period", extra, args, (u) => mcpEditLockPeriod(u, args)),
     );
 
     // ── LEGACY-V1-Note-Writes (add_keyholder_note, delete_keyholder_note) — durch upsert_note ersetzt ──
@@ -791,7 +829,7 @@ function registerTools(server: McpServer) {
           kategorie: z.string().optional().describe('Optional category/tag, e.g. "Druckstelle", "Ausbruchsversuch", "Gemecker".'),
         },
       },
-      (args, extra) => runWriteTool("add_keyholder_note", extra, (u) => mcpAddKeyholderNote(u, args)),
+      (args, extra) => runWriteTool("add_keyholder_note", extra, args, (u) => mcpAddKeyholderNote(u, args)),
     );
 
     server.registerTool(
@@ -806,7 +844,7 @@ function registerTools(server: McpServer) {
           id: z.string().min(1).describe("The note id to delete."),
         },
       },
-      (args, extra) => runWriteTool("delete_keyholder_note", extra, (u) => mcpDeleteKeyholderNote(u, args)),
+      (args, extra) => runWriteTool("delete_keyholder_note", extra, args, (u) => mcpDeleteKeyholderNote(u, args)),
     );
     } // end ENABLE_LEGACY_MCP (add_keyholder_note, delete_keyholder_note)
 
