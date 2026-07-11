@@ -200,7 +200,6 @@ export default function VerschlussFormCore({
         {...(minTime && { min: minTime })}
       />
 
-      {!lightRelock && (
       <FormField label={t("photoOptional")}>
         {imagePreview ? (
           <div className="flex items-start gap-4">
@@ -225,7 +224,6 @@ export default function VerschlussFormCore({
           </>
         )}
       </FormField>
-      )}
 
       {bildersafe && (
         <FormField label={tForm("codePhotoLabel")}>
@@ -281,11 +279,6 @@ export default function VerschlussFormCore({
 
       {boxConfirm && (
         <div className="flex flex-col gap-2">
-          {lightRelock && (
-            <Card variant="semantic" semantic="sperrzeit" padding="compact">
-              <p className="text-xs text-sperrzeit-text">{tForm("relockLightHint")}</p>
-            </Card>
-          )}
           <Card variant="semantic" semantic={keyInBox ? "sperrzeit" : "warn"} padding="compact">
             {boxName && (
               <p className="mb-2 text-xs font-medium text-foreground-muted">{tForm("keyInBoxName", { name: boxName })}</p>

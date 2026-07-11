@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.29",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Wiederverschliessen nach einer Reinigungspause (Box) lässt sich nun wieder ein optionales Foto anhängen; der Hinweis «kein neues Foto nötig» entfällt.",
+          "en": "When re-locking after a cleaning break (box), an optional photo can be attached again; the \"no new photo needed\" hint has been removed."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.28",
     "date": "2026-07-11",
     "changes": [
