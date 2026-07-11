@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.31",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Reinigungs-Re-Lock (Box) nutzt jetzt das vollständige Verschluss-Formular: Neben dem Foto sind auch Geräte-Auswahl und Siegelnummer wieder verfügbar. Die abgespeckte Sonderbehandlung wurde entfernt.",
+          "en": "Re-locking after a cleaning break (box) now uses the full lock form: besides the photo, device selection and seal number are available again. The stripped-down special case has been removed."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.30",
     "date": "2026-07-11",
     "changes": [

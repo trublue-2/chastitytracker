@@ -32,11 +32,9 @@ interface Props {
   boxConfirm?: boolean;
   /** Name(n) der Box(en) des Users — in der „Schlüssel in Box"-Bestätigung angezeigt. */
   boxName?: string;
-  /** Reinigungs-Re-Lock: leichte Variante (nur Bestätigung, kein Foto/Siegel/Gerät). */
-  lightRelock?: boolean;
 }
 
-export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe, boxConfirm, boxName, lightRelock }: Props) {
+export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe, boxConfirm, boxName }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -73,7 +71,6 @@ export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobil
       bildersafe={bildersafe}
       boxConfirm={boxConfirm}
       boxName={boxName}
-      lightRelock={lightRelock}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}
