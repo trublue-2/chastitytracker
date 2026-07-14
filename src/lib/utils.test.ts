@@ -4,6 +4,8 @@ import {
   buildKgWearPairs,
   wearingHoursFromPairs,
   mergeWearPairs,
+  mapAnforderungStatus,
+  isSubVisibleKontrolle,
   interruptionPauseMs,
   WEAR_PAIR,
   formatDateTime,
@@ -585,5 +587,52 @@ describe("formatDateTimeDual / formatDayTimeDual — Betrachter-Zeit + Sub-Zusat
       expect(formatDateTimeDual(d, "de-CH", "Europe/Zurich", "Europe/Zurich", "Sub"))
         .toBe(formatDateTime(d, "de-CH", "Europe/Zurich"));
     }
+  });
+});
+
+// ─── mapAnforderungStatus — Versäumnis vs. Rückzug ─────────────────────────
+
+describe("mapAnforderungStatus — 'missed' schlägt 'withdrawn'", () => {
+  const NOW = t("2026-07-14T18:00:00Z");
+  const base = {
+    entryId: null as string | null,
+    deadline: t("2026-07-14T10:00:00Z"),   // längst abgelaufen
+    fulfilledAt: null as Date | null,
+    withdrawnAt: null as Date | null,
+    autoMarkedRemovedAt: null as Date | null,
+  };
+
+  it("die Eskalation setzt BEIDE Felder — das ist ein Versäumnis, kein Rückzug", () => {
+    // autoMarkInspectionRemoved schreibt autoMarkedRemovedAt UND withdrawnAt. Würde withdrawnAt
+    // zuerst geprüft, sähe jedes Versäumnis wie ein Rückzug aus (grau „Zurückgezogen") — und die
+    // Frage „hat er die Kontrolle je beantwortet?" wäre aus der Liste nicht mehr beantwortbar.
+    const status = mapAnforderungStatus(
+      { ...base, withdrawnAt: t("2026-07-14T14:00:00Z"), autoMarkedRemovedAt: t("2026-07-14T14:00:00Z") },
+      null, NOW,
+    );
+    expect(status).toBe("missed");
+  });
+
+  it("ein echter Rückzug (nur withdrawnAt) bleibt 'withdrawn'", () => {
+    expect(mapAnforderungStatus({ ...base, withdrawnAt: t("2026-07-14T14:00:00Z") }, null, NOW)).toBe("withdrawn");
+  });
+
+  it("unbeantwortet und Frist abgelaufen, aber noch nicht eskaliert → 'overdue'", () => {
+    expect(mapAnforderungStatus(base, null, NOW)).toBe("overdue");
+  });
+
+  it("erfüllte Kontrollen bleiben unberührt", () => {
+    expect(mapAnforderungStatus(
+      { ...base, entryId: "e1", fulfilledAt: t("2026-07-14T09:00:00Z") }, null, NOW,
+    )).toBe("fulfilled");
+  });
+});
+
+describe("isSubVisibleKontrolle", () => {
+  it("blendet nur echte Rückzüge aus — Versäumnisse bleiben sichtbar", () => {
+    expect(isSubVisibleKontrolle({ anforderungStatus: "withdrawn" })).toBe(false);
+    expect(isSubVisibleKontrolle({ anforderungStatus: "missed" })).toBe(true);
+    expect(isSubVisibleKontrolle({ anforderungStatus: "fulfilled" })).toBe(true);
+    expect(isSubVisibleKontrolle({ anforderungStatus: null })).toBe(true);   // freie Selbstkontrolle
   });
 });

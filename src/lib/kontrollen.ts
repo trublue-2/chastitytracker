@@ -63,6 +63,9 @@ type KontrollAnforderung = {
   withdrawnAt: Date | null;
   /** Geplante (noch nicht ausgelöste) Kontrolle, wenn in der Zukunft. Treibt den "scheduled"-Status. */
   wirksamAb?: Date | null;
+  /** Von der Eskalation als versäumt abgeschlossen (Gerät auto-entfernt). Treibt den
+   *  "missed"-Status — und unterscheidet ihn vom blossen Rückzug, der ebenfalls `withdrawnAt` setzt. */
+  autoMarkedRemovedAt: Date | null;
   kommentar: string | null;
   entryId: string | null;
   auto: boolean;
@@ -148,6 +151,10 @@ export function buildKontrolleRows(
 /** Returns true if the row should count as "alarming" (unresolved, overdue, or unverified). */
 export function isKontrolleAlarm(row: KontrolleRow): boolean {
   if (row.anforderungStatus === "withdrawn") return false;
+  // Versäumt ist abgeschlossen, nicht offen: die Eskalation hat das Gerät bereits auto-entfernt und
+  // das Vergehen liegt im Strafbuch. Ohne diese Zeile bliebe die Zeile für immer ein roter Alarm
+  // (sie hat keine entryId — die Regel unten würde sie als "unbeantwortet" werten).
+  if (row.anforderungStatus === "missed") return false;
   // Geplante (noch nicht ausgelöste) Kontrollen sind kein Alarm — nur ein Hinweis "liegt in der Pipeline".
   if (row.anforderungStatus === "scheduled") return false;
   if (!row.entryId) return true;

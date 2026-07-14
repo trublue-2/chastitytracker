@@ -587,7 +587,6 @@
   },
   "stats": {
     "title": "Statistics",
-    "byCategory": "By category",
     "day": "Today",
     "week": "Week",
     "month": "Month",
@@ -597,8 +596,6 @@
     "wearBeginShort": "Begin",
     "wearEndShort": "End",
     "longestSession": "Longest session",
-    "avgSession": "Avg session",
-    "totalAllTime": "Total",
     "totalDuration": "Total duration",
     "orgasmFreeTime": "Orgasm-free time",
     "noEntry": "No entry",
@@ -654,6 +651,9 @@
     "deviceTotalDuration": "Total duration",
     "deviceAvgDuration": "Avg. duration",
     "deviceCostPerHour": "Cost/hour",
+    "deviceMedianDuration": "Median",
+    "deviceRange": "Min–Max",
+    "deviceLastWorn": "Last worn",
     "deviceUnknown": "No device assigned"
   },
   "admin": {
@@ -926,6 +926,7 @@
     "pillManual": "Confirmed",
     "pillRejected": "Rejected",
     "pillWithdrawn": "Withdrawn",
+    "pillMissed": "Not fulfilled",
     "pillScheduled": "Scheduled",
     "pillSelfcontrol": "Self-inspection",
     "noKontrollenYet": "No inspections requested yet.",

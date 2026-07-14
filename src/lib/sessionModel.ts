@@ -236,16 +236,54 @@ function segmentsOfPair(pair: Pair, controls: SegmentEntry[], now: Date, lookups
 /** Summiert die Segment-Tragezeit je Gerät zur deviceBreakdown der Session — nach dem
  *  MASSGEBLICHEN Gerät (deviceEffective), damit "Bild gewinnt" bei echtem Konflikt durchschlägt. */
 function breakdownOf(segments: Segment[]): DeviceBreakdownRow[] {
-  const msByDevice = new Map<string, { deviceId: string | null; deviceName: string | null; ms: number }>();
+  return [...segmentsByDevice(segments).values()]
+    .map((r) => ({
+      deviceId: r.device.id,
+      deviceName: deviceDisplayName(r.device),
+      hours: msToHours(r.durationMs),
+    }))
+    .sort((a, b) => b.hours - a.hours);
+}
+
+/** Was ein Gerät INNERHALB einer Session getragen wurde: seine Segmente zu EINER Strecke summiert,
+ *  `start` ist ihr frühestes Segment. */
+export interface DeviceWearing {
+  device: DeviceRef;
+  start: Date;
+  durationMs: number;
+}
+
+/**
+ * Die Segmente einer Session nach ihrem MASSGEBLICHEN Gerät (`deviceEffective` — bei echtem
+ * Bild-Konflikt gewinnt das Bild) gruppiert: je Gerät EIN Eintrag.
+ *
+ * DIE Zurechnungs-Regel „welches Gerät wurde in dieser Session wie lange getragen" — geteilt von
+ * `deviceBreakdown` (Session-Detail), `device_stats` (MCP) und der Geräte-Nutzungs-Karte (UI).
+ * Sie darf nur einmal existieren: sonst nennen Chat und Statistik-Seite verschiedene Geräte zur
+ * selben Session (ein Gerätewechsel über eine Reinigungspause, ein Bild-Konflikt).
+ *
+ * Zugleich die Antwort auf „wie oft wurde ein Gerät getragen": je Session EIN Eintrag pro Gerät —
+ * eine Reinigungspause zerlegt eine durchgehende Tragezeit nicht in mehrere Nutzungen.
+ */
+export function segmentsByDevice(segments: Segment[]): Map<string, DeviceWearing> {
+  const byDevice = new Map<string, DeviceWearing>();
   for (const s of segments) {
     const key = deviceGroupKey(s.deviceEffective);
-    const row = msByDevice.get(key) ?? { deviceId: s.deviceEffective.id, deviceName: s.deviceEffective.name, ms: 0 };
-    row.ms += s.durationMs;
-    msByDevice.set(key, row);
+    const cur = byDevice.get(key);
+    if (cur) {
+      cur.durationMs += s.durationMs;
+      if (s.start < cur.start) cur.start = s.start;
+    } else {
+      byDevice.set(key, { device: s.deviceEffective, start: s.start, durationMs: s.durationMs });
+    }
   }
-  return [...msByDevice.values()]
-    .map((r) => ({ deviceId: r.deviceId, deviceName: deviceDisplayName({ id: r.deviceId, name: r.deviceName }), hours: msToHours(r.ms) }))
-    .sort((a, b) => b.hours - a.hours);
+  return byDevice;
+}
+
+/** Alle Geräte-Strecken einer Session-Liste, flach — die Eingabe jeder Geräte-Auswertung.
+ *  Eine Session mit zwei Geräten (Wechsel über eine Reinigungspause) liefert zwei Einträge. */
+export function deviceWearingsOf(sessions: Session[]): DeviceWearing[] {
+  return sessions.flatMap((s) => [...segmentsByDevice(s.segments).values()]);
 }
 
 /** Ein Paar → eine Session. Geteilt von KG und WEAR: die SESSION-Form ist dieselbe, nur ihr Inhalt

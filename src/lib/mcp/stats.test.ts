@@ -73,7 +73,7 @@ describe("device_stats — alle Kategorien, nicht nur KG", () => {
     const plug = rowFor(result, "njoy pure plug large");
     expect(plug).toBeDefined();               // vorher: undefined — das war der Bug
     expect(plug!.category).toBe("Plug");
-    expect(plug!.segmentCount).toBe(1);
+    expect(plug!.sessionCount).toBe(1);
     expect(plug!.totalHours).toBeCloseTo(1.28, 1); // 14:39 → 15:56 = 77 min
   });
 
@@ -128,7 +128,7 @@ describe("device_stats — alle Kategorien, nicht nur KG", () => {
     ]));
 
     const plug = rowFor(result, "njoy pure plug large")!;
-    expect(plug.segmentCount).toBe(1);
+    expect(plug.sessionCount).toBe(1);
     expect(plug.totalHours).toBeCloseTo(2, 1); // 16:00 → NOW 18:00
   });
 
@@ -141,5 +141,67 @@ describe("device_stats — alle Kategorien, nicht nur KG", () => {
     const unassigned = result.devices.find((d) => d.deviceId === null)!;
     expect(unassigned.deviceName).toBe("(ohne Gerät / unzugeordnet)");
     expect(unassigned.category).toBe("KG");
+  });
+});
+
+// ─── Sessions statt Segmente ───────────────────────────────────────────────
+
+describe("device_stats — gezählt werden SESSIONS, nicht Segmente", () => {
+  /** Wie `ctx`, aber mit erlaubter Reinigung — sonst beendet jede REINIGUNG-Öffnung die Session. */
+  const cleaningCtx = (entries: object[]) => ({
+    ...ctx(entries),
+    reinigung: { erlaubt: true, maxMinuten: 30 },
+  });
+
+  const cleaningOpen = (time: string, device: object | null) => ({
+    ...entry("OEFFNEN", time, device),
+    oeffnenGrund: "REINIGUNG",
+  });
+
+  it("eine Reinigungspause zerlegt EINE Tragezeit nicht in mehrere Sessions", async () => {
+    // Käfig 10:00–12:00, Reinigungspause bis 12:15, danach derselbe Käfig weiter bis 14:00.
+    // Das ist EINE Session mit zwei Segmenten. Bis v4.50.41 zählte die Spalte die Segmente — der
+    // Sub sah zwei „Nutzungen", wo er das Ding nur einmal angelegt hatte.
+    const result = await deviceStats("sub", cleaningCtx([
+      entry("VERSCHLUSS", "2026-07-14T10:00:00+02:00", KAEFIG),
+      cleaningOpen("2026-07-14T12:00:00+02:00", KAEFIG),
+      entry("VERSCHLUSS", "2026-07-14T12:15:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-14T14:00:00+02:00", KAEFIG),
+    ]));
+
+    const kg = rowFor(result, "Flatty")!;
+    expect(kg.sessionCount).toBe(1);
+    expect(kg.totalHours).toBe(3.8);   // 2h + 1.75h, auf eine Stelle gerundet — Pause bleibt abgezogen
+    expect(kg.maxHours).toBe(3.8);     // längste SESSION, nicht längstes Segment (2h)
+  });
+
+  it("wechselt das Gerät über die Pause, zählt die Session für BEIDE Geräte je einmal", async () => {
+    // Käfig bis zur Pause, danach ein anderes Gerät — die Session gehört anteilig beiden.
+    const result = await deviceStats("sub", cleaningCtx([
+      entry("VERSCHLUSS", "2026-07-14T10:00:00+02:00", KAEFIG),
+      cleaningOpen("2026-07-14T12:00:00+02:00", KAEFIG),
+      entry("VERSCHLUSS", "2026-07-14T12:15:00+02:00", PLUG_DEV),
+      entry("OEFFNEN", "2026-07-14T14:00:00+02:00", PLUG_DEV),
+    ]));
+
+    expect(rowFor(result, "Flatty")!.sessionCount).toBe(1);
+    expect(rowFor(result, "Flatty")!.totalHours).toBeCloseTo(2, 1);
+    expect(rowFor(result, "njoy pure plug large")!.sessionCount).toBe(1);
+    expect(rowFor(result, "njoy pure plug large")!.totalHours).toBe(1.8);  // 12:15–14:00, gerundet
+  });
+
+  it("zwei getrennte Tragezeiten bleiben zwei Sessions", async () => {
+    const result = await deviceStats("sub", ctx([
+      entry("VERSCHLUSS", "2026-07-10T10:00:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-10T12:00:00+02:00", KAEFIG),
+      entry("VERSCHLUSS", "2026-07-12T10:00:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-12T13:00:00+02:00", KAEFIG),
+    ]));
+
+    const kg = rowFor(result, "Flatty")!;
+    expect(kg.sessionCount).toBe(2);
+    expect(kg.totalHours).toBeCloseTo(5, 1);
+    expect(kg.minHours).toBeCloseTo(2, 1);
+    expect(kg.maxHours).toBeCloseTo(3, 1);
   });
 });

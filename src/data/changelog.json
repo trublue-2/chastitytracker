@@ -1,5 +1,53 @@
 [
   {
+    "version": "4.50.42",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine versäumte Kontrolle wird in der Kontroll-Liste jetzt als „Nicht erfüllt\" ausgewiesen statt als „Zurückgezogen\". Beide sahen bisher gleich aus, weil die Eskalation beim Auto-Entfernen ebenfalls einen Rückzug vermerkt — aus der Liste war damit nicht mehr ablesbar, ob eine Kontrolle je beantwortet wurde.",
+          "en": "A missed inspection is now shown as \"Not fulfilled\" in the inspection list instead of \"Withdrawn\". The two looked identical until now, because the escalation also records a withdrawal when it auto-removes the device — so the list no longer revealed whether an inspection had ever been answered."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Versäumte Auto-Kontrollen wurden über Nacht gelöscht — mitsamt dem Vergehen, das im Strafbuch an ihnen hing. Der nächtliche Aufräumlauf entfernte alle zurückgezogenen Auto-Kontrollen und erkannte nicht, dass die Eskalation bei einem Versäumnis denselben Rückzugs-Vermerk setzt. Er verschont Versäumnisse jetzt; dieselbe Regel gilt für das Löschen von Hand.",
+          "en": "Missed automatic inspections were deleted overnight — along with the offense recorded against them in the penalty book. The nightly cleanup removed every withdrawn auto-inspection and failed to notice that the escalation records the same withdrawal marker on a missed one. It now spares missed inspections; the same rule applies to manual deletion."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zurückgezogene Kontrollen füllen die Kontroll-Liste des Subs nicht mehr — ein Rückzug (durch die Keyholderin, bei offenem Gürtel oder wegen einer überschneidenden Kontrolle) ist ein Nicht-Ereignis. Die Keyholder-Kontroll-History zeigt sie weiterhin.",
+          "en": "Withdrawn inspections no longer clutter the sub's inspection list — a withdrawal (by the keyholder, while unlocked, or because another inspection overlapped) is a non-event. The keyholder's inspection history still shows them."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Device-Nutzung in der Statistik zeigt pro Gerät zusätzlich Median, Min–Max und „zuletzt getragen\" — dieselben Kennzahlen, die der Keyholder-Chat nennt. Beide rechnen jetzt nachweislich gleich: Chat und Statistik-Seite können nicht mehr verschiedene Zahlen zur selben Frage zeigen.",
+          "en": "Device usage in the statistics now also shows median, min–max and \"last worn\" per device — the same figures the keyholder chat reports. Both now demonstrably compute the same way: chat and statistics page can no longer disagree on the same question."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Geräte-Statistik zählt jetzt Sessions statt Segmente: ein Gürtel, der über zwei Reinigungspausen hinweg drangeblieben ist, war bisher „drei Nutzungen\", obwohl er nur einmal angelegt wurde. Die Stunden bleiben unverändert (Pausen weiterhin abgezogen).",
+          "en": "Device statistics now count sessions instead of segments: a belt worn continuously across two cleaning breaks used to count as \"three uses\" although it was only put on once. The hours are unchanged (breaks are still deducted)."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Karte „Pro Kategorie\" auf der Statistik-Seite entfällt — ihre Zahlen stehen bereits in der Device-Nutzung.",
+          "en": "The \"By category\" card on the statistics page has been removed — its figures are already in the device usage card."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.41",
     "date": "2026-07-14",
     "changes": [

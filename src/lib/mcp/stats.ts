@@ -1,8 +1,8 @@
-import { calculateWearingHoursByRange, msToHours, round1 } from "@/lib/utils";
+import { calculateWearingHoursByRange, msToHours, round1, summarizeDurations } from "@/lib/utils";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, buildWearSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/sessionModel";
+import { buildSessions, buildWearSessions, deviceDisplayName, segmentsByDevice, type DeviceRef, type Session } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, loadTrackingContext, loadCategoryNames, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
@@ -12,14 +12,6 @@ import { makeIso, loadTrackingContext, loadCategoryNames, type TrackingContext, 
 
 /** Liefert den vorgeladenen Kontext oder lädt ihn (Einzel-Aufruf). */
 const ctxOf = (username: string, ctx?: TrackingContext) => ctx ?? loadTrackingContext(username);
-
-/** Median einer Zahlenliste (leere Liste → 0). */
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const s = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
 
 const DAY = 86_400_000;
 
@@ -32,34 +24,41 @@ export interface DeviceStatRow {
    *  die KG-Kategorie: nur ein KG-Verschluss kann ohne Gerät gebucht werden, ein WEAR-Eintrag
    *  verlangt eines. Damit ist der Posten nicht länger mehrdeutig. */
   category: string | null;
-  segmentCount: number;
+  /** Wie oft das Gerät GETRAGEN wurde. Eine Reinigungspause trennt nicht: ein KG, das über zwei
+   *  Pausen hinweg drangeblieben ist, ist EINE Session (mit drei Segmenten), nicht drei. */
+  sessionCount: number;
   totalHours: number;
   avgHours: number;
   medianHours: number;
   minHours: number;
-  /** Längste durchgehende Strecke (ein Segment). */
+  /** Längste einzelne Session (Reinigungspausen sind darin abgezogen, aber nicht trennend). */
   maxHours: number;
   lastWornAt: string | null;
 }
 
 export interface DeviceStatsResult {
-  schemaVersion: 2;
+  schemaVersion: 3;
   user: string;
   devices: DeviceStatRow[];
 }
 
 /** Was pro Gerät gesammelt wird, bevor daraus eine Zeile wird. */
-type DeviceAgg = { id: string | null; name: string | null; category: string | null; durations: number[]; lastWorn: Date };
-type DeviceSeed = Omit<DeviceAgg, "durations" | "lastWorn">;
+type DeviceAgg = { device: DeviceRef; category: string | null; durations: number[]; lastWorn: Date };
 
-/** Eine getragene Strecke in den Topf ihres Geräts. Der Schlüssel wird aus dem Gerät selbst
- *  abgeleitet — ihn getrennt hereinzureichen liesse Schlüssel und Inhalt auseinanderlaufen. */
-function collect(byDevice: Map<string, DeviceAgg>, seed: DeviceSeed, start: Date, durationMs: number): void {
-  const key = deviceGroupKey(seed);
-  const row = byDevice.get(key) ?? { ...seed, durations: [], lastWorn: start };
-  row.durations.push(durationMs);
-  if (start > row.lastWorn) row.lastWorn = start;
-  byDevice.set(key, row);
+/** Die Geräte-Strecken einer Session-Liste in ihre Geräte-Töpfe. Gezählt werden damit SESSIONS,
+ *  nicht Segmente: `deviceWearingsOf` fasst die Segmente eines Geräts innerhalb einer Session zu
+ *  EINER Strecke zusammen — eine Reinigungspause zerlegt eine durchgehende Tragezeit nicht mehr in
+ *  mehrere „Nutzungen". Die Stunden bleiben unberührt (die Pause steckt in keinem Segment). */
+function collectSessions(byDevice: Map<string, DeviceAgg>, sessions: Session[], categoryOf: (s: Session) => string | null): void {
+  for (const session of sessions) {
+    const category = categoryOf(session);
+    for (const [key, w] of segmentsByDevice(session.segments)) {
+      const row = byDevice.get(key) ?? { device: w.device, category, durations: [], lastWorn: w.start };
+      row.durations.push(w.durationMs);
+      if (w.start > row.lastWorn) row.lastWorn = w.start;
+      byDevice.set(key, row);
+    }
+  }
 }
 
 /**
@@ -84,42 +83,32 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
 
   const byDevice = new Map<string, DeviceAgg>();
 
-  // ── KG: Segmente (Reinigungspausen bereits abgezogen, massgebliches Gerät aufgelöst) ──
-  for (const s of buildSessions(entries, reinigung, now, devices)) {
-    for (const seg of s.segments) {
-      // Nach dem MASSGEBLICHEN Gerät (Bild gewinnt bei echtem Konflikt), wie deviceBreakdown.
-      collect(byDevice, { ...seg.deviceEffective, category: kgName }, seg.start, seg.durationMs);
-    }
-  }
+  // ── KG: Reinigungspausen sind bereits abgezogen, das massgebliche Gerät aufgelöst ──
+  collectSessions(byDevice, buildSessions(entries, reinigung, now, devices), () => kgName);
 
   // ── Nicht-KG: dieselben Trage-Sessions, die auch `get_session` zeigt ──
-  for (const s of buildWearSessions(entries, now)) {
-    for (const seg of s.segments) {
-      collect(byDevice,
-        { ...seg.deviceEffective, category: s.categoryId ? nameById.get(s.categoryId) ?? null : null },
-        seg.start, seg.durationMs);
-    }
-  }
+  collectSessions(byDevice, buildWearSessions(entries, now),
+    (s) => (s.categoryId ? nameById.get(s.categoryId) ?? null : null));
 
   const rows = [...byDevice.values()]
     .map((r) => {
-      const total = r.durations.reduce((a, b) => a + b, 0);
+      const m = summarizeDurations(r.durations);
       return {
-        deviceId: r.id,
-        deviceName: deviceDisplayName({ id: r.id, name: r.name }),
+        deviceId: r.device.id,
+        deviceName: deviceDisplayName(r.device),
         category: r.category,
-        segmentCount: r.durations.length,
-        totalHours: msToHours(total),
-        avgHours: msToHours(total / r.durations.length),
-        medianHours: msToHours(median(r.durations)),
-        minHours: msToHours(Math.min(...r.durations)),
-        maxHours: msToHours(Math.max(...r.durations)),
+        sessionCount: m.count,
+        totalHours: msToHours(m.totalMs),
+        avgHours: msToHours(m.avgMs),
+        medianHours: msToHours(m.medianMs),
+        minHours: msToHours(m.minMs),
+        maxHours: msToHours(m.maxMs),
         lastWornAt: iso(r.lastWorn),
       };
     })
     .sort((a, b) => b.totalHours - a.totalHours);
 
-  return { schemaVersion: 2, user: username, devices: rows };
+  return { schemaVersion: 3, user: username, devices: rows };
 }
 
 // ── records ──────────────────────────────────────────────────────────────────

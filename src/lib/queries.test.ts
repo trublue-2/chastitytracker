@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, foldActiveSperrzeiten, type CleaningPermissionUser } from "./queries";
+import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, foldActiveSperrzeiten, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE } from "./queries";
 import type { PrismaTx } from "./queries";
 
 const TZ = "Europe/Zurich";
@@ -205,5 +205,20 @@ describe("foldActiveSperrzeiten — die effektive (strengste) Sperre", () => {
   it("eine einzige Sperre kommt unverändert zurück", () => {
     const only = sz(FRUEH, false, "s1");
     expect(foldActiveSperrzeiten([only])).toEqual(only);
+  });
+});
+
+// ─── GENUINELY_WITHDRAWN_WHERE ─────────────────────────────────────────────
+
+describe("GENUINELY_WITHDRAWN_WHERE", () => {
+  it("klammert Versäumnisse aus — sonst löscht der Nacht-Purge Vergehen mit weg", () => {
+    // `deleteWithdrawnAutoKontrollen` löscht am Tageswechsel die zurückgezogenen Auto-Kontrollen.
+    // Die Eskalation setzt bei einem VERSÄUMNIS aber ebenfalls `withdrawnAt` — filterte der Purge
+    // nur darauf, verschwände jede versäumte Auto-Kontrolle über Nacht, samt dem Vergehen, das im
+    // Strafbuch genau an dieser Zeile hängt (strafbuch.ts liest `autoMarkedRemovedAt`).
+    expect(GENUINELY_WITHDRAWN_WHERE).toEqual({
+      withdrawnAt: { not: null },
+      autoMarkedRemovedAt: null,
+    });
   });
 });

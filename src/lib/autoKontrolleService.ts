@@ -3,6 +3,7 @@ import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp } from "@/lib/utils";
 import { NO_FIELDS_TO_UPDATE, INVALID_TIME } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
+import { GENUINELY_WITHDRAWN_WHERE } from "@/lib/queries";
 
 /**
  * Automatische Kontrollen: pro Tag und Sub eine ZUFÄLLIGE Anzahl `x ∈ [perDayMin, perDayMax]` zufällig
@@ -344,14 +345,19 @@ export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
 }
 
 /** Löscht am Tageswechsel die von der Automatik zurückgezogenen Auto-Kontrollen vergangener Tage
- *  (auto + withdrawnAt gesetzt, createdAt vor der heutigen CH-Mitternacht) — reines Listen-Rauschen
- *  ohne History-Wert. Erfüllte Auto-Kontrollen (withdrawnAt null) bleiben unberührt. createdAt <
- *  heute-Mitternacht schützt die heutigen Zeilen, die der Keyholder tagsüber noch sehen darf. */
+ *  (auto + wirklich zurückgezogen, createdAt vor der heutigen Sub-Mitternacht) — reines
+ *  Listen-Rauschen ohne History-Wert. Erfüllte Auto-Kontrollen (withdrawnAt null) bleiben unberührt.
+ *  createdAt < heute-Mitternacht schützt die heutigen Zeilen, die der Keyholder tagsüber noch sehen darf.
+ *
+ *  VERSÄUMTE Kontrollen bleiben ebenfalls unberührt: die Eskalation setzt zwar auch `withdrawnAt`,
+ *  aber `GENUINELY_WITHDRAWN_WHERE` klammert sie über `autoMarkedRemovedAt` aus. Ohne das löschte
+ *  dieser Lauf jede versäumte Auto-Kontrolle über Nacht — mitsamt dem Vergehen, das im Strafbuch
+ *  genau an dieser Zeile hängt. */
 export async function deleteWithdrawnAutoKontrollen(now: Date): Promise<number> {
   // Per-User-Tag-Grenze: die "heutige Mitternacht" hängt an der Sub-Zeitzone, deshalb kann nicht ein
   // globales midnightInTZ(now) alle Zeilen filtern — sonst würde für Nicht-CH-Subs zu früh/spät gelöscht.
   const candidates = await prisma.kontrollAnforderung.findMany({
-    where: { auto: true, withdrawnAt: { not: null } },
+    where: { auto: true, ...GENUINELY_WITHDRAWN_WHERE },
     select: { id: true, createdAt: true, user: { select: { timezone: true } } },
   });
   const toDelete = candidates

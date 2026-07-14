@@ -33,6 +33,33 @@ export const round1 = (n: number) => Math.round(n * 10) / 10;
 /** Millisekunden → Stunden, auf eine Nachkommastelle gerundet. */
 export const msToHours = (ms: number) => round1(ms / 3_600_000);
 
+/** Median einer Zahlenliste (leere Liste → 0). */
+export function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+/** Die Kennzahlen einer Dauern-Liste in ms. EINE Ableitung für die Geräte-Nutzung (UI, `deviceUsage`)
+ *  und `device_stats` (MCP) — sonst nennen Chat und Statistik-Seite verschiedene Zahlen zur selben
+ *  Frage. Der MCP rechnet die ms erst am Rand in Stunden um (`msToHours`).
+ *  Leere Liste → alles 0 (der Aufrufer legt gar nicht erst einen Topf ohne Dauern an). */
+export function summarizeDurations(durations: number[]): {
+  count: number; totalMs: number; avgMs: number; medianMs: number; minMs: number; maxMs: number;
+} {
+  if (durations.length === 0) return { count: 0, totalMs: 0, avgMs: 0, medianMs: 0, minMs: 0, maxMs: 0 };
+  const totalMs = durations.reduce((a, b) => a + b, 0);
+  return {
+    count: durations.length,
+    totalMs,
+    avgMs: totalMs / durations.length,
+    medianMs: median(durations),
+    minMs: Math.min(...durations),
+    maxMs: Math.max(...durations),
+  };
+}
+
 /** Zerlegt eine Dauer in Tage/Stunden/Minuten/Sekunden (jeweils abgerundet, Rest-basiert).
  *  Nur die ZERLEGUNG ist geteilt — die Zusammensetzung bleibt je Formatter eigen, weil sich
  *  Einheiten ("m" vs "min"), Null-Behandlung ("–") und Minuten-Unterdrückung unterscheiden. */
@@ -320,7 +347,7 @@ export function isTimeCorrected(time: Date, submittedAt: Date | null | undefined
   return time.getTime() < submittedAt.getTime() - TIME_CORRECTION_THRESHOLD_MS;
 }
 
-export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn" | "scheduled";
+export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn" | "scheduled" | "missed";
 export type VerifikationStatus = "unverified" | "pending" | "ai" | "manual" | "rejected";
 
 /** True if a deadline passed without a timely completion — completed after the deadline, or not
@@ -333,12 +360,16 @@ export function isPastDeadlineUnfulfilled(deadline: Date, completedAt: Date | nu
 /** Derives AnforderungStatus: was the kontrolle submitted, and was it on time?
  *  fulfilledAt is server-set at submission time and immutable – never use entryTime for deadline comparison.
  *  `scheduled`: keyholder-set, not yet triggered (wirksamAb in the future) — only ever surfaced in
- *  keyholder views (the Sub never sees scheduled directives). */
+ *  keyholder views (the Sub never sees scheduled directives).
+ *  `missed`: die Eskalation (Stufe 2) hat die Kontrolle als versäumt abgeschlossen und das Gerät
+ *  auto-entfernt. Sie setzt AUCH `withdrawnAt` (damit die Zeile aus der Fällig-Query fällt) — die
+ *  Prüfung muss deshalb VOR `withdrawn` stehen, sonst sähe ein Versäumnis aus wie ein Rückzug. */
 export function mapAnforderungStatus(
-  k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date; fulfilledAt?: Date | null; wirksamAb?: Date | null },
+  k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date; fulfilledAt?: Date | null; wirksamAb?: Date | null; autoMarkedRemovedAt: Date | null },
   _entryTime: Date | null,
   now: Date
 ): AnforderungStatus {
+  if (k.autoMarkedRemovedAt) return "missed";
   if (k.withdrawnAt) return "withdrawn";
   if (!k.entryId) {
     if (k.wirksamAb && k.wirksamAb > now) return "scheduled";
@@ -611,11 +642,6 @@ export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, range
   return totalMs / 3600000;
 }
 
-/** Gesamtstunden aller Paare, ohne Zeitraum-Grenze (dieselbe Doppelzähl-Regel wie oben). */
-export function totalWearHours(pairs: WearPair[]): number {
-  return pairs.reduce((sum, p) => sum + (p.end.getTime() - p.start.getTime()), 0) / 3600000;
-}
-
 /** KG-Tragestunden für heute / laufende Woche / Monat / Jahr.
  *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen). */
 export function calculateWearingHoursByRange<
@@ -641,6 +667,9 @@ type KontrollAnforderungIn = {
   id: string; code: string; deadline: Date; kommentar: string | null;
   fulfilledAt: Date | null; createdAt: Date; withdrawnAt: Date | null; entryId: string | null;
   wirksamAb?: Date | null;
+  /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
+   *  Fehlte es im `select`, fiele jedes Versäumnis stillschweigend auf "withdrawn" zurück. */
+  autoMarkedRemovedAt: Date | null;
   entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null } | null;
 };
 type PruefungEntryIn = {
@@ -691,6 +720,15 @@ export function buildKontrolleItems(
         submittedAt: null as Date | null,
       })),
   ];
+}
+
+/** Was der Sub von seinen Kontrollen zu sehen bekommt: alles ausser den WIRKLICH zurückgezogenen.
+ *  Ein Rückzug (Keyholder, Auto-Kontrolle bei offenem KG, Überschneidungs-Schutz) ist ein
+ *  Nicht-Ereignis. Ein VERSÄUMNIS bleibt sichtbar — es trägt den Status "missed", nicht "withdrawn".
+ *  Die Keyholder-Kontroll-History filtert bewusst NICHT: sie zeigt der Keyholderin ihre eigenen
+ *  Rückzüge. */
+export function isSubVisibleKontrolle(item: { anforderungStatus: string | null }): boolean {
+  return item.anforderungStatus !== "withdrawn";
 }
 
 export function toDatetimeLocal(date: Date | string | null | undefined, tz = APP_TZ): string {

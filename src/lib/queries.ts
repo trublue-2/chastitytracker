@@ -16,6 +16,21 @@ export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnf
 }
 
 /**
+ * Where-Fragment: WIRKLICH zurückgezogene Kontrollen — ein Nicht-Ereignis (Keyholder-Rückzug,
+ * Auto-Kontrolle bei offenem KG, Überschneidungs-Schutz), das gelöscht bzw. ausgeblendet werden darf.
+ *
+ * `withdrawnAt` allein REICHT NICHT: die Eskalation (Stufe 2) setzt es ebenfalls, wenn eine Frist
+ * verstrichen ist und sie das Gerät auto-entfernt hat — das ist das GEGENTEIL eines Rückzugs, es ist
+ * ein Versäumnis (Status "missed"), und es trägt das Vergehen im Strafbuch (`autoMarkedRemovedAt`,
+ * siehe strafbuch.ts). Wer nur auf `withdrawnAt` filtert, löscht Vergehen mit weg. Dieselbe
+ * Rangfolge macht `mapAnforderungStatus` auf der Anzeige-Seite.
+ */
+export const GENUINELY_WITHDRAWN_WHERE = {
+  withdrawnAt: { not: null },
+  autoMarkedRemovedAt: null,
+} satisfies Prisma.KontrollAnforderungWhereInput;
+
+/**
  * Where-Fragment: bereits AKTIVE VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) — sofortige
  * (wirksamAb null) und zeitversetzte, die schon ausgelöst haben (wirksamAb <= jetzt). Eine
  * ZUKÜNFTIG geplante (wirksamAb in der Zukunft) gilt NICHT als aktiv: eine geplante SPERRZEIT

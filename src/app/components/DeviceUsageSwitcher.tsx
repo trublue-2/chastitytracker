@@ -11,6 +11,10 @@ export type DeviceUsageRowView = {
   count: number;
   totalStr: string;
   avgStr: string;
+  medianStr: string;
+  /** „min – max" der Einzel-Sessions; bei nur einer Session die eine Dauer. */
+  rangeStr: string;
+  lastWornStr: string;
   /** Bereits mit Währung formatiert; null = kein Kaufpreis hinterlegt. */
   costStr: string | null;
   /** Anteil an der Tragezeit dieser Kategorie, 0–100. */
@@ -42,6 +46,9 @@ export default function DeviceUsageSwitcher({ variants }: { variants: DeviceUsag
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground-muted">
                 <span>{t("deviceTotalDuration")}: <strong className="text-foreground">{row.totalStr}</strong></span>
                 <span>{t("deviceAvgDuration")}: <strong className="text-foreground">{row.avgStr}</strong></span>
+                <span>{t("deviceMedianDuration")}: <strong className="text-foreground">{row.medianStr}</strong></span>
+                <span>{t("deviceRange")}: <strong className="text-foreground">{row.rangeStr}</strong></span>
+                <span>{t("deviceLastWorn")}: <strong className="text-foreground">{row.lastWornStr}</strong></span>
                 {row.costStr && (
                   <span>{t("deviceCostPerHour")}: <strong className="text-foreground">{row.costStr}</strong></span>
                 )}

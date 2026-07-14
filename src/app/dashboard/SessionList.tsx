@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, APP_TZ, isTimeCorrected, type ReinigungSettings } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import SessionListClient, { SessionListData } from "./SessionListClient";
@@ -121,7 +121,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         showDevice: userHasDevices,
       },
       ...kontrollen
-        .filter((k) => k.anforderungStatus !== "withdrawn")
+        .filter(isSubVisibleKontrolle)
         .map((k) => {
           const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
           const corrected = isTimeCorrected(k.time, k.submittedAt);

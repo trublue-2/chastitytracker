@@ -312,11 +312,12 @@ function registerTools(server: McpServer) {
     server.registerTool(
       "device_stats",
       {
-        title: "Per-device wear statistics (from segments)",
+        title: "Per-device wear statistics (from sessions)",
         description:
-          "MCP V2 — pro Gerät aus SEGMENTEN (nicht Labels): segmentCount, total/avg/median/min/max-Stunden, " +
-          "längste durchgehende Strecke (maxHours) und zuletzt getragen. Vorberechnet — keine Rekonstruktion " +
-          "aus Rohdaten nötig.",
+          "Pro Gerät aus SESSIONS (nicht Labels): sessionCount, total/avg/median/min/max-Stunden, längste " +
+          "einzelne Session (maxHours) und zuletzt getragen. sessionCount zählt, wie oft ein Gerät GETRAGEN " +
+          "wurde — eine Reinigungspause trennt nicht (ein durchgehend getragenes KG bleibt EINE Session). " +
+          "Vorberechnet — keine Rekonstruktion aus Rohdaten nötig.",
         inputSchema: {},
       },
       () => runTool("device_stats", deviceStats),

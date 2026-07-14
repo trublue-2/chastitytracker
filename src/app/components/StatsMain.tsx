@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { APP_TZ, formatDateTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
+import { APP_TZ, formatDate, formatDateTime, formatHours, formatMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
 import {
   buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
   type Entry, type Vorgabe,
@@ -10,7 +10,7 @@ import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
 import { KG_CATEGORY_META } from "@/lib/deviceCategories";
-import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
+import { buildSessions, buildWearSessions, deviceWearingsOf, wearHourPairsByCategory, type Session } from "@/lib/sessionModel";
 import { buildDeviceUsage, type UsageSession } from "@/lib/deviceUsage";
 import CategoryIconRender from "./CategoryIcon";
 import { type CategoryVariant } from "./CategorySwitcherCard";
@@ -57,7 +57,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
-    prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true } }),
+    // `lookalikeClusterId` treibt die Bild-Versöhnung in buildSessions (optisch gleiche Geräte
+    // dürfen einander nicht als "Konflikt" überstimmen) — ohne sie rechnete die Geräte-Nutzung
+    // anders als `device_stats` im MCP.
+    prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true, lookalikeClusterId: true } }),
     prisma.deviceCategory.findMany({
       where: { userId, isBuiltIn: false },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -74,38 +77,21 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
   };
 
-  const linkedEntryIds = new Set(kontrollen.map(k => k.entryId).filter(Boolean));
-  const allPruefungen = entries.filter(e => e.type === "PRUEFUNG");
-  const standalonePruefungen = allPruefungen.filter(e => !linkedEntryIds.has(e.id));
-
-  type UnifiedKontrolle = { id: string; time: Date; anforderungStatus: string | null; verifikationStatus: string | null; code: string | null; deadline: Date | null; entryTime: Date | null };
-  const unifiedKontrollen: UnifiedKontrolle[] = [
-    ...kontrollen.map(k => ({
-      id: k.id,
-      time: k.entry ? k.entry.startTime : k.createdAt,
-      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
-      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
-      code: k.code,
-      deadline: k.deadline,
-      entryTime: k.entry?.startTime ?? null,
-    })),
-    ...standalonePruefungen.map(e => ({
-      id: e.id,
-      time: e.startTime,
-      anforderungStatus: null,
-      verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
-      code: e.kontrollCode ?? null,
-      deadline: null,
-      entryTime: e.startTime,
-    })),
-  ].sort((a, b) => b.time.getTime() - a.time.getTime());
+  // Zurückgezogene Kontrollen bleiben aussen vor: ein Rückzug (durch die Keyholderin, eine
+  // Auto-Kontrolle bei offenem KG oder den Überschneidungs-Schutz) ist ein Nicht-Ereignis — er
+  // sagt nichts über den Sub aus und füllte die Liste. VERSÄUMTE Kontrollen bleiben sichtbar:
+  // die Eskalation setzt zwar ebenfalls `withdrawnAt`, `mapAnforderungStatus` erkennt sie aber am
+  // `autoMarkedRemovedAt` und gibt "missed" zurück.
+  const kontrolleItems = buildKontrolleItems(kontrollen, entries.filter(e => e.type === "PRUEFUNG"), now)
+    .filter(isSubVisibleKontrolle)
+    .sort((a, b) => b.time.getTime() - a.time.getTime());
 
   // Pre-format kontrolle rows for the client-paginated list — pills and dates resolved here so the
   // client component can stay simple (no date/i18n logic).
-  const kontrolleRows: StatsKontrolleRow[] = unifiedKontrollen.map((k) => {
+  const kontrolleRows: StatsKontrolleRow[] = kontrolleItems.map((k) => {
     const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
-    const primaryLine = k.entryTime
-      ? `${t("fulfilled")}: ${new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}`
+    const primaryLine = k.entryId
+      ? `${t("fulfilled")}: ${k.time.toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}`
       : `${t("created")}: ${formatDateTime(k.time, dl, tz)}`;
     return {
       id: k.id,
@@ -113,7 +99,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       pillLabel: pill?.label ?? null,
       pillCls: pill?.cls ?? null,
       primaryLine,
-      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(new Date(k.deadline), dl, tz)}` : null,
+      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(k.deadline, dl, tz)}` : null,
     };
   });
 
@@ -224,25 +210,24 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   }
 
   // ── Device usage stats ─────────────────────────────────────────────────────
-  // Eine Variante je Kategorie (KG zuerst), zwischen denen der Picker umschaltet. KG rechnet wie
-  // bisher auf der GANZEN Session (Gerät des Verschluss-Eintrags); die Nicht-KG-Kategorien kommen
-  // aus buildWearSessions — je GERÄT gepaart, sonst zählte ein zweiter Plug die Zeit des ersten.
-  const kgSessions: UsageSession[] = completed.map((p) => ({
-    deviceId: p.verschluss.deviceId ?? null,
-    durationMs: p.durationMs,
-  }));
-  if (activeEntry?.deviceId) {
-    kgSessions.push({ deviceId: activeEntry.deviceId, durationMs: activeDurationMs });
-  }
+  // Eine Variante je Kategorie (KG zuerst), zwischen denen der Picker umschaltet.
+  //
+  // BEIDE Pfade gehen durch `deviceWearingsOf` — dieselbe Zurechnungs-Regel, die auch `device_stats`
+  // im MCP benutzt: je Session und Gerät EIN Eintrag (Segmente summiert, das Bild gewinnt bei echtem
+  // Konflikt). Nur so nennen Chat und Statistik-Seite dieselben Zahlen. Vorher rechnete KG hier auf
+  // dem DEKLARIERTEN Gerät des Verschluss-Eintrags über die ganze Session: ein Gerätewechsel über
+  // eine Reinigungspause landete komplett beim ersten Gerät.
+  const usageOf = (sessions: Session[]): UsageSession[] =>
+    deviceWearingsOf(sessions).map((w) => ({ deviceId: w.device.id, durationMs: w.durationMs, start: w.start }));
 
-  // Eine Wear-Session trägt genau EIN Gerät (buildWearSessions paart je Gerät) — ihre bereits
-  // pausenbereinigte durationMs ist die Session-Dauer, nicht die Summe mehrerer Geräte.
+  const kgSessions = usageOf(buildSessions(entries, reinigung, now, allDevices));
+
   const wearSessionsByCategory = new Map<string, UsageSession[]>();
   if (nonKgCategories.length > 0) {
     for (const s of wearSessionList) {
       if (!s.categoryId) continue;
       const list = wearSessionsByCategory.get(s.categoryId) ?? [];
-      list.push({ deviceId: s.segments[0]?.deviceEffective.id ?? null, durationMs: s.durationMs });
+      list.push(...usageOf([s]));
       wearSessionsByCategory.set(s.categoryId, list);
     }
   }
@@ -255,12 +240,18 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     const variantTotalMs = rows.reduce((sum, r) => sum + r.totalMs, 0);
     return {
       ...meta,
-      rows: rows.map(({ totalMs: rowMs, avgMs: rowAvgMs, costPerHour, currency, ...rest }) => ({
-        ...rest,
-        totalStr: formatMs(rowMs, dl),
-        avgStr: formatMs(rowAvgMs, dl),
-        costStr: costPerHour !== null && currency ? `${costPerHour.toFixed(2)} ${currency}` : null,
-        sharePct: variantTotalMs > 0 ? Math.round((rowMs / variantTotalMs) * 100) : 0,
+      rows: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        count: r.count,
+        totalStr: formatMs(r.totalMs, dl),
+        avgStr: formatMs(r.avgMs, dl),
+        medianStr: formatMs(r.medianMs, dl),
+        // Bei einer einzigen Session ist die Spanne keine Spanne — dann nur die eine Dauer zeigen.
+        rangeStr: r.minMs === r.maxMs ? formatMs(r.minMs, dl) : `${formatMs(r.minMs, dl)} – ${formatMs(r.maxMs, dl)}`,
+        lastWornStr: formatDate(r.lastWorn, dl, tz),
+        costStr: r.costPerHour !== null && r.currency ? `${r.costPerHour.toFixed(2)} ${r.currency}` : null,
+        sharePct: variantTotalMs > 0 ? Math.round((r.totalMs / variantTotalMs) * 100) : 0,
       })),
     };
   };
