@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.33",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Laufen mehrere Sperrzeiten gleichzeitig, gilt jetzt überall die strengste: das späteste Ende (unbefristet schlägt alles), und Reinigungsöffnungen nur, wenn JEDE laufende Sperre sie erlaubt. Bisher gewann die zuletzt angelegte — die Box konnte dadurch früher aufgehen, als die Keyholderin angeordnet hatte.",
+          "en": "When several lock periods run at once, the strictest one now applies everywhere: the latest end (indefinite beats any date), and cleaning openings only if EVERY running lock period allows them. Previously the most recently created one won — which could let the box open earlier than the keyholder had ordered."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP edit_lock_period ändert nun gezielt die AUSGELÖSTE Sperrzeit statt der zuletzt angelegten und meldet alle weiteren offenen mit id zurück; über den neuen Parameter id lässt sich auch eine geplante direkt ansprechen. withdraw target=\"lock_period\" sagt jetzt, wie viele der stornierten Sperrzeiten aktiv und wie viele erst geplant waren.",
+          "en": "MCP edit_lock_period now targets the TRIGGERED lock period instead of the most recently created one and returns any other open ones with their id; the new id parameter addresses a scheduled one directly. withdraw target=\"lock_period\" now reports how many of the withdrawn lock periods were active and how many were merely scheduled."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.32",
     "date": "2026-07-14",
     "changes": [

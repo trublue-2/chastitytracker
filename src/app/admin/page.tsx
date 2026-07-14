@@ -15,7 +15,7 @@ import UserAvatar from "@/app/components/UserAvatar";
 import { Lock, LockOpen, Users, ShieldAlert, CalendarClock } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
-import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 
 export default async function AdminPage() {
@@ -70,7 +70,7 @@ export default async function AdminPage() {
     prisma.verschlussAnforderung.findMany({
       where: { userId: { in: userIds }, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
     }),
-    getKeyholderSperrzeiten(userIds),
+    getKeyholderSperrzeiten({ userIds }),
     getKeyholderOrgasmusAnforderungen(userIds),
   ]);
 
@@ -89,7 +89,7 @@ export default async function AdminPage() {
   const sperrzeitByUser = groupByUser(allSperrzeiten);
   const orgasmusAnfByUser = groupByUser(allOrgasmusAnf);
 
-  const isScheduled = (wirksamAb: Date | null) => !!wirksamAb && wirksamAb > now;
+  const isScheduled = (wirksamAb: Date | null) => isScheduledDirective(wirksamAb, now);
 
   function getUserStats(userId: string) {
     const lastV = verschlussMap.get(userId);
@@ -107,7 +107,10 @@ export default async function AdminPage() {
 
     const offeneKontrolle = userKontrollen.find(k => !isScheduled(k.wirksamAb)) ?? null;
     const offeneVerschlussAnforderung = userAnforderungen.find(v => !isScheduled(v.wirksamAb)) ?? null;
-    const activeSperrzeit = userSperrzeiten.find(s => !isScheduled(s.wirksamAb)) ?? null;
+    // Mehrere aktive Sperrzeiten können koexistieren — die Liste zeigt dieselbe EFFEKTIVE, gegen die
+    // der Sub verschlossen ist (spätestes Ende, Reinigung nur wenn alle sie erlauben). Die erste Zeile
+    // zu nehmen hiesse: ein anderes Ende anzeigen, als die Box durchsetzt.
+    const activeSperrzeit = foldActiveSperrzeiten(userSperrzeiten.filter(s => !isScheduled(s.wirksamAb)));
 
     const scheduled = [
       ...userKontrollen.filter(k => isScheduled(k.wirksamAb)).map(k => ({ id: k.id, kind: "inspection" as const, wirksamAb: k.wirksamAb!, message: k.kommentar })),

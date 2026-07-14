@@ -318,17 +318,54 @@ function activeSperrzeitWhere(userIdFilter: string | { in: string[] }, now: Date
   };
 }
 
+/** Ist diese Direktive TERMINIERT und noch nicht ausgelöst (wirksamAb in der Zukunft)? Die
+ *  Zeit-Seite von `activeVerschlussAnforderungWhere`, für bereits geladene Zeilen. */
+export function isScheduledDirective(wirksamAb: Date | null, now: Date = new Date()): boolean {
+  return wirksamAb !== null && wirksamAb > now;
+}
+
+/** Ein User oder eine User-Menge → Prisma-Filter. Geteilt von den Sperrzeit-Listen-Queries. */
+function sperrzeitUserFilter(userId: string | { userIds: string[] }) {
+  return typeof userId === "string" ? userId : { in: userId.userIds };
+}
+
 /** Returns all currently-active Sperrzeiten for a user (or all users if `userIds` given). */
 export async function getActiveSperrzeiten(
   userId: string | { userIds: string[] },
   tx?: PrismaTx,
 ) {
   const client = tx ?? prisma;
-  const filter = typeof userId === "string" ? userId : { in: userId.userIds };
   return client.verschlussAnforderung.findMany({
-    where: activeSperrzeitWhere(filter, new Date()),
+    where: activeSperrzeitWhere(sperrzeitUserFilter(userId), new Date()),
     orderBy: { createdAt: "desc" },
   });
+}
+
+/**
+ * Faltet mehrere gleichzeitig AKTIVE Sperrzeiten zur EFFEKTIVEN Sperre zusammen — der einen, die
+ * durchsetzt. Denn mehrere können koexistieren: eine für später geplante Sperrzeit überlebt eine
+ * Öffnung (sie ist noch nicht aktiv, `releaseSperrzeitenOnOpen` greift nur aktive), und schliesst
+ * der Sub sich danach über eine Verschluss-Anforderung wieder ein, legt `entries/route.ts` eine
+ * zweite an. Löst die geplante dann aus, laufen zwei gleichzeitig.
+ *
+ * Zusammengefaltet wird nach der STRENGSTEN Regel, nicht nach der neuesten Zeile:
+ * - `endetAt`: unbefristet schlägt alles, sonst das SPÄTESTE Ende. Nähme man die zuletzt angelegte
+ *   (das tat `findFirst` + `orderBy createdAt desc`), liefe die Box beim frühesten Ende auf — die
+ *   längere Sperre der Keyholderin wäre stillschweigend verkürzt, physisch.
+ * - `reinigungErlaubt`: nur wenn JEDE aktive Sperre es erlaubt (dieselbe UND-Regel wie
+ *   {@link cleaningBlockReason}, das deshalb eine Liste nimmt).
+ * Die übrigen Felder (Nachricht, Gerät, id) stammen aus der durchsetzenden Zeile.
+ */
+export function foldActiveSperrzeiten<T extends { endetAt: Date | null; reinigungErlaubt: boolean }>(
+  rows: T[],
+): T | null {
+  if (rows.length === 0) return null;
+  const enforcing = rows.reduce((a, b) => {
+    if (a.endetAt === null) return a;          // unbefristet gewinnt
+    if (b.endetAt === null) return b;
+    return b.endetAt > a.endetAt ? b : a;      // sonst das spätere Ende
+  });
+  return { ...enforcing, reinigungErlaubt: rows.every((r) => r.reinigungErlaubt) };
 }
 
 /** Die aktuell OFFENE (noch nicht eingereichte) Kontroll-Anforderung, oder null. Geplante, noch
@@ -341,35 +378,49 @@ export async function getOpenKontrolle(userId: string, now: Date = new Date()) {
   });
 }
 
-/** Returns the single active Sperrzeit for a user, or null. */
+/** Die EFFEKTIVE aktive Sperre eines Users, oder null — mehrere gleichzeitig aktive werden über
+ *  {@link foldActiveSperrzeiten} zur strengsten zusammengefaltet (spätestes Ende, Reinigung nur wenn
+ *  alle sie erlauben). Jeder Aufrufer, der „die Sperrzeit" meint — Box-Durchsetzung, Öffnen-Gate,
+ *  Dashboard —, bekommt so dieselbe Antwort. */
 export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
   const client = tx ?? prisma;
-  return client.verschlussAnforderung.findFirst({
+  const rows = await client.verschlussAnforderung.findMany({
     where: activeSperrzeitWhere(userId, new Date()),
     orderBy: { createdAt: "desc" },
     // device additiv mitladen — vom get_overview (deviceName) genutzt, für alle
     // anderen Aufrufer harmlos (lesen nur Skalarfelder).
     include: { device: { select: { name: true } } },
   });
+  return foldActiveSperrzeiten(rows);
 }
 
-/** Returns the single Sperrzeit (active OR scheduled) for a KEYHOLDER view, or null.
- *  Unlike getActiveSperrzeit it includes a future-scheduled Sperrzeit (wirksamAb > now). */
+/** Die EINE Sperrzeit für eine KEYHOLDER-Sicht (aktiv ODER geplant), oder null. Anders als
+ *  {@link getActiveSperrzeit} zeigt sie auch eine erst geplante (wirksamAb > now), damit der
+ *  Keyholder sie sehen und stornieren kann.
+ *
+ *  Läuft eine, gewinnt die AKTIVE — und zwar dieselbe EFFEKTIVE, die die Box durchsetzt
+ *  ({@link foldActiveSperrzeiten}). Sonst zeigte die Admin-Oberfläche ein anderes Ende an als das,
+ *  gegen das der Sub tatsächlich verschlossen ist. Nur wenn KEINE aktiv ist, kommt die neueste
+ *  geplante. */
 export async function getKeyholderSperrzeit(userId: string, tx?: PrismaTx) {
   const client = tx ?? prisma;
   const now = new Date();
-  return client.verschlussAnforderung.findFirst({
+  const rows = await client.verschlussAnforderung.findMany({
     where: keyholderSperrzeitWhere(userId, now),
     orderBy: { createdAt: "desc" },
     include: { device: { select: { name: true } } },
   });
+  return foldActiveSperrzeiten(rows.filter((s) => !isScheduledDirective(s.wirksamAb, now)))
+    ?? rows[0] ?? null;
 }
 
-/** Returns all Sperrzeiten (active OR scheduled) for a KEYHOLDER view across users. */
-export async function getKeyholderSperrzeiten(userIds: string[]) {
-  if (userIds.length === 0) return [];
+/** Returns all OFFENEN Sperrzeiten (aktiv ODER geplant) für eine KEYHOLDER-Sicht — für EINEN User
+ *  oder über mehrere. Bewusst eine LISTE, nicht „die" Sperrzeit: mehrere offene sind normal (siehe
+ *  {@link foldActiveSperrzeiten}), und der MCP muss die Mehrdeutigkeit sehen können, um sie dem
+ *  Keyholder zu melden. Neueste zuerst. */
+export async function getKeyholderSperrzeiten(userId: string | { userIds: string[] }) {
   return prisma.verschlussAnforderung.findMany({
-    where: keyholderSperrzeitWhere({ in: userIds }, new Date()),
+    where: keyholderSperrzeitWhere(sperrzeitUserFilter(userId), new Date()),
     orderBy: { createdAt: "desc" },
   });
 }

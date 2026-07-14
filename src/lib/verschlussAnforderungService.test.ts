@@ -276,7 +276,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
 
     if (!res.ok) throw new Error("erwartet: ok");
-    expect(res.data).toEqual({ count: 1, notified: false });
+    expect(res.data).toEqual({ count: 1, hidden: 1, notified: false });
     expect(notifyMock).not.toHaveBeenCalled();
     expect(tx.verschlussAnforderung.updateMany).toHaveBeenCalledTimes(1); // storniert wird sie trotzdem
   });
@@ -297,7 +297,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
 
     if (!res.ok) throw new Error("erwartet: ok");
-    expect(res.data).toEqual({ count: 1, notified: true });
+    expect(res.data).toEqual({ count: 1, hidden: 0, notified: true });
     expect(notifyMock).toHaveBeenCalledTimes(1);
     expect(heimdallMock).toHaveBeenCalledWith("u1");
   });
@@ -319,7 +319,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG");
 
     if (!res.ok) throw new Error("erwartet: ok");
-    expect(res.data).toEqual({ count: 2, notified: true });
+    expect(res.data).toEqual({ count: 2, hidden: 1, notified: true });
     expect(notifyMock).toHaveBeenCalledTimes(1);
   });
 
@@ -328,7 +328,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG");
 
     if (!res.ok) throw new Error("erwartet: ok");
-    expect(res.data).toEqual({ count: 0, notified: false });
+    expect(res.data).toEqual({ count: 0, hidden: 0, notified: false });
     expect(notifyMock).not.toHaveBeenCalled();
     expect(heimdallMock).not.toHaveBeenCalled();
     expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();

@@ -331,11 +331,15 @@ export async function withdrawVerschlussAnforderungById(
  * Benachrichtigt aber NUR, wenn der Sub von mindestens einer der stornierten Direktiven wusste.
  * Sonst meldete man ihm die Aufhebung von etwas, dessen Existenz er nie erfahren sollte — und
  * verriete damit genau die geplante Direktive, die verborgen bleiben soll.
+ *
+ * `hidden` (Teilmenge von `count`) zählt die stornierten TERMINIERTEN, noch nicht ausgelösten. Ein
+ * blosses `count: 2` verschwiege der Keyholderin, dass sie neben der laufenden Sperrzeit auch eine
+ * geplante mitgenommen hat — und mehrere offene sind normal (siehe `foldActiveSperrzeiten`).
  */
 export async function withdrawVerschlussAnforderung(
   userId: string,
   art: "ANFORDERUNG" | "SPERRZEIT",
-): Promise<ServiceResult<{ count: number; notified: boolean }>> {
+): Promise<ServiceResult<{ count: number; hidden: number; notified: boolean }>> {
   const now = new Date();
   const where = art === "ANFORDERUNG"
     ? { userId, art, fulfilledAt: null, withdrawnAt: null }
@@ -344,17 +348,18 @@ export async function withdrawVerschlussAnforderung(
   // Lesen und Zurückziehen in EINER Transaktion: löste der Poller genau dazwischen aus, stempelte er
   // `benachrichtigtAt` nach unserem Lesen — wir schwiegen, obwohl der Sub die Sperrzeit gerade
   // gemeldet bekommen hat, und er hielte sie für weiter aktiv.
-  const { count, notified } = await prisma.$transaction(async (tx) => {
+  const { count, hidden, notified } = await prisma.$transaction(async (tx) => {
     const rows = await tx.verschlussAnforderung.findMany({ where, select: { id: true, wirksamAb: true, benachrichtigtAt: true } });
-    if (rows.length === 0) return { count: 0, notified: false };
+    if (rows.length === 0) return { count: 0, hidden: 0, notified: false };
     await tx.verschlussAnforderung.updateMany({
       where: { id: { in: rows.map((r) => r.id) } },
       data: { withdrawnAt: now, endedReason: LOCK_ENDED_REASON.keyholder },
     });
-    return { count: rows.length, notified: rows.some((r) => !isHiddenFromSub(r)) };
+    const hiddenRows = rows.filter(isHiddenFromSub);
+    return { count: rows.length, hidden: hiddenRows.length, notified: hiddenRows.length < rows.length };
   });
 
   if (notified) await notifyUser(userId, verschlussWithdrawNotice(art));
   if (count > 0) void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
-  return { ok: true, data: { count, notified } };
+  return { ok: true, data: { count, hidden, notified } };
 }
