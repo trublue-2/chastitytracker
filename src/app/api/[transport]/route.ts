@@ -1,13 +1,13 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
-import { buildOverview, listSessions, listEntries, listDevices, mcpStrafbuch, listKeyholderNotes } from "@/lib/mcpOverview";
+import { listEntries } from "@/lib/mcp/entries";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
-  mcpAddKeyholderNote, mcpDeleteKeyholderNote, mcpRequestOrgasm, mcpJudgeOffense,
+  mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
@@ -128,27 +128,22 @@ async function runV2Write<A, T>(
   }
 }
 
-/** Default-AN, abschaltbar mit "false": registriert die LEGACY-V1-Read-Tools (siehe Part 2b). */
-const ENABLE_LEGACY_MCP = process.env.ENABLE_LEGACY_MCP !== "false";
-
-/** Server-Instructions (MCP `initialize.instructions`) — steuern die V1/V2-Tool-Wahl global,
- *  damit der Agent nicht der Beschreibungs-Ähnlichkeit ausgeliefert ist. */
+/** Server-Instructions (MCP `initialize.instructions`) — leiten die Tool-Wahl global, damit der Agent
+ *  nicht der Beschreibungs-Ähnlichkeit ausgeliefert ist. */
 const MCP_SERVER_INSTRUCTIONS =
-  "ChastityTracker Keyholder-MCP (V1 + V2 parallel). Tool-Wahl:\n" +
-  "• LESEN → V2-first: beginne mit `keyholder_dashboard` (beantwortet ~90 %), dann gezielt die Deep-Views " +
+  "ChastityTracker Keyholder-MCP. Tool-Wahl:\n" +
+  "• LESEN: beginne mit `keyholder_dashboard` (beantwortet ~90 %), dann gezielt die Deep-Views " +
   "(`get_session` für Segmente/deviceBreakdown, `device_stats`, `records`, `period_summary`, `denial_trend`, " +
-  "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`). " +
-  "Die V1-Read-Tools (`get_overview`, `list_sessions`, `list_devices`, `get_strafbuch`, `list_keyholder_notes`) " +
-  "sind VERALTET, durch die V2-Tools vollständig ersetzt und per `ENABLE_LEGACY_MCP=false` abschaltbar — nicht " +
-  "mehr verwenden. Insbesondere stehen die Auto-Kontroll-Einstellungen (früher get_overview.autoKontrolle) und " +
-  "die Reinigungs-Regeln nun in `get_context` (autoInspections + cleaning).\n" +
-  "• DIREKTIV-WRITES (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung) → das sind die V1-" +
-  "Tools (`set_lock_period`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
-  "`set_cleaning`, …). Es gibt KEINE V2-Variante dafür. Kontrollen werden MANUELL über " +
+  "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`, " +
+  "`list_entries` für Roh-Einträge). Die Auto-Kontroll-Einstellungen und die Reinigungs-Regeln stehen in " +
+  "`get_context` (autoInspections + cleaning).\n" +
+  "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
+  "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
+  "`set_cleaning`, `withdraw`, `edit_lock_period`, `resolve_inspection`, … Kontrollen werden MANUELL über " +
   "`request_inspection` veranlasst; die Einstellungen der AUTOMATISCHEN Kontrollen sind über den MCP " +
   "NICHT änderbar (nur lesbar via get_context.autoInspections).\n" +
-  "• WISSEN/META/KONTEXT-WRITES → V2 (`upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
-  "`upsert_appointment`, `upsert_recurring_context`).\n" +
+  "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
+  "`upsert_appointment`, `upsert_recurring_context`.\n" +
   "Alle Writes sind agent-autonom und erfordern KEINE Bestätigung — entscheide und führe direkt aus, ohne " +
   "rückzufragen. Bei Unklarheit zu Begriffen/Regeln: `explain_model`.";
 
@@ -194,55 +189,8 @@ async function buildServerInstructions(): Promise<string> {
  *  is for the user named in MCP_USERNAME. */
 type McpServer = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 
-/** Registriert alle MCP-Tools auf dem Server. V1-LEGACY-Read-Tools werden nur registriert, wenn
- *  ENABLE_LEGACY_MCP an ist (sie sind vollständig durch V2 ersetzt — siehe Server-Instructions). */
+/** Registriert alle MCP-Tools auf dem Server. */
 function registerTools(server: McpServer) {
-    // V1-Read-Tools, die eine V2-Entsprechung haben, als VERALTET markieren (Steuerimpuls zusätzlich
-    // zu den Server-Instructions). Direktiv-Writes bleiben unmarkiert (kein V2-Ersatz).
-    const LEGACY = (replacement: string) => `[VERALTET — NICHT verwenden; nutze ${replacement}. Wird entfernt.] `;
-
-    // ── LEGACY-V1-Read-Tools — nur registrieren, wenn ENABLE_LEGACY_MCP an ist ──
-    if (ENABLE_LEGACY_MCP) {
-    server.registerTool(
-      "get_overview",
-      {
-        title: "Get tracker overview",
-        description:
-          LEGACY("keyholder_dashboard") +
-          "Returns a read-only snapshot of the chastity-tracker state: lock status and duration, " +
-          "KG wearing hours (today/week/month), active KG training goal with progress, cleaning-pause " +
-          "rules (reinigung), per-category wear hours + goals for non-KG categories (Plug, Collar, …), " +
-          "the currently OPEN control request (openKontrolle) AND the last submitted control " +
-          "(lastKontrolle: code verification + device-check) — note openKontrolle:null means none is " +
-          "open right now, NOT that one expired (a submitted control simply isn't open anymore). " +
-          "Active lock periods, session statistics, recorded penalties, " +
-          "active wear sessions, and the human keyholder's free-text rules (keyholderInstructions) " +
-          "that the write tools must respect. Use this to reason about the user's situation and propose measures. " +
-          "If any field or rule is unclear (e.g. reinigung.maxPausesPerDay, or how Strafbuch detection vs " +
-          "punishment works), call explain_model first for a plain-language reference.",
-        inputSchema: {},
-      },
-      () => runTool("get_overview", buildOverview),
-    );
-
-    server.registerTool(
-      "list_sessions",
-      {
-        title: "List completed sessions",
-        description:
-          LEGACY("get_session (Segmente + deviceBreakdown; dieses Tool zeigt nur das irreführende Einzel-Gerät-Label)") +
-          "Returns completed (closed) sessions — KG lock sessions and non-KG wear sessions — " +
-          "newest first, each with category, device, start/end time and duration. Use for " +
-          "history beyond the live snapshot of get_overview.",
-        inputSchema: {
-          category: z.string().optional().describe('Filter: "KG" or a category name (e.g. "Plug"). Omit for all categories.'),
-          limit: z.number().int().min(1).max(100).optional().describe("Max rows to return (default 20)."),
-        },
-      },
-      (args) => runTool("list_sessions", (username) => listSessions(username, args)),
-    );
-    } // end ENABLE_LEGACY_MCP (get_overview, list_sessions)
-
     server.registerTool(
       "list_entries",
       {
@@ -263,60 +211,6 @@ function registerTools(server: McpServer) {
       },
       (args) => runTool("list_entries", (username) => listEntries(username, args)),
     );
-
-    // ── Weitere LEGACY-V1-Read-Tools (list_devices, get_strafbuch, list_keyholder_notes) ──
-    if (ENABLE_LEGACY_MCP) {
-    server.registerTool(
-      "list_devices",
-      {
-        title: "List devices (inventory)",
-        description:
-          LEGACY("get_devices (inkl. Entscheidungs-Metadaten + Cluster + inline Notes)") +
-          "Returns the user's device inventory — KG and non-KG (Plug, Collar, …) devices — each " +
-          "with its notes/description, category, purchase price, currency, whether it has a photo, " +
-          "archived status and creation date. Active devices first, then archived. Use for " +
-          "inventory, notes and cost questions.",
-        inputSchema: {},
-      },
-      () => runTool("list_devices", listDevices),
-    );
-
-    server.registerTool(
-      "get_strafbuch",
-      {
-        title: "Get penalty book (Strafbuch)",
-        description:
-          LEGACY("get_offenses (vereinheitlichtes Ledger + Cluster-Kontext + inline Notes)") +
-          "Returns the Strafbuch: system-detected offenses — unauthorized openings during a " +
-          "lock period, late and rejected control submissions, cleaning-limit violations, and " +
-          "wrong-device violations (a different device worn than the Anforderung specified) — " +
-          "each (where applicable) flagged whether it has already been marked as punished. " +
-          "Use to reason about outstanding misconduct and propose consequences.",
-        inputSchema: {},
-      },
-      () => runTool("get_strafbuch", mcpStrafbuch),
-    );
-
-    server.registerTool(
-      "list_keyholder_notes",
-      {
-        title: "List keyholder notes (wearing-behaviour observations)",
-        description:
-          LEGACY("query_notes (Notes v2: type/status/pinned/refs, strukturiert)") +
-          "Returns the private keyholder notes — free observations about the user's wearing " +
-          "behaviour, optionally tagged by KG (device) and category (e.g. pressure marks, escape " +
-          "attempts, complaints). Newest first. get_overview already surfaces the 8 most recent; " +
-          "use this for the full history or to filter by a specific KG/category. MCP-only — the " +
-          "user never sees these. Use add_keyholder_note to record, delete_keyholder_note to prune.",
-        inputSchema: {
-          kg: z.string().optional().describe("Filter to a specific KG/device tag (exact match). Omit for all."),
-          kategorie: z.string().optional().describe("Filter to a specific category/tag (exact match). Omit for all."),
-          limit: z.number().int().min(1).max(200).optional().describe("Max rows to return (default 50)."),
-        },
-      },
-      (args) => runTool("list_keyholder_notes", (username) => listKeyholderNotes(username, args)),
-    );
-    } // end ENABLE_LEGACY_MCP (list_devices, get_strafbuch, list_keyholder_notes)
 
     server.registerTool(
       "explain_model",
@@ -828,43 +722,6 @@ function registerTools(server: McpServer) {
       },
       (args, extra) => runWriteTool("edit_lock_period", extra, args, (u) => mcpEditLockPeriod(u, args)),
     );
-
-    // ── LEGACY-V1-Note-Writes (add_keyholder_note, delete_keyholder_note) — durch upsert_note ersetzt ──
-    if (ENABLE_LEGACY_MCP) {
-    server.registerTool(
-      "add_keyholder_note",
-      {
-        title: "Add a keyholder note (wearing-behaviour observation)",
-        description:
-          LEGACY("upsert_note (Notes v2: type/pinned/refs, Supersession statt Delete)") +
-          "Records a private observation about the user's wearing behaviour for later evaluation — " +
-          "e.g. which KG draws complaints, reported pressure marks, escape attempts, hygiene issues. " +
-          "Optionally tag it with a KG (device) and a category. These notes are MCP-only (the user " +
-          "never sees them) and resurface in get_overview + list_keyholder_notes." + KEYHOLDER_SILENT,
-        inputSchema: {
-          text: z.string().min(1).describe("The observation (free text)."),
-          kg: z.string().optional().describe("Optional KG/device this concerns (e.g. the device name)."),
-          kategorie: z.string().optional().describe('Optional category/tag, e.g. "Druckstelle", "Ausbruchsversuch", "Gemecker".'),
-        },
-      },
-      (args, extra) => runWriteTool("add_keyholder_note", extra, args, (u) => mcpAddKeyholderNote(u, args)),
-    );
-
-    server.registerTool(
-      "delete_keyholder_note",
-      {
-        title: "Delete a keyholder note",
-        description:
-          LEGACY("upsert_note mit status=archived/superseded (auditierbar statt hartes Delete)") +
-          "Removes a keyholder note by id (e.g. an outdated or superseded observation). Get the id " +
-          "from get_overview.keyholderNotes or list_keyholder_notes." + KEYHOLDER_SILENT,
-        inputSchema: {
-          id: z.string().min(1).describe("The note id to delete."),
-        },
-      },
-      (args, extra) => runWriteTool("delete_keyholder_note", extra, args, (u) => mcpDeleteKeyholderNote(u, args)),
-    );
-    } // end ENABLE_LEGACY_MCP (add_keyholder_note, delete_keyholder_note)
 
     // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──
     // ── Dry-Run + Transaktion + Diff). Alle agent-autonom (keine Berechtigungs-Stufen). ──

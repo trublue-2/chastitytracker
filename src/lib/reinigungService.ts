@@ -82,7 +82,7 @@ export async function reinigungVerbrauchtHeute(userId: string, now: Date, tz = A
   });
 }
 
-/** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für get_overview.reinigung (V1) und
+/** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für
  *  get_context.cleaning (V2): allowed = Öffnungen erlaubt; maxMinutesPerBreak = max Minuten je Öffnung;
  *  maxPausesPerDay = max Öffnungen/Tag (COUNT, null = unbegrenzt); usedToday = heute verbraucht;
  *  windows = erlaubte Tages-Zeitfenster (leer = nicht zeitgebunden); windowOpenNow = aktuell offenes

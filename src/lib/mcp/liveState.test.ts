@@ -128,16 +128,6 @@ describe("buildLockState", () => {
     expect(lock.keyInBox).toBeNull();
   });
 
-  it("buildLockState entspricht buildLockStateFromPairs mit denselben Paaren", async () => {
-    const entries = desc([
-      e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"),
-      e("OEFFNEN", "2026-07-10T04:00:00Z", undefined, "REINIGUNG"),
-      e("VERSCHLUSS", "2026-07-10T04:20:00Z", "Ring B"),
-    ]);
-    const { buildLockStateFromPairs } = await import("./liveState");
-    expect(buildLockStateFromPairs(entries, buildPairs(entries, [], reinigung), NOW, fmt))
-      .toEqual(buildLockState(entries, reinigung, NOW, fmt));
-  });
 });
 
 describe("mapOpenKontrolle", () => {

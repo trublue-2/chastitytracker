@@ -9,7 +9,7 @@ import { APP_TZ } from "@/lib/utils";
  * Where-Fragment: bereits AKTIVE Kontroll-Anforderungen — sofortige (wirksamAb null) und
  * zeitversetzte, die schon ausgelöst haben (wirksamAb <= jetzt). Noch nicht aktive (wirksamAb in
  * der Zukunft, z.B. geplante Auto-Kontrollen) bleiben verborgen — ÜBERALL: Sub-Sichten (Dashboard,
- * Stats, get_overview) UND Admin/Strafbuch (sonst sähe die Keyholderin die geplanten Zufallszeiten).
+ * Stats, MCP) UND Admin/Strafbuch (sonst sähe die Keyholderin die geplanten Zufallszeiten).
  */
 export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
@@ -370,11 +370,32 @@ export function foldActiveSperrzeiten<T extends { endetAt: Date | null; reinigun
 
 /** Die aktuell OFFENE (noch nicht eingereichte) Kontroll-Anforderung, oder null. Geplante, noch
  *  nicht ausgelöste Kontrollen bleiben unsichtbar (`aktiveKontrolleWhere`).
- *  Geteilt von `get_overview` (V1) und `keyholder_dashboard` (V2). */
+ *  Genutzt von `keyholder_dashboard`. */
 export async function getOpenKontrolle(userId: string, now: Date = new Date()) {
   return prisma.kontrollAnforderung.findFirst({
     where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
     orderBy: { createdAt: "desc" },
+  });
+}
+
+/**
+ * Die offene Verschluss-ANFORDERUNG („schliess dich bis X ein"), oder null.
+ *
+ * Nur die bereits AUSGELÖSTE: eine erst geplante steht schon in `scheduledDirectives` des
+ * Dashboards und stünde sonst doppelt — und der Sub weiss von ihr ohnehin noch nichts.
+ *
+ * Ohne diese Sicht ist `request_lock` ein Schreib-ohne-Lesen: die Keyholderin kann eine Anforderung
+ * stellen, aber nirgends sehen, ob sie noch offen oder schon überfällig ist. Bis zum Wegfall der
+ * V1-Schicht beantwortete das ausschliesslich `get_overview.openVerschlussAnforderung`.
+ */
+export async function getOpenLockRequest(userId: string, now: Date = new Date()) {
+  return prisma.verschlussAnforderung.findFirst({
+    where: {
+      userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null,
+      ...activeVerschlussAnforderungWhere(now),
+    },
+    orderBy: { createdAt: "desc" },
+    include: { device: { select: { name: true } } },
   });
 }
 
@@ -387,7 +408,7 @@ export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
   const rows = await client.verschlussAnforderung.findMany({
     where: activeSperrzeitWhere(userId, new Date()),
     orderBy: { createdAt: "desc" },
-    // device additiv mitladen — vom get_overview (deviceName) genutzt, für alle
+    // device additiv mitladen — für den deviceName der Sperrzeit genutzt, für alle
     // anderen Aufrufer harmlos (lesen nur Skalarfelder).
     include: { device: { select: { name: true } } },
   });

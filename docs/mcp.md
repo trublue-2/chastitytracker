@@ -26,7 +26,6 @@ Set per instance (these are read from the environment, not the database):
 | `ENABLE_MCP` | yes | Master switch. If `!= "true"`, the whole MCP endpoint returns **404**. Also reveals the "AI keyholder rules" field in the admin user settings. |
 | `MCP_USERNAME` | yes | The username whose data the keyholder reads and controls. Missing → tools return "Server misconfigured". |
 | `MCP_TOKEN` | no | Static bearer token for the **read-only** legacy path (see below). |
-| `ENABLE_LEGACY_MCP` | no | Default on. Set to `"false"` to stop registering the deprecated V1 read tools entirely. |
 
 ## Endpoints
 
@@ -77,9 +76,10 @@ rejected ("the static MCP token is read-only"). Use it only for read-only access
 
 ## Tools
 
-The server instructions steer clients to a **V2-first** workflow. The legacy V1
-read tools are **deprecated** — fully replaced by the V2 reads below and hidden
-when `ENABLE_LEGACY_MCP=false` (they use misleading single-device labels). The
+The server instructions steer clients to `keyholder_dashboard` first, then the
+deep views. The legacy V1 read tools (`get_overview`, `list_sessions`,
+`list_devices`, `get_strafbuch`, `list_keyholder_notes`, plus the V1 note writes)
+were **removed** — the reads below replace them. The
 server `instructions` returned at connect time also embed the human keyholder's
 binding rules (see [Keyholder rules](#keyholder-rules-human-in-the-loop)) so the
 agent sees them alongside the tool list.
@@ -98,12 +98,12 @@ Notable V2 read fields:
 - `get_context` — `autoInspections` (the automatic-inspection settings:
   active / perDay / sleep window / deadline window — read-only) and `cleaning`
   (allowed / maxMinutesPerBreak / maxPausesPerDay / usedToday / windows /
-  windowOpenNow). These moved here from the now-deprecated `get_overview`.
+  windowOpenNow). These moved here from the removed `get_overview`.
 - `get_devices` — includes `purchasePrice` and `currency` per device.
 - `get_offenses` — includes a `generatedAt` / `timezone` header and `entryNote`
   on late/rejected controls.
 
-**V1 directive writes** (no V2 equivalent) — `request_lock`, `set_lock_period`,
+**Directive writes** — `request_lock`, `set_lock_period`,
 `edit_lock_period`, `request_inspection`, `resolve_inspection`, `request_orgasm`,
 `judge_offense`, `withdraw`, `set_training_goal` / `edit_training_goal` /
 `delete_training_goal` / `list_training_goals`, `set_cleaning`. Lock, lock-period,
@@ -119,12 +119,11 @@ scheduled (not-yet-triggered) directive of the same kind.
 mandatory `reason` (audited), supports `dryRun`, and runs in a transaction with a
 recorded field diff. All silent.
 
-**Legacy V1 reads (deprecated):** `get_overview`, `list_sessions`,
-`list_devices`, `get_strafbuch`, `list_keyholder_notes` (plus the V1 note writes
-`add_keyholder_note` / `delete_keyholder_note`). Fully replaced by the V2 tools
-above; set `ENABLE_LEGACY_MCP=false` to stop registering them entirely (default
-on). (`list_entries` and `explain_model` are V1 but have no V2 replacement and
-stay available.)
+**Removed (v4.50.37):** the legacy V1 reads `get_overview`, `list_sessions`,
+`list_devices`, `get_strafbuch`, `list_keyholder_notes` and the V1 note writes
+`add_keyholder_note` / `delete_keyholder_note`, together with the
+`ENABLE_LEGACY_MCP` flag that gated them. The tools above replace them.
+`list_entries` and `explain_model` had no V2 equivalent and therefore stay.
 
 ## Data models
 
@@ -187,7 +186,7 @@ tools.
 - **Audit trail.** Every V2 write requires a `reason` and is recorded in
   `KeyholderActionLog`.
 - **Not available over MCP.** Automatic-inspection settings are **read-only**
-  (`get_overview.autoKontrolle`); inspections are triggered manually via
+  (`get_context.autoInspections`); inspections are triggered manually via
   `request_inspection`. The physical box is **not** controlled directly — MCP
   sets rules in the tracker, the box enforces them (see
   [`heimdall-box.md`](heimdall-box.md)).

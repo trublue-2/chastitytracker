@@ -1,4 +1,5 @@
-import { calculateWearingHoursByRange } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
+import { calculateWearingHoursByRange, buildPairs, WEAR_PAIR } from "@/lib/utils";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
@@ -29,6 +30,10 @@ const DAY = 86_400_000;
 export interface DeviceStatRow {
   deviceId: string | null;
   deviceName: string | null;
+  /** Name der Geräte-Kategorie („KG", „Plug", „Halsband" …). Beim Sammel-Posten ohne Gerät immer
+   *  die KG-Kategorie: nur ein KG-Verschluss kann ohne Gerät gebucht werden, ein WEAR-Eintrag
+   *  verlangt eines. Damit ist der Posten nicht länger mehrdeutig. */
+  category: string | null;
   segmentCount: number;
   totalHours: number;
   avgHours: number;
@@ -45,21 +50,82 @@ export interface DeviceStatsResult {
   devices: DeviceStatRow[];
 }
 
-/** Pro Gerät total/avg/median/min/max + längste Strecke + zuletzt getragen, aus allen Segmenten. */
-export async function deviceStats(username: string, ctx?: TrackingContext): Promise<DeviceStatsResult> {
-  const { entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
-  const iso = makeIso(timezone);
-  const sessions = buildSessions(entries, reinigung, now, devices);
+/** Was pro Gerät gesammelt wird, bevor daraus eine Zeile wird. */
+type DeviceAgg = { id: string | null; name: string | null; category: string | null; durations: number[]; lastWorn: Date };
+type DeviceSeed = Omit<DeviceAgg, "durations" | "lastWorn">;
 
-  const byDevice = new Map<string, { id: string | null; name: string | null; durations: number[]; lastWorn: Date }>();
-  for (const s of sessions) {
+/** Eine getragene Strecke in den Topf ihres Geräts. Der Schlüssel wird aus dem Gerät selbst
+ *  abgeleitet — ihn getrennt hereinzureichen liesse Schlüssel und Inhalt auseinanderlaufen. */
+function collect(byDevice: Map<string, DeviceAgg>, seed: DeviceSeed, start: Date, durationMs: number): void {
+  const key = deviceGroupKey(seed);
+  const row = byDevice.get(key) ?? { ...seed, durations: [], lastWorn: start };
+  row.durations.push(durationMs);
+  if (start > row.lastWorn) row.lastWorn = start;
+  byDevice.set(key, row);
+}
+
+/**
+ * Pro Gerät total/avg/median/min/max + längste Strecke + zuletzt getragen.
+ *
+ * Über ALLE Kategorien, nicht nur KG. Das ist der Kern eines gemeldeten Bugs (14.07.2026): ein Plug
+ * mit sauber geloggtem WEAR_BEGIN→WEAR_END-Zyklus tauchte hier überhaupt nicht auf — weder unter
+ * seinem Namen noch im „ohne Gerät"-Topf. Grund war nicht die Zuordnung in den Rohdaten (die stimmt),
+ * sondern dass `buildSessions` ausschliesslich KG-Paare (VERSCHLUSS/OEFFNEN) kennt. Nicht-KG-Geräte
+ * bilden WEAR-Paare, und die wurden nie gepaart.
+ *
+ * Zwei Pfade, weil KG und WEAR verschiedene Dinge SIND: eine KG-Session zerfällt an Reinigungspausen
+ * in Segmente und kennt Bild-gegen-Deklaration-Konflikte — beides hat WEAR nicht. Deshalb KG über
+ * `buildSessions`, WEAR über `buildPairs`.
+ *
+ * WEAR wird JE GERÄT gepaart, nicht je Kategorie: zwei Plugs derselben Kategorie können gleichzeitig
+ * getragen werden (`getActiveWearSessions` führt den Live-Zustand ebenfalls pro Gerät). Eine
+ * kategorie-weite Paarung schlösse das WEAR_END des einen Plugs auf das WEAR_BEGIN des anderen —
+ * beide Dauern wären falsch, und die Aggregation rechnet ohnehin pro Gerät zu.
+ */
+export async function deviceStats(username: string, ctx?: TrackingContext): Promise<DeviceStatsResult> {
+  const { userId, entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
+  const iso = makeIso(timezone);
+  // Kategorien aus IHRER Tabelle, nicht aus den Geräten erraten: die eingebaute KG-Kategorie
+  // existiert auch dann, wenn (noch) kein KG-Gerät angelegt ist — und genau solche Alt-Verschlüsse
+  // ohne Gerät landen im Sammel-Posten, der trotzdem als KG auszuweisen ist.
+  const categories = await prisma.deviceCategory.findMany({
+    where: { userId },
+    select: { id: true, name: true, isBuiltIn: true },
+  });
+  const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
+  const kgCategory = categories.find((c) => c.isBuiltIn)?.name ?? null;
+
+  const byDevice = new Map<string, DeviceAgg>();
+
+  // ── KG: Segmente (Reinigungspausen bereits abgezogen, massgebliches Gerät aufgelöst) ──
+  for (const s of buildSessions(entries, reinigung, now, devices)) {
     for (const seg of s.segments) {
       // Nach dem MASSGEBLICHEN Gerät (Bild gewinnt bei echtem Konflikt), wie deviceBreakdown.
-      const key = deviceGroupKey(seg.deviceEffective);
-      const row = byDevice.get(key) ?? { id: seg.deviceEffective.id, name: seg.deviceEffective.name, durations: [], lastWorn: seg.start };
-      row.durations.push(seg.durationMs);
-      if (seg.start > row.lastWorn) row.lastWorn = seg.start;
-      byDevice.set(key, row);
+      collect(byDevice, { ...seg.deviceEffective, category: kgCategory }, seg.start, seg.durationMs);
+    }
+  }
+
+  // ── Nicht-KG: WEAR-Paare, je GERÄT getrennt ──
+  const wearEntriesByDevice = new Map<string, TrackingEntry[]>();
+  for (const e of entries) {
+    if (e.type !== "WEAR_BEGIN" && e.type !== "WEAR_END") continue;
+    if (!e.device) continue; // WEAR verlangt ein Gerät — defensiv, kein „ohne Gerät" für Nicht-KG.
+    const list = wearEntriesByDevice.get(e.device.id);
+    if (list) list.push(e);
+    else wearEntriesByDevice.set(e.device.id, [e]);
+  }
+  for (const list of wearEntriesByDevice.values()) {
+    for (const pair of buildPairs<TrackingEntry, never>(list, [], { types: WEAR_PAIR })) {
+      // Ein WEAR_BEGIN ohne Ende, das NICHT die laufende Session ist, ist eine Daten-Anomalie
+      // (zwei Beginne hintereinander) — nicht bis jetzt hochrechnen, das erfände Stunden.
+      if (!pair.oeffnen && !pair.active) continue;
+      const dev = pair.verschluss.device!;
+      // Die laufende Session zählt bis JETZT — wie beim KG-Segment, sonst wäre das gerade getragene
+      // Gerät genau während des Tragens unsichtbar.
+      const end = pair.oeffnen?.startTime ?? now;
+      collect(byDevice,
+        { id: dev.id, name: dev.name, category: dev.categoryId ? categoryNameById.get(dev.categoryId) ?? null : null },
+        pair.verschluss.startTime, end.getTime() - pair.verschluss.startTime.getTime());
     }
   }
 
@@ -69,6 +135,7 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
       return {
         deviceId: r.id,
         deviceName: deviceDisplayName({ id: r.id, name: r.name }),
+        category: r.category,
         segmentCount: r.durations.length,
         totalHours: msToHours(total),
         avgHours: msToHours(total / r.durations.length),

@@ -6,13 +6,10 @@ import { msToHours } from "@/lib/mcp/format";
  * Orgasmus-Fenster, aktive Wear-Sessions.
  *
  * Reine Abbildung von DB-Zeilen auf die MCP-Form. Kein Prisma, kein Laden: die Zeilen holt der
- * Aufrufer über die Helfer in `queries.ts`. Genutzt von `get_overview` (V1) UND
- * `keyholder_dashboard` (V2) — vorher las das Dashboard diese Felder aus der fertigen
- * V1-Antwort und schleppte deren gesamten Feldbestand samt Queries mit, obwohl es sechs Felder
- * braucht. Beide Tools komponieren jetzt aus derselben Quelle, keiner durch den anderen hindurch.
+ * Aufrufer über die Helfer in `queries.ts`.
  *
- * `fmt` formatiert einen Zeitpunkt (V1: Instanz-lokal, V2: ISO-8601 mit Offset) — die Mapper
- * entscheiden das nicht, sie reichen es durch.
+ * `fmt` formatiert einen Zeitpunkt (ISO-8601 mit Offset) — die Mapper entscheiden das nicht, sie
+ * reichen es durch.
  */
 
 /** Zeitformatierer des jeweiligen Tools. */
@@ -32,8 +29,7 @@ export interface LockState {
 }
 
 /** Minimalform eines Entrys für die Verschluss-Ableitung: was `buildPairs` braucht, plus der
- *  Gerätename für `deviceName`. Generisch, damit sowohl der V1-Select als auch `TrackingEntry`
- *  (das zusätzlich `device.id` trägt) passen. */
+ *  Gerätename für `deviceName`. */
 export type LockEntry = {
   id: string;
   type: string;
@@ -46,32 +42,27 @@ export type LockEntry = {
   keyInBox: boolean | null;
 };
 
-/** Entries müssen nach `startTime` ABSTEIGEND sortiert sein (jüngster zuerst). */
+/** Nur die Paar-Felder, die der Verschluss-Zustand liest — strukturell beschrieben, damit dieses
+ *  Modul nicht den vollen `PairResult`-Typ aus `utils.ts` importieren muss. */
+type LockPair<E> = {
+  active: boolean;
+  verschluss: E;
+  interruptions: { oeffnen: E; verschluss: E }[];
+};
+
+/** Entries müssen nach `startTime` ABSTEIGEND sortiert sein (jüngster zuerst).
+ *
+ *  War bis zum Wegfall der V1-Schicht in zwei Funktionen geteilt: `get_overview` baute die Paare
+ *  ohnehin für seine Session-Statistik und reichte sie herein, um `buildPairs` nicht zweimal laufen
+ *  zu lassen. Diesen Aufrufer gibt es nicht mehr — der verbliebene baut die Paare nirgends sonst,
+ *  also ist die Aufteilung nur noch eine Naht ohne Zweck. */
 export function buildLockState<E extends LockEntry>(
   entries: E[],
   reinigung: ReinigungSettings,
   now: Date,
   fmt: Fmt,
 ): LockState {
-  return buildLockStateFromPairs(entries, buildPairs(entries, [], reinigung), now, fmt);
-}
-
-/** Nur die Paar-Felder, die der Verschluss-Zustand liest — strukturell beschrieben, damit dieses
- *  Modul nicht den vollen `PairResult`-Typ aus `utils.ts` importieren muss. */
-export type LockPair<E> = {
-  active: boolean;
-  verschluss: E;
-  interruptions: { oeffnen: E; verschluss: E }[];
-};
-
-/** Für Aufrufer, die die Paare ohnehin schon gebaut haben (`get_overview` braucht sie auch für
- *  `sessionSummary`) — `buildPairs` läuft über alle Einträge und soll nicht zweimal laufen. */
-export function buildLockStateFromPairs<E extends LockEntry>(
-  entries: E[],
-  pairs: LockPair<E>[],
-  now: Date,
-  fmt: Fmt,
-): LockState {
+  const pairs: LockPair<E>[] = buildPairs(entries, [], reinigung);
   const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
   const isLocked = latest?.type === "VERSCHLUSS";
 
@@ -134,12 +125,13 @@ export function mapActiveSperrzeit(
   };
 }
 
-export interface OpenVerschlussAnforderungView { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null; reinigungErlaubt: boolean; deviceName: string | null }
+/** Eine offene Verschluss-Anforderung: der Sub SOLL sich einschliessen, hat es aber noch nicht getan. */
+export interface OpenLockRequestView { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null; reinigungErlaubt: boolean; deviceName: string | null }
 
-export function mapOpenVerschlussAnforderung(
+export function mapOpenLockRequest(
   a: { endetAt: Date | null; nachricht: string | null; dauerH: number | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
-): OpenVerschlussAnforderungView | null {
+): OpenLockRequestView | null {
   if (!a) return null;
   return {
     endetAt: a.endetAt ? fmt(a.endetAt) : null,

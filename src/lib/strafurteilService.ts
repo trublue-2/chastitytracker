@@ -50,7 +50,7 @@ export interface DetectedOffense {
 /** cleaning_not_relocked shares its underlying OEFFNEN entry with cleaning_limit (both can fire on
  *  the same REINIGUNG opening — over the daily quota AND not relocked in time). StrafeRecord.refId
  *  is globally `@unique`, so the two offenses need disjoint ref namespaces — prefixed here rather
- *  than using the bare entry id. Exported so mcpOverview.ts's `judge()` call constructs the exact
+ *  than using the bare entry id. Exported so the ledger's `judge()` call constructs the exact
  *  same ref (round-trips through judge_offense) and the admin route can reverse it for its IDOR check. */
 export function cleaningNotRelockedRef(entryId: string): string {
   return `relock:${entryId}`;

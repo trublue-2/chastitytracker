@@ -94,8 +94,6 @@ sie verhindert die häufigsten Fehldeutungen.
 - \`upsert_note\` / \`query_notes\` / \`link_note\` (V2): deine privaten, strukturierten Beobachtungen
   (type, pinned, refs an Objekte, Supersession statt Delete). Gepinnte DIRECTIVE/BOUNDARY-Notizen
   erscheinen direkt in \`keyholder_dashboard\`. **Nur über den MCP** — der Sub sieht sie nie.
-  (\`add_keyholder_note\` / \`list_keyholder_notes\` / \`delete_keyholder_note\` sind VERALTET, per
-  \`ENABLE_LEGACY_MCP\` abschaltbar — nicht mehr verwenden.)
 
 ## 9. Die Abhängigkeiten in einem Satz
 Geräte-Wechsel → wird als Reinigungsöffnung geloggt → verbraucht das Tageskontingent
@@ -124,12 +122,12 @@ eine Strafe gibt.
 - **Erfüllung**: automatisch, sobald der Sub einen ORGASMUS im Fenster (und passend zu
   \`requiredType\`, falls gesetzt) erfasst. Es ist immer nur **eine** Direktive aktiv — eine neue
   ersetzt die vorige. Zurückziehen via \`withdraw\` mit \`target:"orgasm_directive"\`.
-- **Lesen**: die aktuell offene Direktive steht in \`get_overview.openOrgasmusAnforderung\`;
-  verpasste ANWEISUNGEN in \`get_strafbuch.missedOrgasmInstructions\`.
+- **Lesen**: die aktuell offene Direktive steht in \`keyholder_dashboard.nextRelevant.openOrgasmWindow\`;
+  verpasste ANWEISUNGEN in \`get_offenses\` (Typ \`missed_orgasm\`).
 
 ## 12. Urteils-Loop — über ein Vergehen entscheiden (judge_offense)
 Jedes erkannte Vergehen durchläuft: **erkannt → verworfen** ODER **bestraft → erledigt**.
-- In \`get_strafbuch\` trägt jedes Vergehen ein \`judgment\`: \`open\` (unbeurteilt), \`dismissed\`
+- In \`get_offenses\` trägt jedes Vergehen ein \`judgment\`: \`open\` (unbeurteilt), \`dismissed\`
   (verworfen) oder \`punished\` (bestraft), plus \`judgedBy\` (\`ai\`/\`admin\`), \`judgedAt\` und eine
   stabile \`ref {type,id}\`. Bei \`punished\`: \`penalty\` (der Strafe-Text) und \`done\`/\`doneAt\`
   (ob die Strafe erledigt ist). Bei \`dismissed\`: \`reason\`.
@@ -138,17 +136,17 @@ Jedes erkannte Vergehen durchläuft: **erkannt → verworfen** ODER **bestraft �
 - **Die Strafe ist ein freier Text** — was „20 Schläge" bedeutet, entscheidest du beim Reinschreiben.
   Kein Typen-Zoo, keine automatische Sperrzeit. Willst du eine Sperre als Strafe, setze sie separat
   über \`set_lock_period\`.
-- **\`judge_offense\`** (ref = \`ref.id\` aus get_strafbuch):
+- **\`judge_offense\`** (ref = \`id\` der Zeile aus \`get_offenses\`):
   - \`action:"dismiss"\` (+ optional \`text\` = Grund) → **keine Strafe** (verbindlich, sofort).
   - \`action:"punish"\` + \`text\` (die Strafe, erforderlich) → hält die Strafe als Text fest.
   - \`action:"complete"\` → markiert die Strafe als **erledigt** (schließt den Loop).
   - \`action:"reopen"\` → Urteil zurücknehmen (revidieren).
-- \`penalties.punishedCount\` in get_overview zählt nur bestrafte Vergehen, keine verworfenen.
+- \`get_offenses.pendingPenaltyCount\` zählt bestrafte, aber noch nicht erledigte Vergehen.
 - **Praxis:** Du musst nicht jede Kleinigkeit hart ahnden — verwirf mit kurzem Grund, oder schreib
   eine Strafe rein und markier sie später erledigt. Klar in der Konsequenz, ohne Automatik.
 
-## 13. MCP V2 — Dashboard, Segmente, strukturiertes Wissen (schemaVersion 2)
-V2 ergänzt die V1-Tools (additiv, V1 bleibt). Leitprinzip: **ein Dashboard-Call beantwortet ~90 %;
+## 13. Dashboard, Segmente, strukturiertes Wissen (schemaVersion 2)
+Leitprinzip: **ein Dashboard-Call beantwortet ~90 %;
 Wahrheit kommt aus Segmenten/Bildern, nicht aus Labels; häufige Fragen sind vorberechnet; Regeln
 und Grenzen sind gepinnt und versioniert.**
 
@@ -169,7 +167,7 @@ und Grenzen sind gepinnt und versioniert.**
   \`records\` (PB, aktuell vs PB, orgasmusfrei), \`period_summary\` (Tag/Woche/Monat + Ziel),
   \`denial_trend\` (Streak, Trend, orgasmHistory).
 - **\`get_offenses\`** — vereinheitlichtes Disziplin-Ledger (alle Vergehen als eine Liste mit
-  status/judgment/consequence). Geurteilt wird weiter über \`judge_offense\` (V1).
+  status/judgment/consequence). Geurteilt wird über \`judge_offense\`.
 - **Notes v2 (\`query_notes\` / \`upsert_note\` / \`link_note\`)** — strukturiert + versioniert:
   \`type\` (DIRECTIVE|BOUNDARY|OBSERVATION|CORRECTION|EQUIPMENT|DATA|HISTORY), \`status\`,
   \`pinned\`, \`source\`/\`confidence\` (Nutzer-Fakt vs eigener Schluss), \`doDont\` (für BOUNDARY),
@@ -186,14 +184,15 @@ und Grenzen sind gepinnt und versioniert.**
   \`null\` = nicht erklärt/nicht verschlossen — kein „nein", und die übrigen Ursachen bleiben offen).
   Auch als \`currentRun.keyInBox\` im Dashboard.
 
-### V2-Write-Disziplin
-Jeder V2-Write braucht **\`reason\`** (Pflicht, Audit) und unterstützt **\`dryRun:true\`** (zeigt
-Wirkung/Konflikte OHNE zu committen) und liefert **Diff** + neuen Zustand zurück. Alle Writes sind
-agent-autonom (keine Berechtigungs-Stufen) und erfordern **keine Bestätigung** — entscheide und
-führe direkt aus, ohne beim User rückzufragen (auch die benachrichtigenden V1-Tools wie Sperrzeit/
-Inspektion/Strafe). **Alle V2-Zeiten sind durchgängig ISO-8601 mit Offset** (auch dashboard.
-nextRelevant und get_offenses) — die V1-Tools (get_overview/get_strafbuch) bleiben dagegen im
-Instanz-lokalen Human-Format. Für Fristfragen zusätzlich \`remainingMinutes\`/\`overdue\` verfügbar.
+### Write-Disziplin
+Die Wissens-/Kontext-Writes (\`upsert_note\`, \`set_device_meta\`, \`set_health_hold\`, …) brauchen
+**\`reason\`** (Pflicht, Audit), unterstützen **\`dryRun:true\`** (zeigt Wirkung/Konflikte OHNE zu
+committen) und liefern **Diff** + neuen Zustand zurück. Alle Writes sind agent-autonom (keine
+Berechtigungs-Stufen) und erfordern **keine Bestätigung** — entscheide und führe direkt aus, ohne
+beim User rückzufragen (auch die benachrichtigenden Direktiven wie Sperrzeit/Inspektion/Strafe).
+**Zeiten sind ISO-8601 mit Offset** (dashboard.nextRelevant, get_offenses, …); Ausnahme ist
+\`list_entries\`, das die Roh-Einträge menschenlesbar im Instanz-Format zeigt. Für Fristfragen
+zusätzlich \`remainingMinutes\`/\`overdue\` verfügbar.
 
 ### Noch nicht umgesetzt (bewusst)
 - **Optimistic Concurrency (Version-Token)** und **generisches \`scheduledFor\`** (zeitlich geplante

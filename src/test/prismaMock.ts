@@ -4,7 +4,7 @@ import { vi } from "vitest";
  * TEST-ONLY (liegt bewusst ausserhalb von `src/lib/`: importiert `vitest`, eine devDependency —
  * ein Import aus Produktivcode wäre ein Fehler).
  *
- * Prisma-Doppelgänger für Unit-Tests von Aggregat-Buildern (mcpOverview, mcp/dashboard, …).
+ * Prisma-Doppelgänger für Unit-Tests von Aggregat-Buildern (mcp/dashboard, mcp/ledger, …).
  *
  * Diese Builder fächern über ein Dutzend Modelle auf; ein Mock, der jedes Modell und jede Methode
  * einzeln auflistet, wäre länger als der Test und müsste bei jedem neuen Query nachgezogen werden.
@@ -59,7 +59,7 @@ export function createPrismaMock(): PrismaMock {
   });
 }
 
-/** Der von `loadUserContext` (mcpOverview) bzw. `loadTrackingData` (mcp/common) selektierte User.
+/** Der von `loadTrackingData` (mcp/common) selektierte User.
  *  Eine Quelle für beide MCP-Vertragstests: kommt ein Feld ins Select, fällt es hier EINMAL auf. */
 export const TEST_USER = {
   id: "u1",

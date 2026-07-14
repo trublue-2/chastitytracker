@@ -17,6 +17,11 @@ export type Iso = (d: Date | null | undefined) => string | null;
  *  seinen einen Ziel-Sub auf und baut damit sein lokales `iso` (schattet den Modul-Default). */
 export const makeIso = (tz: string): Iso => (d) => isoWithOffset(d, tz);
 
+/** Wie {@link makeIso}, aber für Zeitpunkte, die es GARANTIERT gibt — gibt `string` statt
+ *  `string | null` zurück. Sonst behilft sich jeder Aufrufer selbst: mal mit `!`, mal mit einem
+ *  `as`-Cast, der das `null` nur wegdefiniert. */
+export const makeFmt = (tz: string): ((d: Date) => string) => (d) => isoWithOffset(d, tz)!;
+
 /** ISO-8601 mit APP_TZ-Offset — Fallback für Call-Sites ohne aufgelösten Sub-Kontext (bleibt
  *  byte-identisch zum bisherigen Verhalten für den Default "Europe/Zurich"). */
 export const iso: Iso = makeIso(APP_TZ);
@@ -75,7 +80,11 @@ export interface TrackingEntry {
 }
 
 /** Geräte-Metadaten, die die Segment-Wahrheit braucht: id↔Name-Auflösung + Lookalike-Cluster
- *  (cluster-interne Bild-Mismatches sind soft, nie ein echter Konflikt). */
+ *  (cluster-interne Bild-Mismatches sind soft, nie ein echter Konflikt).
+ *
+ *  Bewusst OHNE Kategorie: sie interessiert nur `device_stats`, und dieser Kontext wird von jedem
+ *  V2-Read geladen (Dashboard, get_session, timeline, …). Ein Kategorie-Join hier kostete alle einen
+ *  Zusatz-SELECT für ein Feld, das keiner von ihnen liest. */
 export interface DeviceMeta {
   id: string;
   name: string;

@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox } from "@/lib/queries";
+import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox, getOpenLockRequest } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
-  mapActiveWearSessions, mapInterruptedSperrzeit,
+  mapActiveWearSessions, mapInterruptedSperrzeit, mapOpenLockRequest,
   type Fmt, type OpenKontrolleView, type ActiveSperrzeitView, type OpenOrgasmusAnforderungView,
-  type InterruptedSperrzeitView,
+  type InterruptedSperrzeitView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
-import { makeIso, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
+import { makeIso, makeFmt, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { buildSessions, type Session } from "@/lib/mcp/segments";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
@@ -87,7 +87,7 @@ export interface DashboardResult {
    *  beschreiben und Feld für Feld umzukopieren: sonst müsste jedes neue Feld an zwei Stellen
    *  nachgezogen werden, und wer es vergisst, lässt es stillschweigend aus dem Dashboard fallen.
    *  Dadurch trägt `openControl` jetzt auch den Kommentar des Keyholders und `openOrgasmWindow`
-   *  dessen Nachricht — beides bisher nur im veralteten `get_overview` sichtbar. */
+   *  dessen Nachricht. */
   nextRelevant: {
     openControl: OpenKontrolleView | null;
     activeLockPeriod: ActiveSperrzeitView | null;
@@ -101,6 +101,11 @@ export interface DashboardResult {
      *  Öffnung ein Vergehen war, beantwortet allein `get_offenses` — nicht dieses Feld. */
     interruptedLockPeriod: InterruptedSperrzeitView | null;
     openOrgasmWindow: OpenOrgasmusAnforderungView | null;
+    /** Offene Verschluss-ANFORDERUNG: der Sub SOLL sich einschliessen, hat es aber noch nicht getan
+     *  (`overdue: true`, wenn die Frist verstrichen ist). Nicht zu verwechseln mit `activeLockPeriod`
+     *  — die Sperrzeit hält einen bestehenden Verschluss, die Anforderung verlangt ihn erst.
+     *  Nur die bereits ausgelöste; geplante stehen in `scheduledDirectives`. */
+    openLockRequest: OpenLockRequestView | null;
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
@@ -243,17 +248,18 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const iso = makeIso(trackingCtx.timezone);
   // `iso` nimmt auch null; die liveState-Mapper übergeben immer ein Date. Ein Adapter statt eines
   // Casts an jeder Aufrufstelle.
-  const fmt: Fmt = (d) => iso(d)!;
+  const fmt: Fmt = makeFmt(trackingCtx.timezone);
   // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
   const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices);
 
   // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
-  const [openKontrolleRow, activeSperrzeitRow, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
+  const [openKontrolleRow, activeSperrzeitRow, openLockRequestRow, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
          rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives] = await Promise.all([
     getOpenKontrolle(trackingCtx.userId, now),
     getActiveSperrzeit(trackingCtx.userId),
+    getOpenLockRequest(trackingCtx.userId, now),
     getInterruptedSperrzeit(trackingCtx.userId, now),
     getActiveWearSessions(trackingCtx.userId),
     getActiveOrgasmusAnforderung(trackingCtx.userId, now),
@@ -319,6 +325,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       // Sie wäre ein Dauer-Gespenst im Dashboard, das niemand mehr wegbekommt.
       interruptedLockPeriod: activeSperrzeitRow ? null : mapInterruptedSperrzeit(interruptedSperrzeitRow, fmt),
       openOrgasmWindow: mapOpenOrgasmusAnforderung(openOrgasmusRow, now, fmt),
+      openLockRequest: mapOpenLockRequest(openLockRequestRow, now, fmt),
     },
     goals: { kg: periods.kg, categories: periods.categories },
     openOffenses: { count: ledger.openOffenseCount, pendingPenalties: ledger.pendingPenaltyCount, top: openOffenseRows.slice(0, 5) },

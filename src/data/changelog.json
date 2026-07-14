@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.50.37",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Geräte-Statistik zeigt wieder ALLE Geräte. Plugs, Halsbänder und Knebel tauchten dort überhaupt nicht auf — weder unter ihrem Namen noch im Sammel-Posten „ohne Gerät\". Die Zuordnung in den Rohdaten stimmte; die Auswertung kannte schlicht nur Verschluss-/Öffnen-Paare und ignorierte die Trage-Zyklen der anderen Kategorien. Jede Zeile nennt jetzt zusätzlich ihre Kategorie, womit auch der Sammel-Posten eindeutig ist. Gepaart wird je GERÄT: zwei Plugs gleichzeitig getragen bekommen jeder ihre eigene Dauer.",
+          "en": "Device statistics show ALL devices again. Plugs, collars and gags never appeared at all — neither by name nor in the \"no device\" bucket. The raw data was correctly attributed; the aggregation simply only knew lock/unlock pairs and ignored the wear cycles of every other category. Each row now also names its category, which makes the collective bucket unambiguous too. Pairing is per DEVICE: two plugs worn at the same time each get their own duration."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Das Keyholder-Dashboard zeigt eine offene Verschluss-Anforderung an (mit Frist und Überfälligkeit). Bisher liess sie sich stellen, aber ihr Zustand nirgends ablesen.",
+          "en": "The keyholder dashboard now shows an open lock request (with deadline and overdue flag). Until now one could be issued but its state read nowhere."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die veralteten MCP-V1-Tools sind entfernt: get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes sowie die V1-Notiz-Writes — samt dem Schalter ENABLE_LEGACY_MCP, der sie ein- und ausschaltete. Die V2-Tools ersetzen sie vollständig. list_entries und explain_model hatten keine V2-Entsprechung und bleiben.",
+          "en": "The deprecated MCP V1 tools are gone: get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes and the V1 note writes — along with the ENABLE_LEGACY_MCP flag that toggled them. The V2 tools fully replace them. list_entries and explain_model had no V2 equivalent and stay."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.36",
     "date": "2026-07-11",
     "changes": [

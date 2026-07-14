@@ -56,7 +56,7 @@ const contextUserSelect = {
  *  Termine (ab jetzt). Throws bei unbekanntem User. */
 export async function getContext(username: string): Promise<ContextResult> {
   const now = new Date();
-  // id + Config-Felder in EINER Abfrage per username (wie loadUserContext in mcpOverview.ts) — keine
+  // id + Config-Felder in EINER Abfrage per username — keine
   // separate resolveUserId-Runde.
   const user = await prisma.user.findUnique({ where: { username }, select: contextUserSelect });
   if (!user) throw new Error(`User not found: ${username}`);
@@ -70,7 +70,7 @@ export async function getContext(username: string): Promise<ContextResult> {
     reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
   ]);
 
-  // Auto-Kontroll-Einstellungen + Reinigung über DIESELBEN Helfer wie get_overview/mcpOverview.ts.
+  // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
   const auto = autoKontrolleSettingsFromUser(user);
 
   return {
