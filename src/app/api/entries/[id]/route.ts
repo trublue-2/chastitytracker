@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership } from "@/lib/queries";
+import { entryManageAccess } from "@/lib/keyholder";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { codedError, codeOf } from "@/lib/codedError";
 import { isDevBypassEnabled } from "@/lib/devMode";
@@ -21,9 +22,9 @@ export async function PATCH(
 
   const existing = await prisma.entry.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (existing.userId !== session.user.id && session.user.role !== "admin") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
+  // Bearbeiten darf: der Eigentümer, ein globaler Admin ODER ein Keyholder des Eigentümers (scoped admin).
+  const { allowed, elevated } = await entryManageAccess(session.user.id, session.user.role, existing.userId);
+  if (!allowed) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const body = await req.json();
   const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus, deviceId } = body;
@@ -54,7 +55,7 @@ export async function PATCH(
 
   // Time-shift direction enforcement for non-admins (anti-cheat)
   // Skipped when running on localhost in dev (test enablement).
-  if (startTime && session.user.role !== "admin" && !devBypass) {
+  if (startTime && !elevated && !devBypass) {
     const newTime = new Date(startTime);
     const oldTime = existing.startTime;
     // Forward-only: VERSCHLUSS, PRUEFUNG, WEAR_BEGIN
@@ -150,9 +151,9 @@ export async function DELETE(
 
   const existing = await prisma.entry.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (existing.userId !== session.user.id && session.user.role !== "admin") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
+  // Löschen darf: der Eigentümer, ein globaler Admin ODER ein Keyholder des Eigentümers (scoped admin).
+  const { allowed } = await entryManageAccess(session.user.id, session.user.role, existing.userId);
+  if (!allowed) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const force = req.nextUrl.searchParams.get("force") === "true";
   const withPartner = req.nextUrl.searchParams.get("withPartner") === "true";

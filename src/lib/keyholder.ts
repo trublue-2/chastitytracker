@@ -17,6 +17,26 @@ export async function isKeyholderOf(actorId: string, subId: string): Promise<boo
   return rel !== null;
 }
 
+/** May `actorId` (with `role`) view/edit/delete an entry owned by `ownerId`?
+ *  Allowed for the owner, a global admin, or a keyholder of the owner (scoped admin).
+ *  `elevated` = acting as a controller (admin/keyholder, NOT the owner) — callers use it to waive the
+ *  sub-only anti-cheat time-direction limit, which must still bind the owner editing their own entry.
+ *  Shared by the edit page (notFound) and the PATCH/DELETE routes (403) so the three never drift. */
+export async function entryManageAccess(
+  actorId: string | undefined,
+  role: string | undefined,
+  ownerId: string,
+): Promise<{ allowed: boolean; elevated: boolean }> {
+  if (!actorId) return { allowed: false, elevated: false };
+  // Admin zuerst: ein globaler Admin bleibt auch beim EIGENEN Eintrag erhaben (bisheriges `!isAdmin`-
+  // Verhalten). Erst danach der Eigentümer — ein Sub, der seinen eigenen Eintrag bearbeitet, unterliegt
+  // weiterhin der Anti-Cheat-Zeitrichtung (elevated=false).
+  if (role === "admin") return { allowed: true, elevated: true };
+  if (actorId === ownerId) return { allowed: true, elevated: false };
+  const keyholder = await isKeyholderOf(actorId, ownerId);
+  return { allowed: keyholder, elevated: keyholder };
+}
+
 /** Cheap existence check — does this user keyhold anyone? For the header nav (runs on every page). */
 export async function controlsAnySub(keyholderId: string): Promise<boolean> {
   const rel = await prisma.adminUserRelationship.findFirst({

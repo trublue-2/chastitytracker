@@ -384,7 +384,6 @@
     "keyInBoxName": "Box: {name}",
     "keyInBoxLabel": "Schlüssel ist in der Box",
     "keyInBoxDesc": "Aus = du behältst den Schlüssel (z.B. auf Reise). Die Box verriegelt dann nicht.",
-    "relockLightHint": "Reinigungspause beenden — nur die Bestätigung genügt, kein neues Foto nötig.",
     "sealNumber": "Siegel-Nummer (optional)",
     "sealNumberHint": "5–8 Ziffern",
     "codePhotoLabel": "Schlüsselbox-Code",

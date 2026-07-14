@@ -269,7 +269,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 code: k.code, dateTimeStr: fmtDual(k.time), dateTimePrefix: null,
                 deadlineStr: k.deadline ? fmtDual(k.deadline) : null,
                 deadlinePrefix: t("frist"), note: null, entryId: k.entryId,
-                editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
+                editHref: k.entryId ? `/dashboard/edit/${k.entryId}?from=admin&userId=${id}` : null,
                 timeCorrectedStr: isTimeCorrected(k.time, k.submittedAt)
                   ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmtDual(k.time)} · ${t("systemLabel")}: ${fmtDual(k.submittedAt!)}`
                   : null,
@@ -289,7 +289,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           <OrgasmenListClient
             items={orgasmusEntries.slice(0, 5).map((e): OrgasmusItemData => ({
               id: e.id, dateStr: formatDate(e.startTime, dl, tz), timeStr: formatTime(e.startTime, dl, tz),
-              orgasmusArt: resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm), note: e.note, editHref: `/dashboard/edit/${e.id}`,
+              orgasmusArt: resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm), note: e.note, editHref: `/dashboard/edit/${e.id}?from=admin&userId=${id}`,
             }))}
           />
         </Card>

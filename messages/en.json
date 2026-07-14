@@ -384,7 +384,6 @@
     "keyInBoxName": "Box: {name}",
     "keyInBoxLabel": "The key is in the box",
     "keyInBoxDesc": "Off = you keep the key (e.g. while travelling). The box will not lock.",
-    "relockLightHint": "Ending the cleaning break — the confirmation is enough, no new photo needed.",
     "sealNumber": "Seal number (optional)",
     "sealNumberHint": "5–8 digits",
     "codePhotoLabel": "Lockbox code",
