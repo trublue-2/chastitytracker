@@ -6,8 +6,8 @@ import { Timer } from "lucide-react";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
 
-import type { WearSessionRow } from "@/lib/utils";
-export type { WearSessionRow } from "@/lib/utils";
+import type { WearSessionRow } from "@/lib/wearSessionRows";
+export type { WearSessionRow } from "@/lib/wearSessionRows";
 
 const PAGE_SIZE = 5;
 

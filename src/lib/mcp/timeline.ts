@@ -1,4 +1,4 @@
-import { buildSessions } from "@/lib/mcp/segments";
+import { buildSessions } from "@/lib/sessionModel";
 import { resolveUserId, makeIso, loadTrackingData, parseIsoDate, type TrackingEntry } from "@/lib/mcp/common";
 
 /** timeline (§12) — KG-SEGMENTE (nicht rohe Lock/Unlock-Pulse), Wear-Sessions, Kontrollen und

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 // definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
 import { APP_TZ, type ReinigungSettings } from "@/lib/utils";
 import { isoWithOffset } from "@/lib/mcp/format";
+import type { DeviceMeta } from "@/lib/sessionModel";
 import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";
 
 /** Querschnitt-Helfer der MCP-V2-Schicht: User-Auflösung, Zeitformat, Inline-Notes.
@@ -79,19 +80,6 @@ export interface TrackingEntry {
   device: { id: string; name: string; categoryId: string | null } | null;
 }
 
-/** Geräte-Metadaten, die die Segment-Wahrheit braucht: id↔Name-Auflösung + Lookalike-Cluster
- *  (cluster-interne Bild-Mismatches sind soft, nie ein echter Konflikt).
- *
- *  Bewusst OHNE Kategorie: dieser Kontext wird von JEDEM V2-Read geladen (Dashboard, timeline, …),
- *  die Kategorie brauchen aber nur die, die Sessions/Geräte beschriften. Ein Join hier kostete alle
- *  einen Zusatz-SELECT für ein Feld, das die meisten nie lesen — {@link loadCategoryNames} holt es
- *  dort, wo es gebraucht wird. */
-export interface DeviceMeta {
-  id: string;
-  name: string;
-  lookalikeClusterId: string | null;
-}
-
 /** Vorgeladener Tracking-Kontext — erlaubt komponierenden Tools (keyholder_dashboard), Entries +
  *  Reinigung + Geräte-Meta + User-id EINMAL zu laden und an mehrere Berechnungen durchzureichen. */
 export interface TrackingContext {
@@ -129,6 +117,9 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
         device: { select: { id: true, name: true, categoryId: true } },
       },
     }),
+    // DeviceMeta bewusst OHNE Kategorie: dieser Kontext wird von JEDEM V2-Read geladen, die
+    // Kategorie brauchen aber nur die, die Sessions/Geräte beschriften — {@link loadCategoryNames}
+    // holt sie dort, wo sie gebraucht wird.
     prisma.device.findMany({ where: { userId }, select: { id: true, name: true, lookalikeClusterId: true } }),
   ]);
   return {

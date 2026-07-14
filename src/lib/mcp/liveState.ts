@@ -1,5 +1,4 @@
-import { buildPairs, interruptionPauseMs, type ReinigungSettings } from "@/lib/utils";
-import { msToHours } from "@/lib/mcp/format";
+import { buildPairs, interruptionPauseMs, msToHours, type ReinigungSettings } from "@/lib/utils";
 
 /**
  * Der LIVE-Zustand eines Subs — Verschluss, offene Kontrolle, laufende Sperrzeit, offenes

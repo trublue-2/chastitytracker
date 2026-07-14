@@ -6,10 +6,10 @@ import {
   buildPairs, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
-  buildWearSessionRows,
   buildWearPairs, wearingHoursFromPairs, WEAR_PAIR, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere, cleaningBlockReason } from "@/lib/queries";
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
-      include: { device: { select: { categoryId: true, name: true } } },
+      include: { device: { select: { id: true, categoryId: true, name: true } } },
     }),
     // Zeitversetzt geplante Kontrollen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
     prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),

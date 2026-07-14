@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.39",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Trage-Sessions der anderen Kategorien im Dashboard werden jetzt je GERÄT gepaart statt je Kategorie. Wer zwei Geräte derselben Kategorie gleichzeitig trug (z.B. zwei Plugs), sah bisher erfundene Dauern: das Ende des einen Geräts schloss auf den Beginn des anderen, eine Session fehlte ganz. Jetzt erscheint jedes Gerät als eigene Zeile mit seiner echten Dauer.",
+          "en": "The dashboard's wear sessions for other categories are now paired per DEVICE instead of per category. Wearing two devices of the same category at once (e.g. two plugs) produced invented durations: one device's end closed against the other's begin, and one session vanished entirely. Each device now shows as its own row with its real duration."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.38",
     "date": "2026-07-14",
     "changes": [

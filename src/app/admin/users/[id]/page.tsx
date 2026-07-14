@@ -6,9 +6,9 @@ import {
   formatDuration, formatDateTimeDual, formatDate, formatTime, formatHours, toDateLocale, APP_TZ,
   buildPairs, interruptionPauseMs, isTimeCorrected, decomposeMs,
   buildKontrolleItems, calculateWearingHoursByRange,
-  buildWearSessionRows,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
@@ -30,13 +30,6 @@ import Card from "@/app/components/Card";
 import Link from "next/link";
 import { Lock, ClipboardList, Droplets, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-
-type Entry = {
-  id: string; type: string; startTime: Date; imageUrl: string | null;
-  imageExifTime: Date | null; note: string | null; orgasmusArt: string | null;
-  verifikationStatus: string | null; kontrollCode: string | null; oeffnenGrund: string | null;
-  device?: { categoryId: string | null } | null;
-};
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -65,7 +58,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   const flagOn = deviceCategoriesEnabled();
   const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories] = await Promise.all([
-    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { categoryId: true } } } }),
+    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { id: true, categoryId: true } } } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id, ...keyholderVisibleKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     getKeyholderSperrzeit(id),

@@ -1,5 +1,5 @@
-import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/mcp/segments";
-import { msToHours } from "@/lib/mcp/format";
+import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/sessionModel";
+import { msToHours } from "@/lib/utils";
 import { resolveUserId, makeIso, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
 
 /** get_session — Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes

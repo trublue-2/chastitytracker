@@ -27,6 +27,12 @@ export function formatHours(h: number, locale = "de"): string {
   return parts.join(" ");
 }
 
+/** Auf eine Nachkommastelle runden. */
+export const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Millisekunden → Stunden, auf eine Nachkommastelle gerundet. */
+export const msToHours = (ms: number) => round1(ms / 3_600_000);
+
 /** Zerlegt eine Dauer in Tage/Stunden/Minuten/Sekunden (jeweils abgerundet, Rest-basiert).
  *  Nur die ZERLEGUNG ist geteilt — die Zusammensetzung bleibt je Formatter eigen, weil sich
  *  Einheiten ("m" vs "min"), Null-Behandlung ("–") und Minuten-Unterdrückung unterscheiden. */
@@ -718,46 +724,6 @@ export function buildKontrolleItems(
         submittedAt: null as Date | null,
       })),
   ];
-}
-
-export interface WearSessionRow {
-  id: string;
-  categoryName: string;
-  categoryColor: string;
-  categoryIcon: string;
-  startDateStr: string;
-  startTimeStr: string;
-  endDateStr: string;
-  endTimeStr: string;
-  durationStr: string;
-}
-
-type WearCategory = { id: string; name: string; color: string; icon: string };
-
-export function buildWearSessionRows(
-  categories: WearCategory[],
-  entries: { type: string; startTime: Date; device?: { categoryId: string | null } | null }[],
-  now: Date,
-  dl: string,
-): WearSessionRow[] {
-  return categories
-    .flatMap((cat) =>
-      buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cat.id })
-        .filter((p) => p.end.getTime() !== now.getTime())
-        .map((p) => ({ cat, pair: p })),
-    )
-    .sort((a, b) => b.pair.start.getTime() - a.pair.start.getTime())
-    .map(({ cat, pair }) => ({
-      id: `${cat.id}-${pair.start.toISOString()}`,
-      categoryName: cat.name,
-      categoryColor: cat.color,
-      categoryIcon: cat.icon,
-      startDateStr: formatDate(pair.start, dl),
-      startTimeStr: formatTime(pair.start, dl),
-      endDateStr: formatDate(pair.end, dl),
-      endTimeStr: formatTime(pair.end, dl),
-      durationStr: formatDuration(pair.start, pair.end, dl),
-    }));
 }
 
 export function toDatetimeLocal(date: Date | string | null | undefined, tz = APP_TZ): string {

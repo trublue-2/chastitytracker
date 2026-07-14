@@ -1,9 +1,9 @@
-import { calculateWearingHoursByRange } from "@/lib/utils";
+import { calculateWearingHoursByRange, msToHours, round1 } from "@/lib/utils";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, buildWearSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/mcp/segments";
-import { round1, msToHours, pct } from "@/lib/mcp/format";
+import { buildSessions, buildWearSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/sessionModel";
+import { pct } from "@/lib/mcp/format";
 import { makeIso, loadTrackingContext, loadCategoryNames, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
 /** Vorberechnete Statistiken & Rekorde aus SEGMENTEN (nicht Labels) — §5/§6/§7. Rein lesend.
@@ -21,7 +21,6 @@ function median(values: number[]): number {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-const HOUR = 3_600_000;
 const DAY = 86_400_000;
 
 // ── device_stats ─────────────────────────────────────────────────────────────
@@ -231,7 +230,7 @@ export async function denialTrend(username: string, opts: { limit?: number } = {
   const intervalsH: number[] = [];
   const history: OrgasmHistoryRow[] = times.map((t, i) => {
     const prev = i > 0 ? times[i - 1] : null;
-    const intervalH = prev ? round1((t.getTime() - prev.getTime()) / HOUR) : null;
+    const intervalH = prev ? msToHours(t.getTime() - prev.getTime()) : null;
     if (intervalH != null) intervalsH.push(intervalH);
     return { at: iso(t)!, intervalSincePrevH: intervalH, deviceContext: deviceContextAt(segs, t.getTime()) };
   });

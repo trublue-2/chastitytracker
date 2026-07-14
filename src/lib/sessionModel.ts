@@ -1,9 +1,11 @@
-import { buildPairs, type ReinigungSettings, WEAR_PAIR } from "@/lib/utils";
-import { msToHours } from "@/lib/mcp/format";
-import type { DeviceMeta } from "@/lib/mcp/common";
+import { buildPairs, msToHours, type ReinigungSettings, WEAR_PAIR } from "@/lib/utils";
 
 /**
- * MCP V2 — „Abgeleitete Wahrheit": eine KG-Session zerfällt an REINIGUNG-Öffnungen in Segmente,
+ * Das Session-Modell — EINE Definition von „Session", geteilt von der MCP-Schicht und der UI.
+ * Es liegt bewusst neutral in `src/lib/` (nicht unter `src/lib/mcp/`): das Dashboard baut seine
+ * Trage-Session-Zeilen aus derselben Quelle, sonst driften zwei Session-Begriffe auseinander.
+ *
+ * „Abgeleitete Wahrheit": eine KG-Session zerfällt an REINIGUNG-Öffnungen in Segmente,
  * pro Segment GENAU EIN getragenes Gerät. Damit ist die „welches Gerät war Session X?"-Frage
  * korrekt als `deviceBreakdown` beantwortbar (z.B. 103 h = Flatty 66 / Kink-Knack 28 / Pink S 10).
  *
@@ -31,6 +33,13 @@ export interface SegmentEntry {
 export interface DeviceRef {
   id: string | null;
   name: string | null;
+}
+
+/** Geräte-Stammdaten, soweit das Session-Modell sie braucht: Name↔id-Auflösung + Lookalike-Cluster. */
+export interface DeviceMeta {
+  id: string;
+  name: string;
+  lookalikeClusterId: string | null;
 }
 
 /** Eine Kontrolle (PRUEFUNG), die zeitlich in ein Segment fällt. */

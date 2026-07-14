@@ -7,7 +7,7 @@ import {
   type InterruptedSperrzeitView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
 import { makeIso, makeFmt, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
-import { buildSessions, type Session } from "@/lib/mcp/segments";
+import { buildSessions, type Session } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
