@@ -9,6 +9,16 @@ export const KG_BUILTIN_SLUG = "kg";
 const KG_BUILTIN_COLOR = "cat-steel";
 const KG_BUILTIN_ICON = "Lock";
 
+/** Die KG-Kategorie als Pillen-/Varianten-Eintrag — EINE Quelle für alle Umschalter (Tragekalender,
+ *  Device-Nutzung), damit ein Re-Skin von KG nicht an drei Stellen nachgezogen werden muss.
+ *  `name` bleibt der Produktbegriff „KG" (steht so auch in `messages/*.json` und in der DB-Zeile). */
+export const KG_CATEGORY_META = {
+  id: KG_BUILTIN_SLUG,
+  name: "KG",
+  color: KG_BUILTIN_COLOR,
+  icon: KG_BUILTIN_ICON,
+} as const;
+
 /** Builds the deterministic ID used for KG built-in categories (matches the migration backfill).
  *  Stable across deploys so application code can reference KG without an extra query. */
 export function kgCategoryId(userId: string): string {

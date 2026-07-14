@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.40",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Device-Nutzung in der Statistik lässt sich jetzt zwischen KG und den Geräte-Kategorien umschalten — wie schon der Tragekalender. Bisher zeigte sie ausschliesslich Keuschheitsgürtel: Plugs, Halsbänder und Knebel tauchten nirgends mit Tragezeit, Ø-Dauer und Kosten pro Stunde auf. Die Kategorie-Zahlen werden je GERÄT gepaart, zwei gleichzeitig getragene Plugs zählen also getrennt.",
+          "en": "Device usage in the statistics can now be switched between KG and the device categories — just like the wear calendar already could. Until now it only ever showed chastity devices: plugs, collars and gags appeared nowhere with their wear time, average duration and cost per hour. Category figures are paired per DEVICE, so two plugs worn at once are counted separately."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.39",
     "date": "2026-07-14",
     "changes": [

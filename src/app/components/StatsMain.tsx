@@ -9,7 +9,12 @@ import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
+import { KG_CATEGORY_META } from "@/lib/deviceCategories";
+import { buildWearSessions } from "@/lib/sessionModel";
+import { buildDeviceUsage, type UsageSession } from "@/lib/deviceUsage";
 import CategoryIconRender from "./CategoryIcon";
+import { type CategoryVariant } from "./CategorySwitcherCard";
+import DeviceUsageSwitcher, { type DeviceUsageVariant } from "./DeviceUsageSwitcher";
 import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitcher";
 import YearHeatmap from "./YearHeatmap";
 import MonthStats from "./MonthStats";
@@ -41,7 +46,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "asc" },
-      include: { device: { select: { categoryId: true } } },
+      // `device.id` treibt die geräteweise Paarung in buildWearSessions (Device-Nutzung).
+      include: { device: { select: { id: true, categoryId: true } } },
     }),
     prisma.trainingVorgabe.findMany({
       where: { userId },
@@ -191,10 +197,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const calendarVariants: CalendarVariant[] = [];
   if (wearPairs.length > 0) {
     calendarVariants.push({
-      id: "kg",
-      name: "KG",
-      color: "cat-steel",
-      icon: "Lock",
+      ...KG_CATEGORY_META,
       isKG: true,
       months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl, tz, dailyData: kgDailyData }),
     });
@@ -217,48 +220,54 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   }
 
   // ── Device usage stats ─────────────────────────────────────────────────────
-  const deviceMap = new Map(allDevices.map((d) => [d.id, d]));
-  type DeviceStat = { id: string | null; name: string; count: number; totalMs: number; avgMs: number; purchasePrice: number | null; currency: string | null; costPerHour: number | null };
-  const deviceStatsMap = new Map<string | null, { count: number; totalMs: number }>();
-
-  for (const pair of completed) {
-    const dId = pair.verschluss.deviceId ?? null;
-    const existing = deviceStatsMap.get(dId) ?? { count: 0, totalMs: 0 };
-    existing.count++;
-    existing.totalMs += pair.durationMs;
-    deviceStatsMap.set(dId, existing);
-  }
-  // Also count active session if currently locked
+  // Eine Variante je Kategorie (KG zuerst), zwischen denen der Picker umschaltet. KG rechnet wie
+  // bisher auf der GANZEN Session (Gerät des Verschluss-Eintrags); die Nicht-KG-Kategorien kommen
+  // aus buildWearSessions — je GERÄT gepaart, sonst zählte ein zweiter Plug die Zeit des ersten.
+  const kgSessions: UsageSession[] = completed.map((p) => ({
+    deviceId: p.verschluss.deviceId ?? null,
+    durationMs: p.durationMs,
+  }));
   if (activeEntry?.deviceId) {
-    const dId = activeEntry.deviceId;
-    const existing = deviceStatsMap.get(dId) ?? { count: 0, totalMs: 0 };
-    existing.count++;
-    existing.totalMs += activeDurationMs;
-    deviceStatsMap.set(dId, existing);
+    kgSessions.push({ deviceId: activeEntry.deviceId, durationMs: activeDurationMs });
   }
 
-  const deviceStats: DeviceStat[] = Array.from(deviceStatsMap.entries())
-    .map(([dId, { count, totalMs: dTotalMs }]) => {
-      const device = dId ? deviceMap.get(dId) : null;
-      const totalHours = dTotalMs / 3_600_000;
-      const costPerHour = device?.purchasePrice && totalHours > 0
-        ? device.purchasePrice / totalHours
-        : null;
-      return {
-        id: dId,
-        name: device?.name ?? t("deviceUnknown"),
-        count,
-        totalMs: dTotalMs,
-        avgMs: count > 0 ? Math.round(dTotalMs / count) : 0,
-        purchasePrice: device?.purchasePrice ?? null,
-        currency: device?.currency ?? null,
-        costPerHour,
-      };
-    })
-    .sort((a, b) => b.totalMs - a.totalMs);
+  // Eine Wear-Session trägt genau EIN Gerät (buildWearSessions paart je Gerät) — ihre bereits
+  // pausenbereinigte durationMs ist die Session-Dauer, nicht die Summe mehrerer Geräte.
+  const wearSessionsByCategory = new Map<string, UsageSession[]>();
+  if (nonKgCategories.length > 0) {
+    for (const s of buildWearSessions(entries, now)) {
+      if (!s.categoryId) continue;
+      const list = wearSessionsByCategory.get(s.categoryId) ?? [];
+      list.push({ deviceId: s.segments[0]?.deviceEffective.id ?? null, durationMs: s.durationMs });
+      wearSessionsByCategory.set(s.categoryId, list);
+    }
+  }
 
-  // Only show if at least one entry has a device assigned
-  const hasDeviceData = deviceStats.some((d) => d.id !== null);
+  const deviceById = new Map(allDevices.map((d) => [d.id, d]));
+  const toVariant = (meta: CategoryVariant, sessions: UsageSession[]): DeviceUsageVariant | null => {
+    const rows = buildDeviceUsage(sessions, deviceById, t("deviceUnknown"));
+    // Ohne ein einziges zugeordnetes Gerät sagt die Card nichts aus (nur „unbekannt"-Zeilen).
+    if (!rows.some((r) => r.id !== null)) return null;
+    const variantTotalMs = rows.reduce((sum, r) => sum + r.totalMs, 0);
+    return {
+      ...meta,
+      rows: rows.map(({ totalMs: rowMs, avgMs: rowAvgMs, costPerHour, currency, ...rest }) => ({
+        ...rest,
+        totalStr: formatMs(rowMs, dl),
+        avgStr: formatMs(rowAvgMs, dl),
+        costStr: costPerHour !== null && currency ? `${costPerHour.toFixed(2)} ${currency}` : null,
+        sharePct: variantTotalMs > 0 ? Math.round((rowMs / variantTotalMs) * 100) : 0,
+      })),
+    };
+  };
+
+  const deviceUsageVariants = [
+    toVariant(KG_CATEGORY_META, kgSessions),
+    ...nonKgCategories.map((cat) => {
+      const sessions = wearSessionsByCategory.get(cat.id);
+      return sessions ? toVariant(cat, sessions) : null;
+    }),
+  ].filter((v) => v !== null);
 
   const pageHeading = heading ?? t("title");
 
@@ -412,40 +421,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         </Card>
       )}
 
-      {/* KG-Nutzung */}
-      {hasDeviceData && deviceStats.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-border-subtle">
-            <p className="text-sm font-bold text-foreground">{t("deviceUsage")}</p>
-          </div>
-          <div className="divide-y divide-border-subtle">
-            {deviceStats.map((ds) => (
-              <div key={ds.id ?? "_none"} className="px-6 py-4 flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-3">
-                  <span className={`text-sm font-semibold ${ds.id ? "text-foreground" : "text-foreground-faint"}`}>
-                    {ds.name}
-                  </span>
-                  <span className="text-xs text-foreground-faint">
-                    {t("deviceSessions", { count: ds.count })}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground-muted">
-                  <span>{t("deviceTotalDuration")}: <strong className="text-foreground">{formatMs(ds.totalMs, dl)}</strong></span>
-                  <span>{t("deviceAvgDuration")}: <strong className="text-foreground">{formatMs(ds.avgMs, dl)}</strong></span>
-                  {ds.costPerHour !== null && ds.currency && (
-                    <span>{t("deviceCostPerHour")}: <strong className="text-foreground">{ds.costPerHour.toFixed(2)} {ds.currency}</strong></span>
-                  )}
-                </div>
-                {/* Usage bar relative to total */}
-                {totalMs > 0 && (
-                  <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden mt-0.5">
-                    <div className="h-full rounded-full bg-lock" style={{ width: `${Math.round((ds.totalMs / totalMs) * 100)}%` }} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
+      {/* Device-Nutzung — umschaltbar zwischen KG und den Geräte-Kategorien */}
+      {deviceUsageVariants.length > 0 && (
+        <DeviceUsageSwitcher variants={deviceUsageVariants} />
       )}
 
       {/* Kontrollen */}
