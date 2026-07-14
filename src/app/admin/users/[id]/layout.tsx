@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { getLatestKgEntry } from "@/lib/queries";
 import { getControlledSubs } from "@/lib/keyholder";
 import UserContextBar from "./UserContextBar";
 import UserSubNav from "./UserSubNav";
@@ -25,11 +26,7 @@ export default async function AdminUserLayout({
   const [user, allUsers, latestLockEntry] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { id: true, username: true } }),
     usersForSwitcher,
-    prisma.entry.findFirst({
-      where: { userId: id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-      orderBy: { startTime: "desc" },
-      select: { type: true, startTime: true },
-    }),
+    getLatestKgEntry(id),
   ]);
 
   const userIds = allUsers.map(u => u.id);

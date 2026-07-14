@@ -1,8 +1,31 @@
 import { auth } from "@/lib/auth";
+import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { isKeyholderOf } from "@/lib/keyholder";
+
+/** A session that is guaranteed to carry a user id (what `requireApi` hands back).
+ *  `Session` (not `ReturnType<typeof auth>`) — `auth` is overloaded and would resolve to the
+ *  middleware signature. Die `user.id`/`user.role`-Felder kommen aus src/types/next-auth.d.ts. */
+export type ApiSession = Session;
+
+/**
+ * Plain-user API guard — the counterpart to `requireAdminApi()` for routes that only need "somebody
+ * is logged in". Returns the session on success, so the caller needs no second `auth()` call:
+ *
+ *   const session = await requireApi();
+ *   if (session instanceof NextResponse) return session;
+ *   // session is narrowed to ApiSession here
+ *
+ * Deliberately NOT used by `oauth/authorize` (returns the RFC-6749 lowercase `unauthorized` code
+ * its clients string-match) nor by `uploads/[...path]` (answers in plaintext, not JSON).
+ */
+export async function requireApi(): Promise<ApiSession | NextResponse> {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return session;
+}
 
 /** Returns a 403 NextResponse if the current session is not an admin, otherwise null. */
 export async function requireAdminApi(): Promise<NextResponse | null> {
@@ -22,8 +45,8 @@ export async function assertAdmin(): Promise<void> {
 /** API guard: allows a global admin OR a keyholder of `targetUserId`. Self-control is impossible
  *  (isKeyholderOf rejects actor === target). Returns a 401/403 NextResponse on denial, else null. */
 export async function requireKeyholderOrAdminApi(targetUserId: string): Promise<NextResponse | null> {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
   if (session.user.role === "admin") return null;
   if (await isKeyholderOf(session.user.id, targetUserId)) return null;
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
+import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function PATCH(
   req: NextRequest,
@@ -9,13 +10,13 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!existing) return errorResponse(404, "NOT_FOUND");
 
   const err = await requireKeyholderOrAdminApi(existing.userId);
   if (err) return err;
 
   const result = await updateVorgabe(id, await req.json());
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (!result.ok) return serviceFailure(result);
   return NextResponse.json({ ok: true });
 }
 
@@ -25,12 +26,12 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!existing) return errorResponse(404, "NOT_FOUND");
 
   const err = await requireKeyholderOrAdminApi(existing.userId);
   if (err) return err;
 
   const result = await deleteVorgabe(id);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (!result.ok) return serviceFailure(result);
   return new NextResponse(null, { status: 204 });
 }

@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { logAccess } from "@/lib/serverLog";
-import UserStatsView from "@/app/components/UserStatsView";
+import StatsMain from "@/app/components/StatsMain";
 
 export default async function AdminUserStatsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -14,5 +14,5 @@ export default async function AdminUserStatsPage({ params }: { params: Promise<{
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/stats`);
 
-  return <UserStatsView userId={id} />;
+  return <StatsMain userId={id} />;
 }

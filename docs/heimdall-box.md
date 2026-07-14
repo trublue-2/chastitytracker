@@ -13,7 +13,7 @@ true`); otherwise the lock is honor-system only.
 > **Maturity: MVP ("P1").** The box reads the active lock period and reports its
 > status and real-world events. The reconciliation of box events against tracker
 > entries (penalty-book surfacing of early/unauthorized opens), device binding,
-> and cleaning/range rules in the config feed are **not yet implemented** — see
+> and range rules in the config feed are **not yet implemented** — see
 > [Maturity & limitations](#maturity--limitations).
 
 ## Architecture
@@ -27,16 +27,18 @@ server, which in turn calls the tracker's integration API. Users are mapped by
 [ box hardware ] ──► [ Heimdall server ] ──► /api/integration/box/*  (tracker)
                                              (Bearer HEIMDALL_SYNC_SECRET)
 
-[ tracker web UI ] ──► /api/box, /api/box/command  (session-authenticated)
+[ tracker web UI ] ──► /api/box  (session-authenticated, read-only)
+[ VERSCHLUSS/OEFFNEN entry ] ──► pendingCommand + notify  (the box follows the entry)
 ```
 
 ## Enabling
 
 | Variable | Purpose |
 |----------|---------|
-| `HEIMDALL_SYNC_SECRET` | The only box-related secret. Does **both**: (1) machine auth for all `/api/integration/box/*` routes (bearer token, constant-time compare), and (2) feature gate — when set, the box UI and commands are active. Unset → no box UI, commands rejected, integration routes deny. |
+| `HEIMDALL_SYNC_SECRET` | The box-related secret. Does **both**: (1) machine auth for all `/api/integration/box/*` routes (bearer token, constant-time compare), and (2) feature gate — when set, the box UI and commands are active. Unset → no box UI, commands rejected, integration routes deny. Also used as the outbound Bearer for the instant-push below. |
+| `HEIMDALL_BASE_URL` | *Optional.* Base URL of the Heimdall server (e.g. `https://heimdall.trublue.ch`). When set, the tracker fires a fire-and-forget notify to `…/api/tracker/notify` on box-relevant changes (Verschluss/Öffnen entry, Sperrzeit set/change/withdraw) so a **live** box gets the command instantly via MQTT instead of at its next sync. No-op if unset — the `pendingCommand`/config pull on the next box sync remains the fallback. |
 
-There are no other box-specific environment variables. Treat the secret like a
+Treat `HEIMDALL_SYNC_SECRET` like a
 production credential: if it leaks, anyone can read lock periods and write
 `BoxStatus`/`BoxEvent` for any username. It is rotatable (rotating briefly
 disables the feature).
@@ -47,35 +49,42 @@ disables the feature).
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| `GET` | `/api/integration/box/config?username=<name>` | Tracker → Heimdall **intent**: the active keyholder lock period (`{ sperrzeit: { endetAt, indefinite, reinigungErlaubt } \| null }`), which Heimdall folds into its own `lockUntil`. |
-| `POST` | `/api/integration/box/status` | Heimdall pushes the live box state on every sync (`username, boxId, name, locked` + optional `lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt`). Upserts `BoxStatus`. Returns any `pendingCommand` (+`relockBy`) and **deletes it on read** (consume-on-read; no ack). |
+| `GET` | `/api/integration/box/config?username=<name>` | Tracker → Heimdall **intent**: the active keyholder lock period (`{ sperrzeit: { endetAt, indefinite, reinigungErlaubt } \| null }`), which Heimdall folds into its own `lockUntil`. Nothing else — the cleaning rules (permission, windows, quota, max duration) stay in the tracker, which decides whether an opening is allowed and sends `open`. The box must not second-guess that: two rule sets over one question drift apart. |
+| `POST` | `/api/integration/box/status` | Heimdall pushes the live box state on every sync (`username, boxId, name, locked` + optional `lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt`). Upserts `BoxStatus`. Returns any `pendingCommand` and **deletes it on read** (consume-on-read; no ack). |
 | `POST` | `/api/integration/box/event` | Heimdall reports real box transitions: `type ∈ {LOCKED, UNLOCKED, EARLY_OPEN, UNAUTHORIZED_OPEN}` + optional `wakeReason, battery, fwVersion, at`. Stored as `BoxEvent`. |
 
 ### App side — called by the tracker UI (auth: NextAuth session)
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| `GET` | `/api/box` | Box status for the logged-in sub (the `+` menu). Overlays the pushed status with the tracker's own active lock period immediately (the pushed `BoxStatus` lags). Returns `[]` if Heimdall is disabled. |
-| `POST` | `/api/box/command` | Sub triggers a box action: `command ∈ {lock, open, clean_open}`. Sets the **intent** (`pendingCommand`) only; Heimdall applies it on the next sync. `open` is blocked while keyholder-locked / within a lock period; `clean_open` requires an active, permitted cleaning window with quota left and sets `relockBy`. |
+| `GET` | `/api/box` | Box status for the logged-in sub (status display only). Overlays the pushed status with the tracker's own active lock period immediately (the pushed `BoxStatus` lags). Returns `[]` if Heimdall is disabled. |
+
+There is **no** sub-facing command route. The box has no separate controls: it follows the
+`VERSCHLUSS`/`OEFFNEN` entries.
 
 ## Lifecycle
 
 - **Status sync (Heimdall → tracker):** every sync POSTs to `.../status`,
   upserting `BoxStatus`. Online heuristic: `lastSyncAt` within the last 10 min.
-- **Command flow (sub → box), pull-based:** `POST /api/box/command` stores
-  `pendingCommand`; nothing is pushed to the box. On the next `.../status` sync
-  the tracker returns the command and clears it (consume-on-read). If it is lost
-  (e.g. a crash) the sub simply re-issues it. The `+` menu polls `/api/box` every
-  3 s to reflect syncs / expired locks without reopening.
-- **Lock-period enforcement (tracker → box):** Heimdall pulls the active
-  keyholder lock period via `.../config` and folds `endetAt` into its `lockUntil`
-  (capped). Because the pushed `BoxStatus` lags the tracker's lock period,
-  `GET /api/box` overlays it locally and `POST /api/box/command` re-checks the
-  live lock period.
-
-Coupling to the normal `VERSCHLUSS`/`OEFFNEN` flow is currently loose: the box
-reads the lock period (config) and reports events (event); `clean_open` is wired
-into the existing cleaning system (window, quota).
+- **Command flow (entry → box):** creating a `VERSCHLUSS` entry sets
+  `pendingCommand = "lock"`, an `OEFFNEN` entry sets `"open"` (`lib/boxCommand.ts`,
+  inside the entry transaction). A **forbidden** opening — one that breaks a lock
+  period — sets nothing: documenting the offense must not execute it. Delivery is
+  two-way: a live box gets it instantly over MQTT (`lib/heimdallNotify.ts` →
+  Heimdall `/api/tracker/notify`), a sleeping one pulls it on its next `.../status`
+  sync, where the tracker returns and clears it (consume-on-read; no ack).
+- **Lock-period enforcement (tracker → box):** Heimdall pulls the active keyholder
+  lock period via `.../config` and folds `endetAt` into its `lockUntil`. This is a
+  **standing order**: the box re-derives "should I be closed?" from it on every
+  sync. A one-shot `open` cannot cancel it — which is why `open` additionally makes
+  Heimdall suspend it (`LockPolicy.holdOpen`) until the next `lock`.
+- **Cleaning pause:** `OEFFNEN` with reason `REINIGUNG` during a cleaning-permitted
+  lock period. The box opens and the lock period keeps running. Nothing re-locks it
+  by itself — the `VERSCHLUSS` entry does. Miss the deadline
+  (`reinigungRelockDeadline`) and the Strafbuch books the offense; the bolt stays
+  put. Heimdall is never told about cleaning, windows or deadlines: it drives an
+  open-loop stepper with no end-stop and no lid contact, so a deadline expiring
+  there would close the bolt unattended.
 
 ## Data models
 
@@ -83,7 +92,7 @@ into the existing cleaning system (window, quota).
 
 | Model | Purpose |
 |-------|---------|
-| `BoxStatus` | Live state of a user's box(es), pushed by Heimdall: `boxId, name, locked, lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt` + command fields (`pendingCommand, pendingCommandRelockBy, pendingCommandAt`). Unique `[userId, boxId]`. |
+| `BoxStatus` | Live state of a user's box(es), pushed by Heimdall: `boxId, name, locked, lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt` + command fields (`pendingCommand, pendingCommandAt`). Unique `[userId, boxId]`. |
 | `BoxEvent` | History of real box transitions (hardware truth): `type, wakeReason, battery, fwVersion, at`. Bound to the user; `deviceId` exists in the schema but is currently never set (the box is intentionally generic). |
 
 ## Keyholder view (MCP)
@@ -120,7 +129,13 @@ This is an MVP. Not yet implemented:
 - **Device binding** — `BoxEvent.deviceId` exists in the schema but is never set;
   the box is treated as generic (which belt is worn is inferred from the lock
   session).
-- **Cleaning / range rules in `config`** — only the bare lock period is delivered.
+- **Cleaning windows are delivered but not yet honoured** — `config` now carries
+  `reinigung.fenster` (the sub's cleaning time windows) alongside the lock period.
+  Until Heimdall reads that field, the box keeps whatever windows are configured
+  on it locally, and an edit in the tracker's admin UI has no effect on the
+  hardware. The tracker cannot verify the box's window behaviour, so it never
+  claims the bolt will follow just because a window is open — it only ever
+  predicts a hold from the box's own reported `lockUntil`.
 - **Multi-box per user** — the schema allows it (`@@unique([userId, boxId])`), but
   `get_box_state` only considers the most recently updated box.
 - **No command ack** — commands are consume-on-read; idempotency is the sub

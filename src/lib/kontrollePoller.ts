@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { sendKontrolleNotification, deriveSealCode, getLatestKgEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
-import { sendVerschlussAnforderungNotifications } from "@/lib/verschlussAnforderungService";
+import { LOCK_ENDED_REASON } from "@/lib/constants";
+import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { getLatestKgEntry, getIsLocked } from "@/lib/queries";
+import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
@@ -163,8 +165,9 @@ async function processInspectionEscalation(now: Date): Promise<void> {
 /**
  * Verschickt fällige, zeitversetzte VerschlussAnforderungen (wirksamAb erreicht, noch nicht
  * benachrichtigt). Sanity-Check analog Auto-Kontrolle: passt der aktuelle Lock-Zustand nicht
- * mehr zur Art (ANFORDERUNG bei bereits verschlossenem User, SPERRZEIT bei offenem User), wird
- * statt gesendet zurückgezogen. Fehler → benachrichtigtAt bleibt null (Retry nächster Tick).
+ * mehr zur Art (ANFORDERUNG bei bereits verschlossenem User, SPERRZEIT bei offenem User) ODER ist
+ * das Sperr-Ende schon vorbei, wird statt gesendet zurückgezogen. Fehler → benachrichtigtAt bleibt
+ * null (Retry nächster Tick).
  */
 async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
   const due = await prisma.verschlussAnforderung.findMany({
@@ -180,17 +183,22 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
 
   for (const va of due) {
     try {
-      const latest = await prisma.entry.findFirst({
-        where: { userId: va.userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-        orderBy: { startTime: "desc" },
-        select: { type: true },
-      });
-      const isLocked = latest?.type === "VERSCHLUSS";
+      const isLocked = await getIsLocked(va.userId);
       const art = va.art as "ANFORDERUNG" | "SPERRZEIT";
 
-      // Auslösung sinnlos geworden → zurückziehen statt senden.
-      if ((art === "ANFORDERUNG" && isLocked) || (art === "SPERRZEIT" && !isLocked)) {
-        await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { withdrawnAt: new Date() } });
+      // Auslösung sinnlos geworden → zurückziehen statt senden. Ein bereits abgelaufenes Sperr-Ende
+      // (dieselbe Regel wie im Service, siehe checkLockEnd) gehört in dieselbe Klasse: die Sperre
+      // wäre im Moment ihrer Auslösung schon vorbei, und die Mail meldete dem Sub „Gesperrt bis
+      // <Vergangenheit>". Defense in depth — der Service lässt solche Zeilen seit v4.50.30 weder
+      // anlegen noch ändern, ältere können aber noch in der DB liegen.
+      const obsolete = art === "ANFORDERUNG"
+        ? isLocked
+        : !isLocked || checkLockEnd(va.endetAt, va.wirksamAb, now) !== null;
+      if (obsolete) {
+        await prisma.verschlussAnforderung.update({
+          where: { id: va.id },
+          data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.obsolete },
+        });
         continue;
       }
 
@@ -201,6 +209,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         nachricht: va.nachricht,
         endetAtDate: va.endetAt,
         dauerH: va.dauerH,
+        sperrEndetAtDate: va.sperrEndetAt,
       });
       await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { benachrichtigtAt: new Date() } });
     } catch (e) {

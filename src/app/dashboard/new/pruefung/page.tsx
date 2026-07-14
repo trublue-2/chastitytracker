@@ -2,7 +2,8 @@ import Link from "next/link";
 import PruefungForm from "../../PruefungForm";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generateKontrollCode, getLatestKgEntry, sealRequiredForCode } from "@/lib/kontrolleService";
+import { generateKontrollCode, sealRequiredForCode } from "@/lib/kontrolleService";
+import { getLatestKgEntry } from "@/lib/queries";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 

@@ -5,15 +5,16 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getUserDeviceOptions, getIsLocked, activeVerschlussAnforderungWhere } from "@/lib/queries";
-import { bildersafeEnabled } from "@/lib/constants";
+import { bildersafeEnabled, heimdallEnabled } from "@/lib/constants";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 export default async function NewVerschlussPage() {
   const session = await auth();
   const userId = session!.user.id;
   const tz = session!.user.timezone ?? APP_TZ;
+  const heimdall = heimdallEnabled();
 
-  const [isLocked, dbUser, devices, offeneAnforderung] = await Promise.all([
+  const [isLocked, dbUser, devices, offeneAnforderung, boxes] = await Promise.all([
     getIsLocked(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
     getUserDeviceOptions(userId),
@@ -21,9 +22,14 @@ export default async function NewVerschlussPage() {
       where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere() },
       select: { deviceId: true },
     }),
+    heimdall ? prisma.boxStatus.findMany({ where: { userId }, select: { name: true } }) : Promise.resolve([]),
   ]);
 
   if (isLocked) redirect("/dashboard");
+
+  // Box-User (Heimdall aktiv + eigene Box): „Schlüssel ist in der Box"-Bestätigung statt Bildersafe.
+  const boxConfirm = heimdall && boxes.length > 0;
+  const boxName = boxes.map((b) => b.name).filter(Boolean).join(", ");
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("lockForm");
@@ -37,7 +43,9 @@ export default async function NewVerschlussPage() {
         mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
         devices={devices}
         anforderungDeviceId={offeneAnforderung?.deviceId ?? null}
-        bildersafe={bildersafeEnabled()}
+        bildersafe={!boxConfirm && bildersafeEnabled()}
+        boxConfirm={boxConfirm}
+        boxName={boxName}
       />
     </div>
   );

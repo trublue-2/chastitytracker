@@ -9,8 +9,9 @@ import OrgasmusForm from "../../OrgasmusForm";
 import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
-import { getUserDeviceOptions, getUserTimezone } from "@/lib/queries";
-import { getLatestKgEntry, sealRequiredForCode } from "@/lib/kontrolleService";
+import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry } from "@/lib/queries";
+import { entryManageAccess } from "@/lib/keyholder";
+import { sealRequiredForCode } from "@/lib/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
 
@@ -32,7 +33,6 @@ export default async function EditEntryPage({
     getTranslations("openForm"),
   ]);
   const { from, userId: adminUserId } = sp;
-  const isAdmin = session?.user?.role === "admin";
   const currentUserId = session?.user?.id;
   const [entry, dbUser] = await Promise.all([
     prisma.entry.findUnique({
@@ -45,8 +45,9 @@ export default async function EditEntryPage({
   ]);
   const mobileDesktopMode = dbUser?.mobileDesktopUpload ?? false;
   if (!entry) notFound();
-  // Allow access if own entry OR admin
-  if (entry.userId !== currentUserId && !isAdmin) notFound();
+  // Zugriff: eigener Eintrag ODER globaler Admin ODER Keyholder des Eigentümers (scoped admin).
+  const { allowed, elevated: isElevated } = await entryManageAccess(currentUserId, session?.user?.role, entry.userId);
+  if (!allowed) notFound();
 
   // All three depend only on entry.userId → run in parallel (one round-trip instead of three serial).
   // devices: only VERSCHLUSS uses them. wearDevices: only WEAR_BEGIN. tz: the data owner (entry.userId)
@@ -79,8 +80,8 @@ export default async function EditEntryPage({
   // Anti-cheat: non-admins may only shift times in the allowed direction.
   // WEAR_BEGIN behaves like VERSCHLUSS (forward only), WEAR_END like OEFFNEN (backward only).
   const originalTime = toDatetimeLocal(entry.startTime, tz);
-  const minTime = !isAdmin && (entry.type === "VERSCHLUSS" || entry.type === "PRUEFUNG" || entry.type === "WEAR_BEGIN") ? originalTime : undefined;
-  const maxTime = !isAdmin && (entry.type === "OEFFNEN" || entry.type === "ORGASMUS" || entry.type === "WEAR_END") ? originalTime : undefined;
+  const minTime = !isElevated && (entry.type === "VERSCHLUSS" || entry.type === "PRUEFUNG" || entry.type === "WEAR_BEGIN") ? originalTime : undefined;
+  const maxTime = !isElevated && (entry.type === "OEFFNEN" || entry.type === "ORGASMUS" || entry.type === "WEAR_END") ? originalTime : undefined;
 
   const redirectTo = from === "admin" && adminUserId
     ? `/admin/users/${adminUserId}/eintraege`

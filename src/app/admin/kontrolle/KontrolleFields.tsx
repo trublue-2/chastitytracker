@@ -7,6 +7,8 @@ import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 /**
  * Shared form body for "Kontrolle anfordern".
@@ -21,6 +23,7 @@ export default function KontrolleFields({
 }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const apiError = useApiError();
   const [kommentar, setKommentar] = useState("");
   const [deadlineH, setDeadlineH] = useState("4");
   const [saving, setSaving] = useState(false);
@@ -40,9 +43,8 @@ export default function KontrolleFields({
           deadlineH: parseFloat(deadlineH) || 4,
         }),
       });
-      const data = await res.json().catch(() => ({}));
       if (res.ok) onSuccess();
-      else setError(data.error || tc("error"));
+      else setError(apiError(await parseApiErrorCode(res)));
     } catch {
       setError(tc("networkError"));
     } finally {

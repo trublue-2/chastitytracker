@@ -5,6 +5,7 @@ export const ANFORDERUNG_PILLS: Record<string, { labelKey: string; cls: string }
   late:      { labelKey: "pillLate",      cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
   withdrawn: { labelKey: "pillWithdrawn", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
   scheduled: { labelKey: "pillScheduled", cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
+  missed:    { labelKey: "pillMissed",    cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
 };
 
 export const VERIFIKATION_PILLS: Record<string, { labelKey: string; cls: string }> = {
@@ -34,6 +35,7 @@ const ANFORDERUNG_KEYS: Record<string, string> = {
   withdrawn:   "pillWithdrawn",
   scheduled:   "pillScheduled",
   selfcontrol: "pillSelfcontrol",
+  missed:      "pillMissed",
 };
 
 const VERIFIKATION_KEYS: Record<string, string> = {
@@ -54,9 +56,11 @@ export function getKombinierterPill(
   verifikationStatus: string | null,
   t: (key: string) => string,
 ): { label: string; cls: string } | null {
-  // Offene / Überfällige / Zurückgezogene: keine Verifikation vorhanden
+  // Offene / Überfällige / Versäumte / Zurückgezogene: keine Verifikation vorhanden
   if (anforderungStatus === "open")      return { label: t("pillOpen"),         cls: ORANGE };
   if (anforderungStatus === "overdue")   return { label: t("pillOverdue"),      cls: RED };
+  // Versäumt: Frist verstrichen, nie beantwortet — die Eskalation hat das Gerät auto-entfernt.
+  if (anforderungStatus === "missed")    return { label: t("pillMissed"),       cls: RED };
   if (anforderungStatus === "withdrawn") return { label: t("pillWithdrawn"),    cls: GRAY };
 
   const aKey = anforderungStatus ?? "selfcontrol";

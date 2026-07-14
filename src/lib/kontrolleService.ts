@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml } from "@/lib/mail";
+import { sendMail, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
-import { sendPushToUser } from "@/lib/push";
+import { firePush } from "@/lib/push";
 import { trackEvent } from "@/lib/telemetry";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
-import { toLocale, inspectionHelpUrl } from "@/lib/constants";
-import type { ServiceResult } from "@/lib/serviceResult";
-import type { PrismaTx } from "@/lib/queries";
+import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
+import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
 
@@ -15,30 +16,37 @@ export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
  * Resolves an inspection by id: withdraw it, or manually verify / reject its submitted photo.
  * Shared by PATCH /api/admin/kontrollen/[id] and the MCP resolve_inspection tool.
  */
-export async function resolveKontrolle(id: string, action: KontrolleAction): Promise<ServiceResult<{ userId: string }>> {
+export async function resolveKontrolle(id: string, action: KontrolleAction): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
   const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
-  if (!ka) return { ok: false, status: 404, error: "Kontrolle nicht gefunden" };
+  if (!ka) return serviceFail(404, "INSPECTION_NOT_FOUND");
 
   if (action === "withdraw") {
-    if (ka.withdrawnAt) return { ok: false, status: 400, error: "Bereits zurückgezogen" };
+    if (ka.withdrawnAt) return serviceFail(400, "INSPECTION_ALREADY_WITHDRAWN");
     await prisma.kontrollAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
     trackEvent("kontrolle.withdrawn");
   } else if (action === "manuallyVerify" || action === "reject") {
-    if (!ka.entryId) return { ok: false, status: 400, error: "Keine Einreichung vorhanden" };
+    if (!ka.entryId) return serviceFail(400, "INSPECTION_NO_SUBMISSION");
     const verifikationStatus = action === "manuallyVerify" ? "manual" : "rejected";
     await prisma.entry.update({ where: { id: ka.entryId }, data: { verifikationStatus } });
     trackEvent(action === "manuallyVerify" ? "kontrolle.verified" : "kontrolle.rejected");
   } else {
-    return { ok: false, status: 400, error: "Unbekannte Aktion" };
+    return serviceFail(400, "UNKNOWN_ACTION");
   }
 
-  const notif: NotifyContent =
-    action === "manuallyVerify" ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage" }
-    : action === "reject" ? { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage" }
-    : { subjectKey: "inspectionResolvedWithdrawnSubject", messageKey: "inspectionResolvedWithdrawnMessage" };
-  await notifyUser(ka.userId, notif);
+  // Eine noch nicht ausgeloeste Kontrolle ist fuer den Sub unsichtbar (`wirksamAb` in der Zukunft) —
+  // ihren Rueckzug zu melden verriete sie. Bei Auto-Kontrollen waere es der Zufallsplan, dessen
+  // Ueberraschung der Sinn ist. Nur `withdraw` kann das treffen: `manuallyVerify`/`reject` setzen ein
+  // eingereichtes Foto voraus, die Kontrolle hat also laengst ausgeloest.
+  const notified = action !== "withdraw" || !isHiddenFromSub(ka);
+  if (notified) {
+    const notif: NotifyContent =
+      action === "manuallyVerify" ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage" }
+      : action === "reject" ? { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage" }
+      : { subjectKey: "inspectionResolvedWithdrawnSubject", messageKey: "inspectionResolvedWithdrawnMessage" };
+    await notifyUser(ka.userId, notif);
+  }
 
-  return { ok: true, data: { userId: ka.userId } };
+  return { ok: true, data: { userId: ka.userId, notified } };
 }
 
 /** Gültige Siegel-Nummer aus dem letzten Eintrag (5–8-stellig, nur bei aktivem VERSCHLUSS), sonst null.
@@ -47,19 +55,6 @@ export function deriveSealCode(latest: { type: string; kontrollCode: string | nu
   return latest?.type === "VERSCHLUSS" && latest.kontrollCode && /^\d{5,8}$/.test(latest.kontrollCode)
     ? latest.kontrollCode
     : null;
-}
-
-/** Letzter KG-Entry (VERSCHLUSS/OEFFNEN) eines Users — Basis für Lock-Zustand + Siegel-Ableitung.
- *  Optionaler tx-Client für Transaktionen (Muster wie queries.ts). Single source der „letzter
- *  Lock-Entry"-Query, damit sie nicht über Route/Page/Poller driftet (Feed für deriveSealCode).
- *  `deviceId` wird mitgeladen (winziges Feld), damit auch der Geräte-Check im entries-POST dieselbe
- *  Query teilen kann statt eine eigene Kopie zu halten — deriveSealCode ignoriert es. */
-export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = prisma) {
-  return tx.entry.findFirst({
-    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-    orderBy: { startTime: "desc" },
-    select: { type: true, kontrollCode: true, deviceId: true },
-  });
 }
 
 /** Die Siegel-Nummer, die bei der Kontrolle ZUSÄTZLICH zum Kontroll-Code auf dem Foto lesbar sein
@@ -139,29 +134,32 @@ export async function requestKontrolle(
   params: RequestKontrolleParams,
 ): Promise<ServiceResult<{ code: string; deadline: string; scheduledFor: string | null }>> {
   const { userId, kommentar, deadlineH, delayMinutes } = params;
-  if (!userId) return { ok: false, status: 400, error: "userId fehlt" };
+  if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return { ok: false, status: 404, error: "User nicht gefunden" };
-  if (!user.email) return { ok: false, status: 400, error: "User hat keine E-Mail-Adresse" };
+  if (!user) return serviceFail(404, "USER_NOT_FOUND");
+  if (!user.email) return serviceFail(400, "USER_NO_EMAIL");
 
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
   const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
   const now = new Date();
-  const wirksamAb =
-    typeof delayMinutes === "number" && delayMinutes > 0
-      ? new Date(now.getTime() + delayMinutes * 60 * 1000)
-      : null;
+  const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, { delayMinutes });
   // Frist läuft ab Auslösung (bei sofort = jetzt, bei geplant = wirksamAb).
   const deadline = new Date((wirksamAb ?? now).getTime() + hours * 60 * 60 * 1000);
 
   let code: string;
   let sealCode: string | null;
+  // Wurf- und Fang-Seite hängen an derselben Tabelle: `fail()` akzeptiert nur Codes, die unten
+  // auch gemappt werden — ein Tippfehler ist ein Compile-Fehler, kein stiller 500.
+  const { table: ERRORS, fail } = serviceErrors({
+    NOT_LOCKED: { status: 400, error: "USER_NOT_LOCKED" },
+    ALREADY_ACTIVE: { status: 409, error: "INSPECTION_ALREADY_ACTIVE" },
+  });
   try {
     const result = await prisma.$transaction(async (tx) => {
       const latest = await getLatestKgEntry(userId, tx);
       if (!latest || latest.type !== "VERSCHLUSS") {
-        throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
+        throw fail("NOT_LOCKED");
       }
 
       // Überschneidungs-Schutz: ablehnen statt eine bereits laufende Kontrolle stillschweigend zu
@@ -173,7 +171,7 @@ export async function requestKontrolle(
       // nur zwei transiente Zeilen, von denen eine ohnehin abläuft — ein DB-Constraint kann
       // "aktiv innerhalb der Frist" (now-abhängig) nicht ausdrücken, daher bewusst kein Index.
       if (await hasActiveKontrolle(userId, now, { tx })) {
-        throw Object.assign(new Error(), { _code: "ALREADY_ACTIVE" });
+        throw fail("ALREADY_ACTIVE");
       }
 
       // Immer frischer Zufallscode (Frische-Beweis) — die Siegel-Nummer wird bei der
@@ -188,7 +186,7 @@ export async function requestKontrolle(
           deadline,
           kommentar: kommentarTrimmed || null,
           wirksamAb,
-          benachrichtigtAt: wirksamAb ? null : now, // sofort = jetzt benachrichtigt; geplant = Poller
+          benachrichtigtAt, // sofort = jetzt benachrichtigt; geplant = Poller
         },
       });
 
@@ -197,12 +195,8 @@ export async function requestKontrolle(
     code = result.code;
     sealCode = result.sealCode;
   } catch (e: unknown) {
-    if ((e as { _code?: string })?._code === "NOT_LOCKED") {
-      return { ok: false, status: 400, error: "User ist nicht verschlossen" };
-    }
-    if ((e as { _code?: string })?._code === "ALREADY_ACTIVE") {
-      return { ok: false, status: 409, error: "Es ist bereits eine Kontrolle aktiv – zuerst abschliessen oder zurückziehen." };
-    }
+    const mapped = mapServiceError(e, ERRORS);
+    if (mapped) return mapped;
     throw e;
   }
 
@@ -237,13 +231,10 @@ export async function sendKontrolleNotification(opts: {
   const t = await emailT(locale);
 
   const hoursLeft = Math.max(1, Math.round((deadline.getTime() - Date.now()) / (60 * 60 * 1000)));
-  const kommentarHtml = kommentar
-    ? `<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">${t("inspectionAdminLabel")}</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(kommentar)}</p></div>`
-    : "";
+  const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const kommentarParam = kommentar ? `&kommentar=${encodeURIComponent(kommentar)}` : "";
-  const link = `${baseUrl}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
+  const link = `${appBaseUrl()}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
   const helpUrl = inspectionHelpUrl(locale);
   const deadlineStr = formatDateTime(deadline);
   const codeLabel = sealCode && !sealRequired
@@ -256,34 +247,34 @@ export async function sendKontrolleNotification(opts: {
   await sendMail(
     user.email,
     `KG-Tracker – ${t("inspectionRequestedSubject")}`,
-    `
-    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-      <h2 style="color:#1e293b">${t("inspectionRequestedSubject")}</h2>
-      ${emailGreeting(t, user.username)}
+    dashboardEmailHtml(
+      t("inspectionRequestedSubject"),
+      `${emailGreeting(t, user.username)}
       <p>${escHtml(t("inspectionRequestedIntro", { hours: hoursLeft }))}</p>
       ${kommentarHtml}
       <p><strong>${codeLabel}</strong></p>
       <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
       ${sealHintHtml}
-      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>
-      <p>
-        <a href="${link}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">
-          ${t("inspectionButton")}
-        </a>
-      </p>
-      <p style="color:#94a3b8;font-size:12px">${escHtml(t("inspectionLinkFallback", { link }))}</p>
-      <p style="color:#64748b;font-size:13px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px">${escHtml(t("inspectionHelpText"))} <a href="${helpUrl}" style="color:#4f46e5">${escHtml(t("inspectionHelpLink"))}</a></p>
-    </div>
-    `,
+      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>`,
+      t("inspectionButton"),
+      {
+        buttonColor: EMAIL_BUTTON_COLORS.inspection,
+        buttonHref: link,
+        // Link-Fallback + Hilfe-Footer stehen NACH dem Button — dafür gibt es den afterHtml-Slot.
+        afterHtml:
+          `<p style="color:#94a3b8;font-size:12px">${escHtml(t("inspectionLinkFallback", { link }))}</p>` +
+          `<p style="color:#64748b;font-size:13px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px">${escHtml(t("inspectionHelpText"))} <a href="${helpUrl}" style="color:${EMAIL_BUTTON_COLORS.default}">${escHtml(t("inspectionHelpLink"))}</a></p>`,
+      },
+    ),
   );
 
   const pushParts = [t("inspectionPushCode", { code }), t("inspectionPushDeadline", { deadline: deadlineStr })];
   if (sealRequired) pushParts.push(t("inspectionPushSeal"));
   if (kommentar) pushParts.push(kommentar);
-  sendPushToUser(
+  firePush(
     user.id,
     t("inspectionPushTitle"),
     pushParts.join(" · "),
     `/dashboard/new/pruefung?code=${code}`,
-  ).catch(() => { /* ignore push errors */ });
+  );
 }

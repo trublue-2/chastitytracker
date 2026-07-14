@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { mapAnforderungStatus, tzDateParts } from "@/lib/utils";
-import { activeVerschlussAnforderungWhere } from "@/lib/queries";
+import { mapAnforderungStatus, tzDateParts, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
+import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
+import { aktivesReinigungsFenster } from "@/lib/reinigungService";
+import { hhmmToMinutes } from "@/lib/autoKontrolleService";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
@@ -50,6 +52,23 @@ export interface StrafbuchData {
     nachricht: string | null;
     requiredArt: string | null;
   }[];
+  /** Verschluss-Anforderungen (lock requests) whose deadline (`endetAt`) passed without a timely VERSCHLUSS. */
+  lateLocks: {
+    id: string;
+    endetAt: Date;
+    fulfilledAt: Date | null;
+    nachricht: string | null;
+  }[];
+  /** REINIGUNG-Öffnungen during an active, cleaning-permitted Sperrzeit whose re-lock deadline
+   *  (active daily cleaning window's end, or open time + reinigungMaxMinuten as fallback) passed
+   *  without (or with a late) following VERSCHLUSS. */
+  cleaningNotRelocked: {
+    entryId: string;
+    startTime: Date;
+    deadline: Date;
+    relockAt: Date | null;
+    note: string | null;
+  }[];
   /** Judgment records — each marks an offense (by `refId`) as PUNISHED or DISMISSED. */
   strafeRecords: {
     refId: string;
@@ -63,14 +82,85 @@ export interface StrafbuchData {
   }[];
 }
 
+/** True if a Verschluss-Anforderung (lock request) deadline has passed without a timely
+ *  VERSCHLUSS — still open past `endetAt`, or fulfilled after `endetAt`. */
+export function isLateLock(a: { endetAt: Date; fulfilledAt: Date | null }, now: Date): boolean {
+  return isPastDeadlineUnfulfilled(a.endetAt, a.fulfilledAt, now);
+}
+
+/** Re-lock deadline for a REINIGUNG-Öffnung: the end of the active daily cleaning window (`fenster`)
+ *  if one was open at `openStartTime`, else open time + the user's max minutes per pause. A window
+ *  configured but not covering `openStartTime` also falls back to `maxMinuten` — never silently
+ *  skipped, since that case isn't otherwise detected as an offense. Windows never span midnight
+ *  (`parseReinigungsFenster` requires start < end), so the window end is always the same calendar
+ *  day as `openStartTime`. `dateAtLocalMinutes` resolves the window-end wall-clock time DST-safely
+ *  (a flat millisecond offset from midnight would be wrong on the ~2 days/year a DST transition
+ *  falls between midnight and the window end). */
+export function reinigungRelockDeadline(openStartTime: Date, maxMinuten: number, fenster: unknown, tz: string): Date {
+  const windowEnd = aktivesReinigungsFenster(fenster, openStartTime, tz);
+  if (windowEnd) return dateAtLocalMinutes(openStartTime, hhmmToMinutes(windowEnd), tz);
+  return new Date(openStartTime.getTime() + maxMinuten * 60 * 1000);
+}
+
+/** True if a REINIGUNG-Öffnung was not (or too late) followed by a VERSCHLUSS within `deadline`. */
+export function isCleaningNotRelocked(deadline: Date, relockAt: Date | null, now: Date): boolean {
+  return isPastDeadlineUnfulfilled(deadline, relockAt, now);
+}
+
+/** Finds the Sperrzeit active at `openTime` (if any) — shared by unauthorizedOpenings and
+ *  cleaningNotRelocked, which both need to know whether an OEFFNEN fell inside an active lock period. */
+function findActiveSperrzeit<S extends { createdAt: Date; endetAt: Date | null; withdrawnAt: Date | null }>(
+  openTime: Date, sperrzeiten: S[],
+): S | undefined {
+  return sperrzeiten.find((s) =>
+    openTime >= s.createdAt &&
+    (s.endetAt === null || openTime < s.endetAt) &&
+    (s.withdrawnAt === null || s.withdrawnAt > openTime),
+  );
+}
+
+/**
+ * Ab wann gilt das Reinigungsfenster als Schranke? Bis zu diesem Zeitpunkt prüfte weder die
+ * Durchsetzung noch das Strafbuch, ob eine Reinigungsöffnung in einem Fenster lag — sie war
+ * schlicht erlaubt. Das Strafbuch ist eine LIVE-Ableitung aus den Einträgen: ohne Stichtag würden
+ * mit dem Deploy rückwirkend Vergehen für Handlungen erscheinen, die zur Zeit der Tat erlaubt waren.
+ * Niemand soll für eine Regel belangt werden, die es damals nicht gab.
+ */
+const CLEANING_WINDOW_ENFORCED_FROM = new Date("2026-07-10T00:00:00Z");
+
+/** True if a REINIGUNG opening inside `sperre` doesn't break the Sperrzeit. Delegates to
+ *  {@link cleaningBlockReason} — the same rule the live enforcement applies — rather than restating
+ *  it. Restating it is exactly how the cleaning WINDOW went missing here: an opening outside the
+ *  window withdrew the Sperrzeit but was booked as neither an unauthorized opening nor anything
+ *  else. The lock broke and nothing was recorded.
+ *
+ *  Evaluated at the opening's own `startTime`, not at `now`: the Strafbuch keeps a record of the
+ *  past. (Live enforcement judges `now`, because that is when the bolt actually moves.) Ältere
+ *  Öffnungen als {@link CLEANING_WINDOW_ENFORCED_FROM} werden ohne Fenster-Prüfung beurteilt.
+ *
+ *  Shared by unauthorizedOpenings (inverted: an opening that ISN'T allowed is unauthorized) and
+ *  cleaningNotRelocked (only allowed openings can incur a missed-re-lock offense). */
+function isAllowedReinigungOpening(
+  o: { oeffnenGrund: string | null; startTime: Date },
+  sperre: { reinigungErlaubt: boolean } | undefined,
+  user: CleaningPermissionUser,
+): boolean {
+  if (!sperre || o.oeffnenGrund !== "REINIGUNG") return false;
+  const grandfathered = o.startTime < CLEANING_WINDOW_ENFORCED_FROM;
+  const effectiveUser = grandfathered ? { ...user, reinigungsFenster: null } : user;
+  return cleaningBlockReason(effectiveUser, [sperre], o.startTime) === null;
+}
+
 /** Computes the Strafbuch for a user: unauthorized openings during Sperrzeiten, late and
- *  rejected Kontrollen, REINIGUNG-limit violations, plus the punished-marker records.
- *  Single source of truth shared by the admin Strafbuch page and the MCP tool. */
+ *  rejected Kontrollen, REINIGUNG-limit violations, late locks, missed cleaning re-locks, plus
+ *  the punished-marker records. Single source of truth shared by the admin Strafbuch page and the MCP tool. */
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
-  const [user, oeffnungen, sperrzeiten, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true } }),
+  const [user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
+    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...activeVerschlussAnforderungWhere(now) } }),
+    prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...activeVerschlussAnforderungWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
       where: { userId, OR: [{ entryId: { not: null } }, { autoMarkedRemovedAt: { not: null } }] },
       include: { entry: true, autoMarkedEntry: true },
@@ -88,8 +178,16 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       openTime >= w.beginntAt && openTime <= w.endetAt &&
       (w.withdrawnAt === null || w.withdrawnAt > openTime),
     );
-  const userReinigungErlaubt = user?.reinigungErlaubt ?? false;
   const reinigungMaxProTag = user?.reinigungMaxProTag ?? 0;
+  const reinigungMaxMinuten = user?.reinigungMaxMinuten ?? 15;
+  const reinigungsFenster = user?.reinigungsFenster ?? null;
+  const subTz = user?.timezone ?? APP_TZ;
+  /** Genau die Felder, die `cleaningBlockReason` prüft — einmal gebündelt statt dreimal einzeln. */
+  const cleaningUser: CleaningPermissionUser = {
+    reinigungErlaubt: user?.reinigungErlaubt ?? false,
+    reinigungsFenster,
+    timezone: subTz,
+  };
 
   // Wrong-device: StrafeRecord.refId points at the offending VERSCHLUSS entry (für Geräte-Namen laden).
   const wrongDeviceRecords = strafeRecordsRaw.filter((r) => r.offenseType === "FALSCHES_GERAET");
@@ -128,26 +226,20 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     reinigungLimitViolations.reverse(); // neueste zuerst (Anzeige)
   }
 
+  // Each OEFFNEN paired with the Sperrzeit active at its startTime (if any) — computed once,
+  // shared by unauthorizedOpenings and cleaningNotRelocked below.
+  const oeffnungenMitSperre = oeffnungen.map((o) => ({ o, sperre: findActiveSperrzeit(o.startTime, sperrzeiten) }));
+
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
   // permitted when both the user flag and the Sperrzeit allow cleaning. System-authored openings
   // (source="system", the inspection-escalation auto-mark) are EXCLUDED: that's the sub's
   // presumed removal already counted once as `autoRemovedControls` — it's not a willful action by
   // the sub, so flagging it a second time here would double-punish a single ambiguous event.
-  const unauthorizedOpenings = oeffnungen
-    .filter((o) => o.source !== "system")
-    .map((o) => ({
-      o,
-      sperre: sperrzeiten.find((s) =>
-        o.startTime >= s.createdAt &&
-        (s.endetAt === null || o.startTime < s.endetAt) &&
-        (s.withdrawnAt === null || s.withdrawnAt > o.startTime),
-      ),
-    }))
-    .filter(({ o, sperre }) => {
-      if (!sperre) return false;
-      const allowedReinigung = o.oeffnenGrund === "REINIGUNG" && userReinigungErlaubt && sperre.reinigungErlaubt;
-      return !allowedReinigung && !isOrgasmusOpenAllowed(o.startTime);
-    })
+  const unauthorizedOpenings = oeffnungenMitSperre
+    .filter(({ o, sperre }) =>
+      o.source !== "system" &&
+      !!sperre && !isAllowedReinigungOpening(o, sperre, cleaningUser) && !isOrgasmusOpenAllowed(o.startTime),
+    )
     .map(({ o, sperre }) => ({
       id: o.id,
       startTime: o.startTime,
@@ -155,6 +247,27 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       sperrzeitEndetAt: sperre!.endetAt,
       sperrzeitIndefinite: sperre!.endetAt === null,
     }));
+
+  // Late locks — an ANFORDERUNG (lock request) whose deadline passed without a timely VERSCHLUSS.
+  const lateLocks = lockRequests
+    .filter((a): a is typeof a & { endetAt: Date } => a.endetAt !== null)
+    .filter((a) => isLateLock(a, now))
+    .map((a) => ({ id: a.id, endetAt: a.endetAt, fulfilledAt: a.fulfilledAt, nachricht: a.nachricht }));
+
+  // Cleaning not relocked — a REINIGUNG opening during an active, cleaning-permitted Sperrzeit
+  // whose re-lock deadline passed without a timely VERSCHLUSS. No offense if the Sperrzeit itself
+  // already ended before the deadline: once the Sperrzeit is over there's no further re-lock
+  // obligation left to violate, whether or not (or how late) the user eventually re-locks.
+  const cleaningNotRelocked = oeffnungenMitSperre
+    .filter(({ o, sperre }) => isAllowedReinigungOpening(o, sperre, cleaningUser))
+    .flatMap(({ o, sperre }) => {
+      const deadline = reinigungRelockDeadline(o.startTime, reinigungMaxMinuten, reinigungsFenster, subTz);
+      const sperrzeitCoversDeadline = sperre!.endetAt === null || sperre!.endetAt >= deadline;
+      const relockAt = verschluesse.find((v) => v.startTime > o.startTime)?.startTime ?? null;
+      return sperrzeitCoversDeadline && isCleaningNotRelocked(deadline, relockAt, now)
+        ? [{ entryId: o.id, startTime: o.startTime, deadline, relockAt, note: o.note }]
+        : [];
+    });
 
   const toControl = (k: typeof kontrollAnforderungen[number]): StrafbuchControlOffense => ({
     id: k.id,
@@ -199,6 +312,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endetAt < now)
       .sort((a, b) => b.endetAt.getTime() - a.endetAt.getTime())
       .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
+    lateLocks,
+    cleaningNotRelocked,
     strafeRecords: strafeRecordsRaw.map((r) => ({
       refId: r.refId,
       offenseType: r.offenseType,

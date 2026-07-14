@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
-import { sendPushToUser } from "@/lib/push";
+import { firePush } from "@/lib/push";
 
 /**
  * Content of a generic notification, expressed as i18n keys (namespace `emails`) rather than
@@ -40,5 +40,5 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
       dashboardEmailHtml(subject, `${emailGreeting(t, user.username)}<p>${escHtml(message)}</p>`, t("dashboardButton")),
     );
   }
-  sendPushToUser(userId, subject, message, url).catch(() => { /* ignore push errors */ });
+  firePush(userId, subject, message, url);
 }

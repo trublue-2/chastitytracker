@@ -6,6 +6,8 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
 import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
+import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 import type { DeviceOption } from "@/lib/queries";
 
 interface Props {
@@ -26,10 +28,14 @@ interface Props {
   devices?: DeviceOption[];
   anforderungDeviceId?: string | null;
   bildersafe?: boolean;
+  /** Box-User: „Schlüssel ist in der Box"-Bestätigung statt Bildersafe. */
+  boxConfirm?: boolean;
+  /** Name(n) der Box(en) des Users — in der „Schlüssel in Box"-Bestätigung angezeigt. */
+  boxName?: string;
 }
 
-export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe }: Props) {
-  const t = useTranslations("common");
+export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobileDesktopMode, redirectTo, devices, anforderungDeviceId, bildersafe, boxConfirm, boxName }: Props) {
+  const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
   const toast = useToast();
@@ -37,18 +43,11 @@ export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobil
   const target = redirectTo ?? "/dashboard";
 
   async function submitFn(payload: VerschlussPayload): Promise<SubmitResult> {
-    const url = initial ? `/api/entries/${initial.id}` : "/api/entries";
-    const init: RequestInit = {
-      method: initial ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    };
+    const [url, init] = entryRequest(initial?.id, payload);
+    // Nur beim Anlegen offline-queuefaehig; ein Edit braucht den echten Server.
     const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
     if (res === null) return { ok: true, offline: true };
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return { ok: false, error: err.error || t("savingError") };
-    }
+    if (!res.ok) return { ok: false, error: apiError(await parseApiErrorCode(res)) };
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
     return { ok: true };
   }
@@ -70,6 +69,8 @@ export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobil
       devices={devices}
       anforderungDeviceId={anforderungDeviceId}
       bildersafe={bildersafe}
+      boxConfirm={boxConfirm}
+      boxName={boxName}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}

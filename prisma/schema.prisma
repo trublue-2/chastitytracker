@@ -320,13 +320,21 @@ model VerschlussAnforderung {
   art              String // "ANFORDERUNG" | "SPERRZEIT"
   nachricht        String?
   endetAt          DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
-  dauerH           Float? // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT
+  dauerH           Float? // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
+  sperrEndetAt     DateTime? // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endetAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
   deviceId         String?
   device           Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   reinigungErlaubt Boolean   @default(false) // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
   createdAt        DateTime  @default(now())
   fulfilledAt      DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt      DateTime?
+  // WARUM withdrawnAt gesetzt wurde. Ohne dieses Feld sah eine vom Sub aufgebrochene Sperrzeit
+  // exakt aus wie eine, die die Keyholderin bewusst zurückgezogen hat — und wie eine, die es nie
+  // gab. Die Konsequenz verschwand spurlos aus dem Dashboard.
+  //   "keyholder" = bewusst zurückgezogen (withdraw / Admin-UI)
+  //   "opening"   = durch eine Öffnung des Subs unterbrochen (releaseSperrzeitenOnOpen)
+  // null = noch aktiv, ODER Altbestand vor v4.50.30 (dann ist die Endart nicht mehr rekonstruierbar).
+  endedReason      String?
   // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub
   // unsichtbar (gilt nicht als aktiv), Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
   wirksamAb        DateTime?
@@ -403,7 +411,7 @@ model StrafeRecord {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  offenseType   String // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" | "FALSCHES_GERAET" | "ORGASMUS_ANWEISUNG"
+  offenseType   String // "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "AUTO_ENTFERNT" | "VERSCHLUSS_ANFORDERUNG" | "REINIGUNG_LIMIT" | "FALSCHES_GERAET" | "ORGASMUS_ANWEISUNG" | "REINIGUNG_NICHT_VERSCHLOSSEN"
   refId         String    @unique
   bestraftDatum DateTime // Urteilszeitpunkt (bei PUNISHED = Strafdatum)
   notiz         String?
@@ -507,9 +515,9 @@ model BoxStatus {
   boltPos                String?
   fwVersion              String?
   lastSyncAt             DateTime?
-  // Vom Sub ausgelöstes, noch nicht vollzogenes Kommando.
-  pendingCommand         String? // "lock" | "open" | "clean_open"
-  pendingCommandRelockBy DateTime? // nur clean_open: Re-Lock-Frist
+  // Aus einem Eintrag abgeleitetes, noch nicht vollzogenes Kommando. Kein Reinigungs-Kommando und
+  // keine Frist: die Box öffnet auf "open" und bleibt offen, bis ein "lock" kommt.
+  pendingCommand         String? // "lock" | "open"
   pendingCommandAt       DateTime?
   updatedAt              DateTime  @updatedAt
 
@@ -529,6 +537,11 @@ model Entry {
   // imageUrl (offenes Siegel/Gerät). Wird erst freigegeben, wenn Öffnen erlaubt ist.
   codeImageUrl                  String?
   codeReadable                  Boolean? // detectSealNumber hat Ziffern erkannt (nur "lesbar ✓", Zahl wird NICHT gespeichert)
+  // Nur VERSCHLUSS: Deklaration des Subs, ob der Schlüssel in der Heimdall-Box liegt.
+  // false = er behält ihn (z.B. auf Reise) → die Box bekommt bewusst KEIN lock-Kommando
+  // (siehe boxCommand.ts). null = nicht gefragt (keine Box, Admin-Pfad, Alt-Client/Alt-Eintrag).
+  // Ohne dieses Feld wäre "nicht hardware-vollstreckt" nicht von "Box war offline" zu unterscheiden.
+  keyInBox                      Boolean?
   note                          String?
   oeffnenGrund                  String?
   orgasmusArt                   String?

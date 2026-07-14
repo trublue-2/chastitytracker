@@ -2,42 +2,10 @@
 
 import { useState, Fragment, useEffect, useRef } from "react";
 import { formatHours, toDateLocale } from "@/lib/utils";
+import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { useLocale, useTranslations } from "next-intl";
 
-export type DayEntry = {
-  type: string;
-  time: string;
-  note?: string | null;
-  orgasmusArt?: string | null;
-};
-
-export type DayVorgabe = {
-  minProTagH?: number | null;
-  minProWocheH?: number | null;
-  minProMonatH?: number | null;
-  minProJahrH?: number | null;
-  notiz?: string | null;
-};
-
-export type CalendarDayData = {
-  day: number;
-  dateLabel: string;
-  wearHours: number;
-  hasOrgasm: boolean;
-  dailyGoalMet: boolean | null;
-  colorClass: string;
-  entries: DayEntry[];
-  vorgabe: DayVorgabe | null;
-};
-
-export type CalendarMonthData = {
-  label: string;
-  weeks: (CalendarDayData | null)[][];
-  weekGoalMet: (boolean | null)[];
-  weekGoalPct: (number | null)[];
-  monthGoalMet: boolean | null;
-  monthGoalPct: number | null;
-};
+import type { DayEntry, DayVorgabe, CalendarDayData, CalendarMonthData } from "@/lib/statsTypes";
 
 export default function CalendarContainer({ months }: { months: CalendarMonthData[] }) {
   const locale = useLocale();
@@ -76,11 +44,8 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
     WEAR_END: t("typeWearEnd"),
   };
 
-  // Generate locale-aware short day names starting from Monday
-  const DAY_NAMES = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(2024, 0, 1 + i); // 2024-01-01 is a Monday
-    return date.toLocaleDateString(toDateLocale(locale), { weekday: "short" });
-  });
+  // Mo..So in der Anzeige-Sprache — dieselbe Quelle wie die Zeilen-Beschriftung der Jahres-Heatmap.
+  const DAY_NAMES = buildWeekdayLabels(toDateLocale(locale));
 
   return (
     <>

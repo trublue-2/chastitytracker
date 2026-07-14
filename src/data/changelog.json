@@ -1,5 +1,828 @@
 [
   {
+    "version": "4.50.42",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine versäumte Kontrolle wird in der Kontroll-Liste jetzt als „Nicht erfüllt\" ausgewiesen statt als „Zurückgezogen\". Beide sahen bisher gleich aus, weil die Eskalation beim Auto-Entfernen ebenfalls einen Rückzug vermerkt — aus der Liste war damit nicht mehr ablesbar, ob eine Kontrolle je beantwortet wurde.",
+          "en": "A missed inspection is now shown as \"Not fulfilled\" in the inspection list instead of \"Withdrawn\". The two looked identical until now, because the escalation also records a withdrawal when it auto-removes the device — so the list no longer revealed whether an inspection had ever been answered."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Versäumte Auto-Kontrollen wurden über Nacht gelöscht — mitsamt dem Vergehen, das im Strafbuch an ihnen hing. Der nächtliche Aufräumlauf entfernte alle zurückgezogenen Auto-Kontrollen und erkannte nicht, dass die Eskalation bei einem Versäumnis denselben Rückzugs-Vermerk setzt. Er verschont Versäumnisse jetzt; dieselbe Regel gilt für das Löschen von Hand.",
+          "en": "Missed automatic inspections were deleted overnight — along with the offense recorded against them in the penalty book. The nightly cleanup removed every withdrawn auto-inspection and failed to notice that the escalation records the same withdrawal marker on a missed one. It now spares missed inspections; the same rule applies to manual deletion."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zurückgezogene Kontrollen füllen die Kontroll-Liste des Subs nicht mehr — ein Rückzug (durch die Keyholderin, bei offenem Gürtel oder wegen einer überschneidenden Kontrolle) ist ein Nicht-Ereignis. Die Keyholder-Kontroll-History zeigt sie weiterhin.",
+          "en": "Withdrawn inspections no longer clutter the sub's inspection list — a withdrawal (by the keyholder, while unlocked, or because another inspection overlapped) is a non-event. The keyholder's inspection history still shows them."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Device-Nutzung in der Statistik zeigt pro Gerät zusätzlich Median, Min–Max und „zuletzt getragen\" — dieselben Kennzahlen, die der Keyholder-Chat nennt. Beide rechnen jetzt nachweislich gleich: Chat und Statistik-Seite können nicht mehr verschiedene Zahlen zur selben Frage zeigen.",
+          "en": "Device usage in the statistics now also shows median, min–max and \"last worn\" per device — the same figures the keyholder chat reports. Both now demonstrably compute the same way: chat and statistics page can no longer disagree on the same question."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Geräte-Statistik zählt jetzt Sessions statt Segmente: ein Gürtel, der über zwei Reinigungspausen hinweg drangeblieben ist, war bisher „drei Nutzungen\", obwohl er nur einmal angelegt wurde. Die Stunden bleiben unverändert (Pausen weiterhin abgezogen).",
+          "en": "Device statistics now count sessions instead of segments: a belt worn continuously across two cleaning breaks used to count as \"three uses\" although it was only put on once. The hours are unchanged (breaks are still deducted)."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Karte „Pro Kategorie\" auf der Statistik-Seite entfällt — ihre Zahlen stehen bereits in der Device-Nutzung.",
+          "en": "The \"By category\" card on the statistics page has been removed — its figures are already in the device usage card."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.41",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Tragestunden einer Geräte-Kategorie (Heute/Woche/Monat/Jahr, Statistik und Ziel-Erfüllung) waren zu hoch, sobald zwei Geräte derselben Kategorie gleichzeitig getragen wurden: die Zeit wurde je Kategorie statt je Gerät gepaart, wodurch ein erfundenes Intervall entstand, das mit jedem Seitenaufruf weiterwuchs — ein Trainingsziel konnte sich dadurch endlos von selbst erfüllen. Die Stunden kommen jetzt aus denselben geräteweisen Sessions wie die Session-Liste. Zwei gleichzeitig getragene Plugs zählen ihre gemeinsame Zeit einmal (Wanduhr-Zeit): 2 Stunden bleiben 2 Stunden, nicht 4. Die Session-Kennzahlen (Anzahl, längste, Ø-Dauer) zählen weiterhin je Gerät.",
+          "en": "The wear hours of a device category (today/week/month/year, statistics and goal fulfilment) were too high whenever two devices of the same category were worn at the same time: the time was paired per category instead of per device, which invented an interval that kept growing with every page load — a training goal could fulfil itself indefinitely. The hours now come from the same per-device sessions as the session list. Two plugs worn simultaneously count their shared time once (wall-clock time): 2 hours stay 2 hours, not 4. Session figures (count, longest, average) still count per device."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.40",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Device-Nutzung in der Statistik lässt sich jetzt zwischen KG und den Geräte-Kategorien umschalten — wie schon der Tragekalender. Bisher zeigte sie ausschliesslich Keuschheitsgürtel: Plugs, Halsbänder und Knebel tauchten nirgends mit Tragezeit, Ø-Dauer und Kosten pro Stunde auf. Die Kategorie-Zahlen werden je GERÄT gepaart, zwei gleichzeitig getragene Plugs zählen also getrennt.",
+          "en": "Device usage in the statistics can now be switched between KG and the device categories — just like the wear calendar already could. Until now it only ever showed chastity devices: plugs, collars and gags appeared nowhere with their wear time, average duration and cost per hour. Category figures are paired per DEVICE, so two plugs worn at once are counted separately."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.39",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Trage-Sessions der anderen Kategorien im Dashboard werden jetzt je GERÄT gepaart statt je Kategorie. Wer zwei Geräte derselben Kategorie gleichzeitig trug (z.B. zwei Plugs), sah bisher erfundene Dauern: das Ende des einen Geräts schloss auf den Beginn des anderen, eine Session fehlte ganz. Jetzt erscheint jedes Gerät als eigene Zeile mit seiner echten Dauer.",
+          "en": "The dashboard's wear sessions for other categories are now paired per DEVICE instead of per category. Wearing two devices of the same category at once (e.g. two plugs) produced invented durations: one device's end closed against the other's begin, and one session vanished entirely. Each device now shows as its own row with its real duration."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.38",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "`get_session` zeigt jetzt die Sessions ALLER Kategorien, nicht nur die des Keuschheitsgürtels. Trage-Sessions von Plug, Halsband und Knebel waren bisher nirgends einzeln abrufbar — das einzige Tool, das sie je auflistete, fiel mit der alten Werkzeug-Generation weg. Jede Session nennt ihre Kategorie und lässt sich danach filtern. Gepaart wird je GERÄT: zwei Plugs gleichzeitig getragen ergeben zwei getrennte Sessions statt einer falschen.",
+          "en": "`get_session` now returns sessions for ALL categories, not just the chastity device. Wear sessions for plugs, collars and gags could not be listed individually anywhere — the only tool that ever did so disappeared with the old tool generation. Every session names its category and can be filtered by it. Pairing is per DEVICE: two plugs worn at once yield two separate sessions instead of one wrong one."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Geräte-Statistik und die Session-Ansicht leiten die Trage-Sessions jetzt aus derselben Quelle ab, statt sie zweimal unterschiedlich zu rekonstruieren.",
+          "en": "Device statistics and the session view now derive wear sessions from one shared source instead of reconstructing them twice in different ways."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.37",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Geräte-Statistik zeigt wieder ALLE Geräte. Plugs, Halsbänder und Knebel tauchten dort überhaupt nicht auf — weder unter ihrem Namen noch im Sammel-Posten „ohne Gerät\". Die Zuordnung in den Rohdaten stimmte; die Auswertung kannte schlicht nur Verschluss-/Öffnen-Paare und ignorierte die Trage-Zyklen der anderen Kategorien. Jede Zeile nennt jetzt zusätzlich ihre Kategorie, womit auch der Sammel-Posten eindeutig ist. Gepaart wird je GERÄT: zwei Plugs gleichzeitig getragen bekommen jeder ihre eigene Dauer.",
+          "en": "Device statistics show ALL devices again. Plugs, collars and gags never appeared at all — neither by name nor in the \"no device\" bucket. The raw data was correctly attributed; the aggregation simply only knew lock/unlock pairs and ignored the wear cycles of every other category. Each row now also names its category, which makes the collective bucket unambiguous too. Pairing is per DEVICE: two plugs worn at the same time each get their own duration."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Das Keyholder-Dashboard zeigt eine offene Verschluss-Anforderung an (mit Frist und Überfälligkeit). Bisher liess sie sich stellen, aber ihr Zustand nirgends ablesen.",
+          "en": "The keyholder dashboard now shows an open lock request (with deadline and overdue flag). Until now one could be issued but its state read nowhere."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die veralteten MCP-V1-Tools sind entfernt: get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes sowie die V1-Notiz-Writes — samt dem Schalter ENABLE_LEGACY_MCP, der sie ein- und ausschaltete. Die V2-Tools ersetzen sie vollständig. list_entries und explain_model hatten keine V2-Entsprechung und bleiben.",
+          "en": "The deprecated MCP V1 tools are gone: get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes and the V1 note writes — along with the ENABLE_LEGACY_MCP flag that toggled them. The V2 tools fully replace them. list_entries and explain_model had no V2 equivalent and stay."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.36",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Reinigungs-Re-Lock (Box) nutzt jetzt das vollständige Verschluss-Formular: Neben dem Foto sind auch Geräte-Auswahl und Siegelnummer wieder verfügbar. Die abgespeckte Sonderbehandlung wurde entfernt.",
+          "en": "Re-locking after a cleaning break (box) now uses the full lock form: besides the photo, device selection and seal number are available again. The stripped-down special case has been removed."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.35",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Keyholder können Einträge ihrer zugewiesenen Subs jetzt bearbeiten und löschen. Bisher war das Bearbeiten nur für globale Admins freigeschaltet — Keyholder landeten beim Öffnen des Formulars zurück auf der Übersicht.",
+          "en": "Keyholders can now edit and delete entries of their assigned subs. Previously editing was only enabled for global admins — keyholders were bounced back to the overview when opening the form."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.34",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Wiederverschliessen nach einer Reinigungspause (Box) lässt sich nun wieder ein optionales Foto anhängen; der Hinweis «kein neues Foto nötig» entfällt.",
+          "en": "When re-locking after a cleaning break (box), an optional photo can be attached again; the \"no new photo needed\" hint has been removed."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.33",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Laufen mehrere Sperrzeiten gleichzeitig, gilt jetzt überall die strengste: das späteste Ende (unbefristet schlägt alles), und Reinigungsöffnungen nur, wenn JEDE laufende Sperre sie erlaubt. Bisher gewann die zuletzt angelegte — die Box konnte dadurch früher aufgehen, als die Keyholderin angeordnet hatte.",
+          "en": "When several lock periods run at once, the strictest one now applies everywhere: the latest end (indefinite beats any date), and cleaning openings only if EVERY running lock period allows them. Previously the most recently created one won — which could let the box open earlier than the keyholder had ordered."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP edit_lock_period ändert nun gezielt die AUSGELÖSTE Sperrzeit statt der zuletzt angelegten und meldet alle weiteren offenen mit id zurück; über den neuen Parameter id lässt sich auch eine geplante direkt ansprechen. withdraw target=\"lock_period\" sagt jetzt, wie viele der stornierten Sperrzeiten aktiv und wie viele erst geplant waren.",
+          "en": "MCP edit_lock_period now targets the TRIGGERED lock period instead of the most recently created one and returns any other open ones with their id; the new id parameter addresses a scheduled one directly. withdraw target=\"lock_period\" now reports how many of the withdrawn lock periods were active and how many were merely scheduled."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.32",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Angabe „Schlüssel liegt in der Box\" wird jetzt am Verschluss gespeichert. Bisher steuerte sie nur, ob die Box verriegelt — danach war sie weg. Für die Keyholderin sah „er hat sich eingeschlossen, nimmt den Schlüssel aber mit\" deshalb genau gleich aus wie „die Box war offline und hat den Befehl nie bekommen\". Der Keyholder-MCP zeigt die Angabe jetzt im Verschluss- und im Box-Zustand: eine Sperre ohne Hardware-Vollstreckung nennt damit ihren Grund. Keine Angabe (kein Box-Nutzer, Admin-Eintrag, ältere Einträge) bleibt „nicht erklärt\" — und ist ausdrücklich kein „nein\"; die Box verhält sich dort exakt wie bisher.",
+          "en": "The “key is in the box” declaration is now stored on the lock entry. Until now it only decided whether the box bolted shut, and was then discarded — so from the keyholder's side, “he locked up but travels with the key” looked exactly like “the box was offline and never got the command”. The keyholder MCP now reports the declaration in both the lock and the box state, so a lock that isn't hardware-enforced states its reason. No declaration (no box, admin-created entry, older entries) stays “not declared” — explicitly not a “no” — and the box behaves exactly as before."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine unsinnige Schlüssel-Angabe (etwa der Text „false\" statt eines echten Ja/Nein) wird jetzt abgewiesen, statt als „ja\" durchzurutschen und die Box verriegeln zu lassen.",
+          "en": "A malformed key declaration (e.g. the text “false” instead of a real yes/no) is now rejected instead of slipping through as “yes” and letting the box lock."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.31",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Versäumnis hebt keine Sperrzeit mehr auf. Bucht das System eine unbeantwortete Kontrolle als „Gerät vermutlich abgenommen\", galt das bisher als Öffnung — und zog eine laufende Sperrzeit spurlos zurück. Ausgerechnet das Versäumnis räumte damit die Konsequenz aus dem Weg, die es nach sich ziehen soll. Solche vermuteten Öffnungen lassen die Sperrzeit jetzt unberührt (sie öffnen die Box ohnehin nicht).",
+          "en": "A missed inspection no longer cancels a lock period. When the system booked an unanswered inspection as “device presumably removed”, that counted as an opening and silently withdrew a running lock period — so the very lapse that should carry a consequence removed it instead. Such presumed openings now leave the lock period untouched (they never open the box anyway)."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine beendete Sperrzeit verschwindet nicht mehr spurlos: Der Tracker hält jetzt fest, WARUM sie endete (zurückgezogen, durch eine Öffnung beendet, oder vom Poller verworfen). Wurde sie durch eine Öffnung beendet, bevor ihr ursprüngliches Ende erreicht war, zeigt das Keyholder-Dashboard sie weiterhin an — mit ursprünglichem Ende und Zeitpunkt der Unterbrechung. Bisher war „unterbrochen\" nicht von „abgelaufen\", „zurückgezogen\" und „gab es nie\" zu unterscheiden.",
+          "en": "A lock period that ends no longer vanishes without a trace: the tracker now records WHY it ended (withdrawn, ended by an opening, or discarded by the poller). If an opening ended it before its original end was reached, the keyholder dashboard keeps showing it — with the original end date and the time of the interruption. Until now “interrupted” was indistinguishable from “expired”, “withdrawn” and “never existed”."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Keyholder sieht wieder alle Vergehen: Kontrollen, die als „Gerät vermutlich abgenommen\" abgeschlossen wurden, zählten zwar mit, wurden aber nie ausgegeben. Damit fehlte ausgerechnet diesem Vergehen die Referenz, über die es beurteilt wird — es war sichtbar, aber nicht beurteilbar. Die Vergehens-Liste leitet sich jetzt aus einer einzigen Quelle ab, damit Zähler und Ausgabe nicht wieder auseinanderlaufen können.",
+          "en": "The keyholder sees every offense again: inspections closed as “device presumably removed” were counted but never listed, so this offense had no reference to judge it by — visible, yet impossible to act on. The offense list is now derived from a single source, so the counter and the output cannot drift apart again."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Verschluss-Formular erzwingt keine Falschangabe mehr. Bisher liess sich ein Verschluss nur speichern, wenn „Schlüssel ist in der Box\" bestätigt war — wer den Schlüssel behält (etwa auf Reise), musste lügen. Die Angabe ist jetzt wahrheitsgemäss: Steht sie auf „nein\", verriegelt die Box nicht und meldet der Keyholderin auch keinen Hardware-Verschluss, den es gar nicht gibt.",
+          "en": "The lock form no longer forces a false statement. Until now an entry could only be saved with “the key is in the box” confirmed — anyone keeping the key (while travelling, say) had to lie. The answer is now truthful: set it to “no” and the box does not lock, and no longer reports a hardware-enforced lock to the keyholder that does not exist."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.30",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine im Voraus geplante Sperrzeit kann kein Ende mehr bekommen, das vor ihrem Auslösezeitpunkt liegt — bisher liess sich so eine Sperre anlegen oder ändern, die im Moment des Auslösens bereits abgelaufen war und dem Sub „Gesperrt bis <Datum in der Vergangenheit>\" meldete. Zusätzlich zieht der Poller eine fällige Sperrzeit mit bereits abgelaufenem Ende zurück, statt sie zu melden.",
+          "en": "A lock period scheduled in advance can no longer be given an end that lies before its trigger time — until now this allowed creating or editing a lock that was already expired the moment it triggered, telling the sub “locked until <date in the past>”. In addition, the poller now withdraws a due lock period whose end has already passed instead of announcing it."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.29",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ändert oder storniert die Keyholderin eine im Voraus geplante Sperrzeit oder Kontrolle, bekommt der Sub keine Mail mehr — die Direktive sollte für ihn ja noch gar nicht sichtbar sein. Er erfährt sie erst, wenn sie auslöst, und dann mit dem korrigierten Datum.",
+          "en": "If the keyholder changes or cancels a lock period or inspection scheduled in advance, the sub no longer receives an e-mail — the directive was not supposed to be visible to them yet. They learn about it when it triggers, and then with the corrected date."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zieht die Keyholderin eine Sperrzeit über die Oberfläche zurück, erfährt die Box das jetzt sofort statt erst beim nächsten Abgleich.",
+          "en": "When the keyholder withdraws a lock period via the interface, the box now learns about it immediately instead of at its next sync."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.28",
+    "date": "2026-07-11",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Verschliessen mit einer Box nennt die Schlüssel-in-Box-Bestätigung jetzt den Namen der Box.",
+          "en": "When locking with a box, the key-in-box confirmation now shows the box name."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Alle vom KI-Keyholder (MCP) gesendeten Direktiven werden jetzt in den Serverlogs protokolliert.",
+          "en": "All directives sent by the AI keyholder (MCP) are now recorded in the server logs."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.27",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Wird eine Reinigungsöffnung ausserhalb des Fensters abgelehnt, nennt der Öffnen-Dialog jetzt das nächste Reinigungsfenster — bisher stand nur da, dass es gerade nicht geht.",
+          "en": "When a cleaning opening is rejected outside the window, the opening dialog now names the next cleaning window — previously it only said it was not possible right now."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.26",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "security",
+        "text": {
+          "de": "Eine Reinigungsöffnung ausserhalb des Reinigungsfensters brach die Sperrzeit, erschien aber in keinem Strafbuch. Sie wird jetzt als unerlaubtes Öffnen gebucht. Ältere Einträge bleiben unangetastet — niemand wird für eine Regel belangt, die es zur Zeit der Tat nicht gab.",
+          "en": "A cleaning opening outside the cleaning window broke the lock period but appeared in no offense record. It is now booked as an unauthorised opening. Older entries are left untouched — nobody is charged under a rule that did not exist at the time."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Verbietet die laufende Sperrzeit Reinigungsöffnungen, versprach die Box-Karte trotzdem „Reinigungsfenster offen bis …\". Sie nennt jetzt den Grund, und das Tageskontingent verschwindet.",
+          "en": "When the active lock period forbids cleaning openings, the box card still promised “cleaning window open until …”. It now states the reason, and the daily quota disappears."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Öffnen-Dialog sagt jetzt, warum eine Reinigungsöffnung nicht geht: keine Erlaubnis, diese Sperre verbietet es, oder ausserhalb des Fensters. Bisher stand dort in allen drei Fällen dasselbe.",
+          "en": "The opening dialog now says why a cleaning opening is not possible: no permission, this lock period forbids it, or outside the window. Previously all three cases showed the same text."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "„Trotzdem öffnen\" nennt bei Box-Nutzern die wahre Folge: die Box öffnet nicht, der Eintrag dokumentiert nur. Der Riegel löst sich allein mit dem Notschlüssel.",
+          "en": "For box users, “Open anyway” now names the real consequence: the box does not open, the entry only records. The bolt releases only with the emergency key."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Jede Sperrzeit-Anzeige nennt jetzt, ob sie Reinigungsöffnungen erlaubt. Die Beschriftungen der beiden Reinigungs-Einstellungen sagen, wofür sie gelten.",
+          "en": "Every lock-period display now states whether it permits cleaning openings. The labels of the two cleaning settings now say what they apply to."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.25",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Während einer Reinigungspause zeigte die Box-Anzeige „wird geschlossen — wartet auf Box-Sync\", obwohl die Box offen bleiben soll. Ein Tastendruck an der Box änderte deshalb nichts: es gab nichts zu übernehmen.",
+          "en": "During a cleaning pause the box display showed \"closing — waiting for box sync\", although the box is meant to stay open. Pressing the button on the box therefore did nothing: there was nothing to apply."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bleibt der Sofort-Befehl an eine wache Box aus, steht das jetzt im Server-Log. Bisher verschwand er spurlos, und es sah aus wie ein Fehler der Box.",
+          "en": "If the instant command to an awake box is not delivered, it is now recorded in the server log. Previously it vanished without a trace and looked like a fault of the box."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.24",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine erlaubte Reinigungsöffnung öffnet die Box jetzt tatsächlich. Bisher entstand der Eintrag, das Tageskontingent wurde verbraucht und die Session unterbrochen — der Riegel blieb aber zu, ohne Vergehen und ohne Meldung.",
+          "en": "A permitted cleaning opening now actually opens the box. Previously the entry was created, the daily quota was used up and the session interrupted — but the bolt stayed shut, with no offense and no notice."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Reinigungsfenster sind jetzt eine echte Schranke: Wer ausserhalb eines konfigurierten Fensters zur Reinigung öffnet, bricht die Sperrzeit — die Box bleibt zu und das Strafbuch bucht. Bisher wurden die Fenster beim Öffnen gar nicht geprüft. Sind keine Fenster eingestellt, ist die Reinigung wie bisher jederzeit erlaubt.",
+          "en": "The cleaning windows are now a real gate: opening for cleaning outside a configured window breaks the lock period — the box stays shut and the offense is booked. Until now the windows were never checked when opening. With no windows configured, cleaning remains permitted at any time."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Die Box verriegelt nach einer Reinigungspause nicht mehr von selbst. Sie bleibt offen, bis der Verschluss eingetragen wird — der Riegel fährt nur noch, wenn jemand davorsteht.",
+          "en": "The box no longer re-locks itself after a cleaning pause. It stays open until the lock entry is recorded — the bolt only moves when someone is present."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.23",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Erfassen einer Öffnung steht jetzt da, wenn die Box nicht aufgehen wird: der Eintrag entsteht trotzdem, verbraucht eine Reinigungsöffnung und unterbricht die Session — bisher passierte das ohne jeden Hinweis.",
+          "en": "When recording an opening, it now says when the box will not open: the entry is still created, uses up a cleaning opening and interrupts the session — previously this happened without any notice."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Box-Karte auf der Übersicht zeigt die Reinigungsfenster und das heutige Kontingent. Der Sub konnte bisher nirgends nachsehen, wann die Box den Schlüssel freigibt.",
+          "en": "The box card on the overview now shows the cleaning windows and today's quota. Until now the sub had no way to look up when the box releases the key."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.22",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Antwort der MCP-Keyholder-Übersicht ist jetzt durch Tests abgesichert: Feldbestand und Reihenfolge der Felder werden festgehalten, damit ein Umbau sie nicht mehr unbemerkt verändern kann.",
+          "en": "The MCP keyholder overview response is now covered by tests: its field set and field order are pinned, so a refactor can no longer change them unnoticed."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.21",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP keyholder_dashboard: Die offene Kontrolle zeigt jetzt den Kommentar des Keyholders, das Orgasmus-Fenster seine Nachricht — beides war bisher nur im veralteten get_overview sichtbar.",
+          "en": "MCP keyholder_dashboard: the open inspection now shows the keyholder's comment and the orgasm window its message — both were previously only visible in the deprecated get_overview."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "MCP keyholder_dashboard führt vier überflüssige Datenbank-Abfragen weniger aus: es holte seinen Live-Zustand über die Antwort des veralteten get_overview und schleppte deren ungenutzte Felder mit.",
+          "en": "MCP keyholder_dashboard now runs four fewer redundant database queries: it obtained its live state through the deprecated get_overview response and carried along its unused fields."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Verschluss- und Anforderungs-Ableitungen der MCP-Werkzeuge liegen jetzt in einer gemeinsamen, datenbankfreien Schicht mit eigenen Tests — statt dass ein Werkzeug durch das andere hindurchgreift.",
+          "en": "The lock and request derivations of the MCP tools now live in a shared, database-free layer with its own tests — instead of one tool reaching through the other."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.20",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Keyholder-Übersicht im MCP antwortet schneller: sie las die Eintrags-Historie zweimal pro Aufruf und berechnete Trainingsziele und Tragestunden doppelt. Beides läuft jetzt einmal.",
+          "en": "The keyholder overview in the MCP responds faster: it read the entry history twice per call and computed training goals and wear hours twice. Both now run once."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.19",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Wochentags-Beschriftung der Statistik begann in Zeitzonen weit östlich (z.B. Neuseeland) fälschlich mit Dienstag statt Montag.",
+          "en": "The weekday labels in the statistics wrongly started with Tuesday instead of Monday in far-eastern timezones (e.g. New Zealand)."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Statistik-Seite berechnet die Tagesübersicht für Kalender und Jahres-Heatmap nur noch einmal statt zweimal pro Aufruf.",
+          "en": "The statistics page now computes the per-day overview for the calendar and the year heatmap once instead of twice per request."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Statistik-Berechnungen (Kalender, Heatmap, Monatsübersicht) liegen jetzt getrennt von der Darstellung und sind durch 25 eigene Tests abgedeckt.",
+          "en": "The statistics calculations (calendar, heatmap, month overview) now live separately from the presentation and are covered by 25 dedicated tests."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Blau-Skala der Tragezeit hat nur noch eine Quelle — Monatskalender, Jahres-Heatmap und deren Legende können nicht mehr auseinanderdriften.",
+          "en": "The blue wear-time scale now has a single source — the month calendar, the year heatmap and its legend can no longer drift apart."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.18",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fehlermeldungen beim Anlegen und Bearbeiten von Geräten erscheinen jetzt in der eingestellten Sprache statt immer auf Deutsch.",
+          "en": "Error messages when creating and editing devices now appear in the selected language instead of always German."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Beschreibungsfeld eines Geräts begrenzt die Eingabe jetzt direkt, statt sie erst beim Speichern abzulehnen.",
+          "en": "A device's description field now limits input directly, instead of only rejecting it on save."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.17",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fehlermeldungen von Kontrollen, Sperrzeiten, Orgasmus-Anforderungen, Trainingszielen und Geräte-Referenzfotos erscheinen jetzt in der eingestellten Sprache statt immer auf Deutsch.",
+          "en": "Error messages for inspections, lock periods, orgasm directives, training goals and device reference photos now appear in the selected language instead of always German."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Schlägt das Hochladen eines Referenzfotos fehl (etwa weil die Datei zu gross ist), erscheint jetzt eine Upload-Meldung statt eines generischen „Fehler“.",
+          "en": "If uploading a reference photo fails (for example because the file is too large), an upload-specific message now appears instead of a generic \"Error\"."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Löschen einer bereits entfernten Kontrolle oder Sperrzeit stand fälschlich „Eintrag nicht gefunden“ — jetzt „Nicht gefunden“.",
+          "en": "Deleting an already-removed inspection or lock period wrongly said \"Entry not found\" — now \"Not found\"."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Dienste geben Fehler jetzt als stabile Codes zurück, die ein Test gegen beide Sprachdateien abgleicht — ein fehlender Übersetzungstext fällt beim Bauen auf statt erst beim Benutzer.",
+          "en": "The services now return errors as stable codes that a test checks against both language files — a missing translation surfaces at build time instead of in front of a user."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.16",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fehlermeldungen beim Erfassen und Bearbeiten von Eintraegen erschienen immer auf Deutsch, auch bei englischer Spracheinstellung. Sie werden jetzt in der eingestellten Sprache angezeigt.",
+          "en": "Error messages when creating or editing entries always appeared in German, even with the language set to English. They now follow the selected language."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Eintrags-Routen antworten mit stabilen Fehler-Codes statt fertiger Saetze; ein Test stellt sicher, dass zu jedem Code eine Uebersetzung in beiden Sprachen existiert.",
+          "en": "The entry routes now answer with stable error codes instead of finished sentences; a test enforces that every code has a translation in both languages."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.15",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Ändern der Einstellungen für automatische Kontrollen würfelte den kompletten Tagesplan neu. Bestehende Kontrollzeiten bleiben jetzt stehen, solange sie die neuen Einstellungen erfüllen — nur Zeiten, die gegen Ruhefenster oder Frist verstossen, werden ersetzt.",
+          "en": "Changing the automatic inspection settings re-rolled the entire day’s schedule. Existing inspection times now stay put as long as they still satisfy the new settings — only times that violate the sleep window or the deadline range are replaced."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Einstellungen werden nun mit einem Speichern-Knopf gemeinsam übernommen. Vorher löste jedes einzelne Feld beim Verlassen eine eigene Neuplanung aus, sodass der gerade gesehene Plan bis zu viermal verworfen wurde.",
+          "en": "The settings are now committed together via a single save button. Previously each field triggered its own replan on blur, so the schedule just shown was discarded up to four times."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Lag ein „bis“-Wert unter dem zugehörigen „von“-Wert, hob ihn der Server an, das Formular zeigte aber weiter den alten Wert als gespeichert an.",
+          "en": "When a “to” value was below its matching “from” value, the server raised it while the form kept displaying the old value as saved."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle, die der Versand-Poller im selben Moment zustellte, konnte durch eine gleichzeitige Einstellungsänderung gelöscht werden — der Code war dann bereits verschickt, die Kontrolle aber weg.",
+          "en": "An inspection being delivered by the notification poller could be deleted by a concurrent settings change — the code had already been sent while the inspection was gone."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Nachgeplante Kontrollen lagen an Zeitumstellungstagen eine Stunde neben den bestehenden, wenn die Umstellung ins Wach-Fenster fiel.",
+          "en": "Newly scheduled inspections landed an hour off from the existing ones on daylight-saving days when the transition fell inside the awake window."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.14",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Fehler-Codes werden nur noch an einer einzigen Stelle erzeugt und ausgelesen. Die von Hand nachgebauten Kopien in den Eintrags- und Kontroll-Abläufen sind entfernt; das Verhalten nach aussen bleibt unverändert.",
+          "en": "Internal error codes are now created and read in a single place. The hand-rolled copies in the entry and inspection flows have been removed; outward behaviour is unchanged."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Das Fehler-Grundgerüst hat keine Abhängigkeiten mehr und kann so keinen Server-Code versehentlich ins Browser-Bundle ziehen — ein Test hält diese Eigenschaft künftig fest.",
+          "en": "The error primitive no longer has any dependencies and thus cannot pull server code into the browser bundle by accident — a test now locks that property in place."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.13",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Regionale Sprach-Einstellungen wie „en-US\" zeigten im Live-Timer die deutsche Tages-Abkürzung „1T\", während direkt daneben „1d\" stand. Alle Zeit-Formatierer nutzen jetzt dieselbe Regel.",
+          "en": "Regional locales such as \"en-US\" showed the German day abbreviation \"1T\" in the live timer while \"1d\" appeared right next to it. All time formatters now use the same rule."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Vorgaben-Zeile hatte eine eigene Kopie der Stunden-Formatierung mit derselben Abweichung — sie nutzt jetzt den gemeinsamen Helper.",
+          "en": "The training-goal row carried its own copy of the hours formatting with the same deviation — it now uses the shared helper."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.12",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ungültige Uhrzeiten in den Keyholder-Einstellungen (Ruhe-Fenster der automatischen Kontrollen, Reinigungs-Fenster) meldeten „gespeichert\", wurden aber stillschweigend verworfen. Sie werden jetzt abgelehnt und der Grund wird angezeigt.",
+          "en": "Invalid times in the keyholder settings (quiet window of the automatic inspections, cleaning windows) reported \"saved\" but were silently discarded. They are now rejected and the reason is shown."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Zeitfelder in den Einstellungen speichern erst beim Verlassen des Feldes statt bei jedem Tastendruck und springen bei einer Ablehnung auf den gespeicherten Wert zurück.",
+          "en": "Time fields in the settings now save when leaving the field instead of on every keystroke, and revert to the stored value if the server rejects them."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.11",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der Fehlerbehandlung in den Anforderungs-Diensten: erwartete Zustandsfehler (etwa „bereits verschlossen\") laufen jetzt über eine gemeinsame Fehlertabelle, die der Compiler gegen die tatsächlich geworfenen Fälle prüft.",
+          "en": "Internal consolidation of error handling in the request services: expected state errors (such as \"already locked\") now go through a shared error table that the compiler checks against the cases actually raised."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.10",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Statistik-Seiten bauen ihre Kalender spürbar schneller auf: die Zeitzonen-Umrechnung legt ihre Formatierer jetzt einmal an statt hunderte Male pro Seitenaufbau.",
+          "en": "Statistics pages build their calendars noticeably faster: the timezone conversion now creates its formatters once instead of hundreds of times per page render."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der Zeit-Bausteine: Zeitzonen-Offset und die Zerlegung einer Dauer in Tage/Stunden/Minuten laufen jetzt über je einen gemeinsamen Helfer statt über sieben Kopien.",
+          "en": "Internal consolidation of the time building blocks: timezone offset and splitting a duration into days/hours/minutes now each go through one shared helper instead of seven copies."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Terminierung von Kontroll- und Verschluss-Anforderungen (sofort oder auf einen Zeitpunkt gelegt) folgt jetzt einer gemeinsamen Regel statt zwei getrennt gepflegten.",
+          "en": "Scheduling of inspection and lock requests (immediate or set for a later time) now follows one shared rule instead of two separately maintained ones."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.9",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bricht die Verbindung beim Speichern einer Trainingsvorgabe oder beim Verhängen einer Strafe ab, erscheint jetzt ein Netzwerkfehler statt einer stehenbleibenden Ladeanzeige ohne Meldung.",
+          "en": "If the connection drops while saving a training goal or recording a penalty, a network error is now shown instead of a stuck loading indicator with no message."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die generische Fehlermeldung im Strafbuch erscheint jetzt in der eingestellten Sprache statt immer auf Deutsch.",
+          "en": "The generic error message in the penalty log now appears in the selected language instead of always German."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der Client-Seite: das Auslesen von Fehlermeldungen aus API-Antworten und der Aufbau von Eintrags-Anfragen laufen jetzt über gemeinsame Helfer statt über 23 handgeschriebene Kopien.",
+          "en": "Internal consolidation on the client side: reading error messages from API responses and building entry requests now go through shared helpers instead of 23 hand-written copies."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.8",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "security",
+        "text": {
+          "de": "Die Einstellungs-Routen, über die man eigene Felder ändert (Zeitzone, Sprache, Startseite, eigene Karte ausblenden), sind jetzt technisch darauf beschränkt — admin-gesetzte Felder wie die Rolle lassen sich über diesen Weg nicht mehr versehentlich freischalten.",
+          "en": "The settings routes for changing your own fields (timezone, language, start page, hide own card) are now technically restricted to exactly those — admin-set fields such as the role can no longer be accidentally exposed through this path."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der API-Zugriffsprüfung: ein gemeinsamer Login-Guard ersetzt 30 handgeschriebene Kopien und liefert überall dieselbe Antwort bei fehlender Anmeldung.",
+          "en": "Internal consolidation of the API access check: one shared login guard replaces 30 hand-written copies and returns the same response everywhere when not signed in."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.7",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Fehlermeldungen in der Benutzerverwaltung (Benutzer löschen, Rolle ändern, Vorgabe löschen) sehen jetzt aus wie überall sonst in der App — mit Warnsymbol und für Screenreader als Fehler ausgezeichnet.",
+          "en": "Error messages in user management (delete user, change role, delete goal) now look like everywhere else in the app — with a warning icon and announced as errors to screen readers."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Aufräumarbeiten: doppelter Datums-Parser und doppelte Typdeklaration entfernt, gemeinsame Fehlerkonstante für die Einstellungs-Services.",
+          "en": "Internal cleanup: removed a duplicate date parser and a duplicate type declaration, shared error constant for the settings services."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.6",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Der Verschluss-Zustand („ist gerade verschlossen?\") wird jetzt überall aus einer einzigen, gemeinsamen Abfrage abgeleitet statt aus sieben Kopien. Das schliesst aus, dass die Zustandsprüfungen mit der Zeit auseinanderlaufen.",
+          "en": "The lock state (\"currently locked?\") is now derived everywhere from one single shared query instead of seven copies. This prevents the state checks from drifting apart over time."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.5",
+    "date": "2026-07-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die gelbe Notiz-Box in der Kontroll-Anforderungs-Mail hat jetzt denselben Gelbton wie in den Verschluss- und Orgasmus-Mails (vorher minimal abweichend).",
+          "en": "The yellow notice box in the inspection-request e-mail now uses the same shade of yellow as the lock and orgasm e-mails (previously slightly different)."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Vereinheitlichung der E-Mail- und Push-Bausteine: gemeinsamer Mail-Rahmen, gemeinsame Notiz-Box, eine Quelle für die Basis-URL und ein zentraler Fire-and-Forget-Wrapper für Push-Benachrichtigungen.",
+          "en": "Internal consolidation of the e-mail and push building blocks: one shared mail frame, one shared notice box, a single source for the base URL, and a central fire-and-forget wrapper for push notifications."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.4",
     "date": "2026-07-10",
     "changes": [
@@ -60,6 +883,32 @@
         "text": {
           "de": "Kontroll-Eskalation (optional, standardmässig aus): Bei einer überfälligen Kontrolle kann nach einer wählbaren Frist eine Mahnung gesendet werden. Bleibt auch diese unbeantwortet, kann das System den Sub nach einer weiteren Frist automatisch als abgelegt markieren (Öffnen-Eintrag) — sichtbar und rückgängig machbar wie jeder andere Eintrag, und im Strafbuch als eigenes Vergehen erfasst.",
           "en": "Inspection escalation (opt-in, off by default): when an inspection is overdue, a reminder can be sent after a configurable delay. If that is also ignored, the system can automatically mark the sub as removed (an opening entry) after a further delay — visible and reversible like any other entry, and logged in the penalty log as its own offense."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.49.6",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Reinigung-Frist präzisiert: die Frist zum Wieder-Verschliessen nach einer Reinigungspause richtet sich jetzt primär nach dem Ende des konfigurierten Reinigungs-Zeitfensters (statt nur nach den erlaubten Minuten je Öffnung).",
+          "en": "Cleaning deadline refined: the re-lock deadline after a cleaning pause now primarily follows the end of the configured daily cleaning window (instead of just the allowed minutes per opening)."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.49.5",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Strafbuch erkennt jetzt zwei weitere Vergehen: „Spät verschlossen\" (Verschluss-Anforderung nicht bis zur Frist erfüllt) und „Reinigung nicht rechtzeitig wieder verschlossen\" (Reinigungspause länger offen als erlaubt). Beide erscheinen im Disziplin-Ledger und können wie gewohnt beurteilt werden.",
+          "en": "The Strafbuch now detects two more offenses: \"locked too late\" (a lock request wasn't fulfilled by its deadline) and \"cleaning not relocked in time\" (a cleaning pause stayed open longer than allowed). Both show up in the discipline ledger and can be judged as usual."
         }
       }
     ]
@@ -146,6 +995,105 @@
         "text": {
           "de": "Kontroll-Erinnerung (E-Mail) und das Kontroll-Banner im Dashboard verlinken neu auf eine kurze Erklaerung, was bei einer Kontrolle wann verlangt ist.",
           "en": "The inspection reminder email and the inspection banner on the dashboard now link to a short explanation of what's required for an inspection and when."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.48.6",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Verschluss anfordern: Der Keyholder kann jetzt statt einer relativen Mindest-Tragedauer ein absolutes Sperr-Ende („Sperre bis\") setzen. Dieses Ende bleibt fix — schliesst der Sub spaeter ein, verschiebt sich das Ende NICHT (die relative Dauer schob es bisher mit). Anforderungs-Mail und Push nennen das Sperr-Ende mit.",
+          "en": "Lock request: the keyholder can now set an absolute lock end (\"locked until\") instead of a relative minimum wear duration. This end stays fixed — if the sub locks up later, the end does NOT shift (the relative duration used to push it back). The request email and push now include the lock end."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Reinigungs-Fenster-Einstellungen (Benutzerverwaltung) sind jetzt uebersetzt (DE/EN) statt fest deutsch.",
+          "en": "Cleaning-window settings (user management) are now translated (DE/EN) instead of hardcoded German."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.48.5",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Verschluss fuer Box-Nutzer (nur Instanzen mit Box-Feature): Statt des Bildersafe-Code-Fotos bestaetigt man beim Verschliessen aktiv „Schluessel ist in der Box\" — die Box verschliesst mit diesem Eintrag. Beim Beenden einer Reinigungspause (Wieder-Verschliessen im Reinigungsfenster) genuegt die Bestaetigung allein, ohne neues Foto/Siegel/Geraetewahl.",
+          "en": "Locking for box users (box-feature instances only): instead of the code-vault photo, you actively confirm \"the key is in the box\" when locking — the box locks with this entry. When ending a cleaning break (re-locking within the cleaning window), the confirmation alone is enough, with no new photo/seal/device selection."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.48.4",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Box-Anbindung (nur Instanzen mit Box-Feature): Das Dashboard zeigt jetzt eine Box-Status-Karte (Ist: offen/verschlossen · Soll: Sperre bis / ohne Zeitlimit · Frische: zuletzt gesynct). Im (+)-Menue ist die Box-Zeile reine Status-Anzeige mit Sprung in den Verschluss-/Oeffnen-Ablauf — die frueheren Direkt-Buttons (verschliessen/oeffnen/Reinigung oeffnen) entfallen, weil die Box jetzt den Verschluss-/Oeffnen-Eintraegen folgt. Reinigung laeuft ueber Oeffnen(Grund Reinigung) + spaeteres Verschliessen.",
+          "en": "Box integration (box-feature instances only): the dashboard now shows a box status card (actual: open/locked · target: locked until / no time limit · freshness: last synced). In the (+) menu the box row is now status-only with a jump into the lock/open flow — the former direct buttons (lock/open/open for cleaning) are gone, because the box now follows the lock/open entries. Cleaning goes through Open (reason Cleaning) + later locking."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Internes Aufraeumen der Box-Kopplung: der separate Box-Kommando-Endpunkt und der clean_open-Sondermechanismus wurden entfernt (durch die Eintrags-Kopplung ersetzt).",
+          "en": "Internal cleanup of the box coupling: the separate box-command endpoint and the clean_open special mechanism were removed (replaced by the entry-based coupling)."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.48.3",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Reinigungs-Tageszaehler zaehlt jetzt die tatsaechlichen Reinigungs-Oeffnungen des Tages (OEFFNEN mit Grund Reinigung). Zuvor zaehlte er ein internes Ereignis, das nie geschrieben wurde — der Tageszaehler war faktisch immer 0, das Reinigungs-Tageslimit griff nie und die Keyholder-Ansicht zeigte 0 verbrauchte Reinigungen. Jetzt greift das Tageslimit korrekt.",
+          "en": "The daily cleaning counter now counts the actual cleaning openings of the day (Open with reason Cleaning). Previously it counted an internal event that was never written — the counter was effectively always 0, the daily cleaning limit never triggered, and the keyholder view showed 0 cleanings used. The daily limit now works correctly."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Box-Status liefert intern zusaetzlich den Zeitpunkt des letzten Box-Syncs (Vorbereitung fuer die Frische-Anzeige der kommenden Box-Status-Karte). Noch keine sichtbare Aenderung.",
+          "en": "The box status additionally exposes the time of the last box sync internally (preparation for the freshness display of the upcoming box status card). No visible change yet."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.48.2",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Box-Anbindung (intern, Vorbereitung): Der Tracker meldet box-relevante Aenderungen (Verschluss/Oeffnen, Sperrzeit setzen/aendern/zurueckziehen) sofort an den Heimdall-Server, damit eine eingeschaltete Box das Kommando unmittelbar per MQTT vollzieht statt erst beim naechsten Sync. Nur aktiv mit gesetztem HEIMDALL_BASE_URL; ohne bleibt alles wie bisher (Box holt es beim naechsten Sync). Noch keine sichtbare Aenderung.",
+          "en": "Box integration (internal, preparation): the tracker reports box-relevant changes (lock/open, setting/changing/withdrawing a lock period) to the Heimdall server immediately, so a powered-on box carries out the command right away via MQTT instead of only at the next sync. Only active with HEIMDALL_BASE_URL set; without it everything stays as before (the box picks it up at the next sync). No visible change yet."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.48.1",
+    "date": "2026-07-09",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Box-Anbindung (intern, Vorbereitung): Die Heimdall-Box folgt jetzt den Verschluss-/Oeffnen-Eintraegen (Verschluss schliesst, Oeffnen oeffnet) statt eigener Box-Bedienung. Ein verbotenes Oeffnen waehrend einer aktiven Sperrzeit oeffnet die Box NICHT. Ausserdem: absolutes Sperr-Ende fuer Verschlussanforderungen (fixe Endzeit, unabhaengig vom Verschlusszeitpunkt). Noch keine sichtbare Aenderung.",
+          "en": "Box integration (internal, preparation): the Heimdall box now follows the lock/open entries (lock closes, open opens) instead of its own box controls. A forbidden opening during an active lock period does NOT open the box. Also: absolute lock end for lock requests (fixed end time, independent of when locking happens). No visible change yet."
         }
       }
     ]

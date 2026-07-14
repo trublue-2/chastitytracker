@@ -4,11 +4,12 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTimeDual, formatDate, formatTime, formatHours, toDateLocale, APP_TZ,
-  buildPairs, interruptionPauseMs, isTimeCorrected,
+  buildPairs, interruptionPauseMs, isTimeCorrected, decomposeMs,
   buildKontrolleItems, calculateWearingHoursByRange,
-  buildWearSessionRows,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { buildWearSessionRows } from "@/lib/wearSessionRows";
+import { buildWearSessions } from "@/lib/sessionModel";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
@@ -30,13 +31,6 @@ import Card from "@/app/components/Card";
 import Link from "next/link";
 import { Lock, ClipboardList, Droplets, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-
-type Entry = {
-  id: string; type: string; startTime: Date; imageUrl: string | null;
-  imageExifTime: Date | null; note: string | null; orgasmusArt: string | null;
-  verifikationStatus: string | null; kontrollCode: string | null; oeffnenGrund: string | null;
-  device?: { categoryId: string | null } | null;
-};
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -65,7 +59,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   const flagOn = deviceCategoriesEnabled();
   const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories] = await Promise.all([
-    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { categoryId: true } } } }),
+    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { id: true, categoryId: true } } } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id, ...keyholderVisibleKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     getKeyholderSperrzeit(id),
@@ -104,18 +98,17 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const orgasmusFreiMs = lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null;
   const orgasmusFreiDisplay = (() => {
     if (!orgasmusFreiMs) return null;
-    const days = Math.floor(orgasmusFreiMs / 86_400_000);
-    const hours = Math.floor((orgasmusFreiMs % 86_400_000) / 3_600_000);
+    const { days, hours } = decomposeMs(orgasmusFreiMs);
     return days > 0 ? `${days}T ${hours}h` : `${hours}h`;
   })();
 
   const activePair = pairs.find(p => p.active) ?? null;
   const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm)) : [];
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, reinigung);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
   // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
   const proratedVorgabe = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
 
-  const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, buildWearSessions(entries, now), dl);
 
   return (
     <>
@@ -129,6 +122,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null && !activeSperrzeit.wirksamAb}
           sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
           sperrzeitScheduledFor={activeSperrzeit?.wirksamAb && activeSperrzeit.wirksamAb > now ? activeSperrzeit.wirksamAb : null}
+          // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
+          // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
+          cleaningNote={activeSperrzeit ? t(activeSperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
           activeVorgabe={proratedVorgabe}
           tagH={tagH}
           wocheH={wocheH}
@@ -267,7 +263,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 code: k.code, dateTimeStr: fmtDual(k.time), dateTimePrefix: null,
                 deadlineStr: k.deadline ? fmtDual(k.deadline) : null,
                 deadlinePrefix: t("frist"), note: null, entryId: k.entryId,
-                editHref: k.entryId ? `/dashboard/edit/${k.entryId}` : null,
+                editHref: k.entryId ? `/dashboard/edit/${k.entryId}?from=admin&userId=${id}` : null,
                 timeCorrectedStr: isTimeCorrected(k.time, k.submittedAt)
                   ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmtDual(k.time)} · ${t("systemLabel")}: ${fmtDual(k.submittedAt!)}`
                   : null,
@@ -287,7 +283,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           <OrgasmenListClient
             items={orgasmusEntries.slice(0, 5).map((e): OrgasmusItemData => ({
               id: e.id, dateStr: formatDate(e.startTime, dl, tz), timeStr: formatTime(e.startTime, dl, tz),
-              orgasmusArt: resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm), note: e.note, editHref: `/dashboard/edit/${e.id}`,
+              orgasmusArt: resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm), note: e.note, editHref: `/dashboard/edit/${e.id}?from=admin&userId=${id}`,
             }))}
           />
         </Card>

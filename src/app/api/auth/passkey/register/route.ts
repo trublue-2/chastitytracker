@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getRpConfig, setChallenge, getAndDeleteChallenge } from "@/lib/webauthn";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
@@ -11,8 +11,8 @@ import type { AuthenticatorTransportFuture } from "@simplewebauthn/types";
  * Requires authenticated user.
  */
 export async function POST() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const userId = session.user.id;
   const { rpId, rpName } = getRpConfig();
@@ -56,8 +56,8 @@ export async function POST() {
  * Body: { response, deviceName? }
  */
 export async function PUT(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const userId = session.user.id;
   const { rpId, rpOrigin } = getRpConfig();

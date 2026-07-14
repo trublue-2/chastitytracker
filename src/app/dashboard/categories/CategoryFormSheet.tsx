@@ -1,5 +1,6 @@
 "use client";
 
+import { parseApiError } from "@/lib/apiClient";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
@@ -85,8 +86,7 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.error ?? tCommon("savingError"));
+        setError(await parseApiError(res, tCommon("savingError")));
         setSaving(false);
         return;
       }

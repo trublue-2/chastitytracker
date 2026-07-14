@@ -19,7 +19,9 @@ import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale, formatDuration } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
-import type { WearBeginPayload, WearEndPayload, SubmitResult } from "@/app/entries/types";
+import type { WearBeginPayload, WearEndPayload } from "@/app/entries/types";
+import { entryRequest, postAdminEntry, parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 interface Category {
   id: string;
@@ -76,6 +78,7 @@ interface Props {
 export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime, tz, nowDefault }: Props) {
   const t = useTranslations("wearForm");
   const tCommon = useTranslations("common");
+  const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const dl = toDateLocale(useLocale());
   const router = useRouter();
@@ -131,14 +134,9 @@ export default function WearForm({ kind, category, devices, activeSession, admin
         imageExifTime: imageExifTime || null,
       };
       if (kind === "begin") patchBody.deviceId = deviceId;
-      const res = await fetch(`/api/entries/${initial.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patchBody),
-      });
+      const res = await fetch(...entryRequest(initial.id, patchBody));
       if (!res.ok) {
-        const data: { error?: string } = await res.json().catch(() => ({}));
-        setError(data?.error || tCommon("savingError"));
+        setError(apiError(await parseApiErrorCode(res)));
         setSaving(false);
         return;
       }
@@ -157,17 +155,10 @@ export default function WearForm({ kind, category, devices, activeSession, admin
       note: note.trim() || null,
     };
 
-    const targetUrl = adminUserId ? "/api/admin/entries" : "/api/entries";
-    const body = adminUserId ? { userId: adminUserId, ...payload } : payload;
-    const init: RequestInit = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    };
     // Admin uses direct fetch (no offline queue — action is admin-driven, not field-use)
     const res = adminUserId
-      ? await fetch(targetUrl, init)
-      : await offlineFetch(targetUrl, init);
+      ? await postAdminEntry(adminUserId, payload)
+      : await offlineFetch(...entryRequest(undefined, payload));
     if (res === null) {
       // queued offline (user-mode only)
       toast.success(tDash("entrySaved"));
@@ -175,8 +166,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
       return;
     }
     if (!res.ok) {
-      const data: SubmitResult | { error?: string } = await res.json().catch(() => ({}));
-      setError(("error" in data && data.error) || tCommon("savingError"));
+      setError(apiError(await parseApiErrorCode(res)));
       setSaving(false);
       return;
     }

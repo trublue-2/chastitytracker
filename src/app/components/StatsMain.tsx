@@ -1,303 +1,29 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { APP_TZ, formatDuration, formatDateTime, formatTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, midnightInTZ, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type WearPair, type ReinigungSettings } from "@/lib/utils";
-import { proratedTargetH, proratedVorgabeTargets } from "@/lib/goalFulfillment";
-import { wearIntensityLevel } from "@/lib/wearIntensity";
+import { APP_TZ, formatDate, formatDateTime, formatHours, formatMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
+import {
+  buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
+  type Entry, type Vorgabe,
+} from "@/lib/statsBuilders";
+import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
+import { KG_CATEGORY_META } from "@/lib/deviceCategories";
+import { buildSessions, buildWearSessions, deviceWearingsOf, wearHourPairsByCategory, type Session } from "@/lib/sessionModel";
+import { buildDeviceUsage, type UsageSession } from "@/lib/deviceUsage";
 import CategoryIconRender from "./CategoryIcon";
+import { type CategoryVariant } from "./CategorySwitcherCard";
+import DeviceUsageSwitcher, { type DeviceUsageVariant } from "./DeviceUsageSwitcher";
 import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitcher";
-import YearHeatmap, { type HeatmapDay, type YearHeatmapData } from "./YearHeatmap";
-import { type CalendarMonthData, type CalendarDayData } from "./CalendarContainer";
-import type { DayEntry, DayVorgabe } from "./CalendarContainer";
-import MonthStats, { type MonthStat } from "./MonthStats";
+import YearHeatmap from "./YearHeatmap";
+import MonthStats from "./MonthStats";
 import Card from "./Card";
 import StatsCard from "./StatsCard";
 import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
 import EmptyState from "./EmptyState";
 import { ShieldAlert, BarChart2 } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type Entry = { id: string; type: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt?: string | null; kontrollCode?: string | null; verifikationStatus?: string | null; oeffnenGrund?: string | null; deviceId?: string | null };
-type CompletedPair = { verschluss: Entry; oeffnen: Entry; durationMs: number };
-type Vorgabe = {
-  gueltigAb: Date;
-  gueltigBis: Date | null;
-  minProTagH: number | null;
-  minProWocheH: number | null;
-  minProMonatH: number | null;
-  minProJahrH: number | null;
-  notiz: string | null;
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// buildWearPairs + wearingHoursFromPairs imported from @/lib/utils
-
-/** Calendar cell classes per intensity level (blue scale + readable text colour on the day number). */
-const CALENDAR_LEVEL_CLASS = [
-  "bg-surface-raised text-foreground-faint",
-  "bg-blue-100 text-blue-900",
-  "bg-blue-200 text-blue-900",
-  "bg-blue-400 text-white",
-  "bg-blue-600 text-white",
-];
-
-function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>, tz: string): Map<string, { hours: number; hasOrgasm: boolean }> {
-  const map = new Map<string, { hours: number; hasOrgasm: boolean }>();
-  for (const pair of wearPairs) {
-    let d = midnightInTZ(pair.start, tz);
-    while (d.getTime() < pair.end.getTime()) {
-      const nextD = new Date(d.getTime() + 86_400_000);
-      const overlap = Math.min(pair.end.getTime(), nextD.getTime()) - Math.max(pair.start.getTime(), d.getTime());
-      if (overlap > 0) {
-        const { year, month, day } = tzDateParts(new Date(d.getTime() + 43_200_000), tz);
-        const key = `${year}-${month}-${day}`;
-        const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
-        existing.hours += overlap / 3_600_000;
-        map.set(key, existing);
-      }
-      d = nextD;
-    }
-  }
-  for (const key of orgasmDates) {
-    const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
-    existing.hasOrgasm = true;
-    map.set(key, existing);
-  }
-  return map;
-}
-
-function tzYearMonth(d: Date, tz: string): string {
-  const parts = new Intl.DateTimeFormat("de-CH", { year: "numeric", month: "2-digit", timeZone: tz }).formatToParts(d);
-  const y = parts.find(p => p.type === "year")!.value;
-  const m = parts.find(p => p.type === "month")!.value;
-  return `${y}-${m}`;
-}
-
-function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben: Vorgabe[], dl: string, tz: string): MonthStat[] {
-  const map = new Map<string, Omit<MonthStat, "wearHours" | "targetH">>();
-  for (const p of pairs) {
-    const d = p.verschluss.startTime;
-    const key = tzYearMonth(d, tz);
-    const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
-    const existing = map.get(key) ?? { key, label, count: 0, totalMs: 0, longestMs: 0 };
-    existing.count++;
-    existing.totalMs += p.durationMs;
-    if (p.durationMs > existing.longestMs) existing.longestMs = p.durationMs;
-    map.set(key, existing);
-  }
-  for (const wp of wearPairs) {
-    for (const d of [wp.start, wp.end]) {
-      const key = tzYearMonth(d, tz);
-      if (!map.has(key)) {
-        const label = d.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
-        map.set(key, { key, label, count: 0, totalMs: 0, longestMs: 0 });
-      }
-    }
-  }
-  return Array.from(map.entries())
-    .sort((a, b) => b[0].localeCompare(a[0]))
-    .map(([, v]) => {
-      const [y, m] = v.key.split("-").map(Number);
-      const monthStart = midnightInTZ(new Date(Date.UTC(y, m - 1, 1, 12)), tz);
-      const monthEnd = midnightInTZ(new Date(Date.UTC(y, m, 1, 12)), tz);
-      const wearHours = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
-      const applicableVorgabe = vorgaben.find(
-        (vg) => vg.gueltigAb < monthEnd && (vg.gueltigBis === null || vg.gueltigBis >= monthStart)
-      );
-      return { ...v, wearHours, targetH: applicableVorgabe ? proratedTargetH(applicableVorgabe.minProMonatH, monthStart, monthEnd, applicableVorgabe) : null };
-    });
-}
-
-function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {
-  const now = new Date();
-  return v.gueltigAb <= now && (v.gueltigBis === null || v.gueltigBis >= now);
-}
-
-
-function buildCalendarMonths(opts: {
-  entries: Entry[];
-  wearPairs: WearPair[];
-  vorgaben: Vorgabe[];
-  orgasmDateSet: Set<string>;
-  now: Date;
-  dl: string;
-  tz: string;
-}): CalendarMonthData[] {
-  const { entries, wearPairs, vorgaben, orgasmDateSet, now, dl, tz } = opts;
-  const dailyData = buildDailyData(wearPairs, orgasmDateSet, tz);
-  const { year: nowYear, month: nowMonth } = tzDateParts(now, tz);
-  const jsWeekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-  // Bucket entries by YMD once so day-cells become O(1) lookups instead of O(N) filters.
-  const entriesByYMD = new Map<string, Entry[]>();
-  for (const e of entries) {
-    const { year, month, day } = tzDateParts(e.startTime, tz);
-    const key = `${year}-${month}-${day}`;
-    const list = entriesByYMD.get(key);
-    if (list) list.push(e); else entriesByYMD.set(key, [e]);
-  }
-
-  const calMonthsData: CalendarMonthData[] = [];
-  for (let i = 0; i <= 3; i++) {
-    const { year, month } = tzDateParts(new Date(Date.UTC(nowYear, nowMonth - i, 1, 12)), tz);
-    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    const firstDayNoon = new Date(Date.UTC(year, month, 1, 12));
-    const firstDayWd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
-      .formatToParts(firstDayNoon).find(p => p.type === "weekday")!.value;
-    const startOffset = (jsWeekdayMap[firstDayWd] + 6) % 7;
-    const label = firstDayNoon.toLocaleString(dl, { month: "long", year: "numeric", timeZone: tz });
-
-    const monthStartDate = midnightInTZ(firstDayNoon, tz);
-    const monthEndDate = midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)), tz);
-    const vorgabe = vorgaben.find(
-      (vg) => vg.gueltigAb < monthEndDate && (vg.gueltigBis === null || vg.gueltigBis >= monthStartDate)
-    ) ?? null;
-    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
-    const monthTarget = vorgabe ? proratedTargetH(vorgabe.minProMonatH, monthStartDate, monthEndDate, vorgabe) : null;
-    // Truthy-Guard (nicht `!= null`): prorata-Ziel 0 = Vorgabe deckt diese Periode nicht ab → kein
-    // „erreicht"-Marker (sonst wäre `ist >= 0` trivial immer erfüllt).
-    const monthGoalMet = monthTarget ? monthTotalH >= monthTarget : null;
-    const monthGoalPct = monthTarget ? Math.round((monthTotalH / monthTarget) * 100) : null;
-
-    const cells: (number | null)[] = [
-      ...Array(startOffset).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, k) => k + 1),
-    ];
-    while (cells.length % 7 !== 0) cells.push(null);
-
-    const weeks: (CalendarDayData | null)[][] = [];
-    const weekGoalMet: (boolean | null)[] = [];
-    const weekGoalPct: (number | null)[] = [];
-
-    for (let w = 0; w < cells.length; w += 7) {
-      const weekCells = cells.slice(w, w + 7);
-      const firstDayOfRow = weekCells.find((x) => x != null);
-      let weekH = 0;
-      let weekTarget: number | null = null;
-      if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
-        const anchorNoon = new Date(Date.UTC(year, month, firstDayOfRow, 12));
-        const anchorWd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
-          .formatToParts(anchorNoon).find(p => p.type === "weekday")!.value;
-        const dow = (jsWeekdayMap[anchorWd] + 6) % 7;
-        const wkStart = midnightInTZ(new Date(Date.UTC(year, month, firstDayOfRow - dow, 12)), tz);
-        const wkEnd = new Date(wkStart.getTime() + 7 * 86_400_000);
-        weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
-        weekTarget = proratedTargetH(vorgabe.minProWocheH, wkStart, wkEnd, vorgabe);
-      }
-      weekGoalMet.push(weekTarget ? weekH >= weekTarget : null); // 0 = Woche ausserhalb Vorgabe-Fenster → kein Marker
-      weekGoalPct.push(weekTarget ? Math.round((weekH / weekTarget) * 100) : null);
-
-      weeks.push(weekCells.map((day): CalendarDayData | null => {
-        if (!day) return null;
-        const key = `${year}-${month}-${day}`;
-        const data = dailyData.get(key);
-        const dayStart = midnightInTZ(new Date(Date.UTC(year, month, day, 12)), tz);
-        const dayEnd = new Date(dayStart.getTime() + 86_400_000);
-        const dayTarget = vorgabe ? proratedTargetH(vorgabe.minProTagH, dayStart, dayEnd, vorgabe) : null;
-        const dailyGoalMet = dayTarget && data != null ? data.hours >= dayTarget : null; // 0 = Tag ausserhalb Vorgabe-Fenster → kein Marker
-        const colorClass = CALENDAR_LEVEL_CLASS[wearIntensityLevel(data?.hours ?? 0)];
-        // entries arrived from prisma sorted by startTime asc, so per-day buckets are too.
-        const dayEntries: DayEntry[] = (entriesByYMD.get(key) ?? []).map((e) => ({
-          type: e.type,
-          time: formatTime(e.startTime, dl, tz),
-          note: e.note,
-          orgasmusArt: e.orgasmusArt,
-        }));
-        const dayVorgabe: DayVorgabe | null = vorgabe ? {
-          minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
-          minProMonatH: vorgabe.minProMonatH, minProJahrH: vorgabe.minProJahrH, notiz: vorgabe.notiz,
-        } : null;
-        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: tz });
-        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
-      }));
-    }
-
-    calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet, monthGoalPct });
-  }
-  return calMonthsData;
-}
-
-/** Monday-based weekday index (Mon=0 … Sun=6) of `d` in `tz`. */
-function mondayIndex(d: Date, tz: string): number {
-  const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).formatToParts(d).find(p => p.type === "weekday")!.value;
-  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  return ((map[wd] ?? 0) + 6) % 7;
-}
-
-/** GitHub-style per-day wear heatmap, one entry per year that has data (newest first). Reuses the
- *  month calendar's per-day map + the shared blue intensity scale (hours/24). */
-function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<string>, now: Date, tz: string, dl: string): YearHeatmapData[] {
-  const dailyData = buildDailyData(wearPairs, orgasmDateSet, tz);
-  const { year: nowYear, month: nowMonth, day: nowDay } = tzDateParts(now, tz);
-  const years = new Set<number>([nowYear]);
-  for (const key of dailyData.keys()) years.add(Number(key.split("-")[0]));
-
-  return [...years].sort((a, b) => b - a).map((year) => {
-    const jan1 = new Date(Date.UTC(year, 0, 1, 12));
-    const cells: (HeatmapDay | null)[] = Array(mondayIndex(jan1, tz)).fill(null); // Leerzellen bis zum 1. Jan
-    let totalHours = 0;
-    for (let month = 0; month < 12 && !(year === nowYear && month > nowMonth); month++) {
-      const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-      for (let day = 1; day <= daysInMonth; day++) {
-        if (year === nowYear && month === nowMonth && day > nowDay) break; // aktuelles Jahr nur bis heute
-        const cell = dailyData.get(`${year}-${month}-${day}`);
-        const hours = cell?.hours ?? 0;
-        totalHours += hours;
-        const dateLabel = new Date(Date.UTC(year, month, day, 12)).toLocaleDateString(dl, { day: "numeric", month: "long", year: "numeric", timeZone: tz });
-        cells.push({
-          key: `${year}-${month}-${day}`,
-          title: `${dateLabel} · ${formatHours(hours, dl)}`,
-          level: wearIntensityLevel(hours),
-          hasOrgasm: cell?.hasOrgasm ?? false,
-        });
-      }
-    }
-
-    const weeks: (HeatmapDay | null)[][] = [];
-    for (let i = 0; i < cells.length; i += 7) {
-      const week = cells.slice(i, i + 7);
-      while (week.length < 7) week.push(null);
-      weeks.push(week);
-    }
-
-    const monthLabels: { week: number; label: string }[] = [];
-    let lastMonth = -1;
-    weeks.forEach((week, row) => {
-      const firstCell = week.find((c) => c != null);
-      if (!firstCell) return;
-      const m = Number(firstCell.key.split("-")[1]);
-      if (m !== lastMonth) {
-        monthLabels.push({ week: row, label: new Date(Date.UTC(year, m, 1, 12)).toLocaleDateString(dl, { month: "short", timeZone: tz }) });
-        lastMonth = m;
-      }
-    });
-
-    const yearStart = midnightInTZ(jan1, tz);
-    const yearEnd = midnightInTZ(new Date(Date.UTC(year + 1, 0, 1, 12)), tz);
-    const elapsedEnd = year === nowYear ? now : yearEnd;
-    const elapsedH = (elapsedEnd.getTime() - yearStart.getTime()) / 3_600_000;
-    return {
-      year,
-      weeks,
-      monthLabels,
-      totalHours: formatHours(totalHours, dl),
-      percentLocked: elapsedH > 0 ? Math.round((totalHours / elapsedH) * 100) : 0,
-    };
-  });
-}
-
-/** 7 short weekday names Mon..Sun in the given locale (for the heatmap's row labels). */
-function buildWeekdayLabels(dl: string, tz: string): string[] {
-  return Array.from({ length: 7 }, (_, i) =>
-    // 2024-01-01 was a Monday; +i days walks Mon..Sun.
-    new Date(Date.UTC(2024, 0, 1 + i, 12)).toLocaleDateString(dl, { weekday: "short", timeZone: tz }),
-  );
-}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -320,7 +46,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "asc" },
-      include: { device: { select: { categoryId: true } } },
+      // `device.id` treibt die geräteweise Paarung in buildWearSessions (Device-Nutzung).
+      include: { device: { select: { id: true, categoryId: true } } },
     }),
     prisma.trainingVorgabe.findMany({
       where: { userId },
@@ -330,7 +57,10 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
-    prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true } }),
+    // `lookalikeClusterId` treibt die Bild-Versöhnung in buildSessions (optisch gleiche Geräte
+    // dürfen einander nicht als "Konflikt" überstimmen) — ohne sie rechnete die Geräte-Nutzung
+    // anders als `device_stats` im MCP.
+    prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true, lookalikeClusterId: true } }),
     prisma.deviceCategory.findMany({
       where: { userId, isBuiltIn: false },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -347,38 +77,21 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
   };
 
-  const linkedEntryIds = new Set(kontrollen.map(k => k.entryId).filter(Boolean));
-  const allPruefungen = entries.filter(e => e.type === "PRUEFUNG");
-  const standalonePruefungen = allPruefungen.filter(e => !linkedEntryIds.has(e.id));
-
-  type UnifiedKontrolle = { id: string; time: Date; anforderungStatus: string | null; verifikationStatus: string | null; code: string | null; deadline: Date | null; entryTime: Date | null };
-  const unifiedKontrollen: UnifiedKontrolle[] = [
-    ...kontrollen.map(k => ({
-      id: k.id,
-      time: k.entry ? k.entry.startTime : k.createdAt,
-      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
-      verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
-      code: k.code,
-      deadline: k.deadline,
-      entryTime: k.entry?.startTime ?? null,
-    })),
-    ...standalonePruefungen.map(e => ({
-      id: e.id,
-      time: e.startTime,
-      anforderungStatus: null,
-      verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
-      code: e.kontrollCode ?? null,
-      deadline: null,
-      entryTime: e.startTime,
-    })),
-  ].sort((a, b) => b.time.getTime() - a.time.getTime());
+  // Zurückgezogene Kontrollen bleiben aussen vor: ein Rückzug (durch die Keyholderin, eine
+  // Auto-Kontrolle bei offenem KG oder den Überschneidungs-Schutz) ist ein Nicht-Ereignis — er
+  // sagt nichts über den Sub aus und füllte die Liste. VERSÄUMTE Kontrollen bleiben sichtbar:
+  // die Eskalation setzt zwar ebenfalls `withdrawnAt`, `mapAnforderungStatus` erkennt sie aber am
+  // `autoMarkedRemovedAt` und gibt "missed" zurück.
+  const kontrolleItems = buildKontrolleItems(kontrollen, entries.filter(e => e.type === "PRUEFUNG"), now)
+    .filter(isSubVisibleKontrolle)
+    .sort((a, b) => b.time.getTime() - a.time.getTime());
 
   // Pre-format kontrolle rows for the client-paginated list — pills and dates resolved here so the
   // client component can stay simple (no date/i18n logic).
-  const kontrolleRows: StatsKontrolleRow[] = unifiedKontrollen.map((k) => {
+  const kontrolleRows: StatsKontrolleRow[] = kontrolleItems.map((k) => {
     const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
-    const primaryLine = k.entryTime
-      ? `${t("fulfilled")}: ${new Date(k.entryTime).toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}`
+    const primaryLine = k.entryId
+      ? `${t("fulfilled")}: ${k.time.toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}`
       : `${t("created")}: ${formatDateTime(k.time, dl, tz)}`;
     return {
       id: k.id,
@@ -386,7 +99,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       pillLabel: pill?.label ?? null,
       pillCls: pill?.cls ?? null,
       primaryLine,
-      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(new Date(k.deadline), dl, tz)}` : null,
+      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(k.deadline, dl, tz)}` : null,
     };
   });
 
@@ -417,7 +130,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   // KG-only vorgaben drive the wear calendar + month stats (which visualize KG).
   // The Trainingsziele cards below render ALL active vorgaben across categories.
   const kgVorgaben = vorgaben.filter(isKgVorgabe);
-  const wearPairs = buildWearPairs(entries, now);
+  const wearPairs = buildKgWearPairs(entries, now);
+  // Nicht-KG: die Trage-Sessions einmal bauen — Wanduhr-Stunden je Kategorie (unten) und die
+  // Geräte-Nutzung (weiter unten) leiten sich beide daraus ab.
+  const wearSessionList = buildWearSessions(entries, now);
+  const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
   const monthStats = buildMonthStats(completed, wearPairs, kgVorgaben, dl, tz);
 
   const todayStart = getMidnightToday(now, tz);
@@ -426,7 +143,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const yearStart = getYearStart(now, tz);
 
   // Build one goal-card per currently-active vorgabe (KG first, then others by name).
-  const activeVorgaben = vorgaben.filter(isActive).sort((a, b) => {
+  // Nicht `filter(isActive)`: Array.filter reicht den Index als zweites Argument durch, der dort
+  // auf den optionalen `now`-Parameter träfe.
+  const activeVorgaben = vorgaben.filter(v => isActive(v)).sort((a, b) => {
     const aKG = isKgVorgabe(a) ? 0 : 1;
     const bKG = isKgVorgabe(b) ? 0 : 1;
     if (aKG !== bKG) return aKG - bKG;
@@ -434,7 +153,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   });
   const goalCards = activeVorgaben.map((v) => {
     const kg = isKgVorgabe(v);
-    const pairs = kg ? wearPairs : buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: v.categoryId! });
+    const pairs = kg ? wearPairs : wearPairsByCategory.get(v.categoryId!) ?? [];
     return {
       id: v.id,
       name: v.category?.name ?? "KG",
@@ -456,25 +175,25 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       .map((e) => { const { year, month, day } = tzDateParts(e.startTime, tz); return `${year}-${month}-${day}`; })
   );
 
+  // Heatmap und KG-Kalender brauchen dieselbe Tages-Karte — einmal bauen, zweimal nutzen.
+  const kgDailyData = wearPairs.length > 0 ? buildDailyData(wearPairs, orgasmDateSet, tz) : undefined;
+
   // Jahres-Heatmap (KG-Tragezeit pro Tag, GitHub-Stil) — nur wenn Tragedaten existieren.
-  const yearHeatmaps = wearPairs.length > 0 ? buildYearHeatmaps(wearPairs, orgasmDateSet, now, tz, dl) : [];
-  const weekdayLabels = buildWeekdayLabels(dl, tz);
+  const yearHeatmaps = kgDailyData ? buildYearHeatmaps(wearPairs, orgasmDateSet, now, tz, dl, kgDailyData) : [];
+  const weekdayLabels = buildWeekdayLabels(dl);
 
   // Build calendar variants — one per category that has wear data.
   // KG always shows orgasm dots; non-KG categories don't (orgasms are not device-specific).
   const calendarVariants: CalendarVariant[] = [];
   if (wearPairs.length > 0) {
     calendarVariants.push({
-      id: "kg",
-      name: "KG",
-      color: "cat-steel",
-      icon: "Lock",
+      ...KG_CATEGORY_META,
       isKG: true,
-      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl, tz }),
+      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl, tz, dailyData: kgDailyData }),
     });
   }
   for (const cat of nonKgCategories) {
-    const catPairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cat.id });
+    const catPairs = wearPairsByCategory.get(cat.id) ?? [];
     if (catPairs.length === 0) continue;
     const catVorgaben = vorgaben.filter((v) => v.categoryId === cat.id);
     const catEntries = entries.filter(
@@ -491,48 +210,59 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   }
 
   // ── Device usage stats ─────────────────────────────────────────────────────
-  const deviceMap = new Map(allDevices.map((d) => [d.id, d]));
-  type DeviceStat = { id: string | null; name: string; count: number; totalMs: number; avgMs: number; purchasePrice: number | null; currency: string | null; costPerHour: number | null };
-  const deviceStatsMap = new Map<string | null, { count: number; totalMs: number }>();
+  // Eine Variante je Kategorie (KG zuerst), zwischen denen der Picker umschaltet.
+  //
+  // BEIDE Pfade gehen durch `deviceWearingsOf` — dieselbe Zurechnungs-Regel, die auch `device_stats`
+  // im MCP benutzt: je Session und Gerät EIN Eintrag (Segmente summiert, das Bild gewinnt bei echtem
+  // Konflikt). Nur so nennen Chat und Statistik-Seite dieselben Zahlen. Vorher rechnete KG hier auf
+  // dem DEKLARIERTEN Gerät des Verschluss-Eintrags über die ganze Session: ein Gerätewechsel über
+  // eine Reinigungspause landete komplett beim ersten Gerät.
+  const usageOf = (sessions: Session[]): UsageSession[] =>
+    deviceWearingsOf(sessions).map((w) => ({ deviceId: w.device.id, durationMs: w.durationMs, start: w.start }));
 
-  for (const pair of completed) {
-    const dId = pair.verschluss.deviceId ?? null;
-    const existing = deviceStatsMap.get(dId) ?? { count: 0, totalMs: 0 };
-    existing.count++;
-    existing.totalMs += pair.durationMs;
-    deviceStatsMap.set(dId, existing);
+  const kgSessions = usageOf(buildSessions(entries, reinigung, now, allDevices));
+
+  const wearSessionsByCategory = new Map<string, UsageSession[]>();
+  if (nonKgCategories.length > 0) {
+    for (const s of wearSessionList) {
+      if (!s.categoryId) continue;
+      const list = wearSessionsByCategory.get(s.categoryId) ?? [];
+      list.push(...usageOf([s]));
+      wearSessionsByCategory.set(s.categoryId, list);
+    }
   }
-  // Also count active session if currently locked
-  if (activeEntry?.deviceId) {
-    const dId = activeEntry.deviceId;
-    const existing = deviceStatsMap.get(dId) ?? { count: 0, totalMs: 0 };
-    existing.count++;
-    existing.totalMs += activeDurationMs;
-    deviceStatsMap.set(dId, existing);
-  }
 
-  const deviceStats: DeviceStat[] = Array.from(deviceStatsMap.entries())
-    .map(([dId, { count, totalMs: dTotalMs }]) => {
-      const device = dId ? deviceMap.get(dId) : null;
-      const totalHours = dTotalMs / 3_600_000;
-      const costPerHour = device?.purchasePrice && totalHours > 0
-        ? device.purchasePrice / totalHours
-        : null;
-      return {
-        id: dId,
-        name: device?.name ?? t("deviceUnknown"),
-        count,
-        totalMs: dTotalMs,
-        avgMs: count > 0 ? Math.round(dTotalMs / count) : 0,
-        purchasePrice: device?.purchasePrice ?? null,
-        currency: device?.currency ?? null,
-        costPerHour,
-      };
-    })
-    .sort((a, b) => b.totalMs - a.totalMs);
+  const deviceById = new Map(allDevices.map((d) => [d.id, d]));
+  const toVariant = (meta: CategoryVariant, sessions: UsageSession[]): DeviceUsageVariant | null => {
+    const rows = buildDeviceUsage(sessions, deviceById, t("deviceUnknown"));
+    // Ohne ein einziges zugeordnetes Gerät sagt die Card nichts aus (nur „unbekannt"-Zeilen).
+    if (!rows.some((r) => r.id !== null)) return null;
+    const variantTotalMs = rows.reduce((sum, r) => sum + r.totalMs, 0);
+    return {
+      ...meta,
+      rows: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        count: r.count,
+        totalStr: formatMs(r.totalMs, dl),
+        avgStr: formatMs(r.avgMs, dl),
+        medianStr: formatMs(r.medianMs, dl),
+        // Bei einer einzigen Session ist die Spanne keine Spanne — dann nur die eine Dauer zeigen.
+        rangeStr: r.minMs === r.maxMs ? formatMs(r.minMs, dl) : `${formatMs(r.minMs, dl)} – ${formatMs(r.maxMs, dl)}`,
+        lastWornStr: formatDate(r.lastWorn, dl, tz),
+        costStr: r.costPerHour !== null && r.currency ? `${r.costPerHour.toFixed(2)} ${r.currency}` : null,
+        sharePct: variantTotalMs > 0 ? Math.round((r.totalMs / variantTotalMs) * 100) : 0,
+      })),
+    };
+  };
 
-  // Only show if at least one entry has a device assigned
-  const hasDeviceData = deviceStats.some((d) => d.id !== null);
+  const deviceUsageVariants = [
+    toVariant(KG_CATEGORY_META, kgSessions),
+    ...nonKgCategories.map((cat) => {
+      const sessions = wearSessionsByCategory.get(cat.id);
+      return sessions ? toVariant(cat, sessions) : null;
+    }),
+  ].filter((v) => v !== null);
 
   const pageHeading = heading ?? t("title");
 
@@ -686,40 +416,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         </Card>
       )}
 
-      {/* KG-Nutzung */}
-      {hasDeviceData && deviceStats.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-border-subtle">
-            <p className="text-sm font-bold text-foreground">{t("deviceUsage")}</p>
-          </div>
-          <div className="divide-y divide-border-subtle">
-            {deviceStats.map((ds) => (
-              <div key={ds.id ?? "_none"} className="px-6 py-4 flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-3">
-                  <span className={`text-sm font-semibold ${ds.id ? "text-foreground" : "text-foreground-faint"}`}>
-                    {ds.name}
-                  </span>
-                  <span className="text-xs text-foreground-faint">
-                    {t("deviceSessions", { count: ds.count })}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground-muted">
-                  <span>{t("deviceTotalDuration")}: <strong className="text-foreground">{formatMs(ds.totalMs, dl)}</strong></span>
-                  <span>{t("deviceAvgDuration")}: <strong className="text-foreground">{formatMs(ds.avgMs, dl)}</strong></span>
-                  {ds.costPerHour !== null && ds.currency && (
-                    <span>{t("deviceCostPerHour")}: <strong className="text-foreground">{ds.costPerHour.toFixed(2)} {ds.currency}</strong></span>
-                  )}
-                </div>
-                {/* Usage bar relative to total */}
-                {totalMs > 0 && (
-                  <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden mt-0.5">
-                    <div className="h-full rounded-full bg-lock" style={{ width: `${Math.round((ds.totalMs / totalMs) * 100)}%` }} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
+      {/* Device-Nutzung — umschaltbar zwischen KG und den Geräte-Kategorien */}
+      {deviceUsageVariants.length > 0 && (
+        <DeviceUsageSwitcher variants={deviceUsageVariants} />
       )}
 
       {/* Kontrollen */}

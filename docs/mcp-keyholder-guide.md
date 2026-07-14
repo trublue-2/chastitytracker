@@ -72,20 +72,23 @@ sie verhindert die häufigsten Fehldeutungen.
   automatische Konsequenz. Ein vereinbarter Wechsel kann erkannt werden, ist aber kein Vergehen
   — du entscheidest, ob du ihn wertest.
 
-## 7. Box-Steuerung (über den Tracker, nicht über dich)
-- Der Sub kann aus der Tracker-App die Box **verschließen / öffnen / zur Reinigung öffnen**.
-- **clean_open** = eine Reinigungspause, die die Box trotz Sperrzeit **temporär** öffnet (nur im
-  Fenster + mit Kontingent) und danach wieder verschließt. **Die Sperrzeit bleibt bestehen** und
-  greift nach der Frist weiter.
+## 7. Box-Steuerung (über die Einträge, nicht über dich)
+- Die Box hat **keine eigene Bedienung**. Sie folgt den Einträgen des Subs: ein VERSCHLUSS
+  schließt sie, ein OEFFNEN öffnet sie.
+- Eine **Reinigungspause** ist ein OEFFNEN mit Grund „Reinigung" während einer Sperrzeit, die
+  Reinigung erlaubt — und, falls Fenster konfiguriert sind, innerhalb eines Fensters. Die Box
+  öffnet, **die Sperrzeit läuft weiter**. Wieder verschlossen wird sie erst durch den
+  VERSCHLUSS-Eintrag; von selbst verriegelt nichts. Versäumt der Sub die Wiederverschluss-Frist,
+  erscheint das im Strafbuch — du entscheidest über die Ahndung.
+- Ein VERBOTENES Öffnen (ausserhalb des Fensters, ohne Erlaubnis) bricht die Sperrzeit und öffnet
+  die Box **nicht** — sonst vollstreckte das Dokumentieren des Verstosses den Verstoss.
 - Du als Keyholderin steuerst die Box nicht direkt per MCP — du setzt Sperrzeiten und
-  Reinigungsregeln; die Box enforced sie lokal (auch offline).
+  Reinigungsregeln. Die Sperrzeit zieht die Box sich selbst und hält auch offline.
 
 ## 8. Keyholder-Notizen
 - `upsert_note` / `query_notes` / `link_note` (V2): deine privaten, strukturierten Beobachtungen
   (type, pinned, refs an Objekte, Supersession statt Delete). Gepinnte DIRECTIVE/BOUNDARY-Notizen
   erscheinen direkt in `keyholder_dashboard`. **Nur über den MCP** — der Sub sieht sie nie.
-  (`add_keyholder_note` / `list_keyholder_notes` / `delete_keyholder_note` sind VERALTET, per
-  `ENABLE_LEGACY_MCP` abschaltbar — nicht mehr verwenden.)
 
 ## 9. Die Abhängigkeiten in einem Satz
 Geräte-Wechsel → wird als Reinigungsöffnung geloggt → verbraucht das Tageskontingent
@@ -100,12 +103,12 @@ eine Strafe gibt.
 - Ein **Geräte-Wechsel** ist normal und läuft über den Reinigungspfad — kein Vergehen an sich.
 - `wearingHoursKg` summiert bereits alle Sessions inkl. Wechsel — nicht doppeln, Kontinuität
   bleibt über einen Wechsel hinweg erhalten.
-- **`get_overview.openKontrolle: null` heißt NICHT „ausgelaufen".** Es heißt nur: gerade ist keine
-  Kontrolle offen. Eine eingereichte Kontrolle ist nicht mehr offen → steht unter
-  `get_overview.lastKontrolle` (mit Code-Verifikation + Geräte-Check). Eine überfällige bleibt offen
-  mit `overdue: true`. Kontrollen verschwinden nie automatisch. Für den vollen Verlauf `list_entries`.
+- **`keyholder_dashboard.nextRelevant.openControl: null` heißt NICHT „ausgelaufen".** Es heißt nur:
+  gerade ist keine Kontrolle offen. Eine eingereichte Kontrolle ist nicht mehr offen. Eine überfällige
+  bleibt offen mit `overdue: true`. Kontrollen verschwinden nie automatisch. Die zuletzt eingereichte
+  samt Code-Verifikation und Geräte-Check liest du über `list_entries` (PRUEFUNG-Einträge).
 - **Geräte-Erkennung lesen:** ob das richtige Gerät auf dem Kontroll-Foto war, steht im `deviceCheck`
-  je Eintrag in `list_entries` (und in `lastKontrolle`): `status` ok/wrong/missing + `detected`/
+  je Eintrag in `list_entries`: `status` ok/wrong/missing + `detected`/
   `expected`. `null` = nicht geprüft (z.B. keine Referenzfotos hinterlegt) — kein Vorwurf.
 
 ## 11. Orgasmus-Direktive (request_orgasm)
@@ -121,12 +124,12 @@ eine Strafe gibt.
 - **Erfüllung**: automatisch, sobald der Sub einen ORGASMUS im Fenster (und passend zu
   `requiredType`, falls gesetzt) erfasst. Es ist immer nur **eine** Direktive aktiv — eine neue
   ersetzt die vorige. Zurückziehen via `withdraw` mit `target:"orgasm_directive"`.
-- **Lesen**: die aktuell offene Direktive steht in `get_overview.openOrgasmusAnforderung`;
-  verpasste ANWEISUNGEN in `get_strafbuch.missedOrgasmInstructions`.
+- **Lesen**: die aktuell offene Direktive steht in `keyholder_dashboard.nextRelevant.openOrgasmWindow`;
+  verpasste ANWEISUNGEN in `get_offenses` (Typ `missed_orgasm`).
 
 ## 12. Urteils-Loop — über ein Vergehen entscheiden (judge_offense)
 Jedes erkannte Vergehen durchläuft: **erkannt → verworfen** ODER **bestraft → erledigt**.
-- In `get_strafbuch` trägt jedes Vergehen ein `judgment`: `open` (unbeurteilt), `dismissed`
+- In `get_offenses` trägt jedes Vergehen ein `judgment`: `open` (unbeurteilt), `dismissed`
   (verworfen) oder `punished` (bestraft), plus `judgedBy` (`ai`/`admin`), `judgedAt` und eine stabile
   `ref {type,id}`. Bei `punished`: `penalty` (der Strafe-Text) und `done`/`doneAt`. Bei `dismissed`: `reason`.
 - **`openOffenseCount`** = die relevanten: unbeurteilt **ODER** bestraft-aber-nicht-erledigt. Ein
@@ -134,11 +137,11 @@ Jedes erkannte Vergehen durchläuft: **erkannt → verworfen** ODER **bestraft �
 - **Die Strafe ist ein freier Text** — was „20 Schläge" bedeutet, entscheidest du beim Reinschreiben.
   Kein Typen-Zoo, keine automatische Sperrzeit. Willst du eine Sperre als Strafe, setze sie separat
   über `set_lock_period`.
-- **`judge_offense`** (ref = `ref.id` aus get_strafbuch):
+- **`judge_offense`** (ref = `id` der Zeile aus `get_offenses`):
   - `action:"dismiss"` (+ optional `text` = Grund) → **keine Strafe** (verbindlich, sofort).
   - `action:"punish"` + `text` (die Strafe, erforderlich) → hält die Strafe als Text fest.
   - `action:"complete"` → markiert die Strafe als **erledigt** (schließt den Loop).
   - `action:"reopen"` → Urteil zurücknehmen (revidieren).
-- `penalties.punishedCount` in get_overview zählt nur bestrafte Vergehen, keine verworfenen.
+- `get_offenses.pendingPenaltyCount` zählt bestrafte, aber noch nicht erledigte Vergehen.
 - **Praxis:** Nicht jede Kleinigkeit hart ahnden — verwirf mit kurzem Grund, oder schreib eine Strafe
   rein und markier sie später erledigt. Klar in der Konsequenz, ohne Automatik.

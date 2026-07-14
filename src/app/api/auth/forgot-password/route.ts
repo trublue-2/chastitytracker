@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml } from "@/lib/mail";
+import { sendMail, escHtml, appBaseUrl } from "@/lib/mail";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hashToken } from "@/lib/oauth";
@@ -38,8 +38,7 @@ export async function POST(req: NextRequest) {
     data: { token: tokenHash, userId: user.id, expiresAt },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+  const resetUrl = `${appBaseUrl()}/reset-password?token=${token}`;
 
   const t = await emailT(user.locale);
   await sendMail(

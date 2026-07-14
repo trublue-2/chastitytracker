@@ -4,13 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
-import { getActiveSperrzeit } from "@/lib/queries";
+import { getActiveSperrzeit, getIsLocked } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { serviceResponse } from "@/lib/serviceResult";
 
 export async function GET(
   _req: NextRequest,
@@ -21,13 +22,9 @@ export async function GET(
   const err = await requireKeyholderOrAdminApi(id);
   if (err) return err;
 
-  const [user, latestLockEntry, offeneAnforderung, activeSperrzeit] = await Promise.all([
+  const [user, isLocked, offeneAnforderung, activeSperrzeit] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
-    prisma.entry.findFirst({
-      where: { userId: id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-      orderBy: { startTime: "desc" },
-      select: { type: true },
-    }),
+    getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
     }),
@@ -39,7 +36,7 @@ export async function GET(
   return NextResponse.json({
     username: user.username,
     email: user.email,
-    isLocked: latestLockEntry?.type === "VERSCHLUSS",
+    isLocked,
     hasOffeneAnforderung: !!offeneAnforderung,
     hasActiveSperrzeit: !!activeSperrzeit,
   });
@@ -86,13 +83,12 @@ export async function PATCH(
     body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined ||
     body.reinigungMaxProTag !== undefined || body.reinigungsFenster !== undefined
   ) {
-    await setReinigungSettings(id, {
+    return serviceResponse(await setReinigungSettings(id, {
       erlaubt: body.reinigungErlaubt !== undefined ? Boolean(body.reinigungErlaubt) : undefined,
       maxMinuten: body.reinigungMaxMinuten !== undefined ? Number(body.reinigungMaxMinuten) : undefined,
       maxProTag: body.reinigungMaxProTag !== undefined ? Number(body.reinigungMaxProTag) : undefined,
       fenster: body.reinigungsFenster, // roh — der Service validiert/normalisiert
-    });
-    return NextResponse.json({ ok: true });
+    }));
   }
 
   if (
@@ -102,23 +98,21 @@ export async function PATCH(
     body.autoKontrolleFristVon !== undefined || body.autoKontrolleFristBis !== undefined
   ) {
     // Felder roh durchreichen — setAutoKontrolleSettings klemmt/validiert (HH:MM, Bereiche, Bis≥Von).
-    await setAutoKontrolleSettings(id, {
+    return serviceResponse(await setAutoKontrolleSettings(id, {
       aktiv: body.autoKontrolleAktiv, perDayMin: body.autoKontrollePerDayMin, perDayMax: body.autoKontrollePerDayMax,
       ruheVon: body.autoKontrolleRuheVon, ruheBis: body.autoKontrolleRuheBis,
       fristVon: body.autoKontrolleFristVon, fristBis: body.autoKontrolleFristBis,
-    });
-    return NextResponse.json({ ok: true });
+    }));
   }
 
   if (
     body.inspectionReminderEnabled !== undefined || body.inspectionReminderDelayMinutes !== undefined ||
     body.inspectionAutoMarkEnabled !== undefined || body.inspectionAutoMarkDelayMinutes !== undefined
   ) {
-    await setInspectionEscalationSettings(id, {
+    return serviceResponse(await setInspectionEscalationSettings(id, {
       reminderEnabled: body.inspectionReminderEnabled, reminderDelayMinutes: body.inspectionReminderDelayMinutes,
       autoMarkEnabled: body.inspectionAutoMarkEnabled, autoMarkDelayMinutes: body.inspectionAutoMarkDelayMinutes,
-    });
-    return NextResponse.json({ ok: true });
+    }));
   }
 
   if (body.orgasmusArtenConfig !== undefined) {

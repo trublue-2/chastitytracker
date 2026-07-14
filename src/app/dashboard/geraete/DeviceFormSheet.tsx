@@ -11,8 +11,10 @@ import FormError from "@/app/components/FormError";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import useToast from "@/app/hooks/useToast";
 import { compressImage } from "@/lib/compressImage";
-import { VALID_CURRENCIES } from "@/lib/constants";
+import { VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import type { DeviceRow, CategoryOption } from "./DevicesClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 const CURRENCY_OPTIONS = VALID_CURRENCIES.map((c) => ({ value: c, label: c }));
 
@@ -28,6 +30,7 @@ interface Props {
 export default function DeviceForm({ onClose, onSaved, device, categories, userId }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
+  const apiError = useApiError();
   const toast = useToast();
 
   // Pick a sensible default category: edit→existing, create→KG built-in.
@@ -102,8 +105,10 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setError(err.error || tCommon("savingError"));
+        // Ohne verwertbaren Body (500-HTML-Seite, Proxy-Fehler) bleibt „Fehler beim Speichern"
+        // stehen — `useApiError()` würde hier auf das nichtssagende generische „Fehler" einebnen.
+        const code = await parseApiErrorCode(res);
+        setError(code ? apiError(code) : tCommon("savingError"));
         setSaving(false);
         return;
       }
@@ -131,7 +136,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("namePlaceholder")}
-            maxLength={60}
+            maxLength={DEVICE_NAME_MAX_LENGTH}
             required
           />
 
@@ -150,6 +155,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("descriptionPlaceholder")}
             rows={2}
+            maxLength={DEVICE_DESCRIPTION_MAX_LENGTH}
           />
 
           {/* Photo */}

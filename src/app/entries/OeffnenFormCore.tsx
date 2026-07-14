@@ -16,6 +16,7 @@ import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Sheet from "@/app/components/Sheet";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
+import type { BoxHold } from "@/lib/boxOpenOutlook";
 
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };
@@ -27,6 +28,11 @@ interface Props {
   nowDefault: string;
   sperrzeit?: SperrzeitState;
   reinigung?: ReinigungConfig;
+  /** Serverseitig gefälltes Urteil: hält die Box? null = der Riegel folgt (oder es gibt keine Box). */
+  boxHold?: BoxHold | null;
+  /** Hat der Sub überhaupt eine Box? `boxHold` taugt dafür nicht: es ist auch `null`, wenn eine Box
+   *  existiert und folgt. Entscheidet, ob das Warn-Sheet sagt, dass der Riegel zubleibt. */
+  hasBox?: boolean;
   isEdit?: boolean;
   submitFn: (payload: OeffnenPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
@@ -37,7 +43,7 @@ interface Props {
 }
 
 export default function OeffnenFormCore({
-  initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung,
+  initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
 }: Props) {
   const t = useTranslations("openForm");
@@ -46,11 +52,12 @@ export default function OeffnenFormCore({
 
   const sperrzeitEndetAt = sperrzeit?.endetAt ?? null;
   const sperrzeitUnbefristet = sperrzeit?.unbefristet ?? false;
-  const sperrzeitReinigungErlaubt = sperrzeit?.reinigungErlaubt ?? false;
-  const reinigungErlaubt = reinigung?.erlaubt ?? false;
   const reinigungMaxMinuten = reinigung?.maxMinuten ?? 15;
   const reinigungMaxProTag = reinigung?.maxProTag ?? 0;
   const reinigungHeuteAnzahl = reinigung?.heuteAnzahl ?? 0;
+  // Ohne `reinigung`-Prop (Admin-Formular, Edit-Seite) gibt es keine Schranke — dort greifen die
+  // Sub-Warnungen ohnehin nicht, und ein Grund würde jede Reinigungsöffnung als Bruch anzeigen.
+  const cleaningBlock = reinigung?.cleaningBlock ?? null;
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [grund, setGrund] = useState<OeffnenGrund | "">((initial?.oeffnenGrund as OeffnenGrund) ?? defaultGrund ?? "");
@@ -62,10 +69,32 @@ export default function OeffnenFormCore({
 
   const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
   const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
-  // Eine REINIGUNG-Öffnung verletzt die Sperre NICHT, wenn sowohl der User als auch DIESE Sperrzeit
-  // Reinigung erlauben (spiegelt die Strafbuch-Regel) — dann keine „Öffnen nicht erlaubt"-Warnung.
-  const istErlaubteReinigungsOeffnung = grund === "REINIGUNG" && reinigungErlaubt && sperrzeitReinigungErlaubt;
+  // Das Urteil kommt fertig vom Server (`cleaningBlockReason`) — dieselbe Regel, die über den
+  // Sperrzeit-Bruch entscheidet. Hier nachzurechnen (User-Flag, Sperr-Flag, Fenster) hiesse, sie ein
+  // viertes Mal zu formulieren; genau so ist die Fenster-Prüfung anderswo verlorengegangen.
+  const istErlaubteReinigungsOeffnung = grund === "REINIGUNG" && cleaningBlock === null;
   const isGesperrtBlockiert = isGesperrt && !istErlaubteReinigungsOeffnung;
+
+  /** Warum steht bei Grund „Reinigung" kein „max. X Minuten" da? Der Server nennt den Grund. */
+  const reinigungHintKey =
+    cleaningBlock === "lockPeriodForbids" ? "reinigungHintLockPeriod"
+    : cleaningBlock === "outsideWindow" ? "reinigungHintOutsideWindow"
+    : cleaningBlock === "userNotAllowed" ? "reinigungHintNoConfig"
+    : null;
+  /** Der Reinigungs-Hinweistext (Sheet + Inline-Karte teilen ihn). Ist die Öffnung ausserhalb des
+   *  Fensters, hängt „Nächstes Reinigungsfenster …" an — sonst weiss der Sub nicht, wann es wieder
+   *  geht. `nextWindow` ist dieselbe Quelle wie die Box-Karte auf der Übersicht. */
+  const reinigungHintText =
+    (reinigungHintKey ? t(reinigungHintKey) : t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })) +
+    (cleaningBlock === "outsideWindow" && reinigung?.nextWindow
+      ? " " + t("boxNextWindow", { start: reinigung.nextWindow.start, end: reinigung.nextWindow.end })
+      : "");
+
+  // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Bei einer erlaubten
+  // Reinigungsöffnung folgt der Riegel trotz laufender Sperrzeit (der Tracker setzt den Dauerauftrag
+  // in Heimdall aus) — dann wäre die Halte-Warnung falsch. Der Bruch-Fall gehört `isGesperrtBlockiert`
+  // und wird von der Sperrzeit-Karte plus dem Absende-Sheet abgedeckt.
+  const zeigeBoxHalt = !initial && !!boxHold && !isGesperrtBlockiert && !istErlaubteReinigungsOeffnung;
 
   async function doSave(forced = false) {
     const payload: OeffnenPayload = {
@@ -136,12 +165,15 @@ export default function OeffnenFormCore({
                 {grund === "REINIGUNG" ? t("modalTitleReinigung") : t("modalTitle")}
               </p>
               <p className="text-sm text-foreground-muted">
-                {grund === "REINIGUNG" && reinigungErlaubt
-                  ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
-                  : grund === "REINIGUNG"
-                    ? t("reinigungHintNoConfig")
-                    : t("modalSubtext")}
+                {grund !== "REINIGUNG" ? t("modalSubtext") : reinigungHintText}
               </p>
+              {/* Der Eintrag dokumentiert die Öffnung — er vollzieht sie nicht. Bei einem VERBOTENEN
+                  Öffnen sendet der Server bewusst kein Box-Kommando (sonst vollstreckte das
+                  Dokumentieren des Verstosses den Verstoss). Ohne diesen Satz liest der Sub
+                  „Konsequenzen" und denkt ans Strafbuch, nicht an den Notschlüssel. */}
+              {hasBox && (
+                <p className="text-sm font-semibold text-warn mt-1">{t("modalBoxStaysLocked")}</p>
+              )}
               <p className="text-xs text-sperrzeit font-semibold mt-1">
                 {sperrzeitUnbefristet
                   ? t("modalLockedIndefinite")
@@ -156,7 +188,9 @@ export default function OeffnenFormCore({
               {t("modalStay")}
             </Button>
             <Button variant="secondary" fullWidth loading={saving} onClick={() => { setShowWarning(false); doSave(forcedReinigung); }}>
-              {t("modalOpenAnyway")}
+              {/* Mit Box trägt der Knopf nur ein — er öffnet nichts. Ohne Box ist der Eintrag die
+                  ganze Wahrheit, dort bleibt „Trotzdem öffnen" richtig. */}
+              {t(hasBox ? "modalRecordAnyway" : "modalOpenAnyway")}
             </Button>
           </div>
         </div>
@@ -198,14 +232,30 @@ export default function OeffnenFormCore({
           options={grundSelectOptions}
         />
 
+        {zeigeBoxHalt && (
+          <Card variant="semantic" semantic="warn" padding="compact">
+            <div className="flex items-start gap-2">
+              <Lock size={15} className="text-warn shrink-0 mt-0.5" />
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-bold text-warn-text">{t("boxWontOpenTitle")}</p>
+                <p className="text-xs text-warn-text">
+                  {boxHold!.until
+                    ? t("boxHoldsUntil", { date: new Date(boxHold!.until).toLocaleString(dl, { hour: "2-digit", minute: "2-digit", timeZone: tz }) })
+                    : t("boxHoldsIndefinitely")}
+                  {reinigung?.nextWindow ? " " + t("boxNextWindow", { start: reinigung.nextWindow.start, end: reinigung.nextWindow.end }) : ""}
+                </p>
+                <p className="text-xs text-warn-text">
+                  {grund === "REINIGUNG" ? t("boxStillCountsCleaning") : t("boxStillCounts")}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {grund === "REINIGUNG" && (
           <Card variant="semantic" semantic={isReinigungLimitReached ? "warn" : "inspect"} padding="compact">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-inspect-text">
-                {reinigungErlaubt
-                  ? t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })
-                  : t("reinigungHintNoConfig")}
-              </p>
+              <p className="text-xs text-inspect-text">{reinigungHintText}</p>
               {reinigungMaxProTag > 0 && (
                 <p className={`text-xs font-semibold ${isReinigungLimitReached ? "text-warn" : "text-inspect-text"}`}>
                   {t("reinigungLimitHint", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidEmail } from "@/lib/constants";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 
+// Eigener Handler statt userSelfFieldRoute: trimmt auf null und mappt den Unique-Constraint
+// auf 409 emailTaken — beides passt nicht in den generischen „validieren & schreiben"-Ablauf.
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { email } = await req.json();
   const trimmed = typeof email === "string" ? email.trim() : "";

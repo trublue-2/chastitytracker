@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { APP_TZ } from "@/lib/utils";
+// ReinigungSettings wird NUR lokal gebraucht — der Typ gehört utils.ts (wo buildPairs ihn
+// definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
+import { APP_TZ, type ReinigungSettings } from "@/lib/utils";
 import { isoWithOffset } from "@/lib/mcp/format";
+import type { DeviceMeta } from "@/lib/sessionModel";
 import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";
 
 /** Querschnitt-Helfer der MCP-V2-Schicht: User-Auflösung, Zeitformat, Inline-Notes.
@@ -14,6 +17,11 @@ export type Iso = (d: Date | null | undefined) => string | null;
 /** Baut eine `iso`-Funktion, die in der Zeitzone `tz` des Ziel-Subs formatiert. Jedes Tool löst
  *  seinen einen Ziel-Sub auf und baut damit sein lokales `iso` (schattet den Modul-Default). */
 export const makeIso = (tz: string): Iso => (d) => isoWithOffset(d, tz);
+
+/** Wie {@link makeIso}, aber für Zeitpunkte, die es GARANTIERT gibt — gibt `string` statt
+ *  `string | null` zurück. Sonst behilft sich jeder Aufrufer selbst: mal mit `!`, mal mit einem
+ *  `as`-Cast, der das `null` nur wegdefiniert. */
+export const makeFmt = (tz: string): ((d: Date) => string) => (d) => isoWithOffset(d, tz)!;
 
 /** ISO-8601 mit APP_TZ-Offset — Fallback für Call-Sites ohne aufgelösten Sub-Kontext (bleibt
  *  byte-identisch zum bisherigen Verhalten für den Default "Europe/Zurich"). */
@@ -40,14 +48,18 @@ export async function tzOf(userId: string, client: TxClient = prisma): Promise<s
   return u?.timezone ?? APP_TZ;
 }
 
-export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
 
-/** Parst einen ISO-String zu Date; wirft bei ungültigem Wert (geteilter Guardrail aller V2-Tools).
- *  undefined-Input → undefined (Feld nicht gesetzt). */
+/** Parst einen ISO-String zu Date; wirft bei ungültigem Wert (geteilter Guardrail ALLER MCP-Tools,
+ *  V1 wie V2). undefined-Input → undefined (Feld nicht gesetzt). Die Überladung hält den Rückgabetyp
+ *  bei einem garantiert vorhandenen String auf `Date`, damit Aufrufer kein `!` brauchen. */
+export function parseIsoDate(value: string, field: string): Date;
+export function parseIsoDate(value: string | undefined, field: string): Date | undefined;
 export function parseIsoDate(value: string | undefined, field: string): Date | undefined {
   if (value == null) return undefined;
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ISO date for ${field}: "${value}"`);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Invalid ISO date for ${field}: "${value}". Use ISO 8601, e.g. 2026-06-12.`);
+  }
   return d;
 }
 
@@ -63,15 +75,9 @@ export interface TrackingEntry {
   deviceCheck: string | null;
   deviceCheckNote: string | null;
   deviceCheckExpected: string | null;
+  /** Siehe `Entry.keyInBox` (schema.prisma). */
+  keyInBox: boolean | null;
   device: { id: string; name: string; categoryId: string | null } | null;
-}
-
-/** Geräte-Metadaten, die die Segment-Wahrheit braucht: id↔Name-Auflösung + Lookalike-Cluster
- *  (cluster-interne Bild-Mismatches sind soft, nie ein echter Konflikt). */
-export interface DeviceMeta {
-  id: string;
-  name: string;
-  lookalikeClusterId: string | null;
 }
 
 /** Vorgeladener Tracking-Kontext — erlaubt komponierenden Tools (keyholder_dashboard), Entries +
@@ -85,30 +91,35 @@ export interface TrackingContext {
   reinigung: ReinigungSettings;
   devices: DeviceMeta[];
   now: Date;
+  /** Freitext-Regeln des menschlichen Keyholders. Kommt aus derselben User-Zeile wie tz/reinigung. */
+  keyholderInstructions: string | null;
 }
 
 /** Lädt resolveUserId + loadTrackingData zu einem TrackingContext (eine Quelle für komponierende Tools). */
 export async function loadTrackingContext(username: string, now: Date = new Date()): Promise<TrackingContext> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung, devices, timezone } = await loadTrackingData(userId);
-  return { userId, timezone, entries, reinigung, devices, now };
+  const { entries, reinigung, devices, timezone, keyholderInstructions } = await loadTrackingData(userId);
+  return { userId, timezone, entries, reinigung, devices, now, keyholderInstructions };
 }
 
 /** Lädt Entries (mit Device-Include) + Reinigungs-Settings + Geräte-Meta + Sub-Zeitzone — die geteilte
  *  Datenbasis aller V2-Read-Tools (get_session, device_stats, records, denial_trend …). */
-export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[]; timezone: string }> {
+export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[]; timezone: string; keyholderInstructions: string | null }> {
   const [user, entries, devices] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true, mcpKeyholderInstructions: true } }),
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
       select: {
         id: true, type: true, startTime: true, oeffnenGrund: true, orgasmusArt: true,
         kontrollCode: true, verifikationStatus: true,
-        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true,
+        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true, keyInBox: true,
         device: { select: { id: true, name: true, categoryId: true } },
       },
     }),
+    // DeviceMeta bewusst OHNE Kategorie: dieser Kontext wird von JEDEM V2-Read geladen, die
+    // Kategorie brauchen aber nur die, die Sessions/Geräte beschriften — {@link loadCategoryNames}
+    // holt sie dort, wo sie gebraucht wird.
     prisma.device.findMany({ where: { userId }, select: { id: true, name: true, lookalikeClusterId: true } }),
   ]);
   return {
@@ -116,6 +127,24 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
     reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
     devices,
     timezone: user.timezone ?? APP_TZ,
+    keyholderInstructions: user.mcpKeyholderInstructions ?? null,
+  };
+}
+
+/** Die Geräte-Kategorien eines Subs, für die Beschriftung von Sessions/Statistik-Zeilen.
+ *
+ *  Aus IHRER Tabelle, nicht aus den Geräten erraten: die eingebaute KG-Kategorie existiert auch dann,
+ *  wenn (noch) kein KG-Gerät angelegt ist — und genau solche Alt-Verschlüsse ohne Gerät sind es, die
+ *  als „ohne Gerät" gebucht sind und trotzdem als KG auszuweisen sind. `isBuiltIn` IST die
+ *  KG-Kennung (es gibt genau eine eingebaute), nicht der Name — der ist frei umbenennbar. */
+export async function loadCategoryNames(userId: string): Promise<{ nameById: Map<string, string>; kgName: string | null }> {
+  const categories = await prisma.deviceCategory.findMany({
+    where: { userId },
+    select: { id: true, name: true, isBuiltIn: true },
+  });
+  return {
+    nameById: new Map(categories.map((c) => [c.id, c.name])),
+    kgName: categories.find((c) => c.isBuiltIn)?.name ?? null,
   };
 }
 

@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
-import { deriveSealCode, getLatestKgEntry } from "@/lib/kontrolleService";
+import { deriveSealCode } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
+import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
+import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 import { checkDeviceInPhoto } from "@/lib/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { sendMail, escHtml } from "@/lib/mail";
+import { sendMail, escHtml, appBaseUrl } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
 
 export async function GET() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const entries = await prisma.entry.findMany({
     where: { userId: session.user.id },
@@ -37,12 +40,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable, keyInBox } = body;
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
   // Reason-Codes gegen die (ggf. angepasste) Liste DES SESSION-USERS validieren; null-Config → Built-ins.
@@ -54,10 +57,17 @@ export async function POST(req: NextRequest) {
     orgasmAllowed: (v) => orgasmusValueAllowed(v, reasonUser?.orgasmusArtenConfig),
     openingCodes: validOeffnenCodes(reasonUser?.oeffnenGruendeConfig),
   });
-  if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
+  if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+
+  // EINE Normalisierung für Persistenz UND Box-Kommando — sonst könnte die Box einem Wert folgen, den
+  // der Eintrag nicht dokumentiert. Nicht-Boolean ist oben ausgeschlossen; bleibt: fehlt = null.
+  const keyInBoxDeclared: boolean | null = keyInBox ?? null;
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;
+  // In der Transaktion entschieden, ausserhalb für den Instant-Push wiederverwendet.
+  let boxCmd: "lock" | "open" | null = null;
+
   let withdrawnSperrzeit = false;
   let lockStartTime: Date | null = null;
   let fulfilledAnforderungDeviceId: string | null = null;
@@ -66,37 +76,32 @@ export async function POST(req: NextRequest) {
       // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
       if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
         const device = await validateDeviceOwnership(deviceId, session.user.id, tx);
-        if (!device) throw Object.assign(new Error(), { _code: "INVALID_DEVICE" });
+        if (!device) throw entryGuardError("INVALID_DEVICE");
       }
 
       // WEAR_BEGIN / WEAR_END: shared validation lives in lib/queries.ts (single source of truth).
       if (type === "WEAR_BEGIN" || type === "WEAR_END") {
         const wearResult = await prepareWearEntry(tx, session.user.id, type, deviceId, startTime, imageUrl);
-        if (!wearResult.ok) throw Object.assign(new Error(), { _code: wearResult.code });
+        if (!wearResult.ok) throw entryGuardError(wearResult.code);
       }
 
+      // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
       if (type === "VERSCHLUSS") {
-        const latest = await tx.entry.findFirst({
-          where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-        });
-        if (latest?.type === "VERSCHLUSS") throw Object.assign(new Error(), { _code: "ALREADY_LOCKED" });
+        const latest = await getLatestKgEntry(session.user.id, tx);
+        if (latest?.type === "VERSCHLUSS") throw entryGuardError("ALREADY_LOCKED");
         if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
-          throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
+          throw entryGuardError("TIME_BEFORE");
         }
       }
       if (type === "OEFFNEN") {
-        const latest = await tx.entry.findFirst({
-          where: { userId: session.user.id, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
-          orderBy: { startTime: "desc" },
-        });
-        if (!latest || latest.type !== "VERSCHLUSS") throw Object.assign(new Error(), { _code: "NOT_LOCKED" });
-        if (new Date(startTime) <= latest.startTime) throw Object.assign(new Error(), { _code: "TIME_BEFORE" });
+        const latest = await getLatestKgEntry(session.user.id, tx);
+        if (!latest || latest.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
+        if (new Date(startTime) <= latest.startTime) throw entryGuardError("TIME_BEFORE");
         lockStartTime = latest.startTime;
       }
 
       if (type === "OEFFNEN") {
-        withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx);
+        withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx, "user");
       }
 
       // PRUEFUNG mit Foto+Code durchläuft danach die async KI-Verifikation (siehe unten) — bis die
@@ -121,6 +126,7 @@ export async function POST(req: NextRequest) {
           // Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur VERSCHLUSS)
           codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,
           codeReadable: type === "VERSCHLUSS" && codeImageUrl ? (codeReadable ?? null) : null,
+          keyInBox: type === "VERSCHLUSS" ? keyInBoxDeclared : null,
         },
       });
 
@@ -150,13 +156,26 @@ export async function POST(req: NextRequest) {
             data: { fulfilledAt: new Date() },
           });
           fulfilledAnforderungDeviceId = offeneAnforderung.deviceId;
-          if (offeneAnforderung.dauerH) {
+          // SPERRZEIT-Ende: absolutes sperrEndetAt (Wanduhr) gewinnt und bleibt fix, egal wann tatsächlich
+          // verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
+          const sperrEnde =
+            offeneAnforderung.sperrEndetAt ??
+            (offeneAnforderung.dauerH
+              ? new Date(Date.now() + offeneAnforderung.dauerH * 60 * 60 * 1000)
+              : null);
+          // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
+          // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
+          // handelt der Sub, und dass er sich zwischendurch selbst einschliesst, darf eine geplante
+          // Anweisung der Keyholderin nicht stillschweigend löschen — er kennt sie ja nicht einmal,
+          // es fiele also niemandem auf. Die Koexistenz ist damit gewollt; wie mehrere Sperrzeiten
+          // aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
+          if (sperrEnde) {
             await tx.verschlussAnforderung.create({
               data: {
                 userId: session.user.id,
                 art: "SPERRZEIT",
                 nachricht: offeneAnforderung.nachricht,
-                endetAt: new Date(Date.now() + offeneAnforderung.dauerH * 60 * 60 * 1000),
+                endetAt: sperrEnde,
                 reinigungErlaubt: offeneAnforderung.reinigungErlaubt,
               },
             });
@@ -190,22 +209,22 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
+      // sie ihm NICHT folgt — steht in `boxCommandForEntry`. No-op ohne Heimdall/Box.
+      boxCmd = boxCommandForEntry({ type, keyInBox: keyInBoxDeclared, brokeSperrzeit: withdrawnSperrzeit });
+      if (boxCmd) await setBoxCommandForUser(tx, session.user.id, boxCmd);
+
       return created;
     });
   } catch (e: unknown) {
-    const code = (e as { _code?: string })?._code;
-    if (code === "INVALID_DEVICE") return NextResponse.json({ error: "Ungültiges Gerät" }, { status: 400 });
-    if (code === "ALREADY_LOCKED") return NextResponse.json({ error: "Verschluss nur möglich wenn aktuell offen" }, { status: 400 });
-    if (code === "NOT_LOCKED") return NextResponse.json({ error: "Öffnen nur möglich wenn aktuell verschlossen" }, { status: 400 });
-    if (code === "TIME_BEFORE") return NextResponse.json({ error: "Zeitpunkt muss nach dem vorherigen Eintrag liegen" }, { status: 400 });
-    if (code === "WEAR_DEVICE_REQUIRED") return NextResponse.json({ error: "Gerät ist erforderlich" }, { status: 400 });
-    if (code === "WEAR_DEVICE_NO_CATEGORY") return NextResponse.json({ error: "Gerät hat keine Kategorie" }, { status: 400 });
-    if (code === "WEAR_DEVICE_KG") return NextResponse.json({ error: "KG-Geräte verwenden Verschluss/Öffnen, nicht WEAR_BEGIN/END" }, { status: 400 });
-    if (code === "ALREADY_WEARING") return NextResponse.json({ error: "Bereits aktive Session in dieser Kategorie" }, { status: 400 });
-    if (code === "NOT_WEARING") return NextResponse.json({ error: "Keine aktive Session in dieser Kategorie" }, { status: 400 });
-    if (code === "WEAR_PHOTO_REQUIRED") return NextResponse.json({ error: "Foto ist bei dieser Kategorie zwingend" }, { status: 400 });
-    throw e;
+    return NextResponse.json({ error: entryGuardCode(e) }, { status: 400 });
   }
+
+  // Instant-Push an Heimdall: eine LIVE Box vollzieht dasselbe Kommando sofort per MQTT — der
+  // pendingCommand-Pull beim nächsten Box-Sync (in der Transaktion oben gesetzt) bleibt der Fallback.
+  // Dieselbe Entscheidung, nicht dieselbe Bedingung noch einmal: sonst driften Pull und Push
+  // auseinander und die Box täte per MQTT etwas anderes als beim Sync. No-op ohne HEIMDALL_BASE_URL.
+  if (boxCmd) notifyHeimdall(session.user.name, boxCmd);
 
   // REINIGUNG-Limit wird NICHT mehr automatisch bestraft: eine Reinigungsöffnung über dem
   // Tageskontingent (auch ein Geräte-Wechsel) wird im Strafbuch nur noch ERKANNT (live in
@@ -338,8 +357,7 @@ export async function POST(req: NextRequest) {
       }
 
       const adminUrl = `/admin/users/${session.user.id}`;
-      const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-      const adminLink = `${baseUrl}${adminUrl}`;
+      const adminLink = `${appBaseUrl()}${adminUrl}`;
 
       // Recipients = global admins + the sub's keyholders (controllers via AdminUserRelationship).
       // Keyholders are role "user", so a role:"admin" query alone would miss them.

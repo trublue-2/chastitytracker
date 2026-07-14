@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
   // Consume-on-read: ein anstehendes Kommando wird beim Abholen direkt gelöscht. Heimdall
   // wendet es an; geht es verloren (Crash), setzt der Sub es einfach neu — kein Ack nötig.
   const pendingCommand = existing?.pendingCommand ?? null;
-  const relockBy = existing?.pendingCommandRelockBy ?? null;
 
   const status = {
     name: body.name,
@@ -61,8 +60,8 @@ export async function POST(req: NextRequest) {
   await prisma.boxStatus.upsert({
     where: key,
     create: { userId: user.id, boxId: body.boxId, ...status },
-    update: { ...status, ...(pendingCommand ? { pendingCommand: null, pendingCommandRelockBy: null, pendingCommandAt: null } : {}) },
+    update: { ...status, ...(pendingCommand ? { pendingCommand: null, pendingCommandAt: null } : {}) },
   });
 
-  return NextResponse.json({ pendingCommand, relockBy: relockBy?.toISOString() ?? null });
+  return NextResponse.json({ pendingCommand });
 }

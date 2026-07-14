@@ -61,6 +61,10 @@ interface CompactProps {
   withdrawAction?: ReactNode;
   /** Shows a live countdown "Rest: …" next to the date. Requires endetAt. */
   showRemaining?: boolean;
+  /** Erlaubt diese Sperre Reinigungsöffnungen? Fertig übersetzter Text (i18n bleibt beim Aufrufer,
+   *  wie bei `label`). Weglassen = nicht anzeigen — der Sub, der grundsätzlich nicht reinigen darf,
+   *  soll keine Zeile über etwas lesen, das seine Einstellung ohnehin verbietet. */
+  cleaningNote?: string | null;
 }
 
 interface LargeProps {
@@ -70,13 +74,15 @@ interface LargeProps {
   nachricht?: string | null;
   /** Pre-formatted date string for endetAt display */
   endetAtLabel?: string | null;
+  /** Siehe {@link CompactProps.cleaningNote}. */
+  cleaningNote?: string | null;
 }
 
 type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endetAt, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining } = props;
+    const { colorScheme, label, overdue, endetAt, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
@@ -95,6 +101,9 @@ export default function LockRequestBanner(props: Props) {
           {showRemaining && endetAt && (
             <SperrzeitRemaining endetAt={new Date(endetAt).toISOString()} className={`text-xs opacity-70 ${c.accent}`} />
           )}
+          {cleaningNote && (
+            <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>· {cleaningNote}</span>
+          )}
         </div>
         {withdrawAction && <div className="relative z-20 flex-shrink-0">{withdrawAction}</div>}
       </div>
@@ -102,7 +111,7 @@ export default function LockRequestBanner(props: Props) {
   }
 
   // Large variant (dashboard)
-  const { colorScheme, label, nachricht, endetAtLabel } = props;
+  const { colorScheme, label, nachricht, endetAtLabel, cleaningNote } = props;
   const c = COLORS[colorScheme];
   const Icon = SCHEME_ICON[colorScheme];
 
@@ -114,6 +123,7 @@ export default function LockRequestBanner(props: Props) {
       </div>
       {nachricht && <p className={`text-sm ${c.accent}`}>{nachricht}</p>}
       {endetAtLabel && <p className={`text-xs ${c.accent}`}>{endetAtLabel}</p>}
+      {cleaningNote && <p className={`text-xs ${c.accent}`}>{cleaningNote}</p>}
     </div>
   );
 }

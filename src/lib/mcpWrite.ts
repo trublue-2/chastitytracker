@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions } from "@/lib/queries";
+import { getUserDeviceOptions, getKeyholderSperrzeiten } from "@/lib/queries";
+import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense } from "@/lib/strafurteilService";
+import { parseIsoDate } from "@/lib/mcp/common";
 import type { ServiceResult } from "@/lib/serviceResult";
+import en from "../../messages/en.json";
 
 /**
  * MCP write tools — keyholder directives issued over the MCP. The acting authority is the
@@ -60,9 +63,19 @@ async function resolveCategoryId(userId: string, name: string): Promise<string> 
   return match.id;
 }
 
-/** Unwraps a ServiceResult, throwing its error message so the tool wrapper surfaces it. */
+/** Die englischen Sätze zu den Service-Fehler-Codes. Bewusst aus `messages/en.json` gelesen statt
+ *  aus einer zweiten Tabelle: sonst hätte derselbe Code zwei Texte, die auseinanderlaufen, sobald
+ *  einer davon gepflegt wird. Der Parity-Test (serviceErrorCodes.test.ts) hält die Datei vollständig. */
+const EN_ERRORS: Record<string, string> = en.errors;
+
+/** Unwraps a ServiceResult, throwing the error as an English sentence so the tool wrapper surfaces
+ *  something an MCP agent can act on. Services return stable CODES (`LOCK_USER_ALREADY_LOCKED`), and
+ *  an agent has no `errors` namespace to resolve them against — so the boundary translates here.
+ *  `Object.hasOwn` statt `EN_ERRORS[code]`: ein Code wie "constructor" träfe sonst eine geerbte
+ *  Object-Property und würde eine Funktion als Fehlertext werfen. Unbekannter Code → roher Token,
+ *  besser als eine irreführende Meldung. */
 function unwrap<T>(r: ServiceResult<T>): T {
-  if (!r.ok) throw new Error(r.error);
+  if (!r.ok) throw new Error(Object.hasOwn(EN_ERRORS, r.error) ? EN_ERRORS[r.error] : r.error);
   return r.data;
 }
 
@@ -182,10 +195,10 @@ export interface RequestOrgasmArgs {
 }
 export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs) {
   const userId = await resolveTargetUserId(username);
-  const beginnt = args.beginsAt ? parseGoalDate(args.beginsAt, "beginsAt") : new Date();
+  const beginnt = args.beginsAt ? parseIsoDate(args.beginsAt, "beginsAt") : new Date();
   let endet: Date;
   if (args.endsAt) {
-    endet = parseGoalDate(args.endsAt, "endsAt");
+    endet = parseIsoDate(args.endsAt, "endsAt");
   } else if (args.windowHours && args.windowHours > 0) {
     endet = new Date(beginnt.getTime() + args.windowHours * 60 * 60 * 1000);
   } else {
@@ -219,22 +232,14 @@ export interface SetTrainingGoalArgs {
   note?: string;
 }
 
-/** Parses an ISO date arg, throwing a clean tool error on garbage. */
-function parseGoalDate(value: string, field: string): Date {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    throw new Error(`Invalid ${field} date: "${value}". Use ISO 8601, e.g. 2026-06-12.`);
-  }
-  return d;
-}
 
 export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
   const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
 
   // Default to now; validFrom may be a future date to schedule a goal in advance.
-  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : new Date();
-  const gueltigBis = args.validUntil ? parseGoalDate(args.validUntil, "validUntil") : null;
+  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : new Date();
+  const gueltigBis = args.validUntil ? parseIsoDate(args.validUntil, "validUntil") : null;
   if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
     throw new Error("validUntil must be after validFrom.");
   }
@@ -260,25 +265,55 @@ export interface WithdrawArgs {
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
   let count = 0;
+  // `hidden` (Teilmenge von `count`) = davon terminiert und noch nicht ausgelöst. Trifft ein Rückzug
+  // sowohl eine laufende als auch eine geplante Direktive, sagt ein blosses `count: 2` nicht, WAS da
+  // mitgegangen ist — die Keyholderin muss die geplante bewusst verloren haben können.
+  let hidden = 0;
+  // `notified` = wusste der Sub von der Direktive? Eine terminierte, noch nicht ausgeloeste ist fuer
+  // ihn unsichtbar; sie zu stornieren meldet ihm nichts. Die Antwort darf das nicht anders behaupten.
+  let notified = true;
   // Über die Shared-Services zurückziehen → der Nutzer wird konsistent benachrichtigt (wie in der Admin-UI).
   if (args.target === "orgasm_directive") {
     count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
   } else if (args.target === "lock_request") {
-    count = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")).count;
+    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")));
   } else if (args.target === "lock_period") {
-    count = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")).count;
+    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")));
   } else if (args.target === "inspection") {
-    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — resolveKontrolle benachrichtigt.
+    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE (kein
+    // wirksamAb-Gate). resolveKontrolle schweigt bei denen: eine noch nicht ausgelöste Kontrolle ist
+    // für den Sub unsichtbar, und bei Auto-Kontrollen wäre die Meldung der Verrat des Zufallsplans.
     const open = await prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null },
       select: { id: true },
     });
-    for (const ka of open) unwrap(await resolveKontrolle(ka.id, "withdraw"));
+    notified = false;
+    for (const ka of open) {
+      if (unwrap(await resolveKontrolle(ka.id, "withdraw")).notified) notified = true;
+      else hidden++; // schweigend storniert = der Sub kannte sie nicht (terminiert, nicht ausgelöst)
+    }
     count = open.length;
   } else {
     throw new Error(`Unknown withdraw target: ${args.target}`);
   }
-  return { ok: true, withdrawn: count, message: count > 0 ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.` : `Nothing open to withdraw for ${args.target}.` };
+  if (count === 0) return { ok: true, withdrawn: 0, hidden: 0, message: `Nothing open to withdraw for ${args.target}.` };
+  // Gemischter Treffer (laufend + geplant): beides benennen. Der Rückzug per target ist bewusst ein
+  // Rundumschlag — er darf nur nicht so klingen, als hätte er eine einzige Direktive erwischt.
+  const mixed = hidden > 0 && hidden < count;
+  if (mixed) {
+    return {
+      ok: true, withdrawn: count, hidden,
+      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently.`,
+    };
+  }
+  return {
+    ok: true,
+    withdrawn: count,
+    hidden,
+    message: notified
+      ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.`
+      : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.`,
+  };
 }
 
 // ── Training goals: list / edit / delete ────────────────────────────────────
@@ -333,12 +368,12 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
 
   // Category: only change when provided (omit = keep existing).
   const categoryId = args.category !== undefined ? await resolveCategoryId(userId, args.category) : undefined;
-  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom") : existing.gueltigAb;
+  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : existing.gueltigAb;
   // validUntil gesetzt → neues, bewusst gesetztes Ende (manuell). Weggelassen/leer → Bestand
   // behalten, inkl. des bestehenden manuell-Flags (abgeleitetes Ende bleibt abgeleitet).
   // Truthy-Check bewusst: "" bedeutet „nicht angegeben" (nicht „parse Invalid Date").
   const validUntilProvided = !!args.validUntil;
-  const gueltigBis = validUntilProvided ? parseGoalDate(args.validUntil!, "validUntil") : existing.gueltigBis;
+  const gueltigBis = validUntilProvided ? parseIsoDate(args.validUntil!, "validUntil") : existing.gueltigBis;
   const validUntilManual = validUntilProvided ? true : existing.validUntilManual;
   // Datums-Guard nur prüfen, wenn dieser Edit ein Datum wirklich anfasst — sonst würde ein reiner
   // Notiz-/Stunden-Edit auf Bestandsdaten (z.B. verkettetes Ende == Start bei gleichem gueltigAb)
@@ -417,21 +452,59 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
 export interface EditLockPeriodArgs {
   untilAt?: string;
   indefinite?: boolean;
+  /** Die zu ändernde Sperrzeit explizit wählen (id aus `keyholder_dashboard.scheduledDirectives`).
+   *  Ohne id gewinnt die AUSGELÖSTE — siehe {@link mcpEditLockPeriod}. */
+  id?: string;
 }
+
+/**
+ * Ändert das Ende EINER offenen Sperrzeit — offen heisst: nicht zurückgezogen, nicht beendet, also
+ * inklusive einer terminierten, noch nicht ausgelösten.
+ *
+ * **Es kann mehr als eine offene geben** (warum: {@link foldActiveSperrzeiten}), und die alte
+ * „nimm die neueste"-Auswahl traf die gemeinte nur durch Zufall der Sortierung.
+ *
+ * Auswahl ohne `id`: **die AUSGELÖSTE gewinnt** (`!isHiddenFromSub` — die, die der Sub kennt und die
+ * gerade durchsetzt). Sagt die Keyholderin „die Sperrzeit", meint sie die laufende, nicht die für in
+ * drei Wochen geplante. Ein harter Fehler („multiple open — specify id") wäre die Alternative, wurde
+ * aber verworfen: der häufige Fall (eine laufende + eine geplante) ist eindeutig gemeint, und die KI
+ * daran scheitern zu lassen kostet mehr, als die seltene Fehlwahl korrigierbar zu machen. Gibt es NUR
+ * geplante, wird die neueste genommen.
+ *
+ * Die Mehrdeutigkeit bleibt nicht stumm: `untouched` nennt die nicht gewählten mit id und Status, und
+ * über `id` lässt sich jede davon gezielt ansprechen.
+ */
 export async function mcpEditLockPeriod(username: string, args: EditLockPeriodArgs) {
   const userId = await resolveTargetUserId(username);
   if (!args.indefinite && !args.untilAt) throw new Error("Provide untilAt (ISO date) or indefinite=true.");
-  const endetAt = args.indefinite ? null : parseGoalDate(args.untilAt!, "untilAt");
+  const endetAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
 
-  const now = new Date();
-  const sz = await prisma.verschlussAnforderung.findFirst({
-    where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] },
-    orderBy: { createdAt: "desc" },
-    select: { id: true },
-  });
-  if (!sz) throw new Error("No active lock period to edit.");
-  unwrap(await updateSperrzeitEnde(sz.id, endetAt));
-  return { ok: true, id: sz.id, message: (args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`) + " The user was notified by e-mail + push." };
+  const open = await getKeyholderSperrzeiten(userId); // aktive UND geplante, neueste zuerst
+  if (open.length === 0) throw new Error("No open lock period to edit.");
+
+  const target = args.id
+    ? open.find((s) => s.id === args.id)
+    : open.find((s) => !isHiddenFromSub(s)) ?? open[0];
+  if (!target) throw new Error(`No open lock period with id ${args.id} (it may be withdrawn, ended, or belong to someone else).`);
+
+  const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt));
+  const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`;
+  const untouched = open.filter((s) => s.id !== target.id).map((s) => ({
+    id: s.id,
+    status: isHiddenFromSub(s) ? ("scheduled" as const) : ("triggered" as const),
+    scheduledFor: s.wirksamAb?.toISOString() ?? null,
+    endsAt: s.endetAt?.toISOString() ?? null,
+  }));
+  const ambiguity = untouched.length === 0 ? ""
+    : ` NOTE: ${open.length} lock periods are open — edited the ${isHiddenFromSub(target) ? "SCHEDULED" : "triggered"} one; the others are listed under "untouched". Pass id=… to edit one of those instead.`;
+  return {
+    ok: true,
+    id: target.id,
+    untouched,
+    message: (notified
+      ? `${what} The user was notified by e-mail + push.`
+      : `${what} It is still SCHEDULED (not triggered yet), so the user was NOT notified — they will learn the new end when it triggers.`) + ambiguity,
+  };
 }
 
 // ── Urteil über ein erkanntes Vergehen (Strafbuch-Loop) ─────────────────────
@@ -458,27 +531,4 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     : r.status === "open" ? "Judgment reopened — the offense is open again."
     : "Offense punished — the penalty was recorded; the user was notified by e-mail + push.";
   return { ok: true, status: r.status, done: r.done, message };
-}
-
-// ── Keyholder-Notizen — private Beobachtungen der KI zum Trageverhalten (nur MCP) ──
-
-export interface AddKeyholderNoteArgs { text: string; kg?: string; kategorie?: string }
-
-/** Legt eine freie Beobachtung zum MCP_USERNAME-User ab (Trageverhalten je KG/Kategorie). */
-export async function mcpAddKeyholderNote(username: string, args: AddKeyholderNoteArgs) {
-  const userId = await resolveTargetUserId(username);
-  const text = args.text?.trim();
-  if (!text) throw new Error("text is required.");
-  const note = await prisma.keyholderNote.create({
-    data: { userId, text, kg: args.kg?.trim() || null, kategorie: args.kategorie?.trim() || null },
-  });
-  return { ok: true, id: note.id, message: "Note saved." };
-}
-
-/** Löscht eine eigene Notiz (per id, auf MCP_USERNAME beschränkt) — z.B. veraltete Beobachtung. */
-export async function mcpDeleteKeyholderNote(username: string, args: { id: string }) {
-  const userId = await resolveTargetUserId(username);
-  const res = await prisma.keyholderNote.deleteMany({ where: { id: args.id, userId } });
-  if (res.count === 0) throw new Error(`Note not found: ${args.id}`);
-  return { ok: true, message: "Note deleted." };
 }

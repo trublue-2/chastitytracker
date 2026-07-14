@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /**
  * Urteils-Lebenszyklus über erkannte Vergehen:
@@ -20,9 +20,13 @@ export type OffenseCanonicalType =
   | "auto_removed_control"
   | "cleaning_limit"
   | "wrong_device"
-  | "missed_orgasm";
+  | "missed_orgasm"
+  | "late_lock"
+  | "cleaning_not_relocked";
 
-const STORED_TYPE: Record<OffenseCanonicalType, string> = {
+/** Canonical offense type → stored StrafeRecord.offenseType. Exported so the manual-punish route
+ *  (src/app/api/admin/strafe/route.ts) can validate against the same list instead of a hand-copied one. */
+export const STORED_TYPE: Record<OffenseCanonicalType, string> = {
   unauthorized_opening: "OEFFNEN_ENTRY",
   late_control: "KONTROLLANFORDERUNG",
   rejected_control: "KONTROLLANFORDERUNG",
@@ -32,6 +36,8 @@ const STORED_TYPE: Record<OffenseCanonicalType, string> = {
   cleaning_limit: "REINIGUNG_LIMIT",
   wrong_device: "FALSCHES_GERAET",
   missed_orgasm: "ORGASMUS_ANWEISUNG",
+  late_lock: "VERSCHLUSS_ANFORDERUNG",
+  cleaning_not_relocked: "REINIGUNG_NICHT_VERSCHLOSSEN",
 };
 
 export interface DetectedOffense {
@@ -39,6 +45,18 @@ export interface DetectedOffense {
   offenseType: string;
   refId: string;
   at: Date | null;
+}
+
+/** cleaning_not_relocked shares its underlying OEFFNEN entry with cleaning_limit (both can fire on
+ *  the same REINIGUNG opening — over the daily quota AND not relocked in time). StrafeRecord.refId
+ *  is globally `@unique`, so the two offenses need disjoint ref namespaces — prefixed here rather
+ *  than using the bare entry id. Exported so the ledger's `judge()` call constructs the exact
+ *  same ref (round-trips through judge_offense) and the admin route can reverse it for its IDOR check. */
+export function cleaningNotRelockedRef(entryId: string): string {
+  return `relock:${entryId}`;
+}
+export function entryIdFromCleaningNotRelockedRef(refId: string): string | null {
+  return refId.startsWith("relock:") ? refId.slice("relock:".length) : null;
 }
 
 /** Flacht die buildStrafbuch-Listen zu einer einheitlichen Liste erkannter Vergehen mit stabiler ref.
@@ -54,6 +72,8 @@ export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
     ...sb.reinigungLimitViolations.map((v) => mk("cleaning_limit", v.entryId, v.startTime)),
     ...sb.wrongDeviceViolations.map((v) => mk("wrong_device", v.entryId, v.startTime)),
     ...sb.missedOrgasmInstructions.map((m) => mk("missed_orgasm", m.id, m.endetAt)),
+    ...sb.lateLocks.map((a) => mk("late_lock", a.id, a.fulfilledAt ?? a.endetAt)),
+    ...sb.cleaningNotRelocked.map((c) => mk("cleaning_not_relocked", cleaningNotRelockedRef(c.entryId), c.relockAt ?? c.deadline)),
   ];
 }
 
@@ -91,25 +111,27 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
 
   if (p.action === "reopen") {
     const del = await prisma.strafeRecord.deleteMany({ where: { userId: p.userId, refId: p.refId } });
-    if (del.count === 0) return { ok: false, status: 404, error: "Kein Urteil zu diesem Vergehen gefunden." };
+    if (del.count === 0) return serviceFail(404, "JUDGMENT_NOT_FOUND");
     return { ok: true, data: { status: "open", done: false } };
   }
 
   if (p.action === "complete") {
     const rec = await prisma.strafeRecord.findUnique({ where: { refId: p.refId } });
-    if (!rec || rec.userId !== p.userId) return { ok: false, status: 404, error: "Kein Urteil zu diesem Vergehen gefunden." };
-    if (rec.status !== "PUNISHED") return { ok: false, status: 400, error: "Nur eine verhängte Strafe kann erledigt werden." };
+    if (!rec || rec.userId !== p.userId) return serviceFail(404, "JUDGMENT_NOT_FOUND");
+    if (rec.status !== "PUNISHED") return serviceFail(400, "PENALTY_NOT_PUNISHED");
     await prisma.strafeRecord.update({ where: { refId: p.refId }, data: { erledigtAt: rec.erledigtAt ?? now } });
     return { ok: true, data: { status: "punished", done: true } };
   }
 
   const text = p.text?.trim() || null;
-  if (p.action === "punish" && !text) return { ok: false, status: 400, error: "Eine Strafe (text) ist erforderlich." };
+  if (p.action === "punish" && !text) return serviceFail(400, "PENALTY_TEXT_REQUIRED");
 
   // Vergehen muss aktuell erkannt sein (verhindert Urteile über Nicht-Vergehen).
   const offenses = collectDetectedOffenses(await buildStrafbuch(p.userId, now));
   const offense = offenses.find((o) => o.refId === p.refId);
-  if (!offense) return { ok: false, status: 404, error: `Kein offenes Vergehen mit ref ${p.refId}.` };
+  // Die ref stand früher im Fehlertext; sie ist ein Aufrufer-Argument, das der MCP-Agent bereits
+  // kennt — ein Code ohne Interpolation genügt und bleibt übersetzbar.
+  if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
 
   const status = p.action === "punish" ? "PUNISHED" : "DISMISSED";
   await prisma.strafeRecord.upsert({

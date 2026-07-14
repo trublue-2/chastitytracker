@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import type { ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
+import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 
 export interface ReinigungsFenster {
   start: string; // "HH:MM"
@@ -57,14 +58,31 @@ export function aktivesReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): 
   return null;
 }
 
-/** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt über CLEAN_OPEN-Fakten (Spur 2). */
+/**
+ * Das nächste Reinigungs-Fenster, das nach `now` (Sub-Lokalzeit `tz`) BEGINNT — sonst das früheste
+ * des Tages (dann liegt es morgen). null, wenn keine Fenster konfiguriert sind (= nicht zeitgebunden).
+ *
+ * Läuft `now` gerade IN einem Fenster, liefert das trotzdem das darauffolgende: „aktuell offen"
+ * beantwortet {@link aktivesReinigungsFenster}, hier geht es um „wann wieder".
+ */
+export function nextReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): ReinigungsFenster | null {
+  const fenster = parseReinigungsFenster(raw);
+  if (fenster.length === 0) return null;
+  const hhmm = hhmmInTZ(now, tz);
+  const sortiert = [...fenster].sort((a, b) => a.start.localeCompare(b.start));
+  return sortiert.find((f) => f.start > hhmm) ?? sortiert[0];
+}
+
+/** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt
+ *  über die OEFFNEN(REINIGUNG)-Einträge des Tages. (Die frühere CLEAN_OPEN-BoxEvent-Zählung war tot:
+ *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.) */
 export async function reinigungVerbrauchtHeute(userId: string, now: Date, tz = APP_TZ): Promise<number> {
-  return prisma.boxEvent.count({
-    where: { userId, type: "CLEAN_OPEN", at: { gte: midnightInTZ(now, tz) } },
+  return prisma.entry.count({
+    where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: midnightInTZ(now, tz) } },
   });
 }
 
-/** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für get_overview.reinigung (V1) und
+/** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für
  *  get_context.cleaning (V2): allowed = Öffnungen erlaubt; maxMinutesPerBreak = max Minuten je Öffnung;
  *  maxPausesPerDay = max Öffnungen/Tag (COUNT, null = unbegrenzt); usedToday = heute verbraucht;
  *  windows = erlaubte Tages-Zeitfenster (leer = nicht zeitgebunden); windowOpenNow = aktuell offenes
@@ -125,7 +143,7 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
   // Als JSON-String ablegen (TEXT-Spalte) — nur validierte Paare.
   if (params.fenster !== undefined) data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
 
-  if (Object.keys(data).length === 0) return { ok: false, status: 400, error: "Keine Felder zum Aktualisieren" };
+  if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
 
   await prisma.user.update({ where: { id: userId }, data });
   return { ok: true, data: null };

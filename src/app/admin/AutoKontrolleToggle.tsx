@@ -1,38 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import Button from "@/app/components/Button";
 import Toggle from "@/app/components/Toggle";
+import { TimeField } from "@/app/components/TimeInput";
+import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { clampInputValue } from "@/lib/utils";
 
-const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
-const faintCls = "text-xs text-foreground-faint";
-const clampInput = clampInputValue;
-
-/** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit; committet je Feld einzeln (onBlur). */
+/** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit. */
 function NumberRangeRow({
-  label, min, max, fromFallback, toFallback, from, to, setFrom, setTo, commitFrom, commitTo, unit, disabled,
+  label, min, max, fromFallback, toFallback, from, to, setFrom, setTo, unit, disabled,
 }: {
   label: string; min: number; max: number; fromFallback: number; toFallback: number;
   from: number; to: number; setFrom: (n: number) => void; setTo: (n: number) => void;
-  commitFrom: () => void; commitTo: () => void; unit: string; disabled: boolean;
+  unit: string; disabled: boolean;
 }) {
   return (
     <div className="flex items-center gap-2 pl-1">
       <span className={faintCls}>{label}</span>
       <input type="number" min={min} max={max} value={from}
-        onChange={(e) => setFrom(clampInput(e.target.value, min, max, fromFallback))}
-        onBlur={commitFrom} disabled={disabled} className={inputCls} />
+        onChange={(e) => setFrom(clampInputValue(e.target.value, min, max, fromFallback))}
+        disabled={disabled} className={inputCls} />
       <span className={faintCls}>–</span>
       <input type="number" min={min} max={max} value={to}
-        onChange={(e) => setTo(clampInput(e.target.value, min, max, toFallback))}
-        onBlur={commitTo} disabled={disabled} className={inputCls} />
+        onChange={(e) => setTo(clampInputValue(e.target.value, min, max, toFallback))}
+        disabled={disabled} className={inputCls} />
       <span className={faintCls}>{unit}</span>
     </div>
   );
 }
 
+interface AutoKontrolleForm {
+  aktiv: boolean;
+  perDayMin: number;
+  perDayMax: number;
+  ruheVon: string;
+  ruheBis: string;
+  fristVon: number;
+  fristBis: number;
+}
+
+/**
+ * Alle Felder werden lokal gehalten und mit EINEM PATCH gespeichert. Ein Commit je Feld (onBlur) würde
+ * den Tagesplan mehrfach hintereinander anfassen — der Keyholder soll seine Änderungen erst als Ganzes
+ * abschicken und dann genau einen Replan auslösen.
+ */
 export default function AutoKontrolleToggle({
   userId,
   initialAktiv,
@@ -53,30 +67,44 @@ export default function AutoKontrolleToggle({
   initialFristBis: number;
 }) {
   const t = useTranslations("admin");
-  const router = useRouter();
-  const [aktiv, setAktiv] = useState(initialAktiv);
-  const [perDayMin, setPerDayMin] = useState(initialPerDayMin);
-  const [perDayMax, setPerDayMax] = useState(initialPerDayMax);
-  const [ruheVon, setRuheVon] = useState(initialRuheVon);
-  const [ruheBis, setRuheBis] = useState(initialRuheBis);
-  const [fristVon, setFristVon] = useState(initialFristVon);
-  const [fristBis, setFristBis] = useState(initialFristBis);
-  const [saving, setSaving] = useState(false);
+  const tc = useTranslations("common");
+  const { saving, save } = useUserSettingsSave(userId);
+  const initial: AutoKontrolleForm = {
+    aktiv: initialAktiv, perDayMin: initialPerDayMin, perDayMax: initialPerDayMax,
+    ruheVon: initialRuheVon, ruheBis: initialRuheBis, fristVon: initialFristVon, fristBis: initialFristBis,
+  };
+  const [form, setForm] = useState(initial);
+  // Der zuletzt vom Server angenommene Stand — Referenz für „geändert?". Ein abgelehnter Patch (z.B.
+  // leere Uhrzeit) lässt ihn stehen, das Formular bleibt dirty und der Keyholder kann korrigieren.
+  const [saved, setSaved] = useState(initial);
+  const dirty = (Object.keys(form) as (keyof AutoKontrolleForm)[]).some((k) => form[k] !== saved[k]);
 
-  async function save(patch: Record<string, unknown>) {
-    setSaving(true);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    setSaving(false);
-    router.refresh();
+  function set<K extends keyof AutoKontrolleForm>(key: K, value: AutoKontrolleForm[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function handleToggle(checked: boolean) {
-    setAktiv(checked);
-    save({ autoKontrolleAktiv: checked });
+  async function handleSave() {
+    // Der Server hebt ein „Bis" unter das „Von" an (raiseMaxToMin). Dieselbe Normalisierung hier, sonst
+    // zeigte das Formular nach dem Speichern eine Zahl an, die so nie gespeichert wurde — und wäre dabei
+    // als „nicht geändert" markiert, weil `saved` den ungespeicherten Stand übernommen hätte.
+    const normalized: AutoKontrolleForm = {
+      ...form,
+      perDayMax: Math.max(form.perDayMin, form.perDayMax),
+      fristBis: Math.max(form.fristVon, form.fristBis),
+    };
+    const ok = await save({
+      autoKontrolleAktiv: normalized.aktiv,
+      autoKontrollePerDayMin: normalized.perDayMin,
+      autoKontrollePerDayMax: normalized.perDayMax,
+      autoKontrolleRuheVon: normalized.ruheVon,
+      autoKontrolleRuheBis: normalized.ruheBis,
+      autoKontrolleFristVon: normalized.fristVon,
+      autoKontrolleFristBis: normalized.fristBis,
+    });
+    if (ok) {
+      setForm(normalized);
+      setSaved(normalized);
+    }
   }
 
   return (
@@ -84,51 +112,50 @@ export default function AutoKontrolleToggle({
       <Toggle
         label={t("autoKontrolleLabel")}
         description={t("autoKontrolleDesc")}
-        checked={aktiv}
+        checked={form.aktiv}
         disabled={saving}
-        onChange={handleToggle}
+        onChange={(checked) => set("aktiv", checked)}
       />
-      {aktiv && (
+      {form.aktiv && (
         <>
           {/* Anzahl pro Tag: zufällig zwischen Min und Max */}
           <NumberRangeRow
             label={t("autoKontrolleProTagLabel")} min={0} max={12} fromFallback={0} toFallback={0}
-            from={perDayMin} to={perDayMax} setFrom={setPerDayMin} setTo={setPerDayMax}
-            commitFrom={() => save({ autoKontrollePerDayMin: perDayMin })}
-            commitTo={() => save({ autoKontrollePerDayMax: perDayMax })}
+            from={form.perDayMin} to={form.perDayMax}
+            setFrom={(n) => set("perDayMin", n)} setTo={(n) => set("perDayMax", n)}
             unit={t("autoKontrolleProTagHint")} disabled={saving}
           />
 
           {/* Schlaf-Fenster (Frist darf hier nicht liegen) */}
           <div className="flex items-center gap-2 pl-1">
             <span className={faintCls}>{t("autoKontrolleRuheLabel")}</span>
-            <input
-              type="time"
-              value={ruheVon}
+            <TimeField
+              value={form.ruheVon}
               disabled={saving}
-              onChange={(e) => { setRuheVon(e.target.value); save({ autoKontrolleRuheVon: e.target.value }); }}
-              className={inputCls}
+              ariaLabel={`${t("autoKontrolleRuheLabel")} ${tc("from")}`}
+              onChange={(v) => set("ruheVon", v)}
             />
             <span className={faintCls}>–</span>
-            <input
-              type="time"
-              value={ruheBis}
+            <TimeField
+              value={form.ruheBis}
               disabled={saving}
-              onChange={(e) => { setRuheBis(e.target.value); save({ autoKontrolleRuheBis: e.target.value }); }}
-              className={inputCls}
+              ariaLabel={`${t("autoKontrolleRuheLabel")} ${tc("to")}`}
+              onChange={(v) => set("ruheBis", v)}
             />
           </div>
 
           {/* Erfüllungsdauer von–bis (Minuten) */}
           <NumberRangeRow
             label={t("autoKontrolleFristLabel")} min={5} max={240} fromFallback={15} toFallback={60}
-            from={fristVon} to={fristBis} setFrom={setFristVon} setTo={setFristBis}
-            commitFrom={() => save({ autoKontrolleFristVon: fristVon })}
-            commitTo={() => save({ autoKontrolleFristBis: fristBis })}
+            from={form.fristVon} to={form.fristBis}
+            setFrom={(n) => set("fristVon", n)} setTo={(n) => set("fristBis", n)}
             unit="min" disabled={saving}
           />
         </>
       )}
+      <Button size="sm" onClick={handleSave} loading={saving} disabled={!dirty} className="w-fit">
+        {tc("save")}
+      </Button>
     </div>
   );
 }

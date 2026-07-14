@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import {
-  buildWearPairs, wearingHoursFromPairs, WEAR_PAIR,
+  wearingHoursFromPairs,
   getMidnightToday, getWeekStart, getMonthStart, getYearStart,
 } from "@/lib/utils";
+import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
-import { getNonKgTrackingCategories } from "@/lib/queries";
+import { getNonKgTrackingCategories, getWearEntries } from "@/lib/queries";
 
 /** Wearing hours + active TrainingVorgabe targets for one non-KG tracking category.
  *  Goal targets are already prorated to the goal's overlap with each period. */
@@ -23,18 +24,21 @@ export interface CategoryWearGoal {
   goalYearH: number | null;
 }
 
-/** Minimal entry shape buildWearPairs needs — lets callers pass entries they already loaded. */
-type WearEntryInput = { type: string; startTime: Date; device: { categoryId: string | null } | null };
 
 /** Per non-KG tracking category: today/week/month wearing hours plus the active goal targets
  *  (null when the category has no active vorgabe). Single source of truth shared by the
  *  dashboard CategoryGoalsToday card and the MCP overview.
+ *
+ *  Die Stunden sind WANDUHR-Zeit (`wearHourPairsByCategory`): zwei gleichzeitig getragene Geräte
+ *  derselben Kategorie zählen ihre gemeinsame Zeit einmal, nicht zweimal — ein Ziel „4 h pro Tag"
+ *  meint 4 Stunden am Tag, nicht 4 Gerätestunden.
+ *
  *  Pass `prefetchedEntries` (e.g. an overview's already-loaded entries) to skip the WEAR-entry
- *  query — buildWearPairs filters to WEAR_BEGIN/WEAR_END by category itself. */
+ *  query — das Session-Modell filtert selbst auf WEAR_BEGIN/WEAR_END. */
 export async function buildCategoryWearGoals(
   userId: string,
   now: Date,
-  prefetchedEntries?: WearEntryInput[],
+  prefetchedEntries?: SegmentEntry[],
 ): Promise<CategoryWearGoal[]> {
   const [categories, vorgaben, ownEntries] = await Promise.all([
     getNonKgTrackingCategories(userId),
@@ -49,15 +53,10 @@ export async function buildCategoryWearGoals(
       orderBy: { gueltigAb: "desc" },
       select: { categoryId: true, gueltigAb: true, gueltigBis: true, minProTagH: true, minProWocheH: true, minProMonatH: true, minProJahrH: true },
     }),
-    prefetchedEntries
-      ? Promise.resolve(null)
-      : prisma.entry.findMany({
-          where: { userId, type: { in: ["WEAR_BEGIN", "WEAR_END"] } },
-          orderBy: { startTime: "asc" },
-          select: { type: true, startTime: true, device: { select: { categoryId: true } } },
-        }),
+    prefetchedEntries ? Promise.resolve(null) : getWearEntries(userId),
   ]);
   const entries = prefetchedEntries ?? ownEntries!;
+  const pairsByCategory = wearHourPairsByCategory(buildWearSessions(entries, now), now);
 
   // Most recent active vorgabe per category (orderBy gueltigAb desc → first seen wins).
   const goalByCategory = new Map<string, typeof vorgaben[number]>();
@@ -69,7 +68,7 @@ export async function buildCategoryWearGoals(
   const jahrStart = getYearStart(now);
 
   return categories.map((c) => {
-    const pairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: c.id });
+    const pairs = pairsByCategory.get(c.id) ?? [];
     const t = proratedVorgabeTargets(goalByCategory.get(c.id) ?? null, now);
     return {
       categoryId: c.id,

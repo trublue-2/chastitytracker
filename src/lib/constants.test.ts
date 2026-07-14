@@ -59,8 +59,7 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
       { type: "WEAR_BEGIN", startTime: FUTURE_SAFE_TIME },
       { allowFuture: true },
     );
-    expect(result?.error).toMatch(/Device-Kategorien/);
-    expect(result?.status).toBe(400);
+    expect(result).toBe("DEVICE_CATEGORIES_DISABLED");
   });
 
   it("rejects WEAR_END when feature flag is explicitly off", () => {
@@ -69,7 +68,7 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
       { type: "WEAR_END", startTime: FUTURE_SAFE_TIME },
       { allowFuture: true },
     );
-    expect(result?.error).toMatch(/Device-Kategorien/);
+    expect(result).toBe("DEVICE_CATEGORIES_DISABLED");
   });
 
   it("accepts WEAR_BEGIN by default (flag ON)", () => {
@@ -112,7 +111,7 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
         { allowFuture: true },
         { openingCodes: new Set(["REINIGUNG"]) },
       );
-      expect(result?.status).toBe(400);
+      expect(result).toBe("OPENING_REASON_REQUIRED");
     });
     it("accepts an orgasm value allowed by the reasonCtx predicate", () => {
       const allow = new Set(["c_quickie", "Orgasmus"]);
@@ -129,7 +128,7 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
         { allowFuture: true },
         { orgasmAllowed: () => false },
       );
-      expect(result?.status).toBe(400);
+      expect(result).toBe("INVALID_ORGASM_TYPE");
     });
     it("without reasonCtx, built-in constants still apply (backward-compat)", () => {
       expect(validateEntryPayload(
@@ -139,7 +138,7 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
       expect(validateEntryPayload(
         { type: "OEFFNEN", startTime: FUTURE_SAFE_TIME, oeffnenGrund: "c_nope", note: "x" },
         { allowFuture: true },
-      )?.status).toBe(400);
+      )).toBe("OPENING_REASON_REQUIRED");
     });
   });
 });

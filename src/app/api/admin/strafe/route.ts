@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { notifyUser } from "@/lib/notify";
-import { strafeVerhaengtNotice } from "@/lib/strafurteilService";
+import { strafeVerhaengtNotice, STORED_TYPE, entryIdFromCleaningNotRelockedRef } from "@/lib/strafurteilService";
+
+const VALID_OFFENSE_TYPES = new Set(Object.values(STORED_TYPE));
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -21,7 +23,7 @@ export async function POST(req: Request) {
 
   const err = await requireKeyholderOrAdminApi(userId);
   if (err) return err;
-  if (!["KONTROLLANFORDERUNG", "OEFFNEN_ENTRY", "VERSCHLUSS_ANFORDERUNG", "FALSCHES_GERAET", "REINIGUNG_LIMIT", "ORGASMUS_ANWEISUNG", "AUTO_ENTFERNT"].includes(offenseType)) {
+  if (!VALID_OFFENSE_TYPES.has(offenseType)) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
 
@@ -37,6 +39,11 @@ export async function POST(req: Request) {
   } else if (offenseType === "ORGASMUS_ANWEISUNG") {
     const oa = await prisma.orgasmusAnforderung.findUnique({ where: { id: refId } });
     if (!oa || oa.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } else if (offenseType === "REINIGUNG_NICHT_VERSCHLOSSEN") {
+    // refId is "relock:<entryId>" — shares its entry with REINIGUNG_LIMIT, see cleaningNotRelockedRef.
+    const entryId = entryIdFromCleaningNotRelockedRef(refId);
+    const entry = entryId ? await prisma.entry.findUnique({ where: { id: entryId } }) : null;
+    if (!entry || entry.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   } else {
     const entry = await prisma.entry.findUnique({ where: { id: refId } });
     if (!entry || entry.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });

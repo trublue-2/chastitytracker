@@ -184,6 +184,13 @@ async function sendNativePushToUser(
   return true;
 }
 
+/** Fire-and-forget-Push: schluckt JEDEN Fehler. Zwingend für unawaited Aufrufe — `sendPushToUser`
+ *  fängt intern NICHT alles (die Prisma-Reads/Cleanups laufen ausserhalb try/catch), ein Reject
+ *  eines unawaited Promise würde sonst als unhandledRejection den Prozess beenden. */
+export function firePush(userId: string, title: string, body: string, url?: string): void {
+  sendPushToUser(userId, title, body, url).catch(() => { /* ignore push errors */ });
+}
+
 /** Send a push notification to all subscriptions belonging to a user. */
 export async function sendPushToUser(
   userId: string,

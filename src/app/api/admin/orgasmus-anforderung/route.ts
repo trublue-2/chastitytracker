@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/authGuards";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
+import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,12 +13,10 @@ export async function POST(req: NextRequest) {
     const result = await createOrgasmusAnforderung({
       userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt,
     });
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
-    }
+    if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true, id: result.data.id });
   } catch (err) {
     console.error("[POST /api/admin/orgasmus-anforderung]", err);
-    return NextResponse.json({ error: "Interner Fehler" }, { status: 500 });
+    return errorResponse(500, "INTERNAL_ERROR");
   }
 }

@@ -1,3 +1,5 @@
+import type { EntryValidationCode } from "@/lib/entryErrors";
+
 export const VALID_LOCALES = ["de", "en"] as const;
 export type Locale = (typeof VALID_LOCALES)[number];
 /** Single source for locale validation — shared by i18n/request.ts, the settings API and the sync. */
@@ -115,6 +117,32 @@ export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 /** Reserved AND hidden from the user-facing opening-reason picker — system-only codes. */
 export const SYSTEM_ONLY_OPENING_CODES: readonly string[] = [AUTO_ENTFERNT_REASON];
 
+/** Wer einen Eintrag verursacht hat. `system` = niemand hat gehandelt, der Tracker hat gebucht
+ *  (Eskalation einer unbeantworteten Kontrolle). Spiegelt die `Entry.source`-Spalte; die Regel
+ *  „nur eine WILLENTLICHE Handlung hat Folgen" hängt daran (Strafbuch, Sperrzeit-Bruch). */
+export const ENTRY_SOURCES = ["user", "system"] as const;
+export type EntrySource = typeof ENTRY_SOURCES[number];
+
+/**
+ * Warum eine VerschlussAnforderung/Sperrzeit `withdrawnAt` trägt — die Endart, nicht nur das Ende.
+ *
+ * Ohne sie sah eine vom Sub aufgebrochene Sperrzeit exakt aus wie eine bewusst zurückgezogene und
+ * wie eine, die es nie gab: `withdrawnAt` gesetzt, sonst nichts. Genau diese Ununterscheidbarkeit
+ * war der Bug (11.07.2026 — eine 14-Tage-Sperre verschwand spurlos).
+ *
+ * `null` heisst „noch nicht beendet" ODER „vor v4.50.30 beendet" — Alt-Zeilen tragen keinen Grund.
+ */
+export const LOCK_ENDED_REASON = {
+  /** Bewusst zurückgezogen (Keyholder-Aktion oder von einer neuen Direktive ersetzt). */
+  keyholder: "keyholder",
+  /** Durch eine Öffnung des Subs beendet. Ob diese Öffnung ERLAUBT war, sagt das Strafbuch —
+   *  hier steht nur, WIE die Sperrzeit endete, nicht ob jemand sich etwas zuschulden kommen liess. */
+  opening: "opening",
+  /** Vom Poller verworfen, weil sie im Moment ihrer Auslösung schon gegenstandslos war. */
+  obsolete: "obsolete",
+} as const;
+export type LockEndedReason = typeof LOCK_ENDED_REASON[keyof typeof LOCK_ENDED_REASON];
+
 /** Maps OEFFNEN_GRUENDE values to openForm i18n keys */
 export const GRUND_I18N_KEYS: Record<typeof OEFFNEN_GRUENDE[number], string> = {
   REINIGUNG: "grundReinigung",
@@ -143,6 +171,35 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
   PRUEFUNG: "#f97316",
   ORGASMUS: "#8b5cf6",
 };
+
+/** User-Spalten, die ein Nutzer über den generischen `userSelfFieldRoute`-Handler SELBST ändern
+ *  darf. Bewusst eng gehalten und compilerseitig erzwungen: admin-gesetzte Felder (`role`,
+ *  `reinigungErlaubt`, `mobileDesktopUpload`, …) gehören NICHT hierher — die brauchen laut
+ *  CLAUDE.md („Admin-Felder in User-Settings") zwingend `requireAdminApi()`.
+ *  `email`/`passwordHash` sind ebenfalls Self-Felder, laufen aber über eigene Handler
+ *  (Trim/409 bzw. anderer Body-Key + bcrypt) und stehen deshalb nicht in dieser Liste. */
+export const SELF_EDITABLE_USER_FIELDS = ["timezone", "locale", "hideOwnTracker", "startPage"] as const;
+export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
+
+/** Stabiler Fehler-Code der Settings-Services, wenn ein Patch kein einziges Feld setzt. Geteilt von
+ *  setReinigungSettings / setAutoKontrolleSettings / setInspectionEscalationSettings, damit die
+ *  drei Geschwister nicht auseinanderlaufen. Der Client löst ihn über den `errors`-Namespace auf. */
+export const NO_FIELDS_TO_UPDATE = "noFieldsToUpdate";
+
+/** Stabiler Fehler-Code für ein Feld, das keine gültige „HH:MM"-Uhrzeit ist. */
+export const INVALID_TIME = "invalidTime";
+
+/** Call-to-Action-Button-Farben für HTML-Mails (in E-Mail keine CSS-Variablen → Hex).
+ *  Bewusst getrennt von TYPE_EMAIL_COLORS: das ist der Akzent je Eintrags-TYP, nicht die
+ *  Button-Farbe eines Benachrichtigungs-Mails (eine Orgasmus-ANWEISUNG ist kein Orgasmus-Eintrag). */
+export const EMAIL_BUTTON_COLORS = {
+  /** Standard: Dashboard-Button. */
+  default: "#4f46e5",
+  /** Kontroll-Anforderung („Kontrolle erfüllen"). */
+  inspection: "#f97316",
+  /** Orgasmus-Anweisung / -Gelegenheit. */
+  orgasm: "#be185d",
+} as const;
 
 export const TYPE_COLORS: Record<string, string> = {
   VERSCHLUSS: "text-foreground-muted",
@@ -236,29 +293,35 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
 
 /**
  * Shared payload validation for entry creation (used by both user and admin routes).
- * Returns { error, status } on failure, or null on success.
+ * Returns a stable error code on failure (always a 400 for the caller), or null on success.
+ * The route answers with `{ error: code }`; the client resolves it via `useApiError()`.
  * Note: Admin-route has `requirePhotoForPruefung: false` because admin may retroactively
  * log entries without a photo. User-route requires a photo for PRUEFUNG.
  */
 export function validateEntryPayload(
-  body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string },
+  body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string; keyInBox?: unknown },
   opts: { requirePhotoForPruefung?: boolean; allowFuture?: boolean } = {},
   // Per-User Reason-Validierung (aus reasonsService). Fehlt sie, gelten die eingebauten Konstanten
   // (Default-Verhalten für null-Config / Aufrufer ohne User-Kontext) — unverändert. `orgasmAllowed`
   // prüft den VOLLEN Wert (Kombi-Code ODER blanke Hauptart), nicht nur die Basis.
   reasonCtx?: { orgasmAllowed?: (value: string) => boolean; openingCodes?: Set<string> },
-): { error: string; status: number } | null {
+): EntryValidationCode | null {
   const { requirePhotoForPruefung = true, allowFuture = false } = opts;
-  const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note } = body;
+  const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note, keyInBox } = body;
 
-  if (!isValidImageUrl(imageUrl)) return { error: "Ungültige imageUrl", status: 400 };
-  if (!startTime) return { error: "startTime is required", status: 400 };
-  if (!allowFuture && new Date(startTime) > new Date()) return { error: "Zeitpunkt darf nicht in der Zukunft liegen", status: 400 };
+  // Schlüssel-Deklaration: nur ein echter Boolean oder gar nichts. Ein Client, der `"false"` schickt,
+  // darf weder als "ja" durchrutschen (String ist truthy) noch als String in der Spalte landen.
+  if (keyInBox !== undefined && keyInBox !== null && typeof keyInBox !== "boolean") {
+    return "INVALID_KEY_IN_BOX";
+  }
+  if (!isValidImageUrl(imageUrl)) return "INVALID_IMAGE_URL";
+  if (!startTime) return "START_TIME_REQUIRED";
+  if (!allowFuture && new Date(startTime) > new Date()) return "TIME_IN_FUTURE";
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
-    return { error: "Ungültiger Typ", status: 400 };
+    return "INVALID_TYPE";
   }
   if (WEAR_ENTRY_TYPES.has(type) && !deviceCategoriesEnabled()) {
-    return { error: "Device-Kategorien sind nicht aktiviert", status: 400 };
+    return "DEVICE_CATEGORIES_DISABLED";
   }
   if (type === "OEFFNEN") {
     // System-only reason codes (e.g. AUTO_ENTFERNT) are reserved/protected like REINIGUNG, but
@@ -266,24 +329,24 @@ export function validateEntryPayload(
     // themselves via a hand-crafted request, even though `source` (system vs. user) is never
     // client-controlled. Block unconditionally, before the openingCodes/OEFFNEN_GRUENDE check.
     if (oeffnenGrund && SYSTEM_ONLY_OPENING_CODES.includes(oeffnenGrund)) {
-      return { error: "Grund der Öffnung ist erforderlich", status: 400 };
+      return "OPENING_REASON_REQUIRED";
     }
     const openingOk = reasonCtx?.openingCodes
       ? !!oeffnenGrund && reasonCtx.openingCodes.has(oeffnenGrund)
       : !!oeffnenGrund && OEFFNEN_GRUENDE.includes(oeffnenGrund as (typeof OEFFNEN_GRUENDE)[number]);
     if (!openingOk) {
-      return { error: "Grund der Öffnung ist erforderlich", status: 400 };
+      return "OPENING_REASON_REQUIRED";
     }
-    if (!note?.trim()) return { error: "Kommentar ist erforderlich", status: 400 };
+    if (!note?.trim()) return "NOTE_REQUIRED";
   }
   if (type === "PRUEFUNG" && requirePhotoForPruefung && !imageUrl) {
-    return { error: "Foto ist bei Kontrolle zwingend", status: 400 };
+    return "INSPECTION_PHOTO_REQUIRED";
   }
   if (type === "ORGASMUS") {
     const orgasmOk = reasonCtx?.orgasmAllowed
       ? reasonCtx.orgasmAllowed(orgasmusArt ?? "")
       : (ORGASMUS_ARTEN as readonly string[]).includes(parseOrgasmusArtBase(orgasmusArt) ?? "");
-    if (!orgasmOk) return { error: "Ungültige Art", status: 400 };
+    if (!orgasmOk) return "INVALID_ORGASM_TYPE";
   }
   return null;
 }

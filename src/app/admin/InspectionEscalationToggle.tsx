@@ -1,19 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
+import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { clampInputValue } from "@/lib/utils";
 
-const inputCls = "w-16 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
-const faintCls = "text-xs text-foreground-faint";
-const clampInput = clampInputValue;
 const DELAY_MIN = 5;
 const DELAY_MAX = 1440;
 
-/** Single "N minutes" input, committed on blur — mirrors AutoKontrolleToggle's NumberRangeRow
- *  pattern, but for one value instead of a from–to pair. */
+/** Single "N minutes" input, committed on blur. */
 function MinutesInput({ label, value, fallback, setValue, commit, disabled }: {
   label: string; value: number; fallback: number; setValue: (n: number) => void; commit: () => void; disabled: boolean;
 }) {
@@ -21,7 +18,7 @@ function MinutesInput({ label, value, fallback, setValue, commit, disabled }: {
     <div className="flex items-center gap-2 pl-1">
       <span className={faintCls}>{label}</span>
       <input type="number" min={DELAY_MIN} max={DELAY_MAX} value={value}
-        onChange={(e) => setValue(clampInput(e.target.value, DELAY_MIN, DELAY_MAX, fallback))}
+        onChange={(e) => setValue(clampInputValue(e.target.value, DELAY_MIN, DELAY_MAX, fallback))}
         onBlur={commit} disabled={disabled} className={inputCls} />
       <span className={faintCls}>min</span>
     </div>
@@ -42,23 +39,11 @@ export default function InspectionEscalationToggle({
   initialAutoMarkDelayMinutes: number;
 }) {
   const t = useTranslations("admin");
-  const router = useRouter();
+  const { saving, save } = useUserSettingsSave(userId);
   const [reminderEnabled, setReminderEnabled] = useState(initialReminderEnabled);
   const [reminderDelayMinutes, setReminderDelayMinutes] = useState(initialReminderDelayMinutes);
   const [autoMarkEnabled, setAutoMarkEnabled] = useState(initialAutoMarkEnabled);
   const [autoMarkDelayMinutes, setAutoMarkDelayMinutes] = useState(initialAutoMarkDelayMinutes);
-  const [saving, setSaving] = useState(false);
-
-  async function save(patch: Record<string, unknown>) {
-    setSaving(true);
-    await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    setSaving(false);
-    router.refresh();
-  }
 
   return (
     <div className="flex flex-col gap-3">

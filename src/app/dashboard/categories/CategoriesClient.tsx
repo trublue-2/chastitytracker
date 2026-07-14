@@ -15,6 +15,7 @@ import useToast from "@/app/hooks/useToast";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import CategoryFormSheet from "./CategoryFormSheet";
+import { parseApiError } from "@/lib/apiClient";
 
 export interface CategoryRow {
   id: string;
@@ -103,8 +104,7 @@ export default function CategoriesClient({ categories: initial, userId, username
     try {
       const res = await fetch(`/api/categories/${deleteModal.id}`, { method: "DELETE" });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.error || tCommon("error"));
+        toast.error(await parseApiError(res, tCommon("error")));
         setDeleting(false);
         return;
       }

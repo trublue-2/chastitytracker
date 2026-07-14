@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { deviceCategoriesGate } from "@/lib/authGuards";
+import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
 import { validateCategoryInput } from "@/lib/categoryConstants";
 
 type Params = { params: Promise<{ id: string }> };
@@ -19,8 +18,8 @@ async function getOwnedCategory(id: string, sessionUserId: string, sessionRole: 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const gate = deviceCategoriesGate();
   if (gate) return gate;
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
   const category = await getOwnedCategory(id, session.user.id, session.user.role);
@@ -50,8 +49,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const gate = deviceCategoriesGate();
   if (gate) return gate;
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
 
   const { id } = await params;
   const category = await getOwnedCategory(id, session.user.id, session.user.role);

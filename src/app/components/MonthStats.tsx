@@ -4,15 +4,7 @@ import { useState } from "react";
 import { formatHours, formatMs } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 
-export type MonthStat = {
-  key: string;
-  label: string;
-  count: number;
-  totalMs: number;
-  longestMs: number;
-  wearHours: number;
-  targetH: number | null;
-};
+import type { MonthStat } from "@/lib/statsTypes";
 
 const INITIAL_COUNT = 2;
 

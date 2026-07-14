@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronRight, Plus, Download, X } from "lucide-react";
+import FormError from "@/app/components/FormError";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
 
 interface Reference {
   id: string;
@@ -15,13 +18,34 @@ interface Reference {
  */
 export default function DeviceReferencesManager({ deviceId }: { deviceId: string }) {
   const t = useTranslations("devices");
+  const tc = useTranslations("common");
+  const apiError = useApiError();
   const [open, setOpen] = useState(false);
   const [refs, setRefs] = useState<Reference[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  /** Führt einen Schritt aus und meldet sein Scheitern. Vorher verschluckte jeder Pfad seinen
+   *  Fehler (`if (res.ok)` ohne else) — ein fehlgeschlagener Import sah aus wie ein leeres Ergebnis.
+   *  `run` gibt bei Erfolg die Antwort zurück, sonst null, damit der Aufrufer abbrechen kann.
+   *
+   *  `onError` überschreibt die Fehlermeldung für Routen, die KEINE stabilen Codes liefern:
+   *  `/api/upload` antwortet mit deutscher Prosa, die `useApiError()` nicht auflösen kann und
+   *  stillschweigend zum generischen „Fehler" einebnen würde. */
+  async function run(fn: () => Promise<Response>, onError?: () => string): Promise<Response | null> {
+    try {
+      const res = await fn();
+      if (res.ok) return res;
+      setError(onError ? onError() : apiError(await parseApiErrorCode(res)));
+    } catch {
+      setError(tc("networkError"));
+    }
+    return null;
+  }
 
   async function load() {
-    const res = await fetch(`/api/devices/${deviceId}/references`);
-    if (res.ok) setRefs((await res.json()).references ?? []);
+    const res = await run(() => fetch(`/api/devices/${deviceId}/references`));
+    if (res) setRefs((await res.json()).references ?? []);
   }
 
   function toggle() {
@@ -35,18 +59,19 @@ export default function DeviceReferencesManager({ deviceId }: { deviceId: string
     e.target.value = "";
     if (!file) return;
     setBusy(true);
+    setError("");
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const up = await fetch("/api/upload", { method: "POST", body: fd });
-      if (!up.ok) return;
+      const up = await run(() => fetch("/api/upload", { method: "POST", body: fd }), () => tc("uploadError"));
+      if (!up) return;
       const { url } = await up.json();
-      await fetch(`/api/devices/${deviceId}/references`, {
+      const created = await run(() => fetch(`/api/devices/${deviceId}/references`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl: url }),
-      });
-      await load();
+      }));
+      if (created) await load();
     } finally {
       setBusy(false);
     }
@@ -54,13 +79,14 @@ export default function DeviceReferencesManager({ deviceId }: { deviceId: string
 
   async function importRecent() {
     setBusy(true);
+    setError("");
     try {
-      await fetch(`/api/devices/${deviceId}/references/import-recent`, {
+      const res = await run(() => fetch(`/api/devices/${deviceId}/references/import-recent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 5 }),
-      });
-      await load();
+      }));
+      if (res) await load();
     } finally {
       setBusy(false);
     }
@@ -68,9 +94,10 @@ export default function DeviceReferencesManager({ deviceId }: { deviceId: string
 
   async function remove(refId: string) {
     setBusy(true);
+    setError("");
     try {
-      const res = await fetch(`/api/devices/${deviceId}/references/${refId}`, { method: "DELETE" });
-      if (res.ok) setRefs((r) => r?.filter((x) => x.id !== refId) ?? null);
+      const res = await run(() => fetch(`/api/devices/${deviceId}/references/${refId}`, { method: "DELETE" }));
+      if (res) setRefs((r) => r?.filter((x) => x.id !== refId) ?? null);
     } finally {
       setBusy(false);
     }
@@ -91,6 +118,8 @@ export default function DeviceReferencesManager({ deviceId }: { deviceId: string
       {open && (
         <div className="mt-3">
           <p className="text-xs text-foreground-faint mb-3">{t("referencesHint")}</p>
+
+          {error && <div className="mb-3"><FormError message={error} /></div>}
 
           <div className="flex flex-wrap gap-2 mb-3">
             {refs?.map((r) => (

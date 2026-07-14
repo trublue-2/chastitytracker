@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { requestKontrolle } from "@/lib/kontrolleService";
+import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,10 +10,10 @@ export async function POST(req: NextRequest) {
     if (err) return err;
 
     const result = await requestKontrolle(body);
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true, deadline: result.data.deadline });
   } catch (err) {
     console.error("[POST /api/admin/kontrolle]", err);
-    return NextResponse.json({ error: "Interner Fehler" }, { status: 500 });
+    return errorResponse(500, "INTERNAL_ERROR");
   }
 }
