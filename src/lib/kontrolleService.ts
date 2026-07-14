@@ -6,7 +6,7 @@ import { trackEvent } from "@/lib/telemetry";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
-import { computeDelayedTrigger } from "@/lib/delayedTrigger";
+import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
@@ -16,7 +16,7 @@ export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
  * Resolves an inspection by id: withdraw it, or manually verify / reject its submitted photo.
  * Shared by PATCH /api/admin/kontrollen/[id] and the MCP resolve_inspection tool.
  */
-export async function resolveKontrolle(id: string, action: KontrolleAction): Promise<ServiceResult<{ userId: string }>> {
+export async function resolveKontrolle(id: string, action: KontrolleAction): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
   const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
   if (!ka) return serviceFail(404, "INSPECTION_NOT_FOUND");
 
@@ -33,13 +33,20 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
     return serviceFail(400, "UNKNOWN_ACTION");
   }
 
-  const notif: NotifyContent =
-    action === "manuallyVerify" ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage" }
-    : action === "reject" ? { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage" }
-    : { subjectKey: "inspectionResolvedWithdrawnSubject", messageKey: "inspectionResolvedWithdrawnMessage" };
-  await notifyUser(ka.userId, notif);
+  // Eine noch nicht ausgeloeste Kontrolle ist fuer den Sub unsichtbar (`wirksamAb` in der Zukunft) —
+  // ihren Rueckzug zu melden verriete sie. Bei Auto-Kontrollen waere es der Zufallsplan, dessen
+  // Ueberraschung der Sinn ist. Nur `withdraw` kann das treffen: `manuallyVerify`/`reject` setzen ein
+  // eingereichtes Foto voraus, die Kontrolle hat also laengst ausgeloest.
+  const notified = action !== "withdraw" || !isHiddenFromSub(ka);
+  if (notified) {
+    const notif: NotifyContent =
+      action === "manuallyVerify" ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage" }
+      : action === "reject" ? { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage" }
+      : { subjectKey: "inspectionResolvedWithdrawnSubject", messageKey: "inspectionResolvedWithdrawnMessage" };
+    await notifyUser(ka.userId, notif);
+  }
 
-  return { ok: true, data: { userId: ka.userId } };
+  return { ok: true, data: { userId: ka.userId, notified } };
 }
 
 /** Gültige Siegel-Nummer aus dem letzten Eintrag (5–8-stellig, nur bei aktivem VERSCHLUSS), sonst null.

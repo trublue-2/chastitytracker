@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
-import { updateSperrzeitEnde, verschlussWithdrawNotice } from "@/lib/verschlussAnforderungService";
-import { notifyUser } from "@/lib/notify";
+import { updateSperrzeitEnde, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function PATCH(
@@ -23,11 +22,10 @@ export async function PATCH(
   const body = await req.json();
 
   if (body.action === "withdraw") {
-    await prisma.verschlussAnforderung.update({
-      where: { id },
-      data: { withdrawnAt: new Date() },
-    });
-    await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT"));
+    // Über den Service: nur der kennt die Regel „terminierte Direktiven nicht melden" und den
+    // Heimdall-Push. Die Route rechnete beides früher selbst nach — und lag bei beidem falsch.
+    const result = await withdrawVerschlussAnforderungById(id);
+    if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   }
 

@@ -264,25 +264,40 @@ export interface WithdrawArgs {
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
   let count = 0;
+  // `notified` = wusste der Sub von der Direktive? Eine terminierte, noch nicht ausgeloeste ist fuer
+  // ihn unsichtbar; sie zu stornieren meldet ihm nichts. Die Antwort darf das nicht anders behaupten.
+  let notified = true;
   // Über die Shared-Services zurückziehen → der Nutzer wird konsistent benachrichtigt (wie in der Admin-UI).
   if (args.target === "orgasm_directive") {
     count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
   } else if (args.target === "lock_request") {
-    count = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")).count;
+    ({ count, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")));
   } else if (args.target === "lock_period") {
-    count = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")).count;
+    ({ count, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")));
   } else if (args.target === "inspection") {
-    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — resolveKontrolle benachrichtigt.
+    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE (kein
+    // wirksamAb-Gate). resolveKontrolle schweigt bei denen: eine noch nicht ausgelöste Kontrolle ist
+    // für den Sub unsichtbar, und bei Auto-Kontrollen wäre die Meldung der Verrat des Zufallsplans.
     const open = await prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null },
       select: { id: true },
     });
-    for (const ka of open) unwrap(await resolveKontrolle(ka.id, "withdraw"));
+    notified = false;
+    for (const ka of open) {
+      if (unwrap(await resolveKontrolle(ka.id, "withdraw")).notified) notified = true;
+    }
     count = open.length;
   } else {
     throw new Error(`Unknown withdraw target: ${args.target}`);
   }
-  return { ok: true, withdrawn: count, message: count > 0 ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.` : `Nothing open to withdraw for ${args.target}.` };
+  if (count === 0) return { ok: true, withdrawn: 0, message: `Nothing open to withdraw for ${args.target}.` };
+  return {
+    ok: true,
+    withdrawn: count,
+    message: notified
+      ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.`
+      : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.`,
+  };
 }
 
 // ── Training goals: list / edit / delete ────────────────────────────────────
@@ -433,9 +448,16 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
     orderBy: { createdAt: "desc" },
     select: { id: true },
   });
-  if (!sz) throw new Error("No active lock period to edit.");
-  unwrap(await updateSperrzeitEnde(sz.id, endetAt));
-  return { ok: true, id: sz.id, message: (args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`) + " The user was notified by e-mail + push." };
+  if (!sz) throw new Error("No open lock period to edit.");
+  const { notified } = unwrap(await updateSperrzeitEnde(sz.id, endetAt));
+  const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`;
+  return {
+    ok: true,
+    id: sz.id,
+    message: notified
+      ? `${what} The user was notified by e-mail + push.`
+      : `${what} It is still SCHEDULED (not triggered yet), so the user was NOT notified — they will learn the new end when it triggers.`,
+  };
 }
 
 // ── Urteil über ein erkanntes Vergehen (Strafbuch-Loop) ─────────────────────

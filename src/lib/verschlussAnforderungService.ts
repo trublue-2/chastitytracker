@@ -6,7 +6,7 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
-import { computeDelayedTrigger } from "@/lib/delayedTrigger";
+import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVerschlussAnforderungParams {
@@ -221,14 +221,17 @@ export async function sendVerschlussAnforderungNotifications(opts: {
 /**
  * Changes the end of an active Sperrzeit (extend or shorten). `endetAt = null` → indefinite.
  * Shared by PATCH /api/admin/verschluss-anforderung/[id] (action "setEnd") and the MCP edit_lock_period tool.
+ *
+ * `notified` sagt dem Aufrufer, ob der Sub davon erfahren hat — die MCP-Antwort darf nicht
+ * behaupten, es sei eine Mail rausgegangen, wenn keine rausging.
  */
 export async function updateSperrzeitEnde(
   id: string,
   endetAt: Date | null,
-): Promise<ServiceResult<{ id: string; userId: string }>> {
+): Promise<ServiceResult<{ id: string; userId: string; notified: boolean }>> {
   const va = await prisma.verschlussAnforderung.findUnique({
     where: { id },
-    select: { userId: true, art: true, withdrawnAt: true },
+    select: { userId: true, art: true, withdrawnAt: true, wirksamAb: true, benachrichtigtAt: true },
   });
   if (!va) return serviceFail(404, "LOCK_PERIOD_NOT_FOUND");
   if (va.art !== "SPERRZEIT") return serviceFail(400, "LOCK_PERIOD_ONLY_HAS_END");
@@ -238,11 +241,18 @@ export async function updateSperrzeitEnde(
   }
 
   await prisma.verschlussAnforderung.update({ where: { id }, data: { endetAt } });
-  await notifyUser(va.userId, endetAt
-    ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endetAt) } }
-    : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite" });
+
+  // Bei einer noch nicht ausgelösten Sperrzeit schweigen: der Poller meldet sie bei Fälligkeit, und
+  // zwar mit dem hier gesetzten Ende (er liest die Zeile dann frisch). Der Sub erfährt also das
+  // korrigierte Datum — nur eben zum richtigen Zeitpunkt, nicht drei Wochen zu früh.
+  const notified = !isHiddenFromSub(va);
+  if (notified) {
+    await notifyUser(va.userId, endetAt
+      ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endetAt) } }
+      : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite" });
+  }
   void notifyHeimdallForUserId(va.userId);
-  return { ok: true, data: { id, userId: va.userId } };
+  return { ok: true, data: { id, userId: va.userId, notified } };
 }
 
 /** Betreff + Text der Withdraw-Benachrichtigung — geteilt von Service (MCP, per art) und
@@ -254,21 +264,66 @@ export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT"): Noti
 }
 
 /**
+ * Zieht EINE VerschlussAnforderung per id zurück — der Keyholder klickt in der Admin-Liste eine
+ * bestimmte Zeile weg (auch eine noch terminierte, die dort als „geplant für …" steht).
+ *
+ * Dieselben Regeln wie die art-basierte Variante, und deshalb im Service statt in der Route: die
+ * Route benachrichtigte bedingungslos (verriet also geplante Direktiven) und pushte nie an Heimdall
+ * (eine LIVE Box behielt die zurückgezogene Sperre bis zu ihrem nächsten Pull).
+ */
+export async function withdrawVerschlussAnforderungById(
+  id: string,
+): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
+  const va = await prisma.verschlussAnforderung.findUnique({
+    where: { id },
+    select: { userId: true, art: true, withdrawnAt: true, wirksamAb: true, benachrichtigtAt: true },
+  });
+  if (!va) return serviceFail(404, "NOT_FOUND");
+  if (va.withdrawnAt) return serviceFail(400, "LOCK_PERIOD_ALREADY_WITHDRAWN");
+
+  await prisma.verschlussAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
+
+  const notified = !isHiddenFromSub(va);
+  if (notified) await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT"));
+  void notifyHeimdallForUserId(va.userId);
+  return { ok: true, data: { userId: va.userId, notified } };
+}
+
+/**
  * Zieht offene VerschlussAnforderung(en) einer Art zurück (ANFORDERUNG = Einschliess-Anforderung,
- * SPERRZEIT = aktive Sperre) und benachrichtigt den Nutzer. Geteilt von der MCP `withdraw`.
+ * SPERRZEIT = aktive Sperre). Geteilt von der MCP `withdraw`.
+ *
+ * Storniert AUCH terminierte, noch nicht ausgelöste Direktiven — das ist gewollt (der Keyholder
+ * sieht sie in `scheduledDirectives` und kann sie aus der Pipeline nehmen), deshalb kein
+ * `wirksamAb`-Filter in der Where-Klausel.
+ *
+ * Benachrichtigt aber NUR, wenn der Sub von mindestens einer der stornierten Direktiven wusste.
+ * Sonst meldete man ihm die Aufhebung von etwas, dessen Existenz er nie erfahren sollte — und
+ * verriete damit genau die geplante Direktive, die verborgen bleiben soll.
  */
 export async function withdrawVerschlussAnforderung(
   userId: string,
   art: "ANFORDERUNG" | "SPERRZEIT",
-): Promise<ServiceResult<{ count: number }>> {
+): Promise<ServiceResult<{ count: number; notified: boolean }>> {
   const now = new Date();
   const where = art === "ANFORDERUNG"
     ? { userId, art, fulfilledAt: null, withdrawnAt: null }
     : { userId, art, withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] };
-  const res = await prisma.verschlussAnforderung.updateMany({ where, data: { withdrawnAt: now } });
-  if (res.count > 0) {
-    await notifyUser(userId, verschlussWithdrawNotice(art));
-    void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
-  }
-  return { ok: true, data: { count: res.count } };
+
+  // Lesen und Zurückziehen in EINER Transaktion: löste der Poller genau dazwischen aus, stempelte er
+  // `benachrichtigtAt` nach unserem Lesen — wir schwiegen, obwohl der Sub die Sperrzeit gerade
+  // gemeldet bekommen hat, und er hielte sie für weiter aktiv.
+  const { count, notified } = await prisma.$transaction(async (tx) => {
+    const rows = await tx.verschlussAnforderung.findMany({ where, select: { id: true, wirksamAb: true, benachrichtigtAt: true } });
+    if (rows.length === 0) return { count: 0, notified: false };
+    await tx.verschlussAnforderung.updateMany({
+      where: { id: { in: rows.map((r) => r.id) } },
+      data: { withdrawnAt: now },
+    });
+    return { count: rows.length, notified: rows.some((r) => !isHiddenFromSub(r)) };
+  });
+
+  if (notified) await notifyUser(userId, verschlussWithdrawNotice(art));
+  if (count > 0) void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
+  return { ok: true, data: { count, notified } };
 }

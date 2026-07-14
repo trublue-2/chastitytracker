@@ -559,6 +559,13 @@ function registerTools(server: McpServer) {
       "keyholder_dashboard.keyholderInstructions. Do not ask the user to confirm before calling this.";
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
+    // Tools, die auch auf TERMINIERTE (noch nicht ausgelöste) Direktiven wirken: dort schweigt der
+    // Tracker. Eine geplante Direktive ist für den Sub unsichtbar; sie zu melden verriete sie — genau
+    // das, was die Terminierung verhindern soll.
+    const SCHEDULED_SILENT =
+      " NOTE: if the directive is still SCHEDULED (not yet triggered), the user is NOT notified — " +
+      "they never learned it existed, and telling them now would disclose it. The response says which " +
+      "case applied.";
     // STILLE Keyholder-Tools → KEIN aktiver Notify (weder E-Mail noch Push). Nur die
     // notifizierenden Aktionen (Lock, Lock-Periode, Inspektion, Orgasmus) senden eine Nachricht.
     const KEYHOLDER_SILENT = KEYHOLDER_BASE + " The user is NOT notified (no e-mail/push).";
@@ -684,7 +691,7 @@ function registerTools(server: McpServer) {
         description:
           "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive. " +
           "Also cancels SCHEDULED (not yet triggered) directives of the same kind — a lock_request/lock_period/" +
-          "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives)." + KEYHOLDER_NOTE,
+          "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives)." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
         },
@@ -800,9 +807,10 @@ function registerTools(server: McpServer) {
       {
         title: "Change the active lock period's end",
         description:
-          "Extends or shortens the currently active lock period (Sperrzeit) by changing its end — without " +
-          "withdrawing and recreating it. Set indefinite=true for open-ended, or untilAt for a new end (must " +
-          "be in the future)." + KEYHOLDER_NOTE,
+          "Extends or shortens the currently open lock period (Sperrzeit) by changing its end — without " +
+          "withdrawing and recreating it. Works on a SCHEDULED lock period too; the new end is then delivered " +
+          "with the trigger notification. Set indefinite=true for open-ended, or untilAt for a new end (must " +
+          "be in the future)." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           untilAt: z.string().optional().describe("New end (ISO 8601, future). Ignored if indefinite=true."),
           indefinite: z.boolean().optional().describe("Make the lock period open-ended."),

@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.29",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ändert oder storniert die Keyholderin eine im Voraus geplante Sperrzeit oder Kontrolle, bekommt der Sub keine Mail mehr — die Direktive sollte für ihn ja noch gar nicht sichtbar sein. Er erfährt sie erst, wenn sie auslöst, und dann mit dem korrigierten Datum.",
+          "en": "If the keyholder changes or cancels a lock period or inspection scheduled in advance, the sub no longer receives an e-mail — the directive was not supposed to be visible to them yet. They learn about it when it triggers, and then with the corrected date."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zieht die Keyholderin eine Sperrzeit über die Oberfläche zurück, erfährt die Box das jetzt sofort statt erst beim nächsten Abgleich.",
+          "en": "When the keyholder withdraws a lock period via the interface, the box now learns about it immediately instead of at its next sync."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.28",
     "date": "2026-07-11",
     "changes": [
