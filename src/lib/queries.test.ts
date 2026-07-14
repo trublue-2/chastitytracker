@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, type CleaningPermissionUser } from "./queries";
+import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, foldActiveSperrzeiten, type CleaningPermissionUser } from "./queries";
 import type { PrismaTx } from "./queries";
 
 const TZ = "Europe/Zurich";
@@ -162,5 +162,48 @@ describe("releaseSperrzeitenOnOpen", () => {
     const t = tx();
     expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", t)).toBe(false);
     expect(t.user.findUnique).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * Mehrere gleichzeitig AKTIVE Sperrzeiten sind kein Ausnahmefall: eine geplante überlebt eine Öffnung
+ * (noch nicht aktiv → `releaseSperrzeitenOnOpen` lässt sie stehen), der Sub schliesst sich per
+ * Verschluss-Anforderung wieder ein (`entries/route.ts` legt eine zweite an), und löst die geplante
+ * dann aus, laufen zwei. Wer „die Sperrzeit" liest — allen voran die BOX-Durchsetzung — bekam bis
+ * hierher die zuletzt ANGELEGTE. Das ist keine Regel, das ist die Sortierung.
+ */
+describe("foldActiveSperrzeiten — die effektive (strengste) Sperre", () => {
+  const sz = (endetAt: Date | null, reinigungErlaubt = true, id = "x") => ({ id, endetAt, reinigungErlaubt });
+  const FRUEH = new Date("2026-07-20T00:00:00Z");
+  const SPAET = new Date("2026-08-11T00:00:00Z");
+
+  it("nichts aktiv → null", () => {
+    expect(foldActiveSperrzeiten([])).toBeNull();
+  });
+
+  it("das SPÄTESTE Ende setzt sich durch, nicht die zuletzt angelegte Zeile", () => {
+    // Die Liste kommt neueste-zuerst: die kurze Selbst-Sperre des Subs steht vorne. Nähme man sie,
+    // liefe die Box drei Wochen zu früh auf und die längere Anweisung der Keyholderin wäre still weg.
+    const fold = foldActiveSperrzeiten([sz(FRUEH, true, "selbst"), sz(SPAET, true, "keyholder")])!;
+    expect(fold.endetAt).toEqual(SPAET);
+    expect(fold.id).toBe("keyholder");
+  });
+
+  it("unbefristet schlägt jedes Datum — egal in welcher Reihenfolge", () => {
+    expect(foldActiveSperrzeiten([sz(SPAET), sz(null, true, "unbefristet")])!.endetAt).toBeNull();
+    expect(foldActiveSperrzeiten([sz(null, true, "unbefristet"), sz(SPAET)])!.endetAt).toBeNull();
+  });
+
+  it("Reinigung nur, wenn JEDE aktive Sperre sie erlaubt (UND, nicht Zeile-gewinnt)", () => {
+    // Sonst erlaubte die durchsetzende Zeile eine Reinigungsöffnung, die eine zweite aktive Sperre
+    // verbietet — der Sub öffnet im guten Glauben und kassiert einen Strafbuch-Eintrag.
+    const fold = foldActiveSperrzeiten([sz(SPAET, true), sz(FRUEH, false)])!;
+    expect(fold.reinigungErlaubt).toBe(false);
+    expect(fold.endetAt).toEqual(SPAET); // die strengere Reinigungs-Regel kippt das Ende nicht
+  });
+
+  it("eine einzige Sperre kommt unverändert zurück", () => {
+    const only = sz(FRUEH, false, "s1");
+    expect(foldActiveSperrzeiten([only])).toEqual(only);
   });
 });

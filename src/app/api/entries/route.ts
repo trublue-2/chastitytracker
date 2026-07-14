@@ -155,6 +155,12 @@ export async function POST(req: NextRequest) {
             (offeneAnforderung.dauerH
               ? new Date(Date.now() + offeneAnforderung.dauerH * 60 * 60 * 1000)
               : null);
+          // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
+          // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
+          // handelt der Sub, und dass er sich zwischendurch selbst einschliesst, darf eine geplante
+          // Anweisung der Keyholderin nicht stillschweigend löschen — er kennt sie ja nicht einmal,
+          // es fiele also niemandem auf. Die Koexistenz ist damit gewollt; wie mehrere Sperrzeiten
+          // aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
           if (sperrEnde) {
             await tx.verschlussAnforderung.create({
               data: {

@@ -28,7 +28,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.HEIMDALL_SYNC_SECRET = SECRET;
   db.user.findUnique.mockResolvedValue({ id: "u1" });
-  db.verschlussAnforderung.findFirst.mockResolvedValue(null); // getActiveSperrzeit
+  db.verschlussAnforderung.findMany.mockResolvedValue([]); // getActiveSperrzeit (faltet die aktiven)
 });
 
 describe("GET /api/integration/box/config — Vertrag zur Box", () => {
@@ -53,13 +53,34 @@ describe("GET /api/integration/box/config — Vertrag zur Box", () => {
   });
 
   it("eine befristete Sperrzeit kommt als ISO-Zeitpunkt, indefinite=false", async () => {
-    db.verschlussAnforderung.findFirst.mockResolvedValue({ endetAt: new Date("2026-07-10T17:19:48+02:00"), reinigungErlaubt: true });
+    db.verschlussAnforderung.findMany.mockResolvedValue([{ endetAt: new Date("2026-07-10T17:19:48+02:00"), reinigungErlaubt: true }]);
     const body = await (await GET(req())).json();
     expect(body.sperrzeit).toEqual({ endetAt: "2026-07-10T15:19:48.000Z", indefinite: false });
   });
 
   it("eine unbefristete Sperrzeit trägt indefinite=true und endetAt=null", async () => {
-    db.verschlussAnforderung.findFirst.mockResolvedValue({ endetAt: null, reinigungErlaubt: false });
+    db.verschlussAnforderung.findMany.mockResolvedValue([{ endetAt: null, reinigungErlaubt: false }]);
+    const body = await (await GET(req())).json();
+    expect(body.sperrzeit).toEqual({ endetAt: null, indefinite: true });
+  });
+
+  it("laufen ZWEI Sperrzeiten, folgt die Box dem SPÄTEREN Ende", async () => {
+    // Der Riegel darf nicht auffahren, solange irgendeine aktive Sperre läuft. Die Liste kommt
+    // neueste-zuerst: nähme die Route die erste Zeile (das tat sie), öffnete die Box drei Wochen zu
+    // früh — die längere Anweisung der Keyholderin wäre physisch überschrieben, ohne jede Meldung.
+    db.verschlussAnforderung.findMany.mockResolvedValue([
+      { endetAt: new Date("2026-07-20T00:00:00Z"), reinigungErlaubt: true },  // Selbst-Sperre, neuer
+      { endetAt: new Date("2026-08-11T00:00:00Z"), reinigungErlaubt: true },  // Keyholder-Sperre
+    ]);
+    const body = await (await GET(req())).json();
+    expect(body.sperrzeit).toEqual({ endetAt: "2026-08-11T00:00:00.000Z", indefinite: false });
+  });
+
+  it("eine unbefristete unter mehreren aktiven macht die Box unbefristet", async () => {
+    db.verschlussAnforderung.findMany.mockResolvedValue([
+      { endetAt: new Date("2026-07-20T00:00:00Z"), reinigungErlaubt: true },
+      { endetAt: null, reinigungErlaubt: true },
+    ]);
     const body = await (await GET(req())).json();
     expect(body.sperrzeit).toEqual({ endetAt: null, indefinite: true });
   });

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions } from "@/lib/queries";
+import { getUserDeviceOptions, getKeyholderSperrzeiten } from "@/lib/queries";
+import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
@@ -264,6 +265,10 @@ export interface WithdrawArgs {
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
   let count = 0;
+  // `hidden` (Teilmenge von `count`) = davon terminiert und noch nicht ausgelöst. Trifft ein Rückzug
+  // sowohl eine laufende als auch eine geplante Direktive, sagt ein blosses `count: 2` nicht, WAS da
+  // mitgegangen ist — die Keyholderin muss die geplante bewusst verloren haben können.
+  let hidden = 0;
   // `notified` = wusste der Sub von der Direktive? Eine terminierte, noch nicht ausgeloeste ist fuer
   // ihn unsichtbar; sie zu stornieren meldet ihm nichts. Die Antwort darf das nicht anders behaupten.
   let notified = true;
@@ -271,9 +276,9 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   if (args.target === "orgasm_directive") {
     count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
   } else if (args.target === "lock_request") {
-    ({ count, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")));
+    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")));
   } else if (args.target === "lock_period") {
-    ({ count, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")));
+    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")));
   } else if (args.target === "inspection") {
     // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE (kein
     // wirksamAb-Gate). resolveKontrolle schweigt bei denen: eine noch nicht ausgelöste Kontrolle ist
@@ -285,15 +290,26 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     notified = false;
     for (const ka of open) {
       if (unwrap(await resolveKontrolle(ka.id, "withdraw")).notified) notified = true;
+      else hidden++; // schweigend storniert = der Sub kannte sie nicht (terminiert, nicht ausgelöst)
     }
     count = open.length;
   } else {
     throw new Error(`Unknown withdraw target: ${args.target}`);
   }
-  if (count === 0) return { ok: true, withdrawn: 0, message: `Nothing open to withdraw for ${args.target}.` };
+  if (count === 0) return { ok: true, withdrawn: 0, hidden: 0, message: `Nothing open to withdraw for ${args.target}.` };
+  // Gemischter Treffer (laufend + geplant): beides benennen. Der Rückzug per target ist bewusst ein
+  // Rundumschlag — er darf nur nicht so klingen, als hätte er eine einzige Direktive erwischt.
+  const mixed = hidden > 0 && hidden < count;
+  if (mixed) {
+    return {
+      ok: true, withdrawn: count, hidden,
+      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently.`,
+    };
+  }
   return {
     ok: true,
     withdrawn: count,
+    hidden,
     message: notified
       ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.`
       : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.`,
@@ -436,27 +452,58 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
 export interface EditLockPeriodArgs {
   untilAt?: string;
   indefinite?: boolean;
+  /** Die zu ändernde Sperrzeit explizit wählen (id aus `keyholder_dashboard.scheduledDirectives`).
+   *  Ohne id gewinnt die AUSGELÖSTE — siehe {@link mcpEditLockPeriod}. */
+  id?: string;
 }
+
+/**
+ * Ändert das Ende EINER offenen Sperrzeit — offen heisst: nicht zurückgezogen, nicht beendet, also
+ * inklusive einer terminierten, noch nicht ausgelösten.
+ *
+ * **Es kann mehr als eine offene geben** (warum: {@link foldActiveSperrzeiten}), und die alte
+ * „nimm die neueste"-Auswahl traf die gemeinte nur durch Zufall der Sortierung.
+ *
+ * Auswahl ohne `id`: **die AUSGELÖSTE gewinnt** (`!isHiddenFromSub` — die, die der Sub kennt und die
+ * gerade durchsetzt). Sagt die Keyholderin „die Sperrzeit", meint sie die laufende, nicht die für in
+ * drei Wochen geplante. Ein harter Fehler („multiple open — specify id") wäre die Alternative, wurde
+ * aber verworfen: der häufige Fall (eine laufende + eine geplante) ist eindeutig gemeint, und die KI
+ * daran scheitern zu lassen kostet mehr, als die seltene Fehlwahl korrigierbar zu machen. Gibt es NUR
+ * geplante, wird die neueste genommen.
+ *
+ * Die Mehrdeutigkeit bleibt nicht stumm: `untouched` nennt die nicht gewählten mit id und Status, und
+ * über `id` lässt sich jede davon gezielt ansprechen.
+ */
 export async function mcpEditLockPeriod(username: string, args: EditLockPeriodArgs) {
   const userId = await resolveTargetUserId(username);
   if (!args.indefinite && !args.untilAt) throw new Error("Provide untilAt (ISO date) or indefinite=true.");
   const endetAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
 
-  const now = new Date();
-  const sz = await prisma.verschlussAnforderung.findFirst({
-    where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] },
-    orderBy: { createdAt: "desc" },
-    select: { id: true },
-  });
-  if (!sz) throw new Error("No open lock period to edit.");
-  const { notified } = unwrap(await updateSperrzeitEnde(sz.id, endetAt));
+  const open = await getKeyholderSperrzeiten(userId); // aktive UND geplante, neueste zuerst
+  if (open.length === 0) throw new Error("No open lock period to edit.");
+
+  const target = args.id
+    ? open.find((s) => s.id === args.id)
+    : open.find((s) => !isHiddenFromSub(s)) ?? open[0];
+  if (!target) throw new Error(`No open lock period with id ${args.id} (it may be withdrawn, ended, or belong to someone else).`);
+
+  const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt));
   const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`;
+  const untouched = open.filter((s) => s.id !== target.id).map((s) => ({
+    id: s.id,
+    status: isHiddenFromSub(s) ? ("scheduled" as const) : ("triggered" as const),
+    scheduledFor: s.wirksamAb?.toISOString() ?? null,
+    endsAt: s.endetAt?.toISOString() ?? null,
+  }));
+  const ambiguity = untouched.length === 0 ? ""
+    : ` NOTE: ${open.length} lock periods are open — edited the ${isHiddenFromSub(target) ? "SCHEDULED" : "triggered"} one; the others are listed under "untouched". Pass id=… to edit one of those instead.`;
   return {
     ok: true,
-    id: sz.id,
-    message: notified
+    id: target.id,
+    untouched,
+    message: (notified
       ? `${what} The user was notified by e-mail + push.`
-      : `${what} It is still SCHEDULED (not triggered yet), so the user was NOT notified — they will learn the new end when it triggers.`,
+      : `${what} It is still SCHEDULED (not triggered yet), so the user was NOT notified — they will learn the new end when it triggers.`) + ambiguity,
   };
 }
 

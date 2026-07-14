@@ -807,13 +807,18 @@ function registerTools(server: McpServer) {
       {
         title: "Change the active lock period's end",
         description:
-          "Extends or shortens the currently open lock period (Sperrzeit) by changing its end — without " +
+          "Extends or shortens an open lock period (Sperrzeit) by changing its end — without " +
           "withdrawing and recreating it. Works on a SCHEDULED lock period too; the new end is then delivered " +
           "with the trigger notification. Set indefinite=true for open-ended, or untilAt for a new end (must " +
-          "be in the future)." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
+          "be in the future). More than one lock period can be open at once (a scheduled one survives while " +
+          "the user re-locks); without id the already-TRIGGERED one is edited, and the answer names any others " +
+          "left untouched." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           untilAt: z.string().optional().describe("New end (ISO 8601, future). Ignored if indefinite=true."),
           indefinite: z.boolean().optional().describe("Make the lock period open-ended."),
+          id: z.string().optional().describe(
+            "Edit THIS lock period (id from keyholder_dashboard.scheduledDirectives). Omit to edit the triggered one.",
+          ),
         },
       },
       (args, extra) => runWriteTool("edit_lock_period", extra, args, (u) => mcpEditLockPeriod(u, args)),
