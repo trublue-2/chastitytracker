@@ -537,6 +537,11 @@ model Entry {
   // imageUrl (offenes Siegel/Gerät). Wird erst freigegeben, wenn Öffnen erlaubt ist.
   codeImageUrl                  String?
   codeReadable                  Boolean? // detectSealNumber hat Ziffern erkannt (nur "lesbar ✓", Zahl wird NICHT gespeichert)
+  // Nur VERSCHLUSS: Deklaration des Subs, ob der Schlüssel in der Heimdall-Box liegt.
+  // false = er behält ihn (z.B. auf Reise) → die Box bekommt bewusst KEIN lock-Kommando
+  // (siehe boxCommand.ts). null = nicht gefragt (keine Box, Admin-Pfad, Alt-Client/Alt-Eintrag).
+  // Ohne dieses Feld wäre "nicht hardware-vollstreckt" nicht von "Box war offline" zu unterscheiden.
+  keyInBox                      Boolean?
   note                          String?
   oeffnenGrund                  String?
   orgasmusArt                   String?

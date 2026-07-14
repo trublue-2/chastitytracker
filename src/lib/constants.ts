@@ -299,7 +299,7 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
  * log entries without a photo. User-route requires a photo for PRUEFUNG.
  */
 export function validateEntryPayload(
-  body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string },
+  body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string; keyInBox?: unknown },
   opts: { requirePhotoForPruefung?: boolean; allowFuture?: boolean } = {},
   // Per-User Reason-Validierung (aus reasonsService). Fehlt sie, gelten die eingebauten Konstanten
   // (Default-Verhalten für null-Config / Aufrufer ohne User-Kontext) — unverändert. `orgasmAllowed`
@@ -307,8 +307,13 @@ export function validateEntryPayload(
   reasonCtx?: { orgasmAllowed?: (value: string) => boolean; openingCodes?: Set<string> },
 ): EntryValidationCode | null {
   const { requirePhotoForPruefung = true, allowFuture = false } = opts;
-  const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note } = body;
+  const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note, keyInBox } = body;
 
+  // Schlüssel-Deklaration: nur ein echter Boolean oder gar nichts. Ein Client, der `"false"` schickt,
+  // darf weder als "ja" durchrutschen (String ist truthy) noch als String in der Spalte landen.
+  if (keyInBox !== undefined && keyInBox !== null && typeof keyInBox !== "boolean") {
+    return "INVALID_KEY_IN_BOX";
+  }
   if (!isValidImageUrl(imageUrl)) return "INVALID_IMAGE_URL";
   if (!startTime) return "START_TIME_REQUIRED";
   if (!allowFuture && new Date(startTime) > new Date()) return "TIME_IN_FUTURE";

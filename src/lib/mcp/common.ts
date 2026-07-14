@@ -69,6 +69,8 @@ export interface TrackingEntry {
   deviceCheck: string | null;
   deviceCheckNote: string | null;
   deviceCheckExpected: string | null;
+  /** Siehe `Entry.keyInBox` (schema.prisma). */
+  keyInBox: boolean | null;
   device: { id: string; name: string; categoryId: string | null } | null;
 }
 
@@ -113,7 +115,7 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
       select: {
         id: true, type: true, startTime: true, oeffnenGrund: true, orgasmusArt: true,
         kontrollCode: true, verifikationStatus: true,
-        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true,
+        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true, keyInBox: true,
         device: { select: { id: true, name: true, categoryId: true } },
       },
     }),

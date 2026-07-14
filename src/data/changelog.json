@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.32",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Angabe „Schlüssel liegt in der Box\" wird jetzt am Verschluss gespeichert. Bisher steuerte sie nur, ob die Box verriegelt — danach war sie weg. Für die Keyholderin sah „er hat sich eingeschlossen, nimmt den Schlüssel aber mit\" deshalb genau gleich aus wie „die Box war offline und hat den Befehl nie bekommen\". Der Keyholder-MCP zeigt die Angabe jetzt im Verschluss- und im Box-Zustand: eine Sperre ohne Hardware-Vollstreckung nennt damit ihren Grund. Keine Angabe (kein Box-Nutzer, Admin-Eintrag, ältere Einträge) bleibt „nicht erklärt\" — und ist ausdrücklich kein „nein\"; die Box verhält sich dort exakt wie bisher.",
+          "en": "The “key is in the box” declaration is now stored on the lock entry. Until now it only decided whether the box bolted shut, and was then discarded — so from the keyholder's side, “he locked up but travels with the key” looked exactly like “the box was offline and never got the command”. The keyholder MCP now reports the declaration in both the lock and the box state, so a lock that isn't hardware-enforced states its reason. No declaration (no box, admin-created entry, older entries) stays “not declared” — explicitly not a “no” — and the box behaves exactly as before."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine unsinnige Schlüssel-Angabe (etwa der Text „false\" statt eines echten Ja/Nein) wird jetzt abgewiesen, statt als „ja\" durchzurutschen und die Box verriegeln zu lassen.",
+          "en": "A malformed key declaration (e.g. the text “false” instead of a real yes/no) is now rejected instead of slipping through as “yes” and letting the box lock."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.31",
     "date": "2026-07-14",
     "changes": [

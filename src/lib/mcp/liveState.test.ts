@@ -19,6 +19,8 @@ const e = (type: string, iso: string, deviceName?: string, oeffnenGrund?: string
   startTime: D(iso),
   oeffnenGrund: oeffnenGrund ?? null,
   device: deviceName ? { name: deviceName, categoryId: null } : null,
+  // Default „nicht erklärt" — die keyInBox-Fälle überschreiben das per Spread.
+  keyInBox: null,
 });
 
 /** `buildLockState` erwartet die Entries ABSTEIGEND sortiert (jüngster zuerst) — wie sie aus Prisma kommen. */
@@ -89,7 +91,41 @@ describe("buildLockState", () => {
 
   it("ohne Einträge ist nichts verschlossen", () => {
     const lock = buildLockState([], reinigung, NOW, fmt);
-    expect(lock).toEqual({ isLocked: false, since: null, currentDurationHours: null, deviceName: null });
+    expect(lock).toEqual({ isLocked: false, since: null, currentDurationHours: null, deviceName: null, keyInBox: null });
+  });
+
+  it("keyInBox:false wird gemeldet — der Verschluss ist erklärt, aber nicht hardware-vollstreckt", () => {
+    const lock = buildLockState(
+      desc([{ ...e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"), keyInBox: false }]),
+      reinigung, NOW, fmt,
+    );
+    expect(lock.isLocked).toBe(true);
+    expect(lock.keyInBox).toBe(false);
+  });
+
+  it("nach dem Öffnen sagt keyInBox nichts mehr aus (null, kein stehengebliebenes false)", () => {
+    const lock = buildLockState(desc([
+      { ...e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"), keyInBox: false },
+      e("OEFFNEN", "2026-07-10T04:00:00Z"),
+    ]), reinigung, NOW, fmt);
+    expect(lock.isLocked).toBe(false);
+    expect(lock.keyInBox).toBeNull();
+  });
+
+  it("nach einer Reinigungspause gilt die Angabe des WIEDERVERSCHLUSSES, nicht die des Session-Starts", () => {
+    // Gleiches Prinzip wie beim Gerätewechsel: der Sub kann den Schlüssel beim Wiederverschluss
+    // mitnehmen (Reise) — wer den Session-Kopf liest, meldet weiter „liegt in der Box".
+    const lock = buildLockState(desc([
+      { ...e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"), keyInBox: true },
+      e("OEFFNEN", "2026-07-10T04:00:00Z", undefined, "REINIGUNG"),
+      { ...e("VERSCHLUSS", "2026-07-10T04:20:00Z", "Ring A"), keyInBox: false },
+    ]), reinigung, NOW, fmt);
+    expect(lock.keyInBox).toBe(false);
+  });
+
+  it("ohne Angabe bleibt keyInBox null — ein Alt-Eintrag ist kein „nein\"", () => {
+    const lock = buildLockState(desc([e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A")]), reinigung, NOW, fmt);
+    expect(lock.keyInBox).toBeNull();
   });
 
   it("buildLockState entspricht buildLockStateFromPairs mit denselben Paaren", async () => {

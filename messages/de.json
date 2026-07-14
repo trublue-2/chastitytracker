@@ -26,6 +26,7 @@
     "INVALID_OPENING_REASON": "Ungültiger Öffnungsgrund",
     "INVALID_ORDER": "Zeitpunkt verletzt die chronologische Reihenfolge",
     "INVALID_ORGASM_TYPE": "Ungültige Art",
+    "INVALID_KEY_IN_BOX": "Ungültige Angabe zum Schlüssel",
     "INVALID_TYPE": "Ungültiger Typ",
     "NOTE_REQUIRED": "Kommentar ist erforderlich",
     "NOT_FOUND": "Nicht gefunden",

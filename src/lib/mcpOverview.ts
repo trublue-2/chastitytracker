@@ -49,6 +49,9 @@ export interface TrackerOverview {
     since: string | null;
     currentDurationHours: number | null;
     deviceName: string | null;
+    /** Siehe `Entry.keyInBox`. Steht hier, weil `buildLockStateFromPairs` es liefert und die Antwort
+     *  es ausliefert — der Typ soll nicht weniger versprechen, als das Tool tatsächlich sendet. */
+    keyInBox: boolean | null;
   };
   wearingHoursKg: { today: number; week: number; month: number };
   trainingGoalKg: (GoalProgress & { note: string | null }) | null;
@@ -156,7 +159,7 @@ export async function buildOverview(username: string, opts: McpFormatOptions = {
       select: {
         id: true, type: true, startTime: true, oeffnenGrund: true, orgasmusArt: true,
         kontrollCode: true, verifikationStatus: true,
-        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true,
+        deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true, keyInBox: true,
         device: { select: { id: true, name: true, categoryId: true } },
       },
     }),

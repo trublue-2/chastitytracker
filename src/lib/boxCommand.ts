@@ -30,9 +30,9 @@ export async function setBoxCommandForUser(
 
 export interface BoxCommandInput {
   type: string;
-  /** Liegt der Schlüssel in der Box? `undefined` = das Formular hat nicht gefragt (keine Box,
+  /** Liegt der Schlüssel in der Box? `null`/`undefined` = das Formular hat nicht gefragt (keine Box,
    *  Admin-Pfad, Alt-Client) → wie bisher: die Box folgt. */
-  keyInBox?: boolean;
+  keyInBox?: boolean | null;
   /** Hat diese Öffnung eine Sperrzeit gebrochen? Dann war sie verboten. */
   brokeSperrzeit: boolean;
 }
@@ -50,6 +50,7 @@ export interface BoxCommandInput {
  *    vollstrecken: der Riegel bleibt zu, der Eintrag steht trotzdem im Strafbuch.
  */
 export function boxCommandForEntry({ type, keyInBox, brokeSperrzeit }: BoxCommandInput): "lock" | "open" | null {
+  // Nur ein ausdrückliches `false` hält die Box zurück — `null`/`undefined` heisst „nicht erklärt".
   if (type === "VERSCHLUSS") return keyInBox === false ? null : "lock";
   if (type === "OEFFNEN") return brokeSperrzeit ? null : "open";
   return null;

@@ -180,7 +180,11 @@ und Grenzen sind gepinnt und versioniert.**
 - **\`timeline\`** — alle Ereignisse auf einer Achse (Segment-basiert). **\`get_action_log\`** —
   Audit aller V2-Writes (warum/wann). **\`get_box_state\`** — \`hardwareEnforced\` = zuletzt
   gemeldete Absicht (physisch vollstreckt vs Ehrensache); \`hardwareEnforcedEffective\` = reale
-  Lage JETZT (false, sobald die Box offline ist — unabhängig vom letzten gemeldeten Stand).
+  Lage JETZT (false, sobald die Box offline ist — unabhängig vom letzten gemeldeten Stand);
+  \`keyInBox\` = Deklaration des Subs beim laufenden Verschluss (\`false\` = er behält den Schlüssel,
+  die Box bekam bewusst kein \`lock\` → das erklärt \`hardwareEnforced:false\`, es ist keine Box-Störung;
+  \`null\` = nicht erklärt/nicht verschlossen — kein „nein", und die übrigen Ursachen bleiben offen).
+  Auch als \`currentRun.keyInBox\` im Dashboard.
 
 ### V2-Write-Disziplin
 Jeder V2-Write braucht **\`reason\`** (Pflicht, Audit) und unterstützt **\`dryRun:true\`** (zeigt

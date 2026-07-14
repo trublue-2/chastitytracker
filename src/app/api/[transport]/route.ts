@@ -545,7 +545,12 @@ function registerTools(server: McpServer) {
           "(bleibt bei offline unverändert stehen!) — für die reale Lage IMMER hardwareEnforcedEffective " +
           "nutzen (nur true, wenn online UND hardwareEnforced; offline = faktisch Ehrensache, nicht " +
           "verifizierbar). lockUntilStale = lockUntil liegt in der Vergangenheit UND die Box war seither " +
-          "nicht mehr online (Wert unbestätigt). null = keine Box registriert. Auch im keyholder_dashboard enthalten.",
+          "nicht mehr online (Wert unbestätigt). keyInBox = Deklaration des Subs beim laufenden Verschluss: " +
+          "false heisst, der Schlüssel liegt NICHT in der Box (er trägt ihn bei sich, z.B. auf Reise) — dann " +
+          "hat die Box bewusst kein lock bekommen, und das ERKLÄRT ein hardwareEnforced:false, das sonst wie " +
+          "eine Box-Störung aussieht. null = nicht erklärt oder nicht verschlossen, also KEIN 'nein' — dann " +
+          "bleiben die übrigen Ursachen offen (Box offline, Admin-Eintrag ohne Box-Kommando). " +
+          "boxState:null = keine Box registriert. Auch im keyholder_dashboard enthalten.",
         inputSchema: {},
       },
       () => runTool("get_box_state", getBoxState),

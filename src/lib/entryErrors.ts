@@ -36,6 +36,7 @@ export const ENTRY_VALIDATION_CODES = [
   "NOTE_REQUIRED",
   "INSPECTION_PHOTO_REQUIRED",
   "INVALID_ORGASM_TYPE",
+  "INVALID_KEY_IN_BOX",
 ] as const;
 
 /** Emitted directly by an entry route, outside the guard/validation paths. */

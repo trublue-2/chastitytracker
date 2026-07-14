@@ -59,6 +59,10 @@ export async function POST(req: NextRequest) {
   });
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
+  // EINE Normalisierung für Persistenz UND Box-Kommando — sonst könnte die Box einem Wert folgen, den
+  // der Eintrag nicht dokumentiert. Nicht-Boolean ist oben ausgeschlossen; bleibt: fehlt = null.
+  const keyInBoxDeclared: boolean | null = keyInBox ?? null;
+
   // Wrap state-check + create in a transaction to prevent TOCTOU races
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;
   // In der Transaktion entschieden, ausserhalb für den Instant-Push wiederverwendet.
@@ -122,6 +126,7 @@ export async function POST(req: NextRequest) {
           // Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur VERSCHLUSS)
           codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,
           codeReadable: type === "VERSCHLUSS" && codeImageUrl ? (codeReadable ?? null) : null,
+          keyInBox: type === "VERSCHLUSS" ? keyInBoxDeclared : null,
         },
       });
 
@@ -200,7 +205,7 @@ export async function POST(req: NextRequest) {
 
       // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
       // sie ihm NICHT folgt — steht in `boxCommandForEntry`. No-op ohne Heimdall/Box.
-      boxCmd = boxCommandForEntry({ type, keyInBox, brokeSperrzeit: withdrawnSperrzeit });
+      boxCmd = boxCommandForEntry({ type, keyInBox: keyInBoxDeclared, brokeSperrzeit: withdrawnSperrzeit });
       if (boxCmd) await setBoxCommandForUser(tx, session.user.id, boxCmd);
 
       return created;

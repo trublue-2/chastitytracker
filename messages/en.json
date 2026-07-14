@@ -24,6 +24,7 @@
     "INVALID_OPENING_REASON": "Invalid opening reason",
     "INVALID_ORDER": "The time violates the chronological order",
     "INVALID_ORGASM_TYPE": "Invalid type",
+    "INVALID_KEY_IN_BOX": "Invalid key declaration",
     "INVALID_TYPE": "Invalid entry type",
     "NOTE_REQUIRED": "A comment is required",
     "NOT_FOUND": "Not found",

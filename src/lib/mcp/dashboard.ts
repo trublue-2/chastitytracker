@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit } from "@/lib/queries";
+import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, mapInterruptedSperrzeit,
@@ -33,6 +33,15 @@ export interface BoxStateView {
   /** true = lockUntil liegt in der Vergangenheit UND die Box hat seither nicht mehr gesynct (online:false)
    *  — der Wert ist veraltet/unbestätigt, nicht zwingend noch gültig. */
   lockUntilStale: boolean;
+  /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
+   *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
+   *  lock-Kommando bekommen. Das ERKLÄRT ein `hardwareEnforced: false`, das sonst wie eine Box-Störung
+   *  aussieht. `null` = nicht erklärt (Alt-Eintrag, Admin-Pfad, keine Box) oder gerade nicht
+   *  verschlossen — sagt NICHTS über den Schlüssel aus und ist KEIN „nein".
+   *
+   *  Nur `false` erklärt eine fehlende Vollstreckung; bei `null` bleiben die übrigen Ursachen offen
+   *  (Box offline, oder ein Admin-Eintrag, der nie ein Box-Kommando ausgelöst hat). */
+  keyInBox: boolean | null;
   battery: number | null;
   charging: boolean | null;
   online: boolean;
@@ -57,6 +66,10 @@ export interface DashboardResult {
     /** true, wenn goals.kg.today einen Anteil einer FRÜHEREN (heute geendeten) Session enthält —
      *  dann ist `today` grösser als der durchgehende `durationHours`, ist also NICHT die Lauf-Dauer. */
     todayIncludesPriorSession: boolean;
+    /** Hat der Sub beim Verschluss erklärt, den Schlüssel in die Box gelegt zu haben?
+     *  `false` = er behält ihn (z.B. auf Reise) → die Sperre ist Ehrensache, nicht hardware-vollstreckt.
+     *  `null` = nicht gefragt (keine Box, Admin-Pfad, Alt-Eintrag) oder nicht verschlossen — KEIN „nein". */
+    keyInBox: boolean | null;
   };
   /** Echte (nicht cluster-interne) Bild-Diskrepanzen als reiner Daten-Hinweis — KEINE Vergehen
    *  (eine Routine-Kontrolle hat kein verlangtes Gerät). Cluster-interne Verwechslungen sind hier
@@ -179,8 +192,16 @@ function collectImageConflicts(sessions: Session[], iso: Iso): DiscrepancyItem[]
   );
 }
 
-async function loadBoxState(userId: string, now: Date, iso: Iso): Promise<BoxStateView | null> {
-  const box = await prisma.boxStatus.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" } });
+const loadBoxRow = (userId: string) =>
+  prisma.boxStatus.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" } });
+
+type BoxRow = Awaited<ReturnType<typeof loadBoxRow>>;
+
+/** `keyInBox` kommt vom Verschluss-EINTRAG, nicht aus der Box-Zeile: die Box weiss nicht, ob der
+ *  Schlüssel in ihr liegt — nur der Sub hat das erklärt. Deshalb reicht der Aufrufer die Deklaration
+ *  durch: das Dashboard hat sie gratis aus dem Lock-Zustand (derselbe Wert wie `currentRun.keyInBox`,
+ *  die beiden können so nicht auseinanderlaufen), `get_box_state` lädt sie via `getCurrentLockKeyInBox`. */
+function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null): BoxStateView | null {
   if (!box) return null;
   const online = box.lastSyncAt ? now.getTime() - box.lastSyncAt.getTime() < BOX_ONLINE_THRESHOLD_MS : false;
   return {
@@ -190,6 +211,7 @@ async function loadBoxState(userId: string, now: Date, iso: Iso): Promise<BoxSta
     hardwareEnforced: box.keyholderLocked,
     hardwareEnforcedEffective: online && box.keyholderLocked,
     lockUntilStale: !online && box.lockUntil !== null && box.lockUntil < now,
+    keyInBox,
     battery: box.battery,
     charging: box.charging,
     online,
@@ -207,7 +229,9 @@ export interface BoxStateResult {
  *  Ehrensache. null = keine Box registriert. Throws, wenn der User unbekannt ist. */
 export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
-  return { schemaVersion: 2, user: username, boxState: await loadBoxState(userId, new Date(), makeIso(timezone)) };
+  // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
+  const [box, keyInBox] = await Promise.all([loadBoxRow(userId), getCurrentLockKeyInBox(userId)]);
+  return { schemaVersion: 2, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */
@@ -227,7 +251,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
   const [openKontrolleRow, activeSperrzeitRow, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
-         rec, periods, ledger, pinned, boxState, healthHold, scheduledDirectives] = await Promise.all([
+         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives] = await Promise.all([
     getOpenKontrolle(trackingCtx.userId, now),
     getActiveSperrzeit(trackingCtx.userId),
     getInterruptedSperrzeit(trackingCtx.userId, now),
@@ -237,13 +261,16 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     periodSummary(username, trackingCtx),
     getOffenses(username),
     queryNotes(username, { pinned: true, status: "active", limit: 50 }),
-    loadBoxState(trackingCtx.userId, now, iso),
+    loadBoxRow(trackingCtx.userId),
     loadActiveHealthHold(trackingCtx.userId, iso),
     loadScheduledDirectives(trackingCtx.userId, now, iso),
   ]);
 
   const lock = buildLockState(trackingCtx.entries, trackingCtx.reinigung, now, fmt);
   const activeWearSessions = mapActiveWearSessions(activeWearRows, now, fmt);
+  // Die Box-Sicht erbt die Schlüssel-Deklaration aus DEMSELBEN Lock-Zustand wie currentRun — die
+  // beiden Felder einer Antwort können so nicht auseinanderlaufen, und es kostet keine Query.
+  const boxState = mapBoxState(boxRow, now, iso, lock.keyInBox);
 
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
   const wornNow: DashboardResult["wornNow"] = [];
@@ -278,6 +305,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       personalBestHours: rec.longestRunHours,
       vsPersonalBestPct: rec.currentRunVsPbPct,
       todayIncludesPriorSession,
+      keyInBox: lock.keyInBox,
     },
     dataDiscrepancies: { count: discrepancyItems.length, items: discrepancyItems.slice(0, 5) },
     wornNow,

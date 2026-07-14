@@ -27,6 +27,8 @@ export interface LockState {
   since: string | null;
   currentDurationHours: number | null;
   deviceName: string | null;
+  /** Schlüssel-Deklaration des AKTUELLEN Verschlusses (siehe `Entry.keyInBox`). Nicht verschlossen → null. */
+  keyInBox: boolean | null;
 }
 
 /** Minimalform eines Entrys für die Verschluss-Ableitung: was `buildPairs` braucht, plus der
@@ -38,6 +40,10 @@ export type LockEntry = {
   startTime: Date;
   oeffnenGrund: string | null;
   device: { name: string; categoryId?: string | null } | null;
+  /** Siehe `Entry.keyInBox` (schema.prisma). Pflichtfeld: wäre es optional, könnte ein Select die
+   *  Spalte weglassen und der Lock-Zustand meldete stillschweigend `null` — „nicht erklärt" statt
+   *  „behält den Schlüssel". Der Compiler erzwingt so, dass JEDER Lock-Select sie lädt. */
+  keyInBox: boolean | null;
 };
 
 /** Entries müssen nach `startTime` ABSTEIGEND sortiert sein (jüngster zuerst). */
@@ -87,6 +93,9 @@ export function buildLockStateFromPairs<E extends LockEntry>(
     since: latest ? fmt(latest.startTime) : null,
     currentDurationHours,
     deviceName: isLocked ? (currentLock?.device?.name ?? null) : null,
+    // Aus DEMSELBEN Lock-Eintrag wie deviceName: nach einer Reinigungspause gilt die Angabe des
+    // Wiederverschlusses, nicht die des Session-Starts.
+    keyInBox: isLocked ? (currentLock?.keyInBox ?? null) : null,
   };
 }
 

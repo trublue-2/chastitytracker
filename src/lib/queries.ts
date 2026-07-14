@@ -84,12 +84,13 @@ export async function getUserDeviceOptions(userId: string): Promise<DeviceOption
  *  liest der Aufruf ausserhalb der Transaktion (TOCTOU).
  *
  *  Das schmale `select` trägt genau die Felder, die die Aufrufer brauchen: `type` (Lock-Zustand),
- *  `startTime` (Zeit-Guards), `kontrollCode` (deriveSealCode) und `deviceId` (Geräte-Check). */
+ *  `startTime` (Zeit-Guards), `kontrollCode` (deriveSealCode), `deviceId` (Geräte-Check) und
+ *  `keyInBox` (Schlüssel-Deklaration, siehe `getCurrentLockKeyInBox`). */
 export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = prisma) {
   return tx.entry.findFirst({
     where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
     orderBy: { startTime: "desc" },
-    select: { type: true, startTime: true, kontrollCode: true, deviceId: true },
+    select: { type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true },
   });
 }
 
@@ -102,6 +103,17 @@ export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = 
 export async function getIsLocked(userId: string, tx: PrismaTx | typeof prisma = prisma): Promise<boolean> {
   const latest = await getLatestKgEntry(userId, tx);
   return latest?.type === "VERSCHLUSS";
+}
+
+/** Schlüssel-Deklaration des LAUFENDEN Verschlusses (siehe `Entry.keyInBox`); null, wenn gerade nicht
+ *  verschlossen ist — dann gibt es keinen Verschluss, über den etwas erklärt worden wäre.
+ *
+ *  Wohnt hier bei `getIsLocked`, weil es dieselbe Regel anwendet: der jüngste KG-Eintrag IST der
+ *  Lock-Zustand. Solange verschlossen ist, ist dieser Eintrag zugleich der Verschluss, den
+ *  `buildLockState` (MCP) aus den Paaren zieht — beide Wege beantworten die Frage identisch. */
+export async function getCurrentLockKeyInBox(userId: string, tx: PrismaTx | typeof prisma = prisma): Promise<boolean | null> {
+  const latest = await getLatestKgEntry(userId, tx);
+  return latest?.type === "VERSCHLUSS" ? latest.keyInBox : null;
 }
 
 /** Result row for a currently-active wear session in a non-KG DeviceCategory. */
