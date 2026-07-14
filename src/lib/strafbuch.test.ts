@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
-import { isLateLock, reinigungRelockDeadline, isCleaningNotRelocked, buildStrafbuch } from "./strafbuch";
+import { isLateLock, reinigungRelockDeadline, isCleaningNotRelocked, buildStrafbuch, cleaningWindowEnforcedFrom } from "./strafbuch";
 import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
@@ -136,10 +136,18 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
       Promise.resolve(args?.where?.type === "OEFFNEN" ? [o] : []),
     );
 
+  /** Der Stichtag dieser Instanz, wie ihn die Migration beim ersten Boot schreibt. */
+  const mockStichtag = (iso: string) =>
+    db.appMeta.findUnique.mockResolvedValue({ key: "cleaningWindowEnforcedFrom", value: iso, updatedAt: new Date(iso) });
+
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue(USER);
     mockSperrzeiten([SPERRE]);
+    // Stichtag festnageln: hier steht die FENSTER-Regel zur Prüfung, nicht der Stichtag. Läge er
+    // nach den Öffnungen dieses Blocks (10.07.), wären sie pauschal straffrei — der Test prüfte
+    // dann nichts mehr.
+    mockStichtag("2026-07-01T00:00:00Z");
   });
 
   it("innerhalb des Fensters: kein unerlaubtes Öffnen", async () => {
@@ -162,13 +170,18 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
   });
 
-  it("Öffnungen VOR dem Stichtag werden nicht rückwirkend zu Vergehen", async () => {
-    // Das Strafbuch ist eine Live-Ableitung. Ohne Stichtag erschienen mit dem Deploy Vergehen für
-    // Handlungen, die es zur Zeit der Tat noch gar nicht gab (die Fenster-Schranke ist neu).
-    const VORHER = new Date("2026-07-05T01:00:00Z"); // 03:00 Ortszeit, ausserhalb des Fensters
-    mockSperrzeiten([{ ...SPERRE, createdAt: new Date("2026-07-01T00:00:00Z") }]);
-    mockOeffnung(oeffnung(VORHER));
+  it("VOR dem Stichtag: kein Vergehen, obwohl ausserhalb des Fensters", async () => {
+    // Genau das rettet die fremden Instanzen beim Rollout: was vor IHREM Stichtag geschah, wird nach
+    // den damals geltenden Regeln beurteilt — dort gab es die Fenster-Schranke noch nicht.
+    mockStichtag("2026-07-11T00:00:00Z");   // Stichtag NACH der Öffnung (10.07., 03:00 Ortszeit)
+    mockOeffnung(oeffnung(NACHTS));
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+  });
+
+  it("NACH dem Stichtag: dieselbe Öffnung ist ein Vergehen", async () => {
+    mockStichtag("2026-07-09T00:00:00Z");   // Stichtag VOR der Öffnung
+    mockOeffnung(oeffnung(NACHTS));
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
   });
 
   it("die Sperrzeit verbietet Reinigung: unerlaubtes Öffnen, auch im Fenster", async () => {
@@ -181,5 +194,63 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
     db.user.findUnique.mockResolvedValue({ ...USER, reinigungErlaubt: false });
     mockOeffnung(oeffnung(IM_FENSTER));
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+  });
+});
+
+// ─── Stichtag: ab wann gilt die Fenster-Regel? ─────────────────────────────
+
+describe("cleaningWindowEnforcedFrom — je Instanz, nicht je Code-Stand", () => {
+  const db = prisma as unknown as PrismaMock;
+  const NOW = new Date("2026-07-20T12:00:00Z");
+
+  const mockRow = (value: string | null) =>
+    db.appMeta.findUnique.mockResolvedValue(
+      value === null ? null : { key: "cleaningWindowEnforcedFrom", value, updatedAt: NOW },
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.CLEANING_WINDOW_ENFORCED_FROM;
+  });
+
+  afterEach(() => {
+    delete process.env.CLEANING_WINDOW_ENFORCED_FROM;
+  });
+
+  it("nimmt den Stichtag aus der DB — dort schreibt ihn die Migration beim ersten Boot DIESER Instanz", async () => {
+    // Der Stichtag ist ein Merkmal des DEPLOYS, nicht des Codes: dasselbe Image läuft auf 27
+    // Instanzen, die es zu verschiedenen Zeitpunkten bekommen.
+    // Genau das Format, das die Migration schreibt: ISO-8601 mit 'Z'. OHNE das 'Z' läse
+    // `new Date(...)` die Zeichenkette als Ortszeit — der Stichtag läge auf einem CET-Server zwei
+    // Stunden zu früh, und diese zwei Stunden würden rückwirkend bestraft.
+    mockRow("2026-07-10T09:30:00Z");
+    expect(await cleaningWindowEnforcedFrom(NOW)).toEqual(new Date("2026-07-10T09:30:00.000Z"));
+  });
+
+  it("die ENV übersteuert die DB-Zeile — für bewusstes Rückdatieren", async () => {
+    mockRow("2026-07-20T00:00:00Z");
+    process.env.CLEANING_WINDOW_ENFORCED_FROM = "2026-07-01T00:00:00Z";
+    expect(await cleaningWindowEnforcedFrom(NOW)).toEqual(new Date("2026-07-01T00:00:00Z"));
+  });
+
+  it("eine unlesbare ENV fällt auf die DB-Zeile zurück — NICHT auf 'kein Stichtag'", async () => {
+    // Ein NaN-Datum wäre in jedem Vergleich false: `startTime < NaN` → nichts gilt als grandfathered
+    // → die GESAMTE Historie würde rückwirkend an der Fenster-Regel gemessen.
+    mockRow("2026-07-10T00:00:00Z");
+    process.env.CLEANING_WINDOW_ENFORCED_FROM = "übermorgen";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await cleaningWindowEnforcedFrom(NOW)).toEqual(new Date("2026-07-10T00:00:00Z"));
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("fehlt die Zeile ganz, gilt AB JETZT — lieber ein Vergehen zu wenig als ein erfundenes", async () => {
+    // Kann nur passieren, wenn die Migration nie lief. Dann ist `now` der einzige sichere Wert:
+    // ein Stichtag in der Vergangenheit erfände Vergehen für Regeln, die damals nicht galten.
+    mockRow(null);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await cleaningWindowEnforcedFrom(NOW)).toEqual(NOW);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

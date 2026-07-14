@@ -119,14 +119,44 @@ function findActiveSperrzeit<S extends { createdAt: Date; endetAt: Date | null; 
   );
 }
 
+/** AppMeta-Schlüssel des Stichtags. Die Zeile schreibt die Migration
+ *  `20260714210000_cleaning_window_enforced_from` beim ersten Boot dieser Instanz. */
+const ENFORCED_FROM_KEY = "cleaningWindowEnforcedFrom";
+
 /**
  * Ab wann gilt das Reinigungsfenster als Schranke? Bis zu diesem Zeitpunkt prüfte weder die
  * Durchsetzung noch das Strafbuch, ob eine Reinigungsöffnung in einem Fenster lag — sie war
  * schlicht erlaubt. Das Strafbuch ist eine LIVE-Ableitung aus den Einträgen: ohne Stichtag würden
  * mit dem Deploy rückwirkend Vergehen für Handlungen erscheinen, die zur Zeit der Tat erlaubt waren.
  * Niemand soll für eine Regel belangt werden, die es damals nicht gab.
+ *
+ * Der Stichtag ist ein Merkmal des DEPLOYS, nicht des CODES: dasselbe Image läuft auf 27 Instanzen,
+ * die es zu verschiedenen Zeitpunkten bekommen. Deshalb steht er in der DB (`AppMeta`), geschrieben
+ * von der Migration beim ERSTEN Boot dieser Instanz — dem einzigen Zeitpunkt, den keine Vorhersage
+ * treffen muss. Ein einkompiliertes Datum stand zwangsläufig auf dem Tag EINER Instanz und hätte
+ * allen anderen beim Rollout rückwirkend Vergehen für die Differenz beschert.
+ *
+ * `CLEANING_WINDOW_ENFORCED_FROM` (ISO-8601) übersteuert die Zeile — für bewusstes Rückdatieren
+ * oder Korrigieren. Ohne beides (Zeile fehlt, Migration nie gelaufen) gilt der SICHERE Weg: `now`,
+ * also ab jetzt — lieber ein Vergehen zu wenig als eines, das es damals nicht gab.
  */
-const CLEANING_WINDOW_ENFORCED_FROM = new Date("2026-07-10T00:00:00Z");
+export async function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
+  const raw = process.env.CLEANING_WINDOW_ENFORCED_FROM;
+  if (raw) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+    // Ein unlesbares Datum darf NICHT stillschweigend zu "gar kein Stichtag" werden — das bestrafte
+    // rückwirkend die ganze Historie. Laut melden und die DB-Zeile nehmen.
+    console.error(`[strafbuch] CLEANING_WINDOW_ENFORCED_FROM ist kein gültiges Datum: "${raw}" — nutze den Stichtag aus der DB`);
+  }
+
+  const row = await prisma.appMeta.findUnique({ where: { key: ENFORCED_FROM_KEY } });
+  const stored = row ? new Date(row.value) : null;
+  if (stored && !Number.isNaN(stored.getTime())) return stored;
+
+  console.error(`[strafbuch] Kein Stichtag in AppMeta ("${ENFORCED_FROM_KEY}") — bewerte ab jetzt, keine rückwirkenden Vergehen`);
+  return now;
+}
 
 /** True if a REINIGUNG opening inside `sperre` doesn't break the Sperrzeit. Delegates to
  *  {@link cleaningBlockReason} — the same rule the live enforcement applies — rather than restating
@@ -135,8 +165,9 @@ const CLEANING_WINDOW_ENFORCED_FROM = new Date("2026-07-10T00:00:00Z");
  *  else. The lock broke and nothing was recorded.
  *
  *  Evaluated at the opening's own `startTime`, not at `now`: the Strafbuch keeps a record of the
- *  past. (Live enforcement judges `now`, because that is when the bolt actually moves.) Ältere
- *  Öffnungen als {@link CLEANING_WINDOW_ENFORCED_FROM} werden ohne Fenster-Prüfung beurteilt.
+ *  past. (Live enforcement judges `now`, because that is when the bolt actually moves.) Öffnungen
+ *  vor `enforcedFrom` (siehe {@link cleaningWindowEnforcedFrom}) werden ohne Fenster-Prüfung
+ *  beurteilt.
  *
  *  Shared by unauthorizedOpenings (inverted: an opening that ISN'T allowed is unauthorized) and
  *  cleaningNotRelocked (only allowed openings can incur a missed-re-lock offense). */
@@ -144,9 +175,10 @@ function isAllowedReinigungOpening(
   o: { oeffnenGrund: string | null; startTime: Date },
   sperre: { reinigungErlaubt: boolean } | undefined,
   user: CleaningPermissionUser,
+  enforcedFrom: Date,
 ): boolean {
   if (!sperre || o.oeffnenGrund !== "REINIGUNG") return false;
-  const grandfathered = o.startTime < CLEANING_WINDOW_ENFORCED_FROM;
+  const grandfathered = o.startTime < enforcedFrom;
   const effectiveUser = grandfathered ? { ...user, reinigungsFenster: null } : user;
   return cleaningBlockReason(effectiveUser, [sperre], o.startTime) === null;
 }
@@ -155,7 +187,10 @@ function isAllowedReinigungOpening(
  *  rejected Kontrollen, REINIGUNG-limit violations, late locks, missed cleaning re-locks, plus
  *  the punished-marker records. Single source of truth shared by the admin Strafbuch page and the MCP tool. */
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
-  const [user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
+  // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
+  // Öffnung, und ohne zusätzlichen Roundtrip.
+  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
+    cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
     prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" } }),
@@ -238,7 +273,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const unauthorizedOpenings = oeffnungenMitSperre
     .filter(({ o, sperre }) =>
       o.source !== "system" &&
-      !!sperre && !isAllowedReinigungOpening(o, sperre, cleaningUser) && !isOrgasmusOpenAllowed(o.startTime),
+      !!sperre && !isAllowedReinigungOpening(o, sperre, cleaningUser, enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
     )
     .map(({ o, sperre }) => ({
       id: o.id,
@@ -259,7 +294,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // already ended before the deadline: once the Sperrzeit is over there's no further re-lock
   // obligation left to violate, whether or not (or how late) the user eventually re-locks.
   const cleaningNotRelocked = oeffnungenMitSperre
-    .filter(({ o, sperre }) => isAllowedReinigungOpening(o, sperre, cleaningUser))
+    .filter(({ o, sperre }) => isAllowedReinigungOpening(o, sperre, cleaningUser, enforcedFrom))
     .flatMap(({ o, sperre }) => {
       const deadline = reinigungRelockDeadline(o.startTime, reinigungMaxMinuten, reinigungsFenster, subTz);
       const sperrzeitCoversDeadline = sperre!.endetAt === null || sperre!.endetAt >= deadline;

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.43",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Stichtag der Reinigungsfenster-Regel gehört jetzt zur Instanz, nicht zum Code. Das Strafbuch rechnet Vergehen bei jedem Aufruf neu aus der Historie aus — ein fest einprogrammiertes Datum stand zwangsläufig auf dem Tag, an dem EINE Instanz die Regel bekam, und hätte allen später aktualisierten Instanzen rückwirkend Vergehen für die Differenz beschert. Jede Instanz schreibt ihren Stichtag jetzt beim ersten Start selbst fest: den Moment, in dem sie die Regel tatsächlich erhält. Öffnungen davor werden weiterhin nach den damals geltenden Regeln beurteilt.",
+          "en": "The cutoff date for the cleaning-window rule now belongs to the instance, not to the code. The penalty book recomputes offenses from history on every call — a hardcoded date inevitably pointed at the day ONE instance received the rule, and would have retroactively charged every later-updated instance with offenses for the gap. Each instance now records its own cutoff on first start: the moment it actually receives the rule. Openings before that are still judged by the rules that applied at the time."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.42",
     "date": "2026-07-14",
     "changes": [

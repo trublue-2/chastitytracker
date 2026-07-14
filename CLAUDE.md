@@ -145,6 +145,12 @@ USE_ADMIN_RELATIONSHIPS=true       # optional: Admin↔User n:m Zuordnung aktivi
 TELEMETRY_URL=<url>                # optional: Telemetrie-Endpunkt
 TELEMETRY_INSTANCE_ID=<id>         # optional: Instanz-Kennung
 BUILD_DATE=<iso-date>              # optional: wird beim Build gesetzt
+# OVERRIDE des Strafbuch-Stichtags der Reinigungsfenster-Regel (ISO-8601). NORMALERWEISE NICHT
+# SETZEN: den Stichtag schreibt die Migration `20260714210000_cleaning_window_enforced_from` beim
+# ersten Boot jeder Instanz selbst in `AppMeta.cleaningWindowEnforcedFrom` — also genau dann, wenn
+# DIESE Instanz die Regel bekommt. Das Strafbuch ist eine LIVE-Ableitung: Öffnungen VOR dem Stichtag
+# werden ohne Fenster-Prüfung beurteilt. Diese Variable nur zum bewussten Rückdatieren/Korrigieren.
+CLEANING_WINDOW_ENFORCED_FROM=<iso-date>   # optional
 # Selfhosted-KI Health-Check (nur relevant bei lokalem Vision-/Embedding-Backend):
 HEALTHCHECK_INTERVAL_MIN=5         # optional: Prüfintervall in Minuten (Default 5)
 HEALTHCHECK_ALERT_EMAIL=<email>    # optional: Mail-Alarm bei Ausfall (leer = nur Log). Bei mehreren
