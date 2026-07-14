@@ -67,6 +67,7 @@
     "LOCK_PERIOD_ONLY_HAS_END": "Only lock periods have an end",
     "LOCK_PERIOD_ALREADY_WITHDRAWN": "The lock period has already been lifted",
     "LOCK_PERIOD_END_MUST_BE_FUTURE": "The new end must be in the future",
+    "LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER": "The end must be after the scheduled lock period triggers",
     "ORGASM_INVALID_ART": "Invalid directive type",
     "ORGASM_WINDOW_REQUIRED": "Start and end of the window are required",
     "ORGASM_END_BEFORE_START": "The end must be after the start",

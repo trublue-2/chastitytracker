@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.30",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine im Voraus geplante Sperrzeit kann kein Ende mehr bekommen, das vor ihrem Auslösezeitpunkt liegt — bisher liess sich so eine Sperre anlegen oder ändern, die im Moment des Auslösens bereits abgelaufen war und dem Sub „Gesperrt bis <Datum in der Vergangenheit>\" meldete. Zusätzlich zieht der Poller eine fällige Sperrzeit mit bereits abgelaufenem Ende zurück, statt sie zu melden.",
+          "en": "A lock period scheduled in advance can no longer be given an end that lies before its trigger time — until now this allowed creating or editing a lock that was already expired the moment it triggered, telling the sub “locked until <date in the past>”. In addition, the poller now withdraws a due lock period whose end has already passed instead of announcing it."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.29",
     "date": "2026-07-14",
     "changes": [
