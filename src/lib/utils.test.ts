@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   buildPairs,
-  buildWearPairs,
+  buildKgWearPairs,
   wearingHoursFromPairs,
-  wearingHoursInRange,
+  mergeWearPairs,
   interruptionPauseMs,
   WEAR_PAIR,
   formatDateTime,
@@ -286,9 +286,9 @@ describe("interruptionPauseMs", () => {
   });
 });
 
-// ─── buildWearPairs ────────────────────────────────────────────────────────
+// ─── buildKgWearPairs ────────────────────────────────────────────────────────
 
-describe("buildWearPairs", () => {
+describe("buildKgWearPairs", () => {
   it("builds pairs and uses `now` for open sessions", () => {
     const now = t("2026-05-01T20:00:00Z");
     const entries = [
@@ -296,7 +296,7 @@ describe("buildWearPairs", () => {
       { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z") },
       { type: "VERSCHLUSS", startTime: t("2026-05-01T18:00:00Z") },
     ];
-    const result = buildWearPairs(entries, now);
+    const result = buildKgWearPairs(entries, now);
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({ start: t("2026-05-01T10:00:00Z"), end: t("2026-05-01T14:00:00Z") });
     expect(result[1]).toEqual({ start: t("2026-05-01T18:00:00Z"), end: now });
@@ -310,7 +310,7 @@ describe("buildWearPairs", () => {
       { type: "ORGASMUS", startTime: t("2026-05-01T12:00:00Z") },
       { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z") },
     ];
-    const result = buildWearPairs(entries, now);
+    const result = buildKgWearPairs(entries, now);
     expect(result).toHaveLength(1);
   });
 });
@@ -388,94 +388,48 @@ describe("buildPairs — WEAR_PAIR", () => {
   });
 });
 
-// ─── buildPairs — categoryId filter ────────────────────────────────────────
+// ─── mergeWearPairs ────────────────────────────────────────────────────────
 
-describe("buildPairs — categoryId filter", () => {
-  type EntryWithDevice = Entry & { device?: { categoryId?: string | null } | null };
-  const mkE = (id: string, type: string, time: string, categoryId?: string): EntryWithDevice => ({
-    ...mkEntry(id, type, time),
-    device: categoryId ? { categoryId } : null,
+describe("mergeWearPairs", () => {
+  it("merges overlapping pairs into wall-clock intervals", () => {
+    // Plug A 10:00–14:00, Plug B 11:00–13:00 (innerhalb A) → eine Wanduhr-Spanne 10:00–14:00.
+    const merged = mergeWearPairs([
+      { start: t("2026-05-01T10:00:00Z"), end: t("2026-05-01T14:00:00Z") },
+      { start: t("2026-05-01T11:00:00Z"), end: t("2026-05-01T13:00:00Z") },
+    ]);
+    expect(merged).toEqual([{ start: t("2026-05-01T10:00:00Z"), end: t("2026-05-01T14:00:00Z") }]);
+    expect(wearingHoursFromPairs(merged, t("2026-05-01T00:00:00Z"), t("2026-05-02T00:00:00Z"))).toBe(4);
   });
 
-  it("filters entries by categoryId", () => {
-    const entries: EntryWithDevice[] = [
-      mkE("w1", "WEAR_BEGIN", "2026-05-01T10:00:00Z", "plug"),
-      mkE("e1", "WEAR_END", "2026-05-01T14:00:00Z", "plug"),
-      mkE("w2", "WEAR_BEGIN", "2026-05-01T15:00:00Z", "collar"),
-      mkE("e2", "WEAR_END", "2026-05-01T20:00:00Z", "collar"),
+  it("extends the interval when the second pair ends later", () => {
+    const merged = mergeWearPairs([
+      { start: t("2026-05-01T10:00:00Z"), end: t("2026-05-01T14:00:00Z") },
+      { start: t("2026-05-01T13:00:00Z"), end: t("2026-05-01T18:00:00Z") },
+    ]);
+    expect(merged).toEqual([{ start: t("2026-05-01T10:00:00Z"), end: t("2026-05-01T18:00:00Z") }]);
+  });
+
+  it("keeps disjoint pairs separate and sorts them", () => {
+    const merged = mergeWearPairs([
+      { start: t("2026-05-01T16:00:00Z"), end: t("2026-05-01T18:00:00Z") },
+      { start: t("2026-05-01T10:00:00Z"), end: t("2026-05-01T12:00:00Z") },
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0].start).toEqual(t("2026-05-01T10:00:00Z"));
+    expect(merged[1].start).toEqual(t("2026-05-01T16:00:00Z"));
+  });
+
+  it("does not mutate the input pairs", () => {
+    const input = [
+      { start: t("2026-05-01T10:00:00Z"), end: t("2026-05-01T14:00:00Z") },
+      { start: t("2026-05-01T13:00:00Z"), end: t("2026-05-01T18:00:00Z") },
     ];
-    const result = buildPairs(entries, [], { types: WEAR_PAIR, categoryId: "plug" });
-    expect(result).toHaveLength(1);
-    expect(result[0].verschluss.id).toBe("w1");
+    mergeWearPairs(input);
+    expect(input[0].end).toEqual(t("2026-05-01T14:00:00Z"));
   });
 
-  it("excludes entries without device.categoryId when filter is active", () => {
-    const entries: EntryWithDevice[] = [
-      mkE("w1", "WEAR_BEGIN", "2026-05-01T10:00:00Z"),       // no device
-      mkE("e1", "WEAR_END", "2026-05-01T14:00:00Z"),         // no device
-      mkE("w2", "WEAR_BEGIN", "2026-05-01T15:00:00Z", "plug"),
-      mkE("e2", "WEAR_END", "2026-05-01T20:00:00Z", "plug"),
-    ];
-    const result = buildPairs(entries, [], { types: WEAR_PAIR, categoryId: "plug" });
-    expect(result).toHaveLength(1);
-    expect(result[0].verschluss.id).toBe("w2");
-  });
-
-  it("does not filter when categoryId is null/undefined (default behavior)", () => {
-    const entries: EntryWithDevice[] = [
-      mkE("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z", "kg"),
-      mkE("o1", "OEFFNEN", "2026-05-01T14:00:00Z", "kg"),
-    ];
-    const result = buildPairs(entries, []); // no options
-    expect(result).toHaveLength(1);
-  });
-});
-
-// ─── wearingHoursInRange ───────────────────────────────────────────────────
-
-describe("wearingHoursInRange", () => {
-  it("calculates hours for a closed pair", () => {
-    const entries = [
-      { type: "VERSCHLUSS", startTime: t("2026-05-01T10:00:00Z") },
-      { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z") },
-    ];
-    const h = wearingHoursInRange(entries, t("2026-05-01T00:00:00Z"), t("2026-05-02T00:00:00Z"));
-    expect(h).toBe(4);
-  });
-
-  it("includes open session (extends to range end)", () => {
-    const entries = [{ type: "VERSCHLUSS", startTime: t("2026-05-01T10:00:00Z") }];
-    const h = wearingHoursInRange(entries, t("2026-05-01T00:00:00Z"), t("2026-05-01T16:00:00Z"));
-    expect(h).toBe(6);
-  });
-
-  it("clips to range start", () => {
-    const entries = [
-      { type: "VERSCHLUSS", startTime: t("2026-05-01T10:00:00Z") },
-      { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z") },
-    ];
-    const h = wearingHoursInRange(entries, t("2026-05-01T12:00:00Z"), t("2026-05-02T00:00:00Z"));
-    expect(h).toBe(2);
-  });
-
-  it("filters by categoryId when passed in options", () => {
-    const entries = [
-      { type: "WEAR_BEGIN", startTime: t("2026-05-01T10:00:00Z"), device: { categoryId: "plug" } },
-      { type: "WEAR_END",   startTime: t("2026-05-01T12:00:00Z"), device: { categoryId: "plug" } },
-      { type: "WEAR_BEGIN", startTime: t("2026-05-01T13:00:00Z"), device: { categoryId: "collar" } },
-      { type: "WEAR_END",   startTime: t("2026-05-01T18:00:00Z"), device: { categoryId: "collar" } },
-    ];
-    const h = wearingHoursInRange(
-      entries,
-      t("2026-05-01T00:00:00Z"),
-      t("2026-05-02T00:00:00Z"),
-      { types: WEAR_PAIR, categoryId: "plug" },
-    );
-    expect(h).toBe(2);
-  });
-
-  it("returns 0 for empty entries", () => {
-    expect(wearingHoursInRange([], t("2026-05-01T00:00:00Z"), t("2026-05-02T00:00:00Z"))).toBe(0);
+  it("returns an empty array for no pairs", () => {
+    expect(mergeWearPairs([])).toEqual([]);
   });
 });
 

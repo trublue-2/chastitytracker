@@ -286,7 +286,7 @@ export async function periodSummary(username: string, ctx?: TrackingContext): Pr
     getActiveVorgabe(userId, now),
     buildCategoryWearGoals(userId, now, entries),
   ]);
-  const kg = calculateWearingHoursByRange(entries, now, reinigung);
+  const kg = calculateWearingHoursByRange(entries, now);
 
   // KG-Ziele prorata: startet/endet die aktive Vorgabe mitten in einer Periode, wird das Ziel
   // anteilig auf die Überschneidung mit der Periode heruntergerechnet (Nenner der %-Erfüllung).

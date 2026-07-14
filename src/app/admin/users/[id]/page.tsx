@@ -9,6 +9,7 @@ import {
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
+import { buildWearSessions } from "@/lib/sessionModel";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
@@ -103,11 +104,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   const activePair = pairs.find(p => p.active) ?? null;
   const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm)) : [];
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, reinigung);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
   // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
   const proratedVorgabe = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
 
-  const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, buildWearSessions(entries, now), dl);
 
   return (
     <>

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.41",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Tragestunden einer Geräte-Kategorie (Heute/Woche/Monat/Jahr, Statistik und Ziel-Erfüllung) waren zu hoch, sobald zwei Geräte derselben Kategorie gleichzeitig getragen wurden: die Zeit wurde je Kategorie statt je Gerät gepaart, wodurch ein erfundenes Intervall entstand, das mit jedem Seitenaufruf weiterwuchs — ein Trainingsziel konnte sich dadurch endlos von selbst erfüllen. Die Stunden kommen jetzt aus denselben geräteweisen Sessions wie die Session-Liste. Zwei gleichzeitig getragene Plugs zählen ihre gemeinsame Zeit einmal (Wanduhr-Zeit): 2 Stunden bleiben 2 Stunden, nicht 4. Die Session-Kennzahlen (Anzahl, längste, Ø-Dauer) zählen weiterhin je Gerät.",
+          "en": "The wear hours of a device category (today/week/month/year, statistics and goal fulfilment) were too high whenever two devices of the same category were worn at the same time: the time was paired per category instead of per device, which invented an interval that kept growing with every page load — a training goal could fulfil itself indefinitely. The hours now come from the same per-device sessions as the session list. Two plugs worn simultaneously count their shared time once (wall-clock time): 2 hours stay 2 hours, not 4. Session figures (count, longest, average) still count per device."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.40",
     "date": "2026-07-14",
     "changes": [

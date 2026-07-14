@@ -665,3 +665,22 @@ export async function getInterruptedSperrzeit(userId: string, now: Date) {
     select: { endetAt: true, withdrawnAt: true, nachricht: true },
   });
 }
+
+/** Select-Shape jedes Eintrags, den das Session-Modell paart (`buildWearSessions`, `buildPairs`).
+ *  `device.id` ist PFLICHT: Trage-Sessions werden je GERÄT gepaart — fehlt die id, fällt jeder
+ *  WEAR-Eintrag als gerätelos heraus und die Kategorie zeigt lautlos 0 Stunden. */
+export const SESSION_ENTRY_SELECT = {
+  id: true,
+  type: true,
+  startTime: true,
+  device: { select: { id: true, categoryId: true } },
+} satisfies Prisma.EntrySelect;
+
+/** Alle WEAR_BEGIN/WEAR_END-Einträge eines Users, aufsteigend — die Quelle der Trage-Sessions. */
+export async function getWearEntries(userId: string) {
+  return prisma.entry.findMany({
+    where: { userId, type: { in: ["WEAR_BEGIN", "WEAR_END"] } },
+    orderBy: { startTime: "asc" },
+    select: SESSION_ENTRY_SELECT,
+  });
+}

@@ -365,9 +365,12 @@ export type PairTypes = { close: string; open: string };
 export const KG_PAIR: PairTypes = { close: "VERSCHLUSS", open: "OEFFNEN" };
 export const WEAR_PAIR: PairTypes = { close: "WEAR_BEGIN", open: "WEAR_END" };
 
+/** Keine `categoryId`-Option: nach Kategorie zu paaren ist strukturell falsch, weil zwei Geräte
+ *  derselben Kategorie gleichzeitig getragen werden können — der Ein-Slot-Zustandsautomat unten
+ *  bildet immer nur EIN offenes Gerät ab. Wer je Kategorie rechnen will, paart je GERÄT und
+ *  gruppiert danach: `wearSessionPairsByCategory` / `wearHourPairsByCategory` in `sessionModel.ts`. */
 export type BuildPairsOptions = {
   types?: PairTypes;
-  categoryId?: string | null;
   /** Only honored when `types === KG_PAIR`. Ignored for WEAR_PAIR. */
   reinigung?: ReinigungSettings;
 };
@@ -384,38 +387,31 @@ type PairResult<E, K> = {
 function isLegacyReinigungArg(arg: unknown): arg is ReinigungSettings {
   return !!arg && typeof arg === "object"
     && "erlaubt" in arg
-    && !("types" in arg) && !("categoryId" in arg) && !("reinigung" in arg);
+    && !("types" in arg) && !("reinigung" in arg);
 }
 
 function normalizeBuildPairsOptions(
   arg?: ReinigungSettings | BuildPairsOptions,
-): { types: PairTypes; reinigung: ReinigungSettings | undefined; categoryId: string | null } {
-  if (!arg) return { types: KG_PAIR, reinigung: undefined, categoryId: null };
-  if (isLegacyReinigungArg(arg)) return { types: KG_PAIR, reinigung: arg, categoryId: null };
-  return {
-    types: arg.types ?? KG_PAIR,
-    reinigung: arg.reinigung,
-    categoryId: arg.categoryId ?? null,
-  };
+): { types: PairTypes; reinigung: ReinigungSettings | undefined } {
+  if (!arg) return { types: KG_PAIR, reinigung: undefined };
+  if (isLegacyReinigungArg(arg)) return { types: KG_PAIR, reinigung: arg };
+  return { types: arg.types ?? KG_PAIR, reinigung: arg.reinigung };
 }
 
-/** Filters entries to the given pair-types and optional categoryId, then sorts ascending by startTime. */
-function filterAndSortPairEntries<E extends { type: string; startTime: Date; device?: { categoryId?: string | null } | null }>(
+/** Filters entries to the given pair-types, then sorts ascending by startTime. */
+function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
   entries: E[],
   types: PairTypes,
-  categoryId: string | null,
 ): E[] {
   return [...entries]
-    .filter((e) =>
-      (e.type === types.close || e.type === types.open) &&
-      (!categoryId || e.device?.categoryId === categoryId),
-    )
+    .filter((e) => e.type === types.close || e.type === types.open)
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 }
 
 /** Builds close/open pairs with associated Kontrollen, newest first.
- *  Defaults to KG (VERSCHLUSS/OEFFNEN). Pass `{ types: WEAR_PAIR, categoryId }` for
- *  user-defined categories. Reinigungs-interruption only applies to KG pairs.
+ *  Defaults to KG (VERSCHLUSS/OEFFNEN). Pass `{ types: WEAR_PAIR }` for user-defined categories —
+ *  dann aber je GERÄT (siehe `buildWearSessions`), nie über eine ganze Kategorie hinweg.
+ *  Reinigungs-interruption only applies to KG pairs.
  *
  *  Backward-compat: a bare `ReinigungSettings` as the 3rd arg is accepted (legacy callers). */
 export function buildPairs<
@@ -432,10 +428,10 @@ export function buildPairs<
   kontrollen: K[],
   reinigungOrOptions?: ReinigungSettings | BuildPairsOptions,
 ): PairResult<E, K>[] {
-  const { types, reinigung, categoryId } = normalizeBuildPairsOptions(reinigungOrOptions);
+  const { types, reinigung } = normalizeBuildPairsOptions(reinigungOrOptions);
   const reinigungActive = types === KG_PAIR && reinigung?.erlaubt === true;
 
-  const asc = filterAndSortPairEntries(entries, types, categoryId);
+  const asc = filterAndSortPairEntries(entries, types);
 
   const pairs: PairResult<E, K>[] = [];
   let pending: E | null = null;
@@ -557,24 +553,24 @@ export function photoStatus(v: { imageUrl: string | null; imageExifTime: Date | 
 
 export type WearPair = { start: Date; end: Date };
 
-export type WearPairOptions = { types?: PairTypes; categoryId?: string | null };
-
-/** Builds close→open pairs from entries. Open sessions end at `now`.
- *  Defaults to KG (VERSCHLUSS/OEFFNEN). Pass `{ types: WEAR_PAIR, categoryId }` for
- *  user-defined categories. */
-export function buildWearPairs<
-  E extends { type: string; startTime: Date; device?: { categoryId?: string | null } | null }
->(entries: E[], now: Date, options?: WearPairOptions): WearPair[] {
-  const types = options?.types ?? KG_PAIR;
-  const categoryId = options?.categoryId ?? null;
-  const asc = filterAndSortPairEntries(entries, types, categoryId);
+/** Baut die KG-Trageintervalle (VERSCHLUSS→OEFFNEN); eine offene Session endet bei `now`.
+ *
+ *  BEWUSST nur KG: der eine `pending`-Slot genügt, weil immer nur EIN Gürtel getragen wird. Für
+ *  Trage-Kategorien (Plug, Halsband …) taugt dieser Automat nicht — dort können zwei Geräte
+ *  gleichzeitig laufen, und ein zweiter Beginn schlösse das erste Paar bei `now` statt beim
+ *  Beginn. Deshalb nimmt die Funktion keine `types`/`categoryId` mehr entgegen: die
+ *  Trage-Kategorien gehen über `wearHourPairsByCategory` (paart je GERÄT). */
+export function buildKgWearPairs<
+  E extends { type: string; startTime: Date }
+>(entries: E[], now: Date): WearPair[] {
+  const asc = filterAndSortPairEntries(entries, KG_PAIR);
   const pairs: WearPair[] = [];
   let pending: { startTime: Date } | null = null;
   for (const e of asc) {
-    if (e.type === types.close) {
+    if (e.type === KG_PAIR.close) {
       if (pending) pairs.push({ start: pending.startTime, end: now });
       pending = e;
-    } else if (e.type === types.open && pending) {
+    } else if (e.type === KG_PAIR.open && pending) {
       pairs.push({ start: pending.startTime, end: e.startTime });
       pending = null;
     }
@@ -583,7 +579,29 @@ export function buildWearPairs<
   return pairs;
 }
 
-/** Calculates wearing hours from pre-built pairs within a date range. */
+/** Verschmilzt überlappende (und aneinandergrenzende) Intervalle zu einer überlappungsfreien,
+ *  aufsteigenden Folge — aus getragener Zeit wird damit WANDUHR-Zeit: zwei gleichzeitig getragene
+ *  Geräte derselben Kategorie ergeben 2 h, nicht 4 h.
+ *
+ *  Nötig, weil `wearingHoursFromPairs` stumpf aufsummiert; überlappende Paare zählte es doppelt.
+ *  KG-Paare überlappen nie (ein Gürtel), Trage-Paare je Gerät sehr wohl. */
+export function mergeWearPairs(pairs: WearPair[]): WearPair[] {
+  const asc = [...pairs].sort((a, b) => a.start.getTime() - b.start.getTime());
+  const merged: WearPair[] = [];
+  for (const p of asc) {
+    const last = merged[merged.length - 1];
+    if (last && p.start.getTime() <= last.end.getTime()) {
+      if (p.end.getTime() > last.end.getTime()) last.end = p.end;
+    } else {
+      merged.push({ start: p.start, end: p.end });
+    }
+  }
+  return merged;
+}
+
+/** Calculates wearing hours from pre-built pairs within a date range.
+ *  Summiert stumpf — überlappende Paare zählen doppelt. Wer Wanduhr-Zeit will, gibt hier bereits
+ *  verschmolzene Paare hinein (`mergeWearPairs` / `wearHourPairsByCategory`). */
 export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, rangeEnd: Date): number {
   let totalMs = 0;
   for (const p of pairs) {
@@ -593,75 +611,24 @@ export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, range
   return totalMs / 3600000;
 }
 
-// ── Entry-based wearing hours (single-shot calculations) ─────────────────────
-
-/** Berechnet effektive Tragedauer in Stunden innerhalb eines Zeitraums.
- *  Jedes "open"-Entry stoppt die Tragedauer – Pausen werden dadurch automatisch
- *  ausgeschlossen. Defaults zu KG; per `options.types` für andere Kategorien.
- *
- *  Backward-compat: ein bare `ReinigungSettings` als 4. Arg ist erlaubt (wird ignoriert,
- *  wie bisher — die Funktion respektiert REINIGUNG-Pausen nicht). */
-export function wearingHoursInRange<
-  E extends {
-    type: string;
-    startTime: Date;
-    oeffnenGrund?: string | null;
-    device?: { categoryId?: string | null } | null;
-  }
->(
-  entries: E[],
-  from: Date,
-  to: Date,
-  optionsOrReinigung?: ReinigungSettings | WearPairOptions,
-): number {
-  const isLegacy = isLegacyReinigungArg(optionsOrReinigung);
-  const types = isLegacy ? KG_PAIR : (optionsOrReinigung?.types ?? KG_PAIR);
-  const categoryId = isLegacy ? null : (optionsOrReinigung?.categoryId ?? null);
-
-  const sorted = filterAndSortPairEntries(entries, types, categoryId);
-
-  let total = 0;
-  let wearStart: Date | null = null;
-
-  for (const e of sorted) {
-    if (e.type === types.close) {
-      wearStart = e.startTime;
-    } else if (e.type === types.open && wearStart) {
-      const s = Math.max(wearStart.getTime(), from.getTime());
-      const end = Math.min(e.startTime.getTime(), to.getTime());
-      if (end > s) total += end - s;
-      wearStart = null;
-    }
-  }
-  if (wearStart) {
-    const s = Math.max(wearStart.getTime(), from.getTime());
-    const end = to.getTime();
-    if (end > s) total += end - s;
-  }
-
-  return total / (1000 * 60 * 60);
+/** Gesamtstunden aller Paare, ohne Zeitraum-Grenze (dieselbe Doppelzähl-Regel wie oben). */
+export function totalWearHours(pairs: WearPair[]): number {
+  return pairs.reduce((sum, p) => sum + (p.end.getTime() - p.start.getTime()), 0) / 3600000;
 }
 
-/** Wearing hours for today / current week / current month.
- *  Builds wear-pairs once and reuses them for the three ranges (vs. three full sorts).
- *  Backward-compat: legacy callers pass `ReinigungSettings` (now ignored, same as before). */
+/** KG-Tragestunden für heute / laufende Woche / Monat / Jahr.
+ *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen). */
 export function calculateWearingHoursByRange<
   E extends {
     type: string;
     startTime: Date;
     oeffnenGrund?: string | null;
-    device?: { categoryId?: string | null } | null;
   }
 >(
   entries: E[],
   now: Date,
-  optionsOrReinigung?: ReinigungSettings | WearPairOptions,
 ): { tagH: number; wocheH: number; monatH: number; jahrH: number } {
-  const isLegacy = isLegacyReinigungArg(optionsOrReinigung);
-  const wearOptions: WearPairOptions = isLegacy
-    ? {}
-    : { types: optionsOrReinigung?.types, categoryId: optionsOrReinigung?.categoryId };
-  const pairs = buildWearPairs(entries, now, wearOptions);
+  const pairs = buildKgWearPairs(entries, now);
   return {
     tagH: wearingHoursFromPairs(pairs, getMidnightToday(now), now),
     wocheH: wearingHoursFromPairs(pairs, getWeekStart(now), now),

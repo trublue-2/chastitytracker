@@ -1,4 +1,4 @@
-import { buildPairs, msToHours, type ReinigungSettings, WEAR_PAIR } from "@/lib/utils";
+import { buildPairs, mergeWearPairs, msToHours, type ReinigungSettings, WEAR_PAIR, type WearPair } from "@/lib/utils";
 
 /**
  * Das Session-Modell — EINE Definition von „Session", geteilt von der MCP-Schicht und der UI.
@@ -317,4 +317,39 @@ export function buildWearSessions(entries: SegmentEntry[], now: Date = new Date(
     }
   }
   return sessions.sort((a, b) => b.start.getTime() - a.start.getTime());
+}
+
+/**
+ * Die Trage-Intervalle JE KATEGORIE — aus fertigen Sessions, also je GERÄT gepaart. Laufende
+ * Sessions enden bei `now`.
+ *
+ * Nimmt bewusst `Session[]` und nicht `entries`: der Aufrufer baut die Sessions EINMAL
+ * (`buildWearSessions`) und leitet alle Sichten daraus ab — sonst paart dieselbe Seite dieselben
+ * Einträge zwei- bis dreimal.
+ *
+ * Die Intervalle KÖNNEN sich überlappen: zwei Plugs derselben Kategorie gleichzeitig getragen =
+ * zwei Intervalle über denselben Zeitraum. Für SESSION-Kennzahlen (Anzahl, längste, Ø-Dauer) ist
+ * genau das gewollt. Wer STUNDEN zählt, nimmt `wearHourPairsByCategory` — sonst zählt dieselbe
+ * Stunde doppelt.
+ */
+export function wearSessionPairsByCategory(sessions: Session[], now: Date = new Date()): Map<string, WearPair[]> {
+  const byCategory = new Map<string, WearPair[]>();
+  for (const s of sessions) {
+    if (!s.categoryId) continue;
+    const pair: WearPair = { start: s.start, end: s.end ?? now };
+    const list = byCategory.get(s.categoryId);
+    if (list) list.push(pair);
+    else byCategory.set(s.categoryId, [pair]);
+  }
+  return byCategory;
+}
+
+/** Dieselben Intervalle als WANDUHR-Zeit je Kategorie: Überlappungen verschmolzen, damit zwei
+ *  gleichzeitig getragene Plugs 2 h zählen und nicht 4 h. Basis für Tragestunden UND
+ *  Ziel-Erfüllung (TrainingVorgabe) — ein Ziel „4 h Plug pro Tag" meint 4 Stunden am Tag,
+ *  unabhängig von der Zahl der Geräte. */
+export function wearHourPairsByCategory(sessions: Session[], now: Date = new Date()): Map<string, WearPair[]> {
+  const byCategory = wearSessionPairsByCategory(sessions, now);
+  for (const [categoryId, pairs] of byCategory) byCategory.set(categoryId, mergeWearPairs(pairs));
+  return byCategory;
 }

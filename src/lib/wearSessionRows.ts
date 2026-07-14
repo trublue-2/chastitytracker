@@ -1,5 +1,5 @@
 import { formatDate, formatDuration, formatTime } from "@/lib/utils";
-import { buildWearSessions, type SegmentEntry } from "@/lib/sessionModel";
+import { type Session } from "@/lib/sessionModel";
 
 /** Die Darstellungs-Schicht über `buildWearSessions` (Session-Modell): fertige Zeilen für die
  *  Trage-Session-Liste im Dashboard und in der Keyholder-Ansicht. Das Modell selbst bleibt
@@ -25,20 +25,19 @@ type WearCategory = { id: string; name: string; color: string; icon: string };
  * `buildWearSessions` je Gerät paart (die Begründung steht dort). Zwei gleichzeitig getragene
  * Plugs derselben Kategorie geben damit zwei Zeilen statt zweier erfundener Dauern.
  *
- * `categories` sind die vom User getrackten Nicht-KG-Kategorien — Geräte anderer Kategorien
- * fallen vor dem Paaren raus. Laufende Sessions erscheinen nicht: die zeigt `ActiveWearSessions`
- * oben im Dashboard.
+ * Nimmt fertige Sessions: das Dashboard baut sie einmal und leitet Zeilen UND Stunden daraus ab.
+ * `categories` sind die vom User getrackten Nicht-KG-Kategorien — Sessions anderer Kategorien
+ * fallen raus. Laufende Sessions erscheinen nicht: die zeigt `ActiveWearSessions` oben im
+ * Dashboard.
  */
 export function buildWearSessionRows(
   categories: WearCategory[],
-  entries: SegmentEntry[],
-  now: Date,
+  sessions: Session[],
   dl: string,
 ): WearSessionRow[] {
   const categoryById = new Map(categories.map((c) => [c.id, c]));
-  const tracked = entries.filter((e) => e.device?.categoryId && categoryById.has(e.device.categoryId));
 
-  return buildWearSessions(tracked, now).flatMap((s) => {
+  return sessions.flatMap((s) => {
     const cat = s.categoryId ? categoryById.get(s.categoryId) : undefined;
     if (!cat || !s.end) return [];
     return [{

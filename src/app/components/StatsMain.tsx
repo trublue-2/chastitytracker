@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { APP_TZ, formatDateTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, buildPairs, buildWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
+import { APP_TZ, formatDateTime, formatHours, formatMs, toDateLocale, mapAnforderungStatus, mapVerifikationStatus, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
 import {
   buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
   type Entry, type Vorgabe,
@@ -10,7 +10,7 @@ import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
 import { KG_CATEGORY_META } from "@/lib/deviceCategories";
-import { buildWearSessions } from "@/lib/sessionModel";
+import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildDeviceUsage, type UsageSession } from "@/lib/deviceUsage";
 import CategoryIconRender from "./CategoryIcon";
 import { type CategoryVariant } from "./CategorySwitcherCard";
@@ -144,7 +144,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   // KG-only vorgaben drive the wear calendar + month stats (which visualize KG).
   // The Trainingsziele cards below render ALL active vorgaben across categories.
   const kgVorgaben = vorgaben.filter(isKgVorgabe);
-  const wearPairs = buildWearPairs(entries, now);
+  const wearPairs = buildKgWearPairs(entries, now);
+  // Nicht-KG: die Trage-Sessions einmal bauen — Wanduhr-Stunden je Kategorie (unten) und die
+  // Geräte-Nutzung (weiter unten) leiten sich beide daraus ab.
+  const wearSessionList = buildWearSessions(entries, now);
+  const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
   const monthStats = buildMonthStats(completed, wearPairs, kgVorgaben, dl, tz);
 
   const todayStart = getMidnightToday(now, tz);
@@ -163,7 +167,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   });
   const goalCards = activeVorgaben.map((v) => {
     const kg = isKgVorgabe(v);
-    const pairs = kg ? wearPairs : buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: v.categoryId! });
+    const pairs = kg ? wearPairs : wearPairsByCategory.get(v.categoryId!) ?? [];
     return {
       id: v.id,
       name: v.category?.name ?? "KG",
@@ -203,7 +207,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     });
   }
   for (const cat of nonKgCategories) {
-    const catPairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: cat.id });
+    const catPairs = wearPairsByCategory.get(cat.id) ?? [];
     if (catPairs.length === 0) continue;
     const catVorgaben = vorgaben.filter((v) => v.categoryId === cat.id);
     const catEntries = entries.filter(
@@ -235,7 +239,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   // pausenbereinigte durationMs ist die Session-Dauer, nicht die Summe mehrerer Geräte.
   const wearSessionsByCategory = new Map<string, UsageSession[]>();
   if (nonKgCategories.length > 0) {
-    for (const s of buildWearSessions(entries, now)) {
+    for (const s of wearSessionList) {
       if (!s.categoryId) continue;
       const list = wearSessionsByCategory.get(s.categoryId) ?? [];
       list.push({ deviceId: s.segments[0]?.deviceEffective.id ?? null, durationMs: s.durationMs });

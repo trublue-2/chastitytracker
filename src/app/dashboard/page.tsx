@@ -6,9 +6,10 @@ import {
   buildPairs, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
-  buildWearPairs, wearingHoursFromPairs, WEAR_PAIR, APP_TZ,
+  wearingHoursFromPairs, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
+import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
@@ -112,9 +113,13 @@ export default async function DashboardPage() {
     ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm))
     : [];
 
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, reinigung);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
 
-  const wearSessionRows = buildWearSessionRows(allNonKgCategories, entries, now, dl);
+  // Die Trage-Sessions EINMAL bauen — Zeilen-Liste und Wanduhr-Stunden je Kategorie leiten sich
+  // beide daraus ab (je GERÄT gepaart, Überlappungen für die Stunden verschmolzen).
+  const wearSessionList = buildWearSessions(entries, now);
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, wearSessionList, dl);
+  const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
 
   // ── Serialize for client ──
   const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
@@ -215,14 +220,14 @@ export default async function DashboardPage() {
         serverNow={now.toISOString()}
       />
       {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
-      {flagOn && <CategoryGoalsToday userId={userId} activeWearSessions={wearSessions} />}
+      {flagOn && <CategoryGoalsToday userId={userId} activeWearSessions={wearSessions} entries={entries} />}
       <InactiveCategories
         categories={allNonKgCategories
           .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))
           .map((c) => ({
             ...c,
             todayHours: wearingHoursFromPairs(
-              buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: c.id }),
+              wearPairsByCategory.get(c.id) ?? [],
               getMidnightToday(now, tz),
               now,
             ),

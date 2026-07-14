@@ -1,18 +1,19 @@
 import Card from "@/app/components/Card";
 import { prisma } from "@/lib/prisma";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone, getWearEntries } from "@/lib/queries";
 import {
-  buildWearPairs,
+  mergeWearPairs,
   wearingHoursFromPairs,
+  totalWearHours,
   formatHours,
   formatMs,
-  WEAR_PAIR,
   getMidnightToday,
   getWeekStart,
   getMonthStart,
   toDateLocale,
   type WearPair,
 } from "@/lib/utils";
+import { buildWearSessions, wearSessionPairsByCategory } from "@/lib/sessionModel";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -39,15 +40,7 @@ export default async function WearStatsByCategory({ userId }: Props) {
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, color: true, icon: true },
     }),
-    prisma.entry.findMany({
-      where: { userId, type: { in: ["WEAR_BEGIN", "WEAR_END"] } },
-      orderBy: { startTime: "asc" },
-      select: {
-        type: true,
-        startTime: true,
-        device: { select: { categoryId: true } },
-      },
-    }),
+    getWearEntries(userId),
     getTranslations("stats"),
     getUserTimezone(userId),
   ]);
@@ -59,22 +52,27 @@ export default async function WearStatsByCategory({ userId }: Props) {
   const wocheStart = getWeekStart(now, tz);
   const monatStart = getMonthStart(now, tz);
 
+  // Zwei Sichten auf dieselben Trage-Sessions: Session-Kennzahlen (Anzahl, längste, Ø) zählen JE
+  // GERÄT — zwei gleichzeitig getragene Plugs sind zwei Sessions. Die STUNDEN dagegen sind
+  // Wanduhr-Zeit, also überlappungsfrei verschmolzen, sonst zählte dieselbe Stunde doppelt.
+  const sessionPairsByCategory = wearSessionPairsByCategory(buildWearSessions(entries, now), now);
+
   const blocks = categories.map((c) => {
-    const pairs = buildWearPairs(entries, now, { types: WEAR_PAIR, categoryId: c.id });
-    const completed = completedDurationsMs(pairs, now);
+    const sessionPairs = sessionPairsByCategory.get(c.id) ?? [];
+    const hourPairs = mergeWearPairs(sessionPairs);
+    const completed = completedDurationsMs(sessionPairs, now);
     const longestMs = completed.length > 0 ? Math.max(...completed) : 0;
     const avgMs = completed.length > 0 ? completed.reduce((s, d) => s + d, 0) / completed.length : 0;
-    // Total all-time: sum of all pairs incl. open session up to now
-    const totalH = pairs.reduce((s, p) => s + (p.end.getTime() - p.start.getTime()), 0) / 3_600_000;
     return {
       ...c,
-      tagH: wearingHoursFromPairs(pairs, tagStart, now),
-      wocheH: wearingHoursFromPairs(pairs, wocheStart, now),
-      monatH: wearingHoursFromPairs(pairs, monatStart, now),
-      sessionCount: pairs.length,
+      tagH: wearingHoursFromPairs(hourPairs, tagStart, now),
+      wocheH: wearingHoursFromPairs(hourPairs, wocheStart, now),
+      monatH: wearingHoursFromPairs(hourPairs, monatStart, now),
+      sessionCount: sessionPairs.length,
       longestMs,
       avgMs,
-      totalH,
+      // Wanduhr-Zeit über die ganze Historie, inkl. laufender Session bis `now`.
+      totalH: totalWearHours(hourPairs),
     };
   });
 
