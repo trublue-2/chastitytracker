@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.50.42-blue)
+![Version](https://img.shields.io/badge/version-4.50.43-blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
