@@ -75,6 +75,7 @@ export const LOCK_CODES = [
   "LOCK_PERIOD_ONLY_HAS_END",
   "LOCK_PERIOD_ALREADY_WITHDRAWN",
   "LOCK_PERIOD_END_MUST_BE_FUTURE",
+  "LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER",
 ] as const;
 
 /** orgasmusAnforderungService (orgasm directives). */

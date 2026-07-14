@@ -31,6 +31,29 @@ export interface CreateVerschlussAnforderungParams {
 }
 
 /**
+ * Ein Sperr-Ende muss nach dem Zeitpunkt liegen, ab dem die Sperre überhaupt gilt — bei einer
+ * SOFORTIGEN Sperrzeit ist das jetzt, bei einer TERMINIERTEN der Auslösezeitpunkt.
+ *
+ * Nur gegen `now` zu prüfen genügt nicht: bei einer drei Wochen voraus geplanten Sperrzeit passiert
+ * ein Ende von „morgen" den `> now`-Test, und der Poller meldet dem Sub bei Fälligkeit „Gesperrt bis
+ * <20 Tage in der Vergangenheit>" — eine Sperre, die beim Auslösen bereits abgelaufen ist.
+ *
+ * `wirksamAb` in der Vergangenheit (bereits ausgelöst) zählt als „gilt jetzt", deshalb der
+ * `> now`-Vergleich statt eines blossen Null-Checks. `endetAt === null` = unbefristet, immer ok.
+ */
+export function checkLockEnd(
+  endetAt: Date | null,
+  wirksamAb: Date | null,
+  now: Date,
+): "LOCK_PERIOD_END_MUST_BE_FUTURE" | "LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER" | null {
+  if (!endetAt) return null;
+  if (wirksamAb && wirksamAb > now) {
+    return endetAt > wirksamAb ? null : "LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER";
+  }
+  return endetAt > now ? null : "LOCK_PERIOD_END_MUST_BE_FUTURE";
+}
+
+/**
  * Creates a VerschlussAnforderung (ANFORDERUNG) or Sperrzeit (SPERRZEIT) for a user.
  * Single source of truth shared by POST /api/admin/verschluss-anforderung and the MCP write tool.
  * Validates state in a transaction (TOCTOU-safe), withdraws an existing open one of the same art,
@@ -84,6 +107,14 @@ export async function createVerschlussAnforderung(
     sperrEndetAtDate = new Date(sperrEndetAt);
     if (Number.isNaN(sperrEndetAtDate.getTime())) return serviceFail(400, "LOCK_INVALID_LOCK_END");
   }
+
+  // Siehe checkLockEnd(). Geprüft wird das Sperr-Ende: bei der SPERRZEIT ihr `endetAt`, bei der
+  // ANFORDERUNG das absolute `sperrEndetAt` (das beim Erfüllen 1:1 zum Sperr-Ende wird). Die
+  // ANFORDERUNGS-Frist (`endetAt`) bleibt aussen vor — sie ist eine Einschliess-Frist, kein
+  // Sperr-Ende, und aus `fristH` ohnehin ab `wirksamAb` gerechnet.
+  const lockEnd = art === "SPERRZEIT" ? endetAtDate : sperrEndetAtDate;
+  const lockEndError = checkLockEnd(lockEnd, wirksamAb, now);
+  if (lockEndError) return serviceFail(400, lockEndError);
 
   if (deviceId && art === "ANFORDERUNG") {
     const device = await validateDeviceOwnership(deviceId, userId);
@@ -236,9 +267,8 @@ export async function updateSperrzeitEnde(
   if (!va) return serviceFail(404, "LOCK_PERIOD_NOT_FOUND");
   if (va.art !== "SPERRZEIT") return serviceFail(400, "LOCK_PERIOD_ONLY_HAS_END");
   if (va.withdrawnAt) return serviceFail(400, "LOCK_PERIOD_ALREADY_WITHDRAWN");
-  if (endetAt && endetAt.getTime() <= Date.now()) {
-    return serviceFail(400, "LOCK_PERIOD_END_MUST_BE_FUTURE");
-  }
+  const lockEndError = checkLockEnd(endetAt, va.wirksamAb, new Date());
+  if (lockEndError) return serviceFail(400, lockEndError);
 
   await prisma.verschlussAnforderung.update({ where: { id }, data: { endetAt } });
 

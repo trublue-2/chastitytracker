@@ -67,6 +67,7 @@
     "LOCK_PERIOD_ONLY_HAS_END": "Nur Sperrzeiten haben ein Ende",
     "LOCK_PERIOD_ALREADY_WITHDRAWN": "Die Sperrzeit ist bereits aufgehoben",
     "LOCK_PERIOD_END_MUST_BE_FUTURE": "Das neue Ende muss in der Zukunft liegen",
+    "LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER": "Das Ende muss nach dem Auslösezeitpunkt der terminierten Sperrzeit liegen",
     "ORGASM_INVALID_ART": "Ungültige Art der Anforderung",
     "ORGASM_WINDOW_REQUIRED": "Start und Ende des Fensters sind erforderlich",
     "ORGASM_END_BEFORE_START": "Das Ende muss nach dem Start liegen",
