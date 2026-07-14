@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { mcpStrafbuch, type OffenseJudgment } from "@/lib/mcpOverview";
+import { mcpStrafbuch, type OffenseJudgment, type StrafbuchOverview, type StrafbuchControlRow } from "@/lib/mcpOverview";
 import { resolveUserContext, notesForEntities, entityKey, makeIso, type NoteDTO } from "@/lib/mcp/common";
+import { STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 
 /** Disziplin-Ledger (§4) — vereinheitlicht die getrennten Strafbuch-Kategorien zu EINER
  *  Offense-Liste mit durchgängiger Taxonomie, open-vs-judged, Auslöser und Folge. Reines
@@ -12,12 +13,10 @@ import { resolveUserContext, notesForEntities, entityKey, makeIso, type NoteDTO 
  *  markieren `possiblyClusterInternal`, statt automatisch zu verwerfen — die Entscheidung trifft
  *  der Keyholder via judge_offense. */
 
-/** Kanonische Offense-Taxonomie (entspricht den ref.type-Werten aus mcpStrafbuch). */
-export const OFFENSE_TYPES = [
-  "unauthorized_opening", "late_control", "rejected_control",
-  "cleaning_limit", "wrong_device", "missed_orgasm",
-  "late_lock", "cleaning_not_relocked",
-] as const;
+/** Kanonische Offense-Taxonomie — ABGELEITET, nicht abgeschrieben. Die handgeführte Kopie hatte
+ *  `auto_removed_control` nie mitbekommen und driftete still von der Wahrheit weg (`STORED_TYPE`).
+ *  Genau dieselbe Klasse Fehler liess `get_offenses` eine ganze Vergehens-Kategorie unterschlagen. */
+export const OFFENSE_TYPES = Object.keys(STORED_TYPE) as OffenseCanonicalType[];
 
 export interface OffenseRow {
   id: string;
@@ -64,20 +63,38 @@ function toRow(detectedAt: string | null, j: OffenseJudgment, context: Record<st
   };
 }
 
-/** Liefert das vereinheitlichte Disziplin-Ledger mit Cluster-Kontext bei wrongDevice + inline Notes. */
-export async function getOffenses(username: string): Promise<LedgerResult> {
-  const { id: userId, timezone } = await resolveUserContext(username);
-  const iso = makeIso(timezone);
-  const [sb, deviceClusters] = await Promise.all([
-    mcpStrafbuch(username, { iso: true }),
-    prisma.device.findMany({ where: { userId }, select: { name: true, lookalikeClusterId: true, securityLevel: true } }),
-  ]);
-  const clusterByName = new Map(deviceClusters.map((d) => [d.name, d]));
+/** Die drei Kontroll-Kategorien (verspätet / abgelehnt / auto-entfernt) teilen sich Zeile UND
+ *  Kontext — nur `lateControls` trägt zusätzlich `backdated`. Vorher stand dieser Kontext dreimal
+ *  wortgleich da, und genau so verschwand `autoRemovedControls`: eine Kopie zu wenig. */
+function controlRows(
+  rows: StrafbuchControlRow[],
+  extra: (c: StrafbuchControlRow) => Record<string, unknown> = () => ({}),
+): OffenseRow[] {
+  return rows.map((c) => toRow(c.entryTime ?? c.deadline, c, {
+    code: c.code, deadline: c.deadline, fulfilledAt: c.fulfilledAt,
+    comment: c.comment, entryNote: c.entryNote, ...extra(c),
+  }));
+}
 
-  const rows: OffenseRow[] = [
+/** Kontext eines Geräts für die wrongDevice-Cluster-Softening — mehr braucht der Zeilenbau nicht. */
+export type DeviceCluster = { lookalikeClusterId: string | null; securityLevel: string | null };
+
+/**
+ * Strafbuch-Kategorien → EINE Offense-Liste. Rein und exportiert, weil hier der Vertrag sitzt, den
+ * `get_offenses` gebrochen hat: JEDE Kategorie, die in `detectedOffenseCount` zählt, muss hier auch
+ * eine Zeile bekommen. Fehlt eine (`autoRemovedControls` fehlte), meldet das Dashboard ein offenes
+ * Vergehen, das im Ledger nicht auftaucht — und ohne `ref` kann der Keyholder es nicht beurteilen.
+ * `ledger.test.ts` hält das gegen `OFFENSE_TYPES` fest.
+ */
+export function buildOffenseRows(
+  sb: StrafbuchOverview,
+  clusterByName: Map<string, DeviceCluster>,
+): OffenseRow[] {
+  return [
     ...sb.unauthorizedOpenings.map((o) => toRow(o.time, o, { note: o.note, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite })),
-    ...sb.lateControls.map((c) => toRow(c.entryTime ?? c.deadline, c, { code: c.code, deadline: c.deadline, fulfilledAt: c.fulfilledAt, backdated: c.backdated, comment: c.comment, entryNote: c.entryNote })),
-    ...sb.rejectedControls.map((c) => toRow(c.entryTime ?? c.deadline, c, { code: c.code, deadline: c.deadline, fulfilledAt: c.fulfilledAt, comment: c.comment, entryNote: c.entryNote })),
+    ...controlRows(sb.lateControls, (c) => ({ backdated: c.backdated })),
+    ...controlRows(sb.rejectedControls),
+    ...controlRows(sb.autoRemovedControls),
     ...sb.cleaningLimitViolations.map((v) => toRow(v.time, v, { note: v.note })),
     ...sb.wrongDeviceViolations.map((v) => {
       const dev = v.deviceName ? clusterByName.get(v.deviceName) : null;
@@ -94,6 +111,17 @@ export async function getOffenses(username: string): Promise<LedgerResult> {
     ...sb.lateLocks.map((a) => toRow(a.fulfilledAt ?? a.deadline, a, { deadline: a.deadline, fulfilledAt: a.fulfilledAt, message: a.message })),
     ...sb.cleaningNotRelocked.map((c) => toRow(c.relockedAt ?? c.deadline, c, { time: c.time, deadline: c.deadline, relockedAt: c.relockedAt, note: c.note })),
   ];
+}
+
+/** Liefert das vereinheitlichte Disziplin-Ledger mit Cluster-Kontext bei wrongDevice + inline Notes. */
+export async function getOffenses(username: string): Promise<LedgerResult> {
+  const { id: userId, timezone } = await resolveUserContext(username);
+  const iso = makeIso(timezone);
+  const [sb, deviceClusters] = await Promise.all([
+    mcpStrafbuch(username, { iso: true }),
+    prisma.device.findMany({ where: { userId }, select: { name: true, lookalikeClusterId: true, securityLevel: true } }),
+  ]);
+  const rows = buildOffenseRows(sb, new Map(deviceClusters.map((d) => [d.name, d])));
 
   // Inline-Notes je Offense in EINEM Query.
   const notesByEntity = await notesForEntities(userId, rows.map((r) => ({ entityType: "offense" as const, entityId: r.id })), {}, undefined, timezone);

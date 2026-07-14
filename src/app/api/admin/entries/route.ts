@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         if (!latest || latest.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
         // Admin-opened entries must release the lock period too, otherwise the
         // user still appears locked. Reinigungs-Regeln aus dem vorab geladenen User.
-        await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, user);
+        await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, "user", user);
       }
 
       return tx.entry.create({

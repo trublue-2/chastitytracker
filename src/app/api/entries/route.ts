@@ -10,7 +10,7 @@ import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effect
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
-import { setBoxCommandForUser } from "@/lib/boxCommand";
+import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 import { checkDeviceInPhoto } from "@/lib/detectDevice";
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable, keyInBox } = body;
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
   // Reason-Codes gegen die (ggf. angepasste) Liste DES SESSION-USERS validieren; null-Config → Built-ins.
@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races
   let entry: Awaited<ReturnType<typeof prisma.entry.create>>;
+  // In der Transaktion entschieden, ausserhalb für den Instant-Push wiederverwendet.
+  let boxCmd: "lock" | "open" | null = null;
+
   let withdrawnSperrzeit = false;
   let lockStartTime: Date | null = null;
   let fulfilledAnforderungDeviceId: string | null = null;
@@ -94,7 +97,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (type === "OEFFNEN") {
-        withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx);
+        withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx, "user");
       }
 
       // PRUEFUNG mit Foto+Code durchläuft danach die async KI-Verifikation (siehe unten) — bis die
@@ -195,13 +198,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Box-Kopplung (vereinheitlichtes Modell): die Heimdall-Box folgt dem Eintrag — VERSCHLUSS→zu,
-      // OEFFNEN→auf. ABER: ein VERBOTENES Öffnen (das eine erzwungene Sperrzeit gebrochen hat →
-      // withdrawnSperrzeit=true) darf die Box NICHT physisch öffnen — sonst würde das Dokumentieren des
-      // Verstosses den Verstoss vollstrecken. Erlaubte Reinigungs-Öffnung und Öffnen nach Ablauf lassen
-      // withdrawnSperrzeit=false → Box folgt. No-op ohne Heimdall/Box; Instant-Push (MQTT) folgt Stage 1.
-      if (type === "VERSCHLUSS") await setBoxCommandForUser(tx, session.user.id, "lock");
-      else if (type === "OEFFNEN" && !withdrawnSperrzeit) await setBoxCommandForUser(tx, session.user.id, "open");
+      // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
+      // sie ihm NICHT folgt — steht in `boxCommandForEntry`. No-op ohne Heimdall/Box.
+      boxCmd = boxCommandForEntry({ type, keyInBox, brokeSperrzeit: withdrawnSperrzeit });
+      if (boxCmd) await setBoxCommandForUser(tx, session.user.id, boxCmd);
 
       return created;
     });
@@ -209,11 +209,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: entryGuardCode(e) }, { status: 400 });
   }
 
-  // Instant-Push an Heimdall: eine LIVE Box vollzieht das Box-Kommando sofort per MQTT — der
+  // Instant-Push an Heimdall: eine LIVE Box vollzieht dasselbe Kommando sofort per MQTT — der
   // pendingCommand-Pull beim nächsten Box-Sync (in der Transaktion oben gesetzt) bleibt der Fallback.
-  // Gleiche Gate-Logik wie setBoxCommandForUser; no-op ohne HEIMDALL_BASE_URL.
-  if (type === "VERSCHLUSS") notifyHeimdall(session.user.name, "lock");
-  else if (type === "OEFFNEN" && !withdrawnSperrzeit) notifyHeimdall(session.user.name, "open");
+  // Dieselbe Entscheidung, nicht dieselbe Bedingung noch einmal: sonst driften Pull und Push
+  // auseinander und die Box täte per MQTT etwas anderes als beim Sync. No-op ohne HEIMDALL_BASE_URL.
+  if (boxCmd) notifyHeimdall(session.user.name, boxCmd);
 
   // REINIGUNG-Limit wird NICHT mehr automatisch bestraft: eine Reinigungsöffnung über dem
   // Tageskontingent (auch ein Geräte-Wechsel) wird im Strafbuch nur noch ERKANNT (live in

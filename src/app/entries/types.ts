@@ -42,6 +42,10 @@ export interface VerschlussPayload {
   note: string | null;
   kontrollCode: string | null;
   deviceId: string | null;
+  /** Liegt der Schlüssel in der Box? Nur bei aktiver Box gesetzt. `false` = der Sub behält ihn
+   *  (Reise o.ä.) — dann verriegelt die Box NICHT: eine leere verschlossene Box meldete sonst einen
+   *  Hardware-Hold, während der Schlüssel in seiner Tasche liegt. */
+  keyInBox?: boolean;
   /** Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur wenn Instanz im Bildersafe-Modus). */
   codeImageUrl?: string | null;
   /** Bildersafe: Ziffern im Code-Foto erkannt (Lesbarkeits-✓). */

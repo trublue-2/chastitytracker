@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendMail, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
@@ -138,7 +139,7 @@ export async function createVerschlussAnforderung(
 
       await tx.verschlussAnforderung.updateMany({
         where: { userId, art, fulfilledAt: null, withdrawnAt: null },
-        data: { withdrawnAt: new Date() },
+        data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.keyholder }, // von einer neuen Direktive ersetzt
       });
 
       // reinigungErlaubt: SPERRZEIT always, ANFORDERUNG nur wenn eine SPERRZEIT entsteht — also mit
@@ -311,7 +312,7 @@ export async function withdrawVerschlussAnforderungById(
   if (!va) return serviceFail(404, "NOT_FOUND");
   if (va.withdrawnAt) return serviceFail(400, "LOCK_PERIOD_ALREADY_WITHDRAWN");
 
-  await prisma.verschlussAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
+  await prisma.verschlussAnforderung.update({ where: { id }, data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.keyholder } });
 
   const notified = !isHiddenFromSub(va);
   if (notified) await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT"));
@@ -348,7 +349,7 @@ export async function withdrawVerschlussAnforderung(
     if (rows.length === 0) return { count: 0, notified: false };
     await tx.verschlussAnforderung.updateMany({
       where: { id: { in: rows.map((r) => r.id) } },
-      data: { withdrawnAt: now },
+      data: { withdrawnAt: now, endedReason: LOCK_ENDED_REASON.keyholder },
     });
     return { count: rows.length, notified: rows.some((r) => !isHiddenFromSub(r)) };
   });

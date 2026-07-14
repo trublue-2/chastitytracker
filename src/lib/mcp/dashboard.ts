@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung } from "@/lib/queries";
+import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
-  mapActiveWearSessions,
+  mapActiveWearSessions, mapInterruptedSperrzeit,
   type Fmt, type OpenKontrolleView, type ActiveSperrzeitView, type OpenOrgasmusAnforderungView,
+  type InterruptedSperrzeitView,
 } from "@/lib/mcp/liveState";
 import { makeIso, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { buildSessions, type Session } from "@/lib/mcp/segments";
@@ -77,6 +78,15 @@ export interface DashboardResult {
   nextRelevant: {
     openControl: OpenKontrolleView | null;
     activeLockPeriod: ActiveSperrzeitView | null;
+    /** Eine durch eine ÖFFNUNG beendete Sperrzeit, deren ursprüngliches Ende noch nicht verstrichen
+     *  ist. Sie wird gerade NICHT vollstreckt (`activeLockPeriod` bleibt null) — aber die Konsequenz
+     *  der Keyholderin ist damit auch nicht erledigt. Ohne dieses Feld verschwand sie spurlos, und
+     *  `activeLockPeriod: null` war nicht mehr von „es gab nie eine" zu unterscheiden.
+     *
+     *  Das Feld sagt WIE sie endete, nicht OB sich der Sub etwas zuschulden kommen liess: auch eine
+     *  erlaubte Öffnung (z.B. ein offenes Orgasmus-Fenster) beendet sie und erscheint hier. Ob die
+     *  Öffnung ein Vergehen war, beantwortet allein `get_offenses` — nicht dieses Feld. */
+    interruptedLockPeriod: InterruptedSperrzeitView | null;
     openOrgasmWindow: OpenOrgasmusAnforderungView | null;
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
@@ -216,10 +226,11 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
-  const [openKontrolleRow, activeSperrzeitRow, activeWearRows, openOrgasmusRow,
+  const [openKontrolleRow, activeSperrzeitRow, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
          rec, periods, ledger, pinned, boxState, healthHold, scheduledDirectives] = await Promise.all([
     getOpenKontrolle(trackingCtx.userId, now),
     getActiveSperrzeit(trackingCtx.userId),
+    getInterruptedSperrzeit(trackingCtx.userId, now),
     getActiveWearSessions(trackingCtx.userId),
     getActiveOrgasmusAnforderung(trackingCtx.userId, now),
     records(username, trackingCtx, sessions),
@@ -273,6 +284,12 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     nextRelevant: {
       openControl: mapOpenKontrolle(openKontrolleRow, now, fmt),
       activeLockPeriod: mapActiveSperrzeit(activeSperrzeitRow, now, fmt),
+      // Eine laufende Sperrzeit LÖST die unterbrochene AB: die Keyholderin hat auf den Bruch
+      // geantwortet, die alte muss nicht weiter angemahnt werden. Ohne diese Ablösung bliebe eine
+      // UNBEFRISTETE unterbrochene Sperrzeit (`endetAt: null`) für immer stehen — sie läuft nie ab,
+      // und jeder Withdraw-Pfad filtert auf `withdrawnAt: null`, greift bei ihr also nicht mehr.
+      // Sie wäre ein Dauer-Gespenst im Dashboard, das niemand mehr wegbekommt.
+      interruptedLockPeriod: activeSperrzeitRow ? null : mapInterruptedSperrzeit(interruptedSperrzeitRow, fmt),
       openOrgasmWindow: mapOpenOrgasmusAnforderung(openOrgasmusRow, now, fmt),
     },
     goals: { kg: periods.kg, categories: periods.categories },

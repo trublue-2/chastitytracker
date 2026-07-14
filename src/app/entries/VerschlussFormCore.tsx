@@ -64,8 +64,10 @@ export default function VerschlussFormCore({
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [note, setNote] = useState(initial?.note ?? "");
-  // Box-User-Ehrensache: „Schlüssel ist in der Box". Gate für den Submit (nicht persistiert).
-  const [keyInBox, setKeyInBox] = useState(false);
+  // Wahrheitsgemässe Angabe, KEIN Submit-Gate mehr: „nein" ist eine legitime Antwort (Schlüssel
+  // reist mit) und darf das Speichern nicht blockieren. Default an = der Normalfall, und die Box
+  // folgt dem Eintrag wie bisher; wer den Schlüssel behält, schaltet bewusst ab.
+  const [keyInBox, setKeyInBox] = useState(true);
 
   // Device defaulting: anforderung > single-device auto-pick > initial > empty
   const defaultDeviceId = anforderungDeviceId
@@ -135,10 +137,12 @@ export default function VerschlussFormCore({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Box-Bestätigung ist Pflicht — Defense-in-Depth zusätzlich zum disabled-Submit-Button.
-    if (boxConfirm && !keyInBox) return;
     await submit({
       type: "VERSCHLUSS",
+      // Wahrheitsgemäss, nicht als Pflicht: der Verschluss ist real, auch wenn der Schlüssel
+      // mitreist. Wer hier „nein" sagt, bekommt keine verriegelte leere Box — und die Keyholderin
+      // keinen vorgetäuschten Hardware-Hold.
+      ...(boxConfirm ? { keyInBox } : {}),
       startTime: fromDatetimeLocal(startTime, tz).toISOString(),
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
@@ -286,7 +290,7 @@ export default function VerschlussFormCore({
               <p className="text-xs text-sperrzeit-text">{tForm("relockLightHint")}</p>
             </Card>
           )}
-          <Card variant="semantic" semantic={keyInBox ? "sperrzeit" : "warn"} padding="compact">
+          <Card variant="semantic" semantic="sperrzeit" padding="compact">
             {boxName && (
               <p className="mb-2 text-xs font-medium text-foreground-muted">{tForm("keyInBoxName", { name: boxName })}</p>
             )}
@@ -321,7 +325,7 @@ export default function VerschlussFormCore({
           semantic={submitVariant === "semantic" ? "lock" : undefined}
           fullWidth
           loading={saving || uploading || codePhoto.uploading}
-          disabled={(bildersafe && (!codeUrl || codeReadable === false)) || (boxConfirm && !keyInBox)}
+          disabled={bildersafe && (!codeUrl || codeReadable === false)}
           icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
         >
           {submitLabel ?? defaultLabel}

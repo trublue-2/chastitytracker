@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
-import type { OeffnenGrund } from "@/lib/constants";
+import type { OeffnenGrund, EntrySource } from "@/lib/constants";
+import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { aktivesReinigungsFenster, parseReinigungsFenster } from "@/lib/reinigungService";
 import { APP_TZ } from "@/lib/utils";
 
@@ -522,13 +523,24 @@ function isAllowedCleaningOpen(
  * Returns true if at least one Sperrzeit was withdrawn (for notification routing). The caller uses
  * that to decide whether the box may follow the entry: a withdrawn Sperrzeit means the opening was
  * FORBIDDEN, and the box must stay shut — otherwise documenting the offense would execute it.
+ *
+ * `source` unterscheidet die WILLENTLICHE Öffnung von der VERMUTETEN: die Eskalation bucht eine
+ * unbeantwortete Kontrolle als „Gerät vermutlich abgenommen" und legt dafür einen OEFFNEN-Eintrag an
+ * — ohne dass der Sub etwas getan hätte, und ohne dass die Box überhaupt aufgeht. Eine solche
+ * Buchung darf keine Sperrzeit aufheben: sonst räumte ausgerechnet ein Versäumnis die Konsequenz aus
+ * dem Weg, die es nach sich ziehen soll (gemeldet 11.07.2026 — eine 14-Tage-Sperre verschwand).
  */
 export async function releaseSperrzeitenOnOpen(
   userId: string,
   oeffnenGrund: OeffnenGrund | string | null | undefined,
   tx: PrismaTx,
+  // Bewusst PFLICHT und vor dem optionalen `user`: ein Default „user" liesse einen künftigen
+  // System-Pfad, der das Argument vergisst, still in genau den Bug zurückfallen, den er behebt.
+  source: EntrySource,
   user?: CleaningPermissionUser,
 ): Promise<boolean> {
+  if (source === "system") return false;
+
   // EINE Uhr für beide Fragen: welche Sperrzeiten laufen, und ist ein Fenster offen.
   const now = new Date();
   const activeSperrzeiten = await tx.verschlussAnforderung.findMany({
@@ -546,7 +558,26 @@ export async function releaseSperrzeitenOnOpen(
 
   await tx.verschlussAnforderung.updateMany({
     where: { id: { in: activeSperrzeiten.map((s) => s.id) } },
-    data: { withdrawnAt: now },
+    data: { withdrawnAt: now, endedReason: LOCK_ENDED_REASON.opening },
   });
   return true;
+}
+
+/**
+ * Die jüngste Sperrzeit, die der Sub durch eine Öffnung aufgebrochen hat und deren ursprüngliches
+ * Ende noch nicht verstrichen ist.
+ *
+ * Sie ist NICHT aktiv — sie wird gerade nicht vollstreckt. Aber sie ist auch nicht verschwunden:
+ * ohne sie bedeutete `activeLockPeriod: null` gleichermassen „abgelaufen", „zurückgezogen" und „es
+ * gab nie eine". Genau diese Ununterscheidbarkeit war der Bug.
+ */
+export async function getInterruptedSperrzeit(userId: string, now: Date) {
+  // Dieselbe „SPERRZEIT, deren Ende noch nicht verstrichen ist"-Definition wie die aktive Sicht —
+  // nur eben zurückgezogen statt laufend. `withdrawnAt: null` fällt weg, `endedReason` tritt hinzu.
+  const { withdrawnAt: _stillRunning, ...notYetElapsed } = keyholderSperrzeitWhere(userId, now);
+  return prisma.verschlussAnforderung.findFirst({
+    where: { ...notYetElapsed, endedReason: LOCK_ENDED_REASON.opening },
+    orderBy: { withdrawnAt: "desc" },
+    select: { endetAt: true, withdrawnAt: true, nachricht: true },
+  });
 }

@@ -118,49 +118,49 @@ describe("releaseSperrzeitenOnOpen", () => {
   it("ohne aktive Sperrzeit: nichts zurückzuziehen, die Box folgt", async () => {
     jetzt(NACHTS);
     findMany.mockResolvedValue([]);
-    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), user())).toBe(false);
+    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), "user", user())).toBe(false);
     expect(updateMany).not.toHaveBeenCalled();
   });
 
   it("erlaubte Reinigung IM Fenster: Sperrzeit bleibt, die Box öffnet", async () => {
     jetzt(IM_FENSTER);
-    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), user())).toBe(false);
+    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), "user", user())).toBe(false);
     expect(updateMany).not.toHaveBeenCalled();
   });
 
   it("Reinigung AUSSERHALB des Fensters: Verstoss — Sperrzeit fällt, die Box bleibt zu", async () => {
     jetzt(NACHTS);
-    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), user())).toBe(true);
+    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), "user", user())).toBe(true);
     expect(updateMany).toHaveBeenCalledOnce();
   });
 
   it("ohne konfigurierte Fenster ist Reinigung nicht zeitgebunden — auch nachts erlaubt", async () => {
     jetzt(NACHTS);
-    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), user({ reinigungsFenster: [] }))).toBe(false);
+    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), "user", user({ reinigungsFenster: [] }))).toBe(false);
     expect(updateMany).not.toHaveBeenCalled();
   });
 
   it("anderer Öffnungsgrund im Fenster: bleibt ein Verstoss", async () => {
     jetzt(IM_FENSTER);
-    expect(await releaseSperrzeitenOnOpen("u1", "ORGASMUS", tx(), user())).toBe(true);
+    expect(await releaseSperrzeitenOnOpen("u1", "ORGASMUS", tx(), "user", user())).toBe(true);
   });
 
   it("User darf gar nicht reinigen: Verstoss, egal welches Fenster", async () => {
     jetzt(IM_FENSTER);
-    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), user({ reinigungErlaubt: false }))).toBe(true);
+    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), "user", user({ reinigungErlaubt: false }))).toBe(true);
   });
 
   it("eine der aktiven Sperrzeiten verbietet Reinigung: Verstoss (jede muss zustimmen)", async () => {
     jetzt(IM_FENSTER);
     findMany.mockResolvedValue([{ id: "s1", reinigungErlaubt: true }, { id: "s2", reinigungErlaubt: false }]);
-    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), user())).toBe(true);
+    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", tx(), "user", user())).toBe(true);
     expect(updateMany).toHaveBeenCalledOnce();
   });
 
   it("ohne durchgereichten User lädt die Funktion ihn selbst", async () => {
     jetzt(IM_FENSTER);
     const t = tx();
-    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", t)).toBe(false);
+    expect(await releaseSperrzeitenOnOpen("u1", "REINIGUNG", t, "user")).toBe(false);
     expect(t.user.findUnique).toHaveBeenCalledOnce();
   });
 });

@@ -117,6 +117,32 @@ export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
 /** Reserved AND hidden from the user-facing opening-reason picker — system-only codes. */
 export const SYSTEM_ONLY_OPENING_CODES: readonly string[] = [AUTO_ENTFERNT_REASON];
 
+/** Wer einen Eintrag verursacht hat. `system` = niemand hat gehandelt, der Tracker hat gebucht
+ *  (Eskalation einer unbeantworteten Kontrolle). Spiegelt die `Entry.source`-Spalte; die Regel
+ *  „nur eine WILLENTLICHE Handlung hat Folgen" hängt daran (Strafbuch, Sperrzeit-Bruch). */
+export const ENTRY_SOURCES = ["user", "system"] as const;
+export type EntrySource = typeof ENTRY_SOURCES[number];
+
+/**
+ * Warum eine VerschlussAnforderung/Sperrzeit `withdrawnAt` trägt — die Endart, nicht nur das Ende.
+ *
+ * Ohne sie sah eine vom Sub aufgebrochene Sperrzeit exakt aus wie eine bewusst zurückgezogene und
+ * wie eine, die es nie gab: `withdrawnAt` gesetzt, sonst nichts. Genau diese Ununterscheidbarkeit
+ * war der Bug (11.07.2026 — eine 14-Tage-Sperre verschwand spurlos).
+ *
+ * `null` heisst „noch nicht beendet" ODER „vor v4.50.30 beendet" — Alt-Zeilen tragen keinen Grund.
+ */
+export const LOCK_ENDED_REASON = {
+  /** Bewusst zurückgezogen (Keyholder-Aktion oder von einer neuen Direktive ersetzt). */
+  keyholder: "keyholder",
+  /** Durch eine Öffnung des Subs beendet. Ob diese Öffnung ERLAUBT war, sagt das Strafbuch —
+   *  hier steht nur, WIE die Sperrzeit endete, nicht ob jemand sich etwas zuschulden kommen liess. */
+  opening: "opening",
+  /** Vom Poller verworfen, weil sie im Moment ihrer Auslösung schon gegenstandslos war. */
+  obsolete: "obsolete",
+} as const;
+export type LockEndedReason = typeof LOCK_ENDED_REASON[keyof typeof LOCK_ENDED_REASON];
+
 /** Maps OEFFNEN_GRUENDE values to openForm i18n keys */
 export const GRUND_I18N_KEYS: Record<typeof OEFFNEN_GRUENDE[number], string> = {
   REINIGUNG: "grundReinigung",

@@ -1,5 +1,39 @@
 [
   {
+    "version": "4.50.31",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Versäumnis hebt keine Sperrzeit mehr auf. Bucht das System eine unbeantwortete Kontrolle als „Gerät vermutlich abgenommen\", galt das bisher als Öffnung — und zog eine laufende Sperrzeit spurlos zurück. Ausgerechnet das Versäumnis räumte damit die Konsequenz aus dem Weg, die es nach sich ziehen soll. Solche vermuteten Öffnungen lassen die Sperrzeit jetzt unberührt (sie öffnen die Box ohnehin nicht).",
+          "en": "A missed inspection no longer cancels a lock period. When the system booked an unanswered inspection as “device presumably removed”, that counted as an opening and silently withdrew a running lock period — so the very lapse that should carry a consequence removed it instead. Such presumed openings now leave the lock period untouched (they never open the box anyway)."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine beendete Sperrzeit verschwindet nicht mehr spurlos: Der Tracker hält jetzt fest, WARUM sie endete (zurückgezogen, durch eine Öffnung beendet, oder vom Poller verworfen). Wurde sie durch eine Öffnung beendet, bevor ihr ursprüngliches Ende erreicht war, zeigt das Keyholder-Dashboard sie weiterhin an — mit ursprünglichem Ende und Zeitpunkt der Unterbrechung. Bisher war „unterbrochen\" nicht von „abgelaufen\", „zurückgezogen\" und „gab es nie\" zu unterscheiden.",
+          "en": "A lock period that ends no longer vanishes without a trace: the tracker now records WHY it ended (withdrawn, ended by an opening, or discarded by the poller). If an opening ended it before its original end was reached, the keyholder dashboard keeps showing it — with the original end date and the time of the interruption. Until now “interrupted” was indistinguishable from “expired”, “withdrawn” and “never existed”."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Keyholder sieht wieder alle Vergehen: Kontrollen, die als „Gerät vermutlich abgenommen\" abgeschlossen wurden, zählten zwar mit, wurden aber nie ausgegeben. Damit fehlte ausgerechnet diesem Vergehen die Referenz, über die es beurteilt wird — es war sichtbar, aber nicht beurteilbar. Die Vergehens-Liste leitet sich jetzt aus einer einzigen Quelle ab, damit Zähler und Ausgabe nicht wieder auseinanderlaufen können.",
+          "en": "The keyholder sees every offense again: inspections closed as “device presumably removed” were counted but never listed, so this offense had no reference to judge it by — visible, yet impossible to act on. The offense list is now derived from a single source, so the counter and the output cannot drift apart again."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Verschluss-Formular erzwingt keine Falschangabe mehr. Bisher liess sich ein Verschluss nur speichern, wenn „Schlüssel ist in der Box\" bestätigt war — wer den Schlüssel behält (etwa auf Reise), musste lügen. Die Angabe ist jetzt wahrheitsgemäss: Steht sie auf „nein\", verriegelt die Box nicht und meldet der Keyholderin auch keinen Hardware-Verschluss, den es gar nicht gibt.",
+          "en": "The lock form no longer forces a false statement. Until now an entry could only be saved with “the key is in the box” confirmed — anyone keeping the key (while travelling, say) had to lie. The answer is now truthful: set it to “no” and the box does not lock, and no longer reports a hardware-enforced lock to the keyholder that does not exist."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.30",
     "date": "2026-07-14",
     "changes": [

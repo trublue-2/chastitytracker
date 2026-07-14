@@ -176,3 +176,35 @@ export function mapActiveWearSessions(
     durationHours: msToHours(now.getTime() - s.since.getTime()),
   }));
 }
+
+// ── Unterbrochene Sperrzeit ───────────────────────────────────────────────────
+
+export interface InterruptedSperrzeitView {
+  /** Das ursprüngliche Ende, das die Keyholderin gesetzt hatte. null = war unbefristet. */
+  originalEndetAt: string | null;
+  indefinite: boolean;
+  /** Wann die Öffnung sie aufgebrochen hat. */
+  interruptedAt: string;
+  message: string | null;
+}
+
+/**
+ * Eine Sperrzeit, die durch eine Öffnung endete und deren ursprüngliches Ende noch nicht verstrichen
+ * ist. Sie wird NICHT als `activeLockPeriod` gemeldet — sie wird gerade nicht vollstreckt, und ein
+ * Keyholder-Agent darf sie nicht dafür halten. Sie steht daneben, damit `activeLockPeriod: null`
+ * nicht länger „es gab nie eine Konsequenz" bedeutet.
+ *
+ * Neutral formuliert: ob die Öffnung erlaubt war, steht hier bewusst NICHT — das weiss das Strafbuch.
+ */
+export function mapInterruptedSperrzeit(
+  s: { endetAt: Date | null; withdrawnAt: Date | null; nachricht: string | null } | null,
+  fmt: Fmt,
+): InterruptedSperrzeitView | null {
+  if (!s?.withdrawnAt) return null;
+  return {
+    originalEndetAt: s.endetAt ? fmt(s.endetAt) : null,
+    indefinite: s.endetAt === null,
+    interruptedAt: fmt(s.withdrawnAt),
+    message: s.nachricht,
+  };
+}

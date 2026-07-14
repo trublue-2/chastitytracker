@@ -328,6 +328,13 @@ model VerschlussAnforderung {
   createdAt        DateTime  @default(now())
   fulfilledAt      DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt      DateTime?
+  // WARUM withdrawnAt gesetzt wurde. Ohne dieses Feld sah eine vom Sub aufgebrochene Sperrzeit
+  // exakt aus wie eine, die die Keyholderin bewusst zurückgezogen hat — und wie eine, die es nie
+  // gab. Die Konsequenz verschwand spurlos aus dem Dashboard.
+  //   "keyholder" = bewusst zurückgezogen (withdraw / Admin-UI)
+  //   "opening"   = durch eine Öffnung des Subs unterbrochen (releaseSperrzeitenOnOpen)
+  // null = noch aktiv, ODER Altbestand vor v4.50.30 (dann ist die Endart nicht mehr rekonstruierbar).
+  endedReason      String?
   // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub
   // unsichtbar (gilt nicht als aktiv), Benachrichtigung + Frist starten erst dann (Poller verschickt sie).
   wirksamAb        DateTime?

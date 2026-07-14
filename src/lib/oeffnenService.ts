@@ -40,7 +40,7 @@ export async function createOeffnenEntryTx(tx: PrismaTx, params: CreateOeffnenPa
     throw codedError("TIME_BEFORE");
   }
 
-  const withdrawnSperrzeit = await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx);
+  const withdrawnSperrzeit = await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, source);
 
   const created = await tx.entry.create({
     data: { userId, type: "OEFFNEN", startTime, oeffnenGrund, note, source },

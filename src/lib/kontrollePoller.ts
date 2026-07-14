@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle } from "@/lib/kontrolleService";
 import { getLatestKgEntry, getIsLocked } from "@/lib/queries";
 import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/verschlussAnforderungService";
@@ -194,7 +195,10 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         ? isLocked
         : !isLocked || checkLockEnd(va.endetAt, va.wirksamAb, now) !== null;
       if (obsolete) {
-        await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { withdrawnAt: new Date() } });
+        await prisma.verschlussAnforderung.update({
+          where: { id: va.id },
+          data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.obsolete },
+        });
         continue;
       }
 

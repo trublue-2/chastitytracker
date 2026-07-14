@@ -27,3 +27,30 @@ export async function setBoxCommandForUser(
     data: { pendingCommand: cmd, pendingCommandAt: new Date() },
   });
 }
+
+export interface BoxCommandInput {
+  type: string;
+  /** Liegt der Schlüssel in der Box? `undefined` = das Formular hat nicht gefragt (keine Box,
+   *  Admin-Pfad, Alt-Client) → wie bisher: die Box folgt. */
+  keyInBox?: boolean;
+  /** Hat diese Öffnung eine Sperrzeit gebrochen? Dann war sie verboten. */
+  brokeSperrzeit: boolean;
+}
+
+/**
+ * Welches Kommando folgt aus diesem Eintrag? `null` = die Box rührt sich nicht.
+ *
+ * Zwei Fälle, in denen die Box dem Eintrag NICHT folgt — beide sind der Kern eigener Bugs:
+ *
+ * 1. **`keyInBox: false`** — der Sub verschliesst sich, behält den Schlüssel aber (Reise). Die Box
+ *    verriegelte trotzdem und meldete `hardwareEnforced: true`, während der Schlüssel in seiner
+ *    Tasche lag. Das Formular zwang ihn deshalb, „ja, in der Box" anzukreuzen, um überhaupt
+ *    speichern zu können — es erzwang eine Falschangabe, um eine Falschmeldung zu erzeugen.
+ * 2. **Gebrochene Sperrzeit** — die Öffnung war verboten. Sie zu dokumentieren darf sie nicht
+ *    vollstrecken: der Riegel bleibt zu, der Eintrag steht trotzdem im Strafbuch.
+ */
+export function boxCommandForEntry({ type, keyInBox, brokeSperrzeit }: BoxCommandInput): "lock" | "open" | null {
+  if (type === "VERSCHLUSS") return keyInBox === false ? null : "lock";
+  if (type === "OEFFNEN") return brokeSperrzeit ? null : "open";
+  return null;
+}

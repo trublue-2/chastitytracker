@@ -517,6 +517,11 @@ export interface StrafbuchOverview {
   } & OffenseJudgment)[];
   lateControls: StrafbuchControlRow[];
   rejectedControls: StrafbuchControlRow[];
+  /** Kontrollen, die der Sub nie beantwortet hat und die das System daraufhin als „Gerät vermutlich
+   *  abgenommen" abgeschlossen hat (Eskalations-Stufe 2). Zählen längst in `detectedOffenseCount`
+   *  — wurden aber bis v4.50.30 nie AUSGEGEBEN. Damit fehlte ausgerechnet dem häufigsten frischen
+   *  Vergehen seine `ref`, und `judge_offense` war dafür nicht aufrufbar. */
+  autoRemovedControls: StrafbuchControlRow[];
   cleaningLimitViolations: ({ time: string | null; note: string | null } & OffenseJudgment)[];
   /** Lock entries where a different device than the Anforderung specified was worn. */
   wrongDeviceViolations: ({ time: string | null; note: string | null; deviceName: string | null } & OffenseJudgment)[];
@@ -592,6 +597,7 @@ export async function mcpStrafbuch(username: string, opts: McpFormatOptions = {}
     })),
     lateControls: sb.lateControls.map(toControlRow("late_control")),
     rejectedControls: sb.rejectedControls.map(toControlRow("rejected_control")),
+    autoRemovedControls: sb.autoRemovedControls.map(toControlRow("auto_removed_control")),
     cleaningLimitViolations: sb.reinigungLimitViolations.map((v) => ({
       time: v.startTime ? fmt(v.startTime) : null,
       note: v.note,
