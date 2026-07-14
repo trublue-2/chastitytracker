@@ -232,15 +232,18 @@ function registerTools(server: McpServer) {
     server.registerTool(
       "get_session",
       {
-        title: "Get KG session(s) with segments + deviceBreakdown",
+        title: "Get session(s) with segments + deviceBreakdown (all categories)",
         description:
-          "MCP V2 — die KORREKTE Antwort auf 'welches Gerät war Session X': eine KG-Session zerfällt an " +
-          "REINIGUNG-Öffnungen in Segmente (pro Segment GENAU EIN Gerät). Liefert pro Session " +
-          "`deviceBreakdown` (Stunden je Gerät), `segments[]` (declared vs. bild-verifiziertes Gerät + " +
-          "`deviceConfidence`), inline verknüpfte Notes (§9.3) und `dataQualityFlags` (z.B. declared≠verified). " +
-          "Ohne sessionId werden die neuesten Sessions aufgelistet. Zeiten als ISO-8601 mit Offset.",
+          "Die KORREKTE Antwort auf 'welches Gerät war Session X'. Über ALLE Kategorien: eine KG-Session " +
+          "zerfällt an REINIGUNG-Öffnungen in Segmente (pro Segment GENAU EIN Gerät); Trage-Sessions der " +
+          "übrigen Kategorien (Plug, Halsband, Knebel) haben genau ein Segment und das deklarierte Gerät. " +
+          "Liefert pro Session `category`, `deviceBreakdown` (Stunden je Gerät), `segments[]` (declared vs. " +
+          "bild-verifiziertes Gerät + `deviceConfidence`), inline verknüpfte Notes (§9.3) und " +
+          "`dataQualityFlags` (z.B. declared≠verified). Ohne sessionId werden die neuesten Sessions " +
+          "aufgelistet — mit `category` nur die einer Kategorie. Zeiten als ISO-8601 mit Offset.",
         inputSchema: {
           sessionId: z.string().optional().describe("Eine bestimmte Session (Lock-Entry-id). Omit = neueste auflisten."),
+          category: z.string().optional().describe('Nur Sessions dieser Kategorie (Name, z.B. "KG" oder "Plug"). Omit = alle.'),
           limit: z.number().int().min(1).max(50).optional().describe("Max. Sessions beim Auflisten (default 10)."),
         },
       },

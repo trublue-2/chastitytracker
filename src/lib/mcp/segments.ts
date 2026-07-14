@@ -1,4 +1,4 @@
-import { buildPairs, type ReinigungSettings } from "@/lib/utils";
+import { buildPairs, type ReinigungSettings, WEAR_PAIR } from "@/lib/utils";
 import { msToHours } from "@/lib/mcp/format";
 import type { DeviceMeta } from "@/lib/mcp/common";
 
@@ -91,8 +91,10 @@ export interface Session {
   segments: Segment[];
   /** Tragestunden je Gerät über die ganze Session — die korrekte Antwort auf "welches Gerät". */
   deviceBreakdown: DeviceBreakdownRow[];
-  /** Anzahl Reinigungspausen (= Segment-Grenzen innerhalb der Session). */
+  /** Anzahl Reinigungspausen (= Segment-Grenzen innerhalb der Session). Bei WEAR immer 0. */
   cleaningPauses: number;
+  /** Kategorie des Geräts am Session-Kopf. null = Alt-Verschluss ohne Gerät (nur KG möglich). */
+  categoryId: string | null;
 }
 
 type Pair = ReturnType<typeof buildPairs<SegmentEntry, never>>[number];
@@ -138,6 +140,10 @@ interface DeviceLookups {
 }
 
 const normalizeName = (s: string) => s.trim().toLowerCase();
+
+/** Ohne Kontrollen wird nie versöhnt — die Lookups blieben ungenutzt. Sie zu übergeben behauptete
+ *  eine Bild-Versöhnung, die bei WEAR gar nicht stattfindet. */
+const NO_LOOKUPS: DeviceLookups = { idByName: new Map(), clusterById: new Map() };
 
 function buildDeviceLookups(devices: DeviceMeta[]): DeviceLookups {
   const idByName = new Map<string, string>();
@@ -233,9 +239,29 @@ function breakdownOf(segments: Segment[]): DeviceBreakdownRow[] {
     .sort((a, b) => b.hours - a.hours);
 }
 
+/** Ein Paar → eine Session. Geteilt von KG und WEAR: die SESSION-Form ist dieselbe, nur ihr Inhalt
+ *  unterscheidet sich (WEAR hat weder Reinigungspausen noch Kontrollen, also genau ein Segment mit
+ *  `deviceConfidence: "declared"` — das fällt hier von selbst heraus, ohne Sonderfall). */
+function sessionOfPair(pair: Pair, controls: SegmentEntry[], now: Date, lookups: DeviceLookups): Session {
+  const segments = segmentsOfPair(pair, controls, now, lookups);
+  const isOpen = pair.active && pair.oeffnen === null;
+  return {
+    id: pair.verschluss.id,
+    start: pair.verschluss.startTime,
+    end: pair.oeffnen ? pair.oeffnen.startTime : null,
+    isOpen,
+    durationMs: segments.reduce((s, seg) => s + seg.durationMs, 0),
+    endReason: isOpen ? "open" : "closed",
+    segments,
+    deviceBreakdown: breakdownOf(segments),
+    cleaningPauses: pair.interruptions.length,
+    categoryId: pair.verschluss.device?.categoryId ?? null,
+  };
+}
+
 /** Baut die vollständigen KG-Sessions (mit Segmenten + deviceBreakdown), neueste zuerst.
- *  `entries` sind dieselben, die buildOverview/listSessions ohnehin laden. `devices` liefert die
- *  Name↔id-Auflösung + Lookalike-Cluster für die Bild-Versöhnung (leer = keine Cluster-Softening). */
+ *  `devices` liefert die Name↔id-Auflösung + Lookalike-Cluster für die Bild-Versöhnung
+ *  (leer = keine Cluster-Softening). */
 export function buildSessions(entries: SegmentEntry[], reinigung: ReinigungSettings, now: Date = new Date(), devices: DeviceMeta[] = []): Session[] {
   const pairs = buildPairs<SegmentEntry, never>(entries, [], reinigung);
   const lookups = buildDeviceLookups(devices);
@@ -244,20 +270,42 @@ export function buildSessions(entries: SegmentEntry[], reinigung: ReinigungSetti
     .filter((e) => e.type === "PRUEFUNG")
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
-  return pairs.map((pair) => {
-    const segments = segmentsOfPair(pair, controls, now, lookups);
-    const isOpen = pair.active && pair.oeffnen === null;
-    const durationMs = segments.reduce((s, seg) => s + seg.durationMs, 0);
-    return {
-      id: pair.verschluss.id,
-      start: pair.verschluss.startTime,
-      end: pair.oeffnen ? pair.oeffnen.startTime : null,
-      isOpen,
-      durationMs,
-      endReason: isOpen ? "open" : "closed",
-      segments,
-      deviceBreakdown: breakdownOf(segments),
-      cleaningPauses: pair.interruptions.length,
-    };
-  });
+  return pairs.map((pair) => sessionOfPair(pair, controls, now, lookups));
+}
+
+/**
+ * Die Trage-Sessions der NICHT-KG-Kategorien (Plug, Halsband, Knebel …) — dieselbe `Session`-Form
+ * wie KG, damit ein Keyholder sie nebeneinander lesen kann.
+ *
+ * Bis v4.50.37 gab es dafür gar nichts: `buildSessions` kennt nur VERSCHLUSS/OEFFNEN, und das
+ * einzige Tool, das Nicht-KG-Sessions je auflistete (`list_sessions`), fiel mit der V1-Schicht weg.
+ *
+ * JE GERÄT gepaart, nicht je Kategorie: zwei Plugs derselben Kategorie können gleichzeitig getragen
+ * werden, und eine kategorie-weite Paarung schlösse das Ende des einen auf den Beginn des anderen.
+ * (Dieselbe Regel führt `getActiveWearSessions` für den Live-Zustand.)
+ *
+ * Keine Kontrollen: eine PRUEFUNG belegt den KEUSCHHEITSGÜRTEL, nicht den Plug. Damit auch keine
+ * Bild-Versöhnung — das Gerät ist, was der Eintrag sagt.
+ */
+export function buildWearSessions(entries: SegmentEntry[], now: Date = new Date()): Session[] {
+  const byDevice = new Map<string, SegmentEntry[]>();
+  for (const e of entries) {
+    if (e.type !== "WEAR_BEGIN" && e.type !== "WEAR_END") continue;
+    const deviceId = e.device?.id;
+    if (!deviceId) continue; // WEAR verlangt ein Gerät — defensiv.
+    const list = byDevice.get(deviceId);
+    if (list) list.push(e);
+    else byDevice.set(deviceId, [e]);
+  }
+
+  const sessions: Session[] = [];
+  for (const list of byDevice.values()) {
+    for (const pair of buildPairs<SegmentEntry, never>(list, [], { types: WEAR_PAIR })) {
+      // Ein WEAR_BEGIN ohne Ende, das NICHT die laufende Session ist, ist eine Daten-Anomalie
+      // (zwei Beginne hintereinander) — keine Session daraus erfinden.
+      if (!pair.oeffnen && !pair.active) continue;
+      sessions.push(sessionOfPair(pair, [], now, NO_LOOKUPS));
+    }
+  }
+  return sessions.sort((a, b) => b.start.getTime() - a.start.getTime());
 }

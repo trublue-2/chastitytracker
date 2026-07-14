@@ -1,9 +1,13 @@
-import { buildSessions, type Session, type Segment, type LinkedControl } from "@/lib/mcp/segments";
+import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/mcp/segments";
 import { msToHours } from "@/lib/mcp/format";
-import { resolveUserId, makeIso, notesForEntities, entityKey, loadTrackingData, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
 
-/** get_session — KG-Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes
- *  + Daten-Qualitäts-Flags. Rein lesend, MCP-only. */
+/** get_session — Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes
+ *  + Daten-Qualitäts-Flags. Rein lesend, MCP-only.
+ *
+ *  Über ALLE Kategorien: KG (mit Reinigungspausen, Segmenten, Bild-Versöhnung) und die Trage-
+ *  Kategorien (Plug, Halsband, Knebel — je ein Segment, Gerät wie deklariert). Bis v4.50.37 gab es
+ *  Nicht-KG-Sessions hier gar nicht; das einzige Tool, das sie je auflistete, fiel mit V1 weg. */
 
 export interface SegmentView {
   id: string;
@@ -23,6 +27,8 @@ export interface SegmentView {
 
 export interface SessionView {
   id: string;
+  /** Kategorie der Session („KG", „Plug", „Halsband" …). */
+  category: string | null;
   start: string;
   end: string | null;
   isOpen: boolean;
@@ -46,8 +52,13 @@ export interface SessionListResult {
 export interface GetSessionOptions {
   /** Eine bestimmte Session (Lock-Entry-id). Omit = neueste Sessions auflisten. */
   sessionId?: string;
+  /** Nur Sessions dieser Kategorie (Name, z.B. "KG" oder "Plug"). Omit = alle Kategorien. */
+  category?: string;
   limit?: number;
 }
+
+/** Eine Session mit aufgelöstem Kategorie-NAMEN (die Session selbst trägt nur die categoryId). */
+type TaggedSession = Session & { category: string | null };
 
 const controlEntityType = "control";
 
@@ -91,7 +102,7 @@ function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>, iso: I
   };
 }
 
-function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>, iso: Iso): SessionView {
+function sessionView(s: TaggedSession, notesByEntity: Map<string, NoteDTO[]>, iso: Iso): SessionView {
   const segments = s.segments.map((seg) => segmentView(seg, notesByEntity, iso));
   const dataQualityFlags: string[] = [];
   for (const seg of s.segments) {
@@ -103,6 +114,7 @@ function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>, iso: Iso
   }
   return {
     id: s.id,
+    category: s.category,
     start: iso(s.start)!,
     end: iso(s.end),
     isOpen: s.isOpen,
@@ -120,21 +132,37 @@ function sessionView(s: Session, notesByEntity: Map<string, NoteDTO[]>, iso: Iso
  *  deviceBreakdown und inline verknüpften Notes. Throws, wenn der User unbekannt ist. */
 export async function getSession(username: string, opts: GetSessionOptions = {}): Promise<SessionListResult> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung, devices, timezone } = await loadTrackingData(userId);
+  const [{ entries, reinigung, devices, timezone }, { nameById, kgName }] = await Promise.all([
+    loadTrackingData(userId),
+    loadCategoryNames(userId),
+  ]);
   const iso = makeIso(timezone);
   const now = new Date();
+
+  // `fallback` gilt für eine Session, deren Kopf-Gerät keine Kategorie trägt: bei KG ist das der
+  // Alt-Verschluss ohne Gerät (weiterhin KG), bei WEAR gäbe es das nicht — dort bleibt es null.
+  const tag = (s: Session, fallback: string | null): TaggedSession => ({
+    ...s,
+    category: s.categoryId ? nameById.get(s.categoryId) ?? null : fallback,
+  });
+
   // Sessions sind abgeleitet (Segment-/Pausen-Logik über benachbarte Entries) → die ganze Serie
   // wird gebaut, auch wenn nur eine sessionId gefragt ist. Bei sehr langer Historie der dominante
   // Kostenfaktor; ein Zeitfenster-Cut wäre die Optimierung, falls dieser Pfad heiss wird.
-  const all = buildSessions(entries, reinigung, now, devices);
+  const all: TaggedSession[] = [
+    ...buildSessions(entries, reinigung, now, devices).map((s) => tag(s, kgName)),
+    ...buildWearSessions(entries, now).map((s) => tag(s, null)),
+  ].sort((a, b) => b.start.getTime() - a.start.getTime());
+
+  const wanted = opts.category?.trim().toLowerCase();
+  const matching = wanted ? all.filter((s) => s.category?.toLowerCase() === wanted) : all;
 
   const selected = opts.sessionId
-    ? all.filter((s) => s.id === opts.sessionId)
-    : all.slice(0, Math.min(Math.max(1, opts.limit ?? 10), 50));
+    ? matching.filter((s) => s.id === opts.sessionId)
+    : matching.slice(0, Math.min(Math.max(1, opts.limit ?? 10), 50));
 
   // Inline-Notes für alle ausgewählten Sessions in EINEM Query.
-  const refs = selected.flatMap(refsOfSession);
-  const notesByEntity = await notesForEntities(userId, refs, {}, undefined, timezone);
+  const notesByEntity = await notesForEntities(userId, selected.flatMap(refsOfSession), {}, undefined, timezone);
 
   return {
     schemaVersion: 2,

@@ -82,9 +82,10 @@ export interface TrackingEntry {
 /** Geräte-Metadaten, die die Segment-Wahrheit braucht: id↔Name-Auflösung + Lookalike-Cluster
  *  (cluster-interne Bild-Mismatches sind soft, nie ein echter Konflikt).
  *
- *  Bewusst OHNE Kategorie: sie interessiert nur `device_stats`, und dieser Kontext wird von jedem
- *  V2-Read geladen (Dashboard, get_session, timeline, …). Ein Kategorie-Join hier kostete alle einen
- *  Zusatz-SELECT für ein Feld, das keiner von ihnen liest. */
+ *  Bewusst OHNE Kategorie: dieser Kontext wird von JEDEM V2-Read geladen (Dashboard, timeline, …),
+ *  die Kategorie brauchen aber nur die, die Sessions/Geräte beschriften. Ein Join hier kostete alle
+ *  einen Zusatz-SELECT für ein Feld, das die meisten nie lesen — {@link loadCategoryNames} holt es
+ *  dort, wo es gebraucht wird. */
 export interface DeviceMeta {
   id: string;
   name: string;
@@ -136,6 +137,23 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
     devices,
     timezone: user.timezone ?? APP_TZ,
     keyholderInstructions: user.mcpKeyholderInstructions ?? null,
+  };
+}
+
+/** Die Geräte-Kategorien eines Subs, für die Beschriftung von Sessions/Statistik-Zeilen.
+ *
+ *  Aus IHRER Tabelle, nicht aus den Geräten erraten: die eingebaute KG-Kategorie existiert auch dann,
+ *  wenn (noch) kein KG-Gerät angelegt ist — und genau solche Alt-Verschlüsse ohne Gerät sind es, die
+ *  als „ohne Gerät" gebucht sind und trotzdem als KG auszuweisen sind. `isBuiltIn` IST die
+ *  KG-Kennung (es gibt genau eine eingebaute), nicht der Name — der ist frei umbenennbar. */
+export async function loadCategoryNames(userId: string): Promise<{ nameById: Map<string, string>; kgName: string | null }> {
+  const categories = await prisma.deviceCategory.findMany({
+    where: { userId },
+    select: { id: true, name: true, isBuiltIn: true },
+  });
+  return {
+    nameById: new Map(categories.map((c) => [c.id, c.name])),
+    kgName: categories.find((c) => c.isBuiltIn)?.name ?? null,
   };
 }
 

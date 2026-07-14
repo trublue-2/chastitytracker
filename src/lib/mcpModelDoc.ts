@@ -153,7 +153,8 @@ und Grenzen sind gepinnt und versioniert.**
 - **\`keyholder_dashboard\`** — DER Einstieg: currentRun vs Personal Best, was JETZT getragen wird
   (KG + Kategorien), nextRelevant (Kontrolle/Sperrzeit/Orgasmus-Fenster), Ziele + Adhärenz, offene
   Vergehen, gepinnte standingDirectives + boundaries, BoxState, HealthHold. Erst danach Deep-Views.
-- **Segmente (\`get_session\`)** — eine KG-Session zerfällt an REINIGUNG-Öffnungen in **Segmente**,
+- **Segmente (\`get_session\`)** — liefert Sessions ALLER Kategorien (KG + Plug/Halsband/Knebel, je
+  mit \`category\`, filterbar). Eine KG-Session zerfällt an REINIGUNG-Öffnungen in **Segmente**,
   pro Segment GENAU EIN Gerät. \`deviceBreakdown\` beantwortet „welches Gerät wie lange" korrekt
   (statt eines falschen Einzel-Labels). \`deviceConfidence\`: \`declared\` | \`image-confirmed\` |
   \`image-conflict\` (Bild nennt ein Gerät aus ANDEREM Cluster → **Bild gewinnt**) | \`cluster-ambiguous\`

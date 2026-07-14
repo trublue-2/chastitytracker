@@ -1,11 +1,10 @@
-import { prisma } from "@/lib/prisma";
-import { calculateWearingHoursByRange, buildPairs, WEAR_PAIR } from "@/lib/utils";
+import { calculateWearingHoursByRange } from "@/lib/utils";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/mcp/segments";
+import { buildSessions, buildWearSessions, deviceGroupKey, deviceDisplayName, type Session } from "@/lib/mcp/segments";
 import { round1, msToHours, pct } from "@/lib/mcp/format";
-import { makeIso, loadTrackingContext, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
+import { makeIso, loadTrackingContext, loadCategoryNames, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
 /** Vorberechnete Statistiken & Rekorde aus SEGMENTEN (nicht Labels) — §5/§6/§7. Rein lesend.
  *  Jedes Tool nimmt optional einen vorgeladenen TrackingContext (vom keyholder_dashboard), um
@@ -74,26 +73,15 @@ function collect(byDevice: Map<string, DeviceAgg>, seed: DeviceSeed, start: Date
  * bilden WEAR-Paare, und die wurden nie gepaart.
  *
  * Zwei Pfade, weil KG und WEAR verschiedene Dinge SIND: eine KG-Session zerfällt an Reinigungspausen
- * in Segmente und kennt Bild-gegen-Deklaration-Konflikte — beides hat WEAR nicht. Deshalb KG über
- * `buildSessions`, WEAR über `buildPairs`.
- *
- * WEAR wird JE GERÄT gepaart, nicht je Kategorie: zwei Plugs derselben Kategorie können gleichzeitig
- * getragen werden (`getActiveWearSessions` führt den Live-Zustand ebenfalls pro Gerät). Eine
- * kategorie-weite Paarung schlösse das WEAR_END des einen Plugs auf das WEAR_BEGIN des anderen —
- * beide Dauern wären falsch, und die Aggregation rechnet ohnehin pro Gerät zu.
+ * in Segmente und kennt Bild-gegen-Deklaration-Konflikte — beides hat WEAR nicht. Beide liefern
+ * dieselbe `Session`-Form: KG über `buildSessions`, WEAR über `buildWearSessions` (dort steht auch,
+ * warum WEAR je GERÄT und nicht je Kategorie gepaart wird). Genau dieselben Sessions zeigt
+ * `get_session` — die Statistik zählt sie nur zusammen.
  */
 export async function deviceStats(username: string, ctx?: TrackingContext): Promise<DeviceStatsResult> {
   const { userId, entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
-  // Kategorien aus IHRER Tabelle, nicht aus den Geräten erraten: die eingebaute KG-Kategorie
-  // existiert auch dann, wenn (noch) kein KG-Gerät angelegt ist — und genau solche Alt-Verschlüsse
-  // ohne Gerät landen im Sammel-Posten, der trotzdem als KG auszuweisen ist.
-  const categories = await prisma.deviceCategory.findMany({
-    where: { userId },
-    select: { id: true, name: true, isBuiltIn: true },
-  });
-  const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
-  const kgCategory = categories.find((c) => c.isBuiltIn)?.name ?? null;
+  const { nameById, kgName } = await loadCategoryNames(userId);
 
   const byDevice = new Map<string, DeviceAgg>();
 
@@ -101,31 +89,16 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
   for (const s of buildSessions(entries, reinigung, now, devices)) {
     for (const seg of s.segments) {
       // Nach dem MASSGEBLICHEN Gerät (Bild gewinnt bei echtem Konflikt), wie deviceBreakdown.
-      collect(byDevice, { ...seg.deviceEffective, category: kgCategory }, seg.start, seg.durationMs);
+      collect(byDevice, { ...seg.deviceEffective, category: kgName }, seg.start, seg.durationMs);
     }
   }
 
-  // ── Nicht-KG: WEAR-Paare, je GERÄT getrennt ──
-  const wearEntriesByDevice = new Map<string, TrackingEntry[]>();
-  for (const e of entries) {
-    if (e.type !== "WEAR_BEGIN" && e.type !== "WEAR_END") continue;
-    if (!e.device) continue; // WEAR verlangt ein Gerät — defensiv, kein „ohne Gerät" für Nicht-KG.
-    const list = wearEntriesByDevice.get(e.device.id);
-    if (list) list.push(e);
-    else wearEntriesByDevice.set(e.device.id, [e]);
-  }
-  for (const list of wearEntriesByDevice.values()) {
-    for (const pair of buildPairs<TrackingEntry, never>(list, [], { types: WEAR_PAIR })) {
-      // Ein WEAR_BEGIN ohne Ende, das NICHT die laufende Session ist, ist eine Daten-Anomalie
-      // (zwei Beginne hintereinander) — nicht bis jetzt hochrechnen, das erfände Stunden.
-      if (!pair.oeffnen && !pair.active) continue;
-      const dev = pair.verschluss.device!;
-      // Die laufende Session zählt bis JETZT — wie beim KG-Segment, sonst wäre das gerade getragene
-      // Gerät genau während des Tragens unsichtbar.
-      const end = pair.oeffnen?.startTime ?? now;
+  // ── Nicht-KG: dieselben Trage-Sessions, die auch `get_session` zeigt ──
+  for (const s of buildWearSessions(entries, now)) {
+    for (const seg of s.segments) {
       collect(byDevice,
-        { id: dev.id, name: dev.name, category: dev.categoryId ? categoryNameById.get(dev.categoryId) ?? null : null },
-        pair.verschluss.startTime, end.getTime() - pair.verschluss.startTime.getTime());
+        { ...seg.deviceEffective, category: s.categoryId ? nameById.get(s.categoryId) ?? null : null },
+        seg.start, seg.durationMs);
     }
   }
 

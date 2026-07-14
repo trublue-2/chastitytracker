@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.50.38",
+    "date": "2026-07-14",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "`get_session` zeigt jetzt die Sessions ALLER Kategorien, nicht nur die des Keuschheitsgürtels. Trage-Sessions von Plug, Halsband und Knebel waren bisher nirgends einzeln abrufbar — das einzige Tool, das sie je auflistete, fiel mit der alten Werkzeug-Generation weg. Jede Session nennt ihre Kategorie und lässt sich danach filtern. Gepaart wird je GERÄT: zwei Plugs gleichzeitig getragen ergeben zwei getrennte Sessions statt einer falschen.",
+          "en": "`get_session` now returns sessions for ALL categories, not just the chastity device. Wear sessions for plugs, collars and gags could not be listed individually anywhere — the only tool that ever did so disappeared with the old tool generation. Every session names its category and can be filtered by it. Pairing is per DEVICE: two plugs worn at once yield two separate sessions instead of one wrong one."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Geräte-Statistik und die Session-Ansicht leiten die Trage-Sessions jetzt aus derselben Quelle ab, statt sie zweimal unterschiedlich zu rekonstruieren.",
+          "en": "Device statistics and the session view now derive wear sessions from one shared source instead of reconstructing them twice in different ways."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.37",
     "date": "2026-07-14",
     "changes": [

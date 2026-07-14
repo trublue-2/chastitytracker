@@ -124,6 +124,9 @@ recorded field diff. All silent.
 `add_keyholder_note` / `delete_keyholder_note`, together with the
 `ENABLE_LEGACY_MCP` flag that gated them. The tools above replace them.
 `list_entries` and `explain_model` had no V2 equivalent and therefore stay.
+`get_session` covers what `list_sessions` did for non-KG categories: it returns
+sessions for **every** category (KG plus Plug/Collar/Gag), each tagged with
+`category` and filterable via the `category` argument.
 
 ## Data models
 
