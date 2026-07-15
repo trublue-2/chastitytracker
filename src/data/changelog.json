@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.45",
+    "date": "2026-07-15",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Erfassen und Bearbeiten von Einträgen wird auf dem Handy die untere Menü-Leiste ausgeblendet. Sie hatte dort am unteren Rand den „Speichern\"-Button verdeckt — besonders beim Erfassen von Kontrollen. Zum Verlassen des Formulars gibt es weiterhin „Abbrechen\" und den „← Neu\"-Zurück-Link. Am Desktop war und ist nichts betroffen.",
+          "en": "When creating or editing entries on mobile, the bottom navigation bar is now hidden. It had been covering the “Save” button at the bottom of the screen — especially when logging inspections. To leave the form there are still the “Cancel” button and the “← New” back link. Desktop was and is unaffected."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.43",
     "date": "2026-07-14",
     "changes": [

@@ -21,6 +21,12 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
   const t = useTranslations("nav");
   const pathname = usePathname();
 
+  // Auf den Erfassungs-/Bearbeitungs-Seiten die fixe Leiste ausblenden. Sonst verdeckte sie am
+  // unteren Rand (Mobile) den „Speichern"-Button — die Leiste ist höher (h-16 + Versions-Fusszeile)
+  // als der reservierte Content-Abstand. Zum Verlassen gibt es dort Abbrechen + „← Neu"; die
+  // Weg-Navigation ist während der fokussierten Eingabe ohnehin überflüssig.
+  if (pathname.startsWith("/dashboard/new") || pathname.startsWith("/dashboard/edit")) return null;
+
   const tabs = [
     { href: "/dashboard", icon: Home, label: t("overview"), exact: true },
     { href: "/dashboard/eintraege", icon: ClipboardList, label: t("entries"), exact: false },
