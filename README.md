@@ -7,6 +7,22 @@
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
+> [!NOTE]
+> ### An alle, die den Tracker selbst hosten 👋
+>
+> Mir ist klar, dass inzwischen einige von euch das Projekt auf **eigener Infrastruktur** betreiben — das freut mich wirklich. Nur: ich sehe euch nicht. Self-gehostete Instanzen melden sich bewusst nirgends, und genau das ist ja der Sinn.
+>
+> Deshalb meine Bitte:
+> - **Gebt mir Feedback** — was läuft, was fehlt, was nervt.
+> - **Meldet Probleme aktiv** über die [Issues](../../issues) oder per Mail an **info@chastitytracker.ch**. Von einem Bug, den ich nicht kenne, erfahre ich sonst nie.
+> - Nur mit eurer Rückmeldung bleibt das Projekt lebendig und wächst weiter.
+>
+> Danke, dass ihr dabei seid. — *trublue*
+>
+> ---
+>
+> **To everyone self-hosting the tracker** 👋 — I know some of you now run this on your own infrastructure, which makes me genuinely happy. But I can't see you: self-hosted instances phone home to no one, by design. So please **share feedback** and **report problems via the [issues](../../issues) or by email to info@chastitytracker.ch** — a bug I don't know about never gets fixed. Your input is the only thing that keeps this project alive and moving. Thank you for being here. — *trublue*
+
 <!-- screenshot -->
 
 ## Features
