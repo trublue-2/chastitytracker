@@ -37,8 +37,9 @@ export interface ContextResult {
    *  werden manuell via request_inspection veranlasst). active=false → keine Auto-Kontrollen. Pro Tag
    *  wird eine ZUFÄLLIGE Anzahl aus [perDayMin, perDayMax] selbsttätig über den Tag verteilt
    *  (perDayMin==perDayMax ⇒ fixe Anzahl); sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
-   *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. */
-  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number };
+   *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. triggerWindowFrom/Until
+   *  = optionales festes Auslöse-Fenster ("" = aus; dann verteilen sich die Auslösungen übers Wach-Fenster). */
+  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number; triggerWindowFrom: string; triggerWindowUntil: string };
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung). */
   cleaning: ReinigungView;
   recurringContext: ReturnType<typeof recurringView>[];
@@ -49,7 +50,7 @@ const contextUserSelect = {
   id: true, timezone: true,
   reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true,
   autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
-  autoKontrolleFristVon: true, autoKontrolleFristBis: true,
+  autoKontrolleFristVon: true, autoKontrolleFristBis: true, autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
 } as const;
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
@@ -85,6 +86,8 @@ export async function getContext(username: string): Promise<ContextResult> {
       sleepUntil: auto.ruheBis,
       deadlineMinFrom: auto.fristVon,
       deadlineMinTo: auto.fristBis,
+      triggerWindowFrom: auto.fensterVon,
+      triggerWindowUntil: auto.fensterBis,
     },
     cleaning: buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ),
     recurringContext: recurring.map(recurringView),

@@ -855,6 +855,8 @@
     "autoKontrolleProTagHint": "random/day",
     "autoKontrolleRuheLabel": "No deadline between (sleep hours)",
     "autoKontrolleFristLabel": "Fulfillment time",
+    "autoKontrolleFensterLabel": "Fixed trigger window",
+    "autoKontrolleFensterDesc": "Only trigger inspections within this window. Off: spread evenly across the waking day.",
     "sectionReinigung": "Cleaning",
     "sectionReasons": "Selection lists",
     "reasonOrgasmTitle": "Orgasm types",

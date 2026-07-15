@@ -95,13 +95,15 @@ export async function PATCH(
     body.autoKontrolleAktiv !== undefined || body.autoKontrollePerDayMin !== undefined ||
     body.autoKontrollePerDayMax !== undefined ||
     body.autoKontrolleRuheVon !== undefined || body.autoKontrolleRuheBis !== undefined ||
-    body.autoKontrolleFristVon !== undefined || body.autoKontrolleFristBis !== undefined
+    body.autoKontrolleFristVon !== undefined || body.autoKontrolleFristBis !== undefined ||
+    body.autoKontrolleFensterVon !== undefined || body.autoKontrolleFensterBis !== undefined
   ) {
     // Felder roh durchreichen — setAutoKontrolleSettings klemmt/validiert (HH:MM, Bereiche, Bis≥Von).
     return serviceResponse(await setAutoKontrolleSettings(id, {
       aktiv: body.autoKontrolleAktiv, perDayMin: body.autoKontrollePerDayMin, perDayMax: body.autoKontrollePerDayMax,
       ruheVon: body.autoKontrolleRuheVon, ruheBis: body.autoKontrolleRuheBis,
       fristVon: body.autoKontrolleFristVon, fristBis: body.autoKontrolleFristBis,
+      fensterVon: body.autoKontrolleFensterVon, fensterBis: body.autoKontrolleFensterBis,
     }));
   }
 

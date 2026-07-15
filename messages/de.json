@@ -855,6 +855,8 @@
     "autoKontrolleProTagHint": "zufällig/Tag",
     "autoKontrolleRuheLabel": "Keine Frist zwischen (Schlafzeit)",
     "autoKontrolleFristLabel": "Erfüllungsdauer",
+    "autoKontrolleFensterLabel": "Festes Auslöse-Fenster",
+    "autoKontrolleFensterDesc": "Kontrollen nur in diesem Zeitfenster auslösen. Aus: gleichmässig über den wachen Tag verteilt.",
     "sectionReinigung": "Reinigung",
     "sectionReasons": "Auswahllisten",
     "reasonOrgasmTitle": "Orgasmus-Arten",

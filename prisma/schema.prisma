@@ -31,6 +31,11 @@ model User {
   autoKontrolleRuheBis           String                   @default("06:00")
   autoKontrolleFristVon          Int                      @default(15)
   autoKontrolleFristBis          Int                      @default(60)
+  // Optionales festes AUSLÖSE-Fenster ("HH:MM", "" = aus): sind beide gesetzt und Von<Bis, fallen die
+  // Auslösungen (wirksamAb) in dieses Fenster statt gleichmässig übers Wach-Fenster. Die Frist läuft
+  // danach normal und darf übers Fensterende hinaus, wird aber am nächsten Schlaf-Beginn gekappt.
+  autoKontrolleFensterVon        String                   @default("")
+  autoKontrolleFensterBis        String                   @default("")
   // Kontroll-Eskalation (Stufe 1: Mahnung, Stufe 2: automatisch als abgelegt markieren). Beide
   // Stufen sind unabhängig voneinander schaltbar und standardmässig AUS (Opt-in, kein
   // Verhaltenswechsel für Bestandsnutzer). Delay-Werte in Minuten; Stufe 2 zählt ab dem Zeitpunkt
