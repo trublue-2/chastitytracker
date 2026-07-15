@@ -145,6 +145,9 @@ USE_ADMIN_RELATIONSHIPS=true       # optional: Admin↔User n:m Zuordnung aktivi
 TELEMETRY_URL=<url>                # optional: Telemetrie-Endpunkt
 TELEMETRY_INSTANCE_ID=<id>         # optional: Instanz-Kennung
 BUILD_DATE=<iso-date>              # optional: wird beim Build gesetzt
+# Update-Check / anonyme Deployment-Zählung (siehe docs/update-check.md):
+DISABLE_UPDATE_CENSUS=true         # optional: Census aus, Update-Check lädt direkt von GitHub
+UPSTREAM_CHANGELOG_URL=<url>       # optional: eigene Changelog-Quelle (dann keine Census-Header)
 # OVERRIDE des Strafbuch-Stichtags der Reinigungsfenster-Regel (ISO-8601). NORMALERWEISE NICHT
 # SETZEN: den Stichtag schreibt die Migration `20260714210000_cleaning_window_enforced_from` beim
 # ersten Boot jeder Instanz selbst in `AppMeta.cleaningWindowEnforcedFrom` — also genau dann, wenn

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.48",
+    "date": "2026-07-15",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Der Update-Check lädt das Changelog jetzt über den Projekt-Server statt direkt von GitHub und zählt dabei anonym mit, wie viele Instanzen laufen (auch self-gehostete) und auf welcher Version — ohne Nutzer- oder Instanzdaten (nur ein nicht umkehrbarer Hash zum Entdoppeln). Abschaltbar mit DISABLE_UPDATE_CENSUS=true. Fällt der Server aus, greift der Check automatisch wieder auf GitHub zurück. Details: docs/update-check.md.",
+          "en": "The update check now loads the changelog via the project server instead of directly from GitHub, anonymously counting how many instances run (including self-hosted ones) and on which version — no user or instance data (just a non-reversible hash for deduplication). Opt out with DISABLE_UPDATE_CENSUS=true. If the server is unreachable, the check automatically falls back to GitHub. Details: docs/update-check.md."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.47",
     "date": "2026-07-15",
     "changes": [
