@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.49",
+    "date": "2026-07-15",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Interne Telemetrie stillgelegt: Die Instanz sendet keine Ereignis-Telemetrie mehr an das Portal (die Funktion ist deaktiviert und als veraltet markiert). Ersetzt durch die anonyme Deployment-Zählung. Keine sichtbare Änderung für Nutzer.",
+          "en": "Internal telemetry retired: the instance no longer sends event telemetry to the portal (the function is deactivated and marked deprecated). Replaced by the anonymous deployment census. No user-visible change."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.48",
     "date": "2026-07-15",
     "changes": [
