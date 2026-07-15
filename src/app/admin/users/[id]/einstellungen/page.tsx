@@ -148,6 +148,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialRuheBis={user.autoKontrolleRuheBis}
           initialFristVon={user.autoKontrolleFristVon}
           initialFristBis={user.autoKontrolleFristBis}
+          initialFensterVon={user.autoKontrolleFensterVon}
+          initialFensterBis={user.autoKontrolleFensterBis}
         />
       </SettingsSection>
 
