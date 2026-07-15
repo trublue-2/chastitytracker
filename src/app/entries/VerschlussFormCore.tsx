@@ -15,6 +15,7 @@ import DateTimePicker from "@/app/components/DateTimePicker";
 import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
+import EntryFormShell from "@/app/components/EntryFormShell";
 import Select from "@/app/components/Select";
 import Card from "@/app/components/Card";
 import Toggle from "@/app/components/Toggle";
@@ -154,7 +155,24 @@ export default function VerschlussFormCore({
   const defaultLabel = isEdit ? t("update") : tForm("saveBtn");
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <EntryFormShell
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      cancelLabel={t("cancel")}
+      actions={
+        <Button
+          type="submit"
+          variant={submitVariant}
+          semantic={submitVariant === "semantic" ? "lock" : undefined}
+          fullWidth
+          loading={saving || uploading || codePhoto.uploading}
+          disabled={bildersafe && (!codeUrl || codeReadable === false)}
+          icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
+        >
+          {submitLabel ?? defaultLabel}
+        </Button>
+      }
+    >
       <RequiredHint />
 
       {showDeviceSelector && (
@@ -301,25 +319,6 @@ export default function VerschlussFormCore({
       />
 
       <FormError message={error} />
-
-      <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-        {onCancel && (
-          <Button type="button" variant="secondary" fullWidth onClick={onCancel}>
-            {t("cancel")}
-          </Button>
-        )}
-        <Button
-          type="submit"
-          variant={submitVariant}
-          semantic={submitVariant === "semantic" ? "lock" : undefined}
-          fullWidth
-          loading={saving || uploading || codePhoto.uploading}
-          disabled={bildersafe && (!codeUrl || codeReadable === false)}
-          icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
-        >
-          {submitLabel ?? defaultLabel}
-        </Button>
-      </div>
-    </form>
+    </EntryFormShell>
   );
 }

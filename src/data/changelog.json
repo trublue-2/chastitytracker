@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.46",
+    "date": "2026-07-15",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Aktions-Buttons der Eintrag-Formulare sind jetzt überall gleich: Die Felder stehen in einer Karte, darunter „Speichern\" (prominent) und „Abbrechen\" (leicht) gestapelt. Auf dem Handy bleibt diese Leiste unten „kleben\", während der Rest des Formulars dahinter scrollt — so ist „Speichern\" immer erreichbar. Am Desktop stehen die Buttons wie gewohnt nebeneinander.",
+          "en": "The action buttons of the entry forms are now consistent everywhere: fields sit in a card, with “Save” (prominent) and “Cancel” (light) stacked below. On mobile this bar now sticks to the bottom while the rest of the form scrolls behind it — so “Save” is always reachable. On desktop the buttons sit side by side as before."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.45",
     "date": "2026-07-15",
     "changes": [

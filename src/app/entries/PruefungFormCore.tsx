@@ -15,6 +15,7 @@ import DateTimePicker from "@/app/components/DateTimePicker";
 import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
+import EntryFormShell from "@/app/components/EntryFormShell";
 import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
@@ -172,7 +173,23 @@ export default function PruefungFormCore({
   const hasPrefilledCode = !!(initialCode || initial?.kontrollCode);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <EntryFormShell
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      cancelLabel={tc("cancel")}
+      actions={
+        <Button
+          type="submit"
+          variant={submitVariant}
+          semantic={submitVariant === "semantic" ? "inspect" : undefined}
+          fullWidth
+          loading={saving || uploading}
+          icon={submitVariant === "primary" ? <ClipboardCheck size={16} /> : undefined}
+        >
+          {submitLabel ?? defaultLabel}
+        </Button>
+      }
+    >
       {!isOnline && (
         <Card variant="semantic" semantic="warn">
           <div className="flex items-start gap-2.5">
@@ -272,24 +289,6 @@ export default function PruefungFormCore({
       />
 
       <FormError message={error} />
-
-      <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-        {onCancel && (
-          <Button type="button" variant="secondary" fullWidth onClick={onCancel}>
-            {tc("cancel")}
-          </Button>
-        )}
-        <Button
-          type="submit"
-          variant={submitVariant}
-          semantic={submitVariant === "semantic" ? "inspect" : undefined}
-          fullWidth
-          loading={saving || uploading}
-          icon={submitVariant === "primary" ? <ClipboardCheck size={16} /> : undefined}
-        >
-          {submitLabel ?? defaultLabel}
-        </Button>
-      </div>
-    </form>
+    </EntryFormShell>
   );
 }

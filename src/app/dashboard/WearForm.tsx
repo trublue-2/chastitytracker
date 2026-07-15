@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import Card from "@/app/components/Card";
+import EntryFormShell from "@/app/components/EntryFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
@@ -177,8 +177,16 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   const style = categoryStyle(category.color);
 
   return (
-    <Card>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
+    <EntryFormShell
+      onSubmit={handleSubmit}
+      onCancel={() => router.push("/dashboard")}
+      cancelLabel={tCommon("cancel")}
+      actions={
+        <Button type="submit" variant="primary" fullWidth loading={saving}>
+          {tCommon("save")}
+        </Button>
+      }
+    >
         {/* Category header */}
         <div className="flex items-center gap-3">
           <div
@@ -269,16 +277,6 @@ export default function WearForm({ kind, category, devices, activeSession, admin
         <RequiredHint />
 
         {error && <FormError message={error} />}
-
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="secondary" fullWidth onClick={() => router.push("/dashboard")} disabled={saving}>
-            {tCommon("cancel")}
-          </Button>
-          <Button type="submit" variant="primary" fullWidth loading={saving}>
-            {tCommon("save")}
-          </Button>
-        </div>
-      </form>
-    </Card>
+    </EntryFormShell>
   );
 }
