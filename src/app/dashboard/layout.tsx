@@ -4,6 +4,7 @@ import InstallBanner from "@/app/components/InstallBanner";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
 import ThemeApplicator from "@/app/components/ThemeApplicator";
 import DashboardBottomNav from "./DashboardBottomNav";
+import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getIsLocked, getActiveWearSessions } from "@/lib/queries";
@@ -61,12 +62,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
         bildersafe={bildersafeEnabled()}
       />
 
-      {/* Content area: offset for sidebar on desktop, offset for bottom nav on mobile */}
-      <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain">
+      {/* Content area: offset for sidebar on desktop. Der Platz für die fixe Bottom-Nav (Mobile)
+          kommt vom BottomNavSpacer am Fluss-Ende — er entfällt auf den Erfassungs-Seiten, wo die Nav
+          ausgeblendet ist, sodass sich dort ihr Platz nicht mit dem der fixen Aktionsleiste stapelt. */}
+      <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] overscroll-y-contain">
         <div className="w-full max-w-2xl mx-auto px-4">
           <OfflineIndicator />
         </div>
         {children}
+        <BottomNavSpacer />
       </div>
 
       <DashboardBottomNav

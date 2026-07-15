@@ -11,7 +11,15 @@ import FormActions from "@/app/components/FormActions";
  * Der Speichern-Button ist formularspezifisch (Farbe/Icon/Label/loading/disabled) → `actions`-Slot.
  * `onSubmit` weglassen für Formulare, die per Button-`onClick` statt nativem Submit speichern
  * (z.B. Bildersafe) → dann rendert die Hülle ein `<div>` statt `<form>`.
+ *
+ * Auf Mobile ist die Aktions-Zeile ({@link FormActions}) `fixed` am unteren Rand; darum reserviert die
+ * Hülle unten ~8.5rem Platz (Höhe zweier gestapelter Buttons + Ränder), damit das letzte Feld beim
+ * Scrollen frei über der Leiste steht. Am Desktop steht die Zeile in-flow → kein Reserve-Platz.
  */
+// Muss die gerenderte Höhe der fixen FormActions-Leiste decken: zwei gestapelte Buttons (je min-h-12
+// = 3rem) + gap-2 + pt-3 + Border ≈ 8rem; 8.5rem gibt etwas Luft. Ändert sich das Button-Layout in
+// FormActions, hier mitziehen. Der 1-Button-Fall (Bildersafe) über-reserviert nur harmlos.
+const RESERVE = "pb-[calc(8.5rem+env(safe-area-inset-bottom))] sm:pb-0";
 export default function EntryFormShell({
   onSubmit,
   children,
@@ -35,10 +43,10 @@ export default function EntryFormShell({
   );
 
   return onSubmit ? (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className={`flex flex-col gap-4 ${RESERVE}`}>
       {body}
     </form>
   ) : (
-    <div className="flex flex-col gap-4">{body}</div>
+    <div className={`flex flex-col gap-4 ${RESERVE}`}>{body}</div>
   );
 }

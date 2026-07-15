@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.47",
+    "date": "2026-07-15",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Speichern-/Abbrechen-Leiste der Eintrag-Formulare bleibt auf dem Handy jetzt zuverlässig am unteren Bildschirmrand — auch bei kurzen Formularen, wo sie vorher in der Bildschirmmitte „hing\", und beim Öffnen der Tastatur, wo sie sich nach oben schob. Der Rest des Formulars scrollt dahinter. Am Desktop unverändert.",
+          "en": "The save/cancel bar of the entry forms now reliably stays at the bottom of the screen on mobile — including on short forms, where it previously floated in the middle of the screen, and when the keyboard opens, where it used to shift upward. The rest of the form scrolls behind it. Unchanged on desktop."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.46",
     "date": "2026-07-15",
     "changes": [
