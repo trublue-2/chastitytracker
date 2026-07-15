@@ -9,6 +9,23 @@ import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/co
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { clampInputValue } from "@/lib/utils";
 
+/** Zwei Uhrzeit-Eingaben „von – bis" (Schlaf- bzw. festes Auslöse-Fenster). */
+function TimeRangeRow({
+  label, from, to, setFrom, setTo, disabled, fromAria, toAria,
+}: {
+  label: string; from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void;
+  disabled: boolean; fromAria: string; toAria: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 pl-1">
+      <span className={faintCls}>{label}</span>
+      <TimeField value={from} disabled={disabled} ariaLabel={fromAria} onChange={setFrom} />
+      <span className={faintCls}>–</span>
+      <TimeField value={to} disabled={disabled} ariaLabel={toAria} onChange={setTo} />
+    </div>
+  );
+}
+
 /** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit. */
 function NumberRangeRow({
   label, min, max, fromFallback, toFallback, from, to, setFrom, setTo, unit, disabled,
@@ -40,7 +57,12 @@ interface AutoKontrolleForm {
   ruheBis: string;
   fristVon: number;
   fristBis: number;
+  fensterVon: string; // "" = kein festes Auslöse-Fenster
+  fensterBis: string;
 }
+
+/** Vorschlag beim EINSCHALTEN des festen Fensters — nur, wenn noch nichts gesetzt ist. */
+const FENSTER_DEFAULT = { von: "10:00", bis: "18:00" } as const;
 
 /**
  * Alle Felder werden lokal gehalten und mit EINEM PATCH gespeichert. Ein Commit je Feld (onBlur) würde
@@ -56,6 +78,8 @@ export default function AutoKontrolleToggle({
   initialRuheBis,
   initialFristVon,
   initialFristBis,
+  initialFensterVon,
+  initialFensterBis,
 }: {
   userId: string;
   initialAktiv: boolean;
@@ -65,6 +89,8 @@ export default function AutoKontrolleToggle({
   initialRuheBis: string;
   initialFristVon: number;
   initialFristBis: number;
+  initialFensterVon: string;
+  initialFensterBis: string;
 }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
@@ -72,6 +98,7 @@ export default function AutoKontrolleToggle({
   const initial: AutoKontrolleForm = {
     aktiv: initialAktiv, perDayMin: initialPerDayMin, perDayMax: initialPerDayMax,
     ruheVon: initialRuheVon, ruheBis: initialRuheBis, fristVon: initialFristVon, fristBis: initialFristBis,
+    fensterVon: initialFensterVon, fensterBis: initialFensterBis,
   };
   const [form, setForm] = useState(initial);
   // Der zuletzt vom Server angenommene Stand — Referenz für „geändert?". Ein abgelehnter Patch (z.B.
@@ -83,14 +110,23 @@ export default function AutoKontrolleToggle({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // Festes Auslöse-Fenster an, sobald eine der beiden Zeiten gesetzt ist (leer = aus).
+  const fensterOn = form.fensterVon !== "" || form.fensterBis !== "";
+
   async function handleSave() {
     // Der Server hebt ein „Bis" unter das „Von" an (raiseMaxToMin). Dieselbe Normalisierung hier, sonst
     // zeigte das Formular nach dem Speichern eine Zahl an, die so nie gespeichert wurde — und wäre dabei
     // als „nicht geändert" markiert, weil `saved` den ungespeicherten Stand übernommen hätte.
+    // Ein festes Fenster gilt nur, wenn BEIDE Zeiten stehen (so wertet es auch der Service:
+    // fixedWindowMinutes verlangt Von UND Bis). Ist nur eine gesetzt, als „aus" speichern — sonst
+    // zeigte der Toggle „an", während die Auslösungen sich doch übers Wach-Fenster verteilten.
+    const fensterComplete = form.fensterVon !== "" && form.fensterBis !== "";
     const normalized: AutoKontrolleForm = {
       ...form,
       perDayMax: Math.max(form.perDayMin, form.perDayMax),
       fristBis: Math.max(form.fristVon, form.fristBis),
+      fensterVon: fensterComplete ? form.fensterVon : "",
+      fensterBis: fensterComplete ? form.fensterBis : "",
     };
     const ok = await save({
       autoKontrolleAktiv: normalized.aktiv,
@@ -100,6 +136,8 @@ export default function AutoKontrolleToggle({
       autoKontrolleRuheBis: normalized.ruheBis,
       autoKontrolleFristVon: normalized.fristVon,
       autoKontrolleFristBis: normalized.fristBis,
+      autoKontrolleFensterVon: normalized.fensterVon,
+      autoKontrolleFensterBis: normalized.fensterBis,
     });
     if (ok) {
       setForm(normalized);
@@ -127,22 +165,14 @@ export default function AutoKontrolleToggle({
           />
 
           {/* Schlaf-Fenster (Frist darf hier nicht liegen) */}
-          <div className="flex items-center gap-2 pl-1">
-            <span className={faintCls}>{t("autoKontrolleRuheLabel")}</span>
-            <TimeField
-              value={form.ruheVon}
-              disabled={saving}
-              ariaLabel={`${t("autoKontrolleRuheLabel")} ${tc("from")}`}
-              onChange={(v) => set("ruheVon", v)}
-            />
-            <span className={faintCls}>–</span>
-            <TimeField
-              value={form.ruheBis}
-              disabled={saving}
-              ariaLabel={`${t("autoKontrolleRuheLabel")} ${tc("to")}`}
-              onChange={(v) => set("ruheBis", v)}
-            />
-          </div>
+          <TimeRangeRow
+            label={t("autoKontrolleRuheLabel")}
+            from={form.ruheVon} to={form.ruheBis}
+            setFrom={(v) => set("ruheVon", v)} setTo={(v) => set("ruheBis", v)}
+            disabled={saving}
+            fromAria={`${t("autoKontrolleRuheLabel")} ${tc("from")}`}
+            toAria={`${t("autoKontrolleRuheLabel")} ${tc("to")}`}
+          />
 
           {/* Erfüllungsdauer von–bis (Minuten) */}
           <NumberRangeRow
@@ -151,6 +181,29 @@ export default function AutoKontrolleToggle({
             setFrom={(n) => set("fristVon", n)} setTo={(n) => set("fristBis", n)}
             unit="min" disabled={saving}
           />
+
+          {/* Optionales festes Auslöse-Fenster: aus (leer) → Trigger verteilen sich übers Wach-Fenster */}
+          <Toggle
+            label={t("autoKontrolleFensterLabel")}
+            description={t("autoKontrolleFensterDesc")}
+            checked={fensterOn}
+            disabled={saving}
+            onChange={(on) => setForm((f) => ({
+              ...f,
+              fensterVon: on ? (f.fensterVon || FENSTER_DEFAULT.von) : "",
+              fensterBis: on ? (f.fensterBis || FENSTER_DEFAULT.bis) : "",
+            }))}
+          />
+          {fensterOn && (
+            <TimeRangeRow
+              label={t("autoKontrolleFensterLabel")}
+              from={form.fensterVon} to={form.fensterBis}
+              setFrom={(v) => set("fensterVon", v)} setTo={(v) => set("fensterBis", v)}
+              disabled={saving}
+              fromAria={`${t("autoKontrolleFensterLabel")} ${tc("from")}`}
+              toAria={`${t("autoKontrolleFensterLabel")} ${tc("to")}`}
+            />
+          )}
         </>
       )}
       <Button size="sm" onClick={handleSave} loading={saving} disabled={!dirty} className="w-fit">

@@ -21,6 +21,8 @@ export interface AutoKontrolleSettings {
   ruheBis: string; // "HH:MM" Schlaf-Fenster Ende
   fristVon: number; // min Erfüllungsdauer (Min)
   fristBis: number; // max Erfüllungsdauer (Min)
+  fensterVon: string; // "HH:MM" optionales festes Auslöse-Fenster Start ("" = aus)
+  fensterBis: string; // "HH:MM" optionales festes Auslöse-Fenster Ende ("" = aus)
 }
 
 export type SetAutoKontrolleParams = Partial<AutoKontrolleSettings>;
@@ -109,12 +111,60 @@ export function isInQuietMinutes(vonMin: number, bisMin: number, min: number): b
   return vonMin < bisMin ? m >= vonMin && m < bisMin : m >= vonMin || m < bisMin;
 }
 
+// ── Festes Auslöse-Fenster ─────────────────────────────────────────────────────
+
+/** Parst das optionale feste Auslöse-Fenster (HH:MM–HH:MM). Gültig NUR, wenn beide Zeiten valide sind
+ *  UND Von < Bis (ein festes Fenster wrappt bewusst nicht über Mitternacht); sonst null → Fallback aufs
+ *  Wach-Fenster. "" (leer, Default) → null. */
+function fixedWindowMinutes(s: AutoKontrolleSettings): { start: number; end: number } | null {
+  if (!HHMM.test(s.fensterVon) || !HHMM.test(s.fensterBis)) return null;
+  const start = hhmmToMinutes(s.fensterVon);
+  const end = hhmmToMinutes(s.fensterBis);
+  return end > start ? { start, end } : null;
+}
+
+/** Nächster Schlaf-Beginn ≥ `trig` (+1440, wenn der heutige Schlaf-Beginn schon vor dem Trigger liegt
+ *  — dann ist es der von morgen). Trigger sind vor Aufruf bereits als „nicht im Schlaf" gefiltert. */
+function nextSleepStart(quietVon: number, trig: number): number {
+  return quietVon > trig ? quietVon : quietVon + 1440;
+}
+
+/** Frist eines Fenster-Triggers: normal (`trig+dur`), aber am nächsten Schlaf-Beginn gekappt — so
+ *  liegt weder Auslösung noch Frist je im Schlaf. null, wenn nach dem Kappen nicht mehr die volle
+ *  Mindest-Frist (`fristVon`) bleibt: dann ist der Trigger zu nah am Schlaf und wird übersprungen.
+ *  Damit hält JEDER erzeugte Fenster-Slot `dur ∈ [fristVon, fristBis]` — dieselbe Gültigkeit, die
+ *  `repairAutoKontrollen` prüft, sonst würfe generate Slots aus, die der nächste Replan wieder löscht. */
+function windowDeadlineMin(trig: number, dur: number, quietVon: number, fristVon: number): number | null {
+  const deadline = Math.min(trig + dur, nextSleepStart(quietVon, trig) - 1);
+  return deadline - trig >= fristVon ? deadline : null;
+}
+
+/** Die Schlaf-Minuten INNERHALB eines nicht-wrappenden Fensters `[start, end)` — als belegte
+ *  Intervalle, damit die Fenster-Fill-Logik dort keine Trigger platziert. Wrap-aware gegen das
+ *  Schlaf-Fenster (`quietVon`/`quietBis`). */
+function sleepBlocksWithin(win: { start: number; end: number }, quietVon: number, quietBis: number): { start: number; end: number }[] {
+  if (quietVon === quietBis) return []; // kein Schlaf
+  const sleep = quietVon < quietBis
+    ? [{ start: quietVon, end: quietBis }]                          // 02:00–05:00
+    : [{ start: quietVon, end: 1440 }, { start: 0, end: quietBis }]; // 22:00–06:00 (wrap)
+  return sleep
+    .map((s) => ({ start: Math.max(s.start, win.start), end: Math.min(s.end, win.end) }))
+    .filter((s) => s.end > s.start);
+}
+
 /**
  * Würfelt zuerst eine Tages-Anzahl `x ∈ [perDayMin, perDayMax]` und erzeugt bis zu `x` Slots
- * `{ wirksamAb, deadline }` für den heutigen CH-Tag. Das Wach-Fenster (Komplement des Schlaf-Fensters)
- * wird in `x` gleiche Segmente geteilt; je Segment liegen Trigger UND Frist innerhalb des Segments →
- * keine Überlappung, und die Frist liegt garantiert außerhalb des Schlaf-Fensters. Nur Slots mit
- * `wirksamAb > now` werden zurückgegeben (Teiltag bei Mittags-Start). Reine Funktion (Zufall injizierbar).
+ * `{ wirksamAb, deadline }` für den heutigen Tag. Nur Slots mit `wirksamAb > now` (Teiltag bei
+ * Mittags-Start). Reine Funktion (Zufall injizierbar).
+ *
+ * OHNE festes Fenster: das Wach-Fenster (Komplement des Schlaf-Fensters) wird in `x` gleiche Segmente
+ * geteilt; je Segment liegen Trigger UND Frist im Segment → keine Überlappung, Frist strikt vor dem
+ * Schlaf-Beginn.
+ *
+ * MIT festem Fenster (`fensterVon`/`fensterBis`): die Auslösungen fallen ins Fenster (Trigger, die
+ * doch ins Schlaf-Fenster fielen, werden übersprungen); die Frist läuft danach normal
+ * (`fristVon..fristBis`) und darf übers Fensterende hinaus, wird aber am nächsten Schlaf-Beginn
+ * gekappt. Die Zeit-Achse (`minuteAxis`, Anker Wach-Beginn) ist in beiden Zweigen dieselbe → DST-sicher.
  */
 export function generateAutoKontrollen(
   settings: AutoKontrolleSettings,
@@ -130,16 +180,37 @@ export function generateAutoKontrollen(
   const { von: fristVon, bis: fristBis } = fristRange(settings);
 
   const { start: awakeStart, end: awakeEnd } = awakeWindow(settings);
-  const span = awakeEnd - awakeStart;
-  if (span <= 0) return [];
+  if (awakeEnd - awakeStart <= 0) return [];
 
-  const segSize = span / x;
   const out: AutoKontrolleSlot[] = [];
-
   const { at: atMinute } = minuteAxis(now, awakeStart, tz);
+  const pushIfFuture = (trig: number, deadlineMin: number) => {
+    const wirksamAb = atMinute(trig);
+    if (wirksamAb.getTime() > now.getTime()) out.push({ wirksamAb, deadline: atMinute(deadlineMin) });
+  };
 
-  // In GANZZAHL-Minuten rechnen (keine Float-/Rundungs-Kanten). Trigger UND Frist bleiben im Segment
-  // → keine Überlappung; die Frist wird strikt VOR awakeEnd (= Schlaf-Start) gekappt → nie im Schlaf.
+  const fixed = fixedWindowMinutes(settings);
+  if (fixed) {
+    // Festes Auslöse-Fenster: `x` Trigger übers Fenster verteilt (ein Segment je Trigger), Schlaf
+    // übersprungen, Frist am Schlaf-Beginn gekappt.
+    const quietVon = hhmmToMinutes(settings.ruheVon);
+    const quietBis = hhmmToMinutes(settings.ruheBis);
+    const segSize = (fixed.end - fixed.start) / x;
+    for (let i = 0; i < x; i++) {
+      const triggerMin = Math.ceil(fixed.start + i * segSize);
+      const triggerMax = Math.floor(fixed.start + (i + 1) * segSize) - 1; // Trigger vor Segmentende → verteilt
+      if (triggerMax < triggerMin) continue; // Segment < 1 Min → überspringen
+      const trig = randomInt(rand, triggerMin, triggerMax);
+      if (isInQuietMinutes(quietVon, quietBis, trig)) continue; // nie im Schlaf wecken
+      const deadlineMin = windowDeadlineMin(trig, randomInt(rand, fristVon, fristBis), quietVon, fristVon);
+      if (deadlineMin !== null) pushIfFuture(trig, deadlineMin);
+    }
+    return out;
+  }
+
+  // Ohne festes Fenster (Bestand): Trigger UND Frist je Segment → keine Überlappung, Frist strikt vor
+  // awakeEnd (= Schlaf-Start). In GANZZAHL-Minuten (keine Float-/Rundungs-Kanten).
+  const segSize = (awakeEnd - awakeStart) / x;
   for (let i = 0; i < x; i++) {
     const segStart = awakeStart + i * segSize;
     const segEnd = awakeStart + (i + 1) * segSize;
@@ -148,9 +219,7 @@ export function generateAutoKontrollen(
     const triggerMax = Math.min(Math.floor(segEnd - dur), awakeEnd - 1 - dur); // Frist ≤ awakeEnd−1
     if (triggerMax < triggerMin) continue; // Segment zu klein → überspringen
     const trig = randomInt(rand, triggerMin, triggerMax);
-    const wirksamAb = atMinute(trig);
-    const deadline = atMinute(trig + dur);
-    if (wirksamAb.getTime() > now.getTime()) out.push({ wirksamAb, deadline });
+    pushIfFuture(trig, trig + dur);
   }
   return out;
 }
@@ -179,13 +248,19 @@ function freeGaps(lower: number, upper: number, occupied: { start: number; end: 
  * Aufrufer schreibt dann gar nichts.
  *
  * Ein Slot verletzt die Settings, wenn Trigger oder Frist im Schlaf-Fenster liegen oder die
- * Erfüllungsdauer ausserhalb von `[fristVon, fristBis]` liegt. Bereits versendete Kontrollen sind für
- * den Sub sichtbar und bleiben immer stehen; sie belegen ihren Zeitraum und zählen aufs Tages-Kontingent.
+ * Erfüllungsdauer ausserhalb von `[fristVon, fristBis]` liegt. MIT festem Auslöse-Fenster verletzt ein
+ * Slot zusätzlich, wenn sein Trigger ausserhalb des Fensters liegt — so zieht auch ein mittags gesetztes
+ * Fenster den heutigen Rest-Plan hinein. Bereits versendete Kontrollen sind für den Sub sichtbar und
+ * bleiben immer stehen; sie belegen ihren Zeitraum und zählen aufs Tages-Kontingent.
  *
  * Nachgezogen wird nur, wenn die Anzahl UNTER `perDayMin` fällt (dann bis `perDayMin`), gestrichen nur
  * über `perDayMax` (dann die spätesten noch nicht versendeten). Ein blosses Anheben von `perDayMax`
  * plant also nichts nach — die Tages-Anzahl wurde bereits gewürfelt und bleibt gültig. Neue Slots landen
- * ausschliesslich in den freien Lücken des Rest-Wachfensters, damit sie sich nicht überlappen.
+ * ausschliesslich in den freien Lücken des Trigger-Bereichs (Wach- bzw. festes Fenster), damit sie sich
+ * nicht überlappen. Die Fill-Slots halten Trigger UND Frist innerhalb ihrer Lücke — anders als
+ * `generate`, das im Fenster-Fall die Frist bis zum Schlaf-Beginn ziehen darf; das ist bewusst
+ * konservativer (kein Überlappen mit dem nächsten Slot/Schlaf), der Effekt betrifft nur die letzte
+ * Fenster-Minute.
  *
  * Reine Funktion (Zufall injizierbar); der Aufrufer führt `deleteIds` und `create` gegen die DB aus.
  */
@@ -204,19 +279,39 @@ export function repairAutoKontrollen(
   }
 
   const { von: fristVon, bis: fristBis } = fristRange(settings);
-  // Dieselbe Achse wie `generateAutoKontrollen` — sonst liegen ersetzte und behaltene Slots an einem
-  // Umstellungstag eine Stunde auseinander.
+  // Dieselbe Achse (Anker Wach-Beginn) wie `generateAutoKontrollen` — sonst liegen ersetzte und
+  // behaltene Slots an einem Umstellungstag eine Stunde auseinander.
   const { at, minuteOf } = minuteAxis(now, awakeStart, tz);
   const slots = existing.map((e) => ({
     id: e.id, sent: e.sent,
     start: minuteOf(e.wirksamAb),
     end: minuteOf(e.deadline),
   }));
-  const violates = (s: { start: number; end: number }) =>
-    s.start < awakeStart || s.end > awakeEnd || s.end - s.start < fristVon || s.end - s.start > fristBis;
 
-  const deleteIds = slots.filter((s) => !s.sent && violates(s)).map((s) => s.id);
-  let keep = slots.filter((s) => s.sent || !violates(s));
+  // Der Trigger-Bereich als EIN Deskriptor: wohin ein Trigger darf (`lower`/`upper`), welche
+  // Zusatz-Intervalle darin belegt sind (Schlaf im Fenster) und wann ein Slot ihn verletzt. Ohne
+  // festes Fenster ist das exakt das bisherige Wach-Fenster-Verhalten — der Bestand bleibt unberührt.
+  const fixed = fixedWindowMinutes(settings);
+  const quietVon = hhmmToMinutes(settings.ruheVon);
+  const quietBis = hhmmToMinutes(settings.ruheBis);
+  const durOk = (s: { start: number; end: number }) => s.end - s.start >= fristVon && s.end - s.start <= fristBis;
+  const domain = fixed
+    ? {
+        lower: fixed.start, upper: fixed.end,
+        occupied: sleepBlocksWithin(fixed, quietVon, quietBis),
+        violates: (s: { start: number; end: number }) =>
+          s.start < fixed.start || s.start > fixed.end ||
+          isInQuietMinutes(quietVon, quietBis, s.start) ||
+          s.end > nextSleepStart(quietVon, s.start) || !durOk(s),
+      }
+    : {
+        lower: awakeStart, upper: awakeEnd,
+        occupied: [] as { start: number; end: number }[],
+        violates: (s: { start: number; end: number }) => s.start < awakeStart || s.end > awakeEnd || !durOk(s),
+      };
+
+  const deleteIds = slots.filter((s) => !s.sent && domain.violates(s)).map((s) => s.id);
+  let keep = slots.filter((s) => s.sent || !domain.violates(s));
 
   // Zu viele ⇒ die spätesten noch nicht versendeten streichen (die am wenigsten „feststehen").
   if (keep.length > max) {
@@ -227,9 +322,11 @@ export function repairAutoKontrollen(
     keep = keep.filter((s) => !dropped.has(s.id));
   }
 
-  // Zu wenige ⇒ in der grössten freien Lücke des Rest-Wachfensters nachziehen, bis keine mehr passt.
+  // Zu wenige ⇒ in der grössten freien Lücke des Trigger-Bereichs nachziehen, bis keine mehr passt.
+  // Schlaf-Blöcke im Fenster zählen als belegt → dort landet nie ein Trigger, und weil die Lücke am
+  // Schlaf-Block endet, liegt auch die Frist (≤ Lückenende) nie im Schlaf.
   const create: AutoKontrolleSlot[] = [];
-  let gaps = freeGaps(Math.max(awakeStart, minuteOf(now) + 1), awakeEnd, keep);
+  let gaps = freeGaps(Math.max(domain.lower, minuteOf(now) + 1), domain.upper, [...keep, ...domain.occupied]);
   for (let i = keep.length; i < min; i++) {
     if (gaps.length === 0) break;
     const best = gaps.reduce((bi, g, gi) => (gapLen(g) > gapLen(gaps[bi]) ? gi : bi), 0);
@@ -249,6 +346,7 @@ export function autoKontrolleSettingsFromUser(u: {
   autoKontrolleAktiv: boolean; autoKontrollePerDayMin: number; autoKontrollePerDayMax: number;
   autoKontrolleRuheVon: string; autoKontrolleRuheBis: string;
   autoKontrolleFristVon: number; autoKontrolleFristBis: number;
+  autoKontrolleFensterVon: string; autoKontrolleFensterBis: string;
 }): AutoKontrolleSettings {
   return {
     aktiv: u.autoKontrolleAktiv,
@@ -258,6 +356,8 @@ export function autoKontrolleSettingsFromUser(u: {
     ruheBis: u.autoKontrolleRuheBis,
     fristVon: u.autoKontrolleFristVon,
     fristBis: u.autoKontrolleFristBis,
+    fensterVon: u.autoKontrolleFensterVon,
+    fensterBis: u.autoKontrolleFensterBis,
   };
 }
 
@@ -265,6 +365,7 @@ const AUTO_USER_SELECT = {
   id: true, timezone: true, autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true,
   autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
+  autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
 } as const;
 
 /** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null). */
@@ -375,6 +476,7 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
     autoKontrolleAktiv?: boolean; autoKontrollePerDayMin?: number; autoKontrollePerDayMax?: number;
     autoKontrolleRuheVon?: string; autoKontrolleRuheBis?: string;
     autoKontrolleFristVon?: number; autoKontrolleFristBis?: number;
+    autoKontrolleFensterVon?: string; autoKontrolleFensterBis?: string;
   } = {};
 
   if (params.aktiv !== undefined) data.autoKontrolleAktiv = Boolean(params.aktiv);
@@ -392,6 +494,15 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   }
   if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, FRIST_RANGE);
   if (params.fristBis !== undefined) data.autoKontrolleFristBis = clamp(params.fristBis, FRIST_RANGE);
+  // Festes Auslöse-Fenster: "" schaltet es aus (kein Fenster), sonst muss es HH:MM sein.
+  if (params.fensterVon !== undefined) {
+    if (params.fensterVon !== "" && !HHMM.test(params.fensterVon)) return serviceFail(400, INVALID_TIME);
+    data.autoKontrolleFensterVon = params.fensterVon;
+  }
+  if (params.fensterBis !== undefined) {
+    if (params.fensterBis !== "" && !HHMM.test(params.fensterBis)) return serviceFail(400, INVALID_TIME);
+    data.autoKontrolleFensterBis = params.fensterBis;
+  }
   // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay & Frist).
   // Nur die vorhandenen Bis-Keys anfassen, sonst würde undefined den „keine Felder"-Guard aushebeln.
   if (data.autoKontrollePerDayMax !== undefined) data.autoKontrollePerDayMax = raiseMaxToMin(data.autoKontrollePerDayMin, data.autoKontrollePerDayMax);

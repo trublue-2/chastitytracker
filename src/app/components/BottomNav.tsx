@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 import { adminNavEntry } from "@/lib/adminNavEntry";
+import { isEntryFormRoute } from "@/lib/entryFormRoute";
 import { hapticLight } from "@/lib/haptics";
 
 interface BottomNavProps {
@@ -20,6 +21,12 @@ interface BottomNavProps {
 export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }: BottomNavProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
+
+  // Auf den Erfassungs-/Bearbeitungs-Seiten die fixe Leiste ausblenden. Sonst verdeckte sie am
+  // unteren Rand (Mobile) den „Speichern"-Button, der dort selbst in einer fixen Aktionsleiste sitzt.
+  // Zum Verlassen gibt es dort Abbrechen + „← Neu"; die Weg-Navigation ist während der fokussierten
+  // Eingabe ohnehin überflüssig. `BottomNavSpacer` lässt hier passend den reservierten Platz weg.
+  if (isEntryFormRoute(pathname)) return null;
 
   const tabs = [
     { href: "/dashboard", icon: Home, label: t("overview"), exact: true },

@@ -1,5 +1,31 @@
 [
   {
+    "version": "4.50.47",
+    "date": "2026-07-15",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Erfassen und Bearbeiten auf dem Handy überarbeitet: einheitliche Speichern-/Abbrechen-Leiste, die zuverlässig am unteren Bildschirmrand bleibt (auch bei kurzen Formularen und offener Tastatur). Die untere Menü-Leiste wird dabei ausgeblendet. Am Desktop unverändert.",
+          "en": "Reworked creating and editing on mobile: a consistent save/cancel bar that reliably stays at the bottom of the screen (even on short forms and with the keyboard open). The bottom navigation bar is hidden while doing so. Unchanged on desktop."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.44",
+    "date": "2026-07-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Automatische Kontrollen können jetzt auf ein festes Auslöse-Fenster begrenzt werden (Admin-Einstellung, optional). Ohne Fenster verteilen sich die Auslösungen wie bisher über den ganzen wachen Tag; mit Fenster fallen sie ausschliesslich in die gesetzte Uhrzeit-Spanne. Die Erfüllungsfrist läuft danach normal weiter und wird nur am Beginn der Schlafzeit gekappt — so weckt nie eine Auslösung oder Frist mitten in der Nacht. Ist vor der Schlafzeit nicht mehr die volle Mindest-Frist Platz, wird die Auslösung übersprungen statt unbrauchbar kurz angesetzt.",
+          "en": "Automatic inspections can now be limited to a fixed trigger window (optional admin setting). Without a window, triggers spread across the whole waking day as before; with a window they fall only within the configured time span. The fulfillment deadline then runs normally and is only capped at the start of sleep hours — so neither a trigger nor a deadline ever lands in the middle of the night. If there is no longer room for the full minimum deadline before sleep, the trigger is skipped rather than scheduled uselessly short."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.43",
     "date": "2026-07-14",
     "changes": [

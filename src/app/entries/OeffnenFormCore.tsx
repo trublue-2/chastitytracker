@@ -13,6 +13,7 @@ import DateTimePicker from "@/app/components/DateTimePicker";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
+import EntryFormShell from "@/app/components/EntryFormShell";
 import Card from "@/app/components/Card";
 import Sheet from "@/app/components/Sheet";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
@@ -196,7 +197,23 @@ export default function OeffnenFormCore({
         </div>
       </Sheet>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <EntryFormShell
+        onSubmit={handleSubmit}
+        onCancel={onCancel}
+        cancelLabel={tCommon("cancel")}
+        actions={
+          <Button
+            type="submit"
+            variant={submitVariant}
+            semantic={submitVariant === "semantic" ? "unlock" : undefined}
+            fullWidth
+            loading={saving}
+            icon={submitVariant === "primary" ? <LockOpen size={16} /> : undefined}
+          >
+            {submitLabel ?? defaultLabel}
+          </Button>
+        }
+      >
         <RequiredHint />
 
         {isGesperrtBlockiert && (
@@ -275,25 +292,7 @@ export default function OeffnenFormCore({
         />
 
         <FormError message={error} />
-
-        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-          {onCancel && (
-            <Button type="button" variant="secondary" fullWidth onClick={onCancel}>
-              {tCommon("cancel")}
-            </Button>
-          )}
-          <Button
-            type="submit"
-            variant={submitVariant}
-            semantic={submitVariant === "semantic" ? "unlock" : undefined}
-            fullWidth
-            loading={saving}
-            icon={submitVariant === "primary" ? <LockOpen size={16} /> : undefined}
-          >
-            {submitLabel ?? defaultLabel}
-          </Button>
-        </div>
-      </form>
+      </EntryFormShell>
     </>
   );
 }
