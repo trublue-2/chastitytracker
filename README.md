@@ -8,16 +8,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
 > [!NOTE]
-> ### An alle, die den Tracker selbst hosten 👋
->
-> Mir ist klar, dass inzwischen einige von euch das Projekt auf **eigener Infrastruktur** betreiben — das freut mich wirklich. Nur: ich sehe euch nicht. Self-gehostete Instanzen melden sich bewusst nirgends, und genau das ist ja der Sinn.
->
-> Deshalb meine Bitte:
-> - **Gebt mir Feedback** — was läuft, was fehlt, was nervt.
-> - **Meldet Probleme aktiv** über die [Issues](../../issues) oder per Mail an **info@chastitytracker.ch**. Von einem Bug, den ich nicht kenne, erfahre ich sonst nie.
-> - Nur mit eurer Rückmeldung bleibt das Projekt lebendig und wächst weiter.
->
-> Danke, dass ihr dabei seid. — *trublue*
+> **An alle, die den Tracker selbst hosten** 👋 — mir ist klar, dass inzwischen einige von euch das Projekt auf eigener Infrastruktur betreiben, und das freut mich wirklich. Nur: ich sehe euch nicht — self-gehostete Instanzen melden sich bewusst nirgends. Darum **gebt mir Feedback** und **meldet Probleme über die [Issues](../../issues) oder per Mail an info@chastitytracker.ch** — von einem Bug, den ich nicht kenne, erfahre ich sonst nie. Nur mit eurer Rückmeldung bleibt das Projekt lebendig. Danke, dass ihr dabei seid. — *trublue*
 >
 > ---
 >
