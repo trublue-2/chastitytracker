@@ -8,11 +8,11 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
 > [!NOTE]
-> **An alle, die den Tracker selbst hosten** 👋 — mir ist klar, dass inzwischen einige von euch das Projekt auf eigener Infrastruktur betreiben, und das freut mich wirklich. Nur: ich sehe euch nicht — self-gehostete Instanzen melden sich bewusst nirgends. Darum **gebt mir Feedback** und **meldet Probleme über die [Issues](../../issues) oder per Mail an info@chastitytracker.ch** — von einem Bug, den ich nicht kenne, erfahre ich sonst nie. Nur mit eurer Rückmeldung bleibt das Projekt lebendig. Danke, dass ihr dabei seid. — *trublue*
+> **An alle, die den Tracker selbst hosten** 👋 — mir ist klar, dass inzwischen einige von euch das Projekt auf eigener Infrastruktur betreiben, und das freut mich wirklich. Nur: ich sehe fast nichts von euch — eine Instanz meldet beim Update-Check nur anonym, dass es sie gibt und auf welcher Version (abschaltbar, siehe [docs/update-check.md](docs/update-check.md)), sonst nichts. Darum **gebt mir Feedback** und **meldet Probleme über die [Issues](../../issues) oder per Mail an info@chastitytracker.ch** — von einem Bug, den ich nicht kenne, erfahre ich sonst nie. Nur mit eurer Rückmeldung bleibt das Projekt lebendig. Danke, dass ihr dabei seid. — *trublue*
 >
 > ---
 >
-> **To everyone self-hosting the tracker** 👋 — I know some of you now run this on your own infrastructure, which makes me genuinely happy. But I can't see you: self-hosted instances phone home to no one, by design. So please **share feedback** and **report problems via the [issues](../../issues) or by email to info@chastitytracker.ch** — a bug I don't know about never gets fixed. Your input is the only thing that keeps this project alive and moving. Thank you for being here. — *trublue*
+> **To everyone self-hosting the tracker** 👋 — I know some of you now run this on your own infrastructure, which makes me genuinely happy. But I barely see you — on its update check an instance only reports, anonymously, that it exists and on which version (you can turn that off, see [docs/update-check.md](docs/update-check.md)), nothing more. So please **share feedback** and **report problems via the [issues](../../issues) or by email to info@chastitytracker.ch** — a bug I don't know about never gets fixed. Your input is the only thing that keeps this project alive and moving. Thank you for being here. — *trublue*
 
 <!-- screenshot -->
 
@@ -189,8 +189,9 @@ ENABLE_LEGACY_MCP=false            # optional: set false to hide the deprecated 
 PORTAL_SHARED_SECRET=<secret>      # JWT secret for the self-service portal's login flow
 USE_ADMIN_RELATIONSHIPS=true       # enable n:m admin-user supervision
 DISABLE_FEEDBACK=true              # hide the in-app feedback button (disables upstream forwarding)
-TELEMETRY_URL=<url>                # optional telemetry endpoint
-TELEMETRY_INSTANCE_ID=<id>         # optional instance identifier
+DISABLE_UPDATE_CENSUS=true         # opt out of the anonymous deployment census (see docs/update-check.md)
+UPSTREAM_CHANGELOG_URL=<url>       # override the changelog source (a self-set value also disables the census)
+# TELEMETRY_URL / TELEMETRY_INSTANCE_ID — DEPRECATED: event telemetry is retired and no longer collected
 ENABLE_DEMO=true                   # optional: allow /api/admin/demo endpoint
 BUILD_DATE=<iso-date>              # optional: shown in footer; set at build time
 ```
@@ -358,8 +359,9 @@ VAPID_SUBJECT=mailto:admin@example.com
 # ENABLE_BILDERSAFE=true            # enable the sealed key-box code photo feature (default off)
 # DISABLE_FEEDBACK=true             # hide the in-app feedback button entirely
 # FEEDBACK_UPSTREAM_URL=<url>       # send in-app feedback to your own inbox instead of the project portal
-# TELEMETRY_URL=<url>               # optional telemetry endpoint
-# TELEMETRY_INSTANCE_ID=<id>
+# DISABLE_UPDATE_CENSUS=true        # opt out of the anonymous deployment census (see docs/update-check.md)
+# UPSTREAM_CHANGELOG_URL=<url>      # override the changelog source (a self-set value also disables the census)
+# TELEMETRY_URL / TELEMETRY_INSTANCE_ID  — DEPRECATED: event telemetry retired, no longer collected
 ```
 
 ### Local AI Instance (optional)
