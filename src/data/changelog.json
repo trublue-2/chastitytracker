@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.58",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Testabdeckung fürs Bildersafe-Gate: die Freigabe-Logik des versiegelten Schlüsselbox-Code-Fotos (inkl. Anti-Lockout-Ventil, Reinigungsfenster- und Orgasmus-Fenster-Fälle), der Versiegelungs-Guard und der Admin-/Keyholder-Bypass der Foto-Auslieferung sind jetzt durch Unit-Tests zugesichert. Kein Verhalten geändert.",
+          "en": "Test coverage for the picture-safe gate: the reveal logic of the sealed key-box code photo (incl. the anti-lockout valve, cleaning-window and orgasm-window cases), the sealing guard and the admin/keyholder bypass of photo delivery are now secured by unit tests. No behavior changed."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.57",
     "date": "2026-07-16",
     "changes": [
