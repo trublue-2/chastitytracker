@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.57",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Plus-Menü entschlackt: die Box-Zeile ist entfernt — »Neu erfassen« erfasst nur noch Einträge, die Box folgt ihnen; ihr Status wohnt auf der Box-Karte, Notfall-Aktionen in Heimdall. Box-Karte aktualisiert jetzt zuverlässig ohne Seitenwechsel: die Status-Abfrage umgeht den HTTP-Cache (v.a. in der iOS-App) und beim Zurückkehren in die App wird sofort nachgeladen.",
+          "en": "Plus menu slimmed down: the box row is gone — \"new entry\" only records entries, the box follows them; its status lives on the box card, emergency actions in Heimdall. The box card now updates reliably without switching pages: the status poll bypasses the HTTP cache (esp. in the iOS app) and returning to the app triggers an immediate refresh."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.56",
     "date": "2026-07-16",
     "changes": [

@@ -93,8 +93,3 @@ export function boxFreshnessLabel(lastSyncAt: string | null, now: number, t: Tra
   if (hours < 24) return t("lastSeenHours", { count: hours });
   return t("lastSeenDays", { count: Math.floor(hours / 24) });
 }
-
-/** Wohin die (+)-Box-Zeile springt: offene Box → verschliessen, verschlossene → öffnen. */
-export function boxJumpHref(b: BoxRow): string {
-  return b.locked ? "/dashboard/new/oeffnen" : "/dashboard/new/verschluss";
-}

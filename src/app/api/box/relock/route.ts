@@ -17,6 +17,10 @@ export const dynamic = "force-dynamic";
 // Das pendingCommand-Modell ist consume-on-read ohne Ack („geht es verloren, setzt der Sub es
 // einfach neu") — dieser Endpoint IST dieses Neu-Setzen. Vor v4.50.56 gab es dafür keinen
 // bedienbaren Weg: das Verschluss-Formular lehnt bei laufender Session ab.
+//
+// UI-Konsument: aktuell KEINER (die (+)-Sheet-Aktion wurde in v4.50.57 bewusst entfernt —
+// „Neu erfassen" erfasst nur Einträge). Geplanter Konsument ist die BoxStatusCard-Aktion
+// (zurückgestellt, Entscheid 16.07); bis dahin bleibt der Endpoint der API-Reparaturweg.
 export async function POST() {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;

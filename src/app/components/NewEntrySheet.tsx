@@ -1,17 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
-import { boxIsPhysicallyLocked, boxIstLabel, boxJumpHref } from "@/lib/boxStatus";
-import { useBoxStatus } from "@/app/hooks/useBoxStatus";
-import { parseApiErrorCode } from "@/lib/apiClient";
-import { useApiError } from "@/app/hooks/useApiError";
-import useToast from "@/app/hooks/useToast";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -35,36 +29,7 @@ interface Props {
 export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
-  const tBox = useTranslations("boxStatus");
   const router = useRouter();
-
-  // Box-Status, nur solange das (+)-Menü offen ist — die Box folgt den Verschluss-/Öffnen-
-  // Einträgen. EINE Ausnahme: steht die Box offen, während die Session läuft (z.B. Sperrzeit
-  // abgelaufen, Öffnung vollzogen/scharfgestellt), gibt es keinen Eintrag, der sie wieder
-  // schliesst — dann wird die Zeile zur Reparatur-Aktion (Schliessbefehl neu setzen).
-  const { boxes } = useBoxStatus(open);
-  const toast = useToast();
-  const apiError = useApiError();
-  const [relocking, setRelocking] = useState(false);
-
-  async function relockBox() {
-    if (relocking) return;
-    setRelocking(true);
-    try {
-      const res = await fetch("/api/box/relock", { method: "POST" });
-      if (!res.ok) {
-        toast.error(apiError(await parseApiErrorCode(res)));
-        return;
-      }
-      // Präsenz-Guard der Box: der Riegel fährt erst zu, wenn jemand am Gerät ist.
-      toast.success(tBox("relockSent"));
-      onClose();
-    } catch {
-      toast.error(apiError(null));
-    } finally {
-      setRelocking(false);
-    }
-  }
 
   const options = [
     {
@@ -209,52 +174,9 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
           </>
         )}
 
-        {/* Heimdall-Box(en): Status-Anzeige + Sprung in den passenden Flow. Die Box folgt den
-            Verschluss-/Öffnen-Einträgen — keine Direkt-Kommandos (Notfall-Öffnen bleibt in Heimdall).
-            AUSNAHME Reparatur: Box offen + Session läuft → kein Eintrag kann sie schliessen (das
-            Verschluss-Formular lehnt bei laufender Session ab) → Schliessbefehl direkt neu setzen. */}
-        {boxes.map((b) => {
-          const istLocked = boxIsPhysicallyLocked(b);
-          // SOLL offen, aber Session läuft → kein Eintrag kann schliessen: Befehl neu setzen.
-          const needsRelock = !b.locked && isLocked;
-          // SOLL zu, steht aber offen → die Box wartet aufs Präsenz-Fenster; hier gibt es
-          // nichts zu tippen ausser dem Knopf AM GERÄT — reine Info, keine Navigation.
-          const awaitingLock = b.locked && istLocked === false;
-          const subtitle = needsRelock
-            ? tBox("relockAction")
-            : awaitingLock
-              ? tBox("awaitingLockAtDevice")
-              : b.locked
-                ? tBox("jumpOpen")
-                : tBox("jumpLock");
-          const row = (
-            <>
-              <KeyRound size={22} className={`${istLocked ? "text-lock" : "text-unlock"} shrink-0`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{b.name}</p>
-                <p className="text-xs text-foreground-muted">{boxIstLabel(b, tBox)} · {subtitle}</p>
-              </div>
-            </>
-          );
-          if (awaitingLock) {
-            return (
-              <div key={b.boxId} className="flex items-center gap-4 px-4 py-3.5 rounded-xl">
-                {row}
-              </div>
-            );
-          }
-          return (
-            <button
-              key={b.boxId}
-              type="button"
-              disabled={needsRelock && relocking}
-              onClick={() => (needsRelock ? relockBox() : handleSelect(boxJumpHref(b)))}
-              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full disabled:opacity-50"
-            >
-              {row}
-            </button>
-          );
-        })}
+        {/* Bewusst KEINE Box-Zeile mehr: „Neu erfassen" erfasst Einträge, die Box folgt ihnen.
+            Box-Status + Sonderzustände wohnen auf der BoxStatusCard (Dashboard); das
+            Notfall-Öffnen/Verschliessen bleibt in Heimdall. */}
       </div>
     </Sheet>
   );
