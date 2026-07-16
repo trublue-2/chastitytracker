@@ -8,7 +8,11 @@ import type { CleaningBlockReason } from "@/lib/queries";
 export type BoxRow = {
   boxId: string;
   name: string;
+  /** SOLL: soll die Box zu sein (Heimdall-Entscheid, gespiegelt). */
   locked: boolean;
+  /** Physisches IST der letzten Sync-Meldung — kann vom SOLL abweichen (Präsenz-Guard: „soll zu,
+   *  steht offen und wartet auf Knopf/USB"). null = Alt-Zeile ohne IST-Meldung → SOLL gilt. */
+  reportedLocked: boolean | null;
   simpleLock: boolean;
   keyholderLocked: boolean;
   /** Effektives Soll-Ende (Sperrzeit-Ende oder eigene Frist); null = ohne Zeitlimit / kein Soll. */
@@ -60,9 +64,13 @@ export function boxReinigungQuotaLabel(r: BoxReinigungView | null, t: Translate)
 /** Frischer als das → „gerade aktiv"; darüber → „zuletzt vor X". */
 const LIVE_THRESHOLD_MS = 2 * 60_000;
 
-/** Ist-Zustand der Box (Hardware-Wahrheit): offen, oder verschlossen (mit/ohne bestätigten Riegel). */
+/** Physisches IST der Box: das gemeldete `reportedLocked`, bei Alt-Zeilen ohne Meldung das SOLL. */
+export const boxIsPhysicallyLocked = (b: BoxRow): boolean => b.reportedLocked ?? b.locked;
+
+/** Ist-Zustand der Box (Hardware-Wahrheit): offen, oder verschlossen (mit/ohne bestätigten Riegel).
+ *  Nutzt das ECHTE IST — seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu sein soll. */
 export function boxIstLabel(b: BoxRow, t: Translate): string {
-  if (!b.locked) return t("istOpen");
+  if (!boxIsPhysicallyLocked(b)) return t("istOpen");
   return b.simpleLock ? t("istLockedBolt") : t("istLocked");
 }
 

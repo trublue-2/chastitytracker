@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.56",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Box: Läuft eine Sperrzeit ab, öffnet die Schlüsselbox nicht mehr von selbst — die Öffnung wird nur scharfgestellt und beim nächsten Knopfdruck am Gerät vollzogen (Firmware 0.2.34; Not-Failsafes bei Akku/Funkstille öffnen weiterhin autonom). Der MCP zeigt diesen Zustand ehrlich als openArmed (get_box_state schemaVersion 4; staleLock heisst nur noch: per Offline-Failsafe selbst geöffnet). Neu gibt es einen Reparaturweg, wenn die Box offen steht, während die Session läuft: die Box-Zeile im Plus-Menü setzt den Schliessbefehl neu; Anzeige und Karte unterscheiden jetzt physisches Ist und Soll (»wartet aufs Verschliessen am Gerät«).",
+          "en": "Box: when a lock period expires the key box no longer opens by itself — the opening is only armed and executes at the next button press at the device (firmware 0.2.34; emergency failsafes for battery/radio silence still open autonomously). The MCP reports this state honestly as openArmed (get_box_state schemaVersion 4; staleLock now only means: self-opened via offline failsafe). There is now a repair path when the box stands open while a session is running: the box row in the plus menu re-sets the lock command; the sheet and card now distinguish physical actual state from target (\"waiting to be locked at the device\")."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.55",
     "date": "2026-07-16",
     "changes": [

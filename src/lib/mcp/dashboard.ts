@@ -33,15 +33,21 @@ export interface BoxStateView {
   /** Hält die Box den Schlüssel gerade fest — die EINE ehrliche Vollstreckungs-Antwort, **unabhängig**
    *  davon, ob die Box gerade online ist. Basiert auf dem IST: true nur, wenn sie zuletzt physisch
    *  zu gemeldet hat (`reportedLocked`, Fallback `locked`), der Schlüssel wirklich drin liegt
-   *  (`keyInBox !== false`) UND seit dem letzten Sync keine deterministische Selbst-Öffnung gefeuert
-   *  hat (`!staleLock`). Ist sie false, nennt genau EIN Feld das WARUM: `locked:false` (soll offen),
-   *  `reportedLocked:false` (steht offen, z.B. wartet auf das Präsenz-Fenster), `keyInBox:false`
-   *  (Ehrensache, Schlüssel beim Sub) oder `staleLock:true` (hat sich offline selbst geöffnet). */
+   *  (`keyInBox !== false`), die Öffnung nicht scharfgestellt ist (`!openArmed`) UND seit dem letzten
+   *  Sync keine Selbst-Öffnung gefeuert hat (`!staleLock`). Ist sie false, nennt genau EIN Feld das
+   *  WARUM: `locked:false` (soll offen), `reportedLocked:false` (steht offen, z.B. wartet auf das
+   *  Präsenz-Fenster), `keyInBox:false` (Ehrensache, Schlüssel beim Sub), `openArmed:true` (zu, aber
+   *  ein Knopfdruck vom Offen entfernt) oder `staleLock:true` (hat sich offline selbst geöffnet). */
   hardwareEnforced: boolean;
+  /** Die Öffnung ist SCHARFGESTELLT: die Box ist (laut IST) zu, aber die Frist ist verstrichen oder
+   *  das SOLL steht auf offen — seit FW 0.2.34 öffnet sie dann nicht mehr von selbst, sondern beim
+   *  nächsten Knopf/USB-Kontakt, ohne weitere Prüfung. „Hält" zählt das ehrlicherweise nicht mehr. */
+  openArmed: boolean;
   /** Der zuletzt gemeldete „zu"-Stand (IST) ist nicht mehr verlässlich, weil die Box sich seit dem
-   *  letzten Sync **deterministisch selbst geöffnet** hat: entweder die gecachte Frist (`lockUntil`)
-   *  ist verstrichen, oder das Offline-Failsafe (nach `offlineOpenHours` ohne Sync) ist erreicht.
-   *  Beides macht die Box auch OFFLINE — „online" spielt hier bewusst keine Rolle. */
+   *  letzten Sync per **Offline-Failsafe** (nach `offlineOpenHours` ohne Sync) **selbst geöffnet**
+   *  hat — der einzige verbliebene deterministische Selbst-Öffner neben Akku-Not (eine abgelaufene
+   *  Frist öffnet seit FW 0.2.34 nicht mehr autonom → dafür `openArmed`). Auch OFFLINE — „online"
+   *  spielt hier bewusst keine Rolle. */
   staleLock: boolean;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
@@ -217,22 +223,26 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
   // (= bisheriges Verhalten, bis der erste Heimdall-Push nach dem Rollout das Feld füllt). Bewusst
   // NICHT `reportedLocked` genannt — das Rückgabefeld gleichen Namens trägt den ROHEN Wert (nullable).
   const effectiveLocked = box.reportedLocked ?? box.locked;
-  // Die Box öffnet sich auch OFFLINE an zwei deterministischen Punkten selbst: an der gecachten Frist
-  // (`lockUntil`) und nach `offlineOpenHours` ohne Sync. Nur diese zwei Fälle entwerten den zuletzt
-  // gemeldeten „zu"-Stand — sonst gilt er weiter, egal ob die Box gerade online ist. `offlineOpenHours`
-  // fehlt bei Alt-Zeilen (vor dem Heimdall-Push) → dann entfällt der Offline-Term sicher.
+  // Scharfgestellt (FW ≥ 0.2.34): Frist verstrichen oder SOLL offen, Box aber (laut IST) noch zu —
+  // sie öffnet nicht mehr von selbst, sondern beim nächsten Knopf/USB-Kontakt. Ein Druck genügt,
+  // ohne Eintrag und ohne weitere Prüfung — als „hält fest" darf das nicht mehr zählen.
+  const openArmed =
+    effectiveLocked && (!box.locked || (box.lockUntil !== null && box.lockUntil <= now));
+  // Selbst geöffnet hat sich die Box seit FW 0.2.34 nur noch per Offline-Failsafe (`offlineOpenHours`
+  // ohne Sync) — nur das entwertet den zuletzt gemeldeten „zu"-Stand; sonst gilt er weiter, egal ob
+  // die Box gerade online ist. `offlineOpenHours` fehlt bei Alt-Zeilen → Term entfällt sicher.
   const staleLock =
     effectiveLocked &&
-    ((box.lockUntil !== null && box.lockUntil <= now) ||
-      (box.lastSyncAt !== null &&
-        box.offlineOpenHours != null &&
-        msToHours(now.getTime() - box.lastSyncAt.getTime()) >= box.offlineOpenHours));
+    box.lastSyncAt !== null &&
+    box.offlineOpenHours != null &&
+    msToHours(now.getTime() - box.lastSyncAt.getTime()) >= box.offlineOpenHours;
   return {
     name: box.name,
     locked: box.locked,
     reportedLocked: box.reportedLocked,
     lockUntil: iso(box.lockUntil),
-    hardwareEnforced: effectiveLocked && keyInBox !== false && !staleLock,
+    hardwareEnforced: effectiveLocked && keyInBox !== false && !openArmed && !staleLock,
+    openArmed,
     staleLock,
     keyInBox,
     battery: box.battery,
@@ -242,10 +252,11 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
 }
 
 export interface BoxStateResult {
-  /** v3: hardwareEnforced ist IST-basiert (reportedLocked), staleLock ersetzt online,
-   *  hardwareEnforcedEffective/online/lockUntilStale entfernt — rückwirkende Anerkennung der
-   *  Semantik-Wechsel vom 16.07.2026 (v2-Payloads davor trugen die alte Bedeutung). */
-  schemaVersion: 3;
+  /** v4: neues Feld openArmed (Öffnung scharfgestellt — Frist verstrichen/SOLL offen, Box wartet
+   *  auf Knopf/USB, FW ≥ 0.2.34); staleLock umgedeutet auf NUR den Offline-Failsafe-Term;
+   *  hardwareEnforced zieht openArmed zusätzlich ab.
+   *  v3: hardwareEnforced IST-basiert (reportedLocked), staleLock ersetzte online. */
+  schemaVersion: 4;
   user: string;
   boxState: BoxStateView | null;
 }
@@ -256,7 +267,7 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
   const [box, keyInBox] = await Promise.all([loadBoxRow(userId), getCurrentLockKeyInBox(userId)]);
-  return { schemaVersion: 3, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
+  return { schemaVersion: 4, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */

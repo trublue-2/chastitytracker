@@ -21,7 +21,7 @@ export async function GET() {
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true },
+      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true },
     }),
     getActiveSperrzeit(userId),
   ]);
@@ -33,6 +33,9 @@ export async function GET() {
       boxId: b.boxId,
       name: b.name,
       locked: b.locked,
+      // IST getrennt vom SOLL: seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu
+      // sein soll (wartet auf Knopf/USB) — die Anzeige darf das SOLL nicht als „Ist" etikettieren.
+      reportedLocked: b.reportedLocked,
       simpleLock: b.simpleLock,
       keyholderLocked: b.keyholderLocked || !!sperre,
       lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,

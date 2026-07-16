@@ -3,7 +3,7 @@
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
-import { boxIstLabel, boxSollLabel, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxSollLabel, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 
 /** Reine Status-Anzeige der Heimdall-Box(en) auf dem Dashboard (Ist + Soll + Frische). Keine
@@ -31,9 +31,12 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string;
           // „Offen, obwohl das Soll verschlossen verlangt" (z.B. Reinigungspause) → Warn-Optik.
           const shouldBeLocked = b.keyholderLocked || !!b.lockUntil || b.simpleLock;
           const conflict = !b.locked && shouldBeLocked;
+          // Optik folgt dem PHYSISCHEN Zustand (wie das Ist-Label) — seit dem Präsenz-Guard kann
+          // die Box offen stehen, obwohl das SOLL zu ist; Schloss-Optik + „Offen" wäre widersprüchlich.
+          const istLocked = boxIsPhysicallyLocked(b);
           const scheme = conflict
             ? { bg: "bg-warn-bg", border: "border-warn-border", accent: "text-warn", text: "text-warn-text", Icon: AlertTriangle }
-            : b.locked
+            : istLocked
               ? { bg: "bg-sperrzeit-bg", border: "border-sperrzeit-border", accent: "text-sperrzeit", text: "text-sperrzeit-text", Icon: Lock }
               : { bg: "bg-background-subtle", border: "border-border", accent: "text-unlock", text: "text-foreground", Icon: LockOpen };
           const Icon = scheme.Icon;

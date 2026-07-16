@@ -91,7 +91,9 @@
     "DEVICE_INVALID_CURRENCY": "Invalid currency",
     "DEVICE_CURRENCY_REQUIRED": "Currency is required when a price is given",
     "DEVICE_NOT_ARCHIVED": "The device is not archived",
-    "DEVICE_ARCHIVED_NOT_EDITABLE": "Archived devices cannot be edited"
+    "DEVICE_ARCHIVED_NOT_EDITABLE": "Archived devices cannot be edited",
+    "BOX_RELOCK_NOT_LOCKED": "No active lock session — the box follows the lock entry instead",
+    "BOX_RELOCK_KEY_NOT_IN_BOX": "According to your declaration the key is not in the box"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -372,6 +374,9 @@
     "lastSeenDays": "last seen {count} d ago",
     "jumpLock": "tap to lock",
     "jumpOpen": "tap to open",
+    "relockAction": "tap: re-lock the box",
+    "relockSent": "Lock command set — press the button at the device and the box will close.",
+    "awaitingLockAtDevice": "waiting to be locked at the device (press the button)",
     "cleaningBlockedByLockPeriod": "This lock period allows no cleaning",
     "cleaningWindowOpen": "Cleaning window open until {until}",
     "cleaningWindowNext": "Next cleaning window: {start}–{end}",

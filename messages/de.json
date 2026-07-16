@@ -91,7 +91,9 @@
     "DEVICE_INVALID_CURRENCY": "Ungültige Währung",
     "DEVICE_CURRENCY_REQUIRED": "Währung ist erforderlich, wenn ein Preis angegeben ist",
     "DEVICE_NOT_ARCHIVED": "Das Gerät ist nicht archiviert",
-    "DEVICE_ARCHIVED_NOT_EDITABLE": "Archivierte Geräte können nicht bearbeitet werden"
+    "DEVICE_ARCHIVED_NOT_EDITABLE": "Archivierte Geräte können nicht bearbeitet werden",
+    "BOX_RELOCK_NOT_LOCKED": "Kein laufender Verschluss — die Box folgt sonst dem Verschluss-Eintrag",
+    "BOX_RELOCK_KEY_NOT_IN_BOX": "Laut Deklaration liegt der Schlüssel nicht in der Box"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -372,6 +374,9 @@
     "lastSeenDays": "zuletzt vor {count} Tg",
     "jumpLock": "tippen zum Verschliessen",
     "jumpOpen": "tippen zum Öffnen",
+    "relockAction": "tippen: Box wieder verschliessen",
+    "relockSent": "Schliessbefehl gesetzt — am Gerät den Knopf drücken, dann fährt die Box zu.",
+    "awaitingLockAtDevice": "wartet aufs Verschliessen am Gerät (Knopf drücken)",
     "cleaningBlockedByLockPeriod": "Diese Sperre erlaubt keine Reinigung",
     "cleaningWindowOpen": "Reinigungsfenster offen bis {until}",
     "cleaningWindowNext": "Nächstes Reinigungsfenster: {start}–{end}",
