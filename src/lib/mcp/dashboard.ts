@@ -7,6 +7,7 @@ import {
   type InterruptedSperrzeitView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
 import { makeIso, makeFmt, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
+import { msToHours } from "@/lib/utils";
 import { buildSessions, type Session } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
@@ -20,31 +21,36 @@ import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 
 export interface BoxStateView {
   name: string;
+  /** SOLL: soll die Box gerade zu sein? (`boxLocked()` — jede Sperrquelle, eigen ODER Tracker-Sperrzeit).
+   *  Der zuletzt von Heimdall gemeldete Wert; er kippt NICHT durch blossen Zeitablauf, solange die Box
+   *  nicht wieder synct — dafür ist `staleLock` da. */
   locked: boolean;
+  /** Physisches IST: war die Box beim letzten Sync wirklich zu? Kann seit dem Präsenz-Guard
+   *  (FW 0.2.33) vom SOLL abweichen — „soll zu, steht aber offen und wartet auf Knopf/USB".
+   *  `null` = Alt-Zeile ohne IST-Meldung; dann gilt das SOLL (`locked`) als bester Stand. */
+  reportedLocked: boolean | null;
   lockUntil: string | null;
-  /** Konfigurierte ABSICHT (letzter von Heimdall gemeldeter Wert): true = Sperrzeit soll die Box
-   *  physisch halten. Bleibt unverändert stehen, solange die Box nicht wieder synct — bei offline
-   *  KEINE Garantie, dass gerade tatsächlich vollstreckt wird. Für die reale Lage `hardwareEnforcedEffective`. */
+  /** Hält die Box den Schlüssel gerade fest — die EINE ehrliche Vollstreckungs-Antwort, **unabhängig**
+   *  davon, ob die Box gerade online ist. Basiert auf dem IST: true nur, wenn sie zuletzt physisch
+   *  zu gemeldet hat (`reportedLocked`, Fallback `locked`), der Schlüssel wirklich drin liegt
+   *  (`keyInBox !== false`) UND seit dem letzten Sync keine deterministische Selbst-Öffnung gefeuert
+   *  hat (`!staleLock`). Ist sie false, nennt genau EIN Feld das WARUM: `locked:false` (soll offen),
+   *  `reportedLocked:false` (steht offen, z.B. wartet auf das Präsenz-Fenster), `keyInBox:false`
+   *  (Ehrensache, Schlüssel beim Sub) oder `staleLock:true` (hat sich offline selbst geöffnet). */
   hardwareEnforced: boolean;
-  /** Reale Vollstreckung JETZT: nur true, wenn die Box sowohl online ist als auch hardwareEnforced
-   *  meldet. Offline → immer false (nicht verifizierbar; Box kann nicht mehr lokal blockieren) —
-   *  die Sperre ist dann faktisch Ehrensache, unabhängig vom zuletzt gemeldeten Zustand. */
-  hardwareEnforcedEffective: boolean;
-  /** true = lockUntil liegt in der Vergangenheit UND die Box hat seither nicht mehr gesynct (online:false)
-   *  — der Wert ist veraltet/unbestätigt, nicht zwingend noch gültig. */
-  lockUntilStale: boolean;
+  /** Der zuletzt gemeldete „zu"-Stand (IST) ist nicht mehr verlässlich, weil die Box sich seit dem
+   *  letzten Sync **deterministisch selbst geöffnet** hat: entweder die gecachte Frist (`lockUntil`)
+   *  ist verstrichen, oder das Offline-Failsafe (nach `offlineOpenHours` ohne Sync) ist erreicht.
+   *  Beides macht die Box auch OFFLINE — „online" spielt hier bewusst keine Rolle. */
+  staleLock: boolean;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
    *  lock-Kommando bekommen. Das ERKLÄRT ein `hardwareEnforced: false`, das sonst wie eine Box-Störung
    *  aussieht. `null` = nicht erklärt (Alt-Eintrag, Admin-Pfad, keine Box) oder gerade nicht
-   *  verschlossen — sagt NICHTS über den Schlüssel aus und ist KEIN „nein".
-   *
-   *  Nur `false` erklärt eine fehlende Vollstreckung; bei `null` bleiben die übrigen Ursachen offen
-   *  (Box offline, oder ein Admin-Eintrag, der nie ein Box-Kommando ausgelöst hat). */
+   *  verschlossen — sagt NICHTS über den Schlüssel aus und ist KEIN „nein". */
   keyInBox: boolean | null;
   battery: number | null;
   charging: boolean | null;
-  online: boolean;
   lastSeen: string | null;
 }
 
@@ -174,7 +180,6 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
   return out.sort((a, b) => a.wirksamAb.localeCompare(b.wirksamAb));
 }
 
-const BOX_ONLINE_THRESHOLD_MS = 10 * 60 * 1000;
 /** Toleranz beim Vergleich zweier auf 0.1 h gerundeter Stundenwerte (halbe Bucket-Breite). */
 const ROUND_EPSILON_H = 0.05;
 
@@ -208,18 +213,30 @@ type BoxRow = Awaited<ReturnType<typeof loadBoxRow>>;
  *  die beiden können so nicht auseinanderlaufen), `get_box_state` lädt sie via `getCurrentLockKeyInBox`. */
 function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null): BoxStateView | null {
   if (!box) return null;
-  const online = box.lastSyncAt ? now.getTime() - box.lastSyncAt.getTime() < BOX_ONLINE_THRESHOLD_MS : false;
+  // Bester bekannter physischer Stand: das gemeldete IST, bei Alt-Zeilen ohne IST-Meldung das SOLL
+  // (= bisheriges Verhalten, bis der erste Heimdall-Push nach dem Rollout das Feld füllt). Bewusst
+  // NICHT `reportedLocked` genannt — das Rückgabefeld gleichen Namens trägt den ROHEN Wert (nullable).
+  const effectiveLocked = box.reportedLocked ?? box.locked;
+  // Die Box öffnet sich auch OFFLINE an zwei deterministischen Punkten selbst: an der gecachten Frist
+  // (`lockUntil`) und nach `offlineOpenHours` ohne Sync. Nur diese zwei Fälle entwerten den zuletzt
+  // gemeldeten „zu"-Stand — sonst gilt er weiter, egal ob die Box gerade online ist. `offlineOpenHours`
+  // fehlt bei Alt-Zeilen (vor dem Heimdall-Push) → dann entfällt der Offline-Term sicher.
+  const staleLock =
+    effectiveLocked &&
+    ((box.lockUntil !== null && box.lockUntil <= now) ||
+      (box.lastSyncAt !== null &&
+        box.offlineOpenHours != null &&
+        msToHours(now.getTime() - box.lastSyncAt.getTime()) >= box.offlineOpenHours));
   return {
     name: box.name,
     locked: box.locked,
+    reportedLocked: box.reportedLocked,
     lockUntil: iso(box.lockUntil),
-    hardwareEnforced: box.keyholderLocked,
-    hardwareEnforcedEffective: online && box.keyholderLocked,
-    lockUntilStale: !online && box.lockUntil !== null && box.lockUntil < now,
+    hardwareEnforced: effectiveLocked && keyInBox !== false && !staleLock,
+    staleLock,
     keyInBox,
     battery: box.battery,
     charging: box.charging,
-    online,
     lastSeen: iso(box.lastSyncAt),
   };
 }

@@ -438,16 +438,23 @@ function registerTools(server: McpServer) {
       {
         title: "Heimdall box state (hardware enforcement)",
         description:
-          "MCP V2 — Zustand der elektronischen Schlüsselbox (§11): locked, lockUntil, battery, charging, " +
-          "online (lastSync < 10 min), lastSeen. hardwareEnforced ist die zuletzt GEMELDETE Absicht " +
-          "(bleibt bei offline unverändert stehen!) — für die reale Lage IMMER hardwareEnforcedEffective " +
-          "nutzen (nur true, wenn online UND hardwareEnforced; offline = faktisch Ehrensache, nicht " +
-          "verifizierbar). lockUntilStale = lockUntil liegt in der Vergangenheit UND die Box war seither " +
-          "nicht mehr online (Wert unbestätigt). keyInBox = Deklaration des Subs beim laufenden Verschluss: " +
-          "false heisst, der Schlüssel liegt NICHT in der Box (er trägt ihn bei sich, z.B. auf Reise) — dann " +
-          "hat die Box bewusst kein lock bekommen, und das ERKLÄRT ein hardwareEnforced:false, das sonst wie " +
-          "eine Box-Störung aussieht. null = nicht erklärt oder nicht verschlossen, also KEIN 'nein' — dann " +
-          "bleiben die übrigen Ursachen offen (Box offline, Admin-Eintrag ohne Box-Kommando). " +
+          "MCP V2 — Zustand der elektronischen Schlüsselbox (§11): locked (SOLL: soll die Box zu sein), " +
+          "reportedLocked (IST: war sie beim letzten Sync wirklich zu; kann vom SOLL abweichen — 'soll " +
+          "zu, steht offen und wartet auf Knopf/USB', denn zufahren tut die Box nur mit jemandem am " +
+          "Gerät; null = noch keine IST-Meldung, dann gilt das SOLL), lockUntil, battery, charging, " +
+          "lastSeen (letzter Sync). hardwareEnforced ist die EINE ehrliche Vollstreckungs-Antwort — " +
+          "hält die Box den Schlüssel gerade fest, UNABHÄNGIG davon, ob sie online ist (der zuletzt " +
+          "gemeldete Zustand gilt, bis die Box etwas anderes meldet). true nur, wenn das IST zu meldet " +
+          "UND keyInBox!==false UND !staleLock. Ist hardwareEnforced false, nennt genau EIN Feld das " +
+          "WARUM: locked:false (soll offen), reportedLocked:false (steht offen), keyInBox:false " +
+          "(Ehrensache, Schlüssel beim Sub) oder staleLock:true. staleLock = die Box hat sich seit dem " +
+          "letzten Sync deterministisch selbst geöffnet: gecachte Frist (lockUntil) verstrichen ODER " +
+          "Offline-Failsafe (nach offlineOpenHours ohne Sync) erreicht — beides passiert auch offline, " +
+          "„online\" spielt bewusst keine Rolle. " +
+          "keyInBox = Deklaration des Subs beim laufenden Verschluss: false heisst, der Schlüssel liegt " +
+          "NICHT in der Box (er trägt ihn bei sich, z.B. auf Reise) — dann hat die Box bewusst kein lock " +
+          "bekommen, und das ERKLÄRT ein hardwareEnforced:false, das sonst wie eine Box-Störung aussieht. " +
+          "null = nicht erklärt oder nicht verschlossen, also KEIN 'nein'. " +
           "boxState:null = keine Box registriert. Auch im keyholder_dashboard enthalten.",
         inputSchema: {},
       },

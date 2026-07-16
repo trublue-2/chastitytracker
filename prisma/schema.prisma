@@ -512,6 +512,9 @@ model BoxStatus {
   boxId                  String // Heimdall-Geräte-id (stabil)
   name                   String
   locked                 Boolean   @default(false)
+  // Physisches IST der frischen Sync-Meldung — `locked` ist das SOLL. Seit dem Präsenz-Guard
+  // (FW 0.2.33) kann die Box offen stehen, obwohl sie zu sein soll. null = Alt-Zeile (Fallback SOLL).
+  reportedLocked         Boolean?
   lockUntil              DateTime? // effektive Sperre (eigene + Tracker-Sperrzeit, gekappt)
   simpleLock             Boolean   @default(false)
   keyholderLocked        Boolean   @default(false) // durch Tracker-Sperrzeit gehalten (Sub kann lokal nicht öffnen)
@@ -520,6 +523,7 @@ model BoxStatus {
   boltPos                String?
   fwVersion              String?
   lastSyncAt             DateTime?
+  offlineOpenHours       Int? // Offline-Failsafe-Schwelle der Box → für staleLock/hardwareEnforced im MCP
   // Aus einem Eintrag abgeleitetes, noch nicht vollzogenes Kommando. Kein Reinigungs-Kommando und
   // keine Frist: die Box öffnet auf "open" und bleibt offen, bis ein "lock" kommt.
   pendingCommand         String? // "lock" | "open"

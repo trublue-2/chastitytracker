@@ -14,6 +14,7 @@ const schema = z.object({
   boxId: z.string().min(1),
   name: z.string().min(1),
   locked: z.boolean(),
+  reportedLocked: z.boolean().nullable().optional(),
   lockUntil: z.string().datetime().nullable().optional(),
   simpleLock: z.boolean().optional(),
   keyholderLocked: z.boolean().optional(),
@@ -22,6 +23,7 @@ const schema = z.object({
   boltPos: z.string().max(16).nullable().optional(),
   fwVersion: z.string().max(32).nullable().optional(),
   lastSyncAt: z.string().datetime().nullable().optional(),
+  offlineOpenHours: z.number().int().positive().nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
   const status = {
     name: body.name,
     locked: body.locked,
+    reportedLocked: body.reportedLocked ?? null,
     lockUntil: body.lockUntil ? new Date(body.lockUntil) : null,
     simpleLock: body.simpleLock ?? false,
     keyholderLocked: body.keyholderLocked ?? false,
@@ -55,6 +58,7 @@ export async function POST(req: NextRequest) {
     boltPos: body.boltPos ?? null,
     fwVersion: body.fwVersion ?? null,
     lastSyncAt: body.lastSyncAt ? new Date(body.lastSyncAt) : null,
+    offlineOpenHours: body.offlineOpenHours ?? null,
   };
 
   await prisma.boxStatus.upsert({

@@ -89,12 +89,13 @@ describe("keyInBox — eine Deklaration, überall dieselbe Antwort", () => {
   };
   const BOX_ROW = {
     name: "Heimdall",
-    locked: false,
+    locked: true, // Box soll/ist zu — so ist keyInBox:false der EINZIGE Grund für hardwareEnforced:false
     lockUntil: null,
     keyholderLocked: false,
     battery: 80,
     charging: false,
     lastSyncAt: new Date(),
+    offlineOpenHours: 24,
   };
 
   it("currentRun und boxState melden dieselbe Deklaration (keyInBox:false = Schlüssel beim Sub)", async () => {
@@ -106,8 +107,10 @@ describe("keyInBox — eine Deklaration, überall dieselbe Antwort", () => {
     expect(result.currentRun.isLocked).toBe(true);
     expect(result.currentRun.keyInBox).toBe(false);
     expect(result.boxState?.keyInBox).toBe(false);
-    // Genau der Fall, den das Feld erklären soll: verschlossen, aber NICHT hardware-vollstreckt.
-    expect(result.boxState?.hardwareEnforcedEffective).toBe(false);
+    // Box zu (locked:true) UND frisch gesynct — der EINZIGE Grund für keine Vollstreckung ist der
+    // Schlüssel beim Sub (keyInBox:false). Genau der Fall, den das Feld erklären soll.
+    expect(result.boxState?.hardwareEnforced).toBe(false);
+    expect(result.boxState?.staleLock).toBe(false);
   });
 
   it("get_box_state liefert dieselbe Deklaration wie das Dashboard", async () => {
@@ -129,5 +132,77 @@ describe("keyInBox — eine Deklaration, überall dieselbe Antwort", () => {
 
     expect((await getBoxState("sub")).boxState).toBeNull();
     expect((await keyholderDashboard("sub")).boxState).toBeNull();
+  });
+});
+
+// hardwareEnforced ist die EINE ehrliche Vollstreckungs-Antwort — online spielt keine Rolle. Sie ist
+// nur dann false, wenn ein deterministischer Selbst-Öffner seit dem letzten Sync gefeuert hat
+// (staleLock): gecachte Frist verstrichen ODER Offline-Failsafe (offlineOpenHours) erreicht.
+describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen", () => {
+  const HOUR = 60 * 60 * 1000;
+  const LOCKED_ENTRY = {
+    id: "e2",
+    type: "VERSCHLUSS",
+    startTime: new Date("2026-07-13T20:00:00Z"),
+    oeffnenGrund: null,
+    orgasmusArt: null,
+    kontrollCode: null,
+    verifikationStatus: null,
+    deviceCheck: null,
+    deviceCheckNote: null,
+    deviceCheckExpected: null,
+    keyInBox: true, // Schlüssel liegt in der Box
+    device: null,
+  };
+  const boxRow = (over: Record<string, unknown>) => ({
+    name: "Heimdall", locked: true, lockUntil: null, keyholderLocked: false,
+    battery: 80, charging: false, lastSyncAt: new Date(), offlineOpenHours: 24, ...over,
+  });
+
+  beforeEach(() => {
+    db.entry.findMany.mockResolvedValue([LOCKED_ENTRY]);
+    db.entry.findFirst.mockResolvedValue(LOCKED_ENTRY); // getCurrentLockKeyInBox
+  });
+
+  it("locked + Schlüssel drin + frischer Sync → hardwareEnforced, nicht stale", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({}));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.hardwareEnforced).toBe(true);
+    expect(boxState?.staleLock).toBe(false);
+  });
+
+  it("offline länger als offlineOpenHours → staleLock, hardwareEnforced false, SOLL bleibt", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ lastSyncAt: new Date(Date.now() - 25 * HOUR) }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.staleLock).toBe(true);
+    expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.locked).toBe(true); // die Absicht bleibt, nur die Vollstreckung ist unbestätigt
+  });
+
+  it("verstrichene Frist → staleLock, auch ohne offlineOpenHours-Term", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(
+      boxRow({ lockUntil: new Date(Date.now() - HOUR), offlineOpenHours: null }),
+    );
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.staleLock).toBe(true);
+    expect(boxState?.hardwareEnforced).toBe(false);
+  });
+
+  // Präsenz-Guard (FW 0.2.33): die Box fährt nur mit jemandem am Gerät zu — SOLL („soll zu") und
+  // IST („steht offen") können auseinanderliegen. hardwareEnforced folgt dem IST.
+  it("SOLL zu, IST offen (wartet auf Präsenz-Fenster) → hardwareEnforced false, nicht stale", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: false }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.locked).toBe(true); // die Absicht steht
+    expect(boxState?.reportedLocked).toBe(false); // aber physisch offen
+    expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.staleLock).toBe(false); // nichts zu misstrauen — wir WISSEN, dass sie offen ist
+  });
+
+  it("Alt-Zeile ohne IST-Meldung → SOLL gilt als bester Stand (Fallback)", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: null }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.reportedLocked).toBeNull();
+    expect(boxState?.hardwareEnforced).toBe(true); // Fallback aufs SOLL = bisheriges Verhalten
   });
 });
