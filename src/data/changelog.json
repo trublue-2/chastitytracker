@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.55",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP-Modell-Doku driftsicher: Ein neuer Test erzwingt, dass explain_model (mcpModelDoc.ts) und der Keyholder-Guide (docs) abschnittsweise inhaltsgleich bleiben. Die dabei aufgedeckte Drift ist behoben: §7 (Box-Steuerung über die Einträge) trägt jetzt in beiden Dateien den Stand von v4.50.24 inkl. Fenster-Bruch-Regel, §4 spiegelt usedToday/windows/windowOpenNow, §10 die openControl/deviceCheck-Lesehinweise, §12 den präzisierten Urteils-Wortlaut.",
+          "en": "MCP model doc drift-proofed: a new test enforces that explain_model (mcpModelDoc.ts) and the keyholder guide (docs) stay section-wise identical. The drift it uncovered is fixed: §7 (box control via entries) now carries the v4.50.24 state in both files including the window-violation rule, §4 mirrors usedToday/windows/windowOpenNow, §10 the openControl/deviceCheck reading hints, §12 the clarified judgment wording."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.54",
     "date": "2026-07-16",
     "changes": [
