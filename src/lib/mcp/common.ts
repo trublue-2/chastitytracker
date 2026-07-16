@@ -285,4 +285,12 @@ export async function notesForEntities(
 /** Schlüssel für die notesForEntities-Map. */
 export const entityKey = (type: EntityType, id: string): string => `${type}:${id}`;
 
+/** Case-insensitives Namens-Matching über eine bereits geladene Liste — die EINE Definition von
+ *  „welcher Name passt" (Prisma auf SQLite kennt kein mode:"insensitive", darum in JS). Fetch-Scope
+ *  und Miss-Verhalten (throw vs null) bleiben beim Aufrufer. */
+export function matchByNameCI<T extends { name: string }>(items: T[], name: string): T | undefined {
+  const target = name.trim().toLowerCase();
+  return items.find((i) => i.name.toLowerCase() === target);
+}
+
 export { noteSelect };

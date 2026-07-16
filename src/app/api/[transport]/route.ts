@@ -238,7 +238,7 @@ function registerTools(server: McpServer) {
           "zerfällt an REINIGUNG-Öffnungen in Segmente (pro Segment GENAU EIN Gerät); Trage-Sessions der " +
           "übrigen Kategorien (Plug, Halsband, Knebel) haben genau ein Segment und das deklarierte Gerät. " +
           "Liefert pro Session `category`, `deviceBreakdown` (Stunden je Gerät), `segments[]` (declared vs. " +
-          "bild-verifiziertes Gerät + `deviceConfidence`), inline verknüpfte Notes (§9.3) und " +
+          "bild-verifiziertes Gerät + `deviceConfidence`), inline verknüpfte Notes (explain_model §13) und " +
           "`dataQualityFlags` (z.B. declared≠verified). Ohne sessionId werden die neuesten Sessions " +
           "aufgelistet — mit `category` nur die einer Kategorie. Zeiten als ISO-8601 mit Offset.",
         inputSchema: {
@@ -277,12 +277,14 @@ function registerTools(server: McpServer) {
       {
         title: "Get devices with decision metadata + inline notes (v2)",
         description:
-          "MCP V2 — Geräte-Inventar inkl. der Entscheidungs-Metadaten (§2): securityLevel " +
-          "(SECURING|TRUST_ONLY), lookalikeClusterId (Mismatch INNERHALB eines Clusters ist nie ein " +
+          "MCP V2 — Geräte-Inventar inkl. der Entscheidungs-Metadaten (explain_model §13): securityLevel " +
+          "(SECURING|TRUST_ONLY; nur für KG-Geräte sinnvoll — null bei Nicht-KG ist korrekt und vollständig, " +
+          "keine Datenlücke), lookalikeClusterId (Mismatch INNERHALB eines Clusters ist nie ein " +
           "Vergehen), pullOffRisk (true = lässt sich trotz Verschluss abstreifen, unsicher), material, " +
           "bauform, healthFlags, retentionNotes, trackingEnabled (false = Inventory-only-Kategorie, " +
-          "liefert per Design keine Sessions), Anzahl Referenzfotos — plus inline verknüpfte Notes. " +
-          "Setze Metadaten mit set_device_meta.",
+          "liefert per Design keine Sessions), referenceImages (BEWUSST nur die Anzahl — die Bilder " +
+          "wertet der Server für deviceConfidence aus und sie sind via MCP nicht abrufbar) — plus inline " +
+          "verknüpfte Notes. Setze Metadaten mit set_device_meta.",
         inputSchema: {},
       },
       () => runTool("get_devices", listDevicesV2),
@@ -388,7 +390,7 @@ function registerTools(server: McpServer) {
       {
         title: "Get life context (recurring + appointments + health hold)",
         description:
-          "MCP V2 — Kontext um das echte Leben (§8): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
+          "MCP V2 — Kontext um das echte Leben (explain_model §13): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
           "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDayMin/perDayMax/Schlaf-Fenster/" +
           "Fristen — read-only, nicht via MCP änderbar), die Reinigungs-Regeln (cleaning: allowed/" +
           "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow), der wiederkehrende " +
@@ -443,7 +445,7 @@ function registerTools(server: McpServer) {
       {
         title: "Heimdall box state (hardware enforcement)",
         description:
-          "MCP V2 — Zustand der elektronischen Schlüsselbox (§11): locked (SOLL: soll die Box zu sein), " +
+          "MCP V2 — Zustand der elektronischen Schlüsselbox (explain_model §13): locked (SOLL: soll die Box zu sein), " +
           "reportedLocked (IST: war sie beim letzten Sync wirklich zu; kann vom SOLL abweichen — 'soll " +
           "zu, steht offen und wartet auf Knopf/USB', denn zufahren tut die Box nur mit jemandem am " +
           "Gerät; null = noch keine IST-Meldung, dann gilt das SOLL), lockUntil, battery, charging, " +
@@ -782,7 +784,7 @@ function registerTools(server: McpServer) {
           expectedVersion: expectedVersionField,
           type: z.enum(NOTE_TYPES).optional().describe("Note-Typ (default OBSERVATION)."),
           text: z.string().optional().describe("Notiztext (Pflicht beim Anlegen)."),
-          kg: z.string().optional().describe("Optionaler KG/Gerät-Tag."),
+          kg: z.string().optional().describe("Optionaler KG/Gerät-Tag. Nennt er ein Inventar-Gerät (Name, case-insensitiv), wird automatisch ein device-Ref angelegt — die Note kommt dann inline mit get_devices."),
           kategorie: z.string().optional().describe("Optionaler Kategorie-Tag."),
           pinned: z.boolean().optional().describe("Im Dashboard dauerhaft anpinnen (z.B. DIRECTIVE/BOUNDARY)."),
           source: z.enum(NOTE_SOURCE).optional().describe("user-stated (Nutzer-Fakt) | inferred (eigener Schluss). Default inferred."),
@@ -822,7 +824,7 @@ function registerTools(server: McpServer) {
       {
         title: "Set device decision metadata (v2)",
         description:
-          "Setzt die Entscheidungs-Metadaten eines Geräts (§2): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
+          "Setzt die Entscheidungs-Metadaten eines Geräts (explain_model §13): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
           "lookalikeClusterId (Geräte gleicher Optik in einen Cluster — Mismatch innerhalb ist dann nie ein " +
           "Vergehen), pullOffRisk, material, bauform, healthFlags, retentionNotes. Nur angegebene Felder ändern " +
           "sich." + V2_WRITE_NOTE,
@@ -831,7 +833,7 @@ function registerTools(server: McpServer) {
           deviceName: z.string().optional().describe("Gerät per Name (case-insensitiv). deviceName ODER deviceId."),
           deviceId: z.string().optional().describe("Gerät per id."),
           expectedVersion: expectedVersionField,
-          securityLevel: z.enum(SECURITY_LEVELS).optional().describe("SECURING = sicherndes Gerät, TRUST_ONLY = Vertrauensgerät."),
+          securityLevel: z.enum(SECURITY_LEVELS).optional().describe("SECURING = sicherndes Gerät, TRUST_ONLY = Vertrauensgerät. Nur für KG-Geräte sinnvoll — bei Nicht-KG (Plug/Halsband/…) nicht setzen; null dort ist korrekt und vollständig."),
           lookalikeClusterId: z.string().nullable().optional().describe("Cluster-Tag gleich aussehender Geräte. null = entfernen."),
           pullOffRisk: z.boolean().optional().describe("true = Gerät lässt sich trotz Verschluss abstreifen (unsicher), false = sitzt sicher."),
           material: z.string().nullable().optional().describe("Edelstahl | Kunststoff | Silikon."),
@@ -848,7 +850,7 @@ function registerTools(server: McpServer) {
       {
         title: "Set / clear health hold (v2)",
         description:
-          "Setzt oder löst die Gesundheits-Zurückhaltung (§8). active=true braucht healthReason " +
+          "Setzt oder löst die Gesundheits-Zurückhaltung (explain_model §13). active=true braucht healthReason " +
           "(z.B. 'Migräne/Aura', 'Nacht-Auszeit'); active=false löst den aktiven Hold. Erscheint im " +
           "keyholder_dashboard.healthHold. NUR nutzen bei gesundheitlichen Themen, die EFFEKTIV einen " +
           "Einfluss auf die Keuschhaltung haben (z.B. verhindern sie das Tragen, eine Kontrolle, eine " +

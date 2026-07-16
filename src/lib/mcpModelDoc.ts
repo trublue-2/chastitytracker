@@ -165,11 +165,14 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   kein Vergehen). **\`deviceEffective\`** ist das für \`deviceBreakdown\`/\`device_stats\` massgebliche
   Gerät. \`endedBy\`: \`cleaning\` (Pause) vs \`session-end\` vs \`open\`.
 - **Geräte-Metadaten (\`get_devices\` / \`set_device_meta\`)** — \`securityLevel\` (SECURING vs
-  TRUST_ONLY), \`lookalikeClusterId\`: ein Geräte-Mismatch **innerhalb eines Clusters ist nie ein
-  echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`). \`pullOffRisk\`:
-  **true = das Gerät lässt sich trotz Verschluss abstreifen (unsicher)**, false = sitzt sicher.
-  \`trackingEnabled\` (von der Kategorie): **false = Inventory-only** (z.B. Halsband/Knebel) — solche
-  Geräte liefern PER DESIGN keine Trage-Sessions.
+  TRUST_ONLY; **nur für KG-Geräte sinnvoll** — bei Plug/Halsband/… ist \`null\` korrekt und
+  vollständig, keine Datenlücke), \`lookalikeClusterId\`: ein Geräte-Mismatch **innerhalb eines
+  Clusters ist nie ein echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`).
+  \`pullOffRisk\`: **true = das Gerät lässt sich trotz Verschluss abstreifen (unsicher)**, false =
+  sitzt sicher. \`trackingEnabled\` (von der Kategorie): **false = Inventory-only** (z.B.
+  Halsband/Knebel) — solche Geräte liefern PER DESIGN keine Trage-Sessions. \`referenceImages\` ist
+  **bewusst nur die Anzahl**: die Bilder wertet der Server für \`deviceConfidence\` aus, via MCP
+  sind sie nicht abrufbar.
 - **Vorberechnet:** \`device_stats\` (je Gerät total/avg/median/min/max/längste Strecke),
   \`records\` (PB, aktuell vs PB, orgasmusfrei), \`period_summary\` (Tag/Woche/Monat + Ziel),
   \`denial_trend\` (Streak, Trend, orgasmHistory). In \`device_stats\` stehen nur getragene Geräte:
@@ -182,7 +185,9 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   \`type\` (DIRECTIVE|BOUNDARY|OBSERVATION|CORRECTION|EQUIPMENT|DATA|HISTORY), \`status\`,
   \`pinned\`, \`source\`/\`confidence\` (Nutzer-Fakt vs eigener Schluss), \`doDont\` (für BOUNDARY),
   \`refs\` (typisierte Verknüpfung an Objekte — kommen inline mit get_session/get_devices/get_offenses).
-  **Supersession statt Delete**: alte Note → \`superseded\`, kein Datenverlust.
+  **Supersession statt Delete**: alte Note → \`superseded\`, kein Datenverlust. Refs auf unbekannte
+  Objekte werden abgewiesen (kein stiller Dangling-Ref); nennt der \`kg\`-Tag ein Inventar-Gerät,
+  wird automatisch ein device-Ref angelegt — auffindbar zählt NUR der Ref, nicht der Freitext-Tag.
 - **Kontext (\`get_context\` / set_health_hold / upsert_appointment / upsert_recurring_context)** —
   HealthHold (Gesundheits-Zurückhaltung), Wochen-Kontext, Termine (deviceFree).
 - **\`timeline\`** — alle Ereignisse auf einer Achse (Segment-basiert). **\`get_action_log\`** —

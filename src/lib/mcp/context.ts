@@ -4,8 +4,8 @@ import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/l
 import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
 
-/** Kontext & Kalender (§8) — wiederkehrender Wochen-Kontext, Einzeltermine, HealthHold. Damit der
- *  Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
+/** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
+ *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
 
 const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 

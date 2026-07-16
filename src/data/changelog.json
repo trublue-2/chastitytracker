@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.54",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP-Wissensmodell konsistent: Note-Refs auf unbekannte Objekte werden abgewiesen statt still als toter Verweis gespeichert; nennt der kg-Tag ein Inventar-Gerät, wird automatisch der typisierte Geräte-Ref angelegt (die Note ist damit über get_devices auffindbar) — auch im dryRun sichtbar. securityLevel ist als KG-only dokumentiert (null bei Nicht-KG = vollständig), referenceImages ist bewusst nur eine Anzahl. Veraltete Paragraphen-Verweise in den Tool-Beschreibungen zeigen jetzt auf explain_model §13; der Keyholder-Guide enthält den bisher fehlenden §13-Spiegel.",
+          "en": "MCP knowledge model made consistent: note refs to unknown objects are rejected instead of silently stored as dead pointers; if the kg tag names an inventory device, the typed device ref is created automatically (making the note findable via get_devices) — visible in dryRun too. securityLevel is documented as KG-only (null on non-KG = complete), referenceImages is deliberately just a count. Stale paragraph references in tool descriptions now point to explain_model §13; the keyholder guide gains the previously missing §13 mirror."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.53",
     "date": "2026-07-16",
     "changes": [

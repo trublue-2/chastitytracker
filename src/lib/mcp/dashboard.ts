@@ -14,7 +14,7 @@ import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 
-/** keyholder_dashboard (§0/§12) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
+/** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
  *  Adhärenz, offene Vergehen, gepinnte Direktiven + Grenzen, BoxState. Komponiert die V2/V1-
  *  Aggregate — rein lesend, MCP-only. */
@@ -250,8 +250,8 @@ export interface BoxStateResult {
   boxState: BoxStateView | null;
 }
 
-/** Dedizierter BoxState-Read (§11): hardwareEnforced unterscheidet physische Vollstreckung von
- *  Ehrensache. null = keine Box registriert. Throws, wenn der User unbekannt ist. */
+/** Dedizierter BoxState-Read (explain_model §13): hardwareEnforced unterscheidet physische
+ *  Vollstreckung von Ehrensache. null = keine Box registriert. Throws, wenn der User unbekannt ist. */
 export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.

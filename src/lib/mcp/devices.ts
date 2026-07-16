@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserContext, makeIso, notesForEntities, entityKey, parseStringArray, tzOf, type Iso, type NoteDTO } from "@/lib/mcp/common";
+import { resolveUserContext, makeIso, notesForEntities, entityKey, matchByNameCI, parseStringArray, tzOf, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { diffFields, occEdit, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
 
-/** Geräte-Metadaten, die Keyholder-Entscheidungen tragen (§2) + angereicherte Geräteliste mit
- *  Inline-Notes. MCP-only, additiv. */
+/** Geräte-Metadaten, die Keyholder-Entscheidungen tragen (explain_model §13) + angereicherte
+ *  Geräteliste mit Inline-Notes. MCP-only, additiv. */
 
 export const SECURITY_LEVELS = ["SECURING", "TRUST_ONLY"] as const;
 
@@ -143,9 +143,8 @@ async function resolveDevice(client: TxClient, userId: string, args: SetDeviceMe
     return d;
   }
   if (args.deviceName) {
-    const target = args.deviceName.trim().toLowerCase();
     const devices = await client.device.findMany({ where: { userId }, select: metaResolveSelect });
-    const match = devices.find((d) => d.name.toLowerCase() === target);
+    const match = matchByNameCI(devices, args.deviceName);
     if (!match) throw new Error(`Device not found: "${args.deviceName}". Available: ${devices.map((d) => d.name).join(", ") || "none"}`);
     return match;
   }

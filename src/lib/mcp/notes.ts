@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import {
-  resolveUserContext, makeIso, tzOf, toNoteDTO, noteSelect, parseIsoDate,
+  resolveUserContext, makeIso, tzOf, toNoteDTO, noteSelect, parseIsoDate, entityKey, matchByNameCI,
   type NoteDTO, type EntityRef, type EntityType,
 } from "@/lib/mcp/common";
-import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
+import { assertVersionRequiresId, diffFields, occEdit, type TxClient, type WriteDef } from "@/lib/mcp/writeFramework";
 
 /** Notes v2 — strukturierte, versionierte Keyholder-Notizen mit typisierter Verknüpfung an
- *  Tracking-Objekte (§9). MCP-only, additiv. Supersession statt Delete; pinned/BOUNDARY/refs. */
+ *  Tracking-Objekte (explain_model §13). MCP-only, additiv. Supersession statt Delete;
+ *  pinned/BOUNDARY/refs. */
 
 export const NOTE_TYPES = ["DIRECTIVE", "BOUNDARY", "OBSERVATION", "CORRECTION", "EQUIPMENT", "DATA", "HISTORY"] as const;
 export const NOTE_STATUS = ["active", "superseded", "archived"] as const;
@@ -88,6 +89,47 @@ function assertEnum(value: string | undefined, allowed: readonly string[], field
   }
 }
 
+/** Existenz-Lookup je Entity-Typ (userId-gescoped). `session`/`segment`-ids sind Entry-ids.
+ *  `offense` fehlt bewusst: seine refId ist polymorph (je nach Vergehens-Typ eine Entry-,
+ *  Kontroll- oder Direktiven-id) — dafür gibt es keine eine Tabelle zum Prüfen. */
+const entryExists = async (tx: TxClient, userId: string, id: string) => !!(await tx.entry.findFirst({ where: { id, userId }, select: { id: true } }));
+const REF_EXISTS: Partial<Record<EntityType, (tx: TxClient, userId: string, id: string) => Promise<boolean>>> = {
+  device: async (tx, userId, id) => !!(await tx.device.findFirst({ where: { id, userId }, select: { id: true } })),
+  session: entryExists,
+  segment: entryExists,
+  control: async (tx, userId, id) => !!(await tx.kontrollAnforderung.findFirst({ where: { id, userId }, select: { id: true } })),
+  orgasmDirective: async (tx, userId, id) => !!(await tx.orgasmusAnforderung.findFirst({ where: { id, userId }, select: { id: true } })),
+  goal: async (tx, userId, id) => !!(await tx.trainingVorgabe.findFirst({ where: { id, userId }, select: { id: true } })),
+  appointment: async (tx, userId, id) => !!(await tx.appointment.findFirst({ where: { id, userId }, select: { id: true } })),
+};
+
+/** Weist Refs auf nicht (mehr) existierende Objekte ab, statt still einen Dangling-Ref anzulegen
+ *  (Geräte ohne Einträge werden hart gelöscht — ein Ref darauf wäre dauerhaft tot). */
+async function assertRefsExist(tx: TxClient, userId: string, refs: EntityRef[]): Promise<void> {
+  const results = await Promise.all(refs.map(async (r) => {
+    const exists = REF_EXISTS[r.entityType];
+    return exists ? { r, ok: await exists(tx, userId, r.entityId) } : { r, ok: true };
+  }));
+  const missing = results.filter((x) => !x.ok);
+  if (missing.length) {
+    throw new Error(`refs point to unknown objects: ${missing.map((x) => entityKey(x.r.entityType, x.r.entityId)).join(", ")}.`);
+  }
+}
+
+/** Löst den kg-Freitext-Tag (Gerätename) in einen Device-Ref auf — case-insensitiv. Kein Treffer
+ *  ist KEIN Fehler: kg darf auch Nicht-Inventar-Geräte benennen. (Bewusst nicht resolveDevice aus
+ *  devices.ts: das wirft bei Miss und listet Namen — hier ist Miss ein legitimer Zustand.) */
+async function kgDeviceRef(tx: TxClient, userId: string, kg: string | undefined): Promise<EntityRef | null> {
+  if (!kg?.trim()) return null;
+  const devices = await tx.device.findMany({ where: { userId }, select: { id: true, name: true } });
+  const match = matchByNameCI(devices, kg);
+  return match ? { entityType: "device", entityId: match.id } : null;
+}
+
+/** true, wenn der (kg-)Device-Ref in `refs` noch fehlt — Dedup-Guard für create + edit. */
+const missingRef = (refs: readonly { entityType: string; entityId: string }[], ref: EntityRef): boolean =>
+  !refs.some((r) => r.entityType === ref.entityType && r.entityId === ref.entityId);
+
 /** Server-Guardrails für Note-Writes. */
 function validateUpsert(args: UpsertNoteArgs): UpsertNoteArgs {
   assertEnum(args.type, NOTE_TYPES, "type");
@@ -125,13 +167,21 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
       if (!existing) throw new Error(`Note not found: ${args.id}`);
       // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
       occEdit(args.expectedVersion, existing.version, `note ${args.id}`);
-      return { action: "edit", before: toNoteDTO(existing, makeIso(tz)) };
+      // Preview-Treue: den kg→Device-Ref zeigen, den der Commit anlegen würde.
+      const kgRef = await kgDeviceRef(prisma, ctx.targetUserId, args.kg);
+      const willAddRef = kgRef && missingRef(existing.refs, kgRef) ? kgRef : null;
+      return { action: "edit", before: toNoteDTO(existing, makeIso(tz)), willAddRef };
     }
+    // Dangling-Refs schon im dryRun abweisen (Konflikte VOR dem Commit); kg→Device-Ref mitzeigen.
+    await assertRefsExist(prisma, ctx.targetUserId, args.refs ?? []);
+    const refs = [...(args.refs ?? [])];
+    const kgRef = await kgDeviceRef(prisma, ctx.targetUserId, args.kg);
+    if (kgRef && missingRef(refs, kgRef)) refs.push(kgRef);
     return {
       action: "create",
       willSupersede: args.supersedesId ?? null,
       type: args.type ?? "OBSERVATION",
-      refs: args.refs ?? [],
+      refs,
     };
   },
   async apply(tx, ctx, args) {
@@ -144,6 +194,12 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
       const existing = await tx.keyholderNote.findFirst({ where: { id: args.id, userId: ctx.targetUserId }, select: noteSelect });
       if (!existing) throw new Error(`Note not found: ${args.id}`);
       const bump = occEdit(args.expectedVersion, existing.version, `note ${args.id}`);
+      // kg-Tag → Device-Ref nachziehen (VOR dem Update, damit das Select den Ref schon trägt):
+      // eine Note mit kg="<Gerätename>" ohne Ref wäre über get_devices unauffindbar.
+      const kgRef = await kgDeviceRef(tx, ctx.targetUserId, args.kg);
+      if (kgRef && missingRef(existing.refs, kgRef)) {
+        await tx.noteRef.create({ data: { noteId: args.id, entityType: kgRef.entityType, entityId: kgRef.entityId } });
+      }
       // Pflichtfelder (non-null) nur bei gesetztem Wert ändern; optionale Felder mit
       // !== undefined, damit sie bewusst auf null geleert werden können.
       const data = {
@@ -175,6 +231,11 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
       // die Supersession als Konflikt erkennen (sonst editiert jemand eine abgelöste Note "erfolgreich").
       await tx.keyholderNote.update({ where: { id: args.supersedesId }, data: { status: "superseded", version: { increment: 1 } } });
     }
+    // Refs auf Existenz prüfen (kein stiller Dangling-Ref) + kg-Tag als Device-Ref mitverdrahten.
+    const refs = [...(args.refs ?? [])];
+    await assertRefsExist(tx, ctx.targetUserId, refs);
+    const kgRef = await kgDeviceRef(tx, ctx.targetUserId, args.kg);
+    if (kgRef && missingRef(refs, kgRef)) refs.push(kgRef);
     const created = await tx.keyholderNote.create({
       data: {
         userId: ctx.targetUserId,
@@ -190,7 +251,7 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
         validUntil: validUntil ?? null,
         doDont: doDontJson(args.doDont) ?? null,
         supersedesId: args.supersedesId ?? null,
-        refs: args.refs?.length ? { create: args.refs.map((r) => ({ entityType: r.entityType, entityId: r.entityId })) } : undefined,
+        refs: refs.length ? { create: refs.map((r) => ({ entityType: r.entityType, entityId: r.entityId })) } : undefined,
       },
       select: noteSelect,
     });
@@ -215,6 +276,8 @@ export const linkNoteDef: WriteDef<LinkNoteArgs, NoteDTO> = {
   async preview(ctx, args) {
     const note = await prisma.keyholderNote.findFirst({ where: { id: args.noteId, userId: ctx.targetUserId }, select: { id: true } });
     if (!note) throw new Error(`Note not found: ${args.noteId}`);
+    // Dangling-Refs schon im dryRun abweisen (Konflikte VOR dem Commit).
+    await assertRefsExist(prisma, ctx.targetUserId, args.refs);
     return { action: "link", noteId: args.noteId, addRefs: args.refs };
   },
   async apply(tx, ctx, args) {
@@ -224,9 +287,10 @@ export const linkNoteDef: WriteDef<LinkNoteArgs, NoteDTO> = {
       tx.noteRef.findMany({ where: { noteId: args.noteId }, select: { entityType: true, entityId: true } }),
     ]);
     if (!note) throw new Error(`Note not found: ${args.noteId}`);
-    // Duplikate überspringen (idempotentes Verlinken).
+    // Duplikate überspringen (idempotentes Verlinken); neue Refs müssen auf existierende Objekte zeigen.
     const have = new Set(existing.map((r) => `${r.entityType}:${r.entityId}`));
     const fresh = args.refs.filter((r) => !have.has(`${r.entityType}:${r.entityId}`));
+    await assertRefsExist(tx, ctx.targetUserId, fresh);
     if (fresh.length) {
       await tx.noteRef.createMany({ data: fresh.map((r) => ({ noteId: args.noteId, entityType: r.entityType, entityId: r.entityId })) });
       // refs sind Teil des Note-DTO — der Bump macht die Änderung für expectedVersion-Inhaber sichtbar.

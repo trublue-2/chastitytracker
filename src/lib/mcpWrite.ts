@@ -7,7 +7,7 @@ import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense } from "@/lib/strafurteilService";
-import { parseIsoDate } from "@/lib/mcp/common";
+import { matchByNameCI, parseIsoDate } from "@/lib/mcp/common";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 
@@ -44,21 +44,20 @@ async function resolveTargetUserId(username: string): Promise<string> {
  *  Scoped to KG/built-in devices — the same set a VerschlussAnforderung (ANFORDERUNG) accepts. */
 async function resolveDeviceId(userId: string, name: string): Promise<string> {
   const devices = await getUserDeviceOptions(userId);
-  const match = devices.find((d) => d.name.toLowerCase() === name.trim().toLowerCase());
+  const match = matchByNameCI(devices, name);
   if (!match) throw new Error(`Device not found: "${name}". Available: ${devices.map((d) => d.name).join(", ") || "none"}`);
   return match.id;
 }
 
 /** Resolves a category name to its id ("KG"/built-in or a user category). Throws if not found. */
 async function resolveCategoryId(userId: string, name: string): Promise<string> {
-  const n = name.trim().toLowerCase();
   const cats = await prisma.deviceCategory.findMany({
     where: { userId },
     select: { id: true, name: true, isBuiltIn: true },
   });
-  const match = (n === "kg")
+  const match = (name.trim().toLowerCase() === "kg")
     ? cats.find((c) => c.isBuiltIn)
-    : cats.find((c) => c.name.toLowerCase() === n);
+    : matchByNameCI(cats, name);
   if (!match) throw new Error(`Category not found: "${name}". Available: ${cats.map((c) => c.name).join(", ")}`);
   return match.id;
 }
