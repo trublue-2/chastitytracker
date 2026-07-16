@@ -178,9 +178,13 @@ und Grenzen sind gepinnt und versioniert.**
   HealthHold (Gesundheits-Zurückhaltung), Wochen-Kontext, Termine (deviceFree).
 - **\`timeline\`** — alle Ereignisse auf einer Achse (Segment-basiert). **\`get_action_log\`** —
   Audit aller V2-Writes (warum/wann). **\`get_box_state\`** — \`locked\` = SOLL (soll die Box zu sein);
-  \`hardwareEnforced\` = die EINE ehrliche Vollstreckungs-Antwort (hält die Box den Schlüssel gerade
-  fest — **online-unabhängig**, der zuletzt gemeldete Stand gilt): true nur bei \`locked\` UND
-  \`keyInBox!==false\` UND \`!staleLock\`. \`staleLock\` = die Box hat sich seit dem letzten Sync
+  \`reportedLocked\` = IST (war sie beim letzten Sync wirklich zu — kann vom SOLL abweichen: „soll zu,
+  steht offen und wartet auf Knopf/USB", denn zufahren tut die Box nur mit jemandem am Gerät;
+  \`null\` = noch keine IST-Meldung → SOLL gilt); \`hardwareEnforced\` = die EINE ehrliche
+  Vollstreckungs-Antwort (hält die Box den Schlüssel gerade fest — **online-unabhängig**, der zuletzt
+  gemeldete Stand gilt): true nur, wenn das IST zu meldet UND \`keyInBox!==false\` UND \`!staleLock\`.
+  Bei false nennt genau EIN Feld das Warum: \`locked:false\`, \`reportedLocked:false\`,
+  \`keyInBox:false\` oder \`staleLock:true\`. \`staleLock\` = die Box hat sich seit dem letzten Sync
   deterministisch selbst geöffnet (gecachte Frist verstrichen ODER Offline-Failsafe nach
   \`offlineOpenHours\` erreicht — beides auch offline). \`keyInBox\` = Deklaration des Subs beim
   laufenden Verschluss (\`false\` = er behält den Schlüssel, die Box bekam bewusst kein \`lock\` → das

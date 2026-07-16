@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.51",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP get_box_state/keyholder_dashboard: neues Feld reportedLocked (physisches IST der letzten Box-Meldung, getrennt vom SOLL locked). hardwareEnforced stützt sich jetzt aufs IST — nötig, weil die Box künftig nur noch zufährt, wenn jemand am Gerät ist (Knopf/USB), und darum offen stehen kann, obwohl sie zu sein soll. Ohne IST-Meldung gilt weiterhin das SOLL (kein Bruch für Bestandsdaten).",
+          "en": "MCP get_box_state/keyholder_dashboard: new field reportedLocked (physical actual state from the box's last report, separate from the intended state locked). hardwareEnforced is now based on the actual state — needed because the box will only close when someone is at the device (button/USB) and can therefore sit open even though it should be closed. Without an actual-state report the intended state still applies (no break for existing data)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.50",
     "date": "2026-07-16",
     "changes": [

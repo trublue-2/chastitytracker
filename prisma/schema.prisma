@@ -512,6 +512,9 @@ model BoxStatus {
   boxId                  String // Heimdall-Geräte-id (stabil)
   name                   String
   locked                 Boolean   @default(false)
+  // Physisches IST der frischen Sync-Meldung — `locked` ist das SOLL. Seit dem Präsenz-Guard
+  // (FW 0.2.33) kann die Box offen stehen, obwohl sie zu sein soll. null = Alt-Zeile (Fallback SOLL).
+  reportedLocked         Boolean?
   lockUntil              DateTime? // effektive Sperre (eigene + Tracker-Sperrzeit, gekappt)
   simpleLock             Boolean   @default(false)
   keyholderLocked        Boolean   @default(false) // durch Tracker-Sperrzeit gehalten (Sub kann lokal nicht öffnen)

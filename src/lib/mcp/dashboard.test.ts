@@ -187,4 +187,22 @@ describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen
     expect(boxState?.staleLock).toBe(true);
     expect(boxState?.hardwareEnforced).toBe(false);
   });
+
+  // Präsenz-Guard (FW 0.2.33): die Box fährt nur mit jemandem am Gerät zu — SOLL („soll zu") und
+  // IST („steht offen") können auseinanderliegen. hardwareEnforced folgt dem IST.
+  it("SOLL zu, IST offen (wartet auf Präsenz-Fenster) → hardwareEnforced false, nicht stale", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: false }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.locked).toBe(true); // die Absicht steht
+    expect(boxState?.reportedLocked).toBe(false); // aber physisch offen
+    expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.staleLock).toBe(false); // nichts zu misstrauen — wir WISSEN, dass sie offen ist
+  });
+
+  it("Alt-Zeile ohne IST-Meldung → SOLL gilt als bester Stand (Fallback)", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: null }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.reportedLocked).toBeNull();
+    expect(boxState?.hardwareEnforced).toBe(true); // Fallback aufs SOLL = bisheriges Verhalten
+  });
 });

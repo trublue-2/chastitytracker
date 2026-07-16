@@ -25,18 +25,23 @@ export interface BoxStateView {
    *  Der zuletzt von Heimdall gemeldete Wert; er kippt NICHT durch blossen Zeitablauf, solange die Box
    *  nicht wieder synct — dafür ist `staleLock` da. */
   locked: boolean;
+  /** Physisches IST: war die Box beim letzten Sync wirklich zu? Kann seit dem Präsenz-Guard
+   *  (FW 0.2.33) vom SOLL abweichen — „soll zu, steht aber offen und wartet auf Knopf/USB".
+   *  `null` = Alt-Zeile ohne IST-Meldung; dann gilt das SOLL (`locked`) als bester Stand. */
+  reportedLocked: boolean | null;
   lockUntil: string | null;
   /** Hält die Box den Schlüssel gerade fest — die EINE ehrliche Vollstreckungs-Antwort, **unabhängig**
-   *  davon, ob die Box gerade online ist. true nur, wenn sie zuletzt physisch zu gemeldet hat
-   *  (`locked`), der Schlüssel wirklich drin liegt (`keyInBox !== false`) UND seit dem letzten Sync
-   *  keine deterministische Selbst-Öffnung gefeuert hat (`!staleLock`). Ist sie false, nennt genau
-   *  EINES der drei das WARUM: `locked:false` (soll offen), `keyInBox:false` (Ehrensache, Schlüssel
-   *  beim Sub) oder `staleLock:true` (Box hat sich offline selbst geöffnet). */
+   *  davon, ob die Box gerade online ist. Basiert auf dem IST: true nur, wenn sie zuletzt physisch
+   *  zu gemeldet hat (`reportedLocked`, Fallback `locked`), der Schlüssel wirklich drin liegt
+   *  (`keyInBox !== false`) UND seit dem letzten Sync keine deterministische Selbst-Öffnung gefeuert
+   *  hat (`!staleLock`). Ist sie false, nennt genau EIN Feld das WARUM: `locked:false` (soll offen),
+   *  `reportedLocked:false` (steht offen, z.B. wartet auf das Präsenz-Fenster), `keyInBox:false`
+   *  (Ehrensache, Schlüssel beim Sub) oder `staleLock:true` (hat sich offline selbst geöffnet). */
   hardwareEnforced: boolean;
-  /** Der zuletzt gemeldete „zu"-Stand ist nicht mehr verlässlich, weil die Box sich seit dem letzten
-   *  Sync **deterministisch selbst geöffnet** hat: entweder die gecachte Frist (`lockUntil`) ist
-   *  verstrichen, oder das Offline-Failsafe (nach `offlineOpenHours` ohne Sync) ist erreicht. Beides
-   *  macht die Box auch OFFLINE — „online" spielt hier bewusst keine Rolle. */
+  /** Der zuletzt gemeldete „zu"-Stand (IST) ist nicht mehr verlässlich, weil die Box sich seit dem
+   *  letzten Sync **deterministisch selbst geöffnet** hat: entweder die gecachte Frist (`lockUntil`)
+   *  ist verstrichen, oder das Offline-Failsafe (nach `offlineOpenHours` ohne Sync) ist erreicht.
+   *  Beides macht die Box auch OFFLINE — „online" spielt hier bewusst keine Rolle. */
   staleLock: boolean;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
@@ -208,12 +213,16 @@ type BoxRow = Awaited<ReturnType<typeof loadBoxRow>>;
  *  die beiden können so nicht auseinanderlaufen), `get_box_state` lädt sie via `getCurrentLockKeyInBox`. */
 function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null): BoxStateView | null {
   if (!box) return null;
+  // Bester bekannter physischer Stand: das gemeldete IST, bei Alt-Zeilen ohne IST-Meldung das SOLL
+  // (= bisheriges Verhalten, bis der erste Heimdall-Push nach dem Rollout das Feld füllt). Bewusst
+  // NICHT `reportedLocked` genannt — das Rückgabefeld gleichen Namens trägt den ROHEN Wert (nullable).
+  const effectiveLocked = box.reportedLocked ?? box.locked;
   // Die Box öffnet sich auch OFFLINE an zwei deterministischen Punkten selbst: an der gecachten Frist
   // (`lockUntil`) und nach `offlineOpenHours` ohne Sync. Nur diese zwei Fälle entwerten den zuletzt
   // gemeldeten „zu"-Stand — sonst gilt er weiter, egal ob die Box gerade online ist. `offlineOpenHours`
   // fehlt bei Alt-Zeilen (vor dem Heimdall-Push) → dann entfällt der Offline-Term sicher.
   const staleLock =
-    box.locked &&
+    effectiveLocked &&
     ((box.lockUntil !== null && box.lockUntil <= now) ||
       (box.lastSyncAt !== null &&
         box.offlineOpenHours != null &&
@@ -221,8 +230,9 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
   return {
     name: box.name,
     locked: box.locked,
+    reportedLocked: box.reportedLocked,
     lockUntil: iso(box.lockUntil),
-    hardwareEnforced: box.locked && keyInBox !== false && !staleLock,
+    hardwareEnforced: effectiveLocked && keyInBox !== false && !staleLock,
     staleLock,
     keyInBox,
     battery: box.battery,

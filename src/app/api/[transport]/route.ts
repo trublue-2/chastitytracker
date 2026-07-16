@@ -439,14 +439,18 @@ function registerTools(server: McpServer) {
         title: "Heimdall box state (hardware enforcement)",
         description:
           "MCP V2 — Zustand der elektronischen Schlüsselbox (§11): locked (SOLL: soll die Box zu sein), " +
-          "lockUntil, battery, charging, lastSeen (letzter Sync). hardwareEnforced ist die EINE ehrliche " +
-          "Vollstreckungs-Antwort — hält die Box den Schlüssel gerade fest, UNABHÄNGIG davon, ob sie online " +
-          "ist (der zuletzt gemeldete Zustand gilt, bis die Box etwas anderes meldet). true nur, wenn " +
-          "locked UND keyInBox!==false UND !staleLock. Ist hardwareEnforced false, nennt genau EINES das " +
-          "WARUM: locked:false (soll offen), keyInBox:false (Ehrensache, Schlüssel beim Sub) oder " +
-          "staleLock:true. staleLock = die Box hat sich seit dem letzten Sync deterministisch selbst " +
-          "geöffnet: gecachte Frist (lockUntil) verstrichen ODER Offline-Failsafe (nach offlineOpenHours " +
-          "ohne Sync) erreicht — beides passiert auch offline, „online\" spielt bewusst keine Rolle. " +
+          "reportedLocked (IST: war sie beim letzten Sync wirklich zu; kann vom SOLL abweichen — 'soll " +
+          "zu, steht offen und wartet auf Knopf/USB', denn zufahren tut die Box nur mit jemandem am " +
+          "Gerät; null = noch keine IST-Meldung, dann gilt das SOLL), lockUntil, battery, charging, " +
+          "lastSeen (letzter Sync). hardwareEnforced ist die EINE ehrliche Vollstreckungs-Antwort — " +
+          "hält die Box den Schlüssel gerade fest, UNABHÄNGIG davon, ob sie online ist (der zuletzt " +
+          "gemeldete Zustand gilt, bis die Box etwas anderes meldet). true nur, wenn das IST zu meldet " +
+          "UND keyInBox!==false UND !staleLock. Ist hardwareEnforced false, nennt genau EIN Feld das " +
+          "WARUM: locked:false (soll offen), reportedLocked:false (steht offen), keyInBox:false " +
+          "(Ehrensache, Schlüssel beim Sub) oder staleLock:true. staleLock = die Box hat sich seit dem " +
+          "letzten Sync deterministisch selbst geöffnet: gecachte Frist (lockUntil) verstrichen ODER " +
+          "Offline-Failsafe (nach offlineOpenHours ohne Sync) erreicht — beides passiert auch offline, " +
+          "„online\" spielt bewusst keine Rolle. " +
           "keyInBox = Deklaration des Subs beim laufenden Verschluss: false heisst, der Schlüssel liegt " +
           "NICHT in der Box (er trägt ihn bei sich, z.B. auf Reise) — dann hat die Box bewusst kein lock " +
           "bekommen, und das ERKLÄRT ein hardwareEnforced:false, das sonst wie eine Box-Störung aussieht. " +

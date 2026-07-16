@@ -14,6 +14,7 @@ const schema = z.object({
   boxId: z.string().min(1),
   name: z.string().min(1),
   locked: z.boolean(),
+  reportedLocked: z.boolean().nullable().optional(),
   lockUntil: z.string().datetime().nullable().optional(),
   simpleLock: z.boolean().optional(),
   keyholderLocked: z.boolean().optional(),
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
   const status = {
     name: body.name,
     locked: body.locked,
+    reportedLocked: body.reportedLocked ?? null,
     lockUntil: body.lockUntil ? new Date(body.lockUntil) : null,
     simpleLock: body.simpleLock ?? false,
     keyholderLocked: body.keyholderLocked ?? false,
