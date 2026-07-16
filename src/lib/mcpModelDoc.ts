@@ -177,13 +177,15 @@ und Grenzen sind gepinnt und versioniert.**
 - **Kontext (\`get_context\` / set_health_hold / upsert_appointment / upsert_recurring_context)** —
   HealthHold (Gesundheits-Zurückhaltung), Wochen-Kontext, Termine (deviceFree).
 - **\`timeline\`** — alle Ereignisse auf einer Achse (Segment-basiert). **\`get_action_log\`** —
-  Audit aller V2-Writes (warum/wann). **\`get_box_state\`** — \`hardwareEnforced\` = zuletzt
-  gemeldete Absicht (physisch vollstreckt vs Ehrensache); \`hardwareEnforcedEffective\` = reale
-  Lage JETZT (false, sobald die Box offline ist — unabhängig vom letzten gemeldeten Stand);
-  \`keyInBox\` = Deklaration des Subs beim laufenden Verschluss (\`false\` = er behält den Schlüssel,
-  die Box bekam bewusst kein \`lock\` → das erklärt \`hardwareEnforced:false\`, es ist keine Box-Störung;
-  \`null\` = nicht erklärt/nicht verschlossen — kein „nein", und die übrigen Ursachen bleiben offen).
-  Auch als \`currentRun.keyInBox\` im Dashboard.
+  Audit aller V2-Writes (warum/wann). **\`get_box_state\`** — \`locked\` = SOLL (soll die Box zu sein);
+  \`hardwareEnforced\` = die EINE ehrliche Vollstreckungs-Antwort (hält die Box den Schlüssel gerade
+  fest — **online-unabhängig**, der zuletzt gemeldete Stand gilt): true nur bei \`locked\` UND
+  \`keyInBox!==false\` UND \`!staleLock\`. \`staleLock\` = die Box hat sich seit dem letzten Sync
+  deterministisch selbst geöffnet (gecachte Frist verstrichen ODER Offline-Failsafe nach
+  \`offlineOpenHours\` erreicht — beides auch offline). \`keyInBox\` = Deklaration des Subs beim
+  laufenden Verschluss (\`false\` = er behält den Schlüssel, die Box bekam bewusst kein \`lock\` → das
+  erklärt \`hardwareEnforced:false\`, es ist keine Box-Störung; \`null\` = nicht erklärt/nicht
+  verschlossen — kein „nein"). Auch als \`currentRun.keyInBox\` im Dashboard.
 
 ### Write-Disziplin
 Die Wissens-/Kontext-Writes (\`upsert_note\`, \`set_device_meta\`, \`set_health_hold\`, …) brauchen

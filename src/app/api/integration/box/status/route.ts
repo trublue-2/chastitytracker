@@ -22,6 +22,7 @@ const schema = z.object({
   boltPos: z.string().max(16).nullable().optional(),
   fwVersion: z.string().max(32).nullable().optional(),
   lastSyncAt: z.string().datetime().nullable().optional(),
+  offlineOpenHours: z.number().int().positive().nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
     boltPos: body.boltPos ?? null,
     fwVersion: body.fwVersion ?? null,
     lastSyncAt: body.lastSyncAt ? new Date(body.lastSyncAt) : null,
+    offlineOpenHours: body.offlineOpenHours ?? null,
   };
 
   await prisma.boxStatus.upsert({

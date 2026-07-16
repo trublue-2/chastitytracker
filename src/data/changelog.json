@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.50",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP get_box_state/keyholder_dashboard vereinfacht: hardwareEnforced ist jetzt die eine ehrliche Vollstreckungs-Antwort (hält die Box den Schlüssel — unabhängig davon, ob sie gerade online ist) und erfasst auch eine Box, die über ihre eigene Sperre statt einer Tracker-Sperrzeit hält. Neu: staleLock (Box hat sich seit dem letzten Sync deterministisch selbst geöffnet — Frist abgelaufen oder Offline-Failsafe). Entfernt: hardwareEnforcedEffective und online (die reale Lage steht jetzt in hardwareEnforced/staleLock).",
+          "en": "MCP get_box_state/keyholder_dashboard simplified: hardwareEnforced is now the single honest enforcement answer (is the box holding the key — regardless of whether it is currently online) and also covers a box held by its own lock instead of a tracker lock period. New: staleLock (the box has deterministically self-opened since the last sync — deadline passed or offline failsafe). Removed: hardwareEnforcedEffective and online (real status now lives in hardwareEnforced/staleLock)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.49",
     "date": "2026-07-15",
     "changes": [

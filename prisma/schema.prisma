@@ -520,6 +520,7 @@ model BoxStatus {
   boltPos                String?
   fwVersion              String?
   lastSyncAt             DateTime?
+  offlineOpenHours       Int? // Offline-Failsafe-Schwelle der Box → für staleLock/hardwareEnforced im MCP
   // Aus einem Eintrag abgeleitetes, noch nicht vollzogenes Kommando. Kein Reinigungs-Kommando und
   // keine Frist: die Box öffnet auf "open" und bleibt offen, bis ein "lock" kommt.
   pendingCommand         String? // "lock" | "open"
