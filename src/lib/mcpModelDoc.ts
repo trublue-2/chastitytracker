@@ -145,10 +145,13 @@ Jedes erkannte Vergehen durchläuft: **erkannt → verworfen** ODER **bestraft �
 - **Praxis:** Du musst nicht jede Kleinigkeit hart ahnden — verwirf mit kurzem Grund, oder schreib
   eine Strafe rein und markier sie später erledigt. Klar in der Konsequenz, ohne Automatik.
 
-## 13. Dashboard, Segmente, strukturiertes Wissen (schemaVersion 2)
+## 13. Dashboard, Segmente, strukturiertes Wissen
 Leitprinzip: **ein Dashboard-Call beantwortet ~90 %;
 Wahrheit kommt aus Segmenten/Bildern, nicht aus Labels; häufige Fragen sind vorberechnet; Regeln
 und Grenzen sind gepinnt und versioniert.**
+Jede Deep-View trägt eine **\`schemaVersion\`**: gleiche Nummer = gleiche Form UND gleiche
+Feld-Bedeutung. Ändert sich Semantik oder fallen Felder weg, steigt die Nummer — ein historischer
+Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
 
 - **\`keyholder_dashboard\`** — DER Einstieg: currentRun vs Personal Best, was JETZT getragen wird
   (KG + Kategorien), nextRelevant (Kontrolle/Sperrzeit/Orgasmus-Fenster), Ziele + Adhärenz, offene
@@ -163,10 +166,16 @@ und Grenzen sind gepinnt und versioniert.**
   Gerät. \`endedBy\`: \`cleaning\` (Pause) vs \`session-end\` vs \`open\`.
 - **Geräte-Metadaten (\`get_devices\` / \`set_device_meta\`)** — \`securityLevel\` (SECURING vs
   TRUST_ONLY), \`lookalikeClusterId\`: ein Geräte-Mismatch **innerhalb eines Clusters ist nie ein
-  echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`).
+  echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`). \`pullOffRisk\`:
+  **true = das Gerät lässt sich trotz Verschluss abstreifen (unsicher)**, false = sitzt sicher.
+  \`trackingEnabled\` (von der Kategorie): **false = Inventory-only** (z.B. Halsband/Knebel) — solche
+  Geräte liefern PER DESIGN keine Trage-Sessions.
 - **Vorberechnet:** \`device_stats\` (je Gerät total/avg/median/min/max/längste Strecke),
   \`records\` (PB, aktuell vs PB, orgasmusfrei), \`period_summary\` (Tag/Woche/Monat + Ziel),
-  \`denial_trend\` (Streak, Trend, orgasmHistory).
+  \`denial_trend\` (Streak, Trend, orgasmHistory). In \`device_stats\` stehen nur getragene Geräte:
+  **Abwesenheit ≠ Nichtnutzung** (nie getragene und Inventory-only-Geräte fehlen ganz; Inventar-
+  Wahrheit ist \`get_devices\`). KG-Zeiten ohne Geräte-Zuordnung stehen separat in \`unassigned\`
+  (Projektgeschichte, kein Gerät).
 - **\`get_offenses\`** — vereinheitlichtes Disziplin-Ledger (alle Vergehen als eine Liste mit
   status/judgment/consequence). Geurteilt wird über \`judge_offense\`.
 - **Notes v2 (\`query_notes\` / \`upsert_note\` / \`link_note\`)** — strukturiert + versioniert:

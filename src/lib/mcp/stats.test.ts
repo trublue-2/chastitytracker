@@ -132,15 +132,18 @@ describe("device_stats — alle Kategorien, nicht nur KG", () => {
     expect(plug.totalHours).toBeCloseTo(2, 1); // 16:00 → NOW 18:00
   });
 
-  it("der Sammel-Posten ohne Gerät ist als KG gekennzeichnet — nur dort ist er möglich", async () => {
+  it("der Sammel-Posten ohne Gerät steht separat in `unassigned` (als KG gekennzeichnet), nicht in devices", async () => {
     const result = await deviceStats("sub", ctx([
       entry("VERSCHLUSS", "2026-07-10T10:00:00+02:00", null),
       entry("OEFFNEN", "2026-07-11T10:00:00+02:00", null),
     ]));
 
-    const unassigned = result.devices.find((d) => d.deviceId === null)!;
-    expect(unassigned.deviceName).toBe("(ohne Gerät / unzugeordnet)");
-    expect(unassigned.category).toBe("KG");
+    // v4: kein Pseudo-Gerät mehr zwischen den echten Zeilen — eigenes Feld.
+    expect(result.devices.find((d) => d.deviceName === "(ohne Gerät / unzugeordnet)")).toBeUndefined();
+    expect(result.unassigned).not.toBeNull();
+    expect(result.unassigned!.deviceName).toBe("(ohne Gerät / unzugeordnet)");
+    expect(result.unassigned!.category).toBe("KG");
+    expect(result.unassigned!.totalHours).toBeCloseTo(24, 1);
   });
 });
 

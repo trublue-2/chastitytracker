@@ -118,6 +118,9 @@ export const deviceGroupKey = (d: DeviceRef): string => d.id ?? `name:${d.name ?
 
 /** Anzeigename eines Geräts; legacy-/untracked-Segmente ohne Zuordnung klar labeln statt null/null. */
 export const UNASSIGNED_DEVICE_LABEL = "(ohne Gerät / unzugeordnet)";
+/** Der Sammel-Posten ohne Geräte-Zuordnung: weder id noch Name. Quell-Wahrheit zum Label oben —
+ *  NICHT über den Anzeigenamen matchen (ein Name-only-Gerät könnte zufällig so heissen). */
+export const isUnassignedDevice = (d: DeviceRef): boolean => d.id == null && d.name == null;
 export const deviceDisplayName = (d: DeviceRef): string | null => d.name ?? (d.id ? null : UNASSIGNED_DEVICE_LABEL);
 
 /** Das für die Tragezeit-Zurechnung massgebliche Gerät: bei echtem image-conflict gewinnt das Bild

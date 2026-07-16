@@ -279,8 +279,10 @@ function registerTools(server: McpServer) {
         description:
           "MCP V2 — Geräte-Inventar inkl. der Entscheidungs-Metadaten (§2): securityLevel " +
           "(SECURING|TRUST_ONLY), lookalikeClusterId (Mismatch INNERHALB eines Clusters ist nie ein " +
-          "Vergehen), abstreifbar, material, bauform, healthFlags, retentionNotes, Anzahl Referenzfotos — " +
-          "plus inline verknüpfte Notes. Setze Metadaten mit set_device_meta.",
+          "Vergehen), pullOffRisk (true = lässt sich trotz Verschluss abstreifen, unsicher), material, " +
+          "bauform, healthFlags, retentionNotes, trackingEnabled (false = Inventory-only-Kategorie, " +
+          "liefert per Design keine Sessions), Anzahl Referenzfotos — plus inline verknüpfte Notes. " +
+          "Setze Metadaten mit set_device_meta.",
         inputSchema: {},
       },
       () => runTool("get_devices", listDevicesV2),
@@ -317,7 +319,10 @@ function registerTools(server: McpServer) {
           "Pro Gerät aus SESSIONS (nicht Labels): sessionCount, total/avg/median/min/max-Stunden, längste " +
           "einzelne Session (maxHours) und zuletzt getragen. sessionCount zählt, wie oft ein Gerät GETRAGEN " +
           "wurde — eine Reinigungspause trennt nicht (ein durchgehend getragenes KG bleibt EINE Session). " +
-          "Vorberechnet — keine Rekonstruktion aus Rohdaten nötig.",
+          "Vorberechnet — keine Rekonstruktion aus Rohdaten nötig. `devices` enthält nur echte Geräte; " +
+          "KG-Zeiten ohne Geräte-Zuordnung stehen separat in `unassigned` (Projektgeschichte, kein Gerät). " +
+          "Nie getragene Geräte (auch Inventory-only-Kategorien, trackingEnabled=false) fehlen hier ganz — " +
+          "Abwesenheit ist keine Nichtnutzung; Inventar-Wahrheit ist get_devices.",
         inputSchema: {},
       },
       () => runTool("device_stats", deviceStats),
@@ -819,7 +824,7 @@ function registerTools(server: McpServer) {
         description:
           "Setzt die Entscheidungs-Metadaten eines Geräts (§2): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
           "lookalikeClusterId (Geräte gleicher Optik in einen Cluster — Mismatch innerhalb ist dann nie ein " +
-          "Vergehen), abstreifbar, material, bauform, healthFlags, retentionNotes. Nur angegebene Felder ändern " +
+          "Vergehen), pullOffRisk, material, bauform, healthFlags, retentionNotes. Nur angegebene Felder ändern " +
           "sich." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
@@ -828,7 +833,7 @@ function registerTools(server: McpServer) {
           expectedVersion: expectedVersionField,
           securityLevel: z.enum(SECURITY_LEVELS).optional().describe("SECURING = sicherndes Gerät, TRUST_ONLY = Vertrauensgerät."),
           lookalikeClusterId: z.string().nullable().optional().describe("Cluster-Tag gleich aussehender Geräte. null = entfernen."),
-          abstreifbar: z.boolean().optional().describe("Anti-Auszieh-Status."),
+          pullOffRisk: z.boolean().optional().describe("true = Gerät lässt sich trotz Verschluss abstreifen (unsicher), false = sitzt sicher."),
           material: z.string().nullable().optional().describe("Edelstahl | Kunststoff | Silikon."),
           bauform: z.string().nullable().optional().describe("flach | voll | standard | Plug ..."),
           healthFlags: z.array(z.string()).optional().describe("z.B. Druckstellen, scheuert, rutscht."),

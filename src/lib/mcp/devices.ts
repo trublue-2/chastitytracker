@@ -12,13 +12,16 @@ export interface DeviceMetaView {
   name: string;
   category: string;
   isKg: boolean;
+  /** false = Inventory-only-Kategorie (z.B. Halsband/Knebel): liefert PER DESIGN keine Trage-
+   *  Sessions und fehlt darum in device_stats — Abwesenheit dort ist keine Nichtnutzung. */
+  trackingEnabled: boolean;
   archived: boolean;
   description: string | null;
   purchasePrice: number | null;
   currency: string | null;
   securityLevel: string | null;
   lookalikeClusterId: string | null;
-  abstreifbar: boolean;
+  pullOffRisk: boolean;
   material: string | null;
   bauform: string | null;
   healthFlags: string[];
@@ -31,7 +34,8 @@ export interface DeviceMetaView {
 }
 
 export interface DeviceListResult {
-  schemaVersion: 2;
+  /** v3: `abstreifbar` → `pullOffRisk` (true = abstreifbar/unsicher); neu `version`, `trackingEnabled`. */
+  schemaVersion: 3;
   user: string;
   devices: DeviceMetaView[];
 }
@@ -40,19 +44,19 @@ export interface DeviceListResult {
 const deviceViewSelect = {
   id: true, name: true, description: true, archivedAt: true, createdAt: true,
   purchasePrice: true, currency: true,
-  securityLevel: true, lookalikeClusterId: true, abstreifbar: true,
+  securityLevel: true, lookalikeClusterId: true, pullOffRisk: true,
   material: true, bauform: true, healthFlags: true, retentionNotes: true, version: true,
-  category: { select: { name: true, isBuiltIn: true } },
+  category: { select: { name: true, isBuiltIn: true, trackingEnabled: true } },
   _count: { select: { referenceImages: true } },
 } as const;
 
 type DeviceViewRow = {
   id: string; name: string; description: string | null; archivedAt: Date | null; createdAt: Date;
   purchasePrice: number | null; currency: string | null;
-  securityLevel: string | null; lookalikeClusterId: string | null; abstreifbar: boolean;
+  securityLevel: string | null; lookalikeClusterId: string | null; pullOffRisk: boolean;
   material: string | null; bauform: string | null; healthFlags: string | null; retentionNotes: string | null;
   version: number;
-  category: { name: string; isBuiltIn: boolean } | null;
+  category: { name: string; isBuiltIn: boolean; trackingEnabled: boolean } | null;
   _count: { referenceImages: number };
 };
 
@@ -63,13 +67,14 @@ function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[], iso: Iso): DeviceM
     name: d.name,
     category: d.category?.name ?? "—",
     isKg: d.category?.isBuiltIn ?? false,
+    trackingEnabled: d.category?.trackingEnabled ?? true,
     archived: d.archivedAt !== null,
     description: d.description,
     purchasePrice: d.purchasePrice,
     currency: d.currency,
     securityLevel: d.securityLevel,
     lookalikeClusterId: d.lookalikeClusterId,
-    abstreifbar: d.abstreifbar,
+    pullOffRisk: d.pullOffRisk,
     material: d.material,
     bauform: d.bauform,
     healthFlags: parseStringArray(d.healthFlags),
@@ -92,7 +97,7 @@ export async function listDevicesV2(username: string): Promise<DeviceListResult>
   });
   const notesByEntity = await notesForEntities(userId, devices.map((d) => ({ entityType: "device" as const, entityId: d.id })), {}, undefined, timezone);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     devices: devices.map((d) => toDeviceMetaView(d, notesByEntity.get(entityKey("device", d.id)) ?? [], iso)),
   };
@@ -108,7 +113,7 @@ export interface SetDeviceMetaArgs {
   expectedVersion?: number;
   securityLevel?: string;
   lookalikeClusterId?: string | null;
-  abstreifbar?: boolean;
+  pullOffRisk?: boolean;
   material?: string | null;
   bauform?: string | null;
   healthFlags?: string[];
@@ -118,13 +123,13 @@ export interface SetDeviceMetaArgs {
 /** Nur die für Snapshot/Resolve nötigen Spalten — nicht der volle Geräte-Datensatz. */
 const metaResolveSelect = {
   id: true, name: true, version: true,
-  securityLevel: true, lookalikeClusterId: true, abstreifbar: true,
+  securityLevel: true, lookalikeClusterId: true, pullOffRisk: true,
   material: true, bauform: true, healthFlags: true, retentionNotes: true,
 } as const;
 
 type MetaRow = {
   id: string; name: string; version: number; securityLevel: string | null; lookalikeClusterId: string | null;
-  abstreifbar: boolean; material: string | null; bauform: string | null;
+  pullOffRisk: boolean; material: string | null; bauform: string | null;
   healthFlags: string | null; retentionNotes: string | null;
 };
 
@@ -148,7 +153,7 @@ async function resolveDevice(client: TxClient, userId: string, args: SetDeviceMe
 }
 
 const metaSnapshot = (d: MetaRow) => ({
-  securityLevel: d.securityLevel, lookalikeClusterId: d.lookalikeClusterId, abstreifbar: d.abstreifbar,
+  securityLevel: d.securityLevel, lookalikeClusterId: d.lookalikeClusterId, pullOffRisk: d.pullOffRisk,
   material: d.material, bauform: d.bauform, healthFlags: d.healthFlags, retentionNotes: d.retentionNotes,
 });
 
@@ -173,7 +178,7 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
     const data = {
       ...(args.securityLevel !== undefined ? { securityLevel: args.securityLevel } : {}),
       ...(args.lookalikeClusterId !== undefined ? { lookalikeClusterId: args.lookalikeClusterId } : {}),
-      ...(args.abstreifbar !== undefined ? { abstreifbar: args.abstreifbar } : {}),
+      ...(args.pullOffRisk !== undefined ? { pullOffRisk: args.pullOffRisk } : {}),
       ...(args.material !== undefined ? { material: args.material } : {}),
       ...(args.bauform !== undefined ? { bauform: args.bauform } : {}),
       ...(args.healthFlags !== undefined ? { healthFlags: JSON.stringify(args.healthFlags) } : {}),

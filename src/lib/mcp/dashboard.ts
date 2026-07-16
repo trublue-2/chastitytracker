@@ -242,7 +242,10 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
 }
 
 export interface BoxStateResult {
-  schemaVersion: 2;
+  /** v3: hardwareEnforced ist IST-basiert (reportedLocked), staleLock ersetzt online,
+   *  hardwareEnforcedEffective/online/lockUntilStale entfernt — rückwirkende Anerkennung der
+   *  Semantik-Wechsel vom 16.07.2026 (v2-Payloads davor trugen die alte Bedeutung). */
+  schemaVersion: 3;
   user: string;
   boxState: BoxStateView | null;
 }
@@ -253,7 +256,7 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
   const [box, keyInBox] = await Promise.all([loadBoxRow(userId), getCurrentLockKeyInBox(userId)]);
-  return { schemaVersion: 2, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
+  return { schemaVersion: 3, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */

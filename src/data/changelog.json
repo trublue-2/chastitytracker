@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.53",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP-Payload-Klarheit: Geräte-Feld abstreifbar heisst jetzt pullOffRisk mit eindeutiger Polarität (true = lässt sich trotz Verschluss abstreifen, unsicher) — Name und Beschreibung widersprachen sich bisher. get_devices liefert neu trackingEnabled (false = Inventory-only-Kategorie, per Design ohne Sessions). device_stats trennt den Sammel-Posten ohne Geräte-Zuordnung in ein eigenes unassigned-Feld statt einer Pseudo-Gerätezeile (schemaVersion 4). get_box_state trägt schemaVersion 3 als rückwirkende Anerkennung der heutigen hardwareEnforced-Semantik-Wechsel; neu gilt: Semantik-Änderung ⇒ Versions-Bump.",
+          "en": "MCP payload clarity: device field abstreifbar is now pullOffRisk with unambiguous polarity (true = can be pulled off despite the lock, insecure) — name and description used to contradict each other. get_devices now returns trackingEnabled (false = inventory-only category, no sessions by design). device_stats separates the bucket without device assignment into its own unassigned field instead of a pseudo device row (schemaVersion 4). get_box_state carries schemaVersion 3 as retroactive acknowledgement of today's hardwareEnforced semantic changes; new rule: semantic change ⇒ version bump."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.52",
     "date": "2026-07-16",
     "changes": [
