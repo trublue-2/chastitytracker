@@ -244,6 +244,9 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/lib/vorgaben.ts` — Trainings-Vorgaben Berechnungslogik
 - `src/app/dashboard/EntryActions.tsx` — Drei-Punkte-Menü (Edit + optional Delete)
 
+### MCP schemaVersion-Disziplin
+- Jede MCP-Deep-View trägt eine `schemaVersion`. **Ändert sich Semantik eines Felds oder fällt ein Feld weg, MUSS die schemaVersion des betroffenen Tools erhöht werden** — sonst sind historische Werte rückwirkend uninterpretierbar (Vorfall 16.07.2026: `hardwareEnforced` zweimal umgedeutet bei unveränderter Version 2). Rein additive Felder brauchen keinen Bump.
+
 ### Changelog
 - Erlaubte `type`-Werte: `feat`, `fix`, `security`, `perf`, `chore`, `ui` — **nicht** `refactor`
 - Version bump + Changelog immer im **gleichen Commit** wie die Änderung

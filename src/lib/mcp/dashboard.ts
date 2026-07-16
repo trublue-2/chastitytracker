@@ -14,7 +14,7 @@ import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 
-/** keyholder_dashboard (§0/§12) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
+/** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
  *  Adhärenz, offene Vergehen, gepinnte Direktiven + Grenzen, BoxState. Komponiert die V2/V1-
  *  Aggregate — rein lesend, MCP-only. */
@@ -242,18 +242,21 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
 }
 
 export interface BoxStateResult {
-  schemaVersion: 2;
+  /** v3: hardwareEnforced ist IST-basiert (reportedLocked), staleLock ersetzt online,
+   *  hardwareEnforcedEffective/online/lockUntilStale entfernt — rückwirkende Anerkennung der
+   *  Semantik-Wechsel vom 16.07.2026 (v2-Payloads davor trugen die alte Bedeutung). */
+  schemaVersion: 3;
   user: string;
   boxState: BoxStateView | null;
 }
 
-/** Dedizierter BoxState-Read (§11): hardwareEnforced unterscheidet physische Vollstreckung von
- *  Ehrensache. null = keine Box registriert. Throws, wenn der User unbekannt ist. */
+/** Dedizierter BoxState-Read (explain_model §13): hardwareEnforced unterscheidet physische
+ *  Vollstreckung von Ehrensache. null = keine Box registriert. Throws, wenn der User unbekannt ist. */
 export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
   const [box, keyInBox] = await Promise.all([loadBoxRow(userId), getCurrentLockKeyInBox(userId)]);
-  return { schemaVersion: 2, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
+  return { schemaVersion: 3, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */

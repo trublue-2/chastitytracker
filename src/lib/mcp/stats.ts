@@ -2,7 +2,7 @@ import { calculateWearingHoursByRange, msToHours, round1, summarizeDurations } f
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, buildWearSessions, deviceDisplayName, segmentsByDevice, type DeviceRef, type Session } from "@/lib/sessionModel";
+import { buildSessions, buildWearSessions, deviceDisplayName, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, loadTrackingContext, loadCategoryNames, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
@@ -37,9 +37,13 @@ export interface DeviceStatRow {
 }
 
 export interface DeviceStatsResult {
-  schemaVersion: 3;
+  /** v4: `devices` enthält nur noch echte Geräte; der Sammel-Posten ohne Geräte-Zuordnung
+   *  (Projektgeschichte) steht separat in `unassigned` statt als Pseudo-Gerätezeile. */
+  schemaVersion: 4;
   user: string;
   devices: DeviceStatRow[];
+  /** KG-Tragezeiten ohne Geräte-Zuordnung (deviceId null) — kein Gerät, nicht mit `devices` mischen. */
+  unassigned: DeviceStatRow | null;
 }
 
 /** Was pro Gerät gesammelt wird, bevor daraus eine Zeile wird. */
@@ -90,25 +94,34 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
   collectSessions(byDevice, buildWearSessions(entries, now),
     (s) => (s.categoryId ? nameById.get(s.categoryId) ?? null : null));
 
-  const rows = [...byDevice.values()]
-    .map((r) => {
-      const m = summarizeDurations(r.durations);
-      return {
-        deviceId: r.device.id,
-        deviceName: deviceDisplayName(r.device),
-        category: r.category,
-        sessionCount: m.count,
-        totalHours: msToHours(m.totalMs),
-        avgHours: msToHours(m.avgMs),
-        medianHours: msToHours(m.medianMs),
-        minHours: msToHours(m.minMs),
-        maxHours: msToHours(m.maxMs),
-        lastWornAt: iso(r.lastWorn),
-      };
-    })
-    .sort((a, b) => b.totalHours - a.totalHours);
+  const toRow = (r: DeviceAgg): DeviceStatRow => {
+    const m = summarizeDurations(r.durations);
+    return {
+      deviceId: r.device.id,
+      deviceName: deviceDisplayName(r.device),
+      category: r.category,
+      sessionCount: m.count,
+      totalHours: msToHours(m.totalMs),
+      avgHours: msToHours(m.avgMs),
+      medianHours: msToHours(m.medianMs),
+      minHours: msToHours(m.minMs),
+      maxHours: msToHours(m.maxMs),
+      lastWornAt: iso(r.lastWorn),
+    };
+  };
 
-  return { schemaVersion: 3, user: username, devices: rows };
+  // Sammel-Posten ohne Gerät ist Projektgeschichte, kein Gerät — eigenes Feld statt einer
+  // gleichberechtigten Pseudo-Zeile zwischen den echten Geräten. Getrennt wird an der QUELLE
+  // (weder id noch Name), nicht am Anzeigenamen: Legacy-Strecken mit Namen aber ohne Geräte-id
+  // sind echte (Name-only-)Geräte und bleiben in `devices`.
+  const aggs = [...byDevice.values()];
+  const unassignedAgg = aggs.find((r) => isUnassignedDevice(r.device));
+  return {
+    schemaVersion: 4,
+    user: username,
+    devices: aggs.filter((r) => !isUnassignedDevice(r.device)).map(toRow).sort((a, b) => b.totalHours - a.totalHours),
+    unassigned: unassignedAgg ? toRow(unassignedAgg) : null,
+  };
 }
 
 // ── records ──────────────────────────────────────────────────────────────────

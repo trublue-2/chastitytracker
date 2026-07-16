@@ -179,6 +179,8 @@ export interface NoteDTO {
   validUntil: string | null;
   supersedesId: string | null;
   createdAt: string;
+  /** Optimistic-Concurrency-Token — bei Edits als `expectedVersion` mitgeben (siehe writeFramework). */
+  version: number;
   refs: EntityRef[];
 }
 
@@ -186,7 +188,7 @@ type NoteWithRefs = {
   id: string; type: string; status: string; pinned: boolean; source: string;
   confidence: string | null; kg: string | null; kategorie: string | null; text: string;
   doDont: string | null; validFrom: Date | null; validUntil: Date | null;
-  supersedesId: string | null; createdAt: Date;
+  supersedesId: string | null; createdAt: Date; version: number;
   refs: { entityType: string; entityId: string }[];
 };
 
@@ -225,7 +227,7 @@ export function toNoteDTO(n: NoteWithRefs, isoFn: Iso = iso): NoteDTO {
     confidence: n.confidence, kg: n.kg, kategorie: n.kategorie, text: n.text,
     doDont: parseDoDont(n.doDont),
     validFrom: isoFn(n.validFrom), validUntil: isoFn(n.validUntil),
-    supersedesId: n.supersedesId, createdAt: isoFn(n.createdAt)!,
+    supersedesId: n.supersedesId, createdAt: isoFn(n.createdAt)!, version: n.version,
     refs: n.refs.map((r) => ({ entityType: r.entityType as EntityType, entityId: r.entityId })),
   };
 }
@@ -233,7 +235,7 @@ export function toNoteDTO(n: NoteWithRefs, isoFn: Iso = iso): NoteDTO {
 const noteSelect = {
   id: true, type: true, status: true, pinned: true, source: true, confidence: true,
   kg: true, kategorie: true, text: true, doDont: true, validFrom: true, validUntil: true,
-  supersedesId: true, createdAt: true, refs: { select: { entityType: true, entityId: true } },
+  supersedesId: true, createdAt: true, version: true, refs: { select: { entityType: true, entityId: true } },
 } as const;
 
 /**
@@ -282,5 +284,13 @@ export async function notesForEntities(
 
 /** Schlüssel für die notesForEntities-Map. */
 export const entityKey = (type: EntityType, id: string): string => `${type}:${id}`;
+
+/** Case-insensitives Namens-Matching über eine bereits geladene Liste — die EINE Definition von
+ *  „welcher Name passt" (Prisma auf SQLite kennt kein mode:"insensitive", darum in JS). Fetch-Scope
+ *  und Miss-Verhalten (throw vs null) bleiben beim Aufrufer. */
+export function matchByNameCI<T extends { name: string }>(items: T[], name: string): T | undefined {
+  const target = name.trim().toLowerCase();
+  return items.find((i) => i.name.toLowerCase() === target);
+}
 
 export { noteSelect };

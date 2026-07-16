@@ -115,6 +115,8 @@ model RecurringContext {
   // null = jede Woche (Default, bisheriges Verhalten). 1..5 = n-ter <weekday> im Monat.
   // -1 = letzter <weekday> im Monat (z.B. "erster Mittwoch" = weekday:3, ordinal:1).
   ordinal    Int?
+  // Optimistic-Concurrency-Token: inkrementiert bei jedem MCP-Edit (siehe writeFramework).
+  version    Int      @default(1)
   deviceFree Boolean  @default(false)
   note       String?
   createdAt  DateTime @default(now())
@@ -131,6 +133,8 @@ model Appointment {
   typ        String? // z.B. "Therapie", "Arzt"
   deviceFree Boolean  @default(false)
   note       String?
+  // Optimistic-Concurrency-Token: inkrementiert bei jedem MCP-Edit (siehe writeFramework).
+  version    Int      @default(1)
   createdAt  DateTime @default(now())
 
   @@index([userId, when])
@@ -183,6 +187,8 @@ model KeyholderNote {
   validUntil   DateTime?
   // doDont: JSON {"do":[...],"dont":[...]} — strukturiert für BOUNDARY-Notes
   doDont       String?
+  // Optimistic-Concurrency-Token: inkrementiert bei jedem MCP-Edit (siehe writeFramework).
+  version      Int       @default(1)
 
   refs NoteRef[]
 
@@ -449,11 +455,13 @@ model Device {
   securityLevel      String?
   // lookalikeClusterId: gleiche Optik = gleicher Cluster. Mismatch INNERHALB eines Clusters ist soft, nie ein Vergehen.
   lookalikeClusterId String?
-  abstreifbar        Boolean @default(false) // Anti-Auszieh-Status
+  pullOffRisk        Boolean @default(false) // true = lässt sich trotz Verschluss abstreifen (unsicher)
   material           String? // Edelstahl | Kunststoff | Silikon
   bauform            String? // flach | voll | standard | Plug ...
   healthFlags        String? // JSON string[] — Druckstellen, scheuert, rutscht ...
   retentionNotes     String? // z.B. "njoy: rutscht beim Entspannen"
+  // Optimistic-Concurrency-Token: inkrementiert bei jedem MCP-Edit (siehe writeFramework).
+  version            Int     @default(1)
 
   entries                 Entry[]
   verschlussAnforderungen VerschlussAnforderung[]

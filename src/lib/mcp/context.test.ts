@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { setHealthHoldDef, upsertRecurringContextDef } from "./context";
+import { setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "./context";
 
 // Regression: runV2Write (route.ts) destructures `reason` out of the raw tool args as the
 // mandatory AUDIT field before the domain-specific args ever reach validate()/apply(). The
@@ -49,5 +49,17 @@ describe("upsertRecurringContextDef.validate — ordinal", () => {
     expect(() => upsertRecurringContextDef.validate!({ label: "x", weekday: 1, ordinal: 0 })).toThrow(/ordinal/i);
     expect(() => upsertRecurringContextDef.validate!({ label: "x", weekday: 1, ordinal: 6 })).toThrow(/ordinal/i);
     expect(() => upsertRecurringContextDef.validate!({ label: "x", weekday: 1, ordinal: -2 })).toThrow(/ordinal/i);
+  });
+});
+
+// Wiring-Check: beide Kontext-Edit-Tools rufen den zentralen OCC-Validate-Guard
+// (assertVersionRequiresId, writeFramework) auf — die Helper-Semantik selbst ist dort getestet.
+describe("expectedVersion requires id (OCC wiring)", () => {
+  it("upsert_appointment rejects expectedVersion without id", () => {
+    expect(() => upsertAppointmentDef.validate!({ when: "2026-07-16T10:00:00Z", expectedVersion: 1 })).toThrow(/expectedVersion.*id/i);
+  });
+
+  it("upsert_recurring_context rejects expectedVersion without id", () => {
+    expect(() => upsertRecurringContextDef.validate!({ label: "HO", weekday: 1, expectedVersion: 1 })).toThrow(/expectedVersion.*id/i);
   });
 });

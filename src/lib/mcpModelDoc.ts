@@ -145,10 +145,13 @@ Jedes erkannte Vergehen durchläuft: **erkannt → verworfen** ODER **bestraft �
 - **Praxis:** Du musst nicht jede Kleinigkeit hart ahnden — verwirf mit kurzem Grund, oder schreib
   eine Strafe rein und markier sie später erledigt. Klar in der Konsequenz, ohne Automatik.
 
-## 13. Dashboard, Segmente, strukturiertes Wissen (schemaVersion 2)
+## 13. Dashboard, Segmente, strukturiertes Wissen
 Leitprinzip: **ein Dashboard-Call beantwortet ~90 %;
 Wahrheit kommt aus Segmenten/Bildern, nicht aus Labels; häufige Fragen sind vorberechnet; Regeln
 und Grenzen sind gepinnt und versioniert.**
+Jede Deep-View trägt eine **\`schemaVersion\`**: gleiche Nummer = gleiche Form UND gleiche
+Feld-Bedeutung. Ändert sich Semantik oder fallen Felder weg, steigt die Nummer — ein historischer
+Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
 
 - **\`keyholder_dashboard\`** — DER Einstieg: currentRun vs Personal Best, was JETZT getragen wird
   (KG + Kategorien), nextRelevant (Kontrolle/Sperrzeit/Orgasmus-Fenster), Ziele + Adhärenz, offene
@@ -162,18 +165,29 @@ und Grenzen sind gepinnt und versioniert.**
   kein Vergehen). **\`deviceEffective\`** ist das für \`deviceBreakdown\`/\`device_stats\` massgebliche
   Gerät. \`endedBy\`: \`cleaning\` (Pause) vs \`session-end\` vs \`open\`.
 - **Geräte-Metadaten (\`get_devices\` / \`set_device_meta\`)** — \`securityLevel\` (SECURING vs
-  TRUST_ONLY), \`lookalikeClusterId\`: ein Geräte-Mismatch **innerhalb eines Clusters ist nie ein
-  echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`).
+  TRUST_ONLY; **nur für KG-Geräte sinnvoll** — bei Plug/Halsband/… ist \`null\` korrekt und
+  vollständig, keine Datenlücke), \`lookalikeClusterId\`: ein Geräte-Mismatch **innerhalb eines
+  Clusters ist nie ein echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`).
+  \`pullOffRisk\`: **true = das Gerät lässt sich trotz Verschluss abstreifen (unsicher)**, false =
+  sitzt sicher. \`trackingEnabled\` (von der Kategorie): **false = Inventory-only** (z.B.
+  Halsband/Knebel) — solche Geräte liefern PER DESIGN keine Trage-Sessions. \`referenceImages\` ist
+  **bewusst nur die Anzahl**: die Bilder wertet der Server für \`deviceConfidence\` aus, via MCP
+  sind sie nicht abrufbar.
 - **Vorberechnet:** \`device_stats\` (je Gerät total/avg/median/min/max/längste Strecke),
   \`records\` (PB, aktuell vs PB, orgasmusfrei), \`period_summary\` (Tag/Woche/Monat + Ziel),
-  \`denial_trend\` (Streak, Trend, orgasmHistory).
+  \`denial_trend\` (Streak, Trend, orgasmHistory). In \`device_stats\` stehen nur getragene Geräte:
+  **Abwesenheit ≠ Nichtnutzung** (nie getragene und Inventory-only-Geräte fehlen ganz; Inventar-
+  Wahrheit ist \`get_devices\`). KG-Zeiten ohne Geräte-Zuordnung stehen separat in \`unassigned\`
+  (Projektgeschichte, kein Gerät).
 - **\`get_offenses\`** — vereinheitlichtes Disziplin-Ledger (alle Vergehen als eine Liste mit
   status/judgment/consequence). Geurteilt wird über \`judge_offense\`.
 - **Notes v2 (\`query_notes\` / \`upsert_note\` / \`link_note\`)** — strukturiert + versioniert:
   \`type\` (DIRECTIVE|BOUNDARY|OBSERVATION|CORRECTION|EQUIPMENT|DATA|HISTORY), \`status\`,
   \`pinned\`, \`source\`/\`confidence\` (Nutzer-Fakt vs eigener Schluss), \`doDont\` (für BOUNDARY),
   \`refs\` (typisierte Verknüpfung an Objekte — kommen inline mit get_session/get_devices/get_offenses).
-  **Supersession statt Delete**: alte Note → \`superseded\`, kein Datenverlust.
+  **Supersession statt Delete**: alte Note → \`superseded\`, kein Datenverlust. Refs auf unbekannte
+  Objekte werden abgewiesen (kein stiller Dangling-Ref); nennt der \`kg\`-Tag ein Inventar-Gerät,
+  wird automatisch ein device-Ref angelegt — auffindbar zählt NUR der Ref, nicht der Freitext-Tag.
 - **Kontext (\`get_context\` / set_health_hold / upsert_appointment / upsert_recurring_context)** —
   HealthHold (Gesundheits-Zurückhaltung), Wochen-Kontext, Termine (deviceFree).
 - **\`timeline\`** — alle Ereignisse auf einer Achse (Segment-basiert). **\`get_action_log\`** —
@@ -194,7 +208,13 @@ und Grenzen sind gepinnt und versioniert.**
 ### Write-Disziplin
 Die Wissens-/Kontext-Writes (\`upsert_note\`, \`set_device_meta\`, \`set_health_hold\`, …) brauchen
 **\`reason\`** (Pflicht, Audit), unterstützen **\`dryRun:true\`** (zeigt Wirkung/Konflikte OHNE zu
-committen) und liefern **Diff** + neuen Zustand zurück. Alle Writes sind agent-autonom (keine
+committen) und liefern **Diff** + neuen Zustand zurück.
+**Optimistic Concurrency:** Note, Gerät, Termin und Wochen-Slot tragen eine **\`version\`**
+(in get_devices/query_notes/get_context und in jedem Write-Ergebnis). Gib bei **Edits**
+\`expectedVersion\` mit — weicht die aktuelle Version ab (anderer Schreiber dazwischen, z.B. eine
+zweite Keyholder-Instanz), wird der Write mit Konflikt-Fehler abgelehnt statt still zu
+überschreiben; dann neu lesen und mit der aktuellen Version wiederholen. Jeder Edit inkrementiert
+\`version\`; ohne \`expectedVersion\` gilt Last-Write-Wins wie bisher. Alle Writes sind agent-autonom (keine
 Berechtigungs-Stufen) und erfordern **keine Bestätigung** — entscheide und führe direkt aus, ohne
 beim User rückzufragen (auch die benachrichtigenden Direktiven wie Sperrzeit/Inspektion/Strafe).
 **Zeiten sind ISO-8601 mit Offset** (dashboard.nextRelevant, get_offenses, …); Ausnahme ist
@@ -202,8 +222,7 @@ beim User rückzufragen (auch die benachrichtigenden Direktiven wie Sperrzeit/In
 zusätzlich \`remainingMinutes\`/\`overdue\` verfügbar.
 
 ### Noch nicht umgesetzt (bewusst)
-- **Optimistic Concurrency (Version-Token)** und **generisches \`scheduledFor\`** (zeitlich geplante
-  Writes über alle Tools) sind noch NICHT da — sie brauchen zusätzliche Infrastruktur (Versions-
-  Spalten bzw. einen Poller). Geplante Kontrollen gibt es weiterhin über \`request_inspection\`
-  (delayMinutes).
+- **Generisches \`scheduledFor\`** (zeitlich geplante Writes über alle Tools) ist noch NICHT da —
+  es braucht zusätzliche Infrastruktur (einen Poller). Geplante Kontrollen gibt es weiterhin über
+  \`request_inspection\` (delayMinutes).
 `;
