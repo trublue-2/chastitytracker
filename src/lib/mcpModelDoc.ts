@@ -194,7 +194,13 @@ und Grenzen sind gepinnt und versioniert.**
 ### Write-Disziplin
 Die Wissens-/Kontext-Writes (\`upsert_note\`, \`set_device_meta\`, \`set_health_hold\`, …) brauchen
 **\`reason\`** (Pflicht, Audit), unterstützen **\`dryRun:true\`** (zeigt Wirkung/Konflikte OHNE zu
-committen) und liefern **Diff** + neuen Zustand zurück. Alle Writes sind agent-autonom (keine
+committen) und liefern **Diff** + neuen Zustand zurück.
+**Optimistic Concurrency:** Note, Gerät, Termin und Wochen-Slot tragen eine **\`version\`**
+(in get_devices/query_notes/get_context und in jedem Write-Ergebnis). Gib bei **Edits**
+\`expectedVersion\` mit — weicht die aktuelle Version ab (anderer Schreiber dazwischen, z.B. eine
+zweite Keyholder-Instanz), wird der Write mit Konflikt-Fehler abgelehnt statt still zu
+überschreiben; dann neu lesen und mit der aktuellen Version wiederholen. Jeder Edit inkrementiert
+\`version\`; ohne \`expectedVersion\` gilt Last-Write-Wins wie bisher. Alle Writes sind agent-autonom (keine
 Berechtigungs-Stufen) und erfordern **keine Bestätigung** — entscheide und führe direkt aus, ohne
 beim User rückzufragen (auch die benachrichtigenden Direktiven wie Sperrzeit/Inspektion/Strafe).
 **Zeiten sind ISO-8601 mit Offset** (dashboard.nextRelevant, get_offenses, …); Ausnahme ist
@@ -202,8 +208,7 @@ beim User rückzufragen (auch die benachrichtigenden Direktiven wie Sperrzeit/In
 zusätzlich \`remainingMinutes\`/\`overdue\` verfügbar.
 
 ### Noch nicht umgesetzt (bewusst)
-- **Optimistic Concurrency (Version-Token)** und **generisches \`scheduledFor\`** (zeitlich geplante
-  Writes über alle Tools) sind noch NICHT da — sie brauchen zusätzliche Infrastruktur (Versions-
-  Spalten bzw. einen Poller). Geplante Kontrollen gibt es weiterhin über \`request_inspection\`
-  (delayMinutes).
+- **Generisches \`scheduledFor\`** (zeitlich geplante Writes über alle Tools) ist noch NICHT da —
+  es braucht zusätzliche Infrastruktur (einen Poller). Geplante Kontrollen gibt es weiterhin über
+  \`request_inspection\` (delayMinutes).
 `;

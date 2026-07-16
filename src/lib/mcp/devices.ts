@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { resolveUserContext, makeIso, notesForEntities, entityKey, parseStringArray, tzOf, type Iso, type NoteDTO } from "@/lib/mcp/common";
-import { diffFields, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
+import { diffFields, occEdit, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
 
 /** Geräte-Metadaten, die Keyholder-Entscheidungen tragen (§2) + angereicherte Geräteliste mit
  *  Inline-Notes. MCP-only, additiv. */
@@ -25,6 +25,8 @@ export interface DeviceMetaView {
   retentionNotes: string | null;
   referenceImages: number;
   createdAt: string;
+  /** Optimistic-Concurrency-Token — bei set_device_meta als `expectedVersion` mitgeben (siehe writeFramework). */
+  version: number;
   notes: NoteDTO[];
 }
 
@@ -39,7 +41,7 @@ const deviceViewSelect = {
   id: true, name: true, description: true, archivedAt: true, createdAt: true,
   purchasePrice: true, currency: true,
   securityLevel: true, lookalikeClusterId: true, abstreifbar: true,
-  material: true, bauform: true, healthFlags: true, retentionNotes: true,
+  material: true, bauform: true, healthFlags: true, retentionNotes: true, version: true,
   category: { select: { name: true, isBuiltIn: true } },
   _count: { select: { referenceImages: true } },
 } as const;
@@ -49,6 +51,7 @@ type DeviceViewRow = {
   purchasePrice: number | null; currency: string | null;
   securityLevel: string | null; lookalikeClusterId: string | null; abstreifbar: boolean;
   material: string | null; bauform: string | null; healthFlags: string | null; retentionNotes: string | null;
+  version: number;
   category: { name: string; isBuiltIn: boolean } | null;
   _count: { referenceImages: number };
 };
@@ -73,6 +76,7 @@ function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[], iso: Iso): DeviceM
     retentionNotes: d.retentionNotes,
     referenceImages: d._count.referenceImages,
     createdAt: iso(d.createdAt)!,
+    version: d.version,
     notes,
   };
 }
@@ -100,6 +104,8 @@ export interface SetDeviceMetaArgs {
   /** Gerät per Name (case-insensitiv) ODER id. Eines von beiden ist Pflicht. */
   deviceName?: string;
   deviceId?: string;
+  /** OCC-Token — siehe occEdit (writeFramework). */
+  expectedVersion?: number;
   securityLevel?: string;
   lookalikeClusterId?: string | null;
   abstreifbar?: boolean;
@@ -111,13 +117,13 @@ export interface SetDeviceMetaArgs {
 
 /** Nur die für Snapshot/Resolve nötigen Spalten — nicht der volle Geräte-Datensatz. */
 const metaResolveSelect = {
-  id: true, name: true,
+  id: true, name: true, version: true,
   securityLevel: true, lookalikeClusterId: true, abstreifbar: true,
   material: true, bauform: true, healthFlags: true, retentionNotes: true,
 } as const;
 
 type MetaRow = {
-  id: string; name: string; securityLevel: string | null; lookalikeClusterId: string | null;
+  id: string; name: string; version: number; securityLevel: string | null; lookalikeClusterId: string | null;
   abstreifbar: boolean; material: string | null; bauform: string | null;
   healthFlags: string | null; retentionNotes: string | null;
 };
@@ -156,23 +162,28 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
   },
   async preview(ctx, args) {
     const d = await resolveDevice(prisma, ctx.targetUserId, args);
-    return { device: d.name, before: metaSnapshot(d) };
+    // Check-only (Rückgabe verworfen): der Versions-Konflikt soll schon im dryRun sichtbar sein.
+    occEdit(args.expectedVersion, d.version, `device "${d.name}"`);
+    return { device: d.name, version: d.version, before: metaSnapshot(d) };
   },
   async apply(tx, ctx, args) {
     const d = await resolveDevice(tx, ctx.targetUserId, args);
+    const bump = occEdit(args.expectedVersion, d.version, `device "${d.name}"`);
     const before = metaSnapshot(d);
-    await tx.device.update({
-      where: { id: d.id },
-      data: {
-        ...(args.securityLevel !== undefined ? { securityLevel: args.securityLevel } : {}),
-        ...(args.lookalikeClusterId !== undefined ? { lookalikeClusterId: args.lookalikeClusterId } : {}),
-        ...(args.abstreifbar !== undefined ? { abstreifbar: args.abstreifbar } : {}),
-        ...(args.material !== undefined ? { material: args.material } : {}),
-        ...(args.bauform !== undefined ? { bauform: args.bauform } : {}),
-        ...(args.healthFlags !== undefined ? { healthFlags: JSON.stringify(args.healthFlags) } : {}),
-        ...(args.retentionNotes !== undefined ? { retentionNotes: args.retentionNotes } : {}),
-      },
-    });
+    const data = {
+      ...(args.securityLevel !== undefined ? { securityLevel: args.securityLevel } : {}),
+      ...(args.lookalikeClusterId !== undefined ? { lookalikeClusterId: args.lookalikeClusterId } : {}),
+      ...(args.abstreifbar !== undefined ? { abstreifbar: args.abstreifbar } : {}),
+      ...(args.material !== undefined ? { material: args.material } : {}),
+      ...(args.bauform !== undefined ? { bauform: args.bauform } : {}),
+      ...(args.healthFlags !== undefined ? { healthFlags: JSON.stringify(args.healthFlags) } : {}),
+      ...(args.retentionNotes !== undefined ? { retentionNotes: args.retentionNotes } : {}),
+    };
+    // No-op-Edit (keine Felder angegeben): nicht schreiben und v.a. die Version NICHT bumpen —
+    // ein Bump würde die expectedVersion aller anderen Leser grundlos invalidieren.
+    if (Object.keys(data).length) {
+      await tx.device.update({ where: { id: d.id }, data: { ...bump, ...data } });
+    }
     // Echten, vollständigen View nach dem Update liefern (kein erfundener Platzhalter-State).
     // ALLE Reads über `tx` — globaler prisma-Client hier würde gegen die offene Transaktion deadlocken.
     const [fresh, tz] = await Promise.all([

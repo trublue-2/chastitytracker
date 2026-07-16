@@ -3,7 +3,7 @@ import {
   resolveUserContext, makeIso, tzOf, toNoteDTO, noteSelect, parseIsoDate,
   type NoteDTO, type EntityRef, type EntityType,
 } from "@/lib/mcp/common";
-import { diffFields, type WriteDef } from "@/lib/mcp/writeFramework";
+import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 
 /** Notes v2 — strukturierte, versionierte Keyholder-Notizen mit typisierter Verknüpfung an
  *  Tracking-Objekte (§9). MCP-only, additiv. Supersession statt Delete; pinned/BOUNDARY/refs. */
@@ -63,6 +63,8 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
 export interface UpsertNoteArgs {
   /** Vorhandene Note bearbeiten; weglassen = neue anlegen. */
   id?: string;
+  /** OCC-Token — siehe occEdit (writeFramework). */
+  expectedVersion?: number;
   type?: string;
   text?: string;
   kg?: string;
@@ -94,6 +96,7 @@ function validateUpsert(args: UpsertNoteArgs): UpsertNoteArgs {
   assertEnum(args.confidence, NOTE_CONFIDENCE, "confidence");
   for (const r of args.refs ?? []) assertEnum(r.entityType, ENTITY_TYPES, "refs.entityType");
   if (!args.id && !args.text?.trim()) throw new Error("A new note requires non-empty text.");
+  assertVersionRequiresId(args);
   return args;
 }
 
@@ -120,6 +123,8 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
         tzOf(ctx.targetUserId),
       ]);
       if (!existing) throw new Error(`Note not found: ${args.id}`);
+      // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
+      occEdit(args.expectedVersion, existing.version, `note ${args.id}`);
       return { action: "edit", before: toNoteDTO(existing, makeIso(tz)) };
     }
     return {
@@ -136,27 +141,29 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
 
     // ── Edit bestehender Note ──
     if (args.id) {
-      const existing = await tx.keyholderNote.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
+      const existing = await tx.keyholderNote.findFirst({ where: { id: args.id, userId: ctx.targetUserId }, select: noteSelect });
       if (!existing) throw new Error(`Note not found: ${args.id}`);
-      const updated = await tx.keyholderNote.update({
-        where: { id: args.id },
-        data: {
-          // Pflichtfelder (non-null) nur bei gesetztem Wert ändern; optionale Felder mit
-          // !== undefined, damit sie bewusst auf null geleert werden können.
-          ...(args.type != null ? { type: args.type } : {}),
-          ...(args.text != null ? { text: args.text } : {}),
-          ...(args.kg !== undefined ? { kg: args.kg } : {}),
-          ...(args.kategorie !== undefined ? { kategorie: args.kategorie } : {}),
-          ...(args.pinned != null ? { pinned: args.pinned } : {}),
-          ...(args.source != null ? { source: args.source } : {}),
-          ...(args.confidence !== undefined ? { confidence: args.confidence } : {}),
-          ...(args.status != null ? { status: args.status } : {}),
-          ...(validFrom !== undefined ? { validFrom } : {}),
-          ...(validUntil !== undefined ? { validUntil } : {}),
-          ...(args.doDont !== undefined ? { doDont: doDontJson(args.doDont) ?? null } : {}),
-        },
-        select: noteSelect,
-      });
+      const bump = occEdit(args.expectedVersion, existing.version, `note ${args.id}`);
+      // Pflichtfelder (non-null) nur bei gesetztem Wert ändern; optionale Felder mit
+      // !== undefined, damit sie bewusst auf null geleert werden können.
+      const data = {
+        ...(args.type != null ? { type: args.type } : {}),
+        ...(args.text != null ? { text: args.text } : {}),
+        ...(args.kg !== undefined ? { kg: args.kg } : {}),
+        ...(args.kategorie !== undefined ? { kategorie: args.kategorie } : {}),
+        ...(args.pinned != null ? { pinned: args.pinned } : {}),
+        ...(args.source != null ? { source: args.source } : {}),
+        ...(args.confidence !== undefined ? { confidence: args.confidence } : {}),
+        ...(args.status != null ? { status: args.status } : {}),
+        ...(validFrom !== undefined ? { validFrom } : {}),
+        ...(validUntil !== undefined ? { validUntil } : {}),
+        ...(args.doDont !== undefined ? { doDont: doDontJson(args.doDont) ?? null } : {}),
+      };
+      // No-op-Edit (keine Felder angegeben): nicht schreiben und v.a. die Version NICHT bumpen —
+      // ein Bump würde die expectedVersion aller anderen Leser grundlos invalidieren.
+      const updated = Object.keys(data).length
+        ? await tx.keyholderNote.update({ where: { id: args.id }, data: { ...bump, ...data }, select: noteSelect })
+        : existing;
       return { newState: toNoteDTO(updated, iso), resultRef: updated.id, diff: diffFields(noteScalarSnapshot(existing), noteScalarSnapshot(updated)) };
     }
 
@@ -164,7 +171,9 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
     if (args.supersedesId) {
       const prev = await tx.keyholderNote.findFirst({ where: { id: args.supersedesId, userId: ctx.targetUserId } });
       if (!prev) throw new Error(`supersedesId not found: ${args.supersedesId}`);
-      await tx.keyholderNote.update({ where: { id: args.supersedesId }, data: { status: "superseded" } });
+      // Status-Wechsel ist ein Edit der alten Note — Version bumpen, damit fremde expectedVersion
+      // die Supersession als Konflikt erkennen (sonst editiert jemand eine abgelöste Note "erfolgreich").
+      await tx.keyholderNote.update({ where: { id: args.supersedesId }, data: { status: "superseded", version: { increment: 1 } } });
     }
     const created = await tx.keyholderNote.create({
       data: {
@@ -220,6 +229,8 @@ export const linkNoteDef: WriteDef<LinkNoteArgs, NoteDTO> = {
     const fresh = args.refs.filter((r) => !have.has(`${r.entityType}:${r.entityId}`));
     if (fresh.length) {
       await tx.noteRef.createMany({ data: fresh.map((r) => ({ noteId: args.noteId, entityType: r.entityType, entityId: r.entityId })) });
+      // refs sind Teil des Note-DTO — der Bump macht die Änderung für expectedVersion-Inhaber sichtbar.
+      await tx.keyholderNote.update({ where: { id: args.noteId }, data: { version: { increment: 1 } } });
     }
     // newState trägt die aktualisierten refs bereits — kein separates diff-Feld nötig.
     const [updated, tz] = await Promise.all([

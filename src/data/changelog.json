@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.52",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP: Optimistic Concurrency für Edit-Writes. Notizen, Geräte, Termine und Wochen-Slots tragen jetzt eine version (in get_devices/query_notes/get_context und jedem Write-Ergebnis); Edits können sie als expectedVersion mitgeben und werden bei zwischenzeitlicher Änderung durch einen anderen Schreiber mit Konflikt-Fehler abgelehnt statt still zu überschreiben — auch schon im dryRun sichtbar. Alle Schreibpfade (MCP-Edits, Note-Supersession, link_note, Geräte-Änderungen im UI inkl. Archivieren) zählen die Version hoch; No-op-Edits nicht.",
+          "en": "MCP: optimistic concurrency for edit writes. Notes, devices, appointments and weekly slots now carry a version (in get_devices/query_notes/get_context and every write result); edits can pass it as expectedVersion and are rejected with a conflict error instead of silently overwriting when another writer changed the object in the meantime — already visible in dryRun. All write paths (MCP edits, note supersession, link_note, device changes in the UI incl. archiving) increment the version; no-op edits do not."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.51",
     "date": "2026-07-16",
     "changes": [

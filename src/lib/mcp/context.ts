@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { iso, makeIso, tzOf, APP_TZ, parseIsoDate, type Iso } from "@/lib/mcp/common";
-import { diffFields, type WriteDef } from "@/lib/mcp/writeFramework";
+import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
 
@@ -43,7 +43,7 @@ export interface ContextResult {
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung). */
   cleaning: ReinigungView;
   recurringContext: ReturnType<typeof recurringView>[];
-  appointments: { id: string; when: string; typ: string | null; deviceFree: boolean; note: string | null }[];
+  appointments: ReturnType<typeof apptView>[];
 }
 
 const contextUserSelect = {
@@ -91,7 +91,7 @@ export async function getContext(username: string): Promise<ContextResult> {
     },
     cleaning: buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ),
     recurringContext: recurring.map(recurringView),
-    appointments: appts.map((a) => ({ id: a.id, when: iso(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note })),
+    appointments: appts.map((a) => apptView(a, iso)),
   };
 }
 
@@ -133,19 +133,22 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
 
 export interface UpsertAppointmentArgs {
   id?: string;
+  /** OCC-Token — siehe occEdit (writeFramework). */
+  expectedVersion?: number;
   when?: string;
   typ?: string | null;
   deviceFree?: boolean;
   note?: string | null;
 }
 
-const apptView = (a: { id: string; when: Date; typ: string | null; deviceFree: boolean; note: string | null }, isoFn: Iso) =>
-  ({ id: a.id, when: isoFn(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note });
+const apptView = (a: { id: string; when: Date; typ: string | null; deviceFree: boolean; note: string | null; version: number }, isoFn: Iso) =>
+  ({ id: a.id, when: isoFn(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note, version: a.version });
 
 export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<typeof apptView>> = {
   tool: "upsert_appointment",
   validate(args) {
     if (!args.id && !args.when) throw new Error("A new appointment requires `when` (ISO 8601).");
+    assertVersionRequiresId(args);
     return args;
   },
   async preview(ctx, args) {
@@ -155,6 +158,8 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
         tzOf(ctx.targetUserId),
       ]);
       if (!existing) throw new Error(`Appointment not found: ${args.id}`);
+      // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
+      occEdit(args.expectedVersion, existing.version, `appointment ${args.id}`);
       return { action: "edit", before: apptView(existing, makeIso(tz)) };
     }
     return { action: "create", when: args.when };
@@ -165,15 +170,17 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
     if (args.id) {
       const existing = await tx.appointment.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
       if (!existing) throw new Error(`Appointment not found: ${args.id}`);
-      const updated = await tx.appointment.update({
-        where: { id: args.id },
-        data: {
-          ...(when !== undefined ? { when } : {}),
-          ...(args.typ !== undefined ? { typ: args.typ } : {}),
-          ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
-          ...(args.note !== undefined ? { note: args.note } : {}),
-        },
-      });
+      const bump = occEdit(args.expectedVersion, existing.version, `appointment ${args.id}`);
+      const data = {
+        ...(when !== undefined ? { when } : {}),
+        ...(args.typ !== undefined ? { typ: args.typ } : {}),
+        ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
+        ...(args.note !== undefined ? { note: args.note } : {}),
+      };
+      // No-op-Edit: nicht schreiben, Version nicht bumpen (würde fremde expectedVersion invalidieren).
+      const updated = Object.keys(data).length
+        ? await tx.appointment.update({ where: { id: args.id }, data: { ...bump, ...data } })
+        : existing;
       return { newState: apptView(updated, iso), resultRef: updated.id, diff: diffFields(apptView(existing, iso), apptView(updated, iso)) };
     }
     const created = await tx.appointment.create({
@@ -189,6 +196,8 @@ const ORDINAL_VALUES: readonly number[] = [-1, 1, 2, 3, 4, 5];
 
 export interface UpsertRecurringContextArgs {
   id?: string;
+  /** OCC-Token — siehe occEdit (writeFramework). */
+  expectedVersion?: number;
   label?: string;
   weekday?: number;
   /** null = jede Woche, 1..5 = n-ter <weekday> im Monat, -1 = letzter <weekday> im Monat. */
@@ -197,8 +206,8 @@ export interface UpsertRecurringContextArgs {
   note?: string | null;
 }
 
-const recurringView = (r: { id: string; label: string; weekday: number; ordinal: number | null; deviceFree: boolean; note: string | null }) =>
-  ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", ordinal: r.ordinal, ordinalLabel: ordinalLabel(r.ordinal), deviceFree: r.deviceFree, note: r.note });
+const recurringView = (r: { id: string; label: string; weekday: number; ordinal: number | null; deviceFree: boolean; note: string | null; version: number }) =>
+  ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", ordinal: r.ordinal, ordinalLabel: ordinalLabel(r.ordinal), deviceFree: r.deviceFree, note: r.note, version: r.version });
 
 export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, ReturnType<typeof recurringView>> = {
   tool: "upsert_recurring_context",
@@ -208,12 +217,15 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
       throw new Error("ordinal must be -1 (letzter) or 1..5 (n-ter).");
     }
     if (!args.id && (!args.label?.trim() || args.weekday == null)) throw new Error("A new recurring context requires label + weekday.");
+    assertVersionRequiresId(args);
     return args;
   },
   async preview(ctx, args) {
     if (args.id) {
       const existing = await prisma.recurringContext.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
       if (!existing) throw new Error(`RecurringContext not found: ${args.id}`);
+      // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
+      occEdit(args.expectedVersion, existing.version, `recurringContext ${args.id}`);
       return { action: "edit", before: recurringView(existing) };
     }
     return { action: "create", label: args.label, weekday: args.weekday };
@@ -222,16 +234,18 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
     if (args.id) {
       const existing = await tx.recurringContext.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
       if (!existing) throw new Error(`RecurringContext not found: ${args.id}`);
-      const updated = await tx.recurringContext.update({
-        where: { id: args.id },
-        data: {
-          ...(args.label != null ? { label: args.label } : {}),
-          ...(args.weekday != null ? { weekday: args.weekday } : {}),
-          ...(args.ordinal !== undefined ? { ordinal: args.ordinal } : {}),
-          ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
-          ...(args.note !== undefined ? { note: args.note } : {}),
-        },
-      });
+      const bump = occEdit(args.expectedVersion, existing.version, `recurringContext ${args.id}`);
+      const data = {
+        ...(args.label != null ? { label: args.label } : {}),
+        ...(args.weekday != null ? { weekday: args.weekday } : {}),
+        ...(args.ordinal !== undefined ? { ordinal: args.ordinal } : {}),
+        ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
+        ...(args.note !== undefined ? { note: args.note } : {}),
+      };
+      // No-op-Edit: nicht schreiben, Version nicht bumpen (würde fremde expectedVersion invalidieren).
+      const updated = Object.keys(data).length
+        ? await tx.recurringContext.update({ where: { id: args.id }, data: { ...bump, ...data } })
+        : existing;
       return { newState: recurringView(updated), resultRef: updated.id, diff: diffFields(recurringView(existing), recurringView(updated)) };
     }
     const created = await tx.recurringContext.create({

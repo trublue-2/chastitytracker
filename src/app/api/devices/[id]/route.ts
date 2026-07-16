@@ -37,7 +37,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     const updated = await prisma.device.update({
       where: { id },
-      data: { archivedAt: null },
+      // version: OCC-Token der MCP-Edits — jeder Device-Write bumpt es, damit ein Keyholder-Agent
+      // mit expectedVersion auch UI-seitige Änderungen als Konflikt erkennt (siehe mcp/writeFramework).
+      data: { archivedAt: null, version: { increment: 1 } },
     });
     return NextResponse.json(updated);
   }
@@ -92,6 +94,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (currency !== undefined) data.currency = currency || null;
   if (categoryId !== undefined) data.categoryId = categoryId || null;
 
+  // version: OCC-Token der MCP-Edits — bumpen, sobald wirklich Felder geändert werden (No-op nicht).
+  if (Object.keys(data).length) data.version = { increment: 1 };
+
   const updated = await prisma.device.update({ where: { id }, data });
 
   // H5: wird das Geräte-Foto ersetzt, die alte verwaiste Datei löschen.
@@ -136,7 +141,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   // Soft delete — preserve history
   await prisma.device.update({
     where: { id },
-    data: { archivedAt: new Date() },
+    // version-Bump: Archivieren ändert das MCP-DTO (archived) — siehe restore/PATCH oben.
+    data: { archivedAt: new Date(), version: { increment: 1 } },
   });
   return NextResponse.json({ archived: true });
 }

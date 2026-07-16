@@ -70,13 +70,47 @@ export interface DryRunResponse {
 export type ExecuteResponse<T> = (WriteResult<T> & { dryRun: false; tool: string }) | DryRunResponse;
 
 /** Berechnet einen flachen Feld-Diff zwischen Vorher- und Nachher-Zustand (nur geänderte Keys).
- *  Vergleich über JSON-Serialisierung — robust für die flachen Skalar-Zustände, die hier gedifft werden. */
+ *  Vergleich über JSON-Serialisierung — robust für die flachen Skalar-Zustände, die hier gedifft werden.
+ *  `version` (OCC-Buchhaltung, s.u.) wird nicht gedifft — der Increment ist impliziter Teil jedes Edits;
+ *  die neue Version steht im newState. */
 export function diffFields<T extends Record<string, unknown>>(before: T, after: T): Record<string, [unknown, unknown]> {
   const diff: Record<string, [unknown, unknown]> = {};
   for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (key === "version") continue;
     if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) diff[key] = [before[key], after[key]];
   }
   return diff;
+}
+
+/**
+ * Optimistic Concurrency für Edit-Writes: Objekte mit `version`-Spalte (Note, Device, Appointment,
+ * RecurringContext) werden bei jedem Edit inkrementiert. Gibt der Aufrufer `expectedVersion` mit
+ * und die Zeile wurde zwischenzeitlich von einem anderen Schreiber (zweite Keyholder-Instanz,
+ * Admin-UI) geändert, lehnt der Write ab statt still zu überschreiben. Ohne `expectedVersion`
+ * bleibt das Verhalten der blinde Last-Write-Wins von früher (abwärtskompatibel).
+ *
+ * `occEdit` koppelt Check und Increment untrennbar: es wirft bei Versions-Abweichung und liefert
+ * sonst den `version`-Increment als Data-Spread für das Update — ein Edit kann den Check nicht
+ * ohne den Bump bekommen (und umgekehrt). Der Check läuft INNERHALB der Framework-$transaction
+ * auf der frisch per `tx` gelesenen Zeile — SQLite serialisiert Writes über die eine Verbindung,
+ * damit ist Read-Check-Write hier race-frei.
+ */
+export function occEdit(expected: number | undefined, current: number, what: string): { version: { increment: 1 } } {
+  if (expected !== undefined && expected !== current) {
+    throw new Error(
+      `Version conflict on ${what}: expectedVersion ${expected}, but current version is ${current} — ` +
+      `the object was modified by another writer. Re-read it and retry with version ${current}.`,
+    );
+  }
+  return { version: { increment: 1 } };
+}
+
+/** Validate-Hälfte der OCC: `expectedVersion` ist ein Edit-Token — beim Anlegen gibt es noch keine
+ *  Zeile, deren Version man erwarten könnte. */
+export function assertVersionRequiresId(args: { id?: string; expectedVersion?: number }): void {
+  if (!args.id && args.expectedVersion !== undefined) {
+    throw new Error("expectedVersion only applies to edits (requires `id`).");
+  }
 }
 
 /** Schreibt einen Audit-Eintrag im übergebenen Transaktions-Client. Append-only;

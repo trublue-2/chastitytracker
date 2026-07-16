@@ -753,6 +753,13 @@ function registerTools(server: McpServer) {
     });
     // Audit-Felder, die JEDES V2-Write-Tool trägt — einmal definiert, in jedes inputSchema gespreadet.
     const writeMetaFields = { reason: reasonField, dryRun: dryRunField, decisionSource: decisionSourceField };
+    // Optimistic-Concurrency-Token für Edit-fähige V2-Writes (Note, Device, Termin, Slot).
+    const expectedVersionField = z.number().int().min(1).optional().describe(
+      "Optimistic-Concurrency-Token: erwartete `version` des Objekts (steht in get_devices/query_notes/" +
+      "get_context und in jedem Write-Ergebnis). Weicht die aktuelle Version ab (anderer Schreiber " +
+      "dazwischen), wird der Write mit Konflikt-Fehler abgelehnt statt still zu überschreiben — dann " +
+      "neu lesen und mit der aktuellen Version wiederholen. Bei Edits empfohlen — beim Anlegen " +
+      "ungültig (eine neue Zeile hat noch keine Version).");
 
     server.registerTool(
       "upsert_note",
@@ -767,6 +774,7 @@ function registerTools(server: McpServer) {
         inputSchema: {
           ...writeMetaFields,
           id: z.string().optional().describe("Bestehende Note bearbeiten; weglassen = neue anlegen."),
+          expectedVersion: expectedVersionField,
           type: z.enum(NOTE_TYPES).optional().describe("Note-Typ (default OBSERVATION)."),
           text: z.string().optional().describe("Notiztext (Pflicht beim Anlegen)."),
           kg: z.string().optional().describe("Optionaler KG/Gerät-Tag."),
@@ -817,6 +825,7 @@ function registerTools(server: McpServer) {
           ...writeMetaFields,
           deviceName: z.string().optional().describe("Gerät per Name (case-insensitiv). deviceName ODER deviceId."),
           deviceId: z.string().optional().describe("Gerät per id."),
+          expectedVersion: expectedVersionField,
           securityLevel: z.enum(SECURITY_LEVELS).optional().describe("SECURING = sicherndes Gerät, TRUST_ONLY = Vertrauensgerät."),
           lookalikeClusterId: z.string().nullable().optional().describe("Cluster-Tag gleich aussehender Geräte. null = entfernen."),
           abstreifbar: z.boolean().optional().describe("Anti-Auszieh-Status."),
@@ -861,6 +870,7 @@ function registerTools(server: McpServer) {
         inputSchema: {
           ...writeMetaFields,
           id: z.string().optional().describe("Bestehenden Termin bearbeiten; weglassen = neuer."),
+          expectedVersion: expectedVersionField,
           when: z.string().optional().describe("Zeitpunkt (ISO 8601). Pflicht beim Anlegen."),
           typ: z.string().nullable().optional().describe("z.B. Therapie, Arzt."),
           deviceFree: z.boolean().optional().describe("Geräte-freier Termin?"),
@@ -883,6 +893,7 @@ function registerTools(server: McpServer) {
         inputSchema: {
           ...writeMetaFields,
           id: z.string().optional().describe("Bestehenden Slot bearbeiten; weglassen = neuer."),
+          expectedVersion: expectedVersionField,
           label: z.string().optional().describe("Bezeichnung, z.B. 'Home Office' (Pflicht beim Anlegen)."),
           weekday: z.number().int().min(0).max(6).optional().describe("Wochentag 0=So..6=Sa (Pflicht beim Anlegen)."),
           ordinal: z.union([z.literal(-1), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).nullable().optional()
