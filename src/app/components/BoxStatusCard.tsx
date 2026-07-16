@@ -3,7 +3,7 @@
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
-import { boxIsPhysicallyLocked, boxIstLabel, boxSollLabel, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 
 /** Reine Status-Anzeige der Heimdall-Box(en) auf dem Dashboard (Ist + Soll + Frische). Keine
@@ -28,12 +28,13 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string;
     <div className="w-full max-w-2xl mx-auto px-4 pt-6">
       <div className="flex flex-col gap-2">
         {boxes.map((b) => {
-          // „Offen, obwohl das Soll verschlossen verlangt" (z.B. Reinigungspause) → Warn-Optik.
-          const shouldBeLocked = b.keyholderLocked || !!b.lockUntil || b.simpleLock;
-          const conflict = !b.locked && shouldBeLocked;
-          // Optik folgt dem PHYSISCHEN Zustand (wie das Ist-Label) — seit dem Präsenz-Guard kann
-          // die Box offen stehen, obwohl das SOLL zu ist; Schloss-Optik + „Offen" wäre widersprüchlich.
+          // „Steht offen, obwohl eine Sperre verschlossen verlangt" (z.B. Reinigungspause) →
+          // Warn-Optik. PHYSISCH offen, nicht SOLL-offen: eine erst scharfgestellte Öffnung
+          // (Riegel noch zu, wartet auf Knopf) ist kein Alarm — dafür gibt es die Übergangs-Zeile.
           const istLocked = boxIsPhysicallyLocked(b);
+          const shouldBeLocked = b.keyholderLocked || !!b.lockUntil || b.simpleLock;
+          const conflict = !istLocked && shouldBeLocked;
+          const transition = boxPendingTransition(b);
           const scheme = conflict
             ? { bg: "bg-warn-bg", border: "border-warn-border", accent: "text-warn", text: "text-warn-text", Icon: AlertTriangle }
             : istLocked
@@ -48,6 +49,15 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string;
                 <span className={`text-sm ${scheme.accent}`}>· {boxIstLabel(b, t)}</span>
               </div>
               <p className={`text-xs ${scheme.accent}`}>{t("sollLabel")}: {boxSollLabel(b, t, fmtDateTime)}</p>
+              {/* Übergangs-Zustand (Präsenz-Gate): sofort nach dem Eintrag sichtbar (pendingCommand,
+                  tracker-lokal), danach über den Soll/Ist-Mismatch bis zur Riegel-Bestätigung —
+                  dieselbe Sprache wie die Heimdall-Karte. (Am Consume-Sync selbst kann die Zeile
+                  für einen Poll-Takt verschwinden, bis der Push den Mismatch nachliefert.) */}
+              {transition && (
+                <p className="text-xs font-medium text-sperrzeit-text">
+                  {transition === "closing" ? t("pendingCloseAtDevice") : t("pendingOpenAtDevice")}
+                </p>
+              )}
               {reinigungLabel && (
                 <p className="text-xs text-foreground-muted">
                   {reinigungLabel}{quotaLabel ? ` · ${quotaLabel}` : ""}

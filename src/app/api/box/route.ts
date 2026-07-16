@@ -26,7 +26,7 @@ export async function GET() {
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true },
+      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true },
     }),
     getActiveSperrzeit(userId),
   ]);
@@ -41,6 +41,10 @@ export async function GET() {
       // IST getrennt vom SOLL: seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu
       // sein soll (wartet auf Knopf/USB) — die Anzeige darf das SOLL nicht als „Ist" etikettieren.
       reportedLocked: b.reportedLocked,
+      // Noch nicht von der Box abgeholtes Eintrags-Kommando — tracker-LOKALES Wissen, sofort da.
+      // Der Spiegel (locked/reportedLocked) hinkt bis zum nächsten Box-Sync nach; die Karte zeigt
+      // damit den Übergang („angefordert — Knopfdruck vollzieht") ohne auf Heimdall zu warten.
+      pendingCommand: b.pendingCommand === "lock" || b.pendingCommand === "open" ? b.pendingCommand : null,
       simpleLock: b.simpleLock,
       keyholderLocked: b.keyholderLocked || !!sperre,
       lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,

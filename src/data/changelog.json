@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.59",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Box-Karte zeigt den Übergangszustand sofort: Nach einem Verschluss-/Öffnen-Eintrag erscheint direkt »Verschluss angefordert — Knopfdruck an der Box fährt den Riegel zu« bzw. »Öffnung freigegeben — Knopfdruck öffnet den Riegel« (gleiche Sprache wie Heimdall), statt bis zum Box-Sync den alten Stand zu zeigen. Die Warn-Optik erscheint nur noch, wenn die Box wirklich offen steht, obwohl eine Sperre verschlossen verlangt — nicht mehr für eine erlaubte, noch nicht vollzogene Öffnung.",
+          "en": "The box card shows the transition immediately: after a lock/open entry it displays \"Lock requested — pressing the button closes the bolt\" or \"Open approved — pressing the button opens the bolt\" (same wording as Heimdall) instead of the stale state until the next box sync. The warning look now only appears when the box actually stands open while a lock period demands closed — no longer for an approved, not-yet-executed opening."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.57",
     "date": "2026-07-16",
     "changes": [

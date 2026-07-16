@@ -372,6 +372,8 @@
     "lastSeenMinutes": "zuletzt vor {count} Min",
     "lastSeenHours": "zuletzt vor {count} Std",
     "lastSeenDays": "zuletzt vor {count} Tg",
+    "pendingCloseAtDevice": "Verschluss angefordert — Knopfdruck an der Box fährt den Riegel zu",
+    "pendingOpenAtDevice": "Öffnung freigegeben — Knopfdruck an der Box öffnet den Riegel",
     "cleaningBlockedByLockPeriod": "Diese Sperre erlaubt keine Reinigung",
     "cleaningWindowOpen": "Reinigungsfenster offen bis {until}",
     "cleaningWindowNext": "Nächstes Reinigungsfenster: {start}–{end}",
