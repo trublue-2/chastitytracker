@@ -278,7 +278,7 @@ function registerTools(server: McpServer) {
           "Liefert pro Session `category`, `deviceBreakdown` (Stunden je Gerät), `segments[]` (declared vs. " +
           "bild-verifiziertes Gerät + `deviceConfidence`: declared|undeclared|image-confirmed|" +
           "image-conflict|cluster-ambiguous — undeclared = KEIN Gerät angegeben, kein Vergehen), inline " +
-          "verknüpfte Notes (explain_model §13) und `dataQualityFlags` (z.B. declared≠verified oder " +
+          "verknüpfte Notes (explain_model) und `dataQualityFlags` (z.B. declared≠verified oder " +
           "undeclared). Ohne sessionId werden die neuesten Sessions " +
           "aufgelistet — mit `category` nur die einer Kategorie. Zeiten als ISO-8601 mit Offset.",
         inputSchema: {
@@ -317,7 +317,7 @@ function registerTools(server: McpServer) {
       {
         title: "Get devices with decision metadata + inline notes (v2)",
         description:
-          "MCP V2 — Geräte-Inventar inkl. der Entscheidungs-Metadaten (explain_model §13): securityLevel " +
+          "MCP V2 — Geräte-Inventar inkl. der Entscheidungs-Metadaten (explain_model): securityLevel " +
           "(SECURING|TRUST_ONLY; v.a. für sichernde Geräte wie KG oder Halsreif — null ist keine " +
           "Datenlücke), lookalikeClusterId (Mismatch INNERHALB eines Clusters ist nie ein " +
           "Vergehen), pullOffRisk (true = abstreifbar/unsicher, false = geprüft sicher, null = nie " +
@@ -453,7 +453,7 @@ function registerTools(server: McpServer) {
       {
         title: "Get life context (recurring + appointments + health hold)",
         description:
-          "MCP V2 — Kontext um das echte Leben (explain_model §13): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
+          "MCP V2 — Kontext um das echte Leben (explain_model): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
           "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDayMin/perDayMax/Schlaf-Fenster/" +
           "Fristen — read-only, nicht via MCP änderbar), die Reinigungs-Regeln (cleaning: allowed/" +
           "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow/windowsBinding/" +
@@ -516,7 +516,7 @@ function registerTools(server: McpServer) {
       {
         title: "Heimdall box state (hardware enforcement)",
         description:
-          "MCP V2 — Zustand der elektronischen Schlüsselbox (explain_model §13): locked (SOLL: soll die Box zu sein), " +
+          "MCP V2 — Zustand der elektronischen Schlüsselbox (explain_model): locked (SOLL: soll die Box zu sein), " +
           "reportedLocked (IST: war sie beim letzten Sync wirklich zu; kann vom SOLL abweichen — 'soll " +
           "zu, steht offen und wartet auf Knopf/USB', denn zufahren tut die Box nur mit jemandem am " +
           "Gerät; null = noch keine IST-Meldung, dann gilt das SOLL), lockUntil, battery, charging, " +
@@ -944,7 +944,7 @@ function registerTools(server: McpServer) {
       {
         title: "Set device decision metadata (v2)",
         description:
-          "Setzt die Entscheidungs-Metadaten eines Geräts (explain_model §13): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
+          "Setzt die Entscheidungs-Metadaten eines Geräts (explain_model): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
           "lookalikeClusterId (Geräte gleicher Optik in einen Cluster — Mismatch innerhalb ist dann nie ein " +
           "Vergehen), pullOffRisk, material, bauform, healthFlags, retentionNotes, archived (true = aus dem " +
           "aktiven Inventar nehmen). Nur angegebene Felder ändern " +
@@ -974,7 +974,7 @@ function registerTools(server: McpServer) {
       {
         title: "Set / clear health hold (v2)",
         description:
-          "Setzt oder löst die Gesundheits-Zurückhaltung (explain_model §13). active=true braucht healthReason " +
+          "Setzt oder löst die Gesundheits-Zurückhaltung (explain_model). active=true braucht healthReason " +
           "(z.B. 'Migräne/Aura', 'Nacht-Auszeit'); active=false löst den aktiven Hold. Erscheint im " +
           "keyholder_dashboard.healthHold. NUR nutzen bei gesundheitlichen Themen, die EFFEKTIV einen " +
           "Einfluss auf die Keuschhaltung haben (z.B. verhindern sie das Tragen, eine Kontrolle, eine " +

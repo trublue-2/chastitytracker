@@ -36,7 +36,7 @@ describe("mcpModelDoc.ts und docs/mcp-keyholder-guide.md sind synchron", () => {
   it("der Parser findet die Abschnitte tatsächlich", () => {
     // Ohne diese Zusicherung würde ein kaputtes Split-Muster beide Seiten als leer
     // (und damit als gleich) durchwinken.
-    expect(doc.length).toBeGreaterThan(10);
+    expect(doc.length).toBeGreaterThan(5);
   });
 
   it("die ausgeblendete Blockquote ist wirklich die Spiegel-Notiz", () => {

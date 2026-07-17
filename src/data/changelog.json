@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.19",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "MCP explain_model gestrafft: von ~27.6k auf ~8.3k Zeichen (15 → 9 Abschnitte). Tech-Doku statt Prosa — Bug-/Änderungs-Historie und Befund-Referenzen raus (die stehen im Changelog), Box-Abschnitt auf das für den Keyholder Relevante eingedampft (hardwareEnforced/keySecured statt Box-Internals), V1/V2-Pipeline-Vokabular durch einen einheitlichen Schreib-Vertrag ersetzt. Neu vorangestellt: die Rolle des Keyholders — der Server liefert Zahlen, der Keyholder wertet; vorgerechnete Indikatoren sind Eingaben, kein Urteil. Alle Feldaussagen gegen den Code verifiziert.",
+          "en": "Trimmed the MCP explain_model reference from ~27.6k to ~8.3k chars (15 → 9 sections). Tech-doc, not prose — dropped bug/change history and audit-finding references (those live in the changelog), collapsed the box section to what the keyholder needs (hardwareEnforced/keySecured instead of box internals), and replaced the V1/V2 pipeline vocabulary with one uniform write contract. New lead section on the keyholder's role: the server delivers numbers, the keyholder interprets; pre-computed indicators are inputs, not verdicts. Every field claim verified against the code."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.18",
     "date": "2026-07-17",
     "changes": [
