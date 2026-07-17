@@ -36,7 +36,7 @@ describe("buildLockState", () => {
     expect(lock.isLocked).toBe(false);
     expect(lock.currentDurationHours).toBeNull();
     expect(lock.deviceName).toBeNull(); // kein Gerät, wenn nicht verschlossen
-    expect(lock.since).toBe("2026-07-09T10:00:00.000Z"); // Zeitpunkt des jüngsten KG-Eintrags
+    expect(lock.since).toBeNull(); // nicht verschlossen ⇒ kein aktiver Lauf ⇒ since null (#1b)
   });
 
   it("verschlossen: Dauer zählt ab Session-Start", () => {

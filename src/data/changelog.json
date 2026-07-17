@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.51.20",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Keyholder-KI: wiederkehrende Kontext-Slots (z.B. „Pilates jeden Dienstag“) können jetzt Ausnahme-Tage tragen, an denen der Slot ausfällt (Ferien, Feiertage). Damit ist „Findet am 21.07. Pilates statt?“ verlässlich beantwortbar, statt nur im Notiztext zu stehen.",
+          "en": "Keyholder AI: recurring context slots (e.g. \"Pilates every Tuesday\") can now carry exception days on which the slot is skipped (holidays). This makes \"is there Pilates on July 21?\" reliably answerable instead of living only in a free-text note."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Keyholder-KI: der „aktuelle Lauf“ zeigt keinen Anfangszeitpunkt mehr, wenn gerade nicht verschlossen ist (vorher stand dort der Öffnungszeitpunkt neben lauter leeren Feldern — irreführend).",
+          "en": "Keyholder AI: the \"current run\" no longer shows a start time when not locked (it used to show the unlock time next to otherwise-empty fields — misleading)."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Keyholder-KI: die Vergehens-Typenliste in der Ledger-Beschreibung ist wieder vollständig (ein Typ fehlte) und kann nicht mehr von der tatsächlichen Liste abweichen.",
+          "en": "Keyholder AI: the offense-type list in the ledger description is complete again (one type was missing) and can no longer drift from the actual list."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.19",
     "date": "2026-07-18",
     "changes": [

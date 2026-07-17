@@ -118,6 +118,9 @@ model RecurringContext {
   // Optimistic-Concurrency-Token: inkrementiert bei jedem MCP-Edit (siehe writeFramework).
   version    Int      @default(1)
   deviceFree Boolean  @default(false)
+  // JSON-Array von Ausnahme-Daten ("YYYY-MM-DD"), an denen der Slot NICHT stattfindet (iCalendar-
+  // EXDATE-Modell). null/leer = keine Ausnahmen. Der Planer wendet sie beim Aufzählen der Termine an.
+  exclusionDates String?
   note       String?
   createdAt  DateTime @default(now())
 

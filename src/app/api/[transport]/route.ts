@@ -430,9 +430,7 @@ function registerTools(server: McpServer) {
       {
         title: "Discipline ledger (unified offense list)",
         description:
-          "MCP V2 — vereinheitlichtes Disziplin-Ledger: alle erkannten Vergehen (unauthorized_opening, " +
-          "late_control, rejected_control, cleaning_limit, wrong_device, missed_orgasm, late_lock, " +
-          "cleaning_not_relocked) als EINE Liste mit " +
+          "MCP V2 — vereinheitlichtes Disziplin-Ledger: alle erkannten Vergehen (" + OFFENSE_TYPES.join(", ") + ") als EINE Liste mit " +
           "status (open|judged), judgment, Folge (consequence) und Kontext + inline Notes. Bei wrong_device " +
           "kommt der Cluster-Kontext des getragenen Geräts mit (possiblyClusterInternal) — Cluster-interne " +
           "Mismatches sind nie ein echtes Vergehen; urteile via judge_offense. Filter optional — die " +
@@ -1019,8 +1017,9 @@ function registerTools(server: McpServer) {
           "Legt einen wiederkehrenden Slot an oder bearbeitet ihn (id): HO-Tage, Bürotage, Pilates-Slots. " +
           "weekday 0=So..6=Sa. Ohne ordinal = JEDE Woche. Mit ordinal = nur der n-te <weekday> im Monat " +
           "(1..5) oder der letzte (-1) — z.B. 'erster Mittwoch im Monat' = weekday:3, ordinal:1. " +
-          "deviceFree markiert geräte-freie Slots. Echte, wiederkehrende Muster mit klarem `label` " +
-          "anlegen." + CONTEXT_QUALITY_NOTE + V2_WRITE_NOTE,
+          "deviceFree markiert geräte-freie Slots. exclusionDates nennt Daten, an denen der Slot " +
+          "AUSFÄLLT (Ferien/Feiertage) — damit 'Findet am X statt?' aus der API beantwortbar ist statt " +
+          "aus dem Freitext. Echte, wiederkehrende Muster mit klarem `label` anlegen." + CONTEXT_QUALITY_NOTE + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           id: z.string().optional().describe("Bestehenden Slot bearbeiten; weglassen = neuer."),
@@ -1030,6 +1029,7 @@ function registerTools(server: McpServer) {
           ordinal: z.union([z.literal(-1), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).nullable().optional()
             .describe("Weglassen/null = jede Woche. 1..5 = n-ter <weekday> im Monat, -1 = letzter <weekday> im Monat."),
           deviceFree: z.boolean().optional().describe("Geräte-freier Slot?"),
+          exclusionDates: z.array(z.string()).optional().describe("Ausnahme-Daten YYYY-MM-DD, an denen der Slot NICHT stattfindet. Leeres Array = Ausnahmen löschen."),
           note: z.string().nullable().optional().describe("Notiz zum Slot."),
         },
       },

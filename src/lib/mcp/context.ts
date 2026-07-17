@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, type Envelope, type Iso } from "@/lib/mcp/common";
+import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
@@ -262,11 +262,15 @@ export interface UpsertRecurringContextArgs {
   /** null = jede Woche, 1..5 = n-ter <weekday> im Monat, -1 = letzter <weekday> im Monat. */
   ordinal?: number | null;
   deviceFree?: boolean;
+  /** Ausnahme-Daten ("YYYY-MM-DD"), an denen der Slot NICHT stattfindet (Ferien, Feiertage). Der
+   *  Planer zählt die Termine aus der Regel auf und lässt diese Daten aus — so hat „Findet am X
+   *  statt?" eine deterministische API-Antwort statt Freitext. Leeres Array = Ausnahmen löschen. */
+  exclusionDates?: string[];
   note?: string | null;
 }
 
-const recurringView = (r: { id: string; label: string; weekday: number; ordinal: number | null; deviceFree: boolean; note: string | null; version: number }) =>
-  ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", ordinal: r.ordinal, ordinalLabel: ordinalLabel(r.ordinal), deviceFree: r.deviceFree, note: r.note, version: r.version });
+const recurringView = (r: { id: string; label: string; weekday: number; ordinal: number | null; deviceFree: boolean; exclusionDates: string | null; note: string | null; version: number }) =>
+  ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", ordinal: r.ordinal, ordinalLabel: ordinalLabel(r.ordinal), deviceFree: r.deviceFree, exclusionDates: parseStringArray(r.exclusionDates), note: r.note, version: r.version });
 
 /** Feld-Merge eines Recurring-Context-Edits — geteilt von preview + apply (N-15). */
 const recurringData = (args: UpsertRecurringContextArgs) => ({
@@ -274,6 +278,7 @@ const recurringData = (args: UpsertRecurringContextArgs) => ({
   ...(args.weekday != null ? { weekday: args.weekday } : {}),
   ...(args.ordinal !== undefined ? { ordinal: args.ordinal } : {}),
   ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
+  ...(args.exclusionDates !== undefined ? { exclusionDates: JSON.stringify(args.exclusionDates) } : {}),
   ...(args.note !== undefined ? { note: args.note } : {}),
 });
 
@@ -285,6 +290,15 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
       throw new Error("ordinal must be -1 (letzter) or 1..5 (n-ter).");
     }
     if (!args.id && (!args.label?.trim() || args.weekday == null)) throw new Error("A new recurring context requires label + weekday.");
+    for (const d of args.exclusionDates ?? []) {
+      // Round-trip statt Date.parse: Date rollt „2026-02-30" auf März 2 → wäre sonst akzeptiert,
+      // stimmte aber nie mit einem echten Slot-Datum überein (stille Nicht-Ausnahme). Der isNaN-Check
+      // fängt echte Unmöglichkeiten (Monat 13) ab, bevor toISOString darauf wirft.
+      const dt = new Date(d + "T00:00:00Z");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(dt.getTime()) || dt.toISOString().slice(0, 10) !== d) {
+        throw new Error(`exclusionDates must be valid YYYY-MM-DD dates; got "${d}".`);
+      }
+    }
     assertVersionRequiresId(args);
     return args;
   },
@@ -313,7 +327,7 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
       return { newState: recurringView(updated), resultRef: updated.id, diff: diffFields(recurringView(existing), recurringView(updated)) };
     }
     const created = await tx.recurringContext.create({
-      data: { userId: ctx.targetUserId, label: args.label!, weekday: args.weekday!, ordinal: args.ordinal ?? null, deviceFree: args.deviceFree ?? false, note: args.note ?? null },
+      data: { userId: ctx.targetUserId, label: args.label!, weekday: args.weekday!, ordinal: args.ordinal ?? null, deviceFree: args.deviceFree ?? false, exclusionDates: args.exclusionDates ? JSON.stringify(args.exclusionDates) : null, note: args.note ?? null },
     });
     return { newState: recurringView(created), resultRef: created.id };
   },

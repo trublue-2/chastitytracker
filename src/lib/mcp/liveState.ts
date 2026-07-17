@@ -23,7 +23,9 @@ export interface LockState {
   /** Verschlossen: Beginn des LAUFS (Session-Kopf, vor allen Reinigungspausen) — deckt sich mit
    *  `currentDurationHours` (A-01, MCP-Befundliste 2026-07-17: vorher der jüngste KG-Eintrag, also
    *  bei einem Lauf mit Pausen der letzte WIEDERVERSCHLUSS statt des Lauf-Anfangs — widersprach der
-   *  gleichzeitig ausgewiesenen Dauer). Nicht verschlossen: letzter KG-Eintrag (seit wann offen). */
+   *  gleichzeitig ausgewiesenen Dauer). Nicht verschlossen: `null` — kein aktiver Lauf, also kein
+   *  Lauf-Anfang (früher trug das Feld hier den Öffnen-Zeitpunkt „offen seit", während
+   *  durationHours/deviceName null waren — irreführend unter `currentRun`). */
   since: string | null;
   /** NUR bei isLocked: Beginn des AKTUELLEN SEGMENTS (letzter Wiederverschluss nach einer
    *  Reinigungspause, sonst identisch mit `since`). Der alte `since`-Wert vor A-01. */
@@ -89,7 +91,9 @@ export function buildLockState<E extends LockEntry>(
 
   // Verschlossen: Lauf-Anfang (Session-Kopf), nicht der jüngste Eintrag — deckt sich mit
   // currentDurationHours, die schon immer ab dem Session-Kopf rechnet (A-01).
-  const since = isLocked && activePair ? fmt(activePair.verschluss.startTime) : (latest ? fmt(latest.startTime) : null);
+  // Nicht verschlossen ⇒ kein aktiver Lauf ⇒ since null (konsistent mit durationHours/deviceName/
+  // currentSegmentSince, die dann ebenfalls null sind). `latest` bleibt für isLocked oben in Gebrauch.
+  const since = isLocked && activePair ? fmt(activePair.verschluss.startTime) : null;
   // Der alte `since`: der jüngste KG-Eintrag, also bei einer laufenden Pause-Serie der letzte
   // Wiederverschluss. Ohne Pause ist currentLock === activePair.verschluss — dann `since` wieder-
   // verwenden statt fmt() ein zweites Mal auf dasselbe Datum anzuwenden.

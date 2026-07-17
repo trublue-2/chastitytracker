@@ -66,6 +66,23 @@ describe("upsertRecurringContextDef.validate — ordinal", () => {
   });
 });
 
+// Ausnahme-Daten (exclusionDates): der Slot fällt an diesen Tagen aus, damit „Findet am X statt?"
+// aus der API beantwortbar ist statt aus dem Notiz-Freitext (MCP-Restliste 2026-07-18).
+describe("upsertRecurringContextDef.validate — exclusionDates", () => {
+  it("accepts valid YYYY-MM-DD exclusion dates", () => {
+    const args = { label: "Pilates", weekday: 2, exclusionDates: ["2026-07-21", "2026-07-28"] };
+    expect(upsertRecurringContextDef.validate!(args)).toEqual(args);
+  });
+  it("rejects malformed or impossible dates", () => {
+    expect(() => upsertRecurringContextDef.validate!({ label: "x", weekday: 2, exclusionDates: ["21.07.2026"] })).toThrow(/exclusionDates/i);
+    expect(() => upsertRecurringContextDef.validate!({ label: "x", weekday: 2, exclusionDates: ["2026-13-40"] })).toThrow(/exclusionDates/i);
+    // Kalender-unmögliche Tage: Date rollt sie sonst weiter (2026-02-30 → März 2) und die Ausnahme
+    // träfe nie ein echtes Datum → muss abgewiesen werden.
+    expect(() => upsertRecurringContextDef.validate!({ label: "x", weekday: 2, exclusionDates: ["2026-02-30"] })).toThrow(/exclusionDates/i);
+    expect(() => upsertRecurringContextDef.validate!({ label: "x", weekday: 2, exclusionDates: ["2026-06-31"] })).toThrow(/exclusionDates/i);
+  });
+});
+
 // Wiring-Check: beide Kontext-Edit-Tools rufen den zentralen OCC-Validate-Guard
 // (assertVersionRequiresId, writeFramework) auf — die Helper-Semantik selbst ist dort getestet.
 describe("expectedVersion requires id (OCC wiring)", () => {
@@ -94,6 +111,16 @@ describe("upsert_appointment / set_health_hold dryRun — N-15 diff/after", () =
     expect(res.diff).toEqual({ deviceFree: [false, true] });
     expect(res.after.deviceFree).toBe(true);
     expect(db.appointment.update).not.toHaveBeenCalled();
+  });
+
+  it("upsert_recurring_context Edit → exclusionDates als Array in diff/after (JSON-Spalte)", async () => {
+    db.recurringContext.findFirst.mockResolvedValue({ id: "r1", label: "Pilates", weekday: 2, ordinal: null, deviceFree: false, exclusionDates: null, note: null, version: 1 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await executeWrite(upsertRecurringContextDef, ctx, { id: "r1", exclusionDates: ["2026-07-21", "2026-07-28"] } as never, { reason: "t", dryRun: true }) as any;
+    expect(res.wouldSucceed).toBe(true);
+    expect(res.after.exclusionDates).toEqual(["2026-07-21", "2026-07-28"]);
+    expect(res.diff).toEqual({ exclusionDates: [[], ["2026-07-21", "2026-07-28"]] });
+    expect(db.recurringContext.update).not.toHaveBeenCalled();
   });
 
   it("set_health_hold aktivieren → diff active [false,true] + reason", async () => {

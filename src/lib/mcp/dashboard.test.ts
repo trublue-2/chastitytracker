@@ -49,7 +49,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("liefert exakt die Vertragsfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result).sort()).toEqual([...DASHBOARD_KEYS].sort());
-    expect(result.schemaVersion).toBe(4); // N-2: deviceName = deviceEffective, +deviceDeclared/deviceConfidence
+    expect(result.schemaVersion).toBe(5); // #1b: currentRun.since null bei nicht verschlossen; N-2: deviceName = deviceEffective, +deviceDeclared/deviceConfidence
     // Die Keyholder-Regeln reicht das Dashboard aus dem (lean) Overview durch.
     expect(result.keyholderInstructions).toBe(TEST_USER.mcpKeyholderInstructions);
   });

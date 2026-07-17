@@ -84,16 +84,20 @@ export interface DashboardResult extends Envelope {
    *  jetzt das MASSGEBLICHE Gerät (`deviceEffective` — bei image-conflict gewinnt das Bild), NICHT
    *  mehr das deklarierte. Vorher widersprach das Dashboard als einziger Endpunkt den Deep-Views.
    *  Neu daneben: `deviceDeclared` + `deviceConfidence`, damit der Konflikt am Ort der Frage sichtbar
-   *  ist. Semantik-Änderung eines Bestandsfelds → schemaVersion-Bump (nicht rein additiv). */
-  schemaVersion: 4;
+   *  ist. Semantik-Änderung eines Bestandsfelds → schemaVersion-Bump (nicht rein additiv).
+   *  v5 (MCP-Restliste 2026-07-18): `currentRun.since` ist bei `isLocked:false` jetzt `null` (kein
+   *  aktiver Lauf) statt des Öffnen-Zeitpunkts — konsistent mit den dann ebenfalls null-Feldern
+   *  durationHours/deviceName/currentSegmentSince. */
+  schemaVersion: 5;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
   keyholderInstructions: string | null;
   currentRun: {
     isLocked: boolean;
-    /** Beginn des LAUFS (Session-Kopf) — deckt sich mit `durationHours`. Siehe `currentSegmentSince`
-     *  für den Beginn des aktuellen Segments, wenn der Lauf Reinigungspausen hatte. */
+    /** Verschlossen: Beginn des LAUFS (Session-Kopf), deckt sich mit `durationHours`. Nicht
+     *  verschlossen: `null` (kein aktiver Lauf — wie durationHours/deviceName/currentSegmentSince).
+     *  Siehe `currentSegmentSince` für den Segment-Anfang bei Reinigungspausen. */
     since: string | null;
     /** NUR bei isLocked mit Pausen abweichend von `since`: Beginn des AKTUELLEN Segments (letzter
      *  Wiederverschluss). Ohne Pausen identisch mit `since`, weiterhin gesetzt (kein Sonderfall). */
@@ -393,7 +397,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,
