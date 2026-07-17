@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { markLastAction } from "@/lib/appMeta";
 
 /**
  * Urteils-Lebenszyklus über erkannte Vergehen:
@@ -149,6 +150,7 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
 
   // Nur bei verhängter Strafe benachrichtigen (ein Verwerfen ist für den Nutzer belanglos).
   if (status === "PUNISHED") await notifyUser(p.userId, strafeVerhaengtNotice(text));
+  markLastAction();
 
   return { ok: true, data: { status: status === "PUNISHED" ? "punished" : "dismissed", done: false } };
 }

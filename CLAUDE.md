@@ -97,7 +97,7 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `src/lib/webauthn.ts` – Passkey/WebAuthn Konfiguration (rpId, rpOrigin)
 - `src/lib/verifyCode.ts` – Vision: handschriftlichen Code im Foto erkennen + Siegel-Erkennung (via `src/lib/vision/`)
 - `src/lib/vision/` – Provider-Abstraktion für Bildverifikation; `VERIFY_PROVIDER=anthropic|local` umschaltbar (lokal = Ollama, OpenAI-kompatibel). Siehe `docs/local-vision.md`. Ohne konfigurierten Provider greift der lokale Tesseract-OCR-/Schärfe-Fallback (`src/lib/ocr.ts`, `src/lib/imageReadability.ts`)
-- `src/lib/telemetry.ts` – optionale Telemetrie (`TELEMETRY_URL` + `TELEMETRY_INSTANCE_ID`)
+- `src/lib/appMeta.ts` – `touchAppMeta()`/`markLastAction()`: Fire-and-forget-Zeitstempel in `AppMeta`, gelesen vom Portal-`sync-activity`-Cron (`lastUsedAt` in `proxy.ts`, `lastActionAt` bei echten Business-Aktionen)
 - `src/lib/serverLog.ts` – Server-seitiges Logging
 
 **API Routes:**
@@ -142,8 +142,6 @@ WEBAUTHN_RP_ID=<hostname>          # default: localhost
 WEBAUTHN_RP_ORIGIN=<origin-url>    # default: http://localhost:3000
 PORTAL_SHARED_SECRET=<secret>      # optional: Portal-Login JWT-Secret
 USE_ADMIN_RELATIONSHIPS=true       # optional: Admin↔User n:m Zuordnung aktivieren
-TELEMETRY_URL=<url>                # optional: Telemetrie-Endpunkt
-TELEMETRY_INSTANCE_ID=<id>         # optional: Instanz-Kennung
 BUILD_DATE=<iso-date>              # optional: wird beim Build gesetzt
 # Update-Check / anonyme Deployment-Zählung (siehe docs/update-check.md):
 DISABLE_UPDATE_CENSUS=true         # optional: Census aus, Update-Check lädt direkt von GitHub
