@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.12",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Bearbeiten eines Eintrags führte \"Abbrechen\" immer zurück zur Dashboard-Übersicht statt zur Liste, aus der man kam (z.B. die Einträge-Liste eines Subs). Abbrechen respektiert jetzt — wie schon das Speichern — die Herkunftsseite.",
+          "en": "When editing an entry, \"Cancel\" always returned to the dashboard overview instead of the list you came from (e.g. a sub's entries list). Cancel now respects the originating page, just like Save already did."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.11",
     "date": "2026-07-17",
     "changes": [

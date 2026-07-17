@@ -61,7 +61,7 @@ export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDef
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}
-      onCancel={() => router.push("/dashboard")}
+      onCancel={() => router.push(target)}
       submitVariant="semantic"
     />
   );

@@ -47,7 +47,7 @@ export default function OrgasmusForm({ initial, artOptions, maxTime, tz, nowDefa
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={() => router.push(target)}
-      onCancel={() => router.push("/dashboard")}
+      onCancel={() => router.push(target)}
       submitVariant="semantic"
     />
   );

@@ -58,7 +58,7 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={() => router.push(target)}
-      onCancel={() => router.push("/dashboard")}
+      onCancel={() => router.push(target)}
       submitVariant="semantic"
     />
   );

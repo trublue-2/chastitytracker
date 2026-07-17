@@ -85,6 +85,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   const toast = useToast();
   const { offlineFetch } = useOfflineQueue();
   const isEdit = !!initial;
+  const target = redirectTo ?? "/dashboard";
 
   const [startTime, setStartTime] = useState(
     toDatetimeLocal(initial?.startTime, tz) || nowDefault,
@@ -122,8 +123,6 @@ export default function WearForm({ kind, category, devices, activeSession, admin
     }
     setSaving(true);
     setError("");
-
-    const target = redirectTo ?? "/dashboard";
 
     // Edit-mode: PATCH with the editable subset (startTime + note + photo, plus deviceId for WEAR_BEGIN).
     if (isEdit && initial) {
@@ -179,7 +178,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   return (
     <EntryFormShell
       onSubmit={handleSubmit}
-      onCancel={() => router.push("/dashboard")}
+      onCancel={() => router.push(target)}
       cancelLabel={tCommon("cancel")}
       actions={
         <Button type="submit" variant="primary" fullWidth loading={saving}>
