@@ -163,8 +163,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Zwei Schliess-Einträge ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. durch Admin-Backdating) ergaben ein Pair mit widersprüchlichem isOpen/endedBy in get_session. buildPairs markiert solche Pairs jetzt als orphaned; Konsumenten (Dashboard, Admin-Übersicht, MCP live state/records/device_stats/denial_trend) schliessen sie von der aktuellen Session und von Aggregat-Kennzahlen aus. Admin-Entry-Erstellung prüft jetzt zusätzlich die chronologischen Nachbarn, um die Anomalie gar nicht erst entstehen zu lassen.",
-          "en": "Two lock entries with no intervening unlock entry (a data anomaly, e.g. from admin backdating) produced a pair with contradictory isOpen/endedBy in get_session. buildPairs now marks such pairs as orphaned; consumers (dashboard, admin overview, MCP live state/records/device_stats/denial_trend) exclude them from the current session and from aggregate stats. Admin entry creation now also checks chronological neighbors to prevent the anomaly from being created in the first place."
+          "de": "Fehlerhafte Doppel-Verschlüsse ohne dazwischenliegendes Öffnen (z.B. durch nachträgliche Admin-Einträge) verfälschten die aktuelle Session und die Statistiken nicht mehr — solche widersprüchlichen Einträge werden erkannt und aus Anzeige und Auswertungen ausgeschlossen. Beim Anlegen von Admin-Einträgen wird die Anomalie jetzt von vornherein verhindert.",
+          "en": "Faulty back-to-back lock entries with no unlock in between (e.g. from manual admin entries) no longer distort the current session or the statistics — such contradictory entries are detected and excluded from display and analysis. Creating admin entries now prevents the anomaly from arising in the first place."
         }
       }
     ]
@@ -189,8 +189,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "delete_training_goal löscht Trainingsziele nicht mehr physisch, sondern soft-delete (deletedAt). list_training_goals blendet gelöschte Ziele standardmässig aus und liefert sie mit dem neuen includeDeleted-Parameter inkl. Status 'deleted' — die Ziel-Historie geht damit nicht mehr verloren.",
-          "en": "delete_training_goal no longer hard-deletes training goals — it soft-deletes them (deletedAt). list_training_goals hides deleted goals by default and returns them (status 'deleted') with the new includeDeleted parameter, so goal history is no longer lost."
+          "de": "Gelöschte Trainingsziele werden nicht mehr endgültig entfernt, sondern archiviert — die Ziel-Historie bleibt so erhalten und lässt sich bei Bedarf wieder einsehen.",
+          "en": "Deleted training goals are no longer removed for good but archived — goal history is preserved and can be viewed again when needed."
         }
       }
     ]
@@ -228,22 +228,22 @@
       {
         "type": "fix",
         "text": {
-          "de": "keyholder_dashboard.currentRun.since bedeutete bisher den jüngsten KG-Eintrag statt des Lauf-Anfangs — bei einem Lauf mit Reinigungspausen widersprach das der gleichzeitig ausgewiesenen durationHours. since ist jetzt der Lauf-Anfang; der alte Wert steht separat in currentSegmentSince.",
-          "en": "keyholder_dashboard.currentRun.since used to mean the most recent lock entry instead of the run's start — for a run with cleaning pauses that contradicted the durationHours reported alongside it. since is now the run's start; the old value moved to currentSegmentSince."
+          "de": "Keyholder-KI: Der angezeigte Beginn des laufenden Trage-Laufs bezog sich bei Läufen mit Reinigungspausen fälschlich auf den jüngsten Eintrag statt auf den echten Lauf-Anfang und passte damit nicht zur ausgewiesenen Dauer. Der Beginn zeigt jetzt korrekt den Lauf-Anfang.",
+          "en": "Keyholder AI: For runs with cleaning pauses, the shown start of the current wear run wrongly referred to the most recent entry instead of the real run start, and so didn't match the reported duration. The start now correctly shows the beginning of the run."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "get_session.deviceConfidence fiel bei einem Segment ohne deklariertes Gerät und ohne Bildkontrolle fälschlich auf 'declared' zurück — sah aus wie eine saubere Angabe, obwohl keine vorlag. Neuer Wert 'undeclared', jetzt auch in dataQualityFlags gemeldet.",
-          "en": "get_session.deviceConfidence incorrectly fell back to 'declared' for a segment with no declared device and no image check — looked like a clean declaration when there wasn't one. New value 'undeclared', now also reported in dataQualityFlags."
+          "de": "Keyholder-KI: Ein Trage-Abschnitt ohne angegebenes Gerät und ohne Bildkontrolle wurde fälschlich als saubere Geräte-Angabe gewertet. Er wird jetzt korrekt als „nicht angegeben“ ausgewiesen.",
+          "en": "Keyholder AI: A wear segment with no stated device and no photo check was wrongly treated as a clean device declaration. It is now correctly reported as „not declared“."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "records bekommt longestUnbrokenSegmentHours/currentUnbrokenSegmentHours: die ehrliche Dauertrage-Marke (längstes einzelnes, durchgehendes Segment). longestRunHours bleibt bestehen, ist aber eine Session-Bruttosumme über Segmente/Geräte hinweg — dafür jetzt klar dokumentiert.",
-          "en": "records gains longestUnbrokenSegmentHours/currentUnbrokenSegmentHours: the honest continuous-wear record (the single longest unbroken segment). longestRunHours stays, but is a session-level gross sum across segments/devices — now clearly documented as such."
+          "de": "Statistiken: Neben der bisherigen Gesamtdauer gibt es jetzt die ehrliche Dauertrage-Marke — der längste einzelne, ununterbrochene Trage-Abschnitt (aktuell und als Rekord).",
+          "en": "Statistics: alongside the existing total duration there is now the honest continuous-wear record — the single longest unbroken wear stretch (current and all-time)."
         }
       }
     ]
@@ -341,8 +341,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Trainingsziele (set_training_goal/edit_training_goal) lehnen unplausible Stundenwerte ab (z.B. 25 Std/Tag oder 500 Std/Woche) sowie Wochen-/Monats-/Jahresziele, die beim Tagesziel unerreichbar wären. Ein Tagesziel von 0 (Löschen) blockiert dabei keine anderen Zeiträume mehr.",
-          "en": "Training goals (set_training_goal/edit_training_goal) now reject implausible hour targets (e.g. 25h/day or 500h/week) and weekly/monthly/yearly targets that would be unreachable given the daily target. A daily target of 0 (clearing it) no longer blocks other periods."
+          "de": "Trainingsziele weisen unrealistische Stundenwerte jetzt ab (z.B. 25 Std/Tag oder 500 Std/Woche) sowie Wochen-, Monats- oder Jahresziele, die beim gesetzten Tagesziel gar nicht erreichbar wären. Ein Tagesziel auf 0 zu setzen (Löschen) blockiert die anderen Zeiträume nicht mehr.",
+          "en": "Training goals now reject unrealistic hour targets (e.g. 25h/day or 500h/week) and weekly, monthly or yearly targets that couldn't be reached given the daily target. Setting a daily target to 0 (clearing it) no longer blocks the other periods."
         }
       }
     ]
@@ -367,8 +367,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP: die 12 direktiven Write-Tools (set_lock_period, request_orgasm, judge_offense, u.a.) verlangen jetzt eine Begründung und erscheinen im Audit-Log (get_action_log) — vorher unsichtbar, sodass eine unklare Sperrzeit niemandem zuzuordnen war. Freitext-Felder werden vor dem dauerhaften Speichern ziffern-redigiert.",
-          "en": "MCP: the 12 directive write tools (set_lock_period, request_orgasm, judge_offense, etc.) now require a reason and appear in the audit log (get_action_log) — previously invisible, so an unexplained lock period couldn't be traced to its origin. Free-text fields are digit-redacted before being stored permanently."
+          "de": "Keyholder-KI: Anweisungen der KI (z.B. eine Sperrzeit setzen, einen Orgasmus freigeben, ein Vergehen beurteilen) verlangen jetzt eine Begründung und erscheinen im Aktivitäts-Protokoll — vorher war unklar, woher etwa eine Sperrzeit stammte. Zahlen in Freitext-Feldern werden vor dem dauerhaften Speichern unkenntlich gemacht.",
+          "en": "Keyholder AI: actions taken by the AI (e.g. setting a lock period, releasing an orgasm, judging an offense) now require a reason and show up in the activity log — previously it was unclear where e.g. a lock period came from. Digits in free-text fields are masked before being stored permanently."
         }
       }
     ]
@@ -380,8 +380,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP: get_context.cleaning bekommt windowsBinding/windowsBindingReason/openingAllowedNow — Reinigungsfenster binden nur während einer aktiven, reinigungserlaubenden Sperrzeit, nicht generell. Vorher liess windowOpenNow:null fälschlich auf eine Zeitbindung schliessen, obwohl ausserhalb einer Sperrzeit jederzeit geöffnet werden darf (dreifach dokumentierter Fehlerfall).",
-          "en": "MCP: get_context.cleaning gains windowsBinding/windowsBindingReason/openingAllowedNow — cleaning windows only bind during an active, cleaning-permitting lock period, not generally. Previously windowOpenNow:null was misread as a time restriction even though opening is always allowed outside an active lock period (a documented recurring misread)."
+          "de": "Keyholder-KI: Reinigungsöffnungs-Fenster gelten nur während einer aktiven Sperrzeit, die Reinigung erlaubt — ausserhalb einer Sperrzeit darf jederzeit geöffnet werden. Das war für die KI bisher missverständlich und wird jetzt klar ausgewiesen.",
+          "en": "Keyholder AI: cleaning-opening windows only apply during an active lock period that permits cleaning — outside a lock period opening is always allowed. This was previously ambiguous for the AI and is now stated clearly."
         }
       }
     ]
@@ -393,8 +393,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP: generatedAt (+ Zeitzone) in allen Tool-Antworten ergänzt, zusätzlich lastSeenAgeSeconds bei get_box_state — verhindert Fehldiagnosen durch veraltete Zeitangaben in einer laufenden Konversation.",
-          "en": "MCP: added generatedAt (+ timezone) to every tool response, plus lastSeenAgeSeconds on get_box_state — prevents misdiagnosis from stale time references within a conversation."
+          "de": "Keyholder-KI: Jede Antwort trägt jetzt einen Zeitstempel (samt Zeitzone) und die Box meldet zusätzlich, wie lange ihre letzte Rückmeldung her ist — das verhindert Fehleinschätzungen durch veraltete Zeitangaben im laufenden Gespräch.",
+          "en": "Keyholder AI: every response now carries a timestamp (with time zone), and the box additionally reports how long ago its last check-in was — preventing misjudgements from stale time references during a conversation."
         }
       }
     ]
@@ -458,8 +458,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP get_box_state/keyholder_dashboard: neues Feld reportedLocked (physisches IST der letzten Box-Meldung, getrennt vom SOLL locked). hardwareEnforced stützt sich jetzt aufs IST — nötig, weil die Box künftig nur noch zufährt, wenn jemand am Gerät ist (Knopf/USB), und darum offen stehen kann, obwohl sie zu sein soll. Ohne IST-Meldung gilt weiterhin das SOLL (kein Bruch für Bestandsdaten).",
-          "en": "MCP get_box_state/keyholder_dashboard: new field reportedLocked (physical actual state from the box's last report, separate from the intended state locked). hardwareEnforced is now based on the actual state — needed because the box will only close when someone is at the device (button/USB) and can therefore sit open even though it should be closed. Without an actual-state report the intended state still applies (no break for existing data)."
+          "de": "Keyholder-KI / Box: Es wird jetzt zwischen dem gemeldeten Ist-Zustand der Box (offen/geschlossen laut letzter Meldung) und dem Soll-Zustand unterschieden. Hintergrund: Die Box fährt künftig nur noch zu, wenn jemand am Gerät ist (Knopf/USB) — sie kann also offen stehen, obwohl sie geschlossen sein soll. Liegt keine Ist-Meldung vor, gilt weiterhin der Soll-Zustand.",
+          "en": "Keyholder AI / box: the app now distinguishes the box's reported actual state (open/closed per its last report) from the intended state. Background: the box will only close when someone is at the device (button/USB) — so it can sit open even though it should be closed. Without an actual-state report, the intended state still applies."
         }
       }
     ]
@@ -471,8 +471,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP get_box_state/keyholder_dashboard vereinfacht: hardwareEnforced ist jetzt die eine ehrliche Vollstreckungs-Antwort (hält die Box den Schlüssel — unabhängig davon, ob sie gerade online ist) und erfasst auch eine Box, die über ihre eigene Sperre statt einer Tracker-Sperrzeit hält. Neu: staleLock (Box hat sich seit dem letzten Sync deterministisch selbst geöffnet — Frist abgelaufen oder Offline-Failsafe). Entfernt: hardwareEnforcedEffective und online (die reale Lage steht jetzt in hardwareEnforced/staleLock).",
-          "en": "MCP get_box_state/keyholder_dashboard simplified: hardwareEnforced is now the single honest enforcement answer (is the box holding the key — regardless of whether it is currently online) and also covers a box held by its own lock instead of a tracker lock period. New: staleLock (the box has deterministically self-opened since the last sync — deadline passed or offline failsafe). Removed: hardwareEnforcedEffective and online (real status now lives in hardwareEnforced/staleLock)."
+          "de": "Keyholder-KI / Box: Die Vollstreckungs-Anzeige der Box wurde vereinfacht auf eine ehrliche Antwort — hält die Box den Schlüssel wirklich, unabhängig davon, ob sie gerade online ist, und auch wenn sie über ihre eigene Sperre statt über eine Tracker-Sperrzeit hält. Neu wird angezeigt, wenn sich die Box seit dem letzten Abgleich selbst geöffnet hat (Frist abgelaufen oder Offline-Notfall-Öffnung).",
+          "en": "Keyholder AI / box: the box's enforcement display was simplified to one honest answer — is the box really holding the key, regardless of whether it's online right now, and also when it holds via its own lock instead of a tracker lock period. It now also shows when the box has self-opened since the last sync (deadline passed or offline failsafe)."
         }
       }
     ]
@@ -636,15 +636,15 @@
       {
         "type": "feat",
         "text": {
-          "de": "`get_session` zeigt jetzt die Sessions ALLER Kategorien, nicht nur die des Keuschheitsgürtels. Trage-Sessions von Plug, Halsband und Knebel waren bisher nirgends einzeln abrufbar — das einzige Tool, das sie je auflistete, fiel mit der alten Werkzeug-Generation weg. Jede Session nennt ihre Kategorie und lässt sich danach filtern. Gepaart wird je GERÄT: zwei Plugs gleichzeitig getragen ergeben zwei getrennte Sessions statt einer falschen.",
-          "en": "`get_session` now returns sessions for ALL categories, not just the chastity device. Wear sessions for plugs, collars and gags could not be listed individually anywhere — the only tool that ever did so disappeared with the old tool generation. Every session names its category and can be filtered by it. Pairing is per DEVICE: two plugs worn at once yield two separate sessions instead of one wrong one."
+          "de": "Keyholder-KI: Es lassen sich jetzt die Trage-Sessions ALLER Kategorien einzeln abrufen, nicht mehr nur die des Keuschheitsgürtels — auch Plug, Halsband und Knebel. Jede Session nennt ihre Kategorie und ist danach filterbar. Gezählt wird pro Gerät: zwei gleichzeitig getragene Plugs ergeben zwei getrennte Sessions statt einer falschen.",
+          "en": "Keyholder AI: wear sessions for ALL categories can now be listed individually, not just the chastity device — plugs, collars and gags too. Every session names its category and can be filtered by it. Counting is per device: two plugs worn at once yield two separate sessions instead of one wrong one."
         }
       },
       {
         "type": "chore",
         "text": {
-          "de": "Die Geräte-Statistik und die Session-Ansicht leiten die Trage-Sessions jetzt aus derselben Quelle ab, statt sie zweimal unterschiedlich zu rekonstruieren.",
-          "en": "Device statistics and the session view now derive wear sessions from one shared source instead of reconstructing them twice in different ways."
+          "de": "Geräte-Statistik und Session-Ansicht leiten die Trage-Sessions jetzt aus einer gemeinsamen Quelle ab, statt sie doppelt und unterschiedlich zu berechnen.",
+          "en": "Device statistics and the session view now derive wear sessions from one shared source instead of computing them twice in different ways."
         }
       }
     ]
@@ -976,22 +976,22 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP keyholder_dashboard: Die offene Kontrolle zeigt jetzt den Kommentar des Keyholders, das Orgasmus-Fenster seine Nachricht — beides war bisher nur im veralteten get_overview sichtbar.",
-          "en": "MCP keyholder_dashboard: the open inspection now shows the keyholder's comment and the orgasm window its message — both were previously only visible in the deprecated get_overview."
+          "de": "Keyholder-KI: Die offene Kontrolle zeigt jetzt den Kommentar des Keyholders und das Orgasmus-Fenster seine Nachricht direkt in der aktuellen Übersicht.",
+          "en": "Keyholder AI: the open control now shows the keyholder's comment and the orgasm window its message right in the current overview."
         }
       },
       {
         "type": "perf",
         "text": {
-          "de": "MCP keyholder_dashboard führt vier überflüssige Datenbank-Abfragen weniger aus: es holte seinen Live-Zustand über die Antwort des veralteten get_overview und schleppte deren ungenutzte Felder mit.",
-          "en": "MCP keyholder_dashboard now runs four fewer redundant database queries: it obtained its live state through the deprecated get_overview response and carried along its unused fields."
+          "de": "Keyholder-KI: Die Übersicht arbeitet effizienter und stellt sich schneller zusammen.",
+          "en": "Keyholder AI: the overview works more efficiently and loads faster."
         }
       },
       {
         "type": "chore",
         "text": {
-          "de": "Die Verschluss- und Anforderungs-Ableitungen der MCP-Werkzeuge liegen jetzt in einer gemeinsamen, datenbankfreien Schicht mit eigenen Tests — statt dass ein Werkzeug durch das andere hindurchgreift.",
-          "en": "The lock and request derivations of the MCP tools now live in a shared, database-free layer with its own tests — instead of one tool reaching through the other."
+          "de": "Keyholder-KI: interne Aufräumarbeiten an der gemeinsamen Auswertungslogik (mit eigenen Tests).",
+          "en": "Keyholder AI: internal cleanup of the shared derivation logic (with its own tests)."
         }
       }
     ]
@@ -2301,8 +2301,8 @@
       {
         "type": "chore",
         "text": {
-          "de": "MCP-Tool-Beschreibungen um fünf Verhaltensregeln für den Keyholder ergänzt: request_lock/set_lock_period/request_inspection dürfen den geplanten Auslöse-Zeitpunkt nie an den Sub verraten; set_health_hold nur bei gesundheitlichen Themen mit echtem Bezug zur Keuschhaltung; keyholder_dashboard betont, dass keyholderInstructions verbindlich sind; upsert_note stellt klar, dass Notizen nie für den Sub sichtbar werden (get_action_log entsprechend ergänzt); upsert_appointment/upsert_recurring_context fordern sinnvollen statt trivialen Kontext.",
-          "en": "Added five behavioral rules for the keyholder to the MCP tool descriptions: request_lock/set_lock_period/request_inspection must never reveal the planned trigger time to the sub; set_health_hold only for health topics with a genuine connection to chastity keeping; keyholder_dashboard emphasizes that keyholderInstructions are binding; upsert_note clarifies that notes are never visible to the sub (get_action_log updated accordingly); upsert_appointment/upsert_recurring_context require meaningful rather than trivial context."
+          "de": "Keyholder-KI: Fünf Verhaltensregeln für die KI ergänzt — u.a. den geplanten Auslöse-Zeitpunkt einer Anforderung nie an den Sub verraten, Gesundheits-Pausen nur bei echtem Bezug zur Keuschhaltung, Keyholder-Anweisungen sind verbindlich, und interne Notizen sind für den Sub nie sichtbar.",
+          "en": "Keyholder AI: added five behavioral rules for the AI — among them never revealing a request's planned trigger time to the sub, health pauses only with a genuine connection to chastity keeping, keyholder instructions are binding, and internal notes are never visible to the sub."
         }
       }
     ]
@@ -2314,8 +2314,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP upsert_recurring_context: wiederkehrende Wochen-Kontexte lassen sich jetzt zusätzlich auf den n-ten Wochentag im Monat (ordinal 1-5) oder den letzten (-1) eingrenzen — z.B. „erster Mittwoch im Monat\" wird als weekday+ordinal berechenbar statt nur als Freitext-Notiz abgelegt. Erscheint im get_context als ordinal/ordinalLabel.",
-          "en": "MCP upsert_recurring_context: recurring weekly contexts can now additionally be restricted to the nth weekday of the month (ordinal 1-5) or the last one (-1) — e.g. 'first Wednesday of the month' can now be computed as weekday+ordinal instead of just stored as a free-text note. Appears in get_context as ordinal/ordinalLabel."
+          "de": "Keyholder-KI: Wiederkehrende Wochen-Kontexte lassen sich jetzt zusätzlich auf den n-ten Wochentag im Monat eingrenzen (z.B. „erster Mittwoch im Monat“ oder „letzter Freitag“).",
+          "en": "Keyholder AI: recurring weekly contexts can now additionally be narrowed to the nth weekday of the month (e.g. „first Wednesday of the month“ or „last Friday“)."
         }
       }
     ]
@@ -2327,15 +2327,15 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP set_health_hold: Das Aktivieren eines Gesundheits-Holds schlug IMMER mit „requires a reason\" fehl, auch wenn ein Grund angegeben wurde — das Feld hiess zufällig genauso wie das interne Pflicht-Audit-Feld reason und wurde dadurch verschluckt, bevor es die Validierung erreichte. Umbenannt in healthReason.",
-          "en": "MCP set_health_hold: activating a health hold ALWAYS failed with 'requires a reason', even when a reason was provided — the field happened to share its name with the internal mandatory audit field reason and was swallowed before reaching validation. Renamed to healthReason."
+          "de": "Keyholder-KI: Das Setzen einer Gesundheits-Pause schlug bisher immer mit „Grund erforderlich“ fehl, obwohl ein Grund angegeben war. Das ist behoben.",
+          "en": "Keyholder AI: setting a health pause always failed with „reason required“ even when a reason was given. This is fixed."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "MCP get_box_state/keyholder_dashboard: hardwareEnforced zeigte weiterhin true, obwohl die Box längst offline war (der Wert wird nur bei Sync aktualisiert). Neu: hardwareEnforcedEffective (reale Vollstreckung JETZT, false sobald offline) und lockUntilStale (Sperrzeit-Ende in der Vergangenheit, seither nicht bestätigt).",
-          "en": "MCP get_box_state/keyholder_dashboard: hardwareEnforced kept showing true even though the box had long been offline (the value is only updated on sync). New: hardwareEnforcedEffective (real enforcement RIGHT NOW, false as soon as offline) and lockUntilStale (lock period end in the past, unconfirmed since)."
+          "de": "Keyholder-KI / Box: Die Vollstreckungs-Anzeige blieb auf „gesichert“ stehen, obwohl die Box längst offline war. Es gibt jetzt eine Anzeige der realen Vollstreckung im Moment sowie einen Hinweis, wenn ein Sperrzeit-Ende in der Vergangenheit liegt und seither nicht bestätigt wurde.",
+          "en": "Keyholder AI / box: the enforcement display stayed on „secured“ even though the box had long been offline. There is now a display of real enforcement right now, plus a note when a lock period's end lies in the past and hasn't been confirmed since."
         }
       }
     ]
@@ -2347,8 +2347,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP keyholder_dashboard: Die laufende Sperrzeit zeigt jetzt reinigungErlaubt (erlaubt die Sperre Reinigungsöffnungen?) samt Nachricht und verlangtem Gerät — vorher nur im veralteten get_overview sichtbar. Damit erkennt der KI-Keyholder die Falle „Sperrzeit-Text verspricht Reinigung, Flag steht aber auf false“ direkt im V2-Dashboard. Auch geplante Direktiven (scheduledDirectives) führen den Flag.",
-          "en": "MCP keyholder_dashboard: The active lock period now shows cleaningAllowed (does the lock period allow cleaning openings?) along with a message and required device — previously only visible in the deprecated get_overview. This lets the AI keyholder directly spot the trap of \"lock period text promises cleaning, but the flag is false\" right in the V2 dashboard. Scheduled directives (scheduledDirectives) now carry the flag as well."
+          "de": "Keyholder-KI: Die laufende Sperrzeit zeigt jetzt, ob sie Reinigungsöffnungen erlaubt — samt Nachricht und verlangtem Gerät. So erkennt die KI direkt den Fall „Sperrzeit-Text verspricht Reinigung, ist aber gar nicht freigegeben“. Auch geplante Anweisungen führen diese Angabe.",
+          "en": "Keyholder AI: the active lock period now shows whether it allows cleaning openings — including message and required device. This lets the AI directly spot the case „lock period text promises cleaning but it isn't actually enabled“. Scheduled directives carry this info too."
         }
       }
     ]
@@ -2373,8 +2373,8 @@
       {
         "type": "chore",
         "text": {
-          "de": "MCP: veraltete Verweise in immer geladenen V2-Tool-Beschreibungen bereinigt — sie zeigten teils noch auf die abgeschalteten V1-Tools. Der virtuelle Keyholder wird jetzt konsistent auf die aktiven V2-Endpunkte verwiesen (keyholder_dashboard.keyholderInstructions, get_offenses, get_session, get_context.autoInspections).",
-          "en": "MCP: cleaned up stale references in the always-loaded V2 tool descriptions — some still pointed to the disabled V1 tools. The virtual keyholder is now consistently pointed to the active V2 endpoints (keyholder_dashboard.keyholderInstructions, get_offenses, get_session, get_context.autoInspections)."
+          "de": "Keyholder-KI: veraltete Verweise in den Tool-Beschreibungen bereinigt, sodass die KI konsistent auf die aktuellen Funktionen verwiesen wird.",
+          "en": "Keyholder AI: cleaned up stale references in the tool descriptions so the AI is consistently pointed to the current functions."
         }
       }
     ]
@@ -2439,8 +2439,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "Verschluss-Aufforderungen und Sperrzeiten lassen sich jetzt — wie Kontrollen — terminieren: zeitversetzt (Verzögerung in Minuten/Stunden) oder zu einem festgelegten Zeitpunkt versenden. Eine geplante Anforderung bleibt bis zur Auslösung unsichtbar und wird vom Poller bei Fälligkeit zugestellt; relative Fristen zählen ab dem Versand. Einstellbar im Admin-Formular sowie über den Keyholder (MCP: request_lock / set_lock_period).",
-          "en": "Lock requests and lock periods can now be scheduled — like inspections: sent after a delay (in minutes/hours) or at a fixed point in time. A scheduled request stays invisible until it triggers and is delivered by the poller once due; relative deadlines count from the send time. Configurable in the admin form as well as via the keyholder (MCP: request_lock / set_lock_period)."
+          "de": "Verschluss-Aufforderungen und Sperrzeiten lassen sich jetzt — wie Kontrollen — terminieren: zeitversetzt (Verzögerung in Minuten/Stunden) oder zu einem festen Zeitpunkt. Eine geplante Anforderung bleibt bis zur Auslösung unsichtbar; relative Fristen zählen ab dem Versand. Einstellbar im Admin-Formular und über die Keyholder-KI.",
+          "en": "Lock requests and lock periods can now be scheduled — like controls: after a delay (in minutes/hours) or at a fixed point in time. A scheduled request stays invisible until it triggers; relative deadlines count from the send time. Configurable in the admin form and via the keyholder AI."
         }
       }
     ]
@@ -2563,8 +2563,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "Automatische Kontrollen: pro Sub lassen sich X zufällig über den Tag verteilte Kontrollen automatisch auslösen (Keyholder-Einstellung). Die Frist fällt nie ins konfigurierbare Schlaf-Fenster (Default 22–06), die Erfüllungsdauer ist je Kontrolle zufällig im eingestellten Bereich (Default 15–60 Min). Auto-Kontrollen sind unabhängig (ziehen sich nicht gegenseitig oder durch manuelle zurück) und feuern nur, wenn der Sub verschlossen ist. Noch nicht ausgelöste (geplante) Kontrollen sind jetzt überall unsichtbar — auch im Admin-Portal. Aktivierung und alle Einstellungen (Anzahl/Tag, Schlaf-Fenster, Erfüllungsdauer) sind auch über die MCP konfigurierbar (set_auto_inspections).",
-          "en": "Automatic inspections: X inspections randomly distributed throughout the day can be triggered automatically per sub (keyholder setting). The deadline never falls into the configurable sleep window (default 22–06), and the fulfillment duration is randomized per inspection within the configured range (default 15–60 min). Auto-inspections are independent (they don't withdraw each other or manual ones) and only fire when the sub is locked. Inspections not yet triggered (scheduled) are now invisible everywhere — including in the admin portal. Activation and all settings (count/day, sleep window, fulfillment duration) are also configurable via the MCP (set_auto_inspections)."
+          "de": "Automatische Kontrollen: Pro Sub lassen sich mehrere zufällig über den Tag verteilte Kontrollen automatisch auslösen (Keyholder-Einstellung). Die Frist fällt nie ins einstellbare Schlaf-Fenster (Standard 22–06 Uhr), die Erfüllungsdauer ist je Kontrolle zufällig im gewählten Bereich (Standard 15–60 Min). Auto-Kontrollen laufen unabhängig voneinander und feuern nur, wenn der Sub verschlossen ist. Noch nicht ausgelöste Kontrollen sind überall unsichtbar — auch im Admin-Portal.",
+          "en": "Automatic controls: several controls randomly spread across the day can be triggered automatically per sub (keyholder setting). The deadline never falls into the configurable sleep window (default 22–06), and the fulfillment time is randomized per control within the chosen range (default 15–60 min). Auto-controls run independently and only fire while the sub is locked. Controls not yet triggered are invisible everywhere — including in the admin portal."
         }
       }
     ]
@@ -2693,8 +2693,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP-Keyholder-Tools zeigen jetzt die Geräte-Erkennung: list_entries enthält pro Kontrolle deviceCheck (erkannt/falsch/keins + erkanntes & erwartetes Gerät), und get_overview liefert zusätzlich zur offenen Kontrolle die zuletzt eingereichte (lastKontrolle) mit Code-Verifikation + Geräte-Check. Klarstellung: openKontrolle:null heißt nicht „ausgelaufen\" — eine eingereichte Kontrolle ist nur nicht mehr offen, eine überfällige bleibt sichtbar.",
-          "en": "MCP keyholder tools now show device detection: list_entries includes deviceCheck per inspection (detected/wrong/none + detected & expected device), and get_overview additionally returns the most recently submitted inspection (lastKontrolle) along with code verification + device check, in addition to the open inspection. Clarification: openKontrolle:null does not mean \"expired\" — a submitted inspection is simply no longer open, while an overdue one remains visible."
+          "de": "Keyholder-KI: Zeigt jetzt bei Kontrollen die Geräte-Erkennung (richtiges/falsches/kein Gerät, samt erkanntem und erwartetem Gerät) und zusätzlich zur offenen Kontrolle die zuletzt eingereichte mit Code-Prüfung und Geräte-Check.",
+          "en": "Keyholder AI: now shows device detection for controls (correct/wrong/no device, with detected and expected device) and, alongside the open control, the most recently submitted one with code verification and device check."
         }
       }
     ]
@@ -2915,8 +2915,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP-Audit: 8 weitere Keyholder-Tools behaupteten fälschlich „E-Mail + Push an den Nutzer\", obwohl sie keine Benachrichtigung auslösen — set_training_goal, edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, withdraw, judge_offense. Beschreibungen an die Realität angeglichen (still). Tatsächlich benachrichtigen nur: request_lock, set_lock_period, request_inspection, request_orgasm. Verhalten unverändert — nur die irreführenden Angaben korrigiert.",
-          "en": "MCP audit: 8 more keyholder tools falsely claimed to \"email + push the user,\" even though they don't trigger a notification — set_training_goal, edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, withdraw, judge_offense. Descriptions have been aligned with reality (silent). Only these actually notify: request_lock, set_lock_period, request_inspection, request_orgasm. Behavior unchanged — only the misleading claims were corrected."
+          "de": "Keyholder-KI: Beschreibungen von acht Aktionen behaupteten fälschlich, sie würden den Nutzer per E-Mail und Push benachrichtigen — das tun sie nicht. Tatsächlich benachrichtigen nur: Verschluss anfordern, Sperrzeit setzen, Kontrolle anfordern und Orgasmus anfordern. Das Verhalten bleibt unverändert, nur die irreführenden Angaben wurden korrigiert.",
+          "en": "Keyholder AI: descriptions of eight actions wrongly claimed to notify the user by email and push — they don't. Only these actually notify: request lock, set lock period, request control, and request orgasm. Behavior is unchanged; only the misleading claims were corrected."
         }
       }
     ]
@@ -3130,29 +3130,29 @@
       {
         "type": "feat",
         "text": {
-          "de": "Strafbuch-Urteilsloop: Jedes erkannte Vergehen hat jetzt einen Status — erkannt → verworfen (keine Strafe) oder bestraft → erledigt. Die Strafe ist ein freies Textfeld (z.B. „20 Schläge\"); ein Erledigt-Status schließt den Loop. „Relevant = unbeurteilt oder Strafe noch offen\" ist damit explizit, nicht mehr Kopfsache.",
-          "en": "Penalty log verdict loop: every detected offense now has a status — detected → dismissed (no penalty) or penalized → done. The penalty is a free-text field (e.g. \"20 strokes\"); a done status closes the loop. \"Relevant = unjudged or penalty still open\" is now explicit rather than something you have to keep in your head."
+          "de": "Strafbuch mit Urteils-Ablauf: Jedes erkannte Vergehen hat jetzt einen Status — erkannt, verworfen (keine Strafe), bestraft oder erledigt. Die Strafe ist ein freies Textfeld (z.B. „20 Schläge“); ein Erledigt-Status schliesst den Fall ab. So ist jederzeit klar, was noch offen ist.",
+          "en": "Penalty log with a verdict flow: every detected offense now has a status — detected, dismissed (no penalty), penalized or done. The penalty is a free-text field (e.g. „20 strokes“); a done status closes the case. It's always clear what's still open."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "MCP: Neues Tool judge_offense — die KI verwirft (verbindlich, mit optionalem Grund), bestraft (Freitext) oder markiert eine Strafe als erledigt; reopen revidiert. get_strafbuch liefert je Vergehen judgment, penalty/done bzw. Grund, eine stabile ref sowie openOffenseCount/pendingPenaltyCount.",
-          "en": "MCP: new tool judge_offense — the AI dismisses (binding, with an optional reason), penalizes (free text), or marks a penalty as done; reopen reverses it. get_strafbuch now returns, per offense, judgment, penalty/done or reason, a stable ref, and openOffenseCount/pendingPenaltyCount."
+          "de": "Keyholder-KI: Kann Vergehen jetzt verwerfen (mit optionalem Grund), mit Freitext bestrafen oder als erledigt markieren; eine Wiedereröffnung nimmt das zurück. Offene Vergehen und ausstehende Strafen werden übersichtlich gezählt.",
+          "en": "Keyholder AI: can now dismiss offenses (with an optional reason), penalize them with free text, or mark them as done; reopening reverses this. Open offenses and pending penalties are counted clearly."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Admin-Strafbuch: Vergehen lassen sich verwerfen, mit Freitext bestrafen und als erledigt markieren; KI-Urteile werden als solche angezeigt. Verworfene/erledigte Vergehen erscheinen nicht mehr als offen.",
-          "en": "Admin penalty log: offenses can be dismissed, penalized with free text, and marked as done; AI verdicts are shown as such. Dismissed/done offenses no longer appear as open."
+          "de": "Admin-Strafbuch: Vergehen lassen sich verwerfen, mit Freitext bestrafen und als erledigt markieren; KI-Urteile werden als solche gekennzeichnet. Verworfene und erledigte Vergehen erscheinen nicht mehr als offen.",
+          "en": "Admin penalty log: offenses can be dismissed, penalized with free text and marked as done; AI verdicts are labeled as such. Dismissed and done offenses no longer appear as open."
         }
       },
       {
         "type": "chore",
         "text": {
-          "de": "StrafeRecord zum Urteils-Record generalisiert (status/reason/judgedBy/erledigtAt, Migration; Bestand = PUNISHED). Geteilter strafurteilService für Admin-Route und MCP. penalties.punishedCount zählt nur noch tatsächliche Bestrafungen.",
-          "en": "StrafeRecord generalized into a verdict record (status/reason/judgedBy/doneAt, migration; existing records = PUNISHED). Shared strafurteilService for the admin route and MCP. penalties.punishedCount now only counts actual penalties."
+          "de": "Strafbuch-Logik intern vereinheitlicht: Admin und Keyholder-KI nutzen jetzt denselben Ablauf, und die Zählung „bestraft“ erfasst nur noch tatsächliche Bestrafungen.",
+          "en": "Penalty-log logic unified internally: admin and keyholder AI now use the same flow, and the „penalized“ count only reflects actual penalties."
         }
       }
     ]
@@ -3284,36 +3284,36 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: Trainingsziele vollständig verwaltbar — list_training_goals (alle Ziele mit id, Status aktiv/geplant/abgelaufen, Daten, Vorgaben), edit_training_goal und delete_training_goal. Damit kann die KI mehrere datierte Ziele planen und korrigieren, nicht nur neu anlegen.",
-          "en": "MCP: training goals are now fully manageable — list_training_goals (all goals with id, status active/planned/expired, dates, targets), edit_training_goal and delete_training_goal. This lets the AI plan and correct multiple dated goals, not just create new ones."
+          "de": "Keyholder-KI: Trainingsziele sind jetzt vollständig verwaltbar — bestehende Ziele auflisten (mit Status aktiv/geplant/abgelaufen), bearbeiten und löschen. So kann die KI mehrere datierte Ziele planen und korrigieren, nicht nur neu anlegen.",
+          "en": "Keyholder AI: training goals are now fully manageable — list existing goals (with status active/planned/expired), edit and delete them. This lets the AI plan and correct multiple dated goals, not just create new ones."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "MCP: set_cleaning — Reinigungspausen erlauben + Limits (max. Minuten/Pause, max. Pausen/Tag) über den MCP setzen.",
-          "en": "MCP: set_cleaning — allow cleaning breaks + set limits (max minutes/break, max breaks/day) via MCP."
+          "de": "Keyholder-KI: Kann Reinigungspausen erlauben und Grenzen setzen (max. Minuten pro Pause, max. Pausen pro Tag).",
+          "en": "Keyholder AI: can allow cleaning breaks and set limits (max minutes per break, max breaks per day)."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "MCP: resolve_inspection — die zuletzt eingereichte Kontrolle manuell bestätigen oder ablehnen (überschreibt die automatische Prüfung).",
-          "en": "MCP: resolve_inspection — manually approve or reject the most recently submitted inspection (overrides the automatic check)."
+          "de": "Keyholder-KI: Kann die zuletzt eingereichte Kontrolle manuell bestätigen oder ablehnen (überschreibt die automatische Prüfung).",
+          "en": "Keyholder AI: can manually approve or reject the most recently submitted control (overrides the automatic check)."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "MCP: edit_lock_period — das Ende einer laufenden Sperrzeit verlängern/verkürzen (oder auf unbefristet) ohne withdraw + neu anlegen. Neue Backend-Aktion setEnd.",
-          "en": "MCP: edit_lock_period — extend/shorten the end of a running lock period (or set it to indefinite) without withdraw + recreate. New backend action setEnd."
+          "de": "Keyholder-KI: Kann das Ende einer laufenden Sperrzeit verlängern, verkürzen oder auf unbefristet setzen, ohne sie abbrechen und neu anlegen zu müssen.",
+          "en": "Keyholder AI: can extend, shorten or set to indefinite the end of a running lock period without having to withdraw and recreate it."
         }
       },
       {
         "type": "chore",
         "text": {
-          "de": "Service-Layer vereinheitlicht: updateVorgabe/deleteVorgabe/listVorgaben, resolveKontrolle, updateSperrzeitEnde und setReinigungSettings werden von Admin-Routen und MCP geteilt; Reinigung-Grenzen (1–120 Min, 0–20/Tag) gelten jetzt einheitlich für beide Pfade.",
-          "en": "Service layer unified: updateVorgabe/deleteVorgabe/listVorgaben, resolveKontrolle, updateSperrzeitEnde and setReinigungSettings are now shared between admin routes and MCP; cleaning limits (1–120 min, 0–20/day) now apply consistently to both paths."
+          "de": "Admin und Keyholder-KI teilen sich jetzt dieselbe Logik; die Reinigungs-Grenzen (1–120 Min, 0–20 pro Tag) gelten für beide Wege einheitlich.",
+          "en": "Admin and keyholder AI now share the same logic; the cleaning limits (1–120 min, 0–20 per day) apply consistently to both paths."
         }
       }
     ]
@@ -3325,8 +3325,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP set_training_goal: neuer Parameter validFrom (ISO-Datum) — Trainingsziele können jetzt mit zukünftigem Startdatum geplant werden (z.B. ein Wochenziel vordatiert auf den 12.6.). Ziele werden pro Kategorie nach Startdatum verkettet; ein vordatiertes Ziel beendet das laufende automatisch zu diesem Datum. validUntil muss nach validFrom liegen.",
-          "en": "MCP set_training_goal: new parameter validFrom (ISO date) — training goals can now be scheduled with a future start date (e.g. a weekly goal predated to 6/12). Goals are chained per category by start date; a predated goal automatically ends the currently running one on that date. validUntil must be after validFrom."
+          "de": "Keyholder-KI: Trainingsziele können jetzt mit einem zukünftigen Startdatum geplant werden (z.B. ein Wochenziel, das erst am 12.6. beginnt). Ziele werden pro Kategorie zeitlich verkettet; ein vordatiertes Ziel beendet das laufende automatisch zu seinem Startdatum.",
+          "en": "Keyholder AI: training goals can now be scheduled with a future start date (e.g. a weekly goal that only begins on 6/12). Goals are chained over time per category; a predated goal automatically ends the running one on its start date."
         }
       }
     ]
@@ -3411,15 +3411,15 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP-Schreibfunktionen: Der KI-Keyholder kann jetzt über den MCP Verschluss-Anforderungen und Sperrzeiten setzen, Kontrollen anfordern, Trainingsziele setzen und offene Direktiven zurückziehen — jeweils mit Mail+Push an den User, identisch zum Admin-UI. Schreiben erfordert ein Admin-OAuth-Token (statischer MCP-Token bleibt read-only). Neues Freitext-Feld „KI-Keyholder-Regeln\" in den Admin-Einstellungen (nur bei aktiviertem MCP sichtbar): der menschliche Keyholder formuliert dort die Regeln, die die KI über get_overview liest und einhält (weiche Vorgabe, nicht erzwungen — der Mensch kann jederzeit eingreifen).",
-          "en": "MCP write functions: the AI keyholder can now set unlock requests and lock periods, request inspections, set training goals and withdraw open directives via MCP — each with email+push to the user, identical to the admin UI. Writing requires an admin OAuth token (the static MCP token stays read-only). New free-text field \"AI keyholder rules\" in admin settings (only visible when MCP is enabled): the human keyholder writes the rules there that the AI reads via get_overview and follows (a soft guideline, not enforced — the human can intervene at any time)."
+          "de": "Keyholder-KI kann jetzt schreiben: Sie kann Verschluss-Anforderungen und Sperrzeiten setzen, Kontrollen anfordern, Trainingsziele setzen und offene Anweisungen zurückziehen — jeweils mit E-Mail und Push an den Nutzer, wie im Admin-Bereich. Neu gibt es in den Admin-Einstellungen ein Freitext-Feld „KI-Keyholder-Regeln“ (nur bei aktivierter Keyholder-KI): Dort formuliert der menschliche Keyholder die Regeln, an die sich die KI hält — eine weiche Vorgabe, der Mensch kann jederzeit eingreifen.",
+          "en": "Keyholder AI can now take actions: it can set lock requests and lock periods, request controls, set training goals and withdraw open directives — each with email and push to the user, just like in the admin area. New in admin settings: a free-text field „AI keyholder rules“ (only when the keyholder AI is enabled), where the human keyholder writes the rules the AI follows — a soft guideline; the human can intervene at any time."
         }
       },
       {
         "type": "chore",
         "text": {
-          "de": "Geschäftslogik für Verschluss-Anforderung, Kontrolle und Trainingsziel in geteilte Services extrahiert, die Admin-Routen und MCP gemeinsam nutzen (Single Source of Truth).",
-          "en": "Business logic for unlock requests, inspections and training goals extracted into shared services used by both admin routes and MCP (single source of truth)."
+          "de": "Admin und Keyholder-KI nutzen für Verschluss-Anforderung, Kontrolle und Trainingsziel jetzt dieselbe zentrale Logik.",
+          "en": "Admin and keyholder AI now use the same central logic for lock requests, controls and training goals."
         }
       }
     ]
@@ -3431,8 +3431,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP-Server deutlich vollständiger: get_overview liefert jetzt auch die Reinigungs-Regeln (erlaubt, Max-Minuten pro Pause/Tag) und pro Nicht-KG-Kategorie (Plug, Collar …) die Tragestunden today/week/month inkl. Trainingsziel + Prozent — vorher nur KG. get_strafbuch zeigt zusätzlich „falsches Gerät getragen\"-Vergehen. Neues Tool list_devices gibt das Geräte-Inventar aus (Kategorie, Kaufpreis, Währung, Archiv-Status). Damit kann eine KI das Gesamtbild über alle Kategorien hinweg erfassen statt nur KG.",
-          "en": "MCP server significantly more complete: get_overview now also returns the cleaning rules (allowed, max minutes per break/day) and, per non-chastity-device category (plug, collar, …), wear hours today/week/month including training goal + percentage — previously only for the chastity device. get_strafbuch additionally shows \"wrong device worn\" offenses. New tool list_devices returns the device inventory (category, purchase price, currency, archive status). This lets an AI grasp the full picture across all categories instead of just the chastity device."
+          "de": "Keyholder-KI: Die Übersicht ist jetzt deutlich vollständiger — sie enthält auch die Reinigungs-Regeln und für jede Nicht-KG-Kategorie (Plug, Halsband …) die Tragestunden für Tag/Woche/Monat inkl. Trainingsziel und Fortschritt (vorher nur für den Keuschheitsgürtel). Zusätzlich werden „falsches Gerät getragen“-Vergehen und das Geräte-Inventar (Kategorie, Kaufpreis, Archiv-Status) ausgegeben. So erfasst die KI das Gesamtbild über alle Kategorien.",
+          "en": "Keyholder AI: the overview is now much more complete — it also includes the cleaning rules and, for each non-chastity category (plug, collar …), the wear hours for day/week/month with training goal and progress (previously only for the chastity device). It additionally reports „wrong device worn“ offenses and the device inventory (category, purchase price, archive status). This lets the AI grasp the full picture across all categories."
         }
       }
     ]
@@ -3444,8 +3444,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP get_overview: lock.deviceName zeigte nach einem Gerätewechsel während einer Reinigungspause weiterhin das Gerät vom Session-Start statt das aktuell getragene. Die Übersicht liest das Gerät jetzt aus dem jüngsten Wiederverschluss der laufenden Session (mit Fallback auf den Session-Start). Streak und Tragedauer bleiben unverändert über die Pause hinweg durchlaufend.",
-          "en": "MCP get_overview: lock.deviceName kept showing the device from session start after a device change during a cleaning break, instead of the currently worn device. The overview now reads the device from the most recent re-lock of the running session (falling back to session start). Streak and wear time remain continuous across the break as before."
+          "de": "Keyholder-KI: Nach einem Gerätewechsel während einer Reinigungspause zeigte die Übersicht weiterhin das Gerät vom Session-Start statt das aktuell getragene. Jetzt wird das zuletzt wiederverschlossene Gerät angezeigt. Streak und Tragedauer laufen wie bisher über die Pause hinweg durch.",
+          "en": "Keyholder AI: after a device change during a cleaning break, the overview kept showing the device from the start of the session instead of the one currently worn. It now shows the most recently re-locked device. Streak and wear time continue across the break as before."
         }
       }
     ]
@@ -3457,8 +3457,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP-Server: Neues Tool list_entries liefert die vollständige Eintrags-Timeline mit allen Details pro Eintrag — Notizen/Kommentare, Orgasmus-Art, Öffnungsgrund, Kontroll-Code, Verifikationsstatus, Gerät, Foto-Vorhandensein (+ EXIF-Zeit) und ob die Zeit nachträglich korrigiert wurde. Damit kann eine KI das Gesamtbild der Situation erfassen, das die aggregierten Tools (get_overview, list_sessions, get_strafbuch) bewusst weglassen. Filterbar nach Typ, Default 50 / max 200 Einträge.",
-          "en": "MCP server: new tool list_entries returns the full entry timeline with all details per entry — notes/comments, orgasm type, unlock reason, inspection code, verification status, device, photo presence (+ EXIF time), and whether the time was retroactively corrected. This lets an AI grasp the full picture that the aggregated tools (get_overview, list_sessions, get_strafbuch) deliberately omit. Filterable by type, default 50 / max 200 entries."
+          "de": "Keyholder-KI: Neue vollständige Eintrags-Zeitleiste mit allen Details pro Eintrag — Notizen/Kommentare, Orgasmus-Art, Öffnungsgrund, Kontroll-Code, Prüfstatus, Gerät, ob ein Foto vorhanden ist (samt Aufnahmezeit) und ob die Zeit nachträglich korrigiert wurde. So kann die KI das vollständige Bild erfassen, das die zusammenfassenden Ansichten bewusst weglassen.",
+          "en": "Keyholder AI: new complete entry timeline with all details per entry — notes/comments, orgasm type, unlock reason, control code, verification status, device, whether a photo exists (with capture time) and whether the time was corrected afterwards. This lets the AI grasp the full picture that the summary views deliberately leave out."
         }
       }
     ]
@@ -3509,8 +3509,8 @@
       {
         "type": "chore",
         "text": {
-          "de": "MCP-API: Feldnamen bereinigt — deutsche Namen eingedeutscht (kommentar→comment, nachricht→message, sperrzeitEndedAt→lockPeriodEndedAt, reinigungLimitViolations→cleaningLimitViolations, trainingGoalKg.minProTagH/Woche/Monat/notiz→minPerDayH/WeekH/MonthH/note), semantische Verwechslung behoben (recordedCount→punishedCount, totalOffenses→detectedOffenseCount), punished-Flag auf cleaningLimitViolations ergänzt.",
-          "en": "MCP API: field names cleaned up — German names translated to English (kommentar→comment, nachricht→message, sperrzeitEndedAt→lockPeriodEndedAt, reinigungLimitViolations→cleaningLimitViolations, trainingGoalKg.minProTagH/Woche/Monat/notiz→minPerDayH/WeekH/MonthH/note), fixed semantic mix-ups (recordedCount→punishedCount, totalOffenses→detectedOffenseCount), added a punished flag to cleaningLimitViolations."
+          "de": "Keyholder-KI: Feldnamen und Bezeichnungen der Schnittstelle bereinigt und vereinheitlicht — Verhalten unverändert.",
+          "en": "Keyholder AI: interface field names and labels cleaned up and standardized — behavior unchanged."
         }
       }
     ]
@@ -3581,15 +3581,15 @@
       {
         "type": "feat",
         "text": {
-          "de": "Neues MCP-Tool get_strafbuch: liefert die system-erkannten Vergehen (unerlaubte Öffnungen während Sperrzeit, zu spät/abgelehnte Kontrollen, Reinigungs-Limit-Überschreitungen), jeweils mit Status ob bereits als bestraft markiert.",
-          "en": "New MCP tool get_strafbuch: returns system-detected offenses (unauthorized openings during a lock period, late/rejected inspections, cleaning limit violations), each with a status showing whether it's already marked as penalized."
+          "de": "Keyholder-KI: Neuer Zugriff auf das Strafbuch — liefert die vom System erkannten Vergehen (unerlaubte Öffnungen während einer Sperrzeit, verspätete oder abgelehnte Kontrollen, Überschreitungen der Reinigungs-Limits), jeweils mit dem Hinweis, ob sie bereits als bestraft markiert sind.",
+          "en": "Keyholder AI: new access to the penalty log — returns the offenses detected by the system (unauthorized openings during a lock period, late or rejected controls, cleaning-limit overruns), each noting whether it's already marked as penalized."
         }
       },
       {
         "type": "chore",
         "text": {
-          "de": "Strafbuch-Vergehenslogik aus der Admin-Seite in lib/strafbuch.ts (buildStrafbuch) zentralisiert — geteilt von Admin-Strafbuch-Seite und MCP-Tool statt dupliziert. Verhalten der Admin-Seite unverändert.",
-          "en": "Penalty log offense logic centralized from the admin page into lib/strafbuch.ts (buildStrafbuch) — shared by the admin penalty log page and the MCP tool instead of being duplicated. Admin page behavior unchanged."
+          "de": "Strafbuch-Logik zentralisiert und von Admin-Seite und Keyholder-KI gemeinsam genutzt statt doppelt geführt. Verhalten der Admin-Seite unverändert.",
+          "en": "Penalty-log logic centralized and shared by the admin page and the keyholder AI instead of being duplicated. Admin page behavior unchanged."
         }
       }
     ]
@@ -3601,8 +3601,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "Neues MCP-Tool list_sessions: liefert abgeschlossene Sessions (KG-Einschlüsse + Wear-Sessions anderer Kategorien) chronologisch, je mit Kategorie, Gerät, Start/Ende und Dauer. Optionale Filter category und limit. Ergänzt get_overview um Zugriff auf die Historie statt nur den Live-Snapshot.",
-          "en": "New MCP tool list_sessions: returns completed sessions (chastity device lock-ups + wear sessions from other categories) chronologically, each with category, device, start/end and duration. Optional filters category and limit. Complements get_overview by giving access to history instead of just the live snapshot."
+          "de": "Keyholder-KI: Neuer Zugriff auf die abgeschlossenen Sessions (Keuschheitsgürtel-Einschlüsse und Trage-Sessions anderer Kategorien) in zeitlicher Reihenfolge, je mit Kategorie, Gerät, Start/Ende und Dauer — optional filterbar. Ergänzt die Live-Übersicht um den Zugriff auf die Historie.",
+          "en": "Keyholder AI: new access to completed sessions (chastity-device lock-ups and wear sessions of other categories) in chronological order, each with category, device, start/end and duration — optionally filterable. Complements the live overview with access to history."
         }
       }
     ]
@@ -3614,8 +3614,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP get_overview gab Zeitstempel als UTC (ISO Z) zurück — ein konsumierender Assistent las z.B. '09:10' obwohl es lokal 11:10 war (CEST). Zeiten werden jetzt in der Instanz-Zeitzone (Europe/Zurich) als lesbare Strings formatiert, ein timezone-Feld liegt bei, und Sperrzeit/Kontroll-Frist/Anforderung tragen ein explizites remainingMinutes-Feld für eindeutige Restzeit-Angaben.",
-          "en": "MCP get_overview returned timestamps as UTC (ISO Z) — a consuming assistant would read e.g. '09:10' when it was actually 11:10 locally (CEST). Times are now formatted as readable strings in the instance timezone (Europe/Zurich), a timezone field is included, and lock period/inspection deadline/request now carry an explicit remainingMinutes field for unambiguous time-remaining values."
+          "de": "Keyholder-KI: Zeitangaben wurden in UTC ausgegeben, sodass ein Assistent z.B. „09:10“ las, obwohl es lokal 11:10 war. Zeiten erscheinen jetzt lesbar in der Instanz-Zeitzone (Europe/Zurich), mit Zeitzonen-Angabe, und Sperrzeit, Kontroll-Frist und Anforderung führen eine eindeutige Restzeit in Minuten.",
+          "en": "Keyholder AI: times were returned in UTC, so an assistant would read e.g. „09:10“ when it was actually 11:10 locally. Times now appear readable in the instance time zone (Europe/Zurich), with a time-zone label, and lock period, control deadline and request carry an unambiguous remaining time in minutes."
         }
       }
     ]
@@ -3627,15 +3627,15 @@
       {
         "type": "feat",
         "text": {
-          "de": "Read-only MCP-Server unter /api/mcp: ein AI-Assistent (z.B. Claude) kann sich per Bearer-Token verbinden und das Tool get_overview aufrufen — liefert einen kuratierten Snapshot (Verschluss-Status & -Dauer, KG-Tragestunden Tag/Woche/Monat, aktives Trainingsziel mit Fortschritt, offene Kontrollen, Sperrzeiten, Session-Statistik, Strafen, aktive Wear-Sessions) zum Vorschlagen von Massnahmen. Aktivierung pro Instanz via ENABLE_MCP=true; MCP_TOKEN (Bearer) und MCP_USERNAME (wessen Daten) erforderlich. Standardmässig deaktiviert.",
-          "en": "Read-only MCP server at /api/mcp: an AI assistant (e.g. Claude) can connect via bearer token and call the get_overview tool — returns a curated snapshot (lock status & duration, chastity device wear hours day/week/month, active training goal with progress, open inspections, lock periods, session statistics, penalties, active wear sessions) for suggesting actions. Enabled per instance via ENABLE_MCP=true; MCP_TOKEN (bearer) and MCP_USERNAME (whose data) required. Disabled by default."
+          "de": "Neue Keyholder-KI-Anbindung (Nur-Lesen): Ein KI-Assistent (z.B. Claude) kann sich sicher verbinden und einen kuratierten Überblick abrufen — Verschluss-Status und -Dauer, Tragestunden Tag/Woche/Monat, aktives Trainingsziel mit Fortschritt, offene Kontrollen, Sperrzeiten, Session-Statistik, Strafen und aktive Trage-Sessions — um daraus Massnahmen vorzuschlagen. Pro Instanz aktivierbar, standardmässig ausgeschaltet.",
+          "en": "New keyholder AI connection (read-only): an AI assistant (e.g. Claude) can connect securely and fetch a curated overview — lock status and duration, wear hours day/week/month, active training goal with progress, open controls, lock periods, session statistics, penalties and active wear sessions — to suggest measures from it. Enabled per instance, off by default."
         }
       },
       {
         "type": "chore",
         "text": {
-          "de": "Session-Aggregationslogik (summarizeSessions, completedPairsFrom) aus StatsMain in lib/utils zentralisiert — geteilt von Statistik-Seite und MCP-Overview statt dupliziert.",
-          "en": "Session aggregation logic (summarizeSessions, completedPairsFrom) centralized from StatsMain into lib/utils — shared by the statistics page and MCP overview instead of being duplicated."
+          "de": "Die Session-Auswertung wird jetzt zentral von Statistik-Seite und Keyholder-KI-Übersicht gemeinsam genutzt statt doppelt geführt.",
+          "en": "The session aggregation is now shared centrally by the statistics page and the keyholder AI overview instead of being duplicated."
         }
       }
     ]
