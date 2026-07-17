@@ -4,7 +4,7 @@ import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership } from "@/lib/queries";
+import { validateDeviceOwnership, getEntryNeighbors } from "@/lib/queries";
 import { entryManageAccess } from "@/lib/keyholder";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { codedError, codeOf } from "@/lib/codedError";
@@ -92,19 +92,10 @@ export async function PATCH(
         const wearCategoryId = isWearPair && existing.deviceId
           ? (await tx.device.findUnique({ where: { id: existing.deviceId }, select: { categoryId: true } }))?.categoryId
           : null;
-        const others = await tx.entry.findMany({
-          where: {
-            userId: existing.userId,
-            type: { in: [...pairTypes] },
-            id: { not: id },
-            ...(isWearPair && wearCategoryId ? { device: { categoryId: wearCategoryId } } : {}),
-          },
-          orderBy: { startTime: "asc" },
-          select: { type: true, startTime: true },
+        const { prev, next } = await getEntryNeighbors(existing.userId, newTime, pairTypes, tx, {
+          categoryId: wearCategoryId ?? undefined,
+          excludeId: id,
         });
-        const insertIdx = others.findIndex(e => e.startTime > newTime);
-        const prev = insertIdx === -1 ? others[others.length - 1] : others[insertIdx - 1];
-        const next = insertIdx === -1 ? null : others[insertIdx];
         if ((prev && prev.type === existing.type) || (next && next.type === existing.type)) {
           throw entryGuardError("INVALID_ORDER");
         }

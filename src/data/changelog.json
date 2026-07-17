@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.7",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der INVALID_ORDER-Nachbar-Check der Admin-Entry-Erstellung (getKgNeighbors) und der Edit-Route nutzen jetzt eine gemeinsame Funktion (getEntryNeighbors) statt zweier unterschiedlicher Implementierungen. Dabei behoben: ein exakter startTime-Gleichstand mit einem gleichartigen Nachbarn wurde von einer rein exklusiven Vergleichslogik übersehen und hätte den Guard umgehen können.",
+          "en": "The INVALID_ORDER neighbor check in admin entry creation (getKgNeighbors) and the edit route now share one function (getEntryNeighbors) instead of two separate implementations. Along the way: an exact startTime tie with a same-type neighbor was missed by a purely exclusive comparison and could have bypassed the guard."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.6",
     "date": "2026-07-17",
     "changes": [

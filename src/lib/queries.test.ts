@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveSperrzeiten, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors } from "./queries";
+import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveSperrzeiten, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors, getEntryNeighbors } from "./queries";
 import type { PrismaTx } from "./queries";
 
 const TZ = "Europe/Zurich";
@@ -304,5 +304,43 @@ describe("getKgNeighbors", () => {
     const tx = { entry: { findFirst: vi.fn().mockResolvedValue(null) } } as unknown as PrismaTx;
     const result = await getKgNeighbors("u1", new Date("2026-05-01T11:00:00Z"), tx);
     expect(result).toEqual({ prev: null, next: null });
+  });
+});
+
+// ─── getEntryNeighbors ──────────────────────────────────────────────────────
+
+describe("getEntryNeighbors", () => {
+  // Ein exakter startTime-Gleichstand mit einem gleichartigen Nachbarn ist die IDENTISCHE Anomalie
+  // wie zwei unmittelbar aufeinanderfolgende Einträge — chronologisch nicht unterscheidbar. Ein
+  // reines `lt` für `prev` würde diesen Fall für BEIDE Seiten (`lt` UND `gt`) unsichtbar machen und
+  // den INVALID_ORDER-Guard der Edit-Route stillschweigend umgehen (siehe Doc-Kommentar der Funktion).
+  it("behandelt einen exakten startTime-Gleichstand als prev, nicht als unsichtbar", async () => {
+    const startTime = new Date("2026-05-01T11:00:00Z");
+    const findFirst = vi.fn()
+      .mockResolvedValueOnce({ type: "WEAR_BEGIN" }) // prev: lte-Treffer bei Gleichstand
+      .mockResolvedValueOnce(null);                   // next: kein späterer Nachbar
+    const tx = { entry: { findFirst } } as unknown as PrismaTx;
+
+    const result = await getEntryNeighbors("u1", startTime, ["WEAR_BEGIN", "WEAR_END"], tx);
+
+    expect(result).toEqual({ prev: { type: "WEAR_BEGIN" }, next: null });
+    expect(findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: expect.objectContaining({ startTime: { lte: startTime } }),
+    }));
+  });
+
+  it("scoped auf categoryId und schliesst excludeId aus", async () => {
+    const startTime = new Date("2026-05-01T11:00:00Z");
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const tx = { entry: { findFirst } } as unknown as PrismaTx;
+
+    await getEntryNeighbors("u1", startTime, ["WEAR_BEGIN", "WEAR_END"], tx, {
+      categoryId: "cat1",
+      excludeId: "entry1",
+    });
+
+    expect(findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: expect.objectContaining({ device: { categoryId: "cat1" }, id: { not: "entry1" } }),
+    }));
   });
 });

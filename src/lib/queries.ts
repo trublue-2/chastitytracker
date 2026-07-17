@@ -109,33 +109,64 @@ export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = 
   });
 }
 
-/** Die KG-Nachbarn (VERSCHLUSS/OEFFNEN) UNMITTELBAR vor und nach `startTime` in der
- *  chronologischen Reihenfolge — nicht die zeitlich jüngsten Einträge insgesamt.
+export interface EntryNeighbors {
+  prev: { type: string } | null;
+  next: { type: string } | null;
+}
+
+/** Die Nachbarn (vorheriger/nächster Eintrag desselben Paar-Typs) UNMITTELBAR vor und nach
+ *  `startTime` in chronologischer Reihenfolge — nicht die zeitlich jüngsten Einträge insgesamt.
+ *  Die eine Quelle für den "würde dieser Eintrag zwei gleichartige Einträge hintereinander
+ *  erzeugen?"-Guard (INVALID_ORDER), von `getKgNeighbors` (KG, global) UND der Edit-Route
+ *  (KG global ODER WEAR-Paare gescoped auf `categoryId`) genutzt.
  *
  *  `getLatestKgEntry` beantwortet "was ist der aktuelle Lock-Zustand" korrekt, aber beim
  *  Backdating (Admin-Route, TIME_BEFORE-Guard bewusst deaktiviert) reicht das nicht: ein neuer
  *  Eintrag kann zeitlich ZWISCHEN ein bestehendes Paar rutschen, ohne der global-jüngste zu sein.
- *  Ohne diesen Nachbar-Check können so zwei gleichartige KG-Einträge (VERSCHLUSS/VERSCHLUSS oder
+ *  Ohne diesen Nachbar-Check können so zwei gleichartige Einträge (VERSCHLUSS/VERSCHLUSS oder
  *  OEFFNEN/OEFFNEN) chronologisch aufeinanderfolgen — die Anomalie, die `buildPairs` als
- *  verwaistes Pair abfängt (siehe utils.ts). Diese Funktion verhindert sie an der Quelle. */
-export async function getKgNeighbors(
+ *  verwaistes Pair abfängt (siehe utils.ts). Diese Funktion verhindert sie an der Quelle.
+ *
+ *  Zwei `findFirst`-Queries statt `findMany`+Scan: liest nur die zwei Zeilen, die der Guard
+ *  tatsächlich braucht, statt aller Einträge dieses Paar-Typs. `excludeId` lässt den gerade
+ *  bearbeiteten Eintrag selbst aus dem Vergleich raus (sonst wäre er sein eigener Nachbar).
+ *
+ *  `prev` ist bewusst INKLUSIVE eines exakten `startTime`-Gleichstands (`lte`, nicht `lt`): zwei
+ *  gleichartige Einträge mit identischer `startTime` sind chronologisch nicht unterscheidbar und
+ *  damit ebenso eine verwaiste Anomalie wie zwei unmittelbar aufeinanderfolgende — ein reines `lt`
+ *  liesse einen exakten Gleichstand für BEIDE Seiten unsichtbar werden (weder `< startTime` noch
+ *  `> startTime`), und genau dieser Fall wurde vom `next: { gt }` allein nicht abgedeckt. */
+export async function getEntryNeighbors(
   userId: string,
   startTime: Date,
+  pairTypes: readonly string[],
   tx: PrismaTx | typeof prisma = prisma,
-): Promise<{ prev: { type: string } | null; next: { type: string } | null }> {
+  { categoryId, excludeId }: { categoryId?: string; excludeId?: string } = {},
+): Promise<EntryNeighbors> {
+  const categoryFilter = categoryId ? { device: { categoryId } } : {};
+  const excludeFilter = excludeId ? { id: { not: excludeId } } : {};
   const [prev, next] = await Promise.all([
     tx.entry.findFirst({
-      where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { lt: startTime } },
+      where: { userId, type: { in: [...pairTypes] }, startTime: { lte: startTime }, ...categoryFilter, ...excludeFilter },
       orderBy: { startTime: "desc" },
       select: { type: true },
     }),
     tx.entry.findFirst({
-      where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { gt: startTime } },
+      where: { userId, type: { in: [...pairTypes] }, startTime: { gt: startTime }, ...categoryFilter, ...excludeFilter },
       orderBy: { startTime: "asc" },
       select: { type: true },
     }),
   ]);
   return { prev, next };
+}
+
+/** KG-Nachbarn (VERSCHLUSS/OEFFNEN, global) — dünner Wrapper um {@link getEntryNeighbors}. */
+export function getKgNeighbors(
+  userId: string,
+  startTime: Date,
+  tx: PrismaTx | typeof prisma = prisma,
+): Promise<EntryNeighbors> {
+  return getEntryNeighbors(userId, startTime, ["VERSCHLUSS", "OEFFNEN"], tx);
 }
 
 /** Returns true if the user is currently locked (latest VERSCHLUSS/OEFFNEN entry is VERSCHLUSS).
