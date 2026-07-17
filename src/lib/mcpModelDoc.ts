@@ -231,8 +231,12 @@ committen) und liefern **Diff** + neuen Zustand zurück. Die direktiven V1-Tools
 ebenfalls, aber LEICHTER: geprüft werden Argument-Auflösung + die dort verfügbaren reinen Regeln
 (z.B. Fenster-/Zielwert-Plausibilität) plus ein Best-Effort-Vorab-Check des naheliegendsten
 Ablehnungsgrunds (z.B. „bereits verschlossen") — NICHT dieselbe transaktionale Tiefe wie bei den
-Wissens-Writes; der Preview-Antwort fehlen Diff/newState, sie liefert stattdessen
-\`{wouldSucceed, problem?, preview}\`.
+Wissens-Writes. Die Preview-Antwort ist immer \`{wouldSucceed, problem?, preview}\`; bei Tools, die ein
+BESTEHENDES Objekt ändern/löschen/upserten (\`edit_lock_period\`, \`edit_training_goal\`,
+\`delete_training_goal\`, \`set_cleaning\`, \`resolve_inspection\`, \`judge_offense\`), kommt zusätzlich
+**\`diff\`** dazu — Feld-Diff \`[alt, neu]\` wie beim echten Commit (seit B-05, MCP-Befundliste
+2026-07-17). Reine Creates (\`request_lock\`, \`set_lock_period\`, \`request_inspection\`,
+\`request_orgasm\`, \`set_training_goal\`) haben kein „vorher" und liefern deshalb kein \`diff\`.
 **Optimistic Concurrency:** Note, Gerät, Termin und Wochen-Slot tragen eine **\`version\`**
 (in get_devices/query_notes/get_context und in jedem Write-Ergebnis). Gib bei **Edits**
 \`expectedVersion\` mit — weicht die aktuelle Version ab (anderer Schreiber dazwischen, z.B. eine

@@ -12,6 +12,13 @@ import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
 
+/** Der resultierende Entry.verifikationStatus einer Verify/Reject-Aktion — EINE Stelle, geteilt vom
+ *  echten Commit (unten) und vom MCP resolve_inspection dryRun-Preview (B-05), damit beide nie
+ *  auseinanderlaufen können. */
+export function verifikationStatusFor(action: "manuallyVerify" | "reject"): "manual" | "rejected" {
+  return action === "manuallyVerify" ? "manual" : "rejected";
+}
+
 /**
  * Resolves an inspection by id: withdraw it, or manually verify / reject its submitted photo.
  * Shared by PATCH /api/admin/kontrollen/[id] and the MCP resolve_inspection tool.
@@ -26,8 +33,7 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
     trackEvent("kontrolle.withdrawn");
   } else if (action === "manuallyVerify" || action === "reject") {
     if (!ka.entryId) return serviceFail(400, "INSPECTION_NO_SUBMISSION");
-    const verifikationStatus = action === "manuallyVerify" ? "manual" : "rejected";
-    await prisma.entry.update({ where: { id: ka.entryId }, data: { verifikationStatus } });
+    await prisma.entry.update({ where: { id: ka.entryId }, data: { verifikationStatus: verifikationStatusFor(action) } });
     trackEvent(action === "manuallyVerify" ? "kontrolle.verified" : "kontrolle.rejected");
   } else {
     return serviceFail(400, "UNKNOWN_ACTION");

@@ -104,18 +104,26 @@ export interface ReinigungUserFields {
   reinigungsFenster: unknown;
 }
 
+/** Die load-bearing Null-Sentinel-Regel für `reinigungMaxProTag`: `0` (der Spalten-Default) heisst
+ *  „unbegrenzt" — nach aussen (get_context.cleaning, MCP dryRun-Previews) immer als `null` zeigen,
+ *  nie als die Zahl `0`, sonst liest sich dieselbe Bedeutung an zwei Stellen unterschiedlich (siehe
+ *  buildReinigungView, mcpSetCleaning-dryRun). EINE Stelle statt der Ausdruck mehrfach hingeschrieben. */
+export function maxPausesPerDaySentinel(raw: number | null | undefined): number | null {
+  const maxProTag = raw ?? 0;
+  return maxProTag > 0 ? maxProTag : null;
+}
+
 /** Baut die ReinigungView aus den User-Feldern + heute-verbraucht + jetzt. Kapselt die load-bearing
  *  Null-Sentinel-Regel (maxProTag>0 ? : null) und die windowOpenNow-Ableitung an EINER Stelle.
  *  `tz` = Sub-Zeitzone (default APP_TZ) — governiert das Wanduhr-Fenster; explizit übergeben statt aus
  *  `user` gelesen, damit ein fehlendes Select nicht still auf APP_TZ zurückfällt (Konsistenz mit den
  *  übrigen tz-Callsites). */
 export function buildReinigungView(user: ReinigungUserFields, usedToday: number, now: Date, tz = APP_TZ): ReinigungView {
-  const maxProTag = user.reinigungMaxProTag ?? 0;
   const windowEnd = aktivesReinigungsFenster(user.reinigungsFenster, now, tz); // "HH:MM" oder null
   return {
     allowed: user.reinigungErlaubt ?? false,
     maxMinutesPerBreak: user.reinigungMaxMinuten ?? 15,
-    maxPausesPerDay: maxProTag > 0 ? maxProTag : null,
+    maxPausesPerDay: maxPausesPerDaySentinel(user.reinigungMaxProTag),
     usedToday,
     windows: parseReinigungsFenster(user.reinigungsFenster),
     windowOpenNow: windowEnd ? { until: windowEnd } : null,

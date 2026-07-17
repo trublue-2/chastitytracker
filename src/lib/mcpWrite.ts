@@ -3,12 +3,14 @@ import { getUserDeviceOptions, getKeyholderSperrzeiten, getIsLocked } from "@/li
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung, checkLockEnd } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { requestKontrolle, resolveKontrolle, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget } from "@/lib/vorgabeService";
-import { setReinigungSettings, MAX_MINUTEN_RANGE, MAX_PRO_TAG_RANGE } from "@/lib/reinigungService";
+import { setReinigungSettings, MAX_MINUTEN_RANGE, MAX_PRO_TAG_RANGE, maxPausesPerDaySentinel } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense, checkPenaltyText } from "@/lib/strafurteilService";
+import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
+import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, buildEnvelope, type Envelope } from "@/lib/mcp/common";
+import { diffFields } from "@/lib/mcp/writeFramework";
 import { clamp } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
@@ -27,12 +29,16 @@ export interface DryRunPreview {
   /** Nur gesetzt, wenn eine hier ausführbare Prüfung fehlschlagen würde. */
   problem?: string;
   preview: unknown;
+  /** Nur bei Tools, die ein BESTEHENDES Objekt ändern/löschen/upserten — Feld-Diff [alt, neu],
+   *  wie ihn der echte Commit liefert (B-05). Reine Creates haben kein "vorher"; dort bleibt das
+   *  Feld weg statt eine leere oder irreführende Diff-Hülle vorzutäuschen. */
+  diff?: Record<string, [unknown, unknown]>;
 }
 
-/** Baut die dryRun-Hülle — EINE Stelle für `{dryRun, tool, wouldSucceed, problem?, preview}` statt
- *  zwölfmal denselben Spread. Der tool-spezifische `preview`-Inhalt bleibt bei jedem Aufrufer. */
-function dryRunPreview(tool: string, problem: string | undefined, preview: unknown): DryRunPreview {
-  return { dryRun: true, tool, wouldSucceed: !problem, ...(problem ? { problem } : {}), preview };
+/** Baut die dryRun-Hülle — EINE Stelle für `{dryRun, tool, wouldSucceed, problem?, preview, diff?}`
+ *  statt zwölfmal denselben Spread. Der tool-spezifische `preview`-Inhalt bleibt bei jedem Aufrufer. */
+function dryRunPreview(tool: string, problem: string | undefined, preview: unknown, diff?: Record<string, [unknown, unknown]>): DryRunPreview {
+  return { dryRun: true, tool, wouldSucceed: !problem, ...(problem ? { problem } : {}), preview, ...(diff ? { diff } : {}) };
 }
 
 /**
@@ -412,6 +418,21 @@ async function loadOwnedVorgabe(id: string, userId: string) {
   return v;
 }
 
+/** Scalar-Snapshot eines TrainingVorgabe-Bestands für den dryRun-Diff (B-05) — dieselben Feldnamen
+ *  wie im edit/delete-Preview, damit diffFields() beide Seiten deckungsgleich vergleicht. */
+function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; gueltigBis: Date | null; minProTagH: number | null; minProWocheH: number | null; minProMonatH: number | null; minProJahrH: number | null; notiz: string | null }): Record<string, unknown> {
+  return {
+    categoryId: v.categoryId,
+    validFrom: v.gueltigAb.toISOString(),
+    validUntil: v.gueltigBis?.toISOString() ?? null,
+    minProTagH: v.minProTagH,
+    minProWocheH: v.minProWocheH,
+    minProMonatH: v.minProMonatH,
+    minProJahrH: v.minProJahrH,
+    note: v.notiz,
+  };
+}
+
 export interface TrainingGoalRow {
   id: string;
   category: string;
@@ -496,11 +517,10 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
   };
   if (args.dryRun) {
     const problem = !hasPeriodTarget(merged) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(merged);
-    return {
-      dryRun: true, tool: "edit_training_goal", wouldSucceed: !problem,
-      ...(problem ? { problem } : {}),
-      preview: { id: args.id, categoryId: categoryId ?? existing.categoryId, validFrom: gueltigAb.toISOString(), validUntil: gueltigBis?.toISOString() ?? null, ...merged, note: args.note ?? existing.notiz },
-    } satisfies DryRunPreview;
+    // Dieselbe Feldnamen-Abbildung wie `vorgabeSnapshot` — statt sie hier ein zweites Mal von Hand
+    // hinzuschreiben, durch einen (ungespeicherten) Vorgabe-artigen Zwischenstand jagen.
+    const after = vorgabeSnapshot({ categoryId: categoryId ?? existing.categoryId, gueltigAb, gueltigBis, ...merged, notiz: args.note ?? existing.notiz });
+    return dryRunPreview("edit_training_goal", problem ?? undefined, { id: args.id, ...after }, diffFields(vorgabeSnapshot(existing), after));
   }
 
   unwrap(await updateVorgabe(args.id, {
@@ -522,7 +542,9 @@ export async function mcpDeleteTrainingGoal(username: string, args: DeleteTraini
   const userId = await resolveTargetUserId(username);
   const existing = await loadOwnedVorgabe(args.id, userId);
   if (args.dryRun) {
-    return { dryRun: true, tool: "delete_training_goal", wouldSucceed: true, preview: { id: args.id, category: existing.categoryId } } satisfies DryRunPreview;
+    const before = vorgabeSnapshot(existing);
+    const deleted = Object.fromEntries(Object.keys(before).map((key) => [key, null])); // Objekt verschwindet — jedes Feld → null
+    return dryRunPreview("delete_training_goal", undefined, { id: args.id, category: existing.categoryId }, diffFields(before, deleted));
   }
   unwrap(await deleteVorgabe(args.id));
   return { ok: true, id: args.id, message: "Training goal deleted." };
@@ -544,18 +566,25 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
   if (args.dryRun) {
     // Zeigt den GEKLEMMTEN Wert, nicht den rohen Input — sonst täuscht der Preview genau die
     // stille Klemmung vor, die er aufdecken soll (setReinigungSettings klemmt intern identisch).
+    const current = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true },
+    });
     const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, MAX_MINUTEN_RANGE) : undefined;
     const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, MAX_PRO_TAG_RANGE) : undefined;
-    return {
-      dryRun: true, tool: "set_cleaning", wouldSucceed: true,
-      preview: {
-        allowed: args.allowed ?? null,
-        maxMinutes: clampedMinutes ?? null,
-        maxPerDay: clampedPerDay ?? null,
-        ...(args.maxMinutes !== undefined && clampedMinutes !== args.maxMinutes ? { maxMinutesClampedFrom: args.maxMinutes } : {}),
-        ...(args.maxPerDay !== undefined && clampedPerDay !== args.maxPerDay ? { maxPerDayClampedFrom: args.maxPerDay } : {}),
-      },
-    } satisfies DryRunPreview;
+    // maxPerDay durch denselben Null-Sentinel wie get_context.cleaning (0 = "unbegrenzt" → null nach
+    // aussen) — sonst zeigt dieser Preview für denselben Zustand eine andere Zahl als get_context.
+    const before: Record<string, unknown> = { allowed: current.reinigungErlaubt, maxMinutes: current.reinigungMaxMinuten, maxPerDay: maxPausesPerDaySentinel(current.reinigungMaxProTag) };
+    const after: Record<string, unknown> = {
+      allowed: args.allowed ?? before.allowed,
+      maxMinutes: clampedMinutes ?? before.maxMinutes,
+      maxPerDay: clampedPerDay !== undefined ? maxPausesPerDaySentinel(clampedPerDay) : before.maxPerDay,
+    };
+    return dryRunPreview("set_cleaning", undefined, {
+      ...after,
+      ...(args.maxMinutes !== undefined && clampedMinutes !== args.maxMinutes ? { maxMinutesClampedFrom: args.maxMinutes } : {}),
+      ...(args.maxPerDay !== undefined && clampedPerDay !== args.maxPerDay ? { maxPerDayClampedFrom: args.maxPerDay } : {}),
+    }, diffFields(before, after));
   }
   unwrap(await setReinigungSettings(userId, {
     erlaubt: args.allowed,
@@ -580,11 +609,13 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
   const ka = await prisma.kontrollAnforderung.findFirst({
     where: { userId, entryId: { not: null }, withdrawnAt: null },
     orderBy: { createdAt: "desc" },
-    select: { id: true },
+    select: { id: true, entry: { select: { verifikationStatus: true } } },
   });
   if (!ka) throw new Error("No submitted inspection to verify or reject.");
   if (args.dryRun) {
-    return { dryRun: true, tool: "resolve_inspection", wouldSucceed: true, preview: { id: ka.id, action: args.action } } satisfies DryRunPreview;
+    const before: Record<string, unknown> = { verifikationStatus: ka.entry?.verifikationStatus ?? null };
+    const after: Record<string, unknown> = { verifikationStatus: verifikationStatusFor(args.action === "verify" ? "manuallyVerify" : "reject") };
+    return dryRunPreview("resolve_inspection", undefined, { id: ka.id, action: args.action }, diffFields(before, after));
   }
   unwrap(await resolveKontrolle(ka.id, args.action === "verify" ? "manuallyVerify" : "reject"));
   return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}; the user was notified by e-mail + push.` };
@@ -633,10 +664,13 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
 
   if (args.dryRun) {
     const lockEndError = checkLockEnd(endetAt, target.wirksamAb, new Date());
+    const before: Record<string, unknown> = { endetAt: target.endetAt?.toISOString() ?? null, indefinite: target.endetAt === null };
+    const after: Record<string, unknown> = { endetAt: endetAt?.toISOString() ?? null, indefinite: !!args.indefinite };
     return {
       dryRun: true, tool: "edit_lock_period", wouldSucceed: !lockEndError,
       ...(lockEndError ? { problem: lockEndError } : {}),
-      preview: { id: target.id, untilAt: endetAt?.toISOString() ?? null, indefinite: !!args.indefinite, otherOpenCount: open.length - 1 },
+      preview: { id: target.id, untilAt: after.endetAt, indefinite: after.indefinite, otherOpenCount: open.length - 1 },
+      diff: diffFields(before, after),
     } satisfies DryRunPreview;
   }
 
@@ -677,7 +711,43 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // Vergehen ist und die Aktion zu dessen Status passt, entscheidet erst judgeOffense (Strafbuch-
     // Zustand), das hier bewusst NICHT dupliziert wird.
     const problem = checkPenaltyText(args.action, args.text);
-    return dryRunPreview("judge_offense", problem ?? undefined, { ref: args.ref, action: args.action, text: args.text ?? null });
+    // StrafeRecord ist ein upsert-by-refId (siehe judgeOffense) — erstes Urteil = Create (before {}),
+    // erneutes Urteil = Update (before = bestehende Zeile). `refId` ist global @unique (nicht userId-
+    // skopiert) — userId hier explizit gegenprüfen, sonst könnte ein ref eines ANDEREN Users auf
+    // dieser Multi-User-Instanz dessen Strafbuch-Zeile (status/reason/judgedBy) leaken. Dieselbe
+    // Grenze, die judgeOffense beim echten complete/reopen explizit zieht (rec.userId !== p.userId /
+    // deleteMany scoped by userId) — hier nur zusätzlich lesend statt schreibend. Übersprungen, wenn
+    // `problem` schon feststeht (Preview wird ohnehin als wouldSucceed:false verworfen).
+    const record = problem ? null : await prisma.strafeRecord.findUnique({
+      where: { refId: args.ref },
+      select: { userId: true, status: true, reason: true, judgedBy: true, erledigtAt: true },
+    });
+    const existing = record?.userId === userId ? record : null;
+    const before: Record<string, unknown> = existing
+      ? { status: existing.status, reason: existing.reason, judgedBy: existing.judgedBy, erledigtAt: existing.erledigtAt?.toISOString() ?? null }
+      : {};
+    // reopen ohne bestehenden Record (JUDGMENT_NOT_FOUND), complete auf einem nicht-PUNISHED Record
+    // (PENALTY_NOT_PUNISHED) und punish/dismiss auf einem ref, das kein aktuell erkanntes Vergehen
+    // mehr ist (OFFENSE_NOT_FOUND), sind reale Ablehnungsgründe — statt in diesen Fällen eine
+    // Transition vorzutäuschen, die der echte Commit ablehnen würde, bleibt der diff dann schlicht
+    // weg. Für punish/dismiss heisst das: dieselbe Prüfung wie im echten Commit (buildStrafbuch +
+    // collectDetectedOffenses), NUR für den diff — wouldSucceed bleibt bewusst der Best-Effort-Check
+    // von oben (siehe `problem`-Kommentar), damit ein teurer Strafbuch-Aufbau nicht bei jedem dryRun
+    // erzwungen wird, sondern nur dann, wenn er für den diff gebraucht wird.
+    const offenseIsLive = !problem && (args.action === "punish" || args.action === "dismiss")
+      ? collectDetectedOffenses(await buildStrafbuch(userId)).some((o) => o.refId === args.ref)
+      : false;
+    const knownTransition =
+      args.action === "punish" || args.action === "dismiss" ? offenseIsLive
+      : args.action === "reopen" ? !!existing
+      : existing?.status === "PUNISHED"; // action === "complete"
+    // reopen löscht die Zeile (deleteMany) — jedes Feld → null, nicht undefined (konsistent mit
+    // delete_training_goal: das Objekt verschwindet, das ist ein Wert, keine Abwesenheit).
+    const after: Record<string, unknown> | undefined = !knownTransition ? undefined
+      : args.action === "reopen" ? Object.fromEntries(Object.keys(before).map((key) => [key, null]))
+      : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: (existing!.erledigtAt ?? new Date()).toISOString() }
+      : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: "ai", erledigtAt: null };
+    return dryRunPreview("judge_offense", problem ?? undefined, { ref: args.ref, action: args.action, text: args.text ?? null }, after ? diffFields(before, after) : undefined);
   }
   const r = unwrap(await judgeOffense({
     userId,

@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.51.1",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP: dryRun der 6 Edit-artigen V1-Write-Tools (edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, judge_offense) liefert jetzt einen echten Feld-Diff [alt, neu] wie der Commit-Pfad, statt nur wouldSucceed/preview. Reine Creates bleiben ohne diff (kein 'vorher').",
+          "en": "MCP: dryRun of the 6 edit-style V1 write tools (edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, judge_offense) now returns a real field diff [old, new] like the commit path does, instead of just wouldSucceed/preview. Pure creates stay without a diff (nothing to compare against)."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "judge_offense dryRun las StrafeRecord-Zeilen ohne Besitzer-Prüfung — ein ref eines anderen Users auf derselben Instanz hätte dessen Strafbuch-Status in der Vorschau offenlegen können. Jetzt userId-gescoped.",
+          "en": "judge_offense dryRun read StrafeRecord rows without an ownership check — a ref belonging to a different user on the same instance could have leaked that user's penalty status into the preview. Now scoped to userId."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "set_cleaning dryRun zeigte maxPerDay als rohe 0 statt als null ('unbegrenzt') — abweichend von get_context.cleaning für denselben Zustand.",
+          "en": "set_cleaning dryRun showed maxPerDay as raw 0 instead of null ('unlimited') — inconsistent with get_context.cleaning for the same state."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.0",
     "date": "2026-07-17",
     "changes": [

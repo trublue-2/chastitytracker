@@ -10,13 +10,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
     device: { findMany: vi.fn() },
     deviceCategory: { findMany: vi.fn() },
     orgasmusAnforderung: { count: vi.fn() },
     verschlussAnforderung: { count: vi.fn(), findMany: vi.fn() },
     kontrollAnforderung: { count: vi.fn(), findFirst: vi.fn() },
     trainingVorgabe: { findUnique: vi.fn() },
+    strafeRecord: { findUnique: vi.fn() },
     // getIsLocked/hasActiveKontrolle (advisory dryRun-Checks) lesen darüber.
     entry: { findFirst: vi.fn() },
   },
@@ -27,7 +28,10 @@ vi.mock("@/lib/verschlussAnforderungService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/verschlussAnforderungService")>();
   return { ...actual, createVerschlussAnforderung: vi.fn(), updateSperrzeitEnde: vi.fn(), withdrawVerschlussAnforderung: vi.fn() };
 });
-vi.mock("@/lib/kontrolleService", () => ({ requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), hasActiveKontrolle: vi.fn() }));
+vi.mock("@/lib/kontrolleService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/kontrolleService")>();
+  return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), hasActiveKontrolle: vi.fn() };
+});
 vi.mock("@/lib/vorgabeService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/vorgabeService")>();
   return { ...actual, createVorgabe: vi.fn(), updateVorgabe: vi.fn(), deleteVorgabe: vi.fn(), listVorgaben: vi.fn() };
@@ -42,8 +46,13 @@ vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
 });
 vi.mock("@/lib/strafurteilService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/strafurteilService")>();
-  return { ...actual, judgeOffense: vi.fn() };
+  return { ...actual, judgeOffense: vi.fn(), collectDetectedOffenses: vi.fn() };
 });
+// buildStrafbuch aggregiert quer über viele Prisma-Tabellen (Entry, VerschlussAnforderung, AppMeta,
+// ...) — für den judge_offense-dryRun (B-05: "ist der ref noch ein live erkanntes Vergehen?") reicht
+// ein Mock, dessen konkreter Rückgabewert egal ist, weil collectDetectedOffenses direkt daneben
+// ebenfalls gemockt ist und ihn nicht interpretiert.
+vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn().mockResolvedValue({}) }));
 
 import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
@@ -56,13 +65,16 @@ import { requestKontrolle, resolveKontrolle, hasActiveKontrolle } from "@/lib/ko
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense } from "@/lib/strafurteilService";
+import { judgeOffense, collectDetectedOffenses } from "@/lib/strafurteilService";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
+const userFindUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
 const trainingVorgabeMock = prisma.trainingVorgabe.findUnique as unknown as ReturnType<typeof vi.fn>;
 const kontrollFindFirstMock = prisma.kontrollAnforderung.findFirst as unknown as ReturnType<typeof vi.fn>;
 const sperrzeitFindManyMock = prisma.verschlussAnforderung.findMany as unknown as ReturnType<typeof vi.fn>;
 const entryFindFirstMock = prisma.entry.findFirst as unknown as ReturnType<typeof vi.fn>;
+const strafeRecordFindUniqueMock = prisma.strafeRecord.findUnique as unknown as ReturnType<typeof vi.fn>;
+const collectDetectedOffensesMock = collectDetectedOffenses as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-07-17T12:00:00Z");
 const MORGEN = new Date("2026-07-18T12:00:00Z");
@@ -75,6 +87,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(JETZT);
   userMock.mockResolvedValue({ id: "u1", username: "sub", role: "admin" });
+  userFindUniqueOrThrowMock.mockResolvedValue({ reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0 });
+  strafeRecordFindUniqueMock.mockResolvedValue(null);
+  // Default: ref ist ein aktuell erkanntes Vergehen (punish/dismiss-diff braucht das, siehe B-05-Guard
+  // gegen OFFENSE_NOT_FOUND). Tests, die genau diesen Guard prüfen, setzen [] explizit.
+  collectDetectedOffensesMock.mockReturnValue([{ canonicalType: "unauthorized_opening", offenseType: "OEFFNEN_ENTRY", refId: "o1", at: JETZT }]);
   (prisma.orgasmusAnforderung.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
   (prisma.verschlussAnforderung.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
   (prisma.kontrollAnforderung.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
@@ -214,14 +231,14 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
   });
 
   it("delete_training_goal: existierendes Ziel wird gefunden, nichts gelöscht", async () => {
-    trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1" });
+    trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null });
     const r = await mcpDeleteTrainingGoal("sub", { dryRun: true, id: "g1" }) as { dryRun: boolean };
     expect(r.dryRun).toBe(true);
     expect(deleteVorgabe).not.toHaveBeenCalled();
   });
 
   it("resolve_inspection: gefundene Inspektion wird gemeldet, nichts aufgelöst", async () => {
-    kontrollFindFirstMock.mockResolvedValue({ id: "k1" });
+    kontrollFindFirstMock.mockResolvedValue({ id: "k1", entry: { verifikationStatus: null } });
     const r = await mcpResolveInspection("sub", { dryRun: true, action: "verify" }) as { dryRun: boolean; preview: { id: string } };
     expect(r.dryRun).toBe(true);
     expect(r.preview.id).toBe("k1");
@@ -232,5 +249,90 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
     const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "punish" }) as { wouldSucceed: boolean; problem?: string };
     expect(r.wouldSucceed).toBe(false);
     expect(r.problem).toBe("PENALTY_TEXT_REQUIRED");
+  });
+});
+
+describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines bestehenden Objekts)", () => {
+  it("edit_training_goal: diff zeigt genau die geänderten Felder [alt, neu]", async () => {
+    trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: "alt" });
+    const r = await mcpEditTrainingGoal("sub", { dryRun: true, id: "g1", minPerDayHours: 3 }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.minProTagH).toEqual([2, 3]);
+    expect(r.diff.note).toBeUndefined(); // unverändert (Notiz nicht mitgegeben → Bestand behalten)
+  });
+
+  it("delete_training_goal: diff zeigt alle Felder als [Wert, undefined] (Objekt verschwindet)", async () => {
+    trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null });
+    const r = await mcpDeleteTrainingGoal("sub", { dryRun: true, id: "g1" }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.minProTagH).toEqual([2, null]);
+  });
+
+  it("set_cleaning: diff zeigt den Bestandswert gegen den GEKLEMMTEN neuen Wert", async () => {
+    userFindUniqueOrThrowMock.mockResolvedValue({ reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0 });
+    const r = await mcpSetCleaning("sub", { dryRun: true, maxMinutes: 9999 }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.maxMinutes).toEqual([15, 120]);
+  });
+
+  it("resolve_inspection: diff zeigt den bisherigen gegen den resultierenden verifikationStatus", async () => {
+    kontrollFindFirstMock.mockResolvedValue({ id: "k1", entry: { verifikationStatus: "rejected" } });
+    const r = await mcpResolveInspection("sub", { dryRun: true, action: "verify" }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.verifikationStatus).toEqual(["rejected", "manual"]);
+  });
+
+  it("edit_lock_period: diff zeigt das bisherige gegen das neue Enddatum", async () => {
+    sperrzeitFindManyMock.mockResolvedValue([{ id: "s1", userId: "u1", wirksamAb: null, endetAt: null, withdrawnAt: null, benachrichtigtAt: null }]);
+    const r = await mcpEditLockPeriod("sub", { dryRun: true, untilAt: MORGEN.toISOString() }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.endetAt).toEqual([null, MORGEN.toISOString()]);
+    expect(r.diff.indefinite).toEqual([true, false]);
+  });
+
+  it("judge_offense: erstes Urteil zeigt diff als Create (undefined → Wert), kein Bestand vorher", async () => {
+    strafeRecordFindUniqueMock.mockResolvedValue(null);
+    const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "punish", text: "20 Schläge" }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.status).toEqual([undefined, "PUNISHED"]);
+    expect(r.diff.reason).toEqual([undefined, "20 Schläge"]);
+  });
+
+  it("judge_offense: erneutes Urteil zeigt diff gegen den bestehenden StrafeRecord", async () => {
+    strafeRecordFindUniqueMock.mockResolvedValue({ userId: "u1", status: "DISMISSED", reason: "alt", judgedBy: "ai", erledigtAt: null });
+    const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "punish", text: "neu" }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.status).toEqual(["DISMISSED", "PUNISHED"]);
+    expect(r.diff.reason).toEqual(["alt", "neu"]);
+  });
+
+  // Diese beiden Fälle wären ohne Guard fälschlich als erfolgreiche Transition dargestellt worden,
+  // obwohl judgeOffense sie real ablehnt (JUDGMENT_NOT_FOUND / PENALTY_NOT_PUNISHED) — der dryRun
+  // prüft den Strafbuch-Zustand hier bewusst NICHT (siehe Kommentar in mcpWrite.ts), darf aber auch
+  // keinen diff vortäuschen, den er nicht kennt.
+  it("judge_offense: reopen ohne bestehenden StrafeRecord liefert KEINEN diff (würde real JUDGMENT_NOT_FOUND ablehnen)", async () => {
+    strafeRecordFindUniqueMock.mockResolvedValue(null);
+    const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "reopen" }) as { diff?: Record<string, [unknown, unknown]> };
+    expect(r.diff).toBeUndefined();
+  });
+
+  it("judge_offense: complete auf nicht-PUNISHED Record liefert KEINEN diff (würde real PENALTY_NOT_PUNISHED ablehnen)", async () => {
+    strafeRecordFindUniqueMock.mockResolvedValue({ userId: "u1", status: "DISMISSED", reason: "alt", judgedBy: "ai", erledigtAt: null });
+    const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "complete" }) as { diff?: Record<string, [unknown, unknown]> };
+    expect(r.diff).toBeUndefined();
+  });
+
+  it("judge_offense: reopen mit bestehendem Record zeigt jedes Feld als [Wert, null] (Zeile verschwindet)", async () => {
+    strafeRecordFindUniqueMock.mockResolvedValue({ userId: "u1", status: "PUNISHED", reason: "20 Schläge", judgedBy: "ai", erledigtAt: null });
+    const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "reopen" }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.status).toEqual(["PUNISHED", null]);
+    expect(r.diff.reason).toEqual(["20 Schläge", null]);
+  });
+
+  it("judge_offense: punish auf ref ohne aktuell erkanntes Vergehen liefert KEINEN diff (würde real OFFENSE_NOT_FOUND ablehnen)", async () => {
+    strafeRecordFindUniqueMock.mockResolvedValue(null);
+    collectDetectedOffensesMock.mockReturnValue([]); // ref "o1" ist nicht (mehr) darunter
+    const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "punish", text: "20 Schläge" }) as { diff?: Record<string, [unknown, unknown]> };
+    expect(r.diff).toBeUndefined();
+  });
+
+  it("judge_offense: ref eines ANDEREN Users wird nicht als before angezeigt (Cross-User-Leak)", async () => {
+    strafeRecordFindUniqueMock.mockResolvedValue({ userId: "ANDERER-USER", status: "PUNISHED", reason: "fremdes Urteil", judgedBy: "ai", erledigtAt: null });
+    const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "punish", text: "neu" }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.status).toEqual([undefined, "PUNISHED"]); // Create-Diff, NICHT gegen das fremde Urteil
+    expect(r.diff.reason).not.toContain("fremdes Urteil");
   });
 });

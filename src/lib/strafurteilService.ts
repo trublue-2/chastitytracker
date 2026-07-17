@@ -112,6 +112,12 @@ export function checkPenaltyText(action: JudgeOffenseParams["action"], text: str
   return action === "punish" && !text?.trim() ? "PENALTY_TEXT_REQUIRED" : null;
 }
 
+/** Der resultierende StrafeRecord.status bei punish/dismiss — geteilt vom echten Commit (unten) und
+ *  vom MCP judge_offense dryRun-Preview (B-05), damit die Zuordnung nicht zweimal dasteht. */
+export function judgmentStatus(action: "punish" | "dismiss"): "PUNISHED" | "DISMISSED" {
+  return action === "punish" ? "PUNISHED" : "DISMISSED";
+}
+
 export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult<JudgeOffenseResult>> {
   const now = new Date();
 
@@ -140,7 +146,7 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   // kennt — ein Code ohne Interpolation genügt und bleibt übersetzbar.
   if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
 
-  const status = p.action === "punish" ? "PUNISHED" : "DISMISSED";
+  const status = judgmentStatus(p.action);
   await prisma.strafeRecord.upsert({
     where: { refId: p.refId },
     create: { userId: p.userId, offenseType: offense.offenseType, refId: p.refId, bestraftDatum: now, status, reason: text, judgedBy: p.judgedBy, erledigtAt: null },
