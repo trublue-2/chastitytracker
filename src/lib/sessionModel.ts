@@ -107,6 +107,11 @@ export interface Session {
   cleaningPauses: number;
   /** Kategorie des Geräts am Session-Kopf. null = Alt-Verschluss ohne Gerät (nur KG möglich). */
   categoryId: string | null;
+  /** True nur für ein Pair, das die "zwei Schliess-Einträge ohne Öffnen dazwischen"-Anomalie
+   *  abbildet (buildPairs). `isOpen` ist dafür bewusst `true` (Invariant), aber die Session ist
+   *  KEINE echte aktuell laufende Session — Konsumenten der "current session" müssen das
+   *  ausschliessen (siehe `records()`, `liveState.ts`, dashboard/admin `pairs.find(p => p.active)`). */
+  orphaned: boolean;
 }
 
 type Pair = ReturnType<typeof buildPairs<SegmentEntry, never>>[number];
@@ -312,6 +317,7 @@ function sessionOfPair(pair: Pair, controls: SegmentEntry[], now: Date, lookups:
     deviceBreakdown: breakdownOf(segments),
     cleaningPauses: pair.interruptions.length,
     categoryId: pair.verschluss.device?.categoryId ?? null,
+    orphaned: !!pair.orphaned,
   };
 }
 
@@ -327,6 +333,13 @@ export function buildSessions(entries: SegmentEntry[], reinigung: ReinigungSetti
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
   return pairs.map((pair) => sessionOfPair(pair, controls, now, lookups));
+}
+
+/** Ist diese Session die tatsächlich aktuell laufende? `isOpen` allein reicht nicht: eine verwaiste
+ *  Session (siehe `Session.orphaned`) ist technisch `isOpen:true` (Invariant), aber keine echte
+ *  laufende Session. EINZIGE Stelle für diesen Check (analog `getOpenPair` in utils.ts). */
+export function isLiveOpenSession(s: { isOpen: boolean; orphaned: boolean }): boolean {
+  return s.isOpen && !s.orphaned;
 }
 
 /**
@@ -358,8 +371,9 @@ export function buildWearSessions(entries: SegmentEntry[], now: Date = new Date(
   for (const list of byDevice.values()) {
     for (const pair of buildPairs<SegmentEntry, never>(list, [], { types: WEAR_PAIR })) {
       // Ein WEAR_BEGIN ohne Ende, das NICHT die laufende Session ist, ist eine Daten-Anomalie
-      // (zwei Beginne hintereinander) — keine Session daraus erfinden.
-      if (!pair.oeffnen && !pair.active) continue;
+      // (zwei Beginne hintereinander) — keine Session daraus erfinden. buildPairs markiert so ein
+      // Pair inzwischen `orphaned` (statt `active:false`) — das ist der massgebliche Check hier.
+      if (pair.orphaned) continue;
       sessions.push(sessionOfPair(pair, [], now, NO_LOOKUPS));
     }
   }

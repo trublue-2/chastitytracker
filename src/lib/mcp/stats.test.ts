@@ -145,6 +145,20 @@ describe("device_stats — alle Kategorien, nicht nur KG", () => {
     expect(result.unassigned!.category).toBe("KG");
     expect(result.unassigned!.totalHours).toBeCloseTo(24, 1);
   });
+
+  it("eine verwaiste KG-Session (zwei VERSCHLUSS ohne OEFFNEN) zählt NICHT als Phantom-Stunden mit", async () => {
+    // Anomalie: v1 wird nie geöffnet, v2 folgt direkt. buildPairs markiert v1 als `orphaned` (läuft
+    // sonst bis JETZT weiter) — device_stats muss das ausschliessen, sonst würde der Käfig hier
+    // Stunden von 2026-07-01 (v1) statt nur von v2 (10.07.) zeigen.
+    const result = await deviceStats("sub", ctx([
+      entry("VERSCHLUSS", "2026-07-01T10:00:00+02:00", KAEFIG),
+      entry("VERSCHLUSS", "2026-07-10T10:00:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-11T10:00:00+02:00", KAEFIG),
+    ]));
+
+    expect(rowFor(result, "Flatty")!.totalHours).toBeCloseTo(24, 1); // nur v2 → OEFFNEN, nicht v1 → jetzt
+    expect(rowFor(result, "Flatty")!.sessionCount).toBe(1);
+  });
 });
 
 // ─── Sessions statt Segmente ───────────────────────────────────────────────
@@ -259,5 +273,19 @@ describe("records — longestUnbrokenSegmentHours (A-14, MCP-Befundliste 2026-07
     expect(result.longestUnbrokenSegmentDeviceName).toBeNull();
     expect(result.currentUnbrokenSegmentHours).toBeNull();
     expect(result.currentUnbrokenVsBestPct).toBeNull();
+  });
+
+  it("eine verwaiste Session (zwei VERSCHLUSS ohne OEFFNEN) zählt weder als currentRun noch als Bestmarke", async () => {
+    // v1 (2026-06-01) wird nie geöffnet, v2 folgt direkt und ist die einzige ECHTE (geschlossene)
+    // Session. Ohne den orphaned-Ausschluss würde v1 als seit Wochen "offen" (currentRun) erscheinen
+    // UND — weil sein Segment bis JETZT läuft — die echte 3h-Session als Bestmarke schlagen.
+    const result = await records("sub", ctx([
+      entry("VERSCHLUSS", "2026-06-01T10:00:00+02:00", KAEFIG),
+      entry("VERSCHLUSS", "2026-07-10T10:00:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-10T13:00:00+02:00", KAEFIG),
+    ]));
+
+    expect(result.currentRunHours).toBeNull();
+    expect(result.longestRunHours).toBe(3);
   });
 });

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.6",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zwei Schliess-Einträge ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. durch Admin-Backdating) ergaben ein Pair mit widersprüchlichem isOpen/endedBy in get_session. buildPairs markiert solche Pairs jetzt als orphaned; Konsumenten (Dashboard, Admin-Übersicht, MCP live state/records/device_stats/denial_trend) schliessen sie von der aktuellen Session und von Aggregat-Kennzahlen aus. Admin-Entry-Erstellung prüft jetzt zusätzlich die chronologischen Nachbarn, um die Anomalie gar nicht erst entstehen zu lassen.",
+          "en": "Two lock entries with no intervening unlock entry (a data anomaly, e.g. from admin backdating) produced a pair with contradictory isOpen/endedBy in get_session. buildPairs now marks such pairs as orphaned; consumers (dashboard, admin overview, MCP live state/records/device_stats/denial_trend) exclude them from the current session and from aggregate stats. Admin entry creation now also checks chronological neighbors to prevent the anomaly from being created in the first place."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.5",
     "date": "2026-07-17",
     "changes": [

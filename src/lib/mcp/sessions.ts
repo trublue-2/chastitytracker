@@ -32,6 +32,10 @@ export interface SessionView {
   start: string;
   end: string | null;
   isOpen: boolean;
+  /** True nur für die "zwei Schliess-Einträge ohne Öffnen dazwischen"-Anomalie (buildPairs). Dann
+   *  ist `isOpen:true` technisch korrekt (Invariant), aber KEINE echte aktuell laufende Session —
+   *  siehe auch `dataQualityFlags`. */
+  orphaned: boolean;
   durationHours: number;
   endReason: Session["endReason"];
   cleaningPauses: number;
@@ -45,8 +49,12 @@ export interface SessionView {
 export interface SessionListResult extends Envelope {
   /** v3: `deviceConfidence` unterscheidet jetzt "undeclared" (kein Gerät angegeben) von "declared"
    *  (Gerät angegeben, nur nicht bildbestätigt) — vorher fiel Ersteres fälschlich auf "declared"
-   *  zurück. `dataQualityFlags` deckt diesen Fall jetzt ebenfalls ab (A-04/A-05). */
-  schemaVersion: 3;
+   *  zurück. `dataQualityFlags` deckt diesen Fall jetzt ebenfalls ab (A-04/A-05).
+   *  v4: `isOpen`/`endReason` können jetzt für eine verwaiste, längst überholte Session `true`/"open"
+   *  sein (Invariant-Fix in buildPairs, siehe utils.ts `orphaned`) — vorher fälschlich `false`/
+   *  "closed" bei gleichzeitig widersprüchlichem Segment-`endedBy:"open"`. Das neue `orphaned`-Feld
+   *  ist der verbindliche Weg, diesen Fall zu erkennen, statt `isOpen` roh zu vertrauen. */
+  schemaVersion: 4;
   user: string;
   returnedCount: number;
   sessions: SessionView[];
@@ -108,6 +116,9 @@ function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>, iso: I
 function sessionView(s: TaggedSession, notesByEntity: Map<string, NoteDTO[]>, iso: Iso): SessionView {
   const segments = s.segments.map((seg) => segmentView(seg, notesByEntity, iso));
   const dataQualityFlags: string[] = [];
+  if (s.orphaned) {
+    dataQualityFlags.push("Diese Session beginnt mit einem verwaisten Schliess-Eintrag ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. Backdating) — sie erscheint technisch als offen, ist aber keine echte aktuell laufende Session.");
+  }
   for (const seg of s.segments) {
     if (seg.deviceConfidence === "image-conflict") {
       dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle (${seg.deviceVerified?.name}) widerspricht dem deklarierten Gerät (${seg.deviceDeclared.name}) über die Cluster-Grenze — Bild gewinnt, Stunden auf das verifizierte Gerät.`);
@@ -123,6 +134,7 @@ function sessionView(s: TaggedSession, notesByEntity: Map<string, NoteDTO[]>, is
     start: iso(s.start)!,
     end: iso(s.end),
     isOpen: s.isOpen,
+    orphaned: s.orphaned,
     durationHours: msToHours(s.durationMs),
     endReason: s.endReason,
     cleaningPauses: s.cleaningPauses,
@@ -170,7 +182,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   const notesByEntity = await notesForEntities(userId, selected.flatMap(refsOfSession), {}, undefined, timezone);
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     returnedCount: selected.length,
