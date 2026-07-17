@@ -38,6 +38,14 @@ async function validateVorgabeCategory(
   return null;
 }
 
+/** Loads a live (non soft-deleted) TrainingVorgabe row by id, or null. THE shared existence
+ *  definition (B-04, MCP-Befundliste 2026-07-17): used by updateVorgabe/deleteVorgabe below and by
+ *  loadOwnedVorgabe in mcpWrite.ts — a soft-deleted goal counts as "not found" everywhere, not just
+ *  by convention across separately-written queries. */
+export async function findActiveVorgabe(id: string) {
+  return prisma.trainingVorgabe.findFirst({ where: { id, deletedAt: null } });
+}
+
 /** At least one of the four period targets must be set. Exported for MCP dryRun previews
  *  (mcpWrite.ts) — the same check the real create/update path runs, not restated there. */
 export function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null }): boolean {
@@ -123,7 +131,7 @@ export type UpdateVorgabeParams = Omit<CreateVorgabeParams, "userId">;
  * Shared by PATCH /api/admin/vorgaben/[id] and the MCP edit_training_goal tool.
  */
 export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Promise<ServiceResult<{ id: string; userId: string }>> {
-  const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+  const existing = await findActiveVorgabe(id);
   if (!existing) return serviceFail(404, "GOAL_NOT_FOUND");
 
   const { categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, minProJahrH, notiz } = params;
@@ -152,19 +160,34 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
   return { ok: true, data: { id, userId: existing.userId } };
 }
 
-/** Deletes a TrainingVorgabe by id. Shared by DELETE /api/admin/vorgaben/[id] and the MCP tool. */
+/**
+ * Soft-deletes a TrainingVorgabe by id (setzt `deletedAt`, löscht die Zeile NICHT physisch).
+ * Shared by DELETE /api/admin/vorgaben/[id] and the MCP tool.
+ *
+ * B-04 (MCP-Befundliste 2026-07-17): explain_model §13 macht „Supersession statt Delete" zum
+ * Prinzip — für Trainingsziele galt bisher das Gegenteil (harter Delete, keine Spur, keine
+ * autoritative Historie trotz gegenteiligem Versprechen bei `get_action_log`). Ein zweiter
+ * Delete-Aufruf auf ein bereits gelöschtes Ziel trifft dieselbe `deletedAt: null`-Existenzprüfung
+ * wie `updateVorgabe` und liefert `GOAL_NOT_FOUND` — identisches Verhalten zum alten Hard-Delete.
+ */
 export async function deleteVorgabe(id: string): Promise<ServiceResult<{ userId: string }>> {
-  const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+  const existing = await findActiveVorgabe(id);
   if (!existing) return serviceFail(404, "GOAL_NOT_FOUND");
-  await prisma.trainingVorgabe.delete({ where: { id } });
+  await prisma.trainingVorgabe.update({ where: { id }, data: { deletedAt: new Date() } });
+  // Verbleibende (aktive) Ziele derselben Kategorie neu verketten — die gelöschte Zeile fällt aus
+  // reorderVorgabenDates' eigener Query (jetzt ebenfalls deletedAt:null) automatisch heraus.
   await reorderVorgabenDates(existing.userId);
   return { ok: true, data: { userId: existing.userId } };
 }
 
-/** Lists a user's training goals (chained per category), newest category-block first, with category names. */
-export async function listVorgaben(userId: string) {
+/** Lists a user's training goals (chained per category), newest category-block first, with category
+ *  names. `includeDeleted` (B-04): auch soft-gelöschte Ziele mitliefern — Default false, damit
+ *  bestehende Aufrufer (Adhärenz-/Zielberechnung, Admin-Seiten) gelöschte Ziele automatisch NICHT
+ *  mehr sehen, ohne selbst filtern zu müssen. */
+export async function listVorgaben(userId: string, opts: { includeDeleted?: boolean } = {}) {
+  const where = opts.includeDeleted ? { userId } : { userId, deletedAt: null };
   return prisma.trainingVorgabe.findMany({
-    where: { userId },
+    where,
     orderBy: [{ categoryId: "asc" }, { gueltigAb: "asc" }],
     include: { category: { select: { name: true } } },
   });

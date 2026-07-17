@@ -8,22 +8,27 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    trainingVorgabe: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
+    trainingVorgabe: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   },
 }));
 vi.mock("@/lib/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
 vi.mock("@/lib/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
 
-import { createVorgabe, updateVorgabe, checkGoalPlausibility } from "./vorgabeService";
+import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility } from "./vorgabeService";
 import { prisma } from "@/lib/prisma";
+import { reorderVorgabenDates } from "@/lib/vorgaben";
 
-const findUniqueMock = prisma.trainingVorgabe.findUnique as unknown as ReturnType<typeof vi.fn>;
+const findFirstMock = prisma.trainingVorgabe.findFirst as unknown as ReturnType<typeof vi.fn>;
+const findManyMock = prisma.trainingVorgabe.findMany as unknown as ReturnType<typeof vi.fn>;
 const createMock = prisma.trainingVorgabe.create as unknown as ReturnType<typeof vi.fn>;
+const updateMock = prisma.trainingVorgabe.update as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  findUniqueMock.mockReset().mockResolvedValue({ userId: "u1" });
+  findFirstMock.mockReset().mockResolvedValue({ userId: "u1" });
+  findManyMock.mockReset().mockResolvedValue([]);
   createMock.mockReset().mockResolvedValue({ id: "neu" });
+  updateMock.mockReset().mockResolvedValue({ id: "g1" });
 });
 
 describe("checkGoalPlausibility", () => {
@@ -108,5 +113,50 @@ describe("updateVorgabe — Plausibilitätsschranken greifen auch bei reinem Stu
     const res = await updateVorgabe("g1", { gueltigAb: "2026-07-17", minProTagH: 2, minProWocheH: 999 });
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("GOAL_WEEK_TARGET_TOO_HIGH");
+  });
+
+  it("ein bereits soft-gelöschtes Ziel gilt als nicht mehr vorhanden (findFirst mit deletedAt:null)", async () => {
+    // Die Prisma-Mock-Ebene sieht die WHERE-Klausel nicht selbst — hier wird nur zugesichert, dass
+    // updateVorgabe überhaupt über deletedAt:null sucht (nicht per findUnique(id) allein), sonst
+    // würde ein gelöschtes Ziel weiter editierbar bleiben.
+    await updateVorgabe("g1", { gueltigAb: "2026-07-17", minProTagH: 2 });
+    expect(findFirstMock).toHaveBeenCalledWith({ where: { id: "g1", deletedAt: null } });
+  });
+});
+
+describe("deleteVorgabe — Soft-Delete (B-04, MCP-Befundliste 2026-07-17)", () => {
+  it("löscht NICHT physisch — setzt deletedAt statt delete()", async () => {
+    const res = await deleteVorgabe("g1");
+    expect(res.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: "g1" }, data: { deletedAt: expect.any(Date) } });
+  });
+
+  it("verkettet die verbleibenden (aktiven) Ziele der Kategorie neu", async () => {
+    await deleteVorgabe("g1");
+    expect(reorderVorgabenDates).toHaveBeenCalledWith("u1");
+  });
+
+  it("ein zweiter Delete-Aufruf auf ein bereits gelöschtes Ziel liefert GOAL_NOT_FOUND — wie beim alten Hard-Delete", async () => {
+    findFirstMock.mockResolvedValue(null); // deletedAt:null-Suche findet nichts mehr
+    const res = await deleteVorgabe("g1");
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("GOAL_NOT_FOUND");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("listVorgaben — soft-gelöschte Ziele standardmässig ausgeblendet (B-04)", () => {
+  it("ohne includeDeleted: nur deletedAt:null", async () => {
+    await listVorgaben("u1");
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: "u1", deletedAt: null },
+    }));
+  });
+
+  it("mit includeDeleted:true: kein deletedAt-Filter", async () => {
+    await listVorgaben("u1", { includeDeleted: true });
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: "u1" },
+    }));
   });
 });

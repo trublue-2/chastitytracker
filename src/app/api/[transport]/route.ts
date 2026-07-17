@@ -727,10 +727,13 @@ function registerTools(server: McpServer) {
       {
         title: "List training goals",
         description:
-          "Lists all training goals (KG + categories) with their id, status (active/scheduled/expired), " +
-          "start/end dates, period targets and note. Use the id with edit_training_goal / delete_training_goal.",
+          "Lists training goals (KG + categories) with their id, status (active/scheduled/expired/deleted), " +
+          "start/end dates, period targets and note. Use the id with edit_training_goal / delete_training_goal. " +
+          "Soft-deleted goals (deletedAt set, status:'deleted') are hidden by default — this IS the authoritative " +
+          "goal history, including past ones, once includeDeleted:true is set.",
         inputSchema: {
           category: z.string().optional().describe('Filter by category name, e.g. "Plug". Omit for all.'),
+          includeDeleted: z.boolean().optional().describe("Include soft-deleted goals (status:'deleted', deletedAt set). Default false."),
         },
       },
       (args) => runTool("list_training_goals", (u) => mcpListTrainingGoals(u, args)),
@@ -764,7 +767,9 @@ function registerTools(server: McpServer) {
       "delete_training_goal",
       {
         title: "Delete a training goal",
-        description: "Deletes a training goal by id (get the id from list_training_goals)." + KEYHOLDER_SILENT,
+        description:
+          "Soft-deletes a training goal by id (get the id from list_training_goals). The goal is hidden from " +
+          "list_training_goals but kept for history — pass includeDeleted:true there to see it again." + KEYHOLDER_SILENT,
         inputSchema: {
           id: z.string().describe("Goal id from list_training_goals."),
           reason: reasonField,

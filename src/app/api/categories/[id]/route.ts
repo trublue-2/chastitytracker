@@ -62,6 +62,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const [deviceCount, vorgabeCount] = await Promise.all([
     prisma.device.count({ where: { categoryId: id } }),
+    // B-04: bewusst OHNE deletedAt-Filter — TrainingVorgabe.categoryId hat ON DELETE SET NULL; würde
+    // eine Kategorie mit nur noch soft-gelöschten Zielen löschbar, verlöre deren Historie stillschweigend
+    // die Kategorie-Zuordnung (fällt auf "KG" zurück). Historische Ziele blockieren die Löschung daher
+    // weiterhin, exakt wie aktive.
     prisma.trainingVorgabe.count({ where: { categoryId: id } }),
   ]);
   if (deviceCount > 0 || vorgabeCount > 0) {
