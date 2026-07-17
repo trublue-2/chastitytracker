@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.60",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "\"Last action\" im Portal-Admin zeigte eingefrorene Werte, weil sie von der stillgelegten Telemetrie (TelemetryEvent) abhing. Ersetzt durch einen neuen AppMeta-Key lastActionAt (analog zu lastUsedAt), gesetzt bei echten Business-Aktionen (Eintrag, Upload, Kontrolle, Strafurteil, Bildersafe-Siegel) und vom Portal-Cron ausgelesen.",
+          "en": "\"Last action\" in the portal admin showed frozen values because it depended on the retired telemetry system (TelemetryEvent). Replaced with a new AppMeta key lastActionAt (mirroring lastUsedAt), set on real business actions (entry, upload, inspection, penalty judgment, bildersafe seal) and read by the portal cron."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.59",
     "date": "2026-07-17",
     "changes": [

@@ -4,7 +4,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import exifr from "exifr";
 import sharp from "sharp";
-import { trackEvent } from "@/lib/telemetry";
+import { markLastAction } from "@/lib/appMeta";
 import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
 import { fromDatetimeLocal, APP_TZ } from "@/lib/utils";
 
@@ -119,6 +119,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  trackEvent("upload.success");
+  markLastAction();
   return NextResponse.json({ url: `/api/uploads/${filename}`, exifTime });
 }
