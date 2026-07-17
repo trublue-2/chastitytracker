@@ -14,16 +14,24 @@ export interface ActionLogRow {
   id: string;
   at: string;
   tool: string;
+  /** OAuth-userId des handelnden Keyholders (opak, stabil). */
   actor: string | null;
+  /** Aufgelöster Anzeigename zu `actor` (Username), oder null bei unbekanntem/legacy/gelöschtem Actor
+   *  (K-11, MCP-Restliste 2026-07-17). */
+  actorLabel: string | null;
   reason: string;
-  source: string;
+  /** Herkunft der Entscheidung: `agent` (Instanz-Schluss) | `user-stated` (vom Keyholder-Menschen
+   *  angesagt). Umbenannt von `source`, das mit der Note-`source` in `args` kollidierte (K-12). */
+  decisionSource: string;
   /** Tool-Eingabe als JSON-Wert (geparst), oder null. */
   args: unknown;
   resultRef: string | null;
 }
 
 export interface ActionLogResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `source` → `decisionSource` (Kollision mit `args.source` aufgelöst, K-12); neu `actorLabel`
+   *  (additiv, K-11). */
+  schemaVersion: 3;
   user: string;
   returnedCount: number;
   actions: ActionLogRow[];
@@ -62,14 +70,21 @@ export async function getActionLog(username: string, opts: ActionLogOptions = {}
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(1, opts.limit ?? 100), 500),
   });
+  // K-11: die opaken actor-ids einmal gebündelt zu Usernamen auflösen (Actor ist meist derselbe
+  // Keyholder). Fehlt der User-Datensatz (gelöscht) oder ist actor null/legacy → actorLabel null.
+  const actorIds = [...new Set(rows.map((r) => r.actor).filter((a): a is string => a != null))];
+  const actorNames = actorIds.length
+    ? new Map((await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, username: true } })).map((u) => [u.id, u.username]))
+    : new Map<string, string>();
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     returnedCount: rows.length,
     actions: rows.map((r) => ({
-      id: r.id, at: iso(r.createdAt)!, tool: r.tool, actor: r.actor, reason: r.reason,
-      source: r.source, args: safeParse(r.argsJson), resultRef: r.resultRef,
+      id: r.id, at: iso(r.createdAt)!, tool: r.tool,
+      actor: r.actor, actorLabel: r.actor ? actorNames.get(r.actor) ?? null : null,
+      reason: r.reason, decisionSource: r.source, args: safeParse(r.argsJson), resultRef: r.resultRef,
     })),
   };
 }

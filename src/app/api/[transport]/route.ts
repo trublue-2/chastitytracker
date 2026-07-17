@@ -21,7 +21,7 @@ import { buildWriteContext } from "@/lib/mcp/common";
 import { prisma } from "@/lib/prisma";
 import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
-import { getOffenses } from "@/lib/mcp/ledger";
+import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
 import { timeline } from "@/lib/mcp/timeline";
 import { getActionLog } from "@/lib/mcp/actionlog";
@@ -318,16 +318,21 @@ function registerTools(server: McpServer) {
         title: "Get devices with decision metadata + inline notes (v2)",
         description:
           "MCP V2 — Geräte-Inventar inkl. der Entscheidungs-Metadaten (explain_model §13): securityLevel " +
-          "(SECURING|TRUST_ONLY; nur für KG-Geräte sinnvoll — null bei Nicht-KG ist korrekt und vollständig, " +
-          "keine Datenlücke), lookalikeClusterId (Mismatch INNERHALB eines Clusters ist nie ein " +
-          "Vergehen), pullOffRisk (true = lässt sich trotz Verschluss abstreifen, unsicher), material, " +
-          "bauform, healthFlags, retentionNotes, trackingEnabled (false = Inventory-only-Kategorie, " +
-          "liefert per Design keine Sessions), referenceImages (BEWUSST nur die Anzahl — die Bilder " +
-          "wertet der Server für deviceConfidence aus und sie sind via MCP nicht abrufbar) — plus inline " +
-          "verknüpfte Notes. Setze Metadaten mit set_device_meta.",
-        inputSchema: {},
+          "(SECURING|TRUST_ONLY; v.a. für sichernde Geräte wie KG oder Halsreif — null ist keine " +
+          "Datenlücke), lookalikeClusterId (Mismatch INNERHALB eines Clusters ist nie ein " +
+          "Vergehen), pullOffRisk (true = abstreifbar/unsicher, false = geprüft sicher, null = nie " +
+          "beurteilt), material, bauform, healthFlags, retentionNotes, trackingEnabled (false = " +
+          "Inventory-only-Kategorie, liefert per Design keine Sessions), referenceImages (BEWUSST nur die " +
+          "Anzahl — die Bilder wertet der Server für deviceConfidence aus und sie sind via MCP nicht " +
+          "abrufbar) — plus inline verknüpfte Notes. Archivierte Geräte sind per Default ausgeblendet. " +
+          "Setze Metadaten (inkl. archived) mit set_device_meta.",
+        inputSchema: {
+          deviceId: z.string().optional().describe("Nur dieses eine Gerät (per id) zurückgeben."),
+          includeNotes: z.boolean().optional().describe("Inline-Notes mitliefern (Default true). false spart den teuersten Teil des Calls."),
+          includeArchived: z.boolean().optional().describe("Auch archivierte (ausgemusterte) Geräte mitliefern (Default false)."),
+        },
       },
-      () => runTool("get_devices", listDevicesV2),
+      (args) => runTool("get_devices", (u) => listDevicesV2(u, args)),
     );
 
     server.registerTool(
@@ -430,10 +435,17 @@ function registerTools(server: McpServer) {
           "cleaning_not_relocked) als EINE Liste mit " +
           "status (open|judged), judgment, Folge (consequence) und Kontext + inline Notes. Bei wrong_device " +
           "kommt der Cluster-Kontext des getragenen Geräts mit (possiblyClusterInternal) — Cluster-interne " +
-          "Mismatches sind nie ein echtes Vergehen; urteile via judge_offense.",
-        inputSchema: {},
+          "Mismatches sind nie ein echtes Vergehen; urteile via judge_offense. Filter optional — die " +
+          "Zähler (detectedOffenseCount/openOffenseCount/pendingPenaltyCount) bleiben UNGEFILTERTE Gesamtstände.",
+        inputSchema: {
+          type: z.enum(OFFENSE_TYPES).optional().describe("Nur diesen Vergehenstyp."),
+          openOnly: z.boolean().optional().describe("Nur noch nicht beurteilte (status open)."),
+          from: z.string().optional().describe("ISO-8601 untere Grenze auf detectedAt."),
+          to: z.string().optional().describe("ISO-8601 obere Grenze auf detectedAt."),
+          limit: z.number().int().min(1).max(200).optional().describe("Neueste zuerst, dann auf limit gekürzt."),
+        },
       },
-      () => runTool("get_offenses", getOffenses),
+      (args) => runTool("get_offenses", (u) => getOffenses(u, args)),
     );
 
     server.registerTool(
@@ -450,10 +462,14 @@ function registerTools(server: McpServer) {
           "erlaubt ist, statt windows/windowOpenNow selbst zu verrechnen), der wiederkehrende " +
           "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree; ordinal/ordinalLabel " +
           "grenzt monatliche Slots ein — z.B. 'erster Mittwoch im Monat') und anstehende Termine " +
-          "(ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen.",
-        inputSchema: {},
+          "(per Default ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen. " +
+          "appointmentsFrom/-To öffnen vergangene Termine (lesbar UND via upsert_appointment(id) korrigierbar).",
+        inputSchema: {
+          appointmentsFrom: z.string().optional().describe("ISO-8601 untere Grenze für appointments (Default: jetzt)."),
+          appointmentsTo: z.string().optional().describe("ISO-8601 obere Grenze für appointments (optional)."),
+        },
       },
-      () => runTool("get_context", getContext),
+      (args) => runTool("get_context", (u) => getContext(u, args)),
     );
 
     server.registerTool(
@@ -479,7 +495,7 @@ function registerTools(server: McpServer) {
         title: "Keyholder action log (audit + goal-change history)",
         description:
           "Append-only Audit ALLER mutierenden Aktionen (V1 wie V2, seit B-03 — vorher nur V2) mit reason + " +
-          "source: was hat welche " +
+          "decisionSource (agent|user-stated; umbenannt von source, kollidierte mit args.source) + actorLabel: was hat welche " +
           "Instanz wann mit welcher Begründung entschieden. Die nächste Instanz erbt Entscheidungen samt " +
           "Begründung. Für die AUTORITATIVE Ziel-Historie (auch UI-gesetzte Ziele) list_training_goals " +
           "nutzen; dieses Log liefert nur das Warum/Wann der MCP-Änderungen (filter tool=\"set_training_goal\"). " +
@@ -930,7 +946,8 @@ function registerTools(server: McpServer) {
         description:
           "Setzt die Entscheidungs-Metadaten eines Geräts (explain_model §13): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
           "lookalikeClusterId (Geräte gleicher Optik in einen Cluster — Mismatch innerhalb ist dann nie ein " +
-          "Vergehen), pullOffRisk, material, bauform, healthFlags, retentionNotes. Nur angegebene Felder ändern " +
+          "Vergehen), pullOffRisk, material, bauform, healthFlags, retentionNotes, archived (true = aus dem " +
+          "aktiven Inventar nehmen). Nur angegebene Felder ändern " +
           "sich. ACHTUNG lookalikeClusterId: KEIN lokales Metadatenfeld — es rechnet die Geräte-Attribution " +
           "JEDER historischen Session mit Bild-Deklarations-Konflikt rückwirkend neu (inkl. device_stats + " +
           "records-Zusammensetzung). Vor dem Setzen den dryRun-diff prüfen (N-14)." + V2_WRITE_NOTE,
@@ -939,13 +956,14 @@ function registerTools(server: McpServer) {
           deviceName: z.string().optional().describe("Gerät per Name (case-insensitiv). deviceName ODER deviceId."),
           deviceId: z.string().optional().describe("Gerät per id."),
           expectedVersion: expectedVersionField,
-          securityLevel: z.enum(SECURITY_LEVELS).optional().describe("SECURING = sicherndes Gerät, TRUST_ONLY = Vertrauensgerät. Nur für KG-Geräte sinnvoll — bei Nicht-KG (Plug/Halsband/…) nicht setzen; null dort ist korrekt und vollständig."),
+          securityLevel: z.enum(SECURITY_LEVELS).optional().describe("SECURING = sicherndes Gerät, TRUST_ONLY = Vertrauensgerät. V.a. für sichernde Geräte (KG, Halsreif); null ist keine Datenlücke."),
           lookalikeClusterId: z.string().nullable().optional().describe("Cluster-Tag gleich aussehender Geräte. null = entfernen."),
-          pullOffRisk: z.boolean().optional().describe("true = Gerät lässt sich trotz Verschluss abstreifen (unsicher), false = sitzt sicher."),
+          pullOffRisk: z.boolean().nullable().optional().describe("true = abstreifbar (unsicher), false = geprüft sicher, null = nie beurteilt."),
           material: z.string().nullable().optional().describe("Edelstahl | Kunststoff | Silikon."),
           bauform: z.string().nullable().optional().describe("flach | voll | standard | Plug ..."),
           healthFlags: z.array(z.string()).optional().describe("z.B. Druckstellen, scheuert, rutscht."),
           retentionNotes: z.string().nullable().optional().describe("z.B. 'njoy: rutscht beim Entspannen'."),
+          archived: z.boolean().optional().describe("true = archivieren (aus dem aktiven Inventar nehmen), false = reaktivieren."),
         },
       },
       (args, extra) => runV2Write(setDeviceMetaDef, extra, args),

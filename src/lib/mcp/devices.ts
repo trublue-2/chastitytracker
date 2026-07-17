@@ -21,7 +21,10 @@ export interface DeviceMetaView {
   currency: string | null;
   securityLevel: string | null;
   lookalikeClusterId: string | null;
-  pullOffRisk: boolean;
+  /** true = lässt sich trotz Verschluss abstreifen (unsicher), false = sitzt sicher, `null` = NIE
+   *  beurteilt (K-08, MCP-Restliste 2026-07-17: früher `false`-Default, das „nicht beurteilt" als
+   *  „sicher" verkaufte — z.B. bei Halsband/Knebel). `false` heisst jetzt „geprüft und sicher". */
+  pullOffRisk: boolean | null;
   material: string | null;
   bauform: string | null;
   healthFlags: string[];
@@ -34,13 +37,22 @@ export interface DeviceMetaView {
 }
 
 export interface DeviceListResult extends Envelope {
-  /** v3: `abstreifbar` → `pullOffRisk` (true = abstreifbar/unsicher); neu `version`, `trackingEnabled`.
-   *  generatedAt/timezone/returnedCount sind additiv (N-3, MCP-Restliste 2026-07-17): get_devices war
-   *  als einziger V2-Read ohne Zeitanker — kein schemaVersion-Bump, weil rein ergänzend. */
-  schemaVersion: 3;
+  /** v4: `pullOffRisk` ist jetzt nullable — `null` = nie beurteilt, `false` = geprüft und sicher
+   *  (K-08, MCP-Restliste 2026-07-17: die Bedeutung von `false` hat sich verengt → Bump). Neu setzbar:
+   *  `archived` via set_device_meta; get_devices blendet Archivierte per Default aus (`includeArchived`).
+   *  v3: `abstreifbar` → `pullOffRisk`; neu `version`, `trackingEnabled`. */
+  schemaVersion: 4;
   user: string;
   returnedCount: number;
   devices: DeviceMetaView[];
+}
+
+/** Lese-Filter für get_devices (alle optional). `includeNotes` default true, `includeArchived`
+ *  default false (K-09/K-10, MCP-Restliste 2026-07-17). */
+export interface ListDevicesOptions {
+  includeNotes?: boolean;
+  includeArchived?: boolean;
+  deviceId?: string;
 }
 
 /** Vollständiger Select für die angereicherte Geräte-Ansicht (von Liste + Single-Re-Fetch geteilt). */
@@ -56,7 +68,7 @@ const deviceViewSelect = {
 type DeviceViewRow = {
   id: string; name: string; description: string | null; archivedAt: Date | null; createdAt: Date;
   purchasePrice: number | null; currency: string | null;
-  securityLevel: string | null; lookalikeClusterId: string | null; pullOffRisk: boolean;
+  securityLevel: string | null; lookalikeClusterId: string | null; pullOffRisk: boolean | null;
   material: string | null; bauform: string | null; healthFlags: string | null; retentionNotes: string | null;
   version: number;
   category: { name: string; isBuiltIn: boolean; trackingEnabled: boolean } | null;
@@ -90,22 +102,33 @@ function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[], iso: Iso): DeviceM
 }
 
 /** Angereicherte Geräteliste: Inventar + Entscheidungs-Metadaten + verknüpfte Notes inline. */
-export async function listDevicesV2(username: string): Promise<DeviceListResult> {
+export async function listDevicesV2(username: string, opts: ListDevicesOptions = {}): Promise<DeviceListResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   const iso = makeIso(timezone);
   const now = new Date();
+  const includeNotes = opts.includeNotes ?? true;
   const devices = await prisma.device.findMany({
-    where: { userId },
+    where: {
+      userId,
+      ...(opts.deviceId ? { id: opts.deviceId } : {}),
+      // Archivierte per Default ausblenden (K-09): ausgemusterte/verbotene Geräte sollen nicht als
+      // aktives Inventar erscheinen. Mit includeArchived:true trotzdem mitliefern.
+      ...(opts.includeArchived ? {} : { archivedAt: null }),
+    },
     orderBy: [{ archivedAt: "asc" }, { createdAt: "asc" }],
     select: deviceViewSelect,
   });
-  const notesByEntity = await notesForEntities(userId, devices.map((d) => ({ entityType: "device" as const, entityId: d.id })), {}, undefined, timezone);
+  // includeNotes:false (K-10) spart den teuersten Teil des Calls — die (teils mehrfach verknüpften)
+  // Inline-Notes werden dann gar nicht geladen.
+  const notesByEntity = includeNotes
+    ? await notesForEntities(userId, devices.map((d) => ({ entityType: "device" as const, entityId: d.id })), {}, undefined, timezone)
+    : null;
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     ...buildEnvelope(now, iso, timezone),
     user: username,
     returnedCount: devices.length,
-    devices: devices.map((d) => toDeviceMetaView(d, notesByEntity.get(entityKey("device", d.id)) ?? [], iso)),
+    devices: devices.map((d) => toDeviceMetaView(d, notesByEntity?.get(entityKey("device", d.id)) ?? [], iso)),
   };
 }
 
@@ -119,23 +142,27 @@ export interface SetDeviceMetaArgs {
   expectedVersion?: number;
   securityLevel?: string;
   lookalikeClusterId?: string | null;
-  pullOffRisk?: boolean;
+  /** `null` setzen = „nicht beurteilt" (K-08), `true`/`false` = abstreifbar/sicher. */
+  pullOffRisk?: boolean | null;
   material?: string | null;
   bauform?: string | null;
   healthFlags?: string[];
   retentionNotes?: string | null;
+  /** true = archivieren (aus dem aktiven Inventar nehmen), false = reaktivieren (K-09). */
+  archived?: boolean;
 }
 
 /** Nur die für Snapshot/Resolve nötigen Spalten — nicht der volle Geräte-Datensatz. */
 const metaResolveSelect = {
-  id: true, name: true, version: true,
+  id: true, name: true, version: true, archivedAt: true,
   securityLevel: true, lookalikeClusterId: true, pullOffRisk: true,
   material: true, bauform: true, healthFlags: true, retentionNotes: true,
 } as const;
 
 type MetaRow = {
-  id: string; name: string; version: number; securityLevel: string | null; lookalikeClusterId: string | null;
-  pullOffRisk: boolean; material: string | null; bauform: string | null;
+  id: string; name: string; version: number; archivedAt: Date | null;
+  securityLevel: string | null; lookalikeClusterId: string | null;
+  pullOffRisk: boolean | null; material: string | null; bauform: string | null;
   healthFlags: string | null; retentionNotes: string | null;
 };
 
@@ -163,6 +190,7 @@ async function resolveDevice(client: TxClient, userId: string, args: SetDeviceMe
 const metaSnapshot = (d: MetaRow) => ({
   securityLevel: d.securityLevel, lookalikeClusterId: d.lookalikeClusterId, pullOffRisk: d.pullOffRisk,
   material: d.material, bauform: d.bauform, healthFlags: parseStringArray(d.healthFlags), retentionNotes: d.retentionNotes,
+  archived: d.archivedAt !== null,
 });
 type MetaSnapshot = ReturnType<typeof metaSnapshot>;
 
@@ -177,6 +205,7 @@ const projectMeta = (before: MetaSnapshot, args: SetDeviceMetaArgs): MetaSnapsho
   bauform: args.bauform !== undefined ? args.bauform : before.bauform,
   healthFlags: args.healthFlags !== undefined ? args.healthFlags : before.healthFlags,
   retentionNotes: args.retentionNotes !== undefined ? args.retentionNotes : before.retentionNotes,
+  archived: args.archived !== undefined ? args.archived : before.archived,
 });
 
 export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
@@ -207,6 +236,8 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
       ...(args.bauform !== undefined ? { bauform: args.bauform } : {}),
       ...(args.healthFlags !== undefined ? { healthFlags: JSON.stringify(args.healthFlags) } : {}),
       ...(args.retentionNotes !== undefined ? { retentionNotes: args.retentionNotes } : {}),
+      // archived (K-09): der Zustand liegt in archivedAt (DateTime?), nicht in einer bool-Spalte.
+      ...(args.archived !== undefined ? { archivedAt: args.archived ? new Date() : null } : {}),
     };
     // No-op-Edit (keine Felder angegeben): nicht schreiben und v.a. die Version NICHT bumpen —
     // ein Bump würde die expectedVersion aller anderen Leser grundlos invalidieren.

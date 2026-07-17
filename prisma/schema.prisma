@@ -462,7 +462,7 @@ model Device {
   securityLevel      String?
   // lookalikeClusterId: gleiche Optik = gleicher Cluster. Mismatch INNERHALB eines Clusters ist soft, nie ein Vergehen.
   lookalikeClusterId String?
-  pullOffRisk        Boolean @default(false) // true = lässt sich trotz Verschluss abstreifen (unsicher)
+  pullOffRisk        Boolean? // true = abstreifbar (unsicher), false = geprüft sicher, null = nie beurteilt (K-08)
   material           String? // Edelstahl | Kunststoff | Silikon
   bauform            String? // flach | voll | standard | Plug ...
   healthFlags        String? // JSON string[] — Druckstellen, scheuert, rutscht ...

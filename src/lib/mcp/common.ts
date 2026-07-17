@@ -196,6 +196,10 @@ export interface NoteDTO {
   validFrom: string | null;
   validUntil: string | null;
   supersedesId: string | null;
+  /** true, wenn diese Note der Kopf ihrer Supersessions-Kette ist (keine andere ersetzt sie). Beim
+   *  Ersetzen bekommt die alte Note `status:"superseded"` — der Vorwärts-Zeiger, den `supersedesId`
+   *  (nur rückwärts) nicht liefert (K-22, MCP-Restliste 2026-07-17). */
+  isLatest: boolean;
   createdAt: string;
   /** Optimistic-Concurrency-Token — bei Edits als `expectedVersion` mitgeben (siehe writeFramework). */
   version: number;
@@ -245,7 +249,8 @@ export function toNoteDTO(n: NoteWithRefs, isoFn: Iso = iso): NoteDTO {
     confidence: n.confidence, kg: n.kg, kategorie: n.kategorie, text: n.text,
     doDont: parseDoDont(n.doDont),
     validFrom: isoFn(n.validFrom), validUntil: isoFn(n.validUntil),
-    supersedesId: n.supersedesId, createdAt: isoFn(n.createdAt)!, version: n.version,
+    supersedesId: n.supersedesId, isLatest: n.status !== "superseded",
+    createdAt: isoFn(n.createdAt)!, version: n.version,
     refs: n.refs.map((r) => ({ entityType: r.entityType as EntityType, entityId: r.entityId })),
   };
 }

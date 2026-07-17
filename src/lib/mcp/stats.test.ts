@@ -8,6 +8,9 @@ import { describe, it, expect, vi } from "vitest";
  */
 
 const loadTrackingContext = vi.fn();
+// A-09-Stichtag = frühestes Geräte-createdAt. Default null → Stichtag Infinity → alles Unassigned ist
+// pre_device_tracking; einzelne Tests überschreiben mit mockResolvedValueOnce.
+const deviceFindFirst = vi.fn().mockResolvedValue(null);
 // device_stats liest die Kategorien aus IHRER Tabelle (nicht aus den Geräten) — sonst hätte ein
 // Sammel-Posten ohne Gerät keine Kategorie.
 vi.mock("@/lib/prisma", () => ({
@@ -19,6 +22,7 @@ vi.mock("@/lib/prisma", () => ({
         { id: "cat-collar", name: "Halsband", isBuiltIn: false },
       ]),
     },
+    device: { findFirst: (...a: unknown[]) => deviceFindFirst(...a) },
   },
 }));
 vi.mock("@/lib/mcp/common", async (orig) => ({
@@ -130,6 +134,19 @@ describe("device_stats — alle Kategorien, nicht nur KG", () => {
     const plug = rowFor(result, "njoy pure plug large")!;
     expect(plug.sessionCount).toBe(1);
     expect(plug.totalHours).toBeCloseTo(2, 1); // 16:00 → NOW 18:00
+    // K-20: das Gerät läuft gerade → isWornNow true, lastWornUntil null (noch kein Ende).
+    expect(plug.isWornNow).toBe(true);
+    expect(plug.lastWornUntil).toBeNull();
+  });
+
+  it("K-20: ein abgeschlossen getragenes Gerät zeigt isWornNow:false + lastWornUntil = Endzeit", async () => {
+    const result = await deviceStats("sub", ctx([
+      entry("WEAR_BEGIN", "2026-07-14T10:00:00+02:00", PLUG_DEV),
+      entry("WEAR_END", "2026-07-14T12:00:00+02:00", PLUG_DEV),
+    ]));
+    const plug = rowFor(result, "njoy pure plug large")!;
+    expect(plug.isWornNow).toBe(false);
+    expect(plug.lastWornUntil).toBe("2026-07-14T12:00:00+02:00");
   });
 
   it("der Sammel-Posten ohne Gerät steht separat in `unassigned` (als KG gekennzeichnet), nicht in devices", async () => {
@@ -138,12 +155,29 @@ describe("device_stats — alle Kategorien, nicht nur KG", () => {
       entry("OEFFNEN", "2026-07-11T10:00:00+02:00", null),
     ]));
 
-    // v4: kein Pseudo-Gerät mehr zwischen den echten Zeilen — eigenes Feld.
+    // v5: kein Pseudo-Gerät mehr zwischen den echten Zeilen — eigene Liste (A-09). Ohne Geräte-createdAt
+    // (Stichtag Infinity) landet alles Unassigned in pre_device_tracking.
     expect(result.devices.find((d) => d.deviceName === "(ohne Gerät / unzugeordnet)")).toBeUndefined();
-    expect(result.unassigned).not.toBeNull();
-    expect(result.unassigned!.deviceName).toBe("(ohne Gerät / unzugeordnet)");
-    expect(result.unassigned!.category).toBe("KG");
-    expect(result.unassigned!.totalHours).toBeCloseTo(24, 1);
+    expect(result.unassigned).toHaveLength(1);
+    expect(result.unassigned[0].reason).toBe("pre_device_tracking");
+    expect(result.unassigned[0].deviceName).toBe("(ohne Gerät / unzugeordnet)");
+    expect(result.unassigned[0].category).toBe("KG");
+    expect(result.unassigned[0].totalHours).toBeCloseTo(24, 1);
+  });
+
+  it("A-09: Unassigned-Strecken werden am Geräte-Stichtag in pre_device_tracking vs not_declared getrennt", async () => {
+    // Stichtag = erstes Geräte-createdAt am 12.07. Die 10.–11.07-Strecke liegt davor (Projektgeschichte),
+    // die 13.07-Strecke danach (Erfassungslücke — ein Gerät wäre wählbar gewesen).
+    deviceFindFirst.mockResolvedValueOnce({ createdAt: new Date("2026-07-12T00:00:00+02:00") });
+    const result = await deviceStats("sub", ctx([
+      entry("VERSCHLUSS", "2026-07-10T10:00:00+02:00", null),
+      entry("OEFFNEN", "2026-07-11T10:00:00+02:00", null),
+      entry("VERSCHLUSS", "2026-07-13T10:00:00+02:00", null),
+      entry("OEFFNEN", "2026-07-13T14:00:00+02:00", null),
+    ]));
+    const byReason = Object.fromEntries(result.unassigned.map((u) => [u.reason, u]));
+    expect(byReason.pre_device_tracking.totalHours).toBeCloseTo(24, 1); // 10.→11.
+    expect(byReason.not_declared.totalHours).toBeCloseTo(4, 1);         // 13. 10–14
   });
 
   it("eine verwaiste KG-Session (zwei VERSCHLUSS ohne OEFFNEN) zählt NICHT als Phantom-Stunden mit", async () => {

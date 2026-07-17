@@ -230,15 +230,18 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   Einträge sind minutengenau, ein Wechsel in unter einer Minute kollabiert sonst auf
   `durationHours: 0` — bewusst so, Minute bleibt (N-12).
 - **Geräte-Metadaten (`get_devices` / `set_device_meta`)** — `securityLevel` (SECURING vs
-  TRUST_ONLY; **nur für KG-Geräte sinnvoll** — bei Plug/Halsband/… ist `null` korrekt und
-  vollständig, keine Datenlücke), `lookalikeClusterId`: ein Geräte-Mismatch **innerhalb eines
+  TRUST_ONLY; **v.a. für sichernde Geräte** wie KG oder Halsreif — `null` ist keine Datenlücke),
+  `lookalikeClusterId`: ein Geräte-Mismatch **innerhalb eines
   Clusters ist nie ein echtes Vergehen** (siehe `get_offenses` → `possiblyClusterInternal`).
   **`lookalikeClusterId` ist kein lokales Metadatenfeld:** es geht in die `deviceConfidence`-Ableitung
   ein und rechnet damit die Geräte-Attribution JEDER historischen Session mit Bild-Deklarations-
   Konflikt rückwirkend neu (inkl. `device_stats` und der Zusammensetzung von `records`) — vor einem
   `set_device_meta(lookalikeClusterId:…)` den `dryRun`-`diff` prüfen (N-14, MCP-Restliste 2026-07-17).
   `pullOffRisk`: **true = das Gerät lässt sich trotz Verschluss abstreifen (unsicher)**, false =
-  sitzt sicher. `trackingEnabled` (von der Kategorie): **Default true** (Gerät zählt Trage-Sessions);
+  geprüft sicher, **`null` = nie beurteilt** (K-08 — früher machte ein `false`-Default aus „nicht
+  beurteilt" ein „sicher"). `archived` ist per `set_device_meta` setzbar; `get_devices` blendet
+  Archivierte per Default aus (`includeArchived:true` zeigt sie), nimmt `deviceId`/`includeNotes`
+  (K-09/K-10). `trackingEnabled` (von der Kategorie): **Default true** (Gerät zählt Trage-Sessions);
   **false = Inventory-only** — dann liefert das Gerät PER DESIGN keine Trage-Sessions. Das ist eine
   BEWUSSTE Nutzer-Einstellung an der Kategorie, NICHT automatisch für Halsband/Knebel: ein als
   Trage-Gerät geführtes Halsband zählt sehr wohl, wenn der Nutzer Tracking anlässt (DOK-03,
@@ -258,8 +261,11 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   `currentUnbrokenVsBestPct` fürs laufende Segment (A-14, MCP-Befundliste 2026-07-17). In
   `device_stats` stehen nur getragene Geräte:
   **Abwesenheit ≠ Nichtnutzung** (nie getragene und Inventory-only-Geräte fehlen ganz; Inventar-
-  Wahrheit ist `get_devices`). KG-Zeiten ohne Geräte-Zuordnung stehen separat in `unassigned`
-  (Projektgeschichte, kein Gerät).
+  Wahrheit ist `get_devices`). Jede Zeile trägt `lastWornUntil`+`isWornNow` (K-20 — `lastWornAt` ist
+  nur der START der letzten Session; ob das Gerät JETZT getragen wird, sagt `isWornNow`). Zeiten ohne
+  Geräte-Zuordnung stehen separat in `unassigned` — eine LISTE, getrennt nach `reason`:
+  `pre_device_tracking` (vor der Geräte-Erfassung, echte Projektgeschichte) vs `not_declared`
+  (aktuelle Strecke ohne Geräte-Wahl, Erfassungslücke) (A-09).
 - **`get_offenses`** — vereinheitlichtes Disziplin-Ledger (alle Vergehen als eine Liste mit
   status/judgment/consequence). Geurteilt wird über `judge_offense`.
 - **`list_training_goals`** — Supersession statt Delete (B-04, MCP-Befundliste 2026-07-17):
@@ -272,9 +278,12 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   `type` (DIRECTIVE|BOUNDARY|OBSERVATION|CORRECTION|EQUIPMENT|DATA|HISTORY), `status`,
   `pinned`, `source`/`confidence` (Nutzer-Fakt vs eigener Schluss), `doDont` (für BOUNDARY),
   `refs` (typisierte Verknüpfung an Objekte — kommen inline mit get_session/get_devices/get_offenses).
-  **Supersession statt Delete**: alte Note → `superseded`, kein Datenverlust. Refs auf unbekannte
-  Objekte werden abgewiesen (kein stiller Dangling-Ref); nennt der `kg`-Tag ein Inventar-Gerät,
-  wird automatisch ein device-Ref angelegt — auffindbar zählt NUR der Ref, nicht der Freitext-Tag.
+  **Supersession statt Delete**: alte Note → `superseded`, kein Datenverlust; die aktuelle trägt
+  `isLatest:true` (der Vorwärts-Zeiger, den `supersedesId` nur rückwärts liefert, K-22). Refs auf
+  unbekannte Objekte werden beim Schreiben abgewiesen (kein stiller Dangling-Ref); `query_notes`
+  liefert `returnedCount` und meldet ein konkret abgefragtes, nicht existentes Objekt als
+  `unknownRef:true` (statt still `[]`, K-13). Nennt der `kg`-Tag ein Inventar-Gerät, wird automatisch
+  ein device-Ref angelegt — auffindbar zählt NUR der Ref, nicht der Freitext-Tag.
 - **Kontext (`get_context` / set_health_hold / upsert_appointment / upsert_recurring_context)** —
   HealthHold (Gesundheits-Zurückhaltung), Wochen-Kontext, Termine (deviceFree).
 - **`timeline`** — alle Ereignisse auf einer Achse (Segment-basiert). **`get_action_log`** —

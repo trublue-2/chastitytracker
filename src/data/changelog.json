@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.18",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP-Ergonomie-Batch (S3): device_stats trennt zeitlose Strecken jetzt in pre_device_tracking vs not_declared und zeigt pro Gerät lastWornUntil+isWornNow (A-09/K-20); get_devices/set_device_meta: pullOffRisk ist nullable (null = nie beurteilt, false = geprüft sicher), Geräte lassen sich archivieren, get_devices blendet Archivierte per Default aus und nimmt deviceId/includeNotes (K-08/K-09/K-10); get_offenses nimmt Filter type/openOnly/from/to/limit (K-14); get_context: appointmentsFrom/-To öffnen vergangene Termine, triggerWindow leer → null (K-21/K-17); get_action_log: source → decisionSource (Kollision mit args.source), neu actorLabel (K-11/K-12); query_notes liefert returnedCount + unknownRef, Notes tragen isLatest (K-13/K-22).",
+          "en": "MCP ergonomics batch (S3): device_stats now splits device-less time into pre_device_tracking vs not_declared and shows lastWornUntil+isWornNow per device (A-09/K-20); get_devices/set_device_meta: pullOffRisk is nullable (null = never assessed, false = verified safe), devices can be archived, get_devices hides archived by default and takes deviceId/includeNotes (K-08/K-09/K-10); get_offenses takes type/openOnly/from/to/limit filters (K-14); get_context: appointmentsFrom/-To expose past appointments, empty triggerWindow → null (K-21/K-17); get_action_log: source → decisionSource (collided with args.source), new actorLabel (K-11/K-12); query_notes returns returnedCount + unknownRef, notes carry isLatest (K-13/K-22)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.17",
     "date": "2026-07-17",
     "changes": [

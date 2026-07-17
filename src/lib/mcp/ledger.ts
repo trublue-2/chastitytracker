@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, type Envelope, type NoteDTO } from "@/lib/mcp/common";
+import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, parseIsoDate, type Envelope, type NoteDTO } from "@/lib/mcp/common";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 
@@ -266,8 +266,48 @@ export function buildOffenseRows(
   ];
 }
 
+/** Optionale Filter für get_offenses (K-14, MCP-Restliste 2026-07-17) — das Ledger wächst monoton
+ *  und lieferte sonst immer alle Zeilen seit März. Die Zähler bleiben davon UNBERÜHRT (Gesamtstände). */
+export interface GetOffensesOptions {
+  /** Nur einen Vergehenstyp (aus OFFENSE_TYPES). */
+  type?: string;
+  /** Nur noch nicht beurteilte (`status: "open"`). Anmerkung: `pendingPenaltyCount` (bestraft, Strafe
+   *  offen) ist ein SEPARATER Zustand und wird davon NICHT erfasst. */
+  openOnly?: boolean;
+  /** ISO-8601-Zeitfenster auf `detectedAt`. Zeilen ohne `detectedAt` fallen bei gesetztem Fenster raus. */
+  from?: string;
+  to?: string;
+  /** Neueste zuerst, dann auf `limit` gekürzt. */
+  limit?: number;
+}
+
+/** Filtert/beschränkt die Offense-Zeilen. Pure (kein prisma), damit direkt testbar. */
+export function filterOffenses(rows: OffenseRow[], opts: GetOffensesOptions): OffenseRow[] {
+  // parseIsoDate validiert + wirft bei Murks (wie actionlog/timeline) — statt still NaN durchzureichen.
+  const fromMs = parseIsoDate(opts.from, "from")?.getTime() ?? null;
+  const toMs = parseIsoDate(opts.to, "to")?.getTime() ?? null;
+  const timeFiltered = fromMs != null || toMs != null;
+  const out = rows.filter((r) => {
+    if (opts.type && r.type !== opts.type) return false;
+    if (opts.openOnly && r.status !== "open") return false;
+    if (timeFiltered) {
+      if (r.detectedAt == null) return false; // zeitlich nicht platzierbar → bei Zeitfilter raus
+      const t = Date.parse(r.detectedAt);
+      if (fromMs != null && t < fromMs) return false;
+      if (toMs != null && t > toMs) return false;
+    }
+    return true;
+  });
+  if (opts.limit == null) return out;
+  // Für ein sinnvolles `limit` (neueste zuerst) explizit nach detectedAt absteigend sortieren — die
+  // Kategorien-Reihenfolge von buildOffenseRows ist sonst willkürlich. Zeilen ohne detectedAt ans Ende.
+  const ms = (r: OffenseRow) => (r.detectedAt ? Date.parse(r.detectedAt) : -Infinity);
+  return out.sort((a, b) => ms(b) - ms(a)).slice(0, opts.limit); // `out` ist schon eine frische Filter-Kopie
+
+}
+
 /** Liefert das vereinheitlichte Disziplin-Ledger mit Cluster-Kontext bei wrongDevice + inline Notes. */
-export async function getOffenses(username: string): Promise<LedgerResult> {
+export async function getOffenses(username: string, opts: GetOffensesOptions = {}): Promise<LedgerResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   const iso = makeIso(timezone);
   const now = new Date();
@@ -275,7 +315,8 @@ export async function getOffenses(username: string): Promise<LedgerResult> {
     mcpStrafbuch(userId, timezone, now),
     prisma.device.findMany({ where: { userId }, select: { name: true, lookalikeClusterId: true, securityLevel: true } }),
   ]);
-  const rows = buildOffenseRows(sb, new Map(deviceClusters.map((d) => [d.name, d])));
+  // Filtern VOR dem Notes-Query, damit Inline-Notes nur für überlebende Zeilen geladen werden.
+  const rows = filterOffenses(buildOffenseRows(sb, new Map(deviceClusters.map((d) => [d.name, d]))), opts);
 
   // Inline-Notes je Offense in EINEM Query.
   const notesByEntity = await notesForEntities(userId, rows.map((r) => ({ entityType: "offense" as const, entityId: r.id })), {}, undefined, timezone);

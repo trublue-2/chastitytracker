@@ -31,6 +31,11 @@ export interface QueryNotesOptions {
 export interface NotesResult extends Envelope {
   schemaVersion: 2;
   user: string;
+  returnedCount: number;
+  /** true, wenn ein konkretes `entityType`+`entityId` abgefragt wurde, dieses Objekt aber nicht (mehr)
+   *  existiert — dann heisst `notes: []` „kein solches Objekt", nicht „Objekt ohne Notizen". Sonst
+   *  false (K-13, MCP-Restliste 2026-07-17: der Read schluckte unbekannte IDs vorher still). */
+  unknownRef: boolean;
   notes: NoteDTO[];
 }
 
@@ -43,6 +48,10 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
   const refFilter = opts.entityType
     ? { refs: { some: { entityType: opts.entityType, ...(opts.entityId ? { entityId: opts.entityId } : {}) } } }
     : {};
+  // K-13: prüfen, ob ein konkret abgefragtes Objekt überhaupt existiert (dieselbe REF_EXISTS-Karte
+  // wie der Write-Guard). `offense` fehlt dort bewusst (polymorphe refId) → nicht prüfbar, kein Flag.
+  const refCheck = opts.entityType && opts.entityId ? REF_EXISTS[opts.entityType as EntityType] : undefined;
+  const unknownRef = refCheck ? !(await refCheck(prisma, userId, opts.entityId!)) : false;
   const notes = await prisma.keyholderNote.findMany({
     where: {
       userId,
@@ -57,7 +66,7 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
     take: Math.min(Math.max(1, opts.limit ?? 50), 200),
     select: noteSelect,
   });
-  return { schemaVersion: 2, user: username, ...buildEnvelope(now, iso, timezone), notes: notes.map((n) => toNoteDTO(n, iso)) };
+  return { schemaVersion: 2, user: username, ...buildEnvelope(now, iso, timezone), returnedCount: notes.length, unknownRef, notes: notes.map((n) => toNoteDTO(n, iso)) };
 }
 
 // ── Write: upsert_note ──────────────────────────────────────────────────────

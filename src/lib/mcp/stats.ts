@@ -5,6 +5,7 @@ import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildSessions, buildWearSessions, deviceDisplayName, deviceGroupKey, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, buildEnvelope, loadTrackingContext, loadCategoryNames, type Envelope, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
+import { prisma } from "@/lib/prisma";
 
 /** Vorberechnete Statistiken & Rekorde aus SEGMENTEN (nicht Labels) — §5/§6/§7. Rein lesend.
  *  Jedes Tool nimmt optional einen vorgeladenen TrackingContext (vom keyholder_dashboard), um
@@ -39,31 +40,69 @@ export interface DeviceStatRow {
   /** Längstes EINZELNES, ununterbrochenes Segment dieses Geräts — die ehrliche Dauertrage-Marke,
    *  deckt sich mit `records.longestUnbrokenSegmentHours`, wenn dieses Gerät den Rekord hält. */
   maxUnbrokenSegmentHours: number;
+  /** Start der zuletzt begonnenen Session dieses Geräts (NICHT das Ende). */
   lastWornAt: string | null;
+  /** Ende der zuletzt getragenen Strecke, oder `null`, wenn das Gerät GERADE getragen wird (dann
+   *  sagt `isWornNow: true`). Behebt, dass `lastWornAt` allein nicht unterscheidet „seither abgelegt"
+   *  von „läuft noch" (K-20, MCP-Restliste 2026-07-17). */
+  lastWornUntil: string | null;
+  /** true, wenn das Gerät im Moment getragen wird (die aktuell offene Strecke gehört ihm). */
+  isWornNow: boolean;
+}
+
+/** Grund, warum eine Strecke ohne Geräte-Zuordnung dasteht (A-09, MCP-Restliste 2026-07-17). */
+export type UnassignedReason = "pre_device_tracking" | "not_declared";
+export interface UnassignedStatRow extends DeviceStatRow {
+  /** `pre_device_tracking`: aus der Zeit vor der Geräte-Erfassung (kein Gerät WÄHLBAR, echte
+   *  Projektgeschichte). `not_declared`: aktuelle Strecke, bei der schlicht kein Gerät gewählt wurde
+   *  (Erfassungslücke, korrigierbar). Getrennt am Stichtag = frühestes Geräte-`createdAt`. */
+  reason: UnassignedReason;
 }
 
 export interface DeviceStatsResult extends Envelope {
-  /** v4: `devices` enthält nur noch echte Geräte; der Sammel-Posten ohne Geräte-Zuordnung
-   *  (Projektgeschichte) steht separat in `unassigned` statt als Pseudo-Gerätezeile. */
-  schemaVersion: 4;
+  /** v5: `unassigned` ist jetzt eine LISTE, aufgeteilt nach `reason` (pre_device_tracking vs
+   *  not_declared, A-09); jede Geräte-Zeile trägt zusätzlich `lastWornUntil`+`isWornNow` (K-20).
+   *  v4: `devices` enthält nur echte Geräte; der Sammel-Posten ohne Zuordnung steht separat. */
+  schemaVersion: 5;
   user: string;
   devices: DeviceStatRow[];
-  /** KG-Tragezeiten ohne Geräte-Zuordnung (deviceId null) — kein Gerät, nicht mit `devices` mischen. */
-  unassigned: DeviceStatRow | null;
+  /** KG-Tragezeiten ohne Geräte-Zuordnung (deviceId null), getrennt nach `reason` — kein Gerät,
+   *  nicht mit `devices` mischen. Leer, wenn alles zugeordnet ist. */
+  unassigned: UnassignedStatRow[];
 }
 
-/** Was pro Gerät gesammelt wird, bevor daraus eine Zeile wird. */
-type DeviceAgg = { device: DeviceRef; category: string | null; durations: number[]; lastWorn: Date; maxSegmentMs: number };
+/** Was pro Gerät gesammelt wird, bevor daraus eine Zeile wird. `lastSeg*`/`wornNow` verfolgen das
+ *  zuletzt BEGONNENE Segment (für K-20 lastWornUntil/isWornNow). */
+type DeviceAgg = {
+  device: DeviceRef; category: string | null; durations: number[]; lastWorn: Date; maxSegmentMs: number;
+  lastSegStart: Date; lastWornEnd: Date | null; wornNow: boolean;
+};
+
+/** Aggregations-Schlüssel: echte Geräte über `deviceGroupKey`; Strecken OHNE Gerät werden am
+ *  Stichtag in zwei Töpfe getrennt (A-09), damit Projektgeschichte nicht mit einer aktuellen
+ *  Erfassungslücke verschmilzt. */
+function aggKey(device: DeviceRef, whenMs: number, cutoffMs: number): string {
+  if (!isUnassignedDevice(device)) return deviceGroupKey(device);
+  return whenMs < cutoffMs ? "unassigned:pre_device_tracking" : "unassigned:not_declared";
+}
 
 /** Die Geräte-Strecken einer Session-Liste in ihre Geräte-Töpfe. Gezählt werden damit SESSIONS,
  *  nicht Segmente: `deviceWearingsOf` fasst die Segmente eines Geräts innerhalb einer Session zu
  *  EINER Strecke zusammen — eine Reinigungspause zerlegt eine durchgehende Tragezeit nicht mehr in
  *  mehrere „Nutzungen". Die Stunden bleiben unberührt (die Pause steckt in keinem Segment). */
-function collectSessions(byDevice: Map<string, DeviceAgg>, sessions: Session[], categoryOf: (s: Session) => string | null): void {
+function collectSessions(byDevice: Map<string, DeviceAgg>, sessions: Session[], categoryOf: (s: Session) => string | null, cutoffMs: number): void {
   for (const session of sessions) {
     const category = categoryOf(session);
-    for (const [key, w] of segmentsByDevice(session.segments)) {
-      const row = byDevice.get(key) ?? { device: w.device, category, durations: [], lastWorn: w.start, maxSegmentMs: 0 };
+    // Die unzugeordneten Segmente EINER Session gehören derselben Ära → EINMAL klassifizieren (am
+    // frühesten unassigned-Start) und in beiden Schleifen denselben Topf nutzen. Sonst könnte eine
+    // Session, die den Stichtag überspannt, ihre Segmente auf beide A-09-Töpfe verteilen — und ein
+    // Segment im „falschen" Topf fände in Schleife 2 keine Row (still verworfen).
+    let unassignedStartMs = Infinity;
+    for (const seg of session.segments) if (isUnassignedDevice(seg.deviceEffective)) unassignedStartMs = Math.min(unassignedStartMs, seg.start.getTime());
+    const keyOf = (d: DeviceRef, fallbackMs: number) => aggKey(d, isUnassignedDevice(d) ? unassignedStartMs : fallbackMs, cutoffMs);
+    for (const [, w] of segmentsByDevice(session.segments)) {
+      const key = keyOf(w.device, w.start.getTime());
+      const row = byDevice.get(key) ?? { device: w.device, category, durations: [], lastWorn: w.start, maxSegmentMs: 0, lastSegStart: new Date(0), lastWornEnd: null, wornNow: false };
       row.durations.push(w.durationMs);
       if (w.start > row.lastWorn) row.lastWorn = w.start;
       byDevice.set(key, row);
@@ -71,12 +110,15 @@ function collectSessions(byDevice: Map<string, DeviceAgg>, sessions: Session[], 
     // A-15: längstes EINZELNES, ununterbrochenes Segment je Gerät — feiner als segmentsByDevice, das
     // die Segmente eines Geräts innerhalb der Session zu einer (über Pausen hinweg summierten) Strecke
     // zusammenfasst. Die Row existiert hier garantiert (jedes Segment steckt in segmentsByDevice oben).
-    // Nur ABGESCHLOSSENE Segmente (`end !== null`) zählen — wie records.longestUnbrokenSegmentHours, mit
-    // dem sich die Marke deckt: ein laufendes, noch wachsendes Segment ist keine fertige Bestmarke.
+    // Nur ABGESCHLOSSENE Segmente (`end !== null`) zählen für die Bestmarke — ein laufendes, noch
+    // wachsendes Segment ist keine fertige Marke; für K-20 (lastWornUntil/isWornNow) zählt es aber sehr
+    // wohl, deshalb kein `continue` mehr, sondern die Marke unter die abgeschlossenen gefiltert.
     for (const seg of session.segments) {
-      if (seg.end === null) continue;
-      const row = byDevice.get(deviceGroupKey(seg.deviceEffective));
-      if (row && seg.durationMs > row.maxSegmentMs) row.maxSegmentMs = seg.durationMs;
+      const row = byDevice.get(keyOf(seg.deviceEffective, seg.start.getTime()));
+      if (!row) continue;
+      if (seg.end !== null && seg.durationMs > row.maxSegmentMs) row.maxSegmentMs = seg.durationMs;
+      // K-20: das zuletzt BEGONNENE Segment bestimmt lastWornUntil (dessen Ende) und isWornNow (offen?).
+      if (seg.start >= row.lastSegStart) { row.lastSegStart = seg.start; row.lastWornEnd = seg.end; row.wornNow = seg.end === null; }
     }
   }
 }
@@ -99,7 +141,14 @@ function collectSessions(byDevice: Map<string, DeviceAgg>, sessions: Session[], 
 export async function deviceStats(username: string, ctx?: TrackingContext): Promise<DeviceStatsResult> {
   const { userId, entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
-  const { nameById, kgName } = await loadCategoryNames(userId);
+  // Stichtag für A-09: das früheste Geräte-`createdAt`. Strecken davor konnten kein Gerät haben
+  // (Projektgeschichte), Strecken danach ohne Gerät sind eine Erfassungslücke. Ohne Geräte im
+  // Inventar gab es nie etwas zu deklarieren → Stichtag = Infinity, alles ist Projektgeschichte.
+  const [{ nameById, kgName }, firstDevice] = await Promise.all([
+    loadCategoryNames(userId),
+    prisma.device.findFirst({ where: { userId }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+  ]);
+  const cutoffMs = firstDevice ? firstDevice.createdAt.getTime() : Infinity;
 
   const byDevice = new Map<string, DeviceAgg>();
 
@@ -107,11 +156,11 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
   // orphaned ausschliessen (siehe records()): eine verwaiste Session läuft bis `now` weiter und
   // würde sonst Phantom-Stunden in die Geräte-Summe schreiben (buildWearSessions filtert das
   // bereits selbst, siehe sessionModel.ts).
-  collectSessions(byDevice, buildSessions(entries, reinigung, now, devices).filter((s) => !s.orphaned), () => kgName);
+  collectSessions(byDevice, buildSessions(entries, reinigung, now, devices).filter((s) => !s.orphaned), () => kgName, cutoffMs);
 
   // ── Nicht-KG: dieselben Trage-Sessions, die auch `get_session` zeigt ──
   collectSessions(byDevice, buildWearSessions(entries, now),
-    (s) => (s.categoryId ? nameById.get(s.categoryId) ?? null : null));
+    (s) => (s.categoryId ? nameById.get(s.categoryId) ?? null : null), cutoffMs);
 
   const toRow = (r: DeviceAgg): DeviceStatRow => {
     const m = summarizeDurations(r.durations);
@@ -127,21 +176,28 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
       maxHours: msToHours(m.maxMs),
       maxUnbrokenSegmentHours: msToHours(r.maxSegmentMs),
       lastWornAt: iso(r.lastWorn),
+      lastWornUntil: r.wornNow ? null : iso(r.lastWornEnd),
+      isWornNow: r.wornNow,
     };
   };
 
-  // Sammel-Posten ohne Gerät ist Projektgeschichte, kein Gerät — eigenes Feld statt einer
-  // gleichberechtigten Pseudo-Zeile zwischen den echten Geräten. Getrennt wird an der QUELLE
-  // (weder id noch Name), nicht am Anzeigenamen: Legacy-Strecken mit Namen aber ohne Geräte-id
-  // sind echte (Name-only-)Geräte und bleiben in `devices`.
-  const aggs = [...byDevice.values()];
-  const unassignedAgg = aggs.find((r) => isUnassignedDevice(r.device));
+  // Sammel-Posten ohne Gerät sind kein Gerät — eigenes Feld statt gleichberechtigter Pseudo-Zeilen
+  // zwischen den echten Geräten. Getrennt wird an der QUELLE (weder id noch Name), nicht am
+  // Anzeigenamen: Legacy-Strecken mit Namen aber ohne Geräte-id sind echte (Name-only-)Geräte und
+  // bleiben in `devices`. Die beiden A-09-Töpfe stehen unter festen Schlüsseln (siehe aggKey).
+  const unassignedRow = (key: string, reason: UnassignedReason): UnassignedStatRow[] => {
+    const agg = byDevice.get(key);
+    return agg ? [{ ...toRow(agg), reason }] : [];
+  };
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     user: username,
     ...buildEnvelope(now, iso, timezone),
-    devices: aggs.filter((r) => !isUnassignedDevice(r.device)).map(toRow).sort((a, b) => b.totalHours - a.totalHours),
-    unassigned: unassignedAgg ? toRow(unassignedAgg) : null,
+    devices: [...byDevice.values()].filter((r) => !isUnassignedDevice(r.device)).map(toRow).sort((a, b) => b.totalHours - a.totalHours),
+    unassigned: [
+      ...unassignedRow("unassigned:pre_device_tracking", "pre_device_tracking"),
+      ...unassignedRow("unassigned:not_declared", "not_declared"),
+    ],
   };
 }
 

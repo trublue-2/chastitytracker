@@ -40,8 +40,20 @@ export type ContextReinigungView = ReinigungView & {
   openingAllowedNow: boolean;
 };
 
+/** Optionale Filter für get_context (K-21, MCP-Restliste 2026-07-17). Ohne beides: nur zukünftige
+ *  Termine ab jetzt (bisheriges Verhalten). */
+export interface GetContextOptions {
+  /** ISO-8601 untere Grenze für `appointments` (Default: jetzt). Frühersetzen macht vergangene
+   *  Termine lesbar UND über upsert_appointment(id) korrigierbar. */
+  appointmentsFrom?: string;
+  /** ISO-8601 obere Grenze für `appointments` (optional). */
+  appointmentsTo?: string;
+}
+
 export interface ContextResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `autoInspections.triggerWindowFrom/Until` liefern `null` statt `""` für „kein Fenster" (K-17);
+   *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). */
+  schemaVersion: 3;
   user: string;
   healthHold: HealthHoldView | null;
   /** Einstellungen der AUTOMATISCHEN Kontrollen (read-only; über den MCP nicht änderbar — Kontrollen
@@ -49,8 +61,8 @@ export interface ContextResult extends Envelope {
    *  wird eine ZUFÄLLIGE Anzahl aus [perDayMin, perDayMax] selbsttätig über den Tag verteilt
    *  (perDayMin==perDayMax ⇒ fixe Anzahl); sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
    *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. triggerWindowFrom/Until
-   *  = optionales festes Auslöse-Fenster ("" = aus; dann verteilen sich die Auslösungen übers Wach-Fenster). */
-  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number; triggerWindowFrom: string; triggerWindowUntil: string };
+   *  = optionales festes Auslöse-Fenster (`null` = aus; dann verteilen sich die Auslösungen übers Wach-Fenster). */
+  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number; triggerWindowFrom: string | null; triggerWindowUntil: string | null };
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
    *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
   cleaning: ContextReinigungView;
@@ -67,7 +79,7 @@ const contextUserSelect = {
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
  *  Termine (ab jetzt). Throws bei unbekanntem User. */
-export async function getContext(username: string): Promise<ContextResult> {
+export async function getContext(username: string, opts: GetContextOptions = {}): Promise<ContextResult> {
   const now = new Date();
   // id + Config-Felder in EINER Abfrage per username — keine
   // separate resolveUserId-Runde.
@@ -76,10 +88,18 @@ export async function getContext(username: string): Promise<ContextResult> {
   const userId = user.id;
   const iso = makeIso(user.timezone ?? APP_TZ);
 
+  // K-21: Default = nur Zukunft (gte now); mit from/to wird das Fenster explizit gesetzt.
+  // parseIsoDate validiert + wirft bei Murks (wie die anderen fensternden Reads), statt Invalid Date
+  // still in die Prisma-Query zu geben.
+  const apptTo = parseIsoDate(opts.appointmentsTo, "appointmentsTo");
+  const apptWhen = {
+    gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
+    ...(apptTo ? { lte: apptTo } : {}),
+  };
   const [healthHold, recurring, appts, cleaningUsedToday, sperre] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
-    prisma.appointment.findMany({ where: { userId, when: { gte: now } }, orderBy: { when: "asc" } }),
+    prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
     reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
     getActiveSperrzeit(userId),
   ]);
@@ -93,7 +113,7 @@ export async function getContext(username: string): Promise<ContextResult> {
   );
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     ...buildEnvelope(now, iso, user.timezone ?? APP_TZ),
     healthHold,
@@ -105,8 +125,9 @@ export async function getContext(username: string): Promise<ContextResult> {
       sleepUntil: auto.ruheBis,
       deadlineMinFrom: auto.fristVon,
       deadlineMinTo: auto.fristBis,
-      triggerWindowFrom: auto.fensterVon,
-      triggerWindowUntil: auto.fensterBis,
+      // K-17: "" = kein Fenster → null (ehrlicher als ein leerer String neben echten "HH:MM"-Werten).
+      triggerWindowFrom: auto.fensterVon || null,
+      triggerWindowUntil: auto.fensterBis || null,
     },
     cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
     recurringContext: recurring.map(recurringView),

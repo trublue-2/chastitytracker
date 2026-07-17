@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { upsertNoteDef } from "./notes";
+import { upsertNoteDef, queryNotes } from "./notes";
 import { executeWrite } from "./writeFramework";
 import { prisma } from "@/lib/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
@@ -82,5 +82,39 @@ describe("upsert_note dryRun — N-15 diff/after (Edit)", () => {
     const res = await executeWrite(upsertNoteDef, ctx, { id: "n1", type: "OBSERVATION", pinned: false } as never, { reason: "t", dryRun: true }) as any;
     expect(res.wouldSucceed).toBe(true);
     expect(res.diff).toEqual({ type: ["DIRECTIVE", "OBSERVATION"], pinned: [true, false] });
+  });
+});
+
+// K-13 (returnedCount + unknownRef) + K-22 (isLatest) — MCP-Restliste 2026-07-17.
+describe("queryNotes — K-13 returnedCount/unknownRef + K-22 isLatest", () => {
+  const qNote = (over: Record<string, unknown> = {}) => ({
+    id: "n1", type: "OBSERVATION", status: "active", pinned: false, source: "inferred",
+    confidence: null, kg: null, kategorie: null, text: "t", doDont: null,
+    validFrom: null, validUntil: null, supersedesId: null, createdAt: new Date("2026-07-01T00:00:00Z"),
+    version: 1, refs: [], ...over,
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({ id: "u1", timezone: "Europe/Zurich" });
+  });
+
+  it("returnedCount = Anzahl; isLatest false bei superseded, true sonst", async () => {
+    db.keyholderNote.findMany.mockResolvedValue([qNote({ status: "active" }), qNote({ id: "n2", status: "superseded" })]);
+    const res = await queryNotes("sub", { status: "all" });
+    expect(res.returnedCount).toBe(2);
+    expect(res.notes[0].isLatest).toBe(true);
+    expect(res.notes[1].isLatest).toBe(false);
+  });
+
+  it("unknownRef true, wenn ein konkretes entityType+entityId nicht existiert", async () => {
+    db.device.findFirst.mockResolvedValue(null);
+    const res = await queryNotes("sub", { entityType: "device", entityId: "ghost" });
+    expect(res.unknownRef).toBe(true);
+  });
+
+  it("unknownRef false, wenn das Objekt existiert", async () => {
+    db.device.findFirst.mockResolvedValue({ id: "d1" });
+    const res = await queryNotes("sub", { entityType: "device", entityId: "d1" });
+    expect(res.unknownRef).toBe(false);
   });
 });

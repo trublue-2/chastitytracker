@@ -17,7 +17,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
-import { buildOffenseRows, OFFENSE_TYPES } from "./ledger";
+import { buildOffenseRows, filterOffenses, OFFENSE_TYPES, type OffenseRow } from "./ledger";
 import { collectDetectedOffenses, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 
 /** Eine `mcpStrafbuch`-Ausgabe mit GENAU EINEM Eintrag in jeder Kategorie. */
@@ -94,5 +94,33 @@ describe("buildOffenseRows — Zähler und Ausgabe dürfen nicht auseinanderlauf
 
     expect(wrongDevice.context.deviceCluster).toBe("c1");
     expect(wrongDevice.context.possiblyClusterInternal).toBe(true);
+  });
+});
+
+// K-14 (MCP-Restliste 2026-07-17): get_offenses wächst monoton — filterOffenses grenzt ein.
+describe("filterOffenses — K-14", () => {
+  const row = (over: Partial<OffenseRow>): OffenseRow => ({
+    id: "x", type: "late_control", detectedAt: "2026-07-10T10:00:00+02:00", status: "judged",
+    judgment: "dismissed", consequence: null, dismissReason: null, judgedBy: null, judgedAt: null,
+    context: {}, notes: [], ...over,
+  });
+  const rows: OffenseRow[] = [
+    row({ id: "a", type: "late_control", status: "open", detectedAt: "2026-07-01T10:00:00+02:00" }),
+    row({ id: "b", type: "wrong_device", status: "judged", detectedAt: "2026-07-15T10:00:00+02:00" }),
+    row({ id: "c", type: "late_control", status: "judged", detectedAt: null }),
+  ];
+
+  it("type filtert auf einen Vergehenstyp", () => {
+    expect(filterOffenses(rows, { type: "wrong_device" }).map((r) => r.id)).toEqual(["b"]);
+  });
+  it("openOnly liefert nur status open", () => {
+    expect(filterOffenses(rows, { openOnly: true }).map((r) => r.id)).toEqual(["a"]);
+  });
+  it("from/to grenzt auf detectedAt ein und wirft Zeilen ohne detectedAt raus", () => {
+    expect(filterOffenses(rows, { from: "2026-07-10T00:00:00+02:00" }).map((r) => r.id)).toEqual(["b"]);
+    expect(filterOffenses(rows, { to: "2026-07-05T00:00:00+02:00" }).map((r) => r.id)).toEqual(["a"]);
+  });
+  it("limit sortiert neueste zuerst und kürzt", () => {
+    expect(filterOffenses(rows, { limit: 1 }).map((r) => r.id)).toEqual(["b"]); // 15.07. ist neuester
   });
 });
