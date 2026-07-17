@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserContext, makeIso, parseIsoDate } from "@/lib/mcp/common";
+import { resolveUserContext, makeIso, buildEnvelope, parseIsoDate, type Envelope } from "@/lib/mcp/common";
 
 /** get_action_log (§9.2) — append-only Audit aller mutierenden V2-Aktionen: was hat welche Instanz
  *  wann mit welcher Begründung entschieden. Damit erbt die nächste Instanz Entscheidungen samt
@@ -22,7 +22,7 @@ export interface ActionLogRow {
   resultRef: string | null;
 }
 
-export interface ActionLogResult {
+export interface ActionLogResult extends Envelope {
   schemaVersion: 2;
   user: string;
   returnedCount: number;
@@ -50,6 +50,7 @@ function safeParse(json: string | null): unknown {
 export async function getActionLog(username: string, opts: ActionLogOptions = {}): Promise<ActionLogResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   const iso = makeIso(timezone);
+  const now = new Date();
   const from = parseIsoDate(opts.from, "from");
   const to = parseIsoDate(opts.to, "to");
   const rows = await prisma.keyholderActionLog.findMany({
@@ -64,6 +65,7 @@ export async function getActionLog(username: string, opts: ActionLogOptions = {}
   return {
     schemaVersion: 2,
     user: username,
+    ...buildEnvelope(now, iso, timezone),
     returnedCount: rows.length,
     actions: rows.map((r) => ({
       id: r.id, at: iso(r.createdAt)!, tool: r.tool, actor: r.actor, reason: r.reason,

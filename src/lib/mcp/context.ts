@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { iso, makeIso, tzOf, APP_TZ, parseIsoDate, type Iso } from "@/lib/mcp/common";
+import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
@@ -29,7 +29,7 @@ export async function loadActiveHealthHold(userId: string, isoFn: Iso = iso): Pr
   return h ? { id: h.id, active: true, reason: h.reason, since: isoFn(h.createdAt)! } : null;
 }
 
-export interface ContextResult {
+export interface ContextResult extends Envelope {
   schemaVersion: 2;
   user: string;
   healthHold: HealthHoldView | null;
@@ -77,6 +77,7 @@ export async function getContext(username: string): Promise<ContextResult> {
   return {
     schemaVersion: 2,
     user: username,
+    ...buildEnvelope(now, iso, user.timezone ?? APP_TZ),
     healthHold,
     autoInspections: {
       active: auto.aktiv,

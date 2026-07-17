@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
-  resolveUserContext, makeIso, tzOf, toNoteDTO, noteSelect, parseIsoDate, entityKey, matchByNameCI,
-  type NoteDTO, type EntityRef, type EntityType,
+  resolveUserContext, makeIso, buildEnvelope, tzOf, toNoteDTO, noteSelect, parseIsoDate, entityKey, matchByNameCI,
+  type Envelope, type NoteDTO, type EntityRef, type EntityType,
 } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type TxClient, type WriteDef } from "@/lib/mcp/writeFramework";
 
@@ -28,7 +28,7 @@ export interface QueryNotesOptions {
   limit?: number;
 }
 
-export interface NotesResult {
+export interface NotesResult extends Envelope {
   schemaVersion: 2;
   user: string;
   notes: NoteDTO[];
@@ -39,6 +39,7 @@ export interface NotesResult {
 export async function queryNotes(username: string, opts: QueryNotesOptions = {}): Promise<NotesResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   const iso = makeIso(timezone);
+  const now = new Date();
   const refFilter = opts.entityType
     ? { refs: { some: { entityType: opts.entityType, ...(opts.entityId ? { entityId: opts.entityId } : {}) } } }
     : {};
@@ -56,7 +57,7 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
     take: Math.min(Math.max(1, opts.limit ?? 50), 200),
     select: noteSelect,
   });
-  return { schemaVersion: 2, user: username, notes: notes.map((n) => toNoteDTO(n, iso)) };
+  return { schemaVersion: 2, user: username, ...buildEnvelope(now, iso, timezone), notes: notes.map((n) => toNoteDTO(n, iso)) };
 }
 
 // ── Write: upsert_note ──────────────────────────────────────────────────────

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.56",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP: generatedAt (+ Zeitzone) in allen Tool-Antworten ergänzt, zusätzlich lastSeenAgeSeconds bei get_box_state — verhindert Fehldiagnosen durch veraltete Zeitangaben in einer laufenden Konversation.",
+          "en": "MCP: added generatedAt (+ timezone) to every tool response, plus lastSeenAgeSeconds on get_box_state — prevents misdiagnosis from stale time references within a conversation."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.55",
     "date": "2026-07-16",
     "changes": [

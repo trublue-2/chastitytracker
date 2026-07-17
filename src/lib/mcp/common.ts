@@ -27,6 +27,24 @@ export const makeFmt = (tz: string): ((d: Date) => string) => (d) => isoWithOffs
  *  byte-identisch zum bisherigen Verhalten für den Default "Europe/Zurich"). */
 export const iso: Iso = makeIso(APP_TZ);
 
+/** Zeitanker jeder MCP-Response (A-08): ohne ihn kann eine Instanz nicht unterscheiden, ob ein
+ *  gelesener Wert von JETZT stammt oder von einem früheren Call in derselben Konversation — belegter
+ *  Vorfall: ein `get_box_state`-Ergebnis wurde drei Stunden später noch für aktuell gehalten und daraus
+ *  ein erfundener Zeitzonen-Bug diagnostiziert. Rein additiv, kein schemaVersion-Bump nötig. */
+export interface Envelope {
+  generatedAt: string;
+  timezone: string;
+}
+
+/** Baut den Envelope für ein Tool-Ergebnis — EINE Quelle für generatedAt+timezone, damit nicht jedes
+ *  Tool sein eigenes `iso(now)!` wiederholt und dabei divergiert. Nimmt den bereits gebauten `iso`-
+ *  Formatter entgegen statt selbst `makeIso(timezone)` zu bauen: fast jeder Aufrufer hat ohnehin
+ *  schon einen (fürs Formatieren seiner übrigen Felder) — ein zweiter, nur für dieses eine `now`
+ *  gebauter Formatter wäre reine Doppelarbeit. */
+export function buildEnvelope(now: Date, isoFn: Iso, timezone: string): Envelope {
+  return { generatedAt: isoFn(now)!, timezone };
+}
+
 /** Löst MCP_USERNAME (Ziel der Direktiven/Abfragen) zu id + Zeitzone auf. Wirft, wenn unbekannt.
  *  Die Zeitzone des Subs regiert die Zeitdarstellung all seiner Daten. */
 export async function resolveUserContext(username: string): Promise<{ id: string; timezone: string }> {

@@ -4,7 +4,7 @@ import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { buildSessions, buildWearSessions, deviceDisplayName, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
-import { makeIso, loadTrackingContext, loadCategoryNames, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
+import { makeIso, buildEnvelope, loadTrackingContext, loadCategoryNames, type Envelope, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
 /** Vorberechnete Statistiken & Rekorde aus SEGMENTEN (nicht Labels) — §5/§6/§7. Rein lesend.
  *  Jedes Tool nimmt optional einen vorgeladenen TrackingContext (vom keyholder_dashboard), um
@@ -36,7 +36,7 @@ export interface DeviceStatRow {
   lastWornAt: string | null;
 }
 
-export interface DeviceStatsResult {
+export interface DeviceStatsResult extends Envelope {
   /** v4: `devices` enthält nur noch echte Geräte; der Sammel-Posten ohne Geräte-Zuordnung
    *  (Projektgeschichte) steht separat in `unassigned` statt als Pseudo-Gerätezeile. */
   schemaVersion: 4;
@@ -119,6 +119,7 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
   return {
     schemaVersion: 4,
     user: username,
+    ...buildEnvelope(now, iso, timezone),
     devices: aggs.filter((r) => !isUnassignedDevice(r.device)).map(toRow).sort((a, b) => b.totalHours - a.totalHours),
     unassigned: unassignedAgg ? toRow(unassignedAgg) : null,
   };
@@ -126,7 +127,7 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
 
 // ── records ──────────────────────────────────────────────────────────────────
 
-export interface RecordsResult {
+export interface RecordsResult extends Envelope {
   schemaVersion: 2;
   user: string;
   /** Längster Lauf (interruption-bereinigte Session-Dauer). */
@@ -171,6 +172,7 @@ export async function records(username: string, ctx?: TrackingContext, presessio
   return {
     schemaVersion: 2,
     user: username,
+    ...buildEnvelope(now, iso, timezone),
     longestRunHours: msToHours(pbMs),
     longestRunEndedAt: iso(pb?.end ?? null),
     currentRunHours: open ? msToHours(open.durationMs) : null,
@@ -189,7 +191,7 @@ export interface OrgasmHistoryRow {
   deviceContext: string | null;
 }
 
-export interface DenialTrendResult {
+export interface DenialTrendResult extends Envelope {
   schemaVersion: 2;
   user: string;
   currentStreakH: number | null;
@@ -246,6 +248,7 @@ export async function denialTrend(username: string, opts: { limit?: number } = {
   return {
     schemaVersion: 2,
     user: username,
+    ...buildEnvelope(now, iso, timezone),
     currentStreakH: lastOrgasm ? msToHours(now.getTime() - lastOrgasm.getTime()) : null,
     longestDenialH: gap == null ? null : msToHours(gap),
     avgIntervalH: avgAll,
@@ -263,7 +266,7 @@ export interface PeriodGoal {
   todayPct: number | null; weekPct: number | null; monthPct: number | null; yearPct: number | null;
 }
 
-export interface PeriodSummaryResult {
+export interface PeriodSummaryResult extends Envelope {
   schemaVersion: 2;
   user: string;
   kg: PeriodGoal;
@@ -282,7 +285,8 @@ const periodGoal = (
 /** Tag/Woche/Monat für KG und je Kategorie inkl. Ziel-Erfüllung. KG nutzt die geteilte
  *  Tracker-Berechnung; Kategorien die geteilte buildCategoryWearGoals. */
 export async function periodSummary(username: string, ctx?: TrackingContext): Promise<PeriodSummaryResult> {
-  const { userId, entries, reinigung, now } = await ctxOf(username, ctx);
+  const { userId, entries, reinigung, now, timezone } = await ctxOf(username, ctx);
+  const iso = makeIso(timezone);
 
   const [kgVorgabe, categoryGoals] = await Promise.all([
     getActiveVorgabe(userId, now),
@@ -297,6 +301,7 @@ export async function periodSummary(username: string, ctx?: TrackingContext): Pr
   return {
     schemaVersion: 2,
     user: username,
+    ...buildEnvelope(now, iso, timezone),
     kg: periodGoal(
       kg.tagH, kg.wocheH, kg.monatH, kg.jahrH,
       kgGoal.minProTagH, kgGoal.minProWocheH, kgGoal.minProMonatH, kgGoal.minProJahrH,

@@ -1,6 +1,6 @@
 import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/sessionModel";
 import { msToHours } from "@/lib/utils";
-import { resolveUserId, makeIso, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, buildEnvelope, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, type Envelope, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
 
 /** get_session — Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes
  *  + Daten-Qualitäts-Flags. Rein lesend, MCP-only.
@@ -42,7 +42,7 @@ export interface SessionView {
   dataQualityFlags: string[];
 }
 
-export interface SessionListResult {
+export interface SessionListResult extends Envelope {
   schemaVersion: 2;
   user: string;
   returnedCount: number;
@@ -167,6 +167,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   return {
     schemaVersion: 2,
     user: username,
+    ...buildEnvelope(now, iso, timezone),
     returnedCount: selected.length,
     sessions: selected.map((s) => sessionView(s, notesByEntity, iso)),
   };

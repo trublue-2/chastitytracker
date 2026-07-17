@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, type NoteDTO } from "@/lib/mcp/common";
+import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, type Envelope, type NoteDTO } from "@/lib/mcp/common";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 
@@ -190,11 +190,9 @@ export interface OffenseRow {
   notes: NoteDTO[];
 }
 
-export interface LedgerResult {
+export interface LedgerResult extends Envelope {
   schemaVersion: 2;
   user: string;
-  generatedAt: string;
-  timezone: string;
   detectedOffenseCount: number;
   openOffenseCount: number;
   pendingPenaltyCount: number;
@@ -272,8 +270,9 @@ export function buildOffenseRows(
 export async function getOffenses(username: string): Promise<LedgerResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   const iso = makeIso(timezone);
+  const now = new Date();
   const [sb, deviceClusters] = await Promise.all([
-    mcpStrafbuch(userId, timezone, new Date()),
+    mcpStrafbuch(userId, timezone, now),
     prisma.device.findMany({ where: { userId }, select: { name: true, lookalikeClusterId: true, securityLevel: true } }),
   ]);
   const rows = buildOffenseRows(sb, new Map(deviceClusters.map((d) => [d.name, d])));
@@ -285,8 +284,7 @@ export async function getOffenses(username: string): Promise<LedgerResult> {
   return {
     schemaVersion: 2,
     user: username,
-    generatedAt: iso(new Date())!,
-    timezone,
+    ...buildEnvelope(now, iso, timezone),
     detectedOffenseCount: sb.detectedOffenseCount,
     openOffenseCount: sb.openOffenseCount,
     pendingPenaltyCount: sb.pendingPenaltyCount,

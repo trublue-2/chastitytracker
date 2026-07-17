@@ -7,7 +7,7 @@ import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense } from "@/lib/strafurteilService";
-import { matchByNameCI, parseIsoDate } from "@/lib/mcp/common";
+import { matchByNameCI, parseIsoDate, tzOf, makeIso, buildEnvelope, type Envelope } from "@/lib/mcp/common";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 
@@ -325,19 +325,39 @@ async function loadOwnedVorgabe(id: string, userId: string) {
   return v;
 }
 
+export interface TrainingGoalRow {
+  id: string;
+  category: string;
+  status: string;
+  validFrom: string;
+  validUntil: string | null;
+  minPerDayHours: number | null;
+  minPerWeekHours: number | null;
+  minPerMonthHours: number | null;
+  minPerYearHours: number | null;
+  note: string | null;
+}
+
+export interface ListTrainingGoalsResult extends Envelope {
+  ok: true;
+  goals: TrainingGoalRow[];
+}
+
 export interface ListTrainingGoalsArgs {
   category?: string;
 }
-export async function mcpListTrainingGoals(username: string, args: ListTrainingGoalsArgs) {
+export async function mcpListTrainingGoals(username: string, args: ListTrainingGoalsArgs): Promise<ListTrainingGoalsResult> {
   const userId = await resolveTargetUserId(username);
   const filterCatId = args.category ? await resolveCategoryId(userId, args.category) : undefined;
-  const now = Date.now();
-  const goals = (await listVorgaben(userId))
+  const timezone = await tzOf(userId);
+  const now = new Date();
+  const nowMs = now.getTime();
+  const goals: TrainingGoalRow[] = (await listVorgaben(userId))
     .filter((g) => filterCatId === undefined || g.categoryId === filterCatId)
     .map((g) => {
       const ab = g.gueltigAb.getTime();
       const bis = g.gueltigBis ? g.gueltigBis.getTime() : null;
-      const status = ab > now ? "scheduled" : bis !== null && bis <= now ? "expired" : "active";
+      const status = ab > nowMs ? "scheduled" : bis !== null && bis <= nowMs ? "expired" : "active";
       return {
         id: g.id,
         category: g.category?.name ?? "KG",
@@ -351,7 +371,7 @@ export async function mcpListTrainingGoals(username: string, args: ListTrainingG
         note: g.notiz,
       };
     });
-  return { ok: true, goals };
+  return { ok: true, ...buildEnvelope(now, makeIso(timezone), timezone), goals };
 }
 
 export interface EditTrainingGoalArgs extends SetTrainingGoalArgs {

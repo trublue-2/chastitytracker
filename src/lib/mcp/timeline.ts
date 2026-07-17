@@ -1,5 +1,5 @@
 import { buildSessions } from "@/lib/sessionModel";
-import { resolveUserId, makeIso, loadTrackingData, parseIsoDate, type TrackingEntry } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, buildEnvelope, loadTrackingData, parseIsoDate, type Envelope, type TrackingEntry } from "@/lib/mcp/common";
 
 /** timeline (§12) — KG-SEGMENTE (nicht rohe Lock/Unlock-Pulse), Wear-Sessions, Kontrollen und
  *  Orgasmen auf EINER Zeitachse. Der KG-Backbone kommt aus buildSessions, damit Reinigungspausen
@@ -16,7 +16,7 @@ export interface TimelineEvent {
   detail: Record<string, unknown>;
 }
 
-export interface TimelineResult {
+export interface TimelineResult extends Envelope {
   schemaVersion: 2;
   user: string;
   from: string | null;
@@ -77,6 +77,7 @@ export async function timeline(username: string, opts: TimelineOptions = {}): Pr
   return {
     schemaVersion: 2,
     user: username,
+    ...buildEnvelope(now, iso, timezone),
     from: iso(from ?? null),
     to: iso(to ?? null),
     returnedCount: sliced.length,

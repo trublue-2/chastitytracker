@@ -6,7 +6,7 @@ import {
   type Fmt, type OpenKontrolleView, type ActiveSperrzeitView, type OpenOrgasmusAnforderungView,
   type InterruptedSperrzeitView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
-import { makeIso, makeFmt, resolveUserContext, loadTrackingContext, type Iso, type NoteDTO } from "@/lib/mcp/common";
+import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, type Envelope, type Iso, type NoteDTO } from "@/lib/mcp/common";
 import { msToHours } from "@/lib/utils";
 import { buildSessions, type Session } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
@@ -52,13 +52,16 @@ export interface BoxStateView {
   battery: number | null;
   charging: boolean | null;
   lastSeen: string | null;
+  /** Alter von `lastSeen` in Sekunden zum Zeitpunkt dieser Antwort (`generatedAt`) — beantwortet
+   *  "ist die Box aktuell?" ohne dass die Instanz `lastSeen` gegen `generatedAt` selbst verrechnet
+   *  (A-08: genau dieses Nachrechnen führte am 16.07.2026 zu einem erfundenen Zeitzonen-Bug).
+   *  null = keine Box-Meldung bisher (`lastSeen` ebenfalls null). */
+  lastSeenAgeSeconds: number | null;
 }
 
-export interface DashboardResult {
+export interface DashboardResult extends Envelope {
   schemaVersion: 2;
   user: string;
-  generatedAt: string;
-  timezone: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
   keyholderInstructions: string | null;
@@ -238,10 +241,14 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
     battery: box.battery,
     charging: box.charging,
     lastSeen: iso(box.lastSyncAt),
+    // Math.max(0, …): eine Box, deren gemeldeter Sync minimal vor der Server-Uhr liegt (Netzwerk-
+    // Latenz, leichte Uhr-Drift), soll nie eine negative "Alter"-Zahl liefern — das wäre selbst
+    // wieder der Anlass für eine erfundene Zeitzonen-Theorie (siehe A-08-Kommentar oben).
+    lastSeenAgeSeconds: box.lastSyncAt ? Math.max(0, Math.round((now.getTime() - box.lastSyncAt.getTime()) / 1000)) : null,
   };
 }
 
-export interface BoxStateResult {
+export interface BoxStateResult extends Envelope {
   /** v3: hardwareEnforced ist IST-basiert (reportedLocked), staleLock ersetzt online,
    *  hardwareEnforcedEffective/online/lockUntilStale entfernt — rückwirkende Anerkennung der
    *  Semantik-Wechsel vom 16.07.2026 (v2-Payloads davor trugen die alte Bedeutung). */
@@ -256,7 +263,9 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
   const [box, keyInBox] = await Promise.all([loadBoxRow(userId), getCurrentLockKeyInBox(userId)]);
-  return { schemaVersion: 3, user: username, boxState: mapBoxState(box, new Date(), makeIso(timezone), keyInBox) };
+  const now = new Date();
+  const iso = makeIso(timezone);
+  return { schemaVersion: 3, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */
@@ -320,8 +329,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   return {
     schemaVersion: 2,
     user: username,
-    generatedAt: iso(now)!,
-    timezone: trackingCtx.timezone,
+    ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,
     currentRun: {
       isLocked: lock.isLocked,
