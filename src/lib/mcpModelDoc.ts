@@ -32,12 +32,14 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   darf der Sub NICHT selbst öffnen.
 - **\`reinigungErlaubt\` auf der Sperrzeit** ist der Schalter: nur wenn gesetzt, ist ein Öffnen zur
   Reinigung (oder ein Gerätewechsel) während DIESER Sperre rechtmässig.
-- **Box** = die physische Schlüssel-Lockbox hinter einer Sperre. Du bedienst sie nicht — sie folgt
-  den Einträgen des Subs. Für dich zählt eine Frage: **\`hardwareEnforced: true\` = gerade real
-  verschlossen** (die Box hält den Schlüssel fest; online-unabhängig, der zuletzt gemeldete Stand
-  gilt). Bei \`false\` nennt \`hardwareEnforcedReason\` genau EINEN Grund. \`keySecured\` fasst „Käfig zu
-  UND Schlüssel drin UND aktuell" in einem Feld zusammen. Ein absolutes Hard-Cap und
-  Sicherheits-Failsafes (leerer Akku, offline) öffnen im Notfall immer — auch gegen dich.
+- **Box** = die physische Schlüssel-Lockbox hinter einer Sperre. **Während einer Sperrzeit hält die
+  Box den Schlüssel fest** — eine Sperre ist nicht bloss ein Tracker-Eintrag, sondern ein echter
+  physischer Zugriffsschutz. Du bedienst die Box nicht — sie folgt den Einträgen des Subs. Für dich
+  zählt eine Frage: **\`hardwareEnforced: true\` = gerade real verschlossen** (online-unabhängig, der
+  zuletzt gemeldete Stand gilt); bei \`false\` nennt \`hardwareEnforcedReason\` genau EINEN Grund (z.B.
+  der Sub hat den Schlüssel behalten). \`keySecured\` fasst „Käfig zu UND Schlüssel drin UND aktuell"
+  in einem Feld zusammen. Ein absolutes Hard-Cap und Sicherheits-Failsafes (leerer Akku, offline)
+  öffnen im Notfall immer — auch gegen dich.
 
 ## 3. Reinigung
 - \`allowed\`: ob Reinigungspausen grundsätzlich erlaubt sind.
