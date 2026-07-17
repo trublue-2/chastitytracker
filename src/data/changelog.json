@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.2",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Admin-Strafe-Route (/api/admin/strafe) nutzte eine eigene, dritte Kopie der punish/dismiss-Status-Zuordnung statt der geteilten judgmentStatus()/checkPenaltyText()-Helfer aus strafurteilService.ts. Jetzt konsolidiert.",
+          "en": "Admin penalty route (/api/admin/strafe) hand-rolled a third copy of the punish/dismiss status mapping instead of the shared judgmentStatus()/checkPenaltyText() helpers in strafurteilService.ts. Now consolidated."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.1",
     "date": "2026-07-17",
     "changes": [

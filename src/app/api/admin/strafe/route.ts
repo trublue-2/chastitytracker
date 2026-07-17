@@ -3,21 +3,22 @@ import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { notifyUser } from "@/lib/notify";
-import { strafeVerhaengtNotice, STORED_TYPE, entryIdFromCleaningNotRelockedRef } from "@/lib/strafurteilService";
+import { strafeVerhaengtNotice, STORED_TYPE, entryIdFromCleaningNotRelockedRef, judgmentStatus, checkPenaltyText } from "@/lib/strafurteilService";
 
 const VALID_OFFENSE_TYPES = new Set(Object.values(STORED_TYPE));
 
 export async function POST(req: Request) {
   const body = await req.json();
   const { userId, offenseType, refId, bestraftDatum, notiz, reason } = body;
-  // status: "PUNISHED" (bestraft, default) | "DISMISSED" (verworfen / keine Strafe)
-  const status: string = body.status === "DISMISSED" ? "DISMISSED" : "PUNISHED";
+  // action: "punish" (bestraft, default) | "dismiss" (verworfen / keine Strafe)
+  const action: "punish" | "dismiss" = body.status === "DISMISSED" ? "dismiss" : "punish";
+  const status = judgmentStatus(action);
 
   if (!userId || !offenseType || !refId) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
-  // Bei einer Strafe ist der Freitext (reason) Pflicht; ein Verwerfen darf leer sein.
-  if (status === "PUNISHED" && !reason?.trim()) {
+  // Geteilte Regel mit judgeOffense (MCP) — punish verlangt Freitext, dismiss darf leer sein.
+  if (checkPenaltyText(action, reason)) {
     return NextResponse.json({ error: "Missing penalty text" }, { status: 400 });
   }
 
