@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   formatDateTime, formatHours,
-  buildPairs, interruptionPauseMs, buildKontrolleItems,
+  buildPairs, getOpenPair, interruptionPauseMs, buildKontrolleItems,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
   wearingHoursFromPairs, APP_TZ,
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
   // ── Build kontroll items for session events ──
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
   const pairs = buildPairs(entries, kontrollItems, reinigung);
-  const activePair = pairs.find((p) => p.active) ?? null;
+  const activePair = getOpenPair(pairs);
 
   const orgasmusEntries = entries
     .filter((e) => e.type === "ORGASMUS")

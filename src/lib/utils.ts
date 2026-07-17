@@ -410,6 +410,12 @@ type PairResult<E, K> = {
   verschluss: E;
   oeffnen: E | null;
   active: boolean;
+  /** True nur für ein Pair, das die Anomalie "zwei Schliess-Einträge ohne dazwischenliegenden
+   *  Öffnen-Eintrag" abbildet (siehe buildPairs). `active` wird für solche Pairs auf `true` gesetzt,
+   *  damit das Invariant `oeffnen===null ⟺ active` hält — Konsumenten, die "die aktuell laufende
+   *  Session" suchen (statt nur das Invariant zu respektieren), müssen `orphaned` zusätzlich
+   *  ausschliessen, sonst kann ein längst überholter Eintrag als "gerade jetzt aktiv" erscheinen. */
+  orphaned?: boolean;
   kontrollen: K[];
   interruptions: { oeffnen: E; verschluss: E }[];
 };
@@ -485,7 +491,15 @@ export function buildPairs<
           pending = e;
         }
       } else {
-        if (pending) pairs.push({ verschluss: pending, oeffnen: null, active: false, kontrollen: [], interruptions: currentInterruptions });
+        if (pending) {
+          // Daten-Anomalie: zwei Schliess-Einträge ohne dazwischenliegenden Öffnen-Eintrag (z.B.
+          // Admin-Backdating, das zwischen ein bestehendes Paar rutscht). `active:true` hält das
+          // Invariant oeffnen===null ⟺ active — Konsumenten der "aktuell laufenden Session"
+          // müssen zusätzlich `orphaned` ausschliessen (siehe `getOpenPair`/`PairResult`).
+          // Sichtbar für den Keyholder über `get_session`s `dataQualityFlags` (sessions.ts), nicht
+          // hier geloggt — buildPairs läuft mehrfach pro Request, ein Log hier wäre reiner Lärm.
+          pairs.push({ verschluss: pending, oeffnen: null, active: true, orphaned: true, kontrollen: [], interruptions: currentInterruptions });
+        }
         currentInterruptions = [];
         pending = e;
       }
@@ -531,6 +545,15 @@ export function buildPairs<
   }
 
   return pairs.reverse();
+}
+
+/** Die tatsächlich aktuell laufende Session/Pair aus einem `buildPairs`-Ergebnis. `active` allein
+ *  reicht nicht: ein verwaistes Pair (siehe `orphaned` auf `PairResult`) bekommt `active:true` nur,
+ *  um das Invariant oeffnen===null ⟺ active zu halten — es ist keine echte laufende Session.
+ *  EINZIGE Stelle für diesen Check, damit ein künftiger Aufrufer den `orphaned`-Ausschluss nicht
+ *  vergisst (sonst kann ein längst überholtes Pair wieder als "gerade jetzt aktiv" erscheinen). */
+export function getOpenPair<P extends { active: boolean; orphaned?: boolean }>(pairs: P[]): P | null {
+  return pairs.find((p) => p.active && !p.orphaned) ?? null;
 }
 
 /** Total pause duration from interruptions in ms */

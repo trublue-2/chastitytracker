@@ -1,5 +1,31 @@
 [
   {
+    "version": "4.51.11",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der INVALID_ORDER-Nachbar-Check der Admin-Entry-Erstellung (getKgNeighbors) und der Edit-Route nutzen jetzt eine gemeinsame Funktion (getEntryNeighbors) statt zweier unterschiedlicher Implementierungen. Dabei behoben: ein exakter startTime-Gleichstand mit einem gleichartigen Nachbarn wurde von einer rein exklusiven Vergleichslogik übersehen und hätte den Guard umgehen können.",
+          "en": "The INVALID_ORDER neighbor check in admin entry creation (getKgNeighbors) and the edit route now share one function (getEntryNeighbors) instead of two separate implementations. Along the way: an exact startTime tie with a same-type neighbor was missed by a purely exclusive comparison and could have bypassed the guard."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.51.10",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zwei Schliess-Einträge ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. durch Admin-Backdating) ergaben ein Pair mit widersprüchlichem isOpen/endedBy in get_session. buildPairs markiert solche Pairs jetzt als orphaned; Konsumenten (Dashboard, Admin-Übersicht, MCP live state/records/device_stats/denial_trend) schliessen sie von der aktuellen Session und von Aggregat-Kennzahlen aus. Admin-Entry-Erstellung prüft jetzt zusätzlich die chronologischen Nachbarn, um die Anomalie gar nicht erst entstehen zu lassen.",
+          "en": "Two lock entries with no intervening unlock entry (a data anomaly, e.g. from admin backdating) produced a pair with contradictory isOpen/endedBy in get_session. buildPairs now marks such pairs as orphaned; consumers (dashboard, admin overview, MCP live state/records/device_stats/denial_trend) exclude them from the current session and from aggregate stats. Admin entry creation now also checks chronological neighbors to prevent the anomaly from being created in the first place."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.9",
     "date": "2026-07-17",
     "changes": [

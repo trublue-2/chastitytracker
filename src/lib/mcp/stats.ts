@@ -2,7 +2,7 @@ import { calculateWearingHoursByRange, median, msToHours, round1, summarizeDurat
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, buildWearSessions, deviceDisplayName, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
+import { buildSessions, buildWearSessions, deviceDisplayName, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, buildEnvelope, loadTrackingContext, loadCategoryNames, type Envelope, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
@@ -88,7 +88,10 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
   const byDevice = new Map<string, DeviceAgg>();
 
   // ── KG: Reinigungspausen sind bereits abgezogen, das massgebliche Gerät aufgelöst ──
-  collectSessions(byDevice, buildSessions(entries, reinigung, now, devices), () => kgName);
+  // orphaned ausschliessen (siehe records()): eine verwaiste Session läuft bis `now` weiter und
+  // würde sonst Phantom-Stunden in die Geräte-Summe schreiben (buildWearSessions filtert das
+  // bereits selbst, siehe sessionModel.ts).
+  collectSessions(byDevice, buildSessions(entries, reinigung, now, devices).filter((s) => !s.orphaned), () => kgName);
 
   // ── Nicht-KG: dieselben Trage-Sessions, die auch `get_session` zeigt ──
   collectSessions(byDevice, buildWearSessions(entries, now),
@@ -172,8 +175,10 @@ export async function records(username: string, ctx?: TrackingContext, presessio
   // Vorgebaute Sessions (vom Dashboard) wiederverwenden, statt buildSessions doppelt zu rechnen.
   const sessions = presessions ?? buildSessions(entries, reinigung, now, devices);
 
-  const open = sessions.find((s) => s.isOpen) ?? null;
-  const closed = sessions.filter((s) => !s.isOpen);
+  // orphaned ausschliessen (weder "offen" noch "geschlossen" im echten Sinn — eine verwaiste,
+  // niemals real beendete Session soll weder als aktueller Lauf noch als Bestmarken-Kandidat zählen).
+  const open = sessions.find(isLiveOpenSession) ?? null;
+  const closed = sessions.filter((s) => !isLiveOpenSession(s) && !s.orphaned);
   const pb = closed.reduce<Session | null>((best, s) => (!best || s.durationMs > best.durationMs ? s : best), null);
   const pbMs = pb?.durationMs ?? 0;
 
@@ -276,7 +281,10 @@ function deviceContextAt(segs: FlatSegment[], t: number): string | null {
 export async function denialTrend(username: string, opts: { limit?: number } = {}, ctx?: TrackingContext): Promise<DenialTrendResult> {
   const { entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
-  const sessions = buildSessions(entries, reinigung, now, devices);
+  // orphaned ausschliessen: eine verwaiste Session endet (Segment-seitig) nie und würde die
+  // "überlappungsfrei & sortiert"-Annahme von flattenSegments/deviceContextAt verletzen, sobald
+  // gleichzeitig eine echte offene Session existiert (beide enden dann bei `now`).
+  const sessions = buildSessions(entries, reinigung, now, devices).filter((s) => !s.orphaned);
   const segs = flattenSegments(sessions, now);
   const times = orgasmTimes(entries);
 

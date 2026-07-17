@@ -34,6 +34,10 @@ interface Pair {
   verschluss: Entry;
   oeffnen: Entry | null;
   active: boolean;
+  /** Siehe `PairResult.orphaned` (utils.ts): ein verwaister Verschluss ohne Öffnen ist KEINE echte
+   *  laufende Session, auch wenn `active` (Invariant-bedingt) `true` ist — sonst zeigt die Liste
+   *  einen längst überholten Eintrag dauerhaft als "noch verschlossen" an. */
+  orphaned?: boolean;
   kontrollen: KontrolleItem[];
   interruptions?: { oeffnen: Entry; verschluss: Entry }[];
 }
@@ -64,7 +68,8 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
   const openLabel = (grund: string | null) => grund ? resolveReasonLabel(grund, openCfg, "opening", tOpen) : null;
 
   const sessions: SessionListData[] = pairs.map((pair) => {
-    const { verschluss, oeffnen, active, kontrollen } = pair;
+    const { verschluss, oeffnen, active: rawActive, orphaned, kontrollen } = pair;
+    const active = rawActive && !orphaned;
 
     const dateStr = formatDate(verschluss.startTime, dl, tz);
     const timeStr = formatTime(verschluss.startTime, dl, tz);
