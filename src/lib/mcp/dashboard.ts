@@ -6,8 +6,8 @@ import {
   type Fmt, type OpenKontrolleView, type ActiveSperrzeitView, type OpenOrgasmusAnforderungView,
   type InterruptedSperrzeitView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
-import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, type Envelope, type Iso, type NoteDTO } from "@/lib/mcp/common";
-import { msToHours } from "@/lib/utils";
+import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
+import { buildPairs, msToHours } from "@/lib/utils";
 import { buildSessions, type Session } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
@@ -300,8 +300,11 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // `iso` nimmt auch null; die liveState-Mapper übergeben immer ein Date. Ein Adapter statt eines
   // Casts an jeder Aufrufstelle.
   const fmt: Fmt = makeFmt(trackingCtx.timezone);
+  // Paare EINMAL bauen und an buildSessions + buildLockState durchreichen (deren `prePairs`-Doku
+  // erklärt das Sharing).
+  const pairs = buildPairs<TrackingEntry, never>(trackingCtx.entries, [], trackingCtx.reinigung);
   // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
-  const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices);
+  const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices, pairs);
 
   // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
@@ -323,7 +326,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     loadScheduledDirectives(trackingCtx.userId, now, iso),
   ]);
 
-  const lock = buildLockState(trackingCtx.entries, trackingCtx.reinigung, now, fmt);
+  const lock = buildLockState(trackingCtx.entries, trackingCtx.reinigung, now, fmt, pairs);
   const activeWearSessions = mapActiveWearSessions(activeWearRows, now, fmt);
   // Die Box-Sicht erbt die Schlüssel-Deklaration aus DEMSELBEN Lock-Zustand wie currentRun — die
   // beiden Felder einer Antwort können so nicht auseinanderlaufen, und es kostet keine Query.

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.7",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "keyholder_dashboard baut buildPairs nur noch einmal statt zweimal (buildSessions + buildLockState teilen sich das Ergebnis).",
+          "en": "keyholder_dashboard now builds buildPairs only once instead of twice (buildSessions + buildLockState share the result)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.6",
     "date": "2026-07-17",
     "changes": [

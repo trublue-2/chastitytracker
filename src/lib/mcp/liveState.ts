@@ -58,17 +58,18 @@ type LockPair<E> = {
 
 /** Entries müssen nach `startTime` ABSTEIGEND sortiert sein (jüngster zuerst).
  *
- *  War bis zum Wegfall der V1-Schicht in zwei Funktionen geteilt: `get_overview` baute die Paare
- *  ohnehin für seine Session-Statistik und reichte sie herein, um `buildPairs` nicht zweimal laufen
- *  zu lassen. Diesen Aufrufer gibt es nicht mehr — der verbliebene baut die Paare nirgends sonst,
- *  also ist die Aufteilung nur noch eine Naht ohne Zweck. */
+ *  `prePairs`: schon gebaute `buildPairs`-Paare wiederverwenden statt sie erneut zu berechnen —
+ *  dasselbe Sharing-Prinzip wie bei `buildSessions`s `prePairs` (siehe dort). Fehlt der Parameter
+ *  (z.B. in `liveState.test.ts`, das mit rohen Entries direkt aufruft), rechnet diese Funktion die
+ *  Paare wie bisher selbst. */
 export function buildLockState<E extends LockEntry>(
   entries: E[],
   reinigung: ReinigungSettings,
   now: Date,
   fmt: Fmt,
+  prePairs?: LockPair<E>[],
 ): LockState {
-  const pairs: LockPair<E>[] = buildPairs(entries, [], reinigung);
+  const pairs: LockPair<E>[] = prePairs ?? buildPairs(entries, [], reinigung);
   const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
   const isLocked = latest?.type === "VERSCHLUSS";
 

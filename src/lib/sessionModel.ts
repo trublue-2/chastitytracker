@@ -109,7 +109,11 @@ export interface Session {
   categoryId: string | null;
 }
 
-type Pair = ReturnType<typeof buildPairs<SegmentEntry, never>>[number];
+/** Ein einzelnes `buildPairs`-Ergebnis (eine KG-Session vor der Segmentierung). Exportiert, damit
+ *  ein Aufrufer, der die Paare selbst schon braucht (z.B. `keyholder_dashboard` für `buildLockState`),
+ *  sie EINMAL bauen und hier als `pairs`-Parameter durchreichen kann statt `buildPairs` doppelt laufen
+ *  zu lassen. */
+export type SessionPair = ReturnType<typeof buildPairs<SegmentEntry, never>>[number];
 
 const deviceRefOf = (e: SegmentEntry): DeviceRef => ({
   id: e.device?.id ?? null,
@@ -208,7 +212,7 @@ function reconcileDevice(
 }
 
 /** Zerlegt EIN buildPairs-Pair (eine Session) in seine Segmente. */
-function segmentsOfPair(pair: Pair, controls: SegmentEntry[], now: Date, lookups: DeviceLookups): Segment[] {
+function segmentsOfPair(pair: SessionPair, controls: SegmentEntry[], now: Date, lookups: DeviceLookups): Segment[] {
   const sessionId = pair.verschluss.id;
   const heads: SegmentEntry[] = [pair.verschluss, ...pair.interruptions.map((i) => i.verschluss)];
   const out: Segment[] = [];
@@ -298,7 +302,7 @@ export function deviceWearingsOf(sessions: Session[]): DeviceWearing[] {
 /** Ein Paar → eine Session. Geteilt von KG und WEAR: die SESSION-Form ist dieselbe, nur ihr Inhalt
  *  unterscheidet sich (WEAR hat weder Reinigungspausen noch Kontrollen, also genau ein Segment mit
  *  `deviceConfidence: "declared"` — das fällt hier von selbst heraus, ohne Sonderfall). */
-function sessionOfPair(pair: Pair, controls: SegmentEntry[], now: Date, lookups: DeviceLookups): Session {
+function sessionOfPair(pair: SessionPair, controls: SegmentEntry[], now: Date, lookups: DeviceLookups): Session {
   const segments = segmentsOfPair(pair, controls, now, lookups);
   const isOpen = pair.active && pair.oeffnen === null;
   return {
@@ -317,9 +321,11 @@ function sessionOfPair(pair: Pair, controls: SegmentEntry[], now: Date, lookups:
 
 /** Baut die vollständigen KG-Sessions (mit Segmenten + deviceBreakdown), neueste zuerst.
  *  `devices` liefert die Name↔id-Auflösung + Lookalike-Cluster für die Bild-Versöhnung
- *  (leer = keine Cluster-Softening). */
-export function buildSessions(entries: SegmentEntry[], reinigung: ReinigungSettings, now: Date = new Date(), devices: DeviceMeta[] = []): Session[] {
-  const pairs = buildPairs<SegmentEntry, never>(entries, [], reinigung);
+ *  (leer = keine Cluster-Softening). `prePairs`: schon gebaute `buildPairs`-Paare
+ *  (z.B. von einem Aufrufer, der sie auch für `buildLockState` braucht) wiederverwenden statt
+ *  `buildPairs` erneut über dieselben Entries laufen zu lassen. */
+export function buildSessions(entries: SegmentEntry[], reinigung: ReinigungSettings, now: Date = new Date(), devices: DeviceMeta[] = [], prePairs?: SessionPair[]): Session[] {
+  const pairs = prePairs ?? buildPairs<SegmentEntry, never>(entries, [], reinigung);
   const lookups = buildDeviceLookups(devices);
   // Einmal chronologisch sortieren; linkControls filtert je Segment ordnungserhaltend.
   const controls = entries
