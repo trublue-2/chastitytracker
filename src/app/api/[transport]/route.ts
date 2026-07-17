@@ -16,8 +16,9 @@ import { VALID_TYPES } from "@/lib/constants";
 import { getSession } from "@/lib/mcp/sessions";
 import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_SOURCE, NOTE_CONFIDENCE, ENTITY_TYPES } from "@/lib/mcp/notes";
 import { listDevicesV2, setDeviceMetaDef, SECURITY_LEVELS } from "@/lib/mcp/devices";
-import { executeWrite, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
+import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext } from "@/lib/mcp/common";
+import { prisma } from "@/lib/prisma";
 import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
 import { getOffenses } from "@/lib/mcp/ledger";
@@ -54,16 +55,23 @@ type ToolExtra = { authInfo?: { extra?: { userId?: string } } };
  *  nachvollziehbar bleibt (welcher Datensatz, welche Deadline). */
 const MCP_FREE_TEXT_KEYS = new Set(["message", "comment", "note", "kommentar", "reason"]);
 
-/** Serialisiert die Write-Args für das Log und redigiert Ziffernfolgen NUR in Freitext-Feldern
- *  (redactDigits gegen versehentliches Code-Leak), nicht in IDs/Zeitstempeln. */
-function serializeMcpArgs(args: unknown): string {
-  if (!args || typeof args !== "object") return JSON.stringify(args ?? {});
-  const cleaned = Object.fromEntries(
+/** Redigiert Ziffernfolgen NUR in Freitext-Feldern (redactDigits gegen versehentliches Code-Leak),
+ *  nicht in IDs/Zeitstempeln — geteilt vom Container-Log (`serializeMcpArgs`) UND vom DB-Audit
+ *  (`recordAction`-Aufruf in `runWriteTool`): ein Kontroll-Code, der versehentlich in ein Freitext-
+ *  Feld wie `message`/`text` gerät, darf nirgends unredigiert landen, auch nicht dauerhaft in
+ *  `KeyholderActionLog.argsJson`. */
+function redactMcpArgs(args: unknown): unknown {
+  if (!args || typeof args !== "object") return args ?? {};
+  return Object.fromEntries(
     Object.entries(args).map(([k, v]) =>
       MCP_FREE_TEXT_KEYS.has(k) && typeof v === "string" ? [k, redactDigits(v)] : [k, v],
     ),
   );
-  return JSON.stringify(cleaned);
+}
+
+/** Serialisiert die (redigierten) Write-Args fürs Container-Log. */
+function serializeMcpArgs(args: unknown): string {
+  return JSON.stringify(redactMcpArgs(args));
 }
 
 /** Loggt jeden MCP-Write-Event (Direktive) in die Container-Logs: Tool, Ziel-User, Ausgang und die
@@ -85,13 +93,40 @@ function denyWrite(tool: string, args: unknown, reason: string): ToolResult {
   return { content: [{ type: "text", text: `Write denied: ${reason}.` }], isError: true };
 }
 
-/** Wrapper for WRITE tools: enforces keyholder (admin OAuth) authorization, then delegates to
- *  runTool. The static MCP_TOKEN has no user identity and is therefore always rejected here. */
-async function runWriteTool<T>(label: string, extra: ToolExtra, args: unknown, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+/** Wrapper for WRITE tools: enforces keyholder (admin OAuth) authorization, requires a non-empty
+ *  `reason` (B-03: same audit obligation as the V2 write framework), then delegates to runTool and —
+ *  on success — writes a KeyholderActionLog row so `get_action_log` can finally see these writes too.
+ *  The static MCP_TOKEN has no user identity and is therefore always rejected here.
+ *
+ *  Not atomic with the V1 write itself (unlike executeWrite's V2 path, which commits mutation + audit
+ *  in one transaction): `fn()` already committed via its own service call before the audit write runs
+ *  here. A crash between the two would leave a mutation without an audit row — an accepted gap for
+ *  this lighter-weight V1 pass; the full V1→V2 migration (K-01) closes it structurally. */
+async function runWriteTool<T>(label: string, extra: ToolExtra, args: Record<string, unknown>, fn: (username: string) => Promise<T>): Promise<ToolResult> {
   const check = await checkMcpKeyholder(extra?.authInfo?.extra?.userId);
   if (!check.ok) return denyWrite(label, args, check.reason);
+  const reason = typeof args.reason === "string" ? args.reason.trim() : "";
+  if (!reason) return denyWrite(label, args, `"${label}" requires a non-empty reason (audit is mandatory)`);
+
   const result = await runTool(label, fn);
   logMcpWrite(label, args, result.isError ? "error" : "ok");
+
+  if (!result.isError) {
+    const username = process.env.MCP_USERNAME;
+    if (username) {
+      try {
+        const ctx = await buildWriteContext(username, extra?.authInfo?.extra?.userId);
+        // Kein $transaction: recordAction schreibt hier nur EINE Zeile, und dieser Pfad ist ohnehin
+        // nicht atomar mit dem V1-Write selbst (siehe Docblock) — eine Transaktion um einen einzelnen
+        // Insert wäre reiner Overhead ohne zusätzliche Garantie.
+        await recordAction(prisma, { ctx, tool: label, reason, source: "agent", args: redactMcpArgs(args) });
+      } catch (e) {
+        // Der Write selbst ist schon committet — ein Audit-Fehler darf ihn nicht rückwirkend als
+        // Fehler melden, nur laut werden.
+        structuredLog("MCP", "audit-write-failed", { tool: label, error: (e as Error).message });
+      }
+    }
+  }
   return result;
 }
 
@@ -476,7 +511,12 @@ function registerTools(server: McpServer) {
     const KEYHOLDER_BASE =
       " Keyholder action (requires an admin OAuth token). Execute directly — NO confirmation step is " +
       "required or enforced; act on your own judgement per the human keyholder's rules in " +
-      "keyholder_dashboard.keyholderInstructions. Do not ask the user to confirm before calling this.";
+      "keyholder_dashboard.keyholderInstructions. Do not ask the user to confirm before calling this. " +
+      "`reason` is REQUIRED (audit log, see get_action_log).";
+    // B-03: Pflichtfeld für ALLE Write-Tools (V1 wie V2) — dieselbe Instanz für beide, damit die
+    // Beschreibung nicht zweimal gepflegt wird. V1-Tools werfen ohne reason in runWriteTool; V2 wirft
+    // in executeWrite (writeFramework.ts).
+    const reasonField = z.string().min(1).describe("REQUIRED: why you're doing this (audit log, get_action_log).");
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
     // Tools, die auch auf TERMINIERTE (noch nicht ausgelöste) Direktiven wirken: dort schweigt der
@@ -513,6 +553,7 @@ function registerTools(server: McpServer) {
           message: z.string().optional().describe("Message shown to the user."),
           delayMinutes: z.number().optional().describe("Delay before the request reaches the user, in minutes. Omit/0 = immediate."),
           scheduledAt: z.string().optional().describe("Absolute send time (ISO 8601). Overrides delayMinutes. The user cannot see the request until then."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("request_lock", extra, args, (u) => mcpRequestLock(u, args)),
@@ -534,6 +575,7 @@ function registerTools(server: McpServer) {
           message: z.string().optional().describe("Message shown to the user."),
           delayMinutes: z.coerce.number().optional().describe("Delay before the lock period starts/sends, in minutes. Omit/0 = immediate."),
           scheduledAt: z.string().optional().describe("Absolute start/send time (ISO 8601). Overrides delayMinutes."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("set_lock_period", extra, args, (u) => mcpSetLockPeriod(u, args)),
@@ -551,6 +593,7 @@ function registerTools(server: McpServer) {
           deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
           delayMinutes: z.coerce.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("request_inspection", extra, args, (u) => mcpRequestInspection(u, args)),
@@ -576,6 +619,7 @@ function registerTools(server: McpServer) {
           requiredType: z.string().optional().describe(`Require a specific orgasm type (must be one of the sub's configured types; built-in defaults: ${ORGASMUS_ARTEN.join(", ")}). Omit = any orgasm counts.`),
           openAllowed: z.boolean().optional().describe("Allow opening the device to perform the orgasm during the window (no lock break / penalty)."),
           message: z.string().optional().describe("Message shown to the user."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("request_orgasm", extra, args, (u) => mcpRequestOrgasm(u, args)),
@@ -599,6 +643,7 @@ function registerTools(server: McpServer) {
           validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start now. May be a future date to schedule a goal in advance."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("set_training_goal", extra, args, (u) => mcpSetTrainingGoal(u, args)),
@@ -614,6 +659,7 @@ function registerTools(server: McpServer) {
           "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives)." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("withdraw", extra, args, (u) => mcpWithdraw(u, args)),
@@ -634,6 +680,7 @@ function registerTools(server: McpServer) {
           ref: z.string().describe("The offense ref.id from get_offenses."),
           action: z.enum(["dismiss", "punish", "complete", "reopen"]).describe("dismiss = no penalty; punish = record a penalty; complete = mark penalty done; reopen = undo a prior judgment."),
           text: z.string().optional().describe("Free text: the penalty (required for punish, e.g. \"20 strokes\") or an optional reason (dismiss)."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("judge_offense", extra, args, (u) => mcpJudgeOffense(u, args)),
@@ -670,6 +717,7 @@ function registerTools(server: McpServer) {
           validFrom: z.string().optional().describe("Goal start (ISO 8601). Omit to keep current."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit to keep current."),
           note: z.string().optional().describe("Note shown with the goal. Omit to keep current."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("edit_training_goal", extra, args, (u) => mcpEditTrainingGoal(u, args)),
@@ -682,6 +730,7 @@ function registerTools(server: McpServer) {
         description: "Deletes a training goal by id (get the id from list_training_goals)." + KEYHOLDER_SILENT,
         inputSchema: {
           id: z.string().describe("Goal id from list_training_goals."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("delete_training_goal", extra, args, (u) => mcpDeleteTrainingGoal(u, args)),
@@ -698,6 +747,7 @@ function registerTools(server: McpServer) {
           allowed: z.boolean().optional().describe("Allow cleaning pauses?"),
           maxMinutes: z.number().int().nonnegative().optional().describe("Max minutes per cleaning pause (clamped to 1–120)."),
           maxPerDay: z.number().int().nonnegative().optional().describe("Max pauses per day, 0 = unlimited (clamped to 0–20)."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("set_cleaning", extra, args, (u) => mcpSetCleaning(u, args)),
@@ -717,6 +767,7 @@ function registerTools(server: McpServer) {
           "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
         inputSchema: {
           action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("resolve_inspection", extra, args, (u) => mcpResolveInspection(u, args)),
@@ -739,6 +790,7 @@ function registerTools(server: McpServer) {
           id: z.string().optional().describe(
             "Edit THIS lock period (id from keyholder_dashboard.scheduledDirectives). Omit to edit the triggered one.",
           ),
+          reason: reasonField,
         },
       },
       (args, extra) => runWriteTool("edit_lock_period", extra, args, (u) => mcpEditLockPeriod(u, args)),
@@ -754,7 +806,7 @@ function registerTools(server: McpServer) {
     const CONTEXT_QUALITY_NOTE =
       " Lege sinnvollen, konkreten Kontext an statt trivialer oder lückenhafter Einträge — der Kontext " +
       "dient der Planung von Ankern/Kontrollen.";
-    const reasonField = z.string().min(1).describe("PFLICHT: Begründung der Aktion (Audit-Log).");
+    // reasonField ist oben (B-03, bei KEYHOLDER_BASE) einmal für V1 UND V2 gemeinsam definiert.
     const dryRunField = z.boolean().optional().describe("true = nur Vorschau/Konflikte, NICHT committen.");
     const decisionSourceField = z.enum(["agent", "user-stated"]).optional().describe("Audit-Quelle der Entscheidung: agent (eigener Schluss) | user-stated (vom Nutzer gesagt). Default agent.");
     const entityRefField = z.object({

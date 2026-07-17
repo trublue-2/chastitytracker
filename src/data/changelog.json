@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.58",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP: die 12 direktiven Write-Tools (set_lock_period, request_orgasm, judge_offense, u.a.) verlangen jetzt eine Begründung und erscheinen im Audit-Log (get_action_log) — vorher unsichtbar, sodass eine unklare Sperrzeit niemandem zuzuordnen war. Freitext-Felder werden vor dem dauerhaften Speichern ziffern-redigiert.",
+          "en": "MCP: the 12 directive write tools (set_lock_period, request_orgasm, judge_offense, etc.) now require a reason and appear in the audit log (get_action_log) — previously invisible, so an unexplained lock period couldn't be traced to its origin. Free-text fields are digit-redacted before being stored permanently."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.57",
     "date": "2026-07-17",
     "changes": [
