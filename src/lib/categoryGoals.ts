@@ -45,6 +45,7 @@ export async function buildCategoryWearGoals(
     prisma.trainingVorgabe.findMany({
       where: {
         userId,
+        deletedAt: null, // B-04: ein soft-gelöschtes Ziel zählt nicht mehr in die Adhärenz
         gueltigAb: { lte: now },
         OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }],
         categoryId: { not: null },

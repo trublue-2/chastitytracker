@@ -281,6 +281,7 @@ export async function getActiveVorgabe(userId: string, now: Date) {
   return prisma.trainingVorgabe.findFirst({
     where: {
       userId,
+      deletedAt: null, // B-04: ein soft-gelöschtes Ziel ist nicht mehr "aktiv"
       gueltigAb: { lte: now },
       AND: [
         { OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }] },

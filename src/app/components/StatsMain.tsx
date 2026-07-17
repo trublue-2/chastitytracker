@@ -50,7 +50,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       include: { device: { select: { id: true, categoryId: true } } },
     }),
     prisma.trainingVorgabe.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null }, // B-04: soft-gelöschte Ziele nicht mehr anzeigen
       orderBy: { gueltigAb: "desc" },
       include: { category: { select: { id: true, name: true, color: true, icon: true, isBuiltIn: true } } },
     }),

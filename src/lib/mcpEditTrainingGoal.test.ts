@@ -5,7 +5,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
-    trainingVorgabe: { findUnique: vi.fn() },
   },
 }));
 vi.mock("@/lib/vorgabeService", () => ({
@@ -13,14 +12,15 @@ vi.mock("@/lib/vorgabeService", () => ({
   updateVorgabe: vi.fn(),
   deleteVorgabe: vi.fn(),
   listVorgaben: vi.fn(),
+  findActiveVorgabe: vi.fn(), // loadOwnedVorgabe (mcpWrite.ts) lädt darüber — geteilte Existenz-Definition (B-04)
 }));
 
 import { mcpEditTrainingGoal } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { updateVorgabe } from "@/lib/vorgabeService";
+import { updateVorgabe, findActiveVorgabe } from "@/lib/vorgabeService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
-const vorgabeFind = prisma.trainingVorgabe.findUnique as unknown as ReturnType<typeof vi.fn>;
+const vorgabeFind = findActiveVorgabe as unknown as ReturnType<typeof vi.fn>;
 const updateMock = updateVorgabe as unknown as ReturnType<typeof vi.fn>;
 
 const AB = new Date("2026-06-01T00:00:00Z");

@@ -13,6 +13,19 @@
     ]
   },
   {
+    "version": "4.51.8",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "delete_training_goal löscht Trainingsziele nicht mehr physisch, sondern soft-delete (deletedAt). list_training_goals blendet gelöschte Ziele standardmässig aus und liefert sie mit dem neuen includeDeleted-Parameter inkl. Status 'deleted' — die Ziel-Historie geht damit nicht mehr verloren.",
+          "en": "delete_training_goal no longer hard-deletes training goals — it soft-deletes them (deletedAt). list_training_goals hides deleted goals by default and returns them (status 'deleted') with the new includeDeleted parameter, so goal history is no longer lost."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.7",
     "date": "2026-07-17",
     "changes": [

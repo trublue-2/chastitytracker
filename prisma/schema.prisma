@@ -285,9 +285,16 @@ model TrainingVorgabe {
   minProJahrH      Float?
   notiz            String?
   createdAt        DateTime        @default(now())
+  // Soft-Delete (B-04, MCP-Befundliste 2026-07-17): null = aktiv. Gesetzt = gelöscht, Zeile bleibt
+  // für die Historie erhalten (explain_model §13 verspricht "Supersession statt Delete" als
+  // durchgängiges Prinzip — vorher galt für Trainingsziele das Gegenteil, harter Delete ohne Spur).
+  deletedAt        DateTime?
 
   @@index([userId])
   @@index([categoryId])
+  // Spiegelt Device.@@index([userId, archivedAt]) — dieselbe "aktive Zeilen eines Users" Query-Form,
+  // die listVorgaben/getActiveVorgabe/reorderVorgabenDates etc. jetzt alle über deletedAt filtern.
+  @@index([userId, deletedAt])
 }
 
 model KontrollAnforderung {

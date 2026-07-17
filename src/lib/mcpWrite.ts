@@ -4,7 +4,7 @@ import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung, checkLockEnd } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
-import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget } from "@/lib/vorgabeService";
+import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, MAX_MINUTEN_RANGE, MAX_PRO_TAG_RANGE, maxPausesPerDaySentinel } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
@@ -411,9 +411,11 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
 // ── Training goals: list / edit / delete ────────────────────────────────────
 
 /** Loads a training goal and asserts it belongs to `userId` (scopes id-based tools to the target).
- *  Returns the full row so partial-edit callers can backfill omitted fields without a second load. */
+ *  Returns the full row so partial-edit callers can backfill omitted fields without a second load.
+ *  Existence (incl. soft-delete via `deletedAt`, B-04) is `findActiveVorgabe` — THE shared
+ *  definition with vorgabeService.ts's updateVorgabe/deleteVorgabe, not a parallel copy of it. */
 async function loadOwnedVorgabe(id: string, userId: string) {
-  const v = await prisma.trainingVorgabe.findUnique({ where: { id } });
+  const v = await findActiveVorgabe(id);
   if (!v || v.userId !== userId) throw new Error(`Training goal not found: ${id}`);
   return v;
 }
@@ -436,6 +438,9 @@ function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; guelti
 export interface TrainingGoalRow {
   id: string;
   category: string;
+  /** Zeit-Lebenszyklus (scheduled|active|expired) — ODER "deleted" (B-04), wenn `deletedAt`
+   *  gesetzt ist. "deleted" hat Vorrang: ein soft-gelöschtes Ziel ist keins der drei Zeit-Stadien
+   *  mehr, egal was sein Datumsfenster sagt. */
   status: string;
   validFrom: string;
   validUntil: string | null;
@@ -444,6 +449,9 @@ export interface TrainingGoalRow {
   minPerMonthHours: number | null;
   minPerYearHours: number | null;
   note: string | null;
+  /** null = aktiv. Gesetzt = soft-gelöscht (B-04, MCP-Befundliste 2026-07-17) — die Zeile bleibt für
+   *  die Historie erhalten, `includeDeleted` muss gesetzt sein, um sie hier überhaupt zu sehen. */
+  deletedAt: string | null;
 }
 
 export interface ListTrainingGoalsResult extends Envelope {
@@ -453,6 +461,9 @@ export interface ListTrainingGoalsResult extends Envelope {
 
 export interface ListTrainingGoalsArgs {
   category?: string;
+  /** B-04: auch soft-gelöschte Ziele mitliefern (Default false — die AUTORITATIVE Ziel-Historie,
+   *  die explain_model §13 verspricht, ist erst DAMIT wirklich vollständig einsehbar). */
+  includeDeleted?: boolean;
 }
 export async function mcpListTrainingGoals(username: string, args: ListTrainingGoalsArgs): Promise<ListTrainingGoalsResult> {
   const userId = await resolveTargetUserId(username);
@@ -460,16 +471,16 @@ export async function mcpListTrainingGoals(username: string, args: ListTrainingG
   const timezone = await tzOf(userId);
   const now = new Date();
   const nowMs = now.getTime();
-  const goals: TrainingGoalRow[] = (await listVorgaben(userId))
+  const goals: TrainingGoalRow[] = (await listVorgaben(userId, { includeDeleted: args.includeDeleted }))
     .filter((g) => filterCatId === undefined || g.categoryId === filterCatId)
     .map((g) => {
       const ab = g.gueltigAb.getTime();
       const bis = g.gueltigBis ? g.gueltigBis.getTime() : null;
-      const status = ab > nowMs ? "scheduled" : bis !== null && bis <= nowMs ? "expired" : "active";
+      const dateStatus = ab > nowMs ? "scheduled" : bis !== null && bis <= nowMs ? "expired" : "active";
       return {
         id: g.id,
         category: g.category?.name ?? "KG",
-        status,
+        status: g.deletedAt ? "deleted" : dateStatus,
         validFrom: g.gueltigAb.toISOString(),
         validUntil: g.gueltigBis ? g.gueltigBis.toISOString() : null,
         minPerDayHours: g.minProTagH,
@@ -477,6 +488,7 @@ export async function mcpListTrainingGoals(username: string, args: ListTrainingG
         minPerMonthHours: g.minProMonatH,
         minPerYearHours: g.minProJahrH,
         note: g.notiz,
+        deletedAt: g.deletedAt ? g.deletedAt.toISOString() : null,
       };
     });
   return { ok: true, ...buildEnvelope(now, makeIso(timezone), timezone), goals };
@@ -547,7 +559,7 @@ export async function mcpDeleteTrainingGoal(username: string, args: DeleteTraini
     return dryRunPreview("delete_training_goal", undefined, { id: args.id, category: existing.categoryId }, diffFields(before, deleted));
   }
   unwrap(await deleteVorgabe(args.id));
-  return { ok: true, id: args.id, message: "Training goal deleted." };
+  return { ok: true, id: args.id, message: "Training goal soft-deleted — hidden from list_training_goals unless includeDeleted:true, kept for history." };
 }
 
 // ── Cleaning (Reinigung) settings ───────────────────────────────────────────
