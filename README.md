@@ -191,7 +191,6 @@ USE_ADMIN_RELATIONSHIPS=true       # enable n:m admin-user supervision
 DISABLE_FEEDBACK=true              # hide the in-app feedback button (disables upstream forwarding)
 DISABLE_UPDATE_CENSUS=true         # opt out of the anonymous deployment census (see docs/update-check.md)
 UPSTREAM_CHANGELOG_URL=<url>       # override the changelog source (a self-set value also disables the census)
-# TELEMETRY_URL / TELEMETRY_INSTANCE_ID — DEPRECATED: event telemetry is retired and no longer collected
 ENABLE_DEMO=true                   # optional: allow /api/admin/demo endpoint
 BUILD_DATE=<iso-date>              # optional: shown in footer; set at build time
 ```
@@ -361,7 +360,6 @@ VAPID_SUBJECT=mailto:admin@example.com
 # FEEDBACK_UPSTREAM_URL=<url>       # send in-app feedback to your own inbox instead of the project portal
 # DISABLE_UPDATE_CENSUS=true        # opt out of the anonymous deployment census (see docs/update-check.md)
 # UPSTREAM_CHANGELOG_URL=<url>      # override the changelog source (a self-set value also disables the census)
-# TELEMETRY_URL / TELEMETRY_INSTANCE_ID  — DEPRECATED: event telemetry retired, no longer collected
 ```
 
 ### Local AI Instance (optional)
