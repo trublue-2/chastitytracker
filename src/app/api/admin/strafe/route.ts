@@ -4,6 +4,7 @@ import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { notifyUser } from "@/lib/notify";
 import { strafeVerhaengtNotice, STORED_TYPE, entryIdFromCleaningNotRelockedRef, judgmentStatus, checkPenaltyText } from "@/lib/strafurteilService";
+import { markLastAction } from "@/lib/appMeta";
 
 const VALID_OFFENSE_TYPES = new Set(Object.values(STORED_TYPE));
 
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
     });
     // Konsistent zur MCP (judgeOffense): bei verhängter Strafe den Nutzer benachrichtigen.
     if (status === "PUNISHED") await notifyUser(userId, strafeVerhaengtNotice(reason?.trim() || null));
+    markLastAction();
     return NextResponse.json(record, { status: 201 });
   } catch (e: unknown) {
     if (isUniqueConstraintOn(e, "refId")) {

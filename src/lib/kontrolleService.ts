@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMail, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
-import { trackEvent } from "@/lib/telemetry";
+import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
@@ -30,11 +30,11 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
   if (action === "withdraw") {
     if (ka.withdrawnAt) return serviceFail(400, "INSPECTION_ALREADY_WITHDRAWN");
     await prisma.kontrollAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
-    trackEvent("kontrolle.withdrawn");
+    markLastAction();
   } else if (action === "manuallyVerify" || action === "reject") {
     if (!ka.entryId) return serviceFail(400, "INSPECTION_NO_SUBMISSION");
     await prisma.entry.update({ where: { id: ka.entryId }, data: { verifikationStatus: verifikationStatusFor(action) } });
-    trackEvent(action === "manuallyVerify" ? "kontrolle.verified" : "kontrolle.rejected");
+    markLastAction();
   } else {
     return serviceFail(400, "UNKNOWN_ACTION");
   }

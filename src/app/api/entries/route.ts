@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
-import { trackEvent } from "@/lib/telemetry";
+import { markLastAction } from "@/lib/appMeta";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 import { deriveSealCode } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
@@ -251,11 +251,7 @@ export async function POST(req: NextRequest) {
     } catch { /* ignore if duplicate — e.g. offline replay */ }
   }
 
-  if (type === "PRUEFUNG" && kontrollCode) {
-    trackEvent("kontrolle.fulfilled", { type });
-  } else {
-    trackEvent(`entry.created.${type}` as Parameters<typeof trackEvent>[0]);
-  }
+  markLastAction();
 
   // Beide Fire-and-forget-Blöcke unten (Geräte-Check + KI-Verifikation) brauchen denselben letzten
   // Lock-Entry — einmal laden, teilen (spart einen SQLite-Roundtrip je PRUEFUNG-Foto). getLatestKgEntry
