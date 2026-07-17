@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.9",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Admin/Keyholder mit \"Kein eigener Tracker\" konnten Einträge ihrer Subs nicht mehr bearbeiten — der \"Eintrag anpassen\"-Link (/dashboard/edit) wurde von der Tracker-Sperre pauschal nach /admin umgeleitet, bevor die eigentliche Zugriffsprüfung lief. /dashboard/edit ist jetzt von der Umleitung ausgenommen.",
+          "en": "Admins/keyholders with \"no own tracker\" could no longer edit their subs' entries — the \"edit entry\" link (/dashboard/edit) was blanket-redirected to /admin by the tracker lock before the real access check ran. /dashboard/edit is now excluded from that redirect."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.7",
     "date": "2026-07-17",
     "changes": [

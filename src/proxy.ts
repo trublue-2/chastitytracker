@@ -94,6 +94,10 @@ export default auth(async (req) => {
 
   // "Kein eigener Tracker": der grüne Tracker ist gesperrt und wird nach /admin umgeleitet.
   // /dashboard/settings + /dashboard/changelog bleiben erreichbar (Einstellung zurückschalten, Version).
+  // /dashboard/edit/[id] bleibt erreichbar: Admin/Keyholder erreichen den Edit eines SUB-Eintrags über
+  // /admin/users/[id]/eintraege → EntryActions (editHref=/dashboard/edit/[id]?from=admin&userId=...) —
+  // dort greift entryManageAccess() als eigentliche Ownership-Prüfung; die pauschale Umleitung hier
+  // würde diesen Zugriff blind abfangen, bevor sie überhaupt läuft (Regression, gemeldet 2026-07-17).
   // Frisch aus der DB (nur auf betroffenen /dashboard-Routen abgefragt), damit ein Umschalten sofort greift.
   if (
     isLoggedIn &&
@@ -103,7 +107,8 @@ export default auth(async (req) => {
     (role === "admin" || user.controlsSubs === true) &&
     pathname.startsWith("/dashboard") &&
     !pathname.startsWith("/dashboard/settings") &&
-    !pathname.startsWith("/dashboard/changelog")
+    !pathname.startsWith("/dashboard/changelog") &&
+    !pathname.startsWith("/dashboard/edit")
   ) {
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
