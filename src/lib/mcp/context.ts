@@ -124,6 +124,11 @@ export interface SetHealthHoldArgs {
   healthReason?: string;
 }
 
+/** Nachher-Zustand eines HealthHold-Writes ({active, reason}) — geteilt von preview + apply für
+ *  denselben Diff (N-15). */
+const healthHoldAfter = (args: SetHealthHoldArgs): { active: boolean; reason: string | null } =>
+  args.active ? { active: true, reason: args.healthReason ?? null } : { active: false, reason: null };
+
 export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null> = {
   tool: "set_health_hold",
   validate(args) {
@@ -132,19 +137,26 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
   },
   async preview(ctx, args) {
     const current = await loadActiveHealthHold(ctx.targetUserId, makeIso(await tzOf(ctx.targetUserId)));
-    return { preview: { current, willBe: args.active ? { active: true, reason: args.healthReason } : { active: false } } };
+    const before = { active: current != null, reason: current?.reason ?? null };
+    const after = healthHoldAfter(args);
+    return { preview: { current, willBe: after }, before, after };
   },
   async apply(tx, ctx, args) {
     // "Höchstens ein aktiver Hold pro User" — Invariante NUR hier im Code erzwungen (kein Partial-
     // Unique-Constraint im Schema). Da jede Mutation durch dieses def + die Framework-Transaktion
     // läuft, ist das resolve-all-then-create-one atomar und ausreichend.
+    // Vorher-Zustand VOR dem Deaktivieren lesen — für denselben Diff wie die Vorschau (N-15).
+    const activeBefore = await tx.healthHold.findFirst({ where: { userId: ctx.targetUserId, active: true }, select: { reason: true } });
+    const before = { active: activeBefore != null, reason: activeBefore?.reason ?? null };
+    const after = healthHoldAfter(args);
+    const diff = diffFields(before, after);
     await tx.healthHold.updateMany({ where: { userId: ctx.targetUserId, active: true }, data: { active: false, resolvedAt: new Date() } });
     if (!args.active) {
-      return { newState: null, diff: { active: [true, false] } };
+      return { newState: null, diff };
     }
     const created = await tx.healthHold.create({ data: { userId: ctx.targetUserId, active: true, reason: args.healthReason! } });
     const iso = makeIso(await tzOf(ctx.targetUserId, tx));
-    return { newState: { id: created.id, active: true, reason: created.reason, since: iso(created.createdAt)! }, resultRef: created.id, diff: { active: [false, true] } };
+    return { newState: { id: created.id, active: true, reason: created.reason, since: iso(created.createdAt)! }, resultRef: created.id, diff };
   },
 };
 
@@ -163,6 +175,15 @@ export interface UpsertAppointmentArgs {
 const apptView = (a: { id: string; when: Date; typ: string | null; deviceFree: boolean; note: string | null; version: number }, isoFn: Iso) =>
   ({ id: a.id, when: isoFn(a.when)!, typ: a.typ, deviceFree: a.deviceFree, note: a.note, version: a.version });
 
+/** Feld-Merge eines Termin-Edits — geteilt von preview (after) und apply (DB-Update), damit die
+ *  Vorschau strukturell denselben Diff zeigt wie der Commit (N-15). */
+const apptData = (args: UpsertAppointmentArgs, when: Date | undefined) => ({
+  ...(when !== undefined ? { when } : {}),
+  ...(args.typ !== undefined ? { typ: args.typ } : {}),
+  ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
+  ...(args.note !== undefined ? { note: args.note } : {}),
+});
+
 export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<typeof apptView>> = {
   tool: "upsert_appointment",
   validate(args) {
@@ -179,7 +200,10 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
       if (!existing) throw new Error(`Appointment not found: ${args.id}`);
       // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
       occEdit(args.expectedVersion, existing.version, `appointment ${args.id}`);
-      return { preview: { action: "edit", before: apptView(existing, makeIso(tz)) } };
+      const iso = makeIso(tz);
+      const before = apptView(existing, iso);
+      const after = apptView({ ...existing, ...apptData(args, parseIsoDate(args.when, "when")) }, iso);
+      return { preview: { action: "edit", before }, before, after };
     }
     return { preview: { action: "create", when: args.when } };
   },
@@ -190,12 +214,7 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
       const existing = await tx.appointment.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
       if (!existing) throw new Error(`Appointment not found: ${args.id}`);
       const bump = occEdit(args.expectedVersion, existing.version, `appointment ${args.id}`);
-      const data = {
-        ...(when !== undefined ? { when } : {}),
-        ...(args.typ !== undefined ? { typ: args.typ } : {}),
-        ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
-        ...(args.note !== undefined ? { note: args.note } : {}),
-      };
+      const data = apptData(args, when);
       // No-op-Edit: nicht schreiben, Version nicht bumpen (würde fremde expectedVersion invalidieren).
       const updated = Object.keys(data).length
         ? await tx.appointment.update({ where: { id: args.id }, data: { ...bump, ...data } })
@@ -228,6 +247,15 @@ export interface UpsertRecurringContextArgs {
 const recurringView = (r: { id: string; label: string; weekday: number; ordinal: number | null; deviceFree: boolean; note: string | null; version: number }) =>
   ({ id: r.id, label: r.label, weekday: r.weekday, weekdayLabel: WEEKDAYS[r.weekday] ?? "?", ordinal: r.ordinal, ordinalLabel: ordinalLabel(r.ordinal), deviceFree: r.deviceFree, note: r.note, version: r.version });
 
+/** Feld-Merge eines Recurring-Context-Edits — geteilt von preview + apply (N-15). */
+const recurringData = (args: UpsertRecurringContextArgs) => ({
+  ...(args.label != null ? { label: args.label } : {}),
+  ...(args.weekday != null ? { weekday: args.weekday } : {}),
+  ...(args.ordinal !== undefined ? { ordinal: args.ordinal } : {}),
+  ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
+  ...(args.note !== undefined ? { note: args.note } : {}),
+});
+
 export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, ReturnType<typeof recurringView>> = {
   tool: "upsert_recurring_context",
   validate(args) {
@@ -245,7 +273,9 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
       if (!existing) throw new Error(`RecurringContext not found: ${args.id}`);
       // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
       occEdit(args.expectedVersion, existing.version, `recurringContext ${args.id}`);
-      return { preview: { action: "edit", before: recurringView(existing) } };
+      const before = recurringView(existing);
+      const after = recurringView({ ...existing, ...recurringData(args) });
+      return { preview: { action: "edit", before }, before, after };
     }
     return { preview: { action: "create", label: args.label, weekday: args.weekday } };
   },
@@ -254,13 +284,7 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
       const existing = await tx.recurringContext.findFirst({ where: { id: args.id, userId: ctx.targetUserId } });
       if (!existing) throw new Error(`RecurringContext not found: ${args.id}`);
       const bump = occEdit(args.expectedVersion, existing.version, `recurringContext ${args.id}`);
-      const data = {
-        ...(args.label != null ? { label: args.label } : {}),
-        ...(args.weekday != null ? { weekday: args.weekday } : {}),
-        ...(args.ordinal !== undefined ? { ordinal: args.ordinal } : {}),
-        ...(args.deviceFree !== undefined ? { deviceFree: args.deviceFree } : {}),
-        ...(args.note !== undefined ? { note: args.note } : {}),
-      };
+      const data = recurringData(args);
       // No-op-Edit: nicht schreiben, Version nicht bumpen (würde fremde expectedVersion invalidieren).
       const updated = Object.keys(data).length
         ? await tx.recurringContext.update({ where: { id: args.id }, data: { ...bump, ...data } })

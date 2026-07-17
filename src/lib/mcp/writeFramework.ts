@@ -58,6 +58,10 @@ export interface WriteResult<T> {
  */
 export interface PreviewResult {
   preview: unknown;
+  /** `before`/`after` sind die skalaren Projektions-Schnappschüsse (Basis für `diffFields`), in
+   *  DERSELBEN Form zueinander — NICHT zwingend die Form des committeten `newState` (das ein reicheres
+   *  DTO ist). `after` bildet den Vor-Commit-Stand ab: eine OCC-`version` darin ist noch die Basis-
+   *  Version, nicht die nach dem Commit inkrementierte. Der `diff` (version-frei) ist massgeblich. */
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
   problem?: string;

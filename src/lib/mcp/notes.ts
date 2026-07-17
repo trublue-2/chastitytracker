@@ -161,6 +161,23 @@ const noteScalarSnapshot = (n: {
   validFrom: n.validFrom, validUntil: n.validUntil, doDont: n.doDont,
 });
 
+/** Feld-Merge eines Note-Edits (Pflichtfelder non-null nur bei Wert, optionale via !== undefined,
+ *  damit sie bewusst auf null geleert werden können). Geteilt von preview (after) und apply (DB-
+ *  Update), damit die Vorschau denselben Diff zeigt wie der Commit (N-15). */
+const noteEditData = (args: UpsertNoteArgs, validFrom: Date | undefined, validUntil: Date | undefined) => ({
+  ...(args.type != null ? { type: args.type } : {}),
+  ...(args.text != null ? { text: args.text } : {}),
+  ...(args.kg !== undefined ? { kg: args.kg } : {}),
+  ...(args.kategorie !== undefined ? { kategorie: args.kategorie } : {}),
+  ...(args.pinned != null ? { pinned: args.pinned } : {}),
+  ...(args.source != null ? { source: args.source } : {}),
+  ...(args.confidence !== undefined ? { confidence: args.confidence } : {}),
+  ...(args.status != null ? { status: args.status } : {}),
+  ...(validFrom !== undefined ? { validFrom } : {}),
+  ...(validUntil !== undefined ? { validUntil } : {}),
+  ...(args.doDont !== undefined ? { doDont: doDontJson(args.doDont) ?? null } : {}),
+});
+
 export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
   tool: "upsert_note",
   validate: validateUpsert,
@@ -176,7 +193,9 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
       // Preview-Treue: den kg→Device-Ref zeigen, den der Commit anlegen würde.
       const kgRef = await kgDeviceRef(prisma, ctx.targetUserId, args.kg);
       const willAddRef = kgRef && missingRef(existing.refs, kgRef) ? kgRef : null;
-      return { preview: { action: "edit", before: toNoteDTO(existing, makeIso(tz)), willAddRef } };
+      const before = noteScalarSnapshot(existing);
+      const after = noteScalarSnapshot({ ...existing, ...noteEditData(args, parseIsoDate(args.validFrom, "validFrom"), parseIsoDate(args.validUntil, "validUntil")) });
+      return { preview: { action: "edit", before: toNoteDTO(existing, makeIso(tz)), willAddRef }, before, after };
     }
     // Dangling-Refs schon im dryRun abweisen (Konflikte VOR dem Commit); kg→Device-Ref mitzeigen.
     await assertRefsExist(prisma, ctx.targetUserId, args.refs ?? []);
@@ -208,21 +227,7 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
       if (kgRef && missingRef(existing.refs, kgRef)) {
         await tx.noteRef.create({ data: { noteId: args.id, entityType: kgRef.entityType, entityId: kgRef.entityId } });
       }
-      // Pflichtfelder (non-null) nur bei gesetztem Wert ändern; optionale Felder mit
-      // !== undefined, damit sie bewusst auf null geleert werden können.
-      const data = {
-        ...(args.type != null ? { type: args.type } : {}),
-        ...(args.text != null ? { text: args.text } : {}),
-        ...(args.kg !== undefined ? { kg: args.kg } : {}),
-        ...(args.kategorie !== undefined ? { kategorie: args.kategorie } : {}),
-        ...(args.pinned != null ? { pinned: args.pinned } : {}),
-        ...(args.source != null ? { source: args.source } : {}),
-        ...(args.confidence !== undefined ? { confidence: args.confidence } : {}),
-        ...(args.status != null ? { status: args.status } : {}),
-        ...(validFrom !== undefined ? { validFrom } : {}),
-        ...(validUntil !== undefined ? { validUntil } : {}),
-        ...(args.doDont !== undefined ? { doDont: doDontJson(args.doDont) ?? null } : {}),
-      };
+      const data = noteEditData(args, validFrom, validUntil);
       // No-op-Edit (keine Felder angegeben): nicht schreiben und v.a. die Version NICHT bumpen —
       // ein Bump würde die expectedVersion aller anderen Leser grundlos invalidieren.
       const updated = Object.keys(data).length

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.16",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP: der dryRun aller V2-Write-Tools (upsert_note, upsert_appointment, upsert_recurring_context, set_health_hold, link_note) liefert jetzt — wie set_device_meta und die V1-Tools — eine echte Vorschau mit wouldSucceed, diff [alt,neu] und projiziertem after-Zustand statt nur des Vorher-Werts (N-15, Phase 2/3). Die Merge-Logik ist zwischen Vorschau und Commit geteilt, der dryRun-Diff ist also identisch mit dem echten. Nebenbei: set_health_hold zeigt beim Deaktivieren ohne aktiven Hold korrekt einen leeren Diff.",
+          "en": "MCP: the dryRun of all V2 write tools (upsert_note, upsert_appointment, upsert_recurring_context, set_health_hold, link_note) now returns — like set_device_meta and the V1 tools — a real preview with wouldSucceed, diff [old,new] and a projected after-state instead of just the before value (N-15, phase 2/3). The merge logic is shared between preview and commit, so the dryRun diff is identical to the real one. Also: set_health_hold shows a correct empty diff when deactivating with no active hold."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.15",
     "date": "2026-07-17",
     "changes": [

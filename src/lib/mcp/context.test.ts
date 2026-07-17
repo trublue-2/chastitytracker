@@ -1,5 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/prisma", async () => {
+  const { createPrismaMock } = await import("@/test/prismaMock");
+  return { prisma: createPrismaMock() };
+});
+
 import { setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "./context";
+import { executeWrite } from "./writeFramework";
+import { prisma } from "@/lib/prisma";
+import { type PrismaMock } from "@/test/prismaMock";
+
+const db = prisma as unknown as PrismaMock;
 
 // windowsBinding/windowsBindingReason/openingAllowedNow (A-02) sind bei `cleaningWindowBindingStatus`
 // in src/lib/queries.ts getestet — colocated mit `cleaningBlockReason`, dessen Einordnung sie ist.
@@ -64,5 +75,39 @@ describe("expectedVersion requires id (OCC wiring)", () => {
 
   it("upsert_recurring_context rejects expectedVersion without id", () => {
     expect(() => upsertRecurringContextDef.validate!({ label: "HO", weekday: 1, expectedVersion: 1 })).toThrow(/expectedVersion.*id/i);
+  });
+});
+
+// N-15 (MCP-Restliste 2026-07-17): der V2-dryRun liefert jetzt diff/after/wouldSucceed wie V1.
+describe("upsert_appointment / set_health_hold dryRun — N-15 diff/after", () => {
+  const ctx = { targetUserId: "u1", targetUsername: "sub" };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({ id: "u1", timezone: "Europe/Zurich" });
+  });
+
+  it("upsert_appointment Edit → diff [alt,neu] + after, ohne Commit", async () => {
+    db.appointment.findFirst.mockResolvedValue({ id: "a1", when: new Date("2026-08-01T10:00:00Z"), typ: null, deviceFree: false, note: null, version: 1 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await executeWrite(upsertAppointmentDef, ctx, { id: "a1", deviceFree: true } as never, { reason: "t", dryRun: true }) as any;
+    expect(res.wouldSucceed).toBe(true);
+    expect(res.diff).toEqual({ deviceFree: [false, true] });
+    expect(res.after.deviceFree).toBe(true);
+    expect(db.appointment.update).not.toHaveBeenCalled();
+  });
+
+  it("set_health_hold aktivieren → diff active [false,true] + reason", async () => {
+    db.healthHold.findFirst.mockResolvedValue(null); // kein aktiver Hold
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await executeWrite(setHealthHoldDef, ctx, { active: true, healthReason: "krank" } as never, { reason: "t", dryRun: true }) as any;
+    expect(res.wouldSucceed).toBe(true);
+    expect(res.diff).toEqual({ active: [false, true], reason: [null, "krank"] });
+  });
+
+  it("set_health_hold deaktivieren OHNE aktiven Hold → leerer diff (No-op, nicht [true,false])", async () => {
+    db.healthHold.findFirst.mockResolvedValue(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await executeWrite(setHealthHoldDef, ctx, { active: false } as never, { reason: "t", dryRun: true }) as any;
+    expect(res.diff).toEqual({});
   });
 });
