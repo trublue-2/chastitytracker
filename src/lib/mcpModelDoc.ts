@@ -221,6 +221,12 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   (Projektgeschichte, kein Gerät).
 - **\`get_offenses\`** — vereinheitlichtes Disziplin-Ledger (alle Vergehen als eine Liste mit
   status/judgment/consequence). Geurteilt wird über \`judge_offense\`.
+- **\`list_training_goals\`** — Supersession statt Delete (B-04, MCP-Befundliste 2026-07-17):
+  \`delete_training_goal\` löscht NICHT physisch, sondern setzt \`deletedAt\` — die Zeile bleibt für die
+  Historie erhalten. Standardmässig ausgeblendet (\`status\` nie \`"deleted"\`); erst
+  \`includeDeleted:true\` macht \`list_training_goals\` wirklich zur AUTORITATIVEN Ziel-Historie inkl.
+  gelöschter Ziele (\`status:"deleted"\`, \`deletedAt\` gesetzt — hat Vorrang vor dem datumsbasierten
+  Status).
 - **Notes v2 (\`query_notes\` / \`upsert_note\` / \`link_note\`)** — strukturiert + versioniert:
   \`type\` (DIRECTIVE|BOUNDARY|OBSERVATION|CORRECTION|EQUIPMENT|DATA|HISTORY), \`status\`,
   \`pinned\`, \`source\`/\`confidence\` (Nutzer-Fakt vs eigener Schluss), \`doDont\` (für BOUNDARY),

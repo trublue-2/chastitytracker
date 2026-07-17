@@ -95,6 +95,11 @@ function assertEnum(value: string | undefined, allowed: readonly string[], field
  *  Kontroll- oder Direktiven-id) — dafür gibt es keine eine Tabelle zum Prüfen. */
 const entryExists = async (tx: TxClient, userId: string, id: string) => !!(await tx.entry.findFirst({ where: { id, userId }, select: { id: true } }));
 const REF_EXISTS: Partial<Record<EntityType, (tx: TxClient, userId: string, id: string) => Promise<boolean>>> = {
+  // `device` prüft bewusst NICHT archivedAt: ein archiviertes Gerät bleibt ein gültiges Ref-Ziel
+  // (Notizen zu einem Gerät sollen die Historie überleben, nicht mit dem Archivieren unauffindbar
+  // werden). `goal` spiegelt dieselbe Regel für soft-gelöschte Trainingsziele (B-04, MCP-Befundliste
+  // 2026-07-17, bewusst KEIN deletedAt-Filter) — anders als jede Existenzprüfung, die ein Ziel aktiv
+  // BEARBEITEN will (findActiveVorgabe), darf ein reiner Historien-Ref auf ein gelöschtes Ziel zeigen.
   device: async (tx, userId, id) => !!(await tx.device.findFirst({ where: { id, userId }, select: { id: true } })),
   session: entryExists,
   segment: entryExists,

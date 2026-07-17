@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
-import { updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
+import { updateVorgabe, deleteVorgabe, findActiveVorgabe } from "@/lib/vorgabeService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function PATCH(
@@ -9,7 +8,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+  const existing = await findActiveVorgabe(id);
   if (!existing) return errorResponse(404, "NOT_FOUND");
 
   const err = await requireKeyholderOrAdminApi(existing.userId);
@@ -25,7 +24,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const existing = await prisma.trainingVorgabe.findUnique({ where: { id }, select: { userId: true } });
+  const existing = await findActiveVorgabe(id);
   if (!existing) return errorResponse(404, "NOT_FOUND");
 
   const err = await requireKeyholderOrAdminApi(existing.userId);

@@ -23,8 +23,10 @@ export function isKgVorgabe(v: {
  * gesetzt) werden NIE überschrieben — weder verkettet noch auf offen gesetzt.
  */
 export async function reorderVorgabenDates(userId: string) {
+  // deletedAt:null (B-04): eine soft-gelöschte Vorgabe nimmt an der Datums-Verkettung nicht mehr
+  // teil — sonst würde ihr gueltigBis weiter mitgeschrieben, obwohl sie aus jeder Sicht raus ist.
   const all = await prisma.trainingVorgabe.findMany({
-    where: { userId },
+    where: { userId, deletedAt: null },
     orderBy: { gueltigAb: "asc" },
   });
 

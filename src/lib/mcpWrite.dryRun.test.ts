@@ -16,7 +16,7 @@ vi.mock("@/lib/prisma", () => ({
     orgasmusAnforderung: { count: vi.fn() },
     verschlussAnforderung: { count: vi.fn(), findMany: vi.fn() },
     kontrollAnforderung: { count: vi.fn(), findFirst: vi.fn() },
-    trainingVorgabe: { findUnique: vi.fn() },
+    trainingVorgabe: { findFirst: vi.fn() },
     strafeRecord: { findUnique: vi.fn() },
     // getIsLocked/hasActiveKontrolle (advisory dryRun-Checks) lesen darüber.
     entry: { findFirst: vi.fn() },
@@ -69,7 +69,7 @@ import { judgeOffense, collectDetectedOffenses } from "@/lib/strafurteilService"
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const userFindUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
-const trainingVorgabeMock = prisma.trainingVorgabe.findUnique as unknown as ReturnType<typeof vi.fn>;
+const trainingVorgabeMock = prisma.trainingVorgabe.findFirst as unknown as ReturnType<typeof vi.fn>;
 const kontrollFindFirstMock = prisma.kontrollAnforderung.findFirst as unknown as ReturnType<typeof vi.fn>;
 const sperrzeitFindManyMock = prisma.verschlussAnforderung.findMany as unknown as ReturnType<typeof vi.fn>;
 const entryFindFirstMock = prisma.entry.findFirst as unknown as ReturnType<typeof vi.fn>;
@@ -234,6 +234,13 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
     trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null });
     const r = await mcpDeleteTrainingGoal("sub", { dryRun: true, id: "g1" }) as { dryRun: boolean };
     expect(r.dryRun).toBe(true);
+    expect(deleteVorgabe).not.toHaveBeenCalled();
+  });
+
+  it("delete_training_goal: sucht per findFirst mit deletedAt:null (B-04) — ein gelöschtes Ziel gilt als nicht gefunden", async () => {
+    trainingVorgabeMock.mockResolvedValue(null); // findFirst mit deletedAt:null findet ein gelöschtes Ziel nicht mehr
+    await expect(mcpDeleteTrainingGoal("sub", { dryRun: true, id: "g1" })).rejects.toThrow(/not found/);
+    expect(trainingVorgabeMock).toHaveBeenCalledWith({ where: { id: "g1", deletedAt: null } });
     expect(deleteVorgabe).not.toHaveBeenCalled();
   });
 
