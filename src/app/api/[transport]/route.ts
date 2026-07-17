@@ -393,7 +393,10 @@ function registerTools(server: McpServer) {
           "MCP V2 — Kontext um das echte Leben (explain_model §13): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
           "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDayMin/perDayMax/Schlaf-Fenster/" +
           "Fristen — read-only, nicht via MCP änderbar), die Reinigungs-Regeln (cleaning: allowed/" +
-          "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow), der wiederkehrende " +
+          "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow/windowsBinding/" +
+          "windowsBindingReason/openingAllowedNow — windows binden NUR während einer aktiven Sperrzeit, " +
+          "die Reinigen erlaubt; openingAllowedNow beantwortet direkt, ob JETZT eine Reinigungsöffnung " +
+          "erlaubt ist, statt windows/windowOpenNow selbst zu verrechnen), der wiederkehrende " +
           "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree; ordinal/ordinalLabel " +
           "grenzt monatliche Slots ein — z.B. 'erster Mittwoch im Monat') und anstehende Termine " +
           "(ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen.",

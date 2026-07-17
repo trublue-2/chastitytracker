@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "./context";
 
+// windowsBinding/windowsBindingReason/openingAllowedNow (A-02) sind bei `cleaningWindowBindingStatus`
+// in src/lib/queries.ts getestet — colocated mit `cleaningBlockReason`, dessen Einordnung sie ist.
+
 // Regression: runV2Write (route.ts) destructures `reason` out of the raw tool args as the
 // mandatory AUDIT field before the domain-specific args ever reach validate()/apply(). The
 // set_health_hold domain field was originally ALSO named `reason` — same name, different meaning —

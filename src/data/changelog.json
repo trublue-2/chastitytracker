@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.57",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "MCP: get_context.cleaning bekommt windowsBinding/windowsBindingReason/openingAllowedNow — Reinigungsfenster binden nur während einer aktiven, reinigungserlaubenden Sperrzeit, nicht generell. Vorher liess windowOpenNow:null fälschlich auf eine Zeitbindung schliessen, obwohl ausserhalb einer Sperrzeit jederzeit geöffnet werden darf (dreifach dokumentierter Fehlerfall).",
+          "en": "MCP: get_context.cleaning gains windowsBinding/windowsBindingReason/openingAllowedNow — cleaning windows only bind during an active, cleaning-permitting lock period, not generally. Previously windowOpenNow:null was misread as a time restriction even though opening is always allowed outside an active lock period (a documented recurring misread)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.56",
     "date": "2026-07-17",
     "changes": [

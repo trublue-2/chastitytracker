@@ -3,6 +3,7 @@ import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, type Envelope,
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
+import { getActiveSperrzeit, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
@@ -29,6 +30,16 @@ export async function loadActiveHealthHold(userId: string, isoFn: Iso = iso): Pr
   return h ? { id: h.id, active: true, reason: h.reason, since: isoFn(h.createdAt)! } : null;
 }
 
+/** MCP-Erweiterung der geteilten `ReinigungView` (auch von `src/app/dashboard/page.tsx` genutzt) um
+ *  die drei A-02-Felder. Bewusst NICHT Teil von `ReinigungView` selbst: die binden nur im
+ *  Sperrzeit-Kontext, den nur der MCP-Layer hier ohnehin schon lädt — dieselbe Erweiterungs-Technik
+ *  wie `BoxReinigungView` in `src/lib/boxStatus.ts`. */
+export type ContextReinigungView = ReinigungView & {
+  windowsBinding: boolean;
+  windowsBindingReason: WindowsBindingReason;
+  openingAllowedNow: boolean;
+};
+
 export interface ContextResult extends Envelope {
   schemaVersion: 2;
   user: string;
@@ -40,8 +51,9 @@ export interface ContextResult extends Envelope {
    *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. triggerWindowFrom/Until
    *  = optionales festes Auslöse-Fenster ("" = aus; dann verteilen sich die Auslösungen übers Wach-Fenster). */
   autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number; triggerWindowFrom: string; triggerWindowUntil: string };
-  /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung). */
-  cleaning: ReinigungView;
+  /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
+   *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
+  cleaning: ContextReinigungView;
   recurringContext: ReturnType<typeof recurringView>[];
   appointments: ReturnType<typeof apptView>[];
 }
@@ -64,15 +76,21 @@ export async function getContext(username: string): Promise<ContextResult> {
   const userId = user.id;
   const iso = makeIso(user.timezone ?? APP_TZ);
 
-  const [healthHold, recurring, appts, cleaningUsedToday] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedToday, sperre] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: { gte: now } }, orderBy: { when: "asc" } }),
     reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
+    getActiveSperrzeit(userId),
   ]);
 
   // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
   const auto = autoKontrolleSettingsFromUser(user);
+  const binding = cleaningWindowBindingStatus(
+    { reinigungErlaubt: user.reinigungErlaubt ?? false, reinigungsFenster: user.reinigungsFenster, timezone: user.timezone ?? APP_TZ },
+    sperre,
+    now,
+  );
 
   return {
     schemaVersion: 2,
@@ -90,7 +108,7 @@ export async function getContext(username: string): Promise<ContextResult> {
       triggerWindowFrom: auto.fensterVon,
       triggerWindowUntil: auto.fensterBis,
     },
-    cleaning: buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ),
+    cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => apptView(a, iso)),
   };

@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, foldActiveSperrzeiten, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE } from "./queries";
+import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveSperrzeiten, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE } from "./queries";
 import type { PrismaTx } from "./queries";
 
 const TZ = "Europe/Zurich";
@@ -111,6 +111,64 @@ describe("cleaningBlockReason", () => {
   it("ohne aktive Sperrzeit entscheiden nur User-Flag und Fenster", () => {
     expect(cleaningBlockReason(user(), [], IM_FENSTER)).toBeNull();
     expect(cleaningBlockReason(user(), [], NACHTS)).toBe("outsideWindow");
+  });
+});
+
+// Regression: A-02 aus der MCP-Befundliste vom 17.07.2026. `windowOpenNow: null` las sich als
+// "jetzt nicht erlaubt" — tatsächlich binden Fenster NUR während einer aktiven Sperrzeit, die
+// Reinigen erlaubt. Dreimal dokumentiert als tatsächlich passierter Fehler (drei Reinigungsöffnungen
+// ausserhalb aller Fenster, alle rechtmässig, weil keine Sperrzeit aktiv war).
+describe("cleaningWindowBindingStatus (A-02)", () => {
+  it("keine aktive Sperrzeit → Fenster binden nicht, Öffnung immer erlaubt (der dreifach dokumentierte Fehlerfall)", () => {
+    expect(cleaningWindowBindingStatus(user(), null, NACHTS)).toEqual({
+      windowsBinding: false,
+      windowsBindingReason: "no-active-lock-period",
+      openingAllowedNow: true,
+    });
+  });
+
+  it("aktive Sperrzeit erlaubt Reinigen, aber ausserhalb des Fensters → Fenster binden, Öffnung nicht erlaubt", () => {
+    expect(cleaningWindowBindingStatus(user(), { reinigungErlaubt: true }, NACHTS)).toEqual({
+      windowsBinding: true,
+      windowsBindingReason: null,
+      openingAllowedNow: false,
+    });
+  });
+
+  it("aktive Sperrzeit verbietet Reinigen → Fenster binden nicht (Grund liegt vorher), Öffnung nicht erlaubt", () => {
+    expect(cleaningWindowBindingStatus(user(), { reinigungErlaubt: false }, NACHTS)).toEqual({
+      windowsBinding: false,
+      windowsBindingReason: "lock-period-forbids",
+      openingAllowedNow: false,
+    });
+  });
+
+  it("User darf grundsätzlich nicht reinigen → Fenster binden nicht, Öffnung nicht erlaubt", () => {
+    expect(cleaningWindowBindingStatus(user({ reinigungErlaubt: false }), { reinigungErlaubt: true }, NACHTS)).toEqual({
+      windowsBinding: false,
+      windowsBindingReason: "user-not-allowed",
+      openingAllowedNow: false,
+    });
+  });
+
+  it("aktive Sperrzeit + innerhalb des Fensters → Fenster binden, Öffnung erlaubt", () => {
+    expect(cleaningWindowBindingStatus(user(), { reinigungErlaubt: true }, IM_FENSTER)).toEqual({
+      windowsBinding: true,
+      windowsBindingReason: null,
+      openingAllowedNow: true,
+    });
+  });
+
+  // Regression (code-review Phase 2): cleaningBlockReason liefert null sowohl "im konfigurierten
+  // Fenster" als auch "gar keine Fenster konfiguriert" (cleaningWindowOpen liest beides als "offen").
+  // windowsBinding muss die beiden Fälle unterscheiden — ohne konfigurierte Fenster gibt es nichts,
+  // das binden könnte, auch bei einer aktiven, erlaubten Sperrzeit.
+  it("aktive Sperrzeit erlaubt Reinigen, aber KEINE Fenster konfiguriert → Fenster binden nicht", () => {
+    expect(cleaningWindowBindingStatus(user({ reinigungsFenster: [] }), { reinigungErlaubt: true }, NACHTS)).toEqual({
+      windowsBinding: false,
+      windowsBindingReason: "no-windows-configured",
+      openingAllowedNow: true,
+    });
   });
 });
 

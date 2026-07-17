@@ -602,6 +602,49 @@ export function cleaningBlockReason(
   return null;
 }
 
+/** Warum die Reinigungs-Zeitfenster (`windows`) GERADE NICHT einschränken (A-02 aus der MCP-
+ *  Befundliste 2026-07-17): sie binden nur während einer aktiven Sperrzeit, die sowohl der User
+ *  als auch die Sperrzeit selbst erlaubt, UND nur wenn überhaupt Fenster konfiguriert sind (eine
+ *  leere Liste ist nicht zeitgebunden — nichts, das binden könnte, siehe {@link cleaningWindowOpen}).
+ *  Außerhalb dieses Kontexts ist eine Reinigungsöffnung immer erlaubt, egal was `windows` sagt.
+ *  `null` = die Fenster binden gerade (der übliche, nicht erklärungsbedürftige Fall). */
+export type WindowsBindingReason = "no-active-lock-period" | "user-not-allowed" | "lock-period-forbids" | "no-windows-configured" | null;
+
+/**
+ * Bindet `windows` gerade tatsächlich, und darf JETZT eine Reinigungsöffnung stattfinden?
+ *
+ * Für get_context (A-02): sortiert das Ergebnis von {@link cleaningBlockReason} nur in die Antwort
+ * ein, die tatsächlich gestellt wird — beurteilt nichts neu. `cleaningBlockReason` selbst prüft das
+ * Fenster nur, wenn eine aktive Sperrzeit übergeben wird; die vorgelagerte "keine aktive Sperrzeit"-
+ * Frage kennt es nicht (dieselbe Lücke, die {@link isOpeningPermittedNow} und
+ * {@link releaseSperrzeitenOnOpen} mit einem eigenen `if (!sperre)`/`if (activeSperrzeiten.length
+ * === 0)`-Guard vor jedem Aufruf schließen) — hier also genauso, statt sie ein drittes Mal woanders
+ * zu wiederholen. Ebenso unterscheidet `cleaningBlockReason`s `null`-Rückgabe NICHT zwischen "im
+ * konfigurierten Fenster" und "gar keine Fenster konfiguriert" (beides macht `cleaningWindowOpen`
+ * zu `true`) — für `windowsBinding` ist das aber ein Unterschied: ohne konfigurierte Fenster gibt es
+ * nichts, das binden könnte, das wird hier zusätzlich unterschieden.
+ */
+export function cleaningWindowBindingStatus(
+  user: CleaningPermissionUser,
+  sperre: { reinigungErlaubt: boolean } | null,
+  at: Date,
+): { windowsBinding: boolean; windowsBindingReason: WindowsBindingReason; openingAllowedNow: boolean } {
+  if (!sperre) {
+    return { windowsBinding: false, windowsBindingReason: "no-active-lock-period", openingAllowedNow: true };
+  }
+  const reason = cleaningBlockReason(user, [sperre], at);
+  if (reason === "userNotAllowed") return { windowsBinding: false, windowsBindingReason: "user-not-allowed", openingAllowedNow: false };
+  if (reason === "lockPeriodForbids") return { windowsBinding: false, windowsBindingReason: "lock-period-forbids", openingAllowedNow: false };
+  if (parseReinigungsFenster(user.reinigungsFenster).length === 0) {
+    // Keine Fenster konfiguriert: cleaningWindowOpen liest das als "immer offen" — korrekt für
+    // openingAllowedNow, aber windows binden hier nichts, unabhängig vom Ergebnis.
+    return { windowsBinding: false, windowsBindingReason: "no-windows-configured", openingAllowedNow: true };
+  }
+  // reason ist hier "outsideWindow" oder null — in beiden Fällen wurde ein KONFIGURIERTES Fenster
+  // tatsächlich befragt.
+  return { windowsBinding: true, windowsBindingReason: null, openingAllowedNow: reason === null };
+}
+
 /** Ist DIESE Öffnung eine erlaubte Reinigungsöffnung? Grund + {@link cleaningBlockReason}. */
 function isAllowedCleaningOpen(
   oeffnenGrund: OeffnenGrund | string | null | undefined,
