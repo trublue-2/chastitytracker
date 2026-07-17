@@ -157,9 +157,26 @@ async function resolveDevice(client: TxClient, userId: string, args: SetDeviceMe
   throw new Error("set_device_meta requires deviceName or deviceId.");
 }
 
+/** Skalar-Snapshot der Metadaten fürs Diffen. `healthFlags` wird als ARRAY normalisiert (K-16,
+ *  MCP-Restliste 2026-07-17) — die Spalte ist ein JSON-String, aber get_devices/newState und der
+ *  Diff müssen alle dieselbe Array-Form zeigen, sonst driftet die Vorschau vom echten Zustand. */
 const metaSnapshot = (d: MetaRow) => ({
   securityLevel: d.securityLevel, lookalikeClusterId: d.lookalikeClusterId, pullOffRisk: d.pullOffRisk,
-  material: d.material, bauform: d.bauform, healthFlags: d.healthFlags, retentionNotes: d.retentionNotes,
+  material: d.material, bauform: d.bauform, healthFlags: parseStringArray(d.healthFlags), retentionNotes: d.retentionNotes,
+});
+type MetaSnapshot = ReturnType<typeof metaSnapshot>;
+
+/** Projiziert den Nachher-Zustand aus (before, args) — dieselbe Feld-Merge-Logik wie der `apply`-
+ *  `data`-Spread, nur in-memory. Geteilt von preview (Diff ohne Commit) und apply (Diff == Commit),
+ *  damit Vorschau und tatsächlicher Write strukturell nicht auseinanderlaufen (N-15). */
+const projectMeta = (before: MetaSnapshot, args: SetDeviceMetaArgs): MetaSnapshot => ({
+  securityLevel: args.securityLevel !== undefined ? args.securityLevel : before.securityLevel,
+  lookalikeClusterId: args.lookalikeClusterId !== undefined ? args.lookalikeClusterId : before.lookalikeClusterId,
+  pullOffRisk: args.pullOffRisk !== undefined ? args.pullOffRisk : before.pullOffRisk,
+  material: args.material !== undefined ? args.material : before.material,
+  bauform: args.bauform !== undefined ? args.bauform : before.bauform,
+  healthFlags: args.healthFlags !== undefined ? args.healthFlags : before.healthFlags,
+  retentionNotes: args.retentionNotes !== undefined ? args.retentionNotes : before.retentionNotes,
 });
 
 export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
@@ -174,7 +191,9 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
     const d = await resolveDevice(prisma, ctx.targetUserId, args);
     // Check-only (Rückgabe verworfen): der Versions-Konflikt soll schon im dryRun sichtbar sein.
     occEdit(args.expectedVersion, d.version, `device "${d.name}"`);
-    return { device: d.name, version: d.version, before: metaSnapshot(d) };
+    const before = metaSnapshot(d);
+    // N-15: before/after fürs Framework mitliefern → dryRun zeigt denselben diff wie der Commit.
+    return { preview: { device: d.name, version: d.version, before }, before, after: projectMeta(before, args) };
   },
   async apply(tx, ctx, args) {
     const d = await resolveDevice(tx, ctx.targetUserId, args);
@@ -202,6 +221,8 @@ export const setDeviceMetaDef: WriteDef<SetDeviceMetaArgs, DeviceMetaView> = {
     ]);
     const notesByEntity = await notesForEntities(ctx.targetUserId, [{ entityType: "device", entityId: d.id }], {}, tx, tz);
     const view = toDeviceMetaView(fresh, notesByEntity.get(entityKey("device", d.id)) ?? [], makeIso(tz));
-    return { newState: view, resultRef: d.id, diff: diffFields(before, metaSnapshot(fresh)) };
+    // Diff aus derselben projectMeta wie die Vorschau (nicht aus dem Re-Read) — so ist der Commit-Diff
+    // per Konstruktion identisch mit dem, was der dryRun gezeigt hat (N-15).
+    return { newState: view, resultRef: d.id, diff: diffFields(before, projectMeta(before, args)) };
   },
 };

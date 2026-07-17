@@ -176,7 +176,7 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
       // Preview-Treue: den kg→Device-Ref zeigen, den der Commit anlegen würde.
       const kgRef = await kgDeviceRef(prisma, ctx.targetUserId, args.kg);
       const willAddRef = kgRef && missingRef(existing.refs, kgRef) ? kgRef : null;
-      return { action: "edit", before: toNoteDTO(existing, makeIso(tz)), willAddRef };
+      return { preview: { action: "edit", before: toNoteDTO(existing, makeIso(tz)), willAddRef } };
     }
     // Dangling-Refs schon im dryRun abweisen (Konflikte VOR dem Commit); kg→Device-Ref mitzeigen.
     await assertRefsExist(prisma, ctx.targetUserId, args.refs ?? []);
@@ -184,10 +184,12 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
     const kgRef = await kgDeviceRef(prisma, ctx.targetUserId, args.kg);
     if (kgRef && missingRef(refs, kgRef)) refs.push(kgRef);
     return {
-      action: "create",
-      willSupersede: args.supersedesId ?? null,
-      type: args.type ?? "OBSERVATION",
-      refs,
+      preview: {
+        action: "create",
+        willSupersede: args.supersedesId ?? null,
+        type: args.type ?? "OBSERVATION",
+        refs,
+      },
     };
   },
   async apply(tx, ctx, args) {
@@ -284,7 +286,7 @@ export const linkNoteDef: WriteDef<LinkNoteArgs, NoteDTO> = {
     if (!note) throw new Error(`Note not found: ${args.noteId}`);
     // Dangling-Refs schon im dryRun abweisen (Konflikte VOR dem Commit).
     await assertRefsExist(prisma, ctx.targetUserId, args.refs);
-    return { action: "link", noteId: args.noteId, addRefs: args.refs };
+    return { preview: { action: "link", noteId: args.noteId, addRefs: args.refs } };
   },
   async apply(tx, ctx, args) {
     // Ownership-Check und bestehende Refs sind unabhängig → parallel laden.

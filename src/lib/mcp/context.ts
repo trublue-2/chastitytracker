@@ -132,7 +132,7 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
   },
   async preview(ctx, args) {
     const current = await loadActiveHealthHold(ctx.targetUserId, makeIso(await tzOf(ctx.targetUserId)));
-    return { current, willBe: args.active ? { active: true, reason: args.healthReason } : { active: false } };
+    return { preview: { current, willBe: args.active ? { active: true, reason: args.healthReason } : { active: false } } };
   },
   async apply(tx, ctx, args) {
     // "Höchstens ein aktiver Hold pro User" — Invariante NUR hier im Code erzwungen (kein Partial-
@@ -179,9 +179,9 @@ export const upsertAppointmentDef: WriteDef<UpsertAppointmentArgs, ReturnType<ty
       if (!existing) throw new Error(`Appointment not found: ${args.id}`);
       // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
       occEdit(args.expectedVersion, existing.version, `appointment ${args.id}`);
-      return { action: "edit", before: apptView(existing, makeIso(tz)) };
+      return { preview: { action: "edit", before: apptView(existing, makeIso(tz)) } };
     }
-    return { action: "create", when: args.when };
+    return { preview: { action: "create", when: args.when } };
   },
   async apply(tx, ctx, args) {
     const when = parseIsoDate(args.when, "when");
@@ -245,9 +245,9 @@ export const upsertRecurringContextDef: WriteDef<UpsertRecurringContextArgs, Ret
       if (!existing) throw new Error(`RecurringContext not found: ${args.id}`);
       // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
       occEdit(args.expectedVersion, existing.version, `recurringContext ${args.id}`);
-      return { action: "edit", before: recurringView(existing) };
+      return { preview: { action: "edit", before: recurringView(existing) } };
     }
-    return { action: "create", label: args.label, weekday: args.weekday };
+    return { preview: { action: "create", label: args.label, weekday: args.weekday } };
   },
   async apply(tx, ctx, args) {
     if (args.id) {

@@ -48,13 +48,28 @@ export interface WriteResult<T> {
   resultRef?: string;
 }
 
+/**
+ * Ergebnis eines dryRun-`preview()`: die menschenlesbare Vorschau plus — bei Edits — die skalaren
+ * `before`/`after`-Schnappschüsse, aus denen das Framework den `diff` rechnet (N-15, MCP-Restliste
+ * 2026-07-17: der V2-dryRun lieferte vorher nur `before`, während explain_model „Diff + neuen
+ * Zustand" versprach). Reine Creates lassen `before`/`after` weg (kein Diff). `problem` (falls
+ * gesetzt) macht `wouldSucceed:false` — analog zu den V1-Tools; unerfüllbare Vorbedingungen (Objekt
+ * nicht gefunden, Versions-Konflikt) werfen weiterhin.
+ */
+export interface PreviewResult {
+  preview: unknown;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  problem?: string;
+}
+
 /** Tool-Definition: nur Domänen-Logik; das Framework erledigt den Querschnitt. */
 export interface WriteDef<A, T> {
   tool: string;
   /** Server-Guardrails: ungültige Werte klemmen oder werfen. Default: identity. */
   validate?: (args: A) => A | Promise<A>;
-  /** Dry-Run-Wirkung ohne Commit: effektives Fenster, Konflikte, Vorschau (rein lesend). */
-  preview: (ctx: WriteContext, args: A) => Promise<unknown>;
+  /** Dry-Run-Wirkung ohne Commit: Vorschau + (bei Edits) before/after für den Diff. Rein lesend. */
+  preview: (ctx: WriteContext, args: A) => Promise<PreviewResult>;
   /** Eigentliche Mutation. Das Framework reicht den Transaktions-Client `tx` herein und schreibt
    *  das Audit im selben `tx` — apply MUSS alle Writes über `tx` führen (nicht über `prisma`),
    *  damit Mutation + Audit atomar sind. Liefert neuen Zustand + Diff. */
@@ -64,7 +79,14 @@ export interface WriteDef<A, T> {
 export interface DryRunResponse {
   dryRun: true;
   tool: string;
+  /** false, wenn `preview` ein `problem` meldete (unerfüllbare reine Regel). Sonst true. */
+  wouldSucceed: boolean;
+  problem?: string;
   preview: unknown;
+  /** Feld-Diff [alt, neu] — nur bei Edits mit before/after (wie beim echten Commit). */
+  diff?: Record<string, [unknown, unknown]>;
+  /** Projizierter Nachher-Zustand (skalar) — nur bei Edits. */
+  after?: unknown;
 }
 
 export type ExecuteResponse<T> = (WriteResult<T> & { dryRun: false; tool: string }) | DryRunResponse;
@@ -155,9 +177,20 @@ export async function executeWrite<A, T>(
   // 1. Server-Guardrails — ungültige Werte klemmen/ablehnen, bevor irgendetwas passiert.
   const args = def.validate ? await def.validate(rawArgs) : rawArgs;
 
-  // 2. Dry-Run — Wirkung/Konflikte zeigen, NICHT committen (preview ist rein lesend).
+  // 2. Dry-Run — Wirkung/Konflikte zeigen, NICHT committen (preview ist rein lesend). Liefert
+  //    dieselbe Form wie die V1-Tools: {wouldSucceed, problem?, preview, diff?, after?} (N-15).
   if (meta.dryRun) {
-    return { dryRun: true, tool: def.tool, preview: await def.preview(ctx, args) };
+    const p = await def.preview(ctx, args);
+    const diff = p.before && p.after ? diffFields(p.before, p.after) : undefined;
+    return {
+      dryRun: true,
+      tool: def.tool,
+      wouldSucceed: !p.problem,
+      ...(p.problem ? { problem: p.problem } : {}),
+      preview: p.preview,
+      ...(diff ? { diff } : {}),
+      ...(p.after ? { after: p.after } : {}),
+    };
   }
 
   // 3. Commit: Mutation + Audit in EINER Transaktion — keine Mutation ohne Audit, kein Halbzustand.

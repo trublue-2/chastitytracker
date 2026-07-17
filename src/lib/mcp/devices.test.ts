@@ -8,7 +8,8 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { listDevicesV2 } from "./devices";
+import { listDevicesV2, setDeviceMetaDef } from "./devices";
+import { executeWrite } from "./writeFramework";
 import { prisma } from "@/lib/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
 
@@ -42,5 +43,42 @@ describe("listDevicesV2 — N-3: Envelope + returnedCount", () => {
     const result = await listDevicesV2("sub");
     expect(result.returnedCount).toBe(0);
     expect(result.generatedAt).toBeTruthy();
+  });
+});
+
+// N-15 / K-16 (MCP-Restliste 2026-07-17): der V2-dryRun lieferte nur `before` — kein diff/after/
+// wouldSucceed, obwohl explain_model „volle Tiefe" versprach. Jetzt spiegelt er die V1-Form.
+describe("set_device_meta dryRun — N-15 (diff/after/wouldSucceed) + K-16 (healthFlags-Array)", () => {
+  const ctx = { targetUserId: "u1", targetUsername: "sub" };
+  // resolveDevice liest über device.findMany (metaResolveSelect).
+  const metaRow = (over: Record<string, unknown> = {}) => ({
+    id: "d1", name: "Flatty", version: 1, securityLevel: null, lookalikeClusterId: null,
+    pullOffRisk: false, material: null, bauform: null, healthFlags: null, retentionNotes: null, ...over,
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const run = (args: Record<string, unknown>) =>
+    executeWrite(setDeviceMetaDef, ctx, args as never, { reason: "test", dryRun: true }) as Promise<any>;
+
+  it("liefert wouldSucceed + diff [alt,neu] + after, ohne zu committen", async () => {
+    db.device.findMany.mockResolvedValue([metaRow()]);
+    const res = await run({ deviceName: "Flatty", lookalikeClusterId: "flat-kunststoff" });
+    expect(res.dryRun).toBe(true);
+    expect(res.wouldSucceed).toBe(true);
+    expect(res.diff).toEqual({ lookalikeClusterId: [null, "flat-kunststoff"] });
+    expect(res.after.lookalikeClusterId).toBe("flat-kunststoff");
+    expect(db.device.update).not.toHaveBeenCalled();
+  });
+
+  it("K-16: healthFlags in before/after/diff sind Arrays (nicht JSON-String)", async () => {
+    db.device.findMany.mockResolvedValue([metaRow({ healthFlags: JSON.stringify(["scheuert"]) })]);
+    const res = await run({ deviceName: "Flatty", healthFlags: ["scheuert", "neu"] });
+    expect(res.after.healthFlags).toEqual(["scheuert", "neu"]);
+    expect(res.diff.healthFlags).toEqual([["scheuert"], ["scheuert", "neu"]]);
+  });
+
+  it("No-op-Edit (kein Feld angegeben) → leerer diff", async () => {
+    db.device.findMany.mockResolvedValue([metaRow({ healthFlags: JSON.stringify([]) })]);
+    const res = await run({ deviceName: "Flatty" });
+    expect(res.diff).toEqual({});
   });
 });

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.15",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP: set_device_meta liefert im dryRun jetzt eine echte Vorschau (wouldSucceed, diff [alt,neu], after) statt nur des Vorher-Zustands — der Keyholder sieht die Wirkung eines lookalikeClusterId-Writes VOR dem Commit. Vorschau- und Commit-Diff sind per Konstruktion identisch. Nebenbei: healthFlags kommt in der Vorschau als Array statt als JSON-String (N-15/K-16). Die übrigen V2-Write-Tools folgen in der nächsten Phase.",
+          "en": "MCP: set_device_meta's dryRun now returns a real preview (wouldSucceed, diff [old,new], after) instead of just the before-state — the keyholder sees the effect of a lookalikeClusterId write BEFORE committing. Preview and commit diff are identical by construction. Also: healthFlags is returned as an array instead of a JSON string in the preview (N-15/K-16). The remaining V2 write tools follow in the next phase."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.14",
     "date": "2026-07-17",
     "changes": [
