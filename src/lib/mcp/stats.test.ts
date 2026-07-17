@@ -26,7 +26,7 @@ vi.mock("@/lib/mcp/common", async (orig) => ({
   loadTrackingContext: (...a: unknown[]) => loadTrackingContext(...a),
 }));
 
-import { deviceStats, records, type DeviceStatsResult } from "./stats";
+import { deviceStats, records, denialTrend, type DeviceStatsResult } from "./stats";
 
 const NOW = new Date("2026-07-14T18:00:00+02:00");
 const KG = { id: "cat-kg", name: "KG", isBuiltIn: true };
@@ -259,5 +259,62 @@ describe("records — longestUnbrokenSegmentHours (A-14, MCP-Befundliste 2026-07
     expect(result.longestUnbrokenSegmentDeviceName).toBeNull();
     expect(result.currentUnbrokenSegmentHours).toBeNull();
     expect(result.currentUnbrokenVsBestPct).toBeNull();
+  });
+});
+
+// ─── A-10: trendRising robust gegen einen einzelnen Ausreisser ────────────────
+
+describe("denial_trend — trendRising (A-10, MCP-Befundliste 2026-07-17)", () => {
+  // Baut ORGASMUS-Einträge aus einer Liste von Intervallen (Stunden), beginnend bei t0.
+  const orgasmEntries = (t0: string, intervalsH: number[]) => {
+    let t = new Date(t0).getTime();
+    const out = [entry("ORGASMUS", new Date(t).toISOString(), null)];
+    for (const h of intervalsH) {
+      t += h * 3_600_000;
+      out.push(entry("ORGASMUS", new Date(t).toISOString(), null));
+    }
+    return out;
+  };
+
+  it("ein einzelner Ausreisser im jüngsten Fenster kippt den ALTEN Mittelwert-Vergleich, aber nicht den MEDIAN-Vergleich", async () => {
+    // 5 ältere Intervalle à 150h (Median 150), dann ein Ausreisser (500h) gefolgt von zwei kurzen
+    // (100h, 90h) — der eigentliche jüngste Trend fällt, aber der alte Mittelwert-Vergleich
+    // (avg(500,100,90)=230 >= avg aller 8 =180) hätte fälschlich "steigend" gemeldet.
+    const older = [150, 150, 150, 150, 150];
+    const recent = [500, 100, 90];
+    const result = await denialTrend("sub", {}, ctx(orgasmEntries("2026-01-01T00:00:00Z", [...older, ...recent])));
+
+    expect(result.recentWindowN).toBe(3);
+    expect(result.trendConfidence).toBe("medium"); // n=8
+    // MEDIAN(recent)=100 < MEDIAN(older)=150 → fallend, nicht steigend.
+    expect(result.trendRising).toBe(false);
+  });
+
+  it("weniger als 8 Intervalle → trendRising:null statt einer vorgetäuschten Aussage", async () => {
+    const result = await denialTrend("sub", {}, ctx(orgasmEntries("2026-01-01T00:00:00Z", [100, 100, 100, 100, 100])));
+    expect(result.trendRising).toBeNull();
+    expect(result.trendConfidence).toBe("low");
+    expect(result.recentWindowN).toBe(3); // recentAvgIntervalH bleibt informativ befüllt
+  });
+
+  it("ohne jeden Orgasmus-Eintrag bleibt alles null (kein n=0-Sonderfall, der 'low' vortäuscht)", async () => {
+    const result = await denialTrend("sub", {}, ctx([]));
+    expect(result.trendRising).toBeNull();
+    expect(result.trendConfidence).toBeNull();
+    expect(result.recentWindowN).toBeNull();
+    expect(result.avgIntervalH).toBeNull();
+  });
+
+  it("≥15 Intervalle → trendConfidence high", async () => {
+    const intervals = Array.from({ length: 16 }, () => 100);
+    const result = await denialTrend("sub", {}, ctx(orgasmEntries("2026-01-01T00:00:00Z", intervals)));
+    expect(result.trendConfidence).toBe("high");
+  });
+
+  it("eindeutig steigende Intervalle → trendRising true", async () => {
+    const older = [50, 50, 50, 50, 50];
+    const recent = [200, 220, 210];
+    const result = await denialTrend("sub", {}, ctx(orgasmEntries("2026-01-01T00:00:00Z", [...older, ...recent])));
+    expect(result.trendRising).toBe(true);
   });
 });

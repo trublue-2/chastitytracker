@@ -407,8 +407,12 @@ function registerTools(server: McpServer) {
         title: "Denial / orgasm interval trend",
         description:
           "MCP V2 — Entsagungs-Entwicklung mit DATEN statt Kopfrechnen: currentStreakH (seit letztem " +
-          "Orgasmus), longestDenialH, avgIntervalH + recentAvgIntervalH + trendRising (steigt die " +
-          "Entsagung?), und orgasmHistory[] (Zeitpunkt, Intervall zum vorigen, Geräte-Kontext).",
+          "Orgasmus), longestDenialH, avgIntervalH + recentAvgIntervalH (Mittelwerte, informativ) + " +
+          "trendRising (steigt die Entsagung? MEDIAN-Vergleich jüngstes 3er-Fenster vs. Rest, toleriert " +
+          "GENAU EINEN Ausreisser im Fenster, nicht zwei; null bei <8 Intervallen insgesamt statt " +
+          "einer vorgetäuschten Aussage — A-10, MCP-Befundliste 2026-07-17), recentWindowN (Grösse " +
+          "des Fensters) + trendConfidence (low<8/medium<15/high — grobe Datenlage-Einschätzung, " +
+          "kein Signifikanztest), und orgasmHistory[] (Zeitpunkt, Intervall zum vorigen, Geräte-Kontext).",
         inputSchema: {
           limit: z.number().int().min(1).max(500).optional().describe("Nur die letzten N Orgasmen in orgasmHistory."),
         },

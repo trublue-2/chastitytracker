@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.6",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "denial_trend.trendRising verglich Mittelwerte (letzte 3 Intervalle vs. alle) — ein einzelner Ausreisser im jüngsten Fenster konnte das Ergebnis kippen (z.B. eine klar fallende Serie meldete fälschlich 'steigend'). Vergleicht jetzt Mediane (jüngstes Fenster vs. die übrigen Intervalle), liefert unter 8 Intervallen insgesamt null statt einer vorgetäuschten Aussage. Neu: recentWindowN, trendConfidence.",
+          "en": "denial_trend.trendRising compared means (last 3 intervals vs. all) — a single outlier in the recent window could flip the result (e.g. a clearly falling series falsely reported 'rising'). Now compares medians (recent window vs. the remaining intervals), returns null under 8 total intervals instead of a false signal. New: recentWindowN, trendConfidence."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.5",
     "date": "2026-07-17",
     "changes": [

@@ -1,4 +1,4 @@
-import { calculateWearingHoursByRange, msToHours, round1, summarizeDurations } from "@/lib/utils";
+import { calculateWearingHoursByRange, median, msToHours, round1, summarizeDurations } from "@/lib/utils";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
@@ -223,14 +223,32 @@ export interface OrgasmHistoryRow {
 }
 
 export interface DenialTrendResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `trendRising` vergleicht jetzt MEDIAN (jüngstes Fenster vs. der Rest) statt MITTELWERT
+   *  und liefert erst ab `recentWindowN`+Rest ≥ 8 Intervallen überhaupt einen Wert (A-10,
+   *  MCP-Befundliste 2026-07-17: vorher kippte ein einzelner Ausreisser im 3-Punkte-Mittel das
+   *  Ergebnis — z.B. Intervalle 515.5→180.1→116.6, klar fallend, meldeten trotzdem `true`, weil
+   *  der eine Ausreisser (515.5) den "recent"-Mittelwert hochzog). `avgIntervalH`/
+   *  `recentAvgIntervalH` bleiben unverändert Mittelwerte (informativ) — nur `trendRising` selbst
+   *  rechnet jetzt robuster. Grenzen dieser Robustheit: der Median eines 3er-Fensters toleriert
+   *  GENAU EINEN Ausreisser (Breakdown Point 1/3) — bei ZWEI auffälligen Werten im selben Fenster
+   *  kippt er wieder. Und "Rest" wächst mit der Historie: bei langer Nutzung wird der Vergleich
+   *  eher "jüngst vs. Lebenszeit-Basislinie" als ein echter Kurzfrist-Trend. */
+  schemaVersion: 3;
   user: string;
   currentStreakH: number | null;
   longestDenialH: number | null;
   avgIntervalH: number | null;
-  /** Trend der Intervalle: steigt die Entsagung? (Schnitt der jüngsten vs. aller Intervalle). */
+  /** Trend der Intervalle: steigt die Entsagung? MEDIAN-Vergleich (jüngstes Fenster vs. die
+   *  restlichen Intervalle), robust gegen einen einzelnen Ausreisser. `null` bei weniger als 8
+   *  Intervallen insgesamt — zu wenig Datenlage für eine Aussage, statt eine vorzutäuschen. */
   trendRising: boolean | null;
   recentAvgIntervalH: number | null;
+  /** Wie viele Intervalle in `recentAvgIntervalH`/den MEDIAN-Vergleich für `trendRising` eingehen.
+   *  null bei keinen Intervallen. */
+  recentWindowN: number | null;
+  /** Grobe Einschätzung der Datenlage hinter `trendRising`: "low" (< 8 Intervalle, `trendRising`
+   *  ist null), "medium" (8–14), "high" (≥ 15). */
+  trendConfidence: "low" | "medium" | "high" | null;
   orgasmHistory: OrgasmHistoryRow[];
 }
 
@@ -272,19 +290,51 @@ export async function denialTrend(username: string, opts: { limit?: number } = {
 
   const avg = (xs: number[]) => (xs.length ? round1(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
   const avgAll = avg(intervalsH);
-  const recentAvg = avg(intervalsH.slice(-3));
+  // 3 = Bestand aus der Vor-A-10-Fassung (recentAvgIntervalH), hier unverändert übernommen. Für den
+  // MEDIAN-Vergleich unten bedeutet das einen Breakdown Point von 1/3 (ein einzelner Ausreisser im
+  // Fenster kippt das Ergebnis nicht, zwei schon) — ein grösseres Fenster wäre robuster, kostet aber
+  // Aktualität. Nicht weiter austariert; A-10 behebt den gemeldeten Ein-Ausreisser-Fall, mehr nicht.
+  const RECENT_WINDOW = 3;
+  const recentIntervals = intervalsH.slice(-RECENT_WINDOW);
+  const recentAvg = avg(recentIntervals);
+  const recentWindowN = recentIntervals.length || null;
   const lastOrgasm = times.at(-1) ?? null;
   const gap = longestOrgasmGapMs(times, now);
 
+  // A-10: trendRising vergleicht MEDIAN des jüngsten Fensters gegen den MEDIAN der übrigen
+  // (älteren) Intervalle — robust gegen einen einzelnen Ausreisser, anders als der bisherige
+  // Mittelwert-Vergleich. "übrig" statt "alle": das Fenster selbst fliesst sonst in beide Seiten
+  // ein und verwässert den Kontrast. Erst ab MIN_N Intervallen überhaupt ein Wert (sonst null statt
+  // einer Zahl, die Sicherheit vortäuscht).
+  // MIN_N_FOR_TREND > RECENT_WINDOW ist ein Invariant, kein Laufzeit-Check: sobald die erste
+  // Bedingung unten zutrifft, hat olderIntervals zwangsläufig mindestens MIN_N_FOR_TREND-RECENT_WINDOW
+  // Einträge — ein zusätzliches `olderIntervals.length > 0` wäre nie erreichbar.
+  const MIN_N_FOR_TREND = 8;
+  const olderIntervals = intervalsH.slice(0, Math.max(0, intervalsH.length - RECENT_WINDOW));
+  const trendRising = intervalsH.length >= MIN_N_FOR_TREND
+    ? median(recentIntervals) >= median(olderIntervals)
+    : null;
+  // Grobe, bewusst nicht statistisch hergeleitete Stufen (kein Signifikanztest o.ä.) — sie sollen
+  // dem Konsumenten nur grob sagen "wenig/etwas/viel Historie hinter trendRising", nicht mehr.
+  // < MIN_N_FOR_TREND = "low" (trendRising ist dort ohnehin null); ab 15 "high", weil dann auch das
+  // ältere Vergleichsfenster (n − RECENT_WINDOW) selbst zweistellig ist.
+  const trendConfidence: DenialTrendResult["trendConfidence"] =
+    intervalsH.length === 0 ? null
+    : intervalsH.length < MIN_N_FOR_TREND ? "low"
+    : intervalsH.length < 15 ? "medium"
+    : "high";
+
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     currentStreakH: lastOrgasm ? msToHours(now.getTime() - lastOrgasm.getTime()) : null,
     longestDenialH: gap == null ? null : msToHours(gap),
     avgIntervalH: avgAll,
-    trendRising: recentAvg != null && avgAll != null ? recentAvg >= avgAll : null,
+    trendRising,
     recentAvgIntervalH: recentAvg,
+    recentWindowN,
+    trendConfidence,
     orgasmHistory: opts.limit ? history.slice(-opts.limit) : history,
   };
 }
