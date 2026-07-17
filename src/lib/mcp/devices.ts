@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { resolveUserContext, makeIso, notesForEntities, entityKey, matchByNameCI, parseStringArray, tzOf, type Iso, type NoteDTO } from "@/lib/mcp/common";
+import { resolveUserContext, makeIso, buildEnvelope, notesForEntities, entityKey, matchByNameCI, parseStringArray, tzOf, type Iso, type NoteDTO, type Envelope } from "@/lib/mcp/common";
 import { diffFields, occEdit, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
 
 /** Geräte-Metadaten, die Keyholder-Entscheidungen tragen (explain_model §13) + angereicherte
@@ -33,10 +33,13 @@ export interface DeviceMetaView {
   notes: NoteDTO[];
 }
 
-export interface DeviceListResult {
-  /** v3: `abstreifbar` → `pullOffRisk` (true = abstreifbar/unsicher); neu `version`, `trackingEnabled`. */
+export interface DeviceListResult extends Envelope {
+  /** v3: `abstreifbar` → `pullOffRisk` (true = abstreifbar/unsicher); neu `version`, `trackingEnabled`.
+   *  generatedAt/timezone/returnedCount sind additiv (N-3, MCP-Restliste 2026-07-17): get_devices war
+   *  als einziger V2-Read ohne Zeitanker — kein schemaVersion-Bump, weil rein ergänzend. */
   schemaVersion: 3;
   user: string;
+  returnedCount: number;
   devices: DeviceMetaView[];
 }
 
@@ -90,6 +93,7 @@ function toDeviceMetaView(d: DeviceViewRow, notes: NoteDTO[], iso: Iso): DeviceM
 export async function listDevicesV2(username: string): Promise<DeviceListResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   const iso = makeIso(timezone);
+  const now = new Date();
   const devices = await prisma.device.findMany({
     where: { userId },
     orderBy: [{ archivedAt: "asc" }, { createdAt: "asc" }],
@@ -98,7 +102,9 @@ export async function listDevicesV2(username: string): Promise<DeviceListResult>
   const notesByEntity = await notesForEntities(userId, devices.map((d) => ({ entityType: "device" as const, entityId: d.id })), {}, undefined, timezone);
   return {
     schemaVersion: 3,
+    ...buildEnvelope(now, iso, timezone),
     user: username,
+    returnedCount: devices.length,
     devices: devices.map((d) => toDeviceMetaView(d, notesByEntity.get(entityKey("device", d.id)) ?? [], iso)),
   };
 }

@@ -40,6 +40,9 @@ sie verhindert die häufigsten Fehldeutungen.
   **Das ist ein Stückzähler, KEINE Minutenangabe.** (Früher hieß das Feld irreführend
   \"maxMinutesPerDay\" — ein \"2\" bedeutet *zwei Öffnungen/Tag*, nicht zwei Minuten.)
 - \`reinigung.usedToday\`: heute (CH-Tag) bereits verbrauchte Öffnungen. Rest = maxPausesPerDay − usedToday.
+- \`cleaningPauses\` (in \`get_session\`, je Session): Anzahl Reinigungspausen = Segment-Grenzen innerhalb
+  der Session (bei WEAR immer 0). Zählt Pausen der EINEN Session, nicht das Tageskontingent
+  (\`usedToday\`) — A-13, MCP-Restliste 2026-07-17.
 - \`reinigung.windows\`: erlaubte Tages-**Zeitfenster** (HH:MM, CH-Zeit). Sie binden NUR während einer
   **aktiven Sperrzeit**, die dir selbst das Reinigen erlaubt (siehe §3) — außerhalb einer Sperrzeit ist
   eine Reinigungsöffnung IMMER erlaubt, egal was \`windows\` sagt. Schließe aus \`windows\` allein NICHT,
@@ -78,6 +81,12 @@ sie verhindert die häufigsten Fehldeutungen.
     (\`maxPausesPerDay\`). Abgeleitet, \`punished:false\` bis du strafst. (Wird NICHT mehr
     automatisch bestraft.)
   - **lateControls / rejectedControls**: zu spät erfüllte bzw. abgelehnte Kontrollen.
+  - **autoRemovedControls** (\`get_offenses\`-Typ \`auto_removed_control\`): eine Kontrolle, die nach
+    ignorierter Eskalations-Erinnerung automatisch entfernt wurde (das System buchte ein OEFFNEN mit
+    Grund \`AUTO_ENTFERNT\`). Abgeleitet, \`punished:false\` bis du strafst. **Massgeblich sind die
+    kanonischen \`get_offenses\`-Typ-Namen** (\`auto_removed_control\`, \`cleaning_limit\`,
+    \`unauthorized_opening\`, …) — die deutschen Sammel-Namen hier sind nur ihre Erklärung (A-03,
+    MCP-Restliste 2026-07-17).
   - **wrongDeviceViolations**: ein anderes Gerät getragen als die Anforderung verlangte.
   - **missedOrgasmInstructions**: eine **ANWEISUNG** (Orgasmus-Pflicht, §11), deren Fenster ablief,
     ohne dass ein passender ORGASMUS erfasst wurde. Abgeleitet, \`punished:false\` bis du strafst.
@@ -99,7 +108,8 @@ sie verhindert die häufigsten Fehldeutungen.
 - \`keySecured\` (\`get_box_state\`/\`keyholder_dashboard.boxState\`) beantwortet direkt, was eine
   Alleinzeit-Vorgabe verlangt — Käfig zu UND Schlüssel drin, UND das noch aktuell:
   \`reportedLocked === true && keyInBox === true && !staleLock\`. Rechne das nicht selbst aus fünf
-  Feldern zusammen.
+  Feldern zusammen. Ist \`hardwareEnforced: false\`, nennt \`hardwareEnforcedReason\` den EINEN Grund
+  maschinenlesbar (\`soll-open\`/\`reported-open\`/\`key-not-in-box\`/\`stale-lock\`; A-07).
 - Eine **Reinigungspause** ist ein OEFFNEN mit Grund „Reinigung" während einer Sperrzeit, die
   Reinigung erlaubt — und, falls Fenster konfiguriert sind, innerhalb eines Fensters. Die Box
   öffnet, **die Sperrzeit läuft weiter**. Wieder verschlossen wird sie erst durch den
@@ -134,9 +144,14 @@ eine Strafe gibt.
   gerade ist keine Kontrolle offen. Eine eingereichte Kontrolle ist nicht mehr offen. Eine überfällige
   bleibt offen mit \`overdue: true\`. Kontrollen verschwinden nie automatisch. Die zuletzt eingereichte
   samt Code-Verifikation und Geräte-Check liest du über \`list_entries\` (PRUEFUNG-Einträge).
-- **Geräte-Erkennung lesen:** ob das richtige Gerät auf dem Kontroll-Foto war, steht im \`deviceCheck\`
-  je Eintrag in \`list_entries\`: \`status\` ok/wrong/missing + \`detected\`/\`expected\`.
-  \`null\` = nicht geprüft (z.B. keine Referenzfotos hinterlegt) — kein Vorwurf.
+- **Geräte-Erkennung lesen:** ob das richtige Gerät auf dem Kontroll-Foto war, steht im \`deviceCheck\`:
+  in \`get_session\` je Kontrolle als \`{status, isOffense}\` (\`status\` ok/wrong/missing/\`not_checked\`,
+  wobei \`not_checked\` das früher mehrdeutige \`null\` ersetzt); in \`list_entries\` je PRUEFUNG-Eintrag als
+  \`{status, detected, expected}\` bzw. \`null\` = nicht geprüft. In BEIDEN gilt: **\`status: "wrong"\` ist
+  KEIN Vergehen** — der deviceCheck vergleicht Bild vs. DEKLARATION, nicht gegen eine
+  \`request_lock\`-Anforderung; nur Letzteres erzeugt ein \`wrong_device\`-Vergehen (§6). \`get_session\`
+  macht das mit \`isOffense: false\` explizit; \`not_checked\`/\`null\` heisst „nicht geprüft" (z.B. keine
+  Referenzfotos hinterlegt) — kein Vorwurf (N-4/N-11, MCP-Restliste 2026-07-17).
 
 ## 11. Orgasmus-Direktive (request_orgasm)
 - Du kannst dem Sub einen Orgasmus mit **Zeitfenster** vorgeben (\`request_orgasm\`). Zwei Charaktere:
@@ -189,26 +204,46 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   = Beginn des AKTUELLEN Segments — weicht bei Reinigungspausen von \`since\` ab (A-01,
   MCP-Befundliste 2026-07-17: vorher trug \`since\` den jüngsten KG-Eintrag, also bei Pausen den
   letzten Wiederverschluss statt des Lauf-Anfangs, im Widerspruch zu \`durationHours\`).
+  \`currentRun.deviceName\` und \`wornNow[].deviceName\` sind das MASSGEBLICHE Gerät (\`deviceEffective\` —
+  bei image-conflict gewinnt das Bild), NICHT mehr das deklarierte (N-2, MCP-Restliste 2026-07-17);
+  daneben \`deviceDeclared\` + \`deviceConfidence\`, damit der Konflikt am Ort der Frage sichtbar ist.
 - **Segmente (\`get_session\`)** — liefert Sessions ALLER Kategorien (KG + Plug/Halsband/Knebel, je
   mit \`category\`, filterbar). Eine KG-Session zerfällt an REINIGUNG-Öffnungen in **Segmente**,
-  pro Segment GENAU EIN Gerät. \`deviceBreakdown\` beantwortet „welches Gerät wie lange" korrekt
+  pro Segment GENAU EIN Gerät. Die Session-id ist die Lock-Entry-id des Kopfs und damit **identisch
+  mit \`segments[0].id\`** (das erste Segment beginnt an genau diesem Lock-Eintrag) — by design, kein
+  Duplikat (A-12, MCP-Restliste 2026-07-17). \`deviceBreakdown\` beantwortet „welches Gerät wie lange" korrekt
   (statt eines falschen Einzel-Labels). \`deviceConfidence\`: \`declared\` | \`undeclared\` (KEIN Gerät
   angegeben — bis A-04 fiel das fälschlich auf \`declared\` zurück, kein Vergehen) | \`image-confirmed\` |
   \`image-conflict\` (Bild nennt ein Gerät aus ANDEREM Cluster → **Bild gewinnt**) | \`cluster-ambiguous\`
   (optisch gleiches Gerät aus DEMSELBEN \`lookalikeCluster\` → unzuverlässig, **soft**, deklariert bleibt,
   kein Vergehen). **\`deviceEffective\`** ist das für \`deviceBreakdown\`/\`device_stats\` massgebliche
-  Gerät. \`endedBy\`: \`cleaning\` (Pause) vs \`session-end\` vs \`open\`. \`dataQualityFlags\` deckt
-  \`image-conflict\`/\`cluster-ambiguous\`/\`undeclared\` ab (A-05).
+  Gerät. \`endedBy\`: \`cleaning\` (Pause) vs \`session-end\` vs \`open\`. \`dataQualityFlags\` sind
+  maschinenlesbar \`{code, segmentIndex, detail}\` (A-05, MCP-Restliste 2026-07-17): \`code\` ∈
+  \`orphaned-session\`/\`image-conflict\`/\`cluster-ambiguous\`/\`segment-without-device\`, \`detail\` = die
+  menschliche Erklärung. Der Kontroll-\`deviceCheck\` je Segment ist \`{status, isOffense}\`: \`status\`
+  ok/wrong/missing/\`not_checked\` (ersetzt das mehrdeutige \`null\`), \`isOffense\` IMMER false — ein
+  deviceCheck vergleicht Bild vs. DEKLARATION, nie gegen eine Anforderung, erzeugt also nie ein
+  \`wrong_device\`-Vergehen (N-4/N-11). Jedes Segment trägt zusätzlich \`durationMinutes\` (ganzzahlig):
+  Einträge sind minutengenau, ein Wechsel in unter einer Minute kollabiert sonst auf
+  \`durationHours: 0\` — bewusst so, Minute bleibt (N-12).
 - **Geräte-Metadaten (\`get_devices\` / \`set_device_meta\`)** — \`securityLevel\` (SECURING vs
   TRUST_ONLY; **nur für KG-Geräte sinnvoll** — bei Plug/Halsband/… ist \`null\` korrekt und
   vollständig, keine Datenlücke), \`lookalikeClusterId\`: ein Geräte-Mismatch **innerhalb eines
   Clusters ist nie ein echtes Vergehen** (siehe \`get_offenses\` → \`possiblyClusterInternal\`).
+  **\`lookalikeClusterId\` ist kein lokales Metadatenfeld:** es geht in die \`deviceConfidence\`-Ableitung
+  ein und rechnet damit die Geräte-Attribution JEDER historischen Session mit Bild-Deklarations-
+  Konflikt rückwirkend neu (inkl. \`device_stats\` und der Zusammensetzung von \`records\`) — vor einem
+  \`set_device_meta(lookalikeClusterId:…)\` den \`dryRun\`-\`diff\` prüfen (N-14, MCP-Restliste 2026-07-17).
   \`pullOffRisk\`: **true = das Gerät lässt sich trotz Verschluss abstreifen (unsicher)**, false =
   sitzt sicher. \`trackingEnabled\` (von der Kategorie): **false = Inventory-only** (z.B.
   Halsband/Knebel) — solche Geräte liefern PER DESIGN keine Trage-Sessions. \`referenceImages\` ist
   **bewusst nur die Anzahl**: die Bilder wertet der Server für \`deviceConfidence\` aus, via MCP
   sind sie nicht abrufbar.
-- **Vorberechnet:** \`device_stats\` (je Gerät total/avg/median/min/max/längste Strecke),
+- **Vorberechnet:** \`device_stats\` (je Gerät total/avg/median/min/\`maxHours\`/\`maxUnbrokenSegmentHours\`).
+  \`maxHours\` = längste einzelne SESSION (kann Segmente über Pausen hinweg umfassen, liegt also
+  arithmetisch über einer echten Strecke); \`maxUnbrokenSegmentHours\` = längstes EINZELNES, ununter-
+  brochenes Segment — die ehrliche Marke, deckt sich mit \`records.longestUnbrokenSegmentHours\` (A-15,
+  MCP-Restliste 2026-07-17). Weiter:
   \`records\` (PB, aktuell vs PB, orgasmusfrei), \`period_summary\` (Tag/Woche/Monat + Ziel),
   \`denial_trend\` (Streak, Trend, orgasmHistory). \`records.longestRunHours\` ist eine
   SESSION-Bruttosumme über Segmente/Geräte hinweg (Reinigungspausen raus, Gerätewechsel NICHT
@@ -244,14 +279,16 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   \`null\` = noch keine IST-Meldung → SOLL gilt); \`hardwareEnforced\` = die EINE ehrliche
   Vollstreckungs-Antwort (hält die Box den Schlüssel gerade fest — **online-unabhängig**, der zuletzt
   gemeldete Stand gilt): true nur, wenn das IST zu meldet UND \`keyInBox!==false\` UND \`!staleLock\`.
-  Bei false nennt genau EIN Feld das Warum: \`locked:false\`, \`reportedLocked:false\`,
-  \`keyInBox:false\` oder \`staleLock:true\`. \`staleLock\` = die Box hat sich seit dem letzten Sync
+  Bei false nennt \`hardwareEnforcedReason\` genau EIN Feld als Grund (A-07, MCP-Restliste 2026-07-17):
+  \`soll-open\` (\`locked:false\`), \`reported-open\` (\`reportedLocked:false\`), \`key-not-in-box\`
+  (\`keyInBox:false\`) oder \`stale-lock\` (\`staleLock:true\`); bei true ist es \`null\`. \`staleLock\` = die Box hat sich seit dem letzten Sync
   deterministisch selbst geöffnet (gecachte Frist verstrichen ODER Offline-Failsafe nach
   \`offlineOpenHours\` erreicht — beides auch offline). \`keyInBox\` = Deklaration des Subs beim
   laufenden Verschluss (\`false\` = er behält den Schlüssel, die Box bekam bewusst kein \`lock\` → das
   erklärt \`hardwareEnforced:false\`, es ist keine Box-Störung; \`null\` = nicht erklärt/nicht
   verschlossen — kein „nein"). Auch als \`currentRun.keyInBox\` im Dashboard. \`keySecured\` = Käfig
-  zu UND Schlüssel drin in einem Feld (\`reportedLocked===true && keyInBox===true\`) — siehe §7.
+  zu UND Schlüssel drin in einem Feld (\`reportedLocked===true && keyInBox===true && !staleLock\` —
+  identisch zu §7, inkl. \`!staleLock\`; N-6, MCP-Restliste 2026-07-17) — siehe §7.
 
 ### Write-Disziplin
 **\`reason\` ist Pflicht (Audit) bei JEDEM Write-Tool, V1 wie V2** — auch bei den direktiven Tools

@@ -478,7 +478,8 @@ function registerTools(server: McpServer) {
       {
         title: "Keyholder action log (audit + goal-change history)",
         description:
-          "MCP V2 — append-only Audit aller mutierenden V2-Aktionen mit reason + source: was hat welche " +
+          "Append-only Audit ALLER mutierenden Aktionen (V1 wie V2, seit B-03 — vorher nur V2) mit reason + " +
+          "source: was hat welche " +
           "Instanz wann mit welcher Begründung entschieden. Die nächste Instanz erbt Entscheidungen samt " +
           "Begründung. Für die AUTORITATIVE Ziel-Historie (auch UI-gesetzte Ziele) list_training_goals " +
           "nutzen; dieses Log liefert nur das Warum/Wann der MCP-Änderungen (filter tool=\"set_training_goal\"). " +
@@ -930,7 +931,9 @@ function registerTools(server: McpServer) {
           "Setzt die Entscheidungs-Metadaten eines Geräts (explain_model §13): securityLevel (" + SECURITY_LEVELS.join("|") + "), " +
           "lookalikeClusterId (Geräte gleicher Optik in einen Cluster — Mismatch innerhalb ist dann nie ein " +
           "Vergehen), pullOffRisk, material, bauform, healthFlags, retentionNotes. Nur angegebene Felder ändern " +
-          "sich." + V2_WRITE_NOTE,
+          "sich. ACHTUNG lookalikeClusterId: KEIN lokales Metadatenfeld — es rechnet die Geräte-Attribution " +
+          "JEDER historischen Session mit Bild-Deklarations-Konflikt rückwirkend neu (inkl. device_stats + " +
+          "records-Zusammensetzung). Vor dem Setzen den dryRun-diff prüfen (N-14)." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           deviceName: z.string().optional().describe("Gerät per Name (case-insensitiv). deviceName ODER deviceId."),

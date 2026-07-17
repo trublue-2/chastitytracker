@@ -2,7 +2,7 @@ import { calculateWearingHoursByRange, median, msToHours, round1, summarizeDurat
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, buildWearSessions, deviceDisplayName, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
+import { buildSessions, buildWearSessions, deviceDisplayName, deviceGroupKey, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, buildEnvelope, loadTrackingContext, loadCategoryNames, type Envelope, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
@@ -31,8 +31,14 @@ export interface DeviceStatRow {
   avgHours: number;
   medianHours: number;
   minHours: number;
-  /** Längste einzelne Session (Reinigungspausen sind darin abgezogen, aber nicht trennend). */
+  /** Längste einzelne SESSION dieses Geräts (Reinigungspausen sind darin abgezogen, aber nicht
+   *  trennend) — kann also mehrere Segmente über Pausen hinweg umfassen und liegt damit ARITHMETISCH
+   *  über einer echten Dauertrage-Strecke. Für die ehrliche, ununterbrochene Marke
+   *  `maxUnbrokenSegmentHours` nutzen (A-15, MCP-Restliste 2026-07-17). */
   maxHours: number;
+  /** Längstes EINZELNES, ununterbrochenes Segment dieses Geräts — die ehrliche Dauertrage-Marke,
+   *  deckt sich mit `records.longestUnbrokenSegmentHours`, wenn dieses Gerät den Rekord hält. */
+  maxUnbrokenSegmentHours: number;
   lastWornAt: string | null;
 }
 
@@ -47,7 +53,7 @@ export interface DeviceStatsResult extends Envelope {
 }
 
 /** Was pro Gerät gesammelt wird, bevor daraus eine Zeile wird. */
-type DeviceAgg = { device: DeviceRef; category: string | null; durations: number[]; lastWorn: Date };
+type DeviceAgg = { device: DeviceRef; category: string | null; durations: number[]; lastWorn: Date; maxSegmentMs: number };
 
 /** Die Geräte-Strecken einer Session-Liste in ihre Geräte-Töpfe. Gezählt werden damit SESSIONS,
  *  nicht Segmente: `deviceWearingsOf` fasst die Segmente eines Geräts innerhalb einer Session zu
@@ -57,10 +63,20 @@ function collectSessions(byDevice: Map<string, DeviceAgg>, sessions: Session[], 
   for (const session of sessions) {
     const category = categoryOf(session);
     for (const [key, w] of segmentsByDevice(session.segments)) {
-      const row = byDevice.get(key) ?? { device: w.device, category, durations: [], lastWorn: w.start };
+      const row = byDevice.get(key) ?? { device: w.device, category, durations: [], lastWorn: w.start, maxSegmentMs: 0 };
       row.durations.push(w.durationMs);
       if (w.start > row.lastWorn) row.lastWorn = w.start;
       byDevice.set(key, row);
+    }
+    // A-15: längstes EINZELNES, ununterbrochenes Segment je Gerät — feiner als segmentsByDevice, das
+    // die Segmente eines Geräts innerhalb der Session zu einer (über Pausen hinweg summierten) Strecke
+    // zusammenfasst. Die Row existiert hier garantiert (jedes Segment steckt in segmentsByDevice oben).
+    // Nur ABGESCHLOSSENE Segmente (`end !== null`) zählen — wie records.longestUnbrokenSegmentHours, mit
+    // dem sich die Marke deckt: ein laufendes, noch wachsendes Segment ist keine fertige Bestmarke.
+    for (const seg of session.segments) {
+      if (seg.end === null) continue;
+      const row = byDevice.get(deviceGroupKey(seg.deviceEffective));
+      if (row && seg.durationMs > row.maxSegmentMs) row.maxSegmentMs = seg.durationMs;
     }
   }
 }
@@ -109,6 +125,7 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
       medianHours: msToHours(m.medianMs),
       minHours: msToHours(m.minMs),
       maxHours: msToHours(m.maxMs),
+      maxUnbrokenSegmentHours: msToHours(r.maxSegmentMs),
       lastWornAt: iso(r.lastWorn),
     };
   };

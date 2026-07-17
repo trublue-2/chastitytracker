@@ -15,14 +15,38 @@ export interface SegmentView {
   start: string;
   end: string | null;
   durationHours: number;
+  /** Ganzzahlige Minuten (N-12, MCP-Restliste 2026-07-17): Einträge sind minutengenau erfasst
+   *  (Systemzeiten sekundengenau — die Klassen mischen sich). Ein Wechsel-in-unter-einer-Minute
+   *  kollabiert deshalb auf durationHours: 0; durationMinutes macht solche kurzen Segmente sichtbar
+   *  ("0 Stunden" ≠ "gar nicht passiert"). Bewusste Design-Entscheidung, Minute beizubehalten. */
+  durationMinutes: number;
   deviceDeclared: { id: string | null; name: string | null };
   deviceVerified: { id: string | null; name: string | null } | null;
   /** Massgebliches Gerät für die Tragezeit-Zurechnung (Bild bei echtem Konflikt, sonst deklariert). */
   deviceEffective: { id: string | null; name: string | null };
   deviceConfidence: Segment["deviceConfidence"];
   endedBy: Segment["endedBy"];
-  controls: { id: string; time: string; code: string | null; verifikationStatus: string | null; deviceCheckStatus: string | null; detected: string | null; expected: string | null; notes: NoteDTO[] }[];
+  controls: { id: string; time: string; code: string | null; verifikationStatus: string | null; deviceCheck: DeviceCheckView; detected: string | null; expected: string | null; notes: NoteDTO[] }[];
   notes: NoteDTO[];
+}
+
+/** Bild-gegen-Deklaration-Kontrolle einer PRUEFUNG (N-4/N-11, MCP-Restliste 2026-07-17).
+ *  `status`: "ok" (Bild bestätigt) | "wrong" (Bild widerspricht der DEKLARATION) | "missing" (kein Gerät
+ *  erkannt) | "not_checked" (nicht geprüft — ersetzt das frühere mehrdeutige `null`).
+ *  `isOffense` ist IMMER false: ein deviceCheck vergleicht Bild vs. Deklaration, NICHT gegen eine
+ *  request_lock-Anforderung — er erzeugt nie ein `wrong_device`-Vergehen (§6/§10). "wrong" heisst
+ *  „Deklaration stimmt nicht mit dem Bild", nicht „Vergehen". Der genaue Grund für "not_checked"
+ *  (keine Referenzbilder / Bild unbrauchbar / nicht angefordert) wird derzeit nicht unterschieden. */
+export interface DeviceCheckView {
+  status: "ok" | "wrong" | "missing" | "not_checked";
+  isOffense: false;
+}
+
+/** Normalisiert den rohen `deviceCheckStatus` (string|null) auf die vier stabilen Stufen — jeder
+ *  unbekannte Wert (und null) wird zu "not_checked", statt einen ungültigen Rohwert per Cast in den
+ *  Enum durchzureichen (N-11). */
+function normalizeDeviceCheckStatus(raw: string | null): DeviceCheckView["status"] {
+  return raw === "ok" || raw === "wrong" || raw === "missing" ? raw : "not_checked";
 }
 
 export interface SessionView {
@@ -42,8 +66,21 @@ export interface SessionView {
   deviceBreakdown: { deviceId: string | null; deviceName: string | null; hours: number }[];
   segments: SegmentView[];
   notes: NoteDTO[];
-  /** Aktiv ausgewiesene Konflikte (§12): declared≠verified pro Segment. */
-  dataQualityFlags: string[];
+  /** Aktiv ausgewiesene Datenqualitäts-Hinweise (§12), maschinenlesbar (A-05, MCP-Restliste
+   *  2026-07-17): jeder Eintrag trägt einen stabilen `code` (filterbar/zählbar), den `segmentIndex`
+   *  (null = session-weit) und `detail` als menschliche Erklärung. Vorher nur deutsche Prosa. */
+  dataQualityFlags: DataQualityFlag[];
+}
+
+/** Stabiler Code eines dataQualityFlags — maschinenlesbar, deckt sich mit den deviceConfidence-
+ *  Stufen bzw. dem orphaned-Zustand (A-05). */
+export type DataQualityCode = "orphaned-session" | "image-conflict" | "cluster-ambiguous" | "segment-without-device";
+export interface DataQualityFlag {
+  code: DataQualityCode;
+  /** Betroffenes Segment (dessen `index`); null = die ganze Session betreffend (z.B. orphaned). */
+  segmentIndex: number | null;
+  /** Menschliche Erklärung — dieselbe Aussage wie früher der reine Prosa-String. */
+  detail: string;
 }
 
 export interface SessionListResult extends Envelope {
@@ -53,8 +90,12 @@ export interface SessionListResult extends Envelope {
    *  v4: `isOpen`/`endReason` können jetzt für eine verwaiste, längst überholte Session `true`/"open"
    *  sein (Invariant-Fix in buildPairs, siehe utils.ts `orphaned`) — vorher fälschlich `false`/
    *  "closed" bei gleichzeitig widersprüchlichem Segment-`endedBy:"open"`. Das neue `orphaned`-Feld
-   *  ist der verbindliche Weg, diesen Fall zu erkennen, statt `isOpen` roh zu vertrauen. */
-  schemaVersion: 4;
+   *  ist der verbindliche Weg, diesen Fall zu erkennen, statt `isOpen` roh zu vertrauen.
+   *  v5 (A-05 + N-4/N-11, MCP-Restliste 2026-07-17): `dataQualityFlags` sind jetzt `{code, segmentIndex,
+   *  detail}` statt Prosa-Strings (maschinenlesbar); die Kontroll-`deviceCheckStatus:string|null` ist
+   *  zu `deviceCheck:{status,isOffense}` geworden (null → "not_checked", isOffense immer false).
+   *  Semantik-/Formänderungen an Bestandsfeldern → Bump. */
+  schemaVersion: 5;
   user: string;
   returnedCount: number;
   sessions: SessionView[];
@@ -89,7 +130,9 @@ function controlView(c: LinkedControl, notesByEntity: Map<string, NoteDTO[]>, is
     time: iso(c.time)!,
     code: c.code,
     verifikationStatus: c.verifikationStatus,
-    deviceCheckStatus: c.deviceCheckStatus,
+    // N-4/N-11: bekannte Stufen durchreichen, alles andere (inkl. null) → "not_checked" (statt
+    // mehrdeutigem null oder einem ungültigen Rohwert per Cast); isOffense immer false.
+    deviceCheck: { status: normalizeDeviceCheckStatus(c.deviceCheckStatus), isOffense: false as const },
     detected: c.detected,
     expected: c.expected,
     notes: notesByEntity.get(entityKey(controlEntityType, c.controlId)) ?? [],
@@ -103,6 +146,7 @@ function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>, iso: I
     start: iso(seg.start)!,
     end: iso(seg.end),
     durationHours: msToHours(seg.durationMs),
+    durationMinutes: Math.round(seg.durationMs / 60_000),
     deviceDeclared: seg.deviceDeclared,
     deviceVerified: seg.deviceVerified,
     deviceEffective: seg.deviceEffective,
@@ -115,17 +159,17 @@ function segmentView(seg: Segment, notesByEntity: Map<string, NoteDTO[]>, iso: I
 
 function sessionView(s: TaggedSession, notesByEntity: Map<string, NoteDTO[]>, iso: Iso): SessionView {
   const segments = s.segments.map((seg) => segmentView(seg, notesByEntity, iso));
-  const dataQualityFlags: string[] = [];
+  const dataQualityFlags: DataQualityFlag[] = [];
   if (s.orphaned) {
-    dataQualityFlags.push("Diese Session beginnt mit einem verwaisten Schliess-Eintrag ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. Backdating) — sie erscheint technisch als offen, ist aber keine echte aktuell laufende Session.");
+    dataQualityFlags.push({ code: "orphaned-session", segmentIndex: null, detail: "Diese Session beginnt mit einem verwaisten Schliess-Eintrag ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. Backdating) — sie erscheint technisch als offen, ist aber keine echte aktuell laufende Session." });
   }
   for (const seg of s.segments) {
     if (seg.deviceConfidence === "image-conflict") {
-      dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle (${seg.deviceVerified?.name}) widerspricht dem deklarierten Gerät (${seg.deviceDeclared.name}) über die Cluster-Grenze — Bild gewinnt, Stunden auf das verifizierte Gerät.`);
+      dataQualityFlags.push({ code: "image-conflict", segmentIndex: seg.index, detail: `Segment ${seg.index}: Bildkontrolle (${seg.deviceVerified?.name}) widerspricht dem deklarierten Gerät (${seg.deviceDeclared.name}) über die Cluster-Grenze — Bild gewinnt, Stunden auf das verifizierte Gerät.` });
     } else if (seg.deviceConfidence === "cluster-ambiguous") {
-      dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle nennt ein optisch gleiches Gerät (${seg.deviceVerified?.name}) aus demselben Cluster — unzuverlässig, deklariert (${seg.deviceDeclared.name}) bleibt massgeblich. Kein Vergehen.`);
+      dataQualityFlags.push({ code: "cluster-ambiguous", segmentIndex: seg.index, detail: `Segment ${seg.index}: Bildkontrolle nennt ein optisch gleiches Gerät (${seg.deviceVerified?.name}) aus demselben Cluster — unzuverlässig, deklariert (${seg.deviceDeclared.name}) bleibt massgeblich. Kein Vergehen.` });
     } else if (seg.deviceConfidence === "undeclared") {
-      dataQualityFlags.push(`Segment ${seg.index}: kein Gerät deklariert (A-04/A-05) — die Tragezeit landet in device_stats.unassigned statt bei einem Gerät.`);
+      dataQualityFlags.push({ code: "segment-without-device", segmentIndex: seg.index, detail: `Segment ${seg.index}: kein Gerät deklariert (A-04/A-05) — die Tragezeit landet in device_stats.unassigned statt bei einem Gerät.` });
     }
   }
   return {
@@ -182,7 +226,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   const notesByEntity = await notesForEntities(userId, selected.flatMap(refsOfSession), {}, undefined, timezone);
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     returnedCount: selected.length,

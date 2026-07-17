@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.13",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP-Substanzpaket (Restliste 17.07): keyholder_dashboard zeigt das effektive (bildbestätigte) Gerät + deviceDeclared/deviceConfidence (N-2); device_stats liefert maxUnbrokenSegmentHours als ehrliche Dauertrage-Marke (A-15); get_session.dataQualityFlags sind jetzt maschinenlesbar {code,segmentIndex,detail}, deviceCheck ist {status,isOffense} mit not_checked statt null, plus durationMinutes (A-05/N-4/N-11/N-12); get_box_state nennt hardwareEnforcedReason (A-07); get_devices trägt generatedAt/timezone/returnedCount (N-3). Doku: keySecured-Formel, get_action_log, cleaningPauses, auto_removed_control, Session-id, lookalikeClusterId-Reichweite (N-6/N-7/A-13/A-03/A-12/N-14).",
+          "en": "MCP substance pack (restliste 07-17): keyholder_dashboard shows the effective (image-verified) device + deviceDeclared/deviceConfidence (N-2); device_stats adds maxUnbrokenSegmentHours as the honest continuous-wear mark (A-15); get_session.dataQualityFlags are now machine-readable {code,segmentIndex,detail}, deviceCheck is {status,isOffense} with not_checked instead of null, plus durationMinutes (A-05/N-4/N-11/N-12); get_box_state exposes hardwareEnforcedReason (A-07); get_devices carries generatedAt/timezone/returnedCount (N-3). Docs: keySecured formula, get_action_log, cleaningPauses, auto_removed_control, session id, lookalikeClusterId reach (N-6/N-7/A-13/A-03/A-12/N-14)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.12",
     "date": "2026-07-17",
     "changes": [

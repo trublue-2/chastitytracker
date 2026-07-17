@@ -8,7 +8,7 @@ import {
 } from "@/lib/mcp/liveState";
 import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
 import { buildPairs, msToHours } from "@/lib/utils";
-import { buildSessions, type Session } from "@/lib/sessionModel";
+import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
@@ -18,6 +18,9 @@ import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
  *  Adhärenz, offene Vergehen, gepinnte Direktiven + Grenzen, BoxState. Komponiert die V2/V1-
  *  Aggregate — rein lesend, MCP-only. */
+
+/** Der EINE Grund für hardwareEnforced:false, in fester Rangfolge (A-07). */
+export type HardwareEnforcedReason = "soll-open" | "reported-open" | "key-not-in-box" | "stale-lock";
 
 export interface BoxStateView {
   name: string;
@@ -38,6 +41,11 @@ export interface BoxStateView {
    *  `reportedLocked:false` (steht offen, z.B. wartet auf das Präsenz-Fenster), `keyInBox:false`
    *  (Ehrensache, Schlüssel beim Sub) oder `staleLock:true` (hat sich offline selbst geöffnet). */
   hardwareEnforced: boolean;
+  /** Maschinenlesbare Fassung des „genau EIN Feld nennt das Warum"-Kontrakts (A-07, MCP-Restliste
+   *  2026-07-17): null wenn hardwareEnforced true, sonst der EINE Grund in fester Rangfolge —
+   *  "soll-open" (locked:false), "reported-open" (reportedLocked:false), "key-not-in-box"
+   *  (keyInBox:false), "stale-lock" (staleLock:true). Additiv zum bisherigen Prosa-Kontrakt. */
+  hardwareEnforcedReason: HardwareEnforcedReason | null;
   /** Der zuletzt gemeldete „zu"-Stand (IST) ist nicht mehr verlässlich, weil die Box sich seit dem
    *  letzten Sync **deterministisch selbst geöffnet** hat: entweder die gecachte Frist (`lockUntil`)
    *  ist verstrichen, oder das Offline-Failsafe (nach `offlineOpenHours` ohne Sync) ist erreicht.
@@ -71,10 +79,13 @@ export interface BoxStateView {
 }
 
 export interface DashboardResult extends Envelope {
-  /** v3: `currentRun.since` bedeutet jetzt Lauf-Anfang statt jüngster KG-Eintrag — bei einem Lauf
-   *  mit Reinigungspausen widersprach das bisher `durationHours` (A-01, MCP-Befundliste
-   *  2026-07-17). Der alte Wert steht jetzt separat in `currentSegmentSince`. */
-  schemaVersion: 3;
+  /** v3: `currentRun.since` = Lauf-Anfang statt jüngster KG-Eintrag (A-01).
+   *  v4 (N-2, MCP-Restliste 2026-07-17): `currentRun.deviceName` und `wornNow[].deviceName` sind
+   *  jetzt das MASSGEBLICHE Gerät (`deviceEffective` — bei image-conflict gewinnt das Bild), NICHT
+   *  mehr das deklarierte. Vorher widersprach das Dashboard als einziger Endpunkt den Deep-Views.
+   *  Neu daneben: `deviceDeclared` + `deviceConfidence`, damit der Konflikt am Ort der Frage sichtbar
+   *  ist. Semantik-Änderung eines Bestandsfelds → schemaVersion-Bump (nicht rein additiv). */
+  schemaVersion: 4;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -88,7 +99,13 @@ export interface DashboardResult extends Envelope {
      *  Wiederverschluss). Ohne Pausen identisch mit `since`, weiterhin gesetzt (kein Sonderfall). */
     currentSegmentSince: string | null;
     durationHours: number | null;
+    /** MASSGEBLICHES Gerät des aktuellen Segments (deviceEffective — bei image-conflict das
+     *  verifizierte). Deckt sich mit get_session/device_stats. Siehe deviceDeclared für den Konflikt. */
     deviceName: string | null;
+    /** Am Lock-Entry deklariertes Gerät des aktuellen Segments. Weicht von deviceName ab, wenn eine
+     *  Bildkontrolle widerspricht (deviceConfidence: "image-conflict"). */
+    deviceDeclared: string | null;
+    deviceConfidence: DeviceConfidence | null;
     personalBestHours: number;
     vsPersonalBestPct: number | null;
     /** true, wenn goals.kg.today einen Anteil einer FRÜHEREN (heute geendeten) Session enthält —
@@ -106,7 +123,7 @@ export interface DashboardResult extends Envelope {
   /** Was JETZT getragen wird — KG + alle Kategorien vereint. `since` = Lauf-Anfang (wie
    *  `currentRun.since`; für das KG-Segment-Detail bei Reinigungspausen `get_session` nutzen —
    *  diese Zeile hier bleibt bewusst kompakt, ohne Segment-Granularität). */
-  wornNow: { category: string; deviceName: string | null; since: string | null; durationHours: number | null }[];
+  wornNow: { category: string; deviceName: string | null; deviceDeclared: string | null; deviceConfidence: DeviceConfidence | null; since: string | null; durationHours: number | null }[];
   /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / Orgasmus-Fenster.
    *  Zeiten ISO-8601 mit Offset (die liveState-Mapper bekommen das `iso`-Format durchgereicht); zusätzlich
    *  remainingMinutes/overdue für direkte Fristfragen. Beim Orgasmus-Fenster zeigt `active` an,
@@ -251,12 +268,24 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
       (box.lastSyncAt !== null &&
         box.offlineOpenHours != null &&
         msToHours(now.getTime() - box.lastSyncAt.getTime()) >= box.offlineOpenHours));
+  const hardwareEnforced = effectiveLocked && keyInBox !== false && !staleLock;
+  // Genau EIN Grund, feste Rangfolge (A-07). Muss am SELBEN Wert ansetzen wie `hardwareEnforced`,
+  // nämlich `effectiveLocked` (= reportedLocked ?? locked) — sonst nennt der Grund bei
+  // {locked:false, reportedLocked:true} fälschlich "soll-open", obwohl die Box effektiv zu ist und der
+  // echte Grund key/stale wäre. Ist die Box nicht wirksam zu, trennt reportedLocked===false (IST offen,
+  // "reported-open") von „kein IST-Report + SOLL offen" ("soll-open").
+  const hardwareEnforcedReason: HardwareEnforcedReason | null =
+    hardwareEnforced ? null
+      : !effectiveLocked ? (box.reportedLocked === false ? "reported-open" : "soll-open")
+      : keyInBox === false ? "key-not-in-box"
+      : "stale-lock";
   return {
     name: box.name,
     locked: box.locked,
     reportedLocked: box.reportedLocked,
     lockUntil: iso(box.lockUntil),
-    hardwareEnforced: effectiveLocked && keyInBox !== false && !staleLock,
+    hardwareEnforced,
+    hardwareEnforcedReason,
     staleLock,
     keyInBox,
     keySecured: box.reportedLocked === true && keyInBox === true && !staleLock,
@@ -327,6 +356,15 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   ]);
 
   const lock = buildLockState(trackingCtx.entries, trackingCtx.reinigung, now, fmt, pairs);
+  // N-2: das MASSGEBLICHE Gerät des laufenden KG-Segments (deviceEffective — bei image-conflict
+  // gewinnt das Bild), aus derselben Session-Segmentierung wie die Deep-Views. `lock.deviceName`
+  // trägt nur das DEKLARIERTE Gerät; ohne diese Überlagerung sagte das Dashboard als einziger
+  // Endpunkt das falsche Gerät. Das aktuelle Segment ist das letzte einer offenen, nicht-orphaned
+  // Session; fehlt es (Alt-Verschluss ohne Segment), fällt alles auf die Deklaration zurück.
+  const currentSegment = sessions.find(isLiveOpenSession)?.segments.at(-1) ?? null;
+  const kgEffectiveName = currentSegment?.deviceEffective.name ?? lock.deviceName;
+  const kgDeclaredName = currentSegment?.deviceDeclared.name ?? lock.deviceName;
+  const kgConfidence = currentSegment?.deviceConfidence ?? null;
   const activeWearSessions = mapActiveWearSessions(activeWearRows, now, fmt);
   // Die Box-Sicht erbt die Schlüssel-Deklaration aus DEMSELBEN Lock-Zustand wie currentRun — die
   // beiden Felder einer Antwort können so nicht auseinanderlaufen, und es kostet keine Query.
@@ -335,10 +373,13 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
   const wornNow: DashboardResult["wornNow"] = [];
   if (lock.isLocked) {
-    wornNow.push({ category: "KG", deviceName: lock.deviceName, since: lock.since, durationHours: lock.currentDurationHours });
+    wornNow.push({ category: "KG", deviceName: kgEffectiveName, deviceDeclared: kgDeclaredName, deviceConfidence: kgConfidence, since: lock.since, durationHours: lock.currentDurationHours });
   }
   for (const w of activeWearSessions) {
-    wornNow.push({ category: w.category, deviceName: w.deviceName, since: w.since, durationHours: w.durationHours });
+    // Wear-Sessions durchlaufen keine KG-Bildkontroll-Segmentierung → deklariert == effektiv,
+    // deviceConfidence "declared" — konsistent mit get_session, das eine Wear-Session über
+    // reconcileDevice ohne Bildkontrolle ebenfalls auf "declared" auflöst (N-2).
+    wornNow.push({ category: w.category, deviceName: w.deviceName, deviceDeclared: w.deviceName, deviceConfidence: "declared", since: w.since, durationHours: w.durationHours });
   }
 
   const openOffenseRows = ledger.offenses.filter((o) => o.status === "open");
@@ -352,7 +393,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,
@@ -361,7 +402,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       since: lock.since,
       currentSegmentSince: lock.currentSegmentSince,
       durationHours: lock.currentDurationHours,
-      deviceName: lock.deviceName,
+      deviceName: kgEffectiveName,
+      deviceDeclared: kgDeclaredName,
+      deviceConfidence: kgConfidence,
       personalBestHours: rec.longestRunHours,
       vsPersonalBestPct: rec.currentRunVsPbPct,
       todayIncludesPriorSession,

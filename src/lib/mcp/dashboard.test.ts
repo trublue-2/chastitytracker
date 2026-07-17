@@ -49,7 +49,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("liefert exakt die Vertragsfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result).sort()).toEqual([...DASHBOARD_KEYS].sort());
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4); // N-2: deviceName = deviceEffective, +deviceDeclared/deviceConfidence
     // Die Keyholder-Regeln reicht das Dashboard aus dem (lean) Overview durch.
     expect(result.keyholderInstructions).toBe(TEST_USER.mcpKeyholderInstructions);
   });
@@ -57,7 +57,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("currentRun und nextRelevant behalten ihre Unterfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result.currentRun).sort()).toEqual(
-      ["isLocked", "since", "currentSegmentSince", "durationHours", "deviceName", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
+      ["isLocked", "since", "currentSegmentSince", "durationHours", "deviceName", "deviceDeclared", "deviceConfidence", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
     );
     expect(Object.keys(result.nextRelevant).sort()).toEqual(["openControl", "activeLockPeriod", "interruptedLockPeriod", "openOrgasmWindow", "openLockRequest"].sort());
   });
@@ -169,6 +169,7 @@ describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen
     const { boxState } = await getBoxState("sub");
     expect(boxState?.hardwareEnforced).toBe(true);
     expect(boxState?.staleLock).toBe(false);
+    expect(boxState?.hardwareEnforcedReason).toBeNull(); // A-07: true → kein Grund
   });
 
   it("offline länger als offlineOpenHours → staleLock, hardwareEnforced false, SOLL bleibt", async () => {
@@ -176,7 +177,35 @@ describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen
     const { boxState } = await getBoxState("sub");
     expect(boxState?.staleLock).toBe(true);
     expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.hardwareEnforcedReason).toBe("stale-lock"); // A-07
     expect(boxState?.locked).toBe(true); // die Absicht bleibt, nur die Vollstreckung ist unbestätigt
+  });
+
+  it("SOLL offen ohne IST-Report (locked:false, reportedLocked unset) → 'soll-open' (A-07)", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ locked: false })); // reportedLocked undefined → effectiveLocked = locked = false
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.hardwareEnforcedReason).toBe("soll-open");
+  });
+
+  it("SOLL offen ABER IST noch zu (locked:false, reportedLocked:true) → key/stale gewinnt, NICHT 'soll-open' (A-07 B1)", async () => {
+    // effectiveLocked = reportedLocked ?? locked = true → die Box ist wirksam zu; der Grund für
+    // hardwareEnforced:false ist der fehlende Schlüssel, nicht das SOLL.
+    db.entry.findMany.mockResolvedValue([{ ...LOCKED_ENTRY, keyInBox: false }]);
+    db.entry.findFirst.mockResolvedValue({ ...LOCKED_ENTRY, keyInBox: false });
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ locked: false, reportedLocked: true }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.hardwareEnforcedReason).toBe("key-not-in-box");
+  });
+
+  it("Schlüssel beim Sub (keyInBox:false) → hardwareEnforcedReason 'key-not-in-box' (A-07)", async () => {
+    db.entry.findMany.mockResolvedValue([{ ...LOCKED_ENTRY, keyInBox: false }]);
+    db.entry.findFirst.mockResolvedValue({ ...LOCKED_ENTRY, keyInBox: false });
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({}));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.hardwareEnforcedReason).toBe("key-not-in-box");
   });
 
   it("verstrichene Frist → staleLock, auch ohne offlineOpenHours-Term", async () => {
@@ -196,6 +225,7 @@ describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen
     expect(boxState?.locked).toBe(true); // die Absicht steht
     expect(boxState?.reportedLocked).toBe(false); // aber physisch offen
     expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.hardwareEnforcedReason).toBe("reported-open"); // A-07: locked:true aber IST offen
     expect(boxState?.staleLock).toBe(false); // nichts zu misstrauen — wir WISSEN, dass sie offen ist
   });
 

@@ -190,6 +190,7 @@ describe("device_stats — gezählt werden SESSIONS, nicht Segmente", () => {
     expect(kg.sessionCount).toBe(1);
     expect(kg.totalHours).toBe(3.8);   // 2h + 1.75h, auf eine Stelle gerundet — Pause bleibt abgezogen
     expect(kg.maxHours).toBe(3.8);     // längste SESSION, nicht längstes Segment (2h)
+    expect(kg.maxUnbrokenSegmentHours).toBe(2);  // A-15: ehrliche Marke = längstes EINZELsegment (10–12h), nicht die 3.8h-Session
   });
 
   it("wechselt das Gerät über die Pause, zählt die Session für BEIDE Geräte je einmal", async () => {
