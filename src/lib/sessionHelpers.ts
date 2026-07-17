@@ -1,4 +1,4 @@
-import { formatDuration } from "@/lib/utils";
+import { formatDuration, buildLockPoints, wornDeviceNameAt } from "@/lib/utils";
 
 export interface SessionEvent {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -17,16 +17,19 @@ export interface SessionEvent {
   orgasmusArt?: string | null;
   pauseDurationStr?: string | null;
   submittedAt?: Date | null;
+  /** KONTROLLE: getragenes Gerät zum Kontroll-Zeitpunkt (re-lock-bewusst). */
+  deviceName?: string | null;
 }
 
+type LockRef = { name?: string | null };
 type ActivePair = {
-  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null };
+  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null; device?: LockRef | null };
   kontrollen: {
     entryId: string | null; time: Date; imageUrl: string | null; note: string | null;
     deadline: Date | null; kommentar: string | null; code: string | null;
     anforderungStatus: string | null; verifikationStatus: string | null; submittedAt: Date | null;
   }[];
-  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date; imageUrl: string | null; codeImageUrl?: string | null } }[];
+  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; device?: LockRef | null } }[];
 };
 
 type OrgasmusEntry = { id: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt: string | null };
@@ -40,6 +43,8 @@ export function buildSessionEvents(
   dl: string,
   resolveOrgasmus?: (art: string | null) => string | null,
 ): SessionEvent[] {
+  // (Wieder-)Verschluss-Zeitpunkte mit Gerät — für das getragene Gerät je Kontrolle (re-lock-bewusst).
+  const lockPoints = buildLockPoints(activePair);
   return [
     {
       type: "verschluss" as const,
@@ -50,6 +55,7 @@ export function buildSessionEvents(
       note: activePair.verschluss.note,
       entryId: activePair.verschluss.id,
       kontrolleCode: activePair.verschluss.kontrollCode,
+      deviceName: activePair.verschluss.device?.name ?? null,
     },
     ...activePair.kontrollen
       .filter(k => k.entryId !== null)
@@ -66,6 +72,7 @@ export function buildSessionEvents(
         kontrolleAnforderungStatus: k.anforderungStatus,
         kontrolleVerifikationStatus: k.verifikationStatus,
         submittedAt: k.submittedAt,
+        deviceName: wornDeviceNameAt(lockPoints, k.time),
       })),
     ...orgasmusEntries
       .filter(e => e.startTime >= activePair.verschluss.startTime)

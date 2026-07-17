@@ -58,15 +58,17 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const now = new Date();
 
   const flagOn = deviceCategoriesEnabled();
-  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories] = await Promise.all([
-    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { id: true, categoryId: true } } } }),
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories, deviceCount] = await Promise.all([
+    prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { id: true, name: true, categoryId: true } } } }),
     prisma.kontrollAnforderung.findMany({ where: { userId: id, ...keyholderVisibleKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(id, now),
     getKeyholderSperrzeit(id),
     getKeyholderOrgasmusAnforderung(id),
     flagOn ? getActiveWearSessions(id) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(id) : Promise.resolve([]),
+    prisma.device.count({ where: { userId: id, archivedAt: null } }),
   ]);
+  const userHasDevices = deviceCount > 0;
 
   const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
   // Aktiv offene Kontrolle für das grosse Banner — geplante (wirksamAb in der Zukunft) ausschliessen:
@@ -131,6 +133,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           monatH={monatH}
           jahrH={jahrH}
           tz={tz}
+          userHasDevices={userHasDevices}
         />
       ) : (
         <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} tz={tz} />
@@ -237,7 +240,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
       <CategoryGoalsToday userId={id} />
 
-      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} />
+      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} />
 
       {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
 

@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
+import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import SessionListClient, { SessionListData } from "./SessionListClient";
@@ -70,6 +70,10 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
   const sessions: SessionListData[] = pairs.map((pair) => {
     const { verschluss, oeffnen, active: rawActive, orphaned, kontrollen } = pair;
     const active = rawActive && !orphaned;
+
+    // Getragenes Gerät zu einer Kontroll-Zeit — inkl. Gerätewechsel bei einer Reinigungspause (das
+    // Gerät des jüngsten Verschlusses ≤ Zeitpunkt). Geteilte Logik mit dem Laufende-Session-Timeline.
+    const lockPoints = buildLockPoints(pair);
 
     const dateStr = formatDate(verschluss.startTime, dl, tz);
     const timeStr = formatTime(verschluss.startTime, dl, tz);
@@ -150,6 +154,10 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             orgasmusArt: null,
             timeCorrected: corrected,
             timeCorrectedSystemStr: corrected ? formatDateTime(k.submittedAt!, dl, tz) : null,
+            // Getragenes Gerät zum Kontroll-Zeitpunkt (berücksichtigt Gerätewechsel bei einer
+            // Reinigungspause). Wird im Detail unter Datum/Zeit gezeigt.
+            deviceName: wornDeviceNameAt(lockPoints, k.time),
+            showDevice: userHasDevices,
           };
         }),
       ...sessionOrgasmen.map((e) => ({

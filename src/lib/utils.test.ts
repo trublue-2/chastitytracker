@@ -6,6 +6,7 @@ import {
   mergeWearPairs,
   mapAnforderungStatus,
   isSubVisibleKontrolle,
+  wornDeviceNameAt,
   interruptionPauseMs,
   WEAR_PAIR,
   formatDateTime,
@@ -638,5 +639,33 @@ describe("isSubVisibleKontrolle", () => {
     expect(isSubVisibleKontrolle({ anforderungStatus: "missed" })).toBe(true);
     expect(isSubVisibleKontrolle({ anforderungStatus: "fulfilled" })).toBe(true);
     expect(isSubVisibleKontrolle({ anforderungStatus: null })).toBe(true);   // freie Selbstkontrolle
+  });
+});
+
+describe("wornDeviceNameAt — getragenes Gerät re-lock-bewusst", () => {
+  const d = (iso: string, name: string | null) => ({ time: new Date(iso), name });
+
+  it("ohne Reinigungspause: das Gerät des Session-Verschlusses", () => {
+    const lp = [d("2026-07-17T10:00:00Z", "Flatty")];
+    expect(wornDeviceNameAt(lp, new Date("2026-07-17T12:00:00Z"))).toBe("Flatty");
+  });
+
+  it("Gerätewechsel bei Reinigungspause: Kontrolle NACH dem Wechsel liefert das neue Gerät", () => {
+    const lp = [
+      d("2026-07-17T10:00:00Z", "Cage A"),
+      d("2026-07-17T13:00:00Z", "Cage B"), // Wiederverschluss mit anderem Gerät
+    ];
+    expect(wornDeviceNameAt(lp, new Date("2026-07-17T12:00:00Z"))).toBe("Cage A"); // vor dem Wechsel
+    expect(wornDeviceNameAt(lp, new Date("2026-07-17T14:00:00Z"))).toBe("Cage B"); // nach dem Wechsel
+  });
+
+  it("exakt auf dem Wiederverschluss-Zeitpunkt zählt schon das neue Gerät", () => {
+    const lp = [d("2026-07-17T10:00:00Z", "Cage A"), d("2026-07-17T13:00:00Z", "Cage B")];
+    expect(wornDeviceNameAt(lp, new Date("2026-07-17T13:00:00Z"))).toBe("Cage B");
+  });
+
+  it("unsortierte Eingabe wird korrekt behandelt", () => {
+    const lp = [d("2026-07-17T13:00:00Z", "Cage B"), d("2026-07-17T10:00:00Z", "Cage A")];
+    expect(wornDeviceNameAt(lp, new Date("2026-07-17T11:00:00Z"))).toBe("Cage A");
   });
 });

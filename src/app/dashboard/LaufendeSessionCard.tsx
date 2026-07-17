@@ -38,6 +38,8 @@ interface Props {
   jahrH: number;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
+  /** Blendet die „Gerät"-Zeile im Kontroll-Detail ein (true, wenn der Nutzer Geräte hat). */
+  userHasDevices?: boolean;
 }
 
 export default async function LaufendeSessionCard({
@@ -56,6 +58,7 @@ export default async function LaufendeSessionCard({
   monatH,
   jahrH,
   tz = APP_TZ,
+  userHasDevices = false,
 }: Props) {
   const t = await getTranslations("dashboard");
   const tCommon = await getTranslations("common");
@@ -163,6 +166,8 @@ export default async function LaufendeSessionCard({
             timeCorrected: isTimeCorrected(ev.time, ev.submittedAt),
             timeCorrectedSystemStr: isTimeCorrected(ev.time, ev.submittedAt)
               ? formatDateTime(ev.submittedAt!, dl, tz) : null,
+            deviceName: ev.deviceName ?? null,
+            showDevice: userHasDevices,
           };
         })}
         sessionStart={sessionStart.toISOString()}

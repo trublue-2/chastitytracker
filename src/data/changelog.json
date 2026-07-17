@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.14",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Kontroll-Detail (Foto-Ansicht) wird jetzt unter Datum/Zeit das getragene Gerät angezeigt — auf dem Dashboard und in der Admin-Nutzeransicht, für laufende wie abgeschlossene Sessions. Das Gerät berücksichtigt einen Gerätewechsel bei einer Reinigungspause (es zählt der jüngste Verschluss vor der Kontrolle).",
+          "en": "The inspection detail (photo view) now shows the worn device under date/time — on the dashboard and in the admin user view, for running and completed sessions. The device accounts for a device change during a cleaning pause (the most recent lock before the inspection counts)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.13",
     "date": "2026-07-17",
     "changes": [

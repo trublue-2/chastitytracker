@@ -205,6 +205,7 @@ export default async function DashboardPage() {
             monatH={monatH}
             jahrH={jahrH}
             tz={tz}
+            userHasDevices={userHasDevices}
           />
         </div>
       )}

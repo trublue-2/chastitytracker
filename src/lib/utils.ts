@@ -561,6 +561,33 @@ export function interruptionPauseMs(interruptions: { oeffnen: { startTime: Date 
   return interruptions.reduce((s, i) => s + i.verschluss.startTime.getTime() - i.oeffnen.startTime.getTime(), 0);
 }
 
+/** Alle (Wieder-)Verschluss-Zeitpunkte einer Session mit Gerätenamen — der Session-Start plus jeder
+ *  Wiederverschluss nach einer Reinigungspause. Basis für `wornDeviceNameAt`; geteilt von der
+ *  Sessions-Liste und dem Laufende-Session-Timeline. */
+export function buildLockPoints(pair: {
+  verschluss: { startTime: Date; device?: { name?: string | null } | null };
+  interruptions?: { verschluss: { startTime: Date; device?: { name?: string | null } | null } }[];
+}): { time: Date; name: string | null }[] {
+  return [
+    { time: pair.verschluss.startTime, name: pair.verschluss.device?.name ?? null },
+    ...(pair.interruptions ?? []).map((i) => ({ time: i.verschluss.startTime, name: i.verschluss.device?.name ?? null })),
+  ];
+}
+
+/** Getragenes Gerät zu einem Zeitpunkt innerhalb einer Session: nach einer Reinigungspause gilt die
+ *  Angabe des Wiederverschlusses, nicht die des Session-Starts (dasselbe Prinzip wie `currentLock` in
+ *  liveState.ts). `lockPoints` = alle (Wieder-)Verschluss-Zeitpunkte mit Gerätenamen; zurück kommt das
+ *  Gerät des jüngsten Verschlusses ≤ `at`. */
+export function wornDeviceNameAt(lockPoints: { time: Date; name: string | null }[], at: Date): string | null {
+  const sorted = [...lockPoints].sort((a, b) => a.time.getTime() - b.time.getTime());
+  let name = sorted[0]?.name ?? null;
+  for (const lp of sorted) {
+    if (lp.time.getTime() <= at.getTime()) name = lp.name;
+    else break;
+  }
+  return name;
+}
+
 /** Maps built pairs (from `buildPairs`) to completed sessions with interruption-adjusted
  *  duration. Drops open pairs and non-positive durations. */
 export function completedPairsFrom<E extends { startTime: Date }>(

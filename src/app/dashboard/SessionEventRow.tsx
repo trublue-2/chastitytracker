@@ -188,6 +188,15 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
     </span>
   );
 
+  // Geräte-Zeile (getragenes Gerät) — dieselbe Darstellung an zwei Positionen im Detail-Panel:
+  // bei Kontrollen direkt unter Datum/Zeit, bei Verschlüssen weiter unten (bewusst getrennte Orte).
+  const deviceRow = ev.showDevice ? (
+    <div>
+      <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("device")}</p>
+      <p className="text-sm text-foreground-muted">{ev.deviceName ?? "—"}</p>
+    </div>
+  ) : null;
+
   // Open / overdue kontrolle → banner style
   if (ev.captureHref) {
     const textCls = ev.isOverdue ? "text-warn-text" : "text-[var(--color-warn)]";
@@ -285,6 +294,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
                 <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
                 <p className="text-sm font-semibold text-foreground">{ev.dateStr}, {ev.timeStr}</p>
               </div>
+              {ev.type === "kontrolle" && deviceRow}
               {ev.exifStr && (
                 <div>
                   <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
@@ -324,12 +334,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
                   <p className="text-sm text-[var(--color-warn)]">{ev.kontrolleKommentar}</p>
                 </div>
               )}
-              {ev.type === "verschluss" && ev.showDevice && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("device")}</p>
-                  <p className="text-sm text-foreground-muted">{ev.deviceName ?? "—"}</p>
-                </div>
-              )}
+              {ev.type === "verschluss" && deviceRow}
               {ev.note && (
                 <div>
                   <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
