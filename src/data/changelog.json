@@ -6,8 +6,8 @@
       {
         "type": "chore",
         "text": {
-          "de": "MCP explain_model gestrafft: von ~27.6k auf ~8.3k Zeichen (15 → 9 Abschnitte). Tech-Doku statt Prosa — Bug-/Änderungs-Historie und Befund-Referenzen raus (die stehen im Changelog), Box-Abschnitt auf das für den Keyholder Relevante eingedampft (hardwareEnforced/keySecured statt Box-Internals), V1/V2-Pipeline-Vokabular durch einen einheitlichen Schreib-Vertrag ersetzt. Neu vorangestellt: die Rolle des Keyholders — der Server liefert Zahlen, der Keyholder wertet; vorgerechnete Indikatoren sind Eingaben, kein Urteil. Alle Feldaussagen gegen den Code verifiziert.",
-          "en": "Trimmed the MCP explain_model reference from ~27.6k to ~8.3k chars (15 → 9 sections). Tech-doc, not prose — dropped bug/change history and audit-finding references (those live in the changelog), collapsed the box section to what the keyholder needs (hardwareEnforced/keySecured instead of box internals), and replaced the V1/V2 pipeline vocabulary with one uniform write contract. New lead section on the keyholder's role: the server delivers numbers, the keyholder interprets; pre-computed indicators are inputs, not verdicts. Every field claim verified against the code."
+          "de": "Die Referenz für die Keyholder-KI wurde deutlich gekürzt und klarer gefasst: der Server liefert Zahlen, der Keyholder wertet sie.",
+          "en": "The keyholder-AI reference was substantially shortened and clarified: the server delivers numbers, the keyholder interprets them."
         }
       }
     ]
@@ -19,8 +19,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP-Ergonomie-Batch (S3): device_stats trennt zeitlose Strecken jetzt in pre_device_tracking vs not_declared und zeigt pro Gerät lastWornUntil+isWornNow (A-09/K-20); get_devices/set_device_meta: pullOffRisk ist nullable (null = nie beurteilt, false = geprüft sicher), Geräte lassen sich archivieren, get_devices blendet Archivierte per Default aus und nimmt deviceId/includeNotes (K-08/K-09/K-10); get_offenses nimmt Filter type/openOnly/from/to/limit (K-14); get_context: appointmentsFrom/-To öffnen vergangene Termine, triggerWindow leer → null (K-21/K-17); get_action_log: source → decisionSource (Kollision mit args.source), neu actorLabel (K-11/K-12); query_notes liefert returnedCount + unknownRef, Notes tragen isLatest (K-13/K-22).",
-          "en": "MCP ergonomics batch (S3): device_stats now splits device-less time into pre_device_tracking vs not_declared and shows lastWornUntil+isWornNow per device (A-09/K-20); get_devices/set_device_meta: pullOffRisk is nullable (null = never assessed, false = verified safe), devices can be archived, get_devices hides archived by default and takes deviceId/includeNotes (K-08/K-09/K-10); get_offenses takes type/openOnly/from/to/limit filters (K-14); get_context: appointmentsFrom/-To expose past appointments, empty triggerWindow → null (K-21/K-17); get_action_log: source → decisionSource (collided with args.source), new actorLabel (K-11/K-12); query_notes returns returnedCount + unknownRef, notes carry isLatest (K-13/K-22)."
+          "de": "Keyholder-KI: feinere Geräte- und Tragezeit-Daten (u.a. „wird gerade getragen“), Geräte lassen sich archivieren, und mehr Filter für Vergehen, Termine und Verlauf.",
+          "en": "Keyholder AI: finer device and wear-time data (incl. “currently worn”), devices can be archived, and more filters for offenses, appointments and history."
         }
       }
     ]
@@ -32,8 +32,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: pinned:true wirkt nur bei DIRECTIVE/BOUNDARY-Notizen (nur diese werden gepinnt aufs Dashboard ausgespielt) — auf allen anderen Typen wird ein Pin jetzt abgelehnt statt still zu verpuffen, auch wenn ein Typ-Wechsel eine bereits gepinnte Notiz betreffen würde (N-Pins). Dazu drei Doku-Klarstellungen im explain_model/Guide: der V2-dryRun liefert nun wouldSucceed/diff/after wie V1 (N-15); trackingEnabled ist per Default true und false=Inventory-only eine bewusste Nutzer-Einstellung, nicht automatisch für Halsband/Knebel (DOK-03); deviceCheck.expected/detected sind der zum Prüfzeitpunkt eingefrorene Stand und dürfen nicht rückwirkend gegen das heutige Gerät gelesen werden (N-16).",
-          "en": "MCP: pinned:true only takes effect on DIRECTIVE/BOUNDARY notes (only those surface pinned on the dashboard) — on every other type a pin is now rejected instead of being silently ignored, including when a type change would strand an already-pinned note (N-Pins). Plus three doc clarifications in explain_model/guide: the V2 dryRun now returns wouldSucceed/diff/after like V1 (N-15); trackingEnabled defaults to true and false=inventory-only is a deliberate user setting, not automatic for collar/gag devices (DOK-03); deviceCheck.expected/detected are frozen at check time and must not be read retroactively against today's device (N-16)."
+          "de": "Keyholder-KI: das Anpinnen einer Notiz wirkt nur noch bei Direktiven und Grenzen (sonst wird es abgelehnt statt wirkungslos zu verpuffen).",
+          "en": "Keyholder AI: pinning a note now only applies to directives and boundaries (otherwise it's rejected instead of silently having no effect)."
         }
       }
     ]
@@ -45,8 +45,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: der dryRun aller V2-Write-Tools (upsert_note, upsert_appointment, upsert_recurring_context, set_health_hold, link_note) liefert jetzt — wie set_device_meta und die V1-Tools — eine echte Vorschau mit wouldSucceed, diff [alt,neu] und projiziertem after-Zustand statt nur des Vorher-Werts (N-15, Phase 2/3). Die Merge-Logik ist zwischen Vorschau und Commit geteilt, der dryRun-Diff ist also identisch mit dem echten. Nebenbei: set_health_hold zeigt beim Deaktivieren ohne aktiven Hold korrekt einen leeren Diff.",
-          "en": "MCP: the dryRun of all V2 write tools (upsert_note, upsert_appointment, upsert_recurring_context, set_health_hold, link_note) now returns — like set_device_meta and the V1 tools — a real preview with wouldSucceed, diff [old,new] and a projected after-state instead of just the before value (N-15, phase 2/3). The merge logic is shared between preview and commit, so the dryRun diff is identical to the real one. Also: set_health_hold shows a correct empty diff when deactivating with no active hold."
+          "de": "Keyholder-KI: alle schreibenden Aktionen zeigen in der Vorschau die genaue Wirkung (vorher/nachher), nicht nur den Ausgangswert.",
+          "en": "Keyholder AI: every write action's preview now shows the exact effect (before/after), not just the starting value."
         }
       }
     ]
@@ -58,8 +58,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: set_device_meta liefert im dryRun jetzt eine echte Vorschau (wouldSucceed, diff [alt,neu], after) statt nur des Vorher-Zustands — der Keyholder sieht die Wirkung eines lookalikeClusterId-Writes VOR dem Commit. Vorschau- und Commit-Diff sind per Konstruktion identisch. Nebenbei: healthFlags kommt in der Vorschau als Array statt als JSON-String (N-15/K-16). Die übrigen V2-Write-Tools folgen in der nächsten Phase.",
-          "en": "MCP: set_device_meta's dryRun now returns a real preview (wouldSucceed, diff [old,new], after) instead of just the before-state — the keyholder sees the effect of a lookalikeClusterId write BEFORE committing. Preview and commit diff are identical by construction. Also: healthFlags is returned as an array instead of a JSON string in the preview (N-15/K-16). The remaining V2 write tools follow in the next phase."
+          "de": "Keyholder-KI: Änderungen an Geräte-Angaben zeigen in der Vorschau die genaue Wirkung vor dem Speichern.",
+          "en": "Keyholder AI: device-metadata changes show their exact effect in the preview before saving."
         }
       }
     ]
@@ -84,8 +84,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP-Substanzpaket (Restliste 17.07): keyholder_dashboard zeigt das effektive (bildbestätigte) Gerät + deviceDeclared/deviceConfidence (N-2); device_stats liefert maxUnbrokenSegmentHours als ehrliche Dauertrage-Marke (A-15); get_session.dataQualityFlags sind jetzt maschinenlesbar {code,segmentIndex,detail}, deviceCheck ist {status,isOffense} mit not_checked statt null, plus durationMinutes (A-05/N-4/N-11/N-12); get_box_state nennt hardwareEnforcedReason (A-07); get_devices trägt generatedAt/timezone/returnedCount (N-3). Doku: keySecured-Formel, get_action_log, cleaningPauses, auto_removed_control, Session-id, lookalikeClusterId-Reichweite (N-6/N-7/A-13/A-03/A-12/N-14).",
-          "en": "MCP substance pack (restliste 07-17): keyholder_dashboard shows the effective (image-verified) device + deviceDeclared/deviceConfidence (N-2); device_stats adds maxUnbrokenSegmentHours as the honest continuous-wear mark (A-15); get_session.dataQualityFlags are now machine-readable {code,segmentIndex,detail}, deviceCheck is {status,isOffense} with not_checked instead of null, plus durationMinutes (A-05/N-4/N-11/N-12); get_box_state exposes hardwareEnforcedReason (A-07); get_devices carries generatedAt/timezone/returnedCount (N-3). Docs: keySecured formula, get_action_log, cleaningPauses, auto_removed_control, session id, lookalikeClusterId reach (N-6/N-7/A-13/A-03/A-12/N-14)."
+          "de": "Keyholder-KI: verlässlichere Geräte-Erkennung, eine ehrliche Dauertrage-Bestmarke und klarere Box- und Vergehens-Daten.",
+          "en": "Keyholder AI: more reliable device recognition, an honest longest-continuous-wear record, and clearer box and offense data."
         }
       }
     ]
@@ -228,15 +228,15 @@
       {
         "type": "feat",
         "text": {
-          "de": "get_box_state/keyholder_dashboard.boxState bekommt keySecured: die direkte Antwort auf die Frage, die eine Alleinzeit-Vorgabe stellt (Käfig zu UND Schlüssel drin UND das noch aktuell — reportedLocked===true && keyInBox===true && !staleLock), statt aus fünf Feldern selbst zusammengerechnet werden zu müssen.",
-          "en": "get_box_state/keyholder_dashboard.boxState gets keySecured: the direct answer to what a solo-time directive requires (cage closed AND key inside AND that still current — reportedLocked===true && keyInBox===true && !staleLock), instead of having to be computed by hand from five fields."
+          "de": "Keyholder-KI: eine direkte Antwort auf „Käfig zu und Schlüssel drin?“ in einem einzigen Feld.",
+          "en": "Keyholder AI: a direct one-field answer to “cage locked and key inside?”."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "explain_model §7 behauptete, ein VERSCHLUSS-Eintrag schliesse die Box direkt und eine Sperrzeit tue das gar nicht. Beides ungenau: VERSCHLUSS setzt ein lock-Kommando, das erst beim nächsten Box-Sync wirksam wird (Sync-Lag ≠ Störung); eine Sperrzeit hält die Box über keyholderLocked/lockUntil, nicht über eigene Kommandos.",
-          "en": "explain_model §7 claimed a VERSCHLUSS entry closes the box directly and a lock period never does. Both imprecise: VERSCHLUSS sets a lock command that only takes effect on the box's next sync (sync lag, not a malfunction); a lock period holds the box via keyholderLocked/lockUntil, not its own commands."
+          "de": "Box-Doku für die Keyholder-KI korrigiert: wie Verschluss und Sperrzeit die Box tatsächlich steuern.",
+          "en": "Corrected the keyholder-AI box documentation on how a lock entry and a lock period actually control the box."
         }
       }
     ]
@@ -261,22 +261,22 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: dryRun der 6 Edit-artigen V1-Write-Tools (edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, judge_offense) liefert jetzt einen echten Feld-Diff [alt, neu] wie der Commit-Pfad, statt nur wouldSucceed/preview. Reine Creates bleiben ohne diff (kein 'vorher').",
-          "en": "MCP: dryRun of the 6 edit-style V1 write tools (edit_training_goal, delete_training_goal, set_cleaning, resolve_inspection, edit_lock_period, judge_offense) now returns a real field diff [old, new] like the commit path does, instead of just wouldSucceed/preview. Pure creates stay without a diff (nothing to compare against)."
+          "de": "Keyholder-KI: die Vorschau ändernder Aktionen zeigt jetzt das genaue Vorher/Nachher.",
+          "en": "Keyholder AI: the preview of editing actions now shows the exact before/after."
         }
       },
       {
         "type": "security",
         "text": {
-          "de": "judge_offense dryRun las StrafeRecord-Zeilen ohne Besitzer-Prüfung — ein ref eines anderen Users auf derselben Instanz hätte dessen Strafbuch-Status in der Vorschau offenlegen können. Jetzt userId-gescoped.",
-          "en": "judge_offense dryRun read StrafeRecord rows without an ownership check — a ref belonging to a different user on the same instance could have leaked that user's penalty status into the preview. Now scoped to userId."
+          "de": "Die Vorschau einer Vergehens-Beurteilung war nicht auf den eigenen Nutzer beschränkt — behoben.",
+          "en": "The preview of an offense judgement was not scoped to your own user — fixed."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "set_cleaning dryRun zeigte maxPerDay als rohe 0 statt als null ('unbegrenzt') — abweichend von get_context.cleaning für denselben Zustand.",
-          "en": "set_cleaning dryRun showed maxPerDay as raw 0 instead of null ('unlimited') — inconsistent with get_context.cleaning for the same state."
+          "de": "Reinigungs-Vorschau zeigte „unbegrenzt“ fälschlich als 0 — korrigiert.",
+          "en": "The cleaning preview showed “unlimited” incorrectly as 0 — fixed."
         }
       }
     ]
@@ -288,8 +288,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: die 12 direktiven Write-Tools (set_lock_period, request_orgasm, judge_offense u.a.) unterstützen jetzt dryRun:true — Vorschau vor dem Commit, inkl. echter Regelprüfung (Fenster-/Zielwert-Plausibilität, geklemmte Reinigungswerte, häufigste Ablehnungsgründe wie 'bereits verschlossen'). Kein voller Zustands-Check wie bei den Wissens-Writes, aber eine ehrliche Vorschau statt keiner.",
-          "en": "MCP: the 12 directive write tools (set_lock_period, request_orgasm, judge_offense, etc.) now support dryRun:true — a preview before committing, including real rule checks (window/target plausibility, clamped cleaning values, the most common rejection reasons like 'already locked'). Not the full state check the knowledge-writes get, but an honest preview instead of none."
+          "de": "Keyholder-KI: anordnende Aktionen (Sperrzeit, Orgasmus, Strafe u.a.) haben jetzt eine Vorschau vor dem Ausführen.",
+          "en": "Keyholder AI: directive actions (lock period, orgasm, penalty, etc.) now have a preview before they run."
         }
       }
     ]
@@ -366,8 +366,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP-Modell-Doku driftsicher: Ein neuer Test erzwingt, dass explain_model (mcpModelDoc.ts) und der Keyholder-Guide (docs) abschnittsweise inhaltsgleich bleiben. Die dabei aufgedeckte Drift ist behoben: §7 (Box-Steuerung über die Einträge) trägt jetzt in beiden Dateien den Stand von v4.50.24 inkl. Fenster-Bruch-Regel, §4 spiegelt usedToday/windows/windowOpenNow, §10 die openControl/deviceCheck-Lesehinweise, §12 den präzisierten Urteils-Wortlaut.",
-          "en": "MCP model doc drift-proofed: a new test enforces that explain_model (mcpModelDoc.ts) and the keyholder guide (docs) stay section-wise identical. The drift it uncovered is fixed: §7 (box control via entries) now carries the v4.50.24 state in both files including the window-violation rule, §4 mirrors usedToday/windows/windowOpenNow, §10 the openControl/deviceCheck reading hints, §12 the clarified judgment wording."
+          "de": "Die Referenz für die Keyholder-KI und der zugehörige Guide werden automatisch konsistent gehalten; gefundene Abweichungen behoben.",
+          "en": "The keyholder-AI reference and its guide are now kept consistent automatically; detected discrepancies fixed."
         }
       }
     ]
@@ -379,8 +379,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP-Wissensmodell konsistent: Note-Refs auf unbekannte Objekte werden abgewiesen statt still als toter Verweis gespeichert; nennt der kg-Tag ein Inventar-Gerät, wird automatisch der typisierte Geräte-Ref angelegt (die Note ist damit über get_devices auffindbar) — auch im dryRun sichtbar. securityLevel ist als KG-only dokumentiert (null bei Nicht-KG = vollständig), referenceImages ist bewusst nur eine Anzahl. Veraltete Paragraphen-Verweise in den Tool-Beschreibungen zeigen jetzt auf explain_model §13; der Keyholder-Guide enthält den bisher fehlenden §13-Spiegel.",
-          "en": "MCP knowledge model made consistent: note refs to unknown objects are rejected instead of silently stored as dead pointers; if the kg tag names an inventory device, the typed device ref is created automatically (making the note findable via get_devices) — visible in dryRun too. securityLevel is documented as KG-only (null on non-KG = complete), referenceImages is deliberately just a count. Stale paragraph references in tool descriptions now point to explain_model §13; the keyholder guide gains the previously missing §13 mirror."
+          "de": "Keyholder-Notizen: Verweise auf gelöschte Objekte werden abgewiesen, und ein Gerätename in einer Notiz verknüpft automatisch das passende Gerät.",
+          "en": "Keyholder notes: references to deleted objects are rejected, and a device name in a note automatically links the matching device."
         }
       }
     ]
@@ -392,8 +392,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP-Payload-Klarheit: Geräte-Feld abstreifbar heisst jetzt pullOffRisk mit eindeutiger Polarität (true = lässt sich trotz Verschluss abstreifen, unsicher) — Name und Beschreibung widersprachen sich bisher. get_devices liefert neu trackingEnabled (false = Inventory-only-Kategorie, per Design ohne Sessions). device_stats trennt den Sammel-Posten ohne Geräte-Zuordnung in ein eigenes unassigned-Feld statt einer Pseudo-Gerätezeile (schemaVersion 4). get_box_state trägt schemaVersion 3 als rückwirkende Anerkennung der heutigen hardwareEnforced-Semantik-Wechsel; neu gilt: Semantik-Änderung ⇒ Versions-Bump.",
-          "en": "MCP payload clarity: device field abstreifbar is now pullOffRisk with unambiguous polarity (true = can be pulled off despite the lock, insecure) — name and description used to contradict each other. get_devices now returns trackingEnabled (false = inventory-only category, no sessions by design). device_stats separates the bucket without device assignment into its own unassigned field instead of a pseudo device row (schemaVersion 4). get_box_state carries schemaVersion 3 as retroactive acknowledgement of today's hardwareEnforced semantic changes; new rule: semantic change ⇒ version bump."
+          "de": "Keyholder-Daten klarer: ein eindeutiges Geräte-Merkmal „abstreifbar“, die Kennzeichnung reiner Inventar-Geräte und sauber getrennte Alt-Tragezeiten ohne Geräte-Zuordnung.",
+          "en": "Clearer keyholder data: an unambiguous “pull-off risk” device flag, marking of inventory-only devices, and cleanly separated legacy wear time without a device assignment."
         }
       }
     ]
@@ -405,8 +405,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: Optimistic Concurrency für Edit-Writes. Notizen, Geräte, Termine und Wochen-Slots tragen jetzt eine version (in get_devices/query_notes/get_context und jedem Write-Ergebnis); Edits können sie als expectedVersion mitgeben und werden bei zwischenzeitlicher Änderung durch einen anderen Schreiber mit Konflikt-Fehler abgelehnt statt still zu überschreiben — auch schon im dryRun sichtbar. Alle Schreibpfade (MCP-Edits, Note-Supersession, link_note, Geräte-Änderungen im UI inkl. Archivieren) zählen die Version hoch; No-op-Edits nicht.",
-          "en": "MCP: optimistic concurrency for edit writes. Notes, devices, appointments and weekly slots now carry a version (in get_devices/query_notes/get_context and every write result); edits can pass it as expectedVersion and are rejected with a conflict error instead of silently overwriting when another writer changed the object in the meantime — already visible in dryRun. All write paths (MCP edits, note supersession, link_note, device changes in the UI incl. archiving) increment the version; no-op edits do not."
+          "de": "Keyholder-Schnittstelle: gleichzeitige Änderungen an Notizen, Geräten und Terminen werden erkannt und nicht mehr still überschrieben.",
+          "en": "Keyholder interface: simultaneous edits to notes, devices and appointments are detected instead of silently overwriting each other."
         }
       }
     ]
@@ -616,22 +616,15 @@
       {
         "type": "fix",
         "text": {
-          "de": "Die Geräte-Statistik zeigt wieder ALLE Geräte. Plugs, Halsbänder und Knebel tauchten dort überhaupt nicht auf — weder unter ihrem Namen noch im Sammel-Posten „ohne Gerät\". Die Zuordnung in den Rohdaten stimmte; die Auswertung kannte schlicht nur Verschluss-/Öffnen-Paare und ignorierte die Trage-Zyklen der anderen Kategorien. Jede Zeile nennt jetzt zusätzlich ihre Kategorie, womit auch der Sammel-Posten eindeutig ist. Gepaart wird je GERÄT: zwei Plugs gleichzeitig getragen bekommen jeder ihre eigene Dauer.",
-          "en": "Device statistics show ALL devices again. Plugs, collars and gags never appeared at all — neither by name nor in the \"no device\" bucket. The raw data was correctly attributed; the aggregation simply only knew lock/unlock pairs and ignored the wear cycles of every other category. Each row now also names its category, which makes the collective bucket unambiguous too. Pairing is per DEVICE: two plugs worn at the same time each get their own duration."
+          "de": "Die Geräte-Statistik zeigt wieder ALLE Geräte — Plugs, Halsbänder und Knebel fehlten dort zuvor. Jede Zeile nennt jetzt ihre Kategorie; gleichzeitig getragene Geräte bekommen jeweils ihre eigene Dauer.",
+          "en": "Device statistics show ALL devices again — plugs, collars and gags were missing before. Each row now names its category; devices worn at the same time each get their own duration."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Das Keyholder-Dashboard zeigt eine offene Verschluss-Anforderung an (mit Frist und Überfälligkeit). Bisher liess sie sich stellen, aber ihr Zustand nirgends ablesen.",
-          "en": "The keyholder dashboard now shows an open lock request (with deadline and overdue flag). Until now one could be issued but its state read nowhere."
-        }
-      },
-      {
-        "type": "chore",
-        "text": {
-          "de": "Die veralteten MCP-V1-Tools sind entfernt: get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes sowie die V1-Notiz-Writes — samt dem Schalter ENABLE_LEGACY_MCP, der sie ein- und ausschaltete. Die V2-Tools ersetzen sie vollständig. list_entries und explain_model hatten keine V2-Entsprechung und bleiben.",
-          "en": "The deprecated MCP V1 tools are gone: get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes and the V1 note writes — along with the ENABLE_LEGACY_MCP flag that toggled them. The V2 tools fully replace them. list_entries and explain_model had no V2 equivalent and stay."
+          "de": "Das Keyholder-Dashboard zeigt eine offene Verschluss-Anforderung inklusive Frist und Überfälligkeit.",
+          "en": "The keyholder dashboard shows an open lock request including its deadline and overdue state."
         }
       }
     ]
@@ -2242,8 +2235,8 @@
       {
         "type": "chore",
         "text": {
-          "de": "Weitere tote V1-Referenzen bereinigt: KeyholderInstructionsForm-Kommentar zeigte noch auf get_overview.keyholderInstructions (jetzt keyholder_dashboard). Der Keyholder-Notizen-Abschnitt in mcpModelDoc.ts (explain_model) und docs/mcp-keyholder-guide.md beschrieb noch die veralteten add_keyholder_note/list_keyholder_notes/delete_keyholder_note als primären Weg statt der V2-Tools upsert_note/query_notes/link_note.",
-          "en": "Cleaned up further dead V1 references: the KeyholderInstructionsForm comment still pointed to get_overview.keyholderInstructions (now keyholder_dashboard). The keyholder notes section in mcpModelDoc.ts (explain_model) and docs/mcp-keyholder-guide.md still described the deprecated add_keyholder_note/list_keyholder_notes/delete_keyholder_note as the primary way instead of the V2 tools upsert_note/query_notes/link_note."
+          "de": "Interne Aufräumarbeiten an der Keyholder-Doku (veraltete Verweise entfernt).",
+          "en": "Internal cleanup of the keyholder documentation (removed outdated references)."
         }
       }
     ]
@@ -2386,22 +2379,15 @@
       {
         "type": "feat",
         "text": {
-          "de": "MCP: Die verbindlichen Keyholder-Regeln erscheinen jetzt direkt mit der Tool-Liste — die Server-Instructions verweisen fest auf keyholder_dashboard.keyholderInstructions (immer frisch) und betten zusätzlich beim Server-Start ein Abbild der aktuellen Regeln ein.",
-          "en": "MCP: the binding keyholder rules now appear directly alongside the tool list — the server instructions permanently reference keyholder_dashboard.keyholderInstructions (always fresh) and additionally embed a snapshot of the current rules at server startup."
+          "de": "Keyholder-KI: die verbindlichen Keyholder-Regeln erscheinen jetzt direkt mit der Tool-Liste (immer der frische Stand).",
+          "en": "Keyholder AI: the binding keyholder rules now appear directly with the tool list (always the current version)."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "MCP V2 vervollständigt: get_context liefert jetzt die Auto-Kontroll-Einstellungen (autoInspections) und die Reinigungs-Regeln (cleaning); get_devices ergänzt Kaufpreis/Währung; get_offenses bekommt Header (generatedAt/timezone) und entryNote. Damit decken die V2-Tools alle Angaben der alten V1-Read-Tools ab.",
-          "en": "MCP V2 completed: get_context now returns the auto-inspection settings (autoInspections) and cleaning rules (cleaning); get_devices adds purchase price/currency; get_offenses gets a header (generatedAt/timezone) and entryNote. This means the V2 tools cover all the information the old V1 read tools provided."
-        }
-      },
-      {
-        "type": "chore",
-        "text": {
-          "de": "MCP: Die LEGACY-V1-Read-Tools (get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes, add/delete_keyholder_note) sind als VERALTET markiert und per ENABLE_LEGACY_MCP=false abschaltbar (Default an). Direktiv-Writes, list_entries und explain_model bleiben unverändert.",
-          "en": "MCP: the LEGACY V1 read tools (get_overview, list_sessions, list_devices, get_strafbuch, list_keyholder_notes, add/delete_keyholder_note) are marked as DEPRECATED and can be disabled via ENABLE_LEGACY_MCP=false (default on). Directive writes, list_entries, and explain_model remain unchanged."
+          "de": "Keyholder-KI: die neue Tool-Generation deckt jetzt alle Angaben der alten Tools ab (Auto-Kontroll- und Reinigungs-Regeln, Kaufpreis, Kopfzeilen).",
+          "en": "Keyholder AI: the new tool generation now covers everything the old tools did (auto-inspection and cleaning rules, purchase price, headers)."
         }
       }
     ]
@@ -2850,8 +2836,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "MCP: get_overview lieferte die Reinigungs-ZEITFENSTER nicht aus — der KI-Assistent schloss daraus fälschlich, Reinigung sei „nicht an Uhrzeiten gebunden\". get_overview.reinigung enthält jetzt windows (erlaubte HH:MM-Fenster), windowOpenNow (gerade offen bis) und usedToday (heute verbrauchte Öffnungen); explain_model erklärt die Fenster. Der Geräte-Wechsel-Hinweis (verbraucht eine Reinigungsöffnung) war korrekt.",
-          "en": "MCP: get_overview did not return the cleaning TIME WINDOWS — leading the AI assistant to wrongly conclude that cleaning was \"not tied to specific times.\" get_overview.reinigung now includes windows (allowed HH:MM windows), windowOpenNow (currently open until), and usedToday (openings used today); explain_model explains the windows. The device-swap note (consumes a cleaning opening) was already correct."
+          "de": "Keyholder-KI: die erlaubten Reinigungs-Zeitfenster werden jetzt korrekt mitgeliefert — vorher entstand daraus der falsche Schluss, Reinigung sei zeitlich ungebunden.",
+          "en": "Keyholder AI: the allowed cleaning time windows are now provided correctly — previously this led to the wrong conclusion that cleaning was not time-bound."
         }
       }
     ]
@@ -3138,36 +3124,22 @@
       {
         "type": "feat",
         "text": {
-          "de": "Orgasmus-Anforderung: Der Keyholder kann einen Orgasmus mit Zeitfenster vorgeben — als ANWEISUNG (Pflicht) oder GELEGENHEIT (Erlaubnis), optional mit verlangter Orgasmus-Art und einer Nachricht. Der Sub wird per E-Mail + Push benachrichtigt; ein passender Orgasmus im Fenster erfüllt die Anforderung automatisch.",
-          "en": "Orgasm request: the keyholder can specify an orgasm with a time window — as a DIRECTIVE (mandatory) or an OPPORTUNITY (permission), optionally with a required orgasm type and a message. The sub is notified via email + push; a matching orgasm within the window automatically fulfills the request."
+          "de": "Orgasmus-Anforderung: Der Keyholder kann einen Orgasmus mit Zeitfenster vorgeben — als Pflicht oder als Erlaubnis, optional mit verlangter Art und einer Nachricht. Der Sub wird per E-Mail und Push benachrichtigt; ein passender Orgasmus im Fenster erfüllt die Anforderung automatisch.",
+          "en": "Orgasm directive: the keyholder can set an orgasm with a time window — as a requirement or a permission, optionally with a required type and a message. The sub is notified by email and push; a matching orgasm within the window fulfils it automatically."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Öffnen zum Orgasmus erlaubt: Optional darf sich der Sub im Fenster zum Orgasmus öffnen, ohne dass eine aktive Sperrzeit verletzt wird (analog zur Reinigungs-Ausnahme). Im Admin-Formular als Checkbox, über den MCP als openAllowed.",
-          "en": "Unlocking for orgasm allowed: optionally the sub may unlock within the window for an orgasm without violating an active lock period (analogous to the cleaning exception). Available as a checkbox in the admin form, and as openAllowed via the MCP."
+          "de": "Öffnen zum Orgasmus optional erlaubt, ohne dass eine aktive Sperrzeit verletzt wird (analog zur Reinigungs-Ausnahme).",
+          "en": "Optionally allow opening for the orgasm without violating an active lock period (like the cleaning exception)."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Strafbuch: Eine verpasste ANWEISUNG (Fenster abgelaufen ohne passenden Orgasmus) wird als Vergehen erkannt (missedOrgasmInstructions) — erkannt, nicht automatisch bestraft.",
-          "en": "Penalty log: a missed INSTRUCTION (window expired without a matching orgasm) is now detected as an offense (missedOrgasmInstructions) — detected, not automatically penalized."
-        }
-      },
-      {
-        "type": "feat",
-        "text": {
-          "de": "MCP voll angebunden: request_orgasm (Direktive setzen), withdraw mit target \"orgasm_directive\", get_strafbuch.missedOrgasmInstructions und get_overview.openOrgasmusAnforderung. explain_model + Keyholder-Guide um §11 erweitert.",
-          "en": "MCP fully wired up: request_orgasm (set directive), withdraw with target \"orgasm_directive\", get_strafbuch.missedOrgasmInstructions and get_overview.openOrgasmusAnforderung. explain_model + keyholder guide extended with §11."
-        }
-      },
-      {
-        "type": "chore",
-        "text": {
-          "de": "Geschäftslogik der Orgasmus-Anforderung in geteilten Service orgasmusAnforderungService extrahiert — Admin-Route und MCP nutzen denselben Pfad (Single Source of Truth).",
-          "en": "Orgasm request business logic extracted into a shared service, orgasmusAnforderungService — the admin route and MCP now use the same code path (single source of truth)."
+          "de": "Strafbuch: eine verpasste Pflicht-Anforderung (Fenster ohne passenden Orgasmus abgelaufen) wird als Vergehen erkannt — erkannt, nicht automatisch bestraft.",
+          "en": "Ledger: a missed required directive (window elapsed without a matching orgasm) is recorded as an offense — detected, not automatically punished."
         }
       }
     ]
@@ -3179,50 +3151,29 @@
       {
         "type": "feat",
         "text": {
-          "de": "Heimdall-Box-Integration: Der Tracker zeigt den Live-Zustand der Schlüsselbox (Lock-Status, Akku, Firmware) und kann die Box direkt verschliessen sowie öffnen (eigene Sperre ohne Zeit). Box-Ereignisse (LOCKED/UNLOCKED/…) werden über eine Maschinen-API mit Shared-Secret eingespielt; die Tracker-eigene Sperrzeit wird respektiert.",
-          "en": "Heimdall box integration: the tracker shows the live state of the lockbox (lock status, battery, firmware) and can lock and unlock the box directly (its own lock, independent of lock period). Box events (LOCKED/UNLOCKED/…) are ingested via a machine API with a shared secret; the tracker's own lock period is still respected."
+          "de": "Schlüsselbox-Integration (Heimdall): der Tracker zeigt den Live-Zustand der Box (Verschluss, Akku, Firmware) und kann sie direkt ver- und entriegeln; die eigene Sperrzeit wird dabei respektiert.",
+          "en": "Key-box integration (Heimdall): the tracker shows the box's live state (lock, battery, firmware) and can lock and unlock it directly; the tracker's own lock period is respected."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Reinigung im (+)-Eintrag: Reinigungsöffnungen lassen sich mit Tages-Fenstern konfigurieren; die Box öffnet temporär (clean_open) und verschliesst danach wieder, ohne die Sperrzeit zu brechen.",
-          "en": "Cleaning in the (+) entry: cleaning openings can now be configured with daily windows; the box opens temporarily (clean_open) and locks again afterward without breaking the lock period."
+          "de": "Reinigung im (+)-Eintrag mit Tages-Zeitfenstern: die Box öffnet temporär und verschliesst danach wieder, ohne die Sperrzeit zu brechen.",
+          "en": "Cleaning in the (+) entry with daily time windows: the box opens temporarily and re-locks afterwards without breaking the lock period."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "MCP: Virtueller Keyholder kann private Beobachtungen ablegen und wieder auswerten (add/list/delete_keyholder_note) — nur über den MCP sichtbar, kein Sub-/Admin-UI.",
-          "en": "MCP: the AI keyholder can save and later review private observations (add/list/delete_keyholder_note) — visible only via MCP, no sub/admin UI."
-        }
-      },
-      {
-        "type": "feat",
-        "text": {
-          "de": "MCP: explain_model — Referenz zu Modell & Abhängigkeiten für den Keyholder (Lock, Sperrzeit, Reinigung, Strafen).",
-          "en": "MCP: explain_model — reference for the model & its dependencies for the keyholder (lock, lock period, cleaning, penalties)."
-        }
-      },
-      {
-        "type": "feat",
-        "text": {
-          "de": "MCP: list_devices liefert jetzt Notizen (description) und Foto-Status; get_overview zeigt bei aktiver Sperrzeit und offener Verschluss-Anforderung das vorgegebene Gerät sowie reinigungErlaubt.",
-          "en": "MCP: list_devices now returns notes (description) and photo status; get_overview shows the assigned device and cleaning-allowed status (reinigungErlaubt) when a lock period is active and an unlock request is open."
+          "de": "Keyholder-KI: private Beobachtungen ablegen und auswerten, eine Modell-Referenz zum Nachschlagen, und Geräte-Infos inklusive Foto-Status und vorgegebenem Gerät.",
+          "en": "Keyholder AI: store and review private observations, a model reference to look things up, and device info including photo status and the required device."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "Reinigungs-Limit wird als Verstoss erkannt statt automatisch bestraft; Zählung pro CH-Kalendertag.",
-          "en": "Exceeding the cleaning limit is now detected as a violation instead of being penalized automatically; counted per calendar day (Swiss timezone)."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "OAuth: Authorize redirectet mit 303 statt 307 (Method Not Allowed behoben); Consent zeigt den Admin-Schreibzugriff ehrlich an.",
-          "en": "OAuth: authorize now redirects with 303 instead of 307 (fixed Method Not Allowed); consent screen now honestly discloses admin write access."
+          "de": "Reinigungs-Limit wird als Verstoss erkannt statt automatisch bestraft (Zählung pro Kalendertag).",
+          "en": "Cleaning limit is recorded as a violation instead of being automatically punished (counted per calendar day)."
         }
       }
     ]
@@ -3387,8 +3338,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "Keyholder-Rolle (Phase 1, Lesen): Ein normaler User kann vom Admin als Keyholder einer anderen Person definiert werden — ohne selbst Admin zu werden und nie für sich selbst. Keyholder bekommen einen eigenen Bereich /keyholder mit Lese-Panel (Statistik/Tragezeiten der kontrollierten Person) und einen Schlüssel-Link im Header. Verwaltung im Admin unter Benutzer-Einstellungen (Admins sind nicht als Keyholder zuweisbar). Direktiven (Sperrzeit, Kontrolle, Vorgabe etc.) folgen in Phase 2.",
-          "en": "Keyholder role (phase 1, read-only): a regular user can now be defined by an admin as another person's keyholder — without becoming an admin themselves, and never for themselves. Keyholders get their own area, /keyholder, with a read-only panel (statistics/wear times of the monitored person) and a key link in the header. Managed in admin under user settings (admins cannot be assigned as keyholders). Directives (lock period, inspection, training goal, etc.) follow in phase 2."
+          "de": "Keyholder-Rolle (Lesen): Ein normaler User kann vom Admin als Keyholder einer anderen Person definiert werden — ohne selbst Admin zu werden und nie für sich selbst — mit eigenem Bereich und Lese-Panel (Statistik/Tragezeiten der kontrollierten Person). Anordnende Direktiven folgen später.",
+          "en": "Keyholder role (read): an admin can designate a normal user as another person's keyholder — without granting admin rights and never for themselves — with a dedicated area and read panel (the controlled person's stats/wear times). Directive actions follow later."
         }
       }
     ]
@@ -3505,8 +3456,8 @@
       {
         "type": "chore",
         "text": {
-          "de": "MCP-API: schemaVersion: 1 zu allen drei Tool-Responses hinzugefügt (get_overview, get_strafbuch, list_sessions), damit Breaking Changes künftig nachvollziehbar sind. list_sessions gibt jetzt { schemaVersion, sessions: [...] } zurück statt ein reines Array.",
-          "en": "MCP API: added schemaVersion: 1 to all three tool responses (get_overview, get_strafbuch, list_sessions) so future breaking changes are traceable. list_sessions now returns { schemaVersion, sessions: [...] } instead of a plain array."
+          "de": "Die Antworten der Keyholder-Schnittstelle tragen jetzt eine Versionsnummer, damit spätere Änderungen nachvollziehbar bleiben.",
+          "en": "The keyholder-interface responses now carry a version number so later changes stay traceable."
         }
       }
     ]
@@ -3531,29 +3482,15 @@
       {
         "type": "security",
         "text": {
-          "de": "OAuth: tokenMatches verwendet jetzt SHA-256-Digest-Vergleich statt Pad-und-Truncate — verhindert Fälschung von MCP_TOKEN-Tokens die länger als 128 Zeichen sind.",
-          "en": "OAuth: tokenMatches now uses SHA-256 digest comparison instead of pad-and-truncate — prevents forgery of MCP_TOKEN tokens longer than 128 characters."
+          "de": "Anmeldung der Keyholder-Schnittstelle: sicherer Token-Vergleich, der gefälschte, überlange Tokens abweist.",
+          "en": "Keyholder-interface sign-in: safer token comparison that rejects forged, overly long tokens."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "OAuth Discovery-Endpoint und Authorize-Redirect lesen jetzt x-forwarded-host/x-forwarded-proto (last entry per Projekt-Sicherheitsregel) statt der internen Bind-Adresse — behebt falsche Issuer-URL (0.0.0.0:3000) hinter Traefik.",
-          "en": "OAuth discovery endpoint and authorize redirect now read x-forwarded-host/x-forwarded-proto (last entry, per project security rule) instead of the internal bind address — fixes an incorrect issuer URL (0.0.0.0:3000) behind Traefik."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "SSE- und Message-Transportpfade des MCP-Servers (/api/sse, /api/message) in den Proxy-Whitelist aufgenommen — OAuth-Clients mit SSE-Transport erhielten zuvor 401 vom Session-Gate statt vom MCP-Auth-Layer.",
-          "en": "The MCP server's SSE and message transport paths (/api/sse, /api/message) were added to the proxy whitelist — OAuth clients using SSE transport were previously getting a 401 from the session gate instead of from the MCP auth layer."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "Abgelaufene OAuth-Codes und -Tokens werden jetzt beim Token-Exchange bereinigt (fire-and-forget pruneExpiredOAuthRecords).",
-          "en": "Expired OAuth codes and tokens are now cleaned up during token exchange (fire-and-forget pruneExpiredOAuthRecords)."
+          "de": "Anmeldung hinter dem Reverse-Proxy: korrekte Server-Adresse und -Protokoll, freigegebene Transportpfade und Aufräumen abgelaufener Codes/Tokens.",
+          "en": "Sign-in behind the reverse proxy: correct server address and protocol, whitelisted transport paths, and cleanup of expired codes/tokens."
         }
       }
     ]
