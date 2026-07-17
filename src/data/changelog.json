@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.60",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Trainingsziele (set_training_goal/edit_training_goal) lehnen unplausible Stundenwerte ab (z.B. 25 Std/Tag oder 500 Std/Woche) sowie Wochen-/Monats-/Jahresziele, die beim Tagesziel unerreichbar wären. Ein Tagesziel von 0 (Löschen) blockiert dabei keine anderen Zeiträume mehr.",
+          "en": "Training goals (set_training_goal/edit_training_goal) now reject implausible hour targets (e.g. 25h/day or 500h/week) and weekly/monthly/yearly targets that would be unreachable given the daily target. A daily target of 0 (clearing it) no longer blocks other periods."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.59",
     "date": "2026-07-17",
     "changes": [

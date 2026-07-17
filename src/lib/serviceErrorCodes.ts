@@ -63,6 +63,14 @@ export const GOAL_CODES = [
   "GOAL_START_REQUIRED",
   "GOAL_PERIOD_TARGET_REQUIRED",
   "CATEGORY_DISALLOWS_GOALS",
+  // B-02 (MCP-Befundliste 2026-07-17): Plausibilitätsschranken für Stundenwerte.
+  "GOAL_DAY_TARGET_TOO_HIGH",
+  "GOAL_WEEK_TARGET_TOO_HIGH",
+  "GOAL_MONTH_TARGET_TOO_HIGH",
+  "GOAL_YEAR_TARGET_TOO_HIGH",
+  "GOAL_WEEK_UNREACHABLE_VS_DAY",
+  "GOAL_MONTH_UNREACHABLE_VS_DAY",
+  "GOAL_YEAR_UNREACHABLE_VS_DAY",
 ] as const;
 
 /** verschlussAnforderungService (lock requests + lock periods). */
