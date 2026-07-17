@@ -109,6 +109,35 @@ export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = 
   });
 }
 
+/** Die KG-Nachbarn (VERSCHLUSS/OEFFNEN) UNMITTELBAR vor und nach `startTime` in der
+ *  chronologischen Reihenfolge — nicht die zeitlich jüngsten Einträge insgesamt.
+ *
+ *  `getLatestKgEntry` beantwortet "was ist der aktuelle Lock-Zustand" korrekt, aber beim
+ *  Backdating (Admin-Route, TIME_BEFORE-Guard bewusst deaktiviert) reicht das nicht: ein neuer
+ *  Eintrag kann zeitlich ZWISCHEN ein bestehendes Paar rutschen, ohne der global-jüngste zu sein.
+ *  Ohne diesen Nachbar-Check können so zwei gleichartige KG-Einträge (VERSCHLUSS/VERSCHLUSS oder
+ *  OEFFNEN/OEFFNEN) chronologisch aufeinanderfolgen — die Anomalie, die `buildPairs` als
+ *  verwaistes Pair abfängt (siehe utils.ts). Diese Funktion verhindert sie an der Quelle. */
+export async function getKgNeighbors(
+  userId: string,
+  startTime: Date,
+  tx: PrismaTx | typeof prisma = prisma,
+): Promise<{ prev: { type: string } | null; next: { type: string } | null }> {
+  const [prev, next] = await Promise.all([
+    tx.entry.findFirst({
+      where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { lt: startTime } },
+      orderBy: { startTime: "desc" },
+      select: { type: true },
+    }),
+    tx.entry.findFirst({
+      where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] }, startTime: { gt: startTime } },
+      orderBy: { startTime: "asc" },
+      select: { type: true },
+    }),
+  ]);
+  return { prev, next };
+}
+
 /** Returns true if the user is currently locked (latest VERSCHLUSS/OEFFNEN entry is VERSCHLUSS).
  *
  *  KG-only by design: Sperrzeiten, VerschlussAnforderung, Strafen, Kontroll-Anforderungen and

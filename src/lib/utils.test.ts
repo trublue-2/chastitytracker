@@ -95,19 +95,23 @@ describe("buildPairs", () => {
     expect(result[0].oeffnen?.id).toBe("o1");
   });
 
-  it("handles double VERSCHLUSS (no OEFFNEN between) by closing first as open-end", () => {
+  it("marks a double VERSCHLUSS (no OEFFNEN between) as an orphaned pair, not a silent inconsistency", () => {
     const entries = [
       mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"),
       mkEntry("v2", "VERSCHLUSS", "2026-05-01T12:00:00Z"),
     ];
     const result = buildPairs(entries, []);
     expect(result).toHaveLength(2);
-    // v2 is the active (latest) one
+    // v2 is the real (latest) active session — not orphaned
     expect(result[0].verschluss.id).toBe("v2");
     expect(result[0].active).toBe(true);
+    expect(result[0].orphaned).toBeFalsy();
+    // v1 is the anomalous, superseded VERSCHLUSS: active:true keeps the oeffnen===null <=> active
+    // invariant intact, but orphaned:true tells "current session" consumers to ignore it.
     expect(result[1].verschluss.id).toBe("v1");
     expect(result[1].oeffnen).toBeNull();
-    expect(result[1].active).toBe(false);
+    expect(result[1].active).toBe(true);
+    expect(result[1].orphaned).toBe(true);
   });
 
   it("ignores leading OEFFNEN (no preceding VERSCHLUSS)", () => {

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { validateEntryPayload } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, getLatestKgEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, getKgNeighbors } from "@/lib/queries";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isDevBypassEnabled } from "@/lib/devMode";
 
@@ -43,18 +43,27 @@ export async function POST(req: NextRequest) {
       }
 
       // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
-      // Hinweis: die Admin-Route hat bewusst KEINEN TIME_BEFORE-Guard (Backdating ist erlaubt).
-      if (type === "VERSCHLUSS") {
-        const latest = await getLatestKgEntry(userId, tx);
-        if (latest?.type === "VERSCHLUSS") throw entryGuardError("ALREADY_LOCKED");
-      }
+      // Hinweis: die Admin-Route hat bewusst KEINEN TIME_BEFORE-Guard (Backdating ist erlaubt) —
+      // der neue Eintrag darf also zeitlich VOR den bisher jüngsten KG-Eintrag rutschen. `prev` ist
+      // dabei NICHT dasselbe wie `getLatestKgEntry`: nur ohne Backdating (dem Normalfall) fallen
+      // beide zusammen, weshalb ein einziger Nachbar-Query beide Fälle abdeckt — kein zweiter,
+      // redundanter Query gegen denselben global-jüngsten Eintrag.
+      //
+      // `next` fängt die Anomalie, die der reine ALREADY_LOCKED/NOT_LOCKED-Check (gegen `prev`)
+      // nicht sieht: der neue Eintrag landet zwischen einem bestehenden Paar und erzeugt zwei
+      // gleichartige KG-Einträge (VERSCHLUSS/VERSCHLUSS oder OEFFNEN/OEFFNEN) hintereinander.
+      if (type === "VERSCHLUSS" || type === "OEFFNEN") {
+        const { prev, next } = await getKgNeighbors(userId, new Date(startTime), tx);
+        if (next && next.type === type) throw entryGuardError("INVALID_ORDER");
 
-      if (type === "OEFFNEN") {
-        const latest = await getLatestKgEntry(userId, tx);
-        if (!latest || latest.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
-        // Admin-opened entries must release the lock period too, otherwise the
-        // user still appears locked. Reinigungs-Regeln aus dem vorab geladenen User.
-        await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, "user", user);
+        if (type === "VERSCHLUSS" && prev?.type === "VERSCHLUSS") throw entryGuardError("ALREADY_LOCKED");
+
+        if (type === "OEFFNEN") {
+          if (!prev || prev.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
+          // Admin-opened entries must release the lock period too, otherwise the
+          // user still appears locked. Reinigungs-Regeln aus dem vorab geladenen User.
+          await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, "user", user);
+        }
       }
 
       return tx.entry.create({

@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveSperrzeiten, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE } from "./queries";
+import { releaseSperrzeitenOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveSperrzeiten, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors } from "./queries";
 import type { PrismaTx } from "./queries";
 
 const TZ = "Europe/Zurich";
@@ -278,5 +278,31 @@ describe("GENUINELY_WITHDRAWN_WHERE", () => {
       withdrawnAt: { not: null },
       autoMarkedRemovedAt: null,
     });
+  });
+});
+
+// ─── getKgNeighbors ─────────────────────────────────────────────────────────
+
+describe("getKgNeighbors", () => {
+  // Backdating in der Admin-Route hat bewusst keinen TIME_BEFORE-Guard — ein neuer Eintrag darf
+  // zeitlich vor den global-jüngsten rutschen. Genau das kann ihn zwischen ein bestehendes Paar
+  // schieben; die Route braucht die UNMITTELBAREN chronologischen Nachbarn (nicht den global-
+  // jüngsten Eintrag), um zwei gleichartige KG-Einträge hintereinander zu verhindern.
+  it("liefert den vorherigen und nächsten KG-Eintrag chronologisch um startTime herum", async () => {
+    const findFirst = vi.fn()
+      .mockResolvedValueOnce({ type: "VERSCHLUSS" }) // prev (startTime < …, desc)
+      .mockResolvedValueOnce({ type: "OEFFNEN" });    // next (startTime > …, asc)
+    const tx = { entry: { findFirst } } as unknown as PrismaTx;
+
+    const result = await getKgNeighbors("u1", new Date("2026-05-01T11:00:00Z"), tx);
+
+    expect(result).toEqual({ prev: { type: "VERSCHLUSS" }, next: { type: "OEFFNEN" } });
+    expect(findFirst).toHaveBeenCalledTimes(2);
+  });
+
+  it("liefert null für beide Seiten, wenn es keine KG-Einträge gibt", async () => {
+    const tx = { entry: { findFirst: vi.fn().mockResolvedValue(null) } } as unknown as PrismaTx;
+    const result = await getKgNeighbors("u1", new Date("2026-05-01T11:00:00Z"), tx);
+    expect(result).toEqual({ prev: null, next: null });
   });
 });

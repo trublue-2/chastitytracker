@@ -1,4 +1,4 @@
-import { buildPairs, interruptionPauseMs, msToHours, type ReinigungSettings } from "@/lib/utils";
+import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type ReinigungSettings } from "@/lib/utils";
 
 /**
  * Der LIVE-Zustand eines Subs — Verschluss, offene Kontrolle, laufende Sperrzeit, offenes
@@ -52,6 +52,7 @@ export type LockEntry = {
  *  Modul nicht den vollen `PairResult`-Typ aus `utils.ts` importieren muss. */
 type LockPair<E> = {
   active: boolean;
+  orphaned?: boolean;
   verschluss: E;
   interruptions: { oeffnen: E; verschluss: E }[];
 };
@@ -73,7 +74,7 @@ export function buildLockState<E extends LockEntry>(
   const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
   const isLocked = latest?.type === "VERSCHLUSS";
 
-  const activePair = pairs.find((p) => p.active) ?? null;
+  const activePair = getOpenPair(pairs);
   const currentDurationHours = isLocked && activePair
     ? msToHours(now.getTime() - activePair.verschluss.startTime.getTime() - interruptionPauseMs(activePair.interruptions))
     : null;

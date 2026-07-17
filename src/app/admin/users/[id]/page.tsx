@@ -4,7 +4,7 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
   formatDuration, formatDateTimeDual, formatDate, formatTime, formatHours, toDateLocale, APP_TZ,
-  buildPairs, interruptionPauseMs, isTimeCorrected, decomposeMs,
+  buildPairs, getOpenPair, interruptionPauseMs, isTimeCorrected, decomposeMs,
   buildKontrolleItems, calculateWearingHoursByRange,
   type ReinigungSettings,
 } from "@/lib/utils";
@@ -102,7 +102,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     return days > 0 ? `${days}T ${hours}h` : `${hours}h`;
   })();
 
-  const activePair = pairs.find(p => p.active) ?? null;
+  const activePair = getOpenPair(pairs);
   const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm)) : [];
   const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
   // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
