@@ -206,3 +206,61 @@ describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen
     expect(boxState?.hardwareEnforced).toBe(true); // Fallback aufs SOLL = bisheriges Verhalten
   });
 });
+
+// keySecured (A-06, MCP-Befundliste 2026-07-17): die direkte Antwort auf die Frage, die eine
+// Alleinzeit-Vorgabe stellt. Bewusst OHNE den effectiveLocked-Fallback von hardwareEnforced — beide
+// Seiten müssen explizit `true` sein, sonst ist die Vorgabe nicht bestätigt erfüllt.
+describe("keySecured — Käfig zu UND Schlüssel drin, ohne SOLL-Fallback", () => {
+  const boxRow = (over: Record<string, unknown>) => ({
+    name: "Heimdall", locked: true, lockUntil: null, keyholderLocked: false,
+    battery: 80, charging: false, lastSyncAt: new Date(), offlineOpenHours: 24, ...over,
+  });
+  const entryWithKeyInBox = (keyInBox: boolean | null) => ({
+    id: "e2", type: "VERSCHLUSS", startTime: new Date("2026-07-13T20:00:00Z"),
+    oeffnenGrund: null, orgasmusArt: null, kontrollCode: null, verifikationStatus: null,
+    deviceCheck: null, deviceCheckNote: null, deviceCheckExpected: null, keyInBox, device: null,
+  });
+
+  it("reportedLocked:true + keyInBox:true → keySecured true", async () => {
+    db.entry.findFirst.mockResolvedValue(entryWithKeyInBox(true));
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: true }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.keySecured).toBe(true);
+  });
+
+  it("Käfig physisch offen (reportedLocked:false), Schlüssel drin → keySecured false trotz keyInBox:true", async () => {
+    db.entry.findFirst.mockResolvedValue(entryWithKeyInBox(true));
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: false }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.keySecured).toBe(false);
+  });
+
+  it("Käfig zu, Schlüssel beim Sub (keyInBox:false) → keySecured false", async () => {
+    db.entry.findFirst.mockResolvedValue(entryWithKeyInBox(false));
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: true }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.keySecured).toBe(false);
+  });
+
+  it("keine IST-Meldung (reportedLocked:null) → keySecured false, KEIN SOLL-Fallback wie bei hardwareEnforced", async () => {
+    db.entry.findFirst.mockResolvedValue(entryWithKeyInBox(true));
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ reportedLocked: null }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.hardwareEnforced).toBe(true); // Fallback greift hier
+    expect(boxState?.keySecured).toBe(false); // hier bewusst nicht — unbestätigt ist nicht gesichert
+  });
+
+  // code-review-Fund: reportedLocked:true + keyInBox:true reicht NICHT, wenn die Box sich seit dem
+  // letzten Sync deterministisch selbst geöffnet hat (staleLock) — der gemeldete "zu"-Stand gilt dann
+  // nicht mehr, dieselbe Bedingung wie bei hardwareEnforced.
+  it("reportedLocked:true + keyInBox:true, aber staleLock (Frist verstrichen) → keySecured false", async () => {
+    db.entry.findFirst.mockResolvedValue(entryWithKeyInBox(true));
+    db.boxStatus.findFirst.mockResolvedValue(
+      boxRow({ reportedLocked: true, lockUntil: new Date(Date.now() - 60 * 60 * 1000) }),
+    );
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.staleLock).toBe(true);
+    expect(boxState?.hardwareEnforced).toBe(false);
+    expect(boxState?.keySecured).toBe(false);
+  });
+});

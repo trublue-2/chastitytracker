@@ -503,6 +503,11 @@ function registerTools(server: McpServer) {
           "NICHT in der Box (er trägt ihn bei sich, z.B. auf Reise) — dann hat die Box bewusst kein lock " +
           "bekommen, und das ERKLÄRT ein hardwareEnforced:false, das sonst wie eine Box-Störung aussieht. " +
           "null = nicht erklärt oder nicht verschlossen, also KEIN 'nein'. " +
+          "keySecured beantwortet direkt, was eine Alleinzeit-Vorgabe verlangt (Käfig zu UND " +
+          "Schlüssel drin): reportedLocked===true && keyInBox===true && !staleLock — beide MÜSSEN " +
+          "explizit true sein UND die Box darf sich nicht seit dem letzten Sync selbst geöffnet " +
+          "haben, kein Fallback auf locked wie bei hardwareEnforced. Nicht selbst aus " +
+          "reportedLocked+keyInBox zusammenrechnen (A-06, MCP-Befundliste 2026-07-17). " +
           "boxState:null = keine Box registriert. Auch im keyholder_dashboard enthalten.",
         inputSchema: {},
       },

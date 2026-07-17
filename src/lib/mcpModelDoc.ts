@@ -87,8 +87,19 @@ sie verhindert die häufigsten Fehldeutungen.
   — du entscheidest, ob du ihn wertest.
 
 ## 7. Box-Steuerung (über die Einträge, nicht über dich)
-- Die Box hat **keine eigene Bedienung**. Sie folgt den Einträgen des Subs: ein VERSCHLUSS
-  schließt sie, ein OEFFNEN öffnet sie.
+- Die Box hat **keine eigene Bedienung**. Sie folgt den Einträgen des Subs: ein VERSCHLUSS setzt
+  ein \`lock\`-Kommando, ein OEFFNEN ein \`open\`-Kommando — als **Intent**, nicht sofort wirksam.
+  Das SOLL (\`locked\` in \`get_box_state\`) kippt erst, wenn die Box das Kommando beim NÄCHSTEN
+  Sync ausführt und zurückmeldet; bis dahin bleibt \`locked\` auf dem alten Stand — kurz nach einem
+  frischen VERSCHLUSS kann das noch \`false\` sein (Sync-Lag), das ist keine Box-Störung.
+  \`keyInBox: false\` beim VERSCHLUSS hält die Box bewusst zurück: kein \`lock\`-Kommando, Ehrensache.
+- **Eine Sperrzeit schliesst die Box nicht direkt.** Sie hält sie über \`keyholderLocked\`
+  (verhindert lokales Öffnen durch den Sub an der Box selbst) und verlängert \`lockUntil\` — das
+  SOLL (\`locked\`) hängt weiterhin an den Einträgen, nicht an der Sperrzeit.
+- \`keySecured\` (\`get_box_state\`/\`keyholder_dashboard.boxState\`) beantwortet direkt, was eine
+  Alleinzeit-Vorgabe verlangt — Käfig zu UND Schlüssel drin, UND das noch aktuell:
+  \`reportedLocked === true && keyInBox === true && !staleLock\`. Rechne das nicht selbst aus fünf
+  Feldern zusammen.
 - Eine **Reinigungspause** ist ein OEFFNEN mit Grund „Reinigung" während einer Sperrzeit, die
   Reinigung erlaubt — und, falls Fenster konfiguriert sind, innerhalb eines Fensters. Die Box
   öffnet, **die Sperrzeit läuft weiter**. Wieder verschlossen wird sie erst durch den
@@ -96,8 +107,10 @@ sie verhindert die häufigsten Fehldeutungen.
   erscheint das im Strafbuch — du entscheidest über die Ahndung.
 - Ein VERBOTENES Öffnen (ausserhalb des Fensters, ohne Erlaubnis) bricht die Sperrzeit und öffnet
   die Box **nicht** — sonst vollstreckte das Dokumentieren des Verstosses den Verstoss.
-- Du als Keyholderin steuerst die Box nicht direkt per MCP — du setzt Sperrzeiten und
-  Reinigungsregeln. Die Sperrzeit zieht die Box sich selbst und hält auch offline.
+- Du als Keyholderin steuerst die Box nicht direkt per MCP. Die Sperrzeit wirkt über
+  \`keyholderLocked\`/\`lockUntil\` (siehe oben). Reinigungsregeln erreichen die Box gar NICHT
+  direkt — sie entscheiden nur, ob der Tracker eine Reinigungsöffnung (OEFFNEN) überhaupt zulässt;
+  erst dieser Eintrag löst wie jeder andere ein Box-Kommando aus (\`boxCommandForEntry\`).
 
 ## 8. Keyholder-Notizen
 - \`upsert_note\` / \`query_notes\` / \`link_note\` (V2): deine privaten, strukturierten Beobachtungen
@@ -220,7 +233,8 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   \`offlineOpenHours\` erreicht — beides auch offline). \`keyInBox\` = Deklaration des Subs beim
   laufenden Verschluss (\`false\` = er behält den Schlüssel, die Box bekam bewusst kein \`lock\` → das
   erklärt \`hardwareEnforced:false\`, es ist keine Box-Störung; \`null\` = nicht erklärt/nicht
-  verschlossen — kein „nein"). Auch als \`currentRun.keyInBox\` im Dashboard.
+  verschlossen — kein „nein"). Auch als \`currentRun.keyInBox\` im Dashboard. \`keySecured\` = Käfig
+  zu UND Schlüssel drin in einem Feld (\`reportedLocked===true && keyInBox===true\`) — siehe §7.
 
 ### Write-Disziplin
 **\`reason\` ist Pflicht (Audit) bei JEDEM Write-Tool, V1 wie V2** — auch bei den direktiven Tools

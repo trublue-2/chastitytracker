@@ -49,6 +49,17 @@ export interface BoxStateView {
    *  aussieht. `null` = nicht erklärt (Alt-Eintrag, Admin-Pfad, keine Box) oder gerade nicht
    *  verschlossen — sagt NICHTS über den Schlüssel aus und ist KEIN „nein". */
   keyInBox: boolean | null;
+  /** Direkte Antwort auf die Frage, die eine Alleinzeit-Vorgabe stellt (Käfig zu UND Schlüssel
+   *  drin): `reportedLocked === true && keyInBox === true && !staleLock`. Beide Booleans müssen
+   *  explizit `true` sein UND die Box darf sich seit dem letzten Sync nicht deterministisch selbst
+   *  geöffnet haben (sonst gilt der gemeldete "zu"-Stand nicht mehr — dieselbe Bedingung wie bei
+   *  `hardwareEnforced`, siehe dort) —
+   *  `null` auf einer Seite (nicht gemeldet / nicht erklärt) zählt bewusst NICHT als gesichert,
+   *  auch wenn `keyInBox: null` für sich genommen kein „nein" ist (s. oben). Erspart das
+   *  Verrechnen von `reportedLocked`+`keyInBox`, das A-06 als stille Falle identifiziert hat
+   *  (`keyInBox: true` bei `locked: false` sieht wie eine erfüllte Vorgabe aus, ist aber ein
+   *  offener Käfig mit Schlüssel drin). */
+  keySecured: boolean;
   battery: number | null;
   charging: boolean | null;
   lastSeen: string | null;
@@ -238,6 +249,7 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
     hardwareEnforced: effectiveLocked && keyInBox !== false && !staleLock,
     staleLock,
     keyInBox,
+    keySecured: box.reportedLocked === true && keyInBox === true && !staleLock,
     battery: box.battery,
     charging: box.charging,
     lastSeen: iso(box.lastSyncAt),

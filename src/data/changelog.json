@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.51.3",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "get_box_state/keyholder_dashboard.boxState bekommt keySecured: die direkte Antwort auf die Frage, die eine Alleinzeit-Vorgabe stellt (Käfig zu UND Schlüssel drin UND das noch aktuell — reportedLocked===true && keyInBox===true && !staleLock), statt aus fünf Feldern selbst zusammengerechnet werden zu müssen.",
+          "en": "get_box_state/keyholder_dashboard.boxState gets keySecured: the direct answer to what a solo-time directive requires (cage closed AND key inside AND that still current — reportedLocked===true && keyInBox===true && !staleLock), instead of having to be computed by hand from five fields."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "explain_model §7 behauptete, ein VERSCHLUSS-Eintrag schliesse die Box direkt und eine Sperrzeit tue das gar nicht. Beides ungenau: VERSCHLUSS setzt ein lock-Kommando, das erst beim nächsten Box-Sync wirksam wird (Sync-Lag ≠ Störung); eine Sperrzeit hält die Box über keyholderLocked/lockUntil, nicht über eigene Kommandos.",
+          "en": "explain_model §7 claimed a VERSCHLUSS entry closes the box directly and a lock period never does. Both imprecise: VERSCHLUSS sets a lock command that only takes effect on the box's next sync (sync lag, not a malfunction); a lock period holds the box via keyholderLocked/lockUntil, not its own commands."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.2",
     "date": "2026-07-17",
     "changes": [
