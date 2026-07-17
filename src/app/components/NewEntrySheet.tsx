@@ -6,8 +6,6 @@ import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
-import { boxIstLabel, boxJumpHref } from "@/lib/boxStatus";
-import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -31,12 +29,7 @@ interface Props {
 export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
-  const tBox = useTranslations("boxStatus");
   const router = useRouter();
-
-  // Reine Box-Status-Anzeige, nur solange das (+)-Menü offen ist — die Box folgt den
-  // Verschluss-/Öffnen-Einträgen, keine Direkt-Kommandos mehr.
-  const { boxes } = useBoxStatus(open);
 
   const options = [
     {
@@ -181,24 +174,9 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
           </>
         )}
 
-        {/* Heimdall-Box(en): reine Status-Anzeige + Sprung in den passenden Flow. Die Box folgt den
-            Verschluss-/Öffnen-Einträgen — keine Direkt-Kommandos mehr (Notfall-Öffnen bleibt in Heimdall). */}
-        {boxes.map((b) => (
-          <button
-            key={b.boxId}
-            type="button"
-            onClick={() => handleSelect(boxJumpHref(b))}
-            className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
-          >
-            <KeyRound size={22} className={`${b.locked ? "text-lock" : "text-unlock"} shrink-0`} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{b.name}</p>
-              <p className="text-xs text-foreground-muted">
-                {boxIstLabel(b, tBox)} · {b.locked ? tBox("jumpOpen") : tBox("jumpLock")}
-              </p>
-            </div>
-          </button>
-        ))}
+        {/* Bewusst KEINE Box-Zeile mehr: „Neu erfassen" erfasst Einträge, die Box folgt ihnen.
+            Box-Status + Sonderzustände wohnen auf der BoxStatusCard (Dashboard); das
+            Notfall-Öffnen/Verschliessen bleibt in Heimdall. */}
       </div>
     </Sheet>
   );

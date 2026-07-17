@@ -206,11 +206,14 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   steht offen und wartet auf Knopf/USB", denn zufahren tut die Box nur mit jemandem am Gerät;
   \`null\` = noch keine IST-Meldung → SOLL gilt); \`hardwareEnforced\` = die EINE ehrliche
   Vollstreckungs-Antwort (hält die Box den Schlüssel gerade fest — **online-unabhängig**, der zuletzt
-  gemeldete Stand gilt): true nur, wenn das IST zu meldet UND \`keyInBox!==false\` UND \`!staleLock\`.
-  Bei false nennt genau EIN Feld das Warum: \`locked:false\`, \`reportedLocked:false\`,
-  \`keyInBox:false\` oder \`staleLock:true\`. \`staleLock\` = die Box hat sich seit dem letzten Sync
-  deterministisch selbst geöffnet (gecachte Frist verstrichen ODER Offline-Failsafe nach
-  \`offlineOpenHours\` erreicht — beides auch offline). \`keyInBox\` = Deklaration des Subs beim
+  gemeldete Stand gilt): true nur, wenn das IST zu meldet UND \`keyInBox!==false\` UND \`!openArmed\`
+  UND \`!staleLock\`. Bei false nennt genau EIN Feld das Warum: \`locked:false\`, \`reportedLocked:false\`,
+  \`keyInBox:false\`, \`openArmed:true\` oder \`staleLock:true\`. \`openArmed\` = die Öffnung ist
+  SCHARFGESTELLT: Frist verstrichen oder SOLL offen — seit FW 0.2.34 öffnet die Box dann nicht mehr
+  von selbst, sondern beim nächsten Knopf/USB-Kontakt, ohne weitere Prüfung („hält" zählt das
+  ehrlicherweise nicht mehr). \`staleLock\` = die Box hat sich seit dem letzten Sync per
+  Offline-Failsafe (nach \`offlineOpenHours\` ohne Sync) selbst geöffnet — der einzige verbliebene
+  deterministische Selbst-Öffner neben Akku-Not (auch offline). \`keyInBox\` = Deklaration des Subs beim
   laufenden Verschluss (\`false\` = er behält den Schlüssel, die Box bekam bewusst kein \`lock\` → das
   erklärt \`hardwareEnforced:false\`, es ist keine Box-Störung; \`null\` = nicht erklärt/nicht
   verschlossen — kein „nein"). Auch als \`currentRun.keyInBox\` im Dashboard.

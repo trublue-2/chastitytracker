@@ -452,12 +452,15 @@ function registerTools(server: McpServer) {
           "lastSeen (letzter Sync). hardwareEnforced ist die EINE ehrliche Vollstreckungs-Antwort — " +
           "hält die Box den Schlüssel gerade fest, UNABHÄNGIG davon, ob sie online ist (der zuletzt " +
           "gemeldete Zustand gilt, bis die Box etwas anderes meldet). true nur, wenn das IST zu meldet " +
-          "UND keyInBox!==false UND !staleLock. Ist hardwareEnforced false, nennt genau EIN Feld das " +
-          "WARUM: locked:false (soll offen), reportedLocked:false (steht offen), keyInBox:false " +
-          "(Ehrensache, Schlüssel beim Sub) oder staleLock:true. staleLock = die Box hat sich seit dem " +
-          "letzten Sync deterministisch selbst geöffnet: gecachte Frist (lockUntil) verstrichen ODER " +
-          "Offline-Failsafe (nach offlineOpenHours ohne Sync) erreicht — beides passiert auch offline, " +
-          "„online\" spielt bewusst keine Rolle. " +
+          "UND keyInBox!==false UND !openArmed UND !staleLock. Ist hardwareEnforced false, nennt genau " +
+          "EIN Feld das WARUM: locked:false (soll offen), reportedLocked:false (steht offen), " +
+          "keyInBox:false (Ehrensache, Schlüssel beim Sub), openArmed:true (zu, aber ein Knopfdruck vom " +
+          "Offen entfernt) oder staleLock:true. openArmed = die Öffnung ist SCHARFGESTELLT: Frist " +
+          "verstrichen oder SOLL offen — seit FW 0.2.34 öffnet die Box dann nicht mehr von selbst, " +
+          "sondern beim nächsten Knopf/USB-Kontakt, ohne weitere Prüfung. staleLock = die Box hat sich " +
+          "seit dem letzten Sync per Offline-Failsafe (nach offlineOpenHours ohne Sync) selbst " +
+          "geöffnet — der einzige verbliebene deterministische Selbst-Öffner neben Akku-Not; passiert " +
+          "auch offline, „online\" spielt bewusst keine Rolle. " +
           "keyInBox = Deklaration des Subs beim laufenden Verschluss: false heisst, der Schlüssel liegt " +
           "NICHT in der Box (er trägt ihn bei sich, z.B. auf Reise) — dann hat die Box bewusst kein lock " +
           "bekommen, und das ERKLÄRT ein hardwareEnforced:false, das sonst wie eine Box-Störung aussieht. " +

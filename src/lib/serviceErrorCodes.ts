@@ -122,6 +122,13 @@ export const DEVICE_CODES = [
   "DEVICE_ARCHIVED_NOT_EDITABLE",
 ] as const;
 
+/** /api/box/relock — den Box-Schliessbefehl neu setzen (Reparaturweg, wenn die Box offen steht,
+ *  während die Session läuft — z.B. nach Sperrzeit-Ablauf mit scharfgestellter Öffnung). */
+export const BOX_CODES = [
+  "BOX_RELOCK_NOT_LOCKED",
+  "BOX_RELOCK_KEY_NOT_IN_BOX",
+] as const;
+
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
@@ -141,6 +148,7 @@ export const SERVICE_ERROR_CODES = [
     ...JUDGMENT_CODES,
     ...REFERENCE_CODES,
     ...DEVICE_CODES,
+    ...BOX_CODES,
     ...SETTINGS_CODES,
   ]),
 ] as readonly string[];
@@ -158,4 +166,5 @@ export type ServiceErrorCode =
   | (typeof JUDGMENT_CODES)[number]
   | (typeof REFERENCE_CODES)[number]
   | (typeof DEVICE_CODES)[number]
+  | (typeof BOX_CODES)[number]
   | (typeof SETTINGS_CODES)[number];

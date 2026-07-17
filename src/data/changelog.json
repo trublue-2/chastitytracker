@@ -1,5 +1,44 @@
 [
   {
+    "version": "4.50.59",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Box-Karte zeigt den Übergangszustand sofort: Nach einem Verschluss-/Öffnen-Eintrag erscheint direkt »Verschluss angefordert — Knopfdruck an der Box fährt den Riegel zu« bzw. »Öffnung freigegeben — Knopfdruck öffnet den Riegel« (gleiche Sprache wie Heimdall), statt bis zum Box-Sync den alten Stand zu zeigen. Die Warn-Optik erscheint nur noch, wenn die Box wirklich offen steht, obwohl eine Sperre verschlossen verlangt — nicht mehr für eine erlaubte, noch nicht vollzogene Öffnung.",
+          "en": "The box card shows the transition immediately: after a lock/open entry it displays \"Lock requested — pressing the button closes the bolt\" or \"Open approved — pressing the button opens the bolt\" (same wording as Heimdall) instead of the stale state until the next box sync. The warning look now only appears when the box actually stands open while a lock period demands closed — no longer for an approved, not-yet-executed opening."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.57",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Plus-Menü entschlackt: die Box-Zeile ist entfernt — »Neu erfassen« erfasst nur noch Einträge, die Box folgt ihnen; ihr Status wohnt auf der Box-Karte, Notfall-Aktionen in Heimdall. Box-Karte aktualisiert jetzt zuverlässig ohne Seitenwechsel: die Status-Abfrage umgeht den HTTP-Cache (v.a. in der iOS-App) und beim Zurückkehren in die App wird sofort nachgeladen.",
+          "en": "Plus menu slimmed down: the box row is gone — \"new entry\" only records entries, the box follows them; its status lives on the box card, emergency actions in Heimdall. The box card now updates reliably without switching pages: the status poll bypasses the HTTP cache (esp. in the iOS app) and returning to the app triggers an immediate refresh."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.50.56",
+    "date": "2026-07-16",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Box: Läuft eine Sperrzeit ab, öffnet die Schlüsselbox nicht mehr von selbst — die Öffnung wird nur scharfgestellt und beim nächsten Knopfdruck am Gerät vollzogen (Firmware 0.2.34; Not-Failsafes bei Akku/Funkstille öffnen weiterhin autonom). Der MCP zeigt diesen Zustand ehrlich als openArmed (get_box_state schemaVersion 4; staleLock heisst nur noch: per Offline-Failsafe selbst geöffnet). Neu gibt es einen Reparaturweg, wenn die Box offen steht, während die Session läuft: die Box-Zeile im Plus-Menü setzt den Schliessbefehl neu; Anzeige und Karte unterscheiden jetzt physisches Ist und Soll (»wartet aufs Verschliessen am Gerät«).",
+          "en": "Box: when a lock period expires the key box no longer opens by itself — the opening is only armed and executes at the next button press at the device (firmware 0.2.34; emergency failsafes for battery/radio silence still open autonomously). The MCP reports this state honestly as openArmed (get_box_state schemaVersion 4; staleLock now only means: self-opened via offline failsafe). There is now a repair path when the box stands open while a session is running: the box row in the plus menu re-sets the lock command; the sheet and card now distinguish physical actual state from target (\"waiting to be locked at the device\")."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.55",
     "date": "2026-07-16",
     "changes": [
