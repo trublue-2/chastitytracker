@@ -9,6 +9,16 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
+/** `endetAt` in der Vergangenheit → Reject (B-01, MCP-Befundliste 2026-07-17): der einzige gefundene
+ *  Pfad, auf dem der Tracker eine unverdiente Strafe erzeugt — mit `art:"ANWEISUNG"` wird ein bereits
+ *  verstrichenes Fenster sofort zu einem `missed_orgasm`-Vergehen für eine Frist, die der Sub nie
+ *  erfüllen konnte. `beginntAt` in der Vergangenheit bleibt zulässig (eine rückwirkend geöffnete
+ *  Anforderung ist ein legitimer Fall) — nur das Ende muss in der Zukunft liegen. Analog zu
+ *  {@link checkLockEnd} (verschlussAnforderungService.ts), das dieselbe Regel für Sperrzeiten zieht. */
+export function checkOrgasmWindowEnd(endetAt: Date, now: Date): "ORGASM_END_MUST_BE_FUTURE" | null {
+  return endetAt > now ? null : "ORGASM_END_MUST_BE_FUTURE";
+}
+
 export interface CreateOrgasmusAnforderungParams {
   userId: string;
   art: "ANWEISUNG" | "GELEGENHEIT";
@@ -49,6 +59,8 @@ export async function createOrgasmusAnforderung(
   if (endet <= beginnt) {
     return serviceFail(400, "ORGASM_END_BEFORE_START");
   }
+  const windowEndError = checkOrgasmWindowEnd(endet, new Date());
+  if (windowEndError) return serviceFail(400, windowEndError);
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
   // vorgegebeneArt gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.50.59",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Orgasmus-Direktiven (request_orgasm) lehnen ein Fenster ab, dessen Ende bereits verstrichen ist — der einzige gefundene Pfad, auf dem der Tracker eine unverdiente Strafe erzeugen konnte (ein bereits abgelaufenes ANWEISUNG-Fenster wurde bisher akzeptiert und sofort zum Vergehen). Ein rückwirkend geöffneter Fensterbeginn bleibt zulässig.",
+          "en": "Orgasm directives (request_orgasm) now reject a window whose end has already passed — the only path by which the tracker could create an unearned penalty (an already-elapsed mandatory window was previously accepted and immediately became an offense). A retroactively-opened window start remains allowed."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.58",
     "date": "2026-07-17",
     "changes": [

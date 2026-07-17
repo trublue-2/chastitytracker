@@ -72,6 +72,7 @@
     "ORGASM_INVALID_ART": "Ungültige Art der Anforderung",
     "ORGASM_WINDOW_REQUIRED": "Start und Ende des Fensters sind erforderlich",
     "ORGASM_END_BEFORE_START": "Das Ende muss nach dem Start liegen",
+    "ORGASM_END_MUST_BE_FUTURE": "Das Ende des Fensters muss in der Zukunft liegen",
     "ORGASM_NOT_OPEN": "Die Anforderung ist nicht mehr offen",
     "JUDGMENT_NOT_FOUND": "Kein Urteil zu diesem Vergehen gefunden",
     "PENALTY_NOT_PUNISHED": "Nur eine verhängte Strafe kann erledigt werden",

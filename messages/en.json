@@ -72,6 +72,7 @@
     "ORGASM_INVALID_ART": "Invalid directive type",
     "ORGASM_WINDOW_REQUIRED": "Start and end of the window are required",
     "ORGASM_END_BEFORE_START": "The end must be after the start",
+    "ORGASM_END_MUST_BE_FUTURE": "The window's end must be in the future",
     "ORGASM_NOT_OPEN": "The directive is no longer open",
     "JUDGMENT_NOT_FOUND": "No judgment found for this offense",
     "PENALTY_NOT_PUNISHED": "Only an imposed penalty can be completed",
