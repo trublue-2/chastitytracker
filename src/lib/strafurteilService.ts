@@ -106,6 +106,12 @@ export function strafeVerhaengtNotice(reason: string | null): NotifyContent {
     : { subjectKey: "penaltySubject", messageKey: "penaltyMessageNoReason" };
 }
 
+/** `action: "punish"` verlangt einen nicht-leeren Straftext — geteilt von `judgeOffense` und der
+ *  MCP-dryRun-Vorschau (mcpWrite.ts), damit die Regel nicht zweimal dasteht. */
+export function checkPenaltyText(action: JudgeOffenseParams["action"], text: string | undefined): "PENALTY_TEXT_REQUIRED" | null {
+  return action === "punish" && !text?.trim() ? "PENALTY_TEXT_REQUIRED" : null;
+}
+
 export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult<JudgeOffenseResult>> {
   const now = new Date();
 
@@ -124,7 +130,8 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   }
 
   const text = p.text?.trim() || null;
-  if (p.action === "punish" && !text) return serviceFail(400, "PENALTY_TEXT_REQUIRED");
+  const penaltyTextError = checkPenaltyText(p.action, p.text);
+  if (penaltyTextError) return serviceFail(400, penaltyTextError);
 
   // Vergehen muss aktuell erkannt sein (verhindert Urteile über Nicht-Vergehen).
   const offenses = collectDetectedOffenses(await buildStrafbuch(p.userId, now));

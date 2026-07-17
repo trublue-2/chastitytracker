@@ -207,7 +207,8 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
 - **Kontext (\`get_context\` / set_health_hold / upsert_appointment / upsert_recurring_context)** —
   HealthHold (Gesundheits-Zurückhaltung), Wochen-Kontext, Termine (deviceFree).
 - **\`timeline\`** — alle Ereignisse auf einer Achse (Segment-basiert). **\`get_action_log\`** —
-  Audit aller V2-Writes (warum/wann). **\`get_box_state\`** — \`locked\` = SOLL (soll die Box zu sein);
+  Audit ALLER Writes, V1 wie V2 (warum/wann/wer — seit B-03, MCP-Befundliste 2026-07-17; vorher nur
+  V2). **\`get_box_state\`** — \`locked\` = SOLL (soll die Box zu sein);
   \`reportedLocked\` = IST (war sie beim letzten Sync wirklich zu — kann vom SOLL abweichen: „soll zu,
   steht offen und wartet auf Knopf/USB", denn zufahren tut die Box nur mit jemandem am Gerät;
   \`null\` = noch keine IST-Meldung → SOLL gilt); \`hardwareEnforced\` = die EINE ehrliche
@@ -222,9 +223,16 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   verschlossen — kein „nein"). Auch als \`currentRun.keyInBox\` im Dashboard.
 
 ### Write-Disziplin
-Die Wissens-/Kontext-Writes (\`upsert_note\`, \`set_device_meta\`, \`set_health_hold\`, …) brauchen
-**\`reason\`** (Pflicht, Audit), unterstützen **\`dryRun:true\`** (zeigt Wirkung/Konflikte OHNE zu
-committen) und liefern **Diff** + neuen Zustand zurück.
+**\`reason\` ist Pflicht (Audit) bei JEDEM Write-Tool, V1 wie V2** — auch bei den direktiven Tools
+(\`set_lock_period\`, \`request_orgasm\`, \`judge_offense\`, …), seit B-03.
+Die Wissens-/Kontext-Writes (\`upsert_note\`, \`set_device_meta\`, \`set_health_hold\`, …) unterstützen
+**\`dryRun:true\`** mit voller Tiefe (prüft den echten Service-Zustand, zeigt Wirkung/Konflikte OHNE zu
+committen) und liefern **Diff** + neuen Zustand zurück. Die direktiven V1-Tools unterstützen \`dryRun:true\`
+ebenfalls, aber LEICHTER: geprüft werden Argument-Auflösung + die dort verfügbaren reinen Regeln
+(z.B. Fenster-/Zielwert-Plausibilität) plus ein Best-Effort-Vorab-Check des naheliegendsten
+Ablehnungsgrunds (z.B. „bereits verschlossen") — NICHT dieselbe transaktionale Tiefe wie bei den
+Wissens-Writes; der Preview-Antwort fehlen Diff/newState, sie liefert stattdessen
+\`{wouldSucceed, problem?, preview}\`.
 **Optimistic Concurrency:** Note, Gerät, Termin und Wochen-Slot tragen eine **\`version\`**
 (in get_devices/query_notes/get_context und in jedem Write-Ergebnis). Gib bei **Edits**
 \`expectedVersion\` mit — weicht die aktuelle Version ab (anderer Schreiber dazwischen, z.B. eine

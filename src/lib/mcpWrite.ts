@@ -1,15 +1,39 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions, getKeyholderSperrzeiten } from "@/lib/queries";
+import { getUserDeviceOptions, getKeyholderSperrzeiten, getIsLocked } from "@/lib/queries";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
-import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung } from "@/lib/verschlussAnforderungService";
-import { requestKontrolle, resolveKontrolle } from "@/lib/kontrolleService";
-import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben } from "@/lib/vorgabeService";
-import { setReinigungSettings } from "@/lib/reinigungService";
-import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense } from "@/lib/strafurteilService";
+import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung, checkLockEnd } from "@/lib/verschlussAnforderungService";
+import { computeDelayedTrigger } from "@/lib/delayedTrigger";
+import { requestKontrolle, resolveKontrolle, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget } from "@/lib/vorgabeService";
+import { setReinigungSettings, MAX_MINUTEN_RANGE, MAX_PRO_TAG_RANGE } from "@/lib/reinigungService";
+import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
+import { judgeOffense, checkPenaltyText } from "@/lib/strafurteilService";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, buildEnvelope, type Envelope } from "@/lib/mcp/common";
+import { clamp } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
+
+/**
+ * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
+ * OHNE die mutierende Service-Funktion aufzurufen. Bewusst NICHT dieselbe Tiefe wie die volle
+ * V2-executeWrite-Vorschau (B-05) — Service-interne Zustandsprüfungen (z.B. "bereits verschlossen")
+ * laufen nur beim echten Commit. Wo eine reine Prüf-Funktion bereits existiert (checkOrgasmWindowEnd,
+ * checkGoalPlausibility), wird sie hier genutzt — dieselbe Regel, nicht neu beurteilt.
+ */
+export interface DryRunPreview {
+  dryRun: true;
+  tool: string;
+  wouldSucceed: boolean;
+  /** Nur gesetzt, wenn eine hier ausführbare Prüfung fehlschlagen würde. */
+  problem?: string;
+  preview: unknown;
+}
+
+/** Baut die dryRun-Hülle — EINE Stelle für `{dryRun, tool, wouldSucceed, problem?, preview}` statt
+ *  zwölfmal denselben Spread. Der tool-spezifische `preview`-Inhalt bleibt bei jedem Aufrufer. */
+function dryRunPreview(tool: string, problem: string | undefined, preview: unknown): DryRunPreview {
+  return { dryRun: true, tool, wouldSucceed: !problem, ...(problem ? { problem } : {}), preview };
+}
 
 /**
  * MCP write tools — keyholder directives issued over the MCP. The acting authority is the
@@ -88,10 +112,17 @@ export interface RequestLockArgs {
   delayMinutes?: number;
   /** Absolute send time (ISO 8601). Overrides delayMinutes. */
   scheduledAt?: string;
+  dryRun?: boolean;
 }
 export async function mcpRequestLock(username: string, args: RequestLockArgs) {
   const userId = await resolveTargetUserId(username);
   const deviceId = args.deviceName ? await resolveDeviceId(userId, args.deviceName) : null;
+  if (args.dryRun) {
+    // Advisory (nicht TOCTOU-sicher wie der echte Commit, der in derselben Transaktion liest) —
+    // fängt trotzdem den häufigsten Ablehnungsgrund: ANFORDERUNG verlangt einen NICHT verschlossenen User.
+    const problem = (await getIsLocked(userId)) ? "USER_ALREADY_LOCKED" : undefined;
+    return dryRunPreview("request_lock", problem, { art: "ANFORDERUNG", deviceId, deadlineAt: args.deadlineAt ?? null, deadlineHours: args.deadlineHours ?? null, minDurationHours: args.minDurationHours ?? null, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+  }
   const data = unwrap(await createVerschlussAnforderung({
     userId,
     art: "ANFORDERUNG",
@@ -124,9 +155,20 @@ export interface SetLockPeriodArgs {
   delayMinutes?: number;
   /** Absolute send/start time (ISO 8601). Overrides delayMinutes. */
   scheduledAt?: string;
+  dryRun?: boolean;
 }
 export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs) {
   const userId = await resolveTargetUserId(username);
+  if (args.dryRun) {
+    const isIndefinite = !!args.indefinite;
+    const now = new Date();
+    const { wirksamAb } = computeDelayedTrigger(now, { delayMinutes: args.delayMinutes, wirksamAbAt: args.scheduledAt ? new Date(args.scheduledAt) : null });
+    const endetAtDate = !isIndefinite && args.untilAt ? new Date(args.untilAt) : null;
+    // Advisory (siehe request_lock): SPERRZEIT verlangt einen BEREITS verschlossenen User. checkLockEnd
+    // ist dieselbe reine Prüfung, die createVerschlussAnforderung auf dem echten Pfad aufruft.
+    const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED" : (checkLockEnd(endetAtDate, wirksamAb, now) ?? undefined);
+    return dryRunPreview("set_lock_period", problem, { art: "SPERRZEIT", endetAt: endetAtDate?.toISOString() ?? null, durationHours: isIndefinite ? null : (args.durationHours ?? null), reinigungErlaubt: args.reinigungErlaubt ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+  }
   const data = unwrap(await createVerschlussAnforderung({
     userId,
     art: "SPERRZEIT",
@@ -152,18 +194,30 @@ export interface RequestInspectionArgs {
   deadlineHours?: number;
   comment?: string;
   delayMinutes?: number;
+  dryRun?: boolean;
 }
+/** Delay-Policy (nur MCP): kein Wert → zufällig 5–65; ≤0 → sofort; sonst auf 5–65 geklemmt. Geteilt
+ *  von Commit und dryRun-Preview, damit die beiden Pfade nicht auseinanderlaufen können. */
+function clampInspectionDelay(delayMinutes: number | undefined): number {
+  if (delayMinutes === undefined) return 5 + Math.floor(Math.random() * 61); // 5..65 inkl.
+  if (delayMinutes <= 0) return 0;
+  return Math.min(65, Math.max(5, Math.round(delayMinutes)));
+}
+
 export async function mcpRequestInspection(username: string, args: RequestInspectionArgs) {
   const userId = await resolveTargetUserId(username);
-  // Delay-Policy (nur MCP): kein Wert → zufällig 5–65; ≤0 → sofort; sonst auf 5–65 geklemmt.
-  let delayMinutes: number;
-  if (args.delayMinutes === undefined) {
-    delayMinutes = 5 + Math.floor(Math.random() * 61); // 5..65 inkl.
-  } else if (args.delayMinutes <= 0) {
-    delayMinutes = 0;
-  } else {
-    delayMinutes = Math.min(65, Math.max(5, Math.round(args.delayMinutes)));
+  if (args.dryRun) {
+    // Kein Zufallswert im Preview: ein hier gewürfelter Delay würde bei jedem dryRun-Aufruf einen
+    // anderen Wert zeigen, ohne dass der echte Commit denselben zieht — ehrlicher, den Zufallsfall
+    // als solchen zu benennen, statt eine Zahl vorzutäuschen, die beim Commit nicht wiederkehrt.
+    const delayPreview = args.delayMinutes === undefined ? "random 5–65 (drawn fresh on commit)" : clampInspectionDelay(args.delayMinutes);
+    // Advisory (siehe request_lock): eine Kontrolle verlangt einen verschlossenen User ohne bereits
+    // laufende Kontrolle. hasActiveKontrolle ist dieselbe Prüfung wie auf dem echten Pfad.
+    const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED"
+      : (await hasActiveKontrolle(userId, new Date())) ? "INSPECTION_ALREADY_ACTIVE" : undefined;
+    return dryRunPreview("request_inspection", problem, { deadlineHours: args.deadlineHours ?? null, comment: args.comment ?? null, delayMinutes: delayPreview });
   }
+  const delayMinutes = clampInspectionDelay(args.delayMinutes);
 
   const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes }));
 
@@ -191,6 +245,7 @@ export interface RequestOrgasmArgs {
   /** Allow opening the device to perform the orgasm during the window (no Sperre break / penalty). */
   openAllowed?: boolean;
   message?: string;
+  dryRun?: boolean;
 }
 export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs) {
   const userId = await resolveTargetUserId(username);
@@ -202,6 +257,13 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     endet = new Date(beginnt.getTime() + args.windowHours * 60 * 60 * 1000);
   } else {
     throw new Error("Provide endsAt (ISO date) or windowHours (> 0).");
+  }
+  if (args.dryRun) {
+    // Dieselbe Reihenfolge wie createOrgasmusAnforderung: erst endet<=beginnt (Struktur), dann
+    // endet<=now (B-01) — sonst könnte ein explizites endsAt vor beginsAt hier fälschlich als
+    // "würde gelingen" durchgehen, obwohl der echte Commit mit ORGASM_END_BEFORE_START ablehnt.
+    const problem = endet <= beginnt ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endet, new Date()) ?? undefined);
+    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: beginnt.toISOString(), endsAt: endet.toISOString(), requiredType: args.requiredType ?? null, openAllowed: !!args.openAllowed });
   }
   const data = unwrap(await createOrgasmusAnforderung({
     userId,
@@ -229,6 +291,7 @@ export interface SetTrainingGoalArgs {
   validFrom?: string;
   validUntil?: string;
   note?: string;
+  dryRun?: boolean;
 }
 
 
@@ -241,6 +304,12 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
   const gueltigBis = args.validUntil ? parseIsoDate(args.validUntil, "validUntil") : null;
   if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
     throw new Error("validUntil must be after validFrom.");
+  }
+
+  if (args.dryRun) {
+    const targets = { minProTagH: args.minPerDayHours, minProWocheH: args.minPerWeekHours, minProMonatH: args.minPerMonthHours, minProJahrH: args.minPerYearHours };
+    const problem = !hasPeriodTarget(targets) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(targets);
+    return dryRunPreview("set_training_goal", problem ?? undefined, { categoryId, validFrom: gueltigAb.toISOString(), validUntil: gueltigBis?.toISOString() ?? null, ...targets });
   }
 
   const data = unwrap(await createVorgabe({
@@ -260,9 +329,27 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
 
 export interface WithdrawArgs {
   target: "lock_request" | "lock_period" | "inspection" | "orgasm_directive";
+  dryRun?: boolean;
 }
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
+  if (args.dryRun) {
+    // Reine Lese-Vorschau: zählt, was ein echter Aufruf träfe, ohne etwas zurückzuziehen. Dieselbe
+    // "offen"-Definition wie withdrawVerschlussAnforderung/withdrawOrgasmusAnforderung/resolveKontrolle
+    // (siehe dort), hier nur gezählt statt geändert.
+    const now = new Date();
+    let willWithdraw = 0;
+    if (args.target === "orgasm_directive") {
+      willWithdraw = await prisma.orgasmusAnforderung.count({ where: { userId, fulfilledAt: null, withdrawnAt: null } });
+    } else if (args.target === "lock_request") {
+      willWithdraw = await prisma.verschlussAnforderung.count({ where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null } });
+    } else if (args.target === "lock_period") {
+      willWithdraw = await prisma.verschlussAnforderung.count({ where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] } });
+    } else if (args.target === "inspection") {
+      willWithdraw = await prisma.kontrollAnforderung.count({ where: { userId, entryId: null, withdrawnAt: null } });
+    }
+    return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: args.target, willWithdraw } } satisfies DryRunPreview;
+  }
   let count = 0;
   // `hidden` (Teilmenge von `count`) = davon terminiert und noch nicht ausgelöst. Trifft ein Rückzug
   // sowohl eine laufende als auch eine geplante Direktive, sagt ein blosses `count: 2` nicht, WAS da
@@ -401,15 +488,27 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     throw new Error("validUntil must be after validFrom.");
   }
 
+  const merged = {
+    minProTagH: args.minPerDayHours ?? existing.minProTagH,
+    minProWocheH: args.minPerWeekHours ?? existing.minProWocheH,
+    minProMonatH: args.minPerMonthHours ?? existing.minProMonatH,
+    minProJahrH: args.minPerYearHours ?? existing.minProJahrH,
+  };
+  if (args.dryRun) {
+    const problem = !hasPeriodTarget(merged) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(merged);
+    return {
+      dryRun: true, tool: "edit_training_goal", wouldSucceed: !problem,
+      ...(problem ? { problem } : {}),
+      preview: { id: args.id, categoryId: categoryId ?? existing.categoryId, validFrom: gueltigAb.toISOString(), validUntil: gueltigBis?.toISOString() ?? null, ...merged, note: args.note ?? existing.notiz },
+    } satisfies DryRunPreview;
+  }
+
   unwrap(await updateVorgabe(args.id, {
     categoryId,
     gueltigAb,
     gueltigBis,
     validUntilManual,
-    minProTagH: args.minPerDayHours ?? existing.minProTagH,
-    minProWocheH: args.minPerWeekHours ?? existing.minProWocheH,
-    minProMonatH: args.minPerMonthHours ?? existing.minProMonatH,
-    minProJahrH: args.minPerYearHours ?? existing.minProJahrH,
+    ...merged,
     notiz: args.note ?? existing.notiz,
   }));
   return { ok: true, id: args.id, message: "Training goal updated." };
@@ -417,10 +516,14 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
 
 export interface DeleteTrainingGoalArgs {
   id: string;
+  dryRun?: boolean;
 }
 export async function mcpDeleteTrainingGoal(username: string, args: DeleteTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
-  await loadOwnedVorgabe(args.id, userId);
+  const existing = await loadOwnedVorgabe(args.id, userId);
+  if (args.dryRun) {
+    return { dryRun: true, tool: "delete_training_goal", wouldSucceed: true, preview: { id: args.id, category: existing.categoryId } } satisfies DryRunPreview;
+  }
   unwrap(await deleteVorgabe(args.id));
   return { ok: true, id: args.id, message: "Training goal deleted." };
 }
@@ -431,11 +534,28 @@ export interface SetCleaningArgs {
   allowed?: boolean;
   maxMinutes?: number;
   maxPerDay?: number;
+  dryRun?: boolean;
 }
 export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
   const userId = await resolveTargetUserId(username);
   if (args.allowed === undefined && args.maxMinutes === undefined && args.maxPerDay === undefined) {
     throw new Error("Provide at least one of: allowed, maxMinutes, maxPerDay.");
+  }
+  if (args.dryRun) {
+    // Zeigt den GEKLEMMTEN Wert, nicht den rohen Input — sonst täuscht der Preview genau die
+    // stille Klemmung vor, die er aufdecken soll (setReinigungSettings klemmt intern identisch).
+    const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, MAX_MINUTEN_RANGE) : undefined;
+    const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, MAX_PRO_TAG_RANGE) : undefined;
+    return {
+      dryRun: true, tool: "set_cleaning", wouldSucceed: true,
+      preview: {
+        allowed: args.allowed ?? null,
+        maxMinutes: clampedMinutes ?? null,
+        maxPerDay: clampedPerDay ?? null,
+        ...(args.maxMinutes !== undefined && clampedMinutes !== args.maxMinutes ? { maxMinutesClampedFrom: args.maxMinutes } : {}),
+        ...(args.maxPerDay !== undefined && clampedPerDay !== args.maxPerDay ? { maxPerDayClampedFrom: args.maxPerDay } : {}),
+      },
+    } satisfies DryRunPreview;
   }
   unwrap(await setReinigungSettings(userId, {
     erlaubt: args.allowed,
@@ -453,6 +573,7 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
 
 export interface ResolveInspectionArgs {
   action: "verify" | "reject";
+  dryRun?: boolean;
 }
 export async function mcpResolveInspection(username: string, args: ResolveInspectionArgs) {
   const userId = await resolveTargetUserId(username);
@@ -462,6 +583,9 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
     select: { id: true },
   });
   if (!ka) throw new Error("No submitted inspection to verify or reject.");
+  if (args.dryRun) {
+    return { dryRun: true, tool: "resolve_inspection", wouldSucceed: true, preview: { id: ka.id, action: args.action } } satisfies DryRunPreview;
+  }
   unwrap(await resolveKontrolle(ka.id, args.action === "verify" ? "manuallyVerify" : "reject"));
   return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}; the user was notified by e-mail + push.` };
 }
@@ -474,6 +598,7 @@ export interface EditLockPeriodArgs {
   /** Die zu ändernde Sperrzeit explizit wählen (id aus `keyholder_dashboard.scheduledDirectives`).
    *  Ohne id gewinnt die AUSGELÖSTE — siehe {@link mcpEditLockPeriod}. */
   id?: string;
+  dryRun?: boolean;
 }
 
 /**
@@ -506,6 +631,15 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
     : open.find((s) => !isHiddenFromSub(s)) ?? open[0];
   if (!target) throw new Error(`No open lock period with id ${args.id} (it may be withdrawn, ended, or belong to someone else).`);
 
+  if (args.dryRun) {
+    const lockEndError = checkLockEnd(endetAt, target.wirksamAb, new Date());
+    return {
+      dryRun: true, tool: "edit_lock_period", wouldSucceed: !lockEndError,
+      ...(lockEndError ? { problem: lockEndError } : {}),
+      preview: { id: target.id, untilAt: endetAt?.toISOString() ?? null, indefinite: !!args.indefinite, otherOpenCount: open.length - 1 },
+    } satisfies DryRunPreview;
+  }
+
   const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt));
   const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`;
   const untouched = open.filter((s) => s.id !== target.id).map((s) => ({
@@ -534,9 +668,17 @@ export interface JudgeOffenseArgs {
   action: "dismiss" | "punish" | "complete" | "reopen";
   /** Freitext: die Strafe (bei punish, erforderlich — z.B. „20 Schläge") bzw. ein Grund (bei dismiss). */
   text?: string;
+  dryRun?: boolean;
 }
 export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) {
   const userId = await resolveTargetUserId(username);
+  if (args.dryRun) {
+    // Nur die eine hier prüfbare Regel (PENALTY_TEXT_REQUIRED) — ob `ref` überhaupt ein offenes
+    // Vergehen ist und die Aktion zu dessen Status passt, entscheidet erst judgeOffense (Strafbuch-
+    // Zustand), das hier bewusst NICHT dupliziert wird.
+    const problem = checkPenaltyText(args.action, args.text);
+    return dryRunPreview("judge_offense", problem ?? undefined, { ref: args.ref, action: args.action, text: args.text ?? null });
+  }
   const r = unwrap(await judgeOffense({
     userId,
     refId: args.ref,

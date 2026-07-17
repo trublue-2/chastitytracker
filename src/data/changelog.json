@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.0",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP: die 12 direktiven Write-Tools (set_lock_period, request_orgasm, judge_offense u.a.) unterstützen jetzt dryRun:true — Vorschau vor dem Commit, inkl. echter Regelprüfung (Fenster-/Zielwert-Plausibilität, geklemmte Reinigungswerte, häufigste Ablehnungsgründe wie 'bereits verschlossen'). Kein voller Zustands-Check wie bei den Wissens-Writes, aber eine ehrliche Vorschau statt keiner.",
+          "en": "MCP: the 12 directive write tools (set_lock_period, request_orgasm, judge_offense, etc.) now support dryRun:true — a preview before committing, including real rule checks (window/target plausibility, clamped cleaning values, the most common rejection reasons like 'already locked'). Not the full state check the knowledge-writes get, but an honest preview instead of none."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.50.60",
     "date": "2026-07-17",
     "changes": [

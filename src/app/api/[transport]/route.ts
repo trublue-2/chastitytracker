@@ -108,10 +108,13 @@ async function runWriteTool<T>(label: string, extra: ToolExtra, args: Record<str
   const reason = typeof args.reason === "string" ? args.reason.trim() : "";
   if (!reason) return denyWrite(label, args, `"${label}" requires a non-empty reason (audit is mandatory)`);
 
+  const isDryRun = args.dryRun === true;
   const result = await runTool(label, fn);
-  logMcpWrite(label, args, result.isError ? "error" : "ok");
+  logMcpWrite(label, args, result.isError ? "error" : isDryRun ? "dryrun" : "ok");
 
-  if (!result.isError) {
+  // dryRun committet nichts (siehe mcpWrite.ts) — folgerichtig auch kein Audit-Eintrag, exakt wie
+  // der V2-Pfad (executeWrite gibt bei dryRun zurück, bevor die Transaktion je beginnt).
+  if (!result.isError && !isDryRun) {
     const username = process.env.MCP_USERNAME;
     if (username) {
       try {
@@ -512,11 +515,19 @@ function registerTools(server: McpServer) {
       " Keyholder action (requires an admin OAuth token). Execute directly — NO confirmation step is " +
       "required or enforced; act on your own judgement per the human keyholder's rules in " +
       "keyholder_dashboard.keyholderInstructions. Do not ask the user to confirm before calling this. " +
-      "`reason` is REQUIRED (audit log, see get_action_log).";
+      "`reason` is REQUIRED (audit log, see get_action_log). `dryRun:true` previews the effective " +
+      "arguments and the rules checkable without committing — NOT a full state check (that runs only " +
+      "on the real commit) and not logged to get_action_log.";
     // B-03: Pflichtfeld für ALLE Write-Tools (V1 wie V2) — dieselbe Instanz für beide, damit die
     // Beschreibung nicht zweimal gepflegt wird. V1-Tools werfen ohne reason in runWriteTool; V2 wirft
     // in executeWrite (writeFramework.ts).
     const reasonField = z.string().min(1).describe("REQUIRED: why you're doing this (audit log, get_action_log).");
+    // K-01 (leichte Variante): dryRun für alle 12 V1-Tools — zeigt die effektiven Argumente + die
+    // hier prüfbaren Regeln (mcpWrite.ts), OHNE zu committen. Bewusst EIGENES Feld statt des V2-
+    // `dryRunField` weiter unten: die V2-Vorschau prüft den vollen Service-Zustand (executeWrite
+    // ruft dieselbe preview()-Logik wie apply()); die V1-Vorschau tut das NICHT (siehe Docblock in
+    // mcpWrite.ts) — dieselbe Beschreibung für beide zu verwenden würde das V2-Versprechen aufweichen.
+    const dryRunFieldV1 = z.boolean().optional().describe("true = nur Vorschau, NICHT committen. Prüft Argument-Auflösung + die hier verfügbaren Regeln — NICHT alle service-internen Zustandsprüfungen (die laufen erst beim echten Commit).");
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
     // Tools, die auch auf TERMINIERTE (noch nicht ausgelöste) Direktiven wirken: dort schweigt der
@@ -554,6 +565,7 @@ function registerTools(server: McpServer) {
           delayMinutes: z.number().optional().describe("Delay before the request reaches the user, in minutes. Omit/0 = immediate."),
           scheduledAt: z.string().optional().describe("Absolute send time (ISO 8601). Overrides delayMinutes. The user cannot see the request until then."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("request_lock", extra, args, (u) => mcpRequestLock(u, args)),
@@ -576,6 +588,7 @@ function registerTools(server: McpServer) {
           delayMinutes: z.coerce.number().optional().describe("Delay before the lock period starts/sends, in minutes. Omit/0 = immediate."),
           scheduledAt: z.string().optional().describe("Absolute start/send time (ISO 8601). Overrides delayMinutes."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("set_lock_period", extra, args, (u) => mcpSetLockPeriod(u, args)),
@@ -594,6 +607,7 @@ function registerTools(server: McpServer) {
           comment: z.string().optional().describe("Instruction shown to the user."),
           delayMinutes: z.coerce.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("request_inspection", extra, args, (u) => mcpRequestInspection(u, args)),
@@ -620,6 +634,7 @@ function registerTools(server: McpServer) {
           openAllowed: z.boolean().optional().describe("Allow opening the device to perform the orgasm during the window (no lock break / penalty)."),
           message: z.string().optional().describe("Message shown to the user."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("request_orgasm", extra, args, (u) => mcpRequestOrgasm(u, args)),
@@ -644,6 +659,7 @@ function registerTools(server: McpServer) {
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("set_training_goal", extra, args, (u) => mcpSetTrainingGoal(u, args)),
@@ -660,6 +676,7 @@ function registerTools(server: McpServer) {
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("withdraw", extra, args, (u) => mcpWithdraw(u, args)),
@@ -681,6 +698,7 @@ function registerTools(server: McpServer) {
           action: z.enum(["dismiss", "punish", "complete", "reopen"]).describe("dismiss = no penalty; punish = record a penalty; complete = mark penalty done; reopen = undo a prior judgment."),
           text: z.string().optional().describe("Free text: the penalty (required for punish, e.g. \"20 strokes\") or an optional reason (dismiss)."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("judge_offense", extra, args, (u) => mcpJudgeOffense(u, args)),
@@ -718,6 +736,7 @@ function registerTools(server: McpServer) {
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit to keep current."),
           note: z.string().optional().describe("Note shown with the goal. Omit to keep current."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("edit_training_goal", extra, args, (u) => mcpEditTrainingGoal(u, args)),
@@ -731,6 +750,7 @@ function registerTools(server: McpServer) {
         inputSchema: {
           id: z.string().describe("Goal id from list_training_goals."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("delete_training_goal", extra, args, (u) => mcpDeleteTrainingGoal(u, args)),
@@ -748,6 +768,7 @@ function registerTools(server: McpServer) {
           maxMinutes: z.number().int().nonnegative().optional().describe("Max minutes per cleaning pause (clamped to 1–120)."),
           maxPerDay: z.number().int().nonnegative().optional().describe("Max pauses per day, 0 = unlimited (clamped to 0–20)."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("set_cleaning", extra, args, (u) => mcpSetCleaning(u, args)),
@@ -768,6 +789,7 @@ function registerTools(server: McpServer) {
         inputSchema: {
           action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("resolve_inspection", extra, args, (u) => mcpResolveInspection(u, args)),
@@ -791,6 +813,7 @@ function registerTools(server: McpServer) {
             "Edit THIS lock period (id from keyholder_dashboard.scheduledDirectives). Omit to edit the triggered one.",
           ),
           reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("edit_lock_period", extra, args, (u) => mcpEditLockPeriod(u, args)),
@@ -807,6 +830,8 @@ function registerTools(server: McpServer) {
       " Lege sinnvollen, konkreten Kontext an statt trivialer oder lückenhafter Einträge — der Kontext " +
       "dient der Planung von Ankern/Kontrollen.";
     // reasonField ist oben (B-03, bei KEYHOLDER_BASE) einmal für V1 UND V2 gemeinsam definiert.
+    // dryRunField (V2, volle Vorschau) ist bewusst NICHT dasselbe Feld wie dryRunFieldV1 oben — siehe
+    // dessen Kommentar.
     const dryRunField = z.boolean().optional().describe("true = nur Vorschau/Konflikte, NICHT committen.");
     const decisionSourceField = z.enum(["agent", "user-stated"]).optional().describe("Audit-Quelle der Entscheidung: agent (eigener Schluss) | user-stated (vom Nutzer gesagt). Default agent.");
     const entityRefField = z.object({

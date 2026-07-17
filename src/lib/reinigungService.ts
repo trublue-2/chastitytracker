@@ -122,10 +122,12 @@ export function buildReinigungView(user: ReinigungUserFields, usedToday: number,
   };
 }
 
-/** Max minutes per cleaning pause is clamped to this range. */
-const MAX_MINUTEN_RANGE = { min: 1, max: 120, fallback: 15 } as const;
+/** Max minutes per cleaning pause is clamped to this range. Exported so MCP dryRun previews
+ *  (mcpWrite.ts) can show the CLAMPED value before commit instead of the raw input — the tool's
+ *  own K-06-style silent-clamping trap, closed by construction rather than by another guard. */
+export const MAX_MINUTEN_RANGE = { min: 1, max: 120, fallback: 15 } as const;
 /** Max cleaning pauses per day is clamped to this range (0 = unlimited). */
-const MAX_PRO_TAG_RANGE = { min: 0, max: 20, fallback: 0 } as const;
+export const MAX_PRO_TAG_RANGE = { min: 0, max: 20, fallback: 0 } as const;
 
 /**
  * Updates a user's cleaning-pause (Reinigung) settings. Only provided fields change; numeric

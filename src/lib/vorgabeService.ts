@@ -38,8 +38,9 @@ async function validateVorgabeCategory(
   return null;
 }
 
-/** At least one of the four period targets must be set. */
-function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null }): boolean {
+/** At least one of the four period targets must be set. Exported for MCP dryRun previews
+ *  (mcpWrite.ts) — the same check the real create/update path runs, not restated there. */
+export function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null }): boolean {
   return !!(p.minProTagH || p.minProWocheH || p.minProMonatH || p.minProJahrH);
 }
 
