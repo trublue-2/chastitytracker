@@ -48,10 +48,39 @@ describe("upsert_note dryRun — N-15 diff/after (Edit)", () => {
     expect(db.keyholderNote.update).not.toHaveBeenCalled();
   });
 
-  it("Pin einer OBSERVATION → diff {pinned:[false,true]}", async () => {
-    db.keyholderNote.findFirst.mockResolvedValue(noteRow());
+  it("Pin einer DIRECTIVE → diff {pinned:[false,true]}", async () => {
+    db.keyholderNote.findFirst.mockResolvedValue(noteRow({ type: "DIRECTIVE" }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await executeWrite(upsertNoteDef, ctx, { id: "n1", pinned: true } as never, { reason: "t", dryRun: true }) as any;
     expect(res.diff).toEqual({ pinned: [false, true] });
+  });
+
+  // Pins ausser DIRECTIVE/BOUNDARY werden nicht ausgespielt → statt still zu ignorieren: Ablehnung.
+  it("Pin einer OBSERVATION (Ist-Typ aus DB, kein type-Arg) → Ablehnung", async () => {
+    db.keyholderNote.findFirst.mockResolvedValue(noteRow()); // OBSERVATION
+    await expect(
+      executeWrite(upsertNoteDef, ctx, { id: "n1", pinned: true } as never, { reason: "t", dryRun: true }),
+    ).rejects.toThrow(/cannot be pinned/i);
+  });
+
+  it("Neue OBSERVATION mit pinned:true → Ablehnung (Default-Typ)", () => {
+    expect(() => upsertNoteDef.validate!({ text: "x", pinned: true })).toThrow(/cannot be pinned/i);
+  });
+
+  // Typ-Wechsel einer bereits gepinnten DIRECTIVE auf OBSERVATION (pinned NICHT angefasst) darf
+  // keinen verwaisten Pin hinterlassen → Effektiv-Stand wird geprüft.
+  it("gepinnte DIRECTIVE → OBSERVATION ohne pinned-Arg → Ablehnung", async () => {
+    db.keyholderNote.findFirst.mockResolvedValue(noteRow({ type: "DIRECTIVE", pinned: true }));
+    await expect(
+      executeWrite(upsertNoteDef, ctx, { id: "n1", type: "OBSERVATION" } as never, { reason: "t", dryRun: true }),
+    ).rejects.toThrow(/cannot be pinned/i);
+  });
+
+  it("gepinnte DIRECTIVE → OBSERVATION + pinned:false → erlaubt", async () => {
+    db.keyholderNote.findFirst.mockResolvedValue(noteRow({ type: "DIRECTIVE", pinned: true }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await executeWrite(upsertNoteDef, ctx, { id: "n1", type: "OBSERVATION", pinned: false } as never, { reason: "t", dryRun: true }) as any;
+    expect(res.wouldSucceed).toBe(true);
+    expect(res.diff).toEqual({ type: ["DIRECTIVE", "OBSERVATION"], pinned: [true, false] });
   });
 });

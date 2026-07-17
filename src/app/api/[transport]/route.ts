@@ -890,7 +890,7 @@ function registerTools(server: McpServer) {
           text: z.string().optional().describe("Notiztext (Pflicht beim Anlegen)."),
           kg: z.string().optional().describe("Optionaler KG/Gerät-Tag. Nennt er ein Inventar-Gerät (Name, case-insensitiv), wird automatisch ein device-Ref angelegt — die Note kommt dann inline mit get_devices."),
           kategorie: z.string().optional().describe("Optionaler Kategorie-Tag."),
-          pinned: z.boolean().optional().describe("Im Dashboard dauerhaft anpinnen (z.B. DIRECTIVE/BOUNDARY)."),
+          pinned: z.boolean().optional().describe("Im Dashboard dauerhaft anpinnen — wirkt NUR bei type DIRECTIVE/BOUNDARY (nur diese werden gepinnt ausgespielt); auf anderen Typen wird pinned:true abgelehnt."),
           source: z.enum(NOTE_SOURCE).optional().describe("user-stated (Nutzer-Fakt) | inferred (eigener Schluss). Default inferred."),
           confidence: z.enum(NOTE_CONFIDENCE).optional().describe("Konfidenz, v.a. bei inferred."),
           status: z.enum(NOTE_STATUS).optional().describe("Status setzen (z.B. archived = Soft-Delete)."),

@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.17",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "MCP: pinned:true wirkt nur bei DIRECTIVE/BOUNDARY-Notizen (nur diese werden gepinnt aufs Dashboard ausgespielt) — auf allen anderen Typen wird ein Pin jetzt abgelehnt statt still zu verpuffen, auch wenn ein Typ-Wechsel eine bereits gepinnte Notiz betreffen würde (N-Pins). Dazu drei Doku-Klarstellungen im explain_model/Guide: der V2-dryRun liefert nun wouldSucceed/diff/after wie V1 (N-15); trackingEnabled ist per Default true und false=Inventory-only eine bewusste Nutzer-Einstellung, nicht automatisch für Halsband/Knebel (DOK-03); deviceCheck.expected/detected sind der zum Prüfzeitpunkt eingefrorene Stand und dürfen nicht rückwirkend gegen das heutige Gerät gelesen werden (N-16).",
+          "en": "MCP: pinned:true only takes effect on DIRECTIVE/BOUNDARY notes (only those surface pinned on the dashboard) — on every other type a pin is now rejected instead of being silently ignored, including when a type change would strand an already-pinned note (N-Pins). Plus three doc clarifications in explain_model/guide: the V2 dryRun now returns wouldSucceed/diff/after like V1 (N-15); trackingEnabled defaults to true and false=inventory-only is a deliberate user setting, not automatic for collar/gag devices (DOK-03); deviceCheck.expected/detected are frozen at check time and must not be read retroactively against today's device (N-16)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.16",
     "date": "2026-07-17",
     "changes": [

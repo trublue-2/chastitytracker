@@ -152,6 +152,10 @@ eine Strafe gibt.
   \`request_lock\`-Anforderung; nur Letzteres erzeugt ein \`wrong_device\`-Vergehen (§6). \`get_session\`
   macht das mit \`isOffense: false\` explizit; \`not_checked\`/\`null\` heisst „nicht geprüft" (z.B. keine
   Referenzfotos hinterlegt) — kein Vorwurf (N-4/N-11, MCP-Restliste 2026-07-17).
+  \`expected\`/\`detected\` sind der **zum Prüfzeitpunkt eingefrorene** Stand (welches Gerät damals
+  deklariert war vs. was das Bild zeigte) — sie können von der HEUTE aktuellen \`deviceDeclared\`
+  abweichen, wenn der Sub inzwischen das Gerät gewechselt hat. Ein altes \`wrong\` rückwirkend gegen das
+  jetzige Gerät zu lesen, ist ein Fehlschluss (N-16, MCP-Restliste 2026-07-17).
 
 ## 11. Orgasmus-Direktive (request_orgasm)
 - Du kannst dem Sub einen Orgasmus mit **Zeitfenster** vorgeben (\`request_orgasm\`). Zwei Charaktere:
@@ -235,8 +239,11 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   Konflikt rückwirkend neu (inkl. \`device_stats\` und der Zusammensetzung von \`records\`) — vor einem
   \`set_device_meta(lookalikeClusterId:…)\` den \`dryRun\`-\`diff\` prüfen (N-14, MCP-Restliste 2026-07-17).
   \`pullOffRisk\`: **true = das Gerät lässt sich trotz Verschluss abstreifen (unsicher)**, false =
-  sitzt sicher. \`trackingEnabled\` (von der Kategorie): **false = Inventory-only** (z.B.
-  Halsband/Knebel) — solche Geräte liefern PER DESIGN keine Trage-Sessions. \`referenceImages\` ist
+  sitzt sicher. \`trackingEnabled\` (von der Kategorie): **Default true** (Gerät zählt Trage-Sessions);
+  **false = Inventory-only** — dann liefert das Gerät PER DESIGN keine Trage-Sessions. Das ist eine
+  BEWUSSTE Nutzer-Einstellung an der Kategorie, NICHT automatisch für Halsband/Knebel: ein als
+  Trage-Gerät geführtes Halsband zählt sehr wohl, wenn der Nutzer Tracking anlässt (DOK-03,
+  MCP-Restliste 2026-07-17). \`referenceImages\` ist
   **bewusst nur die Anzahl**: die Bilder wertet der Server für \`deviceConfidence\` aus, via MCP
   sind sie nicht abrufbar.
 - **Vorberechnet:** \`device_stats\` (je Gerät total/avg/median/min/\`maxHours\`/\`maxUnbrokenSegmentHours\`).
@@ -295,16 +302,20 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
 (\`set_lock_period\`, \`request_orgasm\`, \`judge_offense\`, …), seit B-03.
 Die Wissens-/Kontext-Writes (\`upsert_note\`, \`set_device_meta\`, \`set_health_hold\`, …) unterstützen
 **\`dryRun:true\`** mit voller Tiefe (prüft den echten Service-Zustand, zeigt Wirkung/Konflikte OHNE zu
-committen) und liefern **Diff** + neuen Zustand zurück. Die direktiven V1-Tools unterstützen \`dryRun:true\`
-ebenfalls, aber LEICHTER: geprüft werden Argument-Auflösung + die dort verfügbaren reinen Regeln
-(z.B. Fenster-/Zielwert-Plausibilität) plus ein Best-Effort-Vorab-Check des naheliegendsten
-Ablehnungsgrunds (z.B. „bereits verschlossen") — NICHT dieselbe transaktionale Tiefe wie bei den
-Wissens-Writes. Die Preview-Antwort ist immer \`{wouldSucceed, problem?, preview}\`; bei Tools, die ein
-BESTEHENDES Objekt ändern/löschen/upserten (\`edit_lock_period\`, \`edit_training_goal\`,
-\`delete_training_goal\`, \`set_cleaning\`, \`resolve_inspection\`, \`judge_offense\`), kommt zusätzlich
-**\`diff\`** dazu — Feld-Diff \`[alt, neu]\` wie beim echten Commit (seit B-05, MCP-Befundliste
-2026-07-17). Reine Creates (\`request_lock\`, \`set_lock_period\`, \`request_inspection\`,
-\`request_orgasm\`, \`set_training_goal\`) haben kein „vorher" und liefern deshalb kein \`diff\`.
+committen) und liefern DIESELBE Antwortform wie die V1-Tools: \`{wouldSucceed, problem?, preview}\`, bei
+einem Edit zusätzlich **\`diff\`** (Feld-Diff \`[alt, neu]\`, per Konstruktion identisch mit dem echten
+Commit) und den projizierten Nachher-Zustand **\`after\`** (N-15, MCP-Restliste 2026-07-17: vorher lieferte
+der V2-dryRun nur \`before\` — der Verweis „prüfe den dryRun-diff" bei \`lookalikeClusterId\` ist damit erst
+jetzt befolgbar). Die direktiven V1-Tools unterstützen \`dryRun:true\` ebenfalls, aber LEICHTER: geprüft
+werden Argument-Auflösung + die dort verfügbaren reinen Regeln (z.B. Fenster-/Zielwert-Plausibilität)
+plus ein Best-Effort-Vorab-Check des naheliegendsten Ablehnungsgrunds (z.B. „bereits verschlossen") —
+NICHT dieselbe transaktionale Tiefe wie bei den Wissens-Writes. Bei jedem Tool, das ein BESTEHENDES
+Objekt ändert (\`edit_lock_period\`, \`edit_training_goal\`, \`delete_training_goal\`, \`set_cleaning\`,
+\`resolve_inspection\`, \`judge_offense\`, \`set_device_meta\`, \`upsert_note\`, \`upsert_appointment\`,
+\`upsert_recurring_context\`, \`set_health_hold\`), trägt die Preview \`diff\`+\`after\` (seit B-05/N-15).
+Reine Creates (\`request_lock\`, \`request_orgasm\`, \`set_training_goal\`, \`link_note\`, sowie \`upsert_*\`
+ohne \`id\`) haben kein „vorher" und liefern deshalb kein \`diff\`/\`after\`. **\`after\` ist der projizierte
+Skalar-Stand (Diff-Basis), nicht das volle committete \`newState\`-DTO.**
 **Optimistic Concurrency:** Note, Gerät, Termin und Wochen-Slot tragen eine **\`version\`**
 (in get_devices/query_notes/get_context und in jedem Write-Ergebnis). Gib bei **Edits**
 \`expectedVersion\` mit — weicht die aktuelle Version ab (anderer Schreiber dazwischen, z.B. eine

@@ -136,6 +136,20 @@ async function kgDeviceRef(tx: TxClient, userId: string, kg: string | undefined)
 const missingRef = (refs: readonly { entityType: string; entityId: string }[], ref: EntityRef): boolean =>
   !refs.some((r) => r.entityType === ref.entityType && r.entityId === ref.entityId);
 
+/** Nur DIRECTIVE/BOUNDARY werden gepinnt auf dem Dashboard ausgespielt (dashboard.ts →
+ *  standingDirectives/boundaries). `pinned:true` auf einem anderen Typ setzt ein Flag, das nichts
+ *  liest — früher still ignoriert, jetzt abgewiesen, damit die Instanz nicht glaubt, eine Notiz
+ *  angepinnt zu haben, die nirgends erscheint. */
+const PIN_SURFACING_TYPES: readonly string[] = ["DIRECTIVE", "BOUNDARY"];
+function assertPinnable(pinned: boolean | undefined, type: string): void {
+  if (pinned === true && !PIN_SURFACING_TYPES.includes(type)) {
+    throw new Error(
+      `pinned:true only affects ${PIN_SURFACING_TYPES.join("/")} notes (only those surface on the dashboard); ` +
+      `type "${type}" cannot be pinned.`,
+    );
+  }
+}
+
 /** Server-Guardrails für Note-Writes. */
 function validateUpsert(args: UpsertNoteArgs): UpsertNoteArgs {
   assertEnum(args.type, NOTE_TYPES, "type");
@@ -144,6 +158,9 @@ function validateUpsert(args: UpsertNoteArgs): UpsertNoteArgs {
   assertEnum(args.confidence, NOTE_CONFIDENCE, "confidence");
   for (const r of args.refs ?? []) assertEnum(r.entityType, ENTITY_TYPES, "refs.entityType");
   if (!args.id && !args.text?.trim()) throw new Error("A new note requires non-empty text.");
+  // Nur der Create (Default-Typ OBSERVATION, kein DB-Fetch) wird hier geprüft. Jeder Edit läuft
+  // danach durch genau EINEN von preview/apply — beide prüfen dort gegen `args.type ?? existing.type`.
+  if (!args.id) assertPinnable(args.pinned, args.type ?? "OBSERVATION");
   assertVersionRequiresId(args);
   return args;
 }
@@ -188,6 +205,10 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
         tzOf(ctx.targetUserId),
       ]);
       if (!existing) throw new Error(`Note not found: ${args.id}`);
+      // Effektiv-Stand nach dem Edit prüfen: auch ein Typ-Wechsel einer BEREITS gepinnten
+      // DIRECTIVE/BOUNDARY auf einen Nicht-Ausspiel-Typ (ohne `pinned` anzufassen) darf keinen
+      // verwaisten Pin hinterlassen.
+      assertPinnable(args.pinned ?? existing.pinned, args.type ?? existing.type);
       // Check-only: Versions-Konflikt schon im dryRun sichtbar machen.
       occEdit(args.expectedVersion, existing.version, `note ${args.id}`);
       // Preview-Treue: den kg→Device-Ref zeigen, den der Commit anlegen würde.
@@ -220,6 +241,10 @@ export const upsertNoteDef: WriteDef<UpsertNoteArgs, NoteDTO> = {
     if (args.id) {
       const existing = await tx.keyholderNote.findFirst({ where: { id: args.id, userId: ctx.targetUserId }, select: noteSelect });
       if (!existing) throw new Error(`Note not found: ${args.id}`);
+      // Effektiv-Stand nach dem Edit prüfen: auch ein Typ-Wechsel einer BEREITS gepinnten
+      // DIRECTIVE/BOUNDARY auf einen Nicht-Ausspiel-Typ (ohne `pinned` anzufassen) darf keinen
+      // verwaisten Pin hinterlassen.
+      assertPinnable(args.pinned ?? existing.pinned, args.type ?? existing.type);
       const bump = occEdit(args.expectedVersion, existing.version, `note ${args.id}`);
       // kg-Tag → Device-Ref nachziehen (VOR dem Update, damit das Select den Ref schon trägt):
       // eine Note mit kg="<Gerätename>" ohne Ref wäre über get_devices unauffindbar.
