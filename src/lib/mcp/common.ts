@@ -219,6 +219,16 @@ function coerceStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((s): s is string => typeof s === "string") : [];
 }
 
+/** Blendet den DB-Wert "error" (deviceCheck „nicht prüfbar" — eine Admin-UI-Feinheit) für die MCP-
+ *  Sicht auf "not_checked" aus, sonst unverändert. Ein Check, der nicht laufen konnte, ist für die
+ *  Keyholder-KI „nicht geprüft" (deckt sich mit der explain_model-Beschreibung). Geteilt von
+ *  list_entries + timeline, damit der MCP-Enum überall ok/wrong/missing/not_checked bleibt. */
+export function mcpDeviceCheckStatus(raw: string): string;
+export function mcpDeviceCheckStatus(raw: string | null): string | null;
+export function mcpDeviceCheckStatus(raw: string | null): string | null {
+  return raw === "error" ? "not_checked" : raw;
+}
+
 /** Parst ein JSON-codiertes string[] robust; [] bei leer/ungültig. Geteilt von Notes (doDont) und
  *  Geräte-Metadaten (healthFlags). */
 export function parseStringArray(raw: string | null): string[] {

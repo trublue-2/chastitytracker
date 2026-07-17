@@ -30,8 +30,16 @@ describe("checkDeviceInPhoto", () => {
     expect(visionMock).not.toHaveBeenCalled();
   });
 
-  it("returns null when the locked device has no loadable references", async () => {
-    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "does-not-exist")).toBeNull();
+  it("error (nicht prüfbar) when the locked device has no loadable references", async () => {
+    // Verschlossenes Gerät ohne (ladbare) Referenzbilder → klarer „error" statt null, damit es sich
+    // von „gar nicht geprüft" unterscheidet. expected null, weil das Gerät nicht in den Referenzen ist.
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "does-not-exist")).toEqual({ status: "error", detected: null, expected: null });
+    expect(visionMock).not.toHaveBeenCalled();
+  });
+
+  it("error (nicht prüfbar) when images can't be loaded, expected resolved from references", async () => {
+    loadMock.mockResolvedValue(null); // loadDeviceSet scheitert
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
   });
 
   it("ok: the locked device is detected in the photo", async () => {
@@ -59,9 +67,9 @@ describe("checkDeviceInPhoto", () => {
     expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "missing", detected: null, expected: "Cage A" });
   });
 
-  it("returns null (not a rejection) when the vision call throws — e.g. provider unreachable", async () => {
+  it("error (nicht prüfbar, keine Ablehnung) when the vision call throws — e.g. provider unreachable", async () => {
     visionMock.mockRejectedValue(new Error("ECONNREFUSED"));
-    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toBeNull();
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
   });
 });
 

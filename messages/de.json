@@ -738,6 +738,7 @@
     "deviceLabel": "Gerät",
     "deviceExpectedLabel": "erwartet",
     "deviceNoneLabel": "keins erkannt",
+    "deviceUncheckableLabel": "nicht prüfbar",
     "statsTitle": "Statistik",
     "allStats": "Alle Statistiken",
     "strafbuch": "Strafbuch",

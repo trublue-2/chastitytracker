@@ -15,12 +15,17 @@ import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 function DeviceFact({ t, row }: { t: ReturnType<typeof useTranslations>; row: AdminKontrolleRowData }) {
   if (!row.deviceCheck) return null;
   const isOk = row.deviceCheck === "ok";
+  // error = die KI konnte nicht prüfen (Bild/Referenzen unladbar o.ä.) — klar von „kein Gerät erkannt"
+  // (missing) und „kein Check gelaufen" (null → gar kein Chip) getrennt.
+  const isError = row.deviceCheck === "error";
   return (
     <Badge variant={isOk ? "ok" : "warn"} size="sm" icon={<Lock size={12} />} label={t("deviceLabel")}>
-      {row.deviceCheck === "missing"
+      {isError
+        ? <span className="italic opacity-80">{t("deviceUncheckableLabel")}</span>
+        : row.deviceCheck === "missing"
         ? <span className="italic opacity-80">{t("deviceNoneLabel")}</span>
         : <span className="font-semibold">{row.deviceCheckNote ?? "—"}</span>}
-      {!isOk && row.deviceCheckExpected && (
+      {!isOk && !isError && row.deviceCheckExpected && (
         <span className="opacity-80">· {t("deviceExpectedLabel")} {row.deviceCheckExpected}</span>
       )}
       {isOk ? <Check size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
@@ -51,8 +56,9 @@ export interface AdminKontrolleRowData {
   verifikationStatus: VerifikationStatus | null;
   /** Warum die automatische Verifikation nicht gematcht hat (localized), nur bei "unverified" gesetzt. */
   verifikationReasonStr: string | null;
-  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" · "missing". */
-  deviceCheck: "ok" | "wrong" | "missing" | null;
+  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" · "missing" (kein Gerät erkannt) ·
+   *  "error" (nicht prüfbar). */
+  deviceCheck: "ok" | "wrong" | "missing" | "error" | null;
   /** Im Foto erkanntes Gerät (Name) oder null. */
   deviceCheckNote: string | null;
   /** Erwartetes (verschlossenes) Gerät zur Check-Zeit. */

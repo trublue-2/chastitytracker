@@ -138,24 +138,33 @@ export async function detectDevice(
 }
 
 export type DeviceCheckResult = {
-  /** ok = passendes Gerät sichtbar · wrong = anderes/unklares Gerät · missing = kein Gerät sichtbar. */
-  status: "ok" | "wrong" | "missing";
-  /** Im Foto erkanntes Gerät (Name) oder null, wenn keins zugeordnet/sichtbar. */
+  /** ok = passendes Gerät sichtbar · wrong = anderes/unklares Gerät · missing = kein Gerät sichtbar ·
+   *  error = NICHT PRÜFBAR (Bild/Referenzen nicht ladbar, keine Referenzbilder, oder Vision-Fehler) —
+   *  ein klarer „konnte nicht prüfen" statt eines stillen null, das mit „gar nicht geprüft" verschmilzt. */
+  status: "ok" | "wrong" | "missing" | "error";
+  /** Im Foto erkanntes Gerät (Name) oder null, wenn keins zugeordnet/sichtbar/prüfbar. */
   detected: string | null;
-  /** Erwartetes (aktuell verschlossenes) Gerät — der Soll-Zustand. */
-  expected: string;
+  /** Erwartetes (aktuell verschlossenes) Gerät — der Soll-Zustand; null, wenn bei „error" nicht auflösbar. */
+  expected: string | null;
 };
 
 /**
  * Kontroll-Geräte-Check: Ist das aktuell verschlossene Gerät (`lockedDeviceId`) im Kontroll-Foto
  * sichtbar? Presence + Match gegen die Referenzbilder aller Geräte. Advisory (Keyholder sieht es).
- * Gibt null zurück, wenn nicht prüfbar (kein Provider / keine Referenzbilder des verschlossenen Geräts).
+ * `status:"error"` = geprüft werden WOLLTE, ging aber nicht (Bild/Referenzen unladbar, keine
+ * Referenzbilder, Vision-Fehler) — ein klarer „nicht prüfbar" statt eines stillen null. `null` NUR,
+ * wenn gar kein Vision-Provider konfiguriert ist (Feature aus).
  */
 export async function checkDeviceInPhoto(
   queryImageUrl: string,
   references: DeviceReference[],
   lockedDeviceId: string
 ): Promise<DeviceCheckResult | null> {
+  // Erwarteter Gerätename für den „nicht prüfbar"-Fall (aus den rohen Referenzen, unabhängig davon,
+  // ob die Bilder ladbar waren); null, wenn das Gerät gar keine Referenz hat.
+  const expectedName = references.find((r) => r.deviceId === lockedDeviceId)?.deviceName ?? null;
+
+  // Kein Vision-Provider = Feature aus (kein Fehler pro Foto) → bewusst null, nicht „error".
   if (!visionConfigured()) {
     dlog("check:not_configured", { queryImageUrl });
     return null;
@@ -163,14 +172,15 @@ export async function checkDeviceInPhoto(
 
   const set = await loadDeviceSet(references, queryImageUrl);
   if (!set) {
+    // Bild/Referenzen nicht ladbar → geprüft werden WOLLTE, ging aber nicht: nicht prüfbar.
     dlog("check:load_failed", { queryImageUrl, refCount: references.length });
-    return null;
+    return { status: "error", detected: null, expected: expectedName };
   }
   const lockedKey = set.deviceKeys.find((d) => d.deviceId === lockedDeviceId);
   if (!lockedKey) {
     // Keine (ladbaren) Referenzbilder des verschlossenen Geräts → nicht prüfbar.
     dlog("check:locked_no_references", { lockedDeviceId });
-    return null;
+    return { status: "error", detected: null, expected: expectedName };
   }
 
   const intro =
@@ -206,6 +216,7 @@ export async function checkDeviceInPhoto(
   } catch (e) {
     const err = e as { message?: string; name?: string };
     dlog("check:exception", { error: err.message, name: err.name });
-    return null;
+    // Vision-Aufruf gescheitert → nicht prüfbar (expected ist hier bekannt).
+    return { status: "error", detected: null, expected: lockedKey.deviceName };
   }
 }

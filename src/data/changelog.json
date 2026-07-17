@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.21",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Kontroll-Fotos: wenn die KI ein Foto nicht prüfen kann (z.B. keine Referenzbilder hinterlegt oder ein technischer Fehler), steht das jetzt klar als „nicht prüfbar“ da, statt einfach leer zu bleiben — so ist es nicht mehr mit „gar nicht geprüft“ verwechselbar. „Kein Gerät erkannt“ bleibt davon getrennt.",
+          "en": "Control photos: when the AI can't check a photo (e.g. no reference images on file or a technical error), it now clearly shows „not checkable“ instead of staying blank — no longer confusable with „not checked at all“. „No device detected“ stays separate."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.20",
     "date": "2026-07-18",
     "changes": [

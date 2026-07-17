@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, isTimeCorrected } from "@/lib/utils";
-import { resolveUserContext, buildEnvelope, makeIso, type Envelope } from "@/lib/mcp/common";
+import { resolveUserContext, buildEnvelope, makeIso, mcpDeviceCheckStatus, type Envelope } from "@/lib/mcp/common";
 
 /**
  * `list_entries` — die ROH-Einträge, ungefiltert und unaggregiert.
@@ -15,9 +15,13 @@ import { resolveUserContext, buildEnvelope, makeIso, type Envelope } from "@/lib
  * (A-08), kein Anzeigefeld, und muss über alle Tools hinweg gleich formatiert bleiben.
  */
 
-/** Geräte-Check eines Eintrags ins MCP-Format (status/detected/expected) oder null. */
+/** Geräte-Check eines Eintrags ins MCP-Format (status/detected/expected) oder null. Der DB-Wert
+ *  "error" (nicht prüfbar, Admin-UI-Feinheit) fällt im MCP bewusst auf "not_checked" — ein Check,
+ *  der nicht laufen konnte, ist für die Keyholder-KI „nicht geprüft" (deckt sich mit der explain_model-
+ *  Beschreibung, z.B. keine Referenzfotos). Der genaue Grund bleibt der menschlichen Admin-Sicht. */
 function mapDeviceCheck(e: { deviceCheck: string | null; deviceCheckNote: string | null; deviceCheckExpected: string | null }) {
-  return e.deviceCheck ? { status: e.deviceCheck, detected: e.deviceCheckNote, expected: e.deviceCheckExpected } : null;
+  if (!e.deviceCheck) return null;
+  return { status: mcpDeviceCheckStatus(e.deviceCheck), detected: e.deviceCheckNote, expected: e.deviceCheckExpected };
 }
 
 export interface EntryRow {

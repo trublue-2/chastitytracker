@@ -1,5 +1,5 @@
 import { buildSessions } from "@/lib/sessionModel";
-import { resolveUserId, makeIso, buildEnvelope, loadTrackingData, parseIsoDate, type Envelope, type TrackingEntry } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, buildEnvelope, loadTrackingData, parseIsoDate, mcpDeviceCheckStatus, type Envelope, type TrackingEntry } from "@/lib/mcp/common";
 
 /** timeline (§12) — KG-SEGMENTE (nicht rohe Lock/Unlock-Pulse), Wear-Sessions, Kontrollen und
  *  Orgasmen auf EINER Zeitachse. Der KG-Backbone kommt aus buildSessions, damit Reinigungspausen
@@ -58,7 +58,7 @@ export async function timeline(username: string, opts: TimelineOptions = {}): Pr
         raw.push({ at: seg.end, type: "unlock", deviceName: seg.deviceEffective.name, detail: { sessionId: s.id, endedBy: seg.endedBy } });
       }
       for (const c of seg.controls) {
-        raw.push({ at: c.time, type: "control", deviceName: seg.deviceEffective.name, detail: { code: c.code, verifikationStatus: c.verifikationStatus, deviceCheck: c.deviceCheckStatus, detected: c.detected, expected: c.expected } });
+        raw.push({ at: c.time, type: "control", deviceName: seg.deviceEffective.name, detail: { code: c.code, verifikationStatus: c.verifikationStatus, deviceCheck: mcpDeviceCheckStatus(c.deviceCheckStatus), detected: c.detected, expected: c.expected } });
       }
     }
   }
