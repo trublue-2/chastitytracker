@@ -44,6 +44,9 @@ describe("buildLockState", () => {
     expect(lock.isLocked).toBe(true);
     expect(lock.currentDurationHours).toBe(12);
     expect(lock.deviceName).toBe("Ring A");
+    // Ohne Pausen sind since und currentSegmentSince identisch (kein Sonderfall, beide gesetzt).
+    expect(lock.since).toBe("2026-07-10T00:00:00.000Z");
+    expect(lock.currentSegmentSince).toBe("2026-07-10T00:00:00.000Z");
   });
 
   it("eine Reinigungspause wird von der Tragedauer ABGEZOGEN", () => {
@@ -85,13 +88,15 @@ describe("buildLockState", () => {
     expect(lock.deviceName).toBe("Ring B");
     // Die Session läuft über die Pause hinweg durch: Dauer ab Session-Start minus Pause.
     expect(lock.currentDurationHours).toBe(11.7);
-    // `since` ist der jüngste KG-Eintrag, also der Wiederverschluss.
-    expect(lock.since).toBe("2026-07-10T04:20:00.000Z");
+    // `since` ist der LAUF-Anfang (Session-Kopf) — deckt sich mit currentDurationHours (A-01).
+    expect(lock.since).toBe("2026-07-10T00:00:00.000Z");
+    // `currentSegmentSince` ist der alte `since`-Wert: der jüngste KG-Eintrag, der Wiederverschluss.
+    expect(lock.currentSegmentSince).toBe("2026-07-10T04:20:00.000Z");
   });
 
   it("ohne Einträge ist nichts verschlossen", () => {
     const lock = buildLockState([], reinigung, NOW, fmt);
-    expect(lock).toEqual({ isLocked: false, since: null, currentDurationHours: null, deviceName: null, keyInBox: null });
+    expect(lock).toEqual({ isLocked: false, since: null, currentSegmentSince: null, currentDurationHours: null, deviceName: null, keyInBox: null });
   });
 
   it("keyInBox:false wird gemeldet — der Verschluss ist erklärt, aber nicht hardware-vollstreckt", () => {

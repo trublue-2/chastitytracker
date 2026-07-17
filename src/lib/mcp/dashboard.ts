@@ -71,14 +71,22 @@ export interface BoxStateView {
 }
 
 export interface DashboardResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `currentRun.since` bedeutet jetzt Lauf-Anfang statt jüngster KG-Eintrag — bei einem Lauf
+   *  mit Reinigungspausen widersprach das bisher `durationHours` (A-01, MCP-Befundliste
+   *  2026-07-17). Der alte Wert steht jetzt separat in `currentSegmentSince`. */
+  schemaVersion: 3;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
   keyholderInstructions: string | null;
   currentRun: {
     isLocked: boolean;
+    /** Beginn des LAUFS (Session-Kopf) — deckt sich mit `durationHours`. Siehe `currentSegmentSince`
+     *  für den Beginn des aktuellen Segments, wenn der Lauf Reinigungspausen hatte. */
     since: string | null;
+    /** NUR bei isLocked mit Pausen abweichend von `since`: Beginn des AKTUELLEN Segments (letzter
+     *  Wiederverschluss). Ohne Pausen identisch mit `since`, weiterhin gesetzt (kein Sonderfall). */
+    currentSegmentSince: string | null;
     durationHours: number | null;
     deviceName: string | null;
     personalBestHours: number;
@@ -95,7 +103,9 @@ export interface DashboardResult extends Envelope {
    *  (eine Routine-Kontrolle hat kein verlangtes Gerät). Cluster-interne Verwechslungen sind hier
    *  bewusst ausgeblendet. */
   dataDiscrepancies: { count: number; items: DiscrepancyItem[] };
-  /** Was JETZT getragen wird — KG + alle Kategorien vereint. */
+  /** Was JETZT getragen wird — KG + alle Kategorien vereint. `since` = Lauf-Anfang (wie
+   *  `currentRun.since`; für das KG-Segment-Detail bei Reinigungspausen `get_session` nutzen —
+   *  diese Zeile hier bleibt bewusst kompakt, ohne Segment-Granularität). */
   wornNow: { category: string; deviceName: string | null; since: string | null; durationHours: number | null }[];
   /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / Orgasmus-Fenster.
    *  Zeiten ISO-8601 mit Offset (die liveState-Mapper bekommen das `iso`-Format durchgereicht); zusätzlich
@@ -339,13 +349,14 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,
     currentRun: {
       isLocked: lock.isLocked,
       since: lock.since,
+      currentSegmentSince: lock.currentSegmentSince,
       durationHours: lock.currentDurationHours,
       deviceName: lock.deviceName,
       personalBestHours: rec.longestRunHours,

@@ -54,11 +54,14 @@ export interface LinkedControl {
   expected: string | null;
 }
 
-/** "declared" = nur Label; "image-confirmed" = Bild bestätigt das Label;
+/** "declared" = nur Label; "undeclared" = KEIN Gerät angegeben und keine Kontrolle, die eines
+ *    nennen könnte (A-04, MCP-Befundliste 2026-07-17: vorher fiel dieser Fall fälschlich auf
+ *    "declared" zurück — sah aus wie eine saubere Angabe, obwohl gar keine vorlag);
+ *  "image-confirmed" = Bild bestätigt das Label;
  *  "image-conflict" = Bild widerspricht dem Label aus EINEM ANDEREN Cluster → das Bild gewinnt
  *    (deviceEffective = verifiziert); "cluster-ambiguous" = Bild nennt ein optisch gleiches Gerät
  *    aus DEMSELBEN lookalikeCluster → unzuverlässig, soft, deklariert bleibt (kein echter Konflikt). */
-export type DeviceConfidence = "declared" | "image-confirmed" | "image-conflict" | "cluster-ambiguous";
+export type DeviceConfidence = "declared" | "undeclared" | "image-confirmed" | "image-conflict" | "cluster-ambiguous";
 
 export interface Segment {
   /** Lock-Entry-id des Segment-Kopfs — stabile Segment-id (für NoteRef). */
@@ -186,7 +189,10 @@ function reconcileDevice(
   const decisive = controls.findLast(
     (c) => (c.deviceCheckStatus === "ok" || c.deviceCheckStatus === "wrong") && c.detected != null,
   );
-  if (!decisive) return { verified: null, confidence: "declared" };
+  // Ohne verwertbare Kontrolle: kein Gerät angegeben ist ein anderer Fall als ein Gerät angegeben,
+  // das nur (noch) nicht bildbestätigt wurde — "declared" täuschte bisher beides als dieselbe,
+  // saubere Datenlage vor (A-04).
+  if (!decisive) return { verified: null, confidence: isUnassignedDevice(declared) ? "undeclared" : "declared" };
   if (decisive.deviceCheckStatus === "ok") return { verified: declared, confidence: "image-confirmed" };
   // wrong: erkannten Namen auf eine Device-id zurückmappen (sonst null = unbekanntes Gerät).
   const detectedId = lookups.idByName.get(normalizeName(decisive.detected!)) ?? null;

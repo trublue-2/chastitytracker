@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.51.5",
+    "date": "2026-07-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "keyholder_dashboard.currentRun.since bedeutete bisher den jüngsten KG-Eintrag statt des Lauf-Anfangs — bei einem Lauf mit Reinigungspausen widersprach das der gleichzeitig ausgewiesenen durationHours. since ist jetzt der Lauf-Anfang; der alte Wert steht separat in currentSegmentSince.",
+          "en": "keyholder_dashboard.currentRun.since used to mean the most recent lock entry instead of the run's start — for a run with cleaning pauses that contradicted the durationHours reported alongside it. since is now the run's start; the old value moved to currentSegmentSince."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "get_session.deviceConfidence fiel bei einem Segment ohne deklariertes Gerät und ohne Bildkontrolle fälschlich auf 'declared' zurück — sah aus wie eine saubere Angabe, obwohl keine vorlag. Neuer Wert 'undeclared', jetzt auch in dataQualityFlags gemeldet.",
+          "en": "get_session.deviceConfidence incorrectly fell back to 'declared' for a segment with no declared device and no image check — looked like a clean declaration when there wasn't one. New value 'undeclared', now also reported in dataQualityFlags."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "records bekommt longestUnbrokenSegmentHours/currentUnbrokenSegmentHours: die ehrliche Dauertrage-Marke (längstes einzelnes, durchgehendes Segment). longestRunHours bleibt bestehen, ist aber eine Session-Bruttosumme über Segmente/Geräte hinweg — dafür jetzt klar dokumentiert.",
+          "en": "records gains longestUnbrokenSegmentHours/currentUnbrokenSegmentHours: the honest continuous-wear record (the single longest unbroken segment). longestRunHours stays, but is a session-level gross sum across segments/devices — now clearly documented as such."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.4",
     "date": "2026-07-17",
     "changes": [

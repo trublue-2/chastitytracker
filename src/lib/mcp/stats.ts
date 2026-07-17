@@ -2,7 +2,7 @@ import { calculateWearingHoursByRange, msToHours, round1, summarizeDurations } f
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { buildSessions, buildWearSessions, deviceDisplayName, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session } from "@/lib/sessionModel";
+import { buildSessions, buildWearSessions, deviceDisplayName, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, buildEnvelope, loadTrackingContext, loadCategoryNames, type Envelope, type TrackingContext, type TrackingEntry } from "@/lib/mcp/common";
 
@@ -130,7 +130,10 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
 export interface RecordsResult extends Envelope {
   schemaVersion: 2;
   user: string;
-  /** Längster Lauf (interruption-bereinigte Session-Dauer). */
+  /** Längster Lauf (interruption-bereinigte Session-DAUER, geräteübergreifend summiert). Eine
+   *  Session mit mehreren Reinigungspausen und Gerätewechseln stellt eine lückenlose Ein-Geräte-
+   *  Strecke hier ARITHMETISCH über eine echte hinüber (A-14, MCP-Befundliste 2026-07-17) — für die
+   *  ehrliche Dauertrage-Marke `longestUnbrokenSegmentHours` nutzen. */
   longestRunHours: number;
   longestRunEndedAt: string | null;
   /** Aktuell laufende Session (offen), falls vorhanden. */
@@ -140,6 +143,15 @@ export interface RecordsResult extends Envelope {
   /** Stunden seit dem letzten Orgasmus (aktuelle Entsagungs-Strecke). */
   orgasmFreeHours: number | null;
   longestOrgasmFreeHours: number | null;
+  /** Die ehrliche Dauertrage-Marke (A-14): das längste EINZELNE, abgeschlossene Segment — durchgehend,
+   *  EIN Gerät, keine Reinigungspause darin. Anders als `longestRunHours` NICHT geräteübergreifend
+   *  summiert. null-Felder, wenn es noch kein abgeschlossenes Segment gibt. */
+  longestUnbrokenSegmentHours: number | null;
+  longestUnbrokenSegmentEndedAt: string | null;
+  longestUnbrokenSegmentDeviceName: string | null;
+  /** Das GERADE laufende Segment (letztes Segment einer offenen Session), falls vorhanden. */
+  currentUnbrokenSegmentHours: number | null;
+  currentUnbrokenVsBestPct: number | null;
 }
 
 function orgasmTimes(entries: TrackingEntry[]): Date[] {
@@ -165,6 +177,20 @@ export async function records(username: string, ctx?: TrackingContext, presessio
   const pb = closed.reduce<Session | null>((best, s) => (!best || s.durationMs > best.durationMs ? s : best), null);
   const pbMs = pb?.durationMs ?? 0;
 
+  // A-14: die ehrliche Dauertrage-Marke ist ein SEGMENT (durchgehend, ein Gerät), nicht eine Session
+  // (kann mehrere Geräte über Reinigungspausen hinweg summieren, siehe longestRunHours-Kommentar).
+  // Nur ABGESCHLOSSENE Segmente (end !== null) zählen für die Bestmarke — ein offenes wächst noch.
+  // Ohne flatMap-Zwischenarray: bei vielen Sessions/Segmenten sonst eine unnötige Extra-Allokation.
+  let bestSegment: Segment | null = null;
+  for (const s of sessions) {
+    for (const seg of s.segments) {
+      if (seg.end !== null && (!bestSegment || seg.durationMs > bestSegment.durationMs)) bestSegment = seg;
+    }
+  }
+  // Das offene Segment ist immer das LETZTE der offenen Session (segmentsOfPair) — kein Scan nötig.
+  const currentSegment = open?.segments.at(-1) ?? null;
+  const bestSegmentMs = bestSegment?.durationMs ?? 0;
+
   const times = orgasmTimes(entries);
   const lastOrgasm = times.at(-1) ?? null;
   const gap = longestOrgasmGapMs(times, now);
@@ -180,6 +206,11 @@ export async function records(username: string, ctx?: TrackingContext, presessio
     daysSinceRecord: pb?.end ? Math.floor((now.getTime() - pb.end.getTime()) / DAY) : null,
     orgasmFreeHours: lastOrgasm ? msToHours(now.getTime() - lastOrgasm.getTime()) : null,
     longestOrgasmFreeHours: gap == null ? null : msToHours(gap),
+    longestUnbrokenSegmentHours: bestSegment ? msToHours(bestSegment.durationMs) : null,
+    longestUnbrokenSegmentEndedAt: iso(bestSegment?.end ?? null),
+    longestUnbrokenSegmentDeviceName: bestSegment?.deviceEffective.name ?? null,
+    currentUnbrokenSegmentHours: currentSegment ? msToHours(currentSegment.durationMs) : null,
+    currentUnbrokenVsBestPct: currentSegment && bestSegmentMs > 0 ? pct(currentSegment.durationMs, bestSegmentMs) : null,
   };
 }
 

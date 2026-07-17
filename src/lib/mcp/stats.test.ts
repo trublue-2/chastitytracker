@@ -26,7 +26,7 @@ vi.mock("@/lib/mcp/common", async (orig) => ({
   loadTrackingContext: (...a: unknown[]) => loadTrackingContext(...a),
 }));
 
-import { deviceStats, type DeviceStatsResult } from "./stats";
+import { deviceStats, records, type DeviceStatsResult } from "./stats";
 
 const NOW = new Date("2026-07-14T18:00:00+02:00");
 const KG = { id: "cat-kg", name: "KG", isBuiltIn: true };
@@ -206,5 +206,58 @@ describe("device_stats — gezählt werden SESSIONS, nicht Segmente", () => {
     expect(kg.totalHours).toBeCloseTo(5, 1);
     expect(kg.minHours).toBeCloseTo(2, 1);
     expect(kg.maxHours).toBeCloseTo(3, 1);
+  });
+});
+
+// ─── A-14: die ehrliche Dauertrage-Marke ist ein SEGMENT, keine SESSION ────────
+
+describe("records — longestUnbrokenSegmentHours (A-14, MCP-Befundliste 2026-07-17)", () => {
+  const cleaningCtx = (entries: object[]) => ({ ...ctx(entries), reinigung: { erlaubt: true, maxMinuten: 30 } });
+  const cleaningOpen = (time: string, device: object | null) => ({ ...entry("OEFFNEN", time, device), oeffnenGrund: "REINIGUNG" });
+
+  it("eine Session mit mehreren Segmenten schlägt eine lückenlose Session als Bruttosumme — aber NICHT als Bestmarke", async () => {
+    // Session A (geschlossen): 3 Segmente à 2h/1h/1h = 4h Bruttosumme, längstes Einzelsegment 2h.
+    // Session B (geschlossen): 1 durchgehendes Segment, 3h — länger als jedes Segment aus A, aber
+    // kürzer als A's Bruttosumme. Die ehrliche Bestmarke ist B's 3h, nicht A's 4h und nicht A's
+    // grösstes Segment (2h) — der Test beweist, dass ALLE Segmente ALLER Sessions verglichen werden.
+    const result = await records("sub", cleaningCtx([
+      // Session A: 10:00–12:00 (2h), Pause, 12:15–13:15 (1h), Pause, 13:30–14:30 (1h), OEFFNEN (Ende).
+      entry("VERSCHLUSS", "2026-07-10T10:00:00+02:00", KAEFIG),
+      cleaningOpen("2026-07-10T12:00:00+02:00", KAEFIG),
+      entry("VERSCHLUSS", "2026-07-10T12:15:00+02:00", KAEFIG),
+      cleaningOpen("2026-07-10T13:15:00+02:00", KAEFIG),
+      entry("VERSCHLUSS", "2026-07-10T13:30:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-10T14:30:00+02:00", KAEFIG),
+      // Session B: 20:00–23:00 (3h), durchgehend, ein Segment.
+      entry("VERSCHLUSS", "2026-07-10T20:00:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-10T23:00:00+02:00", KAEFIG),
+    ]));
+
+    expect(result.longestRunHours).toBe(4); // Session A gewinnt als Bruttosumme
+    expect(result.longestUnbrokenSegmentHours).toBe(3); // Session B's einzelnes Segment gewinnt ehrlich
+    expect(result.longestUnbrokenSegmentDeviceName).toBe("Flatty");
+  });
+
+  it("das aktuell laufende (offene) Segment wird separat gegen die Bestmarke verglichen", async () => {
+    const result = await records("sub", cleaningCtx([
+      // Abgeschlossenes Bestmarken-Segment: 5h.
+      entry("VERSCHLUSS", "2026-07-09T10:00:00+02:00", KAEFIG),
+      entry("OEFFNEN", "2026-07-09T15:00:00+02:00", KAEFIG),
+      // Aktuell offen seit 1h (now = 2026-07-14T18:00:00+02:00 laut ctx()).
+      entry("VERSCHLUSS", "2026-07-14T17:00:00+02:00", KAEFIG),
+    ]));
+
+    expect(result.longestUnbrokenSegmentHours).toBe(5);
+    expect(result.currentUnbrokenSegmentHours).toBe(1);
+    expect(result.currentUnbrokenVsBestPct).toBe(20); // 1h von 5h
+  });
+
+  it("ohne abgeschlossenes Segment liefert die Bestmarke null statt 0", async () => {
+    const result = await records("sub", cleaningCtx([]));
+    expect(result.longestUnbrokenSegmentHours).toBeNull();
+    expect(result.longestUnbrokenSegmentEndedAt).toBeNull();
+    expect(result.longestUnbrokenSegmentDeviceName).toBeNull();
+    expect(result.currentUnbrokenSegmentHours).toBeNull();
+    expect(result.currentUnbrokenVsBestPct).toBeNull();
   });
 });

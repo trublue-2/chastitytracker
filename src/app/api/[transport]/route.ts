@@ -276,8 +276,10 @@ function registerTools(server: McpServer) {
           "zerfällt an REINIGUNG-Öffnungen in Segmente (pro Segment GENAU EIN Gerät); Trage-Sessions der " +
           "übrigen Kategorien (Plug, Halsband, Knebel) haben genau ein Segment und das deklarierte Gerät. " +
           "Liefert pro Session `category`, `deviceBreakdown` (Stunden je Gerät), `segments[]` (declared vs. " +
-          "bild-verifiziertes Gerät + `deviceConfidence`), inline verknüpfte Notes (explain_model §13) und " +
-          "`dataQualityFlags` (z.B. declared≠verified). Ohne sessionId werden die neuesten Sessions " +
+          "bild-verifiziertes Gerät + `deviceConfidence`: declared|undeclared|image-confirmed|" +
+          "image-conflict|cluster-ambiguous — undeclared = KEIN Gerät angegeben, kein Vergehen), inline " +
+          "verknüpfte Notes (explain_model §13) und `dataQualityFlags` (z.B. declared≠verified oder " +
+          "undeclared). Ohne sessionId werden die neuesten Sessions " +
           "aufgelistet — mit `category` nur die einer Kategorie. Zeiten als ISO-8601 mit Offset.",
         inputSchema: {
           sessionId: z.string().optional().describe("Eine bestimmte Session (Lock-Entry-id). Omit = neueste auflisten."),
@@ -344,7 +346,9 @@ function registerTools(server: McpServer) {
           "für den Sub noch unsichtbar, via `withdraw` stornierbar; Auto-Kontrollen bewusst NICHT enthalten), BoxState, HealthHold, " +
           "dataDiscrepancies (echte Bild-Diskrepanzen als Hinweis, KEINE Vergehen; cluster-interne " +
           "Verwechslungen ausgeblendet) und currentRun.todayIncludesPriorSession (today enthält Anteil " +
-          "einer früheren Session → ≠ Lauf-Dauer). Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
+          "einer früheren Session → ≠ Lauf-Dauer). currentRun.since = Lauf-Anfang (deckt sich mit " +
+          "durationHours); currentRun.currentSegmentSince = Beginn des AKTUELLEN Segments, weicht bei " +
+          "Reinigungspausen von since ab (A-01). Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
           "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details.",
         inputSchema: {},
       },
@@ -374,7 +378,12 @@ function registerTools(server: McpServer) {
         title: "Records & personal bests",
         description:
           "MCP V2 — längster Lauf (interruption-bereinigt) als Personal Best, aktueller Lauf + % vom PB, " +
-          "Tage seit Rekord, Stunden seit letztem Orgasmus und längste orgasmusfreie Strecke. Vorberechnet.",
+          "Tage seit Rekord, Stunden seit letztem Orgasmus und längste orgasmusfreie Strecke. " +
+          "longestRunHours ist eine SESSION-Bruttosumme über Segmente/Geräte hinweg (Reinigungspausen " +
+          "raus, Gerätewechsel NICHT getrennt) — für die ehrliche Dauertrage-Marke " +
+          "longestUnbrokenSegmentHours nutzen (längstes EINZELNES abgeschlossenes Segment, ein Gerät, " +
+          "keine Pause darin) + currentUnbrokenSegmentHours/currentUnbrokenVsBestPct fürs laufende " +
+          "Segment (A-14). Vorberechnet.",
         inputSchema: {},
       },
       () => runTool("records", records),

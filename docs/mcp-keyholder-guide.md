@@ -184,14 +184,20 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
 - **`keyholder_dashboard`** — DER Einstieg: currentRun vs Personal Best, was JETZT getragen wird
   (KG + Kategorien), nextRelevant (Kontrolle/Sperrzeit/Orgasmus-Fenster), Ziele + Adhärenz, offene
   Vergehen, gepinnte standingDirectives + boundaries, BoxState, HealthHold. Erst danach Deep-Views.
+  `currentRun.since` = Lauf-Anfang (deckt sich mit `durationHours`); `currentRun.currentSegmentSince`
+  = Beginn des AKTUELLEN Segments — weicht bei Reinigungspausen von `since` ab (A-01,
+  MCP-Befundliste 2026-07-17: vorher trug `since` den jüngsten KG-Eintrag, also bei Pausen den
+  letzten Wiederverschluss statt des Lauf-Anfangs, im Widerspruch zu `durationHours`).
 - **Segmente (`get_session`)** — liefert Sessions ALLER Kategorien (KG + Plug/Halsband/Knebel, je
   mit `category`, filterbar). Eine KG-Session zerfällt an REINIGUNG-Öffnungen in **Segmente**,
   pro Segment GENAU EIN Gerät. `deviceBreakdown` beantwortet „welches Gerät wie lange" korrekt
-  (statt eines falschen Einzel-Labels). `deviceConfidence`: `declared` | `image-confirmed` |
+  (statt eines falschen Einzel-Labels). `deviceConfidence`: `declared` | `undeclared` (KEIN Gerät
+  angegeben — bis A-04 fiel das fälschlich auf `declared` zurück, kein Vergehen) | `image-confirmed` |
   `image-conflict` (Bild nennt ein Gerät aus ANDEREM Cluster → **Bild gewinnt**) | `cluster-ambiguous`
   (optisch gleiches Gerät aus DEMSELBEN `lookalikeCluster` → unzuverlässig, **soft**, deklariert bleibt,
   kein Vergehen). **`deviceEffective`** ist das für `deviceBreakdown`/`device_stats` massgebliche
-  Gerät. `endedBy`: `cleaning` (Pause) vs `session-end` vs `open`.
+  Gerät. `endedBy`: `cleaning` (Pause) vs `session-end` vs `open`. `dataQualityFlags` deckt
+  `image-conflict`/`cluster-ambiguous`/`undeclared` ab (A-05).
 - **Geräte-Metadaten (`get_devices` / `set_device_meta`)** — `securityLevel` (SECURING vs
   TRUST_ONLY; **nur für KG-Geräte sinnvoll** — bei Plug/Halsband/… ist `null` korrekt und
   vollständig, keine Datenlücke), `lookalikeClusterId`: ein Geräte-Mismatch **innerhalb eines
@@ -203,7 +209,12 @@ Wert ist damit immer in seiner damaligen Bedeutung interpretierbar.
   sind sie nicht abrufbar.
 - **Vorberechnet:** `device_stats` (je Gerät total/avg/median/min/max/längste Strecke),
   `records` (PB, aktuell vs PB, orgasmusfrei), `period_summary` (Tag/Woche/Monat + Ziel),
-  `denial_trend` (Streak, Trend, orgasmHistory). In `device_stats` stehen nur getragene Geräte:
+  `denial_trend` (Streak, Trend, orgasmHistory). `records.longestRunHours` ist eine
+  SESSION-Bruttosumme über Segmente/Geräte hinweg (Reinigungspausen raus, Gerätewechsel NICHT
+  getrennt) — für die ehrliche Dauertrage-Marke `longestUnbrokenSegmentHours` nutzen (längstes
+  EINZELNES abgeschlossenes Segment, ein Gerät) + `currentUnbrokenSegmentHours`/
+  `currentUnbrokenVsBestPct` fürs laufende Segment (A-14, MCP-Befundliste 2026-07-17). In
+  `device_stats` stehen nur getragene Geräte:
   **Abwesenheit ≠ Nichtnutzung** (nie getragene und Inventory-only-Geräte fehlen ganz; Inventar-
   Wahrheit ist `get_devices`). KG-Zeiten ohne Geräte-Zuordnung stehen separat in `unassigned`
   (Projektgeschichte, kein Gerät).

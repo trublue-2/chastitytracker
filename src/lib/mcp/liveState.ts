@@ -20,7 +20,14 @@ const minutesUntil = (d: Date, now: Date) => Math.round((d.getTime() - now.getTi
 
 export interface LockState {
   isLocked: boolean;
+  /** Verschlossen: Beginn des LAUFS (Session-Kopf, vor allen Reinigungspausen) — deckt sich mit
+   *  `currentDurationHours` (A-01, MCP-Befundliste 2026-07-17: vorher der jüngste KG-Eintrag, also
+   *  bei einem Lauf mit Pausen der letzte WIEDERVERSCHLUSS statt des Lauf-Anfangs — widersprach der
+   *  gleichzeitig ausgewiesenen Dauer). Nicht verschlossen: letzter KG-Eintrag (seit wann offen). */
   since: string | null;
+  /** NUR bei isLocked: Beginn des AKTUELLEN SEGMENTS (letzter Wiederverschluss nach einer
+   *  Reinigungspause, sonst identisch mit `since`). Der alte `since`-Wert vor A-01. */
+  currentSegmentSince: string | null;
   currentDurationHours: number | null;
   deviceName: string | null;
   /** Schlüssel-Deklaration des AKTUELLEN Verschlusses (siehe `Entry.keyInBox`). Nicht verschlossen → null. */
@@ -78,9 +85,20 @@ export function buildLockState<E extends LockEntry>(
     ? (activePair.interruptions.at(-1)?.verschluss ?? activePair.verschluss)
     : null;
 
+  // Verschlossen: Lauf-Anfang (Session-Kopf), nicht der jüngste Eintrag — deckt sich mit
+  // currentDurationHours, die schon immer ab dem Session-Kopf rechnet (A-01).
+  const since = isLocked && activePair ? fmt(activePair.verschluss.startTime) : (latest ? fmt(latest.startTime) : null);
+  // Der alte `since`: der jüngste KG-Eintrag, also bei einer laufenden Pause-Serie der letzte
+  // Wiederverschluss. Ohne Pause ist currentLock === activePair.verschluss — dann `since` wieder-
+  // verwenden statt fmt() ein zweites Mal auf dasselbe Datum anzuwenden.
+  const currentSegmentSince = !isLocked || !currentLock ? null
+    : currentLock === activePair!.verschluss ? since
+    : fmt(currentLock.startTime);
+
   return {
     isLocked,
-    since: latest ? fmt(latest.startTime) : null,
+    since,
+    currentSegmentSince,
     currentDurationHours,
     deviceName: isLocked ? (currentLock?.device?.name ?? null) : null,
     // Aus DEMSELBEN Lock-Eintrag wie deviceName: nach einer Reinigungspause gilt die Angabe des

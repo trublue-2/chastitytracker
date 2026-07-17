@@ -43,7 +43,10 @@ export interface SessionView {
 }
 
 export interface SessionListResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `deviceConfidence` unterscheidet jetzt "undeclared" (kein Gerät angegeben) von "declared"
+   *  (Gerät angegeben, nur nicht bildbestätigt) — vorher fiel Ersteres fälschlich auf "declared"
+   *  zurück. `dataQualityFlags` deckt diesen Fall jetzt ebenfalls ab (A-04/A-05). */
+  schemaVersion: 3;
   user: string;
   returnedCount: number;
   sessions: SessionView[];
@@ -110,6 +113,8 @@ function sessionView(s: TaggedSession, notesByEntity: Map<string, NoteDTO[]>, is
       dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle (${seg.deviceVerified?.name}) widerspricht dem deklarierten Gerät (${seg.deviceDeclared.name}) über die Cluster-Grenze — Bild gewinnt, Stunden auf das verifizierte Gerät.`);
     } else if (seg.deviceConfidence === "cluster-ambiguous") {
       dataQualityFlags.push(`Segment ${seg.index}: Bildkontrolle nennt ein optisch gleiches Gerät (${seg.deviceVerified?.name}) aus demselben Cluster — unzuverlässig, deklariert (${seg.deviceDeclared.name}) bleibt massgeblich. Kein Vergehen.`);
+    } else if (seg.deviceConfidence === "undeclared") {
+      dataQualityFlags.push(`Segment ${seg.index}: kein Gerät deklariert (A-04/A-05) — die Tragezeit landet in device_stats.unassigned statt bei einem Gerät.`);
     }
   }
   return {
@@ -165,7 +170,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   const notesByEntity = await notesForEntities(userId, selected.flatMap(refsOfSession), {}, undefined, timezone);
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     returnedCount: selected.length,

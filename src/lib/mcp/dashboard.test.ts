@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// keyholder_dashboard (schemaVersion 2) komponiert ein knappes Dutzend Aggregate. Die Reihenfolge
+// keyholder_dashboard (schemaVersion 3) komponiert ein knappes Dutzend Aggregate. Die Reihenfolge
 // ist hier unkritisch (V2-Clients lesen benannt), deshalb wird nur der FELDBESTAND verglichen.
 //
 // Anders als bei buildOverview kann hier kein Feld STILL wegfallen: das Rückgabe-Literal von
@@ -49,7 +49,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("liefert exakt die Vertragsfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result).sort()).toEqual([...DASHBOARD_KEYS].sort());
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     // Die Keyholder-Regeln reicht das Dashboard aus dem (lean) Overview durch.
     expect(result.keyholderInstructions).toBe(TEST_USER.mcpKeyholderInstructions);
   });
@@ -57,7 +57,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("currentRun und nextRelevant behalten ihre Unterfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result.currentRun).sort()).toEqual(
-      ["isLocked", "since", "durationHours", "deviceName", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
+      ["isLocked", "since", "currentSegmentSince", "durationHours", "deviceName", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
     );
     expect(Object.keys(result.nextRelevant).sort()).toEqual(["openControl", "activeLockPeriod", "interruptedLockPeriod", "openOrgasmWindow", "openLockRequest"].sort());
   });

@@ -17,7 +17,9 @@ export interface TimelineEvent {
 }
 
 export interface TimelineResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `detail.deviceConfidence` bei lock-Events kann jetzt auch "undeclared" sein (A-04/A-05,
+   *  MCP-Befundliste 2026-07-17) — vorher fiel "kein Gerät angegeben" fälschlich auf "declared". */
+  schemaVersion: 3;
   user: string;
   from: string | null;
   to: string | null;
@@ -75,7 +77,7 @@ export async function timeline(username: string, opts: TimelineOptions = {}): Pr
   const sliced = filtered.length > limit ? filtered.slice(filtered.length - limit) : filtered;
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     from: iso(from ?? null),
