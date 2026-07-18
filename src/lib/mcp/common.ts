@@ -66,6 +66,12 @@ export async function tzOf(userId: string, client: TxClient = prisma): Promise<s
   return u?.timezone ?? APP_TZ;
 }
 
+/** Der Offset-ISO-Formatter für die Zeitzone eines Users — `makeIso(await tzOf(userId))` in einem
+ *  Schritt. Geteilt von den V1-Write-Tools (K-02), die ihre Zeitstempel damit offset-ISO ausgeben. */
+export async function isoForUser(userId: string, client: TxClient = prisma): Promise<Iso> {
+  return makeIso(await tzOf(userId, client));
+}
+
 
 /** Parst einen ISO-String zu Date; wirft bei ungültigem Wert (geteilter Guardrail ALLER MCP-Tools,
  *  V1 wie V2). undefined-Input → undefined (Feld nicht gesetzt). Die Überladung hält den Rückgabetyp

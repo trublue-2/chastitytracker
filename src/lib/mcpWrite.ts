@@ -9,7 +9,7 @@ import { setReinigungSettings, MAX_MINUTEN_RANGE, MAX_PRO_TAG_RANGE, maxPausesPe
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
-import { matchByNameCI, parseIsoDate, tzOf, makeIso, buildEnvelope, type Envelope } from "@/lib/mcp/common";
+import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { diffFields } from "@/lib/mcp/writeFramework";
 import { clamp } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
@@ -168,12 +168,13 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
   if (args.dryRun) {
     const isIndefinite = !!args.indefinite;
     const now = new Date();
+    const iso = await isoForUser(userId);
     const { wirksamAb } = computeDelayedTrigger(now, { delayMinutes: args.delayMinutes, wirksamAbAt: args.scheduledAt ? new Date(args.scheduledAt) : null });
     const endetAtDate = !isIndefinite && args.untilAt ? new Date(args.untilAt) : null;
     // Advisory (siehe request_lock): SPERRZEIT verlangt einen BEREITS verschlossenen User. checkLockEnd
     // ist dieselbe reine Prüfung, die createVerschlussAnforderung auf dem echten Pfad aufruft.
     const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED" : (checkLockEnd(endetAtDate, wirksamAb, now) ?? undefined);
-    return dryRunPreview("set_lock_period", problem, { art: "SPERRZEIT", endetAt: endetAtDate?.toISOString() ?? null, durationHours: isIndefinite ? null : (args.durationHours ?? null), reinigungErlaubt: args.reinigungErlaubt ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+    return dryRunPreview("set_lock_period", problem, { art: "SPERRZEIT", endetAt: iso(endetAtDate), durationHours: isIndefinite ? null : (args.durationHours ?? null), reinigungErlaubt: args.reinigungErlaubt ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createVerschlussAnforderung({
     userId,
@@ -255,6 +256,7 @@ export interface RequestOrgasmArgs {
 }
 export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs) {
   const userId = await resolveTargetUserId(username);
+  const iso = await isoForUser(userId);
   const beginnt = args.beginsAt ? parseIsoDate(args.beginsAt, "beginsAt") : new Date();
   let endet: Date;
   if (args.endsAt) {
@@ -269,7 +271,7 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     // endet<=now (B-01) — sonst könnte ein explizites endsAt vor beginsAt hier fälschlich als
     // "würde gelingen" durchgehen, obwohl der echte Commit mit ORGASM_END_BEFORE_START ablehnt.
     const problem = endet <= beginnt ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endet, new Date()) ?? undefined);
-    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: beginnt.toISOString(), endsAt: endet.toISOString(), requiredType: args.requiredType ?? null, openAllowed: !!args.openAllowed });
+    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginnt)!, endsAt: iso(endet)!, requiredType: args.requiredType ?? null, openAllowed: !!args.openAllowed });
   }
   const data = unwrap(await createOrgasmusAnforderung({
     userId,
@@ -284,7 +286,7 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
   return {
     ok: true,
     id: data.id,
-    message: `Orgasm ${kind} set (window ${beginnt.toISOString()} – ${endet.toISOString()}); the user was notified by e-mail + push.`,
+    message: `Orgasm ${kind} set (window ${iso(beginnt)} – ${iso(endet)}); the user was notified by e-mail + push.`,
   };
 }
 
@@ -303,6 +305,7 @@ export interface SetTrainingGoalArgs {
 
 export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
+  const iso = await isoForUser(userId);
   const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
 
   // Default to now; validFrom may be a future date to schedule a goal in advance.
@@ -315,7 +318,7 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
   if (args.dryRun) {
     const targets = { minProTagH: args.minPerDayHours, minProWocheH: args.minPerWeekHours, minProMonatH: args.minPerMonthHours, minProJahrH: args.minPerYearHours };
     const problem = !hasPeriodTarget(targets) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(targets);
-    return dryRunPreview("set_training_goal", problem ?? undefined, { categoryId, validFrom: gueltigAb.toISOString(), validUntil: gueltigBis?.toISOString() ?? null, ...targets });
+    return dryRunPreview("set_training_goal", problem ?? undefined, { categoryId, validFrom: iso(gueltigAb)!, validUntil: iso(gueltigBis), ...targets });
   }
 
   const data = unwrap(await createVorgabe({
@@ -329,7 +332,7 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
     minProJahrH: args.minPerYearHours,
     notiz: args.note,
   }));
-  const when = args.validFrom ? `scheduled from ${gueltigAb.toISOString().slice(0, 10)}` : "active now";
+  const when = args.validFrom ? `scheduled from ${iso(gueltigAb)!.slice(0, 10)}` : "active now";
   return { ok: true, id: data.id, message: `Training goal set (${when}).` };
 }
 
@@ -422,11 +425,11 @@ async function loadOwnedVorgabe(id: string, userId: string) {
 
 /** Scalar-Snapshot eines TrainingVorgabe-Bestands für den dryRun-Diff (B-05) — dieselben Feldnamen
  *  wie im edit/delete-Preview, damit diffFields() beide Seiten deckungsgleich vergleicht. */
-function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; gueltigBis: Date | null; minProTagH: number | null; minProWocheH: number | null; minProMonatH: number | null; minProJahrH: number | null; notiz: string | null }): Record<string, unknown> {
+function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; gueltigBis: Date | null; minProTagH: number | null; minProWocheH: number | null; minProMonatH: number | null; minProJahrH: number | null; notiz: string | null }, iso: Iso): Record<string, unknown> {
   return {
     categoryId: v.categoryId,
-    validFrom: v.gueltigAb.toISOString(),
-    validUntil: v.gueltigBis?.toISOString() ?? null,
+    validFrom: iso(v.gueltigAb),
+    validUntil: iso(v.gueltigBis),
     minProTagH: v.minProTagH,
     minProWocheH: v.minProWocheH,
     minProMonatH: v.minProMonatH,
@@ -469,6 +472,7 @@ export async function mcpListTrainingGoals(username: string, args: ListTrainingG
   const userId = await resolveTargetUserId(username);
   const filterCatId = args.category ? await resolveCategoryId(userId, args.category) : undefined;
   const timezone = await tzOf(userId);
+  const iso = makeIso(timezone);
   const now = new Date();
   const nowMs = now.getTime();
   const goals: TrainingGoalRow[] = (await listVorgaben(userId, { includeDeleted: args.includeDeleted }))
@@ -481,17 +485,17 @@ export async function mcpListTrainingGoals(username: string, args: ListTrainingG
         id: g.id,
         category: g.category?.name ?? "KG",
         status: g.deletedAt ? "deleted" : dateStatus,
-        validFrom: g.gueltigAb.toISOString(),
-        validUntil: g.gueltigBis ? g.gueltigBis.toISOString() : null,
+        validFrom: iso(g.gueltigAb)!,
+        validUntil: iso(g.gueltigBis),
         minPerDayHours: g.minProTagH,
         minPerWeekHours: g.minProWocheH,
         minPerMonthHours: g.minProMonatH,
         minPerYearHours: g.minProJahrH,
         note: g.notiz,
-        deletedAt: g.deletedAt ? g.deletedAt.toISOString() : null,
+        deletedAt: iso(g.deletedAt),
       };
     });
-  return { ok: true, ...buildEnvelope(now, makeIso(timezone), timezone), goals };
+  return { ok: true, ...buildEnvelope(now, iso, timezone), goals };
 }
 
 export interface EditTrainingGoalArgs extends SetTrainingGoalArgs {
@@ -528,11 +532,12 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     minProJahrH: args.minPerYearHours ?? existing.minProJahrH,
   };
   if (args.dryRun) {
+    const iso = await isoForUser(userId);
     const problem = !hasPeriodTarget(merged) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(merged);
     // Dieselbe Feldnamen-Abbildung wie `vorgabeSnapshot` — statt sie hier ein zweites Mal von Hand
     // hinzuschreiben, durch einen (ungespeicherten) Vorgabe-artigen Zwischenstand jagen.
-    const after = vorgabeSnapshot({ categoryId: categoryId ?? existing.categoryId, gueltigAb, gueltigBis, ...merged, notiz: args.note ?? existing.notiz });
-    return dryRunPreview("edit_training_goal", problem ?? undefined, { id: args.id, ...after }, diffFields(vorgabeSnapshot(existing), after));
+    const after = vorgabeSnapshot({ categoryId: categoryId ?? existing.categoryId, gueltigAb, gueltigBis, ...merged, notiz: args.note ?? existing.notiz }, iso);
+    return dryRunPreview("edit_training_goal", problem ?? undefined, { id: args.id, ...after }, diffFields(vorgabeSnapshot(existing, iso), after));
   }
 
   unwrap(await updateVorgabe(args.id, {
@@ -554,7 +559,7 @@ export async function mcpDeleteTrainingGoal(username: string, args: DeleteTraini
   const userId = await resolveTargetUserId(username);
   const existing = await loadOwnedVorgabe(args.id, userId);
   if (args.dryRun) {
-    const before = vorgabeSnapshot(existing);
+    const before = vorgabeSnapshot(existing, await isoForUser(userId));
     const deleted = Object.fromEntries(Object.keys(before).map((key) => [key, null])); // Objekt verschwindet — jedes Feld → null
     return dryRunPreview("delete_training_goal", undefined, { id: args.id, category: existing.categoryId }, diffFields(before, deleted));
   }
@@ -663,6 +668,7 @@ export interface EditLockPeriodArgs {
  */
 export async function mcpEditLockPeriod(username: string, args: EditLockPeriodArgs) {
   const userId = await resolveTargetUserId(username);
+  const iso = await isoForUser(userId);
   if (!args.indefinite && !args.untilAt) throw new Error("Provide untilAt (ISO date) or indefinite=true.");
   const endetAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
 
@@ -676,8 +682,8 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
 
   if (args.dryRun) {
     const lockEndError = checkLockEnd(endetAt, target.wirksamAb, new Date());
-    const before: Record<string, unknown> = { endetAt: target.endetAt?.toISOString() ?? null, indefinite: target.endetAt === null };
-    const after: Record<string, unknown> = { endetAt: endetAt?.toISOString() ?? null, indefinite: !!args.indefinite };
+    const before: Record<string, unknown> = { endetAt: iso(target.endetAt), indefinite: target.endetAt === null };
+    const after: Record<string, unknown> = { endetAt: iso(endetAt), indefinite: !!args.indefinite };
     return {
       dryRun: true, tool: "edit_lock_period", wouldSucceed: !lockEndError,
       ...(lockEndError ? { problem: lockEndError } : {}),
@@ -687,12 +693,12 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   }
 
   const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt));
-  const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${endetAt!.toISOString()}.`;
+  const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${iso(endetAt)}.`;
   const untouched = open.filter((s) => s.id !== target.id).map((s) => ({
     id: s.id,
     status: isHiddenFromSub(s) ? ("scheduled" as const) : ("triggered" as const),
-    scheduledFor: s.wirksamAb?.toISOString() ?? null,
-    endsAt: s.endetAt?.toISOString() ?? null,
+    scheduledFor: iso(s.wirksamAb),
+    endsAt: iso(s.endetAt),
   }));
   const ambiguity = untouched.length === 0 ? ""
     : ` NOTE: ${open.length} lock periods are open — edited the ${isHiddenFromSub(target) ? "SCHEDULED" : "triggered"} one; the others are listed under "untouched". Pass id=… to edit one of those instead.`;
@@ -719,6 +725,7 @@ export interface JudgeOffenseArgs {
 export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) {
   const userId = await resolveTargetUserId(username);
   if (args.dryRun) {
+    const iso = await isoForUser(userId);
     // Nur die eine hier prüfbare Regel (PENALTY_TEXT_REQUIRED) — ob `ref` überhaupt ein offenes
     // Vergehen ist und die Aktion zu dessen Status passt, entscheidet erst judgeOffense (Strafbuch-
     // Zustand), das hier bewusst NICHT dupliziert wird.
@@ -736,7 +743,7 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     });
     const existing = record?.userId === userId ? record : null;
     const before: Record<string, unknown> = existing
-      ? { status: existing.status, reason: existing.reason, judgedBy: existing.judgedBy, erledigtAt: existing.erledigtAt?.toISOString() ?? null }
+      ? { status: existing.status, reason: existing.reason, judgedBy: existing.judgedBy, erledigtAt: iso(existing.erledigtAt) }
       : {};
     // reopen ohne bestehenden Record (JUDGMENT_NOT_FOUND), complete auf einem nicht-PUNISHED Record
     // (PENALTY_NOT_PUNISHED) und punish/dismiss auf einem ref, das kein aktuell erkanntes Vergehen
@@ -757,7 +764,7 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // delete_training_goal: das Objekt verschwindet, das ist ein Wert, keine Abwesenheit).
     const after: Record<string, unknown> | undefined = !knownTransition ? undefined
       : args.action === "reopen" ? Object.fromEntries(Object.keys(before).map((key) => [key, null]))
-      : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: (existing!.erledigtAt ?? new Date()).toISOString() }
+      : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: iso(existing!.erledigtAt ?? new Date()) }
       : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: "ai", erledigtAt: null };
     return dryRunPreview("judge_offense", problem ?? undefined, { ref: args.ref, action: args.action, text: args.text ?? null }, after ? diffFields(before, after) : undefined);
   }

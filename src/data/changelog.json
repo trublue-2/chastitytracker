@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.22",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Keyholder-KI: Alle Zeitstempel — auch bei anordnenden Aktionen und ihren Vorschauen — kommen jetzt einheitlich mit Zeitzonen-Angabe (Ortszeit mit Offset) statt teils in UTC. Damit lesen sich Zeiten überall gleich.",
+          "en": "Keyholder AI: all timestamps — including in directive actions and their previews — now consistently carry the timezone (local time with offset) instead of sometimes UTC. Times read the same everywhere."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.21",
     "date": "2026-07-18",
     "changes": [

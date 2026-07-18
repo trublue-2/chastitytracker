@@ -288,7 +288,7 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
   it("edit_lock_period: diff zeigt das bisherige gegen das neue Enddatum", async () => {
     sperrzeitFindManyMock.mockResolvedValue([{ id: "s1", userId: "u1", wirksamAb: null, endetAt: null, withdrawnAt: null, benachrichtigtAt: null }]);
     const r = await mcpEditLockPeriod("sub", { dryRun: true, untilAt: MORGEN.toISOString() }) as { diff: Record<string, [unknown, unknown]> };
-    expect(r.diff.endetAt).toEqual([null, MORGEN.toISOString()]);
+    expect(r.diff.endetAt).toEqual([null, "2026-07-18T14:00:00+02:00"]); // K-02: Offset-ISO (Europe/Zurich) statt Zulu
     expect(r.diff.indefinite).toEqual([true, false]);
   });
 

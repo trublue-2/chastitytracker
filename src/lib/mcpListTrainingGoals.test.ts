@@ -48,7 +48,7 @@ describe("mcpListTrainingGoals — Soft-Delete-Sichtbarkeit (B-04)", () => {
     }]);
     const res = await mcpListTrainingGoals("kg", { includeDeleted: true });
     expect(res.goals[0].status).toBe("deleted");
-    expect(res.goals[0].deletedAt).toBe("2026-07-17T10:00:00.000Z");
+    expect(res.goals[0].deletedAt).toBe("2026-07-17T12:00:00+02:00"); // K-02: Offset-ISO statt Zulu
   });
 
   it("ein aktives Ziel hat deletedAt:null und den datumsbasierten Status", async () => {

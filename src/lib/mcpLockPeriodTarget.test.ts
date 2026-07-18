@@ -74,8 +74,8 @@ describe("mcpEditLockPeriod — Zielwahl bei mehreren offenen Sperrzeiten", () =
     expect(res.untouched).toEqual([{
       id: "s1",
       status: "scheduled",
-      scheduledFor: IN_DREI_WOCHEN.toISOString(),
-      endsAt: geplant.endetAt.toISOString(),
+      scheduledFor: "2026-08-04T02:00:00+02:00", // K-02: Offset-ISO (Europe/Zurich) statt Zulu
+      endsAt: "2026-08-11T02:00:00+02:00",
     }]);
     expect(res.message).toContain("2 lock periods are open");
   });
