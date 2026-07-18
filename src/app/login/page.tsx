@@ -9,6 +9,7 @@ import { useTranslations, useLocale } from "next-intl";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
 import { clearSwUserCache } from "@/lib/swMessages";
+import { syncLocaleCookieFromLogin } from "@/lib/locale";
 
 export default function LoginPage() {
   const t = useTranslations("login");
@@ -31,7 +32,10 @@ export default function LoginPage() {
       setError(lockData.locked ? t("accountLocked") : t("invalidCredentials"));
     } else {
       clearSwUserCache();
-      await getSession(); // Session-Cookie sicher gesetzt, bevor der Landing-Resolver auf "/" greift.
+      const session = await getSession(); // Session-Cookie sicher gesetzt, bevor der Landing-Resolver auf "/" greift.
+      // Sprache dieses Accounts übernehmen — sonst bliebe das Cookie eines vorher an DIESEM Browser
+      // angemeldeten Users stehen (falsche UI-Sprache trotz korrekter Einstellung).
+      syncLocaleCookieFromLogin((session?.user as { locale?: string })?.locale);
       // Ziel entscheidet der serverseitige Resolver (src/lib/landing.ts) anhand der startPage-Präferenz.
       router.push("/");
       router.refresh();

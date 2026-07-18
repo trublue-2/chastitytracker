@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { prisma } from "@/lib/prisma";
+import { manageableDeviceOwner } from "@/lib/deviceAccess";
 import { isValidImageUrl } from "@/lib/constants";
 import { listDeviceReferences, addReferenceFromUpload, importEntryAsReference } from "@/lib/deviceReferenceService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 type Params = { params: Promise<{ id: string }> };
-
-/** Returns the device id if the session user owns it (or is admin), else null. */
-async function ownedDeviceUserId(id: string, sessionUserId: string, role: string): Promise<string | null> {
-  const device = await prisma.device.findUnique({ where: { id }, select: { userId: true } });
-  if (!device) return null;
-  if (device.userId !== sessionUserId && role !== "admin") return null;
-  return device.userId;
-}
 
 /** GET /api/devices/[id]/references — kuratierte Referenzfotos des Geräts. */
 export async function GET(_req: NextRequest, { params }: Params) {
@@ -21,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (session instanceof NextResponse) return session;
 
   const { id } = await params;
-  const ownerId = await ownedDeviceUserId(id, session.user.id, session.user.role);
+  const ownerId = await manageableDeviceOwner(id, session.user.id, session.user.role);
   if (!ownerId) return errorResponse(404, "NOT_FOUND");
 
   return NextResponse.json({ references: await listDeviceReferences(id) });
@@ -36,7 +28,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (session instanceof NextResponse) return session;
 
   const { id } = await params;
-  const ownerId = await ownedDeviceUserId(id, session.user.id, session.user.role);
+  const ownerId = await manageableDeviceOwner(id, session.user.id, session.user.role);
   if (!ownerId) return errorResponse(404, "NOT_FOUND");
 
   const body = await req.json();

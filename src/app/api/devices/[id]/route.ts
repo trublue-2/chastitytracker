@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
+import { entryManageAccess } from "@/lib/keyholder";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
@@ -8,11 +9,12 @@ import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Ownership check: returns the device if the session user owns it (or is admin). */
+/** Access check: returns the device if the session user may manage it — owner, global admin, or
+ *  keyholder of the owner (same rule as entries, see entryManageAccess). */
 async function getOwnedDevice(id: string, sessionUserId: string, sessionRole: string) {
   const device = await prisma.device.findUnique({ where: { id } });
   if (!device) return null;
-  if (device.userId !== sessionUserId && sessionRole !== "admin") return null;
+  if (!(await entryManageAccess(sessionUserId, sessionRole, device.userId)).allowed) return null;
   return device;
 }
 

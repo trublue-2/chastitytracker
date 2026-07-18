@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
+import { entryManageAccess } from "@/lib/keyholder";
 import {
   validateCategoryInput,
   slugifyCategoryName,
@@ -40,7 +41,9 @@ export async function GET(req: NextRequest) {
   let userId = session.user.id;
   const queryUserId = req.nextUrl.searchParams.get("userId");
   if (queryUserId && queryUserId !== session.user.id) {
-    if (session.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!(await entryManageAccess(session.user.id, session.user.role, queryUserId)).allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     userId = queryUserId;
   }
 
@@ -95,7 +98,9 @@ export async function POST(req: NextRequest) {
 
   let userId = session.user.id;
   if (body.userId && body.userId !== session.user.id) {
-    if (session.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!(await entryManageAccess(session.user.id, session.user.role, body.userId)).allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     userId = body.userId;
   }
 

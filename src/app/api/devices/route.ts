@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
+import { entryManageAccess } from "@/lib/keyholder";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
@@ -18,11 +19,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const includeArchived = searchParams.get("includeArchived") === "true";
 
-  // Admin can view any user's devices
+  // Admin OR keyholder of the target may view that user's devices
   let userId = session.user.id;
   const queryUserId = searchParams.get("userId");
-  if (queryUserId) {
-    if (session.user.role !== "admin") {
+  if (queryUserId && queryUserId !== session.user.id) {
+    if (!(await entryManageAccess(session.user.id, session.user.role, queryUserId)).allowed) {
       return errorResponse(403, "FORBIDDEN");
     }
     userId = queryUserId;
@@ -61,10 +62,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, description, imageUrl, purchasePrice, currency, categoryId } = body;
 
-  // Admin can create devices for other users
+  // Admin OR keyholder of the target may create devices for that user
   let userId = session.user.id;
   if (body.userId && body.userId !== session.user.id) {
-    if (session.user.role !== "admin") {
+    if (!(await entryManageAccess(session.user.id, session.user.role, body.userId)).allowed) {
       return errorResponse(403, "FORBIDDEN");
     }
     userId = body.userId;

@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
+import { entryManageAccess } from "@/lib/keyholder";
 import { validateCategoryInput } from "@/lib/categoryConstants";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Ownership check: returns the category if the session user owns it (or is admin). */
+/** Access check: returns the category if the session user may manage it — owner, global admin, or
+ *  keyholder of the owner (same rule as entries/devices, see entryManageAccess). */
 async function getOwnedCategory(id: string, sessionUserId: string, sessionRole: string) {
   const category = await prisma.deviceCategory.findUnique({ where: { id } });
   if (!category) return null;
-  if (category.userId !== sessionUserId && sessionRole !== "admin") return null;
+  if (!(await entryManageAccess(sessionUserId, sessionRole, category.userId)).allowed) return null;
   return category;
 }
 

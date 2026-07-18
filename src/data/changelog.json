@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.51.25",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Keyholder können jetzt Geräte ihres Subs wieder anlegen und bearbeiten (z.B. neues Foto) — vorher scheiterte das Speichern mit „Zugriff verweigert“ bzw. „Nicht gefunden“, weil die Geräte-Funktionen nur den globalen Admin zuliessen, nicht den Keyholder.",
+          "en": "Keyholders can again create and edit their sub's devices (e.g. a new photo) — previously saving failed with “Access denied” or “Not found” because the device functions only allowed a global admin, not the keyholder."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Dieselbe Einschränkung behoben für weitere Keyholder-Aktionen, die bislang nur dem globalen Admin offenstanden: Geräte-Kategorien anlegen/bearbeiten, Orgasmus-Anordnungen erstellen und den Verifikationsstatus eines Eintrags setzen. Jeweils strikt auf die eigenen Subs beschränkt.",
+          "en": "Fixed the same limitation for further keyholder actions that were previously admin-only: creating/editing device categories, issuing orgasm directives, and setting an entry's verification status — each strictly limited to their own subs."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "UI-Sprache nach Benutzerwechsel im selben Browser: Meldet sich ein zweiter Benutzer mit anderer Spracheinstellung an, wird jetzt sofort dessen Sprache übernommen — vorher blieb die Sprache des vorherigen Benutzers stehen, bis man einmal manuell umschaltete.",
+          "en": "UI language after switching users in the same browser: when a second user with a different language logs in, their language is now applied immediately — previously the previous user's language stuck until you toggled it manually once."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.24",
     "date": "2026-07-18",
     "changes": [

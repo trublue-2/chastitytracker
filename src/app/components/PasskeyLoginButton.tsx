@@ -7,6 +7,7 @@ import { signIn, getSession } from "next-auth/react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import Button from "@/app/components/Button";
 import { clearSwUserCache } from "@/lib/swMessages";
+import { syncLocaleCookieFromLogin } from "@/lib/locale";
 
 /**
  * PasskeyLoginButton — shows a "Sign in with Passkey" button on the login page.
@@ -71,6 +72,9 @@ export default function PasskeyLoginButton() {
       if (result?.ok) {
         clearSwUserCache();
         const session = await getSession();
+        // Sprache dieses Accounts übernehmen (siehe syncLocaleCookieFromLogin) — sonst UI-Sprache
+        // eines zuvor an diesem Browser angemeldeten Users.
+        syncLocaleCookieFromLogin((session?.user as { locale?: string })?.locale);
         const dest = (session?.user as { role?: string })?.role === "admin" ? "/admin" : "/dashboard";
         window.location.href = dest;
       } else {

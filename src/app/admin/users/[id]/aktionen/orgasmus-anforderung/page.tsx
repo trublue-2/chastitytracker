@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getUserTimezone } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
@@ -8,9 +8,8 @@ import { effectiveOrgasmusArten, resolveReasonList } from "@/lib/reasonsService"
 import OrgasmusAnforderungForm from "./OrgasmusAnforderungForm";
 
 export default async function AdminOrgasmusAnforderungPage({ params }: { params: Promise<{ id: string }> }) {
-  await assertAdmin();
-
   const { id } = await params;
+  await assertKeyholderOrAdmin(id);
 
   // The directive sets times FOR the sub → the sub's tz governs the datetime-local defaults + submit.
   // The vorgegebeneArt list is the SUB's resolved orgasm types (their custom config, or built-in defaults).

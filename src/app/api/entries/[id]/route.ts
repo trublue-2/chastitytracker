@@ -114,8 +114,9 @@ export async function PATCH(
           ...(orgasmusArt !== undefined && { orgasmusArt }),
           ...(kontrollCode !== undefined && { kontrollCode }),
           ...(deviceId !== undefined && persistsDevice && { deviceId: deviceId || null }),
-          // verifikationStatus only settable by admins
-          ...(verifikationStatus !== undefined && session.user.role === "admin" && { verifikationStatus }),
+          // verifikationStatus only settable by a controller (admin/keyholder), never the sub —
+          // same right as manually verifying a control (/api/admin/kontrollen/[id]).
+          ...(verifikationStatus !== undefined && elevated && { verifikationStatus }),
         },
       });
     });
