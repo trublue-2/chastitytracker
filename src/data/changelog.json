@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.23",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Box-Statuskarte: Die Zeile beim Verschliessen heisst jetzt „Schliessen der Box angefordert“ statt „Verschluss angefordert“ — vorher klang es wie eine Keyholder-Anforderung, gemeint ist aber nur, dass die Box deinen Verschluss beim nächsten Knopfdruck nachvollzieht.",
+          "en": "Box status card: the closing line now reads “Box lock requested” instead of “Lock requested” — it previously sounded like a keyholder request, but it only means the box will complete your lock at the next button press."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.22",
     "date": "2026-07-18",
     "changes": [

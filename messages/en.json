@@ -380,7 +380,7 @@
     "lastSeenMinutes": "last seen {count} min ago",
     "lastSeenHours": "last seen {count} h ago",
     "lastSeenDays": "last seen {count} d ago",
-    "pendingCloseAtDevice": "Lock requested — pressing the button at the box closes the bolt",
+    "pendingCloseAtDevice": "Box lock requested — a button press closes the bolt",
     "pendingOpenAtDevice": "Open approved — pressing the button at the box opens the bolt",
     "cleaningBlockedByLockPeriod": "This lock period allows no cleaning",
     "cleaningWindowOpen": "Cleaning window open until {until}",
