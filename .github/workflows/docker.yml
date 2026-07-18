@@ -87,6 +87,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build-Datum in einem Step berechnen: `github.run_started_at` ist KEIN gültiges github-Context-
+      # Property und lieferte immer einen leeren String → das Build-Arg kam leer an (Issue #20).
+      - name: Compute build date
+        id: builddate
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -97,7 +103,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            BUILD_DATE=${{ github.run_started_at }}
+            BUILD_DATE=${{ steps.builddate.outputs.value }}
 
   # ── Deploy auf Server ──────────────────────────────────────────────────────
   deploy:
