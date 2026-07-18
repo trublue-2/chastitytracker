@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle } from "@/lib/kontrolleService";
-import { getLatestKgEntry, getIsLocked } from "@/lib/queries";
+import { getLatestKgEntry, getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
@@ -41,12 +41,16 @@ async function processDue(): Promise<void> {
         withdrawnAt: null,
         entryId: null,
       },
-      include: { user: { select: { id: true, email: true, username: true, locale: true } } },
+      include: { user: { select: { id: true, email: true, username: true, locale: true, autoKontrolleNurBeiSperre: true } } },
       // Chronologisch: werden mehrere Kontrollen desselben Users im selben Tick fällig, überlebt die
       // früheste (wird zuerst zugestellt), die späteren verwirft der Überschneidungs-Schutz unten.
       orderBy: { wirksamAb: "asc" },
       take: 50,
     });
+
+    // Eine fällige Zeile lautlos zurückziehen (kein Nachholen) — die Auslösung ist sinnlos geworden.
+    const withdrawKa = (id: string) =>
+      prisma.kontrollAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
 
     for (const ka of due) {
       try {
@@ -54,14 +58,22 @@ async function processDue(): Promise<void> {
         const latest = await getLatestKgEntry(ka.userId);
         // Auto-Kontrolle bei offenem KG ist sinnlos → bei Fälligkeit zurückziehen statt senden.
         if (ka.auto && latest?.type !== "VERSCHLUSS") {
-          await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: new Date() } });
+          await withdrawKa(ka.id);
+          continue;
+        }
+        // Opt-in „nur bei Sperrzeit": eine bei Fälligkeit ohne aktive Sperrzeit angetroffene
+        // Auto-Kontrolle zurückziehen (kein Nachholen — dieselbe Behandlung wie offener KG). Die
+        // Sperrzeit-Abfrage läuft nur, wenn der Sub schon verschlossen ist (obiger Check bestanden)
+        // und der Schalter gesetzt ist.
+        if (ka.auto && ka.user.autoKontrolleNurBeiSperre && !(await getActiveSperrzeit(ka.userId))) {
+          await withdrawKa(ka.id);
           continue;
         }
         // Überschneidungs-Schutz: eine andere Kontrolle ist schon aktiv (Keyholder, KI, oder eine
         // andere Auto-Kontrolle) → diese hier verwerfen statt ausliefern (User-Entscheidung: kein
         // Nachholen, gilt für ALLE Quellen, nicht nur Auto).
         if (await hasActiveKontrolle(ka.userId, now, { excludeId: ka.id })) {
-          await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: new Date() } });
+          await withdrawKa(ka.id);
           continue;
         }
         // Aktive Siegel-Nummer mitgeben: ≠ Code → Mail verlangt das Siegel zusätzlich auf dem

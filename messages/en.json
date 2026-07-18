@@ -868,6 +868,8 @@
     "autoKontrolleFristLabel": "Fulfillment time",
     "autoKontrolleFensterLabel": "Fixed trigger window",
     "autoKontrolleFensterDesc": "Only trigger inspections within this window. Off: spread evenly across the waking day.",
+    "autoKontrolleNurBeiSperreLabel": "Only during a lock period",
+    "autoKontrolleNurBeiSperreDesc": "Only trigger inspections while an active lock period is running. One that comes due without an active lock period is discarded (no catch-up).",
     "sectionReinigung": "Cleaning",
     "sectionReasons": "Selection lists",
     "reasonOrgasmTitle": "Orgasm types",

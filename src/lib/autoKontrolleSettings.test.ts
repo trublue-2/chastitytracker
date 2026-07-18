@@ -21,6 +21,7 @@ const SAVED_USER = {
   autoKontrollePerDayMin: 0, autoKontrollePerDayMax: 0,
   autoKontrolleRuheVon: "22:00", autoKontrolleRuheBis: "06:00",
   autoKontrolleFristVon: 15, autoKontrolleFristBis: 60,
+  autoKontrolleFensterVon: "", autoKontrolleFensterBis: "", autoKontrolleNurBeiSperre: false,
 };
 
 beforeEach(() => {
@@ -50,6 +51,14 @@ describe("setAutoKontrolleSettings — ungültige Uhrzeit", () => {
     expect(result).toEqual({ ok: true, data: null });
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({ data: { autoKontrolleRuheVon: "23:30" } }),
+    );
+  });
+
+  it("speichert den Nur-bei-Sperre-Schalter", async () => {
+    const result = await setAutoKontrolleSettings("u1", { nurBeiSperre: true });
+    expect(result).toEqual({ ok: true, data: null });
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { autoKontrolleNurBeiSperre: true } }),
     );
   });
 });

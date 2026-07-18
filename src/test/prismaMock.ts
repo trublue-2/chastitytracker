@@ -76,4 +76,7 @@ export const TEST_USER = {
   autoKontrolleRuheBis: "07:00",
   autoKontrolleFristVon: 30,
   autoKontrolleFristBis: 90,
+  autoKontrolleFensterVon: "",
+  autoKontrolleFensterBis: "",
+  autoKontrolleNurBeiSperre: false,
 };

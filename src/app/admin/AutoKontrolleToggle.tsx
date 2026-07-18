@@ -59,6 +59,7 @@ interface AutoKontrolleForm {
   fristBis: number;
   fensterVon: string; // "" = kein festes Auslöse-Fenster
   fensterBis: string;
+  nurBeiSperre: boolean;
 }
 
 /** Vorschlag beim EINSCHALTEN des festen Fensters — nur, wenn noch nichts gesetzt ist. */
@@ -80,6 +81,7 @@ export default function AutoKontrolleToggle({
   initialFristBis,
   initialFensterVon,
   initialFensterBis,
+  initialNurBeiSperre,
 }: {
   userId: string;
   initialAktiv: boolean;
@@ -91,6 +93,7 @@ export default function AutoKontrolleToggle({
   initialFristBis: number;
   initialFensterVon: string;
   initialFensterBis: string;
+  initialNurBeiSperre: boolean;
 }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
@@ -98,7 +101,7 @@ export default function AutoKontrolleToggle({
   const initial: AutoKontrolleForm = {
     aktiv: initialAktiv, perDayMin: initialPerDayMin, perDayMax: initialPerDayMax,
     ruheVon: initialRuheVon, ruheBis: initialRuheBis, fristVon: initialFristVon, fristBis: initialFristBis,
-    fensterVon: initialFensterVon, fensterBis: initialFensterBis,
+    fensterVon: initialFensterVon, fensterBis: initialFensterBis, nurBeiSperre: initialNurBeiSperre,
   };
   const [form, setForm] = useState(initial);
   // Der zuletzt vom Server angenommene Stand — Referenz für „geändert?". Ein abgelehnter Patch (z.B.
@@ -138,6 +141,7 @@ export default function AutoKontrolleToggle({
       autoKontrolleFristBis: normalized.fristBis,
       autoKontrolleFensterVon: normalized.fensterVon,
       autoKontrolleFensterBis: normalized.fensterBis,
+      autoKontrolleNurBeiSperre: normalized.nurBeiSperre,
     });
     if (ok) {
       setForm(normalized);
@@ -156,6 +160,15 @@ export default function AutoKontrolleToggle({
       />
       {form.aktiv && (
         <>
+          {/* Nur während einer aktiven Sperrzeit auslösen (sonst wird eine fällige Kontrolle verworfen) */}
+          <Toggle
+            label={t("autoKontrolleNurBeiSperreLabel")}
+            description={t("autoKontrolleNurBeiSperreDesc")}
+            checked={form.nurBeiSperre}
+            disabled={saving}
+            onChange={(checked) => set("nurBeiSperre", checked)}
+          />
+
           {/* Anzahl pro Tag: zufällig zwischen Min und Max */}
           <NumberRangeRow
             label={t("autoKontrolleProTagLabel")} min={0} max={12} fromFallback={0} toFallback={0}

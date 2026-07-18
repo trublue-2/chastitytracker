@@ -868,6 +868,8 @@
     "autoKontrolleFristLabel": "Erfüllungsdauer",
     "autoKontrolleFensterLabel": "Festes Auslöse-Fenster",
     "autoKontrolleFensterDesc": "Kontrollen nur in diesem Zeitfenster auslösen. Aus: gleichmässig über den wachen Tag verteilt.",
+    "autoKontrolleNurBeiSperreLabel": "Nur während einer Sperrzeit",
+    "autoKontrolleNurBeiSperreDesc": "Kontrollen nur auslösen, während eine aktive Sperrzeit läuft. Fällt eine ohne aktive Sperrzeit an, wird sie verworfen (kein Nachholen).",
     "sectionReinigung": "Reinigung",
     "sectionReasons": "Auswahllisten",
     "reasonOrgasmTitle": "Orgasmus-Arten",

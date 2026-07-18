@@ -36,6 +36,10 @@ model User {
   // danach normal und darf übers Fensterende hinaus, wird aber am nächsten Schlaf-Beginn gekappt.
   autoKontrolleFensterVon        String                   @default("")
   autoKontrolleFensterBis        String                   @default("")
+  // true = Auto-Kontrollen nur auslösen, während eine aktive Sperrzeit (SPERRZEIT) läuft. Die Slots
+  // werden weiter für jeden Tag geplant; wird eine bei Fälligkeit ohne aktive Sperrzeit angetroffen,
+  // zieht der Poller sie zurück (kein Nachholen — dieselbe Behandlung wie eine Auslösung bei offenem KG).
+  autoKontrolleNurBeiSperre      Boolean                  @default(false)
   // Kontroll-Eskalation (Stufe 1: Mahnung, Stufe 2: automatisch als abgelegt markieren). Beide
   // Stufen sind unabhängig voneinander schaltbar und standardmässig AUS (Opt-in, kein
   // Verhaltenswechsel für Bestandsnutzer). Delay-Werte in Minuten; Stufe 2 zählt ab dem Zeitpunkt

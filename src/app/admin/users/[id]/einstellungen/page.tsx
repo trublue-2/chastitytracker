@@ -150,6 +150,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialFristBis={user.autoKontrolleFristBis}
           initialFensterVon={user.autoKontrolleFensterVon}
           initialFensterBis={user.autoKontrolleFensterBis}
+          initialNurBeiSperre={user.autoKontrolleNurBeiSperre}
         />
       </SettingsSection>
 

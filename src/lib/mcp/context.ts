@@ -61,8 +61,10 @@ export interface ContextResult extends Envelope {
    *  wird eine ZUFÄLLIGE Anzahl aus [perDayMin, perDayMax] selbsttätig über den Tag verteilt
    *  (perDayMin==perDayMax ⇒ fixe Anzahl); sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
    *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. triggerWindowFrom/Until
-   *  = optionales festes Auslöse-Fenster (`null` = aus; dann verteilen sich die Auslösungen übers Wach-Fenster). */
-  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number; triggerWindowFrom: string | null; triggerWindowUntil: string | null };
+   *  = optionales festes Auslöse-Fenster (`null` = aus; dann verteilen sich die Auslösungen übers Wach-Fenster).
+   *  onlyDuringLockPeriod=true → eine fällige Auto-Kontrolle wird nur zugestellt, während eine aktive
+   *  Sperrzeit läuft; sonst zurückgezogen (kein Nachholen). false → jede laufende Verriegelung genügt. */
+  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number; triggerWindowFrom: string | null; triggerWindowUntil: string | null; onlyDuringLockPeriod: boolean };
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
    *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
   cleaning: ContextReinigungView;
@@ -75,6 +77,7 @@ const contextUserSelect = {
   reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true,
   autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true, autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
+  autoKontrolleNurBeiSperre: true,
 } as const;
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
@@ -128,6 +131,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
       // K-17: "" = kein Fenster → null (ehrlicher als ein leerer String neben echten "HH:MM"-Werten).
       triggerWindowFrom: auto.fensterVon || null,
       triggerWindowUntil: auto.fensterBis || null,
+      onlyDuringLockPeriod: auto.nurBeiSperre,
     },
     cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
     recurringContext: recurring.map(recurringView),

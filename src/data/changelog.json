@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.24",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Automatische Kontrollen: In den Benutzereinstellungen lässt sich nun festlegen, dass automatische Kontrollen nur ausgelöst werden, während eine Sperrzeit aktiv ist. Fällt eine an, ohne dass gerade eine Sperrzeit läuft, wird sie verworfen (kein Nachholen).",
+          "en": "Automatic inspections: user settings now offer an option to only trigger automatic inspections while a lock period is active. One that comes due without an active lock period is discarded (no catch-up)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.23",
     "date": "2026-07-18",
     "changes": [

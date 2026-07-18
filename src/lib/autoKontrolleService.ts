@@ -23,6 +23,7 @@ export interface AutoKontrolleSettings {
   fristBis: number; // max Erfüllungsdauer (Min)
   fensterVon: string; // "HH:MM" optionales festes Auslöse-Fenster Start ("" = aus)
   fensterBis: string; // "HH:MM" optionales festes Auslöse-Fenster Ende ("" = aus)
+  nurBeiSperre: boolean; // true = nur zustellen, während eine aktive Sperrzeit läuft (Dispatch-Gate, nicht Planung)
 }
 
 export type SetAutoKontrolleParams = Partial<AutoKontrolleSettings>;
@@ -347,6 +348,7 @@ export function autoKontrolleSettingsFromUser(u: {
   autoKontrolleRuheVon: string; autoKontrolleRuheBis: string;
   autoKontrolleFristVon: number; autoKontrolleFristBis: number;
   autoKontrolleFensterVon: string; autoKontrolleFensterBis: string;
+  autoKontrolleNurBeiSperre: boolean;
 }): AutoKontrolleSettings {
   return {
     aktiv: u.autoKontrolleAktiv,
@@ -358,6 +360,7 @@ export function autoKontrolleSettingsFromUser(u: {
     fristBis: u.autoKontrolleFristBis,
     fensterVon: u.autoKontrolleFensterVon,
     fensterBis: u.autoKontrolleFensterBis,
+    nurBeiSperre: u.autoKontrolleNurBeiSperre,
   };
 }
 
@@ -366,6 +369,7 @@ const AUTO_USER_SELECT = {
   autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
   autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
+  autoKontrolleNurBeiSperre: true,
 } as const;
 
 /** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null). */
@@ -477,6 +481,7 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
     autoKontrolleRuheVon?: string; autoKontrolleRuheBis?: string;
     autoKontrolleFristVon?: number; autoKontrolleFristBis?: number;
     autoKontrolleFensterVon?: string; autoKontrolleFensterBis?: string;
+    autoKontrolleNurBeiSperre?: boolean;
   } = {};
 
   if (params.aktiv !== undefined) data.autoKontrolleAktiv = Boolean(params.aktiv);
@@ -503,6 +508,7 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
     if (params.fensterBis !== "" && !HHMM.test(params.fensterBis)) return serviceFail(400, INVALID_TIME);
     data.autoKontrolleFensterBis = params.fensterBis;
   }
+  if (params.nurBeiSperre !== undefined) data.autoKontrolleNurBeiSperre = Boolean(params.nurBeiSperre);
   // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay & Frist).
   // Nur die vorhandenen Bis-Keys anfassen, sonst würde undefined den „keine Felder"-Guard aushebeln.
   if (data.autoKontrollePerDayMax !== undefined) data.autoKontrollePerDayMax = raiseMaxToMin(data.autoKontrollePerDayMin, data.autoKontrollePerDayMax);
