@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.27",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Container-Logs: Die Zeitstempel der Zugriffs- und Diagnose-Logs zeigen jetzt die lokale Zeit (Europe/Zurich) mit Offset (z.B. +02:00) statt UTC. Vorher fehlte die Kennzeichnung, wodurch sie um ein bis zwei Stunden falsch wirkten. Sommer-/Winterzeit wird automatisch berücksichtigt.",
+          "en": "Container logs: access and diagnostic log timestamps now show local time (Europe/Zurich) with an offset (e.g. +02:00) instead of UTC. The marker was missing before, making them look one to two hours off. Daylight-saving time is handled automatically."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.26",
     "date": "2026-07-18",
     "changes": [

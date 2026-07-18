@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { touchAppMeta } from "@/lib/appMeta";
+import { logTimestamp } from "@/lib/logFormat";
 
 // ── Rate limiter für Login-Endpunkt ──────────────────────────────────────────
 const loginBucket = new Map<string, { count: number; resetAt: number }>();
@@ -135,8 +136,7 @@ export default auth(async (req) => {
       req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
       req.headers.get("x-real-ip") ??
       "unknown";
-    const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
-    console.log(`[ACCESS] ${ts} | ${user?.name ?? "?"} | ${pathname} | ${ip}`);
+    console.log(`[ACCESS] ${logTimestamp().replace("T", " ")} | ${user?.name ?? "?"} | ${pathname} | ${ip}`);
   }
 
   // Fire-and-forget: track last activity for portal overview
