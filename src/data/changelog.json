@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.26",
+    "date": "2026-07-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Build-Datum wird in den Einstellungen (und beim Update-Hinweis) endlich wieder korrekt angezeigt. Es wurde bislang zur Build-Zeit leer ins Programm eingebacken und war zur Laufzeit nicht mehr verfügbar; jetzt wird es zur Laufzeit gelesen — ohne den Docker-Build-Cache zu verwerfen.",
+          "en": "The build date is finally shown correctly again in settings (and for the update hint). It was previously baked in empty at build time and unavailable at runtime; it is now read at runtime — without busting the Docker build cache."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.25",
     "date": "2026-07-18",
     "changes": [

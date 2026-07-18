@@ -13,9 +13,10 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   poweredByHeader: false,
   serverExternalPackages: ["@simplewebauthn/server"],
-  env: {
-    BUILD_DATE: process.env.BUILD_DATE || "",
-  },
+  // BUILD_DATE bewusst NICHT unter `env`: das würde den Wert zur BUILD-Zeit ins Bundle inlinen
+  // (leer, da im Dockerfile erst im Runtime-Stage gesetzt) und alle Laufzeit-Reads überschatten.
+  // process.env.BUILD_DATE wird zur Laufzeit im Runner gelesen (/api/version, /api/heartbeat,
+  // layout.tsx, getSettingsProps, utils.formatBuildDate).
   images: {
     remotePatterns: [],
   },

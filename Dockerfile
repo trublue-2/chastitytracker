@@ -21,10 +21,6 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Build-Datum erst nach dem Build setzen (sonst Cache-Invalidierung bei jedem Build)
-ARG BUILD_DATE
-ENV BUILD_DATE=${BUILD_DATE}
-
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
 FROM node:24-alpine AS runner
 WORKDIR /app
@@ -62,5 +58,13 @@ RUN chmod +x ./docker-entrypoint.sh
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# Build-Datum GANZ AM ENDE des Runtime-Stage: nur zur Laufzeit gebraucht (die Server-Reads von
+# process.env.BUILD_DATE: /api/version, /api/heartbeat, layout.tsx, getSettingsProps, utils). Ein
+# ENV gilt nur in SEINEM FROM-Stage — hier im runner, damit der Wert zur Laufzeit da ist. Als
+# letzte, winzige Layer nach allen COPY/RUN → der wechselnde Wert bustet nur diese Layer, nicht
+# den teuren Build.
+ARG BUILD_DATE
+ENV BUILD_DATE=${BUILD_DATE}
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
