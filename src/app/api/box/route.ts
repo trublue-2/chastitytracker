@@ -6,22 +6,27 @@ import { heimdallEnabled } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
+// Ohne expliziten no-store-Header cached v.a. der WKWebView (iOS-App) die GET-Antwort — der
+// 5-s-Poll der BoxStatusCard „läuft" dann, liefert aber stur den alten Stand, bis ein
+// Seitenwechsel neue Requests erzwingt (realer Vorfall 16.07).
+const NO_STORE = { headers: { "Cache-Control": "no-store" } };
+
 // Box-Status für den eingeloggten Sub — reine Status-Anzeige (Ist/Soll/Frische) für die
-// Box-Status-Karte und die (+)-Menü-Box-Zeile. KEINE Kommandos mehr: die Box FOLGT den
-// Verschluss-/Öffnen-Einträgen (Kopplung in /api/entries), Reinigung = OEFFNEN(Reinigung)+Verschluss.
+// Box-Status-Karte. KEINE Kommandos mehr: die Box FOLGT den Verschluss-/Öffnen-Einträgen
+// (Kopplung in /api/entries), Reinigung = OEFFNEN(Reinigung)+Verschluss.
 export async function GET() {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;
   // Heimdall-Box ist ein eigenständiges Feature: ohne Sync-Secret keine Box-UI (auch wenn
   // noch alte BoxStatus-Zeilen in der DB liegen).
-  if (!heimdallEnabled()) return NextResponse.json([]);
+  if (!heimdallEnabled()) return NextResponse.json([], NO_STORE);
   const userId = session.user.id;
 
   const [boxes, sperre] = await Promise.all([
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true },
+      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true },
     }),
     getActiveSperrzeit(userId),
   ]);
@@ -33,11 +38,19 @@ export async function GET() {
       boxId: b.boxId,
       name: b.name,
       locked: b.locked,
+      // IST getrennt vom SOLL: seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu
+      // sein soll (wartet auf Knopf/USB) — die Anzeige darf das SOLL nicht als „Ist" etikettieren.
+      reportedLocked: b.reportedLocked,
+      // Noch nicht von der Box abgeholtes Eintrags-Kommando — tracker-LOKALES Wissen, sofort da.
+      // Der Spiegel (locked/reportedLocked) hinkt bis zum nächsten Box-Sync nach; die Karte zeigt
+      // damit den Übergang („angefordert — Knopfdruck vollzieht") ohne auf Heimdall zu warten.
+      pendingCommand: b.pendingCommand === "lock" || b.pendingCommand === "open" ? b.pendingCommand : null,
       simpleLock: b.simpleLock,
       keyholderLocked: b.keyholderLocked || !!sperre,
       lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,
       // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt vor X").
       lastSyncAt: b.lastSyncAt?.toISOString() ?? null,
     })),
+    NO_STORE,
   );
 }

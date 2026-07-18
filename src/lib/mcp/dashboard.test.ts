@@ -136,9 +136,10 @@ describe("keyInBox — eine Deklaration, überall dieselbe Antwort", () => {
 });
 
 // hardwareEnforced ist die EINE ehrliche Vollstreckungs-Antwort — online spielt keine Rolle. Sie ist
-// nur dann false, wenn ein deterministischer Selbst-Öffner seit dem letzten Sync gefeuert hat
-// (staleLock): gecachte Frist verstrichen ODER Offline-Failsafe (offlineOpenHours) erreicht.
-describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen", () => {
+// false, wenn der Offline-Failsafe seit dem letzten Sync gefeuert hat (staleLock) ODER die Öffnung
+// scharfgestellt ist (openArmed: Frist verstrichen/SOLL offen — seit FW 0.2.34 öffnet die Box dann
+// nicht mehr autonom, sondern beim nächsten Knopf/USB; ein Druck genügt, also „hält" sie nicht mehr).
+describe("hardwareEnforced / openArmed / staleLock — Vollstreckung minus Selbst-Öffner und Scharfstellung", () => {
   const HOUR = 60 * 60 * 1000;
   const LOCKED_ENTRY = {
     id: "e2",
@@ -164,12 +165,13 @@ describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen
     db.entry.findFirst.mockResolvedValue(LOCKED_ENTRY); // getCurrentLockKeyInBox
   });
 
-  it("locked + Schlüssel drin + frischer Sync → hardwareEnforced, nicht stale", async () => {
+  it("locked + Schlüssel drin + frischer Sync → hardwareEnforced, nicht stale, nicht scharf", async () => {
     db.boxStatus.findFirst.mockResolvedValue(boxRow({}));
     const { boxState } = await getBoxState("sub");
     expect(boxState?.hardwareEnforced).toBe(true);
     expect(boxState?.staleLock).toBe(false);
     expect(boxState?.hardwareEnforcedReason).toBeNull(); // A-07: true → kein Grund
+    expect(boxState?.openArmed).toBe(false);
   });
 
   it("offline länger als offlineOpenHours → staleLock, hardwareEnforced false, SOLL bleibt", async () => {
@@ -208,12 +210,26 @@ describe("hardwareEnforced / staleLock — Vollstreckung minus Selbst-Öffnungen
     expect(boxState?.hardwareEnforcedReason).toBe("key-not-in-box");
   });
 
-  it("verstrichene Frist → staleLock, auch ohne offlineOpenHours-Term", async () => {
+  // FW ≥ 0.2.34: eine verstrichene Frist öffnet die Box nicht mehr von selbst — sie stellt die
+  // Öffnung nur scharf. Der gemeldete Zu-Stand bleibt also verlässlich (kein staleLock), aber
+  // „hält fest" darf nicht mehr behauptet werden: ein Knopfdruck genügt.
+  it("verstrichene Frist → openArmed (nicht staleLock), hardwareEnforced false", async () => {
     db.boxStatus.findFirst.mockResolvedValue(
       boxRow({ lockUntil: new Date(Date.now() - HOUR), offlineOpenHours: null }),
     );
     const { boxState } = await getBoxState("sub");
-    expect(boxState?.staleLock).toBe(true);
+    expect(boxState?.openArmed).toBe(true);
+    expect(boxState?.staleLock).toBe(false);
+    expect(boxState?.hardwareEnforced).toBe(false);
+  });
+
+  // Der Vorfall vom 16.07: Sperrzeit abgelaufen → Server-SOLL offen, Box (laut IST) noch zu.
+  // Früher öffnete sie am Heartbeat ins Leere; jetzt wartet sie scharfgestellt auf den Knopf.
+  it("SOLL offen, IST zu → openArmed, hardwareEnforced false", async () => {
+    db.boxStatus.findFirst.mockResolvedValue(boxRow({ locked: false, reportedLocked: true }));
+    const { boxState } = await getBoxState("sub");
+    expect(boxState?.openArmed).toBe(true);
+    expect(boxState?.staleLock).toBe(false);
     expect(boxState?.hardwareEnforced).toBe(false);
   });
 
@@ -280,16 +296,18 @@ describe("keySecured — Käfig zu UND Schlüssel drin, ohne SOLL-Fallback", () 
     expect(boxState?.keySecured).toBe(false); // hier bewusst nicht — unbestätigt ist nicht gesichert
   });
 
-  // code-review-Fund: reportedLocked:true + keyInBox:true reicht NICHT, wenn die Box sich seit dem
-  // letzten Sync deterministisch selbst geöffnet hat (staleLock) — der gemeldete "zu"-Stand gilt dann
-  // nicht mehr, dieselbe Bedingung wie bei hardwareEnforced.
-  it("reportedLocked:true + keyInBox:true, aber staleLock (Frist verstrichen) → keySecured false", async () => {
+  // reportedLocked:true + keyInBox:true reicht NICHT, wenn die Öffnung scharfgestellt ist (openArmed:
+  // Frist verstrichen, Box öffnet beim nächsten Knopf) — der gemeldete "zu"-Stand ist dann nicht mehr
+  // gesichert, dieselbe Bedingung wie bei hardwareEnforced (FW 0.2.34: verstrichene Frist → openArmed,
+  // nicht mehr staleLock).
+  it("reportedLocked:true + keyInBox:true, aber openArmed (Frist verstrichen) → keySecured false", async () => {
     db.entry.findFirst.mockResolvedValue(entryWithKeyInBox(true));
     db.boxStatus.findFirst.mockResolvedValue(
       boxRow({ reportedLocked: true, lockUntil: new Date(Date.now() - 60 * 60 * 1000) }),
     );
     const { boxState } = await getBoxState("sub");
-    expect(boxState?.staleLock).toBe(true);
+    expect(boxState?.openArmed).toBe(true);
+    expect(boxState?.staleLock).toBe(false);
     expect(boxState?.hardwareEnforced).toBe(false);
     expect(boxState?.keySecured).toBe(false);
   });

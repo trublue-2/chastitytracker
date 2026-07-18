@@ -8,7 +8,14 @@ import type { CleaningBlockReason } from "@/lib/queries";
 export type BoxRow = {
   boxId: string;
   name: string;
+  /** SOLL: soll die Box zu sein (Heimdall-Entscheid, gespiegelt). */
   locked: boolean;
+  /** Physisches IST der letzten Sync-Meldung — kann vom SOLL abweichen (Präsenz-Guard: „soll zu,
+   *  steht offen und wartet auf Knopf/USB"). null = Alt-Zeile ohne IST-Meldung → SOLL gilt. */
+  reportedLocked: boolean | null;
+  /** Noch nicht von der Box abgeholtes Eintrags-Kommando (tracker-lokal, sofort nach dem Eintrag
+   *  gesetzt) — der Spiegel hinkt bis zum nächsten Box-Sync nach. */
+  pendingCommand: "lock" | "open" | null;
   simpleLock: boolean;
   keyholderLocked: boolean;
   /** Effektives Soll-Ende (Sperrzeit-Ende oder eigene Frist); null = ohne Zeitlimit / kein Soll. */
@@ -60,9 +67,32 @@ export function boxReinigungQuotaLabel(r: BoxReinigungView | null, t: Translate)
 /** Frischer als das → „gerade aktiv"; darüber → „zuletzt vor X". */
 const LIVE_THRESHOLD_MS = 2 * 60_000;
 
-/** Ist-Zustand der Box (Hardware-Wahrheit): offen, oder verschlossen (mit/ohne bestätigten Riegel). */
+/** Physisches IST der Box: das gemeldete `reportedLocked`, bei Alt-Zeilen ohne Meldung das SOLL. */
+export const boxIsPhysicallyLocked = (b: BoxRow): boolean => b.reportedLocked ?? b.locked;
+
+/**
+ * Laufender Übergang, den erst ein Knopfdruck an der Box vollzieht (Präsenz-Gate, FW ≥ 0.2.34):
+ * `"closing"`/`"opening"` — oder null, wenn Soll und Ist übereinstimmen.
+ *
+ * Zwei Quellen: SOFORT nach dem Eintrag das tracker-lokale `pendingCommand` (der Spiegel weiss
+ * noch nichts); nach dem nächsten Box-Sync der Soll/Ist-Mismatch aus dem Spiegel (`locked` vs
+ * `reportedLocked`), bis der Riegel bestätigt ist. `pendingCommand` gewinnt: es ist die jüngere
+ * Absicht. Am Consume-Sync selbst (Kommando abgeholt, Push mit dem Mismatch noch nicht da) kann
+ * der Übergang für einen Poll-Takt kurz auf null fallen — kosmetisch, kein Zustandsverlust.
+ */
+export function boxPendingTransition(b: BoxRow): "closing" | "opening" | null {
+  if (b.pendingCommand === "lock") return "closing";
+  if (b.pendingCommand === "open") return "opening";
+  if (b.reportedLocked === null) return null; // Alt-Zeile: kein IST bekannt → kein Mismatch ableitbar
+  if (b.locked && !b.reportedLocked) return "closing";
+  if (!b.locked && b.reportedLocked) return "opening";
+  return null;
+}
+
+/** Ist-Zustand der Box (Hardware-Wahrheit): offen, oder verschlossen (mit/ohne bestätigten Riegel).
+ *  Nutzt das ECHTE IST — seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu sein soll. */
 export function boxIstLabel(b: BoxRow, t: Translate): string {
-  if (!b.locked) return t("istOpen");
+  if (!boxIsPhysicallyLocked(b)) return t("istOpen");
   return b.simpleLock ? t("istLockedBolt") : t("istLocked");
 }
 
@@ -84,9 +114,4 @@ export function boxFreshnessLabel(lastSyncAt: string | null, now: number, t: Tra
   const hours = Math.floor(min / 60);
   if (hours < 24) return t("lastSeenHours", { count: hours });
   return t("lastSeenDays", { count: Math.floor(hours / 24) });
-}
-
-/** Wohin die (+)-Box-Zeile springt: offene Box → verschliessen, verschlossene → öffnen. */
-export function boxJumpHref(b: BoxRow): string {
-  return b.locked ? "/dashboard/new/oeffnen" : "/dashboard/new/verschluss";
 }

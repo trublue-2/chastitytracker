@@ -20,7 +20,7 @@ import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
  *  Aggregate — rein lesend, MCP-only. */
 
 /** Der EINE Grund für hardwareEnforced:false, in fester Rangfolge (A-07). */
-export type HardwareEnforcedReason = "soll-open" | "reported-open" | "key-not-in-box" | "stale-lock";
+export type HardwareEnforcedReason = "soll-open" | "reported-open" | "key-not-in-box" | "open-armed" | "stale-lock";
 
 export interface BoxStateView {
   name: string;
@@ -36,20 +36,26 @@ export interface BoxStateView {
   /** Hält die Box den Schlüssel gerade fest — die EINE ehrliche Vollstreckungs-Antwort, **unabhängig**
    *  davon, ob die Box gerade online ist. Basiert auf dem IST: true nur, wenn sie zuletzt physisch
    *  zu gemeldet hat (`reportedLocked`, Fallback `locked`), der Schlüssel wirklich drin liegt
-   *  (`keyInBox !== false`) UND seit dem letzten Sync keine deterministische Selbst-Öffnung gefeuert
-   *  hat (`!staleLock`). Ist sie false, nennt genau EIN Feld das WARUM: `locked:false` (soll offen),
-   *  `reportedLocked:false` (steht offen, z.B. wartet auf das Präsenz-Fenster), `keyInBox:false`
-   *  (Ehrensache, Schlüssel beim Sub) oder `staleLock:true` (hat sich offline selbst geöffnet). */
+   *  (`keyInBox !== false`), die Öffnung nicht scharfgestellt ist (`!openArmed`) UND seit dem letzten
+   *  Sync keine Selbst-Öffnung gefeuert hat (`!staleLock`). Ist sie false, nennt genau EIN Feld das
+   *  WARUM: `locked:false` (soll offen), `reportedLocked:false` (steht offen, z.B. wartet auf das
+   *  Präsenz-Fenster), `keyInBox:false` (Ehrensache, Schlüssel beim Sub), `openArmed:true` (zu, aber
+   *  ein Knopfdruck vom Offen entfernt) oder `staleLock:true` (hat sich offline selbst geöffnet). */
   hardwareEnforced: boolean;
-  /** Maschinenlesbare Fassung des „genau EIN Feld nennt das Warum"-Kontrakts (A-07, MCP-Restliste
-   *  2026-07-17): null wenn hardwareEnforced true, sonst der EINE Grund in fester Rangfolge —
-   *  "soll-open" (locked:false), "reported-open" (reportedLocked:false), "key-not-in-box"
-   *  (keyInBox:false), "stale-lock" (staleLock:true). Additiv zum bisherigen Prosa-Kontrakt. */
+  /** Maschinenlesbare Fassung des „genau EIN Feld nennt das Warum"-Kontrakts (A-07): null wenn
+   *  hardwareEnforced true, sonst der EINE Grund in fester Rangfolge — "soll-open" (locked:false),
+   *  "reported-open" (reportedLocked:false), "key-not-in-box" (keyInBox:false), "open-armed"
+   *  (openArmed:true), "stale-lock" (staleLock:true). */
   hardwareEnforcedReason: HardwareEnforcedReason | null;
+  /** Die Öffnung ist SCHARFGESTELLT: die Box ist (laut IST) zu, aber die Frist ist verstrichen oder
+   *  das SOLL steht auf offen — seit FW 0.2.34 öffnet sie dann nicht mehr von selbst, sondern beim
+   *  nächsten Knopf/USB-Kontakt, ohne weitere Prüfung. „Hält" zählt das ehrlicherweise nicht mehr. */
+  openArmed: boolean;
   /** Der zuletzt gemeldete „zu"-Stand (IST) ist nicht mehr verlässlich, weil die Box sich seit dem
-   *  letzten Sync **deterministisch selbst geöffnet** hat: entweder die gecachte Frist (`lockUntil`)
-   *  ist verstrichen, oder das Offline-Failsafe (nach `offlineOpenHours` ohne Sync) ist erreicht.
-   *  Beides macht die Box auch OFFLINE — „online" spielt hier bewusst keine Rolle. */
+   *  letzten Sync per **Offline-Failsafe** (nach `offlineOpenHours` ohne Sync) **selbst geöffnet**
+   *  hat — der einzige verbliebene deterministische Selbst-Öffner neben Akku-Not (eine abgelaufene
+   *  Frist öffnet seit FW 0.2.34 nicht mehr autonom → dafür `openArmed`). Auch OFFLINE — „online"
+   *  spielt hier bewusst keine Rolle. */
   staleLock: boolean;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
@@ -58,10 +64,11 @@ export interface BoxStateView {
    *  verschlossen — sagt NICHTS über den Schlüssel aus und ist KEIN „nein". */
   keyInBox: boolean | null;
   /** Direkte Antwort auf die Frage, die eine Alleinzeit-Vorgabe stellt (Käfig zu UND Schlüssel
-   *  drin): `reportedLocked === true && keyInBox === true && !staleLock`. Beide Booleans müssen
-   *  explizit `true` sein UND die Box darf sich seit dem letzten Sync nicht deterministisch selbst
-   *  geöffnet haben (sonst gilt der gemeldete "zu"-Stand nicht mehr — dieselbe Bedingung wie bei
-   *  `hardwareEnforced`, siehe dort) —
+   *  drin): `reportedLocked === true && keyInBox === true && !openArmed && !staleLock`. Beide Booleans
+   *  müssen explizit `true` sein UND die Box darf weder scharfgestellt sein (`openArmed` — ein
+   *  Knopfdruck vom Offen) noch sich seit dem letzten Sync deterministisch selbst geöffnet haben
+   *  (`staleLock`) — sonst gilt der gemeldete "zu"-Stand nicht mehr als gesichert (dieselbe Bedingung
+   *  wie bei `hardwareEnforced`, siehe dort) —
    *  `null` auf einer Seite (nicht gemeldet / nicht erklärt) zählt bewusst NICHT als gesichert,
    *  auch wenn `keyInBox: null` für sich genommen kein „nein" ist (s. oben). Erspart das
    *  Verrechnen von `reportedLocked`+`keyInBox`, das A-06 als stille Falle identifiziert hat
@@ -262,26 +269,32 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
   // (= bisheriges Verhalten, bis der erste Heimdall-Push nach dem Rollout das Feld füllt). Bewusst
   // NICHT `reportedLocked` genannt — das Rückgabefeld gleichen Namens trägt den ROHEN Wert (nullable).
   const effectiveLocked = box.reportedLocked ?? box.locked;
-  // Die Box öffnet sich auch OFFLINE an zwei deterministischen Punkten selbst: an der gecachten Frist
-  // (`lockUntil`) und nach `offlineOpenHours` ohne Sync. Nur diese zwei Fälle entwerten den zuletzt
-  // gemeldeten „zu"-Stand — sonst gilt er weiter, egal ob die Box gerade online ist. `offlineOpenHours`
-  // fehlt bei Alt-Zeilen (vor dem Heimdall-Push) → dann entfällt der Offline-Term sicher.
+  // Scharfgestellt (FW ≥ 0.2.34): Frist verstrichen oder SOLL offen, Box aber (laut IST) noch zu —
+  // sie öffnet nicht mehr von selbst, sondern beim nächsten Knopf/USB-Kontakt. Ein Druck genügt,
+  // ohne Eintrag und ohne weitere Prüfung — als „hält fest" darf das nicht mehr zählen.
+  const openArmed =
+    effectiveLocked && (!box.locked || (box.lockUntil !== null && box.lockUntil <= now));
+  // Selbst geöffnet hat sich die Box seit FW 0.2.34 nur noch per Offline-Failsafe (`offlineOpenHours`
+  // ohne Sync) — nur das entwertet den zuletzt gemeldeten „zu"-Stand; sonst gilt er weiter, egal ob
+  // die Box gerade online ist. `offlineOpenHours` fehlt bei Alt-Zeilen → Term entfällt sicher.
   const staleLock =
     effectiveLocked &&
-    ((box.lockUntil !== null && box.lockUntil <= now) ||
-      (box.lastSyncAt !== null &&
-        box.offlineOpenHours != null &&
-        msToHours(now.getTime() - box.lastSyncAt.getTime()) >= box.offlineOpenHours));
-  const hardwareEnforced = effectiveLocked && keyInBox !== false && !staleLock;
+    box.lastSyncAt !== null &&
+    box.offlineOpenHours != null &&
+    msToHours(now.getTime() - box.lastSyncAt.getTime()) >= box.offlineOpenHours;
+  // hardwareEnforced zieht openArmed zusätzlich ab (main/FW 0.2.34: eine verstrichene Frist öffnet
+  // nicht mehr autonom, sie „armt" — die Box hält physisch nicht mehr im Sinne von „bleibt zu").
+  const hardwareEnforced = effectiveLocked && keyInBox !== false && !openArmed && !staleLock;
   // Genau EIN Grund, feste Rangfolge (A-07). Muss am SELBEN Wert ansetzen wie `hardwareEnforced`,
   // nämlich `effectiveLocked` (= reportedLocked ?? locked) — sonst nennt der Grund bei
   // {locked:false, reportedLocked:true} fälschlich "soll-open", obwohl die Box effektiv zu ist und der
-  // echte Grund key/stale wäre. Ist die Box nicht wirksam zu, trennt reportedLocked===false (IST offen,
-  // "reported-open") von „kein IST-Report + SOLL offen" ("soll-open").
+  // echte Grund key/armed/stale wäre. Ist die Box nicht wirksam zu, trennt reportedLocked===false (IST
+  // offen, "reported-open") von „kein IST-Report + SOLL offen" ("soll-open").
   const hardwareEnforcedReason: HardwareEnforcedReason | null =
     hardwareEnforced ? null
       : !effectiveLocked ? (box.reportedLocked === false ? "reported-open" : "soll-open")
       : keyInBox === false ? "key-not-in-box"
+      : openArmed ? "open-armed"
       : "stale-lock";
   return {
     name: box.name,
@@ -290,9 +303,10 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
     lockUntil: iso(box.lockUntil),
     hardwareEnforced,
     hardwareEnforcedReason,
+    openArmed,
     staleLock,
     keyInBox,
-    keySecured: box.reportedLocked === true && keyInBox === true && !staleLock,
+    keySecured: box.reportedLocked === true && keyInBox === true && !openArmed && !staleLock,
     battery: box.battery,
     charging: box.charging,
     lastSeen: iso(box.lastSyncAt),
@@ -304,10 +318,12 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
 }
 
 export interface BoxStateResult extends Envelope {
-  /** v3: hardwareEnforced ist IST-basiert (reportedLocked), staleLock ersetzt online,
-   *  hardwareEnforcedEffective/online/lockUntilStale entfernt — rückwirkende Anerkennung der
-   *  Semantik-Wechsel vom 16.07.2026 (v2-Payloads davor trugen die alte Bedeutung). */
-  schemaVersion: 3;
+  /** v4: neues Feld openArmed (Öffnung scharfgestellt — Frist verstrichen/SOLL offen, Box wartet
+   *  auf Knopf/USB, FW ≥ 0.2.34); staleLock umgedeutet auf NUR den Offline-Failsafe-Term;
+   *  hardwareEnforced zieht openArmed zusätzlich ab. Dazu hardwareEnforcedReason (A-07,
+   *  maschinenlesbarer EINE-Grund-Kontrakt) und der gemeinsame Envelope (generatedAt/timezone, A-08).
+   *  v3: hardwareEnforced IST-basiert (reportedLocked), staleLock ersetzte online. */
+  schemaVersion: 4;
   user: string;
   boxState: BoxStateView | null;
 }
@@ -320,7 +336,7 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
   const [box, keyInBox] = await Promise.all([loadBoxRow(userId), getCurrentLockKeyInBox(userId)]);
   const now = new Date();
   const iso = makeIso(timezone);
-  return { schemaVersion: 3, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox) };
+  return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */
