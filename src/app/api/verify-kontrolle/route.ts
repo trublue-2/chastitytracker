@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDeduped } from "@/lib/verifyCache";
 import { deriveSealCode } from "@/lib/kontrolleService";
 import { getLatestKgEntry } from "@/lib/queries";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   // verifyKontrolleCodeDetailed selbst (verify:vision_call/verify:result), keine Doppelung hier.
   const safeRotation: Rotation = VALID_ROTATIONS.includes(rotation) ? rotation : 0;
   log("route:start", { user: session.user.id, codeLen: expectedCode.length, rotation: safeRotation });
-  const result = await verifyKontrolleCodeDetailed(imageUrl, expectedCode, safeRotation, sealCode);
+  const result = await verifyKontrolleCodeDeduped(session.user.id, imageUrl, expectedCode, safeRotation, sealCode);
   if (result === null) {
     return NextResponse.json({ detected: null, match: false, error: true });
   }

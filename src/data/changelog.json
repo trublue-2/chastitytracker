@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.29",
+    "date": "2026-07-20",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Das Kontroll-Foto wird nicht mehr doppelt von der KI geprüft: Bisher lief die Bildprüfung einmal live im Formular und ein zweites Mal beim Speichern mit identischen Parametern. Beide teilen sich jetzt dasselbe Ergebnis — das spart bei selbst gehosteter KI unnötige Last und bei Claude Vision doppelte Token-Kosten. Zusätzlich stimmen Live-Anzeige und gespeichertes Ergebnis dadurch jetzt sicher überein.",
+          "en": "The inspection photo is no longer checked twice by the AI: image verification previously ran once live in the form and again on save with identical parameters. Both now share the same result — saving unnecessary load on self-hosted AI and duplicate token costs on Claude Vision. As a side effect, the live preview and the stored result are now guaranteed to agree."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.28",
     "date": "2026-07-20",
     "changes": [

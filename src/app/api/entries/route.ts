@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { markLastAction } from "@/lib/appMeta";
-import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDeduped } from "@/lib/verifyCache";
 import { deriveSealCode } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
@@ -437,7 +437,7 @@ export async function POST(req: NextRequest) {
         // Aktive Siegel-Nummer server-seitig ableiten (nie vom Client): bei aktivem Siegel müssen
         // Kontroll-Code UND Siegel-Nummer im Foto lesbar sein (Dual-Prüfung). Lock-Entry geteilt
         // mit dem Geräte-Check (latestLockPromise).
-        const result = await verifyKontrolleCodeDetailed(photoUrl, code, safeRotation, deriveSealCode(await latestLockPromise));
+        const result = await verifyKontrolleCodeDeduped(session.user.id, photoUrl, code, safeRotation, deriveSealCode(await latestLockPromise));
         status = result?.match ? "ai" : null;
         // Persist WHY it didn't match, so "Unverified" isn't a dead end for the keyholder/admin
         // (see src/lib/kontrollen.ts mapKontrolleRow + AdminKontrolleListClient).
