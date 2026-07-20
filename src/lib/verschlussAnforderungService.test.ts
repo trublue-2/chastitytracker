@@ -26,7 +26,7 @@ vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn() }));
 vi.mock("@/lib/queries", () => ({ getIsLocked: vi.fn(async () => true), validateDeviceOwnership: vi.fn() }));
 vi.mock("@/lib/mail", () => ({
-  sendMail: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
+  sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
 vi.mock("@/lib/emailI18n", () => ({ emailT: async () => (k: string) => k, emailGreeting: () => "" }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));

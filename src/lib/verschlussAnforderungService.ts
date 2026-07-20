@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
-import { sendMail, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
@@ -202,7 +202,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     const bisHtml = endetAtDate
       ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(endetAtDate)}</p>`
       : `<p><strong>${t("lockDurationLabel")}</strong> ${t("lockIndefinite")}</p>`;
-    await sendMail(
+    await sendMailSafe(
       user.email,
       `KG-Tracker – ${t("lockPeriodSetSubject")}`,
       dashboardEmailHtml(t("lockPeriodSetSubject"),
@@ -223,7 +223,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     const sperrBisHtml = sperrEndetAtDate
       ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(sperrEndetAtDate)}</p>`
       : "";
-    await sendMail(
+    await sendMailSafe(
       user.email,
       `KG-Tracker – ${t("lockRequestSubject")}`,
       dashboardEmailHtml(t("lockRequestSubject"),

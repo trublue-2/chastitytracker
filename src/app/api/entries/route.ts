@@ -17,7 +17,7 @@ import { checkDeviceInPhoto } from "@/lib/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { sendMail, escHtml, appBaseUrl } from "@/lib/mail";
+import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/mail";
 import { formatDateTime, formatDuration } from "@/lib/utils";
 import { getTranslations } from "next-intl/server";
 
@@ -408,7 +408,7 @@ export async function POST(req: NextRequest) {
 
         for (const r of recipients) {
           if (r.email) {
-            sendMail(r.email, `KG-Tracker – ${title}`, emailHtml).catch(() => {});
+            void sendMailSafe(r.email, `KG-Tracker – ${title}`, emailHtml);
           }
         }
       }

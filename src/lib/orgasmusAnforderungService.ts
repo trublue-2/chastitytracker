@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS } from "@/lib/constants";
@@ -160,7 +160,7 @@ async function sendOrgasmusAnforderungNotifications(opts: {
     const nachrichtHtml = nachricht?.trim() ? noticeBoxHtml(t("orgasmNoticeLabel"), nachricht.trim()) : "";
     const artHtml = artLabel ? `<p><strong>${t("orgasmArtLabel")}</strong> ${escHtml(artLabel)}</p>` : "";
     const oeffnenHtml = oeffnenErlaubt ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
-    await sendMail(
+    await sendMailSafe(
       user.email,
       `KG-Tracker – ${betreff}`,
       dashboardEmailHtml(

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
@@ -250,7 +250,7 @@ export async function sendKontrolleNotification(opts: {
     ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0;font-size:14px;color:#1e3a8a"><strong>${t("inspectionSealHintLabel")}</strong> ${t("inspectionSealHintText")}</p></div>`
     : "";
 
-  await sendMail(
+  await sendMailSafe(
     user.email,
     `KG-Tracker – ${t("inspectionRequestedSubject")}`,
     dashboardEmailHtml(

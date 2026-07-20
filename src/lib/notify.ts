@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
 
@@ -34,7 +34,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
   const message = t(messageKey, params);
 
   if (user.email) {
-    await sendMail(
+    await sendMailSafe(
       user.email,
       `KG-Tracker – ${subject}`,
       dashboardEmailHtml(subject, `${emailGreeting(t, user.username)}<p>${escHtml(message)}</p>`, t("dashboardButton")),

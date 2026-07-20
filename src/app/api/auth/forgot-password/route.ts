@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendMail, escHtml, appBaseUrl } from "@/lib/mail";
+import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/mail";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hashToken } from "@/lib/oauth";
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const resetUrl = `${appBaseUrl()}/reset-password?token=${token}`;
 
   const t = await emailT(user.locale);
-  await sendMail(
+  await sendMailSafe(
     user.email,
     `KG-Tracker – ${t("passwordResetSubject")}`,
     `

@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { EMAIL_BUTTON_COLORS } from "@/lib/constants";
+import { structuredLog } from "@/lib/serverLog";
 
 export function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -16,12 +17,29 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendMail(to: string, subject: string, html: string) {
+  // Ohne konfiguriertes SMTP still übersprungen statt geworfen — eine fehlende Mail-Config darf
+  // keinen Business-Flow (Reset, Kontrolle, Benachrichtigung) mit einem 500 abbrechen.
+  if (!process.env.SMTP_HOST) {
+    structuredLog("mail", "skipped_no_smtp", { subject });
+    return;
+  }
   await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to,
     subject,
     html,
   });
+}
+
+/** Fehler-toleranter Versand: fängt jeden Wurf (ungültige/Fake-Adresse, SMTP-Ausfall, Auth-Fehler)
+ *  ab und loggt ihn. Für awaited Aufrufer, bei denen die Mail nur eine Benachrichtigung ist und
+ *  niemals den eigentlichen Vorgang zum 500 machen darf. */
+export async function sendMailSafe(to: string, subject: string, html: string): Promise<void> {
+  try {
+    await sendMail(to, subject, html);
+  } catch (e) {
+    structuredLog("mail", "send_failed", { subject, error: (e as Error).message });
+  }
 }
 
 /** Öffentliche Basis-URL der Instanz. Einzige Quelle für den NEXTAUTH_URL-Fallback in Mails/Links.
