@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.33",
+    "date": "2026-07-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "In der Liste „Sessions andere Kategorien\" erscheint jetzt das Foto, das beim Beginn des Tragens aufgenommen wurde — an der Stelle, wo bisher nur das Kategorie-Symbol stand. Ein Tipp darauf zeigt es gross. Wurde kein Foto aufgenommen, bleibt das Symbol wie bisher stehen.",
+          "en": "The \"sessions from other categories\" list now shows the photo taken at the start of wear, where previously only the category symbol appeared. Tapping it opens the photo full screen. If no photo was taken, the symbol stays as before."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.32",
     "date": "2026-07-22",
     "changes": [

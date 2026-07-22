@@ -334,7 +334,8 @@
     "wearMonth": "This month",
     "activeSession": "Active session",
     "entrySaved": "Entry saved",
-    "entryUpdated": "Entry updated"
+    "entryUpdated": "Entry updated",
+    "wearSessionPhotoAlt": "Photo from start of wear: {category}"
   },
   "newEntry": {
     "title": "New entry",
