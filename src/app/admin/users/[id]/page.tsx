@@ -110,7 +110,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
   const proratedVorgabe = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
 
-  const wearSessionRows = buildWearSessionRows(allNonKgCategories, buildWearSessions(entries, now), dl);
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, buildWearSessions(entries, now), dl, entries);
 
   return (
     <>

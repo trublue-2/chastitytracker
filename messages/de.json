@@ -334,7 +334,8 @@
     "wearMonth": "Dieser Monat",
     "activeSession": "Aktive Session",
     "entrySaved": "Eintrag gespeichert",
-    "entryUpdated": "Eintrag aktualisiert"
+    "entryUpdated": "Eintrag aktualisiert",
+    "wearSessionPhotoAlt": "Foto vom Trage-Beginn: {category}"
   },
   "newEntry": {
     "title": "Neu erfassen",

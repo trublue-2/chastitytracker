@@ -181,6 +181,55 @@ describe("buildWearSessionRows", () => {
 
     expect(rows.map((r) => r.categoryName)).toEqual(["Halsband", "Plug"]);
   });
+
+  // Das Beginn-Foto: Das Session-Modell führt bewusst keine Bilder (`SegmentEntry` hat kein
+  // `imageUrl`), die Zeile löst sie über `Session.id` (= id des WEAR_BEGIN-Eintrags) aus den
+  // Einträgen auf. Bricht diese Annahme, verschwindet das Foto lautlos — kein Fehler, nur eine
+  // Liste ohne Bilder.
+  it("nimmt das Foto des WEAR_BEGIN-Eintrags, nicht das des Endes", () => {
+    const begin = e("WEAR_BEGIN", "2026-07-14T10:00:00+02:00", PLUG);
+    const end = e("WEAR_END", "2026-07-14T12:00:00+02:00", PLUG);
+
+    const rows = buildWearSessionRows(CATEGORIES, sessionsOf([begin, end]), "de", [
+      { id: begin.id, imageUrl: "/api/uploads/begin.jpg" },
+      { id: end.id, imageUrl: "/api/uploads/end.jpg" },
+    ]);
+
+    expect(rows[0].imageUrl).toBe("/api/uploads/begin.jpg");
+  });
+
+  it("ordnet die Fotos je Session zu, nicht der Reihenfolge nach", () => {
+    const plugBegin = e("WEAR_BEGIN", "2026-07-10T10:00:00+02:00", PLUG);
+    const collarBegin = e("WEAR_BEGIN", "2026-07-14T10:00:00+02:00", COLLAR);
+
+    const rows = buildWearSessionRows(CATEGORIES, sessionsOf([
+      plugBegin,
+      e("WEAR_END", "2026-07-10T11:00:00+02:00", PLUG),
+      collarBegin,
+      e("WEAR_END", "2026-07-14T11:00:00+02:00", COLLAR),
+    ]), "de", [
+      { id: plugBegin.id, imageUrl: "/api/uploads/plug.jpg" },
+      { id: collarBegin.id, imageUrl: "/api/uploads/collar.jpg" },
+    ]);
+
+    expect(rows.map((r) => [r.categoryName, r.imageUrl])).toEqual([
+      ["Halsband", "/api/uploads/collar.jpg"],
+      ["Plug", "/api/uploads/plug.jpg"],
+    ]);
+  });
+
+  it("liefert null ohne Foto — und ohne das entries-Argument", () => {
+    const begin = e("WEAR_BEGIN", "2026-07-14T10:00:00+02:00", PLUG);
+    const entries = [begin, e("WEAR_END", "2026-07-14T12:00:00+02:00", PLUG)];
+
+    const ohneBild = buildWearSessionRows(CATEGORIES, sessionsOf(entries), "de", [
+      { id: begin.id, imageUrl: null },
+    ]);
+    const ohneArgument = buildWearSessionRows(CATEGORIES, sessionsOf(entries), "de");
+
+    expect(ohneBild[0].imageUrl).toBeNull();
+    expect(ohneArgument[0].imageUrl).toBeNull();
+  });
 });
 
 // ─── Trage-STUNDEN je Kategorie ────────────────────────────────────────────

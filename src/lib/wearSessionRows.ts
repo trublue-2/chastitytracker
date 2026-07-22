@@ -16,9 +16,16 @@ export interface WearSessionRow {
   endDateStr: string;
   endTimeStr: string;
   durationStr: string;
+  /** Foto des WEAR_BEGIN-Eintrags; null, wenn keines aufgenommen wurde (nur Kategorien mit
+   *  `requirePhoto` erzwingen eines). Die Liste zeigt dann weiter das Kategorie-Icon. */
+  imageUrl: string | null;
 }
 
 type WearCategory = { id: string; name: string; color: string; icon: string };
+
+/** Nur die Felder, die für das Beginn-Foto gebraucht werden — die Seiten reichen ihre ohnehin
+ *  geladenen Einträge durch, ohne sie hier auf einen breiteren Typ festzunageln. */
+type EntryImage = { id: string; imageUrl?: string | null };
 
 /**
  * Die abgeschlossenen Trage-Sessions der Nicht-KG-Kategorien als Zeilen — JE GERÄT, weil
@@ -29,13 +36,21 @@ type WearCategory = { id: string; name: string; color: string; icon: string };
  * `categories` sind die vom User getrackten Nicht-KG-Kategorien — Sessions anderer Kategorien
  * fallen raus. Laufende Sessions erscheinen nicht: die zeigt `ActiveWearSessions` oben im
  * Dashboard.
+ *
+ * `entries` sind die ohnehin geladenen Einträge der Seite; daraus kommt das Beginn-Foto. Das
+ * Session-Modell führt bewusst keine Bilder (`SegmentEntry` hat kein `imageUrl`), und es dafür zu
+ * erweitern hiesse, den von KG, MCP und Statistik geteilten Kern anzufassen — für ein reines
+ * Darstellungs-Detail. Die Zuordnung ist eindeutig: `Session.id` IST die id des Kopf-Eintrags,
+ * bei einer Trage-Session also der WEAR_BEGIN-Eintrag.
  */
 export function buildWearSessionRows(
   categories: WearCategory[],
   sessions: Session[],
   dl: string,
+  entries: EntryImage[] = [],
 ): WearSessionRow[] {
   const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const imageByEntryId = new Map(entries.map((e) => [e.id, e.imageUrl ?? null]));
 
   return sessions.flatMap((s) => {
     const cat = s.categoryId ? categoryById.get(s.categoryId) : undefined;
@@ -50,6 +65,7 @@ export function buildWearSessionRows(
       endDateStr: formatDate(s.end, dl),
       endTimeStr: formatTime(s.end, dl),
       durationStr: formatDuration(s.start, s.end, dl),
+      imageUrl: imageByEntryId.get(s.id) ?? null,
     }];
   });
 }

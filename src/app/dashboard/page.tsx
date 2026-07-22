@@ -118,7 +118,7 @@ export default async function DashboardPage() {
   // Die Trage-Sessions EINMAL bauen — Zeilen-Liste und Wanduhr-Stunden je Kategorie leiten sich
   // beide daraus ab (je GERÄT gepaart, Überlappungen für die Stunden verschmolzen).
   const wearSessionList = buildWearSessions(entries, now);
-  const wearSessionRows = buildWearSessionRows(allNonKgCategories, wearSessionList, dl);
+  const wearSessionRows = buildWearSessionRows(allNonKgCategories, wearSessionList, dl, entries);
   const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
 
   // ── Serialize for client ──
