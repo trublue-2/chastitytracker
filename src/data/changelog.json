@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.30",
+    "date": "2026-07-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Instanz kann sich nicht mehr selbst aus dem Adminbereich aussperren: Wird die Rolle des einzigen verbleibenden Administrators auf „Benutzer\" gestellt, lehnt die App das jetzt mit einer Erklärung ab. Rechte an eine zweite Person zu übergeben und sich danach selbst zurückzustufen bleibt möglich — es muss nur immer mindestens ein Administrator übrig bleiben. Wer sich selbst zurückstuft, wird vorher gefragt.",
+          "en": "An instance can no longer lock itself out of the admin area: setting the last remaining administrator to \"user\" is now refused with an explanation. Handing your rights to a second person and stepping down afterwards still works — there just has to be at least one administrator left. Demoting yourself now asks for confirmation first."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.29",
     "date": "2026-07-20",
     "changes": [
