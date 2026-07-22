@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.31",
+    "date": "2026-07-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Feedback aus der App braucht jetzt immer eine E-Mail-Adresse für die Rückantwort. Bisher war die Angabe freiwillig — Fragen und Fehlermeldungen kamen dadurch regelmässig ohne Absender an und blieben unbeantwortet. Ist im Konto eine Adresse hinterlegt, steht sie beim Öffnen schon im Feld. Der Datenschutz-Hinweis im Formular listet ausserdem neu alle Angaben auf, die tatsächlich mitgeschickt werden.",
+          "en": "App feedback now always requires an e-mail address for the reply. It used to be optional, so questions and bug reports regularly arrived without a sender and went unanswered. If your account has an address on file, it is filled in when the form opens. The privacy note in the form now also lists everything that is actually transmitted."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.30",
     "date": "2026-07-22",
     "changes": [

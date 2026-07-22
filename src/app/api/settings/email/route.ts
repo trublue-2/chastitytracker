@@ -4,6 +4,20 @@ import { prisma } from "@/lib/prisma";
 import { isValidEmail } from "@/lib/constants";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 
+/** Die hinterlegte Adresse des angemeldeten Users. Existiert, damit das Feedback-Formular sein
+ *  Pflichtfeld vorbelegen kann, ohne dass jede Seite die Adresse mitrendern muss — geladen wird
+ *  erst, wenn das Formular geöffnet wird. */
+export async function GET() {
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true },
+  });
+  return NextResponse.json({ email: user?.email ?? null });
+}
+
 // Eigener Handler statt userSelfFieldRoute: trimmt auf null und mappt den Unique-Constraint
 // auf 409 emailTaken — beides passt nicht in den generischen „validieren & schreiben"-Ablauf.
 export async function PATCH(req: NextRequest) {

@@ -36,7 +36,13 @@ export async function POST(req: NextRequest) {
   if (message.length > MAX_MESSAGE_LEN) {
     return NextResponse.json({ error: `Nachricht zu lang (max. ${MAX_MESSAGE_LEN} Zeichen)` }, { status: 400 });
   }
-  if (contactEmail && (typeof contactEmail !== "string" || contactEmail.length > MAX_EMAIL_LEN || !EMAIL_RE.test(contactEmail))) {
+  // Pflichtfeld: eine Meldung ohne Rückantwort-Adresse ist eine Sackgasse — Rückfragen zu Bugs und
+  // Fragen sind sonst unmöglich. Die Prüfung steht hier serverseitig, damit sie nicht nur eine
+  // Formular-Konvention ist.
+  if (typeof contactEmail !== "string" || !contactEmail.trim()) {
+    return NextResponse.json({ error: "E-Mail-Adresse fehlt" }, { status: 400 });
+  }
+  if (contactEmail.length > MAX_EMAIL_LEN || !EMAIL_RE.test(contactEmail.trim())) {
     return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
   }
   if (currentUrl && (typeof currentUrl !== "string" || currentUrl.length > MAX_URL_LEN)) {
@@ -66,7 +72,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         type,
         message: message.trim(),
-        contactEmail: contactEmail?.trim() || null,
+        contactEmail: contactEmail.trim(),
         currentUrl: fullUrl,
         appVersion,
         platform: platform ?? "web",

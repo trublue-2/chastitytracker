@@ -427,13 +427,14 @@
     "messageLabel": "Deine Nachricht",
     "messagePlaceholder": "Was möchtest du mitteilen?",
     "messageRequired": "Bitte eine Nachricht eingeben",
-    "includeContactLabel": "Ich möchte eine Rückmeldung erhalten",
-    "emailLabel": "Deine E-Mail",
-    "emailRequired": "Bitte E-Mail angeben oder Rückmeldung deaktivieren",
-    "privacyNote": "Dein Feedback wird an die Entwickler:innen gesendet. Übertragen werden <strong>nur Nachricht, Seitenname, App-Version und Plattform</strong> — weder Benutzername noch IP.",
+    "emailLabel": "Deine E-Mail für die Rückantwort",
+    "emailRequired": "Bitte eine E-Mail-Adresse angeben",
+    "privacyNote": "Dein Feedback geht direkt an die Entwickler:innen. Übermittelt werden <strong>deine Nachricht, E-Mail-Adresse, Seite, App-Version, Plattform und Sprache</strong> — weder Benutzername noch IP-Adresse. Die Adresse dient ausschliesslich der Antwort auf diese Meldung.",
     "submit": "Senden",
     "thankYou": "Danke!",
-    "thankYouSubtitle": "Dein Feedback hilft, den Tracker zu verbessern."
+    "thankYouSubtitle": "Dein Feedback hilft, den Tracker zu verbessern.",
+    "emailInvalid": "Diese E-Mail-Adresse sieht nicht gültig aus",
+    "emailHint": "Nur so können wir dir antworten."
   },
   "openForm": {
     "title": "Öffnung erfassen",
