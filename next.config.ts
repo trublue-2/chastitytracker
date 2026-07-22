@@ -12,7 +12,11 @@ const nextConfig: NextConfig = {
   },
   devIndicators: false,
   poweredByHeader: false,
-  serverExternalPackages: ["@simplewebauthn/server"],
+  // exifr extern lassen: gebündelt scheitert sein dynamischer `import()` von fs/zlib und der
+  // Standalone-Server meldet beim Start „Couldn't load fs/zlib". Als echtes Node-Modul greift
+  // der Import real. Funktional folgenlos — /api/upload liest EXIF/GPS nur aus dem Buffer,
+  // nie über einen Dateipfad —, aber das Startup-Log bleibt sauber.
+  serverExternalPackages: ["@simplewebauthn/server", "exifr"],
   // BUILD_DATE bewusst NICHT unter `env`: das würde den Wert zur BUILD-Zeit ins Bundle inlinen
   // (leer, da im Dockerfile erst im Runtime-Stage gesetzt) und alle Laufzeit-Reads überschatten.
   // process.env.BUILD_DATE wird zur Laufzeit im Runner gelesen (/api/version, /api/heartbeat,

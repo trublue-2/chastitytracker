@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.32",
+    "date": "2026-07-22",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Aufräumarbeit im Hintergrund: Beim Start der App landeten technische Warnmeldungen im Server-Protokoll, die keinerlei Auswirkung auf die Anwendung hatten. Sie sind jetzt beseitigt — im Protokoll stehen dadurch nur noch Meldungen, die wirklich etwas bedeuten.",
+          "en": "Background cleanup: technical warnings used to appear in the server log at startup that had no effect on the app whatsoever. They are gone now, so the log only contains messages that actually mean something."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.31",
     "date": "2026-07-22",
     "changes": [
