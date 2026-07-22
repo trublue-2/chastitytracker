@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Bug, Lightbulb, HelpCircle, Heart, Send, MessageSquareText } from "lucide-react";
@@ -9,8 +9,8 @@ import Textarea from "./Textarea";
 import Input from "./Input";
 import Button from "./Button";
 import FormError from "./FormError";
-import Checkbox from "./Checkbox";
 import { parseApiError } from "@/lib/apiClient";
+import { isValidEmail } from "@/lib/constants";
 
 type FeedbackType = "BUG" | "IDEA" | "QUESTION" | "THANKS";
 
@@ -42,23 +42,40 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
 
   const [type, setType] = useState<FeedbackType>("BUG");
   const [message, setMessage] = useState("");
-  const [includeContact, setIncludeContact] = useState(false);
   const [contactEmail, setContactEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const prefilled = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      setSuccess(false);
-      setError("");
-    }
+    if (!open) return;
+    setSuccess(false);
+    setError("");
+    // Die Konto-Adresse als Vorbelegung holen — erst beim Öffnen, damit sie nicht auf jeder Seite
+    // mitgeladen wird. Bleibt sie aus (kein Konto-Eintrag, Request fehlgeschlagen), tippt der Nutzer
+    // selbst; das Feld ist Pflicht, nicht die hinterlegte Adresse.
+    //
+    // Nur EINMAL vorbelegen: wer das Feld bewusst leert oder überschreibt und den Dialog zwischendurch
+    // schliesst, bekäme sonst beim nächsten Öffnen wieder die Konto-Adresse eingesetzt.
+    if (prefilled.current) return;
+    let cancelled = false;
+    fetch("/api/settings/email")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.email) return;
+        prefilled.current = true;
+        setContactEmail((current) => current || data.email);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [open]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!message.trim()) { setError(t("messageRequired")); return; }
-    if (includeContact && !contactEmail.trim()) { setError(t("emailRequired")); return; }
+    if (!contactEmail.trim()) { setError(t("emailRequired")); return; }
+    if (!isValidEmail(contactEmail.trim())) { setError(t("emailInvalid")); return; }
     setSaving(true);
     setError("");
     try {
@@ -68,7 +85,7 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
         body: JSON.stringify({
           type,
           message: message.trim(),
-          contactEmail: includeContact ? contactEmail.trim() : null,
+          contactEmail: contactEmail.trim(),
           currentUrl: pathname,
           platform: detectPlatform(),
           clientLocale: locale,
@@ -79,8 +96,6 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
       } else {
         setSuccess(true);
         setMessage("");
-        setIncludeContact(false);
-        setContactEmail("");
       }
     } catch {
       setError(tc("networkError"));
@@ -143,21 +158,15 @@ export default function FeedbackSheet({ open, onClose }: { open: boolean; onClos
             required
           />
 
-          <Checkbox
-            label={t("includeContactLabel")}
-            checked={includeContact}
-            onChange={(e) => setIncludeContact(e.target.checked)}
+          <Input
+            label={t("emailLabel")}
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            placeholder="dein@email.ch"
+            hint={t("emailHint")}
+            required
           />
-          {includeContact && (
-            <Input
-              label={t("emailLabel")}
-              type="email"
-              value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
-              placeholder="dein@email.ch"
-              required
-            />
-          )}
 
           <div className="text-xs text-foreground-faint bg-surface-raised rounded-lg px-3 py-2.5 leading-relaxed">
             {t.rich("privacyNote", {
