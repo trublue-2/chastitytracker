@@ -151,7 +151,25 @@ export async function PATCH(
     return NextResponse.json({ error: "invalidRole" }, { status: 400 });
   }
 
-  const user = await prisma.user.update({ where: { id }, data: { role: body.role } });
+  // Den letzten Admin zu degradieren sperrt die Instanz dauerhaft aus dem Adminbereich aus — zurück
+  // geht es nur noch per DB-Zugriff durch den Betreiber. Gegenstück zu `cannotDeleteSelf` im DELETE.
+  // Selbst-Degradierung bleibt erlaubt, solange ein zweiter Admin bleibt: „Rechte an den Keyholder
+  // übergeben und selbst Sub werden" ist ein gewollter Ablauf.
+  // Lesen und Schreiben in EINER Transaktion, damit zwei gleichzeitige Degradierungen nicht beide
+  // an der Prüfung vorbeikommen. Dass das hält, liegt am `connection_limit=1` aus prisma.ts (alle
+  // Queries laufen seriell über EINE Verbindung) — nicht an der Transaktion allein: das blosse
+  // Read-then-Write ist unter SQLite-Snapshot-Isolation Best-Effort (siehe kontrolleService.ts).
+  // Der zweite Schreiber auf dieselbe Datei ist das Portal; dort steht derselbe Guard.
+  const user = await prisma.$transaction(async (tx) => {
+    if (body.role === "user") {
+      // `take: 2` reicht: gefragt ist nicht die Anzahl, sondern ob ausser diesem noch einer da ist.
+      const admins = await tx.user.findMany({ where: { role: "admin" }, select: { id: true }, take: 2 });
+      if (admins.length === 1 && admins[0].id === id) return null;
+    }
+    return tx.user.update({ where: { id }, data: { role: body.role } });
+  });
+  if (!user) return NextResponse.json({ error: "lastAdmin" }, { status: 409 });
+
   return NextResponse.json({ id: user.id, role: user.role });
 }
 

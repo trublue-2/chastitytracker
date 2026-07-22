@@ -101,7 +101,8 @@
     "DEVICE_NOT_ARCHIVED": "The device is not archived",
     "DEVICE_ARCHIVED_NOT_EDITABLE": "Archived devices cannot be edited",
     "BOX_RELOCK_NOT_LOCKED": "No active lock session — the box follows the lock entry instead",
-    "BOX_RELOCK_KEY_NOT_IN_BOX": "According to your declaration the key is not in the box"
+    "BOX_RELOCK_KEY_NOT_IN_BOX": "According to your declaration the key is not in the box",
+    "lastAdmin": "The last admin cannot be demoted — otherwise nobody can reach the admin area anymore"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -1026,7 +1027,8 @@
     "inspectionAutoMarkDesc": "If the sub also ignores the reminder, the system automatically creates an opening entry.",
     "inspectionAutoMarkDelayLabel": "Minutes after the reminder",
     "strafbuchAutoEntfernt": "Automatically removed",
-    "strafbuchAutoEntferntAm": "automatically opened on"
+    "strafbuchAutoEntferntAm": "automatically opened on",
+    "roleSelfDemoteConfirm": "This removes your own admin rights; you will lose access to the admin area as soon as your session picks up the new role. Continue?"
   },
   "forgotPassword": {
     "title": "Forgot password",

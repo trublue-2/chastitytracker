@@ -11,7 +11,8 @@ import { LOCALES_LONG } from "@/lib/constants";
 /**
  * Lets a keyholder/admin set THIS sub's language from the sub-management page. Writes User.locale
  * (via PATCH /api/admin/users/[id]) — the same field the sub can set for themselves — so the sub's
- * e-mails/push and app language follow it. Mirrors RoleSelect's save pattern.
+ * e-mails/push and app language follow it. Speichert von Hand statt über `useUserSettingsSave()`
+ * (das RoleSelect und die Toggles teilen), weil hier zusätzlich eine Erfolgsmeldung inline steht.
  */
 export default function UserLocaleSelect({ userId, initialLocale }: { userId: string; initialLocale: string }) {
   const tc = useTranslations("common");

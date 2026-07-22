@@ -83,7 +83,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       {/* Rolle */}
       {isGlobalAdmin && (
         <SettingsSection title={t("roleLabel")} description={t("roleDesc")} bodyPadded>
-          <RoleSelect id={user.id} currentRole={user.role} />
+          <RoleSelect id={user.id} currentRole={user.role} isSelf={actorId === user.id} />
         </SettingsSection>
       )}
 

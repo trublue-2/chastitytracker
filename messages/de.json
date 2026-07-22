@@ -101,7 +101,8 @@
     "DEVICE_NOT_ARCHIVED": "Das Gerät ist nicht archiviert",
     "DEVICE_ARCHIVED_NOT_EDITABLE": "Archivierte Geräte können nicht bearbeitet werden",
     "BOX_RELOCK_NOT_LOCKED": "Kein laufender Verschluss — die Box folgt sonst dem Verschluss-Eintrag",
-    "BOX_RELOCK_KEY_NOT_IN_BOX": "Laut Deklaration liegt der Schlüssel nicht in der Box"
+    "BOX_RELOCK_KEY_NOT_IN_BOX": "Laut Deklaration liegt der Schlüssel nicht in der Box",
+    "lastAdmin": "Der letzte Admin kann sich die Rechte nicht selbst entziehen — sonst kommt niemand mehr in den Adminbereich"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -1026,7 +1027,8 @@
     "inspectionAutoMarkDesc": "Reagiert der Sub auch auf die Mahnung nicht, legt das System selbständig einen Öffnen-Eintrag an.",
     "inspectionAutoMarkDelayLabel": "Minuten nach der Mahnung",
     "strafbuchAutoEntfernt": "Automatisch entfernt",
-    "strafbuchAutoEntferntAm": "automatisch geöffnet am"
+    "strafbuchAutoEntferntAm": "automatisch geöffnet am",
+    "roleSelfDemoteConfirm": "Du entziehst dir damit selbst die Adminrechte und verlierst den Zugang zum Adminbereich, sobald deine Sitzung die neue Rolle übernimmt. Fortfahren?"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
