@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.51.35",
+    "date": "2026-07-23",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die beschrifteten Detail-Angaben in der Kontroll-Liste, den Eintrags-Details und der Session-Timeline kommen jetzt aus einem gemeinsamen Baustein. Am Aussehen ändert sich nichts — künftige Anpassungen wirken aber überall gleich.",
+          "en": "The labelled detail entries in the inspection list, the entry details and the session timeline now come from one shared building block. Nothing changes visually — but future adjustments now apply everywhere at once."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "In der Kontroll-Übersicht eines Benutzers waren drei Beschriftungen im Foto-Vollbild (Datum / Zeit, Anweisung, Notiz) auch bei englischer Sprache deutsch. Sie werden jetzt übersetzt.",
+          "en": "In a user's inspection overview, three labels in the full-screen photo view (date/time, instruction, note) stayed German even in English. They are now translated."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.34",
     "date": "2026-07-23",
     "changes": [

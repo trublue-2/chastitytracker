@@ -191,6 +191,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 **Components:**
 - `src/app/components/AdminActionFormShell.tsx` — Wrapper für Admin-Aktionsformulare (Back-Link + Card mit Icon-Header)
 - `src/app/components/DateTimePicker.tsx` — Datetime-Input mit Label, Error, Hint, ARIA (statt `<Input type="datetime-local">`)
+- `src/app/components/DetailField.tsx` — beschriftetes Feld im Detail-Panel (Label über dem Wert, `tone="warn"` für Warn-Label); der Wert kommt als `children` und bleibt bewusst frei gestaltbar
 - `src/app/components/KontrolleBanner.tsx` — Kontroll-Status-Banner (compact + large)
 - `src/app/components/LockRequestBanner.tsx` — Verschluss-Anforderung-Banner
 - `src/app/components/FormError.tsx` — Styled Error-Card für Formulare

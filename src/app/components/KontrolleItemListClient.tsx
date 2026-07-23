@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ImageOff, CheckCircle2 } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import DetailField from "@/app/components/DetailField";
 
 export interface KontrolleItemData {
   id: string;
@@ -27,6 +28,7 @@ export interface KontrolleItemData {
 const PAGE_SIZE = 10;
 
 function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: string }) {
+  const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -58,10 +60,9 @@ function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: strin
           }
           panel={
             <div className="flex flex-col gap-3">
-              <div>
-                <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Datum / Zeit</p>
+              <DetailField label={tc("dateTime")}>
                 <p className="text-sm font-semibold text-foreground">{k.dateTimeStr}</p>
-              </div>
+              </DetailField>
               {(k.pill1Label || k.pill2Label) && (
                 <div className="flex gap-2 flex-wrap">
                   {k.pill1Label && (
@@ -73,25 +74,22 @@ function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: strin
                 </div>
               )}
               {k.deadlineStr && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{k.deadlinePrefix}</p>
+                <DetailField label={k.deadlinePrefix}>
                   <p className="text-sm text-foreground-muted">{k.deadlineStr}</p>
-                </div>
+                </DetailField>
               )}
               {k.timeCorrectedStr && (
                 <p className="text-xs text-[var(--color-warn)] font-medium">{k.timeCorrectedStr}</p>
               )}
               {k.kommentar && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Anweisung</p>
+                <DetailField label={tc("instruction")}>
                   <p className="text-sm text-foreground-muted">{k.kommentar}</p>
-                </div>
+                </DetailField>
               )}
               {k.note && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">Notiz</p>
+                <DetailField label={tc("note")}>
                   <p className="text-sm text-foreground-muted italic">„{k.note}"</p>
-                </div>
+                </DetailField>
               )}
             </div>
           }
