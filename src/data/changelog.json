@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.34",
+    "date": "2026-07-23",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Wird das Foto einer Trage-Session gross angezeigt, stehen darunter jetzt dieselben Angaben wie beim Foto eines Verschlusses: Kategorie, Datum und Zeit, verwendetes Gerät und Dauer. Bisher war dieser Bereich leer.",
+          "en": "Opening a wear-session photo full screen now shows the same details underneath as a lock photo does: category, date and time, the device used, and duration. This area was previously empty."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.33",
     "date": "2026-07-22",
     "changes": [

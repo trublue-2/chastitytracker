@@ -218,6 +218,15 @@ describe("buildWearSessionRows", () => {
     ]);
   });
 
+  it("führt das getragene Gerät mit — das Detail-Panel der Vollbildansicht zeigt es", () => {
+    const rows = buildWearSessionRows(CATEGORIES, sessionsOf([
+      e("WEAR_BEGIN", "2026-07-14T10:00:00+02:00", PLUG),
+      e("WEAR_END", "2026-07-14T12:00:00+02:00", PLUG),
+    ]), "de");
+
+    expect(rows[0].deviceName).toBe(PLUG.name);
+  });
+
   it("liefert null ohne Foto — und ohne das entries-Argument", () => {
     const begin = e("WEAR_BEGIN", "2026-07-14T10:00:00+02:00", PLUG);
     const entries = [begin, e("WEAR_END", "2026-07-14T12:00:00+02:00", PLUG)];
