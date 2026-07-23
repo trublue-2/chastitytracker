@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ImageOff, CheckCircle2, ScanLine, Lock, Check, AlertTriangle } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
+import DetailField from "@/app/components/DetailField";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
@@ -46,7 +47,8 @@ export interface AdminKontrolleRowData {
   /** Label für createdAtStr — "Erstellt" normalerweise, "Versand" bei Auto-Kontrollen mit bekanntem Versand-Zeitpunkt. */
   createdLabel: string;
   withdrawnAtStr: string | null;
-  /** "geplant für <wirksamAb>" — nur bei geplanten (noch nicht ausgelösten) Kontrollen gesetzt. */
+  /** Formatierter `wirksamAb`-Zeitpunkt — nur bei geplanten (noch nicht ausgelösten) Kontrollen
+   *  gesetzt. Die Beschriftung ("Geplant für") liefert `labels.scheduledForLabel`. */
   scheduledForStr: string | null;
   timeCorrectedStr: string | null;
   note: string | null;
@@ -125,43 +127,37 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
               )}
               <DeviceFact t={t} row={row} />
               {row.scheduledForStr && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.scheduledForLabel}</p>
+                <DetailField label={labels.scheduledForLabel}>
                   <p className="text-sm text-foreground-muted">{row.scheduledForStr}</p>
-                </div>
+                </DetailField>
               )}
               {row.fulfilledAtStr && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.fulfilledLabel}</p>
+                <DetailField label={labels.fulfilledLabel}>
                   <p className="text-sm text-foreground-muted">{row.fulfilledAtStr}</p>
-                </div>
+                </DetailField>
               )}
               {row.deadlineStr && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.fristLabel}</p>
+                <DetailField label={labels.fristLabel}>
                   <p className="text-sm text-foreground-muted">{row.deadlineStr}</p>
-                </div>
+                </DetailField>
               )}
               {row.createdAtStr && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{row.createdLabel}</p>
+                <DetailField label={row.createdLabel}>
                   <p className="text-sm text-foreground-muted">{row.createdAtStr}</p>
-                </div>
+                </DetailField>
               )}
               {row.timeCorrectedStr && (
                 <p className="text-xs text-warn font-medium">{row.timeCorrectedStr}</p>
               )}
               {row.kommentar && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.instructionLabel}</p>
+                <DetailField label={labels.instructionLabel}>
                   <p className="text-sm text-foreground-muted">{row.kommentar}</p>
-                </div>
+                </DetailField>
               )}
               {row.note && (
-                <div>
-                  <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{labels.noteLabel}</p>
+                <DetailField label={labels.noteLabel}>
                   <p className="text-sm text-foreground-muted italic">„{row.note}"</p>
-                </div>
+                </DetailField>
               )}
             </div>
           }

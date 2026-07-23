@@ -3,6 +3,7 @@
 import { formatDateTime, APP_TZ } from "@/lib/utils";
 import { GRUND_I18N_KEYS } from "@/lib/constants";
 import { useTranslations } from "next-intl";
+import DetailField from "@/app/components/DetailField";
 
 interface Props {
   startTime: Date;
@@ -34,40 +35,35 @@ export default function EntryDetailPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("dateTime")}</p>
+      <DetailField label={tc("dateTime")}>
         <p className="text-sm font-semibold text-foreground">{formatDateTime(startTime, locale, tz)}</p>
-      </div>
+      </DetailField>
 
       {exifTime && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("exifDate")}</p>
+        <DetailField label={tc("exifDate")}>
           <p className="text-sm text-foreground-muted">{formatDateTime(exifTime, locale, tz)}</p>
-        </div>
+        </DetailField>
       )}
 
       {oeffnenGrund && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("reason")}</p>
+        <DetailField label={tc("reason")}>
           <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
             {openingLabel
               ?? (GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS]
                 ? tOpen(GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS])
                 : oeffnenGrund)}
           </span>
-        </div>
+        </DetailField>
       )}
 
       {orgasmusArt && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("type")}</p>
+        <DetailField label={tc("type")}>
           <span className="text-xs text-[var(--color-orgasm)] font-medium">{orgasmusLabel ?? orgasmusArt}</span>
-        </div>
+        </DetailField>
       )}
 
       {kontrollCode && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("controlCode")}</p>
+        <DetailField label={tc("controlCode")}>
           <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">
             {kontrollCode}
             {verifikationStatus && (
@@ -78,14 +74,13 @@ export default function EntryDetailPanel({
               )
             )}
           </p>
-        </div>
+        </DetailField>
       )}
 
       {note && (
-        <div>
-          <p className="text-xs text-foreground-faint uppercase tracking-wider font-semibold mb-0.5">{tc("note")}</p>
+        <DetailField label={tc("note")}>
           <p className="text-sm text-foreground-muted italic">„{note}"</p>
-        </div>
+        </DetailField>
       )}
     </div>
   );
