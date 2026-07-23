@@ -19,6 +19,9 @@ export interface WearSessionRow {
   /** Foto des WEAR_BEGIN-Eintrags; null, wenn keines aufgenommen wurde (nur Kategorien mit
    *  `requirePhoto` erzwingen eines). Die Liste zeigt dann weiter das Kategorie-Icon. */
   imageUrl: string | null;
+  /** Getragenes Gerät — fürs Detail-Panel der Foto-Vollbildansicht. Eine Trage-Session ist je Gerät
+   *  gepaart, `deviceBreakdown` hat hier also genau einen Eintrag. */
+  deviceName: string | null;
 }
 
 type WearCategory = { id: string; name: string; color: string; icon: string };
@@ -66,6 +69,7 @@ export function buildWearSessionRows(
       endTimeStr: formatTime(s.end, dl),
       durationStr: formatDuration(s.start, s.end, dl),
       imageUrl: imageByEntryId.get(s.id) ?? null,
+      deviceName: s.deviceBreakdown[0]?.deviceName ?? null,
     }];
   });
 }

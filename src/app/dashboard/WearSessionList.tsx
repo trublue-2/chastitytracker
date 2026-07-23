@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Timer } from "lucide-react";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import DetailField from "@/app/components/DetailField";
 import { categoryStyle } from "@/lib/categoryConstants";
 
 import type { WearSessionRow } from "@/lib/wearSessionRows";
@@ -18,7 +19,8 @@ const PAGE_SIZE = 5;
 export default function WearSessionList({ sessions }: { sessions: WearSessionRow[] }) {
   const [page, setPage] = useState(0);
   // Ein Modal für die ganze Liste statt eines je Zeile — es kann ohnehin nur eines offen sein.
-  const [openImage, setOpenImage] = useState<{ url: string; category: string } | null>(null);
+  // Die ganze Zeile im State, weil das Detail-Panel Kategorie, Zeit und Gerät daraus zieht.
+  const [openRow, setOpenRow] = useState<WearSessionRow | null>(null);
   // Nicht ladbare Fotos (gelöschte Datei) fallen auf das Kategorie-Icon zurück, statt das kaputte
   // Bild-Symbol des Browsers zu zeigen — gleiche Absicherung wie in PairRow/SessionEventRow.
   const [brokenImages, setBrokenImages] = useState<ReadonlySet<string>>(new Set());
@@ -52,7 +54,7 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
               {s.imageUrl && !brokenImages.has(s.id) ? (
                 <button
                   type="button"
-                  onClick={() => setOpenImage({ url: s.imageUrl!, category: s.categoryName })}
+                  onClick={() => setOpenRow(s)}
                   aria-label={t("wearSessionPhotoAlt", { category: s.categoryName })}
                   className="shrink-0 size-8 rounded-lg overflow-hidden hover:opacity-80 transition"
                 >
@@ -114,11 +116,37 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
         </div>
       )}
 
-      {openImage && (
+      {openRow?.imageUrl && (
         <FullscreenImageModal
-          src={openImage.url}
-          alt={t("wearSessionPhotoAlt", { category: openImage.category })}
-          onClose={() => setOpenImage(null)}
+          src={openRow.imageUrl}
+          alt={t("wearSessionPhotoAlt", { category: openRow.categoryName })}
+          onClose={() => setOpenRow(null)}
+          // Kopf + Panel analog zum KG-Foto (SessionEventRow): dort steht die Typ-Pille über
+          // Datum/Zeit und Gerät. Hier tritt die Kategorie an die Stelle des Eintragstyps.
+          title={
+            <span
+              className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border"
+              style={categoryStyle(openRow.categoryColor)}
+            >
+              <CategoryIconRender name={openRow.categoryIcon} className="size-2.5" />
+              {openRow.categoryName}
+            </span>
+          }
+          panel={
+            <div className="flex flex-col gap-3">
+              <DetailField label={tCommon("dateTime")}>
+                <p className="text-sm font-semibold text-foreground">{openRow.startDateStr}, {openRow.startTimeStr}</p>
+              </DetailField>
+              {openRow.deviceName && (
+                <DetailField label={tCommon("device")}>
+                  <p className="text-sm text-foreground-muted">{openRow.deviceName}</p>
+                </DetailField>
+              )}
+              <DetailField label={tCommon("duration")}>
+                <p className="text-sm text-foreground-muted">{openRow.durationStr}</p>
+              </DetailField>
+            </div>
+          }
         />
       )}
     </div>
