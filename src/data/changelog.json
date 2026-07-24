@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.39",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Abstände zwischen den Karten der Übersicht sind jetzt überall gleich – auch dann, wenn einzelne Karten gerade nichts anzuzeigen haben und ausgeblendet bleiben.",
+          "en": "Spacing between the cards on the overview is now uniform – including when individual cards have nothing to show and stay hidden."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.38",
     "date": "2026-07-24",
     "changes": [

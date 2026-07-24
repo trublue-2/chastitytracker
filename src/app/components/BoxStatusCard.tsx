@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
+import DashboardBlock from "@/app/components/DashboardBlock";
 
 /** Reine Status-Anzeige der Heimdall-Box(en) auf dem Dashboard (Ist + Soll + Frische). Keine
  *  Box-Kommandos — die Box folgt den Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding,
@@ -25,11 +26,7 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string;
   const quotaLabel = boxReinigungQuotaLabel(reinigung ?? null, t);
 
   return (
-    // pb-2 wie jeder andere gestapelte Dashboard-Block: die Blöcke darunter (CategoryGoalsLive,
-    // InactiveCategories, CategoriesPromoCard) bringen bewusst KEIN pt mit, der Abstand entsteht
-    // aus dem pb des Vorgängers. Ohne das hier klebte die Box-Karte an den Trainingsvorgaben,
-    // sobald ActiveWearSessions dazwischen nichts rendert (= nichts getragen).
-    <div className="w-full max-w-2xl mx-auto px-4 pt-6 pb-2">
+    <DashboardBlock>
       <div className="flex flex-col gap-2">
         {boxes.map((b) => {
           // „Steht offen, obwohl eine Sperre verschlossen verlangt" (z.B. Reinigungspause) →
@@ -74,6 +71,6 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string;
           );
         })}
       </div>
-    </div>
+    </DashboardBlock>
   );
 }

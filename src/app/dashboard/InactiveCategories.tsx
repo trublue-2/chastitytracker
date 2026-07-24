@@ -7,6 +7,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import Card from "@/app/components/Card";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatHours, toDateLocale } from "@/lib/utils";
 
 export interface InactiveCategoryRow {
@@ -34,7 +35,7 @@ export default function InactiveCategories({ categories }: Props) {
   if (categories.length === 0) return null;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-2">
+    <DashboardBlock>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -86,6 +87,6 @@ export default function InactiveCategories({ categories }: Props) {
           })}
         </ul>
       )}
-    </div>
+    </DashboardBlock>
   );
 }

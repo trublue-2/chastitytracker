@@ -3,6 +3,7 @@ import DesktopSidebar from "@/app/components/DesktopSidebar";
 import InstallBanner from "@/app/components/InstallBanner";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
 import ThemeApplicator from "@/app/components/ThemeApplicator";
+import DashboardBlock from "@/app/components/DashboardBlock";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
@@ -66,9 +67,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           kommt vom BottomNavSpacer am Fluss-Ende — er entfällt auf den Erfassungs-Seiten, wo die Nav
           ausgeblendet ist, sodass sich dort ihr Platz nicht mit dem der fixen Aktionsleiste stapelt. */}
       <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] overscroll-y-contain">
-        <div className="w-full max-w-2xl mx-auto px-4">
+        <DashboardBlock>
           <OfflineIndicator />
-        </div>
+        </DashboardBlock>
         {children}
         <BottomNavSpacer />
       </div>
