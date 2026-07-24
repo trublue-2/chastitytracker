@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.52.1",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Sind mehrere Einschliess-Anforderungen offen, kann der Keyholder jetzt eine einzelne gezielt zurücknehmen statt immer aller auf einmal. Ein Vorschau-Lauf zeigt dabei, welche Anforderungen genau betroffen wären.",
+          "en": "When several lock-up requests are open, the keyholder can now withdraw a single one instead of always cancelling all at once. A preview run shows which requests would be affected."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.52.0",
     "date": "2026-07-24",
     "changes": [

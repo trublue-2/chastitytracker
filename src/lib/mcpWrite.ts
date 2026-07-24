@@ -381,19 +381,28 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   }
   if (args.id) await assertOwnedDirective(args.id, userId, args.target);
   if (args.dryRun) {
-    // Reine Lese-Vorschau: zählt, was ein echter Aufruf träfe, ohne etwas zurückzuziehen. Dieselbe
+    // Reine Lese-Vorschau: zeigt, was ein echter Aufruf träfe, ohne etwas zurückzuziehen. Dieselbe
     // "offen"-Definition wie withdrawVerschlussAnforderung/withdrawOrgasmusAnforderung/resolveKontrolle
-    // (siehe dort), hier nur gezählt statt geändert.
-    const now = new Date();
+    // (siehe dort), hier nur gelesen statt geändert.
+    //
+    // Bei den id-fähigen Zielen (lock_request/lock_period) OHNE id die betroffenen Zeilen EINZELN
+    // auflisten — die blosse Anzahl sagt nicht, WELCHE getroffen würde, und bei mehreren offenen ist
+    // genau das die Frage vor einem gezielten Einzel-Rückzug. `getKeyholderLockRequests`/
+    // `getKeyholderSperrzeiten` liefern exakt die Zeilen, die withdrawVerschlussAnforderung(art) auch
+    // stornieren würde (identisches where), also ist targets.length == willWithdraw garantiert.
+    if (!args.id && (args.target === "lock_request" || args.target === "lock_period")) {
+      const iso = await isoForUser(userId);
+      const open = args.target === "lock_request"
+        ? await getKeyholderLockRequests(userId)
+        : await getKeyholderSperrzeiten(userId);
+      const targets = open.map((s) => directiveRow(s, iso));
+      return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: args.target, willWithdraw: targets.length, targets } } satisfies DryRunPreview;
+    }
     let willWithdraw = 0;
     if (args.id) {
       willWithdraw = 1; // genau die eine, oben schon auf Sub + Art geprüfte Zeile
     } else if (args.target === "orgasm_directive") {
       willWithdraw = await prisma.orgasmusAnforderung.count({ where: { userId, fulfilledAt: null, withdrawnAt: null } });
-    } else if (args.target === "lock_request") {
-      willWithdraw = await prisma.verschlussAnforderung.count({ where: openLockRequestWhere(userId) });
-    } else if (args.target === "lock_period") {
-      willWithdraw = await prisma.verschlussAnforderung.count({ where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] } });
     } else if (args.target === "inspection") {
       willWithdraw = await prisma.kontrollAnforderung.count({ where: { userId, entryId: null, withdrawnAt: null } });
     }
@@ -714,7 +723,30 @@ export interface EditLockPeriodArgs {
  * über `id` lässt sich jede davon gezielt ansprechen.
  */
 /** Eine offene Direktive, die ein Edit-Tool treffen kann (Sperrzeit ODER Anforderung). */
-type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endetAt: Date | null };
+type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endetAt: Date | null; nachricht: string | null };
+
+/** Eine offene Direktive als Auswahl-Zeile: welche (id), kennt der Sub sie schon (triggered) oder
+ *  ist sie noch geplant (scheduled), wann löst sie aus / endet sie, und die Nachricht als
+ *  menschliches Unterscheidungsmerkmal. */
+interface DirectiveRow {
+  id: string;
+  status: "scheduled" | "triggered";
+  scheduledFor: string | null;
+  endsAt: string | null;
+  message: string | null;
+}
+
+/** Baut eine {@link DirectiveRow}. Geteilt von `pickEditTarget` (untouched) und dem withdraw-dryRun
+ *  (targets), damit „welche Direktiven sind betroffen" überall dieselbe Form hat. */
+function directiveRow(s: OpenDirective, iso: Iso): DirectiveRow {
+  return {
+    id: s.id,
+    status: isHiddenFromSub(s) ? "scheduled" : "triggered",
+    scheduledFor: iso(s.wirksamAb),
+    endsAt: iso(s.endetAt),
+    message: s.nachricht,
+  };
+}
 
 /**
  * Wählt aus mehreren offenen Direktiven die gemeinte — und macht die Mehrdeutigkeit sichtbar,
@@ -727,19 +759,14 @@ function pickEditTarget<T extends OpenDirective>(
   id: string | undefined,
   iso: Iso,
   label: "lock period" | "lock request",
-): { target: T; untouched: { id: string; status: "scheduled" | "triggered"; scheduledFor: string | null; endsAt: string | null }[]; ambiguity: string } {
+): { target: T; untouched: DirectiveRow[]; ambiguity: string } {
   if (open.length === 0) throw new Error(`No open ${label} to edit.`);
   const target = id
     ? open.find((s) => s.id === id)
     : open.find((s) => !isHiddenFromSub(s)) ?? open[0];
   if (!target) throw new Error(`No open ${label} with id ${id} (it may be withdrawn, ended, or belong to someone else).`);
 
-  const untouched = open.filter((s) => s.id !== target.id).map((s) => ({
-    id: s.id,
-    status: isHiddenFromSub(s) ? ("scheduled" as const) : ("triggered" as const),
-    scheduledFor: iso(s.wirksamAb),
-    endsAt: iso(s.endetAt),
-  }));
+  const untouched = open.filter((s) => s.id !== target.id).map((s) => directiveRow(s, iso));
   const ambiguity = untouched.length === 0 ? ""
     : ` NOTE: ${open.length} ${label}s are open — edited the ${isHiddenFromSub(target) ? "SCHEDULED" : "triggered"} one; the others are listed under "untouched". Pass id=… to edit one of those instead.`;
   return { target, untouched, ambiguity };
