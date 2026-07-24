@@ -389,7 +389,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
 
     const r = await mcpEditLockRequest("sub", { message: "neu" }) as { id: string; untouched: { id: string; status: string }[]; message: string };
     expect(r.id).toBe("a1");
-    expect(r.untouched).toEqual([{ id: "a2", status: "scheduled", scheduledFor: "2026-08-04T14:00:00+02:00", endsAt: "2026-07-18T14:00:00+02:00" }]);
+    expect(r.untouched).toEqual([{ id: "a2", status: "scheduled", scheduledFor: "2026-08-04T14:00:00+02:00", endsAt: "2026-07-18T14:00:00+02:00", message: null }]);
     expect(r.message).toContain("2 lock requests are open");
   });
 
@@ -430,6 +430,23 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
       .mockResolvedValue({ ok: false, status: 400, error: "LOCK_PERIOD_ALREADY_WITHDRAWN" });
     await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/already/);
     expect(withdrawVerschlussAnforderungById).toHaveBeenCalledTimes(2);
+  });
+
+  it("withdraw dryRun ohne id listet die betroffenen Anforderungen (id + Status + Nachricht), nicht nur die Zahl", async () => {
+    // Bei mehreren offenen sagt eine blosse „2" nicht, WELCHE ein id-loser Rückzug träfe — die Liste
+    // macht die gezielte Einzel-Rücknahme überhaupt erst wählbar.
+    const geplant = anf({ id: "a2", nachricht: "später", wirksamAb: new Date("2026-08-04T12:00:00Z"), benachrichtigtAt: null });
+    sperrzeitFindManyMock.mockResolvedValue([geplant, anf({ nachricht: "jetzt" })]);
+
+    const r = await mcpWithdraw("sub", { target: "lock_request", dryRun: true }) as {
+      preview: { willWithdraw: number; targets: { id: string; status: string; message: string | null }[] };
+    };
+    expect(r.preview.willWithdraw).toBe(2);
+    expect(r.preview.targets).toEqual([
+      { id: "a2", status: "scheduled", scheduledFor: "2026-08-04T14:00:00+02:00", endsAt: "2026-07-18T14:00:00+02:00", message: "später" },
+      { id: "a1", status: "triggered", scheduledFor: null, endsAt: "2026-07-18T14:00:00+02:00", message: "jetzt" },
+    ]);
+    expect(withdrawVerschlussAnforderungById).not.toHaveBeenCalled();
   });
 
   it("request_lock: eine TERMINIERTE Anforderung ist auch bei verschlossenem Sub erlaubt", async () => {
