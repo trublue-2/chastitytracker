@@ -7,6 +7,9 @@ export type ThemeMode = "light" | "dark" | "system";
 export type ThemeName = "user" | "user-dark" | "admin" | "admin-light";
 export type ThemeRole = "user" | "admin";
 
+/** Alle Rollen, um die Rollen-Tabellen abzuleiten statt sie je Modul abzuschreiben. */
+export const THEME_ROLES: readonly ThemeRole[] = ["user", "admin"];
+
 export const STORAGE_KEYS: Record<ThemeRole, string> = {
   user: "theme-user",
   admin: "theme-admin",
