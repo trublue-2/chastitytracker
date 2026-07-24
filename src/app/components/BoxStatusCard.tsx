@@ -3,7 +3,7 @@
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
-import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 
 /** Reine Status-Anzeige der Heimdall-Box(en) auf dem Dashboard (Ist + Soll + Frische). Keine
@@ -31,9 +31,11 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string;
           // „Steht offen, obwohl eine Sperre verschlossen verlangt" (z.B. Reinigungspause) →
           // Warn-Optik. PHYSISCH offen, nicht SOLL-offen: eine erst scharfgestellte Öffnung
           // (Riegel noch zu, wartet auf Knopf) ist kein Alarm — dafür gibt es die Übergangs-Zeile.
+          // Das SOLL kommt aus `boxSollLocked` (nicht aus den Spiegel-Feldern direkt), damit die
+          // Warn-Optik dieselbe Quelle hat wie die Soll-Zeile darunter: nach einer eingetragenen
+          // Öffnung schlug die Karte sonst Alarm wegen eines Konflikts, den der Eintrag löste.
           const istLocked = boxIsPhysicallyLocked(b);
-          const shouldBeLocked = b.keyholderLocked || !!b.lockUntil || b.simpleLock;
-          const conflict = !istLocked && shouldBeLocked;
+          const conflict = !istLocked && boxSollLocked(b);
           const transition = boxPendingTransition(b);
           const scheme = conflict
             ? { bg: "bg-warn-bg", border: "border-warn-border", accent: "text-warn", text: "text-warn-text", Icon: AlertTriangle }

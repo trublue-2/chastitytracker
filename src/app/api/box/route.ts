@@ -3,6 +3,7 @@ import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { heimdallEnabled } from "@/lib/constants";
+import { toPendingCommand } from "@/lib/boxStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export async function GET() {
       // Noch nicht von der Box abgeholtes Eintrags-Kommando — tracker-LOKALES Wissen, sofort da.
       // Der Spiegel (locked/reportedLocked) hinkt bis zum nächsten Box-Sync nach; die Karte zeigt
       // damit den Übergang („angefordert — Knopfdruck vollzieht") ohne auf Heimdall zu warten.
-      pendingCommand: b.pendingCommand === "lock" || b.pendingCommand === "open" ? b.pendingCommand : null,
+      pendingCommand: toPendingCommand(b.pendingCommand),
       simpleLock: b.simpleLock,
       keyholderLocked: b.keyholderLocked || !!sperre,
       lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,
