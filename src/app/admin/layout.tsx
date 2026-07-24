@@ -22,7 +22,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     : false;
 
   return (
-    <div id="admin-root" data-theme="admin" className="min-h-screen bg-background text-foreground">
+    // suppressHydrationWarning gilt NUR für die Attribute dieses einen Elements (nicht für Kinder)
+    // und genau dafür ist es hier da: das Inline-Skript unten setzt `data-theme` aus localStorage,
+    // BEVOR React hydriert. Der Server kann diesen Wert nicht kennen, also weicht das gerenderte
+    // Attribut planmässig ab — React meldete das bisher als Hydration-Fehler („data-theme='admin'
+    // vs 'admin-light'"). Beim Admin schlug das bei JEDEM hellen Aufruf zu, weil das serverseitige
+    // `admin` das DUNKLE Theme ist und das Skript auf `admin-light` korrigiert.
+    <div id="admin-root" data-theme="admin" suppressHydrationWarning className="min-h-screen bg-background text-foreground">
       <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("admin") }} />
       <ThemeApplicator role="admin" />
       <AdminHeader username={user?.name ?? ""} isGlobalAdmin={isGlobalAdmin} />
