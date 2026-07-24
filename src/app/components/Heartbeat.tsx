@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
+import { activateWaitingSw } from "@/lib/swMessages";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -21,6 +22,7 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
   const ts = useTranslations("sessionGuard");
   const toast = useToast();
   const [outdated, setOutdated] = useState(false);
+  const [reloading, setReloading] = useState(false);
 
   const buildRef = useRef(buildDate);
   const userRef = useRef(initialUserId);
@@ -92,13 +94,14 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
         </div>
         <button
           onClick={async () => {
-            const reg = await navigator.serviceWorker.getRegistration();
-            if (reg?.waiting) {
-              reg.waiting.postMessage({ type: "SKIP_WAITING" });
-            }
+            // reloadingRef stoppt zusätzlich den Poll, damit er nicht in den Reload hineinläuft.
+            reloadingRef.current = true;
+            setReloading(true);
+            await activateWaitingSw();
             window.location.reload();
           }}
-          className="flex-shrink-0 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-gray-100 transition"
+          disabled={reloading}
+          className="flex-shrink-0 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-gray-100 transition disabled:opacity-60"
         >
           {tv("reload")}
         </button>

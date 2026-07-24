@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.41",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Knopf „Neu laden\" im Hinweis auf eine neue Version tat in der iOS-App nichts. Er lädt die Seite jetzt zuverlässig neu — und wartet dabei, bis die neue Version wirklich übernommen hat, statt die alte ein weiteres Mal zu starten.",
+          "en": "The \"Reload\" button in the new-version notice did nothing in the iOS app. It now reliably reloads the page — and waits until the new version has actually taken over instead of starting the old one once more."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.40",
     "date": "2026-07-24",
     "changes": [

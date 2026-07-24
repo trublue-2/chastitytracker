@@ -238,6 +238,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/lib/kontrollePills.ts` — `ANFORDERUNG_PILLS`, `getKombinierterPill()`
 - `src/lib/compressImage.ts` — Client-seitige Bildkomprimierung vor Upload
 - `src/lib/haptics.ts` — Haptisches Feedback (Vibration API)
+- `src/lib/swMessages.ts` — Service-Worker-Kommunikation: `postSwMessage()`, `clearSwUserCache()`, `activateWaitingSw()` (wartenden SW aktivieren + auf Übernahme warten). **Jeder SW-Zugriff gehört hierher** — `navigator.serviceWorker` fehlt in der iOS-WKWebView der Capacitor-App und in Privatfenstern komplett; ein ungeschützter Zugriff wirft dort und verschluckt die Aktion drumherum
 - `src/lib/idb.ts` — IndexedDB-Wrapper (Offline-Cache)
 - `src/lib/rate-limit.ts` — DB-basiertes Rate Limiting Helper
 - `src/lib/login-attempts.ts` — Login-Versuchs-Tracking
