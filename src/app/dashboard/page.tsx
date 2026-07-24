@@ -27,6 +27,7 @@ import CategoriesPromoCard from "./CategoriesPromoCard";
 import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
+import DashboardBlock from "@/app/components/DashboardBlock";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -177,13 +178,15 @@ export default async function DashboardPage() {
   const username = session.user.name ?? "";
 
   return (
-    <>
-      <div className="w-full max-w-2xl mx-auto px-4 pt-6">
+    // Der Abstand zwischen den Blöcken kommt AUSSCHLIESSLICH von diesem `gap-4`, nie aus pt-/pb- der
+    // Blöcke selbst — Begründung in `DashboardBlock`.
+    <div className="flex flex-col gap-4 py-6">
+      <DashboardBlock>
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
-      </div>
+      </DashboardBlock>
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
       {activePair && rawSessionEvents.length > 0 && (
-        <div className="w-full max-w-2xl mx-auto px-4 pt-6 pb-2">
+        <DashboardBlock>
           <LaufendeSessionCard
             sessionStart={activePair.verschluss.startTime}
             interruptionPausedMs={interruptionPauseMs(activePair.interruptions)}
@@ -207,7 +210,7 @@ export default async function DashboardPage() {
             tz={tz}
             userHasDevices={userHasDevices}
           />
-        </div>
+        </DashboardBlock>
       )}
       <ActiveWearSessions
         sessions={wearSessions.map((s) => ({
@@ -236,15 +239,15 @@ export default async function DashboardPage() {
       />
       <DashboardClient {...clientProps} tz={tz} />
       {pairs.length > 0 && (
-        <div className="w-full max-w-2xl mx-auto px-4 pb-6">
+        <DashboardBlock>
           <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} />
-        </div>
+        </DashboardBlock>
       )}
       {wearSessionRows.length > 0 && (
-        <div className="w-full max-w-2xl mx-auto px-4 pb-6">
+        <DashboardBlock>
           <WearSessionList sessions={wearSessionRows} />
-        </div>
+        </DashboardBlock>
       )}
-    </>
+    </div>
   );
 }

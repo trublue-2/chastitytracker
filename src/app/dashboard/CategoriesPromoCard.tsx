@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Tags, X } from "lucide-react";
 import Card from "@/app/components/Card";
+import DashboardBlock from "@/app/components/DashboardBlock";
 
 const DISMISS_KEY = "categories-promo-dismissed-v1";
 
@@ -31,7 +32,7 @@ export default function CategoriesPromoCard({ show }: Props) {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-2">
+    <DashboardBlock>
       <Card>
         <div className="flex items-start gap-3 p-4">
           <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-background-subtle text-foreground-muted" aria-hidden>
@@ -57,6 +58,6 @@ export default function CategoriesPromoCard({ show }: Props) {
           </button>
         </div>
       </Card>
-    </div>
+    </DashboardBlock>
   );
 }

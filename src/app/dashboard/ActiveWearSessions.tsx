@@ -7,6 +7,7 @@ import Card from "@/app/components/Card";
 import { formatElapsedMs } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import DashboardBlock from "@/app/components/DashboardBlock";
 
 export interface ActiveWearSessionRow {
   categoryId: string;
@@ -41,7 +42,7 @@ export default function ActiveWearSessions({ sessions, serverNow }: Props) {
   if (sessions.length === 0) return null;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 pt-2 pb-2">
+    <DashboardBlock>
       <ul className="flex flex-col gap-2">
         {sessions.map((s) => {
           const style = categoryStyle(s.categoryColor);
@@ -80,6 +81,6 @@ export default function ActiveWearSessions({ sessions, serverNow }: Props) {
           );
         })}
       </ul>
-    </div>
+    </DashboardBlock>
   );
 }

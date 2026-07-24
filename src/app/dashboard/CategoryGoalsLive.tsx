@@ -5,6 +5,7 @@ import Card from "@/app/components/Card";
 import { formatHoursHMCompact } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import DashboardBlock from "@/app/components/DashboardBlock";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import type { CategoryWearGoal } from "@/lib/categoryGoals";
 
@@ -19,7 +20,7 @@ export interface CategoryGoalRow extends CategoryWearGoal {
 export default function CategoryGoalsLive({ rows, serverNow }: { rows: CategoryGoalRow[]; serverNow: string }) {
   const t = useTranslations("dashboard");
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-2">
+    <DashboardBlock>
       <Card>
         <div className="p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-muted mb-3">
@@ -32,7 +33,7 @@ export default function CategoryGoalsLive({ rows, serverNow }: { rows: CategoryG
           </ul>
         </div>
       </Card>
-    </div>
+    </DashboardBlock>
   );
 }
 
