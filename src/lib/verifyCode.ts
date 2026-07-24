@@ -15,23 +15,82 @@ const SEAL_VOCAB = `plastic security seal or numbered tag (e.g. coloured strip �
  *  Handschrift-Warnung nicht zwischen Einzel- und Dual-Modus driftet. */
 const HANDWRITING_NOTE = `Note: in handwriting "1" often looks like "7" and vice versa — read carefully.`;
 
-/** Baut den Vision-Prompt für die Code-Verifikation. Ohne `effectiveSeal` (kein aktives Siegel oder
- *  Legacy-Zeile Siegel==Code) die Einzel-Prüfung, sonst die Dual-Prüfung (Kontroll-Code UND
- *  Siegel-Nummer). Nur der jeweils benötigte Prompt wird gebaut. */
-function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): string {
-  if (!effectiveSeal) {
-    return `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.\nThe target number may appear in any of these forms:\n• handwritten on a slip of paper or card,\n• printed/typed on a tag, sticker or label,\n• printed on a ${SEAL_VOCAB}\n${HANDWRITING_NOTE}\nReply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false}.\nIf you find a different number than ${expectedCode}, set detected to that other number and match to false.`;
-  }
-  return `Look for TWO specific numbers in this image. Only these two numbers matter — ignore other numbers, barcodes, prices, or device serials that may also be visible.\n1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, or printed/typed on a tag, sticker or label.\n2. SEAL NUMBER ${effectiveSeal}: printed on a ${SEAL_VOCAB}\n${HANDWRITING_NOTE}\nReply with JSON only: {"detectedCode": "<the control code you found, else null>", "matchCode": true if it matches ${expectedCode} else false, "detectedSeal": "<the seal number you found, else null>", "matchSeal": true if it matches ${effectiveSeal} else false}.\nIf you find different numbers than expected, set the detected fields to those other numbers and the match fields to false.`;
+/** „Genau N Ziffern, sonst null" — die einzige Stelle, an der die erwartete Stellenzahl im Prompt
+ *  steht (in BEIDEN Modi gleich formuliert, damit derselbe handgeschriebene Code nicht je nach
+ *  aktivem Siegel unterschiedlich stark eingeschärft wird). Ohne diese Angabe hat das Modell keinen
+ *  Anhaltspunkt, wie viele Ziffern zusammengehören, und meldet regelmässig eine zu viel oder zu
+ *  wenig (Nutzer-Rückmeldung 07/2026: „erkennt einen 6-stelligen Code, obwohl er 5-stellig ist").
+ *  Der Prompt-Hinweis SENKT die Fehl-Lesungen; die Garantie ist das Gate in `evaluateDetected`. */
+function digitCountNote(what: string, len: number): string {
+  return `The ${what} has exactly ${len} digits — report null rather than guessing if you cannot read exactly ${len} digits.`;
 }
 
-/** Normalisiert das `detected`-Feld der Vision-Antwort: liefert den String oder `null`, wenn keine
- *  Erkennung vorliegt. Das Modell meldet "keine Erkennung" mal als JSON-null/undefined, mal als
- *  Wort-Sentinel ("null"/"none") IM String — alle Fälle hier zentral auf `null` abbilden, damit der
- *  Sentinel nicht in Format-Prüfung/Result-Contract leakt. Geteilt von beiden `{"detected": …}`-Parsern. */
+/** Baut den Vision-Prompt für die Code-Verifikation. Ohne `effectiveSeal` (kein aktives Siegel oder
+ *  Legacy-Zeile Siegel==Code) die Einzel-Prüfung, sonst die Dual-Prüfung (Kontroll-Code UND
+ *  Siegel-Nummer). Nur der jeweils benötigte Prompt wird gebaut.
+ *  Zeilenweise als Array — der Prompt ist der eigentliche „Quelltext" dieser Erkennung, und als
+ *  einzeiliges Literal mit eingebetteten \n war eine Änderung daran im Diff nicht mehr lesbar. */
+function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): string {
+  if (!effectiveSeal) {
+    return [
+      `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.`,
+      `The target number may appear in any of these forms:`,
+      `• handwritten on a slip of paper or card,`,
+      `• printed/typed on a tag, sticker or label,`,
+      `• printed on a ${SEAL_VOCAB}`,
+      HANDWRITING_NOTE,
+      digitCountNote("target number", expectedCode.length),
+      `Reply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false}.`,
+      `If you find a different number than ${expectedCode}, set detected to that other number and match to false.`,
+    ].join("\n");
+  }
+  return [
+    `Look for TWO specific numbers in this image. Only these two numbers matter — ignore other numbers, barcodes, prices, or device serials that may also be visible.`,
+    `1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, or printed/typed on a tag, sticker or label.`,
+    `2. SEAL NUMBER ${effectiveSeal}: printed on a ${SEAL_VOCAB}`,
+    HANDWRITING_NOTE,
+    digitCountNote("control code", expectedCode.length),
+    digitCountNote("seal number", effectiveSeal.length),
+    `The two numbers are separate — never merge digits from one into the other.`,
+    `Reply with JSON only: {"detectedCode": "<the control code you found, else null>", "matchCode": true if it matches ${expectedCode} else false, "detectedSeal": "<the seal number you found, else null>", "matchSeal": true if it matches ${effectiveSeal} else false}.`,
+    `If you find different numbers than expected, set the detected fields to those other numbers and the match fields to false.`,
+  ].join("\n");
+}
+
+/** Erkennt „das Modell meldet KEINE Erkennung": mal als JSON-null/undefined, mal als Wort-Sentinel
+ *  ("null"/"none") IM String. Für die Auswertung selbst genügt `digitsOf` (Sentinels enthalten keine
+ *  Ziffern); gebraucht wird die Unterscheidung nur noch dort, wo „nichts gelesen" und „unbrauchbar
+ *  gelesen" getrennt geloggt werden (`no_detection` vs. `invalid_format` in `detectSealDigits`). */
 function normalizeDetected(raw: unknown): string | null {
   if (!raw || typeof raw !== "string") return null;
   return ["null", "none"].includes(raw.trim().toLowerCase()) ? null : raw;
+}
+
+/** Die blanken Ziffern einer Modell-Antwort, `""` wenn keine da sind. Für die VERIFIKATION gegen
+ *  einen bekannten Erwartungswert: dort ist grosszügiges Strippen ungefährlich, weil das Ergebnis
+ *  anschliessend Ziffer für Ziffer gegen den Erwartungswert geprüft wird — was nicht passt, fällt
+ *  ohnehin durch. Deckt die Sentinels ("null"/"none") mit ab: sie enthalten keine Ziffern → `""`.
+ *
+ *  NICHT für die ENTDECKUNG einer unbekannten Nummer verwenden (Siegel/Zahlenschloss) — dort gibt
+ *  es keinen Abgleich, der eine Fehl-Extraktion auffangen würde. Dafür `sealDigitsFromReply`. */
+function digitsOf(raw: unknown): string {
+  return typeof raw === "string" ? raw.replace(/\D/g, "") : "";
+}
+
+/** Die gelesene Nummer aus einer ENTDECKUNGS-Antwort (unbekannte Siegel-/Schloss-Nummer), oder
+ *  `null`, wenn die Antwort keine saubere Ziffernfolge der erwarteten Länge ist. Exportiert für Tests.
+ *
+ *  Hier wird NUR Whitespace normalisiert — Modelle setzen dieselbe Nummer mal als "0067321", mal als
+ *  " 00673 21 ". Alles andere (Buchstaben, Fliesstext) lässt die Antwort durchfallen. Der Unterschied
+ *  zu `digitsOf` ist bewusst und sicherheitsrelevant: bei der Entdeckung gibt es keinen
+ *  Erwartungswert, gegen den sich eine Fehl-Lesung prüfen liesse — was hier zurückkommt, WIRD die
+ *  Siegel-Nummer. Würde man wie bei der Verifikation alle Nicht-Ziffern strippen, ergäbe eine Antwort
+ *  wie „Serial No. AB1234567" (Modell hat den Geräte-Barcode statt der Plombe gelesen) die
+ *  scheinbar saubere Nummer „1234567" — und damit einen Manipulations-Nachweis, der keiner ist. */
+export function sealDigitsFromReply(raw: unknown, minLen: number, maxLen: number): string | null {
+  if (typeof raw !== "string") return null;
+  const compact = raw.replace(/\s/g, "");
+  return new RegExp(`^\\d{${minLen},${maxLen}}$`).test(compact) ? compact : null;
 }
 
 /** Verify-spezifischer Logger — `[verify]`-Prefix fuer grepbare Container-Logs.
@@ -81,8 +140,11 @@ async function loadImageBuffer(
   return { base64, mediaType };
 }
 
+/** Ziffernweiser Vergleich mit Toleranz für die klassischen Handschrift-Verwechslungen.
+ *  Vorbedingung: gleich lange Ziffernfolgen — die `every`-Schleife allein würde ein kürzeres `a`
+ *  als Präfix-Treffer durchgehen lassen, deshalb bleibt der Längen-Guard hier stehen, auch wenn
+ *  der einzige Aufrufer die Länge bereits geprüft hat. */
 function fuzzyMatch(a: string, b: string): boolean {
-  if (a === b) return true;
   if (a.length !== b.length) return false;
   const similar: Record<string, string> = { "1": "7", "7": "1", "0": "6", "6": "0" };
   return a.split("").every((ch, i) => ch === b[i] || similar[ch] === b[i]);
@@ -102,27 +164,49 @@ export type VerifyDetailedResult = {
   sealMatch?: boolean;
   /** Observability: Modell meldete match=false, die Ziffern stimmten aber (2026-05-Befund). */
   overridden?: boolean;
+  /** Observability: gelesene Stellenzahl VOR dem Stellenzahl-Gate (0 = nichts gelesen). Weicht sie
+   *  von der erwarteten Länge ab, hat das Modell falsch viele Ziffern gelesen und die Erkennung
+   *  wurde verworfen — nach dem Gate wäre das aus `detected` nicht mehr erkennbar. `sealRawLen`
+   *  ist `null`, wenn gar keine Siegel-Prüfung lief (≠ 0 = geprüft, nichts gelesen). */
+  rawLen?: number;
+  sealRawLen?: number | null;
   error?: "policy" | true;
 };
 
 /** Bewertet EINE erkannte Nummer gegen den Erwartungswert: normalisieren (Whitespace/
- *  Nicht-Ziffern), exakter Vergleich, Modell-match-Flag, optionale Fuzzy-Toleranz (1↔7, 0↔6).
+ *  Nicht-Ziffern), Stellenzahl-Gate, exakter Vergleich, optionale Fuzzy-Toleranz (1↔7, 0↔6).
  *  Override-Fall: Modell liest die richtigen Ziffern, meldet aber match=false.
  *  `allowFuzzy`: nur für den HANDGESCHRIEBENEN Kontroll-Code (dort ist 1↔7/0↔6-Verwechslung real).
  *  Für die GEDRUCKTE Siegel-Nummer aus → exakter Match, damit ein transponiertes Fremd-Siegel
- *  nicht durchrutscht (die Siegel-Prüfung ist der Manipulations-/Frische-Nachweis). */
+ *  nicht durchrutscht (die Siegel-Prüfung ist der Manipulations-/Frische-Nachweis).
+ *
+ *  STELLENZAHL-GATE: eine Lesung mit anderer Ziffernzahl als der Erwartungswert ist ein LESEFEHLER,
+ *  keine abweichende Nummer — die Codes sind immer gleich lang. Sie als „erkannt: 123456" zu melden
+ *  behauptet fälschlich, DIESE Nummer stehe im Bild; richtig ist „nicht lesbar" (→ codeMissing statt
+ *  codeWrong). Deshalb zählt eine längen-abweichende Lesung hier als keine Erkennung.
+ *
+ *  Damit entfällt auch das blinde Vertrauen in das `match`-Flag des Modells: über die Ziffern
+ *  entscheidet ab hier ausschliesslich der Server. Ein `match: true` neben abweichenden oder
+ *  unlesbaren Ziffern ist ein Widerspruch des Modells mit sich selbst und darf keine Kontrolle
+ *  bestehen lassen. Das Flag dient nur noch der Observability (`overridden`). */
 function evaluateDetected(rawDetected: unknown, modelMatch: unknown, expected: string, allowFuzzy: boolean = true): {
   detected: string | null;
   match: boolean;
   overridden: boolean;
+  /** Stellenzahl vor dem Gate — hier mitgegeben statt am Log-Aufrufer erneut aus der Rohantwort
+   *  geparst, sonst läge die Single-/Dual-Feldnamen-Verzweigung an zwei Stellen. */
+  rawLen: number;
 } {
-  const detected = normalizeDetected(rawDetected);
-  const normalized = detected ? detected.trim().replace(/\D/g, "") : null;
-  const exact = normalized !== null && normalized === expected;
+  const digits = digitsOf(rawDetected);
+  if (digits.length !== expected.length) {
+    return { detected: null, match: false, overridden: false, rawLen: digits.length };
+  }
+  const exact = digits === expected;
   return {
-    detected,
-    match: modelMatch === true || exact || (allowFuzzy && detected !== null && fuzzyMatch(detected, expected)),
+    detected: digits,
+    match: exact || (allowFuzzy && fuzzyMatch(digits, expected)),
     overridden: modelMatch !== true && exact,
+    rawLen: digits.length,
   };
 }
 
@@ -141,6 +225,8 @@ export function evaluateVerifyResponse(
       match: code.match,
       reason: code.match ? null : (code.detected ? "codeWrong" : "codeMissing"),
       overridden: code.overridden,
+      rawLen: code.rawLen,
+      sealRawLen: null,
     };
   }
 
@@ -163,6 +249,8 @@ export function evaluateVerifyResponse(
     overridden: code.overridden || seal.overridden,
     sealDetected: seal.detected,
     sealMatch: seal.match,
+    rawLen: code.rawLen,
+    sealRawLen: seal.rawLen,
   };
 }
 
@@ -231,7 +319,11 @@ export async function verifyKontrolleCodeDetailed(
     vlog("verify:result", {
       codeLen,
       hasDetected: result.detected !== null,
-      detectedLen: result.detected?.length ?? 0,
+      // Rohe Stellenzahlen VOR dem Gate: weichen sie von codeLen/sealLen ab, hat das Modell falsch
+      // viele Ziffern gelesen und die Erkennung wurde verworfen. Der Marker für Fehl-Lesungen im
+      // Log — `detected` ist danach entweder passend lang oder null und zeigt es nicht mehr.
+      rawLen: result.rawLen ?? 0,
+      sealRawLen: result.sealRawLen ?? null,
       isMatch: result.match,
       claudeOverridden: result.overridden ?? false,
       sealChecked: !!effectiveSeal,
@@ -289,13 +381,13 @@ async function detectSealDigits(
       return null;
     }
     const result = JSON.parse(jsonMatch[0]);
-    const detected = normalizeDetected(result.detected);
-    if (detected === null) {
+    if (normalizeDetected(result.detected) === null) {
       vlog(`${logPrefix}:no_detection`, { detectedType: typeof result.detected });
       return null;
     }
-    if (!new RegExp(`^\\d{${minLen},${maxLen}}$`).test(detected)) {
-      vlog(`${logPrefix}:invalid_format`, { detectedLen: detected.length });
+    const detected = sealDigitsFromReply(result.detected, minLen, maxLen);
+    if (detected === null) {
+      vlog(`${logPrefix}:invalid_format`, { rawLen: digitsOf(result.detected).length });
       return null;
     }
     return detected;
