@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Lock } from "lucide-react";
 import Card from "@/app/components/Card";
 import { formatHoursHMCompact } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -14,10 +15,25 @@ export interface CategoryGoalRow extends CategoryWearGoal {
   active: boolean;
 }
 
+/** Das KG-Ziel als führende Zeile derselben „Trainingsvorgaben"-Karte. Bewusst OHNE Live-Tick und
+ *  ohne Kategorie-Icon: es wird nur gezeigt, wenn KEINE Sperre läuft (dann steht es in der grünen
+ *  Session-Karte, siehe LaufendeSessionCard) — offen wird gerade nicht getragen, die Stunden stehen.
+ *  So sieht der Sub sein KG-Ziel auch im offenen Zustand statt nur während einer Sperre. */
+export interface KgGoalRow {
+  tagH: number;
+  wocheH: number;
+  monatH: number;
+  jahrH: number;
+  goalDayH: number | null;
+  goalWeekH: number | null;
+  goalMonthH: number | null;
+  goalYearH: number | null;
+}
+
 /** Client renderer for the per-category training goals. Mirrors the KG goal (LiveTrainingGoals):
  *  when a category has a running session, its today/week/month hours tick up live so the bar
  *  matches a fresh server/MCP computation instead of freezing at page-render time. */
-export default function CategoryGoalsLive({ rows, serverNow }: { rows: CategoryGoalRow[]; serverNow: string }) {
+export default function CategoryGoalsLive({ rows, kgGoal = null, serverNow }: { rows: CategoryGoalRow[]; kgGoal?: KgGoalRow | null; serverNow: string }) {
   const t = useTranslations("dashboard");
   return (
     <DashboardBlock>
@@ -27,6 +43,7 @@ export default function CategoryGoalsLive({ rows, serverNow }: { rows: CategoryG
             {t("trainingGoals")}
           </h3>
           <ul className="flex flex-col gap-4">
+            {kgGoal && <KgRow goal={kgGoal} />}
             {rows.map((r) => (
               <CategoryRow key={r.categoryId} row={r} serverNow={serverNow} />
             ))}
@@ -34,6 +51,32 @@ export default function CategoryGoalsLive({ rows, serverNow }: { rows: CategoryG
         </div>
       </Card>
     </DashboardBlock>
+  );
+}
+
+/** Die KG-Zeile — gleiche Zeilen-/Balken-Optik wie eine Kategorie, aber mit Schloss-Icon (KG ist
+ *  keine der Wear-Kategorien) und ohne Live-Tick (nur im offenen Zustand gezeigt). */
+function KgRow({ goal }: { goal: KgGoalRow }) {
+  const t = useTranslations("dashboard");
+  return (
+    <li className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <div
+          className="size-7 rounded-md flex items-center justify-center shrink-0"
+          style={{ backgroundColor: "var(--color-lock-bg)", color: "var(--color-lock)" }}
+          aria-hidden
+        >
+          <Lock className="size-3.5" />
+        </div>
+        <p className="text-sm font-medium text-foreground truncate">{t("kgGoalLabel")}</p>
+      </div>
+      <div className="pl-9 flex flex-col gap-1">
+        {goal.goalDayH != null && <Goal label={t("day")} actual={goal.tagH} target={goal.goalDayH} />}
+        {goal.goalWeekH != null && <Goal label={t("week")} actual={goal.wocheH} target={goal.goalWeekH} />}
+        {goal.goalMonthH != null && <Goal label={t("month")} actual={goal.monatH} target={goal.goalMonthH} />}
+        {goal.goalYearH != null && <Goal label={t("year")} actual={goal.jahrH} target={goal.goalYearH} />}
+      </div>
+    </li>
   );
 }
 

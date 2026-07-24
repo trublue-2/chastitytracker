@@ -116,6 +116,22 @@ export default async function DashboardPage() {
 
   const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
 
+  // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard). Läuft
+  // KEINE Sperre, hätte es sonst nirgends Platz — dann zeigen wir es als führende Zeile in der
+  // „Trainingsvorgaben"-Karte (dieselbe, die die Kategorie-Ziele trägt), damit der Sub sein KG-Ziel
+  // auch im offenen Zustand sieht statt nur beim Verschluss.
+  const kgTargets = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
+  const showLaufendeSession = !!activePair && rawSessionEvents.length > 0;
+  const inlineKgGoal =
+    !showLaufendeSession && kgTargets &&
+    (kgTargets.minProTagH != null || kgTargets.minProWocheH != null || kgTargets.minProMonatH != null || kgTargets.minProJahrH != null)
+      ? {
+          tagH, wocheH, monatH, jahrH,
+          goalDayH: kgTargets.minProTagH, goalWeekH: kgTargets.minProWocheH,
+          goalMonthH: kgTargets.minProMonatH, goalYearH: kgTargets.minProJahrH,
+        }
+      : null;
+
   // Die Trage-Sessions EINMAL bauen — Zeilen-Liste und Wanduhr-Stunden je Kategorie leiten sich
   // beide daraus ab (je GERÄT gepaart, Überlappungen für die Stunden verschmolzen).
   const wearSessionList = buildWearSessions(entries, now);
@@ -185,7 +201,7 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
       </DashboardBlock>
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
-      {activePair && rawSessionEvents.length > 0 && (
+      {showLaufendeSession && (
         <DashboardBlock>
           <LaufendeSessionCard
             sessionStart={activePair.verschluss.startTime}
@@ -224,7 +240,13 @@ export default async function DashboardPage() {
         serverNow={now.toISOString()}
       />
       {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
-      {flagOn && <CategoryGoalsToday userId={userId} activeWearSessions={wearSessions} entries={entries} />}
+      <CategoryGoalsToday
+        userId={userId}
+        activeWearSessions={wearSessions}
+        entries={entries}
+        includeCategories={flagOn}
+        kgGoal={inlineKgGoal}
+      />
       <InactiveCategories
         categories={allNonKgCategories
           .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))
