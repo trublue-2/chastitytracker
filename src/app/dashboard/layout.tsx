@@ -49,7 +49,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }));
 
   return (
-    <div className="min-h-screen bg-background" data-theme="user">
+    // Gleiche Begründung wie im Admin-Layout: das Inline-Skript setzt `data-theme` vor der
+    // Hydration aus localStorage. Hier fiel es nur seltener auf — serverseitig steht `user`, was
+    // dem HELLEN Theme entspricht, die Abweichung trat also nur im Dunkel-Modus auf.
+    <div className="min-h-screen bg-background" data-theme="user" suppressHydrationWarning>
       <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("user") }} />
       <ThemeApplicator role="user" />
       <Header />

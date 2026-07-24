@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.39",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Admin-Bereich meldete bei jedem Aufruf im hellen Design einen Darstellungsfehler in der Browser-Konsole. Sichtbar war davon nichts — das Design war immer korrekt —, aber die Meldung verdeckte echte Fehler. Sie ist jetzt weg, im Admin- wie im Benutzerbereich.",
+          "en": "The admin area logged a rendering error to the browser console on every page load in light mode. Nothing was visibly wrong — the theme was always correct — but the message drowned out real errors. It is gone now, in both the admin and the user area."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.38",
     "date": "2026-07-24",
     "changes": [
