@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.51.36",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die automatische Prüfung des Kontroll-Codes auf dem Foto arbeitet jetzt gleichmässig statt tagesformabhängig — dasselbe Bild führt nicht mehr mal zum Treffer und mal zur Ablehnung. Die Erkennung weiss ausserdem, wie viele Ziffern der Code hat: Lesungen mit zu vielen oder zu wenigen Ziffern gelten jetzt als „nicht lesbar\" statt als falscher Code.",
+          "en": "The automatic check of the control code in the photo now works consistently instead of varying from one attempt to the next — the same picture no longer passes once and fails the next time. The recognition also knows how many digits the code has: readings with too many or too few digits now count as \"not readable\" rather than as a wrong code."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Ob eine Kontrolle als bestanden gilt, entscheidet jetzt ausschliesslich der Ziffern-Abgleich auf dem Server. Bisher konnte die Bilderkennung ein Foto auch dann als passend melden, wenn die von ihr gelesenen Ziffern gar nicht zum Code oder zur Plomben-Nummer passten.",
+          "en": "Whether an inspection counts as passed is now decided solely by comparing the digits on the server. Previously the image recognition could report a photo as matching even when the digits it had read did not fit the code or the seal number."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.35",
     "date": "2026-07-23",
     "changes": [

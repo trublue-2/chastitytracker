@@ -2,10 +2,12 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/anthropic";
 import type { VisionRequest, VisionResponse, VisionTask } from "./types";
 
-/** Task → Anthropic-Modell. Spiegelt das bisher fest verdrahtete Mapping:
- *  Code-Verifikation & Geräte-Erkennung liefen auf Haiku, Siegel-Erkennung auf Sonnet. */
+/** Task → Anthropic-Modell. Geräte-Erkennung (Form grob klassifizieren) läuft auf Haiku,
+ *  das Ablesen von Ziffern auf Sonnet: Siegel-Nummer schon immer, Kontroll-Code seit 4.51.36.
+ *  Der Kontroll-Code ist die SCHWERSTE der drei Aufgaben (Handschrift statt Druck, dazu im
+ *  Dual-Modus zwei Zahlen im selben Bild) und lief zuvor ausgerechnet auf dem schwächsten Modell. */
 const MODEL: Record<VisionTask, string> = {
-  "code-verify": "claude-haiku-4-5-20251001",
+  "code-verify": "claude-sonnet-4-6",
   "seal-detect": "claude-sonnet-4-6",
   "device-detect": "claude-haiku-4-5-20251001",
   "device-check": "claude-haiku-4-5-20251001",
@@ -30,6 +32,13 @@ export async function anthropicComplete(req: VisionRequest): Promise<VisionRespo
   const response = await anthropic.messages.create({
     model: MODEL[req.task],
     max_tokens: req.maxTokens,
+    // Deterministisch — Ziffern ablesen und Geräte klassifizieren ist Analyse, keine Kreativität
+    // (gleiche Begründung wie im lokalen Provider). Ohne das Feld liegt der API-Default bei 1.0:
+    // dasselbe Foto wird dann bei jedem Aufruf potenziell anders gelesen, was als „mal klappt es,
+    // mal 20× nicht" beim Nutzer ankommt.
+    // ACHTUNG bei Modellwechseln: Opus 4.7+ und Sonnet 5 lehnen ein gesetztes `temperature` mit
+    // 400 ab. Die MODEL-Tabelle oben muss deshalb bei Modellen bleiben, die es akzeptieren.
+    temperature: 0,
     messages: [{ role: "user", content }],
   });
 
