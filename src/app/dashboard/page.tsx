@@ -13,7 +13,7 @@ import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere, cleaningBlockReason } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest, cleaningBlockReason } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { buildReinigungView, reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
@@ -54,10 +54,8 @@ export default async function DashboardPage() {
     prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
     getActiveVorgabe(userId, now),
     // Zeitversetzt geplante Anforderungen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere(now) },
-      include: { device: { select: { name: true } } },
-    }),
+    // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
+    getOpenLockRequest(userId, now),
     getActiveSperrzeit(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
