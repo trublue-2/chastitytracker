@@ -38,6 +38,13 @@ export type BoxReinigungView = ReinigungView & {
 
 export type Translate = (key: string, values?: Record<string, string | number>) => string;
 
+/** `BoxStatus.pendingCommand` ist in Prisma ein freier `String?` — hier auf die zwei gültigen Werte
+ *  verengen. Geteilt von allen Stellen, die die DB-Zeile nach aussen reichen (`/api/box`, MCP),
+ *  damit die Whitelist nicht an jeder Ausgabestelle einzeln steht und auseinanderläuft. */
+export function toPendingCommand(raw: string | null | undefined): "lock" | "open" | null {
+  return raw === "lock" || raw === "open" ? raw : null;
+}
+
 /**
  * Die Zeile „wann gibt die Box den Schlüssel frei". null = nichts anzuzeigen (Reinigung ist für
  * diesen Sub kein Begriff).
@@ -96,12 +103,54 @@ export function boxIstLabel(b: BoxRow, t: Translate): string {
   return b.simpleLock ? t("istLockedBolt") : t("istLocked");
 }
 
+/**
+ * Verlangt gerade irgendeine Quelle, dass die Box zu ist? Die EINE Ableitung des SOLL — genutzt von
+ * der Soll-Zeile UND von der Konflikt-Optik der Karte, damit die beiden nicht auseinanderlaufen.
+ *
+ * Die drei Quellen sind unterschiedlich frisch, und genau daran hängt die Reihenfolge hier:
+ *
+ *  • `keyholderLocked`/`lockUntil` sind NICHT aus dem Spiegel — `/api/box` überlagert sie bei jedem
+ *    Poll mit der aktiven Sperrzeit aus der Tracker-DB. Immer frisch, immer verbindlich.
+ *  • `simpleLock` kommt per Push von Heimdall und steht bis zum nächsten Box-Sync auf dem Stand VOR
+ *    dem Öffnungs-Eintrag.
+ *
+ * Deshalb schlägt ein anstehendes `open` nur den Spiegel-Anteil, nie die Sperrzeit. Ohne diese
+ * Trennung würde eine Box, die nach dem `open` nie wieder synct (leerer Akku, WLAN weg), eine
+ * Keyholder-Sperre DAUERHAFT verstecken: `pendingCommand` löscht ausschliesslich der Box-Sync, es
+ * bliebe also für immer stehen (Review-Befund 24.07 an genau dieser Funktion).
+ *
+ * Warum der Spiegel-Anteil überhaupt weichen muss: sonst behauptet die Karte nach einer
+ * eingetragenen Öffnung minutenlang „Soll: verschlossen" und malt dazu einen Konflikt-Alarm („steht
+ * offen, obwohl zu verlangt") — für einen Konflikt, den der Sub gerade selbst und regelkonform
+ * aufgelöst hatte (Vorfall 24.07). Das ist derselbe Vorrang, den `boxPendingTransition` schon kennt:
+ * das Kommando ist die JÜNGERE Absicht.
+ *
+ * Dass der Alarm dabei verstummt, ist sicher, weil eine VERBOTENE Öffnung gar kein `open` erzeugt:
+ * `boxCommandForEntry` gibt bei gebrochener Sperrzeit `null` zurück („das Dokumentieren des
+ * Verstosses darf ihn nicht vollstrecken"). Ein Sperrbruch lässt den Spiegel also unangetastet.
+ *
+ * Bewusst NICHT symmetrisch: ein anstehendes `lock` erzwingt hier kein „verschlossen". Ein `open`
+ * ENTWERTET den gespiegelten SOLL (er sagte „zu", jetzt gilt er nicht mehr); ein `lock` würde ihn nur
+ * ERGÄNZEN, und die Details kennt erst Heimdalls nächster Push — sie hier zu erfinden wäre schlechter
+ * als kurz zu warten. Den laufenden Übergang zeigt ohnehin `boxPendingTransition` an.
+ *
+ * BEKANNTE RESTLÜCKE: der Sync, der das Kommando abholt, pusht im selben Request noch den Zustand
+ * VOR der Öffnung und löscht dabei `pendingCommand`. Für ein Sync-Intervall fällt die Zeile deshalb
+ * auf den (noch alten) `simpleLock` zurück. Vorher galt das die ganze Zeit, jetzt nur in diesem
+ * Fenster — behoben ist es damit aber nicht.
+ */
+export function boxSollLocked(b: BoxRow): boolean {
+  if (b.keyholderLocked || b.lockUntil !== null) return true;
+  if (b.pendingCommand === "open") return false;
+  return b.simpleLock;
+}
+
 /** Soll-Zustand (Keyholder-Wahrheit): Sperre bis / ohne Zeitlimit / eigene Frist / kein Soll. */
 export function boxSollLabel(b: BoxRow, t: Translate, fmtDateTime: (iso: string) => string): string {
+  if (!boxSollLocked(b)) return t("sollNone");
   if (b.keyholderLocked) return b.lockUntil ? t("sollLockedUntil", { date: fmtDateTime(b.lockUntil) }) : t("sollLockedIndefinite");
   if (b.lockUntil) return t("sollUntil", { date: fmtDateTime(b.lockUntil) });
-  if (b.simpleLock) return t("sollIndefinite");
-  return t("sollNone");
+  return t("sollIndefinite");
 }
 
 /** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt vor X"; null → nie gesynct. */

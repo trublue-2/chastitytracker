@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.37",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Nach einer eingetragenen Öffnung behauptete die Box-Karte noch minutenlang „Soll: verschlossen\" und zeigte dazu eine orange Konflikt-Warnung — obwohl direkt daneben schon „Öffnung freigegeben\" stand. Grund: dieser Teil der Karte wartete auf die nächste Rückmeldung der Box, statt den eigenen, neueren Eintrag zu berücksichtigen. Eine laufende Sperrzeit der Keyholderin bleibt davon unberührt und wird weiterhin angezeigt.",
+          "en": "After a logged opening, the box card kept claiming \"should be: locked\" for minutes and showed an orange conflict warning — while right next to it \"opening released\" was already displayed. The reason: that part of the card waited for the box to report back instead of taking your own, newer entry into account. An active lock period set by the keyholder is unaffected and still shown."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.36",
     "date": "2026-07-24",
     "changes": [

@@ -13,6 +13,7 @@ import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stat
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
+import { toPendingCommand } from "@/lib/boxStatus";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
@@ -24,10 +25,20 @@ export type HardwareEnforcedReason = "soll-open" | "reported-open" | "key-not-in
 
 export interface BoxStateView {
   name: string;
-  /** SOLL: soll die Box gerade zu sein? (`boxLocked()` — jede Sperrquelle, eigen ODER Tracker-Sperrzeit).
-   *  Der zuletzt von Heimdall gemeldete Wert; er kippt NICHT durch blossen Zeitablauf, solange die Box
-   *  nicht wieder synct — dafür ist `staleLock` da. */
+  /** SOLL: soll die Box gerade zu sein? Der zuletzt von Heimdall gemeldete Wert (jede Sperrquelle,
+   *  eigen ODER Tracker-Sperrzeit); er kippt NICHT durch blossen Zeitablauf, solange die Box nicht
+   *  wieder synct — dafür ist `staleLock` da. Steht `pendingCommand` an, ist dieser Wert ÄLTER als
+   *  die Absicht des Trackers — siehe dort. */
   locked: boolean;
+  /** Aus einem Eintrag abgeleitetes Kommando, das die Box noch nicht abgeholt hat. `"open"` heisst:
+   *  der Sub hat eine Öffnung eingetragen, `locked` stammt aber noch vom Push DAVOR und ist bis zum
+   *  nächsten Box-Sync (Minuten) überholt — ohne dieses Feld liest sich der Zwischenstand wie „der
+   *  Sub ist noch verschlossen". `null` = Spiegel und Absicht sind einig.
+   *
+   *  ACHTUNG, kein Freibrief: eine laufende Keyholder-Sperrzeit überschreibt ein `"open"` NICHT.
+   *  Die Vorrang-Regel steht als Code in `boxSollLocked` (src/lib/boxStatus.ts) — dort ist auch
+   *  begründet, warum sie nur den Spiegel-Anteil schlägt und nicht die Sperrzeit. */
+  pendingCommand: "lock" | "open" | null;
   /** Physisches IST: war die Box beim letzten Sync wirklich zu? Kann seit dem Präsenz-Guard
    *  (FW 0.2.33) vom SOLL abweichen — „soll zu, steht aber offen und wartet auf Knopf/USB".
    *  `null` = Alt-Zeile ohne IST-Meldung; dann gilt das SOLL (`locked`) als bester Stand. */
@@ -299,6 +310,7 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
   return {
     name: box.name,
     locked: box.locked,
+    pendingCommand: toPendingCommand(box.pendingCommand),
     reportedLocked: box.reportedLocked,
     lockUntil: iso(box.lockUntil),
     hardwareEnforced,
