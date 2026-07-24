@@ -25,7 +25,11 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string;
   const quotaLabel = boxReinigungQuotaLabel(reinigung ?? null, t);
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 pt-6">
+    // pb-2 wie jeder andere gestapelte Dashboard-Block: die Blöcke darunter (CategoryGoalsLive,
+    // InactiveCategories, CategoriesPromoCard) bringen bewusst KEIN pt mit, der Abstand entsteht
+    // aus dem pb des Vorgängers. Ohne das hier klebte die Box-Karte an den Trainingsvorgaben,
+    // sobald ActiveWearSessions dazwischen nichts rendert (= nichts getragen).
+    <div className="w-full max-w-2xl mx-auto px-4 pt-6 pb-2">
       <div className="flex flex-col gap-2">
         {boxes.map((b) => {
           // „Steht offen, obwohl eine Sperre verschlossen verlangt" (z.B. Reinigungspause) →

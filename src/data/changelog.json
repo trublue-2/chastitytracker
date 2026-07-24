@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.51.38",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Auf der Übersicht klebte die Box-Karte am Block darunter, solange gerade nichts getragen wird. Sie hat jetzt denselben Abstand wie alle übrigen Karten.",
+          "en": "On the overview, the box card sat flush against the block below it whenever nothing was being worn. It now has the same spacing as every other card."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.37",
     "date": "2026-07-24",
     "changes": [
