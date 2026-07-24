@@ -5,10 +5,15 @@
  * since the script runs outside the module system.
  */
 
-import { STORAGE_KEYS, SELECTORS, type ThemeRole } from "@/lib/theme";
+import { STORAGE_KEYS, SELECTORS, resolveTheme, THEME_ROLES, type ThemeRole } from "@/lib/theme";
 
-const DARK_THEME: Record<ThemeRole, string> = { admin: "admin", user: "user-dark" };
-const LIGHT_THEME: Record<ThemeRole, string> = { admin: "admin-light", user: "user" };
+// Abgeleitet statt abgeschrieben: nur der SKRIPT-TEXT muss ohne Modulsystem auskommen, dieses Modul
+// selbst laeuft serverseitig ganz normal und kann resolveTheme aufrufen. Vorher standen dieselben
+// vier Theme-Namen hier ein zweites Mal als Literale — driften sie auseinander, setzt das Skript vor
+// der Hydration einen anderen Wert als die Runtime danach, und der Unterschied faellt genau dort
+// auf, wo er am schwersten zu deuten ist (Hydration-Meldung statt Testfehler).
+const DARK_THEME = Object.fromEntries(THEME_ROLES.map((r) => [r, resolveTheme("dark", r)])) as Record<ThemeRole, string>;
+const LIGHT_THEME = Object.fromEntries(THEME_ROLES.map((r) => [r, resolveTheme("light", r)])) as Record<ThemeRole, string>;
 
 export function getThemeInitScript(role: ThemeRole) {
   const storageKey = STORAGE_KEYS[role];
