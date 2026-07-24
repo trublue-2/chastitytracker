@@ -14,7 +14,7 @@ vi.mock("@/lib/prisma", () => ({
     device: { findMany: vi.fn() },
     deviceCategory: { findMany: vi.fn() },
     orgasmusAnforderung: { count: vi.fn() },
-    verschlussAnforderung: { count: vi.fn(), findMany: vi.fn() },
+    verschlussAnforderung: { count: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
     kontrollAnforderung: { count: vi.fn(), findFirst: vi.fn() },
     trainingVorgabe: { findFirst: vi.fn() },
     strafeRecord: { findUnique: vi.fn() },
@@ -26,7 +26,7 @@ vi.mock("@/lib/prisma", () => ({
 // Die mutierenden Service-Funktionen — dryRun darf keine davon je aufrufen.
 vi.mock("@/lib/verschlussAnforderungService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/verschlussAnforderungService")>();
-  return { ...actual, createVerschlussAnforderung: vi.fn(), updateSperrzeitEnde: vi.fn(), withdrawVerschlussAnforderung: vi.fn() };
+  return { ...actual, createVerschlussAnforderung: vi.fn(), updateSperrzeitEnde: vi.fn(), updateLockRequest: vi.fn(), withdrawVerschlussAnforderung: vi.fn(), withdrawVerschlussAnforderungById: vi.fn() };
 });
 vi.mock("@/lib/kontrolleService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/kontrolleService")>();
@@ -57,10 +57,10 @@ vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn().mockResolvedValue({}
 import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
   mcpWithdraw, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection,
-  mcpEditLockPeriod, mcpJudgeOffense,
+  mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense,
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { createVerschlussAnforderung, updateSperrzeitEnde } from "@/lib/verschlussAnforderungService";
+import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
@@ -72,6 +72,7 @@ const userFindUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as Re
 const trainingVorgabeMock = prisma.trainingVorgabe.findFirst as unknown as ReturnType<typeof vi.fn>;
 const kontrollFindFirstMock = prisma.kontrollAnforderung.findFirst as unknown as ReturnType<typeof vi.fn>;
 const sperrzeitFindManyMock = prisma.verschlussAnforderung.findMany as unknown as ReturnType<typeof vi.fn>;
+const vaFindUniqueMock = prisma.verschlussAnforderung.findUnique as unknown as ReturnType<typeof vi.fn>;
 const entryFindFirstMock = prisma.entry.findFirst as unknown as ReturnType<typeof vi.fn>;
 const strafeRecordFindUniqueMock = prisma.strafeRecord.findUnique as unknown as ReturnType<typeof vi.fn>;
 const collectDetectedOffensesMock = collectDetectedOffenses as unknown as ReturnType<typeof vi.fn>;
@@ -341,5 +342,110 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
     const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "punish", text: "neu" }) as { diff: Record<string, [unknown, unknown]> };
     expect(r.diff.status).toEqual([undefined, "PUNISHED"]); // Create-Diff, NICHT gegen das fremde Urteil
     expect(r.diff.reason).not.toContain("fremdes Urteil");
+  });
+});
+
+/**
+ * Mehrere Einschliess-Anforderungen dürfen koexistieren (v6). Damit bekommt der MCP zwei neue
+ * Fähigkeiten, die vorher niemand brauchte: EINE davon ändern (`edit_lock_request`) und EINE davon
+ * zurückziehen (`withdraw` mit id). Beide müssen dieselbe Zeile treffen, die sie melden.
+ */
+describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
+  /** Eine offene ANFORDERUNGs-Zeile, wie getKeyholderLockRequests sie liefert. */
+  const anf = (over: object = {}) => ({
+    id: "a1", userId: "u1", art: "ANFORDERUNG", endetAt: MORGEN, nachricht: null, dauerH: null,
+    sperrEndetAt: null, deviceId: null, device: null, reinigungErlaubt: false,
+    fulfilledAt: null, withdrawnAt: null, wirksamAb: null, benachrichtigtAt: JETZT, ...over,
+  });
+
+  it("dryRun committet nichts", async () => {
+    sperrzeitFindManyMock.mockResolvedValue([anf()]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, message: "neu" });
+    expect((r as { dryRun: boolean }).dryRun).toBe(true);
+    expect(updateLockRequest).not.toHaveBeenCalled();
+  });
+
+  it("diff zeigt genau die geänderten Felder [alt, neu]", async () => {
+    sperrzeitFindManyMock.mockResolvedValue([anf({ dauerH: 24 })]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, lockUntilAt: MORGEN.toISOString() }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.minDurationHours).toEqual([24, null]); // vom absoluten Ende verdrängt
+    expect(r.diff.lockUntilAt).toEqual([null, "2026-07-18T14:00:00+02:00"]);
+    expect(r.diff.deadlineAt).toBeUndefined(); // unangetastet → kein Diff-Eintrag
+  });
+
+  it("ein Sperr-Ende vor der Auslösung wird auch im dryRun abgelehnt (checkLockEnd)", async () => {
+    const wirksamAb = new Date("2026-08-04T12:00:00Z"); // 3 Wochen voraus
+    sperrzeitFindManyMock.mockResolvedValue([anf({ wirksamAb, benachrichtigtAt: null })]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, lockUntilAt: MORGEN.toISOString() }) as { wouldSucceed: boolean; problem?: string };
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
+    expect(updateLockRequest).not.toHaveBeenCalled();
+  });
+
+  it("ohne id gewinnt die AUSGELÖSTE, und die übrigen werden benannt statt verschwiegen", async () => {
+    const geplant = anf({ id: "a2", wirksamAb: new Date("2026-08-04T12:00:00Z"), benachrichtigtAt: null });
+    sperrzeitFindManyMock.mockResolvedValue([geplant, anf()]);
+    (updateLockRequest as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, data: { id: "a1", userId: "u1", notified: true, deliveredToPoller: false } });
+
+    const r = await mcpEditLockRequest("sub", { message: "neu" }) as { id: string; untouched: { id: string; status: string }[]; message: string };
+    expect(r.id).toBe("a1");
+    expect(r.untouched).toEqual([{ id: "a2", status: "scheduled", scheduledFor: "2026-08-04T14:00:00+02:00", endsAt: "2026-07-18T14:00:00+02:00" }]);
+    expect(r.message).toContain("2 lock requests are open");
+  });
+
+  it("Mindestdauer und absolutes Sperr-Ende zusammen werden abgelehnt, statt eines still zu verwerfen", async () => {
+    // Die Regel liegt im Service (LOCK_DURATION_OR_END) — unwrap() macht daraus den englischen Satz.
+    sperrzeitFindManyMock.mockResolvedValue([anf()]);
+    (updateLockRequest as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false, status: 400, error: "LOCK_DURATION_OR_END" });
+    await expect(mcpEditLockRequest("sub", { minDurationHours: 12, lockUntilAt: MORGEN.toISOString() }))
+      .rejects.toThrow(/not both/);
+  });
+
+  it("dryRun meldet den Mindestdauer+Sperr-Ende-Konflikt schon vor dem Commit (nicht wouldSucceed)", async () => {
+    // Die Vorschau darf nicht Erfolg versprechen für eine Eingabe, die updateLockRequest ablehnt.
+    sperrzeitFindManyMock.mockResolvedValue([anf()]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, minDurationHours: 12, lockUntilAt: MORGEN.toISOString() }) as { wouldSucceed: boolean; problem?: string };
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("LOCK_DURATION_OR_END");
+    expect(updateLockRequest).not.toHaveBeenCalled();
+  });
+
+  it("withdraw mit id trifft genau eine Zeile — und prüft, dass sie zum Sub und zur Art gehört", async () => {
+    vaFindUniqueMock.mockResolvedValue({ userId: "u1", art: "ANFORDERUNG" });
+    (withdrawVerschlussAnforderungById as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, data: { userId: "u1", notified: true } });
+
+    const r = await mcpWithdraw("sub", { target: "lock_request", id: "a1" }) as { withdrawn: number };
+    expect(r.withdrawn).toBe(1);
+    expect(withdrawVerschlussAnforderungById).toHaveBeenCalledWith("a1");
+
+    // Fremder Sub / falsche Art / bereits weg → gar kein Rückzug, statt stillem Erfolg.
+    vaFindUniqueMock.mockResolvedValue({ userId: "u2", art: "ANFORDERUNG" });
+    await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/No open lock_request/);
+    vaFindUniqueMock.mockResolvedValue({ userId: "u1", art: "SPERRZEIT" });
+    await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/No open lock_request/);
+    // „Bereits zurückgezogen" beurteilt der Service (eine Wahrheit, eine Stelle) — der Guard hier
+    // beantwortet nur „gehört die Zeile diesem Sub und dieser Art?".
+    vaFindUniqueMock.mockResolvedValue({ userId: "u1", art: "ANFORDERUNG" });
+    (withdrawVerschlussAnforderungById as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValue({ ok: false, status: 400, error: "LOCK_PERIOD_ALREADY_WITHDRAWN" });
+    await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/already/);
+    expect(withdrawVerschlussAnforderungById).toHaveBeenCalledTimes(2);
+  });
+
+  it("request_lock: eine TERMINIERTE Anforderung ist auch bei verschlossenem Sub erlaubt", async () => {
+    entryFindFirstMock.mockResolvedValue(VERSCHLOSSEN);
+    const r = await mcpRequestLock("sub", { dryRun: true, deadlineHours: 4, delayMinutes: 60 }) as { wouldSucceed: boolean };
+    expect(r.wouldSucceed).toBe(true);
+
+    const sofort = await mcpRequestLock("sub", { dryRun: true, deadlineHours: 4 }) as { wouldSucceed: boolean; problem?: string };
+    expect(sofort.wouldSucceed).toBe(false);
+    expect(sofort.problem).toBe("USER_ALREADY_LOCKED");
+  });
+
+  it("request_lock: Mindestdauer und absolutes Sperr-Ende zusammen meldet schon der dryRun", async () => {
+    const r = await mcpRequestLock("sub", { dryRun: true, deadlineHours: 4, minDurationHours: 12, lockUntilAt: MORGEN.toISOString() }) as { wouldSucceed: boolean; problem?: string };
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("LOCK_DURATION_OR_END");
+    expect(createVerschlussAnforderung).not.toHaveBeenCalled();
   });
 });

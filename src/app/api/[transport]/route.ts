@@ -6,7 +6,7 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
@@ -177,7 +177,7 @@ const MCP_SERVER_INSTRUCTIONS =
   "`get_context` (autoInspections + cleaning).\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
   "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `withdraw`, `edit_lock_period`, `resolve_inspection`, … Kontrollen werden MANUELL über " +
+  "`set_cleaning`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Kontrollen werden MANUELL über " +
   "`request_inspection` veranlasst; die Einstellungen der AUTOMATISCHEN Kontrollen sind über den MCP " +
   "NICHT änderbar (nur lesbar via get_context.autoInspections).\n" +
   "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
@@ -588,14 +588,21 @@ function registerTools(server: McpServer) {
       {
         title: "Request lock-up",
         description:
-          "Asks the user to lock up within a deadline (creates a VerschlussAnforderung). Only valid " +
-          "when the user is currently open. Optionally enforce a minimum wearing duration and/or a " +
-          "specific device. Can be scheduled/time-delayed so the user does not know exactly when it " +
+          "Asks the user to lock up within a deadline (creates a VerschlussAnforderung). An IMMEDIATE " +
+          "request requires the user to be open right now; a SCHEDULED one may be queued while they are " +
+          "still locked (it self-cancels if they are still locked when it triggers). Optionally enforce a " +
+          "lock period after lock-up — either a minimum wearing duration (minDurationHours, relative to the " +
+          "actual lock-up) or an absolute end (lockUntilAt, fixed wall clock) — plus a specific device. " +
+          "Several lock requests can be open at once: a new one does NOT replace an existing one, and a " +
+          "single lock-up fulfils all of them (use edit_lock_request to change one, withdraw with id to " +
+          "cancel one). Can be scheduled/time-delayed so the user does not know exactly when it " +
           "strikes; the deadline then counts from the trigger time." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Hours to lock up by, counted from when the request is triggered. Use this or deadlineAt."),
-          deadlineAt: z.string().optional().describe("Absolute deadline (ISO 8601). Overrides deadlineHours."),
-          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) enforced after lock-up via an auto lock period."),
+          deadlineAt: z.string().optional().describe("Absolute deadline (ISO 8601, must be in the future). Overrides deadlineHours."),
+          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) enforced after lock-up via an auto lock period — counted from the actual lock-up. Mutually exclusive with lockUntilAt."),
+          lockUntilAt: z.string().optional().describe("Absolute lock end (ISO 8601) enforced after lock-up — fixed wall clock, a late lock-up does NOT shift it. Mutually exclusive with minDurationHours."),
+          cleaningAllowed: z.boolean().optional().describe("Let cleaning openings not break the resulting lock period. Only has an effect together with minDurationHours/lockUntilAt."),
           deviceName: z.string().optional().describe("Require a specific device by name."),
           message: z.string().optional().describe("Message shown to the user."),
           delayMinutes: z.number().optional().describe("Delay before the request reaches the user, in minutes. Omit/0 = immediate."),
@@ -708,9 +715,12 @@ function registerTools(server: McpServer) {
         description:
           "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive. " +
           "Also cancels SCHEDULED (not yet triggered) directives of the same kind — a lock_request/lock_period/" +
-          "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives)." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
+          "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives). " +
+          "Without id this hits ALL open ones of that kind — since several lock requests can be open at once, " +
+          "pass id to cancel exactly one." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
+          id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives). Only for lock_request/lock_period."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
@@ -858,6 +868,37 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("edit_lock_period", extra, args, (u) => mcpEditLockPeriod(u, args)),
+    );
+
+    server.registerTool(
+      "edit_lock_request",
+      {
+        title: "Change an open lock request",
+        description:
+          "Changes an open lock request (VerschlussAnforderung) instead of withdrawing and recreating it — " +
+          "deadline, message, required device, the lock period it enforces after lock-up, and the scheduled " +
+          "trigger time. Only fields you pass are changed. Works on a SCHEDULED request too; the updated " +
+          "version is then delivered when it triggers (use triggerNow to deliver it immediately). Several " +
+          "requests can be open at once; without id the already-TRIGGERED one is edited, and the answer names " +
+          "any others left untouched." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE + SCHEDULED_SILENT,
+        inputSchema: {
+          id: z.string().optional().describe("Edit THIS request (id from keyholder_dashboard.openLockRequests / scheduledDirectives). Omit to edit the triggered one."),
+          deadlineAt: z.string().optional().describe("New absolute deadline to lock up (ISO 8601)."),
+          deadlineHours: z.number().positive().optional().describe("New deadline in hours, counted from the (possibly new) trigger time. Ignored if deadlineAt is given."),
+          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) after lock-up. Replaces any absolute lockUntilAt."),
+          lockUntilAt: z.string().optional().describe("Absolute lock end (ISO 8601) after lock-up. Replaces any minDurationHours."),
+          clearLockPeriod: z.boolean().optional().describe("Drop the lock period entirely — locking up then creates no Sperrzeit."),
+          cleaningAllowed: z.boolean().optional().describe("Let cleaning openings not break the resulting lock period."),
+          deviceName: z.string().optional().describe("Require this device by name."),
+          clearDevice: z.boolean().optional().describe("Drop the device requirement."),
+          message: z.string().optional().describe('New message shown to the user; "" clears it.'),
+          scheduledAt: z.string().optional().describe("New trigger time (ISO 8601) for a request that has not been delivered yet."),
+          triggerNow: z.boolean().optional().describe("Deliver a scheduled request immediately (e-mail + push go out now)."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("edit_lock_request", extra, args, (u) => mcpEditLockRequest(u, args)),
     );
 
     // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──
