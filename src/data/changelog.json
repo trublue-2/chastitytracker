@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.52.2",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das KG-Trainingsziel war auf dem Dashboard nur während einer Sperre sichtbar. Im offenen Zustand fehlte es, obwohl es aktiv war (die Kategorie-Ziele wurden weiterhin gezeigt). Es erscheint jetzt auch offen in der Trainingsvorgaben-Karte mit Tagesfortschritt.",
+          "en": "The chastity training goal was only visible on the dashboard during an active lock. When open it disappeared even though it was still active (category goals kept showing). It now also appears in the training goals card when open, with today's progress."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.52.1",
     "date": "2026-07-24",
     "changes": [
