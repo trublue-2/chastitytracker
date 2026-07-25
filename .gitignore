@@ -56,3 +56,6 @@ dev.db-journal
 
 # APNs private key — never commit this
 *.p8
+
+# Persönlicher Keyholder-Rollentext — nicht ins öffentliche Repo
+keyholder-instructions.md
