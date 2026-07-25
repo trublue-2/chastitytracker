@@ -59,7 +59,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
     expect(Object.keys(result.currentRun).sort()).toEqual(
       ["isLocked", "since", "currentSegmentSince", "durationHours", "deviceName", "deviceDeclared", "deviceConfidence", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
     );
-    expect(Object.keys(result.nextRelevant).sort()).toEqual(["openControl", "activeLockPeriod", "interruptedLockPeriod", "openOrgasmWindow", "openLockRequest", "openLockRequests"].sort());
+    expect(Object.keys(result.nextRelevant).sort()).toEqual(["openControl", "activeLockPeriod", "interruptedLockPeriod", "openOrgasmWindow", "openLockRequest", "openLockRequests", "openTasks"].sort());
   });
 
   it("wirft bei unbekanntem User", async () => {

@@ -666,6 +666,9 @@ model Task {
   completedAt   DateTime?
   completionNote String?
   withdrawnAt   DateTime?
+  // Wann das Ergebnis gemeldet wurde. Nur ein Versand-Stempel, KEIN Zustand: der Zustand einer
+  // Aufgabe wird immer aus den Einträgen abgeleitet. Ohne ihn meldete der Poller jede Minute neu.
+  resultNotifiedAt DateTime?
 
   requirements TaskRequirement[]
 

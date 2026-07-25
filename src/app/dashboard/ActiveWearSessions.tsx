@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
+import { ListChecks } from "lucide-react";
 import Card from "@/app/components/Card";
 import { formatElapsedMs } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -17,6 +18,10 @@ export interface ActiveWearSessionRow {
   deviceName: string;
   /** ISO string of session start. */
   since: string;
+  /** Übersetzter Grund, warum gerade NICHT abgelegt werden sollte (heute: eine laufende Aufgabe
+   *  verlangt das Gerät). Bewusst ein Text statt eines Feature-Flags — „das solltest du jetzt nicht
+   *  ablegen" hat in dieser App mehr als einen Grund, und der nächste soll kein zweites Boolean sein. */
+  heldReason?: string | null;
 }
 
 interface Props {
@@ -72,6 +77,11 @@ export default function ActiveWearSessions({ sessions, serverNow }: Props) {
                   <span className="font-mono text-base font-semibold tabular-nums text-foreground shrink-0">
                     {formatElapsedMs(elapsedMs, locale, false)}
                   </span>
+                  {/* Die gebundene Session darf nicht dieselbe harmlose Ein-Tap-Affordanz zeigen wie
+                      eine freie — das Formular warnt zwar, aber die Karte soll es vorher sagen. */}
+                  {s.heldReason && (
+                    <ListChecks size={14} className="text-warn shrink-0 ml-1" aria-label={s.heldReason} />
+                  )}
                   <span className="text-xs text-foreground-faint shrink-0 ml-1">
                     {t("endShort")}
                   </span>

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Lock, LockOpen, ClipboardCheck, Droplets, Bell, ChevronRight } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, ClipboardList, Droplets, Bell } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
@@ -8,13 +7,18 @@ import { deviceCategoriesEnabled } from "@/lib/constants";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
+import ActionRow, { ActionRowGroup } from "./ActionRow";
+
+/** Icon-Kachel-Ton aus den Semantik-Tokens — `tone("lock")` = Schloss-Farbe auf Schloss-Hintergrund. */
+const tone = (name: string) => ({ backgroundColor: `var(--color-${name}-bg)`, color: `var(--color-${name})` });
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await assertKeyholderOrAdmin(id);
-  const [t, tw] = await Promise.all([
+  const [t, tw, tt] = await Promise.all([
     getTranslations("admin"),
     getTranslations("wearForm"),
+    getTranslations("tasks"),
   ]);
 
   const user = await prisma.user.findUnique({ where: { id } });
@@ -36,253 +40,114 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
 
   const hasEmail = !!user.email;
-  const hasActiveSperrzeit = !!activeSperrzeit;
-
-  const canKontrolle = hasEmail && isLocked;
+  const base = `/admin/users/${id}/aktionen`;
 
   return (
     <>
-      {/* Anforderungen */}
-      <div>
-        <p className="text-xs font-semibold text-foreground-faint uppercase tracking-wider px-1 mb-2">{t("aktionenAnforderungen")}</p>
-        <div className="bg-surface rounded-2xl border border-border-subtle divide-y divide-border-subtle">
+      <ActionRowGroup title={t("aktionenAnforderungen")}>
+        <ActionRow
+          href={hasEmail && isLocked ? `${base}/kontrolle` : undefined}
+          icon={<Bell size={20} strokeWidth={2} />}
+          iconStyle={tone("inspect")}
+          title={t("requestInspection")}
+          hint={hasEmail && isLocked ? t("requestInspectionHint") : !hasEmail ? t("noEmail") : t("entryOnlyIfLocked")}
+        />
 
-          {/* Kontrolle anfordern */}
-          {canKontrolle ? (
-            <Link
-              href={`/admin/users/${id}/aktionen/kontrolle`}
-              className="flex items-center gap-4 px-5 py-4 rounded-t-2xl hover:bg-surface-raised transition active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-inspect-bg)" }}>
-                <Bell size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{t("requestInspection")}</p>
-                <p className="text-xs text-foreground-faint">{t("requestInspectionHint")}</p>
-              </div>
-              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-            </Link>
-          ) : (
-            <div className="flex items-center gap-4 px-5 py-4 rounded-t-2xl opacity-40 cursor-not-allowed">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
-                <Bell size={20} strokeWidth={2} className="text-foreground-faint" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground-muted">{t("requestInspection")}</p>
-                <p className="text-xs text-foreground-faint">{!hasEmail ? t("noEmail") : t("entryOnlyIfLocked")}</p>
-              </div>
-            </div>
-          )}
+        {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}
+        <ActionRow
+          href={!isLocked && hasEmail ? `${base}/verschluss-anforderung` : undefined}
+          icon={<Lock size={20} strokeWidth={2} />}
+          iconStyle={tone("request")}
+          title={t("requestLock")}
+          hint={!isLocked && hasEmail ? t("requestLockHint") : isLocked ? t("alreadyLocked") : t("noEmail")}
+        />
 
-          {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}
-          {!isLocked && hasEmail ? (
-            <Link
-              href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
-              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-request-bg)" }}>
-                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-request)" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{t("requestLock")}</p>
-                <p className="text-xs text-foreground-faint">{t("requestLockHint")}</p>
-              </div>
-              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-            </Link>
-          ) : (
-            <div className="flex items-center gap-4 px-5 py-4 opacity-40 cursor-not-allowed">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
-                <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground-muted">{t("requestLock")}</p>
-                <p className="text-xs text-foreground-faint">
-                  {isLocked ? t("alreadyLocked") : t("noEmail")}
-                </p>
-              </div>
-            </div>
-          )}
+        {/* Sperrdauer: bestehende bearbeiten, sonst neu setzen — beides nur im verschlossenen Zustand */}
+        {isLocked && activeSperrzeit ? (
+          <ActionRow
+            href={`${base}/sperrdauer-edit`}
+            icon={<Lock size={20} strokeWidth={2} />}
+            iconStyle={tone("sperrzeit")}
+            title={t("editLockDuration")}
+            hint={t("editLockDurationHint")}
+          />
+        ) : (
+          <ActionRow
+            href={isLocked ? `${base}/verschluss-anforderung` : undefined}
+            icon={<Lock size={20} strokeWidth={2} />}
+            iconStyle={tone("sperrzeit")}
+            title={t("setLockDuration")}
+            hint={isLocked ? t("setLockDurationHint") : t("entryOnlyIfLocked")}
+          />
+        )}
 
-          {/* Sperrdauer setzen / bearbeiten */}
-          {isLocked && hasActiveSperrzeit ? (
-            <Link
-              href={`/admin/users/${id}/aktionen/sperrdauer-edit`}
-              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-sperrzeit-bg)" }}>
-                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{t("editLockDuration")}</p>
-                <p className="text-xs text-foreground-faint">{t("editLockDurationHint")}</p>
-              </div>
-              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-            </Link>
-          ) : isLocked ? (
-            <Link
-              href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
-              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-sperrzeit-bg)" }}>
-                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{t("setLockDuration")}</p>
-                <p className="text-xs text-foreground-faint">{t("setLockDurationHint")}</p>
-              </div>
-              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-            </Link>
-          ) : (
-            <div className="flex items-center gap-4 px-5 py-4 opacity-40 cursor-not-allowed">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
-                <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground-muted">{t("setLockDuration")}</p>
-                <p className="text-xs text-foreground-faint">{t("entryOnlyIfLocked")}</p>
-              </div>
-            </div>
-          )}
+        <ActionRow
+          href={`${base}/orgasmus-anforderung`}
+          icon={<Droplets size={20} strokeWidth={2} />}
+          iconStyle={tone("orgasm")}
+          title={t("requestOrgasm")}
+          hint={t("requestOrgasmHint")}
+        />
 
-          {/* Orgasmus anfordern */}
-          <Link
-            href={`/admin/users/${id}/aktionen/orgasmus-anforderung`}
-            className="flex items-center gap-4 px-5 py-4 rounded-b-2xl hover:bg-surface-raised transition active:scale-[0.98]"
-          >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-orgasm-bg)" }}>
-              <Droplets size={20} strokeWidth={2} style={{ color: "var(--color-orgasm)" }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">{t("requestOrgasm")}</p>
-              <p className="text-xs text-foreground-faint">{t("requestOrgasmHint")}</p>
-            </div>
-            <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-          </Link>
+        {/* Aufgabe stellen — ohne Kategorien gäbe es nur Freitext-Aufgaben ohne prüfbare Bedingung,
+            und der Bedingungs-Wähler wäre bis auf die KG-Zeile leer. */}
+        <ActionRow
+          href={flagOn ? `${base}/aufgabe` : undefined}
+          icon={<ClipboardList size={20} strokeWidth={2} />}
+          iconStyle={{ backgroundColor: "var(--color-surface-raised)", color: "var(--color-foreground-muted)" }}
+          title={tt("actionTitle")}
+          hint={flagOn ? tt("actionHint") : tt("categoriesDisabledHint")}
+        />
+      </ActionRowGroup>
 
-        </div>
-      </div>
+      <ActionRowGroup title={t("aktionenItems")}>
+        <ActionRow
+          href={isLocked ? undefined : `${base}/verschluss`}
+          icon={<Lock size={20} strokeWidth={2} />}
+          iconStyle={tone("lock")}
+          title={t("entryVerschluss")}
+          hint={isLocked ? t("entryOnlyIfOpen") : t("entryVerschlussDesc")}
+        />
 
-      {/* Items */}
-      <div>
-        <p className="text-xs font-semibold text-foreground-faint uppercase tracking-wider px-1 mb-2">{t("aktionenItems")}</p>
-        <div className="bg-surface rounded-2xl border border-border-subtle divide-y divide-border-subtle">
+        <ActionRow
+          href={isLocked ? `${base}/oeffnen` : undefined}
+          icon={<LockOpen size={20} strokeWidth={2} />}
+          iconStyle={tone("unlock")}
+          title={t("entryOeffnen")}
+          hint={isLocked ? t("entryOeffnenDesc") : t("entryOnlyIfLocked")}
+        />
 
-          {/* Verschluss */}
-          {isLocked ? (
-            <div className="flex items-center gap-4 px-5 py-4 rounded-t-2xl opacity-40 cursor-not-allowed">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
-                <Lock size={20} strokeWidth={2} className="text-foreground-faint" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground-muted">{t("entryVerschluss")}</p>
-                <p className="text-xs text-foreground-faint">{t("entryOnlyIfOpen")}</p>
-              </div>
-            </div>
-          ) : (
-            <Link
-              href={`/admin/users/${id}/aktionen/verschluss`}
-              className="flex items-center gap-4 px-5 py-4 rounded-t-2xl hover:bg-surface-raised transition active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-lock-bg)" }}>
-                <Lock size={20} strokeWidth={2} style={{ color: "var(--color-lock)" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{t("entryVerschluss")}</p>
-                <p className="text-xs text-foreground-faint">{t("entryVerschlussDesc")}</p>
-              </div>
-              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-            </Link>
-          )}
+        <ActionRow
+          href={`${base}/pruefung`}
+          icon={<ClipboardCheck size={20} strokeWidth={2} />}
+          iconStyle={tone("inspect")}
+          title={t("entryPruefung")}
+          hint={t("entryPruefungDesc")}
+        />
 
-          {/* Öffnen */}
-          {isLocked ? (
-            <Link
-              href={`/admin/users/${id}/aktionen/oeffnen`}
-              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-unlock-bg)" }}>
-                <LockOpen size={20} strokeWidth={2} style={{ color: "var(--color-unlock)" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{t("entryOeffnen")}</p>
-                <p className="text-xs text-foreground-faint">{t("entryOeffnenDesc")}</p>
-              </div>
-              <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-            </Link>
-          ) : (
-            <div className="flex items-center gap-4 px-5 py-4 opacity-40 cursor-not-allowed">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-surface-raised flex-shrink-0">
-                <LockOpen size={20} strokeWidth={2} className="text-foreground-faint" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground-muted">{t("entryOeffnen")}</p>
-                <p className="text-xs text-foreground-faint">{t("entryOnlyIfLocked")}</p>
-              </div>
-            </div>
-          )}
+        <ActionRow
+          href={`${base}/orgasmus`}
+          icon={<Droplets size={20} strokeWidth={2} />}
+          iconStyle={tone("orgasm")}
+          title={t("entryOrgasmus")}
+          hint={t("entryOrgasmusDesc")}
+        />
 
-          {/* Prüfung */}
-          <Link
-            href={`/admin/users/${id}/aktionen/pruefung`}
-            className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
-          >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-inspect-bg)" }}>
-              <ClipboardCheck size={20} strokeWidth={2} style={{ color: "var(--color-inspect)" }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">{t("entryPruefung")}</p>
-              <p className="text-xs text-foreground-faint">{t("entryPruefungDesc")}</p>
-            </div>
-            <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-          </Link>
-
-          {/* Orgasmus */}
-          <Link
-            href={`/admin/users/${id}/aktionen/orgasmus`}
-            className={`flex items-center gap-4 px-5 py-4 ${categories.length === 0 ? "rounded-b-2xl" : ""} hover:bg-surface-raised transition active:scale-[0.98]`}
-          >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-orgasm-bg)" }}>
-              <Droplets size={20} strokeWidth={2} style={{ color: "var(--color-orgasm)" }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">{t("entryOrgasmus")}</p>
-              <p className="text-xs text-foreground-faint">{t("entryOrgasmusDesc")}</p>
-            </div>
-            <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-          </Link>
-
-          {/* Per-Category wear actions */}
-          {categories.map((c, i) => {
-            const active = activeByCategory.get(c.id);
-            const isLast = i === categories.length - 1;
-            const href = active
-              ? `/admin/users/${id}/aktionen/wear-end?category=${c.id}`
-              : `/admin/users/${id}/aktionen/wear-begin?category=${c.id}`;
-            const subLabel = active ? `${tw("endShort")} · ${active.deviceName}` : tw("titleBegin");
-            const style = categoryStyle(c.color);
-            return (
-              <Link
-                key={c.id}
-                href={href}
-                className={`flex items-center gap-4 px-5 py-4 ${isLast ? "rounded-b-2xl" : ""} hover:bg-surface-raised transition active:scale-[0.98]`}
-              >
-                <div
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: style.backgroundColor, color: style.color }}
-                >
-                  <CategoryIconRender name={c.icon} className="size-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{c.name}</p>
-                  <p className="text-xs text-foreground-faint truncate">{subLabel}</p>
-                </div>
-                <ChevronRight size={16} className="text-foreground-faint flex-shrink-0" />
-              </Link>
-            );
-          })}
-
-        </div>
-      </div>
+        {categories.map((c) => {
+          const active = activeByCategory.get(c.id);
+          const style = categoryStyle(c.color);
+          return (
+            <ActionRow
+              key={c.id}
+              href={`${base}/${active ? "wear-end" : "wear-begin"}?category=${c.id}`}
+              icon={<CategoryIconRender name={c.icon} className="size-5" />}
+              iconStyle={{ backgroundColor: style.backgroundColor, color: style.color }}
+              title={c.name}
+              hint={active ? `${tw("endShort")} · ${active.deviceName}` : tw("titleBegin")}
+            />
+          );
+        })}
+      </ActionRowGroup>
     </>
   );
 }

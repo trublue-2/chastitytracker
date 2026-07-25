@@ -6,7 +6,7 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
 import { ORGASMUS_ARTEN } from "@/lib/constants";
@@ -720,8 +720,8 @@ function registerTools(server: McpServer) {
           "pass id to cancel exactly one. For lock_request/lock_period, a dryRun without id lists each open one " +
           "(id, status, message, dates) so you can see which to pick." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
-          target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
-          id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives). Only for lock_request/lock_period."),
+          target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive", "task"]).describe("Which open directive to withdraw. `task` always needs an id."),
+          id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives / openTasks). Only for lock_request/lock_period/task."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
@@ -900,6 +900,62 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("edit_lock_request", extra, args, (u) => mcpEditLockRequest(u, args)),
+    );
+
+    server.registerTool(
+      "create_task",
+      {
+        title: "Set a task",
+        description:
+          "Sets the user a task: free text plus any number of CONDITIONS that must hold CONTINUOUSLY " +
+          "until a point in time — wear a device (by category, optionally a specific one) and/or keep the " +
+          "chastity device locked. Example: \"vacuum the flat, wearing collar and gag, locked, until 15:00\" " +
+          "= requireKgLocked plus two requireWearing entries and holdUntilAt=15:00. Taking one of them off " +
+          "before the deadline makes the task unfulfilled (an offense of type unfulfilled_task). Without " +
+          "conditions it is a plain to-do that the user reports done. State is DERIVED from the user's own " +
+          "entries — nothing to confirm manually. A task may be flagged as a punishment." + KEYHOLDER_NOTE,
+        inputSchema: {
+          title: z.string().describe("Short title, e.g. \"Vacuum the flat\"."),
+          description: z.string().optional().describe("The full instruction shown to the user."),
+          holdUntilAt: z.string().optional().describe("Hold everything until this moment (ISO 8601, future)."),
+          holdHours: z.number().positive().optional().describe("Hold for this many hours from now. Ignored if holdUntilAt is given."),
+          requireKgLocked: z.boolean().optional().describe("The chastity device must stay locked for the whole time."),
+          requireWearing: z.array(z.object({
+            category: z.string().describe("Category name, e.g. \"Halsband\". Not \"KG\" — use requireKgLocked."),
+            device: z.string().optional().describe("Require this specific device of that category."),
+          })).optional().describe("Devices that must be worn continuously."),
+          startGraceMinutes: z.number().min(0).optional().describe("Minutes the user has to put everything on (default 30). Starting later counts as not held continuously."),
+          isPunishment: z.boolean().optional().describe("Mark the task as a punishment."),
+          penaltyReason: z.string().optional().describe("What the punishment is for. Only kept when isPunishment is true."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("create_task", extra, args, (u) => mcpCreateTask(u, args)),
+    );
+
+    server.registerTool(
+      "edit_task",
+      {
+        title: "Change an open task",
+        description:
+          "Changes an existing task — title, instruction, deadline, punishment flag. Only fields you pass " +
+          "are changed. Moving the deadline takes effect immediately (state is derived, not frozen). The " +
+          "CONDITIONS themselves cannot be changed: withdraw the task and set a new one instead, otherwise " +
+          "the user would be judged against conditions he never got." + KEYHOLDER_NOTE,
+        inputSchema: {
+          id: z.string().describe("Task id (from keyholder_dashboard.openTasks or get_offenses)."),
+          title: z.string().optional(),
+          description: z.string().optional().describe('New instruction; "" clears it.'),
+          holdUntilAt: z.string().optional().describe("New end (ISO 8601)."),
+          holdHours: z.number().positive().optional().describe("New end, in hours from now. Ignored if holdUntilAt is given."),
+          isPunishment: z.boolean().optional(),
+          penaltyReason: z.string().optional(),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("edit_task", extra, args, (u) => mcpEditTask(u, args)),
     );
 
     // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──

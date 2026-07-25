@@ -5,7 +5,7 @@ import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
-import Input from "@/app/components/Input";
+import HoursInput from "@/app/components/HoursInput";
 import Textarea from "@/app/components/Textarea";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
@@ -62,13 +62,7 @@ export default function KontrolleFields({
         rows={2}
       />
 
-      <div className="flex items-center gap-2">
-        <label className="text-xs text-foreground-faint whitespace-nowrap">{t("kontrolleHours")}</label>
-        <div className="w-24">
-          <Input type="number" value={deadlineH} onChange={(e) => setDeadlineH(e.target.value)} min={0.1} step={0.1} />
-        </div>
-        <span className="text-xs text-foreground-faint">h</span>
-      </div>
+      <HoursInput label={t("kontrolleHours")} value={deadlineH} onChange={setDeadlineH} min={0.1} step={0.1} unit={t("hoursUnit")} />
 
       <FormError message={error} variant="compact" />
 

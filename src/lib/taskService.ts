@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { notifyUser } from "@/lib/notify";
+import { getControllersOfUser } from "@/lib/keyholder";
+import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, TASK_DEFAULT_START_GRACE_MIN,
   TASK_START_GRACE_RANGE, TASK_REQUIREMENT_TYPES, type TaskRequirementType,
 } from "@/lib/constants";
-import { clamp, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.
@@ -66,11 +68,6 @@ export interface MergedTask {
   penaltyReason: string | null;
 }
 
-/**
- * Führt Bestand und Änderung zusammen — PURE, damit die dryRun-Vorschau des MCP exakt das zeigt, was
- * der Commit schreibt. (Genau diese Trennung war der Fund aus dem Review der Verschluss-Anforderung:
- * eine eigene Nachrechnung in der Vorschau läuft irgendwann auseinander.)
- */
 export function effectivePenaltyReason(isPunishment: boolean, reason: string | null | undefined): string | null {
   // Ein Straf-Anlass ohne Strafe ist ein leeres Versprechen in der Zeile. Bewusst hier statt zweimal
   // im Service: sonst setzt der Änderungs-Pfad einen Anlass, den der Anlege-Pfad verworfen hätte —
@@ -78,6 +75,11 @@ export function effectivePenaltyReason(isPunishment: boolean, reason: string | n
   return isPunishment ? (reason?.trim() || null) : null;
 }
 
+/**
+ * Führt Bestand und Änderung zusammen — PURE, damit die dryRun-Vorschau des MCP exakt das zeigt, was
+ * der Commit schreibt. (Genau diese Trennung war der Fund aus dem Review der Verschluss-Anforderung:
+ * eine eigene Nachrechnung in der Vorschau läuft irgendwann auseinander.)
+ */
 export function mergeTaskPatch(current: MergedTask, patch: UpdateTaskParams): MergedTask {
   const isPunishment = patch.isPunishment ?? current.isPunishment;
   return {
@@ -189,7 +191,13 @@ async function checkRequirements(
 /** Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub. */
 export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ id: string }>> {
   const now = new Date();
-  const graceMin = clamp(Math.round(p.startGraceMin ?? TASK_DEFAULT_START_GRACE_MIN), TASK_START_GRACE_RANGE);
+  // Bewusst OHNE `clamp`: dessen `Math.round(value) || fallback` macht aus einer ausdrücklich
+  // gesetzten 0 („sofort anfangen") den Default 30 — der dokumentierte Wertebereich beginnt aber bei
+  // 0 und wäre damit unerreichbar.
+  const graceMin = Math.min(
+    TASK_START_GRACE_RANGE.max,
+    Math.max(TASK_START_GRACE_RANGE.min, Math.round(p.startGraceMin ?? TASK_DEFAULT_START_GRACE_MIN)),
+  );
   const reqs = p.requirements ?? [];
 
   // Erst die reinen Parameter, dann die DB — wie in `createVerschlussAnforderung`.
@@ -326,4 +334,73 @@ export async function completeTask(
     return exists === 0 ? serviceFail(404, "TASK_NOT_FOUND") : { ok: true, data: { id } };
   }
   return { ok: true, data: { id } };
+}
+
+/**
+ * Meldet das Ergebnis fälliger Aufgaben — einmal, an Sub und Keyholder.
+ *
+ * Läuft im bestehenden Minuten-Tick. Ungefährlich für die anderen Poller-Blöcke, weil er
+ * ausschliesslich die eigene Tabelle liest und schreibt; der Zustand selbst bleibt abgeleitet, hier
+ * wird nur der VERSAND gestempelt (`resultNotifiedAt`).
+ *
+ * Ohne diesen Block erführen beide Seiten erst beim nächsten App-Start, ob die Aufgabe erfüllt wurde.
+ */
+export async function processDueTasks(now: Date): Promise<void> {
+  const due = await prisma.task.findMany({
+    where: { holdUntil: { lte: now }, withdrawnAt: null, resultNotifiedAt: null },
+    orderBy: { holdUntil: "asc" },
+    take: 50,
+    include: TASK_INCLUDE,
+  });
+  if (due.length === 0) return;
+
+  // Je User EINMAL auswerten: `evaluateTasks` liest die Trage-/Verschluss-Einträge des Users, und die
+  // sind für alle seine Aufgaben dieselben.
+  const byUser = new Map<string, typeof due>();
+  for (const task of due) {
+    const list = byUser.get(task.userId);
+    if (list) list.push(task);
+    else byUser.set(task.userId, [task]);
+  }
+
+  for (const [userId, tasks] of byUser) {
+    try {
+      // Empfänger und Anzeigename hängen nur am User, nicht an der einzelnen Aufgabe — einmal holen,
+      // sonst sind es bei fünf fälligen Aufgaben zehn Abfragen statt zwei, in jedem Minuten-Tick.
+      const [evaluated, controllers, user] = await Promise.all([
+        evaluateTasks(userId, tasks, now),
+        getControllersOfUser(userId),
+        prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+      ]);
+      const username = user?.username ?? "";
+      const notified: string[] = [];
+
+      for (const e of evaluated) {
+        // Bedingungen hielten, aber die Selbstmeldung fehlt: noch kein Ergebnis — der Sub kann sie
+        // jederzeit nachholen. Erst melden, wenn wirklich etwas feststeht.
+        if (e.evaluation.awaitingConfirmation) continue;
+
+        const done = e.evaluation.state === "done";
+        await notifyUser(userId, {
+          subjectKey: done ? "taskDoneSubject" : "taskFailedSubject",
+          messageKey: done ? "taskDoneMessage" : "taskFailedMessage",
+          params: { title: e.task.title },
+        });
+        await Promise.all(controllers.map((c) =>
+          notifyUser(c.id, {
+            subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",
+            messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
+            params: { username, title: e.task.title },
+          }),
+        ));
+        notified.push(e.task.id);
+      }
+      if (notified.length > 0) {
+        await prisma.task.updateMany({ where: { id: { in: notified } }, data: { resultNotifiedAt: now } });
+      }
+    } catch (err) {
+      // Nie den Tick abbrechen — der nächste Lauf versucht es erneut (resultNotifiedAt bleibt null).
+      console.error("[processDueTasks]", userId, (err as Error).message);
+    }
+  }
 }

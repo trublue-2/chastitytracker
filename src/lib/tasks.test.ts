@@ -299,3 +299,52 @@ describe("Zustands-Prädikate", () => {
     expect(isTaskOffense("done")).toBe(false);
   });
 });
+
+describe("REGRESSION: eine Unterbrechung INNERHALB der Kulanzfrist darf nicht härter zählen als Nichtstun", () => {
+  const task = {
+    createdAt: new Date("2026-07-25T12:00:00Z"),
+    holdUntil: new Date("2026-07-25T15:00:00Z"),
+    startGraceMin: 30,
+    completedAt: null,
+    withdrawnAt: null,
+  };
+  const req = [{ id: "r1", label: "Halsband" }];
+
+  it("wer schon vorher trug, kurz ablegt und in der Frist wieder anlegt, läuft", () => {
+    const r = evaluateTask(
+      task,
+      req,
+      [[
+        iv("2026-07-25T11:00:00Z", "2026-07-25T12:05:00Z"),
+        iv("2026-07-25T12:20:00Z", "2026-07-25T14:00:00Z"),
+      ]],
+      new Date("2026-07-25T14:00:00Z"),
+    );
+    expect(r.state).toBe("running");
+    expect(r.startedAt).toEqual(new Date("2026-07-25T12:20:00Z"));
+  });
+
+  it("… und steht damit nicht schlechter da als jemand, der bis 12:20 gar nichts trug", () => {
+    const r = evaluateTask(
+      task,
+      req,
+      [[iv("2026-07-25T12:20:00Z", "2026-07-25T14:00:00Z")]],
+      new Date("2026-07-25T14:00:00Z"),
+    );
+    expect(r.state).toBe("running");
+  });
+
+  it("eine Lücke NACH der Kulanzfrist bleibt ein Abbruch — mit Beleg", () => {
+    const r = evaluateTask(
+      task,
+      req,
+      [[
+        iv("2026-07-25T12:10:00Z", "2026-07-25T13:00:00Z"),
+        iv("2026-07-25T13:30:00Z", "2026-07-25T14:00:00Z"),
+      ]],
+      new Date("2026-07-25T14:00:00Z"),
+    );
+    expect(r.state).toBe("aborted");
+    expect(r.failedAt).toEqual(new Date("2026-07-25T13:00:00Z"));
+  });
+});

@@ -8,6 +8,7 @@ import Card from "@/app/components/Card";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import ExpandToggle from "@/app/components/ExpandToggle";
 import { formatHours, toDateLocale } from "@/lib/utils";
 
 export interface InactiveCategoryRow {
@@ -36,19 +37,11 @@ export default function InactiveCategories({ categories }: Props) {
 
   return (
     <DashboardBlock>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between text-sm text-foreground-muted hover:text-foreground transition px-1 py-1"
-        aria-expanded={open}
-      >
-        <span>{t("inactiveCategories", { count: categories.length })}</span>
-        <ChevronDown
-          size={16}
-          className={`transition-transform ${open ? "rotate-180" : ""}`}
-          aria-hidden
-        />
-      </button>
+      <ExpandToggle
+        label={t("inactiveCategories", { count: categories.length })}
+        open={open}
+        onToggle={() => setOpen((v) => !v)}
+      />
       {open && (
         <ul className="mt-2 flex flex-col gap-2">
           {categories.map((c) => {

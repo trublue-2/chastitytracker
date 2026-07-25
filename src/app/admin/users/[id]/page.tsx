@@ -181,7 +181,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             tz={tz}
             viewerTz={viewerTz}
             subTimePrefix={subLabel}
-            withdrawAction={<WithdrawButton id={offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
+            withdrawAction={<WithdrawButton id={offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
           />
         );
       })()}

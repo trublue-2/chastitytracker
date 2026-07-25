@@ -245,7 +245,7 @@ export default async function AdminPage() {
                         variant="compact"
                         tz={rowTz}
                         viewerTz={viewerTz}
-                        withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" titleKey="withdrawKontrolleTitle" colorToken="inspect" />}
+                        withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" title={t("withdrawKontrolleTitle")} colorToken="inspect" />}
                       />
                     )}
                     {u.stats.offeneAnforderungen.map((a) => (
@@ -260,7 +260,7 @@ export default async function AdminPage() {
                         tz={rowTz}
                         viewerTz={viewerTz}
                         subTimePrefix={subLabel}
-                        withdrawAction={<WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
+                        withdrawAction={<WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
                       />
                     ))}
                     {u.stats.activeSperrzeit && (
@@ -277,7 +277,7 @@ export default async function AdminPage() {
                         // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den
                         // Benutzer-Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
                         cleaningNote={t(u.stats.activeSperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
-                        withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
+                        withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
                       />
                     )}
                     {u.stats.offeneOrgasmusAnforderung && (
@@ -294,7 +294,7 @@ export default async function AdminPage() {
                         tz={rowTz}
                         viewerTz={viewerTz}
                         subTimePrefix={subLabel}
-                        withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
+                        withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
                       />
                     )}
 
@@ -323,7 +323,7 @@ export default async function AdminPage() {
                                 {s.message && <p className="truncate opacity-80 mt-0.5">{s.message}</p>}
                               </div>
                               <span className="flex-shrink-0">
-                                <WithdrawButton id={s.id} apiPath={apiPath} titleKey="scheduledWithdrawTitle" colorToken={colorToken} />
+                                <WithdrawButton id={s.id} apiPath={apiPath} title={t("scheduledWithdrawTitle")} colorToken={colorToken} />
                               </span>
                             </div>
                           );

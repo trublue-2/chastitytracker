@@ -14,6 +14,7 @@ import { diffFields } from "@/lib/mcp/writeFramework";
 import { clamp } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
+import { createTask, updateTask, withdrawTask, mergeTaskPatch, type TaskRequirementInput } from "@/lib/taskService";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -354,7 +355,7 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
 }
 
 export interface WithdrawArgs {
-  target: "lock_request" | "lock_period" | "inspection" | "orgasm_directive";
+  target: "lock_request" | "lock_period" | "inspection" | "orgasm_directive" | "task";
   /** EINE Direktive gezielt zurückziehen (nur lock_request/lock_period). Ohne id trifft es alle
    *  offenen der Art — bei mehreren offenen Anforderungen wäre das mehr als gemeint. */
   id?: string;
@@ -376,8 +377,20 @@ async function assertOwnedDirective(id: string, userId: string, target: Withdraw
 
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
+  if (args.target === "task") {
+    // Aufgaben verlangen IMMER eine id: sie koexistieren beliebig, ein Rundumschlag über alle offenen
+    // wäre bei ihnen nie die gemeinte Geste.
+    if (!args.id) throw new Error("target task requires an id (from keyholder_dashboard.openTasks).");
+    const task = await prisma.task.findUnique({ where: { id: args.id }, select: { userId: true, title: true } });
+    if (!task || task.userId !== userId) throw new Error(`No task with id ${args.id}.`);
+    if (args.dryRun) {
+      return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: "task", id: args.id, title: task.title, willWithdraw: 1 } } satisfies DryRunPreview;
+    }
+    unwrap(await withdrawTask(args.id, userId));
+    return { ok: true, withdrawn: 1, hidden: 0, message: `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.` };
+  }
   if (args.id && args.target !== "lock_request" && args.target !== "lock_period") {
-    throw new Error("id is only supported for target lock_request or lock_period.");
+    throw new Error("id is only supported for target lock_request, lock_period or task.");
   }
   if (args.id) await assertOwnedDirective(args.id, userId, args.target);
   if (args.dryRun) {
@@ -985,4 +998,137 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     : r.status === "open" ? "Judgment reopened — the offense is open again."
     : "Offense punished — the penalty was recorded; the user was notified by e-mail + push.";
   return { ok: true, status: r.status, done: r.done, message };
+}
+
+// ── Aufgaben ────────────────────────────────────────────────────────────────────────────────────
+
+export interface TaskRequirementArg {
+  /** Kategoriename („Halsband"); „KG" ist hier NICHT zulässig — dafür `requireKgLocked`. */
+  category: string;
+  /** Optional ein bestimmtes Gerät dieser Kategorie. */
+  device?: string;
+}
+
+export interface CreateTaskArgs {
+  title: string;
+  description?: string;
+  holdUntilAt?: string;
+  holdHours?: number;
+  requireKgLocked?: boolean;
+  requireWearing?: TaskRequirementArg[];
+  startGraceMinutes?: number;
+  isPunishment?: boolean;
+  penaltyReason?: string;
+  dryRun?: boolean;
+}
+
+export interface EditTaskArgs {
+  id: string;
+  title?: string;
+  description?: string;
+  holdUntilAt?: string;
+  holdHours?: number;
+  isPunishment?: boolean;
+  penaltyReason?: string;
+  dryRun?: boolean;
+}
+
+/** Auflösung eines Gerätenamens über ALLE aktiven Geräte — `resolveDeviceId` sieht per
+ *  `getUserDeviceOptions` nur KG-Geräte, und eine Aufgabe fordert gerade die anderen. */
+async function resolveAnyDeviceId(userId: string, categoryId: string, name: string): Promise<string> {
+  const devices = await prisma.device.findMany({
+    where: { userId, categoryId, archivedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true },
+  });
+  const match = matchByNameCI(devices, name);
+  if (!match) throw new Error(`Device not found in this category: "${name}". Available: ${devices.map((d) => d.name).join(", ") || "none"}`);
+  return match.id;
+}
+
+/** „Bis wann halten" aus den zwei erlaubten Formen. Genau eine muss kommen. */
+function resolveHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date {
+  if (args.holdUntilAt) {
+    const d = new Date(args.holdUntilAt);
+    if (Number.isNaN(d.getTime())) throw new Error(`Invalid holdUntilAt: "${args.holdUntilAt}"`);
+    return d;
+  }
+  if (args.holdHours != null) return new Date(now.getTime() + args.holdHours * 3600_000);
+  throw new Error("Either holdUntilAt or holdHours is required.");
+}
+
+/** Bedingungs-Namen → ids. Getrennt vom Commit, damit die dryRun-Vorschau dieselbe Auflösung (und
+ *  dieselben Fehlermeldungen bei unbekannten Namen) durchläuft wie der echte Aufruf. */
+async function resolveTaskRequirements(userId: string, args: CreateTaskArgs): Promise<TaskRequirementInput[]> {
+  const out: TaskRequirementInput[] = [];
+  if (args.requireKgLocked) out.push({ type: "KG_LOCKED" });
+  for (const r of args.requireWearing ?? []) {
+    const categoryId = await resolveCategoryId(userId, r.category);
+    out.push({
+      type: "WEAR",
+      categoryId,
+      deviceId: r.device ? await resolveAnyDeviceId(userId, categoryId, r.device) : null,
+    });
+  }
+  return out;
+}
+
+export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
+  const userId = await resolveTargetUserId(username);
+  const holdUntil = resolveHoldUntil(args, new Date());
+  const requirements = await resolveTaskRequirements(userId, args);
+
+  if (args.dryRun) {
+    return dryRunPreview("create_task", undefined, {
+      title: args.title,
+      holdUntil: holdUntil.toISOString(),
+      requirementCount: requirements.length,
+      requiresKgLocked: requirements.some((r) => r.type === "KG_LOCKED"),
+      startGraceMinutes: args.startGraceMinutes ?? null,
+      isPunishment: args.isPunishment ?? false,
+    });
+  }
+
+  const data = unwrap(await createTask({
+    userId,
+    title: args.title,
+    description: args.description,
+    holdUntil,
+    startGraceMin: args.startGraceMinutes,
+    isPunishment: args.isPunishment,
+    penaltyReason: args.penaltyReason,
+    requirements,
+  }));
+  return {
+    ok: true,
+    id: data.id,
+    message: requirements.length === 0
+      ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdUntil.toISOString()}.`
+      : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY until ${holdUntil.toISOString()}; taking one off earlier makes the task unfulfilled.`,
+  };
+}
+
+export async function mcpEditTask(username: string, args: EditTaskArgs) {
+  const userId = await resolveTargetUserId(username);
+  const task = await prisma.task.findUnique({ where: { id: args.id } });
+  if (!task || task.userId !== userId) throw new Error(`Task not found: ${args.id}`);
+
+  const patch = {
+    title: args.title,
+    description: args.description,
+    holdUntil: args.holdUntilAt || args.holdHours != null ? resolveHoldUntil(args, new Date()) : undefined,
+    isPunishment: args.isPunishment,
+    penaltyReason: args.penaltyReason,
+  };
+
+  if (args.dryRun) {
+    // Über dieselbe pure Merge-Funktion wie der Commit — eine eigene Nachrechnung liefe auseinander.
+    const before = { title: task.title, description: task.description, holdUntil: task.holdUntil, isPunishment: task.isPunishment, penaltyReason: task.penaltyReason };
+    const after = mergeTaskPatch(before, patch);
+    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE" : undefined;
+    return dryRunPreview("edit_task", problem, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
+  }
+
+  unwrap(await updateTask(args.id, userId, patch));
+  return { ok: true, id: args.id, message: "Task updated. The user was notified." };
 }

@@ -14,6 +14,8 @@ import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 import { toPendingCommand } from "@/lib/boxStatus";
+import { getEvaluatedTasks } from "@/lib/taskIntervals";
+import { isTaskOpen } from "@/lib/tasks";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
@@ -183,6 +185,10 @@ export interface DashboardResult extends Envelope {
      *  die erste davon. Mehrere sind seit v6 normal: sie ersetzen einander nicht, und EIN Verschluss
      *  erfüllt alle. Jede trägt ihre id für `edit_lock_request` / `withdraw`. */
     openLockRequests: OpenLockRequestView[];
+    /** Offene Aufgaben (create_task): Text + Bedingungen, die bis `holdUntil` DURCHGEHEND gelten
+     *  müssen. `state` ist ABGELEITET aus den Einträgen des Subs, nicht gestempelt. Jede trägt ihre
+     *  id für `edit_task` / `withdraw target:"task"`. */
+    openTasks: OpenTaskView[];
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
@@ -199,6 +205,24 @@ export interface DashboardResult extends Envelope {
   boxState: BoxStateView | null;
   /** Aktive Gesundheits-Zurückhaltung (§8) oder null. */
   healthHold: HealthHoldView | null;
+}
+
+/** Eine offene Aufgabe, wie der Keyholder sie sieht. */
+export interface OpenTaskView {
+  id: string;
+  title: string;
+  description: string | null;
+  /** Bis dahin müssen alle Bedingungen durchgehend gelten (ISO-8601 mit Offset). */
+  holdUntil: string;
+  /** pending = nichts erfüllt · partial = ein Teil · running = alles gilt, die Zeit läuft. */
+  state: string;
+  /** Bedingungen, die JETZT nicht gelten — die Antwort auf „woran hängt es gerade?". */
+  missing: string[];
+  /** Seit wann alle Bedingungen gleichzeitig gelten; null = noch nie. */
+  startedAt: string | null;
+  /** Bedingungen hielten durch, es fehlt nur noch die Erledigt-Meldung des Subs. */
+  awaitingUserConfirmation: boolean;
+  isPunishment: boolean;
 }
 
 /** Eine vom Keyholder terminierte, noch nicht ausgelöste Direktive (für scheduledDirectives). */
@@ -429,6 +453,21 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const todayIncludesPriorSession =
     rec.currentRunHours != null && periods.kg.today - rec.currentRunHours > ROUND_EPSILON_H;
 
+  // Aufgaben: Zustand wird aus den Einträgen abgeleitet, deshalb laden → auswerten → nur die offenen.
+  const openTasks: OpenTaskView[] = (await getEvaluatedTasks(trackingCtx.userId, now, undefined, { kgEntries: trackingCtx.entries, wearEntries: trackingCtx.entries }))
+    .filter((e) => isTaskOpen(e.evaluation.state))
+    .map((e) => ({
+      id: e.task.id,
+      title: e.task.title,
+      description: e.task.description,
+      holdUntil: iso(e.task.holdUntil)!,
+      state: e.evaluation.state,
+      missing: e.evaluation.missing.map((m) => m.label),
+      startedAt: iso(e.evaluation.startedAt),
+      awaitingUserConfirmation: e.evaluation.awaitingConfirmation,
+      isPunishment: e.task.isPunishment,
+    }));
+
   // Einmal mappen, zweimal ausliefern: `openLockRequest` ist DASSELBE Objekt wie `openLockRequests[0]`
   // (die dringendste), nicht ein zweites, das auseinanderlaufen könnte.
   const openLockRequestViews = openLockRequestRows.map((r) => mapOpenLockRequest(r, now, fmt)!);
@@ -466,6 +505,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       // Sie wäre ein Dauer-Gespenst im Dashboard, das niemand mehr wegbekommt.
       interruptedLockPeriod: activeSperrzeitRow ? null : mapInterruptedSperrzeit(interruptedSperrzeitRow, fmt),
       openOrgasmWindow: mapOpenOrgasmusAnforderung(openOrgasmusRow, now, fmt),
+      openTasks,
       // Die dringendste zuerst (getOpenLockRequests sortiert danach) — sie steht zusätzlich einzeln,
       // damit die häufige Frage „was ist als Nächstes fällig?" nicht durch eine Liste muss.
       openLockRequest: openLockRequestViews[0] ?? null,

@@ -10,39 +10,11 @@ import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
+import FieldTabs from "@/app/components/FieldTabs";
+import HoursInput from "@/app/components/HoursInput";
 import type { DeviceOption } from "@/lib/queries";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-
-/** Labeled full-width tab group (segmented selector). Local to this form — shared by the
- *  deadline (frist) and the scheduling selector so the markup is not duplicated. */
-function FieldTabs<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: readonly { value: T; label: string }[];
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-xs text-foreground-faint">{label}</label>
-      <div className="flex bg-surface-raised border border-border rounded-xl overflow-hidden">
-        {options.map((opt) => (
-          <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
-            className={`flex-1 py-2 text-sm text-center transition-all ${
-              value === opt.value ? "bg-foreground text-background font-semibold" : "text-foreground-muted hover:bg-border-subtle"
-            }`}>
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /**
  * Shared form body for "Verschluss anfordern" (ANFORDERUNG) and "Sperrdauer setzen" (SPERRZEIT).
@@ -193,12 +165,7 @@ export default function VerschlussAnforderungFields({
       />
 
       {mode === "duration" ? (
-        <div className="flex items-center gap-2">
-          <div className="w-24">
-            <Input type="number" value={deadlineH} onChange={(e) => setDeadlineH(e.target.value)} min={0.5} step={0.5} />
-          </div>
-          <span className="text-xs text-foreground-faint">h</span>
-        </div>
+        <HoursInput value={deadlineH} onChange={setDeadlineH} min={0.5} step={0.5} unit={t("hoursUnit")} />
       ) : (
         <DateTimePicker
           value={endetAt}
@@ -228,12 +195,7 @@ export default function VerschlussAnforderungFields({
               />
               {sperrMode === "duration" ? (
                 <>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24">
-                      <Input type="number" value={minDauerH} onChange={(e) => setMinDauerH(e.target.value)} min={1} step={1} />
-                    </div>
-                    <span className="text-xs text-foreground-faint">h</span>
-                  </div>
+                  <HoursInput value={minDauerH} onChange={setMinDauerH} min={1} step={1} unit={t("hoursUnit")} />
                   <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
                 </>
               ) : (

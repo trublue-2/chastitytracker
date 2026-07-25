@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
 import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
 
 /**
@@ -25,7 +26,7 @@ export async function GET() {
 
   const userId = session.user.id;
   const now = new Date();
-  const [kontrollen, anforderungen, sperrzeit, orgasmus, pendingVerifications] = await Promise.all([
+  const [kontrollen, anforderungen, sperrzeit, orgasmus, pendingVerifications, openTasks] = await Promise.all([
     prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       select: { id: true },
@@ -49,9 +50,23 @@ export async function GET() {
       orderBy: { startTime: "desc" },
       take: 10,
     }),
+    getDashboardTasks(userId, now),
   ]);
 
+  // Aufgaben tragen ihren ABGELEITETEN Zustand in die Signatur, nicht nur ihre id: eine Aufgabe, die
+  // von „läuft" auf „vorzeitig abgelegt" kippt, behält ihre id — bei einer reinen ID-Signatur
+  // aktualisierte der Client nie, obwohl sich das Wichtigste geändert hat.
+  //
+  // Die Auswertung liest die Trage-/Verschluss-Einträge und ist damit teurer als die Zeilen darüber;
+  // `evaluateTasks` steigt bei leerer Liste aber sofort aus. Nutzer ohne offene Aufgaben (die
+  // Mehrheit) zahlen also nur die eine indizierte Task-Abfrage, die oben ohnehin mitläuft.
+  const taskSig = (await evaluateTasks(userId, openTasks, now))
+    .map((e) => `${e.task.id}:${e.evaluation.state}`)
+    .sort()
+    .join(",");
+
   const pendingSig = [
+    "t:" + taskSig,
     "k:" + kontrollen.map((k) => k.id).sort().join(","),
     "v:" + anforderungen.map((a) => a.id).sort().join(","),
     "s:" + (sperrzeit?.id ?? ""),

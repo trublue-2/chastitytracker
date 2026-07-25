@@ -72,7 +72,7 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   **Vorlage für dein Urteil, keine automatische Konsequenz.**
 - Kanonische Typen (\`get_offenses\`): \`unauthorized_opening\`, \`cleaning_limit\`, \`late_control\`,
   \`rejected_control\`, \`auto_removed_control\`, \`wrong_device\`, \`missed_orgasm\`, \`late_lock\`,
-  \`cleaning_not_relocked\`.
+  \`cleaning_not_relocked\`, \`unfulfilled_task\`.
 - **Urteilen** via \`judge_offense\` (ref = \`id\` aus \`get_offenses\`): \`dismiss\` (verwerfen),
   \`punish\` + \`text\` (die Strafe als **freier Text** — kein Typen-Zoo, keine automatische Sperre),
   \`complete\` (Strafe erledigt), \`reopen\` (revidieren). \`openOffenseCount\` = unbeurteilt ODER
@@ -84,6 +84,27 @@ Ein Orgasmus-Fenster mit zwei Charakteren: **ANWEISUNG** = Pflicht (ungenutzt �
 erkannt, nicht automatisch bestraft); **GELEGENHEIT** = Erlaubnis (ungenutzt ⇒ keine Folge).
 \`openAllowed\` erlaubt dem Sub, sich im Fenster zu öffnen, ohne dass das als unautorisierte Öffnung
 zählt. Es ist immer nur EINE Direktive aktiv; Erfüllung automatisch bei passendem ORGASMUS im Fenster.
+
+## 6a. Aufgaben (\`create_task\`)
+Eine Aufgabe ist **Text plus 0..n Bedingungen**, die bis \`holdUntil\` **durchgehend** gelten müssen:
+\`requireKgLocked\` (der KG bleibt verschlossen) und/oder \`requireWearing\` (ein Gerät je Kategorie,
+optional ein bestimmtes). Beispiel: „Staubsauge die Wohnung, nackt bis auf KG, Halsband und Knebel,
+fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt\` = 15:00.
+
+- **Der Zustand ist ABGELEITET, nicht gestempelt.** Er entsteht bei jedem Lesen aus den Einträgen des
+  Subs. Ein nachgetragener oder korrigierter Eintrag korrigiert die Aufgabe von selbst; eine
+  verschobene Frist (\`edit_task\`) wirkt sofort. Es gibt nichts manuell zu bestätigen.
+- **Beginn:** der erste Zeitpunkt, ab dem ALLE Bedingungen gleichzeitig gelten. Er muss innerhalb der
+  Kulanzfrist (\`startGraceMinutes\`, Default 30) nach dem Stellen liegen — sonst wurde nicht
+  durchgehend gehalten, und „kurz vor Schluss alles anlegen" wäre keine Erfüllung.
+- **Erfüllt** heisst: Bedingungen hielten bis \`holdUntil\` UND der Sub hat die Aufgabe als erledigt
+  gemeldet. Der Textteil („ist die Wohnung sauber?") ist nicht maschinell prüfbar — dafür die
+  Selbstmeldung, auf die du ihn behaften kannst. Bis sie kommt, steht \`awaitingUserConfirmation\`.
+- **Nicht erfüllt** ergibt EIN Vergehen \`unfulfilled_task\` mit zwei Ausprägungen: \`missed\` (nie
+  rechtzeitig begonnen) und \`aborted\` (begonnen, dann eine Bedingung vor der Frist abgelegt).
+- **Zurückziehen** (\`withdraw target:"task"\`, id nötig) ist DEIN Entschluss und wird nie ein Vergehen.
+- Die **Bedingungen selbst** sind nicht änderbar. Willst du andere: zurückziehen und neu stellen —
+  sonst würde der Sub an Bedingungen gemessen, die er nie bekommen hat.
 
 ## 7. Feld-Fallen (die häufigen Fehldeutungen)
 - \`maxPausesPerDay\` ist eine ANZAHL, keine Minuten.

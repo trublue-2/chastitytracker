@@ -6,9 +6,11 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getUserDeviceOptions, getIsLocked, getOpenLockRequest } from "@/lib/queries";
 import { bildersafeEnabled, heimdallEnabled } from "@/lib/constants";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
 
-export default async function NewVerschlussPage() {
+export default async function NewVerschlussPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {
+  // Aus der URL (Ketten-Weiterleitung der Aufgaben-Bedingungen) → geprüft, siehe safeInternalPath.
+  const target = safeInternalPath((await searchParams).redirectTo) ?? undefined;
   const session = await auth();
   const userId = session!.user.id;
   const tz = session!.user.timezone ?? APP_TZ;
@@ -42,6 +44,7 @@ export default async function NewVerschlussPage() {
         mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
         devices={devices}
         anforderungDeviceId={offeneAnforderung?.deviceId ?? null}
+        redirectTo={target}
         bildersafe={!boxConfirm && bildersafeEnabled()}
         boxConfirm={boxConfirm}
         boxName={boxName}

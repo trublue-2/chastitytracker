@@ -3,6 +3,8 @@ import { mapAnforderungStatus, tzDateParts, isPastDeadlineUnfulfilled, dateAtLoc
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
+import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { isTaskOffense } from "@/lib/tasks";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
@@ -68,6 +70,17 @@ export interface StrafbuchData {
     deadline: Date;
     relockAt: Date | null;
     note: string | null;
+  }[];
+  /** Aufgaben, die nicht erfüllt wurden: `missed` = nie (rechtzeitig) begonnen, `aborted` = begonnen
+   *  und vor der Frist eine Bedingung abgelegt. Wie alles hier LIVE abgeleitet — ein korrigierter
+   *  Eintrag korrigiert auch das Vergehen. */
+  unfulfilledTasks: {
+    id: string;
+    title: string;
+    holdUntil: Date;
+    state: "missed" | "aborted";
+    /** Nur bei `aborted`: wann die Bedingung wegfiel. */
+    failedAt: Date | null;
   }[];
   /** Judgment records — each marks an offense (by `refId`) as PUNISHED or DISMISSED. */
   strafeRecords: {
@@ -189,7 +202,7 @@ function isAllowedReinigungOpening(
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
+  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
@@ -203,7 +216,24 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     }),
     prisma.strafeRecord.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
     prisma.orgasmusAnforderung.findMany({ where: { userId } }),
+    // Zurückgezogene bleiben draussen: ein Rückzug ist der Entschluss der Keyholderin, kein
+    // Versäumnis des Subs, und darf nie zu einem Vergehen werden.
+    prisma.task.findMany({ where: { userId, withdrawnAt: null }, include: TASK_INCLUDE }),
   ]);
+
+  // Öffnungen und Verschlüsse liegen aus demselben Promise.all vor — durchreichen statt neu laden.
+  // Trage-Einträge lädt das Strafbuch nicht; `wearEntries` bleibt deshalb bewusst offen, damit
+  // `evaluateTasks` sie selbst holt statt sie für leer zu halten.
+  const unfulfilledTasks = (await evaluateTasks(userId, tasks, now, undefined, { kgEntries: [...oeffnungen, ...verschluesse] }))
+    .filter((e) => isTaskOffense(e.evaluation.state))
+    .sort((a, b) => b.task.holdUntil.getTime() - a.task.holdUntil.getTime())
+    .map((e) => ({
+      id: e.task.id,
+      title: e.task.title,
+      holdUntil: e.task.holdUntil,
+      state: e.evaluation.state as "missed" | "aborted",
+      failedAt: e.evaluation.failedAt,
+    }));
 
   // Windows that explicitly permit opening to perform the directed orgasm — an OEFFNEN inside
   // such a window is not an unauthorized opening (like the REINIGUNG exception).
@@ -349,6 +379,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
     lateLocks,
     cleaningNotRelocked,
+    unfulfilledTasks,
     strafeRecords: strafeRecordsRaw.map((r) => ({
       refId: r.refId,
       offenseType: r.offenseType,

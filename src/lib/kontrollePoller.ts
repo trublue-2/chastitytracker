@@ -6,6 +6,7 @@ import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/vers
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
+import { processDueTasks } from "@/lib/taskService";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -100,6 +101,10 @@ async function processDue(): Promise<void> {
     // den zeitkritischen Poller-Tick (fällige Kontroll-/Sperrzeit-Mails) NICHT verzögern. Der State liegt
     // in globalThis, nicht am Tick gekoppelt; ohne `now`-Argument nutzt der Check die echte Ausführungszeit.
     void maybeRunHealthChecks().catch((e) => console.error("[health]", e));
+
+    // Ergebnis fälliger Aufgaben melden. Eigener Block auf der eigenen Tabelle — der frühere
+    // Leak-Befund betraf die GETEILTE Anforderungs-Tabelle, hier gibt es keine Überschneidung.
+    await processDueTasks(now).catch((e) => console.error("[processDueTasks]", e));
   } finally {
     running = false;
   }

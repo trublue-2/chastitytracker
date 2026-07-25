@@ -98,6 +98,9 @@ function intersectTwo(a: Interval[], b: Interval[]): Interval[] {
  * „Alle Bedingungen gleichzeitig erfüllt" — die Schnittmenge über alle Bedingungen.
  * Ohne Bedingungen ist nichts einzuschränken: das Ergebnis ist leer, und der Aufrufer behandelt die
  * Aufgabe als reine Freitext-Aufgabe.
+ *
+ * Verschmilzt die Eingaben selbst — überlappende Intervalle sind der Normalfall (zwei Plugs derselben
+ * Kategorie gleichzeitig getragen). Damit muss kein Aufrufer daran denken.
  */
 export function intersectAll(perRequirement: Interval[][]): Interval[] {
   if (perRequirement.length === 0) return [];
@@ -126,7 +129,7 @@ export function coversContinuously(intervals: Interval[], from: Date, until: Dat
  *  Das Ende zählt EINSCHLIESSLICH: ein laufendes Trage-/Verschluss-Intervall trägt per Konvention der
  *  Paar-Builder `end = now`. Mit einem exklusiven Ende gälte ausgerechnet die gerade getragene
  *  Bedingung als nicht erfüllt — der Sub sähe „fehlt noch", während er das Gerät anhat. */
-function coversPoint(intervals: Interval[], at: Date): boolean {
+export function coversPoint(intervals: Interval[], at: Date): boolean {
   const t = at.getTime();
   return intervals.some((iv) => iv.start.getTime() <= t && t <= iv.end.getTime());
 }
@@ -166,8 +169,10 @@ export function evaluateTask(
     return { ...base, state: now >= task.holdUntil ? "missed" : "pending" };
   }
 
-  const merged = perRequirement.map((iv) => mergeWearPairs(iv));
-  const combined = intersectAll(merged);
+  // Bewusst NICHT vorab verschmelzen: `intersectAll` tut das selbst, und `coversPoint` fragt nur
+  // „deckt irgendein Intervall diesen Zeitpunkt?" — dafür ist Verschmelzen ohne Wirkung. Ein
+  // zusätzliches `map(mergeWearPairs)` wäre ein Sort je Bedingung je Aufgabe für nichts.
+  const combined = intersectAll(perRequirement);
   const deadline = startDeadline(task);
 
   // Beginn: erster Schnitt-Abschnitt, der bis in die Laufzeit der Aufgabe hineinreicht UND spätestens
@@ -177,17 +182,29 @@ export function evaluateTask(
   // Intervall die Suche — trug der Sub dieselben Geräte zufällig schon Stunden vorher, wurde der
   // Beginn auf `createdAt` hochgezogen, obwohl damals nichts anlag, und die Aufgabe galt ab Minute 1
   // als abgebrochen. Ein Vergehen für tadelloses Verhalten, und zwar bei jedem Nutzer mit Vorgeschichte.
-  const startIv = combined.find(
+  const candidates = combined.filter(
     (iv) => iv.end.getTime() > task.createdAt.getTime()
       && Math.max(iv.start.getTime(), task.createdAt.getTime()) <= deadline.getTime(),
   );
-  const startedAt = startIv
-    ? new Date(Math.max(startIv.start.getTime(), task.createdAt.getTime()))
-    : null;
+  const startsOf = (iv: Interval) => new Date(Math.max(iv.start.getTime(), task.createdAt.getTime()));
+
+  // Bis wann muss gedeckt sein? Vor der Frist zählt nur „bis jetzt".
+  const until = now < task.holdUntil ? now : task.holdUntil;
+
+  // Unter den fristgerechten Kandidaten den ERSTEN nehmen, von dem aus es durchhält — nicht blind den
+  // frühesten. Sonst schlägt eine Unterbrechung INNERHALB der Kulanzfrist alles: wer das Gerät schon
+  // vorher trug, es um 12:05 kurz ablegt und um 12:20 (noch in der Frist) wieder anlegt, wäre
+  // „abgebrochen", während jemand, der bis 12:20 gar nichts tat, sauber dasteht. Das korrektere
+  // Verhalten dürfte nie das härtere Urteil bekommen.
+  //
+  // Fällt keiner durch, bleibt der früheste Kandidat: er trägt den Beleg (`failedAt`), den die
+  // Abbruch-Meldung braucht.
+  const startIv = candidates.find((iv) => coversContinuously(combined, startsOf(iv), until)) ?? candidates[0];
+  const startedAt = startIv ? startsOf(startIv) : null;
 
   if (!startedAt) {
     // Noch nicht (rechtzeitig) begonnen. Vor Ablauf der Kulanzfrist: was fehlt noch?
-    const missing = requirements.filter((_, k) => !coversPoint(merged[k], now));
+    const missing = requirements.filter((_, k) => !coversPoint(perRequirement[k], now));
     if (now.getTime() > deadline.getTime()) {
       return { ...base, state: "missed", missing };
     }
@@ -199,7 +216,6 @@ export function evaluateTask(
   }
 
   // Es lief. Hat es bis zum Ende (bzw. bis jetzt) durchgehalten?
-  const until = now < task.holdUntil ? now : task.holdUntil;
   if (!coversContinuously(combined, startedAt, until)) {
     // Erste Lücke finden → welche Bedingung fiel wann weg?
     const runIv = combined.find((iv) => iv.start.getTime() <= startedAt.getTime() && iv.end.getTime() > startedAt.getTime());
@@ -207,7 +223,7 @@ export function evaluateTask(
     // Eine Millisekunde NACH dem Ausfall prüfen: zum Ausfallzeitpunkt selbst gilt die Bedingung noch
     // (Ende einschliessend, siehe coversPoint) — genau dort wäre die Suche sonst ergebnislos.
     const afterFailure = new Date(failedAt.getTime() + 1);
-    const failedIdx = merged.findIndex((iv) => !coversPoint(iv, afterFailure));
+    const failedIdx = perRequirement.findIndex((iv) => !coversPoint(iv, afterFailure));
     return {
       ...base,
       state: "aborted",

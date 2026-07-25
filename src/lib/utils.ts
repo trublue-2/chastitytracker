@@ -781,6 +781,20 @@ export function isSubVisibleKontrolle(item: { anforderungStatus: string | null }
   return item.anforderungStatus !== "withdrawn";
 }
 
+/**
+ * Ein aus der URL stammendes Weiterleitungsziel auf „interner Pfad" einengen — sonst `null`.
+ *
+ * Nötig, seit die Bedingungs-Links einer Aufgabe ein `?redirectTo=` mitgeben (Ketten-Weiterleitung
+ * von Bedingung zu Bedingung). Alle anderen `redirectTo` im Projekt baut der Server selbst; sobald
+ * der Wert aus der Adresszeile kommt, ist ein ungeprüftes `router.push(target)` eine offene
+ * Weiterleitung: `//example.com` und `https://example.com` sind für den Router externe Ziele.
+ * Backslashes fallen ebenfalls raus — manche Parser lesen `/\evil.com` wie `//evil.com`.
+ */
+export function safeInternalPath(path: string | undefined | null): string | null {
+  if (!path || !path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return null;
+  return path;
+}
+
 export function toDatetimeLocal(date: Date | string | null | undefined, tz = APP_TZ): string {
   if (!date) return "";
   const d = new Date(date);

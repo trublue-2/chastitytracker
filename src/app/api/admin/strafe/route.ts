@@ -41,6 +41,9 @@ export async function POST(req: Request) {
   } else if (offenseType === "ORGASMUS_ANWEISUNG") {
     const oa = await prisma.orgasmusAnforderung.findUnique({ where: { id: refId } });
     if (!oa || oa.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } else if (offenseType === "AUFGABE") {
+    const task = await prisma.task.findUnique({ where: { id: refId } });
+    if (!task || task.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   } else if (offenseType === "REINIGUNG_NICHT_VERSCHLOSSEN") {
     // refId is "relock:<entryId>" — shares its entry with REINIGUNG_LIMIT, see cleaningNotRelockedRef.
     const entryId = entryIdFromCleaningNotRelockedRef(refId);

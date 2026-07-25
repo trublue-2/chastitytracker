@@ -6,6 +6,8 @@ import { AlertCircle, Lock, LockOpen } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
+import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
+import type { TaskWarning } from "@/lib/taskIntervals";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -41,11 +43,14 @@ interface Props {
   submitVariant?: "semantic" | "primary";
   submitLabel?: string;
   defaultGrund?: OeffnenGrund;
+  /** Laufende Aufgaben, die den KG noch verschlossen verlangen. Öffnen bricht sie ab. */
+  taskWarnings?: TaskWarning[];
 }
 
 export default function OeffnenFormCore({
   initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
+  taskWarnings = [],
 }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
@@ -108,12 +113,17 @@ export default function OeffnenFormCore({
     await submit(payload);
   }
 
+  const taskGate = useTaskHoldGate({ warnings: taskWarnings, tz, onConfirm: () => { void doSave(); } });
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!grund) { setError(t("grundRequired")); return; }
     if (!note.trim()) { setError(t("commentRequired")); return; }
     if (isReinigungLimitReached) { setShowReinigungLimitWarning(true); return; }
     if (isGesperrtBlockiert) { setShowWarning(true); return; }
+    // Zuletzt die Aufgaben-Rückfrage: die anderen Warnungen betreffen das Öffnen selbst, diese die
+    // Folge für eine laufende Aufgabe.
+    if (taskGate.armed()) return;
     await doSave();
   }
 
@@ -215,6 +225,9 @@ export default function OeffnenFormCore({
         }
       >
         <RequiredHint />
+
+        {taskGate.warningCard}
+        {taskGate.modal}
 
         {isGesperrtBlockiert && (
           <Card variant="semantic" semantic="sperrzeit">

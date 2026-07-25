@@ -5,17 +5,20 @@ import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getActiveWearSessionForCategory } from "@/lib/queries";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
 import WearForm from "../../WearForm";
 
-export default async function NewWearBeginPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+export default async function NewWearBeginPage({ searchParams }: { searchParams: Promise<{ category?: string; device?: string; redirectTo?: string }> }) {
   if (!deviceCategoriesEnabled()) notFound();
   const session = await auth();
   if (!session) redirect("/login");
   const tz = session.user.timezone ?? APP_TZ;
 
-  const { category: categoryId } = await searchParams;
+  // `redirectTo` kommt hier aus der URL (Ketten-Weiterleitung der Aufgaben-Bedingungen) — deshalb
+  // durch `safeInternalPath`, anders als bei den serverseitig gebauten Zielen der Admin-Formulare.
+  const { category: categoryId, device: wantedDevice, redirectTo } = await searchParams;
   if (!categoryId) redirect("/dashboard/categories");
+  const target = safeInternalPath(redirectTo) ?? undefined;
 
   const category = await prisma.deviceCategory.findUnique({
     where: { id: categoryId },
@@ -32,6 +35,12 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
     orderBy: [{ createdAt: "asc" }],
     select: { id: true, name: true },
   });
+
+  // Verlangt eine Aufgabe ein BESTIMMTES Gerät, steht es vorne — `WearForm` wählt das erste vor.
+  // Bewusst nur umsortiert und nicht gefiltert: die Vorgabe soll führen, nicht die freie Wahl
+  // ersetzen (und ein Gerät, das es nicht mehr gibt, darf das Formular nicht leer machen).
+  const preferred = devices.findIndex((d) => d.id === wantedDevice);
+  if (preferred > 0) devices.unshift(...devices.splice(preferred, 1));
 
   const tn = await getTranslations("newEntry");
   const t = await getTranslations("wearForm");
@@ -58,6 +67,7 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
         kind="begin"
         category={{ id: category.id, name: category.name, color: category.color, icon: category.icon, requirePhoto: category.requirePhoto }}
         devices={devices}
+        redirectTo={target}
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
       />

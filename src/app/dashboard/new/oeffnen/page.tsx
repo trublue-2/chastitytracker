@@ -9,6 +9,7 @@ import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
 import { reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
 import { boxHoldOutlook } from "@/lib/boxOpenOutlook";
+import { getTasksBlocking } from "@/lib/taskIntervals";
 
 export default async function NewOeffnenPage() {
   const session = await auth();
@@ -40,6 +41,8 @@ export default async function NewOeffnenPage() {
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("openForm");
+  // Öffnen bricht jede Aufgabe ab, die den KG verschlossen verlangt — vorher warnen und rückfragen.
+  const taskWarnings = await getTasksBlocking(userId, now, { kg: true });
   const grundOptions = resolveReasonList(effectiveOeffnenGruende(user?.oeffnenGruendeConfig), "opening", tf);
 
   return (
@@ -48,6 +51,7 @@ export default async function NewOeffnenPage() {
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
       <OeffnenForm
         grundOptions={grundOptions}
+        taskWarnings={taskWarnings}
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
         sperrzeit={{

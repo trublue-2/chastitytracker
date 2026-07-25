@@ -19,6 +19,10 @@ import { buildReinigungView, reinigungVerbrauchtHeute, nextReinigungsFenster } f
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
+import OpenTasks from "./OpenTasks";
+import { getEvaluatedTasks, isRecentEnough } from "@/lib/taskIntervals";
+import { toTaskCard } from "@/lib/taskView";
+import { isTaskOpen } from "@/lib/tasks";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 import WearSessionList from "./WearSessionList";
@@ -38,6 +42,7 @@ export default async function DashboardPage() {
 
   const t = await getTranslations("dashboard");
   const tOrgasm = await getTranslations("orgasmForm");
+  const tTasks = await getTranslations("tasks");
   const dl = toDateLocale(await getLocale());
   const tz = session.user.timezone ?? APP_TZ;
   const now = new Date();
@@ -113,6 +118,22 @@ export default async function DashboardPage() {
     : [];
 
   const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
+
+  // Aufgaben: Zustand wird abgeleitet, deshalb erst laden, dann auswerten. `evaluateTasks` lädt ohne
+  // Aufgaben gar nichts nach — Nutzer ohne Aufgaben zahlen keinen Preis dafür.
+  // `entries` steht hier längst — durchreichen, statt dieselben Zeilen ein zweites Mal zu laden und
+  // ein zweites Mal zu paaren.
+  const evaluatedTasks = (await getEvaluatedTasks(userId, now, tTasks("requirementKgLocked"), { kgEntries: entries, wearEntries: entries }))
+    .filter((e) => isRecentEnough(e, now));
+  const taskCards = evaluatedTasks.map((e) => toTaskCard(e, true));
+
+  // Kategorien, die eine laufende Aufgabe gerade festhält. Die Trage-Karte ist vollflächig ein Link
+  // aufs Ablege-Formular — ohne Markierung sähe eine gebundene Session aus wie jede andere.
+  const taskHeldCategories = new Set(
+    evaluatedTasks
+      .filter((e) => isTaskOpen(e.evaluation.state))
+      .flatMap((e) => e.requirements.filter((r) => r.type === "WEAR" && r.satisfied).map((r) => r.categoryId)),
+  );
 
   // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard). Läuft
   // KEINE Sperre, hätte es sonst nirgends Platz — dann zeigen wir es als führende Zeile in der
@@ -199,6 +220,7 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
       </DashboardBlock>
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
+      <OpenTasks tasks={taskCards} tz={tz} />
       {showLaufendeSession && (
         <DashboardBlock>
           <LaufendeSessionCard
@@ -234,6 +256,7 @@ export default async function DashboardPage() {
           categoryIcon: s.categoryIcon,
           deviceName: s.deviceName,
           since: s.since.toISOString(),
+          heldReason: taskHeldCategories.has(s.categoryId) ? tTasks("heldByTask") : null,
         }))}
         serverNow={now.toISOString()}
       />

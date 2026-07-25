@@ -18,6 +18,8 @@ import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale, formatDuration } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
+import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
+import type { TaskWarning } from "@/lib/taskIntervals";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import type { WearBeginPayload, WearEndPayload } from "@/app/entries/types";
 import { entryRequest, postAdminEntry, parseApiErrorCode } from "@/lib/apiClient";
@@ -73,9 +75,11 @@ interface Props {
   tz: string;
   /** Server-computed "now" wall-clock in tz (hydration-safe). Used as create default + max fallback. */
   nowDefault: string;
+  /** WEAR_END only — laufende Aufgaben, die genau dieses Gerät noch verlangen. */
+  taskWarnings?: TaskWarning[];
 }
 
-export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime, tz, nowDefault }: Props) {
+export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime, tz, nowDefault, taskWarnings = [] }: Props) {
   const t = useTranslations("wearForm");
   const tCommon = useTranslations("common");
   const apiError = useApiError();
@@ -111,8 +115,16 @@ export default function WearForm({ kind, category, devices, activeSession, admin
     initial: initial?.imageUrl ? { imageUrl: initial.imageUrl, imageExifTime: initial.imageExifTime ?? null } : undefined,
   });
 
-  async function handleSubmit(e: React.FormEvent) {
+  const taskGate = useTaskHoldGate({ warnings: taskWarnings, tz, onConfirm: () => { void submit(); } });
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Erst die Rückfrage, dann das Absenden — `armed()` öffnet sie und bricht hier ab.
+    if (taskGate.armed()) return;
+    void submit();
+  }
+
+  async function submit() {
     if (!isEdit && !deviceId) {
       setError(t("deviceRequired"));
       return;
@@ -200,6 +212,9 @@ export default function WearForm({ kind, category, devices, activeSession, admin
             <h2 className="text-base font-semibold">{kind === "begin" ? t("titleBegin") : t("titleEnd")}</h2>
           </div>
         </div>
+
+        {taskGate.warningCard}
+        {taskGate.modal}
 
         {/* Active session info (WEAR_END) */}
         {kind === "end" && activeSession && (
