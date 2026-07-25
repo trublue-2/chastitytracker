@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.52.3",
+    "date": "2026-07-25",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Admin-Übersicht liefen die geplanten Einschliess-Anforderungen auf dem Handy waagrecht aus dem Bild — die lange Nachricht schob die ganze Seite über den Rand. Datum und Nachricht stehen jetzt sauber untereinander, die Nachricht wird bei Bedarf gekürzt.",
+          "en": "In the admin overview, scheduled lock-up requests overflowed horizontally on mobile — a long message pushed the whole page off-screen. Date and message now stack cleanly, and the message is truncated when needed."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.52.2",
     "date": "2026-07-24",
     "changes": [
