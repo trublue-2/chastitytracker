@@ -152,6 +152,11 @@ export default async function LaufendeSessionCard({
             exifStr,
             note: ev.note,
             entryId: ev.entryId,
+            // Unerreichbar: `buildSessionEvents` nimmt nur BEANTWORTETE Kontrollen auf
+            // (`k.entryId !== null`), `!ev.entryId` ist hier also immer falsch. Bewusst stehen
+            // gelassen statt still entfernt — fällt der Filter dort je weg, muss diese Zeile wie in
+            // `SessionList` einen Keyholder-Riegel bekommen, sonst erfasst der Keyholder die
+            // Kontrolle seines Subs auf dem eigenen Konto.
             captureHref: !ev.entryId && ev.type === "kontrolle" && ev.kontrolleCode
               ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
               : null,

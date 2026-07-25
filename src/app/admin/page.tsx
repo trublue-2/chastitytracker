@@ -199,7 +199,12 @@ export default async function AdminPage() {
             const hasAlarm = !!u.stats.offeneKontrolle || u.stats.hasOffeneAnforderung;
 
             return (
-              <div key={u.id} className="relative">
+              // `min-w-0` ist hier Pflicht, nicht Kosmetik: ein Grid-Item hat `min-width: auto`, die
+              // Spalte kann also nicht unter die Min-Content-Breite ihres Inhalts schrumpfen. Auf 390 px
+              // wuchs die einspaltige Spur dadurch auf 748 px und schob die GANZE Seite nach rechts —
+              // Kopfzeile und Karten links angeschnitten, weisser Streifen rechts. Die Karten-Innereien
+              // brechen und kürzen längst korrekt (v4.52.3); es fehlte allein die Erlaubnis zu schrumpfen.
+              <div key={u.id} className="relative min-w-0">
                 {/* Stretched link — covers whole card for navigation */}
                 <Link
                   href={`/admin/users/${u.id}`}
@@ -214,7 +219,7 @@ export default async function AdminPage() {
                       <UserAvatar username={u.username} size="lg" locked={isLocked} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-foreground">{u.username}</p>
+                          <p className="font-bold text-foreground truncate">{u.username}</p>
                           {hasAlarm && (
                             <span className="w-2 h-2 rounded-full bg-warn flex-shrink-0" />
                           )}

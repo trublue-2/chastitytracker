@@ -5,7 +5,7 @@ import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound } from "lucide-react
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -117,8 +117,8 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
         {categoryRows.map((c) => {
           const active = c.activeDeviceName !== null;
           const href = active
-            ? `/dashboard/new/wear-end?category=${c.id}`
-            : `/dashboard/new/wear-begin?category=${c.id}`;
+            ? wearActionHref({ categoryId: c.id, active: true })
+            : wearActionHref({ categoryId: c.id, active: false });
           const desc = active
             ? `${tw("endShort")} · ${c.activeDeviceName}`
             : tw("titleBegin");

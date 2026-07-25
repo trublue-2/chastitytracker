@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
 import { formatElapsedMs } from "@/lib/utils";
-import { categoryStyle } from "@/lib/categoryConstants";
-import CategoryIconRender from "@/app/components/CategoryIcon";
+import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
+import CategoryPhotoThumb from "@/app/components/CategoryPhotoThumb";
 import DashboardBlock from "@/app/components/DashboardBlock";
 
 export interface ActiveWearSessionRow {
@@ -17,18 +17,26 @@ export interface ActiveWearSessionRow {
   deviceName: string;
   /** ISO string of session start. */
   since: string;
+  /** Foto vom Trage-Beginn; ohne eines bleibt das Kategorie-Icon stehen. Nicht optional — sonst
+   *  liesse ein dritter Aufrufer das Feld stillschweigend weg, siehe `ActiveWearSession`. */
+  imageUrl: string | null;
 }
 
 interface Props {
   sessions: ActiveWearSessionRow[];
   /** Server clock at render — used as the initial tick reference. */
   serverNow: string;
+  /** Keyholder-Sicht: die Karte gehört zu DIESEM Sub und muss auf die Admin-Route zeigen.
+   *  Ohne das führte sie den Keyholder auf `/dashboard/…`, wo `proxy.ts` ihn nach `/admin`
+   *  zurückwirft — die Karte war für ihn schlicht ein toter Link. Gleiche Unterscheidung wie
+   *  `adminUserId` in `WearForm`. */
+  adminUserId?: string;
 }
 
 /** Renders one compact row per active wear-session (Plug, Collar, ...).
  *  Per UX Architect spec: stack of compact cards below the primary KG card.
  *  Hidden when feature flag is off or no sessions are active. */
-export default function ActiveWearSessions({ sessions, serverNow }: Props) {
+export default function ActiveWearSessions({ sessions, serverNow, adminUserId }: Props) {
   const t = useTranslations("wearForm");
   const locale = useLocale();
   const [now, setNow] = useState<number>(() => Date.parse(serverNow));
@@ -47,7 +55,7 @@ export default function ActiveWearSessions({ sessions, serverNow }: Props) {
         {sessions.map((s) => {
           const style = categoryStyle(s.categoryColor);
           const elapsedMs = Math.max(0, now - Date.parse(s.since));
-          const endHref = `/dashboard/new/wear-end?category=${s.categoryId}`;
+          const endHref = wearActionHref({ categoryId: s.categoryId, active: true, adminUserId });
           return (
             <li key={s.categoryId}>
               <Card>
@@ -56,13 +64,14 @@ export default function ActiveWearSessions({ sessions, serverNow }: Props) {
                   className="flex items-center gap-3 p-3 active:bg-background-subtle transition border-l-[3px]"
                   style={{ borderLeftColor: style.borderColor }}
                 >
-                  <div
-                    className="shrink-0 size-9 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: style.backgroundColor, color: style.color }}
-                    aria-hidden
-                  >
-                    <CategoryIconRender name={s.categoryIcon} className="size-4" />
-                  </div>
+                  {/* Das beim Einsetzen aufgenommene Foto steht dort, wo sonst das Kategorie-Symbol
+                      sitzt — der Keyholder sieht auf der Übersicht, WAS getragen wird, statt nur
+                      dass etwas getragen wird. Ohne `onClick`: die ganze Karte ist ein Link. */}
+                  <CategoryPhotoThumb
+                    imageUrl={s.imageUrl}
+                    categoryColor={s.categoryColor}
+                    categoryIcon={s.categoryIcon}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground truncate">
                       {s.categoryName}

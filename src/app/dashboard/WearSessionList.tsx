@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Timer } from "lucide-react";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import CategoryPhotoThumb from "@/app/components/CategoryPhotoThumb";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -21,9 +22,6 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
   // Ein Modal für die ganze Liste statt eines je Zeile — es kann ohnehin nur eines offen sein.
   // Die ganze Zeile im State, weil das Detail-Panel Kategorie, Zeit und Gerät daraus zieht.
   const [openRow, setOpenRow] = useState<WearSessionRow | null>(null);
-  // Nicht ladbare Fotos (gelöschte Datei) fallen auf das Kategorie-Icon zurück, statt das kaputte
-  // Bild-Symbol des Browsers zu zeigen — gleiche Absicherung wie in PairRow/SessionEventRow.
-  const [brokenImages, setBrokenImages] = useState<ReadonlySet<string>>(new Set());
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
 
@@ -42,42 +40,29 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
 
       <div className="divide-y divide-border-subtle">
         {paginated.map((s) => {
-          const style = categoryStyle(s.categoryColor);
           const sameDay = s.startDateStr === s.endDateStr;
           return (
             <div key={s.id} className="flex items-center gap-3 px-5 py-3">
               {/* Beim Trage-Beginn aufgenommenes Foto — Klick öffnet es gross. Ohne Foto bleibt das
-                  Kategorie-Icon stehen; die Kategorie ist über Name und Farbe ohnehin kenntlich.
-                  Thumbnail wie in SessionEventRow (Wrapper mit shrink-0 + object-cover), NICHT über
-                  `ImageViewer`: dessen Vollbild-Plakette ist für grössere Bilder gemacht und würde
-                  ein 32px-Thumbnail zur Hälfte verdecken. */}
-              {s.imageUrl && !brokenImages.has(s.id) ? (
-                <button
-                  type="button"
-                  onClick={() => setOpenRow(s)}
-                  aria-label={t("wearSessionPhotoAlt", { category: s.categoryName })}
-                  className="shrink-0 size-8 rounded-lg overflow-hidden hover:opacity-80 transition"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={s.imageUrl}
-                    alt=""
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                    onError={() => setBrokenImages((prev) => new Set(prev).add(s.id))}
-                  />
-                </button>
-              ) : (
-                <div
-                  className="size-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: style.backgroundColor, color: style.color }}
-                  aria-hidden
-                >
-                  <CategoryIconRender name={s.categoryIcon} className="size-4" />
-                </div>
-              )}
+                  Kategorie-Symbol stehen; die Kategorie ist über Name und Farbe ohnehin kenntlich. */}
+              <CategoryPhotoThumb
+                imageUrl={s.imageUrl}
+                categoryColor={s.categoryColor}
+                categoryIcon={s.categoryIcon}
+                size="sm"
+                onClick={() => setOpenRow(s)}
+                label={t("wearSessionPhotoAlt", { category: s.categoryName })}
+              />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{s.categoryName}</p>
+                {/* Gerätename neben der Kategorie — wie in der Karte der laufenden Session. Ohne ihn
+                    sehen mehrere Sessions derselben Kategorie identisch aus, und gerade dort ist die
+                    Frage „welches Gerät war das?" die interessante. */}
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {s.categoryName}
+                  {s.deviceName && (
+                    <span className="font-normal text-foreground-muted"> · {s.deviceName}</span>
+                  )}
+                </p>
                 <p className="text-xs text-foreground-faint tabular-nums truncate">
                   {sameDay
                     ? `${s.startDateStr}, ${s.startTimeStr} – ${s.endTimeStr}`

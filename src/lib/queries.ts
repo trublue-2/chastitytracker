@@ -198,6 +198,11 @@ export interface ActiveWearSession {
   deviceId: string;
   deviceName: string;
   since: Date;
+  /** Das beim Trage-BEGINN aufgenommene Foto, falls die Kategorie eines verlangt. `null` heisst
+   *  „kein Foto", nicht „nicht geladen" — die laufende Karte fällt dann aufs Kategorie-Icon zurück.
+   *  Bewusst nicht zusätzlich optional: beide Produzenten setzen das Feld, und ein `?` liesse einen
+   *  dritten es stillschweigend weglassen. */
+  imageUrl: string | null;
 }
 
 /** Result of `prepareWearEntry` — never thrown, returned for the route to inspect. */
@@ -272,6 +277,7 @@ export async function getActiveWearSessions(userId: string): Promise<(ActiveWear
       type: true,
       startTime: true,
       deviceId: true,
+      imageUrl: true,
       device: { select: { id: true, name: true, category: { select: { id: true, name: true, color: true, icon: true, isBuiltIn: true } } } },
     },
   });
@@ -290,6 +296,7 @@ export async function getActiveWearSessions(userId: string): Promise<(ActiveWear
       deviceId: e.device.id,
       deviceName: e.device.name,
       since: e.startTime,
+      imageUrl: e.imageUrl,
     });
   }
   return sessions;
@@ -311,6 +318,7 @@ export async function getActiveWearSessionForCategory(
     select: {
       type: true,
       startTime: true,
+      imageUrl: true,
       device: { select: { id: true, name: true, category: { select: { id: true, name: true } } } },
     },
   });
@@ -321,6 +329,7 @@ export async function getActiveWearSessionForCategory(
     deviceId: latest.device.id,
     deviceName: latest.device.name,
     since: latest.startTime,
+    imageUrl: latest.imageUrl,
   };
 }
 

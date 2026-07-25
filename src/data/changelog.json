@@ -1,5 +1,46 @@
 [
   {
+    "version": "4.52.4",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Keyholder: Ein Tippen auf die Karte einer laufenden Trage-Session warf dich bisher auf die Startseite zurück. Sie führt jetzt ins richtige Formular.",
+          "en": "For keyholders: tapping the card of a running wear session used to throw you back to the start page. It now opens the right form."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Karte einer laufenden Trage-Session zeigt jetzt das Foto, das beim Einsetzen aufgenommen wurde — auf dem Dashboard und in der Keyholder-Übersicht. Ohne Foto bleibt wie bisher das Kategorie-Symbol stehen.",
+          "en": "The card of a running wear session now shows the photo taken when the device was put on — on your dashboard and in the keyholder overview. Without a photo the category symbol stays as before."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Liste abgeschlossener Sessions steht jetzt auch der Name des getragenen Geräts, nicht nur die Kategorie.",
+          "en": "The list of completed sessions now also shows the name of the device worn, not just the category."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Keyholder: In der Übersicht lief die Seite auf dem Handy seitlich aus dem Bild — Kopfzeile und Karten waren angeschnitten. Sie passt jetzt wieder in die Breite.",
+          "en": "For keyholders: on mobile the overview ran off the side of the screen, cutting off the header and cards. It fits the width again."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Keyholder: Beim Aufklappen einer Session deines Subs gab es einen Knopf, um dessen offene Kontrolle zu erfassen. Der schrieb die Kontrolle aber auf DEIN Konto, während die Anforderung deines Subs offen blieb und als versäumt endete. Der Knopf ist weg; Frist und Code siehst du weiterhin.",
+          "en": "For keyholders: expanding one of your sub's sessions offered a button to record their open inspection. It recorded the inspection on YOUR account while your sub's request stayed open and ended up counted as missed. The button is gone; you still see the deadline and code."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.52.3",
     "date": "2026-07-25",
     "changes": [

@@ -234,6 +234,7 @@ export default async function DashboardPage() {
           categoryIcon: s.categoryIcon,
           deviceName: s.deviceName,
           since: s.since.toISOString(),
+          imageUrl: s.imageUrl,
         }))}
         serverNow={now.toISOString()}
       />
