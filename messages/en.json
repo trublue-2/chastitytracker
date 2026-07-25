@@ -266,6 +266,7 @@
     "entries": "Sessions",
     "totalDuration": "Total duration",
     "trainingGoals": "Training goals",
+    "kgGoalLabel": "CB",
     "promoTitle": "Track more than just CB",
     "promoBody": "Add categories like Plug, Collar or Cuffs — separate wear time, stats, and training goals.",
     "promoCta": "Add a category",
