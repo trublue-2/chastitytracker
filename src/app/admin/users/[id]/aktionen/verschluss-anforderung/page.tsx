@@ -12,23 +12,20 @@ export default async function AdminVerschlussAnforderungPage({ params }: { param
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
 
-  const [isLocked, offeneAnforderung, activeSperrzeit, devices, tz] = await Promise.all([
+  const [isLocked, activeSperrzeit, devices, tz] = await Promise.all([
     getIsLocked(id),
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId: id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
-    }),
     getActiveSperrzeit(id),
     getUserDeviceOptions(id),
     getUserTimezone(id),
   ]);
 
   const hasEmail = !!user.email;
-  const hasOffeneAnforderung = !!offeneAnforderung;
   const hasActiveSperrzeit = !!activeSperrzeit;
 
   const art = isLocked ? "SPERRZEIT" : "ANFORDERUNG";
+  // Mehrere offene Anforderungen sind erlaubt — kein Gate darauf. Die SPERRZEIT bleibt exklusiv.
   const canSubmit = art === "ANFORDERUNG"
-    ? (!isLocked && hasEmail && !hasOffeneAnforderung)
+    ? (!isLocked && hasEmail)
     : (isLocked && !hasActiveSperrzeit);
 
   if (!canSubmit) {

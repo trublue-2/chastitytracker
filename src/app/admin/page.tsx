@@ -15,7 +15,7 @@ import UserAvatar from "@/app/components/UserAvatar";
 import { Lock, LockOpen, Users, ShieldAlert, CalendarClock } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
-import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective } from "@/lib/queries";
+import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 
 export default async function AdminPage() {
@@ -67,8 +67,11 @@ export default async function AdminPage() {
       where: { userId: { in: userIds }, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
     }),
+    // Dringendste zuerst (LOCK_REQUEST_ORDER): bei mehreren offenen zeigt die Kachel unten die
+    // erste nicht-terminierte — das muss die mit der frühsten Frist sein, nicht eine beliebige.
     prisma.verschlussAnforderung.findMany({
-      where: { userId: { in: userIds }, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+      where: openLockRequestWhere({ userIds }),
+      orderBy: LOCK_REQUEST_ORDER,
     }),
     getKeyholderSperrzeiten({ userIds }),
     getKeyholderOrgasmusAnforderungen(userIds),
@@ -106,7 +109,9 @@ export default async function AdminPage() {
     const offeneOrgasmusAnforderung = orgasmusAnfByUser.get(userId)?.[0] ?? null;
 
     const offeneKontrolle = userKontrollen.find(k => !isScheduled(k.wirksamAb)) ?? null;
-    const offeneVerschlussAnforderung = userAnforderungen.find(v => !isScheduled(v.wirksamAb)) ?? null;
+    // ALLE bereits ausgelösten Anforderungen (mehrere dürfen koexistieren), dringendste zuerst
+    // (userAnforderungen ist per LOCK_REQUEST_ORDER sortiert). Terminierte stehen separat in `scheduled`.
+    const offeneVerschlussAnforderungen = userAnforderungen.filter(v => !isScheduled(v.wirksamAb));
     // Mehrere aktive Sperrzeiten können koexistieren — die Liste zeigt dieselbe EFFEKTIVE, gegen die
     // der Sub verschlossen ist (spätestes Ende, Reinigung nur wenn alle sie erlauben). Die erste Zeile
     // zu nehmen hiesse: ein anderes Ende anzeigen, als die Box durchsetzt.
@@ -124,11 +129,11 @@ export default async function AdminPage() {
       offeneKontrolle: offeneKontrolle
         ? { id: offeneKontrolle.id, deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
         : null,
-      hasOffeneAnforderung: !!offeneVerschlussAnforderung,
+      hasOffeneAnforderung: offeneVerschlussAnforderungen.length > 0,
       hasActiveSperrzeit: !!activeSperrzeit,
-      offeneAnforderung: offeneVerschlussAnforderung
-        ? { id: offeneVerschlussAnforderung.id, nachricht: offeneVerschlussAnforderung.nachricht, endetAt: offeneVerschlussAnforderung.endetAt, overdue: !!offeneVerschlussAnforderung.endetAt && offeneVerschlussAnforderung.endetAt < now }
-        : null,
+      offeneAnforderungen: offeneVerschlussAnforderungen.map(a => ({
+        id: a.id, endetAt: a.endetAt, overdue: !!a.endetAt && a.endetAt < now,
+      })),
       activeSperrzeit: activeSperrzeit
         ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt, reinigungErlaubt: activeSperrzeit.reinigungErlaubt }
         : null,
@@ -243,20 +248,21 @@ export default async function AdminPage() {
                         withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" titleKey="withdrawKontrolleTitle" colorToken="inspect" />}
                       />
                     )}
-                    {u.stats.offeneAnforderung && (
+                    {u.stats.offeneAnforderungen.map((a) => (
                       <LockRequestBanner
+                        key={a.id}
                         variant="compact"
                         colorScheme="request"
-                        label={u.stats.offeneAnforderung.overdue ? t("lockOverdue") : t("lockRequested")}
-                        overdue={u.stats.offeneAnforderung.overdue}
-                        endetAt={u.stats.offeneAnforderung.endetAt}
+                        label={a.overdue ? t("lockOverdue") : t("lockRequested")}
+                        overdue={a.overdue}
+                        endetAt={a.endetAt}
                         locale={dl}
                         tz={rowTz}
                         viewerTz={viewerTz}
                         subTimePrefix={subLabel}
-                        withdrawAction={<WithdrawButton id={u.stats.offeneAnforderung.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
+                        withdrawAction={<WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
                       />
-                    )}
+                    ))}
                     {u.stats.activeSperrzeit && (
                       <LockRequestBanner
                         variant="compact"
@@ -327,7 +333,6 @@ export default async function AdminPage() {
                         userId={u.id}
                         hasEmail={!!u.email}
                         isLocked={isLocked}
-                        hasOffeneAnforderung={u.stats.hasOffeneAnforderung}
                         hasActiveSperrzeit={u.stats.hasActiveSperrzeit}
                         tz={rowTz}
                         minNow={nowDatetimeLocal(rowTz)}

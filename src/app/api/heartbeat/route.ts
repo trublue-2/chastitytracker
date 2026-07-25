@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere } from "@/lib/queries";
+import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
 
 /**
  * Konsolidierter Client-Heartbeat: EIN Endpoint + EIN Poll deckt vier Belange ab, die vorher je
@@ -25,14 +25,18 @@ export async function GET() {
 
   const userId = session.user.id;
   const now = new Date();
-  const [kontrollen, verschluss, sperrzeit, orgasmus, pendingVerifications] = await Promise.all([
+  const [kontrollen, anforderungen, sperrzeit, orgasmus, pendingVerifications] = await Promise.all([
     prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       select: { id: true },
     }),
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
+    // ALLE offenen (und bereits ausgelösten) — mehrere dürfen koexistieren. Nur die erste zu nehmen
+    // hiesse: eine hinzukommende oder zurückgezogene zweite ändert die Signatur nicht, und das
+    // Sub-UI aktualisiert nie. Geplante bleiben draussen, sie sind für den Sub unsichtbar.
+    prisma.verschlussAnforderung.findMany({
+      where: { ...openLockRequestWhere(userId), ...activeVerschlussAnforderungWhere(now) },
       select: { id: true },
+      orderBy: LOCK_REQUEST_ORDER,
     }),
     getActiveSperrzeit(userId),
     getActiveOrgasmusAnforderung(userId, now),
@@ -49,7 +53,7 @@ export async function GET() {
 
   const pendingSig = [
     "k:" + kontrollen.map((k) => k.id).sort().join(","),
-    "v:" + (verschluss?.id ?? ""),
+    "v:" + anforderungen.map((a) => a.id).sort().join(","),
     "s:" + (sperrzeit?.id ?? ""),
     "o:" + (orgasmus?.id ?? ""),
     "p:" + pendingVerifications.map((p) => p.id).sort().join(","),

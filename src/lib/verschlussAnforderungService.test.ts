@@ -24,7 +24,12 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn() }));
-vi.mock("@/lib/queries", () => ({ getIsLocked: vi.fn(async () => true), validateDeviceOwnership: vi.fn() }));
+vi.mock("@/lib/queries", async (importOriginal) => {
+  // isScheduledDirective ist reine Zeit-Arithmetik ohne DB — sie kommt echt aus dem Modul, damit der
+  // Test die WIRKLICHE „terminiert?"-Regel prüft und nicht eine nachgebaute.
+  const actual = await importOriginal<typeof import("@/lib/queries")>();
+  return { ...actual, getIsLocked: vi.fn(async () => true), validateDeviceOwnership: vi.fn() };
+});
 vi.mock("@/lib/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
@@ -33,12 +38,13 @@ vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
 
 import {
   createVerschlussAnforderung, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById,
-  updateSperrzeitEnde,
+  updateSperrzeitEnde, updateLockRequest,
 } from "./verschlussAnforderungService";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { getIsLocked } from "@/lib/queries";
+import { firePush } from "@/lib/push";
 
 const findUniqueMock = prisma.verschlussAnforderung.findUnique as unknown as ReturnType<typeof vi.fn>;
 const updateMock = prisma.verschlussAnforderung.update as unknown as ReturnType<typeof vi.fn>;
@@ -390,5 +396,208 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
 
     expect(notifyMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Mehrere Einschliess-Anforderungen dürfen koexistieren — anders als bei der SPERRZEIT, wo die neue
+ * die alte ablöst (sonst setzte `foldActiveSperrzeiten` stumm das spätere Ende durch und eine
+ * Verkürzung bliebe wirkungslos). Bei Anforderungen ist Koexistenz gerade der Punkt: eine Pipeline
+ * terminierter Anweisungen, die EIN Verschluss gemeinsam erfüllt.
+ */
+describe("mehrere Anforderungen koexistieren", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-14T12:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("eine neue ANFORDERUNG zieht bestehende NICHT zurück", async () => {
+    isLockedMock.mockResolvedValue(false);
+    const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 });
+
+    expect(res.ok).toBe(true);
+    expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("eine neue SPERRZEIT ersetzt die bestehende weiterhin", async () => {
+    const res = await createVerschlussAnforderung({ userId: "u1", art: "SPERRZEIT", fristH: 24 });
+
+    expect(res.ok).toBe(true);
+    expect(tx.verschlussAnforderung.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.verschlussAnforderung.updateMany.mock.calls[0][0].where).toMatchObject({ art: "SPERRZEIT" });
+  });
+
+  it("TERMINIERT darf angelegt werden, während der Sub noch verschlossen ist", async () => {
+    // Vorplanen während einer laufenden Sperre: ob die Anweisung beim Auslösen noch passt,
+    // entscheidet der Poller (er zieht sie sonst als `obsolete` zurück) — nicht das Anlegen.
+    isLockedMock.mockResolvedValue(true);
+    const res = await createVerschlussAnforderung({
+      userId: "u1", art: "ANFORDERUNG", fristH: 4, wirksamAbAt: new Date("2026-07-20T12:00:00Z"),
+    });
+
+    expect(res.ok).toBe(true);
+    expect(tx.verschlussAnforderung.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("SOFORT bleibt an den offenen Sub gebunden", async () => {
+    isLockedMock.mockResolvedValue(true);
+    const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 });
+
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("USER_ALREADY_LOCKED");
+    expect(tx.verschlussAnforderung.create).not.toHaveBeenCalled();
+  });
+
+  it("die terminierte SPERRZEIT bleibt an den verschlossenen Sub gebunden (unverändert)", async () => {
+    // Gegenprobe zur Lockerung oben: sie gilt NUR für die Anforderung. Eine Sperrzeit ohne Verschluss
+    // hätte nichts zu halten.
+    isLockedMock.mockResolvedValue(false);
+    const res = await createVerschlussAnforderung({
+      userId: "u1", art: "SPERRZEIT", fristH: 24, wirksamAbAt: new Date("2026-07-20T12:00:00Z"),
+    });
+
+    expect(res.ok).toBe(true); // terminiert → der Zustand zählt erst bei der Auslösung
+    expect(tx.verschlussAnforderung.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** Eine Anforderung ändern statt zurückziehen + neu stellen: der Sub sähe sonst eine Rücknahme plus
+ *  eine zweite Anweisung, und eine terminierte verlöre ihre Verborgenheit. */
+describe("updateLockRequest", () => {
+  const JETZT = new Date("2026-07-14T12:00:00Z");
+  const SPAETER = new Date("2026-07-15T12:00:00Z");
+  const IN_DREI_WOCHEN = new Date("2026-08-04T12:00:00Z");
+
+  /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
+  const anf = (zustand: object) => ({
+    id: "a1", userId: "u1", art: "ANFORDERUNG", endetAt: SPAETER, nachricht: null, dauerH: null,
+    sperrEndetAt: null, deviceId: null, reinigungErlaubt: false, fulfilledAt: null, withdrawnAt: null,
+    user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
+    ...zustand,
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(JETZT);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("eine GEPLANTE Anforderung zu ändern schickt KEINE Mail", async () => {
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    const res = await updateLockRequest("a1", { nachricht: "neu" });
+
+    if (!res.ok) throw new Error("erwartet: ok");
+    expect(res.data.notified).toBe(false);
+    expect(notifyMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("eine bereits ausgelöste Anforderung meldet die Änderung", async () => {
+    findUniqueMock.mockResolvedValue(anf(ausgeloest));
+    const res = await updateLockRequest("a1", { endetAt: SPAETER });
+
+    if (!res.ok) throw new Error("erwartet: ok");
+    expect(res.data.notified).toBe(true);
+    expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({ subjectKey: "lockRequestChangedSubject" }));
+  });
+
+  it("auf sofort gezogen: die reguläre Zustellung geht JETZT raus, nicht erst beim nächsten Poller-Tick", async () => {
+    isLockedMock.mockResolvedValue(false); // eine Einschliess-Anforderung geht nur an einen offenen Sub
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    const res = await updateLockRequest("a1", { wirksamAb: null });
+
+    if (!res.ok) throw new Error("erwartet: ok");
+    expect(res.data.notified).toBe(true);
+    // Nicht die „geändert"-Notiz, sondern die volle Anforderungs-Zustellung (Mail + Push).
+    expect(notifyMock).not.toHaveBeenCalled();
+    expect(firePush).toHaveBeenCalledTimes(1);
+    expect(updateMock.mock.calls[0][0].data.benachrichtigtAt).toEqual(JETZT);
+  });
+
+  it("verborgen, aber wirksamAb bereits verstrichen: NICHT selbst senden — der Poller stellt zu (keine Doppel-Mail)", async () => {
+    // Race-Schutz: der Poller hat diese poller-fällige Zeile (wirksamAb != null, ≤ jetzt) evtl. schon
+    // geladen. Sendeten Edit UND Poller, bekäme der Sub zwei Nachrichten. Also überlässt der Edit die
+    // Zustellung dem Poller (er liest den frischen Stand beim nächsten Tick).
+    const VERGANGEN = new Date("2026-07-14T11:59:00Z"); // knapp vor JETZT
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: VERGANGEN, benachrichtigtAt: null, endetAt: SPAETER }));
+    const res = await updateLockRequest("a1", { nachricht: "neu" });
+
+    if (!res.ok) throw new Error("erwartet: ok");
+    expect(res.data.notified).toBe(false);
+    expect(res.data.deliveredToPoller).toBe(true);
+    expect(notifyMock).not.toHaveBeenCalled();
+    expect(firePush).not.toHaveBeenCalled();
+    // benachrichtigtAt bleibt null → der Poller findet die Zeile weiterhin fällig.
+    expect(updateMock.mock.calls[0][0].data.benachrichtigtAt).toBeUndefined();
+  });
+
+  it("sofort zustellen an einen bereits VERSCHLOSSENEN Sub wird abgelehnt", async () => {
+    // Dieselbe Regel wie beim Anlegen und im Poller: eine Einschliess-Anweisung an einen, der schon
+    // verschlossen ist, wäre unerfüllbar und zählte später als „zu spät verschlossen".
+    isLockedMock.mockResolvedValue(true);
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    const res = await updateLockRequest("a1", { wirksamAb: null });
+
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("USER_ALREADY_LOCKED");
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(firePush).not.toHaveBeenCalled();
+  });
+
+  it("Mindestdauer und absolutes Sperr-Ende verdrängen einander, statt still zu koexistieren", async () => {
+    findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, dauerH: 24 }));
+    await updateLockRequest("a1", { sperrEndetAt: IN_DREI_WOCHEN });
+
+    expect(updateMock.mock.calls[0][0].data).toMatchObject({ dauerH: null, sperrEndetAt: IN_DREI_WOCHEN });
+  });
+
+  it("beides gleichzeitig zu setzen ist ein Fehler, kein stiller Vorrang", async () => {
+    findUniqueMock.mockResolvedValue(anf(ausgeloest));
+    const res = await updateLockRequest("a1", { dauerH: 12, sperrEndetAt: IN_DREI_WOCHEN });
+
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("LOCK_DURATION_OR_END");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("das Reinigungs-Flag ohne Sperr-Vorgabe fällt weg (es hätte nichts zu erlauben)", async () => {
+    findUniqueMock.mockResolvedValue(anf(ausgeloest));
+    await updateLockRequest("a1", { reinigungErlaubt: true });
+
+    expect(updateMock.mock.calls[0][0].data.reinigungErlaubt).toBe(false);
+  });
+
+  it("ein Sperr-Ende vor der Auslösung wird abgelehnt (dieselbe Regel wie beim Anlegen)", async () => {
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    const res = await updateLockRequest("a1", { sperrEndetAt: SPAETER });
+
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("die Guards greifen vor allem anderen — Sperrzeit, erfüllt, zurückgezogen, unbekannt", async () => {
+    findUniqueMock.mockResolvedValue({ ...anf(ausgeloest), art: "SPERRZEIT" });
+    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+
+    findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, fulfilledAt: JETZT }));
+    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+
+    findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, withdrawnAt: JETZT }));
+    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+
+    findUniqueMock.mockResolvedValue(null);
+    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
+  it("LOAD-BEARING: der Heimdall-Push läuft auch bei der stillen Änderung", async () => {
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    await updateLockRequest("a1", { nachricht: "neu" });
+
+    expect(heimdallMock).toHaveBeenCalledWith("u1");
   });
 });

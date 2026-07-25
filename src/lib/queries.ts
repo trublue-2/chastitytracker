@@ -454,25 +454,53 @@ export async function getOpenKontrolle(userId: string, now: Date = new Date()) {
   });
 }
 
+/** Offen = weder erfüllt noch zurückgezogen. Ohne Zeit-Gate — wer nur die bereits ausgelösten
+ *  will, ergänzt `activeVerschlussAnforderungWhere`. Nimmt einen User ODER eine User-Menge (wie
+ *  `getKeyholderSperrzeiten`), damit die Admin-Übersicht dasselbe Fragment teilt. */
+export function openLockRequestWhere(userId: string | { userIds: string[] }): Prisma.VerschlussAnforderungWhereInput {
+  return { userId: sperrzeitUserFilter(userId), art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null };
+}
+
+/** Dringendste zuerst: frühste Frist gewinnt, bei gleicher Frist die neuere. Seit mehrere
+ *  Anforderungen koexistieren dürfen, ist „die eine" immer die dringendste — nicht mehr die
+ *  zuletzt angelegte. */
+export const LOCK_REQUEST_ORDER: Prisma.VerschlussAnforderungOrderByWithRelationInput[] = [
+  { endetAt: "asc" },
+  { createdAt: "desc" },
+];
+
 /**
- * Die offene Verschluss-ANFORDERUNG („schliess dich bis X ein"), oder null.
+ * Die offenen Verschluss-ANFORDERUNGen („schliess dich bis X ein"), dringendste zuerst.
  *
- * Nur die bereits AUSGELÖSTE: eine erst geplante steht schon in `scheduledDirectives` des
+ * Nur die bereits AUSGELÖSTEN: eine erst geplante steht schon in `scheduledDirectives` des
  * Dashboards und stünde sonst doppelt — und der Sub weiss von ihr ohnehin noch nichts.
  *
  * Ohne diese Sicht ist `request_lock` ein Schreib-ohne-Lesen: die Keyholderin kann eine Anforderung
  * stellen, aber nirgends sehen, ob sie noch offen oder schon überfällig ist. Bis zum Wegfall der
  * V1-Schicht beantwortete das ausschliesslich `get_overview.openVerschlussAnforderung`.
  */
-export async function getOpenLockRequest(userId: string, now: Date = new Date()) {
-  return prisma.verschlussAnforderung.findFirst({
-    where: {
-      userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null,
-      ...activeVerschlussAnforderungWhere(now),
-    },
-    orderBy: { createdAt: "desc" },
+/** Die offenen Anforderungen, dringendste zuerst. `now` gesetzt = nur bereits AUSGELÖSTE (Sub-/
+ *  Enforcement-Sicht: eine geplante steht schon in `scheduledDirectives` und der Sub weiss noch
+ *  nichts von ihr); `now = null` = auch die terminierten (KEYHOLDER-Sicht, damit sie sich gezielt
+ *  ändern/zurückziehen lassen — Gegenstück zu {@link getKeyholderSperrzeiten}). Dieselbe Query,
+ *  ein Zeit-Gate Unterschied. */
+export async function getOpenLockRequests(userId: string, now: Date | null = new Date()) {
+  return prisma.verschlussAnforderung.findMany({
+    where: { ...openLockRequestWhere(userId), ...(now ? activeVerschlussAnforderungWhere(now) : {}) },
+    orderBy: LOCK_REQUEST_ORDER,
     include: { device: { select: { name: true } } },
   });
+}
+
+/** Die DRINGENDSTE offene, bereits ausgelöste Anforderung, oder null — für jede Sicht, die eine
+ *  einzelne zeigt (Sub-Banner, Admin-Kachel, `keyholder_dashboard.openLockRequest`). */
+export async function getOpenLockRequest(userId: string, now: Date = new Date()) {
+  return (await getOpenLockRequests(userId, now))[0] ?? null;
+}
+
+/** Alle offenen Anforderungen für eine KEYHOLDER-Sicht — inklusive der noch nicht ausgelösten. */
+export function getKeyholderLockRequests(userId: string) {
+  return getOpenLockRequests(userId, null);
 }
 
 /** Die EFFEKTIVE aktive Sperre eines Users, oder null — mehrere gleichzeitig aktive werden über
