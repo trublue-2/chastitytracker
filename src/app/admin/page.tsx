@@ -311,11 +311,18 @@ export default async function AdminPage() {
                           const apiPath = s.kind === "inspection" ? "/api/admin/kontrollen" : "/api/admin/verschluss-anforderung";
                           const colorToken = s.kind === "inspection" ? "inspect" as const : "sperrzeit" as const;
                           return (
-                            <div key={s.id} className="flex items-center gap-2 text-xs text-foreground-muted">
-                              <span className="font-semibold text-foreground">{kindLabel}</span>
-                              <span className="text-foreground-faint">{t("scheduledForPrefix")} {formatDateTimeDual(s.wirksamAb, dl, viewerTz, rowTz, subLabel)}</span>
-                              {s.message && <span className="truncate opacity-80">· {s.message}</span>}
-                              <span className="ml-auto flex-shrink-0">
+                            // items-start + min-w-0-Textspalte: auf Mobile brechen Label/Datum um und die
+                            // Nachricht kürzt sich (truncate wirkt nur mit min-w-0), statt die Zeile — und
+                            // damit die ganze Seite — horizontal über den Viewport zu schieben.
+                            <div key={s.id} className="flex items-start gap-2 text-xs text-foreground-muted">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="font-semibold text-foreground">{kindLabel}</span>
+                                  <span className="text-foreground-faint">{t("scheduledForPrefix")} {formatDateTimeDual(s.wirksamAb, dl, viewerTz, rowTz, subLabel)}</span>
+                                </div>
+                                {s.message && <p className="truncate opacity-80 mt-0.5">{s.message}</p>}
+                              </div>
+                              <span className="flex-shrink-0">
                                 <WithdrawButton id={s.id} apiPath={apiPath} titleKey="scheduledWithdrawTitle" colorToken={colorToken} />
                               </span>
                             </div>
