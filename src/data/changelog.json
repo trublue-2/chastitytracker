@@ -1,5 +1,52 @@
 [
   {
+    "version": "4.52.1",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Sind mehrere Einschliess-Anforderungen offen, kann der Keyholder jetzt eine einzelne gezielt zurücknehmen statt immer aller auf einmal. Ein Vorschau-Lauf zeigt dabei, welche Anforderungen genau betroffen wären.",
+          "en": "When several lock-up requests are open, the keyholder can now withdraw a single one instead of always cancelling all at once. A preview run shows which requests would be affected."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.52.0",
+    "date": "2026-07-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Keyholder kann jetzt mehrere Einschliess-Anforderungen gleichzeitig offen haben — eine neue ersetzt die bestehende nicht mehr. Schliesst du dich ein, sind damit alle offenen Anforderungen erfüllt.",
+          "en": "The keyholder can now have several lock-up requests open at once — a new one no longer replaces an existing one. Locking up fulfils all open requests at once."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine Einschliess-Anforderung kann die anschliessende Sperrzeit gleich mitbringen: entweder als Mindest-Tragedauer ab dem Einschliessen oder mit festem Enddatum. Bisher ging das nur in der Oberfläche des Keyholders.",
+          "en": "A lock-up request can now bring its lock period with it: either as a minimum wearing time from lock-up, or with a fixed end date. Until now that was only possible in the keyholder's own interface."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine offene Anforderung lässt sich ändern, statt sie zurückziehen und neu stellen zu müssen — du bekommst dann eine Änderungs-Meldung statt zweier widersprüchlicher Nachrichten.",
+          "en": "An open request can be changed instead of being withdrawn and reissued — you get a single change notice instead of two contradictory messages."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Keyholder kann eine Anforderung jetzt auch vorplanen, während du noch verschlossen bist. Passt sie beim Auslösen nicht mehr, verfällt sie automatisch.",
+          "en": "The keyholder can now schedule a request while you are still locked. If it no longer fits when it triggers, it lapses automatically."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.51.41",
     "date": "2026-07-24",
     "changes": [

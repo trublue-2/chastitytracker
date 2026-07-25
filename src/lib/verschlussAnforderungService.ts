@@ -4,7 +4,7 @@ import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
-import { validateDeviceOwnership, getIsLocked } from "@/lib/queries";
+import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
@@ -102,6 +102,11 @@ export async function createVerschlussAnforderung(
     return serviceFail(400, "LOCK_DEADLINE_REQUIRED");
   }
 
+  // Mindestdauer und absolutes Sperr-Ende schliessen einander aus — dieselbe Regel wie beim Ändern
+  // (updateLockRequest). Beides zugleich hiesse: beim Erfüllen gewinnt stumm `sperrEndetAt`, und die
+  // Stundenangabe verschwindet wirkungslos.
+  if (dauerH != null && sperrEndetAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
+
   // Absolutes Sperr-Ende (nur ANFORDERUNG, Alternative zu dauerH). Wird beim Fulfill 1:1 zur SPERRZEIT.
   let sperrEndetAtDate: Date | null = null;
   if (art === "ANFORDERUNG" && sperrEndetAt) {
@@ -134,20 +139,32 @@ export async function createVerschlussAnforderung(
       // tx zwingend durchreichen: der Zustands-Check muss in DERSELBEN Transaktion lesen (TOCTOU).
       const isLocked = await getIsLocked(userId, tx);
 
-      if (art === "ANFORDERUNG" && isLocked) throw fail("ALREADY_LOCKED");
-      if (art === "SPERRZEIT" && !isLocked) throw fail("NOT_LOCKED");
+      // Der Lock-Zustand wird nur gegen eine SOFORT wirksame Direktive geprüft. Eine TERMINIERTE
+      // sagt nichts über jetzt, sondern über später: „schliess dich morgen früh ein" ist auch dann
+      // sinnvoll, wenn der Sub gerade noch verschlossen ist. Ob die Auslösung dann noch passt,
+      // entscheidet der Poller (processDueVerschlussAnforderungen) — er zieht sie als `obsolete`
+      // zurück, statt eine unpassende Anweisung zuzustellen.
+      if (!wirksamAb) {
+        if (art === "ANFORDERUNG" && isLocked) throw fail("ALREADY_LOCKED");
+        if (art === "SPERRZEIT" && !isLocked) throw fail("NOT_LOCKED");
+      }
 
-      await tx.verschlussAnforderung.updateMany({
-        where: { userId, art, fulfilledAt: null, withdrawnAt: null },
-        data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.keyholder }, // von einer neuen Direktive ersetzt
-      });
+      // Nur die SPERRZEIT ist exklusiv: eine neue Sperre ERSETZT die bestehende, sonst hätte die
+      // Keyholderin zwei konkurrierende Enden, von denen `foldActiveSperrzeiten` stumm das spätere
+      // durchsetzte — eine Verkürzung wäre wirkungslos geblieben. ANFORDERUNGen dürfen dagegen
+      // koexistieren: mehrere (typisch terminierte) Einschliess-Anweisungen sind eine Pipeline, und
+      // ein Verschluss erfüllt sie alle auf einmal (siehe POST /api/entries).
+      if (art === "SPERRZEIT") {
+        await tx.verschlussAnforderung.updateMany({
+          where: { userId, art, fulfilledAt: null, withdrawnAt: null },
+          data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.keyholder }, // von einer neuen Direktive ersetzt
+        });
+      }
 
-      // reinigungErlaubt: SPERRZEIT always, ANFORDERUNG nur wenn eine SPERRZEIT entsteht — also mit
-      // dauerH ODER absolutem sperrEndetAt (beide werden auf die auto-erzeugte SPERRZEIT vererbt).
       const effectiveDauerH = art === "ANFORDERUNG" ? (dauerH || null) : null;
-      const effectiveReinigung = Boolean(
-        reinigungErlaubt && (art === "SPERRZEIT" || effectiveDauerH !== null || sperrEndetAtDate !== null),
-      );
+      const effectiveReinigung = effectiveCleaningAllowed(reinigungErlaubt, {
+        isLockPeriod: art === "SPERRZEIT", dauerH: effectiveDauerH, sperrEndetAt: sperrEndetAtDate,
+      });
 
       return tx.verschlussAnforderung.create({
         data: {
@@ -284,6 +301,150 @@ export async function updateSperrzeitEnde(
   }
   void notifyHeimdallForUserId(va.userId);
   return { ok: true, data: { id, userId: va.userId, notified } };
+}
+
+/**
+ * Änderbare Felder einer offenen Einschliess-ANFORDERUNG. `undefined` = unverändert; `null` löscht
+ * (Nachricht, Gerät, Sperr-Vorgabe) bzw. macht die Auslösung sofort (`wirksamAb`).
+ */
+export interface UpdateLockRequestParams {
+  nachricht?: string | null;
+  /** Frist zum Einschliessen (absolut). Kein `null`: eine Anforderung ohne Frist gibt es nicht. */
+  endetAt?: Date;
+  /** Mindest-Tragedauer (h) nach dem Einschliessen. Schliesst `sperrEndetAt` aus. */
+  dauerH?: number | null;
+  /** Absolutes Sperr-Ende nach dem Einschliessen. Schliesst `dauerH` aus. */
+  sperrEndetAt?: Date | null;
+  deviceId?: string | null;
+  reinigungErlaubt?: boolean;
+  /** Geplanter Auslöse-Zeitpunkt. `null` = sofort (löst die Zustellung hier aus). */
+  wirksamAb?: Date | null;
+}
+
+/**
+ * Das Reinigungs-Flag wirkt nur über eine SPERRZEIT: bei der Sperrzeit selbst immer, bei einer
+ * ANFORDERUNG nur, wenn aus ihr eine entsteht (Mindestdauer ODER absolutes Sperr-Ende). Ohne
+ * Sperr-Vorgabe hätte es nichts zu erlauben und stünde als leeres Versprechen in der Zeile.
+ */
+function effectiveCleaningAllowed(flag: boolean | null | undefined, spec: { isLockPeriod: boolean; dauerH: number | null; sperrEndetAt: Date | null }): boolean {
+  return Boolean(flag && (spec.isLockPeriod || spec.dauerH !== null || spec.sperrEndetAt !== null));
+}
+
+/** Das Ergebnis von {@link mergeLockRequestPatch} — die Zeile, wie sie nach dem Patch aussieht. */
+export interface MergedLockRequest {
+  nachricht: string | null;
+  endetAt: Date | null;
+  dauerH: number | null;
+  sperrEndetAt: Date | null;
+  deviceId: string | null;
+  reinigungErlaubt: boolean;
+  wirksamAb: Date | null;
+}
+
+/**
+ * Führt Bestand und Patch zur Ziel-Zeile zusammen — PURE, damit die dryRun-Vorschau von
+ * `edit_lock_request` exakt das zeigt, was der Commit schreibt. Rechnete die Vorschau selbst nach,
+ * verspräche sie irgendwann etwas anderes als das, was passiert (gefunden beim Reinigungs-Flag ohne
+ * Sperr-Vorgabe: die Vorschau sagte `true`, der Commit schrieb `false`).
+ *
+ * Konvention: `undefined` = unverändert, `null` = löschen. Mindestdauer und absolutes Sperr-Ende
+ * verdrängen einander — beim Erfüllen gewinnt sonst stumm das absolute Ende, und ein Patch auf die
+ * Mindestdauer bliebe wirkungslos.
+ */
+export function mergeLockRequestPatch(
+  current: { nachricht: string | null; endetAt: Date | null; dauerH: number | null; sperrEndetAt: Date | null; deviceId: string | null; reinigungErlaubt: boolean; wirksamAb: Date | null },
+  patch: UpdateLockRequestParams,
+): MergedLockRequest {
+  const dauerH = patch.dauerH !== undefined ? patch.dauerH : (patch.sperrEndetAt != null ? null : current.dauerH);
+  const sperrEndetAt = patch.sperrEndetAt !== undefined ? patch.sperrEndetAt : (patch.dauerH != null ? null : current.sperrEndetAt);
+  return {
+    nachricht: patch.nachricht !== undefined ? (patch.nachricht?.trim() || null) : current.nachricht,
+    endetAt: patch.endetAt ?? current.endetAt,
+    dauerH,
+    sperrEndetAt,
+    deviceId: patch.deviceId !== undefined ? patch.deviceId : current.deviceId,
+    reinigungErlaubt: effectiveCleaningAllowed(patch.reinigungErlaubt ?? current.reinigungErlaubt, { isLockPeriod: false, dauerH, sperrEndetAt }),
+    wirksamAb: patch.wirksamAb !== undefined ? patch.wirksamAb : current.wirksamAb,
+  };
+}
+
+/**
+ * Ändert eine offene Einschliess-ANFORDERUNG (Frist, Nachricht, Gerät, Sperr-Vorgabe, Auslösezeit).
+ * Genutzt vom MCP-Tool `edit_lock_request`; das Admin-UI kennt bislang nur Anlegen + Zurückziehen.
+ *
+ * Warum überhaupt änderbar: eine Anforderung zurückzuziehen und neu zu stellen ist für den Sub
+ * nicht dasselbe — er sieht dann eine Rücknahme und eine zweite Anweisung, und eine terminierte
+ * verlöre ihre Verborgenheit. Eine Korrektur soll eine Korrektur bleiben.
+ *
+ * `notified` sagt, ob der Sub davon erfahren hat: eine terminierte, noch nicht ausgelöste Änderung
+ * bleibt stumm (er kennt die Anforderung ja nicht). Wird die Auslösung dabei auf „sofort" gezogen,
+ * geht stattdessen die reguläre Anforderungs-Zustellung raus — dieselbe, die sonst der Poller
+ * verschickt.
+ */
+export async function updateLockRequest(
+  id: string,
+  patch: UpdateLockRequestParams,
+): Promise<ServiceResult<{ id: string; userId: string; notified: boolean; deliveredToPoller: boolean }>> {
+  const va = await prisma.verschlussAnforderung.findUnique({
+    where: { id },
+    include: { user: { select: { id: true, email: true, username: true, locale: true } } },
+  });
+  if (!va || va.art !== "ANFORDERUNG") return serviceFail(404, "LOCK_REQUEST_NOT_FOUND");
+  if (va.fulfilledAt || va.withdrawnAt) return serviceFail(400, "LOCK_REQUEST_NOT_EDITABLE");
+  if (patch.dauerH != null && patch.sperrEndetAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
+
+  const now = new Date();
+  const next = mergeLockRequestPatch(va, patch);
+  // Die Frist selbst bleibt ungeprüft — sie ist eine Einschliess-Frist, kein Sperr-Ende, und darf
+  // (wie beim Anlegen) auch vor der Auslösung liegen. Nur „gar keine Frist" ist keine Anforderung.
+  if (!next.endetAt) return serviceFail(400, "LOCK_DEADLINE_REQUIRED");
+  const lockEndError = checkLockEnd(next.sperrEndetAt, next.wirksamAb, now);
+  if (lockEndError) return serviceFail(400, lockEndError);
+
+  if (next.deviceId && next.deviceId !== va.deviceId && !(await validateDeviceOwnership(next.deviceId, va.userId))) {
+    return serviceFail(400, "INVALID_DEVICE");
+  }
+
+  // Direkt zustellen NUR, wenn die Anforderung ab jetzt SOFORT gilt (`wirksamAb === null`). Solche
+  // Zeilen fasst der Poller nie an (er filtert `wirksamAb != null`), ein Direktversand kann also mit
+  // ihm nicht kollidieren. Dieselbe Regel wie beim Anlegen: an einen bereits verschlossenen Sub geht
+  // keine Einschliess-Anforderung raus.
+  //
+  // Eine noch verborgene Zeile mit bereits VERSTRICHENEM `wirksamAb` ist dagegen poller-fällig — die
+  // überlassen wir bewusst dem Poller als EINZIGEM Zusteller. Sendeten Edit UND Poller, bekäme der Sub
+  // zwei Benachrichtigungen (der Poller hat die Zeile evtl. schon vor unserem Schreiben in sein
+  // `due`-Array geladen und stempelt `benachrichtigtAt` erst NACH dem Senden). Der Poller liest den
+  // frischen Stand beim nächsten Tick (≤1 Min) und stellt genau einmal zu.
+  const wasHidden = isHiddenFromSub(va);
+  const deliverNow = wasHidden && next.wirksamAb === null;
+  if (deliverNow && (await getIsLocked(va.userId))) return serviceFail(400, "USER_ALREADY_LOCKED");
+
+  await prisma.verschlussAnforderung.update({
+    where: { id },
+    data: { ...next, ...(deliverNow ? { benachrichtigtAt: now } : {}) },
+  });
+
+  if (deliverNow) {
+    await sendVerschlussAnforderungNotifications({
+      userId: va.userId, user: va.user, art: "ANFORDERUNG",
+      nachricht: next.nachricht, endetAtDate: next.endetAt,
+      dauerH: next.dauerH, sperrEndetAtDate: next.sperrEndetAt,
+    });
+  } else if (!wasHidden) {
+    await notifyUser(va.userId, {
+      subjectKey: "lockRequestChangedSubject",
+      messageKey: "lockRequestChangedMessage",
+      params: { date: formatDateTime(next.endetAt) },
+    });
+  }
+  // Verborgen + noch nicht sofort fällig: stumm. Der Poller stellt bei Fälligkeit den frischen Stand zu.
+
+  void notifyHeimdallForUserId(va.userId);
+  // `deliveredToPoller` = verborgen, aber poller-fällig: WIR haben nicht benachrichtigt, der Poller
+  // wird es gleich tun. `notified` bleibt bewusst false (diese Antwort behauptet keine erfolgte
+  // Zustellung), das MCP-Tool formuliert daraus die passende Meldung.
+  const deliveredToPoller = wasHidden && !deliverNow && next.wirksamAb !== null && next.wirksamAb <= now;
+  return { ok: true, data: { id, userId: va.userId, notified: deliverNow || !wasHidden, deliveredToPoller } };
 }
 
 /** Betreff + Text der Withdraw-Benachrichtigung — geteilt von Service (MCP, per art) und

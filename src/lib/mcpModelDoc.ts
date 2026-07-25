@@ -30,6 +30,15 @@ direkt aus, ohne Rückfrage oder Bestätigung.
 ## 2. Sperrzeit & Box
 - **Sperrzeit** = eine von dir angeordnete Sperrperiode (\`endetAt\` oder unbefristet). Währenddessen
   darf der Sub NICHT selbst öffnen.
+- **Einschliess-Anforderung** (\`request_lock\`) ist das Gegenstück davor: „schliess dich bis X ein".
+  Sie kann die anschliessende Sperrzeit gleich mitbringen — entweder als Mindest-Tragedauer
+  (\`minDurationHours\`, zählt ab dem tatsächlichen Verschluss) oder als absolutes Ende
+  (\`lockUntilAt\`, feste Wanduhr; ein später Verschluss verschiebt es NICHT). Beim Einschliessen
+  entsteht daraus automatisch die Sperrzeit.
+- **Mehrere Anforderungen dürfen offen sein** — eine neue ersetzt keine bestehende (anders als bei
+  der Sperrzeit, wo die neue die alte ablöst). EIN Verschluss erfüllt alle offenen; jede bringt ihre
+  Sperrzeit mit, und die strengste setzt sich durch (spätestes Ende). Ändern: \`edit_lock_request\`,
+  einzeln zurückziehen: \`withdraw\` mit \`id\`.
 - **\`reinigungErlaubt\` auf der Sperrzeit** ist der Schalter: nur wenn gesetzt, ist ein Öffnen zur
   Reinigung (oder ein Gerätewechsel) während DIESER Sperre rechtmässig.
 - **Box** = die physische Schlüssel-Lockbox hinter einer Sperre. **Während einer Sperrzeit hält die
