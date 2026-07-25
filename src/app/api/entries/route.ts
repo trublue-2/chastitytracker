@@ -8,7 +8,7 @@ import { deriveSealCode } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   let withdrawnSperrzeit = false;
   let lockStartTime: Date | null = null;
-  let fulfilledAnforderungDeviceId: string | null = null;
+  let requiredAnforderungDeviceIds: string[] = [];
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
@@ -145,41 +145,55 @@ export async function POST(req: NextRequest) {
 
       // VerschlussAnforderung (ANFORDERUNG) als erfüllt markieren + ggf. SPERRZEIT erstellen
       if (type === "VERSCHLUSS") {
-        const offeneAnforderung = await tx.verschlussAnforderung.findFirst({
-          // Nur bereits ausgelöste (wirksamAb erreicht) Anforderungen — eine geplante, noch
-          // nicht versendete darf nicht vorzeitig als erfüllt markiert werden.
-          where: { userId: session.user.id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere(new Date()) },
+        // ALLE offenen, bereits ausgelösten Anforderungen — mehrere dürfen koexistieren, und dieser
+        // eine Verschluss erfüllt sie alle: jede verlangte „sei verschlossen", und das ist er jetzt.
+        // Liesse man die übrigen offen, würden sie bei Fristablauf zu „zu spät verschlossen"-
+        // Vergehen im Strafbuch, obwohl der Sub genau das Verlangte getan hat.
+        // Geplante, noch nicht versendete bleiben aussen vor — sie dürfen nicht vorzeitig als
+        // erfüllt gelten (dringendste zuerst, siehe getOpenLockRequests).
+        const offeneAnforderungen = await tx.verschlussAnforderung.findMany({
+          where: { ...openLockRequestWhere(session.user.id), ...activeVerschlussAnforderungWhere(new Date()) },
+          orderBy: LOCK_REQUEST_ORDER,
         });
-        if (offeneAnforderung) {
-          await tx.verschlussAnforderung.update({
-            where: { id: offeneAnforderung.id },
+        if (offeneAnforderungen.length > 0) {
+          await tx.verschlussAnforderung.updateMany({
+            where: { id: { in: offeneAnforderungen.map((a) => a.id) } },
             data: { fulfilledAt: new Date() },
           });
-          fulfilledAnforderungDeviceId = offeneAnforderung.deviceId;
-          // SPERRZEIT-Ende: absolutes sperrEndetAt (Wanduhr) gewinnt und bleibt fix, egal wann tatsächlich
-          // verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
-          const sperrEnde =
-            offeneAnforderung.sperrEndetAt ??
-            (offeneAnforderung.dauerH
-              ? new Date(Date.now() + offeneAnforderung.dauerH * 60 * 60 * 1000)
-              : null);
-          // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
-          // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
-          // handelt der Sub, und dass er sich zwischendurch selbst einschliesst, darf eine geplante
-          // Anweisung der Keyholderin nicht stillschweigend löschen — er kennt sie ja nicht einmal,
-          // es fiele also niemandem auf. Die Koexistenz ist damit gewollt; wie mehrere Sperrzeiten
-          // aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
-          if (sperrEnde) {
-            await tx.verschlussAnforderung.create({
-              data: {
+          // Die GEFORDERTEN Geräte aller erfüllten Anforderungen einsammeln (Anforderungen OHNE
+          // Gerätevorgabe stellen keine und fallen weg). Mehrere können verschiedene Geräte verlangen;
+          // der Sub kann aber nur EINES tragen. Er gilt als korrekt, sobald sein Gerät irgendeine der
+          // GEFORDERTEN Vorgaben trifft — sonst würde er für einen Konflikt bestraft, den er gar nicht
+          // auflösen konnte (zwei Anforderungen, zwei verschiedene Pflicht-Geräte). Trifft er KEINE der
+          // geforderten, greift die Falsch-Gerät-Ahndung unten; eine geforderte Vorgabe wird also nicht
+          // dadurch entwertet, dass daneben eine geräte-freie Anforderung offen ist.
+          requiredAnforderungDeviceIds = offeneAnforderungen.map((a) => a.deviceId).filter((d): d is string => d !== null);
+        }
+        // SPERRZEIT-Ende je Anforderung: absolutes sperrEndetAt (Wanduhr) gewinnt und bleibt fix, egal
+        // wann tatsächlich verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
+        //
+        // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
+        // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
+        // handelt der Sub, und dass er sich zwischendurch selbst einschliesst, darf eine geplante
+        // Anweisung der Keyholderin nicht stillschweigend löschen — er kennt sie ja nicht einmal,
+        // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
+        // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
+        const neueSperrzeiten = offeneAnforderungen.flatMap((a) => {
+          const sperrEnde = a.sperrEndetAt ?? (a.dauerH ? new Date(Date.now() + a.dauerH * 60 * 60 * 1000) : null);
+          return sperrEnde
+            ? [{
                 userId: session.user.id,
                 art: "SPERRZEIT",
-                nachricht: offeneAnforderung.nachricht,
+                nachricht: a.nachricht,
                 endetAt: sperrEnde,
-                reinigungErlaubt: offeneAnforderung.reinigungErlaubt,
-              },
-            });
-          }
+                reinigungErlaubt: a.reinigungErlaubt,
+              }]
+            : [];
+        });
+        // Ein Insert statt einer je Anforderung — der POST-Pfad des Subs ist heiss genug, dass sich
+        // N Round-Trips innerhalb der Transaktion nicht lohnen.
+        if (neueSperrzeiten.length > 0) {
+          await tx.verschlussAnforderung.createMany({ data: neueSperrzeiten });
         }
       }
 
@@ -234,7 +248,7 @@ export async function POST(req: NextRequest) {
   // Auto-create StrafeRecord when user picked a different device than the Anforderung specified.
   // Automatische Ahndung ohne Urteilsschritt → sofort erledigt (judgedBy=system), damit sie
   // nicht als offene Strafe im Urteilsloop hängt.
-  if (type === "VERSCHLUSS" && fulfilledAnforderungDeviceId && fulfilledAnforderungDeviceId !== (deviceId || null)) {
+  if (type === "VERSCHLUSS" && requiredAnforderungDeviceIds.length > 0 && !requiredAnforderungDeviceIds.includes(deviceId || "")) {
     try {
       const now = new Date();
       await prisma.strafeRecord.create({

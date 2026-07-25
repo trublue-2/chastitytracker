@@ -149,19 +149,33 @@ export function mapActiveSperrzeit(
 }
 
 /** Eine offene Verschluss-Anforderung: der Sub SOLL sich einschliessen, hat es aber noch nicht getan. */
-export interface OpenLockRequestView { endetAt: string | null; overdue: boolean; remainingMinutes: number | null; message: string | null; dauerH: number | null; reinigungErlaubt: boolean; deviceName: string | null }
+export interface OpenLockRequestView {
+  /** Für `edit_lock_request` / `withdraw` — ohne id lässt sich EINE von mehreren offenen nicht ansprechen. */
+  id: string;
+  endetAt: string | null;
+  overdue: boolean;
+  remainingMinutes: number | null;
+  message: string | null;
+  dauerH: number | null;
+  /** Absolutes Sperr-Ende nach dem Einschliessen (Alternative zu dauerH), oder null. */
+  lockUntilAt: string | null;
+  reinigungErlaubt: boolean;
+  deviceName: string | null;
+}
 
 export function mapOpenLockRequest(
-  a: { endetAt: Date | null; nachricht: string | null; dauerH: number | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  a: { id: string; endetAt: Date | null; nachricht: string | null; dauerH: number | null; sperrEndetAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenLockRequestView | null {
   if (!a) return null;
   return {
+    id: a.id,
     endetAt: a.endetAt ? fmt(a.endetAt) : null,
     overdue: a.endetAt ? a.endetAt < now : false,
     remainingMinutes: a.endetAt ? minutesUntil(a.endetAt, now) : null,
     message: a.nachricht,
     dauerH: a.dauerH,
+    lockUntilAt: a.sperrEndetAt ? fmt(a.sperrEndetAt) : null,
     reinigungErlaubt: a.reinigungErlaubt,
     deviceName: a.device?.name ?? null,
   };

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions, getIsLocked, activeVerschlussAnforderungWhere } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked, getOpenLockRequest } from "@/lib/queries";
 import { bildersafeEnabled, heimdallEnabled } from "@/lib/constants";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
@@ -18,10 +18,9 @@ export default async function NewVerschlussPage() {
     getIsLocked(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
     getUserDeviceOptions(userId),
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null, ...activeVerschlussAnforderungWhere() },
-      select: { deviceId: true },
-    }),
+    // Dieselbe Auswahl wie die Durchsetzung in POST /api/entries (dringendste zuerst) — sonst
+    // schlägt das Formular Gerät X vor, während gegen Y beurteilt wird.
+    getOpenLockRequest(userId),
     heimdall ? prisma.boxStatus.findMany({ where: { userId }, select: { name: true } }) : Promise.resolve([]),
   ]);
 
