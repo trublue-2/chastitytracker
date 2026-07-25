@@ -141,6 +141,19 @@ export const BOX_CODES = [
   "BOX_RELOCK_KEY_NOT_IN_BOX",
 ] as const;
 
+/** taskService (Aufgaben: Anweisungstext + 0..n Bedingungen, die bis `holdUntil` durchgehend gelten). */
+export const TASK_CODES = [
+  "TASK_NOT_FOUND",
+  "TASK_NOT_EDITABLE",
+  "TASK_TITLE_REQUIRED",
+  "TASK_TITLE_TOO_LONG",
+  "TASK_DESCRIPTION_TOO_LONG",
+  "TASK_HOLD_UNTIL_TOO_SOON",
+  "TASK_REQUIREMENT_INVALID",
+  "TASK_REQUIREMENT_KG_CATEGORY",
+  "TASK_DUPLICATE_REQUIREMENT",
+] as const;
+
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
@@ -161,6 +174,7 @@ export const SERVICE_ERROR_CODES = [
     ...REFERENCE_CODES,
     ...DEVICE_CODES,
     ...BOX_CODES,
+    ...TASK_CODES,
     ...SETTINGS_CODES,
   ]),
 ] as readonly string[];
@@ -179,4 +193,5 @@ export type ServiceErrorCode =
   | (typeof REFERENCE_CODES)[number]
   | (typeof DEVICE_CODES)[number]
   | (typeof BOX_CODES)[number]
+  | (typeof TASK_CODES)[number]
   | (typeof SETTINGS_CODES)[number];

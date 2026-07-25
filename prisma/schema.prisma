@@ -76,6 +76,7 @@ model User {
   kontrollAnforderungen          KontrollAnforderung[]
   verschlussAnforderungen        VerschlussAnforderung[]
   orgasmusAnforderungen          OrgasmusAnforderung[]
+  tasks                          Task[]
   devices                        Device[]
   strafeRecords                  StrafeRecord[]
   adminRelationships             AdminUserRelationship[]  @relation("AdminRelationships")
@@ -240,7 +241,8 @@ model DeviceCategory {
   createdAt       DateTime @default(now())
 
   devices  Device[]
-  vorgaben TrainingVorgabe[]
+  vorgaben         TrainingVorgabe[]
+  taskRequirements TaskRequirement[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -481,6 +483,7 @@ model Device {
   verschlussAnforderungen VerschlussAnforderung[]
   boxEvents               BoxEvent[]
   referenceImages         DeviceReferenceImage[]
+  taskRequirements        TaskRequirement[]
 
   @@index([userId, archivedAt])
   @@index([categoryId])
@@ -626,6 +629,72 @@ model OrgasmusAnforderung {
   withdrawnAt    DateTime?
 
   @@index([userId, fulfilledAt, withdrawnAt])
+}
+
+// Keyholder-Aufgabe an den Sub: ein Anweisungstext plus 0..n Bedingungen, die bis `holdUntil`
+// DURCHGEHEND gelten müssen (z.B. „Wohnung staubsaugen — mit KG verschlossen, Halsband und Knebel,
+// bis 15 Uhr"). Ohne Bedingungen ist es eine reine Freitext-Aufgabe mit Frist.
+//
+// Bewusst eine EIGENE Tabelle statt einer dritten `art` in VerschlussAnforderung: deren Poller
+// (kontrollePoller.ts), Rückzug-Pfad und MCP-Sicht lesen die Tabelle OHNE art-Filter und würden eine
+// Aufgabe still als Sperrzeit behandeln — zurückziehen, falsch melden, falsch anzeigen. Ausserdem
+// trägt dort `dauerH` die Bedeutung „erzeugt beim Einschliessen eine KG-Sperrzeit".
+//
+// KEIN gespeicherter Fortschritt (kein startedAt/failedAt): der Zustand wird bei jeder Anzeige aus den
+// Einträgen abgeleitet (src/lib/tasks.ts). Damit bleibt POST /api/entries unangetastet, vom Keyholder
+// nachgetragene Einträge zählen automatisch mit, korrigierte/gelöschte Einträge korrigieren die
+// Aufgabe von selbst — und eine nachträglich verschobene `holdUntil` wirkt sofort richtig.
+model Task {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  // Bis dahin müssen alle Bedingungen durchgehend gelten. Ohne Bedingungen: Frist zum Erledigen.
+  holdUntil     DateTime
+  // Kulanz zum Anlegen ab Erstellung. Wer erst danach beginnt, hat NICHT durchgehend gehalten und
+  // erfüllt die Aufgabe nicht — sonst wäre „eine Minute vor Schluss alles anlegen" eine Erfüllung.
+  startGraceMin Int      @default(30)
+  // Als Strafe gestellt? Rein informativ — eine Aufgabe ist KEIN StrafeRecord (der kann per Design
+  // nur an einem bereits erkannten, vergangenen Vergehen hängen).
+  isPunishment  Boolean  @default(false)
+  penaltyReason String?
+  createdAt     DateTime @default(now())
+  // Selbstmeldung des Subs. Bei Aufgaben MIT Bedingungen zusätzlich zur Bedingungs-Erfüllung nötig
+  // (der Textteil — „ist die Wohnung sauber?" — ist maschinell nicht prüfbar); ohne Bedingungen IST
+  // sie die Erfüllung.
+  completedAt   DateTime?
+  completionNote String?
+  withdrawnAt   DateTime?
+
+  requirements TaskRequirement[]
+
+  @@index([userId, withdrawnAt, completedAt])
+  @@index([userId, holdUntil])
+}
+
+// Eine Bedingung einer Aufgabe. Mehrere je Aufgabe sind der Normalfall („KG verschlossen UND Halsband
+// UND Knebel") — sie müssen GLEICHZEITIG gelten, damit die Aufgabe läuft.
+model TaskRequirement {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  // "WEAR" = Gerät/Kategorie tragen (WEAR_BEGIN..WEAR_END)
+  // "KG_LOCKED" = verschlossen sein (VERSCHLUSS..OEFFNEN) — der KG ist bewusst KEINE Wear-Kategorie,
+  //   ein WEAR_BEGIN darauf wird abgewiesen (prepareWearEntry → WEAR_DEVICE_KG).
+  type String
+  // WEAR: geforderte Kategorie („irgendein Plug"). SetNull, damit eine gelöschte Kategorie keine
+  // Aufgaben-Historie mitreisst — die Bedingung gilt dann als nicht mehr bewertbar.
+  categoryId String?
+  category   DeviceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Optional das konkrete Gerät („DIESER Knebel"); enger als categoryId und hat Vorrang.
+  deviceId String?
+  device   Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  sortOrder Int    @default(0)
+
+  @@index([taskId])
+  @@index([categoryId])
+  @@index([deviceId])
 }
 
 model NotificationPreference {

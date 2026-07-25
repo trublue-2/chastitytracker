@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.0.0",
+    "date": "2026-07-25",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Keyholder kann jetzt Aufgaben stellen — auch ohne Bezug zum Keuschheitsgürtel. Eine Aufgabe besteht aus einem Text und beliebig vielen Bedingungen: bestimmte Geräte tragen, den Käfig verschlossen halten, oder ganz ohne Gerät. Dazu ein Zeitpunkt, bis zu dem alles durchgehend gehalten werden muss. Legst du eines der geforderten Geräte vorher ab, gilt die Aufgabe als nicht erfüllt. Zum Abschluss meldest du sie als erledigt. Aufgaben können als Strafe gekennzeichnet werden.",
+          "en": "The keyholder can now set tasks — including ones unrelated to the chastity device. A task consists of a text and any number of conditions: wear certain devices, keep the cage locked, or no device at all. Plus a time by which everything must have been held continuously. If you remove one of the required devices before then, the task counts as unfulfilled. You report it as done at the end. Tasks can be marked as a punishment."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.52.3",
     "date": "2026-07-25",
     "changes": [

@@ -350,3 +350,19 @@ export function validateEntryPayload(
   }
   return null;
 }
+
+// ── Aufgaben (Task) ─────────────────────────────────────────────────────────
+/** Längen-Grenzen für Aufgaben-Texte. Zentral hier, nicht im Formular: dieselben Werte prüfen
+ *  Service (serverseitig verbindlich) und UI (`maxLength`). Ohne Grenze zerlegt ein langer Titel
+ *  das kompakte Banner in der Keyholder-Übersicht. Vorbild: `CATEGORY_NAME_MAX_LENGTH`. */
+export const TASK_TITLE_MAX_LENGTH = 80;
+export const TASK_DESCRIPTION_MAX_LENGTH = 2000;
+/** Voreingestellte Kulanz (Minuten) zum Anlegen der geforderten Geräte, ab Erstellung der Aufgabe. */
+export const TASK_DEFAULT_START_GRACE_MIN = 30;
+/** Zulässiger Bereich der Kulanz. Ein negativer Wert würde die Endzeit-Prüfung umdrehen und eine
+ *  Aufgabe erlauben, deren Frist bereits abgelaufen ist. */
+export const TASK_START_GRACE_RANGE = { min: 0, max: 24 * 60, fallback: TASK_DEFAULT_START_GRACE_MIN } as const;
+/** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
+ *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
+export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;
+export type TaskRequirementType = (typeof TASK_REQUIREMENT_TYPES)[number];
