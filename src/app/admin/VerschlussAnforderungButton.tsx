@@ -12,7 +12,6 @@ interface Props {
   userId: string;
   hasEmail: boolean;
   isLocked: boolean;
-  hasOffeneAnforderung: boolean;
   hasActiveSperrzeit: boolean;
   /** Governing timezone of this row's sub (data owner). */
   tz: string;
@@ -21,7 +20,7 @@ interface Props {
 }
 
 export default function VerschlussAnforderungButton({
-  userId, hasEmail, isLocked, hasOffeneAnforderung, hasActiveSperrzeit, tz, minNow,
+  userId, hasEmail, isLocked, hasActiveSperrzeit, tz, minNow,
 }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
@@ -44,7 +43,9 @@ export default function VerschlussAnforderungButton({
   const accentColor = isAnforderung ? "var(--color-request)" : "var(--color-sperrzeit)";
   const accentBg = isAnforderung ? "var(--color-request-bg)" : "var(--color-sperrzeit-bg)";
 
-  if (isAnforderung && (isLocked || !hasEmail || hasOffeneAnforderung)) return null;
+  // Mehrere offene Anforderungen sind erlaubt — der Button bleibt sichtbar, solange der Sub offen ist
+  // und eine E-Mail hat. (Die SPERRZEIT bleibt exklusiv: dort greift hasActiveSperrzeit.)
+  if (isAnforderung && (isLocked || !hasEmail)) return null;
   if (!isAnforderung && (!isLocked || hasActiveSperrzeit)) return null;
 
   const close = () => {

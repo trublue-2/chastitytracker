@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions, getKeyholderSperrzeiten, getIsLocked } from "@/lib/queries";
+import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective } from "@/lib/queries";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
-import { createVerschlussAnforderung, updateSperrzeitEnde, withdrawVerschlussAnforderung, checkLockEnd } from "@/lib/verschlussAnforderungService";
+import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
@@ -112,6 +112,9 @@ export interface RequestLockArgs {
   deadlineHours?: number;
   deadlineAt?: string;
   minDurationHours?: number;
+  /** Absolutes Sperr-Ende nach dem Einschliessen (Wanduhr) — Alternative zu minDurationHours. */
+  lockUntilAt?: string;
+  cleaningAllowed?: boolean;
   deviceName?: string;
   message?: string;
   /** Delay before the request reaches the user, in minutes (>0). Omit/0 = immediate. */
@@ -120,14 +123,19 @@ export interface RequestLockArgs {
   scheduledAt?: string;
   dryRun?: boolean;
 }
+
 export async function mcpRequestLock(username: string, args: RequestLockArgs) {
   const userId = await resolveTargetUserId(username);
   const deviceId = args.deviceName ? await resolveDeviceId(userId, args.deviceName) : null;
   if (args.dryRun) {
     // Advisory (nicht TOCTOU-sicher wie der echte Commit, der in derselben Transaktion liest) —
-    // fängt trotzdem den häufigsten Ablehnungsgrund: ANFORDERUNG verlangt einen NICHT verschlossenen User.
-    const problem = (await getIsLocked(userId)) ? "USER_ALREADY_LOCKED" : undefined;
-    return dryRunPreview("request_lock", problem, { art: "ANFORDERUNG", deviceId, deadlineAt: args.deadlineAt ?? null, deadlineHours: args.deadlineHours ?? null, minDurationHours: args.minDurationHours ?? null, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+    // fängt trotzdem den häufigsten Ablehnungsgrund: eine SOFORTIGE ANFORDERUNG verlangt einen NICHT
+    // verschlossenen User. Eine terminierte darf angelegt werden, egal wie der Sub gerade steht.
+    const immediate = !args.scheduledAt && !args.delayMinutes;
+    const problem = args.minDurationHours != null && args.lockUntilAt != null ? "LOCK_DURATION_OR_END"
+      : immediate && (await getIsLocked(userId)) ? "USER_ALREADY_LOCKED"
+      : undefined;
+    return dryRunPreview("request_lock", problem, { art: "ANFORDERUNG", deviceId, deadlineAt: args.deadlineAt ?? null, deadlineHours: args.deadlineHours ?? null, minDurationHours: args.minDurationHours ?? null, lockUntilAt: args.lockUntilAt ?? null, cleaningAllowed: args.cleaningAllowed ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createVerschlussAnforderung({
     userId,
@@ -136,19 +144,28 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     endetAt: args.deadlineAt,
     fristH: args.deadlineHours,
     dauerH: args.minDurationHours,
+    sperrEndetAt: args.lockUntilAt,
+    reinigungErlaubt: args.cleaningAllowed,
     deviceId,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
   }));
+  // Anders als eine Sperrzeit ERSETZT eine neue Anforderung keine bestehende — mehrere koexistieren.
+  // Ohne diesen Hinweis hielte die Keyholderin die eben gestellte für die einzige und wunderte sich
+  // später über eine zweite Frist, die sie längst vergessen hatte.
+  const openCount = await prisma.verschlussAnforderung.count({ where: openLockRequestWhere(userId) });
+  const alsoOpen = openCount > 1
+    ? ` NOTE: ${openCount} lock requests are now open (they add up, they do not replace each other) — one lock-up fulfils all of them. See keyholder_dashboard.openLockRequests / scheduledDirectives.`
+    : "";
   if (data.scheduledFor) {
     return {
       ok: true,
       id: data.id,
       scheduledFor: data.scheduledFor,
-      message: `Lock request scheduled — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.`,
+      message: `Lock request scheduled — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.` + alsoOpen,
     };
   }
-  return { ok: true, id: data.id, scheduledFor: null, message: "Lock request created; the user was notified by e-mail + push." };
+  return { ok: true, id: data.id, scheduledFor: null, message: "Lock request created; the user was notified by e-mail + push." + alsoOpen };
 }
 
 export interface SetLockPeriodArgs {
@@ -338,26 +355,60 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
 
 export interface WithdrawArgs {
   target: "lock_request" | "lock_period" | "inspection" | "orgasm_directive";
+  /** EINE Direktive gezielt zurückziehen (nur lock_request/lock_period). Ohne id trifft es alle
+   *  offenen der Art — bei mehreren offenen Anforderungen wäre das mehr als gemeint. */
+  id?: string;
   dryRun?: boolean;
 }
+
+/** Prüft, dass die per id gewählte Direktive zum Ziel-Sub UND zur angegebenen Art gehört — die id
+ *  kommt vom Agenten, nicht aus einer bereits gefilterten Liste. Ohne diese Schranke zöge ein
+ *  vertippter oder verwechselter Wert eine fremde Direktive zurück, und die Antwort meldete brav
+ *  Erfolg. Die Zustands-Regeln (bereits zurückgezogen/erfüllt) prüft der Service selbst. */
+async function assertOwnedDirective(id: string, userId: string, target: WithdrawArgs["target"]): Promise<void> {
+  const art = target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT";
+  const row = await prisma.verschlussAnforderung.findUnique({
+    where: { id },
+    select: { userId: true, art: true },
+  });
+  if (!row || row.userId !== userId || row.art !== art) throw new Error(`No open ${target} with id ${id}.`);
+}
+
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
+  if (args.id && args.target !== "lock_request" && args.target !== "lock_period") {
+    throw new Error("id is only supported for target lock_request or lock_period.");
+  }
+  if (args.id) await assertOwnedDirective(args.id, userId, args.target);
   if (args.dryRun) {
-    // Reine Lese-Vorschau: zählt, was ein echter Aufruf träfe, ohne etwas zurückzuziehen. Dieselbe
+    // Reine Lese-Vorschau: zeigt, was ein echter Aufruf träfe, ohne etwas zurückzuziehen. Dieselbe
     // "offen"-Definition wie withdrawVerschlussAnforderung/withdrawOrgasmusAnforderung/resolveKontrolle
-    // (siehe dort), hier nur gezählt statt geändert.
-    const now = new Date();
+    // (siehe dort), hier nur gelesen statt geändert.
+    //
+    // Bei den id-fähigen Zielen (lock_request/lock_period) OHNE id die betroffenen Zeilen EINZELN
+    // auflisten — die blosse Anzahl sagt nicht, WELCHE getroffen würde, und bei mehreren offenen ist
+    // genau das die Frage vor einem gezielten Einzel-Rückzug. `getKeyholderLockRequests`/
+    // `getKeyholderSperrzeiten` liefern exakt die Zeilen, die withdrawVerschlussAnforderung(art) auch
+    // stornieren würde (identisches where), also ist targets.length == willWithdraw garantiert.
+    if (!args.id && (args.target === "lock_request" || args.target === "lock_period")) {
+      const iso = await isoForUser(userId);
+      const open = args.target === "lock_request"
+        ? await getKeyholderLockRequests(userId)
+        : await getKeyholderSperrzeiten(userId);
+      const targets = open.map((s) => directiveRow(s, iso));
+      return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: args.target, willWithdraw: targets.length, targets } } satisfies DryRunPreview;
+    }
     let willWithdraw = 0;
-    if (args.target === "orgasm_directive") {
+    if (args.id) {
+      willWithdraw = 1; // genau die eine, oben schon auf Sub + Art geprüfte Zeile
+    } else if (args.target === "orgasm_directive") {
       willWithdraw = await prisma.orgasmusAnforderung.count({ where: { userId, fulfilledAt: null, withdrawnAt: null } });
-    } else if (args.target === "lock_request") {
-      willWithdraw = await prisma.verschlussAnforderung.count({ where: { userId, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null } });
-    } else if (args.target === "lock_period") {
-      willWithdraw = await prisma.verschlussAnforderung.count({ where: { userId, art: "SPERRZEIT", withdrawnAt: null, OR: [{ endetAt: null }, { endetAt: { gt: now } }] } });
     } else if (args.target === "inspection") {
       willWithdraw = await prisma.kontrollAnforderung.count({ where: { userId, entryId: null, withdrawnAt: null } });
     }
-    return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: args.target, willWithdraw } } satisfies DryRunPreview;
+    // Bewusst das Literal statt dryRunPreview(): der breitere Rückgabetyp der Helferin würde die
+    // Nicht-dryRun-Felder (withdrawn/hidden/message) für Aufrufer unerreichbar machen.
+    return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: args.target, ...(args.id ? { id: args.id } : {}), willWithdraw } } satisfies DryRunPreview;
   }
   let count = 0;
   // `hidden` (Teilmenge von `count`) = davon terminiert und noch nicht ausgelöst. Trifft ein Rückzug
@@ -368,7 +419,12 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   // ihn unsichtbar; sie zu stornieren meldet ihm nichts. Die Antwort darf das nicht anders behaupten.
   let notified = true;
   // Über die Shared-Services zurückziehen → der Nutzer wird konsistent benachrichtigt (wie in der Admin-UI).
-  if (args.target === "orgasm_directive") {
+  if (args.id) {
+    // Genau eine Zeile — sonst identisch zum Rundumschlag unten, inklusive Antwort-Formulierung.
+    ({ notified } = unwrap(await withdrawVerschlussAnforderungById(args.id)));
+    count = 1;
+    hidden = notified ? 0 : 1;
+  } else if (args.target === "orgasm_directive") {
     count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
   } else if (args.target === "lock_request") {
     ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")));
@@ -666,6 +722,56 @@ export interface EditLockPeriodArgs {
  * Die Mehrdeutigkeit bleibt nicht stumm: `untouched` nennt die nicht gewählten mit id und Status, und
  * über `id` lässt sich jede davon gezielt ansprechen.
  */
+/** Eine offene Direktive, die ein Edit-Tool treffen kann (Sperrzeit ODER Anforderung). */
+type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endetAt: Date | null; nachricht: string | null };
+
+/** Eine offene Direktive als Auswahl-Zeile: welche (id), kennt der Sub sie schon (triggered) oder
+ *  ist sie noch geplant (scheduled), wann löst sie aus / endet sie, und die Nachricht als
+ *  menschliches Unterscheidungsmerkmal. */
+interface DirectiveRow {
+  id: string;
+  status: "scheduled" | "triggered";
+  scheduledFor: string | null;
+  endsAt: string | null;
+  message: string | null;
+}
+
+/** Baut eine {@link DirectiveRow}. Geteilt von `pickEditTarget` (untouched) und dem withdraw-dryRun
+ *  (targets), damit „welche Direktiven sind betroffen" überall dieselbe Form hat. */
+function directiveRow(s: OpenDirective, iso: Iso): DirectiveRow {
+  return {
+    id: s.id,
+    status: isHiddenFromSub(s) ? "scheduled" : "triggered",
+    scheduledFor: iso(s.wirksamAb),
+    endsAt: iso(s.endetAt),
+    message: s.nachricht,
+  };
+}
+
+/**
+ * Wählt aus mehreren offenen Direktiven die gemeinte — und macht die Mehrdeutigkeit sichtbar,
+ * statt sie zu verschlucken. Geteilt von `edit_lock_period` und `edit_lock_request`, damit die
+ * Auswahl-Regel an EINER Stelle steht: ohne `id` gewinnt die AUSGELÖSTE (die, die der Sub kennt);
+ * gibt es nur geplante, die erste der Liste.
+ */
+function pickEditTarget<T extends OpenDirective>(
+  open: T[],
+  id: string | undefined,
+  iso: Iso,
+  label: "lock period" | "lock request",
+): { target: T; untouched: DirectiveRow[]; ambiguity: string } {
+  if (open.length === 0) throw new Error(`No open ${label} to edit.`);
+  const target = id
+    ? open.find((s) => s.id === id)
+    : open.find((s) => !isHiddenFromSub(s)) ?? open[0];
+  if (!target) throw new Error(`No open ${label} with id ${id} (it may be withdrawn, ended, or belong to someone else).`);
+
+  const untouched = open.filter((s) => s.id !== target.id).map((s) => directiveRow(s, iso));
+  const ambiguity = untouched.length === 0 ? ""
+    : ` NOTE: ${open.length} ${label}s are open — edited the ${isHiddenFromSub(target) ? "SCHEDULED" : "triggered"} one; the others are listed under "untouched". Pass id=… to edit one of those instead.`;
+  return { target, untouched, ambiguity };
+}
+
 export async function mcpEditLockPeriod(username: string, args: EditLockPeriodArgs) {
   const userId = await resolveTargetUserId(username);
   const iso = await isoForUser(userId);
@@ -673,12 +779,7 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   const endetAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
 
   const open = await getKeyholderSperrzeiten(userId); // aktive UND geplante, neueste zuerst
-  if (open.length === 0) throw new Error("No open lock period to edit.");
-
-  const target = args.id
-    ? open.find((s) => s.id === args.id)
-    : open.find((s) => !isHiddenFromSub(s)) ?? open[0];
-  if (!target) throw new Error(`No open lock period with id ${args.id} (it may be withdrawn, ended, or belong to someone else).`);
+  const { target, untouched, ambiguity } = pickEditTarget(open, args.id, iso, "lock period");
 
   if (args.dryRun) {
     const lockEndError = checkLockEnd(endetAt, target.wirksamAb, new Date());
@@ -694,14 +795,6 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
 
   const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt));
   const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${iso(endetAt)}.`;
-  const untouched = open.filter((s) => s.id !== target.id).map((s) => ({
-    id: s.id,
-    status: isHiddenFromSub(s) ? ("scheduled" as const) : ("triggered" as const),
-    scheduledFor: iso(s.wirksamAb),
-    endsAt: iso(s.endetAt),
-  }));
-  const ambiguity = untouched.length === 0 ? ""
-    : ` NOTE: ${open.length} lock periods are open — edited the ${isHiddenFromSub(target) ? "SCHEDULED" : "triggered"} one; the others are listed under "untouched". Pass id=… to edit one of those instead.`;
   return {
     ok: true,
     id: target.id,
@@ -709,6 +802,117 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
     message: (notified
       ? `${what} The user was notified by e-mail + push.`
       : `${what} It is still SCHEDULED (not triggered yet), so the user was NOT notified — they will learn the new end when it triggers.`) + ambiguity,
+  };
+}
+
+// ── Lock request: change an open Einschliess-Anforderung ─────────────────────
+
+export interface EditLockRequestArgs {
+  /** Die zu ändernde Anforderung explizit wählen. Ohne id gewinnt die AUSGELÖSTE (siehe pickEditTarget). */
+  id?: string;
+  deadlineAt?: string;
+  deadlineHours?: number;
+  minDurationHours?: number;
+  lockUntilAt?: string;
+  /** Sperr-Vorgabe ganz entfernen (weder Mindestdauer noch absolutes Ende). */
+  clearLockPeriod?: boolean;
+  cleaningAllowed?: boolean;
+  deviceName?: string;
+  clearDevice?: boolean;
+  /** Neue Nachricht; "" löscht die bestehende. */
+  message?: string;
+  /** Neuer Auslöse-Zeitpunkt (ISO) für eine noch terminierte Anforderung. */
+  scheduledAt?: string;
+  /** Terminierte Anforderung sofort zustellen. */
+  triggerNow?: boolean;
+  dryRun?: boolean;
+}
+
+/**
+ * Ändert EINE offene Einschliess-Anforderung (Frist, Nachricht, Gerät, Sperr-Vorgabe, Auslösezeit).
+ *
+ * Warum ein eigenes Tool statt „zurückziehen und neu stellen": für den Sub ist das nicht dasselbe —
+ * er sähe eine Rücknahme plus eine zweite Anweisung, und bei einer terminierten wäre die
+ * Verborgenheit dahin. Seit mehrere Anforderungen koexistieren dürfen, wäre es ausserdem kein
+ * Ersatz mehr, sondern eine zusätzliche Frist.
+ */
+export async function mcpEditLockRequest(username: string, args: EditLockRequestArgs) {
+  const userId = await resolveTargetUserId(username);
+  const iso = await isoForUser(userId);
+  if (args.clearLockPeriod && (args.minDurationHours != null || args.lockUntilAt != null)) {
+    throw new Error("clearLockPeriod cannot be combined with minDurationHours/lockUntilAt.");
+  }
+  if (args.clearDevice && args.deviceName) throw new Error("clearDevice cannot be combined with deviceName.");
+  if (args.triggerNow && args.scheduledAt) throw new Error("triggerNow cannot be combined with scheduledAt.");
+
+  const open = await getKeyholderLockRequests(userId); // ausgelöste UND geplante, dringendste zuerst
+  const { target, untouched, ambiguity } = pickEditTarget(open, args.id, iso, "lock request");
+
+  // Auslösung zuerst auflösen — eine relative Frist (deadlineHours) zählt ab dem Zeitpunkt, ab dem
+  // die Anforderung gilt, und der kann in diesem Aufruf gerade verschoben werden.
+  const now = new Date();
+  const wirksamAb = args.triggerNow ? null
+    : args.scheduledAt ? parseIsoDate(args.scheduledAt, "scheduledAt")
+    : target.wirksamAb;
+  const deadlineFrom = isScheduledDirective(wirksamAb, now) ? wirksamAb! : now;
+  const endetAt = args.deadlineAt ? parseIsoDate(args.deadlineAt, "deadlineAt")
+    : args.deadlineHours != null ? new Date(deadlineFrom.getTime() + args.deadlineHours * 60 * 60 * 1000)
+    : undefined;
+
+  const deviceId = args.clearDevice ? null
+    : args.deviceName ? await resolveDeviceId(userId, args.deviceName)
+    : undefined;
+
+  const patch: UpdateLockRequestParams = {
+    ...(endetAt ? { endetAt } : {}),
+    ...(args.message !== undefined ? { nachricht: args.message } : {}),
+    ...(deviceId !== undefined ? { deviceId } : {}),
+    ...(args.cleaningAllowed !== undefined ? { reinigungErlaubt: args.cleaningAllowed } : {}),
+    ...(args.clearLockPeriod ? { dauerH: null, sperrEndetAt: null } : {}),
+    ...(args.minDurationHours != null ? { dauerH: args.minDurationHours } : {}),
+    ...(args.lockUntilAt ? { sperrEndetAt: parseIsoDate(args.lockUntilAt, "lockUntilAt") } : {}),
+    ...(args.triggerNow || args.scheduledAt ? { wirksamAb } : {}),
+  };
+
+  if (args.dryRun) {
+    // Die Ziel-Zeile rechnet der SERVICE aus (mergeLockRequestPatch) — die Vorschau formatiert sie nur.
+    // Eine eigene Nachrechnung hier verspräche früher oder später etwas anderes, als der Commit tut.
+    // Die Zustands-Regeln des Services (erfüllt/zurückgezogen, Gerätebesitz) laufen erst beim Commit.
+    const next = mergeLockRequestPatch(target, patch);
+    // Denselben Ausschluss wie der Commit (updateLockRequest → LOCK_DURATION_OR_END) und wie
+    // request_lock: sonst meldete die Vorschau „wouldSucceed" für eine Eingabe, die der Commit
+    // ablehnt — genau die Divergenz, die mergeLockRequestPatch zu verhindern beansprucht.
+    const problem = (patch.dauerH != null && patch.sperrEndetAt != null)
+      ? "LOCK_DURATION_OR_END"
+      : checkLockEnd(next.sperrEndetAt, next.wirksamAb, now) ?? undefined;
+    const fields = (row: MergedLockRequest, deviceName: string | null): Record<string, unknown> => ({
+      deadlineAt: iso(row.endetAt),
+      message: row.nachricht,
+      device: deviceName,
+      minDurationHours: row.dauerH,
+      lockUntilAt: iso(row.sperrEndetAt),
+      cleaningAllowed: row.reinigungErlaubt,
+      scheduledFor: iso(row.wirksamAb),
+    });
+    const before = fields(target, target.device?.name ?? null);
+    const after = fields(next, next.deviceId === target.deviceId ? (target.device?.name ?? null) : (args.deviceName ?? null));
+    return dryRunPreview("edit_lock_request", problem, { id: target.id, otherOpenCount: open.length - 1, ...after }, diffFields(before, after));
+  }
+
+  const { notified, deliveredToPoller } = unwrap(await updateLockRequest(target.id, patch));
+  const stillScheduled = isScheduledDirective(wirksamAb, now);
+  const what = `Lock request updated (deadline ${iso(endetAt ?? target.endetAt)}).`;
+  return {
+    ok: true,
+    id: target.id,
+    untouched,
+    message: (stillScheduled
+      ? `${what} It is still SCHEDULED (not triggered yet), so the user was NOT notified — they will get the updated version when it triggers.`
+      : notified
+        ? `${what} The user was notified by e-mail + push.`
+        : deliveredToPoller
+          ? `${what} It is due now; the scheduler will deliver the updated version to the user within a minute.`
+          : `${what} The user was not notified.`) + ambiguity,
   };
 }
 

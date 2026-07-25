@@ -21,11 +21,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   if (!user) redirect("/admin");
 
   const flagOn = deviceCategoriesEnabled();
-  const [isLocked, offeneAnforderung, activeSperrzeit, categories, activeWear] = await Promise.all([
+  const [isLocked, activeSperrzeit, categories, activeWear] = await Promise.all([
     getIsLocked(id),
-    prisma.verschlussAnforderung.findFirst({
-      where: { userId: id, art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null },
-    }),
     getActiveSperrzeit(id),
     flagOn
       ? prisma.deviceCategory.findMany({
@@ -39,7 +36,6 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
 
   const hasEmail = !!user.email;
-  const hasOffeneAnforderung = !!offeneAnforderung;
   const hasActiveSperrzeit = !!activeSperrzeit;
 
   const canKontrolle = hasEmail && isLocked;
@@ -78,8 +74,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
             </div>
           )}
 
-          {/* Verschluss anfordern */}
-          {!isLocked && hasEmail && !hasOffeneAnforderung ? (
+          {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}
+          {!isLocked && hasEmail ? (
             <Link
               href={`/admin/users/${id}/aktionen/verschluss-anforderung`}
               className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised transition active:scale-[0.98]"
@@ -101,7 +97,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               <div>
                 <p className="text-sm font-semibold text-foreground-muted">{t("requestLock")}</p>
                 <p className="text-xs text-foreground-faint">
-                  {isLocked ? t("alreadyLocked") : hasOffeneAnforderung ? t("alreadyHasAnforderung") : t("noEmail")}
+                  {isLocked ? t("alreadyLocked") : t("noEmail")}
                 </p>
               </div>
             </div>
