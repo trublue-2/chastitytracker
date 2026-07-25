@@ -148,8 +148,10 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             categoryIcon: s.categoryIcon,
             deviceName: s.deviceName,
             since: s.since.toISOString(),
+            imageUrl: s.imageUrl,
           }))}
           serverNow={now.toISOString()}
+          adminUserId={id}
         />
       )}
 
@@ -240,7 +242,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
       <CategoryGoalsToday userId={id} />
 
-      <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} />
+      <SessionList keyholderView pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} />
 
       {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
 

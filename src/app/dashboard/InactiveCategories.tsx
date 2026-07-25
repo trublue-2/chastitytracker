@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { ChevronDown, Plus } from "lucide-react";
 import Card from "@/app/components/Card";
-import { categoryStyle } from "@/lib/categoryConstants";
-import CategoryIconRender from "@/app/components/CategoryIcon";
+import { wearActionHref } from "@/lib/categoryConstants";
+import { CategoryIconTile } from "@/app/components/CategoryPhotoThumb";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatHours, toDateLocale } from "@/lib/utils";
 
@@ -52,8 +52,7 @@ export default function InactiveCategories({ categories }: Props) {
       {open && (
         <ul className="mt-2 flex flex-col gap-2">
           {categories.map((c) => {
-            const style = categoryStyle(c.color);
-            const beginHref = `/dashboard/new/wear-begin?category=${c.id}`;
+            const beginHref = wearActionHref({ categoryId: c.id, active: false });
             return (
               <li key={c.id}>
                 <Card>
@@ -61,13 +60,7 @@ export default function InactiveCategories({ categories }: Props) {
                     href={beginHref}
                     className="flex items-center gap-3 p-3 active:bg-background-subtle transition opacity-80 hover:opacity-100"
                   >
-                    <div
-                      className="shrink-0 size-9 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: style.backgroundColor, color: style.color }}
-                      aria-hidden
-                    >
-                      <CategoryIconRender name={c.icon} className="size-4" />
-                    </div>
+                    <CategoryIconTile color={c.color} icon={c.icon} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
                       {c.todayHours > 0 && (

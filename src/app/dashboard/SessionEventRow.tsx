@@ -21,6 +21,11 @@ export interface SessionEventData {
   note: string | null;
   entryId: string | null;
   captureHref: string | null;
+  /** Keyholder-Sicht: Banner zeigen, Erfassen-Knopf NICHT. Der Link führte auf eine Sub-Route, wo das
+   *  Formular über die eigene Session schreibt — der Keyholder hätte die Kontrolle seines Subs auf
+   *  SEINEM Konto erfasst. Bewusst ein eigenes Feld statt `captureHref: null`: das Feld steuert auch
+   *  die Alarm-Darstellung, und die Frist seines Subs soll der Keyholder sehr wohl sehen. */
+  captureDisabled?: boolean;
   deadlineStr: string | null;
   isOverdue: boolean;
   kontrolleCode: string | null;
@@ -217,9 +222,11 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             <p className="text-xs font-medium mt-1 opacity-90">{ev.kontrolleKommentar}</p>
           )}
         </div>
-        <div onClick={(e) => e.stopPropagation()}>
-          <CaptureButton href={ev.captureHref} />
-        </div>
+        {!ev.captureDisabled && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <CaptureButton href={ev.captureHref} />
+          </div>
+        )}
       </div>
     );
   }
@@ -260,7 +267,12 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="hidden sm:inline-flex">{typePill}</span>
-              {ev.captureHref && (
+              {/* Zweite Aufrufstelle desselben Knopfes. Heute unerreichbar (der Banner-Zweig oben
+                  kehrt zurück, sobald `captureHref` gesetzt ist) — trotzdem mit demselben Riegel:
+                  eine Regel, die nur an einer von zwei Stellen steht, ist keine Regel, und ein
+                  Verengen der Bedingung oben brächte den Keyholder-Knopf sonst durch die Hintertür
+                  zurück. */}
+              {ev.captureHref && !ev.captureDisabled && (
                 <div onClick={(e) => e.stopPropagation()}>
                   <CaptureButton href={ev.captureHref} />
                 </div>

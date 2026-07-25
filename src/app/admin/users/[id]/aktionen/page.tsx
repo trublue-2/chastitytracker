@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
 
@@ -256,8 +256,8 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
             const active = activeByCategory.get(c.id);
             const isLast = i === categories.length - 1;
             const href = active
-              ? `/admin/users/${id}/aktionen/wear-end?category=${c.id}`
-              : `/admin/users/${id}/aktionen/wear-begin?category=${c.id}`;
+              ? wearActionHref({ categoryId: c.id, active: true, adminUserId: id })
+              : wearActionHref({ categoryId: c.id, active: false, adminUserId: id });
             const subLabel = active ? `${tw("endShort")} · ${active.deviceName}` : tw("titleBegin");
             const style = categoryStyle(c.color);
             return (

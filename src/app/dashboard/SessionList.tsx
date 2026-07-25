@@ -54,9 +54,16 @@ interface Props {
    *  display labels of orgasmusArt / oeffnenGrund codes. Omitted → built-in i18n labels. */
   orgasmusArtenConfig?: string | null;
   oeffnenGruendeConfig?: string | null;
+  /** Keyholder-Sicht: keine Aktions-Links auf SUB-Routen (`/dashboard/...`).
+   *  Konkret erreichbar: klappt der Keyholder eine Session auf, stand dort „Kontrolle erforderlich"
+   *  mit Erfassen-Knopf. Der führte in SEIN eigenes Kontroll-Formular — abgeschickt landete die
+   *  Kontrolle auf SEINEM Konto, während die Anforderung des Subs offen blieb und in „versäumt"
+   *  lief. Der Sub wäre also für eine Kontrolle bestraft worden, die sein Keyholder erfasst hat.
+   *  Das Banner selbst bleibt: die Frist ist für den Keyholder eine nützliche Information. */
+  keyholderView?: boolean;
 }
 
-export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null }: Props) {
+export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null, keyholderView = false }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   const ta = await getTranslations("admin");
@@ -145,6 +152,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             note: k.note,
             entryId: k.entryId,
             captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
+            captureDisabled: keyholderView,
             deadlineStr: k.deadline ? formatDateTime(k.deadline, dl, tz) : null,
             isOverdue: k.anforderungStatus === "overdue",
             kontrolleCode: k.code,
