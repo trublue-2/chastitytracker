@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   formatDateTime, formatHours,
-  buildPairs, getOpenPair, interruptionPauseMs, buildKontrolleItems,
+  buildPairs, getOpenPair, interruptionPauseMs, buildKontrolleItems, runningCleaningPauseUntil,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
   wearingHoursFromPairs, APP_TZ,
@@ -82,6 +82,21 @@ export default async function DashboardPage() {
     ? { type: latest.type as "VERSCHLUSS" | "OEFFNEN", since: latest.startTime.toISOString() }
     : null;
 
+  // Reinigungspause: der jüngste KG-Eintrag ist eine Reinigungsöffnung, deren Wiederverschluss die
+  // Session noch fortführen würde. Ohne diese Ableitung sah der Sub in dieser Zeit „Geöffnet
+  // seit …" — nicht von einer wirklich beendeten Session zu unterscheiden (Rückmeldung 15.07.2026).
+  //
+  // Die Frist kommt aus `runningCleaningPauseUntil` — DERSELBEN Regel, nach der `buildPairs` die
+  // Öffnung als blosse Unterbrechung verbucht. Das ist der Kern: der Countdown beantwortet genau
+  // die Frage, die der Sub stellt („bleibt das dieselbe Session?"), und kann dem Zeitstrahl
+  // darunter gar nicht widersprechen. Die Strafbuch-Frist (`cleaningRelockObligation`) ist eine
+  // ANDERE Frist — siehe die Warnung an beiden Funktionen.
+  //
+  // BEWUSST nur Anzeige: `isLocked`, die Box-Kopplung und jede Statistik bleiben unberührt — die
+  // Box IST offen, und ein erzwungenes „verschlossen" bräche das Wiederverschluss-Formular und die
+  // Entry-Guards.
+  const cleaningPauseUntil = runningCleaningPauseUntil(latest, reinigung, now);
+
   // ── Build kontroll items for session events ──
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
   const pairs = buildPairs(entries, kontrollItems, reinigung);
@@ -141,6 +156,7 @@ export default async function DashboardPage() {
 
   const clientProps: DashboardProps = {
     currentStatus,
+    cleaningPauseUntil: cleaningPauseUntil?.toISOString() ?? null,
     hasEntries: entries.length > 0,
 
     offeneKontrolle: offeneKontrolle ? {

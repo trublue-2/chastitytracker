@@ -349,7 +349,9 @@
     "keyInBoxNo": "Key NOT in the box",
     "photosLabel": "Photos",
     "photoMain": "Entry",
-    "photoBox": "Box"
+    "photoBox": "Box",
+    "cleaningPauseLabel": "Cleaning break – remaining",
+    "cleaningPauseRelock": "Lock up again"
   },
   "newEntry": {
     "title": "New entry",

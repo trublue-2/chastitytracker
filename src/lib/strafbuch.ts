@@ -183,6 +183,33 @@ function isAllowedReinigungOpening(
   return cleaningBlockReason(effectiveUser, [sperre], o.startTime) === null;
 }
 
+/**
+ * Die Frist, bis zu der eine Reinigungsöffnung wieder verschlossen sein muss, DAMIT SIE KEIN
+ * VERGEHEN WIRD — oder `null`, wenn für diese Öffnung gar keine solche Pflicht besteht.
+ *
+ * `null` heisst also nicht „erledigt", sondern „hier gilt diese Pflicht nicht": kein aktiver
+ * Sperrzeit-Kontext, Reinigung nicht erlaubt, ausserhalb der Fenster, oder die Sperrzeit endet vor
+ * der Frist (dann bleibt nichts mehr zu verletzen).
+ *
+ * NICHT zu verwechseln mit {@link import("./utils").cleaningInterruptionDeadline} — der Frist, bis
+ * zu der ein Wiederverschluss die Session fortführt. Die hier ist strenger im Zugang (nur unter
+ * Sperrzeit) und zugleich grosszügiger in der Dauer (bei konfigurierten Fenstern bis ans
+ * Fensterende, also möglicherweise Stunden). Als Countdown im Dashboard gezeigt, verspräche sie
+ * dem Sub Zeit, die das Session-Modell längst nicht mehr gibt.
+ */
+export function cleaningRelockObligation(
+  opening: { oeffnenGrund: string | null; startTime: Date },
+  sperre: { reinigungErlaubt: boolean; endetAt: Date | null } | null,
+  user: CleaningPermissionUser,
+  maxMinuten: number,
+  enforcedFrom: Date,
+): Date | null {
+  if (!sperre || !isAllowedReinigungOpening(opening, sperre, user, enforcedFrom)) return null;
+  const deadline = reinigungRelockDeadline(opening.startTime, maxMinuten, user.reinigungsFenster, user.timezone);
+  const sperrzeitCoversDeadline = sperre.endetAt === null || sperre.endetAt >= deadline;
+  return sperrzeitCoversDeadline ? deadline : null;
+}
+
 /** Computes the Strafbuch for a user: unauthorized openings during Sperrzeiten, late and
  *  rejected Kontrollen, REINIGUNG-limit violations, late locks, missed cleaning re-locks, plus
  *  the punished-marker records. Single source of truth shared by the admin Strafbuch page and the MCP tool. */
@@ -295,12 +322,11 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // already ended before the deadline: once the Sperrzeit is over there's no further re-lock
   // obligation left to violate, whether or not (or how late) the user eventually re-locks.
   const cleaningNotRelocked = oeffnungenMitSperre
-    .filter(({ o, sperre }) => isAllowedReinigungOpening(o, sperre, cleaningUser, enforcedFrom))
     .flatMap(({ o, sperre }) => {
-      const deadline = reinigungRelockDeadline(o.startTime, reinigungMaxMinuten, reinigungsFenster, subTz);
-      const sperrzeitCoversDeadline = sperre!.endetAt === null || sperre!.endetAt >= deadline;
+      const deadline = cleaningRelockObligation(o, sperre ?? null, cleaningUser, reinigungMaxMinuten, enforcedFrom);
+      if (!deadline) return [];
       const relockAt = verschluesse.find((v) => v.startTime > o.startTime)?.startTime ?? null;
-      return sperrzeitCoversDeadline && isCleaningNotRelocked(deadline, relockAt, now)
+      return isCleaningNotRelocked(deadline, relockAt, now)
         ? [{ entryId: o.id, startTime: o.startTime, deadline, relockAt, note: o.note }]
         : [];
     });

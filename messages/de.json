@@ -349,7 +349,9 @@
     "keyInBoxNo": "Schlüssel NICHT in der Box",
     "photosLabel": "Fotos",
     "photoMain": "Eintrag",
-    "photoBox": "Box"
+    "photoBox": "Box",
+    "cleaningPauseLabel": "Reinigungspause – noch",
+    "cleaningPauseRelock": "Wieder einschliessen"
   },
   "newEntry": {
     "title": "Neu erfassen",
