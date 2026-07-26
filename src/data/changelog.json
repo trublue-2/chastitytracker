@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.52.5",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Für Keyholder: Die Übersicht deines Subs zeigt jetzt den Zustand seiner Box — ob sie zu ist, bis wann sie zu bleiben soll, ob gerade gereinigt werden darf und wann sie sich zuletzt gemeldet hat. Bisher war das nur für den Sub selbst sichtbar.",
+          "en": "For keyholders: your sub's overview now shows the state of their box — whether it is closed, how long it should stay closed, whether cleaning is allowed right now, and when it last checked in. Until now only the sub could see this."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.52.4",
     "date": "2026-07-26",
     "changes": [

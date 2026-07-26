@@ -392,7 +392,8 @@
     "cleaningWindowOpen": "Cleaning window open until {until}",
     "cleaningWindowNext": "Next cleaning window: {start}–{end}",
     "cleaningNoWindows": "Cleaning not tied to specific times",
-    "cleaningQuota": "{count} of {max} used today"
+    "cleaningQuota": "{count} of {max} used today",
+    "subTimePrefix": "sub"
   },
   "lockForm": {
     "title": "Log lock",

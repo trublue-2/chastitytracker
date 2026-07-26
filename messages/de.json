@@ -392,7 +392,8 @@
     "cleaningWindowOpen": "Reinigungsfenster offen bis {until}",
     "cleaningWindowNext": "Nächstes Reinigungsfenster: {start}–{end}",
     "cleaningNoWindows": "Reinigung nicht an Uhrzeiten gebunden",
-    "cleaningQuota": "heute {count} von {max}"
+    "cleaningQuota": "heute {count} von {max}",
+    "subTimePrefix": "Sub"
   },
   "lockForm": {
     "title": "Verschluss erfassen",

@@ -5,7 +5,10 @@ import type { BoxRow } from "@/lib/boxStatus";
 
 /**
  * Pollt `/api/box` im 5s-Takt — reine Status-Anzeige (die Box folgt den Verschluss-/Öffnen-Einträgen,
- * keine Kommandos). Konsument: die Dashboard-Box-Status-Karte.
+ * keine Kommandos). Konsument: die Box-Status-Karte, im Sub-Dashboard wie in der Keyholder-Sicht.
+ *
+ * `userId` = Keyholder-Sicht auf einen fremden Sub (Autorisierung macht die Route). Ohne den
+ * Parameter bleibt der Poll selbst-bezogen.
  *
  * Im Hintergrund-Tab (`document.hidden`) wird der Poll übersprungen;
  * beim Sichtbarwerden holt ein SOFORT-Tick den frischen Stand (wer vom Knopfdrücken an der Box
@@ -14,16 +17,17 @@ import type { BoxRow } from "@/lib/boxStatus";
  * und der Zustand stimmte erst nach einem Seitenwechsel (realer Vorfall 16.07). `now` wird bei
  * jedem Poll neu gesetzt, damit die Frische-Anzeige („zuletzt vor X") mitläuft.
  */
-export function useBoxStatus(): { boxes: BoxRow[]; now: number } {
+export function useBoxStatus(userId?: string): { boxes: BoxRow[]; now: number } {
   const [boxes, setBoxes] = useState<BoxRow[]>([]);
   const [now, setNow] = useState(() => Date.now());
+  const url = userId ? `/api/box?userId=${encodeURIComponent(userId)}` : "/api/box";
 
   useEffect(() => {
     // Läuft nur client-seitig (useEffect) — `document` ist hier immer vorhanden.
     const tick = () => {
       if (document.hidden) return;
       setNow(Date.now());
-      fetch("/api/box", { cache: "no-store" })
+      fetch(url, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : []))
         .then((rows: BoxRow[]) => setBoxes(rows))
         .catch(() => {});
@@ -38,7 +42,7 @@ export function useBoxStatus(): { boxes: BoxRow[]; now: number } {
       clearInterval(iv);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, []);
+  }, [url]);
 
   return { boxes, now };
 }
