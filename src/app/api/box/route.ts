@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { heimdallEnabled } from "@/lib/constants";
@@ -15,13 +15,23 @@ const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 // Box-Status für den eingeloggten Sub — reine Status-Anzeige (Ist/Soll/Frische) für die
 // Box-Status-Karte. KEINE Kommandos mehr: die Box FOLGT den Verschluss-/Öffnen-Einträgen
 // (Kopplung in /api/entries), Reinigung = OEFFNEN(Reinigung)+Verschluss.
-export async function GET() {
+//
+// `?userId=` schaltet auf die KEYHOLDER-Sicht: dieselbe Karte, aber für einen fremden Sub. Ohne
+// den Parameter bleibt die Route exakt selbst-bezogen — die Sub-Sicht kann also nie versehentlich
+// fremde Boxen zeigen, und der Guard greift nur auf dem Pfad, der ihn wirklich braucht.
+export async function GET(req: NextRequest) {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;
   // Heimdall-Box ist ein eigenständiges Feature: ohne Sync-Secret keine Box-UI (auch wenn
   // noch alte BoxStatus-Zeilen in der DB liegen).
   if (!heimdallEnabled()) return NextResponse.json([], NO_STORE);
-  const userId = session.user.id;
+  // `||` statt `??`: ein leerer `?userId=` ist kein Ziel, sondern ein kaputter Aufruf — er soll auf
+  // die Selbst-Sicht fallen, nicht als fremde (nirgends existierende) User-Id weitergereicht werden.
+  const userId = req.nextUrl.searchParams.get("userId") || session.user.id;
+  if (userId !== session.user.id) {
+    const denied = await requireKeyholderOrAdminApi(userId);
+    if (denied) return denied;
+  }
 
   const [boxes, sperre] = await Promise.all([
     prisma.boxStatus.findMany({

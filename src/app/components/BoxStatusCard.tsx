@@ -2,25 +2,34 @@
 
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
+import { formatDateTimeDual, toDateLocale, APP_TZ } from "@/lib/utils";
 import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
 
-/** Reine Status-Anzeige der Heimdall-Box(en) auf dem Dashboard (Ist + Soll + Frische). Keine
- *  Box-Kommandos — die Box folgt den Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding,
- *  wenn keine Box existiert oder Heimdall aus ist → `[]`). */
-/** `reinigung` kommt als Prop von der Dashboard-Server-Komponente, NICHT aus dem 5s-Poll: die Regeln
- *  ändern sich, wenn der Keyholder sie editiert oder eine Reinigung eingetragen wird — nicht im
- *  Sekundentakt. Der Poll bleibt für die Hardware-Frische zuständig, die ihn wirklich braucht. */
-export default function BoxStatusCard({ tz = APP_TZ, reinigung }: { tz?: string; reinigung?: BoxReinigungView | null }) {
+/** Reine Status-Anzeige der Heimdall-Box(en) (Ist + Soll + Frische). Keine Box-Kommandos — die Box
+ *  folgt den Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding, wenn keine Box existiert
+ *  oder Heimdall aus ist → `[]`).
+ *
+ *  Geteilt vom Sub-Dashboard und der Keyholder-Detailseite: `userId` gesetzt = Sicht auf einen
+ *  fremden Sub. Bewusst DIESELBE Karte statt einer zweiten Keyholder-Variante — der Box-Zustand
+ *  ist derselbe, und zwei Darstellungen desselben Zustands laufen früher oder später auseinander.
+ *
+ *  `reinigung` kommt serverseitig aus `buildBoxReinigungView` (Begründung dort), nicht aus dem Poll.
+ *
+ *  `tz` ist IMMER die Zone des Subs. `viewerTz` (nur Keyholder-Sicht) blendet zusätzlich die eigene
+ *  Zeit ein: das Sperr-Ende ist ein absoluter Zeitpunkt, und unbeschriftet in Sub-Zeit gelesen plant
+ *  eine Keyholderin in einer anderen Zone die Freigabe um den Zonen-Versatz falsch. Ohne `viewerTz`
+ *  (Sub-Dashboard) fällt `formatDateTimeDual` auf den reinen Primärwert zurück — unverändert.
+ *  Die Reinigungs-FENSTER bleiben davon unberührt: die sind echte Wanduhrzeit des Subs. */
+export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz }: { tz?: string; reinigung?: BoxReinigungView | null; userId?: string; viewerTz?: string }) {
   const t = useTranslations("boxStatus");
   const dl = toDateLocale(useLocale());
-  const { boxes, now } = useBoxStatus();
+  const { boxes, now } = useBoxStatus(userId);
 
   if (boxes.length === 0) return null;
 
-  const fmtDateTime = (iso: string) => formatDateTime(iso, dl, tz);
+  const fmtDateTime = (iso: string) => formatDateTimeDual(iso, dl, viewerTz, tz, t("subTimePrefix"));
   // Die Reinigungs-Regeln hängen am User, nicht an der Box — einmal ableiten, unter jeder Box zeigen.
   const reinigungLabel = boxReinigungLabel(reinigung ?? null, t);
   const quotaLabel = boxReinigungQuotaLabel(reinigung ?? null, t);
