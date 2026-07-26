@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.53.3",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Auch nach einer Reinigungspause siehst du jetzt das Foto der Box und ob ein Schlüssel erkannt wurde — der Nachweis, dass der Schlüssel nach dem Reinigen wieder drin liegt. Die Pausen-Zeile zeigt die Pille und das Foto wie jeder andere Eintrag.",
+          "en": "After a cleaning break you now also see the photo of the box and whether a key was detected — the evidence that the key is back inside after cleaning. The break row shows the pill and the photo like any other entry."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Umschalten zwischen zwei Fotos im Vollbild blieb eine Fehlermeldung des ersten Bildes stehen, sodass das zweite nie erschien. Ausserdem wird die Zoom-Position beim Wechsel jetzt zurückgesetzt.",
+          "en": "When switching between two photos full screen, an error from the first image stuck around so the second never appeared. The zoom position is also reset on switching now."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.2",
     "date": "2026-07-26",
     "changes": [

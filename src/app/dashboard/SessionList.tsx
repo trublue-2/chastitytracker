@@ -205,6 +205,10 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         dateStr: formatDate(intr.oeffnen.startTime, dl, tz),
         timeStr: formatTime(intr.oeffnen.startTime, dl, tz),
         imageUrl: intr.verschluss.imageUrl,
+        // Fotos + Urteil stammen vom WIEDERVERSCHLUSS, nicht von der Öffnung: hier wird belegt,
+        // dass der Schlüssel wieder in der Box liegt.
+        boxImageUrl: intr.verschluss.boxImageUrl ?? null,
+        keyDetected: intr.verschluss.keyDetected ?? null,
         exifStr: null,
         note: intr.oeffnen.note,
         entryId: intr.oeffnen.id,
