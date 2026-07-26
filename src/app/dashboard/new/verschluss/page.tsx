@@ -4,31 +4,29 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions, getIsLocked, getOpenLockRequest } from "@/lib/queries";
-import { bildersafeEnabled, heimdallEnabled } from "@/lib/constants";
+import { getUserDeviceOptions, getIsLocked, getOpenLockRequest, getBoxFormContext } from "@/lib/queries";
+import { bildersafeEnabled } from "@/lib/constants";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 export default async function NewVerschlussPage() {
   const session = await auth();
   const userId = session!.user.id;
   const tz = session!.user.timezone ?? APP_TZ;
-  const heimdall = heimdallEnabled();
 
-  const [isLocked, dbUser, devices, offeneAnforderung, boxes] = await Promise.all([
+  const [isLocked, dbUser, devices, offeneAnforderung, box] = await Promise.all([
     getIsLocked(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
     getUserDeviceOptions(userId),
     // Dieselbe Auswahl wie die Durchsetzung in POST /api/entries (dringendste zuerst) — sonst
     // schlägt das Formular Gerät X vor, während gegen Y beurteilt wird.
     getOpenLockRequest(userId),
-    heimdall ? prisma.boxStatus.findMany({ where: { userId }, select: { name: true } }) : Promise.resolve([]),
+    // Box-User (Heimdall aktiv + eigene Box): „Schlüssel ist in der Box"-Block statt Bildersafe.
+    getBoxFormContext(userId),
   ]);
 
   if (isLocked) redirect("/dashboard");
 
-  // Box-User (Heimdall aktiv + eigene Box): „Schlüssel ist in der Box"-Bestätigung statt Bildersafe.
-  const boxConfirm = heimdall && boxes.length > 0;
-  const boxName = boxes.map((b) => b.name).filter(Boolean).join(", ");
+  const { boxConfirm, boxName } = box;
 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("lockForm");

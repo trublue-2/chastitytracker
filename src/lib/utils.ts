@@ -720,17 +720,21 @@ type KontrollAnforderungIn = {
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
    *  Fehlte es im `select`, fiele jedes Versäumnis stillschweigend auf "withdrawn" zurück. */
   autoMarkedRemovedAt: Date | null;
-  entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null } | null;
+  entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; keyDetected?: boolean | null } | null;
 };
 type PruefungEntryIn = {
   id: string; startTime: Date; imageUrl: string | null; note: string | null;
-  kontrollCode: string | null; verifikationStatus: string | null;
+  kontrollCode: string | null; verifikationStatus: string | null; keyDetected?: boolean | null;
 };
 export type KontrolleItem = {
   id: string; time: Date; imageUrl: string | null; code: string | null;
   deadline: Date | null; kommentar: string | null; note: string | null;
   anforderungStatus: AnforderungStatus | null; verifikationStatus: VerifikationStatus | null;
   entryId: string | null; submittedAt: Date | null;
+  /** Urteil der Schlüssel-Erkennung auf dem Box-Foto DIESER Kontrolle (null = nicht geprüft).
+   *  Trägt die zweite Hälfte des Nachweises: erst die Wiederholung bei jeder Kontrolle belegt,
+   *  dass der Schlüssel drin GEBLIEBEN ist. */
+  keyDetected: boolean | null;
 };
 
 /** Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries. */
@@ -753,6 +757,7 @@ export function buildKontrolleItems(
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
       entryId: k.entry?.id ?? null,
       submittedAt: k.fulfilledAt ?? null,
+      keyDetected: k.entry?.keyDetected ?? null,
     })),
     ...pruefungEntries
       .filter(e => !linkedEntryIds.has(e.id))
@@ -768,6 +773,7 @@ export function buildKontrolleItems(
         verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
         entryId: e.id,
         submittedAt: null as Date | null,
+        keyDetected: e.keyDetected ?? null,
       })),
   ];
 }

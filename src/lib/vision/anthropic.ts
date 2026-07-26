@@ -11,6 +11,9 @@ const MODEL: Record<VisionTask, string> = {
   "seal-detect": "claude-sonnet-4-6",
   "device-detect": "claude-haiku-4-5-20251001",
   "device-check": "claude-haiku-4-5-20251001",
+  // Schlüssel im Sichtfenster: reine Anwesenheits-Frage an einem kontrastreichen Motiv (Metall vor
+  // schwarzem Schaumstoff) — dieselbe Klasse wie die Geräte-Erkennung, also Haiku.
+  "key-detect": "claude-haiku-4-5-20251001",
 };
 
 /** Ist der Anthropic-Provider einsatzbereit? (API-Key gesetzt) */

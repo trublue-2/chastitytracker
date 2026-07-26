@@ -2,6 +2,7 @@ import { loadUploadedImage, type ImageData } from "@/lib/imageUtils";
 import { visionDeviceMaxImagePx, visionMaxTotalRefs } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
 import { visionComplete, visionConfigured, type VisionBlock } from "@/lib/vision";
+import { parseJsonObject } from "@/lib/vision/parse";
 
 function dlog(label: string, fields: Record<string, unknown>) {
   structuredLog("detect-device", label, fields);
@@ -72,17 +73,6 @@ function deviceImageBlocks(set: DeviceSet): VisionBlock[] {
   content.push({ type: "text", text: "QUERY image (the photo to check):" });
   content.push({ type: "image", mediaType: set.newImg.mediaType, base64: set.newImg.base64 });
   return content;
-}
-
-/** Erstes JSON-Objekt aus einer Modellantwort parsen, sonst null. */
-function parseJsonObject<T>(text: string): T | null {
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  try {
-    return JSON.parse(m[0]) as T;
-  } catch {
-    return null;
-  }
 }
 
 /**

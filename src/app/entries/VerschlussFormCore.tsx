@@ -16,11 +16,20 @@ import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import EntryFormShell from "@/app/components/EntryFormShell";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
+import BoxPhotoField from "@/app/components/BoxPhotoField";
 import Select from "@/app/components/Select";
 import Card from "@/app/components/Card";
 import Toggle from "@/app/components/Toggle";
 import type { DeviceOption } from "@/lib/queries";
 import type { VerschlussPayload, SubmitResult } from "./types";
+
+/** Die zwei strukturgleichen Rückfragen vor dem Speichern — nur die Texte unterscheiden sie
+ *  (gleiches Muster wie HINT_CARDS/MISMATCH_CARDS im Kontroll-Formular). */
+const CONFIRM_KEYS = {
+  keyOutside: { title: "confirmKeyOutsideTitle", text: "confirmKeyOutsideText" },
+  noBoxPhoto: { title: "confirmNoBoxPhotoTitle", text: "confirmNoBoxPhotoText" },
+} as const;
 
 interface Props {
   initial?: {
@@ -134,8 +143,34 @@ export default function VerschlussFormCore({
     return () => { cancelled = true; };
   }, [bildersafe, codeUrl]);
 
+  // ── Box-Foto: Schlüssel im Sichtfenster ──
+  // Eigene Upload-Instanz ohne Siegel-/Geräte-Erkennung. Das Urteil („Schlüssel erkannt") fällt
+  // server-seitig nach dem Speichern — hier wird bewusst NICHTS geprüft, was der Client dann
+  // mitschicken könnte.
+  const boxPhoto = usePhotoUpload({
+    startTime,
+    enableSealDetection: false,
+    enableDeviceDetection: false,
+    uploadErrorText: () => t("uploadError"),
+  });
+  const boxUrl = boxPhoto.imageUrl;
+
+  // Welche Rückfrage steht an? Die beiden schliessen einander aus (Toggle an ODER aus), es kann
+  // also nie mehr als eine offen sein. null = keine, direkt speichern.
+  const [pendingConfirm, setPendingConfirm] = useState<"noBoxPhoto" | "keyOutside" | null>(null);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Nur mit Box: ohne Heimdall gibt es weder Toggle noch Box-Foto, also auch nichts zu fragen.
+    if (boxConfirm) {
+      if (!keyInBox) return setPendingConfirm("keyOutside");
+      if (!boxUrl) return setPendingConfirm("noBoxPhoto");
+    }
+    await doSubmit();
+  }
+
+  async function doSubmit() {
+    setPendingConfirm(null);
     await submit({
       type: "VERSCHLUSS",
       // Wahrheitsgemäss, nicht als Pflicht: der Verschluss ist real, auch wenn der Schlüssel
@@ -149,6 +184,9 @@ export default function VerschlussFormCore({
       kontrollCode: sealNumber.trim() || null,
       deviceId: deviceId || null,
       ...(bildersafe ? { codeImageUrl: codeUrl || null, codeReadable } : {}),
+      // Rotation mitschicken: die Vision liest das Foto server-seitig neu, ein gedrehtes Bild
+      // sonst anders als die Vorschau, die der Sub gesehen hat.
+      ...(boxConfirm && keyInBox && boxUrl ? { boxImageUrl: boxUrl, boxImageRotation: boxPhoto.rotation } : {}),
     });
   }
 
@@ -165,7 +203,7 @@ export default function VerschlussFormCore({
           variant={submitVariant}
           semantic={submitVariant === "semantic" ? "lock" : undefined}
           fullWidth
-          loading={saving || uploading || codePhoto.uploading}
+          loading={saving || uploading || codePhoto.uploading || boxPhoto.uploading}
           disabled={bildersafe && (!codeUrl || codeReadable === false)}
           icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
         >
@@ -308,6 +346,10 @@ export default function VerschlussFormCore({
               onChange={setKeyInBox}
             />
           </Card>
+
+          {/* Nur bei „Schlüssel ist drin": das Foto belegt genau diese Aussage. Steht der Toggle
+              auf aus, gibt es nichts zu fotografieren. */}
+          {keyInBox && <BoxPhotoField photo={boxPhoto} mobileDesktopMode={mobileDesktopMode} />}
         </div>
       )}
 
@@ -319,6 +361,15 @@ export default function VerschlussFormCore({
       />
 
       <FormError message={error} />
+
+      <ConfirmDialog
+        open={pendingConfirm !== null}
+        title={tForm(CONFIRM_KEYS[pendingConfirm ?? "noBoxPhoto"].title)}
+        message={tForm(CONFIRM_KEYS[pendingConfirm ?? "noBoxPhoto"].text)}
+        confirmLabel={tForm("confirmSaveAnyway")}
+        onConfirm={doSubmit}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </EntryFormShell>
   );
 }

@@ -16,6 +16,8 @@ import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import EntryFormShell from "@/app/components/EntryFormShell";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
+import BoxPhotoField from "@/app/components/BoxPhotoField";
 import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
@@ -54,6 +56,9 @@ interface Props {
   /** Aktives Siegel: die Siegel-Nummer muss zusätzlich zum Code auf dem Foto lesbar sein. */
   sealRequired?: boolean;
   mobileDesktopMode?: boolean;
+  /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster, das den Schlüssel zeigt.
+   *  Nur beim Neuanlegen — beim Bearbeiten wird kein Nachweis nachgereicht. */
+  boxConfirm?: boolean;
   isEdit?: boolean;
   submitFn: (payload: PruefungPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
@@ -64,11 +69,14 @@ interface Props {
 
 export default function PruefungFormCore({
   initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, mobileDesktopMode,
-  isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
+  boxConfirm = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
   const tc = useTranslations("common");
   const tOffline = useTranslations("offline");
+  // Box-Foto + seine Rückfrage teilen die Texte mit dem Verschluss-Formular (lockForm) — es ist
+  // derselbe Nachweis, er darf nicht je Formular anders heissen.
+  const tLock = useTranslations("lockForm");
   const dl = toDateLocale(useLocale());
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -102,6 +110,17 @@ export default function PruefungFormCore({
     uploadErrorText: () => tc("uploadError"),
     initial,
   });
+
+  // ── Box-Foto: Schlüssel im Sichtfenster ──
+  // Eigene Upload-Instanz ohne Code-/Siegel-Prüfung: hier wird nichts client-seitig beurteilt,
+  // das Schlüssel-Urteil fällt server-seitig nach dem Speichern.
+  const boxPhoto = usePhotoUpload({
+    startTime,
+    enableSealDetection: false,
+    enableDeviceDetection: false,
+    uploadErrorText: () => tc("uploadError"),
+  });
+  const [pendingBoxConfirm, setPendingBoxConfirm] = useState(false);
 
   function handleFile(file: File) {
     setError("");
@@ -157,6 +176,14 @@ export default function PruefungFormCore({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!imageUrl) { setError(t("photoRequired")); return; }
+    // Box-Foto fehlt: nachfragen statt blockieren — die Kontrolle selbst ist gültig, nur der
+    // Schlüssel-Nachweis fehlt. Dieselbe Rückfrage wie im Verschluss-Formular.
+    if (boxConfirm && !boxPhoto.imageUrl) { setPendingBoxConfirm(true); return; }
+    await doSubmit();
+  }
+
+  async function doSubmit() {
+    setPendingBoxConfirm(false);
     await submit({
       type: "PRUEFUNG",
       startTime: fromDatetimeLocal(startTime, tz).toISOString(),
@@ -166,6 +193,7 @@ export default function PruefungFormCore({
       kontrollCode: kontrollCode || null,
       verifikationStatus: aiMatch === true ? "ai" : null,
       imageRotation: rotation,
+      ...(boxConfirm && boxPhoto.imageUrl ? { boxImageUrl: boxPhoto.imageUrl, boxImageRotation: boxPhoto.rotation } : {}),
     });
   }
 
@@ -183,7 +211,7 @@ export default function PruefungFormCore({
           variant={submitVariant}
           semantic={submitVariant === "semantic" ? "inspect" : undefined}
           fullWidth
-          loading={saving || uploading}
+          loading={saving || uploading || boxPhoto.uploading}
           icon={submitVariant === "primary" ? <ClipboardCheck size={16} /> : undefined}
         >
           {submitLabel ?? defaultLabel}
@@ -281,6 +309,10 @@ export default function PruefungFormCore({
         />
       )}
 
+      {/* Zweites Foto: Schlüssel im Sichtfenster. Nur beim Neuanlegen — eine Bearbeitung reicht
+          keinen Nachweis nach. */}
+      {boxConfirm && !isEdit && <BoxPhotoField photo={boxPhoto} mobileDesktopMode={mobileDesktopMode} />}
+
       <Textarea
         label={tc("noteOptional")}
         value={note}
@@ -289,6 +321,15 @@ export default function PruefungFormCore({
       />
 
       <FormError message={error} />
+
+      <ConfirmDialog
+        open={pendingBoxConfirm}
+        title={tLock("confirmNoBoxPhotoTitle")}
+        message={tLock("confirmNoBoxPhotoText")}
+        confirmLabel={tLock("confirmSaveAnyway")}
+        onConfirm={doSubmit}
+        onCancel={() => setPendingBoxConfirm(false)}
+      />
     </EntryFormShell>
   );
 }

@@ -573,6 +573,14 @@ model Entry {
   // (siehe boxCommand.ts). null = nicht gefragt (keine Box, Admin-Pfad, Alt-Client/Alt-Eintrag).
   // Ohne dieses Feld wäre "nicht hardware-vollstreckt" nicht von "Box war offline" zu unterscheiden.
   keyInBox                      Boolean?
+  // Box-Foto (Heimdall): Aufnahme durch das Sichtfenster der Box, die belegt, dass der Schlüssel
+  // drin liegt — bei geschlossener Box, deshalb dieselbe Aufnahme für VERSCHLUSS und PRUEFUNG.
+  // Getrennt von imageUrl (Gerät/Siegel) und codeImageUrl (Bildersafe).
+  boxImageUrl                   String?
+  // Hat die Vision im Sichtfenster einen Schlüssel erkannt? null = nicht geprüft (kein Foto, kein
+  // Vision-Provider, oder Prüfung läuft noch). Advisory wie deviceCheck: die Keyholderin sieht es,
+  // blockiert aber nichts. Erkennt "ein Schlüssel", NICHT "der richtige Schlüssel".
+  keyDetected                   Boolean?
   note                          String?
   oeffnenGrund                  String?
   orgasmusArt                   String?

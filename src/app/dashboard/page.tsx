@@ -202,6 +202,7 @@ export default async function DashboardPage() {
                 ? t(activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
                 : null
             }
+            keyInBox={activePair.verschluss.keyInBox ?? null}
             activeVorgabe={activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null}
             tagH={tagH}
             wocheH={wocheH}

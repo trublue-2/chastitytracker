@@ -37,14 +37,18 @@ export async function GET(
   const imageUrlInDb = `/api/uploads/${filename}`;
   const actorId = session.user.id;
   const isAdmin = session.user.role === "admin";
-  const [entryOwner, deviceOwner, codePhoto, refOwner] = await Promise.all([
+  const [entryOwner, deviceOwner, codePhoto, refOwner, boxPhotoOwner] = await Promise.all([
     prisma.entry.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
     prisma.device.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
     prisma.entry.findFirst({ where: { codeImageUrl: imageUrlInDb }, select: { userId: true, startTime: true } }),
     // Kuratiertes Geräte-Referenzfoto (DeviceReferenceImage)
     prisma.deviceReferenceImage.findFirst({ where: { imageUrl: imageUrlInDb }, select: { device: { select: { userId: true } } } }),
+    // Box-Foto (Schlüssel im Sichtfenster). Ohne diese Quelle bliebe `ownerId` null und die Datei
+    // wäre für JEDEN ausser einem globalen Admin 403 — auch für den Sub selbst und die
+    // Keyholderin, für die der Nachweis überhaupt existiert.
+    prisma.entry.findFirst({ where: { boxImageUrl: imageUrlInDb }, select: { userId: true } }),
   ]);
-  const ownerId = entryOwner?.userId ?? deviceOwner?.userId ?? codePhoto?.userId ?? refOwner?.device?.userId ?? null;
+  const ownerId = entryOwner?.userId ?? deviceOwner?.userId ?? codePhoto?.userId ?? refOwner?.device?.userId ?? boxPhotoOwner?.userId ?? null;
   const isOwner = ownerId != null && ownerId === actorId;
   // Keyholder-Zugriff ist strikt auf die EIGENEN Subs gescopt (isKeyholderOf prüft die konkrete Beziehung).
   const isKeyholder = !isOwner && !isAdmin && ownerId != null && (await isKeyholderOf(actorId, ownerId));

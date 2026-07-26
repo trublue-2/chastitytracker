@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.53.0",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neu für Box-Nutzer: Beim Einschliessen und bei jeder Kontrolle kannst du ein Foto durch das Sichtfenster deiner Box aufnehmen. Die Bilderkennung prüft, ob darin ein Schlüssel zu sehen ist, und das Ergebnis erscheint als Hinweis an der jeweiligen Session — für deine Keyholderin der erste echte Beleg, dass der Schlüssel drin ist und drin bleibt.",
+          "en": "New for box users: when you lock up and at every inspection you can take a photo through your box's viewing window. Image recognition checks whether a key is visible inside, and the result appears as a note on that session — for your keyholder, the first real evidence that the key is inside and stays there."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die laufende Session zeigt jetzt zuoberst, ob der Schlüssel in der Box liegt. Liegt er es nicht, steht das rot hervorgehoben da — der Verschluss ist dann nicht durch die Box gesichert. Dieselbe Angabe steht neu auch in der Mail an deine Keyholderin.",
+          "en": "The running session now shows at the top whether the key is in the box. If it is not, that is highlighted in red — the lock is then not secured by the box. The same line now also appears in the mail to your keyholder."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Speichern wird nachgefragt, wenn du kein Foto der Box aufgenommen hast oder angibst, dass der Schlüssel nicht hinein soll.",
+          "en": "Saving now asks back if you took no photo of the box, or if you state that the key does not go inside."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.52.5",
     "date": "2026-07-26",
     "changes": [
