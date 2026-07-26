@@ -1,3 +1,5 @@
+import type { NumberRange } from "@/lib/constants";
+
 /** Format hours as h:mm (e.g. 6:35h). No day splitting — pure hours:minutes. */
 export function formatHoursHM(h: number): string {
   const totalMin = Math.floor(h * 60);
@@ -109,7 +111,7 @@ export function toDateLocale(locale: string): string {
 export const APP_TZ = "Europe/Zurich";
 
 /** Klemmt eine Zahl auf [min, max] und rundet; ungültige/0-Werte fallen auf `fallback`. */
-export function clamp(value: number, { min, max, fallback }: { min: number; max: number; fallback: number }): number {
+export function clamp(value: number, { min, max, fallback }: NumberRange): number {
   return Math.max(min, Math.min(max, Math.round(value) || fallback));
 }
 
@@ -121,7 +123,7 @@ export function clamp(value: number, { min, max, fallback }: { min: number; max:
  *  substitutes `fallback`, which is right for a missing field but wrong for a typed one — an entry
  *  rounding to 0 ("0.4") would jump to the default instead of the minimum. Only an empty or
  *  unreadable entry falls back here; every real number is merely rounded and clamped. */
-export function clampInputValue(v: string, { min, max, fallback }: { min: number; max: number; fallback: number }): number {
+export function clampInputValue(v: string, { min, max, fallback }: NumberRange): number {
   const parsed = Number(v);
   if (v.trim() === "" || Number.isNaN(parsed)) return fallback;
   return Math.max(min, Math.min(max, Math.round(parsed)));

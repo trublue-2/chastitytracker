@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.53.6",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die erlaubten Wertebereiche der Admin-Einstellungen (Reinigungspausen, Kontroll-Eskalation, automatische Kontrollen) stehen jetzt nur noch an einer Stelle. Vorher führten Formular und Server je eine eigene Kopie — wich eine ab, kürzte das Formular die Eingabe still auf den alten Wert, bevor der Server sie überhaupt sah.",
+          "en": "The permitted value ranges of the admin settings (cleaning pauses, inspection escalation, automatic inspections) now live in exactly one place. Previously the form and the server each kept their own copy — if one drifted, the form silently trimmed the entry to the stale bound before the server ever saw it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die obere Grenze der Erfüllungsfrist automatischer Kontrollen fällt jetzt auch serverseitig auf 60 Minuten zurück statt auf 15 — so, wie es das Formular und der Datenbank-Standardwert ohnehin schon vorsahen.",
+          "en": "The upper bound of the automatic inspection deadline now falls back to 60 minutes on the server too, instead of 15 — matching what the form and the database default already used."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.5",
     "date": "2026-07-26",
     "changes": [

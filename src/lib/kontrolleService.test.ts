@@ -69,8 +69,8 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
  * Issue #42: Die Mail sagte „innert der nächsten 1 Stunde", während die Frist-Zeile darunter 10
  * Minuten nannte. Ursache war `Math.max(1, Math.round(ms / 3_600_000))` — alles unter einer halben
  * Stunde rundete auf 0 und wurde auf 1 angehoben, und 90 Minuten wurden zu „2 Stunden".
- * Auto-Kontrollen ziehen ihre Frist zufällig aus 5–240 Minuten (FRIST_RANGE), das trifft also den
- * Normalfall.
+ * Auto-Kontrollen ziehen ihre Frist zufällig aus 5–240 Minuten (AUTO_INSPECTION_DEADLINE_*_RANGE),
+ * das trifft also den Normalfall.
  */
 describe("inspectionIntro — die genannte Dauer muss der echten Frist entsprechen", () => {
   const min = (n: number) => n * 60_000;

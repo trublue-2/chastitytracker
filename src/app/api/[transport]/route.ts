@@ -9,9 +9,8 @@ import {
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
-import { VALID_TYPES } from "@/lib/constants";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
 import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_SOURCE, NOTE_CONFIDENCE, ENTITY_TYPES } from "@/lib/mcp/notes";
@@ -817,8 +816,8 @@ function registerTools(server: McpServer) {
           "pause, and the max pauses per day (0 = unlimited). Only provided fields change." + KEYHOLDER_SILENT,
         inputSchema: {
           allowed: z.boolean().optional().describe("Allow cleaning pauses?"),
-          maxMinutes: z.number().int().nonnegative().optional().describe("Max minutes per cleaning pause (clamped to 1–120)."),
-          maxPerDay: z.number().int().nonnegative().optional().describe("Max pauses per day, 0 = unlimited (clamped to 0–20)."),
+          maxMinutes: z.number().int().nonnegative().optional().describe(`Max minutes per cleaning pause (clamped to ${CLEANING_MAX_MINUTES_RANGE.min}–${CLEANING_MAX_MINUTES_RANGE.max}).`),
+          maxPerDay: z.number().int().nonnegative().optional().describe(`Max pauses per day, 0 = unlimited (clamped to ${CLEANING_MAX_PER_DAY_RANGE.min}–${CLEANING_MAX_PER_DAY_RANGE.max}).`),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

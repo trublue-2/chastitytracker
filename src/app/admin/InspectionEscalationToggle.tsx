@@ -5,18 +5,16 @@ import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
+import { INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, type NumberRange } from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
-const DELAY_MIN = 5;
-const DELAY_MAX = 1440;
-
 /** Single "N minutes" input, committed on blur. */
-function MinutesInput({ label, value, fallback, commit, disabled }: {
-  label: string; value: number; fallback: number; commit: (n: number) => Promise<boolean>; disabled: boolean;
+function MinutesInput({ label, value, range, commit, disabled }: {
+  label: string; value: number; range: NumberRange; commit: (n: number) => Promise<boolean>; disabled: boolean;
 }) {
   return (
     <InlineSettingRow label={label} unit="min">
-      <NumberInput value={value} min={DELAY_MIN} max={DELAY_MAX} fallback={fallback}
+      <NumberInput value={value} range={range}
         disabled={disabled} ariaLabel={label} onCommit={commit} />
     </InlineSettingRow>
   );
@@ -61,7 +59,7 @@ export default function InspectionEscalationToggle({
       />
       {reminderEnabled && (
         <MinutesInput
-          label={t("inspectionReminderDelayLabel")} value={reminderDelayMinutes} fallback={5}
+          label={t("inspectionReminderDelayLabel")} value={reminderDelayMinutes} range={INSPECTION_REMINDER_DELAY_RANGE}
           commit={(n) => saveDelay({ inspectionReminderDelayMinutes: n }, () => setReminderDelayMinutes(n))}
           disabled={saving}
         />
@@ -78,7 +76,7 @@ export default function InspectionEscalationToggle({
         />
         {autoMarkEnabled && (
           <MinutesInput
-            label={t("inspectionAutoMarkDelayLabel")} value={autoMarkDelayMinutes} fallback={60}
+            label={t("inspectionAutoMarkDelayLabel")} value={autoMarkDelayMinutes} range={INSPECTION_AUTO_MARK_DELAY_RANGE}
             commit={(n) => saveDelay({ inspectionAutoMarkDelayMinutes: n }, () => setAutoMarkDelayMinutes(n))}
             disabled={saving}
           />

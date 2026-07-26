@@ -193,6 +193,52 @@ export const NO_FIELDS_TO_UPDATE = "noFieldsToUpdate";
 /** Stabiler Fehler-Code für ein Feld, das keine gültige „HH:MM"-Uhrzeit ist. */
 export const INVALID_TIME = "invalidTime";
 
+/** Zulässiger Wertebereich EINES Zahlen-Feldes. `fallback` = Wert bei fehlender Eingabe — NICHT die
+ *  Untergrenze, deshalb ein eigenes Feld. Wann er greift, entscheidet die jeweilige Klemm-Funktion und
+ *  ist bewusst verschieden: `clamp` (Server) nimmt ihn auch für einen auf 0 gerundeten Wert,
+ *  `clampInputValue` (Formular) nur für eine leere/unlesbare Eingabe — eine getippte „0" landet dort
+ *  auf `min`. Siehe die Begründung bei `clampInputValue` in `utils.ts`. */
+export interface NumberRange {
+  readonly min: number;
+  readonly max: number;
+  readonly fallback: number;
+}
+
+/*
+ * Wertebereiche der Admin-Settings — EINE Quelle für alle Seiten: die Services klemmen damit beim
+ * Schreiben (`clamp`), die Formulare geben denselben Bereich an `NumberInput` weiter, und die
+ * MCP-Tool-Schemas/dryRun-Previews nennen bzw. zeigen denselben Bereich. Getrennte Kopien driften
+ * unbemerkt: klemmt das Formular auf einen veralteten Bereich, zerstört es die Eingabe, bevor der
+ * Server sie überhaupt sieht. Hier statt im jeweiligen Service, weil `NumberInput` ein Client-Modul
+ * ist und dieses hier — anders als die Services — keinen Prisma-Client mitzieht.
+ *
+ * JE FELD eine Konstante, auch wo zwei Felder einer „von – bis"-Zeile min/max teilen: der Fallback
+ * gehört zum Feld (er spiegelt dessen `@default` im Prisma-Schema), nicht zum Bereich. Ein optionaler
+ * Fallback hätte ihn stattdessen an jedes Call-Site zurückgereicht — genau die Kopie, die hier weg soll.
+ */
+
+/** Minuten je Reinigungspause. */
+export const CLEANING_MAX_MINUTES_RANGE = { min: 1, max: 120, fallback: 15 } as const satisfies NumberRange;
+/** Reinigungspausen pro Tag (0 = unbegrenzt). */
+export const CLEANING_MAX_PER_DAY_RANGE = { min: 0, max: 20, fallback: 0 } as const satisfies NumberRange;
+
+/** Grenzen beider Eskalationsstufen einer überfälligen Kontrolle: 5 min – 24 h. */
+const INSPECTION_ESCALATION_DELAY = { min: 5, max: 1440 } as const;
+/** Verzögerung bis zur Erinnerung (Stufe 1). */
+export const INSPECTION_REMINDER_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY, fallback: 5 } as const satisfies NumberRange;
+/** Verzögerung bis zum automatischen Vermerk (Stufe 2). */
+export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY, fallback: 60 } as const satisfies NumberRange;
+
+/** Automatische Kontrollen pro Tag — Min und Max derselben Zeile teilen auch den Fallback. */
+export const AUTO_INSPECTION_PER_DAY_RANGE = { min: 0, max: 12, fallback: 0 } as const satisfies NumberRange;
+
+/** Grenzen der Erfüllungsfrist einer automatischen Kontrolle (Minuten). */
+const AUTO_INSPECTION_DEADLINE = { min: 5, max: 240 } as const;
+/** Untere Frist-Grenze („von"). */
+export const AUTO_INSPECTION_DEADLINE_FROM_RANGE = { ...AUTO_INSPECTION_DEADLINE, fallback: 15 } as const satisfies NumberRange;
+/** Obere Frist-Grenze („bis"). */
+export const AUTO_INSPECTION_DEADLINE_TO_RANGE = { ...AUTO_INSPECTION_DEADLINE, fallback: 60 } as const satisfies NumberRange;
+
 /** Call-to-Action-Button-Farben für HTML-Mails (in E-Mail keine CSS-Variablen → Hex).
  *  Bewusst getrennt von TYPE_EMAIL_COLORS: das ist der Akzent je Eintrags-TYP, nicht die
  *  Button-Farbe eines Benachrichtigungs-Mails (eine Orgasmus-ANWEISUNG ist kein Orgasmus-Eintrag). */

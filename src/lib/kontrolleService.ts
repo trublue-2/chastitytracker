@@ -219,8 +219,8 @@ export async function requestKontrolle(
  *
  * Rein und exportiert, damit die Einheiten-Wahl prüfbar ist. Vorher stand hier
  * `Math.max(1, Math.round(ms / 3600000))`: jede Frist unter einer halben Stunde wurde zu „1 Stunde",
- * und 90 Minuten zu „2 Stunden" (Issue #42). Seit Auto-Kontrollen ihre Frist zufällig aus 5–240
- * Minuten ziehen, ist das der Normalfall und nicht der Randfall.
+ * und 90 Minuten zu „2 Stunden" (Issue #42). Seit Auto-Kontrollen ihre Frist zufällig aus
+ * `AUTO_INSPECTION_DEADLINE_*_RANGE` (5–240 Minuten) ziehen, ist das der Normalfall und nicht der Randfall.
  *
  * Deshalb wird die Restzeit ZERLEGT statt auf eine Einheit gerundet: unter einer Stunde Minuten,
  * bei vollen Stunden nur Stunden, sonst beides. Aufrunden wäre die gefährliche Richtung — der Satz
