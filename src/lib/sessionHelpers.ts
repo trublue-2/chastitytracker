@@ -21,16 +21,18 @@ export interface SessionEvent {
   deviceName?: string | null;
   /** VERSCHLUSS + KONTROLLE: Urteil der Schlüssel-Erkennung auf dem Box-Foto (null = nicht geprüft). */
   keyDetected?: boolean | null;
+  /** VERSCHLUSS + KONTROLLE: das Box-Foto selbst (im Vollbild wählbar). */
+  boxImageUrl?: string | null;
 }
 
 type LockRef = { name?: string | null };
 type ActivePair = {
-  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null; keyDetected?: boolean | null; device?: LockRef | null };
+  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null; device?: LockRef | null };
   kontrollen: {
     entryId: string | null; time: Date; imageUrl: string | null; note: string | null;
     deadline: Date | null; kommentar: string | null; code: string | null;
     anforderungStatus: string | null; verifikationStatus: string | null; submittedAt: Date | null;
-    keyDetected?: boolean | null;
+    keyDetected?: boolean | null; boxImageUrl?: string | null;
   }[];
   interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; device?: LockRef | null } }[];
 };
@@ -60,6 +62,7 @@ export function buildSessionEvents(
       kontrolleCode: activePair.verschluss.kontrollCode,
       deviceName: activePair.verschluss.device?.name ?? null,
       keyDetected: activePair.verschluss.keyDetected ?? null,
+      boxImageUrl: activePair.verschluss.boxImageUrl ?? null,
     },
     ...activePair.kontrollen
       .filter(k => k.entryId !== null)
@@ -78,6 +81,7 @@ export function buildSessionEvents(
         submittedAt: k.submittedAt,
         deviceName: wornDeviceNameAt(lockPoints, k.time),
         keyDetected: k.keyDetected ?? null,
+        boxImageUrl: k.boxImageUrl ?? null,
       })),
     ...orgasmusEntries
       .filter(e => e.startTime >= activePair.verschluss.startTime)

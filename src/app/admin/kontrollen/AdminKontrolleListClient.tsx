@@ -5,6 +5,8 @@ import { ImageOff, CheckCircle2, ScanLine, Lock, Check, AlertTriangle } from "lu
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import DetailField from "@/app/components/DetailField";
+import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
+import PhotoThumb from "@/app/components/PhotoThumb";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
@@ -36,6 +38,8 @@ function DeviceFact({ t, row }: { t: ReturnType<typeof useTranslations>; row: Ad
 
 export interface AdminKontrolleRowData {
   imageUrl: string | null;
+  /** Foto durchs Sichtfenster der Box — im Vollbild neben dem Kontroll-Foto wählbar. */
+  boxImageUrl?: string | null;
   kommentar: string | null;
   pillLabel: string | null;
   pillCls: string | null;
@@ -82,9 +86,12 @@ const PAGE_SIZE = 10;
 function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labels: Labels }) {
   const t = useTranslations("admin");
   const [open, setOpen] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const photo = usePhotoChoice(row.imageUrl, row.boxImageUrl);
 
-  if (!row.imageUrl) {
+  // Auch ohne Kontroll-Foto öffnen, sobald ein Box-Foto da ist — sonst zeigte dieselbe Kontrolle
+  // den Schlüssel-Nachweis in der Vorschau der User-Seite, in dieser Vollliste aber nicht.
+  const thumbUrl = row.imageUrl ?? row.boxImageUrl;
+  if (!thumbUrl) {
     return (
       <div className="flex-shrink-0 size-10 rounded-xl bg-surface-raised flex items-center justify-center">
         <ImageOff size={16} className="text-foreground-faint" />
@@ -95,19 +102,11 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={labels.imageAlt} className="flex-shrink-0">
-        {imgError ? (
-          <div className="w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
-            <ImageOff size={16} className="text-foreground-faint" />
-          </div>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={row.imageUrl} alt={labels.imageAlt} loading="lazy" className="w-10 h-10 rounded-xl object-cover"
-            onError={() => setImgError(true)} />
-        )}
+        <PhotoThumb url={thumbUrl} alt={labels.imageAlt} />
       </button>
       {open && (
         <FullscreenImageModal
-          src={row.imageUrl}
+          src={photo.src}
           alt={labels.imageAlt}
           onClose={() => setOpen(false)}
           title={
@@ -119,6 +118,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
           }
           panel={
             <div className="flex flex-col gap-3">
+              <PhotoChoice photo={photo} />
               {row.pillLabel && (
                 <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
               )}

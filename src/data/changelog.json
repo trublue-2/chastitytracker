@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.53.2",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Foto der Box lässt sich jetzt auch anschauen: Öffnest du das Foto eines Eintrags im Vollbild, kannst du zwischen dem Eintrags-Foto und dem Box-Foto umschalten. Gilt im eigenen Dashboard, in der Keyholder-Übersicht und in beiden Kontroll-Listen — bisher lag das Box-Foto zwar vor, war aber nirgends zu sehen.",
+          "en": "The photo of the box can now actually be viewed: open an entry's photo full screen and you can switch between the entry photo and the box photo. Works on your own dashboard, in the keyholder overview and in both inspection lists — until now the box photo existed but was nowhere to be seen."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.1",
     "date": "2026-07-26",
     "changes": [

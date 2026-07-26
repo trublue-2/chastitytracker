@@ -7,6 +7,7 @@ import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import SealedCodePhoto from "./SealedCodePhoto";
+import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -44,6 +45,8 @@ export interface SessionEventData {
    *  keine KI, Alt-Eintrag) → KEINE Pille: „kein Schlüssel erkannt" zu behaupten, wo niemand
    *  hingesehen hat, wäre eine Falschaussage über den Sub. */
   keyDetected?: boolean | null;
+  /** Foto durchs Sichtfenster der Box. Im Vollbild neben dem Haupt-Foto wählbar. */
+  boxImageUrl?: string | null;
 }
 
 
@@ -103,6 +106,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const photo = usePhotoChoice(ev.imageUrl, ev.boxImageUrl);
 
   // Reinigung → compact inline row with optional modal
   if (ev.type === "reinigung") {
@@ -308,12 +312,13 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
 
       {open && (
         <FullscreenImageModal
-          src={ev.imageUrl ?? ""}
+          src={photo.src}
           alt=""
           onClose={() => setOpen(false)}
           title={typePill}
           panel={
             <div className="flex flex-col gap-3">
+              <PhotoChoice photo={photo} />
               <DetailField label={tc("dateTime")}>
                 <p className="text-sm font-semibold text-foreground">{ev.dateStr}, {ev.timeStr}</p>
               </DetailField>

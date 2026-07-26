@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ImageOff, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
+import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
+import PhotoThumb from "@/app/components/PhotoThumb";
 
 export interface KontrolleItemData {
   id: string;
@@ -23,6 +25,8 @@ export interface KontrolleItemData {
   entryId: string | null;
   editHref: string | null;
   timeCorrectedStr?: string | null;
+  /** Foto durchs Sichtfenster der Box — im Vollbild neben dem Kontroll-Foto wählbar. */
+  boxImageUrl?: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -30,26 +34,21 @@ const PAGE_SIZE = 10;
 function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: string }) {
   const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const photo = usePhotoChoice(k.imageUrl, k.boxImageUrl);
 
-  if (!k.imageUrl) return null;
+  // Auch ohne Haupt-Foto öffnen, sobald ein Box-Foto da ist: sonst wäre der Schlüssel-Nachweis
+  // einer Kontrolle, deren Foto nachträglich entfernt wurde, gar nicht mehr erreichbar.
+  const thumbUrl = k.imageUrl ?? k.boxImageUrl;
+  if (!thumbUrl) return null;
 
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="flex-shrink-0">
-        {imgError ? (
-          <div className="w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
-            <ImageOff size={16} className="text-foreground-faint" />
-          </div>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={k.imageUrl} alt={imageAlt} loading="lazy" className="w-10 h-10 rounded-xl object-cover"
-            onError={() => setImgError(true)} />
-        )}
+        <PhotoThumb url={thumbUrl} alt={imageAlt} />
       </button>
       {open && (
         <FullscreenImageModal
-          src={k.imageUrl}
+          src={photo.src}
           alt={imageAlt}
           onClose={() => setOpen(false)}
           title={
@@ -60,6 +59,7 @@ function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: strin
           }
           panel={
             <div className="flex flex-col gap-3">
+              <PhotoChoice photo={photo} />
               <DetailField label={tc("dateTime")}>
                 <p className="text-sm font-semibold text-foreground">{k.dateTimeStr}</p>
               </DetailField>

@@ -720,11 +720,12 @@ type KontrollAnforderungIn = {
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
    *  Fehlte es im `select`, fiele jedes Versäumnis stillschweigend auf "withdrawn" zurück. */
   autoMarkedRemovedAt: Date | null;
-  entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; keyDetected?: boolean | null } | null;
+  entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null } | null;
 };
 type PruefungEntryIn = {
   id: string; startTime: Date; imageUrl: string | null; note: string | null;
   kontrollCode: string | null; verifikationStatus: string | null; keyDetected?: boolean | null;
+  boxImageUrl?: string | null;
 };
 export type KontrolleItem = {
   id: string; time: Date; imageUrl: string | null; code: string | null;
@@ -735,6 +736,8 @@ export type KontrolleItem = {
    *  Trägt die zweite Hälfte des Nachweises: erst die Wiederholung bei jeder Kontrolle belegt,
    *  dass der Schlüssel drin GEBLIEBEN ist. */
   keyDetected: boolean | null;
+  /** Foto durchs Sichtfenster der Box zu DIESER Kontrolle. */
+  boxImageUrl: string | null;
 };
 
 /** Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries. */
@@ -758,6 +761,7 @@ export function buildKontrolleItems(
       entryId: k.entry?.id ?? null,
       submittedAt: k.fulfilledAt ?? null,
       keyDetected: k.entry?.keyDetected ?? null,
+      boxImageUrl: k.entry?.boxImageUrl ?? null,
     })),
     ...pruefungEntries
       .filter(e => !linkedEntryIds.has(e.id))
@@ -774,6 +778,7 @@ export function buildKontrolleItems(
         entryId: e.id,
         submittedAt: null as Date | null,
         keyDetected: e.keyDetected ?? null,
+        boxImageUrl: e.boxImageUrl ?? null,
       })),
   ];
 }
