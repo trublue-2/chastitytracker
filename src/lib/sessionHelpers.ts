@@ -34,7 +34,7 @@ type ActivePair = {
     anforderungStatus: string | null; verifikationStatus: string | null; submittedAt: Date | null;
     keyDetected?: boolean | null; boxImageUrl?: string | null;
   }[];
-  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; device?: LockRef | null } }[];
+  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null; keyDetected?: boolean | null; device?: LockRef | null } }[];
 };
 
 type OrgasmusEntry = { id: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt: string | null };
@@ -99,6 +99,10 @@ export function buildSessionEvents(
       time: intr.oeffnen.startTime,
       imageUrl: intr.verschluss.imageUrl,
       codeImageUrl: intr.verschluss.codeImageUrl ?? null,
+      // Fotos des WIEDERVERSCHLUSSES: die Zeile steht für die Pause, der Nachweis gehört aber zum
+      // Wiedereinschliessen — „Schlüssel wieder in der Box" ist genau hier die Aussage.
+      boxImageUrl: intr.verschluss.boxImageUrl ?? null,
+      keyDetected: intr.verschluss.keyDetected ?? null,
       imageExifTime: null,
       note: intr.oeffnen.note,
       entryId: intr.oeffnen.id,

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound } from "lucide-react";
+import { Lock, LockOpen, CheckCircle2, Droplets, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import SealedCodePhoto from "./SealedCodePhoto";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
+import PhotoThumb from "@/app/components/PhotoThumb";
 
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -105,8 +106,18 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   const t = useTranslations("dashboard");
   const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
-  const [imgError, setImgError] = useState(false);
   const photo = usePhotoChoice(ev.imageUrl, ev.boxImageUrl);
+
+  // Grün = Schlüssel im Sichtfenster erkannt, Warn-Optik = keiner erkannt (siehe `keyDetected`).
+  const keyPill = ev.keyDetected == null ? null : ev.keyDetected ? (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full">
+      <KeyRound size={10} />{t("keyDetected")}
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-warn-text bg-warn-bg border border-[var(--color-warn-border)] px-2 py-0.5 rounded-full">
+      <KeyRound size={10} />{t("keyNotDetected")}
+    </span>
+  );
 
   // Reinigung → compact inline row with optional modal
   if (ev.type === "reinigung") {
@@ -126,9 +137,10 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-surface-raised/60 transition active:bg-border-subtle/60 cursor-pointer"
         >
           <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden">
-            {ev.imageUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={ev.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover rounded-xl" />
+            {/* Foto des WIEDERVERSCHLUSSES; fehlt es, aber ein Box-Foto ist da, zeigt die Zeile
+                dieses — sonst bliebe der Nachweis „Schlüssel wieder drin" unsichtbar. */}
+            {photo.mainUrl ?? photo.boxUrl ? (
+              <PhotoThumb url={(photo.mainUrl ?? photo.boxUrl)!} alt="" size="lg" />
             ) : (
               <div className="w-full h-full bg-sky-50 flex items-center justify-center rounded-xl">
                 <LockOpen size={18} className="text-sky-400" />
@@ -138,11 +150,11 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           <div className="flex-1 min-w-0 pt-0.5">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="mb-0.5 sm:hidden">{reinigungPill}</div>
+                <div className="mb-0.5 flex flex-wrap items-center gap-1.5 sm:hidden">{reinigungPill}{keyPill}</div>
                 <span className="block text-sm font-semibold text-foreground tabular-nums">{ev.dateStr}</span>
                 <span className="block text-xs text-foreground-faint tabular-nums">{ev.timeStr}</span>
               </div>
-              <span className="hidden sm:inline-flex shrink-0">{reinigungPill}</span>
+              <span className="hidden sm:inline-flex shrink-0 items-center gap-1.5">{reinigungPill}{keyPill}</span>
             </div>
             {ev.pauseDurationStr && (
               <p className="text-xs text-sky-500 mt-0.5">{ev.pauseDurationStr}</p>
@@ -158,12 +170,13 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
 
         {open && (
           <FullscreenImageModal
-            src={ev.imageUrl ?? ""}
+            src={photo.src}
             alt=""
             onClose={() => setOpen(false)}
             title={reinigungPill}
             panel={
               <div className="flex flex-col gap-3">
+                <PhotoChoice photo={photo} />
                 <DetailField label={tc("dateTime")}>
                   <p className="text-sm font-semibold text-foreground">{ev.dateStr}, {ev.timeStr}</p>
                 </DetailField>
@@ -196,17 +209,6 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   ) : (
     <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-sperrzeit)] bg-[var(--color-sperrzeit-bg)] border border-[var(--color-sperrzeit-border)] px-2 py-0.5 rounded-full">
       <Droplets size={10} />{t("sessionOrgasmus")}
-    </span>
-  );
-
-  // Grün = Schlüssel im Sichtfenster erkannt, Warn-Optik = keiner erkannt (siehe `keyDetected`).
-  const keyPill = ev.keyDetected == null ? null : ev.keyDetected ? (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full">
-      <KeyRound size={10} />{t("keyDetected")}
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-warn-text bg-warn-bg border border-[var(--color-warn-border)] px-2 py-0.5 rounded-full">
-      <KeyRound size={10} />{t("keyNotDetected")}
     </span>
   );
 
@@ -259,16 +261,10 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
         onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
         className="w-full flex items-start gap-4 px-5 py-4 text-left hover:bg-surface-raised/60 transition active:bg-border-subtle/60 cursor-pointer"
       >
-        {/* Photo */}
+        {/* Foto — ohne Haupt-Foto das Box-Foto, sonst das Typ-Icon. */}
         <div className="shrink-0">
-          {ev.imageUrl && !imgError ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={ev.imageUrl} alt="" loading="lazy" className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover"
-              onError={() => setImgError(true)} />
-          ) : imgError ? (
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-raised flex items-center justify-center">
-              <ImageOff size={18} className="text-foreground-faint" />
-            </div>
+          {photo.mainUrl ?? photo.boxUrl ? (
+            <PhotoThumb url={(photo.mainUrl ?? photo.boxUrl)!} alt="" size="lg" />
           ) : (
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-raised flex items-center justify-center">
               {icon}

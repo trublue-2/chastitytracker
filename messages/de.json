@@ -198,7 +198,8 @@
     "notVerified": "Nicht verifiziert",
     "verifying": "Verifizierung läuft",
     "reason": "Grund",
-    "from": "von"
+    "from": "von",
+    "imageUnavailable": "Bild nicht verfügbar"
   },
   "adminNav": {
     "overview": "Übersicht",

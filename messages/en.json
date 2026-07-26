@@ -198,7 +198,8 @@
     "notVerified": "Not verified",
     "verifying": "Verifying…",
     "reason": "Reason",
-    "from": "from"
+    "from": "from",
+    "imageUnavailable": "Image unavailable"
   },
   "adminNav": {
     "overview": "Overview",
