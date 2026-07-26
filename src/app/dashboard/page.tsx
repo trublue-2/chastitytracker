@@ -257,6 +257,7 @@ export default async function DashboardPage() {
           deviceName: s.deviceName,
           since: s.since.toISOString(),
           heldReason: taskHeldCategories.has(s.categoryId) ? tTasks("heldByTask") : null,
+          imageUrl: s.imageUrl,
         }))}
         serverNow={now.toISOString()}
       />

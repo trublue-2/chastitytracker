@@ -146,3 +146,16 @@ export function validateCategoryInput(input: {
   }
   return null;
 }
+
+/**
+ * Link auf das Trage-Formular einer Kategorie — beginnen oder beenden, Sub- oder Keyholder-Sicht.
+ *
+ * Zentral, weil dieselben vier Pfad-Varianten vorher an jeder Aufrufstelle von Hand
+ * zusammengesetzt wurden. Der Keyholder-Zweig ist dabei nicht Kosmetik: zeigt eine Karte in seiner
+ * Ansicht auf `/dashboard/...`, wirft `proxy.ts` ihn nach `/admin` — der Link ist dann schlicht tot.
+ */
+export function wearActionHref(opts: { categoryId: string; active: boolean; adminUserId?: string }): string {
+  const form = opts.active ? "wear-end" : "wear-begin";
+  const base = opts.adminUserId ? `/admin/users/${opts.adminUserId}/aktionen` : "/dashboard/new";
+  return `${base}/${form}?category=${opts.categoryId}`;
+}

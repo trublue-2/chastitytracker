@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
 import ActionRow, { ActionRowGroup } from "./ActionRow";
@@ -139,7 +139,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           return (
             <ActionRow
               key={c.id}
-              href={`${base}/${active ? "wear-end" : "wear-begin"}?category=${c.id}`}
+              href={wearActionHref({ categoryId: c.id, active: !!active, adminUserId: id })}
               icon={<CategoryIconRender name={c.icon} className="size-5" />}
               iconStyle={{ backgroundColor: style.backgroundColor, color: style.color }}
               title={c.name}
