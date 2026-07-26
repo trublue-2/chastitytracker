@@ -8,6 +8,7 @@ import {
   isSubVisibleKontrolle,
   wornDeviceNameAt,
   interruptionPauseMs,
+  clampInputValue,
   WEAR_PAIR,
   formatDateTime,
   toDatetimeLocal,
@@ -667,5 +668,34 @@ describe("wornDeviceNameAt — getragenes Gerät re-lock-bewusst", () => {
   it("unsortierte Eingabe wird korrekt behandelt", () => {
     const lp = [d("2026-07-17T13:00:00Z", "Cage B"), d("2026-07-17T10:00:00Z", "Cage A")];
     expect(wornDeviceNameAt(lp, new Date("2026-07-17T11:00:00Z"))).toBe("Cage A");
+  });
+});
+
+describe("clampInputValue", () => {
+  const range = { min: 5, max: 1440, fallback: 60 };
+
+  it("klemmt auf den Bereich statt auf den Fallback", () => {
+    expect(clampInputValue("1", range)).toBe(5);
+    expect(clampInputValue("9999", range)).toBe(1440);
+    expect(clampInputValue("20", range)).toBe(20);
+  });
+
+  it("eine auf 0 gerundete Eingabe fällt aufs Minimum, nicht auf den Fallback", () => {
+    expect(clampInputValue("0", range)).toBe(5);
+    expect(clampInputValue("0.4", range)).toBe(5);
+  });
+
+  it("rundet wie die Server-Seite (clamp)", () => {
+    expect(clampInputValue("20.6", range)).toBe(21);
+  });
+
+  it("nur leere/unlesbare Eingaben nehmen den Fallback", () => {
+    expect(clampInputValue("", range)).toBe(60);
+    expect(clampInputValue("   ", range)).toBe(60);
+    expect(clampInputValue("abc", range)).toBe(60);
+  });
+
+  it("0 bleibt 0, wenn der Bereich es zulässt (Reinigungen pro Tag = unbegrenzt)", () => {
+    expect(clampInputValue("0", { min: 0, max: 20, fallback: 0 })).toBe(0);
   });
 });

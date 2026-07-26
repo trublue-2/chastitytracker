@@ -114,10 +114,17 @@ export function clamp(value: number, { min, max, fallback }: { min: number; max:
 }
 
 /** Client-side sibling of {@link clamp}: parses a raw `<input type="number">` string value and
- *  clamps it. Shared by admin number-input toggles (AutoKontrolleToggle, InspectionEscalationToggle)
- *  so the parse+clamp behavior can't drift between them. */
-export function clampInputValue(v: string, min: number, max: number, fallback: number): number {
-  return Math.max(min, Math.min(max, Number(v) || fallback));
+ *  clamps it to the same range. Its single caller is `NumberInput`, which applies it on blur —
+ *  applying it per keystroke is what once made those fields unclearable.
+ *
+ *  Deliberately NOT `clamp(Number(v), range)`: `clamp` treats a falsy value as "no input" and
+ *  substitutes `fallback`, which is right for a missing field but wrong for a typed one — an entry
+ *  rounding to 0 ("0.4") would jump to the default instead of the minimum. Only an empty or
+ *  unreadable entry falls back here; every real number is merely rounded and clamped. */
+export function clampInputValue(v: string, { min, max, fallback }: { min: number; max: number; fallback: number }): number {
+  const parsed = Number(v);
+  if (v.trim() === "" || Number.isNaN(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
 }
 
 /** Formats the BUILD_DATE env var as "dd.mm.yyyy, HH:mm" in APP_TZ, or "local" if unset. */

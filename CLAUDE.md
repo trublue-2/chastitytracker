@@ -193,6 +193,9 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/components/DashboardBlock.tsx` — ein gestapelter Block der Dashboard-Spalte (`w-full max-w-2xl mx-auto px-4`). **Trägt bewusst KEINE vertikalen Abstände** — der Abstand kommt vom `gap` des Elters (`dashboard/page.tsx`: `flex flex-col gap-4`), damit sich selbst ausblendende Blöcke ihren Abstand automatisch überspringen. Neue Dashboard-Blöcke nutzen ihn und ergänzen **kein** `pt-`/`pb-`/`py-`
 - `src/app/components/DateTimePicker.tsx` — Datetime-Input mit Label, Error, Hint, ARIA (statt `<Input type="datetime-local">`)
 - `src/app/components/DetailField.tsx` — beschriftetes Feld im Detail-Panel (Label über dem Wert, `tone="warn"` für Warn-Label); der Wert kommt als `children` und bleibt bewusst frei gestaltbar
+- `src/app/components/InlineSettingRow.tsx` — eine Zeile der Admin-Settings: Beschriftung – Eingabe(n) – Einheit. Zusammen mit `inputStyles.ts` (`inlineInputCls`/`inlineLabelCls`) die einzige Quelle dieses Zeilen-Layouts
+- `src/app/components/NumberInput.tsx` — schmale Zahl-Eingabe der Admin-Settings, klemmt und committet erst beim Verlassen des Feldes (statt `<input type="number">` mit Klemmen je Tastendruck — das macht das Feld auf dem Handy unleerbar)
+- `src/app/components/TimeInput.tsx` — „HH:MM"-Eingabe; `TimeInput` committet beim Verlassen des Feldes, `TimeField` ist die rohe Variante für Formulare mit eigenem Speichern-Knopf
 - `src/app/components/KontrolleBanner.tsx` — Kontroll-Status-Banner (compact + large)
 - `src/app/components/LockRequestBanner.tsx` — Verschluss-Anforderung-Banner
 - `src/app/components/FormError.tsx` — Styled Error-Card für Formulare
@@ -223,6 +226,8 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 
 **Hooks:**
 - `src/app/hooks/usePhotoUpload.ts` — Upload + EXIF + Seal-Detect (für alle Foto-Forms)
+- `src/app/hooks/useSyncedDraft.ts` — lokaler Tippstand einer erst beim Blur committenden Eingabe, der einer externen `value` folgt (genutzt von `TimeInput`/`NumberInput`)
+- `src/app/hooks/useUserSettingsSave.ts` — PATCH `/api/admin/users/[id]` + Toast/`saving` für die Admin-Settings-Toggles
 
 **Utilities:**
 - `src/lib/authGuards.ts` — `requireApi()` (Plain-Session-Guard, gibt die Session zurück), `requireAdminApi()`, `requireKeyholderOrAdminApi()`, `assertAdmin()`, `assertKeyholderOrAdmin()`
