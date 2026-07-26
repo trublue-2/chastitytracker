@@ -4,11 +4,12 @@ import { clamp } from "@/lib/utils";
 import { notifyUser } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
-import { AUTO_ENTFERNT_REASON, toLocale, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import {
+  AUTO_ENTFERNT_REASON, toLocale, NO_FIELDS_TO_UPDATE,
+  INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
+} from "@/lib/constants";
 import { codeOf } from "@/lib/codedError";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-
-const DELAY_RANGE = { min: 5, max: 1440 } as const; // 5 min – 24 h, mirrors autoKontrolleService's FRIST_RANGE
 
 interface InspectionEscalationUser {
   id: string;
@@ -120,8 +121,9 @@ export interface SetInspectionEscalationParams {
   autoMarkDelayMinutes?: number;
 }
 
-/** Persists the per-sub escalation settings (both stages independently toggleable). Minute
- *  values are clamped to DELAY_RANGE, mirroring autoKontrolleService's clamp-on-write pattern. */
+/** Persists the per-sub escalation settings (both stages independently toggleable). Minute values
+ *  are clamped to the range constant of their own field, mirroring autoKontrolleService's
+ *  clamp-on-write pattern — the admin form clamps against the very same constants. */
 export async function setInspectionEscalationSettings(
   userId: string,
   params: SetInspectionEscalationParams,
@@ -129,11 +131,11 @@ export async function setInspectionEscalationSettings(
   const data: Record<string, boolean | number> = {};
   if (params.reminderEnabled !== undefined) data.inspectionReminderEnabled = params.reminderEnabled;
   if (params.reminderDelayMinutes !== undefined) {
-    data.inspectionReminderDelayMinutes = clamp(params.reminderDelayMinutes, { ...DELAY_RANGE, fallback: 5 });
+    data.inspectionReminderDelayMinutes = clamp(params.reminderDelayMinutes, INSPECTION_REMINDER_DELAY_RANGE);
   }
   if (params.autoMarkEnabled !== undefined) data.inspectionAutoMarkEnabled = params.autoMarkEnabled;
   if (params.autoMarkDelayMinutes !== undefined) {
-    data.inspectionAutoMarkDelayMinutes = clamp(params.autoMarkDelayMinutes, { ...DELAY_RANGE, fallback: 60 });
+    data.inspectionAutoMarkDelayMinutes = clamp(params.autoMarkDelayMinutes, INSPECTION_AUTO_MARK_DELAY_RANGE);
   }
 
   // Gleicher Kontrakt wie setReinigungSettings/setAutoKontrolleSettings: ein leerer Patch ist ein

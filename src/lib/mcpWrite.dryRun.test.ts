@@ -218,7 +218,7 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
 
   it("set_cleaning: dryRun zeigt den GEKLEMMTEN Wert, nicht den rohen Input (K-06-Falle)", async () => {
     const r = await mcpSetCleaning("sub", { dryRun: true, maxMinutes: 9999 }) as { preview: { maxMinutes: number; maxMinutesClampedFrom?: number } };
-    expect(r.preview.maxMinutes).toBe(120); // MAX_MINUTEN_RANGE.max
+    expect(r.preview.maxMinutes).toBe(120); // CLEANING_MAX_MINUTES_RANGE.max
     expect(r.preview.maxMinutesClampedFrom).toBe(9999);
   });
 

@@ -5,12 +5,13 @@ import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, me
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
-import { setReinigungSettings, MAX_MINUTEN_RANGE, MAX_PRO_TAG_RANGE, maxPausesPerDaySentinel } from "@/lib/reinigungService";
+import { setReinigungSettings, maxPausesPerDaySentinel } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { diffFields } from "@/lib/mcp/writeFramework";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
 import { clamp } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
@@ -643,8 +644,8 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
       where: { id: userId },
       select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true },
     });
-    const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, MAX_MINUTEN_RANGE) : undefined;
-    const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, MAX_PRO_TAG_RANGE) : undefined;
+    const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, CLEANING_MAX_MINUTES_RANGE) : undefined;
+    const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, CLEANING_MAX_PER_DAY_RANGE) : undefined;
     // maxPerDay durch denselben Null-Sentinel wie get_context.cleaning (0 = "unbegrenzt" → null nach
     // aussen) — sonst zeigt dieser Preview für denselben Zustand eine andere Zahl als get_context.
     const before: Record<string, unknown> = { allowed: current.reinigungErlaubt, maxMinutes: current.reinigungMaxMinuten, maxPerDay: maxPausesPerDaySentinel(current.reinigungMaxProTag) };

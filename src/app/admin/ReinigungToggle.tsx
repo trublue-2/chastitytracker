@@ -8,6 +8,7 @@ import TimeInput from "@/app/components/TimeInput";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
@@ -85,9 +86,7 @@ export default function ReinigungToggle({
           <InlineSettingRow label={t("reinigungMaxLabel")} unit="min">
             <NumberInput
               value={maxMin}
-              min={1}
-              max={120}
-              fallback={15}
+              range={CLEANING_MAX_MINUTES_RANGE}
               disabled={saving}
               ariaLabel={t("reinigungMaxLabel")}
               onCommit={(n) => saveField({ reinigungMaxMinuten: n }, () => setMaxMin(n))}
@@ -96,8 +95,7 @@ export default function ReinigungToggle({
           <InlineSettingRow label={t("reinigungMaxProTagLabel")} unit={t("reinigungMaxProTagHint")}>
             <NumberInput
               value={maxProTag}
-              min={0}
-              max={20}
+              range={CLEANING_MAX_PER_DAY_RANGE}
               disabled={saving}
               ariaLabel={t("reinigungMaxProTagLabel")}
               onCommit={(n) => saveField({ reinigungMaxProTag: n }, () => setMaxProTag(n))}

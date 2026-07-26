@@ -8,6 +8,10 @@ import { TimeField } from "@/app/components/TimeInput";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import {
+  AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+  type NumberRange,
+} from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
 /** Beschriftung der beiden Felder einer „von – bis"-Zeile: die sichtbare Beschriftung steht nur
@@ -34,21 +38,23 @@ function TimeRangeRow({
   );
 }
 
-/** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit. */
+/** Zwei Zahleneingaben „von – bis" mit gemeinsamer Einheit. Je Feld ein eigener Bereich, weil sich der
+ *  Vorschlag einer geleerten Eingabe unterscheiden KANN: bei der Frist 15 „von" / 60 „bis", bei der
+ *  Anzahl pro Tag teilen sich beide Felder dieselbe Konstante. */
 function NumberRangeRow({
-  label, min, max, fromFallback, toFallback, from, to, setFrom, setTo, unit, disabled,
+  label, fromRange, toRange, from, to, setFrom, setTo, unit, disabled,
 }: {
-  label: string; min: number; max: number; fromFallback?: number; toFallback?: number;
+  label: string; fromRange: NumberRange; toRange: NumberRange;
   from: number; to: number; setFrom: (n: number) => void; setTo: (n: number) => void;
   unit: string; disabled: boolean;
 }) {
   const [fromAria, toAria] = useRangeAria(label);
   return (
     <InlineSettingRow label={label} unit={unit}>
-      <NumberInput value={from} min={min} max={max} fallback={fromFallback}
+      <NumberInput value={from} range={fromRange}
         disabled={disabled} ariaLabel={fromAria} onCommit={setFrom} />
       <span className={faintCls}>–</span>
-      <NumberInput value={to} min={min} max={max} fallback={toFallback}
+      <NumberInput value={to} range={toRange}
         disabled={disabled} ariaLabel={toAria} onCommit={setTo} />
     </InlineSettingRow>
   );
@@ -176,7 +182,8 @@ export default function AutoKontrolleToggle({
 
           {/* Anzahl pro Tag: zufällig zwischen Min und Max */}
           <NumberRangeRow
-            label={t("autoKontrolleProTagLabel")} min={0} max={12}
+            label={t("autoKontrolleProTagLabel")}
+            fromRange={AUTO_INSPECTION_PER_DAY_RANGE} toRange={AUTO_INSPECTION_PER_DAY_RANGE}
             from={form.perDayMin} to={form.perDayMax}
             setFrom={(n) => set("perDayMin", n)} setTo={(n) => set("perDayMax", n)}
             unit={t("autoKontrolleProTagHint")} disabled={saving}
@@ -192,7 +199,8 @@ export default function AutoKontrolleToggle({
 
           {/* Erfüllungsdauer von–bis (Minuten) */}
           <NumberRangeRow
-            label={t("autoKontrolleFristLabel")} min={5} max={240} fromFallback={15} toFallback={60}
+            label={t("autoKontrolleFristLabel")}
+            fromRange={AUTO_INSPECTION_DEADLINE_FROM_RANGE} toRange={AUTO_INSPECTION_DEADLINE_TO_RANGE}
             from={form.fristVon} to={form.fristBis}
             setFrom={(n) => set("fristVon", n)} setTo={(n) => set("fristBis", n)}
             unit="min" disabled={saving}

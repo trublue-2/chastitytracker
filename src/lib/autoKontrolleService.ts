@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp } from "@/lib/utils";
-import { NO_FIELDS_TO_UPDATE, INVALID_TIME } from "@/lib/constants";
+import {
+  NO_FIELDS_TO_UPDATE, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE,
+  AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+} from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
 import { GENUINELY_WITHDRAWN_WHERE } from "@/lib/queries";
 
@@ -40,9 +43,6 @@ export interface PlannedAutoKontrolle extends AutoKontrolleSlot {
   sent: boolean;
 }
 
-const PER_DAY_RANGE = { min: 0, max: 12, fallback: 0 } as const;
-const FRIST_RANGE = { min: 5, max: 240, fallback: 15 } as const;
-
 /** Ganzzahl aus [lo, hi] (beide inklusive). */
 function randomInt(rand: () => number, lo: number, hi: number): number {
   return lo + Math.floor(rand() * (hi - lo + 1));
@@ -50,14 +50,14 @@ function randomInt(rand: () => number, lo: number, hi: number): number {
 
 /** Geklemmter Min-/Max-Anzahl-Bereich pro Tag (`max` nie unter `min`). */
 function perDayRange(s: AutoKontrolleSettings): { min: number; max: number } {
-  const min = clamp(s.perDayMin, PER_DAY_RANGE);
-  return { min, max: Math.max(min, clamp(s.perDayMax, PER_DAY_RANGE)) };
+  const min = clamp(s.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE);
+  return { min, max: Math.max(min, clamp(s.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE)) };
 }
 
 /** Geklemmter Erfüllungsdauer-Bereich in Minuten (`bis` nie unter `von`). */
 function fristRange(s: AutoKontrolleSettings): { von: number; bis: number } {
-  const von = clamp(s.fristVon, FRIST_RANGE);
-  return { von, bis: Math.max(von, clamp(s.fristBis, FRIST_RANGE)) };
+  const von = clamp(s.fristVon, AUTO_INSPECTION_DEADLINE_FROM_RANGE);
+  return { von, bis: Math.max(von, clamp(s.fristBis, AUTO_INSPECTION_DEADLINE_TO_RANGE)) };
 }
 
 /** Wach-Fenster (Komplement des Schlaf-Fensters) als zusammenhängender Block in Wanduhr-Minuten seit
@@ -485,8 +485,8 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   } = {};
 
   if (params.aktiv !== undefined) data.autoKontrolleAktiv = Boolean(params.aktiv);
-  if (params.perDayMin !== undefined) data.autoKontrollePerDayMin = clamp(params.perDayMin, PER_DAY_RANGE);
-  if (params.perDayMax !== undefined) data.autoKontrollePerDayMax = clamp(params.perDayMax, PER_DAY_RANGE);
+  if (params.perDayMin !== undefined) data.autoKontrollePerDayMin = clamp(params.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE);
+  if (params.perDayMax !== undefined) data.autoKontrollePerDayMax = clamp(params.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE);
   // Ungültige Uhrzeit ist ein eigener Fehler — früher still verworfen, was sie mit dem
   // „keine Felder"-Fall vermischte und (über die Route) als Erfolg gemeldet wurde.
   if (params.ruheVon !== undefined) {
@@ -497,8 +497,8 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
     if (!HHMM.test(params.ruheBis)) return serviceFail(400, INVALID_TIME);
     data.autoKontrolleRuheBis = params.ruheBis;
   }
-  if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, FRIST_RANGE);
-  if (params.fristBis !== undefined) data.autoKontrolleFristBis = clamp(params.fristBis, FRIST_RANGE);
+  if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, AUTO_INSPECTION_DEADLINE_FROM_RANGE);
+  if (params.fristBis !== undefined) data.autoKontrolleFristBis = clamp(params.fristBis, AUTO_INSPECTION_DEADLINE_TO_RANGE);
   // Festes Auslöse-Fenster: "" schaltet es aus (kein Fenster), sonst muss es HH:MM sein.
   if (params.fensterVon !== undefined) {
     if (params.fensterVon !== "" && !HHMM.test(params.fensterVon)) return serviceFail(400, INVALID_TIME);

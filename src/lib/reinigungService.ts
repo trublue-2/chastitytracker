@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
-import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 
 export interface ReinigungsFenster {
   start: string; // "HH:MM"
@@ -130,13 +130,6 @@ export function buildReinigungView(user: ReinigungUserFields, usedToday: number,
   };
 }
 
-/** Max minutes per cleaning pause is clamped to this range. Exported so MCP dryRun previews
- *  (mcpWrite.ts) can show the CLAMPED value before commit instead of the raw input — the tool's
- *  own K-06-style silent-clamping trap, closed by construction rather than by another guard. */
-export const MAX_MINUTEN_RANGE = { min: 1, max: 120, fallback: 15 } as const;
-/** Max cleaning pauses per day is clamped to this range (0 = unlimited). */
-export const MAX_PRO_TAG_RANGE = { min: 0, max: 20, fallback: 0 } as const;
-
 /**
  * Updates a user's cleaning-pause (Reinigung) settings. Only provided fields change; numeric
  * fields are clamped to their valid ranges. Shared by PATCH /api/admin/users/[id] and the MCP tool.
@@ -148,8 +141,8 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
   } = {};
 
   if (params.erlaubt !== undefined) data.reinigungErlaubt = params.erlaubt;
-  if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, MAX_MINUTEN_RANGE);
-  if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, MAX_PRO_TAG_RANGE);
+  if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, CLEANING_MAX_MINUTES_RANGE);
+  if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, CLEANING_MAX_PER_DAY_RANGE);
   // Als JSON-String ablegen (TEXT-Spalte) — nur validierte Paare.
   if (params.fenster !== undefined) data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
 
