@@ -1,9 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Lock, LockOpen } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import TimerDisplay from "@/app/components/TimerDisplay";
+import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
@@ -15,6 +19,9 @@ import { useLiveHours } from "@/app/hooks/useLiveHours";
 // ── Types ────────────────────────────────────
 export interface DashboardProps {
   currentStatus: { type: "VERSCHLUSS" | "OEFFNEN"; since: string } | null;
+  /** Ende der laufenden Reinigungspause (ISO) — bis dahin führt ein Wiederverschluss dieselbe
+   *  Session fort. `null`, wenn keine läuft. Reine Anzeige: der Verschluss-Zustand ist unberührt. */
+  cleaningPauseUntil: string | null;
   hasEntries: boolean;
 
   // Kontrolle
@@ -84,6 +91,7 @@ export default function DashboardClient(props: DashboardProps) {
   const locale = useLocale();
   const {
     currentStatus,
+    cleaningPauseUntil,
     hasEntries,
     offeneKontrolle,
     offeneVerschlussAnf,
@@ -99,8 +107,30 @@ export default function DashboardClient(props: DashboardProps) {
     tz,
   } = props;
 
+  const router = useRouter();
   const isLocked = currentStatus?.type === "VERSCHLUSS";
+
+  // Nach Fristablauf zurück in den normalen „offen"-Zustand — EIN Timer, ausgelöst vom Effekt.
+  // Nicht über `onExpire` von TimerDisplay: das feuert aus dem Render heraus und im Sekundentakt,
+  // was React verbietet (setState einer fremden Komponente während des Renderns) und bei einer
+  // vorgehenden Client-Uhr sekündlich einen vollständigen Server-Render auslösen würde.
+  useEffect(() => {
+    if (!cleaningPauseUntil) return;
+    const restMs = new Date(cleaningPauseUntil).getTime() - Date.now();
+    // Schon abgelaufen (Uhr-Versatz): einmal refreshen, nicht wiederholt.
+    const timer = setTimeout(() => router.refresh(), Math.max(0, restMs) + 1000);
+    return () => clearTimeout(timer);
+  }, [cleaningPauseUntil, router]);
   const isOpen = !isLocked;
+
+  // Der Timer im Status-Hero: während einer Reinigungspause die Restfrist, sonst die Dauer seit dem
+  // Öffnen. `format="short"` (mm:ss) für den Countdown — `long` zeigt unter einer Stunde nur volle
+  // Minuten und stünde die letzte, entscheidende Minute lang auf „0m".
+  const heroTimer = cleaningPauseUntil
+    ? { targetDate: cleaningPauseUntil, mode: "countdown" as const, format: "short" as const }
+    : currentStatus
+      ? { targetDate: currentStatus.since, mode: "countup" as const, format: "long" as const }
+      : null;
 
   const tagH = useLiveHours(baseTagH, serverNow, isLocked);
   const wocheH = useLiveHours(baseWocheH, serverNow, isLocked);
@@ -149,7 +179,10 @@ export default function DashboardClient(props: DashboardProps) {
   return (
     <DashboardBlock as="main" className="flex flex-col gap-5">
 
-      {/* ── Status Hero (only when OPEN — when locked, LaufendeSessionCard handles this) ── */}
+      {/* ── Status Hero (only when OPEN — when locked, LaufendeSessionCard handles this) ──
+           Während einer laufenden Reinigungspause zeigt derselbe Platz die verbleibende Frist statt
+           „Geöffnet seit": die Session ist nicht beendet, sie ist unterbrochen. Läuft die Frist ab,
+           kehrt die Anzeige von selbst zum normalen „geöffnet" zurück (Timer im Effekt oben). */}
       {isOpen && (
         <div className="rounded-2xl overflow-hidden border border-unlock-border">
           <div className="px-5 py-4 text-white bg-gradient-to-br from-sky-600 to-sky-500">
@@ -159,18 +192,18 @@ export default function DashboardClient(props: DashboardProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-widest opacity-60">
-                  {t("openSince")}
+                  {cleaningPauseUntil ? t("cleaningPauseLabel") : t("openSince")}
                 </p>
-                {currentStatus && (
-                  <TimerDisplay
-                    targetDate={currentStatus.since}
-                    mode="countup"
-                    format="long"
-                    className="!text-white text-2xl font-bold"
-                  />
-                )}
+                {heroTimer && <TimerDisplay {...heroTimer} className="!text-white text-2xl font-bold" />}
               </div>
             </div>
+            {cleaningPauseUntil && (
+              <Link href="/dashboard/new/verschluss" className="mt-4 block">
+                <Button variant="semantic" semantic="lock" fullWidth icon={<Lock size={16} />}>
+                  {t("cleaningPauseRelock")}
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       )}

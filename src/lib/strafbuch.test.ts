@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { isLateLock, reinigungRelockDeadline, isCleaningNotRelocked, buildStrafbuch, cleaningWindowEnforcedFrom } from "./strafbuch";
+import { isLateLock, reinigungRelockDeadline, isCleaningNotRelocked, cleaningRelockObligation, buildStrafbuch, cleaningWindowEnforcedFrom } from "./strafbuch";
 import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
@@ -60,6 +60,45 @@ describe("reinigungRelockDeadline", () => {
     const openStart = new Date("2026-03-29T00:30:00Z"); // 01:30 CET
     const fenster = [{ start: "01:30", end: "04:00" }];
     expect(reinigungRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-03-29T02:00:00.000Z"); // 04:00 CEST
+  });
+});
+
+describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboard-Anzeige", () => {
+  const tz = "Europe/Zurich";
+  const enforcedFrom = new Date("2026-01-01T00:00:00Z");
+  const opening = { oeffnenGrund: "REINIGUNG", startTime: new Date("2026-07-09T18:00:00Z") }; // 20:00 Zürich
+  const user = { reinigungErlaubt: true, reinigungsFenster: [{ start: "20:00", end: "22:00" }], timezone: tz };
+  const sperre = { reinigungErlaubt: true, endetAt: null };
+
+  it("liefert die Fenster-Frist, wenn die Öffnung erlaubt ist", () => {
+    const d = cleaningRelockObligation(opening, sperre, user, 15, enforcedFrom);
+    expect(d?.toISOString()).toBe("2026-07-09T20:00:00.000Z"); // Fensterende 22:00 Zürich
+  });
+
+  it("keine Pflicht ohne aktive Sperrzeit — das Strafbuch kennt dann keine", () => {
+    expect(cleaningRelockObligation(opening, null, user, 15, enforcedFrom)).toBeNull();
+  });
+
+  it("keine Pflicht, wenn die Sperrzeit Reinigung verbietet (die Öffnung ist dann unerlaubt)", () => {
+    expect(cleaningRelockObligation(opening, { reinigungErlaubt: false, endetAt: null }, user, 15, enforcedFrom)).toBeNull();
+  });
+
+  it("keine Pflicht ausserhalb der konfigurierten Fenster", () => {
+    const spaet = { oeffnenGrund: "REINIGUNG", startTime: new Date("2026-07-09T21:00:00Z") }; // 23:00 Zürich
+    expect(cleaningRelockObligation(spaet, sperre, user, 15, enforcedFrom)).toBeNull();
+  });
+
+  it("keine Pflicht, wenn der Nutzer gar nicht reinigen darf", () => {
+    expect(cleaningRelockObligation(opening, sperre, { ...user, reinigungErlaubt: false }, 15, enforcedFrom)).toBeNull();
+  });
+
+  it("keine Pflicht, wenn die Sperrzeit VOR der Frist endet — es bliebe nichts zu verletzen", () => {
+    const kurz = { reinigungErlaubt: true, endetAt: new Date("2026-07-09T19:00:00Z") }; // vor dem Fensterende
+    expect(cleaningRelockObligation(opening, kurz, user, 15, enforcedFrom)).toBeNull();
+  });
+
+  it("andere Öffnungsgründe begründen keine Pflicht", () => {
+    expect(cleaningRelockObligation({ ...opening, oeffnenGrund: "KEYHOLDER" }, sperre, user, 15, enforcedFrom)).toBeNull();
   });
 });
 

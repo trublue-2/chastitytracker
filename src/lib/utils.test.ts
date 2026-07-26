@@ -8,6 +8,7 @@ import {
   isSubVisibleKontrolle,
   wornDeviceNameAt,
   interruptionPauseMs,
+  runningCleaningPauseUntil,
   clampInputValue,
   WEAR_PAIR,
   formatDateTime,
@@ -250,6 +251,51 @@ describe("buildPairs — Reinigungs-Interruption", () => {
     expect(result[0].verschluss.id).toBe("v1");
     expect(result[0].oeffnen?.id).toBe("o3");
     expect(result[0].interruptions).toHaveLength(2);
+  });
+});
+
+// ─── Laufende Reinigungspause (Dashboard-Anzeige) ──────────────────────────
+
+describe("runningCleaningPauseUntil — dieselbe Frist, nach der buildPairs die Session fortführt", () => {
+  const open = mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG");
+
+  it("liefert Öffnung + maxMinuten, solange die Frist läuft", () => {
+    const until = runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:10:00Z"));
+    expect(until?.toISOString()).toBe("2026-05-01T11:30:00.000Z");
+  });
+
+  it("genau diese Frist ist die Grenze, an der buildPairs noch verschmilzt", () => {
+    const until = runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:10:00Z"))!;
+    // Wiederverschluss exakt auf der Frist → noch eine Unterbrechung …
+    const amLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
+      { id: "v2", type: "VERSCHLUSS", startTime: until, oeffnenGrund: null }], [], reinigung);
+    expect(amLimit).toHaveLength(1);
+    expect(amLimit[0].interruptions).toHaveLength(1);
+    // … eine Sekunde später nicht mehr: zwei Sessions.
+    const nachLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
+      { id: "v2", type: "VERSCHLUSS", startTime: new Date(until.getTime() + 1000), oeffnenGrund: null }], [], reinigung);
+    expect(nachLimit).toHaveLength(2);
+  });
+
+  it("null nach Fristablauf — die Session ist dann wirklich beendet", () => {
+    expect(runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:31:00Z"))).toBeNull();
+  });
+
+  it("auf der Frist selbst läuft die Pause noch — dieselbe Grenze wie buildPairs", () => {
+    const grenze = t("2026-05-01T11:30:00Z");
+    expect(runningCleaningPauseUntil(open, reinigung, grenze)?.toISOString()).toBe(grenze.toISOString());
+    expect(runningCleaningPauseUntil(open, reinigung, new Date(grenze.getTime() + 1))).toBeNull();
+  });
+
+  it("null, wenn Reinigung gar nicht erlaubt ist", () => {
+    expect(runningCleaningPauseUntil(open, { erlaubt: false, maxMinuten: 30 }, t("2026-05-01T11:10:00Z"))).toBeNull();
+  });
+
+  it("null bei anderem Öffnungsgrund, bei VERSCHLUSS und ohne Eintrag", () => {
+    const now = t("2026-05-01T11:10:00Z");
+    expect(runningCleaningPauseUntil({ ...open, oeffnenGrund: "KEYHOLDER" }, reinigung, now)).toBeNull();
+    expect(runningCleaningPauseUntil(mkEntry("v1", "VERSCHLUSS", "2026-05-01T11:00:00Z"), reinigung, now)).toBeNull();
+    expect(runningCleaningPauseUntil(null, reinigung, now)).toBeNull();
   });
 });
 

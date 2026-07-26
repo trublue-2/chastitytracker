@@ -513,6 +513,37 @@ function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 }
 
+/** Frist, bis zu der ein Wiederverschluss eine Reinigungsöffnung als blosse UNTERBRECHUNG der
+ *  laufenden Session fortführt — danach zerfällt sie in zwei Sessions. Öffnung + `maxMinuten`.
+ *
+ *  Bewusst NICHT dieselbe Frist wie {@link import("./strafbuch").cleaningRelockObligation}: die
+ *  beantwortet die Strafbuch-Frage („gibt es dafür ein Vergehen?"), hängt an einer aktiven
+ *  Sperrzeit und reicht bei konfigurierten Fenstern bis ans Fensterende — bei einem 20–22-Uhr-
+ *  Fenster also Stunden über diese Frist hinaus. Wer die beiden vertauscht, zeigt dem Sub einen
+ *  Countdown, nach dessen Ablauf seine Session längst geteilt ist. Zwei Fragen, zwei Regeln. */
+export function cleaningInterruptionDeadline(openStartTime: Date, maxMinuten: number): Date {
+  return new Date(openStartTime.getTime() + maxMinuten * 60_000);
+}
+
+/** Läuft gerade eine Reinigungspause — und bis wann? `null`, wenn der jüngste KG-Eintrag keine
+ *  Reinigungsöffnung ist, Reinigung nicht erlaubt ist oder die Frist schon verstrichen ist (dann
+ *  ist die Session wirklich beendet und „Geöffnet seit …" die richtige Anzeige).
+ *
+ *  Dieselbe Bedingung, nach der {@link buildPairs} die Session fortführt — deshalb hier und nicht
+ *  in der Seite: sonst beantworten Anzeige und Session-Modell dieselbe Frage verschieden. */
+export function runningCleaningPauseUntil(
+  latest: { type: string; oeffnenGrund?: string | null; startTime: Date } | null,
+  reinigung: ReinigungSettings,
+  now: Date,
+): Date | null {
+  if (!reinigung.erlaubt || latest?.type !== KG_PAIR.open || latest.oeffnenGrund !== "REINIGUNG") return null;
+  const until = cleaningInterruptionDeadline(latest.startTime, reinigung.maxMinuten);
+  // `>=`, nicht `>`: {@link buildPairs} verschmilzt einen Wiederverschluss noch, der EXAKT auf der
+  // Frist liegt. Mit `>` zeigte die Anzeige in dieser Millisekunde „beendet", während das Modell
+  // die Session fortführt — genau der Widerspruch, den diese Ableitung ausschliessen soll.
+  return until >= now ? until : null;
+}
+
 /** Builds close/open pairs with associated Kontrollen, newest first.
  *  Defaults to KG (VERSCHLUSS/OEFFNEN). Pass `{ types: WEAR_PAIR }` for user-defined categories —
  *  dann aber je GERÄT (siehe `buildWearSessions`), nie über eine ganze Kategorie hinweg.
@@ -546,8 +577,7 @@ export function buildPairs<
   for (const e of asc) {
     if (e.type === types.close) {
       if (pendingReinigung && pending && reinigungActive) {
-        const dt = (e.startTime.getTime() - pendingReinigung.startTime.getTime()) / 60000;
-        if (dt <= reinigung!.maxMinuten) {
+        if (e.startTime <= cleaningInterruptionDeadline(pendingReinigung.startTime, reinigung!.maxMinuten)) {
           // Valid interruption – continue session
           currentInterruptions.push({ oeffnen: pendingReinigung, verschluss: e });
           pendingReinigung = null;

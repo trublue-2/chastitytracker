@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.55.0",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Während einer Reinigungspause steht auf dem Dashboard jetzt „Reinigungspause – noch …\" mit der verbleibenden Zeit und einem Knopf zum Wiedereinschliessen. Bisher sah das aus wie eine beendete Session („Geöffnet seit …\"), obwohl die Pause mitzählt. Läuft die Frist ab, wechselt die Anzeige von selbst zurück.",
+          "en": "During a cleaning break your dashboard now shows \"Cleaning break – remaining …\" with the time left and a button to lock up again. Until now this looked like a finished session (\"Open since …\") even though the break still counts. When the deadline passes, the display switches back on its own."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.54.4",
     "date": "2026-07-27",
     "changes": [
