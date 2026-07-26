@@ -34,6 +34,10 @@ export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WE
 export const KG_ENTRY_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "OEFFNEN"]);
 /** Entry types for non-KG DeviceCategories (Plug, Collar, ...). Require deviceId. */
 export const WEAR_ENTRY_TYPES: ReadonlySet<string> = new Set(["WEAR_BEGIN", "WEAR_END"]);
+/** Entry types that may carry a box photo (`boxImageUrl`): der Schlüssel-Nachweis durchs
+ *  Sichtfenster der Heimdall-Box. Beim Einschliessen entsteht er, bei jeder Kontrolle wird er
+ *  wiederholt — und nur die Wiederholung belegt, dass der Schlüssel drin GEBLIEBEN ist. */
+export const BOX_PHOTO_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "PRUEFUNG"]);
 /** Feature flag: gate WEAR_BEGIN/WEAR_END entry creation + categories UI.
  *  Default ON. Setze `ENABLE_DEVICE_CATEGORIES=false` um KG-only-Verhalten zu erzwingen
  *  (z.B. fuer eine Instanz die das Feature noch nicht ausrollen will).
@@ -299,7 +303,7 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
  * log entries without a photo. User-route requires a photo for PRUEFUNG.
  */
 export function validateEntryPayload(
-  body: { type?: string; startTime?: string; imageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string; keyInBox?: unknown },
+  body: { type?: string; startTime?: string; imageUrl?: string; boxImageUrl?: string; oeffnenGrund?: string; orgasmusArt?: string; note?: string; keyInBox?: unknown },
   opts: { requirePhotoForPruefung?: boolean; allowFuture?: boolean } = {},
   // Per-User Reason-Validierung (aus reasonsService). Fehlt sie, gelten die eingebauten Konstanten
   // (Default-Verhalten für null-Config / Aufrufer ohne User-Kontext) — unverändert. `orgasmAllowed`
@@ -307,7 +311,7 @@ export function validateEntryPayload(
   reasonCtx?: { orgasmAllowed?: (value: string) => boolean; openingCodes?: Set<string> },
 ): EntryValidationCode | null {
   const { requirePhotoForPruefung = true, allowFuture = false } = opts;
-  const { type, startTime, imageUrl, oeffnenGrund, orgasmusArt, note, keyInBox } = body;
+  const { type, startTime, imageUrl, boxImageUrl, oeffnenGrund, orgasmusArt, note, keyInBox } = body;
 
   // Schlüssel-Deklaration: nur ein echter Boolean oder gar nichts. Ein Client, der `"false"` schickt,
   // darf weder als "ja" durchrutschen (String ist truthy) noch als String in der Spalte landen.
@@ -315,6 +319,9 @@ export function validateEntryPayload(
     return "INVALID_KEY_IN_BOX";
   }
   if (!isValidImageUrl(imageUrl)) return "INVALID_IMAGE_URL";
+  // Box-Foto (Schlüssel im Sichtfenster): derselbe Pfad-Guard wie das Haupt-Foto. Es wird
+  // server-seitig an die Vision gereicht — eine fremde URL wäre hier direkt ein SSRF-Hebel.
+  if (!isValidImageUrl(boxImageUrl)) return "INVALID_IMAGE_URL";
   if (!startTime) return "START_TIME_REQUIRED";
   if (!allowFuture && new Date(startTime) > new Date()) return "TIME_IN_FUTURE";
   if (!type || !VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {

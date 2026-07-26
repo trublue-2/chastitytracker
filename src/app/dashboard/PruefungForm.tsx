@@ -27,9 +27,11 @@ interface Props {
   sealRequired?: boolean;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
+  /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster. */
+  boxConfirm?: boolean;
 }
 
-export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, mobileDesktopMode, redirectTo }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -55,6 +57,7 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       initialKommentar={initialKommentar}
       sealRequired={sealRequired}
       mobileDesktopMode={mobileDesktopMode}
+      boxConfirm={boxConfirm}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={() => router.push(target)}

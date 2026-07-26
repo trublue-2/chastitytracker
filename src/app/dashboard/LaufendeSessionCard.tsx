@@ -1,4 +1,4 @@
-import { Lock } from "lucide-react";
+import { Lock, KeyRound } from "lucide-react";
 import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -26,6 +26,9 @@ interface Props {
    *  Weglassen = nicht anzeigen — ein Sub, der grundsätzlich nicht reinigen darf, soll keine Zeile
    *  über etwas lesen, das seine Einstellung ohnehin verbietet. */
   cleaningNote?: string | null;
+  /** Schlüssel-Deklaration des laufenden Verschlusses: liegt er in der Box? `null`/undefined =
+   *  keine Box oder Alt-Eintrag → keine Zeile (statt einer Behauptung ins Blaue). */
+  keyInBox?: boolean | null;
   activeVorgabe: {
     minProTagH: number | null;
     minProWocheH: number | null;
@@ -52,6 +55,7 @@ export default async function LaufendeSessionCard({
   sperrzeitNachricht,
   sperrzeitScheduledFor = null,
   cleaningNote,
+  keyInBox = null,
   activeVorgabe,
   tagH,
   wocheH,
@@ -113,6 +117,23 @@ export default async function LaufendeSessionCard({
             <p className="text-xs opacity-60 mt-1">
               {t("sessionSince")} {sessionStartStr}
             </p>
+            {/* Schlüssel-Deklaration des laufenden Verschlusses. „Nicht in der Box" ist die
+                Ausnahme und muss auffallen: sie heisst, dass der Verschluss gerade NICHT
+                hardware-gesichert ist. Volle Deckkraft statt der opacity-60 der Zeile darüber —
+                das ist keine Fussnote. `null` (keine Box, Alt-Eintrag) = keine Zeile. */}
+            {keyInBox != null && (
+              keyInBox ? (
+                <p className="text-xs font-semibold opacity-80 mt-1 inline-flex items-center gap-1">
+                  <KeyRound size={12} className="shrink-0" />{t("keyInBoxYes")}
+                </p>
+              ) : (
+                // Als Pille auf hellem Grund: rote Schrift auf dem grünen Verlauf wäre kaum
+                // lesbar — die Aussage muss aber genau hier auffallen.
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-warn-bg px-2 py-0.5 text-xs font-bold text-warn-text">
+                  <KeyRound size={12} className="shrink-0" />{t("keyInBoxNo")}
+                </span>
+              )
+            )}
           </div>
         </div>
 
@@ -173,6 +194,7 @@ export default async function LaufendeSessionCard({
               ? formatDateTime(ev.submittedAt!, dl, tz) : null,
             deviceName: ev.deviceName ?? null,
             showDevice: userHasDevices,
+            keyDetected: ev.keyDetected ?? null,
           };
         })}
         sessionStart={sessionStart.toISOString()}

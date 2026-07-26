@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
-import { LOCK_ENDED_REASON } from "@/lib/constants";
+import { LOCK_ENDED_REASON, heimdallEnabled } from "@/lib/constants";
 import { aktivesReinigungsFenster, parseReinigungsFenster } from "@/lib/reinigungService";
 import { APP_TZ } from "@/lib/utils";
 
@@ -73,6 +73,19 @@ export interface DeviceOption {
 export async function getUserTimezone(userId: string): Promise<string> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
   return u?.timezone ?? APP_TZ;
+}
+
+/** „Hat dieser Sub eine Heimdall-Box?" (+ deren Name fürs Formular). EINE Ableitung für alle
+ *  Formulare, die den Box-Block zeigen — Verschluss und Kontrolle. Stünde sie je Seite einzeln da,
+ *  zeigte nach der nächsten Änderung die eine Seite den Block und die andere nicht.
+ *  Ohne Heimdall gar keine Abfrage: `boxConfirm=false` ist dann bereits die ganze Antwort. */
+export async function getBoxFormContext(userId: string): Promise<{ boxConfirm: boolean; boxName: string }> {
+  if (!heimdallEnabled()) return { boxConfirm: false, boxName: "" };
+  const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { name: true } });
+  return {
+    boxConfirm: boxes.length > 0,
+    boxName: boxes.map((b) => b.name).filter(Boolean).join(", "),
+  };
 }
 
 /** Returns active (non-archived) KG devices for a user, ordered by creation date.

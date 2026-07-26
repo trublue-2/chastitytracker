@@ -52,6 +52,7 @@ export const ENTRY_ROUTE_CODES = [
   "PARTNER_CHANGED",
   "USER_ID_REQUIRED",
   "USER_NOT_FOUND",
+  "BOX_PHOTO_REUSED",
 ] as const;
 
 export type EntryGuardCode = (typeof ENTRY_GUARD_CODES)[number];

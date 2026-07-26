@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle } from "lucide-react";
+import { Lock, LockOpen, CheckCircle2, Droplets, ImageOff, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
@@ -40,6 +40,10 @@ export interface SessionEventData {
   deviceName?: string | null;
   /** VERSCHLUSS + KONTROLLE: show the device row (true when the user has any devices). */
   showDevice?: boolean;
+  /** Urteil der Schlüssel-Erkennung auf dem Box-Foto. `null`/undefined = nicht geprüft (kein Foto,
+   *  keine KI, Alt-Eintrag) → KEINE Pille: „kein Schlüssel erkannt" zu behaupten, wo niemand
+   *  hingesehen hat, wäre eine Falschaussage über den Sub. */
+  keyDetected?: boolean | null;
 }
 
 
@@ -191,6 +195,17 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
     </span>
   );
 
+  // Grün = Schlüssel im Sichtfenster erkannt, Warn-Optik = keiner erkannt (siehe `keyDetected`).
+  const keyPill = ev.keyDetected == null ? null : ev.keyDetected ? (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full">
+      <KeyRound size={10} />{t("keyDetected")}
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-warn-text bg-warn-bg border border-[var(--color-warn-border)] px-2 py-0.5 rounded-full">
+      <KeyRound size={10} />{t("keyNotDetected")}
+    </span>
+  );
+
   // Geräte-Zeile (getragenes Gerät) — dieselbe Darstellung an zwei Positionen im Detail-Panel:
   // bei Kontrollen direkt unter Datum/Zeit, bei Verschlüssen weiter unten (bewusst getrennte Orte).
   const deviceRow = ev.showDevice ? (
@@ -261,12 +276,12 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="mb-0.5 sm:hidden">{typePill}</div>
+              <div className="mb-0.5 flex flex-wrap items-center gap-1.5 sm:hidden">{typePill}{keyPill}</div>
               <span className="block text-sm font-semibold text-foreground tabular-nums">{ev.dateStr}</span>
               <span className={`block text-xs tabular-nums ${ev.timeCorrected ? "text-warn font-medium" : "text-foreground-faint"}`}>{ev.timeStr}</span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="hidden sm:inline-flex">{typePill}</span>
+              <span className="hidden sm:inline-flex items-center gap-1.5">{typePill}{keyPill}</span>
               {/* Zweite Aufrufstelle desselben Knopfes. Heute unerreichbar (der Banner-Zweig oben
                   kehrt zurück, sobald `captureHref` gesetzt ist) — trotzdem mit demselben Riegel:
                   eine Regel, die nur an einer von zwei Stellen steht, ist keine Regel, und ein

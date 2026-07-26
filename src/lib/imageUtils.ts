@@ -29,6 +29,14 @@ export function generateUploadFilename(prefix = ""): string {
   return `${prefix}${randomBytes(16).toString("hex")}.jpg`;
 }
 
+/** ALLE Foto-Spalten eines Eintrags. Eine Stelle, damit die Lösch-Pfade (Eintrag, Paar-Partner,
+ *  Nutzer-Löschung) nicht je eine eigene Liste führen — jede neue Foto-Spalte wäre sonst sofort
+ *  wieder eine Datei-Waise auf der Platte. Nimmt Teil-Objekte: die Aufrufer selektieren nur diese
+ *  Spalten. */
+export function entryImageUrls(e: { imageUrl?: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null }): Array<string | null | undefined> {
+  return [e.imageUrl, e.codeImageUrl, e.boxImageUrl];
+}
+
 /**
  * H5 (Recht auf Vergessenwerden): Löscht hochgeladene Foto-Dateien sicher von der Platte.
  * Gleicher Pfad-Guard wie beim Laden (nur innerhalb data/uploads). Dedupliziert, ignoriert

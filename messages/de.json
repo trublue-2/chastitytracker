@@ -105,7 +105,8 @@
     "DEVICE_ARCHIVED_NOT_EDITABLE": "Archivierte Geräte können nicht bearbeitet werden",
     "BOX_RELOCK_NOT_LOCKED": "Kein laufender Verschluss — die Box folgt sonst dem Verschluss-Eintrag",
     "BOX_RELOCK_KEY_NOT_IN_BOX": "Laut Deklaration liegt der Schlüssel nicht in der Box",
-    "lastAdmin": "Der letzte Admin kann sich die Rechte nicht selbst entziehen — sonst kommt niemand mehr in den Adminbereich"
+    "lastAdmin": "Der letzte Admin kann sich die Rechte nicht selbst entziehen — sonst kommt niemand mehr in den Adminbereich",
+    "BOX_PHOTO_REUSED": "Dieses Box-Foto gehört bereits zu einem anderen Eintrag. Bitte eine frische Aufnahme machen."
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -339,7 +340,11 @@
     "activeSession": "Aktive Session",
     "entrySaved": "Eintrag gespeichert",
     "entryUpdated": "Eintrag aktualisiert",
-    "wearSessionPhotoAlt": "Foto vom Trage-Beginn: {category}"
+    "wearSessionPhotoAlt": "Foto vom Trage-Beginn: {category}",
+    "keyDetected": "Schlüssel erkannt",
+    "keyNotDetected": "KEIN Schlüssel erkannt",
+    "keyInBoxYes": "Schlüssel in der Box",
+    "keyInBoxNo": "Schlüssel NICHT in der Box"
   },
   "newEntry": {
     "title": "Neu erfassen",
@@ -422,7 +427,14 @@
     "wrongDeviceWarning": "Bei Wahl eines anderen KG wird ein Eintrag im Strafbuch erstellt.",
     "deviceDetecting": "Gerät wird erkannt…",
     "deviceDetected": "Erkannt: {name}",
-    "deviceNotDetected": "Gerät konnte nicht erkannt werden"
+    "deviceNotDetected": "Gerät konnte nicht erkannt werden",
+    "boxPhotoLabel": "Foto der Box",
+    "boxPhotoHint": "Durch das Sichtfenster fotografieren, sodass der Schlüssel gut erkennbar ist.",
+    "confirmKeyOutsideTitle": "Schlüssel nicht in der Box?",
+    "confirmKeyOutsideText": "Sicher, dass der Schlüssel nicht in die Box muss? Die Box verriegelt dann nicht.",
+    "confirmNoBoxPhotoTitle": "Kein Foto der Box",
+    "confirmNoBoxPhotoText": "Sicher ohne Foto der Box speichern? Ohne Foto ist nicht belegt, dass der Schlüssel wirklich drin liegt.",
+    "confirmSaveAnyway": "Trotzdem speichern"
   },
   "feedback": {
     "title": "Feedback",

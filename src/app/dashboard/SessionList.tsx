@@ -15,6 +15,8 @@ interface KontrolleItem {
   verifikationStatus: string | null;
   entryId: string | null;
   submittedAt: Date | null;
+  /** Urteil der Schlüssel-Erkennung auf dem Box-Foto dieser Kontrolle (null = nicht geprüft). */
+  keyDetected?: boolean | null;
 }
 
 interface Entry {
@@ -27,6 +29,8 @@ interface Entry {
   oeffnenGrund: string | null;
   kontrollCode: string | null;
   verifikationStatus: string | null;
+  /** Urteil der Schlüssel-Erkennung auf dem Box-Foto (null = nicht geprüft). */
+  keyDetected?: boolean | null;
   device?: { name?: string | null; categoryId?: string | null } | null;
 }
 
@@ -135,6 +139,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         timeCorrected: false,
         deviceName: verschluss.device?.name ?? null,
         showDevice: userHasDevices,
+        keyDetected: verschluss.keyDetected ?? null,
       },
       ...kontrollen
         .filter(isSubVisibleKontrolle)
@@ -159,6 +164,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             kontrolleKommentar: k.kommentar,
             kombiniertePillLabel: pill?.label ?? null,
             kombiniertePillCls: pill?.cls ?? null,
+            keyDetected: k.keyDetected ?? null,
             orgasmusArt: null,
             timeCorrected: corrected,
             timeCorrectedSystemStr: corrected ? formatDateTime(k.submittedAt!, dl, tz) : null,

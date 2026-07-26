@@ -9,7 +9,7 @@ import { entryManageAccess } from "@/lib/keyholder";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { codedError, codeOf } from "@/lib/codedError";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 
 export async function PATCH(
   req: NextRequest,
@@ -168,12 +168,12 @@ export async function DELETE(
       prisma.entry.findFirst({
         where: { userId: existing.userId, type: { in: [...pairTypes] }, startTime: { lt: existing.startTime }, ...categoryFilter },
         orderBy: { startTime: "desc" },
-        select: { id: true, type: true, startTime: true, imageUrl: true, codeImageUrl: true },
+        select: { id: true, type: true, startTime: true, imageUrl: true, codeImageUrl: true, boxImageUrl: true },
       }),
       prisma.entry.findFirst({
         where: { userId: existing.userId, type: { in: [...pairTypes] }, startTime: { gt: existing.startTime }, ...categoryFilter },
         orderBy: { startTime: "asc" },
-        select: { id: true, type: true, startTime: true, imageUrl: true, codeImageUrl: true },
+        select: { id: true, type: true, startTime: true, imageUrl: true, codeImageUrl: true, boxImageUrl: true },
       }),
     ]);
 
@@ -201,7 +201,7 @@ export async function DELETE(
           throw e;
         }
         // H5: Foto-Dateien beider gelöschter Einträge entfernen.
-        void deleteUploadedFiles([existing.imageUrl, existing.codeImageUrl, partner.imageUrl, partner.codeImageUrl]);
+        void deleteUploadedFiles([...entryImageUrls(existing), ...entryImageUrls(partner)]);
         revalidatePath("/dashboard", "layout");
         return new NextResponse(null, { status: 204 });
       }
@@ -226,7 +226,7 @@ export async function DELETE(
   });
 
   // H5: Foto-Dateien des gelöschten Eintrags entfernen.
-  void deleteUploadedFiles([existing.imageUrl, existing.codeImageUrl]);
+  void deleteUploadedFiles(entryImageUrls(existing));
 
   if (isPair) {
     revalidatePath("/dashboard", "layout");
