@@ -1369,7 +1369,6 @@
     "submitting": "Wird gestellt …",
     "actionTitle": "Aufgabe stellen",
     "actionHint": "Text + Bedingungen, bis zu einem Zeitpunkt zu halten",
-    "historyTitle": "Aufgaben",
     "empty": "Keine Aufgaben",
     "stateNotStarted": "Noch nicht begonnen — die Zeit läuft, sobald alle Bedingungen erfüllt sind",
     "stateMissingPrefix": "Fehlt noch:",
@@ -1388,11 +1387,11 @@
     "warnTitle": "Aufgabe läuft noch",
     "warnText": "„{title}“ verlangt dieses Gerät noch bis {until}. Jetzt ablegen gilt als nicht erfüllt.",
     "warnConfirm": "Trotzdem ablegen",
-    "categoriesDisabledHint": "Gerätekategorien sind für diesen Benutzer deaktiviert",
     "requirementSatisfied": "erfüllt",
     "requirementOpen": "noch offen",
     "showMore": "{count} weitere",
     "markDoneQueued": "Wird gesendet, sobald du wieder online bist",
-    "heldByTask": "Von einer Aufgabe gefordert"
+    "heldByTask": "Von einer Aufgabe gefordert",
+    "emptyHint": "Noch keine Aufgabe gestellt."
   }
 }

@@ -1369,7 +1369,6 @@
     "submitting": "Setting …",
     "actionTitle": "Set task",
     "actionHint": "Text + conditions, to be held until a point in time",
-    "historyTitle": "Tasks",
     "empty": "No tasks",
     "stateNotStarted": "Not started yet — the clock runs once all conditions are met",
     "stateMissingPrefix": "Still missing:",
@@ -1388,11 +1387,11 @@
     "warnTitle": "Task still running",
     "warnText": "“{title}” requires this device until {until}. Removing it now counts as unfulfilled.",
     "warnConfirm": "Remove anyway",
-    "categoriesDisabledHint": "Device categories are disabled for this user",
     "requirementSatisfied": "satisfied",
     "requirementOpen": "still open",
     "showMore": "{count} more",
     "markDoneQueued": "Will be sent once you are back online",
-    "heldByTask": "Required by a task"
+    "heldByTask": "Required by a task",
+    "emptyHint": "No task set yet."
   }
 }

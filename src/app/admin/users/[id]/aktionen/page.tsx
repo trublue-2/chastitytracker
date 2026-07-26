@@ -89,14 +89,14 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           hint={t("requestOrgasmHint")}
         />
 
-        {/* Aufgabe stellen — ohne Kategorien gäbe es nur Freitext-Aufgaben ohne prüfbare Bedingung,
-            und der Bedingungs-Wähler wäre bis auf die KG-Zeile leer. */}
+        {/* Kein Kategorien-Gate: „KG verschlossen" und reine Freitext-Aufgaben gehen auch ohne
+            Gerätekategorien — siehe `aufgaben/page.tsx`. */}
         <ActionRow
-          href={flagOn ? `${base}/aufgabe` : undefined}
+          href={`${base}/aufgabe`}
           icon={<ClipboardList size={20} strokeWidth={2} />}
           iconStyle={{ backgroundColor: "var(--color-surface-raised)", color: "var(--color-foreground-muted)" }}
           title={tt("actionTitle")}
-          hint={flagOn ? tt("actionHint") : tt("categoriesDisabledHint")}
+          hint={tt("actionHint")}
         />
       </ActionRowGroup>
 
