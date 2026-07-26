@@ -1285,6 +1285,8 @@
     "inspectionResolvedWithdrawnMessage": "The keyholder has withdrawn the requested inspection.",
     "inspectionRequestedSubject": "Inspection requested",
     "inspectionRequestedIntro": "An inspection has been requested. Please create an inspection entry with a photo within the next {hours, plural, one {# hour} other {# hours}}.",
+    "inspectionRequestedIntroMinutes": "An inspection has been requested. Please create an inspection entry with a photo within the next {minutes, plural, one {# minute} other {# minutes}}.",
+    "inspectionRequestedIntroHoursMinutes": "An inspection has been requested. Please create an inspection entry with a photo within the next {hours, plural, one {# hour} other {# hours}} and {minutes, plural, one {# minute} other {# minutes}}.",
     "inspectionAdminLabel": "Keyholder's instruction:",
     "inspectionCodeLabelSeal": "Your seal number (must be visible in the photo):",
     "inspectionCodeLabelControl": "Your inspection code (must be visible in the photo):",

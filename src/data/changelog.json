@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.53.4",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die E-Mail zu einer angeforderten Kontrolle nannte im Text eine andere Frist als die Zeile darunter: bei kurzen Fristen stand dort „innert der nächsten 1 Stunde“, obwohl nur zehn Minuten blieben. Der Text nennt jetzt die tatsächlich verbleibende Zeit und rundet sie nie nach oben.",
+          "en": "The e-mail for a requested inspection stated a different deadline in its text than in the line below: with short deadlines it said “within the next 1 hour” when only ten minutes were left. The text now states the time actually remaining and never rounds it up."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.3",
     "date": "2026-07-26",
     "changes": [

@@ -1285,6 +1285,8 @@
     "inspectionResolvedWithdrawnMessage": "Der Keyholder hat die angeforderte Kontrolle zurückgezogen.",
     "inspectionRequestedSubject": "Kontrolle angefordert",
     "inspectionRequestedIntro": "Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten {hours, plural, one {# Stunde} other {# Stunden}} einen Kontroll-Eintrag mit Foto.",
+    "inspectionRequestedIntroMinutes": "Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten {minutes, plural, one {# Minute} other {# Minuten}} einen Kontroll-Eintrag mit Foto.",
+    "inspectionRequestedIntroHoursMinutes": "Es wurde eine Kontrolle angefordert. Bitte erstelle innert der nächsten {hours, plural, one {# Stunde} other {# Stunden}} und {minutes, plural, one {# Minute} other {# Minuten}} einen Kontroll-Eintrag mit Foto.",
     "inspectionAdminLabel": "Anweisung des Admins:",
     "inspectionCodeLabelSeal": "Deine Siegel-Nummer (muss auf dem Foto erkennbar sein):",
     "inspectionCodeLabelControl": "Dein Kontroll-Code (muss auf dem Foto erkennbar sein):",

@@ -4,7 +4,7 @@ import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { emailT, emailGreeting } from "@/lib/emailI18n";
+import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -215,6 +215,34 @@ export async function requestKontrolle(
 }
 
 /**
+ * Der Einleitungssatz der Kontroll-Mail — „innert der nächsten X".
+ *
+ * Rein und exportiert, damit die Einheiten-Wahl prüfbar ist. Vorher stand hier
+ * `Math.max(1, Math.round(ms / 3600000))`: jede Frist unter einer halben Stunde wurde zu „1 Stunde",
+ * und 90 Minuten zu „2 Stunden" (Issue #42). Seit Auto-Kontrollen ihre Frist zufällig aus 5–240
+ * Minuten ziehen, ist das der Normalfall und nicht der Randfall.
+ *
+ * Deshalb wird die Restzeit ZERLEGT statt auf eine Einheit gerundet: unter einer Stunde Minuten,
+ * bei vollen Stunden nur Stunden, sonst beides. Aufrunden wäre die gefährliche Richtung — der Satz
+ * verspräche mehr Zeit, als die Frist-Zeile darunter einräumt.
+ *
+ * `Number.isFinite` fängt eine kaputte Frist ab: ohne den Guard stünde „innert der nächsten NaN
+ * Stunden" in der Mail.
+ */
+export function inspectionIntro(t: EmailTranslator, msLeft: number): string {
+  const safeMs = Number.isFinite(msLeft) ? Math.max(0, msLeft) : 0;
+  // Mindestens 1 Minute: „innert der nächsten 0 Minuten" wäre keine Aussage. Die Wahrheit steht
+  // ohnehin in der Frist-Zeile darunter, die den absoluten Zeitpunkt nennt.
+  const totalMinutes = Math.max(1, Math.round(safeMs / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) return t("inspectionRequestedIntroMinutes", { minutes });
+  if (minutes === 0) return t("inspectionRequestedIntro", { hours });
+  return t("inspectionRequestedIntroHoursMinutes", { hours, minutes });
+}
+
+/**
  * Sends the inspection e-mail (code + deadline + link) and a push to the user.
  * Reused by the immediate path in requestKontrolle and by the delayed-trigger poller.
  * `sealCode` = aktive Siegel-Nummer (oder null): weicht sie vom Code ab, verlangt die Mail
@@ -236,7 +264,7 @@ export async function sendKontrolleNotification(opts: {
   const locale = toLocale(user.locale);
   const t = await emailT(locale);
 
-  const hoursLeft = Math.max(1, Math.round((deadline.getTime() - Date.now()) / (60 * 60 * 1000)));
+  const intro = inspectionIntro(t, deadline.getTime() - Date.now());
   const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
 
   const kommentarParam = kommentar ? `&kommentar=${encodeURIComponent(kommentar)}` : "";
@@ -256,7 +284,7 @@ export async function sendKontrolleNotification(opts: {
     dashboardEmailHtml(
       t("inspectionRequestedSubject"),
       `${emailGreeting(t, user.username)}
-      <p>${escHtml(t("inspectionRequestedIntro", { hours: hoursLeft }))}</p>
+      <p>${escHtml(intro)}</p>
       ${kommentarHtml}
       <p><strong>${codeLabel}</strong></p>
       <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
