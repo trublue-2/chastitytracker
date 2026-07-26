@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { inlineInputCls } from "@/app/components/inputStyles";
+import { useSyncedDraft } from "@/app/hooks/useSyncedDraft";
 
 /** Rohe, kontrollierte „HH:MM"-Eingabe im Inline-Stil der Admin-Settings. Für Formulare mit eigenem
  *  Speichern-Knopf; wer je Feld sofort committen will, nimmt {@link TimeInput}. */
@@ -31,11 +31,8 @@ export function TimeField({ value, disabled, onChange, onBlur, ariaLabel }: {
  * Tastendruck einen Request auslösen und serverseitig als ungültige Zeit abprallen.
  *
  * `onCommit` meldet mit `false`, dass der Server den Wert abgelehnt hat — dann springt das Feld
- * auf `value` (den gespeicherten Stand) zurück.
- *
- * `value` ist die Server-Wahrheit: ändert sie sich (nach `router.refresh()`, durch eine parallele
- * Änderung oder weil eine Liste umsortiert wurde), wird der lokale Stand nachgezogen. Ohne diesen
- * Abgleich zeigte das Feld weiter den alten Wert und schriebe ihn beim nächsten Blur zurück.
+ * auf `value` (den gespeicherten Stand) zurück. Den Abgleich mit `value` hält
+ * {@link useSyncedDraft}.
  */
 export default function TimeInput({ value, disabled, onCommit, ariaLabel }: {
   value: string;
@@ -43,13 +40,7 @@ export default function TimeInput({ value, disabled, onCommit, ariaLabel }: {
   onCommit: (next: string) => Promise<boolean>;
   ariaLabel: string;
 }) {
-  const [local, setLocal] = useState(value);
-  const [synced, setSynced] = useState(value);
-
-  if (value !== synced) {
-    setSynced(value);
-    setLocal(value);
-  }
+  const [local, setLocal] = useSyncedDraft(value);
 
   async function commit() {
     if (local === value) return;

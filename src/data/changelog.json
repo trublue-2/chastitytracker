@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.53.5",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zahlenfelder in den Einstellungen liessen sich am Handy kaum ändern: die erste Ziffer sprang beim Löschen sofort zurück, aus einer getippten 20 wurde so 120. Die Felder lassen sich jetzt normal leeren und neu tippen — geprüft wird der Wert erst, wenn man das Feld verlässt. Betrifft die Reinigungs-Einstellungen, die Kontroll-Eskalation und die automatischen Kontrollen.",
+          "en": "Number fields in the settings were nearly impossible to edit on a phone: the leading digit snapped back while deleting, turning a typed 20 into 120. The fields can now be cleared and retyped normally — the value is only checked once you leave the field. Affects the cleaning settings, the inspection escalation and the automatic inspections."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.4",
     "date": "2026-07-26",
     "changes": [
