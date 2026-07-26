@@ -275,7 +275,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
               const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
               const vPill = k.verifikationStatus ? VERIFIKATION_PILLS[k.verifikationStatus] : null;
               return {
-                id: k.id, imageUrl: k.imageUrl, kommentar: k.kommentar,
+                id: k.id, imageUrl: k.imageUrl, boxImageUrl: k.boxImageUrl, kommentar: k.kommentar,
                 pill1Label: aPill ? t(aPill.labelKey) : null, pill1Cls: aPill?.cls ?? null,
                 pill2Label: vPill ? t(vPill.labelKey) : null, pill2Cls: vPill?.cls ?? null,
                 code: k.code, dateTimeStr: fmtDual(k.time), dateTimePrefix: null,

@@ -35,8 +35,12 @@ function iconFor(type: SessionEventData["type"]) {
 function FlatEvents({ items }: { items: SessionEventData[] }) {
   return (
     <div className="divide-y divide-border-subtle">
+      {/* Key aus dem Ereignis, NICHT aus dem Index: die Zeile hält jetzt Zustand (welches der
+          beiden Fotos das Vollbild zeigt). Verschiebt ein Re-Render die Liste — ein nachgetragenes
+          Ereignis reiht sich zeitlich ein —, zeigte ein Index-Key denselben Zustand auf einem
+          anderen Ereignis, im schlimmsten Fall „Box-Foto" bei einem Eintrag, der keines hat. */}
       {items.map((ev, i) => (
-        <SessionEventRow key={i} ev={ev} icon={iconFor(ev.type)} />
+        <SessionEventRow key={ev.entryId ?? ev.timeIso ?? i} ev={ev} icon={iconFor(ev.type)} />
       ))}
     </div>
   );

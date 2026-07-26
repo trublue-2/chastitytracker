@@ -344,7 +344,10 @@
     "keyDetected": "key detected",
     "keyNotDetected": "NO key detected",
     "keyInBoxYes": "Key in the box",
-    "keyInBoxNo": "Key NOT in the box"
+    "keyInBoxNo": "Key NOT in the box",
+    "photosLabel": "Photos",
+    "photoMain": "Entry",
+    "photoBox": "Box"
   },
   "newEntry": {
     "title": "New entry",

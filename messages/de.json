@@ -344,7 +344,10 @@
     "keyDetected": "Schlüssel erkannt",
     "keyNotDetected": "KEIN Schlüssel erkannt",
     "keyInBoxYes": "Schlüssel in der Box",
-    "keyInBoxNo": "Schlüssel NICHT in der Box"
+    "keyInBoxNo": "Schlüssel NICHT in der Box",
+    "photosLabel": "Fotos",
+    "photoMain": "Eintrag",
+    "photoBox": "Box"
   },
   "newEntry": {
     "title": "Neu erfassen",

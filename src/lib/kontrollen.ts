@@ -8,6 +8,8 @@ import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontroll
 export interface KontrolleRow {
   sortTime: Date;
   imageUrl: string | null;
+  /** Foto durchs Sichtfenster der Box zu dieser Kontrolle (null = keines). */
+  boxImageUrl: string | null;
   username: string | null;
   /** IANA-Zeitzone des Sub, dem diese Zeile gehört — governiert die Zeit-Anzeige (Multi-Sub-Liste:
    *  jede Zeile in IHRER Zone, nicht der des Keyholders). */
@@ -43,6 +45,7 @@ type PruefungEntry = {
   id: string;
   startTime: Date;
   imageUrl: string | null;
+  boxImageUrl?: string | null;
   note: string | null;
   kontrollCode: string | null;
   verifikationStatus: string | null;
@@ -91,6 +94,7 @@ export function buildKontrolleRows(
     return {
       sortTime: e.startTime,
       imageUrl: e.imageUrl,
+      boxImageUrl: e.boxImageUrl ?? null,
       username: e.user?.username ?? null,
       timezone: e.user?.timezone ?? APP_TZ,
       anforderungStatus: ka ? mapAnforderungStatus(ka, e.startTime, now) : null,
@@ -121,6 +125,7 @@ export function buildKontrolleRows(
     .map((k) => ({
       sortTime: k.createdAt,
       imageUrl: null,
+      boxImageUrl: null,
       username: k.user?.username ?? null,
       timezone: k.user?.timezone ?? APP_TZ,
       anforderungStatus: mapAnforderungStatus(k, null, now),
@@ -202,6 +207,7 @@ export function mapKontrolleRow(
       : null;
   return {
     imageUrl: row.imageUrl,
+    boxImageUrl: row.boxImageUrl,
     kommentar: row.kommentar,
     pillLabel: kPill?.label ?? null,
     pillCls: kPill?.cls ?? null,
