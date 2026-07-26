@@ -376,9 +376,20 @@ export async function processDueTasks(now: Date): Promise<void> {
       const notified: string[] = [];
 
       for (const e of evaluated) {
-        // Bedingungen hielten, aber die Selbstmeldung fehlt: noch kein Ergebnis — der Sub kann sie
-        // jederzeit nachholen. Erst melden, wenn wirklich etwas feststeht.
-        if (e.evaluation.awaitingConfirmation) continue;
+        // Bedingungen hielten, nur die Selbstmeldung fehlt: den Sub daran ERINNERN statt ihn zu
+        // überspringen. Ein blosses `continue` liesse die Zeile für immer in dieser Abfrage stehen —
+        // sie bekäme nie ein `resultNotifiedAt`, sortierte als älteste nach vorn und besetzte den
+        // `take`-Deckel dauerhaft. 50 solcher Aufgaben, und die Ergebnismeldung stünde für ALLE
+        // Nutzer still. Der Keyholder erfährt hier nichts: es ist noch kein Ergebnis.
+        if (e.evaluation.awaitingConfirmation) {
+          await notifyUser(userId, {
+            subjectKey: "taskAwaitingSubject",
+            messageKey: "taskAwaitingMessage",
+            params: { title: e.task.title },
+          });
+          notified.push(e.task.id);
+          continue;
+        }
 
         const done = e.evaluation.state === "done";
         await notifyUser(userId, {
