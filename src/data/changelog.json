@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.53.1",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Ergebnis der Schlüssel-Erkennung erscheint jetzt von selbst, sobald es da ist — vorher musste man die Seite neu laden. Dasselbe gilt für die Kontroll-Verifikation.",
+          "en": "The result of the key recognition now appears on its own as soon as it is ready — previously you had to reload the page. The same applies to inspection verification."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.0",
     "date": "2026-07-26",
     "changes": [
