@@ -1,4 +1,4 @@
-import { tzDateParts, midnightInTZ, getWeekStart, getMidnightToday, formatDayMonth, formatMonthYear } from "@/lib/utils";
+import { tzDateParts, midnightOfLocalDate, getWeekStart, getMidnightToday, formatDayMonth, formatMonthYear } from "@/lib/utils";
 import type { SessionEventData } from "@/app/dashboard/SessionEventRow";
 
 export interface TimelineBucket {
@@ -47,21 +47,26 @@ function countEvents(items: SessionEventData[]): TimelineBucket["counts"] {
  *   • Older → per-month absolute "Month YYYY".
  *
  * Historical mode: only absolute labels (week / month) — no relative "today/yesterday".
+ *
+ * `tz` ist die Zeitzone der SUB, nicht die des Betrachters: die Ereigniszeilen in den Buckets sind
+ * serverseitig bereits in ihr formatiert. Rechnete die Tagesgrenze hier in einer anderen Zone, könnte
+ * eine Zeile „01:00" unter „Gestern" stehen — dieselbe Uhrzeit, zwei Kalender.
  */
 export function groupEventsIntoBuckets(
   eventsWithTime: (SessionEventData & { _time: Date })[],
   now: Date,
   dl: string,
   mode: "active" | "historical",
+  tz: string,
 ): TimelineBucket[] {
   if (eventsWithTime.length === 0) return [];
 
   // Sort newest → oldest for display (top of timeline is most recent).
   const sorted = [...eventsWithTime].sort((a, b) => b._time.getTime() - a._time.getTime());
 
-  const midnightToday = getMidnightToday(now);
+  const midnightToday = getMidnightToday(now, tz);
   const midnightYesterday = addDaysMs(midnightToday, -1);
-  const weekStart = getWeekStart(now);
+  const weekStart = getWeekStart(now, tz);
   const lastWeekStart = addDaysMs(weekStart, -7);
 
   type Draft = Omit<TimelineBucket, "counts" | "items"> & { items: SessionEventData[] };
@@ -131,13 +136,13 @@ export function groupEventsIntoBuckets(
     }
 
     // Older events: bucket by ISO week within the same month, else by month.
-    const { year: eY, month: eM } = tzDateParts(t);
-    const { year: nY, month: nM } = tzDateParts(now);
+    const { year: eY, month: eM } = tzDateParts(t, tz);
+    const { year: nY, month: nM } = tzDateParts(now, tz);
     const sameMonth = mode === "active" && eY === nY && eM === nM;
 
     if (sameMonth) {
       // Week bucket
-      const evWeekStart = getWeekStart(t);
+      const evWeekStart = getWeekStart(t, tz);
       const id = `week-${evWeekStart.toISOString().slice(0, 10)}`;
       const b = getOrCreate(id, () => ({
         id,
@@ -150,8 +155,8 @@ export function groupEventsIntoBuckets(
       }));
       b.items.push(ev);
     } else {
-      const monthStart = midnightInTZ(new Date(Date.UTC(eY, eM, 1, 12)));
-      const monthEnd = midnightInTZ(new Date(Date.UTC(eM === 11 ? eY + 1 : eY, (eM + 1) % 12, 1, 12)));
+      const monthStart = midnightOfLocalDate(eY, eM, 1, tz);
+      const monthEnd = midnightOfLocalDate(eY, eM + 1, 1, tz); // Monatsüberlauf rechnet Date.UTC
       const id = `month-${eY}-${String(eM + 1).padStart(2, "0")}`;
       const b = getOrCreate(id, () => ({
         id,

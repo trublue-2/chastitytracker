@@ -179,13 +179,33 @@ export function formatMonthYear(date: Date | string, locale = "de-CH", tz = APP_
  *  Tag. Ohne Stunden-Feld tritt der Fall nicht auf. Cache-Begründung siehe `memoFormatter`. */
 const datePartsFormatters = new Map<string, Intl.DateTimeFormat>();
 
-/** Returns { year, 0-based month, day } of `d` in `tz` (default APP_TZ). */
-export function tzDateParts(d: Date, tz = APP_TZ): { year: number; month: number; day: number } {
+/**
+ * Returns { year, 0-based month, day } of `d` in `tz`.
+ *
+ * `tz` ist hier und in der ganzen Wanduhr-Familie darunter (`dateAtLocalMinutes`, `midnightInTZ`,
+ * `getMidnightToday`, `mondayIndex`, `get{Week,Month,Year}{Start,End}`) PFLICHT — bewusst ohne
+ * `= APP_TZ`-Default. Der Default machte das Vergessen unsichtbar: der Aufruf kompilierte, lieferte
+ * eine plausible Schweizer Antwort und wich für jede Sub ausserhalb Europe/Zurich still von der
+ * Grenze ab, die dieselbe Regel anderswo mit der Sub-Zeitzone zieht. Genau so entstanden vier
+ * unabhängige Fehler (Strafbuch-Kontingent, KG-Tragestunden, Kategorie-Ziele, Timeline-Buckets),
+ * von denen keiner im Diff auffiel — ein fehlendes Argument sieht nach nichts aus.
+ * Wo die globale Sicht wirklich gemeint ist, wird `APP_TZ` explizit übergeben; dann steht die
+ * Absicht am Aufruf statt in der Signatur. Die reinen Anzeige-Formatierer oben behalten ihren
+ * Default: dort ist der Rückfall auf die Betrachter-Sicht richtig.
+ */
+export function tzDateParts(d: Date, tz: string): { year: number; month: number; day: number } {
   const parts = memoFormatter(datePartsFormatters, tz, {
     year: "numeric", month: "numeric", day: "numeric",
   }).formatToParts(d);
   const get = (type: string) => +(parts.find(p => p.type === type)?.value ?? "0");
   return { year: get("year"), month: get("month") - 1, day: get("day") };
+}
+
+/** Stabiler Schlüssel des Kalendertags von `d` in `tz` — zum Gruppieren/Zählen je Tag.
+ *  Format ist bewusst opak (nur Gleichheit zählt, nie parsen). */
+export function tzDayKey(d: Date, tz: string): string {
+  const { year, month, day } = tzDateParts(d, tz);
+  return `${year}-${month}-${day}`;
 }
 
 /** Kern der „Dual"-Formatierer: Primär in der Betrachter-Zeitzone plus — nur wenn `viewerTz` gesetzt
@@ -268,66 +288,82 @@ export function tzOffsetMsAt(utcMs: number, tz: string): number {
   return Date.UTC(g("year"), g("month") - 1, g("day"), h, g("minute"), g("second")) - utcMs;
 }
 
-/** Returns the Date at `minutesSinceMidnight` local wall-clock time in `tz` (default APP_TZ), on the
+/** Returns the Date at `minutesSinceMidnight` local wall-clock time in `tz`, on the
  *  same calendar date as `d`. DST-safe for times reasonably far from a transition: looks up the UTC
  *  offset actually in effect AT that wall-clock instant, anchored at the target time itself — so e.g.
  *  a window end of 04:00 on a spring-forward day still resolves correctly, unlike naively adding a
  *  flat millisecond offset to the day's midnight. Not exact for a target that falls exactly inside
  *  the 1-hour DST gap/fold itself (01:00–03:00 local on the ~2 transition days/year) — no real
  *  cleaning window is configured there. */
-export function dateAtLocalMinutes(d: Date, minutesSinceMidnight: number, tz = APP_TZ): Date {
+export function dateAtLocalMinutes(d: Date, minutesSinceMidnight: number, tz: string): Date {
   const { year, month, day } = tzDateParts(d, tz);
   const guessUTC = Date.UTC(year, month, day, 0, minutesSinceMidnight);
   // Anker ist der Ziel-Instant selbst (ein Pass) — siehe tzOffsetMsAt.
   return new Date(guessUTC - tzOffsetMsAt(guessUTC, tz));
 }
 
-/** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
-export function midnightInTZ(d: Date, tz = APP_TZ): Date {
+/** Returns the Date representing 00:00:00 in `tz` on the same calendar date as `d`. */
+export function midnightInTZ(d: Date, tz: string): Date {
   return dateAtLocalMinutes(d, 0, tz);
 }
 
-/** Today at 00:00:00 in `tz` (default APP_TZ) */
-export function getMidnightToday(now: Date, tz = APP_TZ): Date {
+/**
+ * 00:00 Ortszeit in `tz` an einem Kalendertag, der als ZAHLEN vorliegt (Jahr/Monat/Tag) — nicht als
+ * Instant. `month`/`day` dürfen überlaufen (Monat 12 = Januar des Folgejahres), wie bei `Date.UTC`.
+ *
+ * Nicht ersetzbar durch `midnightInTZ(new Date(Date.UTC(y, m, d, 12)), tz)`: dieser Umweg baut aus
+ * den Zahlen erst einen Instant (Mittag UTC) und liest dessen Kalendertag zurück — ab UTC+12 ist
+ * Mittag UTC lokal aber schon der FOLGETAG (Auckland: 12:00Z am 1. = 00:00 am 2.). Der Monatsanfang
+ * landete so für Subs in Auckland, Fidschi oder Kiritimati auf dem Zweiten, und der erste Tag jedes
+ * Monats und Jahres fiel aus der Auswertung.
+ */
+export function midnightOfLocalDate(year: number, month: number, day: number, tz: string): Date {
+  const guessUTC = Date.UTC(year, month, day);
+  // Anker ist der Ziel-Instant selbst (ein Pass) — Begründung bei `tzOffsetMsAt`.
+  return new Date(guessUTC - tzOffsetMsAt(guessUTC, tz));
+}
+
+/** Today at 00:00:00 in `tz` */
+export function getMidnightToday(now: Date, tz: string): Date {
   return midnightInTZ(now, tz);
 }
 
 const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
 /** Wochentag von `d` in `tz`, montagsbasiert: Mo=0 … So=6. */
-export function mondayIndex(d: Date, tz = APP_TZ): number {
+export function mondayIndex(d: Date, tz: string): number {
   const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
     .formatToParts(d).find(p => p.type === "weekday")!.value;
   return ((WEEKDAY_INDEX[wd] ?? 0) + 6) % 7;
 }
 
-/** Start of the current ISO week (Monday 00:00:00 in `tz`, default APP_TZ) */
-export function getWeekStart(now: Date, tz = APP_TZ): Date {
+/** Start of the current ISO week (Monday 00:00:00 in `tz`) */
+export function getWeekStart(now: Date, tz: string): Date {
   return new Date(midnightInTZ(now, tz).getTime() - mondayIndex(now, tz) * 86_400_000);
 }
 
-/** First day of the current month at 00:00:00 in `tz` (default APP_TZ) */
-export function getMonthStart(now: Date, tz = APP_TZ): Date {
+/** First day of the current month at 00:00:00 in `tz` */
+export function getMonthStart(now: Date, tz: string): Date {
   const { year, month } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)), tz);
+  return midnightOfLocalDate(year, month, 1, tz);
 }
 
-/** Exclusive end of the current month: first day of the NEXT month at 00:00:00 in `tz` (default APP_TZ) */
-export function getMonthEnd(now: Date, tz = APP_TZ): Date {
+/** Exclusive end of the current month: first day of the NEXT month at 00:00:00 in `tz` */
+export function getMonthEnd(now: Date, tz: string): Date {
   const { year, month } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)), tz);
+  return midnightOfLocalDate(year, month + 1, 1, tz);
 }
 
-/** Jan 1 of the year of `now` at 00:00:00 in `tz` (default APP_TZ) */
-export function getYearStart(now: Date, tz = APP_TZ): Date {
+/** Jan 1 of the year of `now` at 00:00:00 in `tz` */
+export function getYearStart(now: Date, tz: string): Date {
   const { year } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year, 0, 1, 12)), tz);
+  return midnightOfLocalDate(year, 0, 1, tz);
 }
 
-/** Exclusive end of the year of `now`: Jan 1 of the NEXT year at 00:00:00 in `tz` (default APP_TZ) */
-export function getYearEnd(now: Date, tz = APP_TZ): Date {
+/** Exclusive end of the year of `now`: Jan 1 of the NEXT year at 00:00:00 in `tz` */
+export function getYearEnd(now: Date, tz: string): Date {
   const { year } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year + 1, 0, 1, 12)), tz);
+  return midnightOfLocalDate(year + 1, 0, 1, tz);
 }
 
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
@@ -702,7 +738,10 @@ export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, range
 }
 
 /** KG-Tragestunden für heute / laufende Woche / Monat / Jahr.
- *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen). */
+ *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen).
+ *  `tz` ist die Zeitzone der SUB: „heute" muss denselben Tag meinen wie das prorata gerechnete Ziel
+ *  (`proratedVorgabeTargets`) und die verstrichene Zeit daneben — sonst haben Zähler und Nenner
+ *  desselben Fortschrittsbalkens zwei verschiedene Mitternachte. */
 export function calculateWearingHoursByRange<
   E extends {
     type: string;
@@ -712,13 +751,14 @@ export function calculateWearingHoursByRange<
 >(
   entries: E[],
   now: Date,
+  tz: string,
 ): { tagH: number; wocheH: number; monatH: number; jahrH: number } {
   const pairs = buildKgWearPairs(entries, now);
   return {
-    tagH: wearingHoursFromPairs(pairs, getMidnightToday(now), now),
-    wocheH: wearingHoursFromPairs(pairs, getWeekStart(now), now),
-    monatH: wearingHoursFromPairs(pairs, getMonthStart(now), now),
-    jahrH: wearingHoursFromPairs(pairs, getYearStart(now), now),
+    tagH: wearingHoursFromPairs(pairs, getMidnightToday(now, tz), now),
+    wocheH: wearingHoursFromPairs(pairs, getWeekStart(now, tz), now),
+    monatH: wearingHoursFromPairs(pairs, getMonthStart(now, tz), now),
+    jahrH: wearingHoursFromPairs(pairs, getYearStart(now, tz), now),
   };
 }
 

@@ -108,7 +108,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   })();
 
   const activePair = getOpenPair(pairs);
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, tz);
   // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
   const proratedVorgabe = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
 

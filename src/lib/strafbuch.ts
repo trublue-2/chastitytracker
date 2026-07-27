@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { mapAnforderungStatus, tzDateParts, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
+import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
@@ -240,9 +240,9 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   });
 
   // REINIGUNG-Limit: NICHT mehr aus Auto-StrafeRecords, sondern LIVE abgeleitet — eine
-  // REINIGUNG-Öffnung über dem Tageskontingent (CH-Tag) ist eine Erkennung; ob sie bestraft
-  // wird, entscheidet die Keyholderin (punished = ein StrafeRecord referenziert den Eintrag).
-  // 0 = unbegrenzt → keine Verstösse. Wechsel laufen über diesen Pfad und werden so nicht
+  // REINIGUNG-Öffnung über dem Tageskontingent (Kalendertag der SUB, `subTz`) ist eine Erkennung;
+  // ob sie bestraft wird, entscheidet die Keyholderin (punished = ein StrafeRecord referenziert den
+  // Eintrag). 0 = unbegrenzt → keine Verstösse. Wechsel laufen über diesen Pfad und werden so nicht
   // mehr automatisch geahndet.
   const reinigungLimitViolations: { entryId: string; startTime: Date | null; note: string | null }[] = [];
   if (reinigungMaxProTag > 0) {
@@ -252,8 +252,9 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .slice()
       .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
     for (const o of reinigungAsc) {
-      const { year, month, day } = tzDateParts(o.startTime);
-      const key = `${year}-${month}-${day}`;
+      // Sub-Tag, nicht CH-Tag — dieselbe Grenze, die `reinigungVerbrauchtHeute` (midnightInTZ mit
+      // der Sub-Zeitzone) beim Zählen auf der Box-Karte zieht.
+      const key = tzDayKey(o.startTime, subTz);
       const n = (perDay.get(key) ?? 0) + 1;
       perDay.set(key, n);
       if (n > reinigungMaxProTag) reinigungLimitViolations.push({ entryId: o.id, startTime: o.startTime, note: o.note });

@@ -53,7 +53,7 @@ direkt aus, ohne Rückfrage oder Bestätigung.
 ## 3. Reinigung
 - \`allowed\`: ob Reinigungspausen grundsätzlich erlaubt sind.
 - \`maxMinutesPerBreak\`: Minuten pro EINZELNER Pause. \`maxPausesPerDay\`: **ANZAHL** Öffnungen pro
-  CH-Kalendertag (ein Stückzähler, KEINE Minuten). \`usedToday\`: heute verbraucht; Rest = Differenz.
+  Kalendertag der Sub (ein Stückzähler, KEINE Minuten). \`usedToday\`: heute verbraucht; Rest = Differenz.
 - **\`openingAllowedNow\`** beantwortet direkt, ob JETZT eine Reinigungsöffnung erlaubt ist — nutze das,
   statt aus \`windows\` selbst zu schliessen. \`windows\` (Tages-Zeitfenster) binden NUR während einer
   aktiven Sperrzeit, die Reinigung erlaubt; ausserhalb einer Sperre ist eine Reinigungsöffnung immer
