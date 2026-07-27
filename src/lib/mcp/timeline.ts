@@ -18,8 +18,11 @@ export interface TimelineEvent {
 
 export interface TimelineResult extends Envelope {
   /** v3: `detail.deviceConfidence` bei lock-Events kann jetzt auch "undeclared" sein (A-04/A-05,
-   *  MCP-Befundliste 2026-07-17) — vorher fiel "kein Gerät angegeben" fälschlich auf "declared". */
-  schemaVersion: 3;
+   *  MCP-Befundliste 2026-07-17) — vorher fiel "kein Gerät angegeben" fälschlich auf "declared".
+   *  v4: `detail.deviceCheck` eines control-Events ist „wrong" nur noch mit benanntem `detected`;
+   *  „Gerät sichtbar, aber nicht zuordenbar" ist „not_checked" — auch rückwirkend (Issue #44). Ein
+   *  ungeprüfter Check ist jetzt "not_checked" statt `null`, wie in get_session. */
+  schemaVersion: 4;
   user: string;
   from: string | null;
   to: string | null;
@@ -77,7 +80,7 @@ export async function timeline(username: string, opts: TimelineOptions = {}): Pr
   const sliced = filtered.length > limit ? filtered.slice(filtered.length - limit) : filtered;
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     from: iso(from ?? null),

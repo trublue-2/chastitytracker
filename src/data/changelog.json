@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.53.7",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle, auf deren Foto zwar ein Gerät zu sehen war, das sich aber keinem hinterlegten Gerät zuordnen liess, galt bisher als „falsches Gerät\" — obwohl gar nichts festgestellt worden war. Solche Kontrollen werden jetzt als „nicht prüfbar\" ausgewiesen; von einem falschen Gerät ist nur noch die Rede, wenn tatsächlich ein anderes bekanntes Gerät erkannt wurde. Das gilt auch rückwirkend für bereits erfasste Kontrollen.",
+          "en": "An inspection whose photo showed a device that could not be matched to any of your registered devices was previously reported as a wrong device — even though nothing had actually been established. Such inspections are now shown as „not verifiable\"; a wrong device is only reported when a different known device was actually recognised. This also applies retroactively to inspections already recorded."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.6",
     "date": "2026-07-26",
     "changes": [

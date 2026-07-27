@@ -1,3 +1,4 @@
+import { effectiveDeviceCheckStatus, type DeviceCheckStatus } from "@/lib/deviceCheck";
 import { buildPairs, mergeWearPairs, msToHours, type ReinigungSettings, WEAR_PAIR, type WearPair } from "@/lib/utils";
 
 /**
@@ -48,8 +49,8 @@ export interface LinkedControl {
   time: Date;
   code: string | null;
   verifikationStatus: string | null;
-  /** Dreiwertig: ok | wrong | missing | null (nicht geprüft). */
-  deviceCheckStatus: string | null;
+  /** Normalisiert (`effectiveDeviceCheckStatus`): ok | wrong | missing | error | null (nicht geprüft). */
+  deviceCheckStatus: DeviceCheckStatus | null;
   detected: string | null;
   expected: string | null;
 }
@@ -151,7 +152,7 @@ function linkControls(controls: SegmentEntry[], start: Date, end: Date | null, n
       time: c.startTime,
       code: c.kontrollCode ?? null,
       verifikationStatus: c.verifikationStatus ?? null,
-      deviceCheckStatus: c.deviceCheck ?? null,
+      deviceCheckStatus: effectiveDeviceCheckStatus(c.deviceCheck ?? null, c.deviceCheckNote ?? null),
       detected: c.deviceCheckNote ?? null,
       expected: c.deviceCheckExpected ?? null,
     }));

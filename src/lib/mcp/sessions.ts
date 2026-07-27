@@ -1,6 +1,6 @@
 import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/sessionModel";
 import { msToHours } from "@/lib/utils";
-import { resolveUserId, makeIso, buildEnvelope, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, type Envelope, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, buildEnvelope, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, mcpDeviceCheckStatus, type Envelope, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
 
 /** get_session — Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes
  *  + Daten-Qualitäts-Flags. Rein lesend, MCP-only.
@@ -31,22 +31,17 @@ export interface SegmentView {
 }
 
 /** Bild-gegen-Deklaration-Kontrolle einer PRUEFUNG (N-4/N-11, MCP-Restliste 2026-07-17).
- *  `status`: "ok" (Bild bestätigt) | "wrong" (Bild widerspricht der DEKLARATION) | "missing" (kein Gerät
- *  erkannt) | "not_checked" (nicht geprüft — ersetzt das frühere mehrdeutige `null`).
+ *  `status`: "ok" (Bild bestätigt) | "wrong" (Bild widerspricht der DEKLARATION — ein anderes,
+ *  BENANNTES Gerät war zu sehen) | "missing" (kein Gerät erkannt) | "not_checked" (nicht geprüft oder
+ *  nicht prüfbar — ersetzt das frühere mehrdeutige `null`).
  *  `isOffense` ist IMMER false: ein deviceCheck vergleicht Bild vs. Deklaration, NICHT gegen eine
  *  request_lock-Anforderung — er erzeugt nie ein `wrong_device`-Vergehen (§6/§10). "wrong" heisst
  *  „Deklaration stimmt nicht mit dem Bild", nicht „Vergehen". Der genaue Grund für "not_checked"
- *  (keine Referenzbilder / Bild unbrauchbar / nicht angefordert) wird derzeit nicht unterschieden. */
+ *  (keine Referenzbilder / Bild unbrauchbar / Gerät nicht zuordenbar / nicht angefordert) wird
+ *  derzeit nicht unterschieden. */
 export interface DeviceCheckView {
   status: "ok" | "wrong" | "missing" | "not_checked";
   isOffense: false;
-}
-
-/** Normalisiert den rohen `deviceCheckStatus` (string|null) auf die vier stabilen Stufen — jeder
- *  unbekannte Wert (und null) wird zu "not_checked", statt einen ungültigen Rohwert per Cast in den
- *  Enum durchzureichen (N-11). */
-function normalizeDeviceCheckStatus(raw: string | null): DeviceCheckView["status"] {
-  return raw === "ok" || raw === "wrong" || raw === "missing" ? raw : "not_checked";
 }
 
 export interface SessionView {
@@ -94,8 +89,11 @@ export interface SessionListResult extends Envelope {
    *  v5 (A-05 + N-4/N-11, MCP-Restliste 2026-07-17): `dataQualityFlags` sind jetzt `{code, segmentIndex,
    *  detail}` statt Prosa-Strings (maschinenlesbar); die Kontroll-`deviceCheckStatus:string|null` ist
    *  zu `deviceCheck:{status,isOffense}` geworden (null → "not_checked", isOffense immer false).
-   *  Semantik-/Formänderungen an Bestandsfeldern → Bump. */
-  schemaVersion: 5;
+   *  Semantik-/Formänderungen an Bestandsfeldern → Bump.
+   *  v6: `deviceCheck.status` „wrong" setzt jetzt ein im Bild BENANNTES Gerät voraus; war nur
+   *  irgendetwas zu sehen, das keiner Referenz zuzuordnen war, ist der Status „not_checked" statt
+   *  „wrong". Gilt rückwirkend auch für gespeicherte Alt-Kontrollen (Issue #44). */
+  schemaVersion: 6;
   user: string;
   returnedCount: number;
   sessions: SessionView[];
@@ -132,7 +130,7 @@ function controlView(c: LinkedControl, notesByEntity: Map<string, NoteDTO[]>, is
     verifikationStatus: c.verifikationStatus,
     // N-4/N-11: bekannte Stufen durchreichen, alles andere (inkl. null) → "not_checked" (statt
     // mehrdeutigem null oder einem ungültigen Rohwert per Cast); isOffense immer false.
-    deviceCheck: { status: normalizeDeviceCheckStatus(c.deviceCheckStatus), isOffense: false as const },
+    deviceCheck: { status: mcpDeviceCheckStatus(c.deviceCheckStatus), isOffense: false as const },
     detected: c.detected,
     expected: c.expected,
     notes: notesByEntity.get(entityKey(controlEntityType, c.controlId)) ?? [],
@@ -226,7 +224,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   const notesByEntity = await notesForEntities(userId, selected.flatMap(refsOfSession), {}, undefined, timezone);
 
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     returnedCount: selected.length,
