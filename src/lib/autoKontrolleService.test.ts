@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { hhmmToMinutes, isInQuietMinutes, generateAutoKontrollen, repairAutoKontrollen, type AutoKontrolleSettings, type PlannedAutoKontrolle } from "./autoKontrolleService";
 import { dateAtLocalMinutes, midnightInTZ } from "./utils";
 
+/** Diese Datei modelliert bewusst einen CH-Sub. */
+const TZ = "Europe/Zurich";
+
 describe("hhmmToMinutes", () => {
   it("converts HH:MM to minutes since midnight", () => {
     expect(hhmmToMinutes("00:00")).toBe(0);
@@ -32,8 +35,8 @@ describe("isInQuietMinutes (wrap-aware)", () => {
 
 describe("generateAutoKontrollen", () => {
   // now = CH-Mitternacht → das ganze Wach-Fenster liegt in der Zukunft (alle Slots werden behalten).
-  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"));
-  const dayBase = midnightInTZ(now).getTime();
+  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
+  const dayBase = midnightInTZ(now, TZ).getTime();
   // Min == Max ⇒ fixe Anzahl (Verhalten wie vor der Min–Max-Erweiterung).
   const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
 
@@ -80,7 +83,7 @@ describe("generateAutoKontrollen", () => {
 
 describe("generateAutoKontrollen — zufällige Tages-Anzahl aus [Min, Max]", () => {
   // now = CH-Mitternacht → ganzer Tag Zukunft, Segmente gross genug → slots.length == gewürfelte Anzahl.
-  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"));
+  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
   const range: AutoKontrolleSettings = { aktiv: true, perDayMin: 2, perDayMax: 6, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
 
   it("rand→0 wählt die Min-Anzahl", () => {

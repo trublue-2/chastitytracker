@@ -452,13 +452,14 @@ export async function periodSummary(username: string, ctx?: TrackingContext): Pr
 
   const [kgVorgabe, categoryGoals] = await Promise.all([
     getActiveVorgabe(userId, now),
-    buildCategoryWearGoals(userId, now, entries),
+    buildCategoryWearGoals(userId, now, entries, timezone),
   ]);
-  const kg = calculateWearingHoursByRange(entries, now);
+  const kg = calculateWearingHoursByRange(entries, now, timezone);
 
   // KG-Ziele prorata: startet/endet die aktive Vorgabe mitten in einer Periode, wird das Ziel
   // anteilig auf die Überschneidung mit der Periode heruntergerechnet (Nenner der %-Erfüllung).
-  const kgGoal = proratedVorgabeTargets(kgVorgabe, now);
+  // Dieselbe Zeitzone wie die Stunden darüber: sonst misst der Nenner eine andere Periode als der Zähler.
+  const kgGoal = proratedVorgabeTargets(kgVorgabe, now, timezone);
 
   return {
     schemaVersion: 2,
