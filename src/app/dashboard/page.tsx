@@ -16,6 +16,7 @@ import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
@@ -70,9 +71,6 @@ export default async function DashboardPage() {
     maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
   };
 
-  // Reinigungs-Regeln für die Box-Karte — Herleitung samt Begründung in `buildBoxReinigungView`.
-  const boxReinigung = await buildBoxReinigungView(userSettings, activeSperrzeit, now, tz);
-
   // ── Compute derived state ──
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
@@ -93,9 +91,18 @@ export default async function DashboardPage() {
     .filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
+  // ── Box-Abfragen (beide zusammen) ──
+  // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) und der
+  // Schlüssel-Nachweis aus der Telemetrie (`boxKeyProof.ts`) — beide brauchen die DB, keiner den
+  // anderen.
+  const [boxReinigung, telemetryKeyProof] = await Promise.all([
+    buildBoxReinigungView(userSettings, activeSperrzeit, now, tz),
+    loadTelemetryKeyProof(userId, pairs),
+  ]);
+
   const orgasmCfg = effectiveOrgasmusArten(userSettings?.orgasmusArtenConfig);
   const rawSessionEvents = activePair
-    ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm))
+    ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof)
     : [];
 
   const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
@@ -248,7 +255,7 @@ export default async function DashboardPage() {
       <DashboardClient {...clientProps} tz={tz} />
       {pairs.length > 0 && (
         <DashboardBlock>
-          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} />
+          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
         </DashboardBlock>
       )}
       {wearSessionRows.length > 0 && (
