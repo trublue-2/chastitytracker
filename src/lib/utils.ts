@@ -729,10 +729,10 @@ type KontrollAnforderungIn = {
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
    *  Fehlte es im `select`, fiele jedes Versäumnis stillschweigend auf "withdrawn" zurück. */
   autoMarkedRemovedAt: Date | null;
-  entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null } | null;
+  entry: { id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null } | null;
 };
 type PruefungEntryIn = {
-  id: string; startTime: Date; imageUrl: string | null; note: string | null;
+  id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null;
   kontrollCode: string | null; verifikationStatus: string | null; keyDetected?: boolean | null;
   boxImageUrl?: string | null;
 };
@@ -741,6 +741,10 @@ export type KontrolleItem = {
   deadline: Date | null; kommentar: string | null; note: string | null;
   anforderungStatus: AnforderungStatus | null; verifikationStatus: VerifikationStatus | null;
   entryId: string | null; submittedAt: Date | null;
+  /** Wann der Eintrag WIRKLICH entstand (`Entry.createdAt`), unabhängig von der eingetippten Zeit.
+   *  `time` ist sub-deklariert und rückdatierbar; wo eine Aussage von der Aktualität einer externen
+   *  Quelle abhängt (Box-Telemetrie, `lib/boxKeyProof.ts`), zählt dieser Zeitpunkt. */
+  recordedAt: Date;
   /** Urteil der Schlüssel-Erkennung auf dem Box-Foto DIESER Kontrolle (null = nicht geprüft).
    *  Trägt die zweite Hälfte des Nachweises: erst die Wiederholung bei jeder Kontrolle belegt,
    *  dass der Schlüssel drin GEBLIEBEN ist. */
@@ -769,6 +773,7 @@ export function buildKontrolleItems(
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
       entryId: k.entry?.id ?? null,
       submittedAt: k.fulfilledAt ?? null,
+      recordedAt: k.entry?.createdAt ?? k.createdAt,
       keyDetected: k.entry?.keyDetected ?? null,
       boxImageUrl: k.entry?.boxImageUrl ?? null,
     })),
@@ -786,6 +791,7 @@ export function buildKontrolleItems(
         verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
         entryId: e.id,
         submittedAt: null as Date | null,
+        recordedAt: e.createdAt,
         keyDetected: e.keyDetected ?? null,
         boxImageUrl: e.boxImageUrl ?? null,
       })),

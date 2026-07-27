@@ -195,6 +195,7 @@ export default async function LaufendeSessionCard({
             deviceName: ev.deviceName ?? null,
             showDevice: userHasDevices,
             keyDetected: ev.keyDetected ?? null,
+            keyProofSource: ev.keyProofSource ?? null,
             boxImageUrl: ev.boxImageUrl ?? null,
           };
         })}
