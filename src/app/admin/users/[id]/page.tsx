@@ -118,12 +118,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // (damit die Keyholderin sie stornieren kann) — für die Reinigungs-Frage zählt nur die bereits
   // wirksame, sonst meldet die Karte „durch Sperrzeit blockiert", bevor die Sperre überhaupt läuft.
   const effectiveSperrzeit = activeSperrzeit && !isScheduledDirective(activeSperrzeit.wirksamAb, now) ? activeSperrzeit : null;
-  // Beide Box-Abfragen zusammen — dazu der Schlüssel-Nachweis aus der Telemetrie (`boxKeyProof.ts`),
-  // damit die Keyholderin dieselben Pillen sieht wie der Sub.
-  const [boxReinigung, telemetryKeyProof] = await Promise.all([
-    buildBoxReinigungView(user, effectiveSperrzeit, now, tz),
-    loadTelemetryKeyProof(user.id, pairs),
-  ]);
+  // Das Tageskontingent zählt aus den oben geladenen `entries` — ohne DB. Nur der Schlüssel-Nachweis
+  // aus der Telemetrie (`boxKeyProof.ts`) fragt noch ab, damit die Keyholderin dieselben Pillen
+  // sieht wie der Sub; deshalb hier kein `Promise.all` mehr.
+  const boxReinigung = buildBoxReinigungView(user, entries, effectiveSperrzeit, now, tz);
+  const telemetryKeyProof = await loadTelemetryKeyProof(user.id, pairs);
   const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof) : [];
 
   return (
