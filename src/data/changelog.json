@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.53.8",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Tragestunden, Kategorie-Ziele und die Zeitstrahl-Abschnitte („Heute\", „Gestern\", „Diese Woche\") rechnen jetzt überall mit dem Kalendertag der Sub statt mit dem Schweizer. Auf dem Dashboard konnten Zähler und Nenner desselben Fortschrittsbalkens vorher zwei verschiedene Mitternachte meinen, und ein Ereignis konnte mit der Uhrzeit von heute unter „Gestern\" stehen.",
+          "en": "Wearing hours, category goals and the timeline sections (\"Today\", \"Yesterday\", \"This week\") now all count against the sub's calendar day instead of the Swiss one. On the dashboard the numerator and denominator of the same progress bar could previously mean two different midnights, and an event could sit under \"Yesterday\" showing today's time."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Subs östlich von UTC+12 (etwa Neuseeland oder Fidschi) begann jeder Monat und jedes Jahr einen Tag zu spät: der erste Tag fiel aus Statistik und Zielberechnung heraus.",
+          "en": "For subs east of UTC+12 (New Zealand or Fiji, say) every month and year began a day late: the first day dropped out of the statistics and the goal calculation."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Zeitzone ist bei allen Funktionen, die eine Tages-, Wochen-, Monats- oder Jahresgrenze ziehen, jetzt ein Pflichtargument. Bisher fielen sie stillschweigend auf die Schweizer Zeit zurück — vier voneinander unabhängige Fehler entstanden so, und keiner davon war im Diff zu sehen.",
+          "en": "The timezone is now a required argument on every function that draws a day, week, month or year boundary. They used to fall back to Swiss time silently — four independent bugs arose that way, and none of them was visible in the diff."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.7",
     "date": "2026-07-27",
     "changes": [

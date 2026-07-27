@@ -391,7 +391,7 @@ function rollFreshDay(userId: string, settings: AutoKontrolleSettings, now: Date
   return createAutoKontrollen(userId, generateAutoKontrollen(settings, now, Math.random, tz));
 }
 
-/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (CH-Tag)
+/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (Tag der Sub)
  *  angelegte Auto-Zeilen, passiert nichts. (Vom Poller, einmal pro Tag.) */
 export async function ensureDailyAutoKontrollenForUser(
   userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
@@ -437,7 +437,7 @@ export async function replanTodayAutoKontrollenForUser(
   return createAutoKontrollen(userId, create);
 }
 
-/** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro CH-Tag). */
+/** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro Kalendertag der jeweiligen Sub). */
 export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
   const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_USER_SELECT });
   for (const u of users) {

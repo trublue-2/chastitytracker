@@ -15,7 +15,7 @@
  * gesetzten Vorgabe kann in ihrer ersten Teilperiode dadurch zu hoch wirken. Für diese App akzeptiert.
  */
 
-import { getMidnightToday, getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, APP_TZ } from "@/lib/utils";
+import { getMidnightToday, getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd } from "@/lib/utils";
 
 /** Validity window of a goal. `end === null` = open-ended (covers everything after `start`). */
 export interface GoalWindow {
@@ -25,8 +25,9 @@ export interface GoalWindow {
 
 export type GoalPeriod = "day" | "week" | "month" | "year";
 
-/** Half-open bounds `[start, end)` of the current day/week/month/year in `tz` (default APP_TZ). */
-export function periodBounds(period: GoalPeriod, now: Date, tz = APP_TZ): { start: Date; end: Date } {
+/** Half-open bounds `[start, end)` of the current day/week/month/year in `tz`.
+ *  `tz` ist Pflicht wie in der Wanduhr-Familie, auf der das hier aufsetzt — Begründung bei `tzDateParts`. */
+export function periodBounds(period: GoalPeriod, now: Date, tz: string): { start: Date; end: Date } {
   switch (period) {
     case "day": {
       const start = getMidnightToday(now, tz);
@@ -92,7 +93,7 @@ export interface VorgabePeriodTargets {
 export function proratedVorgabeTargets(
   goal: (GoalWindow & VorgabePeriodTargets) | null,
   now: Date,
-  tz = APP_TZ,
+  tz: string,
 ): VorgabePeriodTargets {
   if (!goal) return { minProTagH: null, minProWocheH: null, minProMonatH: null, minProJahrH: null };
   const day = periodBounds("day", now, tz);

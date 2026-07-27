@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { mapAnforderungStatus, tzDateParts, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
+import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
@@ -254,8 +254,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     for (const o of reinigungAsc) {
       // Sub-Tag, nicht CH-Tag — dieselbe Grenze, die `reinigungVerbrauchtHeute` (midnightInTZ mit
       // der Sub-Zeitzone) beim Zählen auf der Box-Karte zieht.
-      const { year, month, day } = tzDateParts(o.startTime, subTz);
-      const key = `${year}-${month}-${day}`;
+      const key = tzDayKey(o.startTime, subTz);
       const n = (perDay.get(key) ?? 0) + 1;
       perDay.set(key, n);
       if (n > reinigungMaxProTag) reinigungLimitViolations.push({ entryId: o.id, startTime: o.startTime, note: o.note });

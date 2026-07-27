@@ -152,6 +152,7 @@ export default async function LaufendeSessionCard({
 
       {/* ── Timeline (buckets + flat fallback for short sessions) ── */}
       <SessionTimeline
+        tz={tz}
         events={events.map<SessionEventData>((ev) => {
           const dateStr = formatDate(ev.time, dl, tz);
           const timeStr = formatTime(ev.time, dl, tz);

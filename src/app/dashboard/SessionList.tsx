@@ -248,5 +248,5 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
     };
   });
 
-  return <SessionListClient sessions={sessions} />;
+  return <SessionListClient sessions={sessions} tz={tz} />;
 }
