@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.54.0",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Wer eine Schlüsselbox nutzt, muss bei einer Kontrolle nicht mehr zwingend ein Foto durchs Sichtfenster machen: Solange die Box seit dem Einschluss (oder seit dem letzten Foto) nicht geöffnet wurde, gilt der Schlüssel weiterhin als in der Box. Der Keyholder sieht dabei, worauf der Nachweis beruht — Foto oder Box-Meldung. Das Foto bleibt möglich, die Nachfrage vor dem Speichern ohne Foto bleibt bestehen. Wurde die Box zwischendurch geöffnet oder meldet sie sich nicht, wird nichts behauptet — dann braucht es wieder ein Foto.",
+          "en": "With a key box in use, an inspection no longer strictly needs a photo through the viewing window: as long as the box has not been opened since the lock (or since the last photo), the key still counts as being in the box. The keyholder can see what the proof rests on — photo or box report. Taking the photo stays possible, and the prompt before saving without one stays as well. If the box was opened in between, or is not reporting, nothing is claimed — then a photo is needed again."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.6",
     "date": "2026-07-26",
     "changes": [

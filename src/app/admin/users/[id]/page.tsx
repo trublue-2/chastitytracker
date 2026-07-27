@@ -15,6 +15,7 @@ import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere, isScheduledDirective } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
@@ -107,7 +108,6 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   })();
 
   const activePair = getOpenPair(pairs);
-  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm)) : [];
   const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
   // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
   const proratedVorgabe = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
@@ -118,7 +118,13 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // (damit die Keyholderin sie stornieren kann) — für die Reinigungs-Frage zählt nur die bereits
   // wirksame, sonst meldet die Karte „durch Sperrzeit blockiert", bevor die Sperre überhaupt läuft.
   const effectiveSperrzeit = activeSperrzeit && !isScheduledDirective(activeSperrzeit.wirksamAb, now) ? activeSperrzeit : null;
-  const boxReinigung = await buildBoxReinigungView(user, effectiveSperrzeit, now, tz);
+  // Beide Box-Abfragen zusammen — dazu der Schlüssel-Nachweis aus der Telemetrie (`boxKeyProof.ts`),
+  // damit die Keyholderin dieselben Pillen sieht wie der Sub.
+  const [boxReinigung, telemetryKeyProof] = await Promise.all([
+    buildBoxReinigungView(user, effectiveSperrzeit, now, tz),
+    loadTelemetryKeyProof(user.id, pairs),
+  ]);
+  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof) : [];
 
   return (
     <>
@@ -255,7 +261,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
       <CategoryGoalsToday userId={id} />
 
-      <SessionList keyholderView pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} />
+      <SessionList keyholderView pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
 
       {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
 

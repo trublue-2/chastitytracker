@@ -343,6 +343,7 @@
     "entryUpdated": "Eintrag aktualisiert",
     "wearSessionPhotoAlt": "Foto vom Trage-Beginn: {category}",
     "keyDetected": "Schlüssel erkannt",
+    "keyDetectedTelemetry": "Schlüssel in Box (Telemetrie)",
     "keyNotDetected": "KEIN Schlüssel erkannt",
     "keyInBoxYes": "Schlüssel in der Box",
     "keyInBoxNo": "Schlüssel NICHT in der Box",
