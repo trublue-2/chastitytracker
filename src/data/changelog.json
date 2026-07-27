@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.53.8",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bei einer angeforderten Kontrolle kann das Foto nachträglich nicht mehr entfernt werden. Bisher liess sich der Nachweis nach dem Erfassen wieder löschen — die Kontrolle galt trotzdem als fristgerecht erfüllt, und im Strafbuch tauchte nichts auf. Ob ein Foto taugt, beurteilt weiterhin allein die Keyholderin; sie darf es auch weiterhin entfernen. Freiwillige Kontrollen bleiben unverändert.",
+          "en": "The photo of a requested inspection can no longer be removed after the fact. Until now the proof could be deleted again after submitting it — the inspection still counted as met on time and nothing showed up in the penalty log. Whether a photo is good enough remains the keyholder's call alone, and she can still remove it. Voluntary inspections are unchanged."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.7",
     "date": "2026-07-27",
     "changes": [
