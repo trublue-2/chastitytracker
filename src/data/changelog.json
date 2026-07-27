@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.54.4",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Subs in Zeitzonen ab UTC+12 (z.B. Neuseeland, Fidschi, Kiribati) stimmt die Statistik-Seite jetzt: Monatskalender, Jahres-Heatmap und Monatsübersicht begannen dort einen Tag zu spät. Der Monat startete am Zweiten, der erste Tag fiel aus der Auswertung, der Kalender war um eine Spalte verschoben (und verlor dadurch teilweise eine ganze Wochenzeile samt Wochenziel), und jede Tages-Kachel trug das Datum des Folgetags. Monatssummen und Ziel-Prozente verschieben sich dadurch rückwirkend. Für alle Zeitzonen bis UTC+11 — auch die Schweiz — ändert sich nichts.",
+          "en": "For subs in timezones from UTC+12 (e.g. New Zealand, Fiji, Kiribati) the stats page is now correct: the month calendar, year heatmap and month overview all started a day late there. The month began on the 2nd, its first day dropped out of the evaluation, the calendar was shifted by one column (sometimes losing an entire week row and its weekly goal), and every day tile showed the following day's date. Monthly totals and goal percentages therefore shift retroactively. Nothing changes for any timezone up to UTC+11, including Switzerland."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Statistik-Seite baut ihre Datums-Beschriftungen deutlich schneller auf (die Jahres-Heatmap beschriftet jeden einzelnen Tag).",
+          "en": "The stats page builds its date labels considerably faster (the year heatmap labels every single day)."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.54.3",
     "date": "2026-07-27",
     "changes": [

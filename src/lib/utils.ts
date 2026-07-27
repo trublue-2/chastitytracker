@@ -205,6 +205,13 @@ export function tzDateParts(d: Date, tz: string): { year: number; month: number;
  *  Format ist bewusst opak (nur Gleichheit zählt, nie parsen). */
 export function tzDayKey(d: Date, tz: string): string {
   const { year, month, day } = tzDateParts(d, tz);
+  return dayKeyOfLocalDate(year, month, day);
+}
+
+/** Derselbe Schlüssel wie `tzDayKey`, aber für einen Kalendertag, der schon als ZAHLEN vorliegt.
+ *  Wer eine Tages-Karte per `tzDayKey` füllt und sie in einer Kalender-Schleife wieder ausliest,
+ *  nimmt hier die Gegenseite — statt das Format ein zweites Mal von Hand zu buchstabieren. */
+export function dayKeyOfLocalDate(year: number, month: number, day: number): string {
   return `${year}-${month}-${day}`;
 }
 
@@ -330,11 +337,27 @@ export function getMidnightToday(now: Date, tz: string): Date {
 
 const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-/** Wochentag von `d` in `tz`, montagsbasiert: Mo=0 … So=6. */
+/** Wochentag des Instants `d` in `tz`, montagsbasiert: Mo=0 … So=6.
+ *  Liegt der Kalendertag schon als ZAHLEN vor, ist `mondayIndexOfLocalDate` richtig — nicht erst
+ *  einen Anker-Instant bauen, um ihn hier wieder in einen Wochentag zurückzuverwandeln. */
 export function mondayIndex(d: Date, tz: string): number {
   const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
     .formatToParts(d).find(p => p.type === "weekday")!.value;
   return ((WEEKDAY_INDEX[wd] ?? 0) + 6) % 7;
+}
+
+/**
+ * Wochentag eines als ZAHLEN gegebenen Kalendertags, montagsbasiert: Mo=0 … So=6. `month`/`day`
+ * dürfen überlaufen, wie bei `Date.UTC`.
+ *
+ * Bewusst OHNE `tz` — und das ist keine vergessene Pflichtangabe, sondern die Aussage: der
+ * 1. Januar 2026 ist überall auf der Welt ein Donnerstag. Der Wochentag hängt am Datum, nicht am
+ * Ort. Wer stattdessen `mondayIndex(<Anker-Instant>, tz)` rechnet, macht ihn scheinbar ortsabhängig
+ * und liegt bei einem Mittags-UTC-Anker ab UTC+12 einen Tag daneben (Kalender um eine Spalte
+ * verschoben). Dieselbe Zahlen-statt-Instant-Regel wie bei `midnightOfLocalDate` und `dayKeyOfLocalDate`.
+ */
+export function mondayIndexOfLocalDate(year: number, month: number, day: number): number {
+  return (new Date(Date.UTC(year, month, day)).getUTCDay() + 6) % 7;
 }
 
 /** Start of the current ISO week (Monday 00:00:00 in `tz`) */

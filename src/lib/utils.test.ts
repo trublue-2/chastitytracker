@@ -22,6 +22,10 @@ import {
   formatDateTimeDual,
   formatDayTimeDual,
   tzDayKey,
+  dayKeyOfLocalDate,
+  mondayIndex,
+  mondayIndexOfLocalDate,
+  midnightOfLocalDate,
   calculateWearingHoursByRange,
   type ReinigungSettings,
 } from "./utils";
@@ -719,6 +723,45 @@ describe("tzDayKey", () => {
     expect(tzDayKey(sameAucklandDay, "Pacific/Auckland")).toBe(tzDayKey(instant, "Pacific/Auckland"));
     // Für Zürich sind es zwei Tage — genau der Unterschied, um den es geht.
     expect(tzDayKey(sameAucklandDay, "Europe/Zurich")).not.toBe(tzDayKey(instant, "Europe/Zurich"));
+  });
+
+  it("dayKeyOfLocalDate bildet denselben Schlüssel aus Zahlen statt aus einem Instant", () => {
+    // Die Gegenseite: wer eine Karte per `tzDayKey` füllt und sie in einer Kalender-Schleife
+    // ausliest, muss exakt dieselbe Zeichenkette treffen — sonst bleiben Zellen leer.
+    for (const tz of ["Europe/Zurich", "Pacific/Auckland", "Pacific/Kiritimati"]) {
+      expect(dayKeyOfLocalDate(2026, 0, 1)).toBe(tzDayKey(midnightOfLocalDate(2026, 0, 1, tz), tz));
+    }
+  });
+});
+
+/**
+ * Der Wochentag hängt am Datum, nicht am Ort: der 1. Januar 2026 ist überall ein Donnerstag.
+ * `mondayIndex` beantwortet die Frage für einen INSTANT und braucht dafür zu Recht eine Zeitzone —
+ * wer ihm einen erfundenen Anker (Mittag UTC) fütterte, bekam ab UTC+12 den Wochentag des Folgetags
+ * und verschob den ganzen Kalender um eine Spalte.
+ */
+describe("mondayIndexOfLocalDate", () => {
+  it("zählt montagsbasiert: Mo=0 … So=6", () => {
+    // 2026-01-01 = Do, 2026-01-05 = Mo, 2026-01-11 = So.
+    expect(mondayIndexOfLocalDate(2026, 0, 1)).toBe(3);
+    expect(mondayIndexOfLocalDate(2026, 0, 5)).toBe(0);
+    expect(mondayIndexOfLocalDate(2026, 0, 11)).toBe(6);
+  });
+
+  it("lässt Monat und Tag überlaufen, wie Date.UTC", () => {
+    expect(mondayIndexOfLocalDate(2026, 0, 0)).toBe(mondayIndexOfLocalDate(2025, 11, 31));
+    expect(mondayIndexOfLocalDate(2026, 12, 1)).toBe(mondayIndexOfLocalDate(2027, 0, 1));
+    expect(mondayIndexOfLocalDate(2026, 0, -3)).toBe(mondayIndexOfLocalDate(2025, 11, 28));
+  });
+
+  it("stimmt mit mondayIndex auf der echten lokalen Mitternacht überein — in JEDER Zone", () => {
+    for (const tz of ["Europe/Zurich", "UTC", "America/New_York", "Pacific/Auckland", "Pacific/Kiritimati"]) {
+      for (let m = 0; m < 12; m++) {
+        for (const d of [1, 15, 28]) {
+          expect(mondayIndexOfLocalDate(2026, m, d)).toBe(mondayIndex(midnightOfLocalDate(2026, m, d, tz), tz));
+        }
+      }
+    }
   });
 });
 
