@@ -1,4 +1,5 @@
 import { formatDuration, buildLockPoints, wornDeviceNameAt } from "@/lib/utils";
+import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/boxKeyProof";
 
 export interface SessionEvent {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -19,8 +20,10 @@ export interface SessionEvent {
   submittedAt?: Date | null;
   /** KONTROLLE: getragenes Gerät zum Kontroll-Zeitpunkt (re-lock-bewusst). */
   deviceName?: string | null;
-  /** VERSCHLUSS + KONTROLLE: Urteil der Schlüssel-Erkennung auf dem Box-Foto (null = nicht geprüft). */
+  /** VERSCHLUSS + KONTROLLE: Schlüssel-Urteil (null = nicht geprüft). Quelle in `keyProofSource`. */
   keyDetected?: boolean | null;
+  /** Woher das Urteil stammt: Box-Foto oder Telemetrie (siehe `lib/boxKeyProof.ts`). */
+  keyProofSource?: KeyProofSource | null;
   /** VERSCHLUSS + KONTROLLE: das Box-Foto selbst (im Vollbild wählbar). */
   boxImageUrl?: string | null;
 }
@@ -29,24 +32,27 @@ type LockRef = { name?: string | null };
 type ActivePair = {
   verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null; device?: LockRef | null };
   kontrollen: {
-    entryId: string | null; time: Date; imageUrl: string | null; note: string | null;
+    entryId: string | null; time: Date; recordedAt: Date; imageUrl: string | null; note: string | null;
     deadline: Date | null; kommentar: string | null; code: string | null;
     anforderungStatus: string | null; verifikationStatus: string | null; submittedAt: Date | null;
     keyDetected?: boolean | null; boxImageUrl?: string | null;
   }[];
-  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null; keyDetected?: boolean | null; device?: LockRef | null } }[];
+  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null; keyDetected?: boolean | null; device?: LockRef | null } }[];
 };
 
 type OrgasmusEntry = { id: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt: string | null };
 
 /** Builds the sorted SessionEvent array for the active session timeline.
  *  `resolveOrgasmus` maps a stored orgasmusArt code (+ optional detail suffix) to its owner-config
- *  display label; omitted → the raw stored value is shown (built-in-compatible). */
+ *  display label; omitted → the raw stored value is shown (built-in-compatible).
+ *  `telemetryKeyProof` sind die Einträge, deren Schlüssel-Nachweis aus der Box-Telemetrie stammt
+ *  (`lib/boxKeyProof.ts`); leer/weggelassen → nur Foto-Urteile. */
 export function buildSessionEvents(
   activePair: ActivePair,
   orgasmusEntries: OrgasmusEntry[],
   dl: string,
   resolveOrgasmus?: (art: string | null) => string | null,
+  telemetryKeyProof: ReadonlySet<string> = NO_TELEMETRY_KEY_PROOF,
 ): SessionEvent[] {
   // (Wieder-)Verschluss-Zeitpunkte mit Gerät — für das getragene Gerät je Kontrolle (re-lock-bewusst).
   const lockPoints = buildLockPoints(activePair);
@@ -61,7 +67,7 @@ export function buildSessionEvents(
       entryId: activePair.verschluss.id,
       kontrolleCode: activePair.verschluss.kontrollCode,
       deviceName: activePair.verschluss.device?.name ?? null,
-      keyDetected: activePair.verschluss.keyDetected ?? null,
+      ...keyProofFor(activePair.verschluss.id, activePair.verschluss.keyDetected, activePair.verschluss.boxImageUrl, telemetryKeyProof),
       boxImageUrl: activePair.verschluss.boxImageUrl ?? null,
     },
     ...activePair.kontrollen
@@ -80,7 +86,7 @@ export function buildSessionEvents(
         kontrolleVerifikationStatus: k.verifikationStatus,
         submittedAt: k.submittedAt,
         deviceName: wornDeviceNameAt(lockPoints, k.time),
-        keyDetected: k.keyDetected ?? null,
+        ...keyProofFor(k.entryId, k.keyDetected, k.boxImageUrl, telemetryKeyProof),
         boxImageUrl: k.boxImageUrl ?? null,
       })),
     ...orgasmusEntries
@@ -102,7 +108,7 @@ export function buildSessionEvents(
       // Fotos des WIEDERVERSCHLUSSES: die Zeile steht für die Pause, der Nachweis gehört aber zum
       // Wiedereinschliessen — „Schlüssel wieder in der Box" ist genau hier die Aussage.
       boxImageUrl: intr.verschluss.boxImageUrl ?? null,
-      keyDetected: intr.verschluss.keyDetected ?? null,
+      ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof),
       imageExifTime: null,
       note: intr.oeffnen.note,
       entryId: intr.oeffnen.id,

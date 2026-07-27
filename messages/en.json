@@ -343,6 +343,7 @@
     "entryUpdated": "Entry updated",
     "wearSessionPhotoAlt": "Photo from start of wear: {category}",
     "keyDetected": "key detected",
+    "keyDetectedTelemetry": "key in box (telemetry)",
     "keyNotDetected": "NO key detected",
     "keyInBoxYes": "Key in the box",
     "keyInBoxNo": "Key NOT in the box",
