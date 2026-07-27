@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.53.7",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Strafbuch zählt das Tageskontingent der Reinigungsöffnungen jetzt gegen den Kalendertag der Sub statt gegen den Schweizer. Für Subs in einer anderen Zeitzone konnte dieselbe Regel zwei Antworten geben: eine Öffnung kurz vor Mitternacht galt auf der Box-Karte noch als heute, im Buch aber schon als morgen — und wurde dort zum Verstoss, den die Karte nicht kannte.",
+          "en": "The penalty ledger now counts the daily cleaning-opening quota against the sub's calendar day instead of the Swiss one. For subs in another timezone the same rule could give two answers: an opening shortly before midnight still counted as today on the box card but already as tomorrow in the ledger — where it became a violation the card knew nothing about."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.6",
     "date": "2026-07-26",
     "changes": [
