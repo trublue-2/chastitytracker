@@ -58,7 +58,7 @@ export default async function DashboardPage() {
     // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
     getOpenLockRequest(userId, now),
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
@@ -91,14 +91,12 @@ export default async function DashboardPage() {
     .filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
-  // ── Box-Abfragen (beide zusammen) ──
-  // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) und der
-  // Schlüssel-Nachweis aus der Telemetrie (`boxKeyProof.ts`) — beide brauchen die DB, keiner den
-  // anderen.
-  const [boxReinigung, telemetryKeyProof] = await Promise.all([
-    buildBoxReinigungView(userSettings, activeSperrzeit, now, tz),
-    loadTelemetryKeyProof(userId, pairs),
-  ]);
+  // ── Box-Ableitungen ──
+  // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) zählen ihr
+  // Tageskontingent aus den oben geladenen `entries` — ohne DB. Nur der Schlüssel-Nachweis aus der
+  // Telemetrie (`boxKeyProof.ts`) fragt noch ab, deshalb hier kein `Promise.all` mehr.
+  const boxReinigung = buildBoxReinigungView(userSettings, entries, activeSperrzeit, now, tz);
+  const telemetryKeyProof = await loadTelemetryKeyProof(userId, pairs);
 
   const orgasmCfg = effectiveOrgasmusArten(userSettings?.orgasmusArtenConfig);
   const rawSessionEvents = activePair

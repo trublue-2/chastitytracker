@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.54.1",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Das Dashboard und die Keyholder-Detailseite bauen sich mit einer Datenbankabfrage weniger auf. Für das Reinigungs-Tageskontingent der Box-Karte lief bisher eine eigene Zählabfrage, obwohl beide Seiten die dafür nötigen Einträge ohnehin schon geladen hatten. Angezeigt wird exakt dasselbe.",
+          "en": "The dashboard and the keyholder detail page now render with one database query less. The cleaning quota on the box card used to trigger its own counting query even though both pages had already loaded the entries it needs. The displayed numbers are unchanged."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.54.0",
     "date": "2026-07-27",
     "changes": [
