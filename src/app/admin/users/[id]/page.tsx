@@ -118,7 +118,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // (damit die Keyholderin sie stornieren kann) — für die Reinigungs-Frage zählt nur die bereits
   // wirksame, sonst meldet die Karte „durch Sperrzeit blockiert", bevor die Sperre überhaupt läuft.
   const effectiveSperrzeit = activeSperrzeit && !isScheduledDirective(activeSperrzeit.wirksamAb, now) ? activeSperrzeit : null;
-  const boxReinigung = await buildBoxReinigungView(user, effectiveSperrzeit, now, tz);
+  const boxReinigung = buildBoxReinigungView(user, entries, effectiveSperrzeit, now, tz);
 
   return (
     <>
