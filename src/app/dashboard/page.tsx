@@ -98,7 +98,7 @@ export default async function DashboardPage() {
     ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm))
     : [];
 
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, tz);
 
   // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard). Läuft
   // KEINE Sperre, hätte es sonst nirgends Platz — dann zeigen wir es als führende Zeile in der

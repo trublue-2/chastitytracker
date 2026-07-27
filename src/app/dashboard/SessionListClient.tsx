@@ -32,7 +32,8 @@ export interface SessionListData {
 
 const PAGE_SIZE = 5;
 
-export default function SessionListClient({ sessions }: { sessions: SessionListData[] }) {
+/** `tz` wird nur an `SessionTimeline` durchgereicht — Begründung dort. */
+export default function SessionListClient({ sessions, tz }: { sessions: SessionListData[]; tz: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const t = useTranslations("dashboard");
@@ -114,6 +115,7 @@ export default function SessionListClient({ sessions }: { sessions: SessionListD
                   </div>
 
                   <SessionTimeline
+                    tz={tz}
                     events={session.events}
                     sessionStart={session.sessionStartIso}
                     sessionEndIso={session.sessionEndIso ?? undefined}

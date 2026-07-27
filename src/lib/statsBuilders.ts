@@ -1,5 +1,5 @@
 import {
-  formatHours, formatTime, midnightInTZ, mondayIndex, tzDateParts, wearingHoursFromPairs,
+  formatHours, formatTime, midnightInTZ, mondayIndex, tzDateParts, tzDayKey, wearingHoursFromPairs,
   type WearPair,
 } from "@/lib/utils";
 import { proratedTargetH } from "@/lib/goalFulfillment";
@@ -61,8 +61,7 @@ export function buildDailyData(wearPairs: WearPair[], orgasmDates: Set<string>, 
       const nextD = new Date(d.getTime() + DAY_MS);
       const overlap = Math.min(pair.end.getTime(), nextD.getTime()) - Math.max(pair.start.getTime(), d.getTime());
       if (overlap > 0) {
-        const { year, month, day } = tzDateParts(new Date(d.getTime() + DAY_MS / 2), tz);
-        const key = `${year}-${month}-${day}`;
+        const key = tzDayKey(new Date(d.getTime() + DAY_MS / 2), tz);
         const existing = map.get(key) ?? { hours: 0, hasOrgasm: false };
         existing.hours += overlap / 3_600_000;
         map.set(key, existing);
@@ -156,8 +155,7 @@ export function buildCalendarMonths(opts: {
   // Bucket entries by YMD once so day-cells become O(1) lookups instead of O(N) filters.
   const entriesByYMD = new Map<string, Entry[]>();
   for (const e of entries) {
-    const { year, month, day } = tzDateParts(e.startTime, tz);
-    const key = `${year}-${month}-${day}`;
+    const key = tzDayKey(e.startTime, tz);
     const list = entriesByYMD.get(key);
     if (list) list.push(e); else entriesByYMD.set(key, [e]);
   }
