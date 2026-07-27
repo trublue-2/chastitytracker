@@ -68,6 +68,25 @@ export async function PATCH(
     }
   }
 
+  // Nachweis-Erhalt (Anti-Cheat, wie die Zeitrichtung oben nur für den Sub): einer ANGEFORDERTEN
+  // Kontrolle darf das Foto nicht nachträglich entzogen werden. Beim Anlegen erzwingt
+  // `validateEntryPayload` das Foto — ohne diesen Guard liesse sich derselbe Zustand in zwei
+  // Schritten herstellen: mit Foto erfassen (die KontrollAnforderung wird auf `fulfilledAt`
+  // gesetzt), danach `imageUrl: null` patchen. Die Anforderung bliebe erfüllt, im Strafbuch
+  // entstünde kein `late`-Vergehen — übrig bliebe ein Nachweis ohne Nachweis. Dasselbe gilt für
+  // den umgekehrten Weg, einem fotolosen Eintrag nachträglich einen `kontrollCode` anzuhängen.
+  // Geprüft wird NUR, dass überhaupt ein Foto da ist; ob es taugt (Gerät erkennbar, Code lesbar),
+  // entscheidet die Keyholderin. Eine freiwillige Kontrolle ohne `kontrollCode` hat niemand
+  // angefordert und bleibt unberührt.
+  // Ein einmal gesetzter Code zählt weiter (`existing.kontrollCode`), sonst wäre der Guard mit
+  // einem einzigen `{ kontrollCode: null, imageUrl: null }` auszuhebeln: die KontrollAnforderung
+  // hängt am `entryId`, nicht am Code, und bliebe auch ohne ihn erfüllt.
+  const requestedInspection = !!existing.kontrollCode || !!kontrollCode;
+  const nextImageUrl = imageUrl !== undefined ? imageUrl : existing.imageUrl;
+  if (!elevated && existing.type === "PRUEFUNG" && requestedInspection && !nextImageUrl) {
+    return NextResponse.json({ error: "INSPECTION_PHOTO_REQUIRED" }, { status: 400 });
+  }
+
   // Validate deviceId ownership (VERSCHLUSS + WEAR_BEGIN/END entries)
   const persistsDevice = existing.type === "VERSCHLUSS" || existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
   if (deviceId && persistsDevice) {
