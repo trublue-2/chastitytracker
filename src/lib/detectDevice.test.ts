@@ -52,9 +52,16 @@ describe("checkDeviceInPhoto", () => {
     expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "wrong", detected: "Cage B", expected: "Cage A" });
   });
 
-  it("wrong: a device is present but matches no reference (detected null)", async () => {
+  it("error (nicht prüfbar): a device is present but matches no reference — NIE 'wrong'", async () => {
+    // Nichts zugeordnet heisst NICHT „anderes Gerät getragen" — ein Negativbefund ohne benanntes
+    // Gerät wäre ein Vorwurf ohne Beleg (Issue #44).
     visionMock.mockResolvedValue(reply({ present: true, device: null }));
-    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "wrong", detected: null, expected: "Cage A" });
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
+  });
+
+  it("error (nicht prüfbar): the model names a key that is not in the reference set", async () => {
+    visionMock.mockResolvedValue(reply({ present: true, device: "DEVICE_9" }));
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
   });
 
   it("missing: no device present", async () => {
@@ -62,9 +69,9 @@ describe("checkDeviceInPhoto", () => {
     expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "missing", detected: null, expected: "Cage A" });
   });
 
-  it("missing: unparseable model output is treated as not-present (never a false rejection)", async () => {
+  it("error (nicht prüfbar): unparseable/abgeschnittene Antwort ist kein 'kein Gerät sichtbar'", async () => {
     visionMock.mockResolvedValue({ text: "sorry, I can't tell", requestId: "r" });
-    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "missing", detected: null, expected: "Cage A" });
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
   });
 
   it("error (nicht prüfbar, keine Ablehnung) when the vision call throws — e.g. provider unreachable", async () => {

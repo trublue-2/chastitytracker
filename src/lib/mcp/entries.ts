@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, isTimeCorrected } from "@/lib/utils";
+import { effectiveDeviceCheckStatus } from "@/lib/deviceCheck";
 import { resolveUserContext, buildEnvelope, makeIso, mcpDeviceCheckStatus, type Envelope } from "@/lib/mcp/common";
 
 /**
@@ -21,7 +22,8 @@ import { resolveUserContext, buildEnvelope, makeIso, mcpDeviceCheckStatus, type 
  *  Beschreibung, z.B. keine Referenzfotos). Der genaue Grund bleibt der menschlichen Admin-Sicht. */
 function mapDeviceCheck(e: { deviceCheck: string | null; deviceCheckNote: string | null; deviceCheckExpected: string | null }) {
   if (!e.deviceCheck) return null;
-  return { status: mcpDeviceCheckStatus(e.deviceCheck), detected: e.deviceCheckNote, expected: e.deviceCheckExpected };
+  const status = effectiveDeviceCheckStatus(e.deviceCheck, e.deviceCheckNote);
+  return { status: mcpDeviceCheckStatus(status), detected: e.deviceCheckNote, expected: e.deviceCheckExpected };
 }
 
 export interface EntryRow {
@@ -38,9 +40,10 @@ export interface EntryRow {
   verifikationStatus: string | null;
   deviceName: string | null;
   /** Geräte-Check aus dem Kontroll-Foto (nur PRUEFUNG, advisory): wurde das verschlossene Gerät
-   *  erkannt? status: "ok" = passendes Gerät · "wrong" = anderes/keins zugeordnet · "missing" = kein
-   *  Gerät sichtbar. detected = im Foto erkanntes Gerät, expected = das verschlossene (Soll-)Gerät.
-   *  null = nicht geprüft (z.B. nicht verschlossen oder keine Referenzfotos hinterlegt). */
+   *  erkannt? status: "ok" = passendes Gerät · "wrong" = ein anderes, BENANNTES Gerät (detected ist
+   *  dann immer gesetzt) · "missing" = kein Gerät sichtbar · "not_checked" = nicht geprüft oder nicht
+   *  prüfbar (nicht verschlossen, keine Referenzfotos, Gerät sichtbar aber nicht zuordenbar).
+   *  detected = im Foto erkanntes Gerät, expected = das verschlossene (Soll-)Gerät. */
   deviceCheck: { status: string; detected: string | null; expected: string | null } | null;
   hasImage: boolean;
   imageExifTime: string | null;
@@ -51,8 +54,11 @@ export interface EntryRow {
 export interface EntryList extends Envelope {
   /** v2: `generatedAt` ist jetzt ISO-8601 mit Offset (wie bei jedem anderen MCP-Tool), vorher ein
    *  lokalisierter Anzeige-String (`formatDateTime`) — Format-Wechsel eines bestehenden Felds, siehe
-   *  CLAUDE.md „MCP schemaVersion-Disziplin". Die restlichen Felder sind unverändert. */
-  schemaVersion: 2;
+   *  CLAUDE.md „MCP schemaVersion-Disziplin". Die restlichen Felder sind unverändert.
+   *  v3: `deviceCheck.status` „wrong" setzt jetzt ein benanntes `detected` voraus; „Gerät sichtbar,
+   *  aber keiner Referenz zuzuordnen" liefert „not_checked" statt „wrong". Das gilt auch rückwirkend
+   *  für gespeicherte Alt-Einträge — ein v2-„wrong" ohne `detected` kann in v3 „not_checked" sein. */
+  schemaVersion: 3;
   user: string;
   /** Total entries matching the filter, before the limit is applied. */
   totalCount: number;
@@ -87,7 +93,7 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
   ]);
 
   return {
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     totalCount,
