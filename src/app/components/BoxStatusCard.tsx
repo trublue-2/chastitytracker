@@ -3,7 +3,7 @@
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTimeDual, toDateLocale, APP_TZ } from "@/lib/utils";
-import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, boxFailsafeWarnings, boxFailsafeLabel, type BoxReinigungView } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxBatteryLabel, boxReinigungLabel, boxReinigungQuotaLabel, boxFailsafeWarnings, boxFailsafeLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
 
@@ -47,6 +47,11 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
           const istLocked = boxIsPhysicallyLocked(b);
           const conflict = !istLocked && boxSollLocked(b);
           const transition = boxPendingTransition(b);
+          const failsafes = boxFailsafeWarnings(b, now);
+          // Sobald die Akku-Warnung steht, entfällt die grobe Stufe: die Warnung sagt dasselbe mit
+          // Zahl und Handlungsanweisung, „Akku niedrig" daneben wäre nur eine zweite, ärmere Fassung
+          // derselben Aussage. Die Frische-Zeile bleibt.
+          const batteryLabel = failsafes.some((w) => w.kind === "lowBatteryOpen") ? null : boxBatteryLabel(b, t);
           const scheme = conflict
             ? { bg: "bg-warn-bg", border: "border-warn-border", accent: "text-warn", text: "text-warn-text", Icon: AlertTriangle }
             : istLocked
@@ -79,7 +84,7 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
                   SELBST. Ohne diese Zeile war der Zustand bis zur Not-Öffnung nirgends sichtbar
                   (heimdall#1) — und verhindern lässt sie sich nur rechtzeitig. Deshalb steht sie
                   über der Frische-Zeile: sie ist die dringlichere Lesart derselben Stille. */}
-              {boxFailsafeWarnings(b, now).map((w) => (
+              {failsafes.map((w) => (
                 <p
                   key={w.kind}
                   className={`text-xs ${w.severity === "info" ? "text-foreground-muted" : "font-medium text-warn"}`}
@@ -87,7 +92,13 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
                   {boxFailsafeLabel(w, t)}
                 </p>
               ))}
-              <p className="text-xs text-foreground-faint">{boxFreshnessLabel(b.lastSyncAt, now, t)}</p>
+              {/* Frische UND grober Akkustand in EINER Zeile — nicht aus Platzgründen, sondern weil
+                  der Akkuwert genau so alt ist wie der letzte Kontakt. Nebeneinander liest man die
+                  Alterung automatisch mit („zuletzt vor 19 Std · Akku niedrig"); zwei getrennte
+                  Zeilen liessen den Akkustand aktuell wirken. */}
+              <p className="text-xs text-foreground-faint">
+                {[boxFreshnessLabel(b.lastSyncAt, now, t), batteryLabel].filter(Boolean).join(" · ")}
+              </p>
             </div>
           );
         })}
