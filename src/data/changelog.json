@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.55.5",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Offene Anforderungen stehen jetzt zuoberst auf der Übersicht — direkt unter der Begrüssung, noch vor der Box-Karte und der laufenden Session. Bisher sassen sie weiter unten und konnten je nach Ausstattung so weit rutschen, dass man zum Scrollen gezwungen war, um eine laufende Frist überhaupt zu sehen. Neu sieht man eine geforderte Kontrolle auch dann, wenn noch gar keine Einträge erfasst sind.",
+          "en": "Open requests now sit at the very top of the overview — right below the greeting, ahead of the box card and the running session. They used to sit further down and, depending on your setup, could slide far enough that you had to scroll to see a running deadline at all. A requested inspection is now also shown when there are no entries yet."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.55.3",
     "date": "2026-07-28",
     "changes": [

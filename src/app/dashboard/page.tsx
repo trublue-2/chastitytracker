@@ -6,7 +6,7 @@ import {
   buildPairs, getOpenPair, interruptionPauseMs, buildKontrolleItems, runningCleaningPauseUntil,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
-  wearingHoursFromPairs, APP_TZ,
+  wearingHoursFromPairs, joinParts, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
@@ -20,6 +20,7 @@ import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
+import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 import WearSessionList from "./WearSessionList";
@@ -148,16 +149,12 @@ export default async function DashboardPage() {
     ? `/dashboard/new/pruefung?code=${offeneKontrolle.code}${offeneKontrolle.kommentar ? `&kommentar=${encodeURIComponent(offeneKontrolle.kommentar)}` : ""}`
     : "";
 
-  const anfOverdue = offeneVerschlussAnf ? (offeneVerschlussAnf.endetAt ? offeneVerschlussAnf.endetAt < now : false) : false;
-
   const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
     ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
     : null;
 
-  const clientProps: DashboardProps = {
-    currentStatus,
-    cleaningPauseUntil: cleaningPauseUntil?.toISOString() ?? null,
-    hasEntries: entries.length > 0,
+  const alertProps: DashboardAlertsProps = {
+    tz,
 
     offeneKontrolle: offeneKontrolle ? {
       deadline: offeneKontrolle.deadline.toISOString(),
@@ -168,24 +165,27 @@ export default async function DashboardPage() {
     } : null,
 
     offeneVerschlussAnf: offeneVerschlussAnf ? {
-      endetAt: offeneVerschlussAnf.endetAt?.toISOString() ?? null,
-      nachricht: offeneVerschlussAnf.nachricht,
-      overdue: anfOverdue,
+      nachricht: joinParts(
+        offeneVerschlussAnf.device ? t("lockDevicePrefix", { name: offeneVerschlussAnf.device.name }) : null,
+        offeneVerschlussAnf.nachricht,
+      ),
       endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl, tz) }) : null,
-      deviceName: offeneVerschlussAnf.device?.name ?? null,
-    } : null,
-
-    activeSperrzeit: activeSperrzeit ? {
-      endetAt: activeSperrzeit.endetAt?.toISOString() ?? null,
-      nachricht: activeSperrzeit.nachricht,
-      endetAtLabel: activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl, tz) }) : null,
     } : null,
 
     offeneOrgasmusAnf: offeneOrgasmusAnf ? {
       label: offeneOrgasmusAnf.art === "ANWEISUNG" ? t("orgasmInstructed") : t("orgasmOpportunity"),
-      nachricht: [orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null, offeneOrgasmusAnf.nachricht].filter(Boolean).join(" · ") || null,
+      nachricht: joinParts(
+        orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
+        offeneOrgasmusAnf.nachricht,
+      ),
       windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endetAt, dl, tz) }),
     } : null,
+  };
+
+  const clientProps: DashboardProps = {
+    currentStatus,
+    cleaningPauseUntil: cleaningPauseUntil?.toISOString() ?? null,
+    hasEntries: entries.length > 0,
 
     tagH,
     wocheH,
@@ -205,6 +205,8 @@ export default async function DashboardPage() {
       <DashboardBlock>
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
       </DashboardBlock>
+      {/* Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte. */}
+      <DashboardAlerts {...alertProps} />
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
       {showLaufendeSession && (
         <DashboardBlock>
@@ -266,7 +268,7 @@ export default async function DashboardPage() {
             ),
           }))}
       />
-      <DashboardClient {...clientProps} tz={tz} />
+      <DashboardClient {...clientProps} />
       {pairs.length > 0 && (
         <DashboardBlock>
           <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
