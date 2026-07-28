@@ -1272,6 +1272,26 @@
     "sessions": "{count, plural, =1 {1 Session} other {# Sessions}}",
     "costPerHour": "Kosten/Stunde"
   },
+  "messages": {
+    "title": "Posteingang",
+    "intro": "Alles, was dir gemeldet wurde — auch wenn die Mail untergegangen ist.",
+    "unread": "Ungelesen",
+    "unreadCount": "{count} ungelesen",
+    "emptyTitle": "Keine Nachrichten",
+    "emptyText": "Hier sammeln sich Anforderungen, Entscheide und Strafen, sobald sie dich erreichen.",
+    "markUnread": "Wieder als ungelesen",
+    "markAllRead": "Alle als gelesen markieren",
+    "markAllConfirm": "{count, plural, =1 {Eine Nachricht als gelesen markieren?} other {# Nachrichten als gelesen markieren?}} Der Keyholder sieht danach, dass du sie gesehen hast.",
+    "loadMore": "Ältere Nachrichten",
+    "refMissing": "Der zugehörige Eintrag existiert nicht mehr.",
+    "sender": {
+      "system": "System",
+      "keyholder": "Keyholder",
+      "ai": "KI-Keyholder"
+    },
+    "notifyLabel": "Mail und Push bei neuen Nachrichten",
+    "notifyHint": "Anforderungen und Fristen werden immer gemeldet. Nachrichten kannst du auch still im Posteingang sammeln lassen."
+  },
   "emails": {
     "greeting": "Hallo {username},",
     "dashboardButton": "Zum Dashboard →",
@@ -1348,6 +1368,7 @@
     "inspectionAutoRemovedSubjectSub": "Kontrolle automatisch als entfernt markiert",
     "inspectionAutoRemovedMessageSub": "Deine Kontrolle mit Code {code} wurde nicht rechtzeitig beantwortet und wurde automatisch als Öffnen erfasst.",
     "inspectionAutoRemovedSubjectKeyholder": "{username}: Kontrolle automatisch als entfernt markiert",
-    "inspectionAutoRemovedMessageKeyholder": "{username} hat die Kontrolle mit Code {code} nicht beantwortet. Das System hat automatisch eine Öffnen-Buchung erstellt — bitte im Strafbuch prüfen."
+    "inspectionAutoRemovedMessageKeyholder": "{username} hat die Kontrolle mit Code {code} nicht beantwortet. Das System hat automatisch eine Öffnen-Buchung erstellt — bitte im Strafbuch prüfen.",
+    "inspectionRequestedMessage": "Der Keyholder hat eine Kontrolle angefordert."
   }
 }

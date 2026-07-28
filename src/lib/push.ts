@@ -31,8 +31,8 @@ const APNS_TEAM_ID     = process.env.APNS_TEAM_ID;
 const APNS_BUNDLE_ID   = process.env.APNS_BUNDLE_ID;    // e.g. ch.chastitytracker.app
 const FCM_SERVER_KEY   = process.env.FCM_SERVER_KEY;
 
-/** Send via APNs (HTTP/2). */
-async function sendApns(token: string, title: string, body: string, url?: string): Promise<NativeSendResult> {
+/** Send via APNs (HTTP/2). `badge` = ungelesene Nachrichten; siehe sendPushToUser. */
+async function sendApns(token: string, title: string, body: string, url?: string, badge?: number): Promise<NativeSendResult> {
   const hasKey = APNS_KEY_PATH || APNS_KEY_CONTENT;
   if (!hasKey || !APNS_KEY_ID || !APNS_TEAM_ID || !APNS_BUNDLE_ID) {
     plog("apns:not_configured", {});
@@ -56,8 +56,11 @@ async function sendApns(token: string, title: string, body: string, url?: string
     const sig = createSign("SHA256").update(`${header}.${claims}`).sign({ key, dsaEncoding: "ieee-p1363" });
     const jwt = `${header}.${claims}.${sig.toString("base64url")}`;
 
+    // Ohne `badge` bleibt das Feld WEG — ein Payload ohne badge lässt das bestehende App-Badge
+    // unverändert. Eine feste 0 einzusetzen würde jede Meldung, die keine Nachricht begleitet
+    // (z.B. an die Keyholder), zum Badge-Löscher machen.
     const payload = JSON.stringify({
-      aps: { alert: { title, body }, badge: 1, sound: "default" },
+      aps: { alert: { title, body }, ...(badge !== undefined ? { badge } : {}), sound: "default" },
       ...(url ? { url } : {}),
     });
 
@@ -158,7 +161,8 @@ async function sendNativePushToUser(
   userId: string,
   title: string,
   body: string,
-  url?: string
+  url?: string,
+  badge?: number
 ): Promise<boolean> {
   const tokens = await prisma.nativePushToken.findMany({ where: { userId } });
   plog("native:tokens", { userId, count: tokens.length });
@@ -169,7 +173,7 @@ async function sendNativePushToUser(
   await Promise.allSettled(
     tokens.map(async (t) => {
       const r = t.platform === "ios"
-        ? await sendApns(t.token, title, body, url)
+        ? await sendApns(t.token, title, body, url, badge)
         : await sendFcm(t.token, title, body, url);
       plog("native:result", { platform: t.platform, ok: r.ok, invalid: r.invalid });
       // NUR definitiv tote Tokens entfernen — transiente Fehler dürfen den Token nicht vernichten.
@@ -187,28 +191,37 @@ async function sendNativePushToUser(
 /** Fire-and-forget-Push: schluckt JEDEN Fehler. Zwingend für unawaited Aufrufe — `sendPushToUser`
  *  fängt intern NICHT alles (die Prisma-Reads/Cleanups laufen ausserhalb try/catch), ein Reject
  *  eines unawaited Promise würde sonst als unhandledRejection den Prozess beenden. */
-export function firePush(userId: string, title: string, body: string, url?: string): void {
-  sendPushToUser(userId, title, body, url).catch(() => { /* ignore push errors */ });
+export function firePush(userId: string, title: string, body: string, url?: string, badge?: number): void {
+  sendPushToUser(userId, title, body, url, badge).catch(() => { /* ignore push errors */ });
 }
 
-/** Send a push notification to all subscriptions belonging to a user. */
+/**
+ * Send a push notification to all subscriptions belonging to a user.
+ *
+ * `badge` = Anzahl UNGELESENER NACHRICHTEN, serverseitig gezählt. Vorher stand hier die feste `1`:
+ * zehn Meldungen ergaben 1, und weil ein Payload ohne `badge`-Feld das bestehende Badge unverändert
+ * lässt, blieb die 1 nativ für immer stehen. Ohne Wert wird das Feld weggelassen — ein Push, der
+ * keine Nachricht begleitet, lässt das Badge in Ruhe, statt es zu erfinden ODER zu löschen.
+ */
 export async function sendPushToUser(
   userId: string,
   title: string,
   body: string,
-  url?: string
+  url?: string,
+  badge?: number
 ): Promise<void> {
   // Native bevorzugen: hat der Nutzer eine native App (≥1 Token), NUR nativ senden — sonst öffnet die
   // parallele Web-Push die Home-Screen-PWA statt der App. Web-Push nur als Fallback ohne native App.
-  const hasNative = await sendNativePushToUser(userId, title, body, url);
-  if (!hasNative) await sendWebPushToUser(userId, title, body, url);
+  const hasNative = await sendNativePushToUser(userId, title, body, url, badge);
+  if (!hasNative) await sendWebPushToUser(userId, title, body, url, badge);
 }
 
 async function sendWebPushToUser(
   userId: string,
   title: string,
   body: string,
-  url?: string
+  url?: string,
+  badge?: number
 ): Promise<void> {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) { plog("web:not_configured", {}); return; }
 
@@ -218,7 +231,8 @@ async function sendWebPushToUser(
   plog("web:subs", { userId, count: subscriptions.length });
   if (subscriptions.length === 0) return;
 
-  const payload = JSON.stringify({ title, body, url });
+  // Wie bei APNs: `unread` nur mitsenden, wenn es einen Wert gibt (siehe sw.js).
+  const payload = JSON.stringify({ title, body, url, ...(badge !== undefined ? { unread: badge } : {}) });
   const stale: string[] = [];
 
   await Promise.allSettled(

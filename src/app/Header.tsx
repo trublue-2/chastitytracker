@@ -2,12 +2,28 @@ import { auth } from "@/lib/auth";
 import Link from "next/link";
 import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
+import MessageBell from "@/app/components/MessageBell";
+import AppBadgeSync from "@/app/components/AppBadgeSync";
+import { unreadCountCached } from "@/lib/messageService";
 import pkg from "../../package.json";
+
+/** Der Zähler darf die Hülle nicht mitreissen: der Header steht in JEDEM Dashboard- und
+ *  Admin-Layout. Fehlt die Tabelle noch (Instanz zieht das Update gerade erst), zeigt die Glocke
+ *  keine Zahl — statt dass jede Seite 500t. */
+async function unreadOrZero(userId: string): Promise<number> {
+  try {
+    return await unreadCountCached(userId);
+  } catch (err) {
+    console.error("[messages] unread count failed", err);
+    return 0;
+  }
+}
 
 export default async function Header() {
   const session = await auth();
   const user = session?.user;
   const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
+  const unread = user?.id ? await unreadOrZero(user.id) : 0;
 
   const hostname = process.env.NEXTAUTH_URL
     ? (() => { try { return new URL(process.env.NEXTAUTH_URL!).hostname; } catch { return null; } })()
@@ -29,6 +45,8 @@ export default async function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
+          {user && <MessageBell unread={unread} />}
+          {user && <AppBadgeSync unread={unread} />}
           {user && feedbackEnabled && <FeedbackButton />}
           {user && (
             <AvatarMenu

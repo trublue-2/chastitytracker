@@ -1,5 +1,39 @@
 [
   {
+    "version": "4.56.0",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neu: ein Posteingang. Über die Glocke oben kannst du alles nachlesen, was dir gemeldet wurde — auch wenn die Mail untergegangen ist. Bisher verschwanden diese Meldungen nach dem Versand spurlos; am ärgerlichsten beim Straftext, den du sonst nirgends mehr sehen konntest. Der Text steht dabei immer aktuell da: korrigiert der Keyholder die Begründung, zeigt die Nachricht die neue.",
+          "en": "New: an inbox. The bell at the top lets you read everything you were told — even if the e-mail got lost. Until now these notifications vanished after sending; worst of all the penalty text, which you could not see anywhere else. The text always shows the current wording: if your keyholder corrects the reason, the message shows the new one."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Gelesen wird eine Nachricht nur, wenn du sie einzeln öffnest — nicht schon durch das Öffnen der Liste. Du kannst sie auch wieder auf ungelesen setzen, und mit einer Rückfrage alle auf einmal quittieren.",
+          "en": "A message counts as read only when you open it individually — not just by opening the list. You can also set it back to unread, or acknowledge all at once after a confirmation."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Zähler am App-Symbol zeigt jetzt, wie viele Nachrichten wirklich ungelesen sind, und verschwindet auch wieder. Vorher stand dort dauerhaft eine 1, egal wie viel angekommen war.",
+          "en": "The badge on the app icon now shows how many messages are actually unread, and disappears again. It used to be stuck on 1, no matter how much had arrived."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "In den Einstellungen kannst du Mail und Push zu neuen Nachrichten abschalten. Anforderungen und Fristen werden weiterhin immer gemeldet, alles andere sammelt sich dann still im Posteingang.",
+          "en": "In your settings you can switch off mail and push for new messages. Requests and deadlines are still always delivered; everything else then collects quietly in the inbox."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.55.3",
     "date": "2026-07-28",
     "changes": [

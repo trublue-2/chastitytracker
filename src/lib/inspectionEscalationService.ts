@@ -40,6 +40,8 @@ export async function sendInspectionReminder(ka: { id: string; code: string; use
       subjectKey: "inspectionReminderSubject",
       messageKey: "inspectionReminderMessage",
       params: { code: ka.code },
+      inbox: { ref: { type: "control", id: ka.id } },
+      alwaysNotify: true,
     });
   }
 }
@@ -97,12 +99,14 @@ export async function autoMarkInspectionRemoved(ka: { id: string; userId: string
 /** Sends the Stage-2 "auto-marked-removed" notice to the sub AND their keyholders/admins. Call
  *  AFTER the transaction in {@link autoMarkInspectionRemoved} commits (notifications are not
  *  transactional and must never block/roll back the state change). */
-export async function notifyInspectionAutoMarked(opts: { userId: string; username: string; code: string }): Promise<void> {
-  const { userId, username, code } = opts;
+export async function notifyInspectionAutoMarked(opts: { userId: string; username: string; code: string; controlId: string }): Promise<void> {
+  const { userId, username, code, controlId } = opts;
   await notifyUser(userId, {
     subjectKey: "inspectionAutoRemovedSubjectSub",
     messageKey: "inspectionAutoRemovedMessageSub",
     params: { code },
+    inbox: { ref: { type: "control", id: controlId } },
+    alwaysNotify: true,
   });
   const controllers = await getControllersOfUser(userId);
   await Promise.all(controllers.map((c) =>
@@ -110,6 +114,10 @@ export async function notifyInspectionAutoMarked(opts: { userId: string; usernam
       subjectKey: "inspectionAutoRemovedSubjectKeyholder",
       messageKey: "inspectionAutoRemovedMessageKeyholder",
       params: { username, code },
+      // Empfänger ist der KEYHOLDER, nicht der Sub: eine Nachricht in seinen persönlichen
+      // Posteingang zu schreiben, hiesse, sie dem falschen Thread zuzuordnen. Der Keyholder-Kanal
+      // kommt mit Etappe 2.
+      inbox: false,
     }),
   ));
 }

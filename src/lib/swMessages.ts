@@ -47,3 +47,26 @@ export async function activateWaitingSw(): Promise<void> {
 export function clearSwUserCache(): void {
   postSwMessage({ type: "CLEAR_USER_CACHE" });
 }
+
+/**
+ * Setzt das App-Badge auf die Zahl ungelesener Nachrichten (0 = räumen).
+ *
+ * Gehört aus demselben Grund hierher wie die Service-Worker-Zugriffe darüber: die Badging-API fehlt
+ * in der iOS-WKWebView der Capacitor-App und in mehreren Browsern komplett, und ein ungeschützter
+ * Zugriff würde die umgebende Aktion mitverschlucken. Bewusst am ZUSTAND aufgerufen (nach dem Lesen,
+ * beim Öffnen des Posteingangs), nicht am Klick auf eine Benachrichtigung.
+ */
+export function setAppBadgeSafe(unread: number): void {
+  if (typeof navigator === "undefined") return;
+  const nav = navigator as Navigator & {
+    setAppBadge?: (n?: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  try {
+    if (unread > 0) nav.setAppBadge?.(unread).catch(() => {});
+    else nav.clearAppBadge?.().catch(() => {});
+  } catch {
+    // Badging-API nicht verfügbar oder vom Browser blockiert — das Badge ist Beiwerk, nie ein Grund,
+    // die auslösende Aktion scheitern zu lassen.
+  }
+}

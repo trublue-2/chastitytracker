@@ -1272,6 +1272,26 @@
     "sessions": "{count, plural, =1 {1 session} other {# sessions}}",
     "costPerHour": "Cost/hour"
   },
+  "messages": {
+    "title": "Inbox",
+    "intro": "Everything you were told — even if the e-mail got lost.",
+    "unread": "Unread",
+    "unreadCount": "{count} unread",
+    "emptyTitle": "No messages",
+    "emptyText": "Requests, decisions and penalties collect here as soon as they reach you.",
+    "markUnread": "Mark as unread",
+    "markAllRead": "Mark all as read",
+    "markAllConfirm": "{count, plural, =1 {Mark one message as read?} other {Mark # messages as read?}} Your keyholder will see that you have seen them.",
+    "loadMore": "Older messages",
+    "refMissing": "The related entry no longer exists.",
+    "sender": {
+      "system": "System",
+      "keyholder": "Keyholder",
+      "ai": "AI keyholder"
+    },
+    "notifyLabel": "Mail and push for new messages",
+    "notifyHint": "Requests and deadlines are always delivered. Messages can quietly collect in the inbox instead."
+  },
   "emails": {
     "greeting": "Hi {username},",
     "dashboardButton": "Go to dashboard →",
@@ -1348,6 +1368,7 @@
     "inspectionAutoRemovedSubjectSub": "Inspection automatically marked as removed",
     "inspectionAutoRemovedMessageSub": "Your inspection with code {code} was not answered in time and was automatically recorded as an opening.",
     "inspectionAutoRemovedSubjectKeyholder": "{username}: inspection automatically marked as removed",
-    "inspectionAutoRemovedMessageKeyholder": "{username} did not answer the inspection with code {code}. The system automatically created an opening entry — please review it in the penalty log."
+    "inspectionAutoRemovedMessageKeyholder": "{username} did not answer the inspection with code {code}. The system automatically created an opening entry — please review it in the penalty log.",
+    "inspectionRequestedMessage": "Your keyholder requested an inspection."
   }
 }

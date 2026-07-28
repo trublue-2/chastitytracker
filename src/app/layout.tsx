@@ -111,14 +111,10 @@ export default async function RootLayout({
                   console.warn('[SW] registration failed:', err);
                 });
               }
-              if (navigator.clearAppBadge) {
-                navigator.clearAppBadge().catch(function() {});
-                document.addEventListener('visibilitychange', function() {
-                  if (document.visibilityState === 'visible') {
-                    navigator.clearAppBadge().catch(function() {});
-                  }
-                });
-              }
+              /* Das Badge wird NICHT mehr blind geräumt: es zählt seit v4.56.0 ungelesene
+                 Nachrichten, und ein unbedingtes clearAppBadge() beim Start/Resume hätte es nach
+                 dem ersten Blick in die App für immer gelöscht. Gesetzt wird es jetzt am Zustand,
+                 in AppBadgeSync (Header). */
             `}</Script>
           </ToastProvider>
         </NextIntlClientProvider>
