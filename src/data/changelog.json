@@ -1,5 +1,39 @@
 [
   {
+    "version": "4.55.3",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Keyholder-Ansicht sind jetzt alle Blöcke gleich breit. Die Box-Karte, die laufenden Trage-Sessions und die Kategorie-Trainingsvorgaben waren dort schmaler als ihre Nachbarn und sassen eingerückt dazwischen.",
+          "en": "In the keyholder view all blocks are now the same width. The box card, the running wear sessions and the category training targets used to be narrower than their neighbours and sat indented between them."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Box-Karte stellt ihre Angaben auf breiten Bildschirmen in zwei Spalten nebeneinander und wird dadurch deutlich flacher. Links steht, was gilt (Soll-Zustand, Reinigung), rechts, wie die Box dasteht (Vorwarnungen, letzter Kontakt und Akku). Auf dem Handy bleibt alles untereinander.",
+          "en": "On wide screens the box card now places its details in two columns side by side, which makes it considerably shorter. The left column shows what applies (target state, cleaning), the right one how the box is doing (warnings, last contact and battery). On a phone everything stays stacked."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Box zeigt neu ihre Firmware-Version in Klammern hinter dem Namen — bei einer Rückfrage zu einer Box ist das erfahrungsgemäss die erste Angabe, die man braucht.",
+          "en": "The box now shows its firmware version in brackets after the name — when something needs to be checked on a box, that is the first detail you need."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Zeile zum letzten Kontakt der Box heisst jetzt „zuletzt online vor …\" statt „zuletzt vor …\".",
+          "en": "The line about the box's last contact now reads \"last online … ago\" instead of \"last seen … ago\"."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.55.2",
     "date": "2026-07-28",
     "changes": [

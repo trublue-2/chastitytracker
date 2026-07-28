@@ -36,6 +36,9 @@ export type BoxRow = {
    *  in seiner `lib/utils.ts`), ein Firmware-Bump ohne Nachzug dort bleibt also unbemerkt.
    *  null = unbekannt → keine Vorwarnung. */
   lowBatteryOpenPercent: number | null;
+  /** Firmware-Stand der Box, wie zuletzt gemeldet; null = nie gemeldet. Reine Anzeige neben dem
+   *  Namen — beim Nachfragen zu einem Box-Problem ist die erste Frage immer die Version. */
+  fwVersion: string | null;
 };
 
 /** Reinigungs-Regeln des Subs: die `ReinigungView` des Servers plus das nächste Fenster.
@@ -85,7 +88,7 @@ export function boxReinigungQuotaLabel(r: BoxReinigungView | null, t: Translate)
   return t("cleaningQuota", { count: r.usedToday, max: r.maxPausesPerDay });
 }
 
-/** Frischer als das → „gerade aktiv"; darüber → „zuletzt vor X". */
+/** Frischer als das → „gerade aktiv"; darüber → „zuletzt online vor X". */
 const LIVE_THRESHOLD_MS = 2 * 60_000;
 
 /** Physisches IST der Box: das gemeldete `reportedLocked`, bei Alt-Zeilen ohne Meldung das SOLL. */
@@ -327,7 +330,7 @@ export function boxFailsafeLabel(w: BoxFailsafeWarning, t: Translate): string {
  * null = nichts anzuzeigen (kein Akkuwert gemeldet, z.B. Board ohne Akku-Messung).
  *
  * ACHTUNG beim Lesen: der Wert ist so alt wie der letzte Kontakt. Deshalb steht er auf der Karte in
- * DERSELBEN Zeile wie die Frische — „zuletzt vor 19 Std · Akku niedrig" liest die Alterung mit.
+ * DERSELBEN Zeile wie die Frische — „zuletzt online vor 19 Std · Akku niedrig" liest die Alterung mit.
  */
 export function boxBatteryLabel(
   b: Pick<BoxRow, "battery" | "charging" | "lowBatteryOpenPercent">,
@@ -352,7 +355,7 @@ export function boxBatteryLabel(
   return b.charging ? `${label} · ${t("batteryCharging")}` : label;
 }
 
-/** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt vor X"; null → nie gesynct. */
+/** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt online vor X"; null → nie gesynct. */
 export function boxFreshnessLabel(lastSyncAt: string | null, now: number, t: Translate): string {
   if (!lastSyncAt) return t("neverSynced");
   const ageMs = Math.max(0, now - new Date(lastSyncAt).getTime());

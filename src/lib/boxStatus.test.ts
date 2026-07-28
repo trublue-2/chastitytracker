@@ -19,6 +19,7 @@ const row = (over: Partial<BoxRow>): BoxRow => ({
   battery: null,
   charging: null,
   lowBatteryOpenPercent: null,
+  fwVersion: null,
   ...over,
 });
 

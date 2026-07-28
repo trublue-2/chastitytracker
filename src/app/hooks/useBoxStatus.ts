@@ -15,7 +15,7 @@ import type { BoxRow } from "@/lib/boxStatus";
  * zurück in die App kommt, schaut sonst genau in die 5s-Lücke). `cache: "no-store"` doppelt den
  * Server-Header ab — v.a. der WKWebView (iOS-App) beantwortete den Poll sonst aus dem HTTP-Cache,
  * und der Zustand stimmte erst nach einem Seitenwechsel (realer Vorfall 16.07). `now` wird bei
- * jedem Poll neu gesetzt, damit die Frische-Anzeige („zuletzt vor X") mitläuft.
+ * jedem Poll neu gesetzt, damit die Frische-Anzeige („zuletzt online vor X") mitläuft.
  */
 export function useBoxStatus(userId?: string): { boxes: BoxRow[]; now: number } {
   const [boxes, setBoxes] = useState<BoxRow[]>([]);
