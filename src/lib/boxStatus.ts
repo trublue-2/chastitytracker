@@ -22,6 +22,17 @@ export type BoxRow = {
   lockUntil: string | null;
   /** Letzter Box-Sync (ISO) — Grundlage der Frische-Anzeige. null = noch nie gesynct. */
   lastSyncAt: string | null;
+  /** Funkstille-Failsafe der Box: nach so vielen Stunden ohne Sync öffnet sie AUTONOM. Von Heimdall
+   *  gepusht; null = Alt-Zeile → keine Vorwarnung (die Schwelle wird nicht geraten). */
+  offlineOpenHours: number | null;
+  /** Zuletzt gemeldeter Akkustand in Prozent; null = nie gemeldet oder kein Sensor. */
+  battery: number | null;
+  /** Akku-Failsafe der Box: unter diesem Prozentwert öffnet sie AUTONOM. Von Heimdall gepusht statt
+   *  hier hartkodiert — dann steht die Zahl wenigstens EINMAL pro System und nicht ein drittes Mal.
+   *  Die Box meldet sie NICHT selbst: Heimdall spiegelt die Firmware-Konstante (`BATTERY_OPEN_PCT`
+   *  in seiner `lib/utils.ts`), ein Firmware-Bump ohne Nachzug dort bleibt also unbemerkt.
+   *  null = unbekannt → keine Vorwarnung. */
+  lowBatteryOpenPercent: number | null;
 };
 
 /** Reinigungs-Regeln des Subs: die `ReinigungView` des Servers plus das nächste Fenster.
@@ -75,7 +86,7 @@ export function boxReinigungQuotaLabel(r: BoxReinigungView | null, t: Translate)
 const LIVE_THRESHOLD_MS = 2 * 60_000;
 
 /** Physisches IST der Box: das gemeldete `reportedLocked`, bei Alt-Zeilen ohne Meldung das SOLL. */
-export const boxIsPhysicallyLocked = (b: BoxRow): boolean => b.reportedLocked ?? b.locked;
+export const boxIsPhysicallyLocked = (b: Pick<BoxRow, "locked" | "reportedLocked">): boolean => b.reportedLocked ?? b.locked;
 
 /**
  * Laufender Übergang, den erst ein Knopfdruck an der Box vollzieht (Präsenz-Gate, FW ≥ 0.2.34):
@@ -151,6 +162,128 @@ export function boxSollLabel(b: BoxRow, t: Translate, fmtDateTime: (iso: string)
   if (b.keyholderLocked) return b.lockUntil ? t("sollLockedUntil", { date: fmtDateTime(b.lockUntil) }) : t("sollLockedIndefinite");
   if (b.lockUntil) return t("sollUntil", { date: fmtDateTime(b.lockUntil) });
   return t("sollIndefinite");
+}
+
+/**
+ * Vorwarnung vor den Failsafes, die die Box AUTONOM öffnen — ohne Knopfdruck, ohne Server, ohne
+ * dass jemand am Gerät ist. Es sind genau zwei (`firmware/src/failsafe.h`): Funkstille
+ * (`offlineOpenHours` ohne Sync) und Akku-Not (unter `lowBatteryOpenPercent`). Der dritte Weg zum
+ * Offen — die abgelaufene Frist — ist seit FW 0.2.34 nur noch SCHARFGESTELLT und braucht Präsenz;
+ * den zeigt `boxPendingTransition` an und er gehört bewusst nicht hierher.
+ *
+ * Warum das überhaupt existiert (heimdall#1): eine Box kann einen Tag lang jeden stündlichen Sync
+ * verfehlen, ohne dass irgendwo etwas steht — und das erste sichtbare Signal ist dann die
+ * Not-Öffnung selbst. Für den Träger überraschend, für die Keyholderin unbemerkt. Der einzige Weg,
+ * sie zu verhindern, ist rechtzeitig für Netz zu sorgen; dafür braucht es diese Vorwarnung.
+ *
+ * Nur bei verschlossener Box: an einer offenen ist eine Not-Öffnung ein Nicht-Ereignis. Gemessen
+ * wird das physische IST (`boxIsPhysicallyLocked`) — bei einer Alt-Zeile ohne IST-Meldung fällt das
+ * wie überall auf das SOLL zurück.
+ *
+ * Der Offline-Zähler wird aus der VERGANGENEN ZEIT berechnet, nie aus einem Box-Feld — eine Box,
+ * die nicht syncen kann, kann ihren eigenen Offline-Zähler auch nicht melden.
+ *
+ * EHRLICHKEITSGRENZE, beide Richtungen — gemessen wird „seit wann hat der TRACKER nichts gehört",
+ * und das ist nicht dasselbe wie der Zähler in der Box:
+ *
+ *  • ZU FRÜH (der Normalfall): scheitert Heimdalls Status-Push, altert `lastSyncAt` hier, obwohl die
+ *    Box gesynct hat. Harmlos — einmal umsonst nach dem WLAN sehen.
+ *  • ZU SPÄT (selten, aber real): die Box setzt ihren Zähler erst zurück, wenn sie die ANTWORT des
+ *    Servers erfolgreich gelesen hat; Heimdall stempelt `lastSyncAt` schon beim EINGANG der Anfrage.
+ *    Kommt die Anfrage durch und die Antwort nicht (genau die wackelige Verbindung, um die es hier
+ *    geht), zählt die Box weiter, während hier alles frisch aussieht. Dann fehlt die Warnung.
+ *
+ * Die zweite Richtung liesse sich nur schliessen, indem die Box ihren eigenen Zähler meldet — was
+ * sie ohne Netz gerade nicht kann. Deshalb bleibt sie offen und steht hier.
+ */
+export type BoxFailsafeWarning =
+  | { kind: "offlineOpen"; severity: BoxFailsafeSeverity; hoursOffline: number; thresholdHours: number; hoursLeft: number }
+  // Kein `info` bei der Akku-Not: der Vorwarn-Abstand ist bewusst schmal (wenige Prozentpunkte),
+  // ein dezenter Zwischenschritt wäre dort nur eine Farbe ohne Aussage.
+  | { kind: "lowBatteryOpen"; severity: "warn" | "due"; percent: number; opensAtPercent: number };
+
+/** `info` = dezenter Hinweis, `warn` = deutlich, `due` = Schwelle erreicht (die Not-Öffnung ist
+ *  erfolgt oder steht unmittelbar bevor — welches von beidem, weiss erst der nächste Sync). */
+export type BoxFailsafeSeverity = "info" | "warn" | "due";
+
+/** Ab dem halben Fenster dezent, ab drei Vierteln deutlich (Schwellen aus heimdall#1). */
+const OFFLINE_INFO_RATIO = 0.5;
+const OFFLINE_WARN_RATIO = 0.75;
+
+/** Vorwarn-Abstand zur Akku-Schwelle in Prozentpunkten. Reine ANZEIGE-Entscheidung (wie früh soll
+ *  gewarnt werden), kein Firmware-Wert — die echte Auslöse-Schwelle kommt als `opensAtPercent`
+ *  aus dem Heimdall-Push und wird hier nie geraten. */
+const BATTERY_WARN_MARGIN_PCT = 5;
+
+/** Die Felder, aus denen sich die Failsafe-Nähe ergibt — schmaler als `BoxRow`, damit der MCP
+ *  dieselbe Ableitung mit seiner Prisma-Zeile fahren kann. Zwei Rechnungen über dieselbe Frage
+ *  (Karte hier, Keyholder-Agentin dort) liefen sonst mit der Zeit auseinander.
+ *
+ *  `lastSyncAt` nimmt beide Formen: die Karte hat den ISO-String aus `/api/box`, der Server das
+ *  `Date` aus Prisma. Jeder reicht seine native Form durch, statt sie für den Aufruf zu serialisieren
+ *  und hier wieder zu parsen. */
+export type BoxFailsafeInput =
+  Pick<BoxRow, "locked" | "reportedLocked" | "offlineOpenHours" | "battery" | "lowBatteryOpenPercent"> &
+  { lastSyncAt: string | Date | null };
+
+export function boxFailsafeWarnings(b: BoxFailsafeInput, now: number): BoxFailsafeWarning[] {
+  if (!boxIsPhysicallyLocked(b)) return [];
+  const out: BoxFailsafeWarning[] = [];
+
+  if (b.lastSyncAt && b.offlineOpenHours != null && b.offlineOpenHours > 0) {
+    // Math.max(0, …): ein gemeldeter Sync minimal vor der Server-Uhr (Latenz, Uhr-Drift) darf nie
+    // eine negative Offline-Dauer ergeben.
+    const elapsedH = Math.max(0, now - new Date(b.lastSyncAt).getTime()) / 3_600_000;
+    const ratio = elapsedH / b.offlineOpenHours;
+    const severity: BoxFailsafeSeverity | null =
+      ratio >= 1 ? "due" : ratio >= OFFLINE_WARN_RATIO ? "warn" : ratio >= OFFLINE_INFO_RATIO ? "info" : null;
+    if (severity) {
+      out.push({
+        kind: "offlineOpen",
+        severity,
+        hoursOffline: Math.floor(elapsedH),
+        thresholdHours: b.offlineOpenHours,
+        // Aufgerundet: „in 1 h" ist die ehrlichere letzte Warnung als ein „in 0 h", das schon wie
+        // vollzogen klingt. Bei erreichter Schwelle steht ohnehin 0.
+        hoursLeft: Math.max(0, Math.ceil(b.offlineOpenHours - elapsedH)),
+      });
+    }
+  }
+
+  // BEWUSST ohne „schweigt am Kabel"-Ausnahme: `Failsafe::isLowBattery` (firmware/src/failsafe.h)
+  // fragt den Ladezustand gar nicht — eine Box, die am Kabel unter die Schwelle fällt, öffnet
+  // trotzdem, und sie hört damit erst bei der (höheren) Erholungsschwelle wieder auf. Genau dort zu
+  // schweigen hiesse, ausgerechnet im Moment des Handelns die Folge zu verschweigen.
+  //
+  // BEKANNTE LÜCKE: die Firmware LATCHT (ab Schwelle gesetzt, erst bei ihrer Erholungsschwelle
+  // gelöscht). Dieses Band meldet die Box nicht, der Vorwarn-Abstand hier deckt es nur zum Teil —
+  // zwischen Abstand und Erholung kann die Box also noch öffnungsbereit sein, ohne dass es hier steht.
+  if (b.battery != null && b.lowBatteryOpenPercent != null) {
+    const opensAt = b.lowBatteryOpenPercent;
+    if (b.battery <= opensAt + BATTERY_WARN_MARGIN_PCT) {
+      out.push({
+        kind: "lowBatteryOpen",
+        severity: b.battery <= opensAt ? "due" : "warn",
+        percent: b.battery,
+        opensAtPercent: opensAt,
+      });
+    }
+  }
+
+  return out;
+}
+
+/** Beschriftung einer Failsafe-Vorwarnung. i18n bleibt beim Aufrufer (Labels via `t`) — wie im Rest
+ *  dieses Moduls. */
+export function boxFailsafeLabel(w: BoxFailsafeWarning, t: Translate): string {
+  if (w.kind === "lowBatteryOpen") {
+    return w.severity === "due"
+      ? t("failsafeBatteryDue", { percent: w.percent, opensAt: w.opensAtPercent })
+      : t("failsafeBatteryWarn", { percent: w.percent, opensAt: w.opensAtPercent });
+  }
+  return w.severity === "due"
+    ? t("failsafeOfflineDue", { hours: w.hoursOffline })
+    : t("failsafeOfflineWarn", { hours: w.hoursOffline, left: w.hoursLeft });
 }
 
 /** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt vor X"; null → nie gesynct. */

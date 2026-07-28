@@ -538,6 +538,17 @@ function registerTools(server: McpServer) {
           "explizit true sein UND die Box darf sich nicht seit dem letzten Sync selbst geöffnet " +
           "haben, kein Fallback auf locked wie bei hardwareEnforced. Nicht selbst aus " +
           "reportedLocked+keyInBox zusammenrechnen (A-06, MCP-Befundliste 2026-07-17). " +
+          "failsafeWarnings = VORWARNUNG vor einer autonomen Selbst-Öffnung, fertig gerechnet: " +
+          "offlineOpen (Funkstille — hoursOffline, thresholdHours = das Fenster der Box, hoursLeft, " +
+          "dueAt) und lowBatteryOpen (percent, opensAtPercent). severity info/warn/due bei " +
+          "offlineOpen, nur warn/due bei lowBatteryOpen; due heisst, die Not-Öffnung ist erfolgt ODER " +
+          "steht unmittelbar bevor. [] heisst 'kein Anlass ODER keine Datenbasis' — eine nie " +
+          "gesynchronisierte Box und eine Alt-Zeile ohne gemeldete Schwellen schweigen ebenfalls, " +
+          "Stille ist also kein Beleg für Ungefährlichkeit. Verhindern " +
+          "lässt sie sich NUR, indem rechtzeitig jemand für Netz bzw. Strom sorgt — wenn hier etwas " +
+          "steht, gehört es dem Sub gesagt. ACHTUNG: hardwareEnforced/keySecured/staleLock kennen nur " +
+          "den Funkstille-Öffner; ein lowBatteryOpen:due kann neben hardwareEnforced:true stehen — " +
+          "dann gilt die Warnung. " +
           "boxState:null = keine Box registriert. Auch im keyholder_dashboard enthalten.",
         inputSchema: {},
       },

@@ -24,6 +24,7 @@ const schema = z.object({
   fwVersion: z.string().max(32).nullable().optional(),
   lastSyncAt: z.string().datetime().nullable().optional(),
   offlineOpenHours: z.number().int().positive().nullable().optional(),
+  lowBatteryOpenPercent: z.number().int().min(0).max(100).nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     fwVersion: body.fwVersion ?? null,
     lastSyncAt: body.lastSyncAt ? new Date(body.lastSyncAt) : null,
     offlineOpenHours: body.offlineOpenHours ?? null,
+    lowBatteryOpenPercent: body.lowBatteryOpenPercent ?? null,
   };
 
   await prisma.boxStatus.upsert({
