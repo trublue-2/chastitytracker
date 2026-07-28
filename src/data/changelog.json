@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.56.1",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Punkt an ungelesenen Nachrichten und die Zahl an der Glocke sind jetzt rot statt blauviolett.",
+          "en": "The dot on unread messages and the number on the bell are now red instead of blue-violet."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die App setzt die Zahl am Icon jetzt selbst — beim Start, beim Zurückwechseln und nach dem Lesen. Bisher kam sie nur mit einer Benachrichtigung und blieb danach stehen. Auf dem iPhone wirkt das erst mit der nächsten App-Version aus TestFlight.",
+          "en": "The app now sets the number on its icon itself — on start, when switching back, and after reading. Until now it only arrived with a notification and then stayed put. On iPhone this takes effect with the next TestFlight build."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.56.0",
     "date": "2026-07-28",
     "changes": [
