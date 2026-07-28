@@ -91,6 +91,63 @@ model User {
   healthHolds                    HealthHold[]
   recurringContexts              RecurringContext[]
   appointments                   Appointment[]
+  receivedMessages               Message[]
+  messageReads                   MessageRead[]
+}
+
+// Eine Nachricht im Posteingang. Das Gegenstück zu den Mail-/Push-Meldungen, die bisher nach dem
+// Versand nirgends mehr existierten — vor allem der Straftext, den der Sub sonst nur in der Mail
+// sah (das Strafbuch ist admin-only).
+//
+// GENAU EINES der beiden Inhalts-Paare ist gesetzt, und die Render-Regel hängt an der Feld-Identität
+// statt an einem Flag, das man vergessen kann:
+//   bodyKey/bodyParams → i18n-Schlüssel, wird in der Sprache des LESERS gerendert
+//   body               → Menschentext, nie übersetzt, nie interpoliert
+// Erzwungen wird das von den Factories in messageService.ts (SQLite kennt den Constraint nicht).
+model Message {
+  id            String  @id @default(cuid())
+  // Der Sub, um den es geht — IMMER der Scope-Schlüssel, damit der Rechte-Check exakt der bestehende
+  // ist und kein zweiter Sichtbarkeits-Pfad entsteht.
+  subjectUserId String
+  subject       User    @relation(fields: [subjectUserId], references: [id], onDelete: Cascade)
+
+  // Wer getippt hat: "system" | "keyholder" | "ai" — Vorbild StrafeRecord.judgedBy. WELCHER Keyholder
+  // getippt hat, wird erst interessant, wenn ein Mensch selbst schreibt (Etappe 2) — bis dahin gibt es
+  // für eine Absender-Referenz keinen Schreiber und damit keinen Grund, sie zu führen.
+  senderKind String
+
+  // "sub" = an den Sub · "keyholders" = an dessen Keyholder (erst ab Etappe 2 belegt)
+  audience String
+
+  bodyKey    String?
+  bodyParams String? // JSON als String; SQLite/Prisma 5 kennen kein Json-Feld
+  body       String?
+
+  // Bezug aufs Tracking-Objekt, Muster von NoteRef. Freitexte werden VERLINKT statt kopiert: eine
+  // spätere Korrektur am Straftext wirkt damit rückwirkend richtig, statt zwei Wahrheiten zu erzeugen.
+  refEntityType String?
+  refEntityId   String?
+
+  createdAt DateTime @default(now())
+
+  reads MessageRead[]
+
+  // Der EINE Index, den die Abfragen brauchen: Liste, Zähler und "alle als gelesen" filtern alle
+  // auf (subjectUserId, audience) und sortieren nach createdAt.
+  @@index([subjectUserId, audience, createdAt])
+}
+
+// Gelesen-Kennzeichen je Leser. Eigene Tabelle statt Flag an der Nachricht, weil eine Nachricht an
+// die Keyholder ab Etappe 2 mehrere Leser hat.
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
 }
 
 // Gesundheits-Zurückhaltung (§8): ein Signal, dass aus Gesundheitsgründen (Migräne/Aura, Schlaf,

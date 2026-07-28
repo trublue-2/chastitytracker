@@ -282,6 +282,22 @@ export const NOTIFICATION_EVENT_TYPES = [
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
 
+/**
+ * Präferenzen, die am EMPFÄNGER hängen — bewusst eine eigene Liste.
+ *
+ * `NOTIFICATION_EVENT_TYPES` oben liegt zwar am Sub, steuert aber die Meldungen über seine Einträge
+ * AN DIE KEYHOLDER, und genau so ist das Admin-Raster (`NotificationToggles`) beschriftet. Ein
+ * Schalter, der dort das Gegenteil bedeutet — „Meldungen AN den Sub" —, wäre eine Falle. Diese
+ * Liste erscheint deshalb ausschliesslich in den eigenen Einstellungen des Nutzers.
+ */
+export const RECIPIENT_NOTIFICATION_EVENT_TYPES = ["MESSAGE_RECEIVED"] as const;
+
+export type RecipientNotificationEventType = typeof RECIPIENT_NOTIFICATION_EVENT_TYPES[number];
+
+export function isRecipientNotificationEventType(v: unknown): v is RecipientNotificationEventType {
+  return typeof v === "string" && (RECIPIENT_NOTIFICATION_EVENT_TYPES as readonly string[]).includes(v);
+}
+
 // ── Trainingsvorgabe: Perioden-Stundenbasis (nur für h↔% Umrechnung im Admin-Formular) ──
 // Durchschnittswerte; Monat = 365.25/12·24, Jahr = 365.25·24 (berücksichtigt Schaltjahre).
 export const HOURS_PER_DAY = 24;
