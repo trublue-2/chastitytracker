@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { boxFailsafeWarnings, boxPendingTransition, boxSollLabel, boxSollLocked, type BoxRow } from "./boxStatus";
+import { boxBatteryLabel, boxFailsafeWarnings, boxPendingTransition, boxSollLabel, boxSollLocked, type BoxRow } from "./boxStatus";
 
 // Der Übergangs-Zustand (Präsenz-Gate, FW ≥ 0.2.34) speist die Box-Karte aus zwei nahtlos
 // ineinander übergehenden Quellen: sofort nach dem Eintrag das tracker-lokale pendingCommand,
@@ -17,6 +17,7 @@ const row = (over: Partial<BoxRow>): BoxRow => ({
   lastSyncAt: null,
   offlineOpenHours: null,
   battery: null,
+  charging: null,
   lowBatteryOpenPercent: null,
   ...over,
 });
@@ -168,5 +169,76 @@ describe("boxFailsafeWarnings", () => {
   it("beide Failsafes gleichzeitig — der Keyholder sieht beide Gründe, nicht nur den ersten", () => {
     expect(kinds(locked({ lastSyncAt: hoursAgo(20), battery: 14, lowBatteryOpenPercent: 15 })))
       .toEqual(["offlineOpen:warn", "lowBatteryOpen:due"]);
+  });
+});
+
+// Die Dauer-Akkuanzeige. Grob statt prozentgenau, weil der Rohwert je Box zweistellig danebenlag,
+// bis sich die Firmware am Ladeschluss selbst kalibrierte — und die KRITISCH-Stufe hängt an der
+// gemeldeten Auslöse-Schwelle, nicht an einer runden Zahl.
+describe("boxBatteryLabel", () => {
+  const t = (key: string) => key;
+  const batt = (over: Partial<BoxRow>) => boxBatteryLabel(row({ lowBatteryOpenPercent: 15, ...over }), t);
+
+  it("vier Stufen von voll bis kritisch", () => {
+    expect(batt({ battery: 95 })).toBe("batteryFull");
+    expect(batt({ battery: 80 })).toBe("batteryFull");
+    expect(batt({ battery: 79 })).toBe("batteryMedium");
+    expect(batt({ battery: 40 })).toBe("batteryMedium");
+    expect(batt({ battery: 39 })).toBe("batteryLow");
+    expect(batt({ battery: 16 })).toBe("batteryLow");
+    expect(batt({ battery: 15 })).toBe("batteryCritical");
+    expect(batt({ battery: 0 })).toBe("batteryCritical");
+  });
+
+  it("die kritische Stufe folgt der gemeldeten Schwelle, nicht einer festen Zahl", () => {
+    expect(batt({ battery: 30, lowBatteryOpenPercent: 30 })).toBe("batteryCritical");
+    expect(batt({ battery: 30, lowBatteryOpenPercent: 25 })).toBe("batteryLow");
+  });
+
+  it("ohne gemeldete Schwelle entfällt nur die kritische Stufe — geraten wird sie nie", () => {
+    expect(batt({ battery: 5, lowBatteryOpenPercent: null })).toBe("batteryLow");
+    expect(batt({ battery: 90, lowBatteryOpenPercent: null })).toBe("batteryFull");
+  });
+
+  it("am Kabel hängt der Ladehinweis an der Stufe", () => {
+    expect(batt({ battery: 50, charging: true })).toBe("batteryMedium · batteryCharging");
+    expect(batt({ battery: 50, charging: false })).toBe("batteryMedium");
+  });
+
+  it("ohne Akkuwert gibt es nichts anzuzeigen (Board ohne Messung)", () => {
+    expect(batt({ battery: null })).toBeNull();
+  });
+});
+
+// Die Schwelle ist per Push frei setzbar (0–100). Die Anzeige-Stufen dürfen deshalb nicht fix
+// bleiben: sonst stünde bei einer hoch gemeldeten Schwelle „Akku voll" unter einer Warnung, die
+// bei genau diesem Stand die Selbst-Öffnung ankündigt.
+describe("boxBatteryLabel — Stufen weichen der gemeldeten Schwelle aus", () => {
+  const t = (key: string) => key;
+  const batt = (over: Partial<BoxRow>) => boxBatteryLabel(row(over), t);
+
+  it("hohe Schwelle schiebt die Stufen mit hoch, statt „voll\" zu behaupten", () => {
+    expect(batt({ battery: 80, lowBatteryOpenPercent: 78 })).toBe("batteryLow");
+    expect(batt({ battery: 55, lowBatteryOpenPercent: 50 })).toBe("batteryLow");
+    expect(batt({ battery: 50, lowBatteryOpenPercent: 50 })).toBe("batteryCritical");
+  });
+
+  it("die niedrige Stufe deckt mindestens das Warnband ab", () => {
+    // Alles, was `boxFailsafeWarnings` als lowBatteryOpen meldet, ist hier nie „mittel"/„voll".
+    for (const opensAt of [15, 30, 50, 70]) {
+      for (const battery of [opensAt, opensAt + 3, opensAt + 5]) {
+        expect(batt({ battery, lowBatteryOpenPercent: opensAt })).not.toBe("batteryMedium");
+        expect(batt({ battery, lowBatteryOpenPercent: opensAt })).not.toBe("batteryFull");
+      }
+    }
+  });
+
+  // 0 ist die natürliche Kodierung für „Akku-Failsafe aus" — genau wie beim Funkstille-Zwilling,
+  // der `offlineOpenHours > 0` verlangt. Eine Selbst-Öffnung bei 0 % gibt es nicht.
+  it("Schwelle 0 heisst „keine Schwelle\", nicht „öffnet bei 0 %\"", () => {
+    expect(batt({ battery: 0, lowBatteryOpenPercent: 0 })).toBe("batteryLow");
+    expect(boxFailsafeWarnings(
+      row({ locked: true, reportedLocked: true, battery: 0, lowBatteryOpenPercent: 0 }), Date.now(),
+    )).toEqual([]);
   });
 });
