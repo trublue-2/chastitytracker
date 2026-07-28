@@ -1,6 +1,6 @@
 [
   {
-    "version": "4.54.5",
+    "version": "4.55.1",
     "date": "2026-07-28",
     "changes": [
       {
@@ -8,6 +8,19 @@
         "text": {
           "de": "Die Box-Karte warnt jetzt, bevor sich die Box von selbst öffnet. Verliert sie den Kontakt zum Server, steht ab der halben Frist auf der Karte, seit wann sie ohne Kontakt ist und wann die Not-Öffnung fällig wäre — früh genug, um für Netz zu sorgen. Dasselbe gilt für einen fast leeren Akku. Bisher war der erste sichtbare Hinweis die Öffnung selbst. Die Keyholder-Sicht zeigt dieselbe Warnung.",
           "en": "The box card now warns before the box opens itself. If it loses contact with the server, the card shows from half the deadline onwards how long it has been out of contact and when the emergency opening is due — early enough to get it back into network range. The same goes for a nearly empty battery. Until now the first visible sign was the opening itself. The keyholder view shows the same warning."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.55.0",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Während einer Reinigungspause steht auf dem Dashboard jetzt „Reinigungspause – noch …\" mit der verbleibenden Zeit und einem Knopf zum Wiedereinschliessen. Bisher sah das aus wie eine beendete Session („Geöffnet seit …\"), obwohl die Pause mitzählt. Läuft die Frist ab, wechselt die Anzeige von selbst zurück.",
+          "en": "During a cleaning break your dashboard now shows \"Cleaning break – remaining …\" with the time left and a button to lock up again. Until now this looked like a finished session (\"Open since …\") even though the break still counts. When the deadline passes, the display switches back on its own."
         }
       }
     ]
