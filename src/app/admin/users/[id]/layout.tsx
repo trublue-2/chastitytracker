@@ -62,7 +62,9 @@ export default async function AdminUserLayout({
         isGlobalAdmin={isGlobalAdmin}
       />
       <UserSubNav userId={id} />
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
+      {/* Diese Seite spannt ihre Spalte selbst auf — die geteilten Dashboard-Blöcke sollen sie
+          füllen statt ihre eigene mitzubringen. Begründung in `DashboardBlock`. */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4 [--block-col:100%] [--block-gutter:0px]">
         {children}
       </main>
     </>

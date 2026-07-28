@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true, offlineOpenHours: true, battery: true, charging: true, lowBatteryOpenPercent: true },
+      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true, offlineOpenHours: true, battery: true, charging: true, lowBatteryOpenPercent: true, fwVersion: true },
     }),
     getActiveSperrzeit(userId),
   ]);
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       simpleLock: b.simpleLock,
       keyholderLocked: b.keyholderLocked || !!sperre,
       lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,
-      // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt vor X").
+      // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt online vor X").
       lastSyncAt: b.lastSyncAt?.toISOString() ?? null,
       // Failsafe-Vorwarnung (boxFailsafeWarnings) + Dauer-Akkuanzeige (boxBatteryLabel): die beiden
       // Schwellen, ab denen die Box sich SELBST öffnet, plus Akkustand und Ladezustand. Die
@@ -69,6 +69,8 @@ export async function GET(req: NextRequest) {
       battery: b.battery,
       charging: b.charging,
       lowBatteryOpenPercent: b.lowBatteryOpenPercent,
+      // Firmware-Stand: reine Anzeige neben dem Box-Namen, keine Logik hängt daran.
+      fwVersion: b.fwVersion,
     })),
     NO_STORE,
   );
