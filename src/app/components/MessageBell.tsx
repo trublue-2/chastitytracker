@@ -24,7 +24,7 @@ export default async function MessageBell({ unread }: { unread: number }) {
         // Zweistellig ist die Obergrenze, die in den Punkt passt; darüber „99+". Eine dreistellige
         // Zahl sprengte den Kreis und damit die Header-Zeile.
         <span
-          className="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-[var(--color-request)] text-white text-[10px] font-semibold flex items-center justify-center"
+          className="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-warn text-white text-[10px] font-semibold flex items-center justify-center"
           aria-hidden="true"
         >
           {unread > 99 ? "99+" : unread}

@@ -19,6 +19,14 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },
+    Badge: {
+      // Das Plugin würde den zuletzt gesetzten Zähler beim Kaltstart von sich aus wiederherstellen
+      // (`restore()`, Default `persist: true`). Genau das wollen wir nicht: die Zahl gehört dem
+      // SERVER-Stand des angemeldeten Nutzers, und die App setzt sie beim Start ohnehin selbst
+      // (AppBadgeSync). Mit `persist` bliebe nach einem Logout die Zahl des vorigen Nutzers stehen
+      // und überlebte sogar Neustarts.
+      persist: false,
+    },
   },
 };
 

@@ -12,7 +12,6 @@ import ActionModal from "@/app/components/ActionModal";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
-import { setAppBadgeSafe } from "@/lib/swMessages";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import type { PresentedMessage } from "@/lib/messagePresenter";
 import type { MessageSenderKind } from "@/lib/messageService";
@@ -45,18 +44,15 @@ export default function MessageList({
   const [error, setError] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
 
-  // Das Badge hängt am ZUSTAND, nicht am Klick auf eine Benachrichtigung: wer den Posteingang
-  // ansieht, sieht danach die richtige Zahl — auch wenn er über den Push-Tap woanders gelandet war.
-  // `router.refresh()` zieht die Glocke im Header nach: die ist eine Server-Komponente und behielte
-  // sonst ihren Stand vom Seitenaufruf, während die Liste daneben schon gelesen ist.
-  useEffect(() => {
-    setAppBadgeSafe(unread);
-  }, [unread]);
-
   // Beim Öffnen des Posteingangs die Glocke im Header nachziehen — und nach jedem Lesevorgang
   // erneut. Der Header steht im geteilten Dashboard-Layout, und das rendert bei einer
   // Client-Navigation NICHT neu: ohne diesen Anstoss zeigte die Glocke ihren Stand vom letzten
   // harten Laden, während die Liste daneben längst weiter ist.
+  //
+  // Das App-Badge schreibt diese Seite BEWUSST nicht selbst: es hat genau einen Schreiber
+  // (AppBadgeSync am Header, mit dem Server-Stand). Zwei Schreiber — hier der Client-State, dort
+  // der Server-Wert — könnten sich bei schnell hintereinander gelesenen Nachrichten überholen und
+  // die Zahl wieder hochsetzen. Der `refresh()` unten liefert dem einen Schreiber den frischen Wert.
   useEffect(() => {
     router.refresh();
   }, [unread, router]);
@@ -147,7 +143,7 @@ export default function MessageList({
                       {/* Ungelesen dreifach codiert: Punkt, Fettschrift, Text für Screenreader.
                           Farbe allein ist in vier Themes und für Farbfehlsichtige keine Information. */}
                       <span
-                        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${m.read ? "bg-transparent" : "bg-[var(--color-request)]"}`}
+                        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${m.read ? "bg-transparent" : "bg-warn"}`}
                         aria-hidden="true"
                       />
                       <span className={`min-w-0 ${m.read ? "" : "font-semibold"}`}>

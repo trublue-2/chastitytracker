@@ -121,8 +121,18 @@ Jede Tracker-Instanz liefert automatisch die AASA-Datei aus:
 ### 1. Code synchronisieren
 ```bash
 cd ~/KG-project-2/chastitytracker
+npm install
 npx cap sync ios
 ```
+
+> **`npm install` ist Pflicht, wenn ein Capacitor-Plugin dazugekommen ist.** `cap sync` trägt die
+> Plugins aus `node_modules` in `ios/App/CapApp-SPM/Package.swift` ein (Swift Package Manager, kein
+> CocoaPods). Fehlt das Paket lokal, fehlt es auch im Build — die App wirft dann zur Laufzeit
+> „plugin is not implemented on ios", was der Aufrufer schluckt und was deshalb nur am Gerät
+> auffällt.
+>
+> Zuletzt dazugekommen: `@capawesome/capacitor-badge` (v4.56.1) — setzt die Zahl am App-Icon. Ohne
+> neuen TestFlight-Build zeigt das Icon weiterhin nur, was der Push-Payload mitbringt.
 
 ### 2. Xcode öffnen
 ```bash
