@@ -115,6 +115,14 @@ export function clamp(value: number, { min, max, fallback }: NumberRange): numbe
   return Math.max(min, Math.min(max, Math.round(value) || fallback));
 }
 
+/** Ganzzahl aus `[lo, hi]`, BEIDE Grenzen inklusive. `rand` ist injizierbar, damit die Planer, die
+ *  darauf aufbauen, deterministisch testbar bleiben. Eine Kopie zu tippen ist die klassische
+ *  Off-by-one-Falle (`hi - lo` statt `hi - lo + 1` schliesst die Obergrenze stumm aus), deshalb
+ *  hier EINE Fassung für alle Würfel-Stellen. */
+export function randomInt(lo: number, hi: number, rand: () => number = Math.random): number {
+  return lo + Math.floor(rand() * (hi - lo + 1));
+}
+
 /** Client-side sibling of {@link clamp}: parses a raw `<input type="number">` string value and
  *  clamps it to the same range. Its single caller is `NumberInput`, which applies it on blur —
  *  applying it per keystroke is what once made those fields unclearable.

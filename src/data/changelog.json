@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.55.4",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zieht die Keyholderin eine Kontrolle zurück, ohne eine bestimmte zu benennen, bleiben die automatischen Kontrollen jetzt unangetastet, solange sie noch nicht ausgelöst haben. Bisher räumte so ein Rückzug auch den geplanten Rest des Tages mit weg — Kontrollen also, die die Keyholderin gar nicht sehen kann und deren Überraschung genau darin liegt. Danach blieb es den Rest des Tages still, weil die Automatik den Tag für erledigt hielt. Eine bereits ausgelöste automatische Kontrolle lässt sich weiterhin zurückziehen.",
+          "en": "When the keyholder withdraws an inspection without naming a specific one, automatic inspections that have not triggered yet are now left alone. Until now such a withdrawal also swept away the rest of the day's plan — inspections the keyholder cannot see in the first place, and whose whole point is the surprise. After that the day stayed silent, because the automation considered it already planned. An automatic inspection that has already triggered can still be withdrawn."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle lässt sich jetzt bis zu 24 Stunden im Voraus ansetzen statt nur gut eine Stunde. Wird die gewünschte Vorlaufzeit trotzdem angepasst, sagt die Antwort das ausdrücklich — bisher meldete sie einfach die geänderte Zeit als Erfolg, sodass eine auf den Nachmittag geplante Kontrolle unbemerkt eine Stunde später zuschlug.",
+          "en": "An inspection can now be scheduled up to 24 hours ahead instead of barely an hour. If the requested lead time still gets adjusted, the reply says so explicitly — until now it simply reported the changed time as a success, so an inspection meant for the afternoon quietly struck an hour later instead."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.55.3",
     "date": "2026-07-28",
     "changes": [
