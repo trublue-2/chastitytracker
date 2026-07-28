@@ -9,7 +9,7 @@ import {
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -658,7 +658,11 @@ function registerTools(server: McpServer) {
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
-          delayMinutes: z.coerce.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
+          delayMinutes: z.coerce.number().optional().describe(
+            `Delay before the code reaches the user. Omit for a random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} min delay; `
+            + `0 = immediate; any other value is clamped to ${INSPECTION_DELAY_RANGE.min}–${INSPECTION_DELAY_RANGE.max} `
+            + "(the response reports the effective value and flags a clamp).",
+          ),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
@@ -728,7 +732,11 @@ function registerTools(server: McpServer) {
           "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives). " +
           "Without id this hits ALL open ones of that kind — since several lock requests can be open at once, " +
           "pass id to cancel exactly one. For lock_request/lock_period, a dryRun without id lists each open one " +
-          "(id, status, message, dates) so you can see which to pick." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
+          "(id, status, message, dates) so you can see which to pick. " +
+          "target=inspection never touches an AUTOMATIC inspection that has not triggered yet — those are " +
+          "deliberately hidden from you (see keyholder_dashboard.scheduledDirectives) and are not yours to " +
+          "cancel; an automatic one that has already triggered is withdrawn like any other." +
+          KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
           id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives). Only for lock_request/lock_period."),
