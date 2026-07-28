@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp } from "@/lib/utils";
+import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp, randomInt } from "@/lib/utils";
 import {
   NO_FIELDS_TO_UPDATE, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE,
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
@@ -41,11 +41,6 @@ export interface AutoKontrolleSlot {
 export interface PlannedAutoKontrolle extends AutoKontrolleSlot {
   id: string;
   sent: boolean;
-}
-
-/** Ganzzahl aus [lo, hi] (beide inklusive). */
-function randomInt(rand: () => number, lo: number, hi: number): number {
-  return lo + Math.floor(rand() * (hi - lo + 1));
 }
 
 /** Geklemmter Min-/Max-Anzahl-Bereich pro Tag (`max` nie unter `min`). */
@@ -176,7 +171,7 @@ export function generateAutoKontrollen(
   const { min, max } = perDayRange(settings);
   if (max <= 0) return [];
   // Anzahl zufällig aus [min, max] (min == max → fixe Anzahl, wie bisher).
-  const x = randomInt(rand, min, max);
+  const x = randomInt(min, max, rand);
   if (x <= 0) return [];
   const { von: fristVon, bis: fristBis } = fristRange(settings);
 
@@ -201,9 +196,9 @@ export function generateAutoKontrollen(
       const triggerMin = Math.ceil(fixed.start + i * segSize);
       const triggerMax = Math.floor(fixed.start + (i + 1) * segSize) - 1; // Trigger vor Segmentende → verteilt
       if (triggerMax < triggerMin) continue; // Segment < 1 Min → überspringen
-      const trig = randomInt(rand, triggerMin, triggerMax);
+      const trig = randomInt(triggerMin, triggerMax, rand);
       if (isInQuietMinutes(quietVon, quietBis, trig)) continue; // nie im Schlaf wecken
-      const deadlineMin = windowDeadlineMin(trig, randomInt(rand, fristVon, fristBis), quietVon, fristVon);
+      const deadlineMin = windowDeadlineMin(trig, randomInt(fristVon, fristBis, rand), quietVon, fristVon);
       if (deadlineMin !== null) pushIfFuture(trig, deadlineMin);
     }
     return out;
@@ -215,11 +210,11 @@ export function generateAutoKontrollen(
   for (let i = 0; i < x; i++) {
     const segStart = awakeStart + i * segSize;
     const segEnd = awakeStart + (i + 1) * segSize;
-    const dur = Math.min(randomInt(rand, fristVon, fristBis), Math.max(1, Math.floor(segSize)));
+    const dur = Math.min(randomInt(fristVon, fristBis, rand), Math.max(1, Math.floor(segSize)));
     const triggerMin = Math.ceil(segStart);
     const triggerMax = Math.min(Math.floor(segEnd - dur), awakeEnd - 1 - dur); // Frist ≤ awakeEnd−1
     if (triggerMax < triggerMin) continue; // Segment zu klein → überspringen
-    const trig = randomInt(rand, triggerMin, triggerMax);
+    const trig = randomInt(triggerMin, triggerMax, rand);
     pushIfFuture(trig, trig + dur);
   }
   return out;
@@ -333,8 +328,8 @@ export function repairAutoKontrollen(
     const best = gaps.reduce((bi, g, gi) => (gapLen(g) > gapLen(gaps[bi]) ? gi : bi), 0);
     if (gapLen(gaps[best]) < fristVon) break; // kein Platz mehr
     const [gapStart, gapEnd] = gaps[best];
-    const dur = Math.min(randomInt(rand, fristVon, fristBis), gapEnd - gapStart);
-    const trig = randomInt(rand, gapStart, gapEnd - dur);
+    const dur = Math.min(randomInt(fristVon, fristBis, rand), gapEnd - gapStart);
+    const trig = randomInt(gapStart, gapEnd - dur, rand);
     create.push({ wirksamAb: at(trig), deadline: at(trig + dur) });
     gaps.splice(best, 1, [gapStart, trig], [trig + dur, gapEnd]);
     gaps = gaps.filter(([a, b]) => b > a);
