@@ -131,7 +131,8 @@ export interface RequestKontrolleParams {
 
 /**
  * Requests an inspection (KontrollAnforderung): generates a fresh random 5-digit code (proof the
- * photo is current), sets a deadline, withdraws any open request. If a seal is active, its number
+ * photo is current) and sets a deadline. An already running inspection is NOT replaced — the request
+ * is rejected with INSPECTION_ALREADY_ACTIVE instead. If a seal is active, its number
  * is additionally required on the photo (verified at submission via deriveSealCode — the code
  * itself is always random). Sends e-mail + push immediately — or, with delayMinutes, schedules it
  * (wirksamAb): the request stays invisible to the user and the deadline starts at trigger; the

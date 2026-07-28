@@ -48,6 +48,15 @@ export function activeVerschlussAnforderungWhere(now: Date = new Date()): Prisma
  * bleiben nur ZUKÜNFTIGE Auto-/Zufalls-Kontrollen (`auto: true`, wirksamAb > now) — deren
  * Überraschungseffekt darf auch der Keyholder-UI nicht entgehen, sie sind ohnehin nicht
  * keyholder-gesetzt.
+ *
+ * Bindet damit auch den SCHREIBENDEN Keyholder-Pfad: ein Rückzug ohne id (`withdraw
+ * target=inspection`) darf höchstens treffen, was dieses Fragment zeigt. Was der Aufrufer nicht
+ * sehen kann, darf er nicht wegnehmen — er zöge sonst den Rest des Auto-Tagesplans mit, ohne dass
+ * es in Anfrage oder Antwort vorkäme, und der Poller legt ihn nicht neu an
+ * (`ensureDailyAutoKontrollenForUser` zählt die zurückgezogenen Zeilen mit und hält den Tag für
+ * erledigt). Vorfall 28.07.2026: ein Rückzug nahm zwei ungesehene Auto-Kontrollen mit, die
+ * Automatik schwieg den Rest des Tages. Wer die Sichtbarkeitsregel hier ändert, ändert damit
+ * bewusst auch den Umfang dieses Rückzugs.
  */
 export function keyholderVisibleKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }, { auto: false }] };
