@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true },
+      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true, offlineOpenHours: true, battery: true, lowBatteryOpenPercent: true },
     }),
     getActiveSperrzeit(userId),
   ]);
@@ -61,6 +61,12 @@ export async function GET(req: NextRequest) {
       lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,
       // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt vor X").
       lastSyncAt: b.lastSyncAt?.toISOString() ?? null,
+      // Failsafe-Vorwarnung (boxFailsafeWarnings): die beiden Schwellen, ab denen die Box sich
+      // SELBST öffnet, plus der Akkustand dazu. Beide kommen aus dem Heimdall-Push und werden hier
+      // nur durchgereicht — der Tracker rechnet keine Schwelle nach und rät keine.
+      offlineOpenHours: b.offlineOpenHours,
+      battery: b.battery,
+      lowBatteryOpenPercent: b.lowBatteryOpenPercent,
     })),
     NO_STORE,
   );

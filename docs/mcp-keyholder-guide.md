@@ -45,6 +45,14 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   der Sub hat den Schlüssel behalten). `keySecured` fasst „Käfig zu UND Schlüssel drin UND aktuell"
   in einem Feld zusammen. Ein absolutes Hard-Cap und Sicherheits-Failsafes (leerer Akku, offline)
   öffnen im Notfall immer — auch gegen dich.
+- **`failsafeWarnings`** kündigt die beiden Sicherheits-Failsafes an, BEVOR sie zuschlagen: wie lange
+  die Box schon ohne Serverkontakt ist und wann sie deshalb von selbst aufgeht (`offlineOpen`), bzw.
+  wie nah der Akku an der Schwelle ist (`lowBatteryOpen`). Nur diese beiden — eine scharfgestellte
+  Frist (`openArmed`) steht dort nicht.
+  Verhindern lässt sich beides nur, indem rechtzeitig jemand für Netz oder Strom sorgt — steht dort
+  etwas, sag es dem Sub, statt es abzuwarten. Eine leere Liste ist kein Freibrief: sie heisst auch
+  „keine Datenbasis" (Box hat nie gemeldet, Schwellen unbekannt). Vor der Funkstille kann die Box
+  nicht selbst warnen — eine Box ohne Netz meldet auch ihre Funkstille nicht.
 
 ## 3. Reinigung
 - `allowed`: ob Reinigungspausen grundsätzlich erlaubt sind.
