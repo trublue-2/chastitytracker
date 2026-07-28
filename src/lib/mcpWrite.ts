@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective } from "@/lib/queries";
+import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
@@ -11,8 +11,8 @@ import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { diffFields } from "@/lib/mcp/writeFramework";
-import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
-import { clamp } from "@/lib/utils";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import { clamp, randomInt } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 
@@ -221,40 +221,78 @@ export interface RequestInspectionArgs {
   delayMinutes?: number;
   dryRun?: boolean;
 }
-/** Delay-Policy (nur MCP): kein Wert → zufällig 5–65; ≤0 → sofort; sonst auf 5–65 geklemmt. Geteilt
- *  von Commit und dryRun-Preview, damit die beiden Pfade nicht auseinanderlaufen können. */
+/** Delay-Policy (nur MCP): kein Wert → zufällig aus `INSPECTION_RANDOM_DELAY`; ≤0 → sofort; sonst auf
+ *  `INSPECTION_DELAY_RANGE` geklemmt. Geteilt von Commit und dryRun-Preview, damit die beiden Pfade
+ *  nicht auseinanderlaufen können. */
 function clampInspectionDelay(delayMinutes: number | undefined): number {
-  if (delayMinutes === undefined) return 5 + Math.floor(Math.random() * 61); // 5..65 inkl.
+  if (delayMinutes === undefined) return randomInt(INSPECTION_RANDOM_DELAY.min, INSPECTION_RANDOM_DELAY.max);
   if (delayMinutes <= 0) return 0;
-  return Math.min(65, Math.max(5, Math.round(delayMinutes)));
+  return clamp(delayMinutes, INSPECTION_DELAY_RANGE);
+}
+
+/** Satz für die Antwort, wenn der angeforderte Delay die Policy verletzt hat und geklemmt wurde —
+ *  sonst null. Ein blosses „reicht in ~65 min" meldete den ERSETZTEN Wert als Erfolg; der Aufrufer
+ *  plante seine Zeit aber um den angefragten herum und hat keine Möglichkeit, die Abweichung zu
+ *  bemerken. (Vorfall 28.07.2026: 242 min angefragt, 65 geliefert, Antwort wies auf nichts hin.) */
+function inspectionDelayNote(requested: number | undefined, effective: number): string | null {
+  // `≤0` ist die dokumentierte Kurzform für „sofort", keine verletzte Grenze — dort ist die 0 das
+  // VERLANGTE Ergebnis. Ohne diese Ausnahme meldete ausgerechnet der Ehrlichkeits-Hinweis eine
+  // Abweichung, die es nicht gab, und riete zu „später erneut anfragen", obwohl sofort ausgelöst wurde.
+  if (requested === undefined || requested <= 0 || Math.round(requested) === effective) return null;
+  return `NOTE: the requested delay of ${requested} min was NOT applied — it was clamped to ${effective} min `
+    + `(allowed: ${INSPECTION_DELAY_RANGE.min}–${INSPECTION_DELAY_RANGE.max} min, or ≤0 for immediate). `
+    + `If you need the inspection at a specific later time, request it closer to that time.`;
 }
 
 export async function mcpRequestInspection(username: string, args: RequestInspectionArgs) {
   const userId = await resolveTargetUserId(username);
+  const requestedDelayMinutes = args.delayMinutes ?? null;
   if (args.dryRun) {
     // Kein Zufallswert im Preview: ein hier gewürfelter Delay würde bei jedem dryRun-Aufruf einen
     // anderen Wert zeigen, ohne dass der echte Commit denselben zieht — ehrlicher, den Zufallsfall
     // als solchen zu benennen, statt eine Zahl vorzutäuschen, die beim Commit nicht wiederkehrt.
-    const delayPreview = args.delayMinutes === undefined ? "random 5–65 (drawn fresh on commit)" : clampInspectionDelay(args.delayMinutes);
+    // Die Kappung dagegen steht schon fest und gehört benannt — sie aufzudecken ist der Zweck des dryRun.
+    const effective = args.delayMinutes === undefined ? null : clampInspectionDelay(args.delayMinutes);
+    const preview = effective === null
+      ? { delayMinutes: `random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} (drawn fresh on commit)`, delayNote: null }
+      : { delayMinutes: effective, delayNote: inspectionDelayNote(args.delayMinutes, effective) };
     // Advisory (siehe request_lock): eine Kontrolle verlangt einen verschlossenen User ohne bereits
     // laufende Kontrolle. hasActiveKontrolle ist dieselbe Prüfung wie auf dem echten Pfad.
     const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED"
       : (await hasActiveKontrolle(userId, new Date())) ? "INSPECTION_ALREADY_ACTIVE" : undefined;
-    return dryRunPreview("request_inspection", problem, { deadlineHours: args.deadlineHours ?? null, comment: args.comment ?? null, delayMinutes: delayPreview });
+    return dryRunPreview("request_inspection", problem, {
+      deadlineHours: args.deadlineHours ?? null,
+      comment: args.comment ?? null,
+      requestedDelayMinutes,
+      ...preview,
+    });
   }
   const delayMinutes = clampInspectionDelay(args.delayMinutes);
+  // Wie `alsoOpen` in request_lock: fertiger Anhang (mit führendem Leerzeichen) statt eines Ternärs
+  // an jeder Rückgabe. Der unangehängte Satz bleibt als Feld erhalten.
+  const delayNote = inspectionDelayNote(args.delayMinutes, delayMinutes);
+  const noteSuffix = delayNote ? ` ${delayNote}` : "";
 
   const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes }));
 
+  // `delayMinutes`/`requestedDelayMinutes` auch als Felder, nicht nur im Fliesstext: ein Aufrufer,
+  // der die Zeit weiterverarbeitet, soll die Abweichung prüfen können, ohne die Meldung zu parsen.
+  const delayFields = { delayMinutes, requestedDelayMinutes, delayNote };
   if (data.scheduledFor) {
     return {
       ok: true,
       scheduledFor: data.scheduledFor,
       deadline: data.deadline,
-      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.`,
+      ...delayFields,
+      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.` + noteSuffix,
     };
   }
-  return { ok: true, deadline: data.deadline, message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` };
+  return {
+    ok: true,
+    deadline: data.deadline,
+    ...delayFields,
+    message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` + noteSuffix,
+  };
 }
 
 export interface RequestOrgasmArgs {
@@ -405,7 +443,11 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     } else if (args.target === "orgasm_directive") {
       willWithdraw = await prisma.orgasmusAnforderung.count({ where: { userId, fulfilledAt: null, withdrawnAt: null } });
     } else if (args.target === "inspection") {
-      willWithdraw = await prisma.kontrollAnforderung.count({ where: { userId, entryId: null, withdrawnAt: null } });
+      // Dieselbe Where-Klausel wie der Commit-Pfad unten — sonst verspräche die Vorschau einen
+      // anderen Umfang, als der echte Rückzug dann trifft.
+      willWithdraw = await prisma.kontrollAnforderung.count({
+        where: { userId, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere() },
+      });
     }
     // Bewusst das Literal statt dryRunPreview(): der breitere Rückgabetyp der Helferin würde die
     // Nicht-dryRun-Felder (withdrawn/hidden/message) für Aufrufer unerreichbar machen.
@@ -432,11 +474,13 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   } else if (args.target === "lock_period") {
     ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")));
   } else if (args.target === "inspection") {
-    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE (kein
-    // wirksamAb-Gate). resolveKontrolle schweigt bei denen: eine noch nicht ausgelöste Kontrolle ist
-    // für den Sub unsichtbar, und bei Auto-Kontrollen wäre die Meldung der Verrat des Zufallsplans.
+    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE, aber
+    // nur so weit, wie `keyholderVisibleKontrolleWhere` reicht: eine noch nicht ausgelöste
+    // AUTO-Kontrolle sieht der Aufrufer nicht und nimmt sie deshalb auch nicht weg (siehe dort).
+    // resolveKontrolle schweigt bei den terminierten: eine noch nicht ausgelöste Kontrolle ist für
+    // den Sub unsichtbar, und die Meldung wäre der Verrat des Plans.
     const open = await prisma.kontrollAnforderung.findMany({
-      where: { userId, entryId: null, withdrawnAt: null },
+      where: { userId, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere() },
       select: { id: true },
     });
     notified = false;
