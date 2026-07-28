@@ -141,4 +141,28 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
       )).toBe("OPENING_REASON_REQUIRED");
     });
   });
+
+  // Der Gegenpart zum PATCH-Guard in api/entries/[id]: ohne diese Zusage liesse sich eine
+  // angeforderte Kontrolle schon beim Anlegen ohne jeden Nachweis abhaken (Frist erfüllt, kein
+  // Vergehen im Strafbuch). Der Admin-Pfad darf weiterhin ohne Foto nachtragen.
+  describe("Foto-Pflicht der Kontrolle", () => {
+    it("weist eine PRUEFUNG mit Kontroll-Code ohne Foto ab", () => {
+      expect(validateEntryPayload(
+        { type: "PRUEFUNG", startTime: FUTURE_SAFE_TIME },
+        { allowFuture: true },
+      )).toBe("INSPECTION_PHOTO_REQUIRED");
+    });
+    it("akzeptiert jedes beliebige Foto — den Inhalt beurteilt die Keyholderin", () => {
+      expect(validateEntryPayload(
+        { type: "PRUEFUNG", startTime: FUTURE_SAFE_TIME, imageUrl: "/api/uploads/beliebig.jpg" },
+        { allowFuture: true },
+      )).toBeNull();
+    });
+    it("lässt den Admin-Pfad ohne Foto nachtragen", () => {
+      expect(validateEntryPayload(
+        { type: "PRUEFUNG", startTime: FUTURE_SAFE_TIME },
+        { allowFuture: true, requirePhotoForPruefung: false },
+      )).toBeNull();
+    });
+  });
 });

@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireBoxSync } from "@/lib/boxSync";
+import { BOX_EVENT_TYPES } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Spur-2-Ingest: der Heimdall-Server meldet reale Box-Übergänge. P1 speichert sie
-// nur (Hardware-Wahrheit). Strafbuch-Surfacing/Abgleich Entry↔BoxEvent kommt in P3.
+// Spur-2-Ingest: der Heimdall-Server meldet reale Box-Übergänge (Hardware-Wahrheit). Gelesen werden
+// sie vom Schlüssel-Nachweis (`lib/boxKeyProof.ts`); das Strafbuch-Surfacing der unerlaubten
+// Öffnungen kommt weiterhin später (P3).
 const schema = z.object({
   username: z.string().min(1),
-  type: z.enum(["LOCKED", "UNLOCKED", "EARLY_OPEN", "UNAUTHORIZED_OPEN"]),
+  type: z.enum(BOX_EVENT_TYPES),
   wakeReason: z.string().max(64).optional(),
   battery: z.number().int().min(0).max(100).optional(),
   fwVersion: z.string().max(32).optional(),

@@ -16,6 +16,7 @@ import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
     // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
     getOpenLockRequest(userId, now),
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { id: true, reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
@@ -69,9 +70,6 @@ export default async function DashboardPage() {
     erlaubt: userSettings?.reinigungErlaubt ?? false,
     maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
   };
-
-  // Reinigungs-Regeln für die Box-Karte — Herleitung samt Begründung in `buildBoxReinigungView`.
-  const boxReinigung = await buildBoxReinigungView(userSettings, activeSperrzeit, now, tz);
 
   // ── Compute derived state ──
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
@@ -93,12 +91,19 @@ export default async function DashboardPage() {
     .filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
+  // ── Box-Ableitungen ──
+  // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) zählen ihr
+  // Tageskontingent aus den oben geladenen `entries` — ohne DB. Nur der Schlüssel-Nachweis aus der
+  // Telemetrie (`boxKeyProof.ts`) fragt noch ab, deshalb hier kein `Promise.all` mehr.
+  const boxReinigung = buildBoxReinigungView(userSettings, entries, activeSperrzeit, now, tz);
+  const telemetryKeyProof = await loadTelemetryKeyProof(userId, pairs);
+
   const orgasmCfg = effectiveOrgasmusArten(userSettings?.orgasmusArtenConfig);
   const rawSessionEvents = activePair
-    ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm))
+    ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof)
     : [];
 
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, tz);
 
   // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard). Läuft
   // KEINE Sperre, hätte es sonst nirgends Platz — dann zeigen wir es als führende Zeile in der
@@ -248,7 +253,7 @@ export default async function DashboardPage() {
       <DashboardClient {...clientProps} tz={tz} />
       {pairs.length > 0 && (
         <DashboardBlock>
-          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} />
+          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
         </DashboardBlock>
       )}
       {wearSessionRows.length > 0 && (

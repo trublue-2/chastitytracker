@@ -244,3 +244,78 @@ describe("buildYearHeatmaps", () => {
     expect(y.percentLocked).toBe(0);
   });
 });
+
+/**
+ * Ab UTC+12 liegt Mittag UTC lokal schon im FOLGETAG, weshalb der frühere Anker
+ * `midnightInTZ(noonUTC(...), tz)` jede Kalender-Grenze einen Tag zu spät baute. Alle Fälle hier
+ * schlugen vor dem Fix fehl und sind für Europe/Zurich unverändert (die Suite oben ist der Beleg).
+ */
+describe("Zeitzonen ab UTC+12", () => {
+  /** `neujahr` = 00:00 Ortszeit am 1.1.2026 — der Tag, der vor dem Fix aus jeder Auswertung fiel. */
+  const ZONEN = [
+    { tz: "Pacific/Auckland", neujahr: "2025-12-31T11:00:00Z" },   // Januar: NZDT = UTC+13
+    { tz: "Pacific/Kiritimati", neujahr: "2025-12-31T10:00:00Z" }, // ganzjährig UTC+14
+  ];
+  /** Ein voller lokaler 1. Januar (24 h Trage-Zeit). */
+  const neujahrsPaar = (neujahr: string) => [{
+    start: D(neujahr), end: new Date(D(neujahr).getTime() + 24 * 3_600_000),
+  }];
+  const mitte = D("2026-01-15T00:00:00Z"); // „jetzt" mitten im Januar, in jeder Zone
+  const kalender = (tz: string, extra: Partial<Parameters<typeof buildCalendarMonths>[0]> = {}) =>
+    buildCalendarMonths({
+      entries: [], wearPairs: [], vorgaben: [], orgasmDateSet: new Set(),
+      now: mitte, dl: "de-CH", tz, ...extra,
+    })[0];
+
+  it.each(ZONEN)("buildMonthStats zählt den 1. des Monats mit ($tz)", ({ tz, neujahr }) => {
+    const rows = buildMonthStats([], neujahrsPaar(neujahr), [], "de-CH", tz);
+    expect(rows[0].key).toBe("2026-01");
+    // Vorher: Monatsfenster begann am 2. Januar → das Paar lag komplett davor → 0 h.
+    expect(rows[0].wearHours).toBeCloseTo(24, 6);
+  });
+
+  it.each(ZONEN)("der Monat beginnt am richtigen Wochentag ($tz)", ({ tz }) => {
+    const januar = kalender(tz);
+    expect(januar.label).toMatch(/Januar 2026/);
+    // 1. Januar 2026 ist ein Donnerstag → drei Leerzellen. Vorher waren es vier (Freitag),
+    // wodurch der ganze Monat eine Spalte verrutschte und jede Zeile am Sonntag begann.
+    expect(januar.weeks[0].slice(0, 3)).toEqual([null, null, null]);
+    expect(januar.weeks[0][3]?.day).toBe(1);
+    // Die Folgezeilen starten damit wieder auf Montagen.
+    expect(januar.weeks[1][0]?.day).toBe(5);
+    expect(januar.weeks[2][0]?.day).toBe(12);
+  });
+
+  it.each(ZONEN)("Tages-Zelle trägt Stunden, Ziel und Datum des eigenen Tages ($tz)", ({ tz, neujahr }) => {
+    const januar = kalender(tz, { wearPairs: neujahrsPaar(neujahr), vorgaben: [monatsziel100] });
+    const belegt = januar.weeks.flat().filter(d => d != null && d.wearHours > 0);
+    // Die Zell-Schlüssel entstehen aus Kalender-Laufvariablen, die Tages-Karte aus `tzDayKey`
+    // — genau ein Tag darf getroffen sein, und zwar der 1.
+    expect(belegt.map(d => d!.day)).toEqual([1]);
+    expect(belegt[0]!.wearHours).toBeCloseTo(24, 6);
+    // Vorher lief das Tagesfenster über den 2. Januar → Tagesziel (12 h) galt als nicht erreicht.
+    expect(belegt[0]!.dailyGoalMet).toBe(true);
+    // Vorher stand auf der Zelle mit der Zahl 1 das Label „2. Januar 2026".
+    expect(belegt[0]!.dateLabel).toBe("1. Januar 2026");
+  });
+
+  it.each(ZONEN)("buildDailyData benennt denselben Tag wie die Kalender-Schlüssel ($tz)", ({ tz, neujahr }) => {
+    expect([...buildDailyData(neujahrsPaar(neujahr), new Set(), tz).keys()]).toEqual([key(2026, 1, 1)]);
+  });
+
+  it.each(ZONEN)("die Jahres-Heatmap startet auf dem 1. Januar ($tz)", ({ tz, neujahr }) => {
+    const [jahr] = buildYearHeatmaps(neujahrsPaar(neujahr), new Set(), mitte, tz, "de-CH");
+    expect(jahr.weeks[0].slice(0, 3)).toEqual([null, null, null]);
+    expect(jahr.weeks[0][3]?.key).toBe(key(2026, 1, 1));
+    expect(jahr.weeks[0][3]?.title).toMatch(/^1\. Januar 2026 ·/);
+    expect(jahr.monthLabels[0]).toEqual({ week: 0, label: expect.stringMatching(/^Jan/) });
+  });
+
+  it.each(ZONEN)("percentLocked misst ab dem 1. Januar ($tz)", ({ tz, neujahr }) => {
+    // „Jetzt" ist genau das Ende des durchgehend getragenen 1. Januar.
+    const paar = neujahrsPaar(neujahr);
+    const [jahr] = buildYearHeatmaps(paar, new Set(), paar[0].end, tz, "de-CH");
+    // Vorher startete das Jahr am 2. Januar → verstrichene Zeit 0 → percentLocked 0.
+    expect(jahr.percentLocked).toBe(100);
+  });
+});

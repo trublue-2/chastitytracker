@@ -1,5 +1,117 @@
 [
   {
+    "version": "4.54.4",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Subs in Zeitzonen ab UTC+12 (z.B. Neuseeland, Fidschi, Kiribati) stimmt die Statistik-Seite jetzt: Monatskalender, Jahres-Heatmap und Monatsübersicht begannen dort einen Tag zu spät. Der Monat startete am Zweiten, der erste Tag fiel aus der Auswertung, der Kalender war um eine Spalte verschoben (und verlor dadurch teilweise eine ganze Wochenzeile samt Wochenziel), und jede Tages-Kachel trug das Datum des Folgetags. Monatssummen und Ziel-Prozente verschieben sich dadurch rückwirkend. Für alle Zeitzonen bis UTC+11 — auch die Schweiz — ändert sich nichts.",
+          "en": "For subs in timezones from UTC+12 (e.g. New Zealand, Fiji, Kiribati) the stats page is now correct: the month calendar, year heatmap and month overview all started a day late there. The month began on the 2nd, its first day dropped out of the evaluation, the calendar was shifted by one column (sometimes losing an entire week row and its weekly goal), and every day tile showed the following day's date. Monthly totals and goal percentages therefore shift retroactively. Nothing changes for any timezone up to UTC+11, including Switzerland."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Statistik-Seite baut ihre Datums-Beschriftungen deutlich schneller auf (die Jahres-Heatmap beschriftet jeden einzelnen Tag).",
+          "en": "The stats page builds its date labels considerably faster (the year heatmap labels every single day)."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.3",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Tragestunden, Kategorie-Ziele und die Zeitstrahl-Abschnitte („Heute\", „Gestern\", „Diese Woche\") rechnen jetzt überall mit dem Kalendertag der Sub statt mit dem Schweizer. Auf dem Dashboard konnten Zähler und Nenner desselben Fortschrittsbalkens vorher zwei verschiedene Mitternachte meinen, und ein Ereignis konnte mit der Uhrzeit von heute unter „Gestern\" stehen.",
+          "en": "Wearing hours, category goals and the timeline sections (\"Today\", \"Yesterday\", \"This week\") now all count against the sub's calendar day instead of the Swiss one. On the dashboard the numerator and denominator of the same progress bar could previously mean two different midnights, and an event could sit under \"Yesterday\" showing today's time."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Subs östlich von UTC+12 (etwa Neuseeland oder Fidschi) begann jeder Monat und jedes Jahr einen Tag zu spät: der erste Tag fiel aus Statistik und Zielberechnung heraus.",
+          "en": "For subs east of UTC+12 (New Zealand or Fiji, say) every month and year began a day late: the first day dropped out of the statistics and the goal calculation."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Zeitzone ist bei allen Funktionen, die eine Tages-, Wochen-, Monats- oder Jahresgrenze ziehen, jetzt ein Pflichtargument. Bisher fielen sie stillschweigend auf die Schweizer Zeit zurück — vier voneinander unabhängige Fehler entstanden so, und keiner davon war im Diff zu sehen.",
+          "en": "The timezone is now a required argument on every function that draws a day, week, month or year boundary. They used to fall back to Swiss time silently — four independent bugs arose that way, and none of them was visible in the diff."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.2",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Strafbuch zählt das Tageskontingent der Reinigungsöffnungen jetzt gegen den Kalendertag der Sub statt gegen den Schweizer. Für Subs in einer anderen Zeitzone konnte dieselbe Regel zwei Antworten geben: eine Öffnung kurz vor Mitternacht galt auf der Box-Karte noch als heute, im Buch aber schon als morgen — und wurde dort zum Verstoss, den die Karte nicht kannte.",
+          "en": "The penalty ledger now counts the daily cleaning-opening quota against the sub's calendar day instead of the Swiss one. For subs in another timezone the same rule could give two answers: an opening shortly before midnight still counted as today on the box card but already as tomorrow in the ledger — where it became a violation the card knew nothing about."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.1",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Das Dashboard und die Keyholder-Detailseite bauen sich mit einer Datenbankabfrage weniger auf. Für das Reinigungs-Tageskontingent der Box-Karte lief bisher eine eigene Zählabfrage, obwohl beide Seiten die dafür nötigen Einträge ohnehin schon geladen hatten. Angezeigt wird exakt dasselbe.",
+          "en": "The dashboard and the keyholder detail page now render with one database query less. The cleaning quota on the box card used to trigger its own counting query even though both pages had already loaded the entries it needs. The displayed numbers are unchanged."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.0",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Wer eine Schlüsselbox nutzt, muss bei einer Kontrolle nicht mehr zwingend ein Foto durchs Sichtfenster machen: Solange die Box seit dem Einschluss (oder seit dem letzten Foto) nicht geöffnet wurde, gilt der Schlüssel weiterhin als in der Box. Der Keyholder sieht dabei, worauf der Nachweis beruht — Foto oder Box-Meldung. Das Foto bleibt möglich, die Nachfrage vor dem Speichern ohne Foto bleibt bestehen. Wurde die Box zwischendurch geöffnet oder meldet sie sich nicht, wird nichts behauptet — dann braucht es wieder ein Foto.",
+          "en": "With a key box in use, an inspection no longer strictly needs a photo through the viewing window: as long as the box has not been opened since the lock (or since the last photo), the key still counts as being in the box. The keyholder can see what the proof rests on — photo or box report. Taking the photo stays possible, and the prompt before saving without one stays as well. If the box was opened in between, or is not reporting, nothing is claimed — then a photo is needed again."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.8",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bei einer angeforderten Kontrolle kann das Foto nachträglich nicht mehr entfernt werden. Bisher liess sich der Nachweis nach dem Erfassen wieder löschen — die Kontrolle galt trotzdem als fristgerecht erfüllt, und im Strafbuch tauchte nichts auf. Ob ein Foto taugt, beurteilt weiterhin allein die Keyholderin; sie darf es auch weiterhin entfernen. Freiwillige Kontrollen bleiben unverändert.",
+          "en": "The photo of a requested inspection can no longer be removed after the fact. Until now the proof could be deleted again after submitting it — the inspection still counted as met on time and nothing showed up in the penalty log. Whether a photo is good enough remains the keyholder's call alone, and she can still remove it. Voluntary inspections are unchanged."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.7",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle, auf deren Foto zwar ein Gerät zu sehen war, das sich aber keinem hinterlegten Gerät zuordnen liess, galt bisher als „falsches Gerät\" — obwohl gar nichts festgestellt worden war. Solche Kontrollen werden jetzt als „nicht prüfbar\" ausgewiesen; von einem falschen Gerät ist nur noch die Rede, wenn tatsächlich ein anderes bekanntes Gerät erkannt wurde. Das gilt auch rückwirkend für bereits erfasste Kontrollen.",
+          "en": "An inspection whose photo showed a device that could not be matched to any of your registered devices was previously reported as a wrong device — even though nothing had actually been established. Such inspections are now shown as „not verifiable\"; a wrong device is only reported when a different known device was actually recognised. This also applies retroactively to inspections already recorded."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.53.6",
     "date": "2026-07-26",
     "changes": [

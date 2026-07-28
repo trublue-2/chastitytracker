@@ -85,6 +85,34 @@ describe("isCleaningNotRelocked", () => {
   });
 });
 
+// ─── Prisma-Doppelgänger, geteilt von allen buildStrafbuch-Blöcken ─────────
+// Modulweit statt je describe: sonst hängt ein Block, der einen Mock NICHT setzt, am Nachlass des
+// vorherigen (`vi.clearAllMocks()` löscht die Aufrufe, nicht die Implementierungen) und schlägt
+// allein ausgeführt anders aus als in der vollen Suite.
+
+const db = prisma as unknown as PrismaMock;
+
+const oeffnung = (startTime: Date, id = "e1") => ({
+  id, type: "OEFFNEN", startTime, oeffnenGrund: "REINIGUNG", note: null, source: "user",
+});
+
+/** Zwei findMany auf derselben Tabelle (SPERRZEIT + ANFORDERUNG) — nach `art` unterscheiden,
+ *  statt sich auf die Aufrufreihenfolge im Promise.all zu verlassen. */
+const mockSperrzeiten = (rows: unknown[]) =>
+  db.verschlussAnforderung.findMany.mockImplementation((args: { where?: { art?: string } }) =>
+    Promise.resolve(args?.where?.art === "SPERRZEIT" ? rows : []),
+  );
+
+/** Dieselbe Unterscheidung für `entry.findMany`: buildStrafbuch liest darüber auch VERSCHLUSS. */
+const mockOeffnungen = (rows: unknown[]) =>
+  db.entry.findMany.mockImplementation((args: { where?: { type?: string } }) =>
+    Promise.resolve(args?.where?.type === "OEFFNEN" ? rows : []),
+  );
+
+/** Der Stichtag dieser Instanz, wie ihn die Migration beim ersten Boot schreibt. */
+const mockStichtag = (iso: string) =>
+  db.appMeta.findUnique.mockResolvedValue({ key: "cleaningWindowEnforcedFrom", value: iso, updatedAt: new Date(iso) });
+
 /**
  * Das Strafbuch muss dieselbe Regel anwenden wie die Durchsetzung. Einmal tat es das nicht: es prüfte
  * das User-Flag und das Sperrzeit-Flag, aber NICHT das Reinigungsfenster. Eine Reinigungsöffnung
@@ -93,7 +121,6 @@ describe("isCleaningNotRelocked", () => {
  * brach, und nichts stand im Buch.
  */
 describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => {
-  const db = prisma as unknown as PrismaMock;
   const TZ = "Europe/Zurich";
 
   const USER = {
@@ -120,25 +147,7 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
     fulfilledAt: null,
   };
 
-  const oeffnung = (startTime: Date) => ({
-    id: "e1", type: "OEFFNEN", startTime, oeffnenGrund: "REINIGUNG", note: null, source: "user",
-  });
-
-  /** Zwei findMany auf derselben Tabelle (SPERRZEIT + ANFORDERUNG) — nach `art` unterscheiden,
-   *  statt sich auf die Aufrufreihenfolge im Promise.all zu verlassen. */
-  const mockSperrzeiten = (rows: unknown[]) =>
-    db.verschlussAnforderung.findMany.mockImplementation((args: { where?: { art?: string } }) =>
-      Promise.resolve(args?.where?.art === "SPERRZEIT" ? rows : []),
-    );
-
-  const mockOeffnung = (o: ReturnType<typeof oeffnung>) =>
-    db.entry.findMany.mockImplementation((args: { where?: { type?: string } }) =>
-      Promise.resolve(args?.where?.type === "OEFFNEN" ? [o] : []),
-    );
-
-  /** Der Stichtag dieser Instanz, wie ihn die Migration beim ersten Boot schreibt. */
-  const mockStichtag = (iso: string) =>
-    db.appMeta.findUnique.mockResolvedValue({ key: "cleaningWindowEnforcedFrom", value: iso, updatedAt: new Date(iso) });
+  const mockOeffnung = (o: ReturnType<typeof oeffnung>) => mockOeffnungen([o]);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -197,10 +206,48 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   });
 });
 
+/**
+ * Das Tageskontingent zählt die Box-Karte über `reinigungVerbrauchtHeute` (midnightInTZ mit der
+ * Sub-Zeitzone). Das Strafbuch bucketete dieselben Öffnungen nach CH-Tag — für eine Sub ausserhalb
+ * Europe/Zurich gab dieselbe Regel damit zwei verschiedene Antworten: eine Öffnung nahe der lokalen
+ * Mitternacht fiel im Buch in einen anderen Tag als in der Zählung.
+ */
+describe("buildStrafbuch — das Reinigungs-Kontingent zählt den Kalendertag der Sub", () => {
+  // Beide Öffnungen liegen am SELBEN Auckland-Tag (11.07., 01:00 und 11:00 NZST = UTC+12),
+  // aber an ZWEI VERSCHIEDENEN Zürich-Tagen (10.07. 15:00 und 11.07. 01:00 CEST = UTC+2).
+  const FIRST = new Date("2026-07-10T13:00:00Z");
+  const SECOND = new Date("2026-07-10T23:00:00Z");
+  const NOW = new Date("2026-07-12T00:00:00Z");
+
+  /** Nur diese zwei Felder tragen hier: ohne gemockte Sperrzeit steht die Fenster-Regel gar nicht
+   *  zur Debatte, es zählt allein das Kontingent gegen den Kalendertag. */
+  const USER = { reinigungMaxProTag: 1, timezone: "Pacific/Auckland" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStichtag("2026-07-01T00:00:00Z");
+    db.user.findUnique.mockResolvedValue(USER);
+    // Absteigend wie das echte `orderBy: { startTime: "desc" }` — der Zähler sortiert selbst.
+    mockOeffnungen([oeffnung(SECOND, "e2"), oeffnung(FIRST, "e1")]);
+  });
+
+  it("zwei Öffnungen am selben Sub-Tag: die zweite sprengt das Kontingent", async () => {
+    const s = await buildStrafbuch("u1", NOW);
+    expect(s.reinigungLimitViolations).toHaveLength(1);
+    expect(s.reinigungLimitViolations[0].startTime).toEqual(SECOND);
+  });
+
+  it("dieselben Öffnungen bei einer Zürcher Sub: zwei Tage, kein Verstoss", async () => {
+    // Die Gegenprobe hält den Beweis fest, dass die SUB-Zeitzone entscheidet — und nicht der
+    // Zufall, dass die Öffnungen ohnehin ein Vergehen ergäben.
+    db.user.findUnique.mockResolvedValue({ ...USER, timezone: "Europe/Zurich" });
+    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(0);
+  });
+});
+
 // ─── Stichtag: ab wann gilt die Fenster-Regel? ─────────────────────────────
 
 describe("cleaningWindowEnforcedFrom — je Instanz, nicht je Code-Stand", () => {
-  const db = prisma as unknown as PrismaMock;
   const NOW = new Date("2026-07-20T12:00:00Z");
 
   const mockRow = (value: string | null) =>

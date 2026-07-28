@@ -68,8 +68,8 @@ describe("get_session — dataQualityFlags deckt ein Segment ohne Gerät ab (A-0
 });
 
 describe("get_session — deviceCheck {status,isOffense} + durationMinutes (N-4/N-11/N-12)", () => {
-  const pruefung = (id: string, iso: string, deviceCheck: string | null) => ({
-    ...rawEntry(id, "PRUEFUNG", iso, null), kontrollCode: "12345", verifikationStatus: "ai", deviceCheck,
+  const pruefung = (id: string, iso: string, deviceCheck: string | null, deviceCheckNote: string | null = null) => ({
+    ...rawEntry(id, "PRUEFUNG", iso, null), kontrollCode: "12345", verifikationStatus: "ai", deviceCheck, deviceCheckNote,
   });
 
   it("deviceCheck null → status 'not_checked', isOffense false", async () => {
@@ -85,10 +85,19 @@ describe("get_session — deviceCheck {status,isOffense} + durationMinutes (N-4/
   it("deviceCheck 'wrong' → status 'wrong', isOffense false (kein wrong_device-Vergehen)", async () => {
     db.entry.findMany.mockResolvedValue([
       rawEntry("v1", "VERSCHLUSS", "2026-07-17T00:00:00Z", { id: "d1", name: "Flatty", categoryId: null }),
-      pruefung("p1", "2026-07-17T06:00:00Z", "wrong"),
+      pruefung("p1", "2026-07-17T06:00:00Z", "wrong", "Kink-Knack"),
     ]);
     const result = await getSession("sub");
     expect(result.sessions[0].segments[0].controls[0].deviceCheck).toEqual({ status: "wrong", isOffense: false });
+  });
+
+  it("deviceCheck 'wrong' OHNE erkanntes Gerät → 'not_checked' (Alt-Eintrag, Issue #44)", async () => {
+    db.entry.findMany.mockResolvedValue([
+      rawEntry("v1", "VERSCHLUSS", "2026-07-17T00:00:00Z", { id: "d1", name: "Flatty", categoryId: null }),
+      pruefung("p1", "2026-07-17T06:00:00Z", "wrong", null),
+    ]);
+    const result = await getSession("sub");
+    expect(result.sessions[0].segments[0].controls[0].deviceCheck).toEqual({ status: "not_checked", isOffense: false });
   });
 
   it("durationMinutes macht ein Sub-Minuten-Segment sichtbar, wo durationHours auf 0 rundet (N-12)", async () => {

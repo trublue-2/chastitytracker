@@ -36,8 +36,15 @@ export const KG_ENTRY_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "OEFFN
 export const WEAR_ENTRY_TYPES: ReadonlySet<string> = new Set(["WEAR_BEGIN", "WEAR_END"]);
 /** Entry types that may carry a box photo (`boxImageUrl`): der Schlüssel-Nachweis durchs
  *  Sichtfenster der Heimdall-Box. Beim Einschliessen entsteht er, bei jeder Kontrolle wird er
- *  wiederholt — und nur die Wiederholung belegt, dass der Schlüssel drin GEBLIEBEN ist. */
+ *  wiederholt — und nur die Wiederholung belegt, dass der Schlüssel drin GEBLIEBEN ist. Die
+ *  Wiederholung darf seit `lib/boxKeyProof.ts` auch aus der Telemetrie kommen (unbewegter Riegel
+ *  seit dem letzten Nachweis) — das ersetzt aber nur ein FEHLENDES Foto, nie ein vorliegendes. */
 export const BOX_PHOTO_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "PRUEFUNG"]);
+/** `BoxEvent.type`: die Übergänge, die der Heimdall-Server melden darf (Ingest-Whitelist). */
+export const BOX_EVENT_TYPES = ["LOCKED", "UNLOCKED", "EARLY_OPEN", "UNAUTHORIZED_OPEN"] as const;
+/** Davon die Bewegungen AUS der Verschluss-Stellung — die Gegenprobe des Schlüssel-Nachweises aus der
+ *  Telemetrie (`lib/boxKeyProof.ts`). Abgeleitet, damit ein neuer Ereignis-Typ nur EINE Liste braucht. */
+export const BOLT_OPEN_EVENT_TYPES = BOX_EVENT_TYPES.filter((t) => t !== "LOCKED");
 /** Feature flag: gate WEAR_BEGIN/WEAR_END entry creation + categories UI.
  *  Default ON. Setze `ENABLE_DEVICE_CATEGORIES=false` um KG-only-Verhalten zu erzwingen
  *  (z.B. fuer eine Instanz die das Feature noch nicht ausrollen will).

@@ -49,7 +49,7 @@ direkt aus, ohne Rückfrage oder Bestätigung.
 ## 3. Reinigung
 - `allowed`: ob Reinigungspausen grundsätzlich erlaubt sind.
 - `maxMinutesPerBreak`: Minuten pro EINZELNER Pause. `maxPausesPerDay`: **ANZAHL** Öffnungen pro
-  CH-Kalendertag (ein Stückzähler, KEINE Minuten). `usedToday`: heute verbraucht; Rest = Differenz.
+  Kalendertag der Sub (ein Stückzähler, KEINE Minuten). `usedToday`: heute verbraucht; Rest = Differenz.
 - **`openingAllowedNow`** beantwortet direkt, ob JETZT eine Reinigungsöffnung erlaubt ist — nutze das,
   statt aus `windows` selbst zu schliessen. `windows` (Tages-Zeitfenster) binden NUR während einer
   aktiven Sperrzeit, die Reinigung erlaubt; ausserhalb einer Sperre ist eine Reinigungsöffnung immer
@@ -90,7 +90,9 @@ zählt. Es ist immer nur EINE Direktive aktiv; Erfüllung automatisch bei passen
 - `deviceCheck.status: "wrong"` ist KEIN Vergehen — der Check vergleicht Bild vs. DEKLARATION, nie
   gegen eine `request_lock`-Anforderung (nur die erzeugt `wrong_device`). `not_checked`/`null` =
   nicht geprüft, kein Vorwurf. `expected`/`detected` sind zum Prüfzeitpunkt eingefroren — ein altes
-  `wrong` NICHT gegen das heute deklarierte Gerät lesen.
+  `wrong` NICHT gegen das heute deklarierte Gerät lesen. `wrong` setzt ein BENANNTES anderes Gerät
+  voraus (`detected` gesetzt); war nur „irgendetwas" zu sehen, das keiner Referenz zuzuordnen war,
+  ist das `not_checked` — ein Nicht-Befund, kein Negativbefund.
 - `windowOpenNow: null` = kein Fenster offen, NICHT „Öffnen verboten" (die Antwort ist `openingAllowedNow`).
 - `pullOffRisk`: `true` = abstreifbar/unsicher, `false` = geprüft sicher, `null` = nie beurteilt.
 - `securityLevel` (SECURING/TRUST_ONLY) ist v.a. für sichernde Geräte (KG, Halsreif) sinnvoll; `null`
