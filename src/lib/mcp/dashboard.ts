@@ -7,13 +7,13 @@ import {
   type InterruptedSperrzeitView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
 import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
-import { buildPairs, msToHours } from "@/lib/utils";
+import { buildPairs } from "@/lib/utils";
 import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
-import { toPendingCommand } from "@/lib/boxStatus";
+import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
@@ -22,6 +22,12 @@ import { toPendingCommand } from "@/lib/boxStatus";
 
 /** Der EINE Grund für hardwareEnforced:false, in fester Rangfolge (A-07). */
 export type HardwareEnforcedReason = "soll-open" | "reported-open" | "key-not-in-box" | "open-armed" | "stale-lock";
+
+/** Eine Failsafe-Vorwarnung, wie sie im BoxState steht: die geteilte Ableitung (`boxFailsafeWarnings`)
+ *  plus `dueAt` beim Offline-Failsafe — der absolute Zeitpunkt, zu dem die Box selbst öffnet. */
+export type BoxFailsafeWarningView =
+  | (Extract<BoxFailsafeWarning, { kind: "offlineOpen" }> & { dueAt: string })
+  | Extract<BoxFailsafeWarning, { kind: "lowBatteryOpen" }>;
 
 export interface BoxStateView {
   name: string;
@@ -66,7 +72,13 @@ export interface BoxStateView {
    *  letzten Sync per **Offline-Failsafe** (nach `offlineOpenHours` ohne Sync) **selbst geöffnet**
    *  hat — der einzige verbliebene deterministische Selbst-Öffner neben Akku-Not (eine abgelaufene
    *  Frist öffnet seit FW 0.2.34 nicht mehr autonom → dafür `openArmed`). Auch OFFLINE — „online"
-   *  spielt hier bewusst keine Rolle. */
+   *  spielt hier bewusst keine Rolle.
+   *
+   *  Seit der Failsafe-Vorwarnung ist dies exakt deren `offlineOpen`-Stufe `due` (daraus abgeleitet,
+   *  nicht daneben gerechnet). Die BEDEUTUNG ist unverändert, die KANTE hat sich um bis zu drei
+   *  Minuten verschoben: vorher lief der Vergleich über die auf eine Nachkommastelle gerundete
+   *  Stundenzahl, jetzt über das ungerundete Verhältnis. Deshalb KEIN schemaVersion-Bump — das wäre
+   *  die Rundung zur Semantik erklärt; die alte Kante war schlicht ungenauer. */
   staleLock: boolean;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
@@ -89,6 +101,34 @@ export interface BoxStateView {
   battery: number | null;
   charging: boolean | null;
   lastSeen: string | null;
+  /** Vorwarnung vor einer AUTONOMEN Selbst-Öffnung der Box: Funkstille (`offlineOpen`, nach so
+   *  vielen Stunden ohne Sync öffnet sie ohne Server und ohne jemanden am Gerät) und Akku-Not
+   *  (`lowBatteryOpen`). `[]` heisst „kein Anlass ODER keine Datenbasis": eine Box, die nie gesynct
+   *  hat, und eine Alt-Zeile ohne gemeldete Schwellen schweigen ebenfalls — Stille ist hier also
+   *  KEIN Beleg für Ungefährlichkeit. Der `lowBatteryOpen`-Arm kennt nur `warn` und `due`.
+   *
+   *  Wozu: bis diese Warnung existierte, war das erste sichtbare Signal die Not-Öffnung SELBST —
+   *  eine Box konnte einen Tag lang jeden stündlichen Sync verfehlen, ohne dass irgendwo etwas
+   *  stand (heimdall#1). Verhindern lässt sich die Öffnung nur, indem rechtzeitig jemand für Netz
+   *  bzw. Strom sorgt; genau dafür ist dieses Feld da. `due` heisst: die Not-Öffnung ist bereits
+   *  erfolgt ODER steht unmittelbar bevor — für den Funkstille-Fall ist das dieselbe Aussage wie
+   *  `staleLock`, das genau daraus abgeleitet wird. Aufgelöst wird beides erst durch den nächsten
+   *  erfolgreichen Sync, der sie GEMEINSAM löscht und den wahren Riegelstand nachliefert.
+   *
+   *  Fertig gerechnet, absichtlich: die Restzeit steht als Zahl UND als absoluter Zeitpunkt
+   *  (`dueAt`) da, damit niemand `lastSeen` gegen `generatedAt` verrechnet (A-08).
+   *
+   *  ANZEIGE-GRENZE: gemessen wird „seit wann hat der TRACKER nichts gehört" — nicht der Zähler in
+   *  der Box. Meist warnt das zu früh (Heimdalls Push klemmt); es kann aber auch zu SPÄT sein, wenn
+   *  die Anfrage der Box ankam und nur ihre Antwort verlorenging: dann zählt die Box weiter, während
+   *  hier alles frisch aussieht. Begründung in `boxFailsafeWarnings` (src/lib/boxStatus.ts).
+   *
+   *  BEKANNTE LÜCKE: `hardwareEnforced`/`keySecured`/`staleLock` verrechnen nur den FUNKSTILLE-
+   *  Selbstöffner. Steht hier ein `lowBatteryOpen` auf `due`, kann daneben `hardwareEnforced: true`
+   *  stehen — „hält fest" und „öffnet gleich" nebeneinander. Im Zweifel gilt diese Warnung: die
+   *  Akku-Not öffnet autonom. (Der Fall ist selten, weil eine Box unter der Schwelle beim selben
+   *  Wake öffnet und dann offen meldet — er entsteht nur mit einem veralteten Akku-Wert.) */
+  failsafeWarnings: BoxFailsafeWarningView[];
   /** Alter von `lastSeen` in Sekunden zum Zeitpunkt dieser Antwort (`generatedAt`) — beantwortet
    *  "ist die Box aktuell?" ohne dass die Instanz `lastSeen` gegen `generatedAt` selbst verrechnet
    *  (A-08: genau dieses Nachrechnen führte am 16.07.2026 zu einem erfundenen Zeitzonen-Bug).
@@ -287,20 +327,28 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
   // Bester bekannter physischer Stand: das gemeldete IST, bei Alt-Zeilen ohne IST-Meldung das SOLL
   // (= bisheriges Verhalten, bis der erste Heimdall-Push nach dem Rollout das Feld füllt). Bewusst
   // NICHT `reportedLocked` genannt — das Rückgabefeld gleichen Namens trägt den ROHEN Wert (nullable).
-  const effectiveLocked = box.reportedLocked ?? box.locked;
+  const effectiveLocked = boxIsPhysicallyLocked(box);
   // Scharfgestellt (FW ≥ 0.2.34): Frist verstrichen oder SOLL offen, Box aber (laut IST) noch zu —
   // sie öffnet nicht mehr von selbst, sondern beim nächsten Knopf/USB-Kontakt. Ein Druck genügt,
   // ohne Eintrag und ohne weitere Prüfung — als „hält fest" darf das nicht mehr zählen.
   const openArmed =
     effectiveLocked && (!box.locked || (box.lockUntil !== null && box.lockUntil <= now));
+  // Failsafe-Vorwarnung über EXAKT dieselbe Funktion wie die Box-Karte im Dashboard — inklusive
+  // ihrer Schwellen und ihres „nur bei physisch zu"-Vorbehalts. Eine zweite Rechnung hier hiesse,
+  // dass Sub und Keyholderin über dieselbe Box unterschiedliche Fristen lesen.
+  const failsafeWarnings: BoxFailsafeWarningView[] = boxFailsafeWarnings(box, now.getTime()).map((w) =>
+    w.kind === "offlineOpen"
+      // `box.lastSyncAt` ist hier garantiert gesetzt — ohne ihn entsteht gar keine offlineOpen-Warnung.
+      ? { ...w, dueAt: iso(new Date(box.lastSyncAt!.getTime() + w.thresholdHours * 3_600_000))! }
+      : w,
+  );
   // Selbst geöffnet hat sich die Box seit FW 0.2.34 nur noch per Offline-Failsafe (`offlineOpenHours`
   // ohne Sync) — nur das entwertet den zuletzt gemeldeten „zu"-Stand; sonst gilt er weiter, egal ob
-  // die Box gerade online ist. `offlineOpenHours` fehlt bei Alt-Zeilen → Term entfällt sicher.
-  const staleLock =
-    effectiveLocked &&
-    box.lastSyncAt !== null &&
-    box.offlineOpenHours != null &&
-    msToHours(now.getTime() - box.lastSyncAt.getTime()) >= box.offlineOpenHours;
+  // die Box gerade online ist. Bewusst AUS der Vorwarnung abgeleitet statt daneben neu gerechnet:
+  // „die Frist ist abgelaufen" ist exakt deren `due`-Stufe, und zwei Formeln dafür widersprachen
+  // sich prompt an der Kante (die eine rundete die Stunden, die andere nicht — dieselbe Antwort
+  // meldete dann „hat sich geöffnet" und „öffnet in 1 Std" nebeneinander).
+  const staleLock = failsafeWarnings.some((w) => w.kind === "offlineOpen" && w.severity === "due");
   // hardwareEnforced zieht openArmed zusätzlich ab (main/FW 0.2.34: eine verstrichene Frist öffnet
   // nicht mehr autonom, sie „armt" — die Box hält physisch nicht mehr im Sinne von „bleibt zu").
   const hardwareEnforced = effectiveLocked && keyInBox !== false && !openArmed && !staleLock;
@@ -330,6 +378,7 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
     battery: box.battery,
     charging: box.charging,
     lastSeen: iso(box.lastSyncAt),
+    failsafeWarnings,
     // Math.max(0, …): eine Box, deren gemeldeter Sync minimal vor der Server-Uhr liegt (Netzwerk-
     // Latenz, leichte Uhr-Drift), soll nie eine negative "Alter"-Zahl liefern — das wäre selbst
     // wieder der Anlass für eine erfundene Zeitzonen-Theorie (siehe A-08-Kommentar oben).

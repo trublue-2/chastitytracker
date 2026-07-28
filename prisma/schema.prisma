@@ -546,6 +546,11 @@ model BoxStatus {
   fwVersion              String?
   lastSyncAt             DateTime?
   offlineOpenHours       Int? // Offline-Failsafe-Schwelle der Box → für staleLock/hardwareEnforced im MCP
+  // Akku-Failsafe-Schwelle in Prozent: darunter öffnet die Box AUTONOM. Kommt aus demselben
+  // Heimdall-Push wie `offlineOpenHours` — der Tracker soll die Firmware-Konstante nicht ein
+  // drittes Mal kopieren. (Heimdall spiegelt sie seinerseits; die Box selbst meldet sie nicht.)
+  // null = Alt-Zeile oder Heimdall vor diesem Feld → keine Akku-Vorwarnung (still, nicht geraten).
+  lowBatteryOpenPercent  Int?
   // Aus einem Eintrag abgeleitetes, noch nicht vollzogenes Kommando. Kein Reinigungs-Kommando und
   // keine Frist: die Box öffnet auf "open" und bleibt offen, bis ein "lock" kommt.
   pendingCommand         String? // "lock" | "open"

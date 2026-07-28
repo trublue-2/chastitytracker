@@ -3,7 +3,7 @@
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTimeDual, toDateLocale, APP_TZ } from "@/lib/utils";
-import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, type BoxReinigungView } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxReinigungLabel, boxReinigungQuotaLabel, boxFailsafeWarnings, boxFailsafeLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
 
@@ -75,6 +75,18 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
                   {reinigungLabel}{quotaLabel ? ` · ${quotaLabel}` : ""}
                 </p>
               )}
+              {/* Failsafe-Vorwarnung: die Box öffnet nach genug Funkstille oder bei leerem Akku von
+                  SELBST. Ohne diese Zeile war der Zustand bis zur Not-Öffnung nirgends sichtbar
+                  (heimdall#1) — und verhindern lässt sie sich nur rechtzeitig. Deshalb steht sie
+                  über der Frische-Zeile: sie ist die dringlichere Lesart derselben Stille. */}
+              {boxFailsafeWarnings(b, now).map((w) => (
+                <p
+                  key={w.kind}
+                  className={`text-xs ${w.severity === "info" ? "text-foreground-muted" : "font-medium text-warn"}`}
+                >
+                  {boxFailsafeLabel(w, t)}
+                </p>
+              ))}
               <p className="text-xs text-foreground-faint">{boxFreshnessLabel(b.lastSyncAt, now, t)}</p>
             </div>
           );

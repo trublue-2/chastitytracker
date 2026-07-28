@@ -50,7 +50,7 @@ disables the feature).
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | `GET` | `/api/integration/box/config?username=<name>` | Tracker → Heimdall **intent**: the active keyholder lock period (`{ sperrzeit: { endetAt, indefinite, reinigungErlaubt } \| null }`), which Heimdall folds into its own `lockUntil`. Nothing else — the cleaning rules (permission, windows, quota, max duration) stay in the tracker, which decides whether an opening is allowed and sends `open`. The box must not second-guess that: two rule sets over one question drift apart. |
-| `POST` | `/api/integration/box/status` | Heimdall pushes the live box state on every sync (`username, boxId, name, locked` + optional `lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt`). Upserts `BoxStatus`. Returns any `pendingCommand` and **deletes it on read** (consume-on-read; no ack). |
+| `POST` | `/api/integration/box/status` | Heimdall pushes the live box state on every sync (`username, boxId, name, locked` + optional `lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt, offlineOpenHours, lowBatteryOpenPercent`). Upserts `BoxStatus`. Returns any `pendingCommand` and **deletes it on read** (consume-on-read; no ack). |
 | `POST` | `/api/integration/box/event` | Heimdall reports real box transitions: `type ∈ {LOCKED, UNLOCKED, EARLY_OPEN, UNAUTHORIZED_OPEN}` + optional `wakeReason, battery, fwVersion, at`. Stored as `BoxEvent`. |
 
 ### App side — called by the tracker UI (auth: NextAuth session)
@@ -92,7 +92,7 @@ There is **no** sub-facing command route. The box has no separate controls: it f
 
 | Model | Purpose |
 |-------|---------|
-| `BoxStatus` | Live state of a user's box(es), pushed by Heimdall: `boxId, name, locked, lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt` + command fields (`pendingCommand, pendingCommandAt`). Unique `[userId, boxId]`. |
+| `BoxStatus` | Live state of a user's box(es), pushed by Heimdall: `boxId, name, locked, lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt` + the two thresholds at which the box opens ITSELF (`offlineOpenHours, lowBatteryOpenPercent` — they drive the failsafe pre-warning and are never guessed here. Note the two have OPPOSITE owners: `offlineOpenHours` is Heimdall's own per-device `LockPolicy` value, pushed DOWN to the box; `lowBatteryOpenPercent` is a firmware constant that Heimdall mirrors and passes UP. Neither is reported by the box itself.) + command fields (`pendingCommand, pendingCommandAt`). Unique `[userId, boxId]`. |
 | `BoxEvent` | History of real box transitions (hardware truth): `type, wakeReason, battery, fwVersion, at`. Bound to the user; `deviceId` exists in the schema but is currently never set (the box is intentionally generic). Read by the key proof below. |
 
 ## Key proof from telemetry
@@ -177,6 +177,24 @@ state — an offline box cannot verifiably enforce anything, so the lock is hono
 system in practice. `lockUntilStale` flags a `lockUntil` in the past that the box
 hasn't been online since to confirm/clear. `null` means no box is registered. See
 [`mcp.md`](mcp.md).
+
+`failsafeWarnings` is the forward-looking counterpart to `staleLock`: `offlineOpen`
+(hours without contact, hours left, `dueAt`) and `lowBatteryOpen` (percent vs. the
+threshold the box opens at). Its `info` and `warn` steps come *before* the opening;
+`due` no longer does — for the offline case `due` is exactly what `staleLock` is
+derived from, and both clear together on the next successful sync.
+
+The countdown is derived server-side from elapsed time, never from a box-reported
+counter: a box that cannot sync cannot report its own silence either. It measures
+the *tracker's* view, which usually errs early (a stalled Heimdall push ages
+`lastSyncAt` here while the box is fine) but can also err late: the box resets its
+own counter only after reading a successful response, while Heimdall stamps
+`lastSyncAt` on request arrival — so a lost response leaves the box counting while
+this looks fresh. Same derivation (`boxFailsafeWarnings` in `src/lib/boxStatus.ts`)
+as the sub's box card, so both sides read one deadline.
+
+An empty array means "no cause **or** no data": a box that never synced, and a
+pre-rollout row without the thresholds, are silent too.
 
 ## Setup
 
