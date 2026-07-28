@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.55.2",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Box-Karte zeigt jetzt dauerhaft, wann die Box zuletzt Kontakt hatte und wie voll ihr Akku ungefähr ist. Bisher tauchte der Akku erst auf, wenn er schon knapp war. Bewusst grob statt aufs Prozent genau — wie genau eine Box misst, hängt davon ab, ob sie sich schon einmal beim Volladen selbst justiert hat. Am Ladekabel steht zusätzlich „lädt\". Beides steht in derselben Zeile, damit mitzulesen ist, wie alt der Akkustand ist.",
+          "en": "The box card now permanently shows when the box was last in contact and roughly how full its battery is. Until now the battery only appeared once it was already running low. Deliberately coarse rather than to the percent — how precisely a box measures depends on whether it has already calibrated itself during a full charge. On the cable it also shows \"charging\". Both sit on the same line so you read how old the battery reading is."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.55.1",
     "date": "2026-07-28",
     "changes": [

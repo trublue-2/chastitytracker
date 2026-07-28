@@ -27,6 +27,9 @@ export type BoxRow = {
   offlineOpenHours: number | null;
   /** Zuletzt gemeldeter Akkustand in Prozent; null = nie gemeldet oder kein Sensor. */
   battery: number | null;
+  /** Hing die Box beim letzten Sync am Strom? Nur für die Anzeige („lädt") — der Akku-Failsafe
+   *  kennt den Ladezustand bewusst NICHT (siehe `boxFailsafeWarnings`). */
+  charging: boolean | null;
   /** Akku-Failsafe der Box: unter diesem Prozentwert öffnet sie AUTONOM. Von Heimdall gepusht statt
    *  hier hartkodiert — dann steht die Zahl wenigstens EINMAL pro System und nicht ein drittes Mal.
    *  Die Box meldet sie NICHT selbst: Heimdall spiegelt die Firmware-Konstante (`BATTERY_OPEN_PCT`
@@ -215,6 +218,25 @@ const OFFLINE_WARN_RATIO = 0.75;
  *  aus dem Heimdall-Push und wird hier nie geraten. */
 const BATTERY_WARN_MARGIN_PCT = 5;
 
+/** Untergrenzen der beiden oberen Anzeige-Stufen — ebenfalls reine Anzeige-Wahl, kein Hardware-Wert
+ *  (anders als die kritische Stufe, die an der gemeldeten Auslöse-Schwelle hängt). */
+const BATTERY_FULL_PCT = 80;
+const BATTERY_MID_PCT = 40;
+
+/** Die Akku-Auslöse-Schwelle, wie sie hier gelten darf — oder null, wenn es keine gibt.
+ *
+ *  `0` zählt als KEINE Schwelle, nicht als „öffnet bei 0 %": das ist die natürliche Kodierung für
+ *  einen abgeschalteten Akku-Failsafe, und dieselbe Lesart hat der Funkstille-Zwilling schon
+ *  (`offlineOpenHours > 0`). Ohne diese Klammer behauptete eine leergemeldete Box eine
+ *  Selbst-Öffnung, die nie kommt.
+ *
+ *  EINE Quelle für beide Leser — die Warnung und die Dauer-Anzeige: „ab hier öffnet die Box selbst"
+ *  darf nicht zweimal definiert sein, sonst zieht eine künftige Änderung (z.B. das Modellieren des
+ *  Firmware-Latches) nur eine der beiden nach. */
+function batteryOpenThreshold(lowBatteryOpenPercent: number | null): number | null {
+  return lowBatteryOpenPercent != null && lowBatteryOpenPercent > 0 ? lowBatteryOpenPercent : null;
+}
+
 /** Die Felder, aus denen sich die Failsafe-Nähe ergibt — schmaler als `BoxRow`, damit der MCP
  *  dieselbe Ableitung mit seiner Prisma-Zeile fahren kann. Zwei Rechnungen über dieselbe Frage
  *  (Karte hier, Keyholder-Agentin dort) liefen sonst mit der Zeit auseinander.
@@ -258,8 +280,8 @@ export function boxFailsafeWarnings(b: BoxFailsafeInput, now: number): BoxFailsa
   // BEKANNTE LÜCKE: die Firmware LATCHT (ab Schwelle gesetzt, erst bei ihrer Erholungsschwelle
   // gelöscht). Dieses Band meldet die Box nicht, der Vorwarn-Abstand hier deckt es nur zum Teil —
   // zwischen Abstand und Erholung kann die Box also noch öffnungsbereit sein, ohne dass es hier steht.
-  if (b.battery != null && b.lowBatteryOpenPercent != null) {
-    const opensAt = b.lowBatteryOpenPercent;
+  const opensAt = batteryOpenThreshold(b.lowBatteryOpenPercent);
+  if (b.battery != null && opensAt !== null) {
     if (b.battery <= opensAt + BATTERY_WARN_MARGIN_PCT) {
       out.push({
         kind: "lowBatteryOpen",
@@ -284,6 +306,50 @@ export function boxFailsafeLabel(w: BoxFailsafeWarning, t: Translate): string {
   return w.severity === "due"
     ? t("failsafeOfflineDue", { hours: w.hoursOffline })
     : t("failsafeOfflineWarn", { hours: w.hoursOffline, left: w.hoursLeft });
+}
+
+/**
+ * Grober Akkustand für die DAUER-Anzeige. Bewusst vier Stufen statt der gemeldeten Prozentzahl: wie
+ * genau eine Box misst, hängt daran, ob sie sich schon einmal am Ladeschluss selbst justiert hat —
+ * eine nie voll geladene ist bis heute unkalibriert. Für eine Zeile, die immer mitläuft und zu der
+ * niemand hinsieht, wäre „63 %" eine Genauigkeit, die je nach Box nicht da ist.
+ *
+ * Das ist KEIN Urteil über die Zahl an sich: die Failsafe-Warnung nennt sie weiter (`percent`), und
+ * das zu Recht — wer handeln soll, braucht den Abstand zur Schwelle, nicht eine Stufe. Grob ist die
+ * Wahl für den passiven Dauerzustand, nicht für den Alarm. Steht die Warnung, lässt die Karte diese
+ * Stufe deshalb ganz weg (`BoxStatusCard`).
+ *
+ * Die KRITISCH-Stufe hängt an der echten, von Heimdall gemeldeten Auslöse-Schwelle, nicht an einer
+ * runden Zahl — sie sagt „ab hier öffnet die Box selbst". Die beiden oberen Grenzen sind reine
+ * Anzeige-Entscheidungen und behaupten nichts über die Hardware. Fehlt die Schwelle (Alt-Zeile,
+ * Heimdall vor dem Feld), entfällt nur die kritische Stufe — geraten wird sie nie.
+ *
+ * null = nichts anzuzeigen (kein Akkuwert gemeldet, z.B. Board ohne Akku-Messung).
+ *
+ * ACHTUNG beim Lesen: der Wert ist so alt wie der letzte Kontakt. Deshalb steht er auf der Karte in
+ * DERSELBEN Zeile wie die Frische — „zuletzt vor 19 Std · Akku niedrig" liest die Alterung mit.
+ */
+export function boxBatteryLabel(
+  b: Pick<BoxRow, "battery" | "charging" | "lowBatteryOpenPercent">,
+  t: Translate,
+): string | null {
+  if (b.battery == null) return null;
+  const opensAt = batteryOpenThreshold(b.lowBatteryOpenPercent);
+  // Die Anzeige-Grenzen weichen der Schwelle AUS, statt fix zu bleiben: sonst stünde bei einer hoch
+  // gemeldeten Schwelle „Akku voll" unter einer Warnung, die bei genau diesem Stand schon die
+  // Selbst-Öffnung ankündigt. Alles, was die Warnung erreicht (Schwelle + Vorwarn-Abstand), ist
+  // mindestens „niedrig"; die oberen Stufen rutschen entsprechend nach oben.
+  const lowEdge = Math.max(BATTERY_MID_PCT, opensAt === null ? 0 : opensAt + BATTERY_WARN_MARGIN_PCT + 1);
+  // Literale Keys, kein zusammengesetzter String: sonst taucht kein einziger davon im Quelltext auf
+  // — weder für ein grep noch für einen Rename — und ein in `en.json` fehlender Key würde als roher
+  // Schlüsselname in der Oberfläche landen, ohne dass ein Test anschlägt.
+  const key =
+    opensAt !== null && b.battery <= opensAt ? "batteryCritical"
+      : b.battery < lowEdge ? "batteryLow"
+      : b.battery < Math.max(BATTERY_FULL_PCT, lowEdge + 1) ? "batteryMedium"
+      : "batteryFull";
+  const label = t(key);
+  return b.charging ? `${label} · ${t("batteryCharging")}` : label;
 }
 
 /** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt vor X"; null → nie gesynct. */
