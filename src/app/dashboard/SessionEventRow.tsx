@@ -9,6 +9,7 @@ import DetailField from "@/app/components/DetailField";
 import SealedCodePhoto from "./SealedCodePhoto";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
+import type { KeyProofSource } from "@/lib/boxKeyProof";
 
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
@@ -42,10 +43,14 @@ export interface SessionEventData {
   deviceName?: string | null;
   /** VERSCHLUSS + KONTROLLE: show the device row (true when the user has any devices). */
   showDevice?: boolean;
-  /** Urteil der Schlüssel-Erkennung auf dem Box-Foto. `null`/undefined = nicht geprüft (kein Foto,
-   *  keine KI, Alt-Eintrag) → KEINE Pille: „kein Schlüssel erkannt" zu behaupten, wo niemand
-   *  hingesehen hat, wäre eine Falschaussage über den Sub. */
+  /** Schlüssel-Urteil. `null`/undefined = nicht geprüft (kein Foto, keine KI, keine Telemetrie,
+   *  Alt-Eintrag) → KEINE Pille: „kein Schlüssel erkannt" zu behaupten, wo niemand hingesehen hat,
+   *  wäre eine Falschaussage über den Sub. */
   keyDetected?: boolean | null;
+  /** Quelle des Urteils, siehe `lib/boxKeyProof.ts`. Fehlt sie, gilt „Foto" — das ist keine Annahme
+   *  ins Blaue: `Entry.keyDetected` schreibt ausschliesslich die Bild-Erkennung, die Telemetrie wird
+   *  nie gespeichert. Eine Zeile OHNE Quelle kann also gar kein Telemetrie-Urteil tragen. */
+  keyProofSource?: KeyProofSource | null;
   /** Foto durchs Sichtfenster der Box. Im Vollbild neben dem Haupt-Foto wählbar. */
   boxImageUrl?: string | null;
 }
@@ -108,10 +113,11 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   const [open, setOpen] = useState(false);
   const photo = usePhotoChoice(ev.imageUrl, ev.boxImageUrl);
 
-  // Grün = Schlüssel im Sichtfenster erkannt, Warn-Optik = keiner erkannt (siehe `keyDetected`).
+  // Grün = Schlüssel nachgewiesen, Warn-Optik = kein Schlüssel erkannt (siehe `keyDetected`). Der
+  // grüne Fall nennt seine Quelle (`keyProofFor` in `lib/boxKeyProof.ts`).
   const keyPill = ev.keyDetected == null ? null : ev.keyDetected ? (
     <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full">
-      <KeyRound size={10} />{t("keyDetected")}
+      <KeyRound size={10} />{t(ev.keyProofSource === "telemetry" ? "keyDetectedTelemetry" : "keyDetected")}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 text-xs font-semibold text-warn-text bg-warn-bg border border-[var(--color-warn-border)] px-2 py-0.5 rounded-full">

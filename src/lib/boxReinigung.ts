@@ -1,5 +1,5 @@
 import { heimdallEnabled } from "@/lib/constants";
-import { buildReinigungView, reinigungVerbrauchtHeute, nextReinigungsFenster, type ReinigungUserFields } from "@/lib/reinigungService";
+import { buildReinigungView, countCleaningUsedToday, nextReinigungsFenster, type CleaningCountEntry, type ReinigungUserFields } from "@/lib/reinigungService";
 import { cleaningBlockReason } from "@/lib/queries";
 import type { BoxReinigungView } from "@/lib/boxStatus";
 
@@ -18,17 +18,22 @@ import type { BoxReinigungView } from "@/lib/boxStatus";
  *
  * Geteilt vom Sub-Dashboard und der Keyholder-Detailseite: beide zeigen dieselbe Karte, also darf
  * die Herleitung nicht zweimal dastehen.
+ *
+ * `allEntries` = alle Einträge des Subs; beide Aufrufer laden sie ohnehin, also zählt
+ * {@link countCleaningUsedToday} das Tageskontingent daraus statt mit einer eigenen DB-Runde —
+ * deshalb ist das hier keine async-Funktion.
  */
-export async function buildBoxReinigungView(
-  user: (ReinigungUserFields & { id: string }) | null,
+export function buildBoxReinigungView(
+  user: ReinigungUserFields | null,
+  allEntries: CleaningCountEntry[],
   sperre: { reinigungErlaubt: boolean } | null,
   now: Date,
   tz: string,
-): Promise<BoxReinigungView | null> {
-  // Ohne Heimdall gibt es keine Box-Karte — dann auch keine Zählabfrage dafür.
+): BoxReinigungView | null {
+  // Ohne Heimdall gibt es keine Box-Karte — dann auch keine Zählung dafür.
   if (!heimdallEnabled() || !user) return null;
   return {
-    ...buildReinigungView(user, await reinigungVerbrauchtHeute(user.id, now, tz), now, tz),
+    ...buildReinigungView(user, countCleaningUsedToday(allEntries, now, tz), now, tz),
     nextWindow: nextReinigungsFenster(user.reinigungsFenster, now, tz),
     blockedBy: cleaningBlockReason(
       { reinigungErlaubt: user.reinigungErlaubt ?? false, reinigungsFenster: user.reinigungsFenster, timezone: tz },

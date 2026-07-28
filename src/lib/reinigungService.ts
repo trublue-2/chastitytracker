@@ -75,11 +75,35 @@ export function nextReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): Rei
 
 /** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt
  *  über die OEFFNEN(REINIGUNG)-Einträge des Tages. (Die frühere CLEAN_OPEN-BoxEvent-Zählung war tot:
- *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.) */
+ *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.)
+ *  Der DB-Pfad, für Aufrufer OHNE geladene Einträge; aus geladenen Einträgen zählt
+ *  {@link countCleaningUsedToday}. */
 export async function reinigungVerbrauchtHeute(userId: string, now: Date, tz = APP_TZ): Promise<number> {
   return prisma.entry.count({
     where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: midnightInTZ(now, tz) } },
   });
+}
+
+/** Die Eintrags-Felder, die {@link countCleaningUsedToday} liest. `oeffnenGrund` ist optional wie in
+ *  den übrigen In-Memory-Eintragsformen (`SegmentEntry`, `buildPairs`), damit deren Listen passen. */
+export interface CleaningCountEntry {
+  type: string;
+  oeffnenGrund?: string | null;
+  startTime: Date;
+}
+
+/** Dasselbe Ergebnis wie {@link reinigungVerbrauchtHeute}, nur aus bereits geladenen Einträgen
+ *  statt aus einer eigenen Abfrage. Bewusst dieselbe Grenze (`>= midnightInTZ`, nach oben offen)
+ *  wie das Prisma-`where` daneben — die beiden Zählungen dürfen nie auseinanderlaufen.
+ *
+ *  `allEntries` heisst so, weil es das sein MUSS: ALLE Einträge des Subs, ohne Zeit- oder
+ *  Typ-Vorfilter. Eine vorgefilterte Liste typecheckt anstandslos und zählt still zu wenig — wer die
+ *  ladende Abfrage je begrenzt (`take`, Zeitfenster), muss stattdessen auf den DB-Pfad wechseln. */
+export function countCleaningUsedToday(allEntries: CleaningCountEntry[], now: Date, tz = APP_TZ): number {
+  const seit = midnightInTZ(now, tz);
+  return allEntries.filter(
+    (e) => e.type === "OEFFNEN" && e.oeffnenGrund === "REINIGUNG" && e.startTime >= seit,
+  ).length;
 }
 
 /** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für

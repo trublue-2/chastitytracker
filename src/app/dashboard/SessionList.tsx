@@ -2,10 +2,13 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
+import { keyProofFor, NO_TELEMETRY_KEY_PROOF } from "@/lib/boxKeyProof";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
 interface KontrolleItem {
   time: Date;
+  /** Echte Entstehungszeit des Eintrags (siehe `KontrolleItem.recordedAt` in utils.ts). */
+  recordedAt: Date;
   imageUrl: string | null;
   code: string | null;
   deadline: Date | null;
@@ -67,9 +70,12 @@ interface Props {
    *  lief. Der Sub wäre also für eine Kontrolle bestraft worden, die sein Keyholder erfasst hat.
    *  Das Banner selbst bleibt: die Frist ist für den Keyholder eine nützliche Information. */
   keyholderView?: boolean;
+  /** Einträge, deren Schlüssel-Nachweis aus der Box-Telemetrie stammt (`lib/boxKeyProof.ts`).
+   *  Weggelassen → nur Foto-Urteile. */
+  telemetryKeyProof?: ReadonlySet<string>;
 }
 
-export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null, keyholderView = false }: Props) {
+export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null, keyholderView = false, telemetryKeyProof = NO_TELEMETRY_KEY_PROOF }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   const ta = await getTranslations("admin");
@@ -141,7 +147,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         timeCorrected: false,
         deviceName: verschluss.device?.name ?? null,
         showDevice: userHasDevices,
-        keyDetected: verschluss.keyDetected ?? null,
+        ...keyProofFor(verschluss.id, verschluss.keyDetected, verschluss.boxImageUrl, telemetryKeyProof),
         boxImageUrl: verschluss.boxImageUrl ?? null,
       },
       ...kontrollen
@@ -167,7 +173,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             kontrolleKommentar: k.kommentar,
             kombiniertePillLabel: pill?.label ?? null,
             kombiniertePillCls: pill?.cls ?? null,
-            keyDetected: k.keyDetected ?? null,
+            ...keyProofFor(k.entryId, k.keyDetected, k.boxImageUrl, telemetryKeyProof),
             boxImageUrl: k.boxImageUrl ?? null,
             orgasmusArt: null,
             timeCorrected: corrected,
@@ -208,7 +214,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         // Fotos + Urteil stammen vom WIEDERVERSCHLUSS, nicht von der Öffnung: hier wird belegt,
         // dass der Schlüssel wieder in der Box liegt.
         boxImageUrl: intr.verschluss.boxImageUrl ?? null,
-        keyDetected: intr.verschluss.keyDetected ?? null,
+        ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof),
         exifStr: null,
         note: intr.oeffnen.note,
         entryId: intr.oeffnen.id,
@@ -248,5 +254,5 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
     };
   });
 
-  return <SessionListClient sessions={sessions} />;
+  return <SessionListClient sessions={sessions} tz={tz} />;
 }

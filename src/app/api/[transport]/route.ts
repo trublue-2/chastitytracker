@@ -237,7 +237,7 @@ function registerTools(server: McpServer) {
           "full situation: each entry's type, timestamp, free-text note/comment, opening reason " +
           "(oeffnenGrund), orgasm type (orgasmusArt), control code, code verification status, device, " +
           "the device-check (deviceCheck: was the locked device recognised in the control photo — " +
-          "status ok/wrong/missing + detected/expected device), " +
+          "status ok/wrong/missing/not_checked — wrong NUR mit benanntem detected, sonst not_checked), " +
           "whether a photo exists (+ its EXIF capture time) and whether the time was back-/post-dated. " +
           "Newest first. Use this for the narrative context that the aggregate tools (keyholder_dashboard, " +
           "get_session, get_offenses) leave out.",

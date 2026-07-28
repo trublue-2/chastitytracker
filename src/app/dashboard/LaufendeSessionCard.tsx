@@ -152,6 +152,7 @@ export default async function LaufendeSessionCard({
 
       {/* ── Timeline (buckets + flat fallback for short sessions) ── */}
       <SessionTimeline
+        tz={tz}
         events={events.map<SessionEventData>((ev) => {
           const dateStr = formatDate(ev.time, dl, tz);
           const timeStr = formatTime(ev.time, dl, tz);
@@ -195,6 +196,7 @@ export default async function LaufendeSessionCard({
             deviceName: ev.deviceName ?? null,
             showDevice: userHasDevices,
             keyDetected: ev.keyDetected ?? null,
+            keyProofSource: ev.keyProofSource ?? null,
             boxImageUrl: ev.boxImageUrl ?? null,
           };
         })}

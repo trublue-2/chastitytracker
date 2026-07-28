@@ -19,6 +19,9 @@ interface Props {
   nowIso: string;
   locale: string;
   mode: "active" | "historical";
+  /** Zeitzone der SUB — dieselbe, in der die Ereigniszeilen serverseitig formatiert wurden. Zieht
+   *  die Tagesgrenzen der Buckets, damit „Heute" denselben Tag meint wie die Uhrzeit in der Zeile. */
+  tz: string;
   /** Historical sessions need an end time to decide if bucketing should kick in. */
   sessionEndIso?: string;
   /** Stable per-session prefix for localStorage keys (so buckets remember state per session). */
@@ -128,6 +131,7 @@ export default function SessionTimeline({
   nowIso,
   locale,
   mode,
+  tz,
   sessionEndIso,
   storageScope,
 }: Props) {
@@ -138,8 +142,8 @@ export default function SessionTimeline({
       ...ev,
       _time: ev.timeIso ? new Date(ev.timeIso) : new Date(sessionStart),
     }));
-    return groupEventsIntoBuckets(withTime, new Date(nowIso), locale, mode);
-  }, [events, sessionStart, nowIso, locale, mode]);
+    return groupEventsIntoBuckets(withTime, new Date(nowIso), locale, mode, tz);
+  }, [events, sessionStart, nowIso, locale, mode, tz]);
 
   // Historical: session span <14 days → render flat (like active-mode fresh sessions).
   if (mode === "historical") {

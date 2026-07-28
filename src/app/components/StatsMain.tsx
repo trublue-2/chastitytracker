@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { APP_TZ, formatDate, formatDateTime, formatHours, formatMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDateParts, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
+import { APP_TZ, formatDate, formatDateTime, formatHours, formatMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
 import {
   buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
   type Entry, type Vorgabe,
@@ -172,7 +172,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
 
   const orgasmDateSet = new Set<string>(
     entries.filter((e) => e.type === "ORGASMUS")
-      .map((e) => { const { year, month, day } = tzDateParts(e.startTime, tz); return `${year}-${month}-${day}`; })
+      .map((e) => tzDayKey(e.startTime, tz))
   );
 
   // Heatmap und KG-Kalender brauchen dieselbe Tages-Karte — einmal bauen, zweimal nutzen.

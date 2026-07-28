@@ -1,5 +1,6 @@
 "use client";
 
+import type { DeviceCheckStatus } from "@/lib/deviceCheck";
 import { useState } from "react";
 import { ImageOff, CheckCircle2, ScanLine, Lock, Check, AlertTriangle } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
@@ -28,7 +29,7 @@ function DeviceFact({ t, row }: { t: ReturnType<typeof useTranslations>; row: Ad
         : row.deviceCheck === "missing"
         ? <span className="italic opacity-80">{t("deviceNoneLabel")}</span>
         : <span className="font-semibold">{row.deviceCheckNote ?? "—"}</span>}
-      {!isOk && !isError && row.deviceCheckExpected && (
+      {!isOk && row.deviceCheckExpected && (
         <span className="opacity-80">· {t("deviceExpectedLabel")} {row.deviceCheckExpected}</span>
       )}
       {isOk ? <Check size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
@@ -62,9 +63,10 @@ export interface AdminKontrolleRowData {
   verifikationStatus: VerifikationStatus | null;
   /** Warum die automatische Verifikation nicht gematcht hat (localized), nur bei "unverified" gesetzt. */
   verifikationReasonStr: string | null;
-  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" · "missing" (kein Gerät erkannt) ·
-   *  "error" (nicht prüfbar). */
-  deviceCheck: "ok" | "wrong" | "missing" | "error" | null;
+  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" (ein anderes, BENANNTES Gerät —
+   *  `deviceCheckNote` ist dann gesetzt) · "missing" (kein Gerät erkannt) · "error" (nicht prüfbar,
+   *  inkl. „Gerät sichtbar, aber keiner Referenz zuzuordnen"). */
+  deviceCheck: DeviceCheckStatus | null;
   /** Im Foto erkanntes Gerät (Name) oder null. */
   deviceCheckNote: string | null;
   /** Erwartetes (verschlossenes) Gerät zur Check-Zeit. */
