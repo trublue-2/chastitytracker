@@ -5,6 +5,15 @@ Die App prüft, ob eine neuere Version verfügbar ist, indem sie serverseitig da
 Anfrage über den Projekt-Collector `https://update.chastitytracker.ch/api/changelog`, der dieselbe
 Changelog-Liste zurückgibt **und** die Anfrage anonym mitzählt.
 
+## Welcher Changelog gilt
+
+Gelesen wird der Changelog am Git-Tag **`release`**, nicht der von `main`. `release` wandert nur,
+wenn ein Image als `:latest` freigegeben wird (`promote.yml`) — der Update-Hinweis kündigt damit
+nie eine Version an, für die es noch kein Image gibt. Konsequenz: Instanzen auf den internen
+Kanälen `:portal` und `:feature` laufen dem Release voraus und sehen deshalb keinen Hinweis (beide
+Anzeigen filtern strikt auf höhere Versionen). Nach einem Promote dauert es bis zu eine Stunde, bis
+der Hinweis erscheint — Caches: 5 min GitHub-CDN, 1 h im Collector, 1 h pro Instanz.
+
 Der Sinn: Self-gehostete Instanzen laufen bewusst privat — der Betreuer sieht sonst nicht, wie viele
 Deployments es gibt oder auf welcher Version sie laufen. Diese Zählung schließt genau diese Lücke,
 ohne etwas über die Instanz oder ihre Nutzer preiszugeben.
@@ -21,7 +30,9 @@ sondern nur als tages-gesalzenen Hash (Missbrauchs-Korrelation). **Nicht** gesen
 werden: Subdomain/Hostname, Nutzernamen, E-Mails oder irgendwelche Eintrags-/Nutzerdaten.
 
 Die Anfrage feuert höchstens **einmal pro Stunde pro Instanz** (serverseitiger Cache) und nur, wenn
-die App tatsächlich benutzt wird.
+die App tatsächlich benutzt wird. Ist die Quelle nicht erreichbar, wird der Fehlversuch fünf Minuten
+gemerkt — ein Ausfall führt also zu höchstens einem Versuch pro fünf Minuten, nicht zu einem pro
+Seitenaufruf. Gezählt wird dabei nichts: eine fehlgeschlagene Anfrage erreicht den Collector nicht.
 
 ## Abschalten (Opt-out)
 
@@ -29,11 +40,16 @@ Der Census ist standardmäßig **an**. Zwei Wege, ihn abzuschalten — der Updat
 weiter:
 
 ```bash
-# 1. Census aus, Update-Check direkt von GitHub laden:
+# 1. Census aus, Update-Check direkt vom Release-Tag auf GitHub laden:
 DISABLE_UPDATE_CENSUS=true
 
 # 2. Oder eine beliebige eigene Changelog-Quelle setzen (dann werden nie Census-Header gesendet):
-UPSTREAM_CHANGELOG_URL=https://raw.githubusercontent.com/trublue-2/chastitytracker/main/src/data/changelog.json
+UPSTREAM_CHANGELOG_URL=https://raw.githubusercontent.com/trublue-2/chastitytracker/refs/tags/release/src/data/changelog.json
 ```
 
-Fällt der Collector aus, greift die App automatisch auf GitHub zurück — der Update-Hinweis bricht nie.
+Wer stattdessen `…/refs/heads/main/…` setzt, bekommt Hinweise auf noch nicht freigegebene
+Versionen — sinnvoll nur, wenn man ohnehin selbst aus `main` baut.
+
+Fällt der Collector aus, liest die App den Release-Tag direkt auf GitHub — der Update-Hinweis bricht nie.
+Ist auch das nicht erreichbar, merkt sich die Instanz den Fehlversuch für fünf Minuten, statt bei
+jedem Seitenaufruf erneut in zwei Timeouts zu laufen.

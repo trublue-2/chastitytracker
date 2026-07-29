@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.56.2",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Neue Versionen kommen jetzt in Stufen: erst auf die Instanzen dieses Servers, danach als offizieller Release für alle, die den Tracker selbst betreiben. Wer selbst hostet, zieht damit nicht mehr jede Zwischenversion, sondern nur freigegebene Stände — oder pinnt eine feste Version. Details in der Self-Hosting-Anleitung.",
+          "en": "New versions now roll out in stages: first to the instances on this server, then as an official release for everyone running the tracker themselves. Self-hosters no longer pick up every intermediate build, only released ones — or they pin a fixed version. Details are in the self-hosting guide."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Der Hinweis auf eine neue Version richtet sich jetzt nach dem freigegebenen Release. Er kündigt damit keine Version mehr an, die es als fertiges Paket noch nicht gibt.",
+          "en": "The “new version available” notice now follows the released version, so it no longer announces a version that isn't available as a finished package yet."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.56.1",
     "date": "2026-07-28",
     "changes": [

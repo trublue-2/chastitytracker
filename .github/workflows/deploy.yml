@@ -1,0 +1,195 @@
+name: Deploy (reusable)
+
+# Absichtlich NUR `workflow_call`. Ein zusätzliches `workflow_dispatch` müsste jeden Input ein
+# zweites Mal deklarieren (getrennte Blöcke, je Trigger eigene Typen) — manuelle Deploys laufen
+# über docker.yml (nach einem Build) bzw. promote.yml (nach einem Retag).
+on:
+  workflow_call:
+    inputs:
+      # Alle Inputs sind `string`, auch wo ein Boolean naheläge: die Coercion zwischen einem
+      # Dispatch-Input des Aufrufers und einem boolean workflow_call-Input ist eine bekannte
+      # Reibungsstelle. Ob überhaupt deployt wird, entscheidet das `if:` am Call-Site.
+      image:
+        description: "Image ohne Tag, z.B. ghcr.io/owner/repo — muss zu den image:-Zeilen der Instanzen passen."
+        type: string
+        required: true
+      instances:
+        description: "Instanzen (kommagetrennt). Leer = alle (Auto-Discovery serverseitig, keine Namen im Log)."
+        type: string
+        required: false
+        default: ""
+      channel:
+        description: "Ziel-Instanzen auf diesen Image-Tag umpinnen. Leer = bestehende Pins behalten."
+        type: string
+        required: false
+        default: ""
+      pinnedTo:
+        description: "Nur Instanzen deployen, die aktuell auf einen dieser Tags gepinnt sind (kommagetrennt). PFLICHT."
+        type: string
+        required: true
+
+# Workflow-level `env` des Aufrufers wird NICHT an einen aufgerufenen Workflow weitergegeben —
+# das Flag muss hier eigenständig stehen (appleboy/ssh-action ist eine node20-Action).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          # `inputs.*`, NIE `github.event.inputs.*`: in einem aufgerufenen Workflow ist
+          # `github.event` das Event des AUFRUFERS. promote.yml hat einen Input namens
+          # `channel` — über github.event.inputs.channel würde jeder Promote die ganze
+          # Flotte umpinnen.
+          IMAGE_INPUT: ${{ inputs.image }}
+          INSTANCES_INPUT: ${{ inputs.instances }}
+          CHANNEL_INPUT: ${{ inputs.channel }}
+          PINNED_TO: ${{ inputs.pinnedTo }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          # ⚠ Jede hier fehlende Variable kommt im Skript LEER an, nicht als Fehler. Deshalb
+          # bricht das Skript bei leerem PINNED_TO/IMAGE_INPUT ab statt weiterzulaufen — ein
+          # vergessener Eintrag darf nicht „dann eben alle Instanzen" bedeuten (Vorfall
+          # 2026-07-10).
+          envs: IMAGE_INPUT,INSTANCES_INPUT,CHANNEL_INPUT,PINNED_TO
+          script: |
+            INSTANCES_DIR="$HOME/instances"
+
+            # ── Eingaben prüfen (fail closed) ──────────────────────────────────────────
+            case "$IMAGE_INPUT" in
+              "" | *[!A-Za-z0-9._/-]*) echo "⚠ image fehlt oder ist ungültig — Abbruch."; exit 1 ;;
+            esac
+            case "$PINNED_TO" in
+              "" | *[!A-Za-z0-9._,-]*) echo "⚠ pinnedTo fehlt oder ist ungültig — Abbruch."; exit 1 ;;
+            esac
+            # Einmal prüfen, nicht pro Instanz: ein ungültiger channel würde sonst 26 Warnungen
+            # drucken und die Flotte ohne Umpinnen deployen — ein stilles Falschergebnis.
+            case "$CHANNEL_INPUT" in
+              *[!A-Za-z0-9._-]*) echo "⚠ Ungültiger channel '$CHANNEL_INPUT' — Abbruch."; exit 1 ;;
+            esac
+
+            # Ein Muster für Lesen UND Schreiben des Pins, verankert am `image:`-Key. Beide
+            # Teile — Prefix und Tag-Zeichenklasse — kommen aus je einer Variable, sonst
+            # driften Filter und Repin auseinander und der Filter greift auf Zeilen, die das
+            # sed nie anfasst. Der Image-Pfad kommt vom Aufrufer (`ghcr.io/<repo>`), damit ein
+            # Fork oder ein Rename nicht an einem hartkodierten Literal scheitert.
+            IMG_RE="$(printf '%s' "$IMAGE_INPUT" | sed 's/\./\\./g')"
+            PIN_KEY='^[[:space:]]*image:[[:space:]]*'
+            TAGC='[A-Za-z0-9._-]'
+            current_pin() {
+              sed -n "s#${PIN_KEY}${IMG_RE}:\(${TAGC}${TAGC}*\)[[:space:]]*\$#\1#p" "$1" | head -n1
+            }
+
+            # Targets bestimmen
+            if [ -n "$INSTANCES_INPUT" ]; then
+              IFS=',' read -ra TARGETS <<< "$INSTANCES_INPUT"
+            else
+              TARGETS=()
+              for dir in "$INSTANCES_DIR"/*/; do
+                [ -f "$dir/docker-compose.yml" ] && TARGETS+=("$(basename "$dir")")
+              done
+            fi
+
+            # ── Pin-Filter ─────────────────────────────────────────────────────────────
+            # Läuft VOR dem Umpinnen: gefiltert wird nach dem ALTEN Pin, umgepinnt danach.
+            # Genau so wandert die Flotte in einem einzigen Lauf von :latest nach :portal
+            # (channel=portal, pinnedTo=latest).
+            # Ausgabe bleibt anonym: nur Zähler, NIE ein Instanzname.
+            KEEP=()
+            UNREADABLE=0
+            for INSTANCE in "${TARGETS[@]}"; do
+              CF="$INSTANCES_DIR/$INSTANCE/docker-compose.yml"
+              [ -f "$CF" ] || continue
+              CUR="$(current_pin "$CF")"
+              if [ -z "$CUR" ]; then
+                # z.B. Digest-Pin (@sha256:…) oder ein fremdes Image — sichtbar zählen statt
+                # stillschweigend als „passt nicht" verbuchen.
+                UNREADABLE=$((UNREADABLE + 1))
+                continue
+              fi
+              case ",$PINNED_TO," in
+                *",$CUR,"*) KEEP+=("$INSTANCE") ;;
+              esac
+            done
+            echo "→ Pin-Filter :$PINNED_TO — ${#KEEP[@]} von ${#TARGETS[@]} Instanzen betroffen."
+            [ "$UNREADABLE" -gt 0 ] && echo "⚠ $UNREADABLE Instanz(en) ohne lesbaren Image-Pin übersprungen."
+            TARGETS=("${KEEP[@]}")
+
+            TOTAL=${#TARGETS[@]}
+            if [ "$TOTAL" -eq 0 ]; then
+              # Sonst endet ein Fehlgriff (falscher Filter, falscher Instanzname) als grünes
+              # „✓ Alle 0 Instanzen aktualisiert."
+              echo "⚠ Keine Instanz passt auf die Auswahl — es wurde NICHTS deployt."
+              exit 1
+            fi
+
+            # Jede Instanz zieht ihren EIGENEN in der docker-compose.yml gepinnten Image-Tag
+            # (:portal, :feature, :v4.56.1 …). Daher pro Instanz ein eigenes
+            # `docker compose pull` statt eines globalen Pulls.
+            #
+            # Instanzen parallel updaten. Logging bewusst ANONYM: nur Index "$IDX/$TOTAL",
+            # NIE der Instanzname — sonst landen bei öffentlichem Repo alle Subdomains im
+            # öffentlichen Actions-Log. Intern iteriert die Schleife weiter über die echten
+            # Ordnernamen; nur die Ausgabe ist anonymisiert.
+            PIDS=()
+            IDX=0
+            for INSTANCE in "${TARGETS[@]}"; do
+              IDX=$((IDX + 1))
+              DIR="$INSTANCES_DIR/$INSTANCE"
+              # Der Filter hat die Datei bereits gesehen; sie kann in der Zwischenzeit
+              # verschwinden (parallele Portal-Aktion), deshalb bleibt die Prüfung stehen.
+              if [ ! -f "$DIR/docker-compose.yml" ]; then
+                echo "⚠ Instanz $IDX/$TOTAL nicht mehr vorhanden, übersprungen."
+                continue
+              fi
+              (
+                echo "→ Update Instanz $IDX/$TOTAL ..."
+                cd "$DIR"
+                # Optional: Instanz auf einen anderen Image-Tag umpinnen (:portal, :feature, …).
+                if [ -n "$CHANNEL_INPUT" ]; then
+                  echo "→ Pinne Instanz $IDX/$TOTAL auf :$CHANNEL_INPUT"
+                  # Tag-Teil wie in current_pin() nicht-leer verlangt, damit Lesen und Schreiben
+                  # wirklich dieselbe Zeilenform treffen.
+                  sed -i "s#\(${PIN_KEY}${IMG_RE}\):${TAGC}${TAGC}*[[:space:]]*\$#\1:$CHANNEL_INPUT#" docker-compose.yml
+                  # Der Filter oben lässt nur lesbare Pins durch — schlägt das sed hier
+                  # trotzdem fehl, wäre das Umpinnen ein stiller No-op.
+                  if [ "$(current_pin docker-compose.yml)" != "$CHANNEL_INPUT" ]; then
+                    echo "⚠ Instanz $IDX/$TOTAL: Pin nicht umgeschrieben (unerwartete image:-Zeile)."
+                    exit 1
+                  fi
+                fi
+                # docker-compose druckt sonst „Pulling kg-<name>…" / „Container kg-<name> Started"
+                # → Instanzname im öffentlichen CI-Log. Ausgabe daher server-seitig ins private
+                # .deploy.log umleiten; ins CI-Log nur die anonyme Index-Zeile.
+                if docker compose pull                    >"$DIR/.deploy.log" 2>&1 \
+                && docker compose up -d --force-recreate >>"$DIR/.deploy.log" 2>&1; then
+                  echo "✓ Instanz $IDX/$TOTAL aktualisiert."
+                else
+                  echo "⚠ Instanz $IDX/$TOTAL fehlgeschlagen (Details serverseitig in .deploy.log)."
+                  exit 1
+                fi
+              ) &
+              PIDS+=($!)
+            done
+
+            FAILED=0
+            for pid in "${PIDS[@]}"; do
+              wait "$pid" || FAILED=$((FAILED + 1))
+            done
+
+            if [ "$FAILED" -gt 0 ]; then
+              # KEIN prune in diesem Zweig: das alte Image ist bei einem halb fehlgeschlagenen
+              # Lauf das Rollback-Ziel.
+              echo "⚠ $FAILED Instanz(en) fehlgeschlagen!"
+              exit 1
+            fi
+
+            docker image prune -f >/dev/null 2>&1
+            echo "✓ Alle $TOTAL Instanzen aktualisiert."
