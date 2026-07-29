@@ -263,7 +263,6 @@
     "orgasmWindowFromUntil": "Zeitfenster: {from} – {until}",
     "orgasmRequiredArt": "Gewünscht: {art}",
     "locked": "Verschlossen",
-    "openingForbiddenUntil": "Öffnen nicht erlaubt bis {date}",
     "inspectionRequired": "Kontrolle erforderlich",
     "entries": "Sessions",
     "totalDuration": "Gesamtdauer",

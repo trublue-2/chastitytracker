@@ -5,15 +5,12 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lock, LockOpen } from "lucide-react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
-import KontrolleBanner from "@/app/components/KontrolleBanner";
-import LockRequestBanner from "@/app/components/LockRequestBanner";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatHoursHM } from "@/lib/utils";
-import { inspectionHelpUrl } from "@/lib/constants";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 
 // ── Types ────────────────────────────────────
@@ -24,37 +21,8 @@ export interface DashboardProps {
   cleaningPauseUntil: string | null;
   hasEntries: boolean;
 
-  // Kontrolle
-  offeneKontrolle: {
-    deadline: string;
-    code: string;
-    kommentar: string | null;
-    overdue: boolean;
-    href: string;
-  } | null;
-
-  // Verschluss-Anforderung
-  offeneVerschlussAnf: {
-    endetAt: string | null;
-    nachricht: string | null;
-    overdue: boolean;
-    endetAtLabel: string | null;
-    deviceName: string | null;
-  } | null;
-
-  // Sperrzeit
-  activeSperrzeit: {
-    endetAt: string | null;
-    nachricht: string | null;
-    endetAtLabel: string | null;
-  } | null;
-
-  // Orgasmus-Anforderung
-  offeneOrgasmusAnf: {
-    label: string;
-    nachricht: string | null;
-    windowLabel: string;
-  } | null;
+  // Die Anforderungen mit Frist (Kontrolle, Einschliessen, Orgasmus) stehen NICHT hier, sondern
+  // im eigenen Block `DashboardAlerts` ganz oben auf der Seite — Begründung dort.
 
   // Stats
   tagH: number;
@@ -64,9 +32,6 @@ export interface DashboardProps {
   elapsedTagH: number;
   elapsedWocheH: number;
   elapsedMonatH: number;
-
-  /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
-  tz?: string;
 }
 
 // ── Helpers ──────────────────────────────────
@@ -87,16 +52,10 @@ function WearPercent({ wornH, elapsedH }: { wornH: number; elapsedH: number }) {
 // ── Component ────────────────────────────────
 export default function DashboardClient(props: DashboardProps) {
   const t = useTranslations("dashboard");
-  const tCommon = useTranslations("common");
-  const locale = useLocale();
   const {
     currentStatus,
     cleaningPauseUntil,
     hasEntries,
-    offeneKontrolle,
-    offeneVerschlussAnf,
-    activeSperrzeit,
-    offeneOrgasmusAnf,
     tagH: baseTagH,
     wocheH: baseWocheH,
     monatH: baseMonatH,
@@ -104,7 +63,6 @@ export default function DashboardClient(props: DashboardProps) {
     elapsedTagH: baseElapsedTagH,
     elapsedWocheH: baseElapsedWocheH,
     elapsedMonatH: baseElapsedMonatH,
-    tz,
   } = props;
 
   const router = useRouter();
@@ -139,33 +97,9 @@ export default function DashboardClient(props: DashboardProps) {
   const elapsedWocheH = useLiveHours(baseElapsedWocheH, serverNow, true);
   const elapsedMonatH = useLiveHours(baseElapsedMonatH, serverNow, true);
 
-  // Lock-Request-Banner — auch im Empty-State sichtbar, sonst sehen frische User
-  // mit einer offenen Anforderung nichts und reagieren nur auf die Mail.
-  const lockRequestBanner = offeneVerschlussAnf ? (
-    <LockRequestBanner
-      variant="large"
-      colorScheme="request"
-      label={t("lockRequested")}
-      nachricht={[offeneVerschlussAnf.deviceName ? t("lockDevicePrefix", { name: offeneVerschlussAnf.deviceName }) : null, offeneVerschlussAnf.nachricht].filter(Boolean).join(" · ") || null}
-      endetAtLabel={offeneVerschlussAnf.endetAtLabel}
-    />
-  ) : null;
-
-  const orgasmusRequestBanner = offeneOrgasmusAnf ? (
-    <LockRequestBanner
-      variant="large"
-      colorScheme="orgasm"
-      label={offeneOrgasmusAnf.label}
-      nachricht={offeneOrgasmusAnf.nachricht}
-      endetAtLabel={offeneOrgasmusAnf.windowLabel}
-    />
-  ) : null;
-
   if (!hasEntries) {
     return (
       <DashboardBlock as="main" className="flex flex-col gap-5">
-        {lockRequestBanner}
-        {orgasmusRequestBanner}
         <EmptyState
           icon={<Lock size={48} />}
           title={t("welcomeTitle")}
@@ -208,26 +142,8 @@ export default function DashboardClient(props: DashboardProps) {
         </div>
       )}
 
-      {/* ── Alert Banners ── */}
-      {offeneKontrolle && (
-        <KontrolleBanner
-          deadline={new Date(offeneKontrolle.deadline)}
-          code={offeneKontrolle.code}
-          kommentar={offeneKontrolle.kommentar}
-          overdue={offeneKontrolle.overdue}
-          variant="large"
-          href={offeneKontrolle.href}
-          openLabel={t("inspectionRequired")}
-          helpHref={inspectionHelpUrl(locale)}
-          tz={tz}
-        />
-      )}
-
-      {lockRequestBanner}
-
-      {orgasmusRequestBanner}
-
-      {/* Sperrzeit-Banner entfernt — wird bereits im Sperrzeit-Footer der LaufendeSessionCard angezeigt */}
+      {/* Anforderungs-Banner: siehe `DashboardAlerts` (eigener Block ganz oben).
+           Sperrzeit-Banner entfernt — steht bereits im Sperrzeit-Footer der LaufendeSessionCard. */}
 
       {/* ── Stats Summary ── */}
       <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
