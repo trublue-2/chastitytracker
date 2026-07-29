@@ -96,9 +96,16 @@ self.addEventListener('push', (e) => {
       vibrate: [200, 100, 200],
       data: { url: data.url },
     }).then(() => {
-      // Set badge count (supported on Android + iOS 16.4+ standalone)
-      if (self.navigator?.setAppBadge) {
-        self.navigator.setAppBadge(1).catch(() => {});
+      // Badge = ungelesene Nachrichten, vom Server gezählt (supported on Android + iOS 16.4+
+      // standalone). Vorher stand hier eine feste 1, die nie wieder verschwand.
+      // Fehlt `unread` ganz, bleibt das Badge unangetastet: eine Meldung ohne Nachrichten-Bezug
+      // (z.B. an die Keyholder) darf den Stand weder erfinden noch löschen.
+      if (typeof data.unread === 'number') {
+        if (data.unread > 0) {
+          self.navigator?.setAppBadge?.(data.unread).catch(() => {});
+        } else {
+          self.navigator?.clearAppBadge?.().catch(() => {});
+        }
       }
     })
   );
@@ -107,11 +114,9 @@ self.addEventListener('push', (e) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
 
-  // Clear badge on interaction
-  if (self.navigator?.clearAppBadge) {
-    self.navigator.clearAppBadge().catch(() => {});
-  }
-
+  // Das Badge wird hier BEWUSST nicht geräumt: es zählt ungelesene Nachrichten, und der Tap landet
+  // direkt im Erfassungsformular — die Nachricht selbst hat der Nutzer dabei nie gesehen. Geräumt
+  // wird am Zustand (nach dem Lesen, bei App-Start/Resume), nicht am Klick.
   const url = e.notification.data?.url ?? '/';
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/keyholder";
+import { getMessageChannels } from "@/lib/notificationPrefs";
 import { isValidStartPage } from "@/lib/constants";
 import pkg from "@/../package.json";
 
@@ -19,6 +20,8 @@ export interface SettingsFormProps {
   /** Globaler Admin — steuert die "Benutzerverwaltung"-Startseiten-Option (admin-only Seite). */
   isAdmin: boolean;
   hideOwnTracker: boolean;
+  /** Mail/Push bei neuen Nachrichten (`MESSAGE_RECEIVED`) — die Nachricht selbst kommt immer. */
+  messageNotify: boolean;
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
@@ -39,12 +42,19 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let timezone = "Europe/Zurich";
   let startPage = "auto";
   let hideOwnTracker = false;
+  // Fehlende Zeile = „an" (dieselbe Annahme wie beim Versand in notify.ts).
+  let messageNotify = true;
 
   if (userId) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true },
-    });
+    const [dbUser, pref] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true },
+      }),
+      getMessageChannels(userId),
+    ]);
+    // Ein Schalter für beide Kanäle: "an", solange mindestens einer läuft.
+    messageNotify = pref.mail || pref.push;
     if (dbUser) {
       username = dbUser.username;
       email = dbUser.email ?? null;
@@ -76,6 +86,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     controlledSubs,
     isAdmin,
     hideOwnTracker,
+    messageNotify,
     version: pkg.version,
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedbackEnabled: process.env.DISABLE_FEEDBACK !== "true",

@@ -81,7 +81,7 @@ async function processDue(): Promise<void> {
         // Notification selbst.
         const sealCode = deriveSealCode(latest);
 
-        await sendKontrolleNotification({ user: ka.user, code: ka.code, sealCode, kommentar: ka.kommentar, deadline: ka.deadline });
+        await sendKontrolleNotification({ user: ka.user, code: ka.code, sealCode, kommentar: ka.kommentar, deadline: ka.deadline, controlId: ka.id });
         await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: new Date() } });
       } catch (e) {
         // benachrichtigtAt bleibt null → nächster Lauf versucht es erneut.
@@ -166,7 +166,7 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       const result = await autoMarkInspectionRemoved({ id: ka.id, userId: ka.userId });
       if (!result.skipped) {
         // Notifications are not transactional — send only after the state change committed.
-        await notifyInspectionAutoMarked({ userId: ka.userId, username: ka.user.username, code: ka.code });
+        await notifyInspectionAutoMarked({ userId: ka.userId, username: ka.user.username, code: ka.code, controlId: ka.id });
       }
     } catch (e) {
       console.error(`[kontrollePoller] Kontroll-Auto-Mark fehlgeschlagen (${ka.id}):`, (e as Error).message);
@@ -222,6 +222,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         endetAtDate: va.endetAt,
         dauerH: va.dauerH,
         sperrEndetAtDate: va.sperrEndetAt,
+        requestId: va.id,
       });
       await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { benachrichtigtAt: new Date() } });
     } catch (e) {

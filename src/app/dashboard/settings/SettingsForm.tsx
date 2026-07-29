@@ -22,12 +22,14 @@ import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
+import { parseApiErrorCode } from "@/lib/apiClient";
 import type { SettingsFormProps } from "./getSettingsProps";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageNotify, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
+  const tm = useTranslations("messages");
   const apiError = useApiError();
   const switchLocale = useLocaleSwitcher();
   const router = useRouter();
@@ -146,6 +148,30 @@ export default function SettingsForm({ username, email, locale, timezone, startP
 
   const [hideOwnValue, setHideOwnValue] = useState(hideOwnTracker);
   const [hideOwnError, setHideOwnError] = useState<string | null>(null);
+
+  const [messageNotifyValue, setMessageNotifyValue] = useState(messageNotify);
+  const [messageNotifyError, setMessageNotifyError] = useState<string | null>(null);
+
+  async function handleMessageNotify(checked: boolean) {
+    setMessageNotifyValue(checked);
+    setMessageNotifyError(null);
+    try {
+      const res = await fetch("/api/settings/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        // Ein Schalter für beide Kanäle: wer den Posteingang hat, will Mail UND Push gemeinsam
+        // stummschalten — getrennte Schalter wären hier nur Ballast.
+        body: JSON.stringify({ eventType: "MESSAGE_RECEIVED", mail: checked, push: checked }),
+      });
+      if (!res.ok) {
+        setMessageNotifyValue(!checked); // Rollback bei Fehler
+        setMessageNotifyError(apiError(await parseApiErrorCode(res)));
+      }
+    } catch {
+      setMessageNotifyValue(!checked);
+      setMessageNotifyError(tc("error"));
+    }
+  }
 
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },
@@ -337,6 +363,18 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               <FormError message={hideOwnError} />
             </div>
           )}
+
+          {/* Mail/Push bei neuen Nachrichten. Die Nachricht selbst wird immer geschrieben — dieser
+              Schalter macht den Kanal leiser, ohne dass Information verloren geht. */}
+          <div className="px-5 py-2">
+            <Toggle
+              label={tm("notifyLabel")}
+              description={tm("notifyHint")}
+              checked={messageNotifyValue}
+              onChange={handleMessageNotify}
+            />
+            <FormError message={messageNotifyError} />
+          </div>
 
           {/* Feedback */}
           {feedbackEnabled && <FeedbackButton variant="menu" />}
