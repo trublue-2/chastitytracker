@@ -2,7 +2,7 @@
 
 import { Lock, LockOpen, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { formatDateTimeDual, toDateLocale, APP_TZ } from "@/lib/utils";
+import { formatDateTimeDual, toDateLocale, joinParts, APP_TZ } from "@/lib/utils";
 import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxBatteryLabel, boxReinigungLabel, boxReinigungQuotaLabel, boxFailsafeWarnings, boxFailsafeLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
@@ -112,7 +112,7 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
                       Alterung automatisch mit („zuletzt online vor 19 Std · Akku niedrig"); zwei
                       getrennte Zeilen liessen den Akkustand aktuell wirken. */}
                   <p className="text-xs text-foreground-faint">
-                    {[boxFreshnessLabel(b.lastSyncAt, now, t), batteryLabel].filter(Boolean).join(" · ")}
+                    {joinParts(boxFreshnessLabel(b.lastSyncAt, now, t), batteryLabel)}
                   </p>
                 </div>
               </div>

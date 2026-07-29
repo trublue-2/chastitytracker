@@ -102,6 +102,13 @@ export function formatDuration(start: Date, end: Date, locale = "de"): string {
   return parts.join(" ");
 }
 
+/** Fügt die vorhandenen Teile einer einzeiligen Beschriftung mit „ · " zusammen; bleibt nichts
+ *  übrig, `null` — der Aufrufer reicht das Ergebnis meist als optionalen Text weiter, und ein
+ *  leerer String erzeugte dort eine leere Zeile statt gar keiner. */
+export function joinParts(...parts: (string | null | undefined | false)[]): string | null {
+  return parts.filter(Boolean).join(" · ") || null;
+}
+
 /** Maps next-intl locale codes to BCP 47 locale tags for Intl formatting. */
 export function toDateLocale(locale: string): string {
   return locale === "en" ? "en-US" : "de-CH";

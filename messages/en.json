@@ -263,7 +263,6 @@
     "orgasmWindowFromUntil": "Window: {from} – {until}",
     "orgasmRequiredArt": "Requested: {art}",
     "locked": "Locked",
-    "openingForbiddenUntil": "Opening not allowed until {date}",
     "inspectionRequired": "Inspection required",
     "entries": "Sessions",
     "totalDuration": "Total duration",
