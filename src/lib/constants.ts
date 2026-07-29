@@ -236,6 +236,16 @@ export const INSPECTION_REMINDER_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY,
 /** Verzögerung bis zum automatischen Vermerk (Stufe 2). */
 export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY, fallback: 60 } as const satisfies NumberRange;
 
+/** Erlaubte Auslöse-Verzögerung einer über den MCP angeforderten Kontrolle: 5 min – 24 h. Kein
+ *  Admin-Setting, sondern die `request_inspection`-Policy — hier, weil Tool-Schema (Beschreibung
+ *  des Bereichs) und Service (`clamp`) denselben Bereich nennen müssen. `fallback` greift nur für
+ *  einen auf 0 gerundeten Bruchteil; die echte 0 („sofort") fängt der Aufrufer vorher ab. */
+export const INSPECTION_DELAY_RANGE = { min: 5, max: 1440, fallback: 5 } as const satisfies NumberRange;
+/** Zufalls-Fenster derselben Verzögerung, wenn der Agent KEINEN Wert nennt (Überraschungseffekt).
+ *  Bewusst enger als `INSPECTION_DELAY_RANGE`: die Obergrenze dort begrenzt nur, was ausdrücklich
+ *  verlangt wird — der Zufallsfall soll weiterhin zeitnah zuschlagen. */
+export const INSPECTION_RANDOM_DELAY = { min: 5, max: 65 } as const;
+
 /** Automatische Kontrollen pro Tag — Min und Max derselben Zeile teilen auch den Fallback. */
 export const AUTO_INSPECTION_PER_DAY_RANGE = { min: 0, max: 12, fallback: 0 } as const satisfies NumberRange;
 
