@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import FeedbackSheet from "./FeedbackSheet";
+import { headerIconBtnCls } from "./inputStyles";
 
 /**
  * Icon-only header button. Client-checked `disabled` — if disabled on the server
@@ -37,7 +38,7 @@ export default function FeedbackButton({ variant = "icon" }: { variant?: "icon" 
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t("title")}
-        className="p-2 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised transition"
+        className={headerIconBtnCls}
       >
         <MessageSquareText size={18} />
       </button>

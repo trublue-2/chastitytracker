@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
+import { recordMessageAndBadge } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
@@ -45,10 +46,11 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
   // eingereichtes Foto voraus, die Kontrolle hat also laengst ausgeloest.
   const notified = action !== "withdraw" || !isHiddenFromSub(ka);
   if (notified) {
+    const inbox = { ref: { type: "control", id: ka.id }, senderKind: "keyholder" } as const;
     const notif: NotifyContent =
-      action === "manuallyVerify" ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage" }
-      : action === "reject" ? { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage" }
-      : { subjectKey: "inspectionResolvedWithdrawnSubject", messageKey: "inspectionResolvedWithdrawnMessage" };
+      action === "manuallyVerify" ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage", inbox }
+      : action === "reject" ? { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage", inbox }
+      : { subjectKey: "inspectionResolvedWithdrawnSubject", messageKey: "inspectionResolvedWithdrawnMessage", inbox };
     await notifyUser(ka.userId, notif);
   }
 
@@ -156,6 +158,7 @@ export async function requestKontrolle(
 
   let code: string;
   let sealCode: string | null;
+  let controlId: string;
   // Wurf- und Fang-Seite hängen an derselben Tabelle: `fail()` akzeptiert nur Codes, die unten
   // auch gemappt werden — ein Tippfehler ist ein Compile-Fehler, kein stiller 500.
   const { table: ERRORS, fail } = serviceErrors({
@@ -186,7 +189,7 @@ export async function requestKontrolle(
       const seal = deriveSealCode(latest);
       const c = generateKontrollCode();
 
-      await tx.kontrollAnforderung.create({
+      const ka = await tx.kontrollAnforderung.create({
         data: {
           userId,
           code: c,
@@ -197,10 +200,11 @@ export async function requestKontrolle(
         },
       });
 
-      return { code: c, sealCode: seal };
+      return { code: c, sealCode: seal, id: ka.id };
     });
     code = result.code;
     sealCode = result.sealCode;
+    controlId = result.id;
   } catch (e: unknown) {
     const mapped = mapServiceError(e, ERRORS);
     if (mapped) return mapped;
@@ -209,7 +213,7 @@ export async function requestKontrolle(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline });
+    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline, controlId });
   }
 
   return { ok: true, data: { code, deadline: deadline.toISOString(), scheduledFor: wirksamAb?.toISOString() ?? null } };
@@ -257,8 +261,27 @@ export async function sendKontrolleNotification(opts: {
   sealCode: string | null;
   kommentar: string | null;
   deadline: Date;
+  controlId: string;
 }): Promise<void> {
-  const { user, code, sealCode, kommentar, deadline } = opts;
+  const { user, code, sealCode, kommentar, deadline, controlId } = opts;
+
+  // VOR dem E-Mail-Guard: der Posteingang ist der einzige Kanal, der auch ohne hinterlegte Adresse
+  // trägt. Der Kommentar des Keyholders wird NICHT mitkopiert — die Nachricht zeigt auf die
+  // Kontrolle und liest ihn beim Anzeigen frisch von dort.
+  // Mail und Push gehen hier IMMER raus — anders als bei `notifyUser` greift der Schalter
+  // "Mail und Push bei neuen Nachrichten" nicht: eine Anforderung mit Frist ist keine Nachricht,
+  // die man still im Posteingang sammeln lassen darf.
+  const badge = await recordMessageAndBadge({
+    subjectUserId: user.id,
+    bodyKey: "inspectionRequestedMessage",
+    senderKind: "keyholder",
+    ref: { type: "control", id: controlId },
+    once: true,
+  });
+
+  // Bekannter Nebenbefund, hier bewusst NICHT mitgeändert: ohne Adresse bricht diese Funktion ab,
+  // bevor sie den Push sendet — die Kontrolle erreichte den Sub bisher über gar keinen Kanal.
+  // Seit dieser Zeile steht sie wenigstens im Posteingang.
   if (!user.email) return;
   const sealRequired = requiredSealCode(code, sealCode) !== null;
 
@@ -311,5 +334,6 @@ export async function sendKontrolleNotification(opts: {
     t("inspectionPushTitle"),
     pushParts.join(" · "),
     `/dashboard/new/pruefung?code=${code}`,
+    badge,
   );
 }
