@@ -59,3 +59,7 @@ dev.db-journal
 
 # Persönlicher Keyholder-Rollentext — nicht ins öffentliche Repo
 keyholder-instructions.md
+
+# Runtime-Uploads gehören nie ins Repo (öffentlich!)
+/public/uploads/*
+!/public/uploads/.gitkeep
