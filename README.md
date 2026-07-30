@@ -2,7 +2,7 @@
 
 > Multi-user web application for tracking chastity device wear times, inspections, training goals, and device (KG) usage statistics.
 
-![Version](https://img.shields.io/badge/version-4.50.43-blue)
+![Version](https://img.shields.io/github/package-json/v/trublue-2/chastitytracker?label=version&color=blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
 ![Node](https://img.shields.io/badge/node-24+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -28,7 +28,9 @@
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
 - **Orgasm tracking** with type and sub-type selection via two dependent dropdowns (e.g. Orgasmus → Masturbation); the type/sub-type list is admin-customizable per user
 - **Offline-first** — IndexedDB-cached dashboard and queued entry creation with background sync
+- **Inbox** — every notification a user receives (inspection, lock & closure, orgasm, penalty, system) also lands in an in-app inbox, colour-coded by category, so nothing is lost when an email doesn't arrive. Read state is per message (opening the list is not enough), messages can be marked unread again, acknowledged all at once, or deleted; an open inspection links straight to the inspection form with the code pre-filled. The bell and the app icon carry the unread count. Mail and push for *new messages* can be switched off per user — requests and deadlines are always delivered
 - **Password self-service** (change and reset via email)
+- **Per-account timezone** — timestamps and day boundaries follow the timezone stored on the account, not the server's
 - **Push notifications** (PWA web-push + native iOS/Android app) for lock/unlock, inspections, lock requests, and penalties; tapping a native push opens the relevant in-app page
 - **Passkey login** (Face ID, Touch ID, Fingerprint, Windows Hello) alongside password
 - **View Transitions** for smooth navigation between dashboard pages
@@ -42,6 +44,7 @@
 - **Inspection requests** with 5-digit verification codes and configurable deadlines. Only one inspection can be active per sub at a time — a keyholder, the AI keyholder (MCP), and the automatic scheduler can no longer stack overlapping requests
 - **Two-stage inspection escalation** (opt-in, off by default) — a missed inspection first triggers a reminder notification, and, if still ignored, auto-marks itself as removed (a system-authored opening entry) so it lands in the penalty log instead of sitting "overdue" forever. Both stages are independently switchable per sub and fully reversible
 - **AI-verification transparency** — when an automatic photo check can't confirm an inspection ("Fulfilled – Unverified"), the keyholder now sees *why* (missing code, wrong seal number, …) next to the status
+- **Per-device inspection code** — the handwritten verification code can be switched off for a specific device. Requests for that device go out without a code, an inspection the sub records themselves then fulfils the open request, and the result reads "No code required" instead of "Unverified". A request that was *issued* with a code still needs it
 - **Automatic inspections** — randomly scheduled across the day within a configurable wake window
 - **Lock requests** — request a user locks up by a deadline, optionally with a minimum wear duration
 - **Lock periods (Sperrzeiten)** — enforced lock periods with automatic or manual end time; optional flag allowing cleaning openings during the period
@@ -50,7 +53,7 @@
 - **Customizable selection lists** — per user, edit the orgasm-type and opening-reason lists (add / rename / remove / reorder) under User → Settings. Orgasm sub-types use a `Main – Sub` convention (`/`, `|`, `-` are auto-normalized) that drives the two dependent dropdowns. The cleaning reason (`REINIGUNG`) is fixed and can only be renamed; the rest is free. Untouched, every user keeps the built-in defaults
 - **Device requirements** — admin can require a specific KG for a lock request; wrong-device usage is flagged automatically
 - **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
-- **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Penalties / Settings / Devices
+- **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Log / Devices / Settings
 - **Per-user notification preferences** (email + push, per event type)
 - **Keyholder relationships** — a non-admin user can be assigned as keyholder for specific subs, gaining scoped access to their data, photos, and notifications — always active, independent of any flag. The optional `USE_ADMIN_RELATIONSHIPS` flag additionally restricts global admins to only their assigned users. Global admins additionally appear as implicit, read-only keyholders in a sub's keyholder list, so it is always clear who controls whom
 - **Separate keyholder overview & user management** — the blue portal splits the **keyholder overview** (`/admin` — sub cards, status, directives, quick actions) from **user management** (`/admin/users` — create / edit / delete users, roles). The portal title is role-aware ("Keyholder portal" for non-admin keyholders, "Admin portal" for global admins)
@@ -126,7 +129,7 @@ Each tracker instance is an independent container with its own SQLite database. 
 - Node.js 24+
 - npm 10+
 - An SMTP server for email delivery (password reset, notifications)
-- An Anthropic API key (for AI-powered inspection verification)
+- *Optional:* an Anthropic API key, or a local vision provider, for AI-powered inspection verification — without either, the app runs and simply skips the photo checks (see [Optional features](#optional-features-toggleable))
 
 ### Install
 
@@ -183,7 +186,10 @@ WEBAUTHN_RP_ORIGIN=https://yourdomain.com
 ENABLE_MCP=true                    # master switch; without it the /api/[transport] endpoint returns 404
 MCP_USERNAME=<username>            # the single user whose data the MCP server exposes
 MCP_TOKEN=<static-bearer-token>    # optional static bearer token (alternative to the OAuth 2.0 flow)
-ENABLE_LEGACY_MCP=false            # optional: set false to hide the deprecated V1 read tools (default on)
+
+# Feature flags
+ENABLE_DEVICE_CATEGORIES=false     # multi-category wear tracking (default on; false = KG only)
+ENABLE_BILDERSAFE=true             # sealed key-box code photo (default off)
 
 # Optional integrations
 PORTAL_SHARED_SECRET=<secret>      # JWT secret for the self-service portal's login flow
@@ -404,6 +410,19 @@ Both are optional and independent. If a service is unreachable the tracker degra
 no suggestion / "not verified", **never a rejection or a failed submission**. Full step-by-step
 setup (Mac install, Tailscale, launchd, env reference, benchmark): **[`docs/local-vision.md`](docs/local-vision.md)**.
 
+Because a silent outage would otherwise only show up as inspections quietly going unverified, the
+tracker pings the configured local backends periodically and logs the result under `[health]`:
+
+```env
+# HEALTHCHECK_INTERVAL_MIN=5      # probe interval in minutes (default 5)
+# HEALTHCHECK_ALERT_EMAIL=<email> # also email on outage (unset = log only). With several instances
+#                                 #   on the same AI box, set this on ONE of them — otherwise every
+#                                 #   instance mails you about the same outage
+# HEALTHCHECK_VISION=false        # skip the vision probe (default: on when vision is local)
+# HEALTHCHECK_EMBED=false         # skip the embedding probe (default: on when EMBED_BASE_URL is set)
+# HEALTHCHECK_TIMEOUT_MS=20000    # timeout per probe (default 20s)
+```
+
 ### In-App Feedback
 
 By default the tracker shows a feedback button in the header that lets users
@@ -436,9 +455,9 @@ default and not required for a standard install:
 - **[MCP Keyholder Interface](docs/mcp.md)** — expose an instance as a *virtual
   keyholder* over the Model Context Protocol so an AI client can read the tracker
   state and issue keyholder directives. Covers enabling (`ENABLE_MCP`,
-  `MCP_USERNAME`, `MCP_TOKEN`, `ENABLE_LEGACY_MCP`), the OAuth 2.0 flow, the
-  available tools (V2 reads + directive writes, with the V1 reads deprecated),
-  and the data model.
+  `MCP_USERNAME`, `MCP_TOKEN`), the OAuth 2.0 flow, the available tools (V2 reads
+  + directive writes; the legacy V1 reads and their `ENABLE_LEGACY_MCP` flag were
+  removed in v4.50.37), and the data model.
   For the domain model the agent reasons over, see
   [`docs/mcp-keyholder-guide.md`](docs/mcp-keyholder-guide.md).
 - **[Heimdall Box Integration](docs/heimdall-box.md)** — connect a physical
@@ -458,13 +477,14 @@ src/
       devices/              # Device (KG) CRUD + reference photos
       categories/           # Device categories (multi-category wear tracking)
       bildersafe/           # Seal a key-box code photo onto the active lock
+      messages/             # In-app inbox (list, read state, delete)
       upload/               # Photo upload
       uploads/              # Auth-protected photo serving
       verify-kontrolle/     # AI inspection verification
       detect-seal/          # AI seal-number detection
       detect-device/        # AI device recognition
       push/                 # Push notification subscription
-    dashboard/              # User-facing pages (entries, devices, stats, settings)
+    dashboard/              # User-facing pages (entries, devices, stats, inbox, settings)
     admin/                  # Admin pages with shared user-detail layout
     entries/                # Shared entry-form cores (used by both user and admin)
     components/             # Shared React components
@@ -558,6 +578,17 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `POST` | `/api/admin/orgasmus-anforderung` | Create an orgasm requirement / window for a user (admin) |
 | `PATCH` | `/api/admin/orgasmus-anforderung/[id]` | Withdraw an orgasm requirement (admin) |
 
+### Inbox
+
+Scope always comes from the session — never from a query parameter. The three mutating routes return the new unread count, so the bell and app badge update without a second request.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/messages` | One page of own messages (`?cursor=`) |
+| `DELETE` | `/api/messages/[id]` | Delete a message (the underlying record stays) |
+| `POST/DELETE` | `/api/messages/[id]/read` | Mark a single message read / unread |
+| `POST` | `/api/messages/read-all` | Acknowledge all messages at once |
+
 ### Admin
 
 | Method | Endpoint | Description |
@@ -587,8 +618,12 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `DELETE` | `/api/auth/passkey/list` | Remove a passkey |
 | `POST` | `/api/auth/lockout` | Check login lockout status |
 | `PATCH` | `/api/settings/password` | Change own password |
-| `PATCH` | `/api/settings/email` | Change own email |
+| `GET/PATCH` | `/api/settings/email` | Read / change own email |
 | `PATCH` | `/api/settings/locale` | Change own account language (drives UI + notifications) |
+| `PATCH` | `/api/settings/timezone` | Change own timezone |
+| `PATCH` | `/api/settings/notifications` | Change own email/push preferences per event type |
+| `PATCH` | `/api/settings/start-page` | Change own landing page after login |
+| `PATCH` | `/api/settings/hide-own-tracker` | Toggle "no own tracker" mode |
 
 ### Misc
 
@@ -618,6 +653,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `reinigungErlaubt` flag |
 | `OrgasmusAnforderung` | Orgasm requirement / window for a user (optional required type, permitted opening) |
 | `StrafeRecord` | Penalty records — missed inspections, unauthorized openings, cleaning-limit violations, wrong-device usage, missed orgasm instructions |
+| `Message` / `MessageRead` | In-app inbox entries and their per-user read state |
 | `NotificationPreference` | Per-user, per-event email/push notification settings |
 | `PushSubscription` / `NativePushToken` | Web Push endpoints and native-iOS/Android tokens |
 | `Passkey` | WebAuthn credentials for biometric login |
