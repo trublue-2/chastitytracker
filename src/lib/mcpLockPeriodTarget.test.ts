@@ -209,6 +209,34 @@ describe("mcpWithdraw target=lock_period — was genau ging mit?", () => {
     expect(res.withdrawnItems).toEqual([expect.objectContaining({ id: "s1", status: "scheduled" })]);
   });
 
+  it("sagt, dass der Rückzug nicht öffnet — sonst sieht die haltende Box wie ein Fehler aus", async () => {
+    // Vorfall 28.07.2026: Sperrzeit zurückgezogen, um die Box für ein Firmware-Update zu öffnen.
+    // Die Antwort meldete Erfolg, die Box hielt weiter — korrekt (der Rückzug einer Frist ist keine
+    // Öffnungs-Anweisung), aber nirgends gesagt.
+    withdrawMock.mockResolvedValue(serviceResult([ausgeloest], 0, true));
+    const res = await mcpWithdraw("kg", { target: "lock_period" });
+
+    expect(res.message).toContain("NOT an instruction to open");
+    expect(res.message).toContain("ENTRIES"); // der Weg zum Öffnen wird benannt
+  });
+
+  it("… und behauptet dabei KEINE Riegelstellung — die gilt bei Reinigungspause/ohne Box nicht", async () => {
+    // Ein früherer Entwurf schrieb „der Riegel bleibt zu". Bei laufender Reinigungspause ist die Box
+    // offen, ohne Heimdall gibt es gar keinen Riegel — eine zugesicherte Hardware-Folge, die nicht
+    // gilt, ist schlechter als Schweigen: die Keyholder-KI gibt sie als Tatsache weiter.
+    withdrawMock.mockResolvedValue(serviceResult([ausgeloest], 0, true));
+    const res = await mcpWithdraw("kg", { target: "lock_period" });
+
+    expect(res.message).not.toMatch(/bolt|stays shut|becomes an indefinite/i);
+  });
+
+  it("… aber nur bei lock_period — bei den anderen Zielen gibt es keine Hardware-Folge", async () => {
+    withdrawMock.mockResolvedValue(serviceResult([ausgeloest], 0, true));
+    const res = await mcpWithdraw("kg", { target: "lock_request" });
+
+    expect(res.message).not.toContain("NOT an instruction to open");
+  });
+
   it("nichts offen → leere Liste statt fehlendem Feld (die Form bleibt gleich)", async () => {
     withdrawMock.mockResolvedValue(serviceResult([], 0, false));
     const res = await mcpWithdraw("kg", { target: "lock_period" });

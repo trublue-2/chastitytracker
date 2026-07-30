@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.57.1",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Nimmt deine Keyholderin eine Sperrzeit weg, sagt die Antwort ihr jetzt auch, dass die Box davon nicht aufgeht. Das war schon immer so — eine weggenommene Frist ist keine Öffnungs-Anweisung, sonst würde sie einen laufenden Einschluss mit aufheben —, stand aber nirgends. Geöffnet wird über einen Eintrag von dir, nicht über die Frist.",
+          "en": "When your keyholder removes a lock period, the response now also says that the box does not open because of it. That was always the case — a removed deadline is not an instruction to open, otherwise it would lift an ongoing lock-up as well — but it was never stated. Opening happens through an entry you record, not through the deadline."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.57.0",
     "date": "2026-07-30",
     "changes": [

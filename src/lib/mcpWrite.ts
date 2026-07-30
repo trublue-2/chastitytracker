@@ -550,10 +550,11 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   // Gemischter Treffer (laufend + geplant): beides benennen. Der Rückzug per target ist bewusst ein
   // Rundumschlag — er darf nur nicht so klingen, als hätte er eine einzige Direktive erwischt.
   const mixed = hidden > 0 && hidden < count;
+  const hardware = boxConsequenceNote(args.target);
   if (mixed) {
     return {
       ok: true, withdrawn: count, hidden, withdrawnItems,
-      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently. See withdrawnItems for which ones.`,
+      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently. See withdrawnItems for which ones.${hardware}`,
     };
   }
   return {
@@ -562,9 +563,33 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     hidden,
     withdrawnItems,
     message: notified
-      ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.`
-      : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.`,
+      ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.${hardware}`
+      : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.${hardware}`,
   };
+}
+
+/**
+ * Was der Rückzug für die HARDWARE bedeutet — angehängt an die Antwort, wenn es etwas zu sagen gibt.
+ *
+ * Nur bei `lock_period`, und dort nötig: der Rückzug einer Frist ist keine Öffnungs-Anweisung. Das ist
+ * Absicht — sonst hübe er einen laufenden Einschluss auf, den niemand aufheben wollte. Nur stand es
+ * nirgends: die Antwort meldete „withdrawn: 1", die Box hielt, und das sah nach einem Fehler aus
+ * (belegter Fall 28.07.2026 — der Rückzug sollte die Box für ein Firmware-Update öffnen und tat es
+ * nicht). Die Box folgt für auf/zu den EINTRÄGEN des Subs, nie den Direktiven.
+ *
+ * Bewusst OHNE Aussage über die Riegelstellung. Ein früherer Entwurf schrieb „der Riegel bleibt zu"
+ * und war damit in zwei Fällen falsch: läuft eine REINIGUNGSPAUSE, ist die Box offen (`holdOpen`), und
+ * Heimdalls Umwandlung in eine eigene Sperre lässt genau diesen Fall aus — und ohne Box (kein
+ * Heimdall, kein gemapptes Gerät) gibt es überhaupt keinen Riegel, über den man etwas behaupten
+ * könnte. Eine Antwort, die eine Hardware-Folge zusichert, die nicht gilt, ist schlechter als
+ * Schweigen: die Keyholder-KI gibt sie als Tatsache weiter.
+ */
+function boxConsequenceNote(target: WithdrawArgs["target"]): string {
+  if (target !== "lock_period") return "";
+  return " NOTE: withdrawing a lock period is NOT an instruction to open. A box enforcing this lock " +
+    "does not release because of it, and one already open (cleaning pause) does not close because of " +
+    "it either — the box follows the user's ENTRIES for open/close, never the directives. It opens " +
+    "when they record an opening, which is also what gets logged and judged.";
 }
 
 // ── Training goals: list / edit / delete ────────────────────────────────────
