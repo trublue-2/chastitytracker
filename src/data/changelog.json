@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.58.5",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Mehrere interne Notizen im Code der Vollbild-Ansicht eines Fotos waren falsch: Sie begründeten die schwarze Blende damit, dass das Umschalten des Designs ihr sonst die Farbe nehme, und nannten für die Überlagerung Gründe, die so nicht zutreffen. An anderen Stellen der App liegt genau dieselbe Blende seit jeher über den gewöhnlichen Weg. Notizen richtiggestellt, an der Darstellung ändert sich nichts.",
+          "en": "Several internal notes in the code of the fullscreen photo view were wrong: they justified the black backdrop by claiming that switching the design would otherwise strip its colour, and gave reasons for the overlay that do not hold up. Elsewhere in the app the very same backdrop has always been done the ordinary way. The notes have been corrected; nothing changes about what you see."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.4",
     "date": "2026-07-30",
     "changes": [
