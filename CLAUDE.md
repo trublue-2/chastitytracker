@@ -78,7 +78,7 @@ docker buildx imagetools inspect ghcr.io/trublue-2/chastitytracker:latest \
 gh api -X POST repos/trublue-2/chastitytracker/git/refs -f ref=refs/tags/release -f sha=<sha>
 ```
 
-**Der Pin einer Instanz lebt nur in ihrer `docker-compose.yml`** — kein DB-Feld, zwei Schreiber: der `channel`-Input dieses Workflows (per `sed`) und das Portal. Das Portal bewahrt den vorhandenen Pin seit tracker-portal v1.5.11 (`pinnedTrackerImage()` in `tracker-portal/src/lib/docker.ts`), ein Redeploy dort zieht eine `:feature`-Instanz also nicht mehr auf `:portal` zurück. Wechseln lässt sich der Ring nur hier:
+**Der Pin einer Instanz lebt nur in ihrer `docker-compose.yml`** — kein DB-Feld, und seit tracker-portal v1.5.13 nur noch ein Schreiber: dieser Workflow (per `sed` aus dem `channel`-Input). Das Portal schreibt die Datei ausschliesslich beim Anlegen einer Instanz, einen Redeploy gibt es dort nicht mehr. Der Ring wird also hier gewechselt:
 
 ```bash
 gh workflow run docker.yml --ref main -f tagFeature=true -f channel=feature -f instances=trublue
