@@ -30,3 +30,18 @@ export function effectiveDeviceCheckStatus(status: string | null, detected: stri
     ? (effective as DeviceCheckStatus)
     : null;
 }
+
+/**
+ * Tragen zwei Geräte denselben Lookalike-Cluster, gelten sie als optisch nicht auseinanderhaltbar.
+ *
+ * `null`/`undefined` heisst „keinem Cluster zugeordnet" und verbindet NICHTS — sonst würden alle
+ * ungetaggten Geräte zu einer Sippe verschmelzen und jeder Mismatch zwischen ihnen wäre plötzlich
+ * „nur optisch".
+ *
+ * Bis hierher stand die Regel an genau einer Stelle ausgeschrieben (`sessionModel.reconcileDevice`);
+ * mit der Budget-Verteilung in `detectDevice` kam die zweite dazu — und das ist die Art Regel, die
+ * beim Nachbauen still in der schwächeren Variante (`a === b`) landet.
+ */
+export function sameLookalikeCluster(a: string | null | undefined, b: string | null | undefined): boolean {
+  return !!a && !!b && a === b;
+}

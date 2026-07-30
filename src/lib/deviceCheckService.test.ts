@@ -40,7 +40,7 @@ const writtenStatus = () => updateMock.mock.calls[0][0].data.deviceCheck;
 beforeEach(() => {
   vi.clearAllMocks();
   updateMock.mockResolvedValue({});
-  refsMock.mockResolvedValue([{ deviceId: "d1", deviceName: "Cage A", visualTraits: null, imageUrls: ["/api/uploads/a.jpg"] }]);
+  refsMock.mockResolvedValue([{ deviceId: "d1", deviceName: "Cage A", visualTraits: null, lookalikeClusterId: null, imageUrls: ["/api/uploads/a.jpg"] }]);
 });
 
 describe("deviceCheckApplies — die EINE Bedingung für Startwert und Lauf", () => {
