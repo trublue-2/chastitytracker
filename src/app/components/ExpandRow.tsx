@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { ChevronRight } from "lucide-react";
 
 interface ExpandRowProps {
@@ -13,9 +14,16 @@ interface ExpandRowProps {
 }
 
 export default function ExpandRow({ label, subtitle, open, onToggle, children }: ExpandRowProps) {
+  // `aria-controls` zeigt nur, solange das Panel wirklich im DOM steht — ein IDREF ins Leere ist
+  // schlechter als keiner. Den Zustand trägt in beiden Fällen `aria-expanded`.
+  const panelId = useId();
+
   return (
     <div>
       <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-surface-raised transition text-left"
         onClick={onToggle}
       >
@@ -31,7 +39,7 @@ export default function ExpandRow({ label, subtitle, open, onToggle, children }:
         />
       </button>
       {open && (
-        <div className="px-5 pb-5 pt-2">
+        <div id={panelId} className="px-5 pb-5 pt-2">
           {children}
         </div>
       )}

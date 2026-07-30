@@ -1283,6 +1283,7 @@
     "markAllRead": "Mark all as read",
     "markAllConfirm": "{count, plural, =1 {Mark one message as read?} other {Mark # messages as read?}} Your keyholder will see that you have seen them.",
     "loadMore": "Older messages",
+    "refLabel": "Related text",
     "refMissing": "The related entry no longer exists.",
     "sender": {
       "system": "System",

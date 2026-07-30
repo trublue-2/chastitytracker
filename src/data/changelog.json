@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.57.2",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Posteingang ist wieder lesbar. Die Meldung ist jetzt deutlich grösser als Absender und Datum, statt dass alles gleich aussah. Der aufgeklappte Inhalt beginnt auf derselben Kante wie die Meldung darüber und nicht mehr links davor, und eine Trennlinie zeigt, wo das Aufgeklappte anfängt. Ausserdem stand der Text einer kurzen Nachricht zweimal da — einmal reicht: zu siehst du die ersten zwei Zeilen, offen den ganzen Text.",
+          "en": "The inbox is readable again. The message is now clearly larger than sender and date, instead of everything looking the same. The expanded content starts on the same edge as the message above it rather than to the left of it, and a divider shows where the expanded part begins. Short messages also used to show their text twice — once is enough: collapsed you see the first two lines, expanded the whole text."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "„Wieder als ungelesen\" liess den geöffneten Bereich leer zurück — bei Nachrichten ohne zugehörigen Eintrag verschwand mit dem Klick auch der Knopf, der ihn ausgelöst hatte. Der Bereich bleibt jetzt in jedem Fall bestückt.",
+          "en": "\"Mark unread\" used to leave the opened area empty — on messages without a related entry, the click also removed the very button that triggered it. The area now always keeps its content."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.57.1",
     "date": "2026-07-30",
     "changes": [

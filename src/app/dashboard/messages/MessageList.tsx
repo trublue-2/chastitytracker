@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Bot, CheckCheck, Inbox, Settings, UserRound } from "lucide-react";
+import { Bot, CheckCheck, Inbox, Settings, Undo2, UserRound } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
+import DetailField from "@/app/components/DetailField";
 import EmptyState from "@/app/components/EmptyState";
 import ExpandRow from "@/app/components/ExpandRow";
 import ActionModal from "@/app/components/ActionModal";
@@ -133,47 +134,71 @@ export default function MessageList({
         <ul className="divide-y divide-border-subtle">
           {messages.map((m) => {
             const Icon = SENDER_ICON[m.senderKind];
+            const open = openId === m.id;
+            // Ein Bezug (Text oder Fehl-Hinweis) ist optional — viele Nachrichten haben bewusst
+            // keinen (siehe orgasmusAnforderungService: Rückzug ohne refId).
+            const hasRef = Boolean(m.refText) || m.refMissing;
             return (
               <li key={m.id}>
                 <ExpandRow
-                  open={openId === m.id}
+                  open={open}
                   onToggle={() => toggle(m)}
                   label={
                     <span className="flex items-start gap-2">
                       {/* Ungelesen dreifach codiert: Punkt, Fettschrift, Text für Screenreader.
                           Farbe allein ist in vier Themes und für Farbfehlsichtige keine Information. */}
                       <span
-                        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${m.read ? "bg-transparent" : "bg-warn"}`}
+                        className={`mt-2 w-2 h-2 rounded-full shrink-0 ${m.read ? "bg-transparent" : "bg-warn"}`}
                         aria-hidden="true"
                       />
-                      <span className={`min-w-0 ${m.read ? "" : "font-semibold"}`}>
+                      {/* text-base: der Meldungstext ist die Überschrift der Zeile und muss sich von
+                          der text-xs-Metazeile und dem text-sm-Bezug deutlich abheben. */}
+                      <span className={`min-w-0 text-base ${m.read ? "font-medium" : "font-semibold"}`}>
                         {!m.read && <span className="sr-only">{t("unread")} — </span>}
-                        {/* line-clamp statt truncate: ein „…" mitten im Straftext schnitte genau die
+                        {/* Zu ist die Zeile eine Vorschau, offen der ganze Text — der Text steht
+                            deshalb GENAU EINMAL da und wird im Panel nicht wiederholt. line-clamp
+                            statt truncate: ein „…" mitten im Straftext schnitte genau die
                             Begründung ab, wegen der es den Posteingang gibt. */}
-                        <span className="line-clamp-2">{m.text}</span>
+                        <span className={open ? "whitespace-pre-wrap" : "line-clamp-2"}>{m.text}</span>
                       </span>
                     </span>
                   }
                   subtitle={
+                    // pl-4 = Punkt + gap: die Metazeile hängt unter dem Titel, nicht unter dem Punkt.
                     <span className="flex items-center gap-1.5 pl-4">
                       <Icon size={12} aria-hidden="true" />
                       {t(`sender.${m.senderKind}`)} · {formatDateTime(m.createdAt, dl, tz)}
                     </span>
                   }
                 >
-                  <div className="space-y-3">
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{m.text}</p>
-                    {m.refText && (
-                      <p className="text-sm text-foreground-muted whitespace-pre-wrap border-l-2 border-border pl-3">
-                        {m.refText}
-                      </p>
+                  {/* Trennlinie setzt das Aufgeklappte gegen Titel + Metazeile ab. Der Inhalt
+                      beginnt bei pl-4 auf der Titelkante — nie links davon.
+
+                      Bedingungslos, und der Knopf darin auch: `ExpandRow` rendert sein Panel allein
+                      nach `open`, unabhängig davon, ob Inhalt kommt. Hing der Inhalt an `m.read`,
+                      leerte ein Klick auf „wieder als ungelesen" das Panel unter dem Finger —
+                      aufgeklappte Zeile, nichts drin, und der Knopf, der das ausgelöst hat, weg.
+                      Dasselbe traf jede Nachricht ohne Bezug, solange der Lese-POST noch lief oder
+                      gescheitert war. Der Knopf ist immer der Inhalt, den es mindestens gibt. */}
+                  <div className="border-t border-border-subtle pt-3 space-y-3">
+                    {hasRef && (
+                      <div className="pl-4">
+                        <DetailField label={t("refLabel")}>
+                          {m.refText ? (
+                            <p className="text-sm text-foreground-muted whitespace-pre-wrap border-l-2 border-border pl-3">
+                              {m.refText}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-foreground-faint italic">{t("refMissing")}</p>
+                          )}
+                        </DetailField>
+                      </div>
                     )}
-                    {m.refMissing && <p className="text-xs text-foreground-faint">{t("refMissing")}</p>}
-                    {m.read && (
-                      <Button variant="ghost" size="sm" onClick={() => markUnread(m)}>
-                        {t("markUnread")}
-                      </Button>
-                    )}
+                    {/* Kein pl-4: das px-4 des Ghost-Buttons rückt seine Schrift selbst auf die
+                        Titelkante ein. */}
+                    <Button variant="ghost" size="sm" icon={<Undo2 size={16} />} onClick={() => markUnread(m)}>
+                      {t("markUnread")}
+                    </Button>
                   </div>
                 </ExpandRow>
               </li>
