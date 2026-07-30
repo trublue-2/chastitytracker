@@ -35,7 +35,15 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ── Typecheck (parallel zum Docker-Build) ──────────────────────────────────
+  # ── Typecheck + Tests (parallel zum Docker-Build) ──────────────────────────
+  # Job-ID bleibt `typecheck`, obwohl hier auch die Tests laufen: `deploy` hängt per `needs`
+  # daran, und ein Umbenennen bräche zusätzlich jede Branch-Protection, die den Namen nennt.
+  #
+  # Die Tests gehören hierher, weil dieser Job das Deploy gated. Ein Teil der Suite sichert
+  # Zusicherungen ab, die weder Typ- noch Build-Fehler erzeugen, wenn man sie bricht — die
+  # Importfreiheit von `codedError`/`entryFormRoute` (Server-Code im Client-Bundle) und die
+  # Containing-Block-Freiheit der Theme-Wrapper. Ohne diesen Schritt liefe die Suite nur, wenn
+  # jemand von Hand `npm test` tippt, und genau diese Fälle gingen still in die Flotte.
   typecheck:
     runs-on: ubuntu-latest
     steps:
@@ -47,6 +55,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npx tsc --noEmit
+      - run: npm test
 
   # ── Docker Image bauen & pushen ────────────────────────────────────────────
   build-and-push:

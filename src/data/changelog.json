@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.58.7",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die automatische Prüfung vor einer Veröffentlichung lässt jetzt auch die Testreihe mitlaufen. Bisher lief nur die Typprüfung; die Tests startete jemand von Hand oder eben nicht. Damit können Fehler, die weder beim Übersetzen noch beim Bauen auffallen, nicht mehr unbemerkt auf die Instanzen gelangen.",
+          "en": "The automatic check that runs before a release now also runs the test suite. Until now only the type check ran; the tests were started by hand, or not at all. Faults that show up in neither compilation nor the build can no longer reach the instances unnoticed."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.6",
     "date": "2026-07-30",
     "changes": [
