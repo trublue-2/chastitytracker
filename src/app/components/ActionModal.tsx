@@ -26,9 +26,9 @@ interface Props {
  * Eine `theme`-Prop gibt es deshalb nicht: sie konnte nur die Rolle ausdrücken, nie hell/dunkel,
  * und stand an drei Aufrufstellen falsch.
  *
- * Fixed-Positioning bleibt korrekt, solange die Wrapper schlichte Divs bleiben: `transform`,
- * `filter`, `backdrop-filter`, `contain` oder `will-change` auf einem von ihnen würde zum
- * Containing-Block für `position: fixed` und das Modal an den Wrapper fesseln.
+ * Fixed-Positioning setzt voraus, dass die Wrapper schlichte Divs bleiben — sitzt ein Modal am
+ * falschen Fleck statt über dem Fenster, ist einer von ihnen (oder ein Vorfahre) Containing-Block
+ * geworden. Welche Eigenschaften das auslösen, steht bei `THEME_WRAPPER_SELECTOR`.
  */
 export default function ActionModal({ open, onClose, title, icon, iconBg, children }: Props) {
   const [container, setContainer] = useState<HTMLElement | null>(null);

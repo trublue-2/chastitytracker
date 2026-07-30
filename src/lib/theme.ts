@@ -24,6 +24,18 @@ export const SELECTORS: Record<ThemeRole, string> = {
  * Erkennungsmerkmal eines Theme-Wrappers, rollenunabhängig — für Code, der den NÄCHSTGELEGENEN
  * Wrapper sucht statt den einer bestimmten Rolle (`ActionModal` portiert dorthin). Steht bewusst
  * neben `SELECTORS`: wer die Markierung der Wrapper ändert, muss beide Seiten sehen.
+ *
+ * WEIL dorthin portiert wird, muss ein Wrapper ein schlichtes Div BLEIBEN — er UND jeder seiner
+ * Vorfahren. Sobald einer transform-artig wirkt (`transform`, `translate`, `rotate`, `scale`,
+ * `perspective`, `filter`, `backdrop-filter`) oder Layout-/Paint-Containment auslöst (`contain`
+ * mit `layout`/`paint`/`content`/`strict`, `container-type`, `content-visibility`), wird er
+ * Containing-Block für `position: fixed` und fesselt jedes Modal darin an sich statt ans Fenster.
+ * `will-change` zählt mit, wenn es eine dieser Eigenschaften nennt. Der unauffällige Weg dahin ist
+ * Tailwind: `@container` IST `container-type: inline-size`, und die Utility ist bereits im Einsatz.
+ *
+ * `theme.test.ts` prüft das für alle Wrapper-Tags und die `[data-theme]`-Blöcke in `globals.css` —
+ * geprüft statt nur behauptet, wie bei `expectImportFree`. Nicht sehen kann der Test Vorfahren und
+ * CSS, das einen Wrapper über einen anderen Selektor trifft (Klasse, `#admin-root`).
  */
 export const THEME_WRAPPER_SELECTOR = "[data-theme]";
 

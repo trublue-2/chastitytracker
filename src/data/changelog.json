@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.58.6",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Rückfragen und Formulare, die über der Seite liegen, hängen an einem Element der Seite. Bekäme dieses Element bestimmte CSS-Eigenschaften, würden sie künftig nicht mehr über dem Fenster stehen, sondern in dieses Element hineinrutschen — lautlos und ohne Fehlermeldung. Bisher war das nur als Notiz im Code festgehalten, und die Notiz war unvollständig. Sie ist jetzt korrekt, steht an der richtigen Stelle und wird von einem Test überwacht.",
+          "en": "Confirmation dialogs and forms that sit above the page are attached to an element of the page. If that element were given certain CSS properties, they would no longer sit above the window but slide into that element instead — silently and without any error. Until now this was only recorded as a note in the code, and the note was incomplete. It is now correct, sits in the right place, and is guarded by a test."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.5",
     "date": "2026-07-30",
     "changes": [

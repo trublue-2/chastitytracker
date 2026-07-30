@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolveTheme, applyTheme, STORAGE_KEYS, SELECTORS } from "./theme";
 import { getThemeInitScript } from "./themeScript";
 
@@ -130,5 +131,87 @@ describe("getThemeInitScript — was das Inline-Skript vor der Hydration setzt",
     );
     expect(foreign.theme).toBeUndefined();
     expect(root.theme).toBeUndefined();
+  });
+});
+
+// `ActionModal` portiert in den nächstgelegenen `[data-theme]`-Wrapper. Trägt ein Wrapper eine
+// Eigenschaft, die Containing-Block für `position: fixed` erzeugt, klebt jedes Modal darin am
+// Wrapper statt am Fenster — lautlos, ohne Typ- oder Testfehler. Die Regel steht bei
+// `THEME_WRAPPER_SELECTOR`; hier wird sie geprüft statt nur behauptet (wie `expectImportFree`).
+//
+// Der unauffällige Fall ist Tailwinds `@container` (= `container-type: inline-size`): eine
+// Utility-Klasse, die auf einer Layout-Wurzel völlig harmlos aussieht.
+describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
+  // Das Wrapper-Tag wird als Ganzes geprüft, Klassen-Utilities wie Inline-Styles. Beide
+  // Schreibweisen müssen also drinstehen: `will-change` (Klasse) UND `willChange` (Style-Objekt).
+  const OFFENDERS = new RegExp([
+    "@container", "container-type", "content-visibility",
+    "backdrop-blur", "drop-shadow", "\\bblur-", "\\bgrayscale\\b", "\\bsepia\\b", "\\binvert\\b",
+    "\\bsaturate-", "\\bhue-rotate", "\\btransform\\b", "\\bperspective", "\\btranslate-",
+    "\\brotate-", "\\bscale-", "\\bcontain-", "\\bwill-change",
+    // `contrast-more:`/`contrast-less:` sind prefers-contrast-VARIANTEN und setzen keinen Filter —
+    // nur die Filter-Utility (`contrast-50`, `contrast-[…]`) zählt.
+    "\\bcontrast-(?:\\d|\\[)",
+    // Inline-Styles: camelCase, mit Doppelpunkt.
+    "\\b(?:filter|contain|willChange|backdropFilter|containerType|contentVisibility)\\s*:",
+  ].join("|"));
+
+  /** Kommentare weg, sonst zählt eine Erwähnung wie `admin/layout.tsx:28` als Wrapper mit. */
+  function stripComments(src: string): string {
+    return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  }
+
+  // Kein Hardcode-Verzeichnis: ein NEUER Wrapper in einer neuen Datei wäre sonst still ungeprüft —
+  // genau das Loch, das dieser Test stopfen soll.
+  const WRAPPER_FILES: string[] = readdirSync("src", { recursive: true, encoding: "utf8" })
+    .filter((f: string) => f.endsWith(".tsx"))
+    .map((f: string) => `src/${f}`)
+    .filter((f: string) => stripComments(readFileSync(f, "utf8")).includes("data-theme="))
+    .sort();
+
+  it("findet die bekannten Wrapper-Dateien", () => {
+    // Untergrenze statt exakter Zahl: neue Wrapper sind erlaubt, ein kaputter Glob (0 Dateien,
+    // Suite trotzdem grün) nicht.
+    expect(WRAPPER_FILES.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it.each(WRAPPER_FILES)("%s", (file) => {
+    const src = stripComments(readFileSync(file, "utf8"));
+    const tags = src.match(/<[a-zA-Z][^>]*\sdata-theme=[^>]*>/g) ?? [];
+
+    // Schutz gegen falsches Grün: erwischt die Tag-Regex ein `data-theme=` NICHT, prüft der Test
+    // einen Wrapper stillschweigend nicht mehr und bleibt trotzdem grün. Darum muss die Zahl der
+    // gefundenen Tags der Zahl der Vorkommen entsprechen. (Mehrzeilige Tags sind kein Problem —
+    // `[^>]` schliesst Zeilenumbrüche ein; per Mutationsprobe bestätigt.)
+    expect(tags.length, `data-theme= in ${file} nicht als Tag erkannt — Test erweitern`)
+      .toBe((src.match(/data-theme=/g) ?? []).length);
+
+    for (const tag of tags) {
+      // `[^>]*` endet am ERSTEN `>` — in JSX ist das oft nicht das Tag-Ende, sondern ein `=>` im
+      // Handler oder ein Vergleich im Ausdruck. Das Tag wäre dann abgeschnitten, die Zählung oben
+      // bliebe heil, und alles hinter dem Schnitt ungeprüft. Ein abgeschnittenes Tag hat immer
+      // unbalancierte Klammern.
+      expect(tag.split("{").length, `Tag in ${file} abgeschnitten (">" in einem JSX-Ausdruck)`)
+        .toBe(tag.split("}").length);
+      expect(tag).not.toMatch(OFFENDERS);
+    }
+  });
+
+  // Grösster Radius: eine einzige Deklaration in einem `[data-theme…]`-Block trifft ALLE Wrapper
+  // gleichzeitig, und kein Wrapper-Tag sähe verdächtig aus. Die Blöcke tragen deshalb
+  // ausschliesslich Custom Properties.
+  it("die [data-theme]-Blöcke in globals.css setzen nur Custom Properties", () => {
+    const css = readFileSync("src/app/globals.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const blocks = css.match(/\[data-theme[^\]]*\]\s*\{[^}]*\}/g) ?? [];
+    expect(blocks.length).toBe(4);
+
+    for (const block of blocks) {
+      const declarations = block
+        .slice(block.indexOf("{") + 1, -1)
+        .split(";")
+        .map((d) => d.trim())
+        .filter(Boolean);
+      for (const d of declarations) expect(d.startsWith("--")).toBe(true);
+    }
   });
 });
