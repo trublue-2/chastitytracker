@@ -581,6 +581,12 @@
 /* ─────────────────────────────────────────────
    SPACING TOKENS (4px base grid)
    Applied globally, theme-independent
+
+   ACHTUNG — hier gehört KEIN Farb-Token hin. `<html>` trägt seit v4.58.3 selbst ein `data-theme`
+   (applyTheme), matcht also `:root` UND den Theme-Block gleichzeitig. Beide haben Spezifität
+   (0,1,0); dass Dunkel/Admin gewinnt, entscheidet allein die Reihenfolge — die Theme-Blöcke oben
+   stehen VOR diesem Block. Eine Farbe hier unten überschriebe sie still, und zwar nur auf `<html>`,
+   nicht auf den Wrappern: die Seite bliebe richtig, Toasts und Vollbild-Ansicht kippten ins Helle.
    ───────────────────────────────────────────── */
 :root {
   --space-0\.5: 0.125rem; /* 2px */

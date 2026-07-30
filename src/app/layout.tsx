@@ -82,6 +82,10 @@ export default async function RootLayout({
   const localeToAdopt = !hasLocaleCookie && isValidLocale(sessionLocale) ? sessionLocale : null;
 
   return (
+    // `suppressHydrationWarning` ist hier NICHT kosmetisch: das Theme-Init-Skript der Bereichs-
+    // Layouts setzt `data-theme` auf diesem Element, bevor React hydriert (siehe `applyTheme`).
+    // Der Server kann den Wert nicht kennen — ohne die Unterdrückung meldet React bei jedem
+    // Aufruf eine Abweichung.
     <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Prevent iOS WebKit from auto-linking phone numbers / dates / addresses
