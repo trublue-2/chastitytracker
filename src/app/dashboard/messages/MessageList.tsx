@@ -3,19 +3,23 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Bot, CheckCheck, Inbox, Settings, Undo2, UserRound } from "lucide-react";
+import { ArrowRight, Bot, CheckCheck, Inbox, Settings, Trash2, Undo2, UserRound } from "lucide-react";
+import Link from "next/link";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import DetailField from "@/app/components/DetailField";
 import EmptyState from "@/app/components/EmptyState";
 import ExpandRow from "@/app/components/ExpandRow";
-import ActionModal from "@/app/components/ActionModal";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 import FormError from "@/app/components/FormError";
+import Badge from "@/app/components/Badge";
+import RowActionsMenu from "@/app/components/RowActionsMenu";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDayMonth, formatTime, toDateLocale } from "@/lib/utils";
 import type { PresentedMessage } from "@/lib/messagePresenter";
 import type { MessageSenderKind } from "@/lib/messageService";
+import { MESSAGE_CATEGORY_PILLS } from "@/lib/messageCategories";
 
 const SENDER_ICON: Record<MessageSenderKind, typeof Bot> = { ai: Bot, keyholder: UserRound, system: Settings };
 
@@ -42,8 +46,13 @@ export default function MessageList({
   const [unread, setUnread] = useState(initialUnread);
   const [openId, setOpenId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Eigener Zustand: sonst zeigte ein laufendes Nachladen den Lösch-Knopf als beschäftigt.
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
+  // Die zu löschende Nachricht — hält gleichzeitig die Rückfrage offen (eine Quelle statt
+  // Flag + Id nebeneinander).
+  const [confirmDelete, setConfirmDelete] = useState<PresentedMessage | null>(null);
 
   // Beim Öffnen des Posteingangs die Glocke im Header nachziehen — und nach jedem Lesevorgang
   // erneut. Der Header steht im geteilten Dashboard-Layout, und das rendert bei einer
@@ -103,6 +112,19 @@ export default function MessageList({
     setUnread(res.unread);
   }
 
+  async function deleteMessage(m: PresentedMessage) {
+    setDeleting(true);
+    const res = await request<{ unread: number }>(`/api/messages/${m.id}`, "DELETE");
+    setDeleting(false);
+    // Die Rückfrage bleibt bei einem Fehler OFFEN: schlösse sie sich, sähe der Nutzer eine
+    // unveränderte Liste und keinen Grund — die Fehlerzeile steht am Listenkopf, womöglich
+    // ausserhalb des Bildes.
+    if (!res) return;
+    setConfirmDelete(null);
+    setMessages((prev) => prev.filter((x) => x.id !== m.id));
+    setUnread(res.unread);
+  }
+
   async function loadMore() {
     if (!cursor) return;
     setSaving(true);
@@ -134,6 +156,7 @@ export default function MessageList({
         <ul className="divide-y divide-border-subtle">
           {messages.map((m) => {
             const Icon = SENDER_ICON[m.senderKind];
+            const cat = MESSAGE_CATEGORY_PILLS[m.category];
             const open = openId === m.id;
             // Ein Bezug (Text oder Fehl-Hinweis) ist optional — viele Nachrichten haben bewusst
             // keinen (siehe orgasmusAnforderungService: Rückzug ohne refId).
@@ -143,6 +166,16 @@ export default function MessageList({
                 <ExpandRow
                   open={open}
                   onToggle={() => toggle(m)}
+                  actions={
+                    <RowActionsMenu
+                      items={[
+                        ...(m.read
+                          ? [{ label: t("markUnread"), icon: <Undo2 size={14} className="text-foreground-faint" />, onSelect: () => markUnread(m) }]
+                          : []),
+                        { label: tc("delete"), icon: <Trash2 size={14} />, onSelect: () => setConfirmDelete(m), danger: true },
+                      ]}
+                    />
+                  }
                   label={
                     <span className="flex items-start gap-2">
                       {/* Ungelesen dreifach codiert: Punkt, Fettschrift, Text für Screenreader.
@@ -165,22 +198,32 @@ export default function MessageList({
                   }
                   subtitle={
                     // pl-4 = Punkt + gap: die Metazeile hängt unter dem Titel, nicht unter dem Punkt.
-                    <span className="flex items-center gap-1.5 pl-4">
-                      <Icon size={12} aria-hidden="true" />
-                      {t(`sender.${m.senderKind}`)} · {formatDateTime(m.createdAt, dl, tz)}
+                    // flex-wrap, weil Kategorie + Absender + Datum auf 390 px sonst überlaufen.
+                    <span className="flex items-center flex-wrap gap-x-1.5 gap-y-1 pl-4">
+                      <Badge size="sm" label={t(cat.labelKey)} variant={cat.variant} />
+                      {/* Icon, Absender und Zeit als EINE Einheit: bricht die Zeile, fällt der Umbruch
+                          zwischen Kategorie und Absender — nie zwischen Icon und Name.
+
+                          Die Absender-Angabe bleibt neben der Kategorie stehen: dass die KI geurteilt
+                          hat, ist eine Zusicherung und wird nicht durch das Thema ersetzt.
+
+                          Tag + Uhrzeit ohne Jahr (dieselbe Kurzform wie die Banner über
+                          `formatDayTimeDual`) — mit Jahr bricht die Zeile auf 390 px zusätzlich um. */}
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon size={12} aria-hidden="true" />
+                        {t(`sender.${m.senderKind}`)} · {formatDayMonth(m.createdAt, dl, tz)} {formatTime(m.createdAt, dl, tz)}
+                      </span>
                     </span>
                   }
                 >
-                  {/* Trennlinie setzt das Aufgeklappte gegen Titel + Metazeile ab. Der Inhalt
-                      beginnt bei pl-4 auf der Titelkante — nie links davon.
+                  {/* Ohne Trennlinie: der Abstand setzt das Aufgeklappte ab. Der Inhalt beginnt bei
+                      pl-4 auf der Titelkante — nie links davon.
 
-                      Bedingungslos, und der Knopf darin auch: `ExpandRow` rendert sein Panel allein
-                      nach `open`, unabhängig davon, ob Inhalt kommt. Hing der Inhalt an `m.read`,
-                      leerte ein Klick auf „wieder als ungelesen" das Panel unter dem Finger —
-                      aufgeklappte Zeile, nichts drin, und der Knopf, der das ausgelöst hat, weg.
-                      Dasselbe traf jede Nachricht ohne Bezug, solange der Lese-POST noch lief oder
-                      gescheitert war. Der Knopf ist immer der Inhalt, den es mindestens gibt. */}
-                  <div className="border-t border-border-subtle pt-3 space-y-3">
+                      Bedingungslos gerendert: `ExpandRow` zeigt sein Panel allein nach `open`,
+                      unabhängig davon, ob Inhalt kommt. Hing der Inhalt an `m.read`, leerte ein Klick
+                      auf „wieder als ungelesen" das Panel unter dem Finger. Es gibt immer mindestens
+                      etwas — heute den Bezug bzw. den Link, sonst nichts, und das ist in Ordnung. */}
+                  <div className="pt-1 space-y-3">
                     {hasRef && (
                       <div className="pl-4">
                         <DetailField label={t("refLabel")}>
@@ -194,11 +237,19 @@ export default function MessageList({
                         </DetailField>
                       </div>
                     )}
-                    {/* Kein pl-4: das px-4 des Ghost-Buttons rückt seine Schrift selbst auf die
-                        Titelkante ein. */}
-                    <Button variant="ghost" size="sm" icon={<Undo2 size={16} />} onClick={() => markUnread(m)}>
-                      {t("markUnread")}
-                    </Button>
+                    {/* Verlinkt wird nur, wo eine Seite etwas beiträgt — heute die offene Kontrolle
+                        mit vorbelegtem Code. Der Link steht IM Panel, nicht im Titel: dessen
+                        Aufklapp-Fläche ist ein `button`, ein `a` darin wäre ungültiges Markup und
+                        würde den Klick verschlucken. */}
+                    {m.refHref && (
+                      <Link
+                        href={m.refHref}
+                        className="inline-flex items-center gap-1.5 pl-4 text-sm font-medium text-[var(--color-inspect)] hover:underline"
+                      >
+                        {t("openTarget")}
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </Link>
+                    )}
                   </div>
                 </ExpandRow>
               </li>
@@ -222,22 +273,31 @@ export default function MessageList({
 
       {/* Rückfrage, weil „gelesen" hier eine Behauptung ist: zwölf Nachrichten stumm zu quittieren
           erzeugte eine, die hinterher niemand halten kann. */}
-      <ActionModal
+      <ConfirmDialog
         open={confirmAll}
-        onClose={() => setConfirmAll(false)}
         title={t("markAllRead")}
-        icon={<CheckCheck size={20} className="text-[var(--color-request)]" />}
-        iconBg="var(--color-request-bg)"
-        theme="user"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-foreground-muted">{t("markAllConfirm", { count: unread })}</p>
-          <div className="flex gap-2">
-            <Button variant="primary" loading={saving} onClick={markAllRead}>{tc("yes")}</Button>
-            <Button variant="ghost" onClick={() => setConfirmAll(false)}>{tc("cancel")}</Button>
-          </div>
-        </div>
-      </ActionModal>
+        message={t("markAllConfirm", { count: unread })}
+        confirmLabel={tc("yes")}
+        loading={saving}
+        icon={<CheckCheck size={20} style={{ color: "var(--color-warn)" }} />}
+        onConfirm={markAllRead}
+        onCancel={() => setConfirmAll(false)}
+      />
+
+      {/* Endgültig, deshalb mit Rückfrage — und mit dem Grund, warum sie hier mehr wiegt als beim
+          Löschen eines Eintrags: das Strafbuch ist admin-only, für den Sub war die Nachricht der
+          einzige Ort, an dem der Straftext stand. Der Vorgang selbst bleibt in der Datenbank. */}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={tc("delete")}
+        message={t("deleteConfirm")}
+        confirmLabel={tc("delete")}
+        danger
+        loading={deleting}
+        icon={<Trash2 size={20} style={{ color: "var(--color-warn)" }} />}
+        onConfirm={() => confirmDelete && deleteMessage(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </>
   );
 }

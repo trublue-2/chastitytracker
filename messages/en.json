@@ -200,7 +200,8 @@
     "verifying": "Verifying…",
     "reason": "Reason",
     "from": "from",
-    "imageUnavailable": "Image unavailable"
+    "imageUnavailable": "Image unavailable",
+    "actions": "Actions"
   },
   "adminNav": {
     "overview": "Overview",
@@ -1109,7 +1110,6 @@
     "deleteBoth": "Delete both",
     "cancel": "Cancel",
     "partnerChanged": "The partner entry has changed. Please reload the page.",
-    "ariaActions": "Actions",
     "edit": "Edit entry",
     "delete": "Delete"
   },
@@ -1297,7 +1297,14 @@
       "ai": "AI keyholder"
     },
     "notifyLabel": "Mail and push for new messages",
-    "notifyHint": "Requests and deadlines are always delivered. Messages can quietly collect in the inbox instead."
+    "notifyHint": "Requests and deadlines are always delivered. Messages can quietly collect in the inbox instead.",
+    "catInspection": "Inspection",
+    "catLock": "Lock & closure",
+    "catOrgasm": "Orgasm",
+    "catPenalty": "Penalty",
+    "catSystem": "System",
+    "openTarget": "Fulfil inspection now",
+    "deleteConfirm": "Delete this message for good? The underlying record stays — but if a penalty text is attached to it, you will not be able to read it anywhere afterwards."
   },
   "emails": {
     "greeting": "Hi {username},",

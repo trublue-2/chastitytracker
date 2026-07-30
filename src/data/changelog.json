@@ -1,5 +1,39 @@
 [
   {
+    "version": "4.58.1",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Jede Nachricht zeigt jetzt, worum es geht: Kontrolle, Sperre & Verschluss, Orgasmus, Strafe oder System — farbig gekennzeichnet, damit du die Liste überfliegen kannst.",
+          "en": "Every message now shows what it is about: inspection, lock & closure, orgasm, penalty or system — colour-coded so you can skim the list."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Steht eine Kontrolle offen, führt die Nachricht direkt ins Prüfungs-Formular, mit dem Code schon eingetragen. Bei allem anderen gibt es keinen Link — dort wartet keine Seite, die mehr sagt als die Nachricht selbst.",
+          "en": "If an inspection is open, the message now leads straight to the inspection form with the code already filled in. Everything else stays unlinked — there is no page that would say more than the message itself."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Nachrichten lassen sich löschen, über das Menü am rechten Rand der Zeile. Es fragt vorher nach: der zugehörige Vorgang bleibt erhalten, aber ein Straftext ist danach nirgends mehr nachlesbar.",
+          "en": "Messages can now be deleted from the menu at the right edge of the row. It asks first: the underlying record stays, but a penalty text will not be readable anywhere afterwards."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "„Wieder als ungelesen\" sitzt jetzt in diesem Menü statt als grosser Knopf im aufgeklappten Bereich. Dazu weg: die überflüssige Trennlinie über dem Inhalt. Das Datum steht kürzer, damit Kategorie, Absender und Zeit auf dem Handy nebeneinander passen.",
+          "en": "‚Mark as unread‘ now sits in that menu instead of being a large button in the expanded area. Also gone: the superfluous divider above the content. The date is shorter so category, sender and time fit next to each other on a phone."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.0",
     "date": "2026-07-30",
     "changes": [

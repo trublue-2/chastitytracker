@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 // Der Service liest Nachrichten + die vier Bezugsobjekte und schreibt Lese-Kennzeichen.
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    message: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
+    message: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn() },
     messageRead: { upsert: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
     strafeRecord: { findMany: vi.fn() },
     kontrollAnforderung: { findMany: vi.fn() },
@@ -20,6 +20,7 @@ import {
   unreadCountFor,
   markAllRead,
   setRead,
+  deleteMessage,
 } from "./messageService";
 import { prisma } from "@/lib/prisma";
 
@@ -139,7 +140,9 @@ describe("Gelesen-Kennzeichen ist an den Besitzer gebunden", () => {
   it("setRead sucht die Nachricht mit subjectUserId — eine fremde id findet nichts", async () => {
     mock(prisma.message.findFirst).mockResolvedValue(null);
     expect(await setRead("u1", "fremde-id", true)).toBe(false);
-    expect(mock(prisma.message.findFirst).mock.calls[0][0].where).toEqual({ id: "fremde-id", subjectUserId: "u1" });
+    expect(mock(prisma.message.findFirst).mock.calls[0][0].where).toEqual({
+      id: "fremde-id", subjectUserId: "u1", audience: "sub",
+    });
     expect(prisma.messageRead.upsert).not.toHaveBeenCalled();
   });
 
@@ -192,5 +195,65 @@ describe("Zustellung ist retry-sicher", () => {
       ref: { type: "lockRequest", id: "va1" },
     });
     expect(prisma.message.create).toHaveBeenCalled();
+  });
+});
+
+describe("Verlinkung — nur wo eine Seite etwas beiträgt", () => {
+  const control = (over: Record<string, unknown> = {}) => ({
+    id: "ka1", kommentar: null, code: "12345", entryId: null, withdrawnAt: null,
+    deadline: new Date("2099-01-01T00:00:00Z"), wirksamAb: null, benachrichtigtAt: new Date(),
+    autoMarkedRemovedAt: null, ...over,
+  });
+
+  async function codeOf(controlRow: Record<string, unknown>) {
+    mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "control", refEntityId: "ka1" })]);
+    mock(prisma.kontrollAnforderung.findMany).mockResolvedValue([controlRow]);
+    const { messages } = await listMessagesFor("u1");
+    return messages[0]?.refActionCode ?? null;
+  }
+
+  it("offene Kontrolle → Code für das Prüfungs-Formular", async () => {
+    expect(await codeOf(control())).toBe("12345");
+  });
+
+  it("erfüllte Kontrolle → kein Ziel", async () => {
+    expect(await codeOf(control({ entryId: "e1" }))).toBeNull();
+  });
+
+  it("abgelaufene Kontrolle → kein Ziel (das Formular nimmt sie nicht mehr an)", async () => {
+    expect(await codeOf(control({ deadline: new Date("2000-01-01T00:00:00Z") }))).toBeNull();
+  });
+
+  it("zurückgezogene Kontrolle → kein Ziel", async () => {
+    expect(await codeOf(control({ withdrawnAt: new Date() }))).toBeNull();
+  });
+
+  it("Strafe → kein Ziel (für den Sub gibt es kein Strafbuch)", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "s1" })]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "Text" }]);
+    const { messages } = await listMessagesFor("u1");
+    expect(messages[0].refActionCode).toBeNull();
+  });
+});
+
+describe("Löschen ist an den Besitzer gebunden", () => {
+  it("eine fremde id löscht nichts", async () => {
+    mock(prisma.message.deleteMany).mockResolvedValue({ count: 0 });
+    expect(await deleteMessage("u1", "fremde-id")).toBe(false);
+  });
+
+  it("gelöscht wird genau die eigene Zeile — eingegrenzt auf subjectUserId UND audience", async () => {
+    mock(prisma.message.deleteMany).mockResolvedValue({ count: 1 });
+    expect(await deleteMessage("u1", "m1")).toBe(true);
+    expect(mock(prisma.message.deleteMany).mock.calls[0][0].where).toEqual({
+      id: "m1", subjectUserId: "u1", audience: "sub",
+    });
+  });
+
+  // Zwei überlappende Aufrufe: der zweite findet nichts mehr und muss ein sauberes „nein" liefern,
+  // keinen Fehler — sonst sieht der Nutzer einen Fehler, obwohl der Zustand stimmt.
+  it("ein zweiter Aufruf auf dieselbe Zeile ist kein Fehler", async () => {
+    mock(prisma.message.deleteMany).mockResolvedValue({ count: 0 });
+    await expect(deleteMessage("u1", "m1")).resolves.toBe(false);
   });
 });

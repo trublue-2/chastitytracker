@@ -410,7 +410,11 @@ Befund: dass der Sub heute nicht nachlesen kann, wofür er bestraft wurde.
 - **Vorlagen als eigenes Modell** — der einzige Nutzer wäre der menschliche Keyholder; die KI
   formuliert selbst. Wenn überhaupt, als Freitext bei den Keyholder-Regeln.
 - **Überführung der bestehenden Anforderungs-Freitexte** (siehe 3.2).
-- **Löschen von Nachrichten** — Supersession statt Delete, wie im übrigen Modell.
+- ~~**Löschen von Nachrichten** — Supersession statt Delete, wie im übrigen Modell.~~
+  **Überholt (v4.57.x, auf Wunsch des Betreibers):** Nachrichten sind löschbar, mit Rückfrage und
+  endgültig. Das Argument fürs Supersession-Modell trägt hier nicht: eine Nachricht ist die
+  *Zustellung*, nicht der Vorgang — der Vorgang (StrafeRecord, KontrollAnforderung) bleibt beim
+  Löschen unberührt, es geht also keine Wahrheit verloren, nur ihre Zustellung.
 - **Reaktionen, Tipp-Anzeige, verschachtelte Threads.** Ein Sub, ein Thread.
 - **Keyholder↔Keyholder-Kanal** — kein Anwendungsfall im Modell.
 - **Geplante Nachrichten.** Technisch billig, aber der Sinn der Terminierung ist bei Direktiven die

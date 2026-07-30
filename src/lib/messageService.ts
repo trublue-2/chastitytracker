@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
+import { mapAnforderungStatus } from "@/lib/utils";
 
 /**
  * Der Posteingang: die Nachrichten, die der Sub nachlesen kann.
@@ -147,6 +148,9 @@ export interface InboxMessage {
   body: string | null;
   /** Freitext des Bezugsobjekts (Straftext, Kommentar, Anforderungs-Nachricht) — frisch gelesen. */
   refText: string | null;
+  /** Code der offenen Kontrolle, falls die Nachricht auf eine zeigt — der Presenter macht daraus
+   *  das Ziel. Sonst null: es gibt keine Seite, die etwas beiträgt. */
+  refActionCode: string | null;
   /** Referenz gesetzt, Objekt aber nicht (mehr) auflösbar. Muster: `unknownRef` in lib/mcp/notes.ts. */
   refMissing: boolean;
   read: boolean;
@@ -169,6 +173,11 @@ type RefRow = { id: string; refEntityType: string | null; refEntityId: string | 
 
 const refKey = (type: string, id: string) => `${type}:${id}`;
 
+/** Die Referenz-Ids eines Nachrichten-Stapels je Objekt-Typ. */
+function idsOfType(rows: RefRow[], type: MessageRefType): string[] {
+  return rows.filter((r) => r.refEntityType === type && r.refEntityId).map((r) => r.refEntityId!);
+}
+
 function keyOf(row: RefRow): string | null {
   return row.refEntityType && row.refEntityId ? refKey(row.refEntityType, row.refEntityId) : null;
 }
@@ -185,10 +194,8 @@ function keyOf(row: RefRow): string | null {
  * statt sie preiszugeben.
  */
 async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set<string>> {
-  const idsOf = (type: MessageRefType) =>
-    rows.filter((r) => r.refEntityType === type && r.refEntityId).map((r) => r.refEntityId!);
-  const controlIds = idsOf("control");
-  const lockRequestIds = idsOf("lockRequest");
+  const controlIds = idsOfType(rows, "control");
+  const lockRequestIds = idsOfType(rows, "lockRequest");
 
   const scoped = { wirksamAb: true, benachrichtigtAt: true, id: true } as const;
   const [controls, lockRequests] = await Promise.all([
@@ -207,27 +214,53 @@ async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set
   return hidden;
 }
 
-/** Der Freitext je Referenz — nur für die ANZEIGE, deshalb getrennt von {@link hiddenRefKeys}:
+/** Was ein Bezugsobjekt für die Anzeige beiträgt: sein Freitext und — falls es eine Seite gibt, die
+ *  etwas dazu sagt — das Ziel dorthin. */
+type RefDetail = {
+  text: string | null;
+  /** Code der offenen Kontrolle — daraus baut der Presenter das Ziel. Der Service kennt keine
+   *  Router-Pfade: `category` und Link sitzen dann beide in der Anzeige-Schicht. */
+  actionCode: string | null;
+  /** Für den Sub verborgen (terminierte, noch nicht ausgelöste Direktive). */
+  hidden: boolean;
+};
+
+/** Freitext + Link-Ziel je Referenz — nur für die ANZEIGE, deshalb getrennt von {@link hiddenRefKeys}:
  *  der Zähler braucht keinen einzigen dieser Texte. */
-async function refTexts(rows: RefRow[], subjectUserId: string): Promise<Map<string, string | null>> {
-  const idsOf = (type: MessageRefType) =>
-    rows.filter((r) => r.refEntityType === type && r.refEntityId).map((r) => r.refEntityId!);
+async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<string, RefDetail>> {
   const [offenseIds, controlIds, lockIds, orgasmIds] =
-    (["offense", "control", "lockRequest", "orgasmDirective"] as const).map(idsOf);
+    (["offense", "control", "lockRequest", "orgasmDirective"] as const).map((t) => idsOfType(rows, t));
 
   const [offenses, controls, lockRequests, orgasmDirectives] = await Promise.all([
     offenseIds.length ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, reason: true } }) : [],
-    controlIds.length ? prisma.kontrollAnforderung.findMany({ where: { id: { in: controlIds }, userId: subjectUserId }, select: { id: true, kommentar: true } }) : [],
-    lockIds.length ? prisma.verschlussAnforderung.findMany({ where: { id: { in: lockIds }, userId: subjectUserId }, select: { id: true, nachricht: true } }) : [],
+    // Mehr als der Kommentar: aus Code + Zustand entsteht das Link-Ziel (siehe unten).
+    controlIds.length ? prisma.kontrollAnforderung.findMany({
+      where: { id: { in: controlIds }, userId: subjectUserId },
+      select: { id: true, kommentar: true, code: true, entryId: true, withdrawnAt: true, deadline: true, wirksamAb: true, benachrichtigtAt: true, autoMarkedRemovedAt: true },
+    }) : [],
+    // wirksamAb/benachrichtigtAt mitlesen: dieselbe Zeile beantwortet Text UND Sichtbarkeit — sonst
+    // fragte der Listen-Pfad diese Tabelle zweimal (einmal hier, einmal über hiddenRefKeys).
+    lockIds.length ? prisma.verschlussAnforderung.findMany({ where: { id: { in: lockIds }, userId: subjectUserId }, select: { id: true, nachricht: true, wirksamAb: true, benachrichtigtAt: true } }) : [],
     orgasmIds.length ? prisma.orgasmusAnforderung.findMany({ where: { id: { in: orgasmIds }, userId: subjectUserId }, select: { id: true, nachricht: true } }) : [],
   ]);
 
-  const texts = new Map<string, string | null>();
-  for (const o of offenses) texts.set(refKey("offense", o.id), o.reason);
-  for (const c of controls) texts.set(refKey("control", c.id), c.kommentar);
-  for (const l of lockRequests) texts.set(refKey("lockRequest", l.id), l.nachricht);
-  for (const d of orgasmDirectives) texts.set(refKey("orgasmDirective", d.id), d.nachricht);
-  return texts;
+  const now = new Date();
+  const details = new Map<string, RefDetail>();
+  for (const o of offenses) details.set(refKey("offense", o.id), { text: o.reason, actionCode: null, hidden: false });
+  for (const c of controls) {
+    // Ein Ziel gibt es NUR bei der offenen Kontrolle — dort steht eine Handlung an. Erfüllt,
+    // abgelaufen, zurückgezogen oder noch nicht ausgelöst: kein Ziel, das etwas beiträgt. Der
+    // Zustand kommt aus `mapAnforderungStatus` statt aus einer zweiten Handableitung.
+    const open = mapAnforderungStatus(c, null, now) === "open";
+    details.set(refKey("control", c.id), {
+      text: c.kommentar,
+      actionCode: open ? c.code : null,
+      hidden: isHiddenFromSub(c),
+    });
+  }
+  for (const l of lockRequests) details.set(refKey("lockRequest", l.id), { text: l.nachricht, actionCode: null, hidden: isHiddenFromSub(l) });
+  for (const d of orgasmDirectives) details.set(refKey("orgasmDirective", d.id), { text: d.nachricht, actionCode: null, hidden: false });
+  return details;
 }
 
 /**
@@ -266,12 +299,14 @@ export async function listMessagesFor(
 
   const page = rows.slice(0, take);
   const nextCursor = rows.length > take ? page[page.length - 1].id : null;
-  const [hidden, texts] = await Promise.all([hiddenRefKeys(page, subjectUserId), refTexts(page, subjectUserId)]);
+  // Eine Auflösung für beides: `refDetails` liefert Text, Ziel UND Sichtbarkeit. `hiddenRefKeys`
+  // bleibt die schlanke Variante für den Zähler (Header-Pfad), der keinen Text braucht.
+  const details = await refDetails(page, subjectUserId);
 
   const messages: InboxMessage[] = [];
   for (const row of page) {
     const key = keyOf(row);
-    if (key && hidden.has(key)) continue;
+    if (key && details.get(key)?.hidden) continue;
     messages.push({
       id: row.id,
       createdAt: row.createdAt,
@@ -279,8 +314,9 @@ export async function listMessagesFor(
       bodyKey: row.bodyKey,
       bodyParams: parseParams(row.bodyParams),
       body: row.body,
-      refText: key ? texts.get(key) ?? null : null,
-      refMissing: key !== null && !texts.has(key),
+      refText: key ? details.get(key)?.text ?? null : null,
+      refActionCode: key ? details.get(key)?.actionCode ?? null : null,
+      refMissing: key !== null && !details.has(key),
       read: row.reads.length > 0,
     });
   }
@@ -377,7 +413,9 @@ export async function recordMessageAndBadge(p: RecordMessageParams): Promise<num
  * sonst quittiert eine geratene ID die Nachricht eines fremden Nutzers.
  */
 export async function setRead(subjectUserId: string, messageId: string, read: boolean): Promise<boolean> {
-  const message = await prisma.message.findFirst({ where: { id: messageId, subjectUserId }, select: { id: true } });
+  // `audience` mitgeprüft, aus demselben Grund wie beim Löschen: ab Etappe 2 gibt es Zeilen zum
+  // selben Sub, die nicht ihm gehören.
+  const message = await prisma.message.findFirst({ where: { id: messageId, subjectUserId, audience: "sub" }, select: { id: true } });
   if (!message) return false;
   if (read) {
     // upsert statt create: zweimal auf dieselbe Zeile zu tippen ist kein Fehler.
@@ -390,6 +428,33 @@ export async function setRead(subjectUserId: string, messageId: string, read: bo
     await prisma.messageRead.deleteMany({ where: { messageId, userId: subjectUserId } });
   }
   return true;
+}
+
+/**
+ * Löscht EINE Nachricht aus dem Posteingang.
+ *
+ * Nur die Posteingangs-Zeile: das Bezugsobjekt (StrafeRecord, KontrollAnforderung, …) bleibt
+ * unberührt — eine Nachricht ist die Zustellung, nicht der Vorgang. `MessageRead` hängt am
+ * `onDelete: Cascade` und geht mit.
+ *
+ * `subjectUserId` ist wie bei {@link setRead} Teil der Suche, nicht nur des Aufrufs: eine geratene
+ * ID findet damit nichts, statt die Nachricht eines fremden Nutzers zu löschen.
+ */
+export async function deleteMessage(subjectUserId: string, messageId: string): Promise<boolean> {
+  // EIN `deleteMany` statt Suchen-dann-Löschen: atomar und idempotent. Bei zwei überlappenden
+  // Aufrufen (zweiter Tab, Wiederholung nach Netz-Hänger) käme der Verlierer eines Read-then-Write
+  // mit Prismas P2025 zurück — ein 500 mit leerem Body, obwohl der gewünschte Zustand längst
+  // erreicht ist. `count === 0` heisst hier sauber „gibt es nicht (mehr)" → 404.
+  //
+  // `audience` wie in jedem Lese-Pfad: ab Etappe 2 tragen auch Nachrichten AN DIE KEYHOLDER die
+  // `subjectUserId` des Subs — ohne diese Zeile könnte er sie dann löschen.
+  //
+  // Bekannte Grenze von „endgültig": das Löschen nimmt der `once`-Sperre (siehe RecordMessageParams)
+  // ihren Anker. Bricht ein Poller genau zwischen Versand und `benachrichtigtAt`-Stempel ab UND wird
+  // die Nachricht dazwischen gelöscht, legt der nächste Lauf sie neu an. Das Fenster ist ein
+  // Absturz/Deploy breit; ein Grabstein-Datensatz dafür wäre teurer als der Fall.
+  const { count } = await prisma.message.deleteMany({ where: { id: messageId, subjectUserId, audience: "sub" } });
+  return count > 0;
 }
 
 /**
