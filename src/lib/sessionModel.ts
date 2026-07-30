@@ -1,4 +1,4 @@
-import { effectiveDeviceCheckStatus, type DeviceCheckStatus } from "@/lib/deviceCheck";
+import { effectiveDeviceCheckStatus, sameLookalikeCluster, type DeviceCheckStatus } from "@/lib/deviceCheck";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
 import { buildPairs, mergeWearPairs, msToHours, type ReinigungSettings, WEAR_PAIR, type WearPair } from "@/lib/utils";
 
@@ -218,7 +218,7 @@ function reconcileDevice(
   const declaredCluster = declared.id ? lookups.clusterById.get(declared.id) : null;
   const detectedCluster = detectedId ? lookups.clusterById.get(detectedId) : null;
   // Optisch gleiches Gerät aus demselben Cluster → Bild unzuverlässig, deklariert bleibt (soft).
-  if (declaredCluster && detectedCluster && declaredCluster === detectedCluster) {
+  if (sameLookalikeCluster(declaredCluster, detectedCluster)) {
     return { verified, confidence: "cluster-ambiguous" };
   }
   // Echter Konflikt über Cluster-Grenze → Bild gewinnt (deviceEffective greift das via Helper auf).

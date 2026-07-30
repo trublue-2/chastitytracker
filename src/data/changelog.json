@@ -1,5 +1,32 @@
 [
   {
+    "version": "4.58.4",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Wer keine E-Mail-Adresse hinterlegt hat, erfährt von einer angeforderten Kontrolle jetzt trotzdem — über Push und den Posteingang. Bisher brach die Benachrichtigung ohne Adresse ganz ab: die Frist lief, die Kontrolle wurde versäumt, und anschliessend griffen Mahnung und automatische Buchung auf einer Anforderung, von der man nie erfahren hatte.",
+          "en": "If you have no e-mail address on file, you now still hear about a requested inspection — through push and your inbox. Until now the notification stopped entirely without an address: the deadline ran, the inspection was missed, and the reminder and automatic booking then acted on a request you had never been told about."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Gerät, dessen neuestes Referenzfoto nicht mehr lesbar ist, fällt nicht mehr aus der Geräte-Erkennung. Vorher konnte eine einzelne fehlende Datei dazu führen, dass jede Kontrolle dieses Geräts dauerhaft als „nicht prüfbar“ endete, obwohl weitere brauchbare Fotos hinterlegt waren.",
+          "en": "A device whose newest reference photo can no longer be read no longer drops out of the device recognition. Previously a single missing file could make every inspection of that device end up permanently “not checkable”, even though other usable photos were on file."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Geräte-Erkennung teilt ihre Referenzfotos jetzt nach Relevanz auf: das Gerät, das getragen werden soll, und optisch gleiche Geräte bekommen mehr Vergleichsbilder als solche, die ohnehin ausscheiden. Ausserdem werden nur noch die Fotos von der Platte gelesen, die auch wirklich verglichen werden — bisher wurde ein Teil umsonst geladen.",
+          "en": "The device recognition now splits its reference photos by relevance: the device you are supposed to be wearing, and devices that look like it, get more comparison images than those that are ruled out anyway. It also only reads the photos from disk that are actually compared — until now some were loaded for nothing."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.3",
     "date": "2026-07-30",
     "changes": [

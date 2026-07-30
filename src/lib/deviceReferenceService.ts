@@ -9,7 +9,9 @@ import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 /**
  * Sammelt die Referenzbilder JE aktivem KG-Gerät für die Vision-Erkennung: bevorzugt kuratierte
  * DeviceReferenceImage (Cap = visionMaxRefsPerDevice(), Default 2), sonst Fallback (Geräte-Foto +
- * letzte Verschluss-Fotos). Liefert
+ * letzte Verschluss-Fotos). Der Cap ist hier nur die HOLGRENZE — wie viele Bilder ein Gerät am Ende
+ * beisteuert, entscheidet allein `allocateImageBudget` in `detectDevice.ts` (dieselbe Konstante als
+ * Obergrenze). Mehr zu holen als dort maximal zulässig wäre, brächte nichts. Liefert
  * einen Eintrag pro Gerät (auch ohne Bilder → leere imageUrls). Geteilt von /api/detect-device
  * und dem Kontroll-Geräte-Check.
  */
@@ -18,7 +20,7 @@ export async function gatherDeviceReferences(userId: string): Promise<DeviceRefe
   const devices = await prisma.device.findMany({
     where: { userId, archivedAt: null, OR: [{ category: { isBuiltIn: true } }, { categoryId: null }] },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, imageUrl: true, material: true, bauform: true, description: true },
+    select: { id: true, name: true, imageUrl: true, material: true, bauform: true, description: true, lookalikeClusterId: true },
   });
   if (devices.length === 0) return [];
 
@@ -47,7 +49,12 @@ export async function gatherDeviceReferences(userId: string): Promise<DeviceRefe
   );
 
   return devices.map((device, i) => {
-    const base = { deviceId: device.id, deviceName: device.name, visualTraits: visualTraitsOf(device) };
+    const base = {
+      deviceId: device.id,
+      deviceName: device.name,
+      visualTraits: visualTraitsOf(device),
+      lookalikeClusterId: device.lookalikeClusterId,
+    };
     const curated = curatedByDevice[i].map((r) => r.imageUrl);
     if (curated.length > 0) return { ...base, imageUrls: curated };
     const imageUrls: string[] = [];

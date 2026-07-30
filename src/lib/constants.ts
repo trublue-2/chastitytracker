@@ -85,8 +85,10 @@ export function visionMaxRefsPerDevice(): number {
   return Number.isFinite(n) && n >= 1 ? n : 2;
 }
 
-/** Harte Obergrenze für die GESAMTzahl Referenzbilder im Geräte-Prompt (über alle Geräte), damit
- *  die Latenz bei vielen Geräten nicht explodiert. Env: VISION_MAX_TOTAL_REFS (Default 6). */
+/** Obergrenze für die GESAMTzahl Referenzbilder im Geräte-Prompt (über alle Geräte), damit die
+ *  Latenz bei vielen Geräten nicht explodiert. Verteilt wird sie von `allocateImageBudget`.
+ *  NICHT hart: jedes Gerät braucht sein Grundbild, um überhaupt Kandidat zu sein — gibt es mehr
+ *  Geräte als Budget, wird sie bewusst überzogen. Env: VISION_MAX_TOTAL_REFS (Default 6). */
 export function visionMaxTotalRefs(): number {
   const n = Number(process.env.VISION_MAX_TOTAL_REFS);
   return Number.isFinite(n) && n >= 1 ? n : 6;
