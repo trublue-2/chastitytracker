@@ -218,7 +218,7 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
 
   it("set_cleaning: dryRun zeigt den GEKLEMMTEN Wert, nicht den rohen Input (K-06-Falle)", async () => {
     const r = await mcpSetCleaning("sub", { dryRun: true, maxMinutes: 9999 }) as { preview: { maxMinutes: number; maxMinutesClampedFrom?: number } };
-    expect(r.preview.maxMinutes).toBe(120); // MAX_MINUTEN_RANGE.max
+    expect(r.preview.maxMinutes).toBe(120); // CLEANING_MAX_MINUTES_RANGE.max
     expect(r.preview.maxMinutesClampedFrom).toBe(9999);
   });
 
@@ -411,7 +411,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   });
 
   it("withdraw mit id trifft genau eine Zeile — und prüft, dass sie zum Sub und zur Art gehört", async () => {
-    vaFindUniqueMock.mockResolvedValue({ userId: "u1", art: "ANFORDERUNG" });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endetAt: null, nachricht: null });
     (withdrawVerschlussAnforderungById as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, data: { userId: "u1", notified: true } });
 
     const r = await mcpWithdraw("sub", { target: "lock_request", id: "a1" }) as { withdrawn: number };
@@ -419,13 +419,13 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
     expect(withdrawVerschlussAnforderungById).toHaveBeenCalledWith("a1");
 
     // Fremder Sub / falsche Art / bereits weg → gar kein Rückzug, statt stillem Erfolg.
-    vaFindUniqueMock.mockResolvedValue({ userId: "u2", art: "ANFORDERUNG" });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u2", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endetAt: null, nachricht: null });
     await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/No open lock_request/);
-    vaFindUniqueMock.mockResolvedValue({ userId: "u1", art: "SPERRZEIT" });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "SPERRZEIT", wirksamAb: null, benachrichtigtAt: null, endetAt: null, nachricht: null });
     await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/No open lock_request/);
     // „Bereits zurückgezogen" beurteilt der Service (eine Wahrheit, eine Stelle) — der Guard hier
     // beantwortet nur „gehört die Zeile diesem Sub und dieser Art?".
-    vaFindUniqueMock.mockResolvedValue({ userId: "u1", art: "ANFORDERUNG" });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endetAt: null, nachricht: null });
     (withdrawVerschlussAnforderungById as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValue({ ok: false, status: 400, error: "LOCK_PERIOD_ALREADY_WITHDRAWN" });
     await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/already/);

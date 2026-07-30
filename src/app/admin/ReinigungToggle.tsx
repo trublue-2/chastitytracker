@@ -5,11 +5,13 @@ import { useTranslations } from "next-intl";
 import { Plus, X } from "lucide-react";
 import Toggle from "@/app/components/Toggle";
 import TimeInput from "@/app/components/TimeInput";
-import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import NumberInput from "@/app/components/NumberInput";
+import InlineSettingRow from "@/app/components/InlineSettingRow";
+import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { clampInputValue } from "@/lib/utils";
 
 type Fenster = { start: string; end: string };
 
@@ -41,8 +43,14 @@ export default function ReinigungToggle({
   const [maxProTag, setMaxProTag] = useState(initialMaxProTag);
   const [fenster, setFenster] = useState<Fenster[]>(initialFenster);
 
-  function saveSettings(newErlaubt: boolean, newMaxMin: number, newMaxProTag: number) {
-    return save({ reinigungErlaubt: newErlaubt, reinigungMaxMinuten: newMaxMin, reinigungMaxProTag: newMaxProTag });
+  /** Ein Zahlen-Feld speichern: jedes schickt nur sich selbst, der Service lässt die übrigen
+   *  unberührt. Lokal erst übernehmen, wenn der Server den Wert angenommen hat — sonst zeigte das
+   *  Feld nach einem abgelehnten Patch weiter die ungespeicherte Zahl (dasselbe Muster wie unten
+   *  bei den Fenstern). Der Rückgabewert lässt `NumberInput` bei Ablehnung zurückspringen. */
+  async function saveField(patch: Record<string, number>, apply: () => void): Promise<boolean> {
+    const ok = await save(patch);
+    if (ok) apply();
+    return ok;
   }
 
   // Fenster separat speichern (nur reinigungsFenster) — der Service lässt die anderen Felder
@@ -61,7 +69,7 @@ export default function ReinigungToggle({
 
   function handleToggle(checked: boolean) {
     setErlaubt(checked);
-    saveSettings(checked, maxMin, maxProTag);
+    save({ reinigungErlaubt: checked });
   }
 
   return (
@@ -75,34 +83,24 @@ export default function ReinigungToggle({
       />
       {erlaubt && (
         <>
-          <div className="flex items-center gap-2 pl-1">
-            <span className={faintCls}>{t("reinigungMaxLabel")}</span>
-            <input
-              type="number"
-              min={1}
-              max={120}
+          <InlineSettingRow label={t("reinigungMaxLabel")} unit="min">
+            <NumberInput
               value={maxMin}
-              onChange={(e) => setMaxMin(clampInputValue(e.target.value, 1, 120, 15))}
-              onBlur={() => saveSettings(erlaubt, maxMin, maxProTag)}
+              range={CLEANING_MAX_MINUTES_RANGE}
               disabled={saving}
-              className={inputCls}
+              ariaLabel={t("reinigungMaxLabel")}
+              onCommit={(n) => saveField({ reinigungMaxMinuten: n }, () => setMaxMin(n))}
             />
-            <span className={faintCls}>min</span>
-          </div>
-          <div className="flex items-center gap-2 pl-1">
-            <span className={faintCls}>{t("reinigungMaxProTagLabel")}</span>
-            <input
-              type="number"
-              min={0}
-              max={20}
+          </InlineSettingRow>
+          <InlineSettingRow label={t("reinigungMaxProTagLabel")} unit={t("reinigungMaxProTagHint")}>
+            <NumberInput
               value={maxProTag}
-              onChange={(e) => setMaxProTag(clampInputValue(e.target.value, 0, 20, 0))}
-              onBlur={() => saveSettings(erlaubt, maxMin, maxProTag)}
+              range={CLEANING_MAX_PER_DAY_RANGE}
               disabled={saving}
-              className={inputCls}
+              ariaLabel={t("reinigungMaxProTagLabel")}
+              onCommit={(n) => saveField({ reinigungMaxProTag: n }, () => setMaxProTag(n))}
             />
-            <span className={faintCls}>{t("reinigungMaxProTagHint")}</span>
-          </div>
+          </InlineSettingRow>
           <div className="flex flex-col gap-2 pl-1">
             <span className={faintCls}>{t("reinigungFensterLabel")}</span>
             {fenster.length === 0 && (

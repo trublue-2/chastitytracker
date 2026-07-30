@@ -5,6 +5,7 @@ import { visionMaxImagePx, type Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES } from "@/lib/imageUtils";
 import { visionComplete, visionConfigured, visionProvider } from "@/lib/vision";
+import { parseJsonObject } from "@/lib/vision/parse";
 import { localReadDigits } from "@/lib/ocr";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
@@ -375,12 +376,11 @@ async function detectSealDigits(
     const text = response.text;
     vlog(`${logPrefix}:vision_response`, { requestId: response.requestId, stopReason: response.stopReason, textPreview: redactDigits(text.slice(0, 200)) });
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const result = parseJsonObject<{ detected?: unknown }>(text);
+    if (!result) {
       vlog(`${logPrefix}:no_json`, { textPreview: redactDigits(text.slice(0, 200)) });
       return null;
     }
-    const result = JSON.parse(jsonMatch[0]);
     if (normalizeDetected(result.detected) === null) {
       vlog(`${logPrefix}:no_detection`, { detectedType: typeof result.detected });
       return null;
@@ -443,4 +443,62 @@ export async function detectLockboxCode(imageUrl: string, rotation: Rotation = 0
     logPrefix: "lockbox",
     prompt: `This is a combination padlock or key lockbox with rotating number dials (Zahlenschloss). Read the digits currently set at the indicator — the row aligned with the marker line (often red) / shown in the small windows. Read them in order (top→bottom for stacked dials, left→right for a row). The code is usually 3–4 digits (up to 8). Ignore the partially-visible neighbouring digits above/below the line.\nReply with JSON only: {"detected": "<the digits, with leading zeros, or null>"}. If you cannot read the digits, use null.`,
   });
+}
+
+/**
+ * Liegt im Sichtfenster der Schlüsselbox ein Schlüssel? Die Box (Heimdall / „Lock Me Box") hat ein
+ * transparentes Fenster im Deckel — der Schlüssel ist also auch bei GESCHLOSSENER Box sichtbar.
+ * Deshalb genau EINE Frage für beide Anlässe: Verschluss-Foto wie Kontroll-Foto.
+ *
+ * Bewusst nur eine Anwesenheits-Frage: welcher Schlüssel dort liegt, kann das Modell nicht
+ * beurteilen (ein beliebiger Ersatzschlüssel sieht gleich aus). Das Ergebnis ist ein Indiz für die
+ * Keyholderin, kein Beweis — es blockiert nichts (wie `deviceCheck`).
+ *
+ * `null` = nicht geprüft: kein Vision-Provider (es gibt keinen OCR-Fallback für „Schlüssel"),
+ * Bild nicht ladbar, Modell nicht auswertbar oder Aufruf gescheitert. Die UI zeigt dann KEINE
+ * Pille, statt „kein Schlüssel erkannt" zu behaupten, was niemand geprüft hat.
+ */
+export async function detectKeyInBox(imageUrl: string, rotation: Rotation = 0): Promise<boolean | null> {
+  if (!visionConfigured()) {
+    vlog("key:no_provider", { imageUrl });
+    return null;
+  }
+  try {
+    const img = await loadImageBuffer(imageUrl, rotation);
+    if (!img) {
+      vlog("key:image_load_null", { imageUrl, rotation });
+      return null;
+    }
+
+    const response = await visionComplete({
+      task: "key-detect",
+      maxTokens: 50,
+      content: [
+        { type: "image", mediaType: img.mediaType, base64: img.base64 },
+        {
+          type: "text",
+          text:
+            `This photo shows a small black key safe with a transparent viewing window in its lid. ` +
+            `Through the window you can see the padded compartment inside.\n` +
+            `Question: is at least one KEY visible inside the compartment? A key ring or key fob alone ` +
+            `does NOT count — the blade of a key must be visible.\n` +
+            `Reply with JSON only: {"key": <true|false>}. If the window is empty, too dark or too ` +
+            `blurry to tell, use false.`,
+        },
+      ],
+    });
+
+    vlog("key:vision_response", { requestId: response.requestId, stopReason: response.stopReason, textPreview: response.text.slice(0, 200) });
+
+    const parsed = parseJsonObject<{ key?: boolean }>(response.text);
+    if (parsed === null || typeof parsed.key !== "boolean") {
+      vlog("key:unparsable", { textPreview: response.text.slice(0, 200) });
+      return null;
+    }
+    return parsed.key;
+  } catch (e) {
+    const err = e as { message?: string; name?: string };
+    vlog("key:exception", { error: err.message, name: err.name });
+    return null;
+  }
 }

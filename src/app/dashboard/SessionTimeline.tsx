@@ -19,6 +19,9 @@ interface Props {
   nowIso: string;
   locale: string;
   mode: "active" | "historical";
+  /** Zeitzone der SUB — dieselbe, in der die Ereigniszeilen serverseitig formatiert wurden. Zieht
+   *  die Tagesgrenzen der Buckets, damit „Heute" denselben Tag meint wie die Uhrzeit in der Zeile. */
+  tz: string;
   /** Historical sessions need an end time to decide if bucketing should kick in. */
   sessionEndIso?: string;
   /** Stable per-session prefix for localStorage keys (so buckets remember state per session). */
@@ -35,8 +38,12 @@ function iconFor(type: SessionEventData["type"]) {
 function FlatEvents({ items }: { items: SessionEventData[] }) {
   return (
     <div className="divide-y divide-border-subtle">
+      {/* Key aus dem Ereignis, NICHT aus dem Index: die Zeile hält jetzt Zustand (welches der
+          beiden Fotos das Vollbild zeigt). Verschiebt ein Re-Render die Liste — ein nachgetragenes
+          Ereignis reiht sich zeitlich ein —, zeigte ein Index-Key denselben Zustand auf einem
+          anderen Ereignis, im schlimmsten Fall „Box-Foto" bei einem Eintrag, der keines hat. */}
       {items.map((ev, i) => (
-        <SessionEventRow key={i} ev={ev} icon={iconFor(ev.type)} />
+        <SessionEventRow key={ev.entryId ?? ev.timeIso ?? i} ev={ev} icon={iconFor(ev.type)} />
       ))}
     </div>
   );
@@ -124,6 +131,7 @@ export default function SessionTimeline({
   nowIso,
   locale,
   mode,
+  tz,
   sessionEndIso,
   storageScope,
 }: Props) {
@@ -134,8 +142,8 @@ export default function SessionTimeline({
       ...ev,
       _time: ev.timeIso ? new Date(ev.timeIso) : new Date(sessionStart),
     }));
-    return groupEventsIntoBuckets(withTime, new Date(nowIso), locale, mode);
-  }, [events, sessionStart, nowIso, locale, mode]);
+    return groupEventsIntoBuckets(withTime, new Date(nowIso), locale, mode, tz);
+  }, [events, sessionStart, nowIso, locale, mode, tz]);
 
   // Historical: session span <14 days → render flat (like active-mode fresh sessions).
   if (mode === "historical") {

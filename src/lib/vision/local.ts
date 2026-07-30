@@ -10,6 +10,7 @@ function modelFor(task: VisionTask): string {
     "seal-detect": process.env.LOCAL_VISION_MODEL_SEAL,
     "device-detect": process.env.LOCAL_VISION_MODEL_DEVICE,
     "device-check": process.env.LOCAL_VISION_MODEL_DEVICE, // gleicher Override wie device-detect
+    "key-detect": process.env.LOCAL_VISION_MODEL_DEVICE, // ebenfalls eine Presence-Frage am Bild
   };
   return overrides[task] || base;
 }

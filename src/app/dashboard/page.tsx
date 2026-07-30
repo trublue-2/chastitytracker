@@ -3,22 +3,24 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   formatDateTime, formatHours,
-  buildPairs, getOpenPair, interruptionPauseMs, buildKontrolleItems,
+  buildPairs, getOpenPair, interruptionPauseMs, buildKontrolleItems, runningCleaningPauseUntil,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
-  wearingHoursFromPairs, APP_TZ,
+  wearingHoursFromPairs, joinParts, APP_TZ,
   type ReinigungSettings,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest, cleaningBlockReason } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
-import { buildReinigungView, reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
+import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
+import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
 import { getEvaluatedTasks, isRecentEnough } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
@@ -32,6 +34,7 @@ import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -75,23 +78,6 @@ export default async function DashboardPage() {
     maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
   };
 
-  // Reinigungs-Regeln für die Box-Karte: einmal je Seitenaufbau, nicht im 5s-Poll. Dieselbe Quelle
-  // wie `get_context.cleaning` im MCP — der Sub sah die Fenster bisher nirgends. `blockedBy` kommt
-  // aus derselben Regel wie die Durchsetzung und kennt als einziges die AKTIVE Sperrzeit: ohne es
-  // versprach die Karte Fenster, die eine reinigungsverbietende Sperre längst gesperrt hatte.
-  const jetzt = new Date();
-  const boxReinigung = heimdallEnabled() && userSettings
-    ? {
-        ...buildReinigungView(userSettings, await reinigungVerbrauchtHeute(userId, jetzt, tz), jetzt, tz),
-        nextWindow: nextReinigungsFenster(userSettings.reinigungsFenster, jetzt, tz),
-        blockedBy: cleaningBlockReason(
-          { reinigungErlaubt: userSettings.reinigungErlaubt, reinigungsFenster: userSettings.reinigungsFenster, timezone: tz },
-          activeSperrzeit ? [activeSperrzeit] : [],
-          jetzt,
-        ),
-      }
-    : null;
-
   // ── Compute derived state ──
   const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
 
@@ -103,6 +89,21 @@ export default async function DashboardPage() {
     ? { type: latest.type as "VERSCHLUSS" | "OEFFNEN", since: latest.startTime.toISOString() }
     : null;
 
+  // Reinigungspause: der jüngste KG-Eintrag ist eine Reinigungsöffnung, deren Wiederverschluss die
+  // Session noch fortführen würde. Ohne diese Ableitung sah der Sub in dieser Zeit „Geöffnet
+  // seit …" — nicht von einer wirklich beendeten Session zu unterscheiden (Rückmeldung 15.07.2026).
+  //
+  // Die Frist kommt aus `runningCleaningPauseUntil` — DERSELBEN Regel, nach der `buildPairs` die
+  // Öffnung als blosse Unterbrechung verbucht. Das ist der Kern: der Countdown beantwortet genau
+  // die Frage, die der Sub stellt („bleibt das dieselbe Session?"), und kann dem Zeitstrahl
+  // darunter gar nicht widersprechen. Die Strafbuch-Frist (`cleaningRelockObligation`) ist eine
+  // ANDERE Frist — siehe die Warnung an beiden Funktionen.
+  //
+  // BEWUSST nur Anzeige: `isLocked`, die Box-Kopplung und jede Statistik bleiben unberührt — die
+  // Box IST offen, und ein erzwungenes „verschlossen" bräche das Wiederverschluss-Formular und die
+  // Entry-Guards.
+  const cleaningPauseUntil = runningCleaningPauseUntil(latest, reinigung, now);
+
   // ── Build kontroll items for session events ──
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
   const pairs = buildPairs(entries, kontrollItems, reinigung);
@@ -112,12 +113,19 @@ export default async function DashboardPage() {
     .filter((e) => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
+  // ── Box-Ableitungen ──
+  // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) zählen ihr
+  // Tageskontingent aus den oben geladenen `entries` — ohne DB. Nur der Schlüssel-Nachweis aus der
+  // Telemetrie (`boxKeyProof.ts`) fragt noch ab, deshalb hier kein `Promise.all` mehr.
+  const boxReinigung = buildBoxReinigungView(userSettings, entries, activeSperrzeit, now, tz);
+  const telemetryKeyProof = await loadTelemetryKeyProof(userId, pairs);
+
   const orgasmCfg = effectiveOrgasmusArten(userSettings?.orgasmusArtenConfig);
   const rawSessionEvents = activePair
-    ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm))
+    ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof)
     : [];
 
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, tz);
 
   // Aufgaben: Zustand wird abgeleitet, deshalb erst laden, dann auswerten. `evaluateTasks` lädt ohne
   // Aufgaben gar nichts nach — Nutzer ohne Aufgaben zahlen keinen Preis dafür.
@@ -159,47 +167,43 @@ export default async function DashboardPage() {
 
   // ── Serialize for client ──
   const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
-  const kontrolleHref = offeneKontrolle
-    ? `/dashboard/new/pruefung?code=${offeneKontrolle.code}${offeneKontrolle.kommentar ? `&kommentar=${encodeURIComponent(offeneKontrolle.kommentar)}` : ""}`
-    : "";
-
-  const anfOverdue = offeneVerschlussAnf ? (offeneVerschlussAnf.endetAt ? offeneVerschlussAnf.endetAt < now : false) : false;
-
   const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
     ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
     : null;
 
-  const clientProps: DashboardProps = {
-    currentStatus,
-    hasEntries: entries.length > 0,
+  const alertProps: DashboardAlertsProps = {
+    tz,
 
     offeneKontrolle: offeneKontrolle ? {
       deadline: offeneKontrolle.deadline.toISOString(),
       code: offeneKontrolle.code,
       kommentar: offeneKontrolle.kommentar,
       overdue: kontrolleOverdue,
-      href: kontrolleHref,
+      href: inspectionHref(offeneKontrolle.code, { kommentar: offeneKontrolle.kommentar }),
     } : null,
 
     offeneVerschlussAnf: offeneVerschlussAnf ? {
-      endetAt: offeneVerschlussAnf.endetAt?.toISOString() ?? null,
-      nachricht: offeneVerschlussAnf.nachricht,
-      overdue: anfOverdue,
+      nachricht: joinParts(
+        offeneVerschlussAnf.device ? t("lockDevicePrefix", { name: offeneVerschlussAnf.device.name }) : null,
+        offeneVerschlussAnf.nachricht,
+      ),
       endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl, tz) }) : null,
-      deviceName: offeneVerschlussAnf.device?.name ?? null,
-    } : null,
-
-    activeSperrzeit: activeSperrzeit ? {
-      endetAt: activeSperrzeit.endetAt?.toISOString() ?? null,
-      nachricht: activeSperrzeit.nachricht,
-      endetAtLabel: activeSperrzeit.endetAt ? t("openingForbiddenUntil", { date: formatDateTime(activeSperrzeit.endetAt, dl, tz) }) : null,
     } : null,
 
     offeneOrgasmusAnf: offeneOrgasmusAnf ? {
       label: offeneOrgasmusAnf.art === "ANWEISUNG" ? t("orgasmInstructed") : t("orgasmOpportunity"),
-      nachricht: [orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null, offeneOrgasmusAnf.nachricht].filter(Boolean).join(" · ") || null,
+      nachricht: joinParts(
+        orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
+        offeneOrgasmusAnf.nachricht,
+      ),
       windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endetAt, dl, tz) }),
     } : null,
+  };
+
+  const clientProps: DashboardProps = {
+    currentStatus,
+    cleaningPauseUntil: cleaningPauseUntil?.toISOString() ?? null,
+    hasEntries: entries.length > 0,
 
     tagH,
     wocheH,
@@ -219,6 +223,8 @@ export default async function DashboardPage() {
       <DashboardBlock>
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
       </DashboardBlock>
+      {/* Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte. */}
+      <DashboardAlerts {...alertProps} />
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
       <OpenTasks tasks={taskCards} tz={tz} />
       {showLaufendeSession && (
@@ -238,6 +244,7 @@ export default async function DashboardPage() {
                 ? t(activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
                 : null
             }
+            keyInBox={activePair.verschluss.keyInBox ?? null}
             activeVorgabe={activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null}
             tagH={tagH}
             wocheH={wocheH}
@@ -281,10 +288,10 @@ export default async function DashboardPage() {
             ),
           }))}
       />
-      <DashboardClient {...clientProps} tz={tz} />
+      <DashboardClient {...clientProps} />
       {pairs.length > 0 && (
         <DashboardBlock>
-          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} />
+          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
         </DashboardBlock>
       )}
       {wearSessionRows.length > 0 && (

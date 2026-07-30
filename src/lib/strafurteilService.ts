@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
+import { senderKindOf } from "@/lib/messageService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { markLastAction } from "@/lib/appMeta";
 
@@ -105,11 +106,21 @@ export interface JudgeOffenseResult {
  * - reopen: entfernt das Urteil (revidieren).
  */
 /** Betreff + Text der „Strafe verhängt"-Benachrichtigung — geteilt von judgeOffense (MCP) und
- *  der Admin-Strafe-Route, damit beide Wege identisch benachrichtigen. */
-export function strafeVerhaengtNotice(reason: string | null): NotifyContent {
+ *  der Admin-Strafe-Route, damit beide Wege identisch benachrichtigen.
+ *
+ *  Die Mail trägt den Straftext interpoliert (sie ist per Natur eine Kopie), die NACHRICHT dagegen
+ *  nur die Referenz auf den `StrafeRecord`: der Text wird beim Lesen frisch von dort geholt, damit
+ *  eine spätere Korrektur nicht neben einer veralteten Kopie steht. */
+export function strafeVerhaengtNotice(reason: string | null, recordId: string, judgedBy: string | null): NotifyContent {
+  const inbox = {
+    bodyKey: "penaltyMessageNoReason",
+    ref: { type: "offense", id: recordId },
+    // Die App verheimlicht die KI nicht: wer geurteilt hat, steht an der Nachricht.
+    senderKind: senderKindOf(judgedBy),
+  } as const;
   return reason
-    ? { subjectKey: "penaltySubject", messageKey: "penaltyMessage", params: { reason } }
-    : { subjectKey: "penaltySubject", messageKey: "penaltyMessageNoReason" };
+    ? { subjectKey: "penaltySubject", messageKey: "penaltyMessage", params: { reason }, inbox }
+    : { subjectKey: "penaltySubject", messageKey: "penaltyMessageNoReason", inbox };
 }
 
 /** `action: "punish"` verlangt einen nicht-leeren Straftext — geteilt von `judgeOffense` und der
@@ -153,14 +164,14 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
 
   const status = judgmentStatus(p.action);
-  await prisma.strafeRecord.upsert({
+  const record = await prisma.strafeRecord.upsert({
     where: { refId: p.refId },
     create: { userId: p.userId, offenseType: offense.offenseType, refId: p.refId, bestraftDatum: now, status, reason: text, judgedBy: p.judgedBy, erledigtAt: null },
     update: { status, reason: text, judgedBy: p.judgedBy, erledigtAt: null, bestraftDatum: now },
   });
 
   // Nur bei verhängter Strafe benachrichtigen (ein Verwerfen ist für den Nutzer belanglos).
-  if (status === "PUNISHED") await notifyUser(p.userId, strafeVerhaengtNotice(text));
+  if (status === "PUNISHED") await notifyUser(p.userId, strafeVerhaengtNotice(text, record.id, p.judgedBy));
   markLastAction();
 
   return { ok: true, data: { status: status === "PUNISHED" ? "punished" : "dismissed", done: false } };

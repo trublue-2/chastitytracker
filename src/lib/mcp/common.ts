@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 // ReinigungSettings wird NUR lokal gebraucht — der Typ gehört utils.ts (wo buildPairs ihn
 // definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
 import { APP_TZ, type ReinigungSettings } from "@/lib/utils";
+import type { DeviceCheckStatus } from "@/lib/deviceCheck";
 import { isoWithOffset } from "@/lib/mcp/format";
 import type { DeviceMeta } from "@/lib/sessionModel";
 import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";
@@ -96,6 +97,10 @@ export interface TrackingEntry {
   orgasmusArt: string | null;
   kontrollCode: string | null;
   verifikationStatus: string | null;
+  /** Roh-Grund des Nicht-Matches (VerifyReason-Code) + das dabei Gelesene — über
+   *  {@link toVerifyFailure} in die Sichten gemappt, nie roh durchgereicht. */
+  verifikationReason: string | null;
+  verifikationReasonDetected: string | null;
   deviceCheck: string | null;
   deviceCheckNote: string | null;
   deviceCheckExpected: string | null;
@@ -137,6 +142,7 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
       select: {
         id: true, type: true, startTime: true, oeffnenGrund: true, orgasmusArt: true,
         kontrollCode: true, verifikationStatus: true,
+        verifikationReason: true, verifikationReasonDetected: true,
         deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true, keyInBox: true,
         device: { select: { id: true, name: true, categoryId: true } },
       },
@@ -225,15 +231,26 @@ function coerceStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((s): s is string => typeof s === "string") : [];
 }
 
-/** Blendet den DB-Wert "error" (deviceCheck „nicht prüfbar" — eine Admin-UI-Feinheit) für die MCP-
- *  Sicht auf "not_checked" aus, sonst unverändert. Ein Check, der nicht laufen konnte, ist für die
- *  Keyholder-KI „nicht geprüft" (deckt sich mit der explain_model-Beschreibung). Geteilt von
- *  list_entries + timeline, damit der MCP-Enum überall ok/wrong/missing/not_checked bleibt. */
-export function mcpDeviceCheckStatus(raw: string): string;
-export function mcpDeviceCheckStatus(raw: string | null): string | null;
-export function mcpDeviceCheckStatus(raw: string | null): string | null {
-  return raw === "error" ? "not_checked" : raw;
+/** Projiziert einen bereits normalisierten Geräte-Check (`effectiveDeviceCheckStatus` an der Lese-
+ *  Grenze) auf den MCP-Enum: "error" (nicht prüfbar — eine Admin-UI-Feinheit) und `null` werden zu
+ *  "not_checked". Ein Check, der nicht laufen konnte, ist für die Keyholder-KI „nicht geprüft"
+ *  (deckt sich mit der explain_model-Beschreibung). EINE Quelle für list_entries, timeline und
+ *  get_session, damit der Enum überall gleich bleibt.
+ *
+ *  "pending" bleibt dagegen STEHEN und wird bewusst NICHT auf "not_checked" abgebildet: „läuft noch"
+ *  ist genau die Auskunft, die hier bisher fehlte — kurz nach dem Einreichen sah der Aufrufer
+ *  „not_checked" und las es als Endergebnis, obwohl der Check erst Minuten später fertig war. Ein
+ *  "pending" ist eine Aufforderung, gleich nochmal zu schauen, kein Befund. */
+export function mcpDeviceCheckStatus(raw: DeviceCheckStatus | null): McpDeviceCheckStatus {
+  return raw === null || raw === "error" ? "not_checked" : raw;
 }
+
+/** Der Geräte-Check-Enum, wie ihn die MCP-Sichten führen. Aus {@link DeviceCheckStatus} ABGELEITET,
+ *  nicht daneben aufgezählt: `Exclude` sagt selbst, dass "error" nicht durchkommt, und eine neue
+ *  Stufe erscheint hier automatisch. Zweimal von Hand geschrieben hätte diese Union sonst still
+ *  veralten können, während der Mapper sie längst liefert (genau das passierte beim Ergänzen von
+ *  "pending": zwei Stellen, keine Kopplung). */
+export type McpDeviceCheckStatus = Exclude<DeviceCheckStatus, "error"> | "not_checked";
 
 /** Parst ein JSON-codiertes string[] robust; [] bei leer/ungültig. Geteilt von Notes (doDont) und
  *  Geräte-Metadaten (healthFlags). */

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import {
@@ -397,13 +397,11 @@ export async function processDueTasks(now: Date): Promise<void> {
           messageKey: done ? "taskDoneMessage" : "taskFailedMessage",
           params: { title: e.task.title },
         });
-        await Promise.all(controllers.map((c) =>
-          notifyUser(c.id, {
-            subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",
-            messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
-            params: { username, title: e.task.title },
-          }),
-        ));
+        await notifyControllers(controllers, {
+          subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",
+          messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
+          params: { username, title: e.task.title },
+        });
         notified.push(e.task.id);
       }
       if (notified.length > 0) {

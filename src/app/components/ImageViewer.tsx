@@ -109,6 +109,12 @@ export function FullscreenImageModal({
   const [imgError, setImgError] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // Fehlerzustand gehört zum BILD, nicht zum Modal: seit das Panel zwischen Eintrags- und Box-Foto
+  // umschalten kann, wechselt `src` bei offenem Modal. Ohne diesen Reset bliebe „Bild nicht
+  // verfügbar" nach einem gescheiterten ersten Bild stehen — und das vorhandene zweite Foto wäre
+  // nur über Schliessen und neu Öffnen erreichbar.
+  useEffect(() => { setImgError(false); }, [src]);
+
   // Mount guard: createPortal requires document to be available.
   useEffect(() => {
     setMounted(true);
@@ -171,13 +177,15 @@ export function FullscreenImageModal({
         style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", overflow: "hidden" }}
         onClick={onClose}
       >
+        {/* `key={src}` setzt auch Zoom und Verschiebung zurück — sonst landete man im zweiten
+            Foto in der Zoom-Position des ersten. */}
         {!imgError && src && (
-          <PinchZoomImage src={src} alt={alt} onError={() => setImgError(true)} />
+          <PinchZoomImage key={src} src={src} alt={alt} onError={() => setImgError(true)} />
         )}
         {(imgError || !src) && (
           <div className="flex flex-col items-center gap-3 text-white/40">
             <ImageOff size={48} />
-            <span className="text-sm">Bild nicht verfügbar</span>
+            <span className="text-sm">{t("imageUnavailable")}</span>
           </div>
         )}
       </div>

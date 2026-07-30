@@ -12,8 +12,9 @@ const visionMock = visionComplete as unknown as ReturnType<typeof vi.fn>;
 const configuredMock = visionConfigured as unknown as ReturnType<typeof vi.fn>;
 
 const REFS: DeviceReference[] = [
-  { deviceId: "a", deviceName: "Cage A", imageUrls: ["/u/a.jpg"] }, // → DEVICE_1
-  { deviceId: "b", deviceName: "Cage B", imageUrls: ["/u/b.jpg"] }, // → DEVICE_2
+  // Cage A trägt optische Merkmale, Cage B nicht — deckt beide Zweige des Katalog-Aufbaus ab.
+  { deviceId: "a", deviceName: "Cage A", visualTraits: "Edelstahl, voll", imageUrls: ["/u/a.jpg"] }, // → DEVICE_1
+  { deviceId: "b", deviceName: "Cage B", visualTraits: null, imageUrls: ["/u/b.jpg"] }, // → DEVICE_2
 ];
 const reply = (obj: unknown) => ({ text: JSON.stringify(obj), requestId: "r" });
 
@@ -52,9 +53,36 @@ describe("checkDeviceInPhoto", () => {
     expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "wrong", detected: "Cage B", expected: "Cage A" });
   });
 
-  it("wrong: a device is present but matches no reference (detected null)", async () => {
+  it("error (nicht prüfbar): a device is present but matches no reference — NIE 'wrong'", async () => {
+    // Nichts zugeordnet heisst NICHT „anderes Gerät getragen" — ein Negativbefund ohne benanntes
+    // Gerät wäre ein Vorwurf ohne Beleg (Issue #44).
     visionMock.mockResolvedValue(reply({ present: true, device: null }));
-    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "wrong", detected: null, expected: "Cage A" });
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
+  });
+
+  it("error (nicht prüfbar): 'UNSURE' — die Ansicht trägt die Unterscheidung nicht", async () => {
+    // Der Verwechslungsfall vom 27.07.2026: zwei optisch nahe Vollmetall-KG, das Kontrollfoto ein
+    // Ausschnitt ohne das trennende Merkmal. Ohne diese Ausfahrt musste das Modell sich zwischen
+    // „passt" und „ein anderes" entscheiden — und ein geratenes „anderes" wurde als `wrong` gebucht,
+    // obwohl gar nichts festgestellt war. Ein Nicht-Befund ist kein Negativbefund.
+    visionMock.mockResolvedValue(reply({ present: true, device: "UNSURE" }));
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
+  });
+
+  it("nennt die hinterlegten optischen Merkmale im Prompt — sie sind das, was ein Teilbild verschweigt", async () => {
+    visionMock.mockResolvedValue(reply({ present: true, device: "DEVICE_1" }));
+    await checkDeviceInPhoto("/u/q.jpg", REFS, "a");
+    const intro = visionMock.mock.calls[0][0].content[0].text as string;
+    expect(intro).toContain('DEVICE_1: "Cage A"');
+    expect(intro).toContain("looks like: Edelstahl, voll");
+    expect(intro).toContain("REQUIRED");
+    // Cage B hat keine Merkmale hinterlegt → nur Name, kein leeres „looks like".
+    expect(intro).toContain('DEVICE_2: "Cage B"\n');
+  });
+
+  it("error (nicht prüfbar): the model names a key that is not in the reference set", async () => {
+    visionMock.mockResolvedValue(reply({ present: true, device: "DEVICE_9" }));
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
   });
 
   it("missing: no device present", async () => {
@@ -62,9 +90,9 @@ describe("checkDeviceInPhoto", () => {
     expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "missing", detected: null, expected: "Cage A" });
   });
 
-  it("missing: unparseable model output is treated as not-present (never a false rejection)", async () => {
+  it("error (nicht prüfbar): unparseable/abgeschnittene Antwort ist kein 'kein Gerät sichtbar'", async () => {
     visionMock.mockResolvedValue({ text: "sorry, I can't tell", requestId: "r" });
-    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "missing", detected: null, expected: "Cage A" });
+    expect(await checkDeviceInPhoto("/u/q.jpg", REFS, "a")).toEqual({ status: "error", detected: null, expected: "Cage A" });
   });
 
   it("error (nicht prüfbar, keine Ablehnung) when the vision call throws — e.g. provider unreachable", async () => {

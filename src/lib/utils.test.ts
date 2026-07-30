@@ -8,17 +8,26 @@ import {
   isSubVisibleKontrolle,
   wornDeviceNameAt,
   interruptionPauseMs,
+  runningCleaningPauseUntil,
+  clampInputValue,
   WEAR_PAIR,
   formatDateTime,
   toDatetimeLocal,
   fromDatetimeLocal,
   midnightInTZ,
   getWeekStart,
+  getMonthStart,
   getMonthEnd,
   getYearStart,
   getYearEnd,
   formatDateTimeDual,
   formatDayTimeDual,
+  tzDayKey,
+  dayKeyOfLocalDate,
+  mondayIndex,
+  mondayIndexOfLocalDate,
+  midnightOfLocalDate,
+  calculateWearingHoursByRange,
   type ReinigungSettings,
 } from "./utils";
 
@@ -245,6 +254,51 @@ describe("buildPairs — Reinigungs-Interruption", () => {
   });
 });
 
+// ─── Laufende Reinigungspause (Dashboard-Anzeige) ──────────────────────────
+
+describe("runningCleaningPauseUntil — dieselbe Frist, nach der buildPairs die Session fortführt", () => {
+  const open = mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG");
+
+  it("liefert Öffnung + maxMinuten, solange die Frist läuft", () => {
+    const until = runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:10:00Z"));
+    expect(until?.toISOString()).toBe("2026-05-01T11:30:00.000Z");
+  });
+
+  it("genau diese Frist ist die Grenze, an der buildPairs noch verschmilzt", () => {
+    const until = runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:10:00Z"))!;
+    // Wiederverschluss exakt auf der Frist → noch eine Unterbrechung …
+    const amLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
+      { id: "v2", type: "VERSCHLUSS", startTime: until, oeffnenGrund: null }], [], reinigung);
+    expect(amLimit).toHaveLength(1);
+    expect(amLimit[0].interruptions).toHaveLength(1);
+    // … eine Sekunde später nicht mehr: zwei Sessions.
+    const nachLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
+      { id: "v2", type: "VERSCHLUSS", startTime: new Date(until.getTime() + 1000), oeffnenGrund: null }], [], reinigung);
+    expect(nachLimit).toHaveLength(2);
+  });
+
+  it("null nach Fristablauf — die Session ist dann wirklich beendet", () => {
+    expect(runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:31:00Z"))).toBeNull();
+  });
+
+  it("auf der Frist selbst läuft die Pause noch — dieselbe Grenze wie buildPairs", () => {
+    const grenze = t("2026-05-01T11:30:00Z");
+    expect(runningCleaningPauseUntil(open, reinigung, grenze)?.toISOString()).toBe(grenze.toISOString());
+    expect(runningCleaningPauseUntil(open, reinigung, new Date(grenze.getTime() + 1))).toBeNull();
+  });
+
+  it("null, wenn Reinigung gar nicht erlaubt ist", () => {
+    expect(runningCleaningPauseUntil(open, { erlaubt: false, maxMinuten: 30 }, t("2026-05-01T11:10:00Z"))).toBeNull();
+  });
+
+  it("null bei anderem Öffnungsgrund, bei VERSCHLUSS und ohne Eintrag", () => {
+    const now = t("2026-05-01T11:10:00Z");
+    expect(runningCleaningPauseUntil({ ...open, oeffnenGrund: "KEYHOLDER" }, reinigung, now)).toBeNull();
+    expect(runningCleaningPauseUntil(mkEntry("v1", "VERSCHLUSS", "2026-05-01T11:00:00Z"), reinigung, now)).toBeNull();
+    expect(runningCleaningPauseUntil(null, reinigung, now)).toBeNull();
+  });
+});
+
 // ─── buildPairs — Kontrollen-Zuordnung ─────────────────────────────────────
 
 describe("buildPairs — Kontrollen", () => {
@@ -446,6 +500,9 @@ describe("per-user timezone formatters", () => {
   // Summer instant (DST): Zurich = UTC+2, New York = UTC-4
   const summer = new Date("2026-07-15T09:30:00Z");
 
+  // Nur noch die ANZEIGE-Formatierer haben einen tz-Default. Die Wanduhr-Familie (midnightInTZ,
+  // getWeekStart, …) verlangt tz seit v4.53.8 explizit — ein Test, der dort einen Default
+  // festschreibt, hielte genau den Fallstrick fest, den die Pflicht-Signatur beseitigt hat.
   describe("regression guarantee — default tz === explicit Europe/Zurich (existing users byte-identical)", () => {
     for (const d of [winter, summer, new Date("2026-01-14T02:00:00Z")]) {
       it(`formatDateTime default === Europe/Zurich for ${d.toISOString()}`, () => {
@@ -453,12 +510,6 @@ describe("per-user timezone formatters", () => {
       });
       it(`toDatetimeLocal default === Europe/Zurich for ${d.toISOString()}`, () => {
         expect(toDatetimeLocal(d)).toBe(toDatetimeLocal(d, "Europe/Zurich"));
-      });
-      it(`midnightInTZ default === Europe/Zurich for ${d.toISOString()}`, () => {
-        expect(midnightInTZ(d).getTime()).toBe(midnightInTZ(d, "Europe/Zurich").getTime());
-      });
-      it(`getWeekStart default === Europe/Zurich for ${d.toISOString()}`, () => {
-        expect(getWeekStart(d).getTime()).toBe(getWeekStart(d, "Europe/Zurich").getTime());
       });
     }
   });
@@ -667,5 +718,142 @@ describe("wornDeviceNameAt — getragenes Gerät re-lock-bewusst", () => {
   it("unsortierte Eingabe wird korrekt behandelt", () => {
     const lp = [d("2026-07-17T13:00:00Z", "Cage B"), d("2026-07-17T10:00:00Z", "Cage A")];
     expect(wornDeviceNameAt(lp, new Date("2026-07-17T11:00:00Z"))).toBe("Cage A");
+  });
+});
+
+describe("clampInputValue", () => {
+  const range = { min: 5, max: 1440, fallback: 60 };
+
+  it("klemmt auf den Bereich statt auf den Fallback", () => {
+    expect(clampInputValue("1", range)).toBe(5);
+    expect(clampInputValue("9999", range)).toBe(1440);
+    expect(clampInputValue("20", range)).toBe(20);
+  });
+
+  it("eine auf 0 gerundete Eingabe fällt aufs Minimum, nicht auf den Fallback", () => {
+    expect(clampInputValue("0", range)).toBe(5);
+    expect(clampInputValue("0.4", range)).toBe(5);
+  });
+
+  it("rundet wie die Server-Seite (clamp)", () => {
+    expect(clampInputValue("20.6", range)).toBe(21);
+  });
+
+  it("nur leere/unlesbare Eingaben nehmen den Fallback", () => {
+    expect(clampInputValue("", range)).toBe(60);
+    expect(clampInputValue("   ", range)).toBe(60);
+    expect(clampInputValue("abc", range)).toBe(60);
+  });
+
+  it("0 bleibt 0, wenn der Bereich es zulässt (Reinigungen pro Tag = unbegrenzt)", () => {
+    expect(clampInputValue("0", { min: 0, max: 20, fallback: 0 })).toBe(0);
+  });
+});
+
+// ─── Kalendertag der Sub ───────────────────────────────────────────────────
+
+/** Die Begründung der Pflicht-`tz` steht am `tzDateParts`-Doc in `utils.ts`. Hier wird nur
+ *  festgehalten, dass die Zeitzone das Ergebnis wirklich verändert — ein durchgereichtes `tz`, das
+ *  nichts bewirkt, bestünde jeden Typcheck und wäre trotzdem der alte Fehler. */
+describe("tzDayKey", () => {
+  // 2026-07-10T23:00:00Z: Auckland (UTC+12) schreibt den 11.07., Zürich (UTC+2) den 11.07. um 01:00,
+  // New York (UTC-4) noch den 10.07.
+  const instant = new Date("2026-07-10T23:00:00Z");
+
+  it("derselbe Moment liegt je nach Zeitzone auf verschiedenen Kalendertagen", () => {
+    expect(tzDayKey(instant, "Pacific/Auckland")).not.toBe(tzDayKey(instant, "America/New_York"));
+  });
+
+  it("zwei Momente desselben lokalen Tages teilen den Schlüssel", () => {
+    const sameAucklandDay = new Date("2026-07-10T13:00:00Z"); // Auckland 11.07., 01:00
+    expect(tzDayKey(sameAucklandDay, "Pacific/Auckland")).toBe(tzDayKey(instant, "Pacific/Auckland"));
+    // Für Zürich sind es zwei Tage — genau der Unterschied, um den es geht.
+    expect(tzDayKey(sameAucklandDay, "Europe/Zurich")).not.toBe(tzDayKey(instant, "Europe/Zurich"));
+  });
+
+  it("dayKeyOfLocalDate bildet denselben Schlüssel aus Zahlen statt aus einem Instant", () => {
+    // Die Gegenseite: wer eine Karte per `tzDayKey` füllt und sie in einer Kalender-Schleife
+    // ausliest, muss exakt dieselbe Zeichenkette treffen — sonst bleiben Zellen leer.
+    for (const tz of ["Europe/Zurich", "Pacific/Auckland", "Pacific/Kiritimati"]) {
+      expect(dayKeyOfLocalDate(2026, 0, 1)).toBe(tzDayKey(midnightOfLocalDate(2026, 0, 1, tz), tz));
+    }
+  });
+});
+
+/**
+ * Der Wochentag hängt am Datum, nicht am Ort: der 1. Januar 2026 ist überall ein Donnerstag.
+ * `mondayIndex` beantwortet die Frage für einen INSTANT und braucht dafür zu Recht eine Zeitzone —
+ * wer ihm einen erfundenen Anker (Mittag UTC) fütterte, bekam ab UTC+12 den Wochentag des Folgetags
+ * und verschob den ganzen Kalender um eine Spalte.
+ */
+describe("mondayIndexOfLocalDate", () => {
+  it("zählt montagsbasiert: Mo=0 … So=6", () => {
+    // 2026-01-01 = Do, 2026-01-05 = Mo, 2026-01-11 = So.
+    expect(mondayIndexOfLocalDate(2026, 0, 1)).toBe(3);
+    expect(mondayIndexOfLocalDate(2026, 0, 5)).toBe(0);
+    expect(mondayIndexOfLocalDate(2026, 0, 11)).toBe(6);
+  });
+
+  it("lässt Monat und Tag überlaufen, wie Date.UTC", () => {
+    expect(mondayIndexOfLocalDate(2026, 0, 0)).toBe(mondayIndexOfLocalDate(2025, 11, 31));
+    expect(mondayIndexOfLocalDate(2026, 12, 1)).toBe(mondayIndexOfLocalDate(2027, 0, 1));
+    expect(mondayIndexOfLocalDate(2026, 0, -3)).toBe(mondayIndexOfLocalDate(2025, 11, 28));
+  });
+
+  it("stimmt mit mondayIndex auf der echten lokalen Mitternacht überein — in JEDER Zone", () => {
+    for (const tz of ["Europe/Zurich", "UTC", "America/New_York", "Pacific/Auckland", "Pacific/Kiritimati"]) {
+      for (let m = 0; m < 12; m++) {
+        for (const d of [1, 15, 28]) {
+          expect(mondayIndexOfLocalDate(2026, m, d)).toBe(mondayIndex(midnightOfLocalDate(2026, m, d, tz), tz));
+        }
+      }
+    }
+  });
+});
+
+/**
+ * Der Monats-/Jahresanfang wurde aus einem Anker „Mittag UTC am Ersten" zurückgelesen. Ab UTC+12 ist
+ * Mittag UTC lokal schon der ZWEITE — für Subs in Auckland, Fidschi oder Kiritimati begann der Monat
+ * damit einen Tag zu spät, und der erste Tag jedes Monats und Jahres fiel aus jeder Auswertung.
+ */
+describe("getMonthStart/getYearStart — Periodenanfang jenseits von UTC+12", () => {
+  const now = new Date("2026-07-15T00:00:00Z");
+  const localDate = (d: Date, tz: string) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz, dateStyle: "short" }).format(d);
+
+  for (const tz of ["Europe/Zurich", "America/New_York", "Pacific/Auckland", "Pacific/Kiritimati"]) {
+    it(`${tz}: der Monat beginnt am Ersten und endet am Ersten des Folgemonats`, () => {
+      expect(localDate(getMonthStart(now, tz), tz)).toBe("2026-07-01");
+      expect(localDate(getMonthEnd(now, tz), tz)).toBe("2026-08-01");
+    });
+
+    it(`${tz}: das Jahr beginnt am 1. Januar und endet am 1. Januar des Folgejahres`, () => {
+      expect(localDate(getYearStart(now, tz), tz)).toBe("2026-01-01");
+      expect(localDate(getYearEnd(now, tz), tz)).toBe("2027-01-01");
+    });
+  }
+});
+
+describe("calculateWearingHoursByRange — „heute\" ist der Tag der Sub", () => {
+  // Durchgehend verschlossen seit dem 01.07. — der Verschluss liegt vor jeder hier geprüften
+  // Periodengrenze, die Stunden hängen also allein davon ab, wo die Grenze gezogen wird.
+  const entries = [
+    { id: "v1", type: "VERSCHLUSS", startTime: new Date("2026-07-01T00:00:00Z"), oeffnenGrund: null },
+  ];
+  const now = new Date("2026-07-10T23:00:00Z"); // Auckland: 11.07. 11:00 · Zürich: 11.07. 01:00
+
+  it("zählt ab der Mitternacht der übergebenen Zeitzone", () => {
+    const auckland = calculateWearingHoursByRange(entries, now, "Pacific/Auckland");
+    const zurich = calculateWearingHoursByRange(entries, now, "Europe/Zurich");
+    // Auckland ist seit 11 Stunden im neuen Tag, Zürich erst seit einer.
+    expect(auckland.tagH).toBeCloseTo(11, 5);
+    expect(zurich.tagH).toBeCloseTo(1, 5);
+  });
+
+  it("die Wochengrenze folgt derselben Zeitzone", () => {
+    const auckland = calculateWearingHoursByRange(entries, now, "Pacific/Auckland");
+    const zurich = calculateWearingHoursByRange(entries, now, "Europe/Zurich");
+    // Montag 00:00 liegt in Auckland (UTC+12) zehn Stunden vor Zürich (UTC+2).
+    expect(auckland.wocheH - zurich.wocheH).toBeCloseTo(10, 5);
   });
 });

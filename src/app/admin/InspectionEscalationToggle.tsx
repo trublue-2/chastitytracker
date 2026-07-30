@@ -3,25 +3,20 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
-import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import NumberInput from "@/app/components/NumberInput";
+import InlineSettingRow from "@/app/components/InlineSettingRow";
+import { INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, type NumberRange } from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { clampInputValue } from "@/lib/utils";
-
-const DELAY_MIN = 5;
-const DELAY_MAX = 1440;
 
 /** Single "N minutes" input, committed on blur. */
-function MinutesInput({ label, value, fallback, setValue, commit, disabled }: {
-  label: string; value: number; fallback: number; setValue: (n: number) => void; commit: () => void; disabled: boolean;
+function MinutesInput({ label, value, range, commit, disabled }: {
+  label: string; value: number; range: NumberRange; commit: (n: number) => Promise<boolean>; disabled: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 pl-1">
-      <span className={faintCls}>{label}</span>
-      <input type="number" min={DELAY_MIN} max={DELAY_MAX} value={value}
-        onChange={(e) => setValue(clampInputValue(e.target.value, DELAY_MIN, DELAY_MAX, fallback))}
-        onBlur={commit} disabled={disabled} className={inputCls} />
-      <span className={faintCls}>min</span>
-    </div>
+    <InlineSettingRow label={label} unit="min">
+      <NumberInput value={value} range={range}
+        disabled={disabled} ariaLabel={label} onCommit={commit} />
+    </InlineSettingRow>
   );
 }
 
@@ -45,6 +40,14 @@ export default function InspectionEscalationToggle({
   const [autoMarkEnabled, setAutoMarkEnabled] = useState(initialAutoMarkEnabled);
   const [autoMarkDelayMinutes, setAutoMarkDelayMinutes] = useState(initialAutoMarkDelayMinutes);
 
+  /** Lokal erst übernehmen, wenn der Server den Wert angenommen hat; der Rückgabewert lässt das
+   *  Feld bei Ablehnung auf den gespeicherten Stand zurückspringen. */
+  async function saveDelay(patch: Record<string, number>, apply: () => void): Promise<boolean> {
+    const ok = await save(patch);
+    if (ok) apply();
+    return ok;
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <Toggle
@@ -56,9 +59,8 @@ export default function InspectionEscalationToggle({
       />
       {reminderEnabled && (
         <MinutesInput
-          label={t("inspectionReminderDelayLabel")} value={reminderDelayMinutes} fallback={5}
-          setValue={setReminderDelayMinutes}
-          commit={() => save({ inspectionReminderDelayMinutes: reminderDelayMinutes })}
+          label={t("inspectionReminderDelayLabel")} value={reminderDelayMinutes} range={INSPECTION_REMINDER_DELAY_RANGE}
+          commit={(n) => saveDelay({ inspectionReminderDelayMinutes: n }, () => setReminderDelayMinutes(n))}
           disabled={saving}
         />
       )}
@@ -74,9 +76,8 @@ export default function InspectionEscalationToggle({
         />
         {autoMarkEnabled && (
           <MinutesInput
-            label={t("inspectionAutoMarkDelayLabel")} value={autoMarkDelayMinutes} fallback={60}
-            setValue={setAutoMarkDelayMinutes}
-            commit={() => save({ inspectionAutoMarkDelayMinutes: autoMarkDelayMinutes })}
+            label={t("inspectionAutoMarkDelayLabel")} value={autoMarkDelayMinutes} range={INSPECTION_AUTO_MARK_DELAY_RANGE}
+            commit={(n) => saveDelay({ inspectionAutoMarkDelayMinutes: n }, () => setAutoMarkDelayMinutes(n))}
             disabled={saving}
           />
         )}

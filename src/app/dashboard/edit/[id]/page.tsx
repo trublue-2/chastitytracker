@@ -11,7 +11,7 @@ import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
 import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry } from "@/lib/queries";
 import { entryManageAccess } from "@/lib/keyholder";
-import { sealRequiredForCode } from "@/lib/kontrolleService";
+import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
 
@@ -73,7 +73,13 @@ export default async function EditEntryPage({
   const nowDefault = nowDatetimeLocal(tz);
   // Bei aktivem Siegel muss die Prüfung zusätzlich die Siegel-Nummer zeigen (Server-Live-Check prüft sie);
   // spiegelt die Logik der Neuanlage-Seite, damit der Hinweis auch beim Bearbeiten erscheint.
-  const pruefungSealRequired = sealRequiredForCode(entry.kontrollCode, latestKgEntry);
+  // Verlangt das getragene Gerät einen Code? Ohne das fragte das Bearbeiten-Formular auch bei einem
+  // Eintrag ohne Code nach einer Zahl — und ein getippter Wert landete an einem Eintrag, der nie einen
+  // tragen sollte (die PATCH-Route nimmt ihn ungeprüft).
+  const pruefungCodeRequired = entry.type === "PRUEFUNG"
+    ? await inspectionCodeRequired(latestKgEntry?.type === "VERSCHLUSS" ? latestKgEntry.deviceId : null)
+    : true;
+  const pruefungSealRequired = sealRequiredForCode(entry.kontrollCode, latestKgEntry, pruefungCodeRequired);
   const artOptions = resolveOrgasmusOptions(effectiveOrgasmusArten(ownerReasons?.orgasmusArtenConfig), tOrgasm);
   const grundOptions = resolveReasonList(effectiveOeffnenGruende(ownerReasons?.oeffnenGruendeConfig), "opening", tOpen);
 
@@ -112,7 +118,7 @@ export default async function EditEntryPage({
           id: entry.id, startTime: entry.startTime.toISOString(),
           imageUrl: entry.imageUrl, imageExifTime: entry.imageExifTime?.toISOString() ?? null, note: entry.note,
           kontrollCode: entry.kontrollCode,
-        }} minTime={minTime} tz={tz} nowDefault={nowDefault} mobileDesktopMode={mobileDesktopMode} sealRequired={pruefungSealRequired} redirectTo={redirectTo} />
+        }} minTime={minTime} tz={tz} nowDefault={nowDefault} mobileDesktopMode={mobileDesktopMode} sealRequired={pruefungSealRequired} codeRequired={pruefungCodeRequired} redirectTo={redirectTo} />
       )}
       {entry.type === "ORGASMUS" && (
         <OrgasmusForm initial={{

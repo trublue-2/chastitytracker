@@ -8,7 +8,9 @@ import { useTranslations, useLocale } from "next-intl";
 
 interface Props {
   deadline: Date;
-  code: string;
+  /** null = diese Kontrolle verlangt keinen Code (Gerät mit `requireInspectionCode: false`). Dann
+   *  entfällt die Code-Anzeige ganz, statt „Code: —" zu behaupten, es gäbe einen. */
+  code: string | null;
   kommentar?: string | null;
   overdue: boolean;
   variant: "large" | "compact";
@@ -63,7 +65,7 @@ export default function KontrolleBanner({
           }
           {overdue ? t("overdue") : t("until")}
           {" "}{deadlineStr}
-          <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>
+          {code && <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>}
           {withdrawAction && <div className="relative z-20 flex-shrink-0">{withdrawAction}</div>}
         </div>
         {kommentar && <p className="opacity-80">{t("instruction")}: {kommentar}</p>}
@@ -80,8 +82,8 @@ export default function KontrolleBanner({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold">{overdue ? t("overdueTitle") : (openLabel ?? defaultOpenLabel)}</p>
         <p className="text-xs opacity-80">
-          {overdue ? t("overduePrefix") : t("untilPrefix")} {deadlineStr} · {t("code")}:{" "}
-          <span className="font-mono font-bold">{code}</span>
+          {overdue ? t("overduePrefix") : t("untilPrefix")} {deadlineStr}
+          {code && <> · {t("code")}: <span className="font-mono font-bold">{code}</span></>}
         </p>
         {kommentar && (
           <p className="text-xs font-medium mt-1 opacity-90">{t("instruction")}: {kommentar}</p>

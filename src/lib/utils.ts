@@ -1,3 +1,5 @@
+import type { NumberRange } from "@/lib/constants";
+
 /** Format hours as h:mm (e.g. 6:35h). No day splitting — pure hours:minutes. */
 export function formatHoursHM(h: number): string {
   const totalMin = Math.floor(h * 60);
@@ -100,6 +102,13 @@ export function formatDuration(start: Date, end: Date, locale = "de"): string {
   return parts.join(" ");
 }
 
+/** Fügt die vorhandenen Teile einer einzeiligen Beschriftung mit „ · " zusammen; bleibt nichts
+ *  übrig, `null` — der Aufrufer reicht das Ergebnis meist als optionalen Text weiter, und ein
+ *  leerer String erzeugte dort eine leere Zeile statt gar keiner. */
+export function joinParts(...parts: (string | null | undefined | false)[]): string | null {
+  return parts.filter(Boolean).join(" · ") || null;
+}
+
 /** Maps next-intl locale codes to BCP 47 locale tags for Intl formatting. */
 export function toDateLocale(locale: string): string {
   return locale === "en" ? "en-US" : "de-CH";
@@ -109,15 +118,30 @@ export function toDateLocale(locale: string): string {
 export const APP_TZ = "Europe/Zurich";
 
 /** Klemmt eine Zahl auf [min, max] und rundet; ungültige/0-Werte fallen auf `fallback`. */
-export function clamp(value: number, { min, max, fallback }: { min: number; max: number; fallback: number }): number {
+export function clamp(value: number, { min, max, fallback }: NumberRange): number {
   return Math.max(min, Math.min(max, Math.round(value) || fallback));
 }
 
+/** Ganzzahl aus `[lo, hi]`, BEIDE Grenzen inklusive. `rand` ist injizierbar, damit die Planer, die
+ *  darauf aufbauen, deterministisch testbar bleiben. Eine Kopie zu tippen ist die klassische
+ *  Off-by-one-Falle (`hi - lo` statt `hi - lo + 1` schliesst die Obergrenze stumm aus), deshalb
+ *  hier EINE Fassung für alle Würfel-Stellen. */
+export function randomInt(lo: number, hi: number, rand: () => number = Math.random): number {
+  return lo + Math.floor(rand() * (hi - lo + 1));
+}
+
 /** Client-side sibling of {@link clamp}: parses a raw `<input type="number">` string value and
- *  clamps it. Shared by admin number-input toggles (AutoKontrolleToggle, InspectionEscalationToggle)
- *  so the parse+clamp behavior can't drift between them. */
-export function clampInputValue(v: string, min: number, max: number, fallback: number): number {
-  return Math.max(min, Math.min(max, Number(v) || fallback));
+ *  clamps it to the same range. Its single caller is `NumberInput`, which applies it on blur —
+ *  applying it per keystroke is what once made those fields unclearable.
+ *
+ *  Deliberately NOT `clamp(Number(v), range)`: `clamp` treats a falsy value as "no input" and
+ *  substitutes `fallback`, which is right for a missing field but wrong for a typed one — an entry
+ *  rounding to 0 ("0.4") would jump to the default instead of the minimum. Only an empty or
+ *  unreadable entry falls back here; every real number is merely rounded and clamped. */
+export function clampInputValue(v: string, { min, max, fallback }: NumberRange): number {
+  const parsed = Number(v);
+  if (v.trim() === "" || Number.isNaN(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
 }
 
 /** Formats the BUILD_DATE env var as "dd.mm.yyyy, HH:mm" in APP_TZ, or "local" if unset. */
@@ -170,13 +194,40 @@ export function formatMonthYear(date: Date | string, locale = "de-CH", tz = APP_
  *  Tag. Ohne Stunden-Feld tritt der Fall nicht auf. Cache-Begründung siehe `memoFormatter`. */
 const datePartsFormatters = new Map<string, Intl.DateTimeFormat>();
 
-/** Returns { year, 0-based month, day } of `d` in `tz` (default APP_TZ). */
-export function tzDateParts(d: Date, tz = APP_TZ): { year: number; month: number; day: number } {
+/**
+ * Returns { year, 0-based month, day } of `d` in `tz`.
+ *
+ * `tz` ist hier und in der ganzen Wanduhr-Familie darunter (`dateAtLocalMinutes`, `midnightInTZ`,
+ * `getMidnightToday`, `mondayIndex`, `get{Week,Month,Year}{Start,End}`) PFLICHT — bewusst ohne
+ * `= APP_TZ`-Default. Der Default machte das Vergessen unsichtbar: der Aufruf kompilierte, lieferte
+ * eine plausible Schweizer Antwort und wich für jede Sub ausserhalb Europe/Zurich still von der
+ * Grenze ab, die dieselbe Regel anderswo mit der Sub-Zeitzone zieht. Genau so entstanden vier
+ * unabhängige Fehler (Strafbuch-Kontingent, KG-Tragestunden, Kategorie-Ziele, Timeline-Buckets),
+ * von denen keiner im Diff auffiel — ein fehlendes Argument sieht nach nichts aus.
+ * Wo die globale Sicht wirklich gemeint ist, wird `APP_TZ` explizit übergeben; dann steht die
+ * Absicht am Aufruf statt in der Signatur. Die reinen Anzeige-Formatierer oben behalten ihren
+ * Default: dort ist der Rückfall auf die Betrachter-Sicht richtig.
+ */
+export function tzDateParts(d: Date, tz: string): { year: number; month: number; day: number } {
   const parts = memoFormatter(datePartsFormatters, tz, {
     year: "numeric", month: "numeric", day: "numeric",
   }).formatToParts(d);
   const get = (type: string) => +(parts.find(p => p.type === type)?.value ?? "0");
   return { year: get("year"), month: get("month") - 1, day: get("day") };
+}
+
+/** Stabiler Schlüssel des Kalendertags von `d` in `tz` — zum Gruppieren/Zählen je Tag.
+ *  Format ist bewusst opak (nur Gleichheit zählt, nie parsen). */
+export function tzDayKey(d: Date, tz: string): string {
+  const { year, month, day } = tzDateParts(d, tz);
+  return dayKeyOfLocalDate(year, month, day);
+}
+
+/** Derselbe Schlüssel wie `tzDayKey`, aber für einen Kalendertag, der schon als ZAHLEN vorliegt.
+ *  Wer eine Tages-Karte per `tzDayKey` füllt und sie in einer Kalender-Schleife wieder ausliest,
+ *  nimmt hier die Gegenseite — statt das Format ein zweites Mal von Hand zu buchstabieren. */
+export function dayKeyOfLocalDate(year: number, month: number, day: number): string {
+  return `${year}-${month}-${day}`;
 }
 
 /** Kern der „Dual"-Formatierer: Primär in der Betrachter-Zeitzone plus — nur wenn `viewerTz` gesetzt
@@ -259,66 +310,98 @@ export function tzOffsetMsAt(utcMs: number, tz: string): number {
   return Date.UTC(g("year"), g("month") - 1, g("day"), h, g("minute"), g("second")) - utcMs;
 }
 
-/** Returns the Date at `minutesSinceMidnight` local wall-clock time in `tz` (default APP_TZ), on the
+/** Returns the Date at `minutesSinceMidnight` local wall-clock time in `tz`, on the
  *  same calendar date as `d`. DST-safe for times reasonably far from a transition: looks up the UTC
  *  offset actually in effect AT that wall-clock instant, anchored at the target time itself — so e.g.
  *  a window end of 04:00 on a spring-forward day still resolves correctly, unlike naively adding a
  *  flat millisecond offset to the day's midnight. Not exact for a target that falls exactly inside
  *  the 1-hour DST gap/fold itself (01:00–03:00 local on the ~2 transition days/year) — no real
  *  cleaning window is configured there. */
-export function dateAtLocalMinutes(d: Date, minutesSinceMidnight: number, tz = APP_TZ): Date {
+export function dateAtLocalMinutes(d: Date, minutesSinceMidnight: number, tz: string): Date {
   const { year, month, day } = tzDateParts(d, tz);
   const guessUTC = Date.UTC(year, month, day, 0, minutesSinceMidnight);
   // Anker ist der Ziel-Instant selbst (ein Pass) — siehe tzOffsetMsAt.
   return new Date(guessUTC - tzOffsetMsAt(guessUTC, tz));
 }
 
-/** Returns the Date representing 00:00:00 in `tz` (default APP_TZ) on the same calendar date as `d`. */
-export function midnightInTZ(d: Date, tz = APP_TZ): Date {
+/** Returns the Date representing 00:00:00 in `tz` on the same calendar date as `d`. */
+export function midnightInTZ(d: Date, tz: string): Date {
   return dateAtLocalMinutes(d, 0, tz);
 }
 
-/** Today at 00:00:00 in `tz` (default APP_TZ) */
-export function getMidnightToday(now: Date, tz = APP_TZ): Date {
+/**
+ * 00:00 Ortszeit in `tz` an einem Kalendertag, der als ZAHLEN vorliegt (Jahr/Monat/Tag) — nicht als
+ * Instant. `month`/`day` dürfen überlaufen (Monat 12 = Januar des Folgejahres), wie bei `Date.UTC`.
+ *
+ * Nicht ersetzbar durch `midnightInTZ(new Date(Date.UTC(y, m, d, 12)), tz)`: dieser Umweg baut aus
+ * den Zahlen erst einen Instant (Mittag UTC) und liest dessen Kalendertag zurück — ab UTC+12 ist
+ * Mittag UTC lokal aber schon der FOLGETAG (Auckland: 12:00Z am 1. = 00:00 am 2.). Der Monatsanfang
+ * landete so für Subs in Auckland, Fidschi oder Kiritimati auf dem Zweiten, und der erste Tag jedes
+ * Monats und Jahres fiel aus der Auswertung.
+ */
+export function midnightOfLocalDate(year: number, month: number, day: number, tz: string): Date {
+  const guessUTC = Date.UTC(year, month, day);
+  // Anker ist der Ziel-Instant selbst (ein Pass) — Begründung bei `tzOffsetMsAt`.
+  return new Date(guessUTC - tzOffsetMsAt(guessUTC, tz));
+}
+
+/** Today at 00:00:00 in `tz` */
+export function getMidnightToday(now: Date, tz: string): Date {
   return midnightInTZ(now, tz);
 }
 
 const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-/** Wochentag von `d` in `tz`, montagsbasiert: Mo=0 … So=6. */
-export function mondayIndex(d: Date, tz = APP_TZ): number {
+/** Wochentag des Instants `d` in `tz`, montagsbasiert: Mo=0 … So=6.
+ *  Liegt der Kalendertag schon als ZAHLEN vor, ist `mondayIndexOfLocalDate` richtig — nicht erst
+ *  einen Anker-Instant bauen, um ihn hier wieder in einen Wochentag zurückzuverwandeln. */
+export function mondayIndex(d: Date, tz: string): number {
   const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
     .formatToParts(d).find(p => p.type === "weekday")!.value;
   return ((WEEKDAY_INDEX[wd] ?? 0) + 6) % 7;
 }
 
-/** Start of the current ISO week (Monday 00:00:00 in `tz`, default APP_TZ) */
-export function getWeekStart(now: Date, tz = APP_TZ): Date {
+/**
+ * Wochentag eines als ZAHLEN gegebenen Kalendertags, montagsbasiert: Mo=0 … So=6. `month`/`day`
+ * dürfen überlaufen, wie bei `Date.UTC`.
+ *
+ * Bewusst OHNE `tz` — und das ist keine vergessene Pflichtangabe, sondern die Aussage: der
+ * 1. Januar 2026 ist überall auf der Welt ein Donnerstag. Der Wochentag hängt am Datum, nicht am
+ * Ort. Wer stattdessen `mondayIndex(<Anker-Instant>, tz)` rechnet, macht ihn scheinbar ortsabhängig
+ * und liegt bei einem Mittags-UTC-Anker ab UTC+12 einen Tag daneben (Kalender um eine Spalte
+ * verschoben). Dieselbe Zahlen-statt-Instant-Regel wie bei `midnightOfLocalDate` und `dayKeyOfLocalDate`.
+ */
+export function mondayIndexOfLocalDate(year: number, month: number, day: number): number {
+  return (new Date(Date.UTC(year, month, day)).getUTCDay() + 6) % 7;
+}
+
+/** Start of the current ISO week (Monday 00:00:00 in `tz`) */
+export function getWeekStart(now: Date, tz: string): Date {
   return new Date(midnightInTZ(now, tz).getTime() - mondayIndex(now, tz) * 86_400_000);
 }
 
-/** First day of the current month at 00:00:00 in `tz` (default APP_TZ) */
-export function getMonthStart(now: Date, tz = APP_TZ): Date {
+/** First day of the current month at 00:00:00 in `tz` */
+export function getMonthStart(now: Date, tz: string): Date {
   const { year, month } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year, month, 1, 12)), tz);
+  return midnightOfLocalDate(year, month, 1, tz);
 }
 
-/** Exclusive end of the current month: first day of the NEXT month at 00:00:00 in `tz` (default APP_TZ) */
-export function getMonthEnd(now: Date, tz = APP_TZ): Date {
+/** Exclusive end of the current month: first day of the NEXT month at 00:00:00 in `tz` */
+export function getMonthEnd(now: Date, tz: string): Date {
   const { year, month } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year, month + 1, 1, 12)), tz);
+  return midnightOfLocalDate(year, month + 1, 1, tz);
 }
 
-/** Jan 1 of the year of `now` at 00:00:00 in `tz` (default APP_TZ) */
-export function getYearStart(now: Date, tz = APP_TZ): Date {
+/** Jan 1 of the year of `now` at 00:00:00 in `tz` */
+export function getYearStart(now: Date, tz: string): Date {
   const { year } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year, 0, 1, 12)), tz);
+  return midnightOfLocalDate(year, 0, 1, tz);
 }
 
-/** Exclusive end of the year of `now`: Jan 1 of the NEXT year at 00:00:00 in `tz` (default APP_TZ) */
-export function getYearEnd(now: Date, tz = APP_TZ): Date {
+/** Exclusive end of the year of `now`: Jan 1 of the NEXT year at 00:00:00 in `tz` */
+export function getYearEnd(now: Date, tz: string): Date {
   const { year } = tzDateParts(now, tz);
-  return midnightInTZ(new Date(Date.UTC(year + 1, 0, 1, 12)), tz);
+  return midnightOfLocalDate(year + 1, 0, 1, tz);
 }
 
 /** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
@@ -348,7 +431,11 @@ export function isTimeCorrected(time: Date, submittedAt: Date | null | undefined
 }
 
 export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn" | "scheduled" | "missed";
-export type VerifikationStatus = "unverified" | "pending" | "ai" | "manual" | "rejected";
+/** `not_required`: diese Kontrolle hatte nichts zu verifizieren — das Gerät verlangt keinen Code
+ *  (`Device.requireInspectionCode: false`) und es lief auch keine Siegel-Prüfung. Bewusst ein eigener
+ *  Wert und nicht `unverified`: Letzteres heisst „geprüft und nicht bestätigt" und liest sich in der
+ *  Liste wie ein Fehlschlag. Und nicht `ai`/`manual`: bestätigt wurde nichts. */
+export type VerifikationStatus = "unverified" | "not_required" | "pending" | "ai" | "manual" | "rejected";
 
 /** True if a deadline passed without a timely completion — completed after the deadline, or not
  *  yet completed and the deadline is already past. Shared primitive behind the Kontrolle "late"
@@ -384,6 +471,7 @@ export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
   if (vs === "manual") return "manual";
   if (vs === "rejected") return "rejected";
   if (vs === "pending") return "pending";
+  if (vs === "not_required") return "not_required";
   return "unverified";
 }
 
@@ -445,6 +533,37 @@ function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 }
 
+/** Frist, bis zu der ein Wiederverschluss eine Reinigungsöffnung als blosse UNTERBRECHUNG der
+ *  laufenden Session fortführt — danach zerfällt sie in zwei Sessions. Öffnung + `maxMinuten`.
+ *
+ *  Bewusst NICHT dieselbe Frist wie {@link import("./strafbuch").cleaningRelockObligation}: die
+ *  beantwortet die Strafbuch-Frage („gibt es dafür ein Vergehen?"), hängt an einer aktiven
+ *  Sperrzeit und reicht bei konfigurierten Fenstern bis ans Fensterende — bei einem 20–22-Uhr-
+ *  Fenster also Stunden über diese Frist hinaus. Wer die beiden vertauscht, zeigt dem Sub einen
+ *  Countdown, nach dessen Ablauf seine Session längst geteilt ist. Zwei Fragen, zwei Regeln. */
+export function cleaningInterruptionDeadline(openStartTime: Date, maxMinuten: number): Date {
+  return new Date(openStartTime.getTime() + maxMinuten * 60_000);
+}
+
+/** Läuft gerade eine Reinigungspause — und bis wann? `null`, wenn der jüngste KG-Eintrag keine
+ *  Reinigungsöffnung ist, Reinigung nicht erlaubt ist oder die Frist schon verstrichen ist (dann
+ *  ist die Session wirklich beendet und „Geöffnet seit …" die richtige Anzeige).
+ *
+ *  Dieselbe Bedingung, nach der {@link buildPairs} die Session fortführt — deshalb hier und nicht
+ *  in der Seite: sonst beantworten Anzeige und Session-Modell dieselbe Frage verschieden. */
+export function runningCleaningPauseUntil(
+  latest: { type: string; oeffnenGrund?: string | null; startTime: Date } | null,
+  reinigung: ReinigungSettings,
+  now: Date,
+): Date | null {
+  if (!reinigung.erlaubt || latest?.type !== KG_PAIR.open || latest.oeffnenGrund !== "REINIGUNG") return null;
+  const until = cleaningInterruptionDeadline(latest.startTime, reinigung.maxMinuten);
+  // `>=`, nicht `>`: {@link buildPairs} verschmilzt einen Wiederverschluss noch, der EXAKT auf der
+  // Frist liegt. Mit `>` zeigte die Anzeige in dieser Millisekunde „beendet", während das Modell
+  // die Session fortführt — genau der Widerspruch, den diese Ableitung ausschliessen soll.
+  return until >= now ? until : null;
+}
+
 /** Builds close/open pairs with associated Kontrollen, newest first.
  *  Defaults to KG (VERSCHLUSS/OEFFNEN). Pass `{ types: WEAR_PAIR }` for user-defined categories —
  *  dann aber je GERÄT (siehe `buildWearSessions`), nie über eine ganze Kategorie hinweg.
@@ -478,8 +597,7 @@ export function buildPairs<
   for (const e of asc) {
     if (e.type === types.close) {
       if (pendingReinigung && pending && reinigungActive) {
-        const dt = (e.startTime.getTime() - pendingReinigung.startTime.getTime()) / 60000;
-        if (dt <= reinigung!.maxMinuten) {
+        if (e.startTime <= cleaningInterruptionDeadline(pendingReinigung.startTime, reinigung!.maxMinuten)) {
           // Valid interruption – continue session
           currentInterruptions.push({ oeffnen: pendingReinigung, verschluss: e });
           pendingReinigung = null;
@@ -693,7 +811,10 @@ export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, range
 }
 
 /** KG-Tragestunden für heute / laufende Woche / Monat / Jahr.
- *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen). */
+ *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen).
+ *  `tz` ist die Zeitzone der SUB: „heute" muss denselben Tag meinen wie das prorata gerechnete Ziel
+ *  (`proratedVorgabeTargets`) und die verstrichene Zeit daneben — sonst haben Zähler und Nenner
+ *  desselben Fortschrittsbalkens zwei verschiedene Mitternachte. */
 export function calculateWearingHoursByRange<
   E extends {
     type: string;
@@ -703,34 +824,48 @@ export function calculateWearingHoursByRange<
 >(
   entries: E[],
   now: Date,
+  tz: string,
 ): { tagH: number; wocheH: number; monatH: number; jahrH: number } {
   const pairs = buildKgWearPairs(entries, now);
   return {
-    tagH: wearingHoursFromPairs(pairs, getMidnightToday(now), now),
-    wocheH: wearingHoursFromPairs(pairs, getWeekStart(now), now),
-    monatH: wearingHoursFromPairs(pairs, getMonthStart(now), now),
-    jahrH: wearingHoursFromPairs(pairs, getYearStart(now), now),
+    tagH: wearingHoursFromPairs(pairs, getMidnightToday(now, tz), now),
+    wocheH: wearingHoursFromPairs(pairs, getWeekStart(now, tz), now),
+    monatH: wearingHoursFromPairs(pairs, getMonthStart(now, tz), now),
+    jahrH: wearingHoursFromPairs(pairs, getYearStart(now, tz), now),
   };
 }
 
 type KontrollAnforderungIn = {
-  id: string; code: string; deadline: Date; kommentar: string | null;
+  id: string; deadline: Date; kommentar: string | null;
+  /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+  code: string | null;
   fulfilledAt: Date | null; createdAt: Date; withdrawnAt: Date | null; entryId: string | null;
   wirksamAb?: Date | null;
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
    *  Fehlte es im `select`, fiele jedes Versäumnis stillschweigend auf "withdrawn" zurück. */
   autoMarkedRemovedAt: Date | null;
-  entry: { id: string; startTime: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null } | null;
+  entry: { id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null } | null;
 };
 type PruefungEntryIn = {
-  id: string; startTime: Date; imageUrl: string | null; note: string | null;
-  kontrollCode: string | null; verifikationStatus: string | null;
+  id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null;
+  kontrollCode: string | null; verifikationStatus: string | null; keyDetected?: boolean | null;
+  boxImageUrl?: string | null;
 };
 export type KontrolleItem = {
   id: string; time: Date; imageUrl: string | null; code: string | null;
   deadline: Date | null; kommentar: string | null; note: string | null;
   anforderungStatus: AnforderungStatus | null; verifikationStatus: VerifikationStatus | null;
   entryId: string | null; submittedAt: Date | null;
+  /** Wann der Eintrag WIRKLICH entstand (`Entry.createdAt`), unabhängig von der eingetippten Zeit.
+   *  `time` ist sub-deklariert und rückdatierbar; wo eine Aussage von der Aktualität einer externen
+   *  Quelle abhängt (Box-Telemetrie, `lib/boxKeyProof.ts`), zählt dieser Zeitpunkt. */
+  recordedAt: Date;
+  /** Urteil der Schlüssel-Erkennung auf dem Box-Foto DIESER Kontrolle (null = nicht geprüft).
+   *  Trägt die zweite Hälfte des Nachweises: erst die Wiederholung bei jeder Kontrolle belegt,
+   *  dass der Schlüssel drin GEBLIEBEN ist. */
+  keyDetected: boolean | null;
+  /** Foto durchs Sichtfenster der Box zu DIESER Kontrolle. */
+  boxImageUrl: string | null;
 };
 
 /** Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries. */
@@ -753,6 +888,9 @@ export function buildKontrolleItems(
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
       entryId: k.entry?.id ?? null,
       submittedAt: k.fulfilledAt ?? null,
+      recordedAt: k.entry?.createdAt ?? k.createdAt,
+      keyDetected: k.entry?.keyDetected ?? null,
+      boxImageUrl: k.entry?.boxImageUrl ?? null,
     })),
     ...pruefungEntries
       .filter(e => !linkedEntryIds.has(e.id))
@@ -768,6 +906,9 @@ export function buildKontrolleItems(
         verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
         entryId: e.id,
         submittedAt: null as Date | null,
+        recordedAt: e.createdAt,
+        keyDetected: e.keyDetected ?? null,
+        boxImageUrl: e.boxImageUrl ?? null,
       })),
   ];
 }

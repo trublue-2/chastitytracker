@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { hhmmToMinutes, isInQuietMinutes, generateAutoKontrollen, repairAutoKontrollen, type AutoKontrolleSettings, type PlannedAutoKontrolle } from "./autoKontrolleService";
 import { dateAtLocalMinutes, midnightInTZ } from "./utils";
 
+/** Diese Datei modelliert bewusst einen CH-Sub. */
+const TZ = "Europe/Zurich";
+
 describe("hhmmToMinutes", () => {
   it("converts HH:MM to minutes since midnight", () => {
     expect(hhmmToMinutes("00:00")).toBe(0);
@@ -32,8 +35,8 @@ describe("isInQuietMinutes (wrap-aware)", () => {
 
 describe("generateAutoKontrollen", () => {
   // now = CH-Mitternacht → das ganze Wach-Fenster liegt in der Zukunft (alle Slots werden behalten).
-  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"));
-  const dayBase = midnightInTZ(now).getTime();
+  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
+  const dayBase = midnightInTZ(now, TZ).getTime();
   // Min == Max ⇒ fixe Anzahl (Verhalten wie vor der Min–Max-Erweiterung).
   const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
 
@@ -42,6 +45,27 @@ describe("generateAutoKontrollen", () => {
 
   it("returns 0 slots when max is 0", () => {
     expect(generateAutoKontrollen({ ...base, perDayMin: 0, perDayMax: 0 }, now)).toHaveLength(0);
+  });
+
+  it("ein Segment, in das die Mindest-Frist nicht passt, wird übersprungen statt gekappt", () => {
+    // Enges Wach-Fenster (06:00–07:00 = 60 Min) auf 12 Kontrollen verteilt ⇒ 5 Minuten je Segment,
+    // die Mindest-Frist ist 15. Vorher klemmte die Segment-Kappung die Frist auf die Segmentgrösse
+    // herunter (`Math.max(1, …)`) und erzeugte 5-Minuten-Slots: für den Sub kaum erfüllbar — und
+    // `repairAutoKontrollen` hätte sie als Verletzer sofort wieder ersetzt, weil `durOk` genau diese
+    // Untergrenze verlangt. Der Plan hätte gegen sich selbst gearbeitet.
+    const eng: AutoKontrolleSettings = { ...base, perDayMin: 12, perDayMax: 12, ruheVon: "07:00", ruheBis: "06:00" };
+    expect(generateAutoKontrollen(eng, now, () => 0.5)).toHaveLength(0);
+  });
+
+  it("jeder erzeugte Slot hält die Mindest-Frist ein, quer über den Zufall", () => {
+    for (const r of [0, 0.25, 0.5, 0.75, 0.999999]) {
+      // Wach-Fenster gerade so gross, dass es knapp wird: 06:00–12:00 (360 Min) auf 6 Kontrollen.
+      const settings: AutoKontrolleSettings = { ...base, perDayMin: 6, perDayMax: 6, ruheVon: "12:00", ruheBis: "06:00", fristVon: 45, fristBis: 60 };
+      for (const s of generateAutoKontrollen(settings, now, () => r)) {
+        expect(durationMin(s)).toBeGreaterThanOrEqual(45);
+        expect(durationMin(s)).toBeLessThanOrEqual(60);
+      }
+    }
   });
 
   it("respects perDayMin count and all constraints (standard 22–06 window)", () => {
@@ -80,7 +104,7 @@ describe("generateAutoKontrollen", () => {
 
 describe("generateAutoKontrollen — zufällige Tages-Anzahl aus [Min, Max]", () => {
   // now = CH-Mitternacht → ganzer Tag Zukunft, Segmente gross genug → slots.length == gewürfelte Anzahl.
-  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"));
+  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
   const range: AutoKontrolleSettings = { aktiv: true, perDayMin: 2, perDayMax: 6, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
 
   it("rand→0 wählt die Min-Anzahl", () => {

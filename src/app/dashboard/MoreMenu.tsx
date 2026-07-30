@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ClipboardList, Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 export default function MoreMenu() {
   const t = useTranslations("moreMenu");
@@ -29,7 +30,7 @@ export default function MoreMenu() {
       </button>
       {open && (
         <div className="absolute right-0 top-11 w-52 bg-surface border border-border rounded-2xl shadow-overlay z-30 overflow-hidden">
-          <Link href="/dashboard/new/pruefung" onClick={() => setOpen(false)}
+          <Link href={inspectionHref()} onClick={() => setOpen(false)}
             className="flex items-center gap-3 px-4 py-3 hover:bg-surface-raised transition text-sm text-foreground-muted">
             <ClipboardList size={18} className="text-[var(--color-inspect)] flex-shrink-0" />
             <div>

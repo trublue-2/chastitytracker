@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
-import { notifyUser, type NotifyContent } from "@/lib/notify";
+import { notifyUser, type NotifyContent, type NotifyInbox } from "@/lib/notify";
+import { recordMessageAndBadge } from "@/lib/messageService";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
@@ -189,7 +190,7 @@ export async function createVerschlussAnforderung(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate });
+    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId: anforderung.id });
   }
 
   // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
@@ -209,8 +210,23 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   dauerH?: number | null;
   /** ANFORDERUNG mit absolutem Sperr-Ende (statt dauerH): fürs „Gesperrt bis" in Mail/Push. */
   sperrEndetAtDate?: Date | null;
+  /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
+  requestId: string;
 }) {
-  const { userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate } = opts;
+  const { userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId } = opts;
+
+  // Die Anforderungs-Nachricht des Keyholders wird NICHT mitkopiert: der Posteingang zeigt auf die
+  // Direktive und liest sie beim Anzeigen frisch von dort. Eine spätere Korrektur über
+  // `edit_lock_request` bliebe sonst neben einer veralteten Kopie stehen.
+  // Wie bei der Kontrolle: Mail/Push sind hier nicht abschaltbar — eine Sperrzeit ist eine
+  // Direktive, keine Nachricht.
+  const badge = await recordMessageAndBadge({
+    subjectUserId: userId,
+    bodyKey: art === "SPERRZEIT" ? "lockPeriodSetBody" : "lockRequestBody",
+    senderKind: "keyholder",
+    ref: { type: "lockRequest", id: requestId },
+    once: true,
+  });
   const t = await emailT(user.locale);
   const nachrichtHtml = nachricht?.trim() ? noticeBoxHtml(t("lockNoticeLabel"), nachricht.trim()) : "";
   const greeting = emailGreeting(t, user.username);
@@ -264,7 +280,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     pushParts.push(endetAtDate ? t("lockPushUntil", { date: formatDateTime(endetAtDate) }) : t("lockIndefinite"));
   }
   if (nachricht?.trim()) pushParts.push(nachricht.trim());
-  firePush(userId, pushTitle, pushParts.join(" · "), "/dashboard");
+  firePush(userId, pushTitle, pushParts.join(" · "), "/dashboard", badge);
 }
 
 /**
@@ -295,9 +311,10 @@ export async function updateSperrzeitEnde(
   // korrigierte Datum — nur eben zum richtigen Zeitpunkt, nicht drei Wochen zu früh.
   const notified = !isHiddenFromSub(va);
   if (notified) {
+    const inbox = { ref: { type: "lockRequest", id }, senderKind: "keyholder" } as const;
     await notifyUser(va.userId, endetAt
-      ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endetAt) } }
-      : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite" });
+      ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endetAt) }, inbox, alwaysNotify: true }
+      : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite", inbox, alwaysNotify: true });
   }
   void notifyHeimdallForUserId(va.userId);
   return { ok: true, data: { id, userId: va.userId, notified } };
@@ -429,12 +446,15 @@ export async function updateLockRequest(
       userId: va.userId, user: va.user, art: "ANFORDERUNG",
       nachricht: next.nachricht, endetAtDate: next.endetAt,
       dauerH: next.dauerH, sperrEndetAtDate: next.sperrEndetAt,
+      requestId: va.id,
     });
   } else if (!wasHidden) {
     await notifyUser(va.userId, {
       subjectKey: "lockRequestChangedSubject",
       messageKey: "lockRequestChangedMessage",
       params: { date: formatDateTime(next.endetAt) },
+      inbox: { ref: { type: "lockRequest", id: va.id }, senderKind: "keyholder" },
+      alwaysNotify: true,
     });
   }
   // Verborgen + noch nicht sofort fällig: stumm. Der Poller stellt bei Fälligkeit den frischen Stand zu.
@@ -449,10 +469,13 @@ export async function updateLockRequest(
 
 /** Betreff + Text der Withdraw-Benachrichtigung — geteilt von Service (MCP, per art) und
  *  Admin-Route (per id), damit die Meldung nicht divergiert. */
-export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT"): NotifyContent {
+export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT", refId?: string): NotifyContent {
+  // Ohne `refId` (Rückzug per Art, der mehrere Zeilen treffen kann) bleibt die Nachricht ohne Bezug:
+  // auf eine von mehreren zurückgezogenen Direktiven zu zeigen, wäre eine willkürliche Auswahl.
+  const inbox: NotifyInbox = { senderKind: "keyholder", ...(refId ? { ref: { type: "lockRequest" as const, id: refId } } : {}) };
   return art === "SPERRZEIT"
-    ? { subjectKey: "lockPeriodWithdrawnSubject", messageKey: "lockPeriodWithdrawnMessage" }
-    : { subjectKey: "lockRequestWithdrawnSubject", messageKey: "lockRequestWithdrawnMessage" };
+    ? { subjectKey: "lockPeriodWithdrawnSubject", messageKey: "lockPeriodWithdrawnMessage", inbox }
+    : { subjectKey: "lockRequestWithdrawnSubject", messageKey: "lockRequestWithdrawnMessage", inbox };
 }
 
 /**
@@ -476,7 +499,7 @@ export async function withdrawVerschlussAnforderungById(
   await prisma.verschlussAnforderung.update({ where: { id }, data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.keyholder } });
 
   const notified = !isHiddenFromSub(va);
-  if (notified) await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT"));
+  if (notified) await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT", id));
   void notifyHeimdallForUserId(va.userId);
   return { ok: true, data: { userId: va.userId, notified } };
 }
@@ -496,11 +519,25 @@ export async function withdrawVerschlussAnforderungById(
  * `hidden` (Teilmenge von `count`) zählt die stornierten TERMINIERTEN, noch nicht ausgelösten. Ein
  * blosses `count: 2` verschwiege der Keyholderin, dass sie neben der laufenden Sperrzeit auch eine
  * geplante mitgenommen hat — und mehrere offene sind normal (siehe `foldActiveSperrzeiten`).
+ *
+ * `rows` sind die tatsächlich stornierten Zeilen, gelesen INNERHALB derselben Transaktion. Der
+ * Aufrufer soll sie benennen können (MCP `withdraw` → `withdrawnItems`), ohne sie ein zweites Mal
+ * zu suchen: eine eigene Abfrage draussen müsste diese Where-Klausel nachbauen, läge ausserhalb der
+ * Transaktion und könnte deshalb eine andere Menge sehen als die, die hier storniert wurde — genau
+ * die Abweichung zwischen Liste und Zähler, die das Feld verhindern soll.
  */
+export interface WithdrawnDirective {
+  id: string;
+  wirksamAb: Date | null;
+  benachrichtigtAt: Date | null;
+  endetAt: Date | null;
+  nachricht: string | null;
+}
+
 export async function withdrawVerschlussAnforderung(
   userId: string,
   art: "ANFORDERUNG" | "SPERRZEIT",
-): Promise<ServiceResult<{ count: number; hidden: number; notified: boolean }>> {
+): Promise<ServiceResult<{ count: number; hidden: number; notified: boolean; rows: WithdrawnDirective[] }>> {
   const now = new Date();
   const where = art === "ANFORDERUNG"
     ? { userId, art, fulfilledAt: null, withdrawnAt: null }
@@ -509,18 +546,22 @@ export async function withdrawVerschlussAnforderung(
   // Lesen und Zurückziehen in EINER Transaktion: löste der Poller genau dazwischen aus, stempelte er
   // `benachrichtigtAt` nach unserem Lesen — wir schwiegen, obwohl der Sub die Sperrzeit gerade
   // gemeldet bekommen hat, und er hielte sie für weiter aktiv.
-  const { count, hidden, notified } = await prisma.$transaction(async (tx) => {
-    const rows = await tx.verschlussAnforderung.findMany({ where, select: { id: true, wirksamAb: true, benachrichtigtAt: true } });
-    if (rows.length === 0) return { count: 0, hidden: 0, notified: false };
+  const { rows, hidden, notified } = await prisma.$transaction(async (tx) => {
+    const rows: WithdrawnDirective[] = await tx.verschlussAnforderung.findMany({
+      where,
+      select: { id: true, wirksamAb: true, benachrichtigtAt: true, endetAt: true, nachricht: true },
+    });
+    if (rows.length === 0) return { rows, hidden: 0, notified: false };
     await tx.verschlussAnforderung.updateMany({
       where: { id: { in: rows.map((r) => r.id) } },
       data: { withdrawnAt: now, endedReason: LOCK_ENDED_REASON.keyholder },
     });
     const hiddenRows = rows.filter(isHiddenFromSub);
-    return { count: rows.length, hidden: hiddenRows.length, notified: hiddenRows.length < rows.length };
+    return { rows, hidden: hiddenRows.length, notified: hiddenRows.length < rows.length };
   });
 
+  const count = rows.length;
   if (notified) await notifyUser(userId, verschlussWithdrawNotice(art));
   if (count > 0) void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
-  return { ok: true, data: { count, hidden, notified } };
+  return { ok: true, data: { count, hidden, notified, rows } };
 }

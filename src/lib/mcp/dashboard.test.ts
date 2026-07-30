@@ -49,7 +49,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("liefert exakt die Vertragsfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result).sort()).toEqual([...DASHBOARD_KEYS].sort());
-    expect(result.schemaVersion).toBe(6); // v6: openLockRequest = die DRINGENDSTE von mehreren (+ openLockRequests); v5: currentRun.since null bei nicht verschlossen
+    expect(result.schemaVersion).toBe(7); // v7: openControl.code nullable (Gerät ohne Code-Pflicht); v6: openLockRequest = die DRINGENDSTE von mehreren
     // Die Keyholder-Regeln reicht das Dashboard aus dem (lean) Overview durch.
     expect(result.keyholderInstructions).toBe(TEST_USER.mcpKeyholderInstructions);
   });
@@ -57,7 +57,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("currentRun und nextRelevant behalten ihre Unterfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result.currentRun).sort()).toEqual(
-      ["isLocked", "since", "currentSegmentSince", "durationHours", "deviceName", "deviceDeclared", "deviceConfidence", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
+      ["isLocked", "since", "currentSegmentSince", "durationHours", "currentSegmentDurationHours", "deviceName", "deviceDeclared", "deviceConfidence", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
     );
     expect(Object.keys(result.nextRelevant).sort()).toEqual(["openControl", "activeLockPeriod", "interruptedLockPeriod", "openOrgasmWindow", "openLockRequest", "openLockRequests", "openTasks"].sort());
   });

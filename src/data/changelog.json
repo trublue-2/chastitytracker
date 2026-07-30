@@ -1,13 +1,620 @@
 [
   {
     "version": "5.0.0",
-    "date": "2026-07-25",
+    "date": "2026-07-30",
     "changes": [
       {
         "type": "feat",
         "text": {
           "de": "Der Keyholder kann jetzt Aufgaben stellen — auch ohne Bezug zum Keuschheitsgürtel. Eine Aufgabe besteht aus einem Text und beliebig vielen Bedingungen: bestimmte Geräte tragen, den Käfig verschlossen halten, oder ganz ohne Gerät. Dazu ein Zeitpunkt, bis zu dem alles durchgehend gehalten werden muss. Legst du eines der geforderten Geräte vorher ab, gilt die Aufgabe als nicht erfüllt — die App warnt dich vorher und fragt nach. Im Dashboard siehst du, was noch fehlt, und kommst mit einem Tippen direkt ins richtige Formular; nach dem Speichern führt dich die App gleich zur nächsten offenen Bedingung. Zum Abschluss meldest du die Aufgabe als erledigt. Aufgaben können als Strafe gekennzeichnet werden. Eine erlaubte Reinigungspause unterbricht eine Aufgabe nicht.",
           "en": "The keyholder can now set tasks — including ones unrelated to the chastity device. A task consists of a text and any number of conditions: wear certain devices, keep the cage locked, or no device at all. Plus a time by which everything must have been held continuously. If you remove one of the required devices before then, the task counts as unfulfilled — the app warns you first and asks for confirmation. Your dashboard shows what is still missing and takes you straight to the right form with one tap; after saving it moves you on to the next open condition. You report the task as done at the end. Tasks can be marked as a punishment. A permitted cleaning break does not interrupt a task."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Meldungen zu Aufgaben landen jetzt auch im Posteingang — gestellt, geändert, zurückgezogen, erfüllt oder versäumt, mit der Kennzeichnung „Aufgabe“. Wer eine Mail verpasst, kann also nachlesen, was verlangt war.",
+          "en": "Task notices now also land in your inbox — set, changed, withdrawn, fulfilled or missed, labelled “Task”. If you miss a mail, you can still read up on what was asked of you."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.2",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Der Link aufs Kontroll-Formular wird überall an derselben Stelle gebaut — Dashboard, Session-Listen, Erfassen-Menü, Mail und Push. Vorher entstand er sechsmal von Hand, und nicht jede Variante kodierte Sonderzeichen; ein Code oder Kommentar mit „&“ hätte den Link dort still zerlegt.",
+          "en": "The link to the inspection form is now built in one place for all of them — dashboard, session lists, the capture menu, mail and push. It used to be assembled by hand six times over, and not every variant escaped special characters; a code or comment containing “&” would have silently broken the link there."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.1",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Jede Nachricht zeigt jetzt, worum es geht: Kontrolle, Sperre & Verschluss, Orgasmus, Strafe oder System — farbig gekennzeichnet, damit du die Liste überfliegen kannst.",
+          "en": "Every message now shows what it is about: inspection, lock & closure, orgasm, penalty or system — colour-coded so you can skim the list."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Steht eine Kontrolle offen, führt die Nachricht direkt ins Prüfungs-Formular, mit dem Code schon eingetragen. Bei allem anderen gibt es keinen Link — dort wartet keine Seite, die mehr sagt als die Nachricht selbst.",
+          "en": "If an inspection is open, the message now leads straight to the inspection form with the code already filled in. Everything else stays unlinked — there is no page that would say more than the message itself."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Nachrichten lassen sich löschen, über das Menü am rechten Rand der Zeile. Es fragt vorher nach: der zugehörige Vorgang bleibt erhalten, aber ein Straftext ist danach nirgends mehr nachlesbar.",
+          "en": "Messages can now be deleted from the menu at the right edge of the row. It asks first: the underlying record stays, but a penalty text will not be readable anywhere afterwards."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "„Wieder als ungelesen\" sitzt jetzt in diesem Menü statt als grosser Knopf im aufgeklappten Bereich. Dazu weg: die überflüssige Trennlinie über dem Inhalt. Das Datum steht kürzer, damit Kategorie, Absender und Zeit auf dem Handy nebeneinander passen.",
+          "en": "‚Mark as unread‘ now sits in that menu instead of being a large button in the expanded area. Also gone: the superfluous divider above the content. The date is shorter so category, sender and time fit next to each other on a phone."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.0",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neu pro Gerät einstellbar: ob eine Kontrolle den handschriftlichen Code im Foto verlangt. Ist er abgeschaltet, kommt die Anforderung ohne Code — Mail, Push und Formular fragen keinen ab, und es genügt das Foto. Umstellen kann das nur dein Keyholder; du siehst den Schalter, kannst ihn aber nicht bedienen. Für alle anderen Geräte bleibt alles wie bisher.",
+          "en": "New per-device setting: whether an inspection requires the handwritten code in the photo. With it off, the request comes without a code — mail, push and the form ask for none, and the photo is enough. Only your keyholder can change it; you can see the switch but not operate it. For every other device nothing changes."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Bei einem Gerät ohne Code erfüllt auch eine selbst erfasste Kontrolle die offene Anforderung. Ohne Code ist eine freiwillige Aufnahme von einer angeforderten nicht mehr zu unterscheiden — und die Einreichung liegt vor.",
+          "en": "On a device without a code, an inspection you record yourself also fulfils the open request. Without a code there is no telling a voluntary photo from a requested one — and the submission is there."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Kontrollen, bei denen nichts zu prüfen war, stehen jetzt als „Kein Code nötig“ da statt als „Unverifiziert“. Letzteres heisst geprüft-und-nicht-bestätigt und sah wie ein Fehlschlag aus.",
+          "en": "Inspections with nothing to verify now show as “No code required” instead of “Unverified”. The latter means checked-and-not-confirmed and looked like a failure."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Ein Gerät ohne Code-Pflicht ist kein Umweg um eine bestehende Kontrolle: eine Anforderung, die mit Code gestellt wurde, verlangt ihn weiterhin. Sie liesse sich sonst erfüllen, indem man aufschliesst, ein Gerät ohne Code-Pflicht anlegt und ein blankes Foto einreicht.",
+          "en": "A device without a code requirement is not a way around an existing inspection: a request issued with a code still needs it. Otherwise it could be satisfied by unlocking, putting on a code-free device and submitting a blank photo."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ist bei einer Kontrolle ohne Code die Schlüsselbox versiegelt, wird weiterhin die Siegelnummer im Foto geprüft. Sie beweist etwas anderes als der Code — dass die Box unberührt ist — und fällt mit ihm nicht weg.",
+          "en": "If the key box is sealed, the seal number is still checked in the photo for a code-free inspection. It proves something different from the code — that the box is untouched — and does not disappear with it."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.57.2",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Posteingang ist wieder lesbar. Die Meldung ist jetzt deutlich grösser als Absender und Datum, statt dass alles gleich aussah. Der aufgeklappte Inhalt beginnt auf derselben Kante wie die Meldung darüber und nicht mehr links davor, und eine Trennlinie zeigt, wo das Aufgeklappte anfängt. Ausserdem stand der Text einer kurzen Nachricht zweimal da — einmal reicht: zu siehst du die ersten zwei Zeilen, offen den ganzen Text.",
+          "en": "The inbox is readable again. The message is now clearly larger than sender and date, instead of everything looking the same. The expanded content starts on the same edge as the message above it rather than to the left of it, and a divider shows where the expanded part begins. Short messages also used to show their text twice — once is enough: collapsed you see the first two lines, expanded the whole text."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "„Wieder als ungelesen\" liess den geöffneten Bereich leer zurück — bei Nachrichten ohne zugehörigen Eintrag verschwand mit dem Klick auch der Knopf, der ihn ausgelöst hatte. Der Bereich bleibt jetzt in jedem Fall bestückt.",
+          "en": "\"Mark unread\" used to leave the opened area empty — on messages without a related entry, the click also removed the very button that triggered it. The area now always keeps its content."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.57.1",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Nimmt deine Keyholderin eine Sperrzeit weg, sagt die Antwort ihr jetzt auch, dass die Box davon nicht aufgeht. Das war schon immer so — eine weggenommene Frist ist keine Öffnungs-Anweisung, sonst würde sie einen laufenden Einschluss mit aufheben —, stand aber nirgends. Geöffnet wird über einen Eintrag von dir, nicht über die Frist.",
+          "en": "When your keyholder removes a lock period, the response now also says that the box does not open because of it. That was always the case — a removed deadline is not an instruction to open, otherwise it would lift an ongoing lock-up as well — but it was never stated. Opening happens through an entry you record, not through the deadline."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.57.0",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle lässt dir jetzt immer die volle vorgesehene Zeit — gerechnet ab dem Moment, in dem du sie bekommst. Bisher lief die Uhr ab dem geplanten Zeitpunkt: kam die Meldung verspätet, war die Frist schon angebrochen oder sogar abgelaufen, und die Kontrolle wurde als zu spät gebucht, obwohl du sie nie einhalten konntest.",
+          "en": "An inspection now always gives you its full intended time — counted from the moment you are told. Until now the clock started at the planned time: if the notification arrived late, the window was already eaten into or gone, and the inspection was recorded as late even though you never had a chance to meet it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Sehr kurze, nicht einhaltbare Fristen können bei den automatischen Kontrollen nicht mehr entstehen. In einem engen Wach-Fenster wurden sie auf die Länge des Zeitabschnitts zusammengedrückt und konnten dabei unter die eingestellte Mindestdauer fallen.",
+          "en": "Automatic inspections can no longer end up with a very short, unmeetable deadline. In a narrow waking window they were squeezed down to the length of the time slot and could fall below the configured minimum."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Geräte-Erkennung behauptet nicht mehr das falsche Gerät, wenn das Foto die Unterscheidung nicht hergibt. Zeigt der Ausschnitt zwei ähnlich aussehende Geräte gleich gut, meldet sie „nicht prüfbar“ statt zu raten — bisher konnte daraus ein Falsch-Befund werden. Hinterlegte Angaben zu Material und Bauform helfen ihr jetzt zusätzlich beim Auseinanderhalten.",
+          "en": "The device recognition no longer claims the wrong device when the photo cannot tell them apart. If the shot fits two similar-looking devices equally well, it reports “not checkable” instead of guessing — until now that could turn into a false finding. Recorded material and build details now help it distinguish them as well."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Solange die Geräte-Erkennung an einem frisch eingereichten Kontrollfoto arbeitet, steht bei der Kontrolle „Erkennung läuft“. Vorher sah dieser Zwischenzustand genauso aus wie „nichts festgestellt“, und derselbe Eintrag zeigte kurz darauf ein anderes Ergebnis.",
+          "en": "While the device recognition is still working on a freshly submitted inspection photo, the inspection shows “detection running”. Previously this intermediate state looked exactly like “nothing found”, and the same entry showed a different result moments later."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Deine Keyholderin sieht jetzt auch, WARUM eine Kontrolle nicht automatisch bestätigt wurde — ob der Code nicht lesbar war, andere Ziffern erkannt wurden oder das Siegel fehlte. Bisher stand dort nur „nicht verifiziert“, ohne jeden Anhaltspunkt.",
+          "en": "Your keyholder can now also see WHY an inspection was not confirmed automatically — whether the code was unreadable, different digits were recognised, or the seal was missing. Until now it only said “unverified”, with nothing to go on."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zieht deine Keyholderin Anforderungen zurück, wird ihr jetzt aufgelistet, welche genau weggefallen sind. Ein Rückzug ohne gezielte Auswahl trifft alle offenen — bisher stand dort nur eine Anzahl, sodass unbemerkt mehr verschwinden konnte als gemeint.",
+          "en": "When your keyholder withdraws requests, the response now lists exactly which ones went. A withdrawal without a specific target hits every open one — until now it reported only a count, so more could disappear unnoticed than intended."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "In der Übersicht deiner Keyholderin passen Gerätename und Tragedauer wieder zusammen. Nach einem Gerätewechsel in einer Reinigungspause stand neben dem neuen Gerät die Dauer des ganzen Laufs.",
+          "en": "In your keyholder's overview, device name and wearing time match again. After a device swap during a cleaning break, the new device was shown next to the duration of the entire run."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.56.2",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Neue Versionen kommen jetzt in Stufen: erst auf die Instanzen dieses Servers, danach als offizieller Release für alle, die den Tracker selbst betreiben. Wer selbst hostet, zieht damit nicht mehr jede Zwischenversion, sondern nur freigegebene Stände — oder pinnt eine feste Version. Details in der Self-Hosting-Anleitung.",
+          "en": "New versions now roll out in stages: first to the instances on this server, then as an official release for everyone running the tracker themselves. Self-hosters no longer pick up every intermediate build, only released ones — or they pin a fixed version. Details are in the self-hosting guide."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Der Hinweis auf eine neue Version richtet sich jetzt nach dem freigegebenen Release. Er kündigt damit keine Version mehr an, die es als fertiges Paket noch nicht gibt.",
+          "en": "The “new version available” notice now follows the released version, so it no longer announces a version that isn't available as a finished package yet."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.56.1",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Punkt an ungelesenen Nachrichten und die Zahl an der Glocke sind jetzt rot statt blauviolett.",
+          "en": "The dot on unread messages and the number on the bell are now red instead of blue-violet."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die App setzt die Zahl am Icon jetzt selbst — beim Start, beim Zurückwechseln und nach dem Lesen. Bisher kam sie nur mit einer Benachrichtigung und blieb danach stehen. Auf dem iPhone wirkt das erst mit der nächsten App-Version aus TestFlight.",
+          "en": "The app now sets the number on its icon itself — on start, when switching back, and after reading. Until now it only arrived with a notification and then stayed put. On iPhone this takes effect with the next TestFlight build."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.56.0",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neu: ein Posteingang. Über die Glocke oben kannst du alles nachlesen, was dir gemeldet wurde — auch wenn die Mail untergegangen ist. Bisher verschwanden diese Meldungen nach dem Versand spurlos; am ärgerlichsten beim Straftext, den du sonst nirgends mehr sehen konntest. Der Text steht dabei immer aktuell da: korrigiert der Keyholder die Begründung, zeigt die Nachricht die neue.",
+          "en": "New: an inbox. The bell at the top lets you read everything you were told — even if the e-mail got lost. Until now these notifications vanished after sending; worst of all the penalty text, which you could not see anywhere else. The text always shows the current wording: if your keyholder corrects the reason, the message shows the new one."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Gelesen wird eine Nachricht nur, wenn du sie einzeln öffnest — nicht schon durch das Öffnen der Liste. Du kannst sie auch wieder auf ungelesen setzen, und mit einer Rückfrage alle auf einmal quittieren.",
+          "en": "A message counts as read only when you open it individually — not just by opening the list. You can also set it back to unread, or acknowledge all at once after a confirmation."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Zähler am App-Symbol zeigt jetzt, wie viele Nachrichten wirklich ungelesen sind, und verschwindet auch wieder. Vorher stand dort dauerhaft eine 1, egal wie viel angekommen war.",
+          "en": "The badge on the app icon now shows how many messages are actually unread, and disappears again. It used to be stuck on 1, no matter how much had arrived."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "In den Einstellungen kannst du Mail und Push zu neuen Nachrichten abschalten. Anforderungen und Fristen werden weiterhin immer gemeldet, alles andere sammelt sich dann still im Posteingang.",
+          "en": "In your settings you can switch off mail and push for new messages. Requests and deadlines are still always delivered; everything else then collects quietly in the inbox."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.55.6",
+    "date": "2026-07-29",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zieht die Keyholderin eine Kontrolle zurück, ohne eine bestimmte zu benennen, bleiben die automatischen Kontrollen jetzt unangetastet, solange sie noch nicht ausgelöst haben. Bisher räumte so ein Rückzug auch den geplanten Rest des Tages mit weg — Kontrollen also, die die Keyholderin gar nicht sehen kann und deren Überraschung genau darin liegt. Danach blieb es den Rest des Tages still, weil die Automatik den Tag für erledigt hielt. Eine bereits ausgelöste automatische Kontrolle lässt sich weiterhin zurückziehen.",
+          "en": "When the keyholder withdraws an inspection without naming a specific one, automatic inspections that have not triggered yet are now left alone. Until now such a withdrawal also swept away the rest of the day's plan — inspections the keyholder cannot see in the first place, and whose whole point is the surprise. After that the day stayed silent, because the automation considered it already planned. An automatic inspection that has already triggered can still be withdrawn."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle lässt sich jetzt bis zu 24 Stunden im Voraus ansetzen statt nur gut eine Stunde. Wird die gewünschte Vorlaufzeit trotzdem angepasst, sagt die Antwort das ausdrücklich — bisher meldete sie einfach die geänderte Zeit als Erfolg, sodass eine auf den Nachmittag geplante Kontrolle unbemerkt eine Stunde später zuschlug.",
+          "en": "An inspection can now be scheduled up to 24 hours ahead instead of barely an hour. If the requested lead time still gets adjusted, the reply says so explicitly — until now it simply reported the changed time as a success, so an inspection meant for the afternoon quietly struck an hour later instead."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.55.5",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Offene Anforderungen stehen jetzt zuoberst auf der Übersicht — direkt unter der Begrüssung, noch vor der Box-Karte und der laufenden Session. Bisher sassen sie weiter unten und konnten je nach Ausstattung so weit rutschen, dass man zum Scrollen gezwungen war, um eine laufende Frist überhaupt zu sehen. Neu sieht man eine geforderte Kontrolle auch dann, wenn noch gar keine Einträge erfasst sind.",
+          "en": "Open requests now sit at the very top of the overview — right below the greeting, ahead of the box card and the running session. They used to sit further down and, depending on your setup, could slide far enough that you had to scroll to see a running deadline at all. A requested inspection is now also shown when there are no entries yet."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.55.3",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Keyholder-Ansicht sind jetzt alle Blöcke gleich breit. Die Box-Karte, die laufenden Trage-Sessions und die Kategorie-Trainingsvorgaben waren dort schmaler als ihre Nachbarn und sassen eingerückt dazwischen.",
+          "en": "In the keyholder view all blocks are now the same width. The box card, the running wear sessions and the category training targets used to be narrower than their neighbours and sat indented between them."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Box-Karte stellt ihre Angaben auf breiten Bildschirmen in zwei Spalten nebeneinander und wird dadurch deutlich flacher. Links steht, was gilt (Soll-Zustand, Reinigung), rechts, wie die Box dasteht (Vorwarnungen, letzter Kontakt und Akku). Auf dem Handy bleibt alles untereinander.",
+          "en": "On wide screens the box card now places its details in two columns side by side, which makes it considerably shorter. The left column shows what applies (target state, cleaning), the right one how the box is doing (warnings, last contact and battery). On a phone everything stays stacked."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Box zeigt neu ihre Firmware-Version in Klammern hinter dem Namen — bei einer Rückfrage zu einer Box ist das erfahrungsgemäss die erste Angabe, die man braucht.",
+          "en": "The box now shows its firmware version in brackets after the name — when something needs to be checked on a box, that is the first detail you need."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Zeile zum letzten Kontakt der Box heisst jetzt „zuletzt online vor …\" statt „zuletzt vor …\".",
+          "en": "The line about the box's last contact now reads \"last online … ago\" instead of \"last seen … ago\"."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.55.2",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Box-Karte zeigt jetzt dauerhaft, wann die Box zuletzt Kontakt hatte und wie voll ihr Akku ungefähr ist. Bisher tauchte der Akku erst auf, wenn er schon knapp war. Bewusst grob statt aufs Prozent genau — wie genau eine Box misst, hängt davon ab, ob sie sich schon einmal beim Volladen selbst justiert hat. Am Ladekabel steht zusätzlich „lädt\". Beides steht in derselben Zeile, damit mitzulesen ist, wie alt der Akkustand ist.",
+          "en": "The box card now permanently shows when the box was last in contact and roughly how full its battery is. Until now the battery only appeared once it was already running low. Deliberately coarse rather than to the percent — how precisely a box measures depends on whether it has already calibrated itself during a full charge. On the cable it also shows \"charging\". Both sit on the same line so you read how old the battery reading is."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.55.1",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Box-Karte warnt jetzt, bevor sich die Box von selbst öffnet. Verliert sie den Kontakt zum Server, steht ab der halben Frist auf der Karte, seit wann sie ohne Kontakt ist und wann die Not-Öffnung fällig wäre — früh genug, um für Netz zu sorgen. Dasselbe gilt für einen fast leeren Akku. Bisher war der erste sichtbare Hinweis die Öffnung selbst. Die Keyholder-Sicht zeigt dieselbe Warnung.",
+          "en": "The box card now warns before the box opens itself. If it loses contact with the server, the card shows from half the deadline onwards how long it has been out of contact and when the emergency opening is due — early enough to get it back into network range. The same goes for a nearly empty battery. Until now the first visible sign was the opening itself. The keyholder view shows the same warning."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.55.0",
+    "date": "2026-07-28",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Während einer Reinigungspause steht auf dem Dashboard jetzt „Reinigungspause – noch …\" mit der verbleibenden Zeit und einem Knopf zum Wiedereinschliessen. Bisher sah das aus wie eine beendete Session („Geöffnet seit …\"), obwohl die Pause mitzählt. Läuft die Frist ab, wechselt die Anzeige von selbst zurück.",
+          "en": "During a cleaning break your dashboard now shows \"Cleaning break – remaining …\" with the time left and a button to lock up again. Until now this looked like a finished session (\"Open since …\") even though the break still counts. When the deadline passes, the display switches back on its own."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.4",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Subs in Zeitzonen ab UTC+12 (z.B. Neuseeland, Fidschi, Kiribati) stimmt die Statistik-Seite jetzt: Monatskalender, Jahres-Heatmap und Monatsübersicht begannen dort einen Tag zu spät. Der Monat startete am Zweiten, der erste Tag fiel aus der Auswertung, der Kalender war um eine Spalte verschoben (und verlor dadurch teilweise eine ganze Wochenzeile samt Wochenziel), und jede Tages-Kachel trug das Datum des Folgetags. Monatssummen und Ziel-Prozente verschieben sich dadurch rückwirkend. Für alle Zeitzonen bis UTC+11 — auch die Schweiz — ändert sich nichts.",
+          "en": "For subs in timezones from UTC+12 (e.g. New Zealand, Fiji, Kiribati) the stats page is now correct: the month calendar, year heatmap and month overview all started a day late there. The month began on the 2nd, its first day dropped out of the evaluation, the calendar was shifted by one column (sometimes losing an entire week row and its weekly goal), and every day tile showed the following day's date. Monthly totals and goal percentages therefore shift retroactively. Nothing changes for any timezone up to UTC+11, including Switzerland."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Statistik-Seite baut ihre Datums-Beschriftungen deutlich schneller auf (die Jahres-Heatmap beschriftet jeden einzelnen Tag).",
+          "en": "The stats page builds its date labels considerably faster (the year heatmap labels every single day)."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.3",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Tragestunden, Kategorie-Ziele und die Zeitstrahl-Abschnitte („Heute\", „Gestern\", „Diese Woche\") rechnen jetzt überall mit dem Kalendertag der Sub statt mit dem Schweizer. Auf dem Dashboard konnten Zähler und Nenner desselben Fortschrittsbalkens vorher zwei verschiedene Mitternachte meinen, und ein Ereignis konnte mit der Uhrzeit von heute unter „Gestern\" stehen.",
+          "en": "Wearing hours, category goals and the timeline sections (\"Today\", \"Yesterday\", \"This week\") now all count against the sub's calendar day instead of the Swiss one. On the dashboard the numerator and denominator of the same progress bar could previously mean two different midnights, and an event could sit under \"Yesterday\" showing today's time."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Für Subs östlich von UTC+12 (etwa Neuseeland oder Fidschi) begann jeder Monat und jedes Jahr einen Tag zu spät: der erste Tag fiel aus Statistik und Zielberechnung heraus.",
+          "en": "For subs east of UTC+12 (New Zealand or Fiji, say) every month and year began a day late: the first day dropped out of the statistics and the goal calculation."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Zeitzone ist bei allen Funktionen, die eine Tages-, Wochen-, Monats- oder Jahresgrenze ziehen, jetzt ein Pflichtargument. Bisher fielen sie stillschweigend auf die Schweizer Zeit zurück — vier voneinander unabhängige Fehler entstanden so, und keiner davon war im Diff zu sehen.",
+          "en": "The timezone is now a required argument on every function that draws a day, week, month or year boundary. They used to fall back to Swiss time silently — four independent bugs arose that way, and none of them was visible in the diff."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.2",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Strafbuch zählt das Tageskontingent der Reinigungsöffnungen jetzt gegen den Kalendertag der Sub statt gegen den Schweizer. Für Subs in einer anderen Zeitzone konnte dieselbe Regel zwei Antworten geben: eine Öffnung kurz vor Mitternacht galt auf der Box-Karte noch als heute, im Buch aber schon als morgen — und wurde dort zum Verstoss, den die Karte nicht kannte.",
+          "en": "The penalty ledger now counts the daily cleaning-opening quota against the sub's calendar day instead of the Swiss one. For subs in another timezone the same rule could give two answers: an opening shortly before midnight still counted as today on the box card but already as tomorrow in the ledger — where it became a violation the card knew nothing about."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.1",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Das Dashboard und die Keyholder-Detailseite bauen sich mit einer Datenbankabfrage weniger auf. Für das Reinigungs-Tageskontingent der Box-Karte lief bisher eine eigene Zählabfrage, obwohl beide Seiten die dafür nötigen Einträge ohnehin schon geladen hatten. Angezeigt wird exakt dasselbe.",
+          "en": "The dashboard and the keyholder detail page now render with one database query less. The cleaning quota on the box card used to trigger its own counting query even though both pages had already loaded the entries it needs. The displayed numbers are unchanged."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.54.0",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Wer eine Schlüsselbox nutzt, muss bei einer Kontrolle nicht mehr zwingend ein Foto durchs Sichtfenster machen: Solange die Box seit dem Einschluss (oder seit dem letzten Foto) nicht geöffnet wurde, gilt der Schlüssel weiterhin als in der Box. Der Keyholder sieht dabei, worauf der Nachweis beruht — Foto oder Box-Meldung. Das Foto bleibt möglich, die Nachfrage vor dem Speichern ohne Foto bleibt bestehen. Wurde die Box zwischendurch geöffnet oder meldet sie sich nicht, wird nichts behauptet — dann braucht es wieder ein Foto.",
+          "en": "With a key box in use, an inspection no longer strictly needs a photo through the viewing window: as long as the box has not been opened since the lock (or since the last photo), the key still counts as being in the box. The keyholder can see what the proof rests on — photo or box report. Taking the photo stays possible, and the prompt before saving without one stays as well. If the box was opened in between, or is not reporting, nothing is claimed — then a photo is needed again."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.8",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bei einer angeforderten Kontrolle kann das Foto nachträglich nicht mehr entfernt werden. Bisher liess sich der Nachweis nach dem Erfassen wieder löschen — die Kontrolle galt trotzdem als fristgerecht erfüllt, und im Strafbuch tauchte nichts auf. Ob ein Foto taugt, beurteilt weiterhin allein die Keyholderin; sie darf es auch weiterhin entfernen. Freiwillige Kontrollen bleiben unverändert.",
+          "en": "The photo of a requested inspection can no longer be removed after the fact. Until now the proof could be deleted again after submitting it — the inspection still counted as met on time and nothing showed up in the penalty log. Whether a photo is good enough remains the keyholder's call alone, and she can still remove it. Voluntary inspections are unchanged."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.7",
+    "date": "2026-07-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle, auf deren Foto zwar ein Gerät zu sehen war, das sich aber keinem hinterlegten Gerät zuordnen liess, galt bisher als „falsches Gerät\" — obwohl gar nichts festgestellt worden war. Solche Kontrollen werden jetzt als „nicht prüfbar\" ausgewiesen; von einem falschen Gerät ist nur noch die Rede, wenn tatsächlich ein anderes bekanntes Gerät erkannt wurde. Das gilt auch rückwirkend für bereits erfasste Kontrollen.",
+          "en": "An inspection whose photo showed a device that could not be matched to any of your registered devices was previously reported as a wrong device — even though nothing had actually been established. Such inspections are now shown as „not verifiable\"; a wrong device is only reported when a different known device was actually recognised. This also applies retroactively to inspections already recorded."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.6",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die erlaubten Wertebereiche der Admin-Einstellungen (Reinigungspausen, Kontroll-Eskalation, automatische Kontrollen) stehen jetzt nur noch an einer Stelle. Vorher führten Formular und Server je eine eigene Kopie — wich eine ab, kürzte das Formular die Eingabe still auf den alten Wert, bevor der Server sie überhaupt sah.",
+          "en": "The permitted value ranges of the admin settings (cleaning pauses, inspection escalation, automatic inspections) now live in exactly one place. Previously the form and the server each kept their own copy — if one drifted, the form silently trimmed the entry to the stale bound before the server ever saw it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die obere Grenze der Erfüllungsfrist automatischer Kontrollen fällt jetzt auch serverseitig auf 60 Minuten zurück statt auf 15 — so, wie es das Formular und der Datenbank-Standardwert ohnehin schon vorsahen.",
+          "en": "The upper bound of the automatic inspection deadline now falls back to 60 minutes on the server too, instead of 15 — matching what the form and the database default already used."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.5",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zahlenfelder in den Einstellungen liessen sich am Handy kaum ändern: die erste Ziffer sprang beim Löschen sofort zurück, aus einer getippten 20 wurde so 120. Die Felder lassen sich jetzt normal leeren und neu tippen — geprüft wird der Wert erst, wenn man das Feld verlässt. Betrifft die Reinigungs-Einstellungen, die Kontroll-Eskalation und die automatischen Kontrollen.",
+          "en": "Number fields in the settings were nearly impossible to edit on a phone: the leading digit snapped back while deleting, turning a typed 20 into 120. The fields can now be cleared and retyped normally — the value is only checked once you leave the field. Affects the cleaning settings, the inspection escalation and the automatic inspections."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.4",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die E-Mail zu einer angeforderten Kontrolle nannte im Text eine andere Frist als die Zeile darunter: bei kurzen Fristen stand dort „innert der nächsten 1 Stunde“, obwohl nur zehn Minuten blieben. Der Text nennt jetzt die tatsächlich verbleibende Zeit und rundet sie nie nach oben.",
+          "en": "The e-mail for a requested inspection stated a different deadline in its text than in the line below: with short deadlines it said “within the next 1 hour” when only ten minutes were left. The text now states the time actually remaining and never rounds it up."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.3",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Auch nach einer Reinigungspause siehst du jetzt das Foto der Box und ob ein Schlüssel erkannt wurde — der Nachweis, dass der Schlüssel nach dem Reinigen wieder drin liegt. Die Pausen-Zeile zeigt die Pille und das Foto wie jeder andere Eintrag.",
+          "en": "After a cleaning break you now also see the photo of the box and whether a key was detected — the evidence that the key is back inside after cleaning. The break row shows the pill and the photo like any other entry."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Umschalten zwischen zwei Fotos im Vollbild blieb eine Fehlermeldung des ersten Bildes stehen, sodass das zweite nie erschien. Ausserdem wird die Zoom-Position beim Wechsel jetzt zurückgesetzt.",
+          "en": "When switching between two photos full screen, an error from the first image stuck around so the second never appeared. The zoom position is also reset on switching now."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.2",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Foto der Box lässt sich jetzt auch anschauen: Öffnest du das Foto eines Eintrags im Vollbild, kannst du zwischen dem Eintrags-Foto und dem Box-Foto umschalten. Gilt im eigenen Dashboard, in der Keyholder-Übersicht und in beiden Kontroll-Listen — bisher lag das Box-Foto zwar vor, war aber nirgends zu sehen.",
+          "en": "The photo of the box can now actually be viewed: open an entry's photo full screen and you can switch between the entry photo and the box photo. Works on your own dashboard, in the keyholder overview and in both inspection lists — until now the box photo existed but was nowhere to be seen."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.1",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Ergebnis der Schlüssel-Erkennung erscheint jetzt von selbst, sobald es da ist — vorher musste man die Seite neu laden. Dasselbe gilt für die Kontroll-Verifikation.",
+          "en": "The result of the key recognition now appears on its own as soon as it is ready — previously you had to reload the page. The same applies to inspection verification."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.53.0",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neu für Box-Nutzer: Beim Einschliessen und bei jeder Kontrolle kannst du ein Foto durch das Sichtfenster deiner Box aufnehmen. Die Bilderkennung prüft, ob darin ein Schlüssel zu sehen ist, und das Ergebnis erscheint als Hinweis an der jeweiligen Session — für deine Keyholderin der erste echte Beleg, dass der Schlüssel drin ist und drin bleibt.",
+          "en": "New for box users: when you lock up and at every inspection you can take a photo through your box's viewing window. Image recognition checks whether a key is visible inside, and the result appears as a note on that session — for your keyholder, the first real evidence that the key is inside and stays there."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die laufende Session zeigt jetzt zuoberst, ob der Schlüssel in der Box liegt. Liegt er es nicht, steht das rot hervorgehoben da — der Verschluss ist dann nicht durch die Box gesichert. Dieselbe Angabe steht neu auch in der Mail an deine Keyholderin.",
+          "en": "The running session now shows at the top whether the key is in the box. If it is not, that is highlighted in red — the lock is then not secured by the box. The same line now also appears in the mail to your keyholder."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Beim Speichern wird nachgefragt, wenn du kein Foto der Box aufgenommen hast oder angibst, dass der Schlüssel nicht hinein soll.",
+          "en": "Saving now asks back if you took no photo of the box, or if you state that the key does not go inside."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.52.5",
+    "date": "2026-07-26",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Für Keyholder: Die Übersicht deines Subs zeigt jetzt den Zustand seiner Box — ob sie zu ist, bis wann sie zu bleiben soll, ob gerade gereinigt werden darf und wann sie sich zuletzt gemeldet hat. Bisher war das nur für den Sub selbst sichtbar.",
+          "en": "For keyholders: your sub's overview now shows the state of their box — whether it is closed, how long it should stay closed, whether cleaning is allowed right now, and when it last checked in. Until now only the sub could see this."
         }
       }
     ]

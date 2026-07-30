@@ -1,10 +1,13 @@
 "use client";
 
+import type { DeviceCheckStatus } from "@/lib/deviceCheck";
 import { useState } from "react";
 import { ImageOff, CheckCircle2, ScanLine, Lock, Check, AlertTriangle } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import DetailField from "@/app/components/DetailField";
+import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
+import PhotoThumb from "@/app/components/PhotoThumb";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
@@ -19,23 +22,33 @@ function DeviceFact({ t, row }: { t: ReturnType<typeof useTranslations>; row: Ad
   // error = die KI konnte nicht prüfen (Bild/Referenzen unladbar o.ä.) — klar von „kein Gerät erkannt"
   // (missing) und „kein Check gelaufen" (null → gar kein Chip) getrennt.
   const isError = row.deviceCheck === "error";
+  // pending = die Erkennung läuft noch. Weder ok noch Problem: orange „in Arbeit" und OHNE
+  // Status-Icon — dieselbe Lesart wie die pending-Verifikations-Pill (siehe kontrollePills). Ein
+  // Warn-Dreieck stünde für einen Befund, den es noch nicht gibt.
+  const isPending = row.deviceCheck === "pending";
+  // Das „erwartet"-Suffix ergänzt einen ABWEICHENDEN Befund; bei pending gibt es keinen.
+  const showExpected = !isOk && !isPending && row.deviceCheckExpected;
   return (
-    <Badge variant={isOk ? "ok" : "warn"} size="sm" icon={<Lock size={12} />} label={t("deviceLabel")}>
-      {isError
+    <Badge variant={isOk ? "ok" : isPending ? "inspect" : "warn"} size="sm" icon={<Lock size={12} />} label={t("deviceLabel")}>
+      {isPending
+        ? <span className="italic opacity-80">{t("devicePendingLabel")}</span>
+        : isError
         ? <span className="italic opacity-80">{t("deviceUncheckableLabel")}</span>
         : row.deviceCheck === "missing"
         ? <span className="italic opacity-80">{t("deviceNoneLabel")}</span>
         : <span className="font-semibold">{row.deviceCheckNote ?? "—"}</span>}
-      {!isOk && !isError && row.deviceCheckExpected && (
+      {showExpected && (
         <span className="opacity-80">· {t("deviceExpectedLabel")} {row.deviceCheckExpected}</span>
       )}
-      {isOk ? <Check size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
+      {isPending ? null : isOk ? <Check size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
     </Badge>
   );
 }
 
 export interface AdminKontrolleRowData {
   imageUrl: string | null;
+  /** Foto durchs Sichtfenster der Box — im Vollbild neben dem Kontroll-Foto wählbar. */
+  boxImageUrl?: string | null;
   kommentar: string | null;
   pillLabel: string | null;
   pillCls: string | null;
@@ -58,9 +71,10 @@ export interface AdminKontrolleRowData {
   verifikationStatus: VerifikationStatus | null;
   /** Warum die automatische Verifikation nicht gematcht hat (localized), nur bei "unverified" gesetzt. */
   verifikationReasonStr: string | null;
-  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" · "missing" (kein Gerät erkannt) ·
-   *  "error" (nicht prüfbar). */
-  deviceCheck: "ok" | "wrong" | "missing" | "error" | null;
+  /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" (ein anderes, BENANNTES Gerät —
+   *  `deviceCheckNote` ist dann gesetzt) · "pending" (Erkennung läuft noch) · "missing" (kein Gerät erkannt) · "error" (nicht prüfbar,
+   *  inkl. „Gerät sichtbar, aber keiner Referenz zuzuordnen"). */
+  deviceCheck: DeviceCheckStatus | null;
   /** Im Foto erkanntes Gerät (Name) oder null. */
   deviceCheckNote: string | null;
   /** Erwartetes (verschlossenes) Gerät zur Check-Zeit. */
@@ -82,9 +96,12 @@ const PAGE_SIZE = 10;
 function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labels: Labels }) {
   const t = useTranslations("admin");
   const [open, setOpen] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const photo = usePhotoChoice(row.imageUrl, row.boxImageUrl);
 
-  if (!row.imageUrl) {
+  // Auch ohne Kontroll-Foto öffnen, sobald ein Box-Foto da ist — sonst zeigte dieselbe Kontrolle
+  // den Schlüssel-Nachweis in der Vorschau der User-Seite, in dieser Vollliste aber nicht.
+  const thumbUrl = row.imageUrl ?? row.boxImageUrl;
+  if (!thumbUrl) {
     return (
       <div className="flex-shrink-0 size-10 rounded-xl bg-surface-raised flex items-center justify-center">
         <ImageOff size={16} className="text-foreground-faint" />
@@ -95,19 +112,11 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={labels.imageAlt} className="flex-shrink-0">
-        {imgError ? (
-          <div className="w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center">
-            <ImageOff size={16} className="text-foreground-faint" />
-          </div>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={row.imageUrl} alt={labels.imageAlt} loading="lazy" className="w-10 h-10 rounded-xl object-cover"
-            onError={() => setImgError(true)} />
-        )}
+        <PhotoThumb url={thumbUrl} alt={labels.imageAlt} />
       </button>
       {open && (
         <FullscreenImageModal
-          src={row.imageUrl}
+          src={photo.src}
           alt={labels.imageAlt}
           onClose={() => setOpen(false)}
           title={
@@ -119,6 +128,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
           }
           panel={
             <div className="flex flex-col gap-3">
+              <PhotoChoice photo={photo} />
               {row.pillLabel && (
                 <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
               )}

@@ -1,17 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective } from "@/lib/queries";
+import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
-import { setReinigungSettings, MAX_MINUTEN_RANGE, MAX_PRO_TAG_RANGE, maxPausesPerDaySentinel } from "@/lib/reinigungService";
+import { setReinigungSettings, maxPausesPerDaySentinel } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { diffFields } from "@/lib/mcp/writeFramework";
-import { clamp } from "@/lib/utils";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import { clamp, randomInt } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { createTask, updateTask, withdrawTask, mergeTaskPatch, type TaskRequirementInput } from "@/lib/taskService";
@@ -221,40 +222,78 @@ export interface RequestInspectionArgs {
   delayMinutes?: number;
   dryRun?: boolean;
 }
-/** Delay-Policy (nur MCP): kein Wert → zufällig 5–65; ≤0 → sofort; sonst auf 5–65 geklemmt. Geteilt
- *  von Commit und dryRun-Preview, damit die beiden Pfade nicht auseinanderlaufen können. */
+/** Delay-Policy (nur MCP): kein Wert → zufällig aus `INSPECTION_RANDOM_DELAY`; ≤0 → sofort; sonst auf
+ *  `INSPECTION_DELAY_RANGE` geklemmt. Geteilt von Commit und dryRun-Preview, damit die beiden Pfade
+ *  nicht auseinanderlaufen können. */
 function clampInspectionDelay(delayMinutes: number | undefined): number {
-  if (delayMinutes === undefined) return 5 + Math.floor(Math.random() * 61); // 5..65 inkl.
+  if (delayMinutes === undefined) return randomInt(INSPECTION_RANDOM_DELAY.min, INSPECTION_RANDOM_DELAY.max);
   if (delayMinutes <= 0) return 0;
-  return Math.min(65, Math.max(5, Math.round(delayMinutes)));
+  return clamp(delayMinutes, INSPECTION_DELAY_RANGE);
+}
+
+/** Satz für die Antwort, wenn der angeforderte Delay die Policy verletzt hat und geklemmt wurde —
+ *  sonst null. Ein blosses „reicht in ~65 min" meldete den ERSETZTEN Wert als Erfolg; der Aufrufer
+ *  plante seine Zeit aber um den angefragten herum und hat keine Möglichkeit, die Abweichung zu
+ *  bemerken. (Vorfall 28.07.2026: 242 min angefragt, 65 geliefert, Antwort wies auf nichts hin.) */
+function inspectionDelayNote(requested: number | undefined, effective: number): string | null {
+  // `≤0` ist die dokumentierte Kurzform für „sofort", keine verletzte Grenze — dort ist die 0 das
+  // VERLANGTE Ergebnis. Ohne diese Ausnahme meldete ausgerechnet der Ehrlichkeits-Hinweis eine
+  // Abweichung, die es nicht gab, und riete zu „später erneut anfragen", obwohl sofort ausgelöst wurde.
+  if (requested === undefined || requested <= 0 || Math.round(requested) === effective) return null;
+  return `NOTE: the requested delay of ${requested} min was NOT applied — it was clamped to ${effective} min `
+    + `(allowed: ${INSPECTION_DELAY_RANGE.min}–${INSPECTION_DELAY_RANGE.max} min, or ≤0 for immediate). `
+    + `If you need the inspection at a specific later time, request it closer to that time.`;
 }
 
 export async function mcpRequestInspection(username: string, args: RequestInspectionArgs) {
   const userId = await resolveTargetUserId(username);
+  const requestedDelayMinutes = args.delayMinutes ?? null;
   if (args.dryRun) {
     // Kein Zufallswert im Preview: ein hier gewürfelter Delay würde bei jedem dryRun-Aufruf einen
     // anderen Wert zeigen, ohne dass der echte Commit denselben zieht — ehrlicher, den Zufallsfall
     // als solchen zu benennen, statt eine Zahl vorzutäuschen, die beim Commit nicht wiederkehrt.
-    const delayPreview = args.delayMinutes === undefined ? "random 5–65 (drawn fresh on commit)" : clampInspectionDelay(args.delayMinutes);
+    // Die Kappung dagegen steht schon fest und gehört benannt — sie aufzudecken ist der Zweck des dryRun.
+    const effective = args.delayMinutes === undefined ? null : clampInspectionDelay(args.delayMinutes);
+    const preview = effective === null
+      ? { delayMinutes: `random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} (drawn fresh on commit)`, delayNote: null }
+      : { delayMinutes: effective, delayNote: inspectionDelayNote(args.delayMinutes, effective) };
     // Advisory (siehe request_lock): eine Kontrolle verlangt einen verschlossenen User ohne bereits
     // laufende Kontrolle. hasActiveKontrolle ist dieselbe Prüfung wie auf dem echten Pfad.
     const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED"
       : (await hasActiveKontrolle(userId, new Date())) ? "INSPECTION_ALREADY_ACTIVE" : undefined;
-    return dryRunPreview("request_inspection", problem, { deadlineHours: args.deadlineHours ?? null, comment: args.comment ?? null, delayMinutes: delayPreview });
+    return dryRunPreview("request_inspection", problem, {
+      deadlineHours: args.deadlineHours ?? null,
+      comment: args.comment ?? null,
+      requestedDelayMinutes,
+      ...preview,
+    });
   }
   const delayMinutes = clampInspectionDelay(args.delayMinutes);
+  // Wie `alsoOpen` in request_lock: fertiger Anhang (mit führendem Leerzeichen) statt eines Ternärs
+  // an jeder Rückgabe. Der unangehängte Satz bleibt als Feld erhalten.
+  const delayNote = inspectionDelayNote(args.delayMinutes, delayMinutes);
+  const noteSuffix = delayNote ? ` ${delayNote}` : "";
 
   const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes }));
 
+  // `delayMinutes`/`requestedDelayMinutes` auch als Felder, nicht nur im Fliesstext: ein Aufrufer,
+  // der die Zeit weiterverarbeitet, soll die Abweichung prüfen können, ohne die Meldung zu parsen.
+  const delayFields = { delayMinutes, requestedDelayMinutes, delayNote };
   if (data.scheduledFor) {
     return {
       ok: true,
       scheduledFor: data.scheduledFor,
       deadline: data.deadline,
-      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.`,
+      ...delayFields,
+      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.` + noteSuffix,
     };
   }
-  return { ok: true, deadline: data.deadline, message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` };
+  return {
+    ok: true,
+    deadline: data.deadline,
+    ...delayFields,
+    message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` + noteSuffix,
+  };
 }
 
 export interface RequestOrgasmArgs {
@@ -365,14 +404,26 @@ export interface WithdrawArgs {
 /** Prüft, dass die per id gewählte Direktive zum Ziel-Sub UND zur angegebenen Art gehört — die id
  *  kommt vom Agenten, nicht aus einer bereits gefilterten Liste. Ohne diese Schranke zöge ein
  *  vertippter oder verwechselter Wert eine fremde Direktive zurück, und die Antwort meldete brav
- *  Erfolg. Die Zustands-Regeln (bereits zurückgezogen/erfüllt) prüft der Service selbst. */
-async function assertOwnedDirective(id: string, userId: string, target: WithdrawArgs["target"]): Promise<void> {
+ *  Erfolg. Die Zustands-Regeln (bereits zurückgezogen/erfüllt) prüft der Service selbst.
+ *
+ *  Gibt die geprüfte Zeile zurück, damit die Antwort sie benennen kann (`withdrawnItems`) — sie ist
+ *  hier ohnehin geladen, ein zweiter Fetch wäre dieselbe Zeile ein zweites Mal. */
+async function assertOwnedDirective(id: string, userId: string, target: WithdrawArgs["target"]): Promise<OpenDirective> {
   const art = target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT";
   const row = await prisma.verschlussAnforderung.findUnique({
     where: { id },
-    select: { userId: true, art: true },
+    select: { id: true, userId: true, art: true, wirksamAb: true, benachrichtigtAt: true, endetAt: true, nachricht: true },
   });
   if (!row || row.userId !== userId || row.art !== art) throw new Error(`No open ${target} with id ${id}.`);
+  return row;
+}
+
+/** Eine tatsächlich zurückgezogene Direktive. Dieselbe Form wie die dryRun-`targets`
+ *  ({@link DirectiveRow}), plus `code` für Kontrollen — damit „was WÜRDE weggehen" und „was IST
+ *  weggegangen" nicht in zwei verschiedenen Formen gelesen werden müssen. */
+interface WithdrawnItem extends DirectiveRow {
+  /** Der 5-stellige Kontroll-Code (nur `target: "inspection"`), sonst null. */
+  code: string | null;
 }
 
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
@@ -381,18 +432,27 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     // Aufgaben verlangen IMMER eine id: sie koexistieren beliebig, ein Rundumschlag über alle offenen
     // wäre bei ihnen nie die gemeinte Geste.
     if (!args.id) throw new Error("target task requires an id (from keyholder_dashboard.openTasks).");
-    const task = await prisma.task.findUnique({ where: { id: args.id }, select: { userId: true, title: true } });
+    const task = await prisma.task.findUnique({ where: { id: args.id }, select: { userId: true, title: true, holdUntil: true } });
     if (!task || task.userId !== userId) throw new Error(`No task with id ${args.id}.`);
     if (args.dryRun) {
       return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: "task", id: args.id, title: task.title, willWithdraw: 1 } } satisfies DryRunPreview;
     }
     unwrap(await withdrawTask(args.id, userId));
-    return { ok: true, withdrawn: 1, hidden: 0, message: `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.` };
+    const taskIso = await isoForUser(userId);
+    // `withdrawnItems` auch hier: die Werkzeug-Beschreibung sagt „the response ALWAYS names what
+    // actually went" — ein Zweig ohne die Liste macht daraus eine Lüge, und ein Agent, der sie
+    // ausliest, bekäme `undefined`. Aufgaben kennen keinen geplanten Zustand (der Sub sieht sie ab
+    // dem Stellen), deshalb immer `triggered` und `scheduledFor: null`.
+    return {
+      ok: true, withdrawn: 1, hidden: 0,
+      withdrawnItems: [{ id: args.id, status: "triggered", scheduledFor: null, endsAt: taskIso(task.holdUntil), message: task.title, code: null }] satisfies WithdrawnItem[],
+      message: `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.`,
+    };
   }
   if (args.id && args.target !== "lock_request" && args.target !== "lock_period") {
     throw new Error("id is only supported for target lock_request, lock_period or task.");
   }
-  if (args.id) await assertOwnedDirective(args.id, userId, args.target);
+  const owned = args.id ? await assertOwnedDirective(args.id, userId, args.target) : null;
   if (args.dryRun) {
     // Reine Lese-Vorschau: zeigt, was ein echter Aufruf träfe, ohne etwas zurückzuziehen. Dieselbe
     // "offen"-Definition wie withdrawVerschlussAnforderung/withdrawOrgasmusAnforderung/resolveKontrolle
@@ -417,7 +477,11 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     } else if (args.target === "orgasm_directive") {
       willWithdraw = await prisma.orgasmusAnforderung.count({ where: { userId, fulfilledAt: null, withdrawnAt: null } });
     } else if (args.target === "inspection") {
-      willWithdraw = await prisma.kontrollAnforderung.count({ where: { userId, entryId: null, withdrawnAt: null } });
+      // Dieselbe Where-Klausel wie der Commit-Pfad unten — sonst verspräche die Vorschau einen
+      // anderen Umfang, als der echte Rückzug dann trifft.
+      willWithdraw = await prisma.kontrollAnforderung.count({
+        where: { userId, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere() },
+      });
     }
     // Bewusst das Literal statt dryRunPreview(): der breitere Rückgabetyp der Helferin würde die
     // Nicht-dryRun-Felder (withdrawn/hidden/message) für Aufrufer unerreichbar machen.
@@ -431,53 +495,123 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   // `notified` = wusste der Sub von der Direktive? Eine terminierte, noch nicht ausgeloeste ist fuer
   // ihn unsichtbar; sie zu stornieren meldet ihm nichts. Die Antwort darf das nicht anders behaupten.
   let notified = true;
+  // WAS weggegangen ist, Zeile für Zeile. Zahlen allein benennen es nicht: der Rückzug ohne `id` ist
+  // ein Rundumschlag und trifft auch Direktiven, von denen der Aufrufer nichts wusste (belegter Fall
+  // 28.07.2026: eine falsch terminierte Kontrolle zurückgezogen, `withdrawn: 3` — zwei weitere waren
+  // offen).
+  //
+  // Die SICHTBARKEIT je Zeile stammt immer aus der Antwort des Service, der sie storniert hat — nie
+  // aus einem eigenen Nachlesen. Sonst könnte der Poller genau dazwischen auslösen und die Liste
+  // („war geplant, er wusste nichts davon") dem Zähler widersprechen, der es besser weiss. Genau
+  // diese Verwirrung soll das Feld beenden.
+  //
+  // Beim Rundumschlag über `target` kommen auch die ZEILEN aus der Transaktion des Service. Bei den
+  // beiden id-gezielten Pfaden (`owned`, und je Zeile bei `inspection`) ist das nicht nötig: dort
+  // steht die id von vornherein fest, es gibt keine Menge, die abweichen könnte — nur der Status
+  // muss vom Service kommen, und er tut es.
+  const withdrawnItems: WithdrawnItem[] = [];
+  const isoFn = await isoForUser(userId);
+  const lockItem = (row: OpenDirective): WithdrawnItem => ({ ...directiveRow(row, isoFn), code: null });
   // Über die Shared-Services zurückziehen → der Nutzer wird konsistent benachrichtigt (wie in der Admin-UI).
-  if (args.id) {
+  if (owned) {
     // Genau eine Zeile — sonst identisch zum Rundumschlag unten, inklusive Antwort-Formulierung.
-    ({ notified } = unwrap(await withdrawVerschlussAnforderungById(args.id)));
+    // Auf `owned` verzweigen statt auf `args.id`: dieselbe Bedingung, aber der Compiler weiss es.
+    ({ notified } = unwrap(await withdrawVerschlussAnforderungById(owned.id)));
     count = 1;
     hidden = notified ? 0 : 1;
+    // Sichtbarkeit aus `notified` ableiten, NICHT aus dem `owned`-Abbild: das wurde vor dem Rückzug
+    // gelesen, und stempelte der Poller in der Zwischenzeit `benachrichtigtAt`, meldete die Zeile
+    // „scheduled", während Zähler und Meldung derselben Antwort „der Sub wurde benachrichtigt" sagen.
+    withdrawnItems.push({
+      ...lockItem(owned),
+      status: notified ? "triggered" : "scheduled",
+    });
   } else if (args.target === "orgasm_directive") {
-    count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
-  } else if (args.target === "lock_request") {
-    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")));
-  } else if (args.target === "lock_period") {
-    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")));
+    // Orgasmus-Anforderungen kennen kein `wirksamAb` (nicht terminierbar, siehe delayedTrigger) —
+    // der Sub weiss immer von ihnen. `directiveRow` leitet daraus von selbst "triggered" ab, statt
+    // dass diese Stelle die Sichtbarkeits-Regel ein zweites Mal von Hand formuliert.
+    const { count: n, rows } = unwrap(await withdrawOrgasmusAnforderung(userId));
+    count = n;
+    for (const o of rows) withdrawnItems.push(lockItem({ ...o, wirksamAb: null, benachrichtigtAt: null }));
+  } else if (args.target === "lock_request" || args.target === "lock_period") {
+    const { count: n, hidden: h, notified: was, rows } = unwrap(
+      await withdrawVerschlussAnforderung(userId, args.target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT"),
+    );
+    count = n; hidden = h; notified = was;
+    for (const s of rows) withdrawnItems.push(lockItem(s));
   } else if (args.target === "inspection") {
-    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE (kein
-    // wirksamAb-Gate). resolveKontrolle schweigt bei denen: eine noch nicht ausgelöste Kontrolle ist
-    // für den Sub unsichtbar, und bei Auto-Kontrollen wäre die Meldung der Verrat des Zufallsplans.
+    // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE, aber
+    // nur so weit, wie `keyholderVisibleKontrolleWhere` reicht: eine noch nicht ausgelöste
+    // AUTO-Kontrolle sieht der Aufrufer nicht und nimmt sie deshalb auch nicht weg (siehe dort).
+    // resolveKontrolle schweigt bei den terminierten: eine noch nicht ausgelöste Kontrolle ist für
+    // den Sub unsichtbar, und die Meldung wäre der Verrat des Plans.
     const open = await prisma.kontrollAnforderung.findMany({
-      where: { userId, entryId: null, withdrawnAt: null },
-      select: { id: true },
+      where: { userId, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere() },
+      select: { id: true, code: true, deadline: true, wirksamAb: true, kommentar: true },
     });
     notified = false;
     for (const ka of open) {
-      if (unwrap(await resolveKontrolle(ka.id, "withdraw")).notified) notified = true;
+      // Dieselbe Antwort treibt Zähler UND Zeile: `status` kann dem `hidden` nicht widersprechen.
+      const wasNotified = unwrap(await resolveKontrolle(ka.id, "withdraw")).notified;
+      if (wasNotified) notified = true;
       else hidden++; // schweigend storniert = der Sub kannte sie nicht (terminiert, nicht ausgelöst)
+      withdrawnItems.push({
+        id: ka.id,
+        status: wasNotified ? "triggered" : "scheduled",
+        scheduledFor: isoFn(ka.wirksamAb),
+        endsAt: isoFn(ka.deadline), // bei einer Kontrolle ist das Ende die Erfüllungs-FRIST
+        message: ka.kommentar,
+        code: ka.code,
+      });
     }
     count = open.length;
   } else {
     throw new Error(`Unknown withdraw target: ${args.target}`);
   }
-  if (count === 0) return { ok: true, withdrawn: 0, hidden: 0, message: `Nothing open to withdraw for ${args.target}.` };
+  if (count === 0) return { ok: true, withdrawn: 0, hidden: 0, withdrawnItems: [], message: `Nothing open to withdraw for ${args.target}.` };
   // Gemischter Treffer (laufend + geplant): beides benennen. Der Rückzug per target ist bewusst ein
   // Rundumschlag — er darf nur nicht so klingen, als hätte er eine einzige Direktive erwischt.
   const mixed = hidden > 0 && hidden < count;
+  const hardware = boxConsequenceNote(args.target);
   if (mixed) {
     return {
-      ok: true, withdrawn: count, hidden,
-      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently.`,
+      ok: true, withdrawn: count, hidden, withdrawnItems,
+      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently. See withdrawnItems for which ones.${hardware}`,
     };
   }
   return {
     ok: true,
     withdrawn: count,
     hidden,
+    withdrawnItems,
     message: notified
-      ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.`
-      : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.`,
+      ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.${hardware}`
+      : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.${hardware}`,
   };
+}
+
+/**
+ * Was der Rückzug für die HARDWARE bedeutet — angehängt an die Antwort, wenn es etwas zu sagen gibt.
+ *
+ * Nur bei `lock_period`, und dort nötig: der Rückzug einer Frist ist keine Öffnungs-Anweisung. Das ist
+ * Absicht — sonst hübe er einen laufenden Einschluss auf, den niemand aufheben wollte. Nur stand es
+ * nirgends: die Antwort meldete „withdrawn: 1", die Box hielt, und das sah nach einem Fehler aus
+ * (belegter Fall 28.07.2026 — der Rückzug sollte die Box für ein Firmware-Update öffnen und tat es
+ * nicht). Die Box folgt für auf/zu den EINTRÄGEN des Subs, nie den Direktiven.
+ *
+ * Bewusst OHNE Aussage über die Riegelstellung. Ein früherer Entwurf schrieb „der Riegel bleibt zu"
+ * und war damit in zwei Fällen falsch: läuft eine REINIGUNGSPAUSE, ist die Box offen (`holdOpen`), und
+ * Heimdalls Umwandlung in eine eigene Sperre lässt genau diesen Fall aus — und ohne Box (kein
+ * Heimdall, kein gemapptes Gerät) gibt es überhaupt keinen Riegel, über den man etwas behaupten
+ * könnte. Eine Antwort, die eine Hardware-Folge zusichert, die nicht gilt, ist schlechter als
+ * Schweigen: die Keyholder-KI gibt sie als Tatsache weiter.
+ */
+function boxConsequenceNote(target: WithdrawArgs["target"]): string {
+  if (target !== "lock_period") return "";
+  return " NOTE: withdrawing a lock period is NOT an instruction to open. A box enforcing this lock " +
+    "does not release because of it, and one already open (cleaning pause) does not close because of " +
+    "it either — the box follows the user's ENTRIES for open/close, never the directives. It opens " +
+    "when they record an opening, which is also what gets logged and judged.";
 }
 
 // ── Training goals: list / edit / delete ────────────────────────────────────
@@ -656,8 +790,8 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
       where: { id: userId },
       select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true },
     });
-    const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, MAX_MINUTEN_RANGE) : undefined;
-    const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, MAX_PRO_TAG_RANGE) : undefined;
+    const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, CLEANING_MAX_MINUTES_RANGE) : undefined;
+    const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, CLEANING_MAX_PER_DAY_RANGE) : undefined;
     // maxPerDay durch denselben Null-Sentinel wie get_context.cleaning (0 = "unbegrenzt" → null nach
     // aussen) — sonst zeigt dieser Preview für denselben Zustand eine andere Zahl als get_context.
     const before: Record<string, unknown> = { allowed: current.reinigungErlaubt, maxMinutes: current.reinigungMaxMinuten, maxPerDay: maxPausesPerDaySentinel(current.reinigungMaxProTag) };

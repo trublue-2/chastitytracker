@@ -19,6 +19,47 @@ export const VERIFY_REASON_KEYS: Record<VerifyReason, string> = {
   sealWrong: "reasonSealWrong",
 };
 
+/** Der Nicht-Match-Grund, wie ihn die MCP-Sichten führen: der stabile Code plus, bei den
+ *  `*Wrong`-Gründen, das im Bild GELESENE. */
+export interface VerifyFailure {
+  reason: VerifyReason;
+  /** Was im Bild stand (nur `*Wrong`; bei `*Missing` wurde nichts gelesen → null). */
+  detected: string | null;
+}
+
+/**
+ * Baut den Nicht-Match-Grund für die Maschinen-Sichten (MCP). `null` = nichts zu erklären.
+ *
+ * Existiert, weil `verifikationStatus: null` sonst eine Sackgasse ist — „nicht verifiziert", ohne
+ * dass erkennbar wäre, ob der Code unlesbar war, falsche Ziffern zeigte oder das Siegel fehlte. Der
+ * Grund liegt seit jeher in der Zeile und stand nur in der Admin-Liste; die Keyholder-KI sah ihn
+ * nicht und konnte den Sub deshalb weder gezielt fragen noch die Ursache benennen.
+ *
+ * `status` ist PFLICHT und entscheidet mit: der Grund gilt NUR, solange nicht automatisch verifiziert
+ * ist. Die Spalten `verifikationReason`/`verifikationReasonDetected` werden ausschliesslich von der
+ * Auto-Prüfung geschrieben und von einem späteren Urteil NICHT abgeräumt (`resolveKontrolle` setzt
+ * nur `verifikationStatus`). Ohne diese Schranke stünde neben einem `manual` der Grund der damals
+ * gescheiterten Maschinen-Prüfung — die Keyholder-KI läse „von Hand bestätigt" UND „falsche Ziffern
+ * gelesen" in derselben Zeile und zöge eine Bestätigung in Zweifel, die der Mensch längst gegeben
+ * hat. Die Admin-Liste hält dieselbe Schranke seit jeher (`kontrollen.ts`: „Nur bei 'unverified'
+ * aussagekräftig"); der MCP hatte sie nicht.
+ *
+ * Defensiv gegen Alt-/Fremdwerte: ein unbekannter Code fällt auf `null` statt als ungültiger
+ * VerifyReason durchzurutschen — dieselbe Härtung wie `effectiveDeviceCheckStatus` für den
+ * Geräte-Check.
+ */
+export function toVerifyFailure(
+  status: string | null | undefined,
+  reason: string | null | undefined,
+  detected: string | null | undefined,
+): VerifyFailure | null {
+  // Roh-Spalte: `null` = unverifiziert. Jeder gesetzte Status (ai/manual/rejected/pending) ist ein
+  // aktuelleres Urteil als der gespeicherte Auto-Grund.
+  if (status) return null;
+  if (!reason || !(reason in VERIFY_REASON_KEYS)) return null;
+  return { reason: reason as VerifyReason, detected: detected ?? null };
+}
+
 /** Renders a reason code as localized text via the given `inspectionForm` translator. `detected`
  *  feeds the `{detected}` placeholder used by the `*Wrong` variants; ignored by `*Missing`.
  *  Defensive against an unrecognized `reason` (e.g. stale/legacy DB value) — degrades to `null`

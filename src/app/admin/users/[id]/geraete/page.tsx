@@ -28,6 +28,7 @@ export default async function AdminDevicesPage({ params }: { params: Promise<{ i
         categoryId: true,
         createdAt: true,
         archivedAt: true,
+        requireInspectionCode: true,
         _count: { select: { entries: true } },
       },
     }),
@@ -51,8 +52,10 @@ export default async function AdminDevicesPage({ params }: { params: Promise<{ i
         archivedAt: d.archivedAt?.toISOString() ?? null,
         createdAt: d.createdAt.toISOString(),
         entryCount: d._count.entries,
+        requireInspectionCode: d.requireInspectionCode,
       }))}
       categories={categories}
+      canEditInspectionCode
       userId={user.id}
       username={user.username}
       showCategoriesLink={deviceCategoriesEnabled()}

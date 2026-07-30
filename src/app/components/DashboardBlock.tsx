@@ -11,9 +11,21 @@ import { type ReactNode } from "react";
  *  klebte am Block darunter, sobald ActiveWearSessions nichts rendert). Deshalb hier KEIN `py-*`
  *  ergänzen — und auch nicht über `className` hereinreichen.
  *
- *  `max-w-2xl` ist die Spaltenbreite des Sub-Dashboards. Auf der breiteren Keyholder-Seite
- *  (`max-w-5xl`) sind die beiden geteilten Blöcke dadurch schmaler als ihre Nachbarn — so war es
- *  vor dieser Komponente schon, und es bleibt bewusst so. */
+ *  Die Vorgabe hier ist die Spalte des Sub-Dashboards (`--container-2xl` = `max-w-2xl`, Seitenrand
+ *  = `px-4`). Eine Seite, die ihre Spalte SELBST aufspannt, überschreibt sie per `--block-col` /
+ *  `--block-gutter` auf ihrem Container — sonst brächte jeder geteilte Block die schmalere
+ *  Sub-Spalte plus einen zweiten Seitenrand mit und sässe eingerückt zwischen seinen Nachbarn.
+ *  Einziger solcher Fall heute: `admin/users/[id]/layout.tsx` (`max-w-5xl`).
+ *
+ *  Bewusst über CSS-Variablen statt über ein Prop: die Spaltenbreite ist eine Eigenschaft der
+ *  Seite, nicht des Blocks. Als Prop wäre sie durch drei geteilte Blöcke und teils zwei Ebenen zu
+ *  reichen (`CategoryGoalsToday` → `CategoryGoalsLive`) und an jeder neuen Aufrufstelle erneut zu
+ *  setzen. Über `className` ginge es gar nicht zuverlässig: welches `max-w-*` gewinnt, entscheidet
+ *  bei Tailwind v4 die Reihenfolge im erzeugten Stylesheet, nicht die im Klassen-String.
+ *
+ *  (Nicht zu verwechseln mit `StatsMain`, das dieselbe Frage über ein `compact`-Prop löst — das
+ *  IST das `<main>` seiner Seite und wechselt zusätzlich die Abstands-Skala, ist also kein
+ *  gestapelter Block.) */
 export default function DashboardBlock({
   as: Tag = "div",
   className = "",
@@ -25,7 +37,7 @@ export default function DashboardBlock({
   children: ReactNode;
 }) {
   return (
-    <Tag className={["w-full max-w-2xl mx-auto px-4", className].filter(Boolean).join(" ")}>
+    <Tag className={["w-full mx-auto max-w-[var(--block-col,var(--container-2xl))] px-[var(--block-gutter,calc(var(--spacing)*4))]", className].filter(Boolean).join(" ")}>
       {children}
     </Tag>
   );

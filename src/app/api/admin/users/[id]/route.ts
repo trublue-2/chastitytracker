@@ -10,7 +10,7 @@ import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { serviceResponse } from "@/lib/serviceResult";
 
 export async function GET(
@@ -190,7 +190,7 @@ export async function DELETE(
   // H5 (Recht auf Vergessenwerden): alle Foto-Dateien des Nutzers VOR dem Cascade-Delete einsammeln,
   // danach von der Platte entfernen (DB-Zeilen kaskadieren, die Dateien nicht).
   const [entries, devices, refs] = await Promise.all([
-    prisma.entry.findMany({ where: { userId: id }, select: { imageUrl: true, codeImageUrl: true } }),
+    prisma.entry.findMany({ where: { userId: id }, select: { imageUrl: true, codeImageUrl: true, boxImageUrl: true } }),
     prisma.device.findMany({ where: { userId: id }, select: { imageUrl: true } }),
     prisma.deviceReferenceImage.findMany({ where: { device: { userId: id } }, select: { imageUrl: true } }),
   ]);
@@ -198,7 +198,7 @@ export async function DELETE(
   await prisma.user.delete({ where: { id } });
 
   void deleteUploadedFiles([
-    ...entries.flatMap((e) => [e.imageUrl, e.codeImageUrl]),
+    ...entries.flatMap(entryImageUrls),
     ...devices.map((d) => d.imageUrl),
     ...refs.map((r) => r.imageUrl),
   ]);

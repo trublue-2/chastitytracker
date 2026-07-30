@@ -47,8 +47,10 @@ export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachricht
  * Validieren eines vom Client gelieferten Datums gehört an den Rand, in den Service, der die
  * Anfrage besitzt — nicht in eine reine Zeit-Policy.
  *
- * Ebenfalls bewusst NICHT enthalten: die Frist-/Ende-Berechnung (`deadline`, `endetAt`). Die
- * unterscheidet sich je Service (Stunden ab Auslösung vs. absolut-oder-fristH) und bleibt dort.
+ * Ebenfalls bewusst NICHT enthalten: das PLANEN der Frist (`deadline`, `endetAt`). Das unterscheidet
+ * sich je Service (Stunden ab Auslösung vs. absolut-oder-fristH) und bleibt dort. Wohl aber enthalten
+ * ist ihre Verschiebung auf den Zustell-Zeitpunkt — siehe {@link deadlineFromDispatch}: die Regel ist
+ * für alle terminierten Direktiven dieselbe und gehört deshalb neben die Konvention, die sie erzeugt.
  */
 export function computeDelayedTrigger(now: Date, params: DelayedTriggerParams): DelayedTrigger {
   const { delayMinutes, wirksamAbAt } = params;
@@ -60,4 +62,35 @@ export function computeDelayedTrigger(now: Date, params: DelayedTriggerParams): 
   if (wirksamAb && wirksamAb.getTime() <= now.getTime()) wirksamAb = null;
 
   return { wirksamAb, benachrichtigtAt: wirksamAb ? null : now };
+}
+
+/**
+ * Die Gegenrichtung von {@link computeDelayedTrigger}: die Frist einer TERMINIERTEN Direktive, wie
+ * sie ab dem tatsächlichen Zustell-Zeitpunkt gilt.
+ *
+ * Geplant wird `deadline` relativ zu `wirksamAb`. Zugestellt wird sie aber vom Minuten-Poller, und
+ * der ist nicht zwingend pünktlich: er läuft im 60-Sekunden-Raster, ein Container-Neustart hält ihn
+ * ganz an, und ein gescheiterter Versand wird erst im nächsten Tick erneut versucht. Bis dahin lief
+ * die gespeicherte Frist weiter — im Extremfall war sie schon abgelaufen, wenn der Sub die Mail
+ * bekam (belegter Fall 29.07.2026: Frist exakt auf der Auslösung, Erfüllung 35 s später als
+ * Vergehen gebucht).
+ *
+ * Verschoben wird deshalb die geplante SPANNE, nicht der Endpunkt: der Sub bekommt genau das
+ * Zeitfenster, das für ihn vorgesehen war, gerechnet ab dem Moment, in dem er davon erfährt.
+ *
+ * `wirksamAb: null` heisst „war nie terminiert" — dann gibt es keine Spanne zu erhalten und die
+ * gespeicherte Frist gilt unverändert.
+ *
+ * NUR für `KontrollAnforderung` benutzt, und das ist kein Versehen: `VerschlussAnforderung` trägt
+ * dasselbe Feldpaar und dieselbe Verspätung, aber ihr `endetAt` kann ENTWEDER relativ (`fristH` ab
+ * Auslösung) ODER ein von der Keyholderin gesetzter absoluter Zeitpunkt sein — und die Zeile hält
+ * nicht fest, welches von beidem. Ein absolutes Ende zu verschieben wäre schlicht falsch. Diese
+ * Funktion dort anzuwenden setzt also voraus, die Unterscheidung erst zu speichern.
+ */
+export function deadlineFromDispatch(
+  planned: { wirksamAb: Date | null; deadline: Date },
+  sentAt: Date,
+): Date {
+  if (!planned.wirksamAb) return planned.deadline;
+  return new Date(sentAt.getTime() + (planned.deadline.getTime() - planned.wirksamAb.getTime()));
 }

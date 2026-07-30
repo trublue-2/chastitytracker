@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
-import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 
 export interface ReinigungsFenster {
   start: string; // "HH:MM"
@@ -75,11 +75,35 @@ export function nextReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): Rei
 
 /** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt
  *  über die OEFFNEN(REINIGUNG)-Einträge des Tages. (Die frühere CLEAN_OPEN-BoxEvent-Zählung war tot:
- *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.) */
+ *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.)
+ *  Der DB-Pfad, für Aufrufer OHNE geladene Einträge; aus geladenen Einträgen zählt
+ *  {@link countCleaningUsedToday}. */
 export async function reinigungVerbrauchtHeute(userId: string, now: Date, tz = APP_TZ): Promise<number> {
   return prisma.entry.count({
     where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: midnightInTZ(now, tz) } },
   });
+}
+
+/** Die Eintrags-Felder, die {@link countCleaningUsedToday} liest. `oeffnenGrund` ist optional wie in
+ *  den übrigen In-Memory-Eintragsformen (`SegmentEntry`, `buildPairs`), damit deren Listen passen. */
+export interface CleaningCountEntry {
+  type: string;
+  oeffnenGrund?: string | null;
+  startTime: Date;
+}
+
+/** Dasselbe Ergebnis wie {@link reinigungVerbrauchtHeute}, nur aus bereits geladenen Einträgen
+ *  statt aus einer eigenen Abfrage. Bewusst dieselbe Grenze (`>= midnightInTZ`, nach oben offen)
+ *  wie das Prisma-`where` daneben — die beiden Zählungen dürfen nie auseinanderlaufen.
+ *
+ *  `allEntries` heisst so, weil es das sein MUSS: ALLE Einträge des Subs, ohne Zeit- oder
+ *  Typ-Vorfilter. Eine vorgefilterte Liste typecheckt anstandslos und zählt still zu wenig — wer die
+ *  ladende Abfrage je begrenzt (`take`, Zeitfenster), muss stattdessen auf den DB-Pfad wechseln. */
+export function countCleaningUsedToday(allEntries: CleaningCountEntry[], now: Date, tz = APP_TZ): number {
+  const seit = midnightInTZ(now, tz);
+  return allEntries.filter(
+    (e) => e.type === "OEFFNEN" && e.oeffnenGrund === "REINIGUNG" && e.startTime >= seit,
+  ).length;
 }
 
 /** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für
@@ -130,13 +154,6 @@ export function buildReinigungView(user: ReinigungUserFields, usedToday: number,
   };
 }
 
-/** Max minutes per cleaning pause is clamped to this range. Exported so MCP dryRun previews
- *  (mcpWrite.ts) can show the CLAMPED value before commit instead of the raw input — the tool's
- *  own K-06-style silent-clamping trap, closed by construction rather than by another guard. */
-export const MAX_MINUTEN_RANGE = { min: 1, max: 120, fallback: 15 } as const;
-/** Max cleaning pauses per day is clamped to this range (0 = unlimited). */
-export const MAX_PRO_TAG_RANGE = { min: 0, max: 20, fallback: 0 } as const;
-
 /**
  * Updates a user's cleaning-pause (Reinigung) settings. Only provided fields change; numeric
  * fields are clamped to their valid ranges. Shared by PATCH /api/admin/users/[id] and the MCP tool.
@@ -148,8 +165,8 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
   } = {};
 
   if (params.erlaubt !== undefined) data.reinigungErlaubt = params.erlaubt;
-  if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, MAX_MINUTEN_RANGE);
-  if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, MAX_PRO_TAG_RANGE);
+  if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, CLEANING_MAX_MINUTES_RANGE);
+  if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, CLEANING_MAX_PER_DAY_RANGE);
   // Als JSON-String ablegen (TEXT-Spalte) — nur validierte Paare.
   if (params.fenster !== undefined) data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
 

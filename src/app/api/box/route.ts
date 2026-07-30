@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getActiveSperrzeit } from "@/lib/queries";
 import { heimdallEnabled } from "@/lib/constants";
@@ -15,19 +15,29 @@ const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 // Box-Status für den eingeloggten Sub — reine Status-Anzeige (Ist/Soll/Frische) für die
 // Box-Status-Karte. KEINE Kommandos mehr: die Box FOLGT den Verschluss-/Öffnen-Einträgen
 // (Kopplung in /api/entries), Reinigung = OEFFNEN(Reinigung)+Verschluss.
-export async function GET() {
+//
+// `?userId=` schaltet auf die KEYHOLDER-Sicht: dieselbe Karte, aber für einen fremden Sub. Ohne
+// den Parameter bleibt die Route exakt selbst-bezogen — die Sub-Sicht kann also nie versehentlich
+// fremde Boxen zeigen, und der Guard greift nur auf dem Pfad, der ihn wirklich braucht.
+export async function GET(req: NextRequest) {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;
   // Heimdall-Box ist ein eigenständiges Feature: ohne Sync-Secret keine Box-UI (auch wenn
   // noch alte BoxStatus-Zeilen in der DB liegen).
   if (!heimdallEnabled()) return NextResponse.json([], NO_STORE);
-  const userId = session.user.id;
+  // `||` statt `??`: ein leerer `?userId=` ist kein Ziel, sondern ein kaputter Aufruf — er soll auf
+  // die Selbst-Sicht fallen, nicht als fremde (nirgends existierende) User-Id weitergereicht werden.
+  const userId = req.nextUrl.searchParams.get("userId") || session.user.id;
+  if (userId !== session.user.id) {
+    const denied = await requireKeyholderOrAdminApi(userId);
+    if (denied) return denied;
+  }
 
   const [boxes, sperre] = await Promise.all([
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true },
+      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true, offlineOpenHours: true, battery: true, charging: true, lowBatteryOpenPercent: true, fwVersion: true },
     }),
     getActiveSperrzeit(userId),
   ]);
@@ -49,8 +59,18 @@ export async function GET() {
       simpleLock: b.simpleLock,
       keyholderLocked: b.keyholderLocked || !!sperre,
       lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,
-      // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt vor X").
+      // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt online vor X").
       lastSyncAt: b.lastSyncAt?.toISOString() ?? null,
+      // Failsafe-Vorwarnung (boxFailsafeWarnings) + Dauer-Akkuanzeige (boxBatteryLabel): die beiden
+      // Schwellen, ab denen die Box sich SELBST öffnet, plus Akkustand und Ladezustand. Die
+      // Schwellen kommen aus dem Heimdall-Push und werden hier nur durchgereicht — der Tracker
+      // rechnet keine nach und rät keine.
+      offlineOpenHours: b.offlineOpenHours,
+      battery: b.battery,
+      charging: b.charging,
+      lowBatteryOpenPercent: b.lowBatteryOpenPercent,
+      // Firmware-Stand: reine Anzeige neben dem Box-Namen, keine Logik hängt daran.
+      fwVersion: b.fwVersion,
     })),
     NO_STORE,
   );

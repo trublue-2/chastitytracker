@@ -96,7 +96,7 @@ describe("buildLockState", () => {
 
   it("ohne Einträge ist nichts verschlossen", () => {
     const lock = buildLockState([], reinigung, NOW, fmt);
-    expect(lock).toEqual({ isLocked: false, since: null, currentSegmentSince: null, currentDurationHours: null, deviceName: null, keyInBox: null });
+    expect(lock).toEqual({ isLocked: false, since: null, currentSegmentSince: null, currentDurationHours: null, currentSegmentDurationHours: null, deviceName: null, keyInBox: null });
   });
 
   it("keyInBox:false wird gemeldet — der Verschluss ist erklärt, aber nicht hardware-vollstreckt", () => {

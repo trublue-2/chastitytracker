@@ -7,8 +7,9 @@
  */
 
 /** Welcher Anwendungsfall — bestimmt pro Provider das gewählte Modell.
- *  device-check: „ist das verschlossene Gerät im Kontroll-Foto sichtbar?" (Presence/Match). */
-export type VisionTask = "code-verify" | "seal-detect" | "device-detect" | "device-check";
+ *  device-check: „ist das verschlossene Gerät im Kontroll-Foto sichtbar?" (Presence/Match).
+ *  key-detect: „liegt im Sichtfenster der Schlüsselbox ein Schlüssel?" (reine Presence). */
+export type VisionTask = "code-verify" | "seal-detect" | "device-detect" | "device-check" | "key-detect";
 
 /** Ein Inhaltsblock einer Vision-Anfrage: Text oder Bild (base64). */
 export type VisionBlock =

@@ -18,7 +18,7 @@ export async function gatherDeviceReferences(userId: string): Promise<DeviceRefe
   const devices = await prisma.device.findMany({
     where: { userId, archivedAt: null, OR: [{ category: { isBuiltIn: true } }, { categoryId: null }] },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, imageUrl: true },
+    select: { id: true, name: true, imageUrl: true, material: true, bauform: true, description: true },
   });
   if (devices.length === 0) return [];
 
@@ -47,13 +47,27 @@ export async function gatherDeviceReferences(userId: string): Promise<DeviceRefe
   );
 
   return devices.map((device, i) => {
+    const base = { deviceId: device.id, deviceName: device.name, visualTraits: visualTraitsOf(device) };
     const curated = curatedByDevice[i].map((r) => r.imageUrl);
-    if (curated.length > 0) return { deviceId: device.id, deviceName: device.name, imageUrls: curated };
+    if (curated.length > 0) return { ...base, imageUrls: curated };
     const imageUrls: string[] = [];
     if (device.imageUrl) imageUrls.push(device.imageUrl);
     for (const e of fallbackByDevice[i]) if (e.imageUrl) imageUrls.push(e.imageUrl);
-    return { deviceId: device.id, deviceName: device.name, imageUrls: imageUrls.slice(0, MAX_REFS_PER_DEVICE) };
+    return { ...base, imageUrls: imageUrls.slice(0, MAX_REFS_PER_DEVICE) };
   });
+}
+
+/** Die optischen Stammdaten eines Geräts als EIN Satz für den Vision-Prompt; `null`, wenn nichts
+ *  hinterlegt ist (dann bleibt es beim Namen + den Bildern wie bisher).
+ *
+ *  Bewusst nur Material, Bauform und Beschreibung: sie beschreiben, was man SIEHT. `securityLevel`,
+ *  `pullOffRisk`, `healthFlags` und `retentionNotes` sind Keyholder-Urteile über Sicherheit und
+ *  Tragekomfort — im Bild nicht nachprüfbar, im Prompt also nur Gewicht ohne Evidenz. */
+function visualTraitsOf(device: { material: string | null; bauform: string | null; description: string | null }): string | null {
+  const parts = [device.material, device.bauform, device.description]
+    .map((p) => p?.trim())
+    .filter((p): p is string => !!p);
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { Lock } from "lucide-react";
+import { Lock, KeyRound } from "lucide-react";
 import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -10,6 +10,7 @@ import LiveTrainingGoals from "./LiveTrainingGoals";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 interface Props {
   sessionStart: Date;
@@ -26,6 +27,9 @@ interface Props {
    *  Weglassen = nicht anzeigen — ein Sub, der grundsätzlich nicht reinigen darf, soll keine Zeile
    *  über etwas lesen, das seine Einstellung ohnehin verbietet. */
   cleaningNote?: string | null;
+  /** Schlüssel-Deklaration des laufenden Verschlusses: liegt er in der Box? `null`/undefined =
+   *  keine Box oder Alt-Eintrag → keine Zeile (statt einer Behauptung ins Blaue). */
+  keyInBox?: boolean | null;
   activeVorgabe: {
     minProTagH: number | null;
     minProWocheH: number | null;
@@ -52,6 +56,7 @@ export default async function LaufendeSessionCard({
   sperrzeitNachricht,
   sperrzeitScheduledFor = null,
   cleaningNote,
+  keyInBox = null,
   activeVorgabe,
   tagH,
   wocheH,
@@ -113,6 +118,23 @@ export default async function LaufendeSessionCard({
             <p className="text-xs opacity-60 mt-1">
               {t("sessionSince")} {sessionStartStr}
             </p>
+            {/* Schlüssel-Deklaration des laufenden Verschlusses. „Nicht in der Box" ist die
+                Ausnahme und muss auffallen: sie heisst, dass der Verschluss gerade NICHT
+                hardware-gesichert ist. Volle Deckkraft statt der opacity-60 der Zeile darüber —
+                das ist keine Fussnote. `null` (keine Box, Alt-Eintrag) = keine Zeile. */}
+            {keyInBox != null && (
+              keyInBox ? (
+                <p className="text-xs font-semibold opacity-80 mt-1 inline-flex items-center gap-1">
+                  <KeyRound size={12} className="shrink-0" />{t("keyInBoxYes")}
+                </p>
+              ) : (
+                // Als Pille auf hellem Grund: rote Schrift auf dem grünen Verlauf wäre kaum
+                // lesbar — die Aussage muss aber genau hier auffallen.
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-warn-bg px-2 py-0.5 text-xs font-bold text-warn-text">
+                  <KeyRound size={12} className="shrink-0" />{t("keyInBoxNo")}
+                </span>
+              )
+            )}
           </div>
         </div>
 
@@ -131,6 +153,7 @@ export default async function LaufendeSessionCard({
 
       {/* ── Timeline (buckets + flat fallback for short sessions) ── */}
       <SessionTimeline
+        tz={tz}
         events={events.map<SessionEventData>((ev) => {
           const dateStr = formatDate(ev.time, dl, tz);
           const timeStr = formatTime(ev.time, dl, tz);
@@ -157,8 +180,12 @@ export default async function LaufendeSessionCard({
             // gelassen statt still entfernt — fällt der Filter dort je weg, muss diese Zeile wie in
             // `SessionList` einen Keyholder-Riegel bekommen, sonst erfasst der Keyholder die
             // Kontrolle seines Subs auf dem eigenen Konto.
-            captureHref: !ev.entryId && ev.type === "kontrolle" && ev.kontrolleCode
-              ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
+            // Die frühere Zusatzbedingung `&& ev.kontrolleCode` ist entfallen: sie stammte aus der
+            // Zeit des handgebauten `?code=${…}`, das ohne Code wörtlich `?code=null` ergeben hätte.
+            // `inspectionHref` lässt einen fehlenden Code weg — und eine Kontrolle ohne Code (Gerät mit
+            // `requireInspectionCode: false`) muss ihren Knopf behalten, genau wie in `SessionList`.
+            captureHref: !ev.entryId && ev.type === "kontrolle"
+              ? inspectionHref(ev.kontrolleCode)
               : null,
             deadlineStr: ev.deadline ? formatDateTime(ev.deadline, dl, tz) : null,
             isOverdue: ev.kontrolleAnforderungStatus === "overdue",
@@ -173,6 +200,9 @@ export default async function LaufendeSessionCard({
               ? formatDateTime(ev.submittedAt!, dl, tz) : null,
             deviceName: ev.deviceName ?? null,
             showDevice: userHasDevices,
+            keyDetected: ev.keyDetected ?? null,
+            keyProofSource: ev.keyProofSource ?? null,
+            boxImageUrl: ev.boxImageUrl ?? null,
           };
         })}
         sessionStart={sessionStart.toISOString()}

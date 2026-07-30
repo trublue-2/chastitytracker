@@ -10,12 +10,17 @@ import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
 type Params = { params: Promise<{ id: string }> };
 
 /** Access check: returns the device if the session user may manage it — owner, global admin, or
- *  keyholder of the owner (same rule as entries, see entryManageAccess). */
+ *  keyholder of the owner (same rule as entries, see entryManageAccess).
+ *
+ *  `elevated` kommt mit zurück (= handelt als Keyholder/Admin, nicht als Eigentümer): der Guard
+ *  berechnet es ohnehin, und die Code-Pflicht unten braucht genau diese Unterscheidung. Ein zweiter
+ *  Aufruf wäre dieselbe Frage ein zweites Mal — inklusive derselben Query. */
 async function getOwnedDevice(id: string, sessionUserId: string, sessionRole: string) {
   const device = await prisma.device.findUnique({ where: { id } });
   if (!device) return null;
-  if (!(await entryManageAccess(sessionUserId, sessionRole, device.userId)).allowed) return null;
-  return device;
+  const access = await entryManageAccess(sessionUserId, sessionRole, device.userId);
+  if (!access.allowed) return null;
+  return { ...device, elevated: access.elevated };
 }
 
 /**
@@ -51,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return errorResponse(400, "DEVICE_ARCHIVED_NOT_EDITABLE");
   }
 
-  const { name, description, imageUrl, purchasePrice, currency, categoryId } = body;
+  const { name, description, imageUrl, purchasePrice, currency, categoryId, requireInspectionCode } = body;
 
   // Validation (only validate provided fields)
   if (name !== undefined) {
@@ -95,6 +100,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (purchasePrice !== undefined) data.purchasePrice = purchasePrice ?? null;
   if (currency !== undefined) data.currency = currency || null;
   if (categoryId !== undefined) data.categoryId = categoryId || null;
+
+  // Die Kontroll-Code-Pflicht ist KEIN Selbst-Feld: sie abzuschalten schwächt eine Kontrolle, und ein
+  // Sub, der das an seinem eigenen Gerät darf, kontrolliert sich nicht mehr. Nur ein Keyholder/Admin
+  // (`elevated`) darf sie schreiben — dieselbe Schranke, die auch das Bearbeiten fremder Einträge
+  // regelt. Für den Eigentümer ist das Feld sichtbar, aber gesperrt (siehe DeviceFormSheet).
+  if (requireInspectionCode !== undefined) {
+    if (typeof requireInspectionCode !== "boolean") {
+      return errorResponse(400, "DEVICE_INVALID_CODE_REQUIREMENT");
+    }
+    if (!device.elevated) return errorResponse(403, "FORBIDDEN");
+    data.requireInspectionCode = requireInspectionCode;
+  }
 
   // version: OCC-Token der MCP-Edits — bumpen, sobald wirklich Felder geändert werden (No-op nicht).
   if (Object.keys(data).length) data.version = { increment: 1 };

@@ -32,6 +32,10 @@ export interface PruefungPayload {
   /** Clockwise rotation applied to the photo in the form (0|90|180|270).
    *  Server-side AI verify must use the same rotation as the client preview. */
   imageRotation: number;
+  /** Zweites Foto durchs Sichtfenster der Box: liegt der Schlüssel noch drin? Nur bei aktiver Box. */
+  boxImageUrl?: string | null;
+  /** Anzeige-Drehung des Box-Fotos (siehe `imageRotation`). */
+  boxImageRotation?: number;
 }
 
 export interface VerschlussPayload {
@@ -50,6 +54,11 @@ export interface VerschlussPayload {
   codeImageUrl?: string | null;
   /** Bildersafe: Ziffern im Code-Foto erkannt (Lesbarkeits-✓). */
   codeReadable?: boolean | null;
+  /** Foto durchs Sichtfenster der Box, das den Schlüssel darin zeigt. Nur bei aktiver Box. */
+  boxImageUrl?: string | null;
+  /** Anzeige-Drehung des Box-Fotos — die server-seitige Erkennung liest es damit so, wie der Sub
+   *  es gesehen hat. Kein Urteil vom Client: `keyDetected` entsteht ausschliesslich auf dem Server. */
+  boxImageRotation?: number;
 }
 
 export interface OeffnenPayload {

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
-import { LOCK_ENDED_REASON } from "@/lib/constants";
+import { LOCK_ENDED_REASON, heimdallEnabled } from "@/lib/constants";
 import { aktivesReinigungsFenster, parseReinigungsFenster } from "@/lib/reinigungService";
 import { APP_TZ } from "@/lib/utils";
 
@@ -48,6 +48,15 @@ export function activeVerschlussAnforderungWhere(now: Date = new Date()): Prisma
  * bleiben nur ZUKÜNFTIGE Auto-/Zufalls-Kontrollen (`auto: true`, wirksamAb > now) — deren
  * Überraschungseffekt darf auch der Keyholder-UI nicht entgehen, sie sind ohnehin nicht
  * keyholder-gesetzt.
+ *
+ * Bindet damit auch den SCHREIBENDEN Keyholder-Pfad: ein Rückzug ohne id (`withdraw
+ * target=inspection`) darf höchstens treffen, was dieses Fragment zeigt. Was der Aufrufer nicht
+ * sehen kann, darf er nicht wegnehmen — er zöge sonst den Rest des Auto-Tagesplans mit, ohne dass
+ * es in Anfrage oder Antwort vorkäme, und der Poller legt ihn nicht neu an
+ * (`ensureDailyAutoKontrollenForUser` zählt die zurückgezogenen Zeilen mit und hält den Tag für
+ * erledigt). Vorfall 28.07.2026: ein Rückzug nahm zwei ungesehene Auto-Kontrollen mit, die
+ * Automatik schwieg den Rest des Tages. Wer die Sichtbarkeitsregel hier ändert, ändert damit
+ * bewusst auch den Umfang dieses Rückzugs.
  */
 export function keyholderVisibleKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }, { auto: false }] };
@@ -73,6 +82,19 @@ export interface DeviceOption {
 export async function getUserTimezone(userId: string): Promise<string> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
   return u?.timezone ?? APP_TZ;
+}
+
+/** „Hat dieser Sub eine Heimdall-Box?" (+ deren Name fürs Formular). EINE Ableitung für alle
+ *  Formulare, die den Box-Block zeigen — Verschluss und Kontrolle. Stünde sie je Seite einzeln da,
+ *  zeigte nach der nächsten Änderung die eine Seite den Block und die andere nicht.
+ *  Ohne Heimdall gar keine Abfrage: `boxConfirm=false` ist dann bereits die ganze Antwort. */
+export async function getBoxFormContext(userId: string): Promise<{ boxConfirm: boolean; boxName: string }> {
+  if (!heimdallEnabled()) return { boxConfirm: false, boxName: "" };
+  const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { name: true } });
+  return {
+    boxConfirm: boxes.length > 0,
+    boxName: boxes.map((b) => b.name).filter(Boolean).join(", "),
+  };
 }
 
 /** Returns active (non-archived) KG devices for a user, ordered by creation date.

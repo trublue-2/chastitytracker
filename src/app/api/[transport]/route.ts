@@ -9,9 +9,8 @@ import {
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
-import { VALID_TYPES } from "@/lib/constants";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
 import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_SOURCE, NOTE_CONFIDENCE, ENTITY_TYPES } from "@/lib/mcp/notes";
@@ -238,7 +237,10 @@ function registerTools(server: McpServer) {
           "full situation: each entry's type, timestamp, free-text note/comment, opening reason " +
           "(oeffnenGrund), orgasm type (orgasmusArt), control code, code verification status, device, " +
           "the device-check (deviceCheck: was the locked device recognised in the control photo — " +
-          "status ok/wrong/missing + detected/expected device), " +
+          "status pending/ok/wrong/missing/not_checked — wrong NUR mit benanntem detected, sonst not_checked; " +
+          "pending = the recognition is still running, ask again in a few minutes, do NOT read it as a result), " +
+          "why the code verification did not match (verifikationFailure: reason + what was read — the only way " +
+          "to tell an unreadable code from a wrong one when verifikationStatus is null), " +
           "whether a photo exists (+ its EXIF capture time) and whether the time was back-/post-dated. " +
           "Newest first. Use this for the narrative context that the aggregate tools (keyholder_dashboard, " +
           "get_session, get_offenses) leave out.",
@@ -352,8 +354,12 @@ function registerTools(server: McpServer) {
           "dataDiscrepancies (echte Bild-Diskrepanzen als Hinweis, KEINE Vergehen; cluster-interne " +
           "Verwechslungen ausgeblendet) und currentRun.todayIncludesPriorSession (today enthält Anteil " +
           "einer früheren Session → ≠ Lauf-Dauer). currentRun.since = Lauf-Anfang (deckt sich mit " +
-          "durationHours); currentRun.currentSegmentSince = Beginn des AKTUELLEN Segments, weicht bei " +
-          "Reinigungspausen von since ab (A-01). Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
+          "durationHours); currentRun.currentSegmentSince/currentSegmentDurationHours = Beginn und Dauer " +
+          "des AKTUELLEN Segments, weichen bei Reinigungspausen von since/durationHours ab (A-01). " +
+          "ACHTUNG bei wornNow: `deviceName` nennt das Gerät des aktuellen SEGMENTS, `since`/" +
+          "`durationHours` messen den ganzen LAUF — nach einem Gerätewechsel in einer Pause gehören die " +
+          "beiden NICHT zusammen. Die zum Gerät passende Uhr ist `deviceSince`/`deviceDurationHours`. " +
+          "Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
           "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details.",
         inputSchema: {},
       },
@@ -539,6 +545,17 @@ function registerTools(server: McpServer) {
           "explizit true sein UND die Box darf sich nicht seit dem letzten Sync selbst geöffnet " +
           "haben, kein Fallback auf locked wie bei hardwareEnforced. Nicht selbst aus " +
           "reportedLocked+keyInBox zusammenrechnen (A-06, MCP-Befundliste 2026-07-17). " +
+          "failsafeWarnings = VORWARNUNG vor einer autonomen Selbst-Öffnung, fertig gerechnet: " +
+          "offlineOpen (Funkstille — hoursOffline, thresholdHours = das Fenster der Box, hoursLeft, " +
+          "dueAt) und lowBatteryOpen (percent, opensAtPercent). severity info/warn/due bei " +
+          "offlineOpen, nur warn/due bei lowBatteryOpen; due heisst, die Not-Öffnung ist erfolgt ODER " +
+          "steht unmittelbar bevor. [] heisst 'kein Anlass ODER keine Datenbasis' — eine nie " +
+          "gesynchronisierte Box und eine Alt-Zeile ohne gemeldete Schwellen schweigen ebenfalls, " +
+          "Stille ist also kein Beleg für Ungefährlichkeit. Verhindern " +
+          "lässt sie sich NUR, indem rechtzeitig jemand für Netz bzw. Strom sorgt — wenn hier etwas " +
+          "steht, gehört es dem Sub gesagt. ACHTUNG: hardwareEnforced/keySecured/staleLock kennen nur " +
+          "den Funkstille-Öffner; ein lowBatteryOpen:due kann neben hardwareEnforced:true stehen — " +
+          "dann gilt die Warnung. " +
           "boxState:null = keine Box registriert. Auch im keyholder_dashboard enthalten.",
         inputSchema: {},
       },
@@ -648,7 +665,11 @@ function registerTools(server: McpServer) {
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
-          delayMinutes: z.coerce.number().optional().describe("Delay before the code reaches the user. Omit for a random 5–65 min delay; 0 = immediate; any other value is clamped to 5–65."),
+          delayMinutes: z.coerce.number().optional().describe(
+            `Delay before the code reaches the user. Omit for a random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} min delay; `
+            + `0 = immediate; any other value is clamped to ${INSPECTION_DELAY_RANGE.min}–${INSPECTION_DELAY_RANGE.max} `
+            + "(the response reports the effective value and flags a clamp).",
+          ),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
@@ -718,7 +739,13 @@ function registerTools(server: McpServer) {
           "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives). " +
           "Without id this hits ALL open ones of that kind — since several lock requests can be open at once, " +
           "pass id to cancel exactly one. For lock_request/lock_period, a dryRun without id lists each open one " +
-          "(id, status, message, dates) so you can see which to pick." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
+          "(id, status, message, dates) so you can see which to pick. " +
+          "The response always names what actually went (withdrawnItems: id, status, dates, message, and the " +
+          "code for inspections) — read it, the count alone does not tell you WHICH directives you took away. " +
+          "target=inspection never touches an AUTOMATIC inspection that has not triggered yet — those are " +
+          "deliberately hidden from you (see keyholder_dashboard.scheduledDirectives) and are not yours to " +
+          "cancel; an automatic one that has already triggered is withdrawn like any other." +
+          KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive", "task"]).describe("Which open directive to withdraw. `task` always needs an id."),
           id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives / openTasks). Only for lock_request/lock_period/task."),
@@ -817,8 +844,8 @@ function registerTools(server: McpServer) {
           "pause, and the max pauses per day (0 = unlimited). Only provided fields change." + KEYHOLDER_SILENT,
         inputSchema: {
           allowed: z.boolean().optional().describe("Allow cleaning pauses?"),
-          maxMinutes: z.number().int().nonnegative().optional().describe("Max minutes per cleaning pause (clamped to 1–120)."),
-          maxPerDay: z.number().int().nonnegative().optional().describe("Max pauses per day, 0 = unlimited (clamped to 0–20)."),
+          maxMinutes: z.number().int().nonnegative().optional().describe(`Max minutes per cleaning pause (clamped to ${CLEANING_MAX_MINUTES_RANGE.min}–${CLEANING_MAX_MINUTES_RANGE.max}).`),
+          maxPerDay: z.number().int().nonnegative().optional().describe(`Max pauses per day, 0 = unlimited (clamped to ${CLEANING_MAX_PER_DAY_RANGE.min}–${CLEANING_MAX_PER_DAY_RANGE.max}).`),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

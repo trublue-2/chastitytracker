@@ -1,10 +1,10 @@
 # Kommunikation in der App: Posteingang für Sub und Keyholder
 
-**Status:** Konzept · nichts umgesetzt
+**Status:** Etappe 1 umgesetzt · Etappe 2 offen
 **Erstellt:** 2026-07-26
 **Auslöser:** Das App-Icon zeigt ein Nachrichten-Badge, es gibt in der App aber keinen Ort, an dem man
 Nachrichten nachliest. Bestandsaufnahme und Entwurf entstanden aus vier parallelen Code-Analysen.
-**Zielversion:** 5.x — nicht auf `main` (4.52.x).
+**Hinweis zur Umsetzung:** Etappe 1 wurde mit v4.56.0 von `main` aus gebaut (Branch `feat/messages`), nicht auf `feat/tasks` — das Feature hängt an keiner Stelle vom Aufgaben-Konstrukt ab. Belege im Text, die auf `TaskCard.tsx`, `taskService.ts` oder `ExpandToggle.tsx` zeigen, stammen aus dem v5-Branch; seit dem Merge von `main` nach `feat/tasks` (30.07.2026) liegen beide Stränge hier zusammen und die Verweise stimmen wieder.
 
 Verwandte Issues: **#37** (Träger erbittet Aufschluss/Orgasmus), **#36** (offene Strafen sichtbar),
 **#38** (Belohnungen), **#40** (Punktekonto), **#42** (Frist-Widerspruch in der Kontroll-Mail).
@@ -409,7 +409,11 @@ Befund: dass der Sub heute nicht nachlesen kann, wofür er bestraft wurde.
 - **Vorlagen als eigenes Modell** — der einzige Nutzer wäre der menschliche Keyholder; die KI
   formuliert selbst. Wenn überhaupt, als Freitext bei den Keyholder-Regeln.
 - **Überführung der bestehenden Anforderungs-Freitexte** (siehe 3.2).
-- **Löschen von Nachrichten** — Supersession statt Delete, wie im übrigen Modell.
+- ~~**Löschen von Nachrichten** — Supersession statt Delete, wie im übrigen Modell.~~
+  **Überholt (v4.57.x, auf Wunsch des Betreibers):** Nachrichten sind löschbar, mit Rückfrage und
+  endgültig. Das Argument fürs Supersession-Modell trägt hier nicht: eine Nachricht ist die
+  *Zustellung*, nicht der Vorgang — der Vorgang (StrafeRecord, KontrollAnforderung) bleibt beim
+  Löschen unberührt, es geht also keine Wahrheit verloren, nur ihre Zustellung.
 - **Reaktionen, Tipp-Anzeige, verschachtelte Threads.** Ein Sub, ein Thread.
 - **Keyholder↔Keyholder-Kanal** — kein Anwendungsfall im Modell.
 - **Geplante Nachrichten.** Technisch billig, aber der Sinn der Terminierung ist bei Direktiven die

@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
-import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getLatestKgEntry, getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
+import { deadlineFromDispatch } from "@/lib/delayedTrigger";
 import { processDueTasks } from "@/lib/taskService";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
@@ -82,8 +83,28 @@ async function processDue(): Promise<void> {
         // Notification selbst.
         const sealCode = deriveSealCode(latest);
 
-        await sendKontrolleNotification({ user: ka.user, code: ka.code, sealCode, kommentar: ka.kommentar, deadline: ka.deadline });
-        await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: new Date() } });
+        // Verlangt das JETZT getragene Gerät einen Code? Diese Frage gehört an die Zustellung, nicht
+        // an die Planung: Auto-Kontrollen werden zu Tagesbeginn für den ganzen Tag gewürfelt, und
+        // welches Gerät um 15:40 verschlossen ist, weiss um Mitternacht niemand. Verlangt es keinen,
+        // wird der geplante Code hier verworfen — die Mail nennt dann keinen, und die Erfüllung läuft
+        // über „die eine offene Anforderung" (siehe entries-Route).
+        const code = (await inspectionCodeRequired(latest?.type === "VERSCHLUSS" ? latest.deviceId : null))
+          ? ka.code
+          : null;
+
+        // Die Frist zählt ab dem Moment, in dem der Sub sie ERFÄHRT, nicht ab dem geplanten
+        // Auslöse-Zeitpunkt (siehe deadlineFromDispatch). Im Normalfall sind das Sekunden Versatz.
+        // Damit kann eine stark verspätete Frist in Randfällen ins Schlaf-Fenster ragen, das die
+        // Planung meidet — bewusst in Kauf genommen: eine unerfüllbare Frist erzeugt ein
+        // Falsch-Vergehen, eine um Minuten verschobene nicht.
+        const sentAt = new Date();
+        const deadline = deadlineFromDispatch(ka, sentAt);
+
+        await sendKontrolleNotification({ user: ka.user, code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id });
+        // Frist UND Code mitschreiben: Mail, Strafbuch-Beurteilung, Eskalation und die Erfüllung
+        // müssen dieselben Werte lesen. Ein verworfener Code darf nicht in der Zeile stehenbleiben —
+        // sonst suchte die Erfüllung weiter nach einem Code, den der Sub nie bekommen hat.
+        await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: sentAt, deadline, code } });
       } catch (e) {
         // benachrichtigtAt bleibt null → nächster Lauf versucht es erneut.
         console.error(`[kontrollePoller] Auslösung fehlgeschlagen (${ka.id}):`, (e as Error).message);
@@ -171,7 +192,7 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       const result = await autoMarkInspectionRemoved({ id: ka.id, userId: ka.userId });
       if (!result.skipped) {
         // Notifications are not transactional — send only after the state change committed.
-        await notifyInspectionAutoMarked({ userId: ka.userId, username: ka.user.username, code: ka.code });
+        await notifyInspectionAutoMarked({ userId: ka.userId, username: ka.user.username, code: ka.code, controlId: ka.id });
       }
     } catch (e) {
       console.error(`[kontrollePoller] Kontroll-Auto-Mark fehlgeschlagen (${ka.id}):`, (e as Error).message);
@@ -227,6 +248,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         endetAtDate: va.endetAt,
         dauerH: va.dauerH,
         sperrEndetAtDate: va.sperrEndetAt,
+        requestId: va.id,
       });
       await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { benachrichtigtAt: new Date() } });
     } catch (e) {

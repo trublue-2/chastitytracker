@@ -1,14 +1,15 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { clamp } from "@/lib/utils";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
-import { AUTO_ENTFERNT_REASON, toLocale, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import {
+  AUTO_ENTFERNT_REASON, toLocale, NO_FIELDS_TO_UPDATE,
+  INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
+} from "@/lib/constants";
 import { codeOf } from "@/lib/codedError";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-
-const DELAY_RANGE = { min: 5, max: 1440 } as const; // 5 min – 24 h, mirrors autoKontrolleService's FRIST_RANGE
 
 interface InspectionEscalationUser {
   id: string;
@@ -29,7 +30,7 @@ interface InspectionEscalationUser {
  * toggles" design: the timestamp always advances once the caller invokes this, only the
  * user-visible notice is gated here.
  */
-export async function sendInspectionReminder(ka: { id: string; code: string; user: InspectionEscalationUser }): Promise<void> {
+export async function sendInspectionReminder(ka: { id: string; code: string | null; user: InspectionEscalationUser }): Promise<void> {
   await prisma.kontrollAnforderung.update({
     where: { id: ka.id },
     data: { benachrichtigtReminderAt: new Date() },
@@ -37,8 +38,12 @@ export async function sendInspectionReminder(ka: { id: string; code: string; use
   if (ka.user.inspectionReminderEnabled) {
     await notifyUser(ka.user.id, {
       subjectKey: "inspectionReminderSubject",
-      messageKey: "inspectionReminderMessage",
-      params: { code: ka.code },
+      // Ohne Code eine eigene Variante statt `{code}` mit Leerstring zu füttern — sonst stünde
+      // „Deine Kontrolle mit Code  ist überfällig" in der Mail.
+      messageKey: ka.code ? "inspectionReminderMessage" : "inspectionReminderMessageNoCode",
+      params: ka.code ? { code: ka.code } : {},
+      inbox: { ref: { type: "control", id: ka.id } },
+      alwaysNotify: true,
     });
   }
 }
@@ -96,21 +101,20 @@ export async function autoMarkInspectionRemoved(ka: { id: string; userId: string
 /** Sends the Stage-2 "auto-marked-removed" notice to the sub AND their keyholders/admins. Call
  *  AFTER the transaction in {@link autoMarkInspectionRemoved} commits (notifications are not
  *  transactional and must never block/roll back the state change). */
-export async function notifyInspectionAutoMarked(opts: { userId: string; username: string; code: string }): Promise<void> {
-  const { userId, username, code } = opts;
+export async function notifyInspectionAutoMarked(opts: { userId: string; username: string; code: string | null; controlId: string }): Promise<void> {
+  const { userId, username, code, controlId } = opts;
   await notifyUser(userId, {
     subjectKey: "inspectionAutoRemovedSubjectSub",
-    messageKey: "inspectionAutoRemovedMessageSub",
-    params: { code },
+    messageKey: code ? "inspectionAutoRemovedMessageSub" : "inspectionAutoRemovedMessageSubNoCode",
+    params: code ? { code } : {},
+    inbox: { ref: { type: "control", id: controlId } },
+    alwaysNotify: true,
   });
-  const controllers = await getControllersOfUser(userId);
-  await Promise.all(controllers.map((c) =>
-    notifyUser(c.id, {
-      subjectKey: "inspectionAutoRemovedSubjectKeyholder",
-      messageKey: "inspectionAutoRemovedMessageKeyholder",
-      params: { username, code },
-    }),
-  ));
+  await notifyControllers(await getControllersOfUser(userId), {
+    subjectKey: "inspectionAutoRemovedSubjectKeyholder",
+    messageKey: code ? "inspectionAutoRemovedMessageKeyholder" : "inspectionAutoRemovedMessageKeyholderNoCode",
+    params: code ? { username, code } : { username },
+  });
 }
 
 export interface SetInspectionEscalationParams {
@@ -120,8 +124,9 @@ export interface SetInspectionEscalationParams {
   autoMarkDelayMinutes?: number;
 }
 
-/** Persists the per-sub escalation settings (both stages independently toggleable). Minute
- *  values are clamped to DELAY_RANGE, mirroring autoKontrolleService's clamp-on-write pattern. */
+/** Persists the per-sub escalation settings (both stages independently toggleable). Minute values
+ *  are clamped to the range constant of their own field, mirroring autoKontrolleService's
+ *  clamp-on-write pattern — the admin form clamps against the very same constants. */
 export async function setInspectionEscalationSettings(
   userId: string,
   params: SetInspectionEscalationParams,
@@ -129,11 +134,11 @@ export async function setInspectionEscalationSettings(
   const data: Record<string, boolean | number> = {};
   if (params.reminderEnabled !== undefined) data.inspectionReminderEnabled = params.reminderEnabled;
   if (params.reminderDelayMinutes !== undefined) {
-    data.inspectionReminderDelayMinutes = clamp(params.reminderDelayMinutes, { ...DELAY_RANGE, fallback: 5 });
+    data.inspectionReminderDelayMinutes = clamp(params.reminderDelayMinutes, INSPECTION_REMINDER_DELAY_RANGE);
   }
   if (params.autoMarkEnabled !== undefined) data.inspectionAutoMarkEnabled = params.autoMarkEnabled;
   if (params.autoMarkDelayMinutes !== undefined) {
-    data.inspectionAutoMarkDelayMinutes = clamp(params.autoMarkDelayMinutes, { ...DELAY_RANGE, fallback: 60 });
+    data.inspectionAutoMarkDelayMinutes = clamp(params.autoMarkDelayMinutes, INSPECTION_AUTO_MARK_DELAY_RANGE);
   }
 
   // Gleicher Kontrakt wie setReinigungSettings/setAutoKontrolleSettings: ein leerer Patch ist ein

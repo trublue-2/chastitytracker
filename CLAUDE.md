@@ -26,36 +26,65 @@ npx vitest run <pfad/zur/datei.test.ts>      # einzelne Datei
 
 ## Deployment
 
-Deploys laufen über den GitHub-Actions-Workflow `.github/workflows/docker.yml` (manueller `workflow_dispatch`, kein Auto-Deploy bei Push). Er baut das Docker-Image, pusht es nach GHCR und kann anschliessend Instanzen aktualisieren.
+Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
 
-**Image-Tags:**
-- `:latest` — Produktions-Tag, gebaut vom `main`-Branch.
-- `:feature` — Vorab-Tag für Instanzen, die neue Arbeit vor dem Merge (oder zusätzlich zu `:latest`) testen sollen. trublues eigene Instanz ist dauerhaft auf `:feature` gepinnt.
+- **`.github/workflows/docker.yml`** — baut das Image, pusht es nach GHCR, ruft danach den Deploy auf.
+- **`.github/workflows/promote.yml`** — befördert ein **bestehendes** Image in einen Kanal (Retag über die Registry, **kein Rebuild**). Der einzige Weg zu `:latest`.
+- **`.github/workflows/deploy.yml`** — das Deploy-Skript selbst (`workflow_call`), von beiden oben genutzt. Nicht direkt dispatchbar.
 
-**Regel — bei jedem `:latest`-Build auf `main` IMMER auch `:feature` mittaggen** (`tagFeature=true`), damit `:feature`-gepinnte Instanzen (trublue) nie hinter `main` zurückfallen. Ausnahme: ein Dispatch von einem noch ungemergten Feature-Branch soll NUR `:feature` taggen (kein `tagFeature` nötig — das ist bereits der Tag dieses Builds), damit `:latest` unberührt bleibt, bis gemergt ist.
+**Drei Ringe — `:feature` → `:portal` → `:latest`:**
+
+| Tag | Für wen | Wann er wandert |
+|-----|---------|-----------------|
+| `:feature` | trublues Instanz, Tests vor dem Merge | Feature-Branch-Build, oder `main`-Build mit `tagFeature=true` |
+| `:portal` | die Portal-Instanzen | jeder `main`-Build |
+| `:latest` | alle, inkl. Self-Hoster — der **offizielle Release** | nur durch `promote.yml` |
+| `:v<version>`, `:sha-<sha>` | unveränderliche Referenz zum Pinnen, Promoten, Rollback | pro `main`-Build (`v…`) bzw. pro Build (`sha-…`) |
+
+Ein `main`-Build veröffentlicht also **nichts** an Self-Hoster — das ist der Punkt der Kanäle. `:latest` bewegt sich erst, wenn du promotest, und dann per Digest-Retag: der Release ist bitgleich das Image, das die Portal-Flotte schon fährt.
+
+**Regel — bei jedem `main`-Build IMMER `tagFeature=true`**, damit `:feature` (trublue) nie hinter `main` zurückfällt. Der Deploy leitet `pinnedTo` daraus ab und startet dann genau die Instanzen neu, deren Tag sich bewegt hat (`portal,feature`).
 
 ```bash
-# main → Produktion (:latest) UND :feature gleichzeitig aktuell halten (Standardfall).
-# Hier ist `instances` bewusst leer: ALLE Instanzen sollen den neuen Stand bekommen.
+# Standardfall: main bauen → :portal + :feature + :v<version>, Flotte ausrollen.
 gh workflow run docker.yml --ref main -f tagFeature=true
 
-# Feature-Branch (noch nicht gemergt) → nur :feature, :latest bleibt unberührt.
-# `instances=trublue` ist PFLICHT — ohne das werden alle 27 Instanzen neu gestartet.
-gh workflow run docker.yml --ref <feature-branch> -f tagFeature=true -f instances=trublue
+# Feature-Branch (ungemergt) → nur :feature. Der Pin-Filter (pinnedTo=feature) trifft nur
+# die :feature-Instanz; `instances` zu setzen ist damit nicht mehr nötig, schadet aber nicht.
+gh workflow run docker.yml --ref <feature-branch>
 
-# Instanz einmalig auf einen Tag umpinnen (z.B. trublue dauerhaft auf :feature)
-gh workflow run docker.yml --ref <branch> -f tagFeature=true -f channel=feature -f instances=trublue
+# Release freigeben: :latest auf ein bestehendes :v<version> retaggen (kein Build) und den
+# Git-Tag `release` mitziehen. Ohne `source` = package.json-Version des Refs.
+gh workflow run promote.yml --ref main -f channel=latest
+
+# Flotte zurückrollen, ohne zu bauen: :portal auf eine ältere Version zeigen lassen.
+gh workflow run promote.yml --ref main -f channel=portal -f source=v4.56.0 -f deploy=true
+
+# Instanz umpinnen (z.B. die eigene dauerhaft auf :feature)
+gh workflow run docker.yml --ref main -f tagFeature=true -f channel=feature -f instances=trublue
 ```
 
-Weitere Dispatch-Inputs: `deploy` (Default `true` — nach dem Build auch deployen), `instances`, `channel` (pinnt Ziel-Instanzen auf einen Tag um; leer = bestehende Pins beibehalten).
+Dispatch-Inputs von `docker.yml`: `deploy` (Default `true`), `instances`, `channel` (pinnt Ziel-Instanzen um; leer = bestehende Pins behalten), `pinnedTo` (nur Instanzen mit diesem aktuellen Pin deployen; leer = automatisch aus den gebauten Tags), `tagFeature`.
 
-**`instances` bei Feature-Tests IMMER explizit setzen (`-f instances=trublue`).** Leer bedeutet **alle 27 Instanzen** — das Deploy-Skript iteriert dann über jeden Ordner in `~/instances` und startet jede Instanz neu. Instanzen, die auf `:latest` gepinnt sind, ziehen zwar ihr unverändertes Image, kassieren aber trotzdem einen Neustart: eine vermeidbare Unterbrechung für fremde Nutzer, für einen Test, der nur die eigene Instanz betrifft.
+**Der Pin-Filter ersetzt die frühere Pflicht, `instances` zu setzen.** Ein Dispatch mit leerem `instances` iteriert weiter über alle Ordner in `~/instances`, deployt aber nur, was auf einen der gebauten Tags gepinnt ist — ein Feature-Test kann keine fremde Instanz mehr neu starten. Passt keine Instanz auf den Filter, schlägt der Lauf bewusst fehl statt grün „0 Instanzen" zu melden. *(Vorfall 2026-07-10: ein `:feature`-Test ohne `instances` startete 27 Instanzen neu.)*
+
+**`release` (Git-Tag) gehört zum Release-Kanal.** `promote.yml channel=latest` zieht ihn auf den Commit des promoteten Images. Von dort — nicht von `main` — lesen Tracker und Portal-Collector den Changelog für den Update-Hinweis (`src/app/api/upstream-changelog/route.ts`, `docs/update-check.md`). Wer den Tag von Hand verbiegt, verschiebt damit den Update-Hinweis der ganzen Flotte.
+
+⚠️ **Der Tag muss existieren, bevor eine der beiden Changelog-Routen ausgerollt wird.** Fehlt er, liefert der Collector der ganzen Flotte 502 und auch der instanzeigene Fallback greift ins Leere — der Update-Hinweis ist dann still weg, bis der erste Promote läuft. Einmalig setzen, auf den Commit, aus dem das aktuelle `:latest` gebaut wurde (steht im Image-Label `org.opencontainers.image.revision`):
+
+```bash
+docker buildx imagetools inspect ghcr.io/trublue-2/chastitytracker:latest \
+  --format '{{json .Image}}' | jq -r '.config.Labels["org.opencontainers.image.revision"]'
+gh api -X POST repos/trublue-2/chastitytracker/git/refs -f ref=refs/tags/release -f sha=<sha>
+```
+
+**Der Pin einer Instanz lebt nur in ihrer `docker-compose.yml`** — kein DB-Feld, und seit tracker-portal v1.5.13 nur noch ein Schreiber: dieser Workflow (per `sed` aus dem `channel`-Input). Das Portal schreibt die Datei ausschliesslich beim Anlegen einer Instanz, einen Redeploy gibt es dort nicht mehr. Der Ring wird also hier gewechselt:
+
+```bash
+gh workflow run docker.yml --ref main -f tagFeature=true -f channel=feature -f instances=trublue
+```
 
 Der Instanzname `trublue` ist **nicht** schützenswert — es ist der Name des Repo-Inhabers und steht ohnehin in der Repo-URL (`trublue-2/chastitytracker`). Das Deploy-Skript anonymisiert seine Ausgabe ohnehin auf `Instanz <i>/<n>`, damit keine fremden Subdomains ins öffentliche Actions-Log gelangen. Fremde Instanznamen gehören nach wie vor nicht in einen Dispatch-Input.
-
-**Faustregel:** `instances` leer lassen nur bei einem echten Rollout auf `main`, wo alle Instanzen den neuen Stand bekommen sollen. Für jeden Feature-Test die Zielinstanz benennen.
-
-*(Vorfall 2026-07-10: ein `:feature`-Test wurde ohne `instances` dispatcht — 27 Instanzen neu gestartet, nötig gewesen wäre eine. Die frühere Fassung dieser Zeile empfahl ausdrücklich das Leerlassen.)*
 
 Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <run-id>` prüfen, ob `typecheck`, `build-and-push` und `deploy` grün sind.
 
@@ -144,7 +173,7 @@ PORTAL_SHARED_SECRET=<secret>      # optional: Portal-Login JWT-Secret
 USE_ADMIN_RELATIONSHIPS=true       # optional: Admin↔User n:m Zuordnung aktivieren
 BUILD_DATE=<iso-date>              # optional: wird beim Build gesetzt
 # Update-Check / anonyme Deployment-Zählung (siehe docs/update-check.md):
-DISABLE_UPDATE_CENSUS=true         # optional: Census aus, Update-Check lädt direkt von GitHub
+DISABLE_UPDATE_CENSUS=true         # optional: Census aus, Update-Check liest den Release-Tag direkt auf GitHub
 UPSTREAM_CHANGELOG_URL=<url>       # optional: eigene Changelog-Quelle (dann keine Census-Header)
 # OVERRIDE des Strafbuch-Stichtags der Reinigungsfenster-Regel (ISO-8601). NORMALERWEISE NICHT
 # SETZEN: den Stichtag schreibt die Migration `20260714210000_cleaning_window_enforced_from` beim
@@ -190,9 +219,12 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 
 **Components:**
 - `src/app/components/AdminActionFormShell.tsx` — Wrapper für Admin-Aktionsformulare (Back-Link + Card mit Icon-Header)
-- `src/app/components/DashboardBlock.tsx` — ein gestapelter Block der Dashboard-Spalte (`w-full max-w-2xl mx-auto px-4`). **Trägt bewusst KEINE vertikalen Abstände** — der Abstand kommt vom `gap` des Elters (`dashboard/page.tsx`: `flex flex-col gap-4`), damit sich selbst ausblendende Blöcke ihren Abstand automatisch überspringen. Neue Dashboard-Blöcke nutzen ihn und ergänzen **kein** `pt-`/`pb-`/`py-`
+- `src/app/components/DashboardBlock.tsx` — ein gestapelter Block der Dashboard-Spalte. Breite und Seitenrand kommen aus `--block-col`/`--block-gutter` mit der Sub-Dashboard-Spalte als Vorgabe (`max-w-2xl`/`px-4`); eine Seite, die ihre Spalte selbst aufspannt, überschreibt sie auf ihrem Container (heute nur `admin/users/[id]/layout.tsx`). **Trägt bewusst KEINE vertikalen Abstände** — der Abstand kommt vom `gap` des Elters (`dashboard/page.tsx`: `flex flex-col gap-4`), damit sich selbst ausblendende Blöcke ihren Abstand automatisch überspringen. Neue Dashboard-Blöcke nutzen ihn und ergänzen **kein** `pt-`/`pb-`/`py-`
 - `src/app/components/DateTimePicker.tsx` — Datetime-Input mit Label, Error, Hint, ARIA (statt `<Input type="datetime-local">`)
 - `src/app/components/DetailField.tsx` — beschriftetes Feld im Detail-Panel (Label über dem Wert, `tone="warn"` für Warn-Label); der Wert kommt als `children` und bleibt bewusst frei gestaltbar
+- `src/app/components/InlineSettingRow.tsx` — eine Zeile der Admin-Settings: Beschriftung – Eingabe(n) – Einheit. Zusammen mit `inputStyles.ts` (`inlineInputCls`/`inlineLabelCls`) die einzige Quelle dieses Zeilen-Layouts
+- `src/app/components/NumberInput.tsx` — schmale Zahl-Eingabe der Admin-Settings, klemmt und committet erst beim Verlassen des Feldes (statt `<input type="number">` mit Klemmen je Tastendruck — das macht das Feld auf dem Handy unleerbar)
+- `src/app/components/TimeInput.tsx` — „HH:MM"-Eingabe; `TimeInput` committet beim Verlassen des Feldes, `TimeField` ist die rohe Variante für Formulare mit eigenem Speichern-Knopf
 - `src/app/components/KontrolleBanner.tsx` — Kontroll-Status-Banner (compact + large)
 - `src/app/components/LockRequestBanner.tsx` — Verschluss-Anforderung-Banner
 - `src/app/components/FormError.tsx` — Styled Error-Card für Formulare
@@ -223,6 +255,8 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 
 **Hooks:**
 - `src/app/hooks/usePhotoUpload.ts` — Upload + EXIF + Seal-Detect (für alle Foto-Forms)
+- `src/app/hooks/useSyncedDraft.ts` — lokaler Tippstand einer erst beim Blur committenden Eingabe, der einer externen `value` folgt (genutzt von `TimeInput`/`NumberInput`)
+- `src/app/hooks/useUserSettingsSave.ts` — PATCH `/api/admin/users/[id]` + Toast/`saving` für die Admin-Settings-Toggles
 
 **Utilities:**
 - `src/lib/authGuards.ts` — `requireApi()` (Plain-Session-Guard, gibt die Session zurück), `requireAdminApi()`, `requireKeyholderOrAdminApi()`, `assertAdmin()`, `assertKeyholderOrAdmin()`
@@ -231,14 +265,17 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/lib/codedError.ts` — `codedError(code)`/`codeOf(e)`: Fehler mit stabilem `_code`-Tag, um eine Transaktion abzubrechen und den Code AUSSERHALB (auch über Modulgrenzen) wieder einzufangen. Bewusst **importfrei** (per Test abgesichert), damit es aus client-erreichbaren Modulen benutzbar bleibt (`constants.ts` → `entryErrors.ts` → hier) — **nie** wieder `Object.assign(new Error(…), { _code })` oder `(e as {_code?: string})?._code` von Hand
 - `src/lib/serviceResult.ts` — `ServiceResult<T>` + `serviceResponse()` (Result → `NextResponse`). Dazu die HTTP-förmige Fehler-Schicht über `codedError`: `serviceErrors(table)` bindet Wurf- und Fang-Seite an EINE Tabelle (nur Tabellen-Keys sind werfbar → Tippfehler = Compile-Fehler statt stillem 500), `mapServiceError(e, table)` übersetzt einen erwarteten Code in ein `ServiceResult` (`null` = echter Defekt, weiterwerfen)
 - `src/lib/entryErrors.ts` — Stabile Fehler-Codes der Entry-Routen (`ENTRY_GUARD_CODES`, `ENTRY_VALIDATION_CODES`, `ENTRY_ROUTE_CODES`) + `entryGuardError()`/`entryGuardCode()` (auf `codedError.ts` aufgesetzt, mit getypter Code-Whitelist). Jeder Code braucht einen Key im `errors`-Namespace beider `messages/*.json` — `entryErrors.test.ts` erzwingt das
-- `src/lib/constants.ts` — `VALID_TYPES`, `OEFFNEN_GRUENDE`, `ORGASMUS_ARTEN`, `isValidImageUrl()`, `validatePassword()`, `parseOrgasmusArtBase()`, `PASSWORD_MIN_LENGTH`, `BCRYPT_MAX_BYTES`
+- `src/lib/entryFormRoute.ts` — die Routen der Erfassungs-Formulare: `isEntryFormRoute()` (Bottom-Nav weicht der Formular-Aktionsleiste) und `inspectionHref(code, { kommentar })` — der EINE Bauplatz des Prüfungs-Links (Dashboard, Session-Listen, Sheet, Mail, Push). Die Query kommt immer aus `URLSearchParams`, leere Werte fallen weg — **nie** wieder `?code=${…}` von Hand. Rückgabe ist RELATIV: die Mail stellt `appBaseUrl()` davor, der Push nicht (`NativePushRouter` nimmt nur `/…`). Das Modul ist bewusst **importfrei** (per Test abgesichert), weil Client-Komponenten und server-only Code es teilen
+- `src/lib/constants.ts` — `VALID_TYPES`, `OEFFNEN_GRUENDE`, `ORGASMUS_ARTEN`, `isValidImageUrl()`, `validatePassword()`, `parseOrgasmusArtBase()`, `PASSWORD_MIN_LENGTH`, `BCRYPT_MAX_BYTES`; dazu `NumberRange` + die `*_RANGE`-Konstanten der Admin-Settings (Reinigung/Eskalation/Auto-Kontrollen) — **eine** Quelle für das `clamp()` im Service UND das `range`-Prop von `NumberInput`. Ein neues geklemmtes Zahlen-Feld bekommt hier seine Konstante, nie ein Literal am Call-Site
 - `src/lib/utils.ts` — `buildWearPairs()`, `wearingHoursFromPairs()`, `isTimeCorrected()`, `formatDuration()`, `formatDateTime()`, `toDatetimeLocal()`, `tzOffsetMsAt()` (TZ-Offset-Mess-Primitiv, gecachte Formatter), `decomposeMs()` (ms → Tage/Std/Min/Sek) — **nie** wieder `Intl…formatToParts` für Offsets oder `% 86_400_000` von Hand
-- `src/lib/delayedTrigger.ts` — `computeDelayedTrigger()`: die `{wirksamAb, benachrichtigtAt}`-Konvention für terminierte Anforderungen (Kontrolle + Verschluss)
+- `src/lib/delayedTrigger.ts` — `computeDelayedTrigger()`: die `{wirksamAb, benachrichtigtAt}`-Konvention für terminierte Anforderungen (Kontrolle + Verschluss); `isHiddenFromSub()` die Lese-Seite dazu; `deadlineFromDispatch()` verschiebt die geplante Frist-SPANNE auf den tatsächlichen Zustell-Zeitpunkt (ein verspäteter Poller-Tick darf keine unerfüllbare Frist zustellen) — **nie** eine Frist gegen `wirksamAb` rechnen, wenn der Sub sie erst jetzt erfährt
+- `src/lib/deviceCheckService.ts` — der Kontroll-Geräte-Check als EIN Vorgang: `deviceCheckApplies()` entscheidet Startwert UND Lauf (eine Bedingung, nicht zwei), `runDeviceCheck()` ersetzt das beim Anlegen gesetzte `deviceCheck: "pending"` in JEDEM Ausgang durch einen Endzustand (ein gescheitertes Schreiben bleibt als Logzeile sichtbar). Neue asynchrone Nach-Commit-Prüfungen folgen diesem Muster, statt Startwert und Ergebnis über die Route zu verteilen
+- `src/lib/verifyReason.ts` — `VerifyReason`-Codes eines fehlgeschlagenen Foto-Checks; `formatVerifyReason()` für die UI, `toVerifyFailure()` für die Maschinen-Sichten (MCP). Ein `verifikationStatus: null` ohne Grund ist eine Sackgasse — **nie** den Rohwert casten, immer über `toVerifyFailure()` (härtet gegen Alt-/Fremdwerte)
 - `src/lib/queries.ts` — `getIsLocked()`, `getActiveVorgabe()`
 - `src/lib/kontrollePills.ts` — `ANFORDERUNG_PILLS`, `getKombinierterPill()`
 - `src/lib/compressImage.ts` — Client-seitige Bildkomprimierung vor Upload
 - `src/lib/haptics.ts` — Haptisches Feedback (Vibration API)
-- `src/lib/swMessages.ts` — Service-Worker-Kommunikation: `postSwMessage()`, `clearSwUserCache()`, `activateWaitingSw()` (wartenden SW aktivieren + auf Übernahme warten). **Jeder SW-Zugriff gehört hierher** — `navigator.serviceWorker` fehlt in der iOS-WKWebView der Capacitor-App und in Privatfenstern komplett; ein ungeschützter Zugriff wirft dort und verschluckt die Aktion drumherum
+- `src/lib/swMessages.ts` — Service-Worker-Kommunikation: `postSwMessage()`, `clearSwUserCache()`, `activateWaitingSw()` (wartenden SW aktivieren + auf Übernahme warten), `setAppBadgeSafe()` (App-Badge = ungelesene Nachrichten; nativ über `@capawesome/capacitor-badge`, im Browser über `navigator.setAppBadge`). **Jeder SW-Zugriff gehört hierher** — `navigator.serviceWorker` fehlt in der iOS-WKWebView der Capacitor-App und in Privatfenstern komplett; ein ungeschützter Zugriff wirft dort und verschluckt die Aktion drumherum
 - `src/lib/idb.ts` — IndexedDB-Wrapper (Offline-Cache)
 - `src/lib/rate-limit.ts` — DB-basiertes Rate Limiting Helper
 - `src/lib/login-attempts.ts` — Login-Versuchs-Tracking

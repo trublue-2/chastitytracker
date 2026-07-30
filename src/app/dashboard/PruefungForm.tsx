@@ -25,11 +25,16 @@ interface Props {
   initialKommentar?: string;
   /** Aktives Siegel: die Siegel-Nummer muss zusätzlich zum Code auf dem Foto lesbar sein. */
   sealRequired?: boolean;
+  /** Verlangt das getragene Gerät einen Kontroll-Code? false → das Formular fragt keinen ab und
+   *  schickt keinen (Gerät mit `requireInspectionCode: false`). Default true = Bestandsverhalten. */
+  codeRequired?: boolean;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
+  /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster. */
+  boxConfirm?: boolean;
 }
 
-export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, mobileDesktopMode, redirectTo }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -54,7 +59,9 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       initialCode={initialCode}
       initialKommentar={initialKommentar}
       sealRequired={sealRequired}
+      codeRequired={codeRequired}
       mobileDesktopMode={mobileDesktopMode}
+      boxConfirm={boxConfirm}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={() => router.push(target)}

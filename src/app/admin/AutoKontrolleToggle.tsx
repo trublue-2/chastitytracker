@@ -5,47 +5,58 @@ import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import Toggle from "@/app/components/Toggle";
 import { TimeField } from "@/app/components/TimeInput";
-import { inlineInputCls as inputCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import NumberInput from "@/app/components/NumberInput";
+import InlineSettingRow from "@/app/components/InlineSettingRow";
+import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import {
+  AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+  type NumberRange,
+} from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { clampInputValue } from "@/lib/utils";
+
+/** Beschriftung der beiden Felder einer „von – bis"-Zeile: die sichtbare Beschriftung steht nur
+ *  einmal vor dem Paar, für Screenreader braucht jedes Feld seine eigene. */
+function useRangeAria(label: string): [string, string] {
+  const tc = useTranslations("common");
+  return [`${label} ${tc("from")}`, `${label} ${tc("to")}`];
+}
 
 /** Zwei Uhrzeit-Eingaben „von – bis" (Schlaf- bzw. festes Auslöse-Fenster). */
 function TimeRangeRow({
-  label, from, to, setFrom, setTo, disabled, fromAria, toAria,
+  label, from, to, setFrom, setTo, disabled,
 }: {
   label: string; from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void;
-  disabled: boolean; fromAria: string; toAria: string;
+  disabled: boolean;
 }) {
+  const [fromAria, toAria] = useRangeAria(label);
   return (
-    <div className="flex items-center gap-2 pl-1">
-      <span className={faintCls}>{label}</span>
+    <InlineSettingRow label={label}>
       <TimeField value={from} disabled={disabled} ariaLabel={fromAria} onChange={setFrom} />
       <span className={faintCls}>–</span>
       <TimeField value={to} disabled={disabled} ariaLabel={toAria} onChange={setTo} />
-    </div>
+    </InlineSettingRow>
   );
 }
 
-/** Zwei Zahleneingaben „von – bis" mit gemeinsamem Bereich/Einheit. */
+/** Zwei Zahleneingaben „von – bis" mit gemeinsamer Einheit. Je Feld ein eigener Bereich, weil sich der
+ *  Vorschlag einer geleerten Eingabe unterscheiden KANN: bei der Frist 15 „von" / 60 „bis", bei der
+ *  Anzahl pro Tag teilen sich beide Felder dieselbe Konstante. */
 function NumberRangeRow({
-  label, min, max, fromFallback, toFallback, from, to, setFrom, setTo, unit, disabled,
+  label, fromRange, toRange, from, to, setFrom, setTo, unit, disabled,
 }: {
-  label: string; min: number; max: number; fromFallback: number; toFallback: number;
+  label: string; fromRange: NumberRange; toRange: NumberRange;
   from: number; to: number; setFrom: (n: number) => void; setTo: (n: number) => void;
   unit: string; disabled: boolean;
 }) {
+  const [fromAria, toAria] = useRangeAria(label);
   return (
-    <div className="flex items-center gap-2 pl-1">
-      <span className={faintCls}>{label}</span>
-      <input type="number" min={min} max={max} value={from}
-        onChange={(e) => setFrom(clampInputValue(e.target.value, min, max, fromFallback))}
-        disabled={disabled} className={inputCls} />
+    <InlineSettingRow label={label} unit={unit}>
+      <NumberInput value={from} range={fromRange}
+        disabled={disabled} ariaLabel={fromAria} onCommit={setFrom} />
       <span className={faintCls}>–</span>
-      <input type="number" min={min} max={max} value={to}
-        onChange={(e) => setTo(clampInputValue(e.target.value, min, max, toFallback))}
-        disabled={disabled} className={inputCls} />
-      <span className={faintCls}>{unit}</span>
-    </div>
+      <NumberInput value={to} range={toRange}
+        disabled={disabled} ariaLabel={toAria} onCommit={setTo} />
+    </InlineSettingRow>
   );
 }
 
@@ -171,7 +182,8 @@ export default function AutoKontrolleToggle({
 
           {/* Anzahl pro Tag: zufällig zwischen Min und Max */}
           <NumberRangeRow
-            label={t("autoKontrolleProTagLabel")} min={0} max={12} fromFallback={0} toFallback={0}
+            label={t("autoKontrolleProTagLabel")}
+            fromRange={AUTO_INSPECTION_PER_DAY_RANGE} toRange={AUTO_INSPECTION_PER_DAY_RANGE}
             from={form.perDayMin} to={form.perDayMax}
             setFrom={(n) => set("perDayMin", n)} setTo={(n) => set("perDayMax", n)}
             unit={t("autoKontrolleProTagHint")} disabled={saving}
@@ -183,13 +195,12 @@ export default function AutoKontrolleToggle({
             from={form.ruheVon} to={form.ruheBis}
             setFrom={(v) => set("ruheVon", v)} setTo={(v) => set("ruheBis", v)}
             disabled={saving}
-            fromAria={`${t("autoKontrolleRuheLabel")} ${tc("from")}`}
-            toAria={`${t("autoKontrolleRuheLabel")} ${tc("to")}`}
           />
 
           {/* Erfüllungsdauer von–bis (Minuten) */}
           <NumberRangeRow
-            label={t("autoKontrolleFristLabel")} min={5} max={240} fromFallback={15} toFallback={60}
+            label={t("autoKontrolleFristLabel")}
+            fromRange={AUTO_INSPECTION_DEADLINE_FROM_RANGE} toRange={AUTO_INSPECTION_DEADLINE_TO_RANGE}
             from={form.fristVon} to={form.fristBis}
             setFrom={(n) => set("fristVon", n)} setTo={(n) => set("fristBis", n)}
             unit="min" disabled={saving}
@@ -213,8 +224,6 @@ export default function AutoKontrolleToggle({
               from={form.fensterVon} to={form.fensterBis}
               setFrom={(v) => set("fensterVon", v)} setTo={(v) => set("fensterBis", v)}
               disabled={saving}
-              fromAria={`${t("autoKontrolleFensterLabel")} ${tc("from")}`}
-              toAria={`${t("autoKontrolleFensterLabel")} ${tc("to")}`}
             />
           )}
         </>

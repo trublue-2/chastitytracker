@@ -12,8 +12,10 @@ import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { buildWearSessions } from "@/lib/sessionModel";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere } from "@/lib/queries";
-import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { getActiveVorgabe, getKeyholderSperrzeit, getKeyholderOrgasmusAnforderung, getActiveWearSessions, getNonKgTrackingCategories, keyholderVisibleKontrolleWhere, isScheduledDirective } from "@/lib/queries";
+import { deviceCategoriesEnabled, heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
@@ -27,6 +29,7 @@ import WithdrawButton from "@/app/admin/WithdrawButton";
 import SessionList from "@/app/dashboard/SessionList";
 import WearSessionList from "@/app/dashboard/WearSessionList";
 import CategoryGoalsToday from "@/app/dashboard/CategoryGoalsToday";
+import BoxStatusCard from "@/app/components/BoxStatusCard";
 import Card from "@/app/components/Card";
 import Link from "next/link";
 import { Lock, ClipboardList, Droplets, ChevronRight } from "lucide-react";
@@ -74,7 +77,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // Aktiv offene Kontrolle für das grosse Banner — geplante (wirksamAb in der Zukunft) ausschliessen:
   // die erscheinen unten in der Kontroll-Liste mit "geplant"-Pill, nicht als aktiver Alarm.
   const offeneKontrolle = alleAnforderungen.find(
-    k => !k.entryId && !k.withdrawnAt && !(k.wirksamAb && k.wirksamAb > now),
+    k => !k.entryId && !k.withdrawnAt && !isScheduledDirective(k.wirksamAb, now),
   ) ?? null;
 
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
@@ -105,15 +108,29 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   })();
 
   const activePair = getOpenPair(pairs);
-  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm)) : [];
-  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now);
+  const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, tz);
   // Ziele prorata auf die Überschneidung der Vorgabe mit der jeweiligen Periode (wie im Sub-Dashboard).
   const proratedVorgabe = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
 
   const wearSessionRows = buildWearSessionRows(allNonKgCategories, buildWearSessions(entries, now), dl, entries);
 
+  // Reinigungs-Regeln der Box-Karte. `getKeyholderSperrzeit` zeigt auch eine erst GEPLANTE Sperre
+  // (damit die Keyholderin sie stornieren kann) — für die Reinigungs-Frage zählt nur die bereits
+  // wirksame, sonst meldet die Karte „durch Sperrzeit blockiert", bevor die Sperre überhaupt läuft.
+  const effectiveSperrzeit = activeSperrzeit && !isScheduledDirective(activeSperrzeit.wirksamAb, now) ? activeSperrzeit : null;
+  // Das Tageskontingent zählt aus den oben geladenen `entries` — ohne DB. Nur der Schlüssel-Nachweis
+  // aus der Telemetrie (`boxKeyProof.ts`) fragt noch ab, damit die Keyholderin dieselben Pillen
+  // sieht wie der Sub; deshalb hier kein `Promise.all` mehr.
+  const boxReinigung = buildBoxReinigungView(user, entries, effectiveSperrzeit, now, tz);
+  const telemetryKeyProof = await loadTelemetryKeyProof(user.id, pairs);
+  const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof) : [];
+
   return (
     <>
+      {/* Dieselbe Karte wie im Sub-Dashboard, an derselben Stelle (zuoberst): die Keyholderin sah
+          den Box-Zustand bisher nirgends — weder Ist/Soll noch, ob die Box überhaupt noch funkt. */}
+      {heimdallEnabled() && <BoxStatusCard userId={id} tz={tz} viewerTz={viewerTz} reinigung={boxReinigung} />}
+
       {activePair ? (
         <LaufendeSessionCard
           sessionStart={activePair.verschluss.startTime}
@@ -127,6 +144,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
           // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
           cleaningNote={activeSperrzeit ? t(activeSperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
+          keyInBox={activePair.verschluss.keyInBox ?? null}
           activeVorgabe={proratedVorgabe}
           tagH={tagH}
           wocheH={wocheH}
@@ -242,7 +260,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
       <CategoryGoalsToday userId={id} />
 
-      <SessionList keyholderView pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} />
+      <SessionList keyholderView pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
 
       {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
 
@@ -262,7 +280,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
               const aPill = k.anforderungStatus ? ANFORDERUNG_PILLS[k.anforderungStatus] : null;
               const vPill = k.verifikationStatus ? VERIFIKATION_PILLS[k.verifikationStatus] : null;
               return {
-                id: k.id, imageUrl: k.imageUrl, kommentar: k.kommentar,
+                id: k.id, imageUrl: k.imageUrl, boxImageUrl: k.boxImageUrl, kommentar: k.kommentar,
                 pill1Label: aPill ? t(aPill.labelKey) : null, pill1Cls: aPill?.cls ?? null,
                 pill2Label: vPill ? t(vPill.labelKey) : null, pill2Cls: vPill?.cls ?? null,
                 code: k.code, dateTimeStr: fmtDual(k.time), dateTimePrefix: null,

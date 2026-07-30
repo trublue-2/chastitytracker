@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp } from "@/lib/utils";
-import { NO_FIELDS_TO_UPDATE, INVALID_TIME } from "@/lib/constants";
+import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp, randomInt } from "@/lib/utils";
+import {
+  NO_FIELDS_TO_UPDATE, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE,
+  AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+} from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
 import { GENUINELY_WITHDRAWN_WHERE } from "@/lib/queries";
 
@@ -40,24 +43,16 @@ export interface PlannedAutoKontrolle extends AutoKontrolleSlot {
   sent: boolean;
 }
 
-const PER_DAY_RANGE = { min: 0, max: 12, fallback: 0 } as const;
-const FRIST_RANGE = { min: 5, max: 240, fallback: 15 } as const;
-
-/** Ganzzahl aus [lo, hi] (beide inklusive). */
-function randomInt(rand: () => number, lo: number, hi: number): number {
-  return lo + Math.floor(rand() * (hi - lo + 1));
-}
-
 /** Geklemmter Min-/Max-Anzahl-Bereich pro Tag (`max` nie unter `min`). */
 function perDayRange(s: AutoKontrolleSettings): { min: number; max: number } {
-  const min = clamp(s.perDayMin, PER_DAY_RANGE);
-  return { min, max: Math.max(min, clamp(s.perDayMax, PER_DAY_RANGE)) };
+  const min = clamp(s.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE);
+  return { min, max: Math.max(min, clamp(s.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE)) };
 }
 
 /** Geklemmter Erfüllungsdauer-Bereich in Minuten (`bis` nie unter `von`). */
 function fristRange(s: AutoKontrolleSettings): { von: number; bis: number } {
-  const von = clamp(s.fristVon, FRIST_RANGE);
-  return { von, bis: Math.max(von, clamp(s.fristBis, FRIST_RANGE)) };
+  const von = clamp(s.fristVon, AUTO_INSPECTION_DEADLINE_FROM_RANGE);
+  return { von, bis: Math.max(von, clamp(s.fristBis, AUTO_INSPECTION_DEADLINE_TO_RANGE)) };
 }
 
 /** Wach-Fenster (Komplement des Schlaf-Fensters) als zusammenhängender Block in Wanduhr-Minuten seit
@@ -176,7 +171,7 @@ export function generateAutoKontrollen(
   const { min, max } = perDayRange(settings);
   if (max <= 0) return [];
   // Anzahl zufällig aus [min, max] (min == max → fixe Anzahl, wie bisher).
-  const x = randomInt(rand, min, max);
+  const x = randomInt(min, max, rand);
   if (x <= 0) return [];
   const { von: fristVon, bis: fristBis } = fristRange(settings);
 
@@ -201,9 +196,9 @@ export function generateAutoKontrollen(
       const triggerMin = Math.ceil(fixed.start + i * segSize);
       const triggerMax = Math.floor(fixed.start + (i + 1) * segSize) - 1; // Trigger vor Segmentende → verteilt
       if (triggerMax < triggerMin) continue; // Segment < 1 Min → überspringen
-      const trig = randomInt(rand, triggerMin, triggerMax);
+      const trig = randomInt(triggerMin, triggerMax, rand);
       if (isInQuietMinutes(quietVon, quietBis, trig)) continue; // nie im Schlaf wecken
-      const deadlineMin = windowDeadlineMin(trig, randomInt(rand, fristVon, fristBis), quietVon, fristVon);
+      const deadlineMin = windowDeadlineMin(trig, randomInt(fristVon, fristBis, rand), quietVon, fristVon);
       if (deadlineMin !== null) pushIfFuture(trig, deadlineMin);
     }
     return out;
@@ -212,14 +207,23 @@ export function generateAutoKontrollen(
   // Ohne festes Fenster (Bestand): Trigger UND Frist je Segment → keine Überlappung, Frist strikt vor
   // awakeEnd (= Schlaf-Start). In GANZZAHL-Minuten (keine Float-/Rundungs-Kanten).
   const segSize = (awakeEnd - awakeStart) / x;
+  // Die Segment-Kappung darf die Mindest-Frist NICHT unterlaufen. Vorher stand unten `Math.max(1, …)`,
+  // was in einem engen Wach-Fenster Slots mit 1-Minuten-Frist erzeugte: für den Sub unerfüllbar, und
+  // `repairAutoKontrollen.durOk` stuft sie sofort als Verletzer ein und ersetzt sie — der Plan hätte
+  // gegen sich selbst gearbeitet. Die Prüfung steht VOR der Schleife, weil `segSize` über alle
+  // Segmente konstant ist: passt `fristVon` in eines nicht, passt es in keines. (Im Fenster-Zweig
+  // muss `windowDeadlineMin` dagegen je Trigger entscheiden — dort kappt der Schlaf-Beginn, nicht
+  // die Segmentgrösse.)
+  const maxDur = Math.floor(segSize);
+  if (maxDur < fristVon) return out;
   for (let i = 0; i < x; i++) {
     const segStart = awakeStart + i * segSize;
     const segEnd = awakeStart + (i + 1) * segSize;
-    const dur = Math.min(randomInt(rand, fristVon, fristBis), Math.max(1, Math.floor(segSize)));
+    const dur = Math.min(randomInt(fristVon, fristBis, rand), maxDur);
     const triggerMin = Math.ceil(segStart);
     const triggerMax = Math.min(Math.floor(segEnd - dur), awakeEnd - 1 - dur); // Frist ≤ awakeEnd−1
     if (triggerMax < triggerMin) continue; // Segment zu klein → überspringen
-    const trig = randomInt(rand, triggerMin, triggerMax);
+    const trig = randomInt(triggerMin, triggerMax, rand);
     pushIfFuture(trig, trig + dur);
   }
   return out;
@@ -333,8 +337,8 @@ export function repairAutoKontrollen(
     const best = gaps.reduce((bi, g, gi) => (gapLen(g) > gapLen(gaps[bi]) ? gi : bi), 0);
     if (gapLen(gaps[best]) < fristVon) break; // kein Platz mehr
     const [gapStart, gapEnd] = gaps[best];
-    const dur = Math.min(randomInt(rand, fristVon, fristBis), gapEnd - gapStart);
-    const trig = randomInt(rand, gapStart, gapEnd - dur);
+    const dur = Math.min(randomInt(fristVon, fristBis, rand), gapEnd - gapStart);
+    const trig = randomInt(gapStart, gapEnd - dur, rand);
     create.push({ wirksamAb: at(trig), deadline: at(trig + dur) });
     gaps.splice(best, 1, [gapStart, trig], [trig + dur, gapEnd]);
     gaps = gaps.filter(([a, b]) => b > a);
@@ -391,7 +395,7 @@ function rollFreshDay(userId: string, settings: AutoKontrolleSettings, now: Date
   return createAutoKontrollen(userId, generateAutoKontrollen(settings, now, Math.random, tz));
 }
 
-/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (CH-Tag)
+/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (Tag der Sub)
  *  angelegte Auto-Zeilen, passiert nichts. (Vom Poller, einmal pro Tag.) */
 export async function ensureDailyAutoKontrollenForUser(
   userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
@@ -437,7 +441,7 @@ export async function replanTodayAutoKontrollenForUser(
   return createAutoKontrollen(userId, create);
 }
 
-/** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro CH-Tag). */
+/** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro Kalendertag der jeweiligen Sub). */
 export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
   const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_USER_SELECT });
   for (const u of users) {
@@ -485,8 +489,8 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   } = {};
 
   if (params.aktiv !== undefined) data.autoKontrolleAktiv = Boolean(params.aktiv);
-  if (params.perDayMin !== undefined) data.autoKontrollePerDayMin = clamp(params.perDayMin, PER_DAY_RANGE);
-  if (params.perDayMax !== undefined) data.autoKontrollePerDayMax = clamp(params.perDayMax, PER_DAY_RANGE);
+  if (params.perDayMin !== undefined) data.autoKontrollePerDayMin = clamp(params.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE);
+  if (params.perDayMax !== undefined) data.autoKontrollePerDayMax = clamp(params.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE);
   // Ungültige Uhrzeit ist ein eigener Fehler — früher still verworfen, was sie mit dem
   // „keine Felder"-Fall vermischte und (über die Route) als Erfolg gemeldet wurde.
   if (params.ruheVon !== undefined) {
@@ -497,8 +501,8 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
     if (!HHMM.test(params.ruheBis)) return serviceFail(400, INVALID_TIME);
     data.autoKontrolleRuheBis = params.ruheBis;
   }
-  if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, FRIST_RANGE);
-  if (params.fristBis !== undefined) data.autoKontrolleFristBis = clamp(params.fristBis, FRIST_RANGE);
+  if (params.fristVon !== undefined) data.autoKontrolleFristVon = clamp(params.fristVon, AUTO_INSPECTION_DEADLINE_FROM_RANGE);
+  if (params.fristBis !== undefined) data.autoKontrolleFristBis = clamp(params.fristBis, AUTO_INSPECTION_DEADLINE_TO_RANGE);
   // Festes Auslöse-Fenster: "" schaltet es aus (kein Fenster), sonst muss es HH:MM sein.
   if (params.fensterVon !== undefined) {
     if (params.fensterVon !== "" && !HHMM.test(params.fensterVon)) return serviceFail(400, INVALID_TIME);
