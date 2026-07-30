@@ -26,36 +26,65 @@ npx vitest run <pfad/zur/datei.test.ts>      # einzelne Datei
 
 ## Deployment
 
-Deploys laufen über den GitHub-Actions-Workflow `.github/workflows/docker.yml` (manueller `workflow_dispatch`, kein Auto-Deploy bei Push). Er baut das Docker-Image, pusht es nach GHCR und kann anschliessend Instanzen aktualisieren.
+Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
 
-**Image-Tags:**
-- `:latest` — Produktions-Tag, gebaut vom `main`-Branch.
-- `:feature` — Vorab-Tag für Instanzen, die neue Arbeit vor dem Merge (oder zusätzlich zu `:latest`) testen sollen. trublues eigene Instanz ist dauerhaft auf `:feature` gepinnt.
+- **`.github/workflows/docker.yml`** — baut das Image, pusht es nach GHCR, ruft danach den Deploy auf.
+- **`.github/workflows/promote.yml`** — befördert ein **bestehendes** Image in einen Kanal (Retag über die Registry, **kein Rebuild**). Der einzige Weg zu `:latest`.
+- **`.github/workflows/deploy.yml`** — das Deploy-Skript selbst (`workflow_call`), von beiden oben genutzt. Nicht direkt dispatchbar.
 
-**Regel — bei jedem `:latest`-Build auf `main` IMMER auch `:feature` mittaggen** (`tagFeature=true`), damit `:feature`-gepinnte Instanzen (trublue) nie hinter `main` zurückfallen. Ausnahme: ein Dispatch von einem noch ungemergten Feature-Branch soll NUR `:feature` taggen (kein `tagFeature` nötig — das ist bereits der Tag dieses Builds), damit `:latest` unberührt bleibt, bis gemergt ist.
+**Drei Ringe — `:feature` → `:portal` → `:latest`:**
+
+| Tag | Für wen | Wann er wandert |
+|-----|---------|-----------------|
+| `:feature` | trublues Instanz, Tests vor dem Merge | Feature-Branch-Build, oder `main`-Build mit `tagFeature=true` |
+| `:portal` | die Portal-Instanzen | jeder `main`-Build |
+| `:latest` | alle, inkl. Self-Hoster — der **offizielle Release** | nur durch `promote.yml` |
+| `:v<version>`, `:sha-<sha>` | unveränderliche Referenz zum Pinnen, Promoten, Rollback | pro `main`-Build (`v…`) bzw. pro Build (`sha-…`) |
+
+Ein `main`-Build veröffentlicht also **nichts** an Self-Hoster — das ist der Punkt der Kanäle. `:latest` bewegt sich erst, wenn du promotest, und dann per Digest-Retag: der Release ist bitgleich das Image, das die Portal-Flotte schon fährt.
+
+**Regel — bei jedem `main`-Build IMMER `tagFeature=true`**, damit `:feature` (trublue) nie hinter `main` zurückfällt. Der Deploy leitet `pinnedTo` daraus ab und startet dann genau die Instanzen neu, deren Tag sich bewegt hat (`portal,feature`).
 
 ```bash
-# main → Produktion (:latest) UND :feature gleichzeitig aktuell halten (Standardfall).
-# Hier ist `instances` bewusst leer: ALLE Instanzen sollen den neuen Stand bekommen.
+# Standardfall: main bauen → :portal + :feature + :v<version>, Flotte ausrollen.
 gh workflow run docker.yml --ref main -f tagFeature=true
 
-# Feature-Branch (noch nicht gemergt) → nur :feature, :latest bleibt unberührt.
-# `instances=trublue` ist PFLICHT — ohne das werden alle 27 Instanzen neu gestartet.
-gh workflow run docker.yml --ref <feature-branch> -f tagFeature=true -f instances=trublue
+# Feature-Branch (ungemergt) → nur :feature. Der Pin-Filter (pinnedTo=feature) trifft nur
+# die :feature-Instanz; `instances` zu setzen ist damit nicht mehr nötig, schadet aber nicht.
+gh workflow run docker.yml --ref <feature-branch>
 
-# Instanz einmalig auf einen Tag umpinnen (z.B. trublue dauerhaft auf :feature)
-gh workflow run docker.yml --ref <branch> -f tagFeature=true -f channel=feature -f instances=trublue
+# Release freigeben: :latest auf ein bestehendes :v<version> retaggen (kein Build) und den
+# Git-Tag `release` mitziehen. Ohne `source` = package.json-Version des Refs.
+gh workflow run promote.yml --ref main -f channel=latest
+
+# Flotte zurückrollen, ohne zu bauen: :portal auf eine ältere Version zeigen lassen.
+gh workflow run promote.yml --ref main -f channel=portal -f source=v4.56.0 -f deploy=true
+
+# Instanz umpinnen (z.B. die eigene dauerhaft auf :feature)
+gh workflow run docker.yml --ref main -f tagFeature=true -f channel=feature -f instances=trublue
 ```
 
-Weitere Dispatch-Inputs: `deploy` (Default `true` — nach dem Build auch deployen), `instances`, `channel` (pinnt Ziel-Instanzen auf einen Tag um; leer = bestehende Pins beibehalten).
+Dispatch-Inputs von `docker.yml`: `deploy` (Default `true`), `instances`, `channel` (pinnt Ziel-Instanzen um; leer = bestehende Pins behalten), `pinnedTo` (nur Instanzen mit diesem aktuellen Pin deployen; leer = automatisch aus den gebauten Tags), `tagFeature`.
 
-**`instances` bei Feature-Tests IMMER explizit setzen (`-f instances=trublue`).** Leer bedeutet **alle 27 Instanzen** — das Deploy-Skript iteriert dann über jeden Ordner in `~/instances` und startet jede Instanz neu. Instanzen, die auf `:latest` gepinnt sind, ziehen zwar ihr unverändertes Image, kassieren aber trotzdem einen Neustart: eine vermeidbare Unterbrechung für fremde Nutzer, für einen Test, der nur die eigene Instanz betrifft.
+**Der Pin-Filter ersetzt die frühere Pflicht, `instances` zu setzen.** Ein Dispatch mit leerem `instances` iteriert weiter über alle Ordner in `~/instances`, deployt aber nur, was auf einen der gebauten Tags gepinnt ist — ein Feature-Test kann keine fremde Instanz mehr neu starten. Passt keine Instanz auf den Filter, schlägt der Lauf bewusst fehl statt grün „0 Instanzen" zu melden. *(Vorfall 2026-07-10: ein `:feature`-Test ohne `instances` startete 27 Instanzen neu.)*
+
+**`release` (Git-Tag) gehört zum Release-Kanal.** `promote.yml channel=latest` zieht ihn auf den Commit des promoteten Images. Von dort — nicht von `main` — lesen Tracker und Portal-Collector den Changelog für den Update-Hinweis (`src/app/api/upstream-changelog/route.ts`, `docs/update-check.md`). Wer den Tag von Hand verbiegt, verschiebt damit den Update-Hinweis der ganzen Flotte.
+
+⚠️ **Der Tag muss existieren, bevor eine der beiden Changelog-Routen ausgerollt wird.** Fehlt er, liefert der Collector der ganzen Flotte 502 und auch der instanzeigene Fallback greift ins Leere — der Update-Hinweis ist dann still weg, bis der erste Promote läuft. Einmalig setzen, auf den Commit, aus dem das aktuelle `:latest` gebaut wurde (steht im Image-Label `org.opencontainers.image.revision`):
+
+```bash
+docker buildx imagetools inspect ghcr.io/trublue-2/chastitytracker:latest \
+  --format '{{json .Image}}' | jq -r '.config.Labels["org.opencontainers.image.revision"]'
+gh api -X POST repos/trublue-2/chastitytracker/git/refs -f ref=refs/tags/release -f sha=<sha>
+```
+
+**Der Pin einer Instanz lebt nur in ihrer `docker-compose.yml`** — kein DB-Feld, zwei Schreiber: der `channel`-Input dieses Workflows (per `sed`) und das Portal. Das Portal bewahrt den vorhandenen Pin seit tracker-portal v1.5.11 (`pinnedTrackerImage()` in `tracker-portal/src/lib/docker.ts`), ein Redeploy dort zieht eine `:feature`-Instanz also nicht mehr auf `:portal` zurück. Wechseln lässt sich der Ring nur hier:
+
+```bash
+gh workflow run docker.yml --ref main -f tagFeature=true -f channel=feature -f instances=trublue
+```
 
 Der Instanzname `trublue` ist **nicht** schützenswert — es ist der Name des Repo-Inhabers und steht ohnehin in der Repo-URL (`trublue-2/chastitytracker`). Das Deploy-Skript anonymisiert seine Ausgabe ohnehin auf `Instanz <i>/<n>`, damit keine fremden Subdomains ins öffentliche Actions-Log gelangen. Fremde Instanznamen gehören nach wie vor nicht in einen Dispatch-Input.
-
-**Faustregel:** `instances` leer lassen nur bei einem echten Rollout auf `main`, wo alle Instanzen den neuen Stand bekommen sollen. Für jeden Feature-Test die Zielinstanz benennen.
-
-*(Vorfall 2026-07-10: ein `:feature`-Test wurde ohne `instances` dispatcht — 27 Instanzen neu gestartet, nötig gewesen wäre eine. Die frühere Fassung dieser Zeile empfahl ausdrücklich das Leerlassen.)*
 
 Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <run-id>` prüfen, ob `typecheck`, `build-and-push` und `deploy` grün sind.
 
@@ -144,7 +173,7 @@ PORTAL_SHARED_SECRET=<secret>      # optional: Portal-Login JWT-Secret
 USE_ADMIN_RELATIONSHIPS=true       # optional: Admin↔User n:m Zuordnung aktivieren
 BUILD_DATE=<iso-date>              # optional: wird beim Build gesetzt
 # Update-Check / anonyme Deployment-Zählung (siehe docs/update-check.md):
-DISABLE_UPDATE_CENSUS=true         # optional: Census aus, Update-Check lädt direkt von GitHub
+DISABLE_UPDATE_CENSUS=true         # optional: Census aus, Update-Check liest den Release-Tag direkt auf GitHub
 UPSTREAM_CHANGELOG_URL=<url>       # optional: eigene Changelog-Quelle (dann keine Census-Header)
 # OVERRIDE des Strafbuch-Stichtags der Reinigungsfenster-Regel (ISO-8601). NORMALERWEISE NICHT
 # SETZEN: den Stichtag schreibt die Migration `20260714210000_cleaning_window_enforced_from` beim

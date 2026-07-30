@@ -16,7 +16,11 @@ on:
         required: false
         default: ""
       channel:
-        description: "Ziel-Instanzen auf diesen Image-Tag umpinnen (z.B. feature, latest). Leer = bestehende Pins behalten."
+        description: "Ziel-Instanzen auf diesen Image-Tag umpinnen (z.B. portal, feature). Leer = bestehende Pins behalten."
+        required: false
+        default: ""
+      pinnedTo:
+        description: "Nur Instanzen deployen, die aktuell auf einen dieser Tags gepinnt sind (kommagetrennt). Leer = automatisch aus den gebauten Tags."
         required: false
         default: ""
       tagFeature:
@@ -50,6 +54,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      # Welche ROLLENDEN Kanäle dieser Build bewegt hat — der Deploy leitet daraus ab, welche
+      # Instanzen neu starten müssen.
+      pins: ${{ steps.pins.outputs.value }}
 
     steps:
       - name: Checkout
@@ -74,15 +82,59 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # Two rolling channels:
-          #   main (default branch) -> :latest   (stable)
-          #   any feature branch    -> :feature  (rolling feature channel; trublue pins this once)
-          # The enable guards ensure a feature build never overwrites the stable :latest.
+          # Drei Ringe — feature → portal → latest:
+          #   Feature-Branch (oder tagFeature=true) -> :feature  (trublues Instanz, Tests)
+          #   main                                  -> :portal + :v<version>  (Portal-Flotte)
+          #   :latest                               NUR über promote.yml (Retag per imagetools,
+          #                                         kein Rebuild) — der offizielle Release für
+          #                                         alle, inkl. Self-Hoster.
+          #
+          # `latest=false` ist Absicht und nicht redundant: metadata-action setzt :latest von
+          # sich aus nur bei type=ref,event=tag / semver / pep440 / match — heute also nie.
+          # Sobald aber jemand `on: push: tags:` ergänzt (naheliegend, seit es einen
+          # release-Tag gibt), würde latest=auto :latest wieder selbst veröffentlichen und
+          # promote.yml aushebeln.
+          flavor: |
+            latest=false
+          # Reihenfolge zählt: gleichrangige type=raw-Einträge werden nach Deklaration
+          # priorisiert, und der erste bestimmt org.opencontainers.image.version. v<version>
+          # zuerst → das Label trägt die echte Version (vorher stand dort "latest"), und genau
+          # dieses Label ist der Promote-Guard in promote.yml.
+          #
+          # v<version> ist auf main gegated: ein Feature-Build würde sonst einen bestehenden
+          # Versions-Tag mit seinem Digest überschreiben (:v5.0.0 in GHCR ist genau so
+          # entstanden — Digest aus einem ungemergten Branch).
+          #
+          # `inputs.tagFeature` OHNE `== 'true'`: tagFeature ist type: boolean, im
+          # inputs-Kontext also ein echter Boolean. `boolean == 'true'` ist in
+          # GitHub-Expressions immer false (1 vs. NaN) und hätte :feature auf main still
+          # abgeschaltet.
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=feature,enable=${{ github.ref_name != 'main' || github.event.inputs.tagFeature == 'true' }}
-            type=raw,value=v${{ env.NEW_VERSION }}
+            type=raw,value=v${{ env.NEW_VERSION }},enable={{is_default_branch}}
+            type=raw,value=portal,enable={{is_default_branch}}
+            type=raw,value=feature,enable=${{ github.ref_name != 'main' || inputs.tagFeature }}
             type=sha,prefix=sha-
+
+      # Einzige Quelle dafür, welche rollenden Kanäle dieser Build bewegt: die Tags, die
+      # metadata-action tatsächlich erzeugt hat. Die Alternative — dieselbe Kanal-Logik im
+      # Deploy-Aufruf aus `ref_name`/`tagFeature` ein zweites Mal herzuleiten — hätte zwei
+      # handsynchrone Fassungen derselben Entscheidung ergeben, und ein Auseinanderdriften
+      # äussert sich nicht als Build-Fehler, sondern als falsches Deploy-Ziel.
+      # Unveränderliche Tags (v…, sha-…) gehören NICHT dazu: eine Instanz, die bewusst auf
+      # :v4.56.0 gepinnt ist, darf ein Build nicht neu starten.
+      - name: Bewegte Kanäle bestimmen
+        id: pins
+        env:
+          META_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          # `latest` steht bewusst in der Liste, obwohl dieser Workflow es nicht (mehr) taggt:
+          # sollte es je wieder gebaut werden, müssen die darauf gepinnten Instanzen mitkommen —
+          # ein stilles Übersehen wäre schlimmer als ein Zweig, der heute nie greift.
+          VALUE=$(printf '%s\n' "$META_TAGS" | sed 's#.*:##' \
+            | { grep -Ex 'portal|feature|latest' || true; } | paste -sd, -)
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+          echo "Bewegte Kanäle: ${VALUE:-<keine>}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -106,96 +158,29 @@ jobs:
             BUILD_DATE=${{ steps.builddate.outputs.value }}
 
   # ── Deploy auf Server ──────────────────────────────────────────────────────
+  # Das Deploy-Skript liegt in deploy.yml (workflow_call) und wird auch von promote.yml
+  # genutzt — ein Retag soll die Flotte ohne Rebuild ausrollen können.
   deploy:
     needs: [build-and-push, typecheck]
-    if: ${{ github.event.inputs.deploy != 'false' }}
-    runs-on: ubuntu-latest
-
-    env:
-      INSTANCES_INPUT: ${{ github.event.inputs.instances }}
-      CHANNEL_INPUT: ${{ github.event.inputs.channel }}
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        env:
-          INSTANCES_INPUT: ${{ env.INSTANCES_INPUT }}
-          CHANNEL_INPUT: ${{ env.CHANNEL_INPUT }}
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: INSTANCES_INPUT,CHANNEL_INPUT
-          script: |
-            INSTANCES_DIR="$HOME/instances"
-
-            # Targets bestimmen
-            if [ -n "$INSTANCES_INPUT" ]; then
-              IFS=',' read -ra TARGETS <<< "$INSTANCES_INPUT"
-            else
-              TARGETS=()
-              for dir in "$INSTANCES_DIR"/*/; do
-                [ -f "$dir/docker-compose.yml" ] && TARGETS+=("$(basename "$dir")")
-              done
-            fi
-
-            # Jede Instanz zieht ihren EIGENEN in der docker-compose.yml gepinnten Image-Tag
-            # (z.B. :latest = stable, oder :feat-xyz für ein Feature-Image). Daher pro Instanz
-            # ein eigenes `docker compose pull` statt eines globalen Pulls.
-
-            # Instanzen parallel updaten.
-            # Logging bewusst ANONYM: nur Index "$IDX/$TOTAL", NIE der Instanzname — sonst landen
-            # bei öffentlichem Repo alle Subdomains im öffentlichen Actions-Log. Intern iteriert die
-            # Schleife weiter über die echten Ordnernamen; nur die Ausgabe ist anonymisiert.
-            TOTAL=${#TARGETS[@]}
-            PIDS=()
-            IDX=0
-            for INSTANCE in "${TARGETS[@]}"; do
-              IDX=$((IDX + 1))
-              DIR="$INSTANCES_DIR/$INSTANCE"
-              if [ ! -f "$DIR/docker-compose.yml" ]; then
-                echo "⚠ Instanz $IDX/$TOTAL nicht gefunden, übersprungen."
-                continue
-              fi
-              (
-                echo "→ Update Instanz $IDX/$TOTAL ..."
-                cd "$DIR"
-                # Optional: Instanz auf einen anderen Image-Tag umpinnen (z.B. :feature, :latest).
-                # CHANNEL_INPUT ist auf ein striktes Tag-Muster validiert (keine Shell-/sed-Injection).
-                if [ -n "$CHANNEL_INPUT" ]; then
-                  case "$CHANNEL_INPUT" in
-                    *[!A-Za-z0-9._-]*) echo "⚠ Ungültiger channel '$CHANNEL_INPUT' — übersprungen." ;;
-                    *)
-                      echo "→ Pinne Instanz $IDX/$TOTAL auf :$CHANNEL_INPUT"
-                      sed -i "s#\(ghcr.io/trublue-2/chastitytracker\):[A-Za-z0-9._-]*#\1:$CHANNEL_INPUT#" docker-compose.yml
-                      ;;
-                  esac
-                fi
-                # docker-compose druckt sonst „Pulling kg-<name>…" / „Container kg-<name> Started"
-                # → Instanzname im öffentlichen CI-Log. Ausgabe daher server-seitig ins private
-                # .deploy.log umleiten; ins CI-Log nur die anonyme Index-Zeile.
-                if docker compose pull                    >"$DIR/.deploy.log" 2>&1 \
-                && docker compose up -d --force-recreate >>"$DIR/.deploy.log" 2>&1; then
-                  echo "✓ Instanz $IDX/$TOTAL aktualisiert."
-                else
-                  echo "⚠ Instanz $IDX/$TOTAL fehlgeschlagen (Details serverseitig in .deploy.log)."
-                  exit 1
-                fi
-              ) &
-              PIDS+=($!)
-            done
-
-            # Auf alle parallelen Deploys warten
-            FAILED=0
-            for pid in "${PIDS[@]}"; do
-              wait "$pid" || FAILED=$((FAILED + 1))
-            done
-
-            docker image prune -f >/dev/null 2>&1
-
-            if [ "$FAILED" -gt 0 ]; then
-              echo "⚠ $FAILED Instanz(en) fehlgeschlagen!"
-              exit 1
-            fi
-            echo "✓ Alle $TOTAL Instanzen aktualisiert."
+    if: ${{ inputs.deploy }}
+    # Ein `uses:`-Job darf KEIN Job-level `env:` haben (erlaubt sind nur name/uses/with/
+    # secrets/strategy/needs/if/concurrency/permissions) — die Inputs gehen deshalb über
+    # `with:`. Auch das workflow-level `env` oben ist im aufgerufenen Workflow unsichtbar.
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    # Serialisiert gegen promote.yml: zwei gleichzeitige `docker compose up -d` auf
+    # ~/instances wären ein Rennen um dieselben Container.
+    concurrency:
+      group: deploy-${{ github.repository }}
+      cancel-in-progress: false
+    with:
+      # NICHT `env.REGISTRY`/`env.IMAGE_NAME`: im `with:` eines `uses:`-Jobs ist der
+      # env-Kontext nicht verfügbar (erlaubt sind github/needs/inputs/vars/strategy/matrix) —
+      # der Wert käme leer an. Deshalb hier direkt aus dem github-Kontext.
+      image: ghcr.io/${{ github.repository }}
+      instances: ${{ inputs.instances }}
+      channel: ${{ inputs.channel }}
+      # Default: genau die Kanäle, die dieser Build bewegt hat (siehe Step „Bewegte Kanäle").
+      # Der explizite Input überschreibt das — nötig, wenn nach dem ALTEN Pin gefiltert und
+      # auf einen neuen umgepinnt wird (`channel=portal` + `pinnedTo=latest`).
+      pinnedTo: ${{ inputs.pinnedTo || needs.build-and-push.outputs.pins }}
