@@ -98,8 +98,10 @@ export interface SessionListResult extends Envelope {
    *  v7: `deviceCheck.status` kennt die neue Stufe „pending" (Erkennung läuft noch). Bis v6 meldete
    *  eine frisch eingereichte Kontrolle „not_checked" und wechselte Minuten später auf ein Ergebnis —
    *  ein v6-„not_checked" ist also nicht zwingend endgültig, ein v7-„not_checked" schon. Daneben
-   *  additiv: `verifikationFailure` nennt den Grund eines Nicht-Matches. */
-  schemaVersion: 7;
+   *  additiv: `verifikationFailure` nennt den Grund eines Nicht-Matches.   *  v8: `verifikationStatus` kann jetzt „not_required" sein — das getragene Gerät verlangt keinen
+   *  Kontroll-Code (`Device.requireInspectionCode: false`), es war also nichts zu prüfen. Bis v7
+   *  wäre derselbe Fall als `null` („unverifiziert") erschienen und hätte wie ein Fehlschlag gelesen. */
+  schemaVersion: 8;
   user: string;
   returnedCount: number;
   sessions: SessionView[];
@@ -233,7 +235,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   const notesByEntity = await notesForEntities(userId, selected.flatMap(refsOfSession), {}, undefined, timezone);
 
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     returnedCount: selected.length,

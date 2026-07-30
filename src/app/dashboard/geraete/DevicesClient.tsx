@@ -28,6 +28,8 @@ export interface DeviceRow {
   createdAt: string;
   archivedAt: string | null;
   entryCount: number;
+  /** Verlangt eine Kontrolle mit diesem Gerät den handschriftlichen Code im Foto? */
+  requireInspectionCode: boolean;
 }
 
 export interface CategoryOption {
@@ -44,9 +46,12 @@ interface Props {
   username?: string;
   /** When true, render a link to category management. Set by server based on feature flag. */
   showCategoriesLink?: boolean;
+  /** Darf der Betrachter die Kontroll-Code-Pflicht umstellen? Nur Keyholder/Admin — der Sub sieht den
+   *  Schalter, kann ihn aber nicht bedienen (die Route weist es ebenfalls ab). */
+  canEditInspectionCode?: boolean;
 }
 
-export default function DevicesClient({ devices: initialDevices, categories, userId, username, showCategoriesLink = false }: Props) {
+export default function DevicesClient({ devices: initialDevices, categories, userId, username, showCategoriesLink = false, canEditInspectionCode = false }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
   const apiError = useApiError();
@@ -162,6 +167,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
             device={editDevice}
             categories={categories}
             userId={userId}
+            canEditInspectionCode={canEditInspectionCode}
           />
         </div>
       </>

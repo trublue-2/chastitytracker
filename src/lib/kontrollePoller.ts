@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
-import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getLatestKgEntry, getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
@@ -82,6 +82,15 @@ async function processDue(): Promise<void> {
         // Notification selbst.
         const sealCode = deriveSealCode(latest);
 
+        // Verlangt das JETZT getragene Gerät einen Code? Diese Frage gehört an die Zustellung, nicht
+        // an die Planung: Auto-Kontrollen werden zu Tagesbeginn für den ganzen Tag gewürfelt, und
+        // welches Gerät um 15:40 verschlossen ist, weiss um Mitternacht niemand. Verlangt es keinen,
+        // wird der geplante Code hier verworfen — die Mail nennt dann keinen, und die Erfüllung läuft
+        // über „die eine offene Anforderung" (siehe entries-Route).
+        const code = (await inspectionCodeRequired(latest?.type === "VERSCHLUSS" ? latest.deviceId : null))
+          ? ka.code
+          : null;
+
         // Die Frist zählt ab dem Moment, in dem der Sub sie ERFÄHRT, nicht ab dem geplanten
         // Auslöse-Zeitpunkt (siehe deadlineFromDispatch). Im Normalfall sind das Sekunden Versatz.
         // Damit kann eine stark verspätete Frist in Randfällen ins Schlaf-Fenster ragen, das die
@@ -90,9 +99,11 @@ async function processDue(): Promise<void> {
         const sentAt = new Date();
         const deadline = deadlineFromDispatch(ka, sentAt);
 
-        await sendKontrolleNotification({ user: ka.user, code: ka.code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id });
-        // Frist mitschreiben: Mail, Strafbuch-Beurteilung und Eskalation müssen dieselbe lesen.
-        await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: sentAt, deadline } });
+        await sendKontrolleNotification({ user: ka.user, code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id });
+        // Frist UND Code mitschreiben: Mail, Strafbuch-Beurteilung, Eskalation und die Erfüllung
+        // müssen dieselben Werte lesen. Ein verworfener Code darf nicht in der Zeile stehenbleiben —
+        // sonst suchte die Erfüllung weiter nach einem Code, den der Sub nie bekommen hat.
+        await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: sentAt, deadline, code } });
       } catch (e) {
         // benachrichtigtAt bleibt null → nächster Lauf versucht es erneut.
         console.error(`[kontrollePoller] Auslösung fehlgeschlagen (${ka.id}):`, (e as Error).message);

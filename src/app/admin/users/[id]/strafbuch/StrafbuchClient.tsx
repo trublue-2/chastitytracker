@@ -32,7 +32,8 @@ export interface UnerlaubteOeffnungRow {
 
 export interface KontrollRow {
   id: string;
-  code: string;
+  /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+  code: string | null;
   deadlineStr: string;
   fulfilledAtStr: string | null;
   entryStartTimeStr: string | null;
@@ -396,7 +397,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             return (
               <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                 <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
-                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix} {k.code}</span>
+                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix}{k.code ? ` ${k.code}` : ""}</span>
                   {" — "}
                   <span className="text-warn font-normal">
                     {labels.strafbuchEingereicht} {k.fulfilledAtStr}
@@ -425,7 +426,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             return (
               <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                 <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
-                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix} {k.code}</span>
+                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix}{k.code ? ` ${k.code}` : ""}</span>
                   {" — "}
                   <span className="text-warn font-normal">
                     {labels.strafbuchAbgelehntAm} {k.entryStartTimeStr ?? k.deadlineStr}
@@ -450,7 +451,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             return (
               <div key={k.id} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                 <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
-                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix} {k.code}</span>
+                  <span className="font-mono text-[var(--color-inspect)]">{labels.strafbuchKontrollePrefix}{k.code ? ` ${k.code}` : ""}</span>
                   {" — "}
                   <span className="text-warn font-normal">
                     {labels.strafbuchAutoEntferntAm} {k.entryStartTimeStr ?? k.deadlineStr}

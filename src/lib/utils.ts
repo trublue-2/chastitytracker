@@ -431,7 +431,11 @@ export function isTimeCorrected(time: Date, submittedAt: Date | null | undefined
 }
 
 export type AnforderungStatus = "open" | "overdue" | "fulfilled" | "late" | "withdrawn" | "scheduled" | "missed";
-export type VerifikationStatus = "unverified" | "pending" | "ai" | "manual" | "rejected";
+/** `not_required`: diese Kontrolle hatte nichts zu verifizieren — das Gerät verlangt keinen Code
+ *  (`Device.requireInspectionCode: false`) und es lief auch keine Siegel-Prüfung. Bewusst ein eigener
+ *  Wert und nicht `unverified`: Letzteres heisst „geprüft und nicht bestätigt" und liest sich in der
+ *  Liste wie ein Fehlschlag. Und nicht `ai`/`manual`: bestätigt wurde nichts. */
+export type VerifikationStatus = "unverified" | "not_required" | "pending" | "ai" | "manual" | "rejected";
 
 /** True if a deadline passed without a timely completion — completed after the deadline, or not
  *  yet completed and the deadline is already past. Shared primitive behind the Kontrolle "late"
@@ -467,6 +471,7 @@ export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
   if (vs === "manual") return "manual";
   if (vs === "rejected") return "rejected";
   if (vs === "pending") return "pending";
+  if (vs === "not_required") return "not_required";
   return "unverified";
 }
 
@@ -831,7 +836,9 @@ export function calculateWearingHoursByRange<
 }
 
 type KontrollAnforderungIn = {
-  id: string; code: string; deadline: Date; kommentar: string | null;
+  id: string; deadline: Date; kommentar: string | null;
+  /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+  code: string | null;
   fulfilledAt: Date | null; createdAt: Date; withdrawnAt: Date | null; entryId: string | null;
   wirksamAb?: Date | null;
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).

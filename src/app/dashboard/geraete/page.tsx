@@ -22,6 +22,7 @@ export default async function DevicesPage() {
         categoryId: true,
         createdAt: true,
         archivedAt: true,
+        requireInspectionCode: true,
         _count: { select: { entries: true } },
       },
     }),
@@ -46,9 +47,11 @@ export default async function DevicesPage() {
           archivedAt: d.archivedAt?.toISOString() ?? null,
           createdAt: d.createdAt.toISOString(),
           entryCount: d._count.entries,
+          requireInspectionCode: d.requireInspectionCode,
         }))}
         categories={categories}
         showCategoriesLink={deviceCategoriesEnabled()}
+        canEditInspectionCode={session.user.role === "admin"}
       />
     </main>
   );

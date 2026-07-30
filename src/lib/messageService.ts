@@ -32,8 +32,11 @@ export const MESSAGE_BODY_KEYS = [
   "inspectionRejectedMessage",
   "inspectionResolvedWithdrawnMessage",
   "inspectionReminderMessage",
+  "inspectionReminderMessageNoCode",
   "inspectionAutoRemovedMessageSub",
+  "inspectionAutoRemovedMessageSubNoCode",
   "inspectionAutoRemovedMessageKeyholder",
+  "inspectionAutoRemovedMessageKeyholderNoCode",
   // Verschluss / Sperrzeit
   "lockRequestBody",
   "lockPeriodSetBody",

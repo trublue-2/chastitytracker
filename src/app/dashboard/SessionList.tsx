@@ -165,7 +165,10 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             exifStr: null,
             note: k.note,
             entryId: k.entryId,
-            captureHref: !k.entryId && k.code ? `/dashboard/new/pruefung?code=${k.code}` : null,
+            // Der Erfassen-Weg hängt am OFFEN-Sein, nicht am Code: eine Kontrolle ohne Code (Gerät
+            // mit `requireInspectionCode: false`) ist genauso zu beantworten — sie verlöre sonst
+            // ihren einzigen Knopf.
+            captureHref: !k.entryId ? `/dashboard/new/pruefung${k.code ? `?code=${k.code}` : ""}` : null,
             captureDisabled: keyholderView,
             deadlineStr: k.deadline ? formatDateTime(k.deadline, dl, tz) : null,
             isOverdue: k.anforderungStatus === "overdue",

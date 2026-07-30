@@ -149,8 +149,12 @@ export interface DashboardResult extends Envelope {
    *  v6: mehrere Einschliess-Anforderungen dürfen koexistieren. `nextRelevant.openLockRequest` ist
    *  damit nicht mehr „DIE offene", sondern die DRINGENDSTE (frühste Frist) von möglicherweise
    *  mehreren — vollständig stehen sie in `nextRelevant.openLockRequests`. Ein Wert aus v5 sagte
-   *  „es gibt genau diese eine"; das lässt sich rückwirkend nicht mehr behaupten. */
-  schemaVersion: 6;
+   *  „es gibt genau diese eine"; das lässt sich rückwirkend nicht mehr behaupten.
+   *  v7: `nextRelevant.openControl.code` kann jetzt `null` sein — das getragene Gerät kann von der
+   *  Code-Pflicht befreit sein (`Device.requireInspectionCode: false`). Bis v6 war der Code immer eine
+   *  Zahl; ein `null` heisst NICHT „Code unbekannt", sondern „diese Kontrolle hat keinen". Sie wird
+   *  dann durch das eingereichte Foto erfüllt, nicht durch einen Code-Vergleich. */
+  schemaVersion: 7;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -516,7 +520,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,

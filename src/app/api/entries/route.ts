@@ -3,9 +3,8 @@ import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { markLastAction } from "@/lib/appMeta";
-import { verifyKontrolleCodeDeduped } from "@/lib/verifyCache";
 import { detectKeyInBox } from "@/lib/verifyCode";
-import { deriveSealCode } from "@/lib/kontrolleService";
+import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrolleService";
 import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
@@ -14,6 +13,7 @@ import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
+import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
@@ -81,6 +81,9 @@ export async function POST(req: NextRequest) {
   let withdrawnSperrzeit = false;
   let lockStartTime: Date | null = null;
   let requiredAnforderungDeviceIds: string[] = [];
+  // In der Transaktion abgeleitet (braucht den Lock-Eintrag), NACH dem Commit für die eigentliche
+  // Prüfung wiederverwendet — deshalb hier draussen. null = keine PRUEFUNG mit Foto.
+  let verification: InspectionVerification | null = null;
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
@@ -114,11 +117,21 @@ export async function POST(req: NextRequest) {
         withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx, "user");
       }
 
-      // PRUEFUNG mit Foto+Code durchläuft danach die async KI-Verifikation (siehe unten) — bis die
-      // fertig ist, soll die UI "Verifizierung läuft" statt "Nicht verifiziert" zeigen. Ohne Foto/Code
-      // findet nie eine Verifikation statt → bleibt korrekt bei null ("unverified").
-      const initialVerifikationStatus =
-        type === "PRUEFUNG" && imageUrl && kontrollCode ? "pending" : null;
+      // Was an dieser Einreichung zu prüfen ist — EINE Ableitung für den Startwert unten, für die
+      // Prüfung nach dem Commit und für die Art der Erfüllung. Braucht den Lock-Eintrag (getragenes
+      // Gerät + aktives Siegel); für Nicht-PRUEFUNG gibt es nichts zu holen und nichts zu prüfen.
+      const lock = type === "PRUEFUNG" && imageUrl ? await getLatestKgEntry(session.user.id, tx) : null;
+      const lockedDeviceId = lock?.type === "VERSCHLUSS" ? lock.deviceId : null;
+      verification = lock
+        ? plannedVerification({
+            submittedCode: kontrollCode,
+            codeRequired: await inspectionCodeRequired(lockedDeviceId, tx),
+            sealCode: deriveSealCode(lock),
+          })
+        : null;
+      // "pending" nur, wenn danach wirklich eine Prüfung läuft, die es ersetzt (siehe unten);
+      // "not_required", wenn das Gerät gar keinen Code verlangt und kein Siegel aktiv ist.
+      const initialVerifikationStatus = verification ? initialVerificationStatus(verification) : null;
       // Dasselbe für den Geräte-Check, der ebenfalls erst nach dem Commit läuft. Die Bedingung kommt
       // aus deviceCheckService — derselbe Ausdruck entscheidet unten, ob der Lauf gestartet wird, der
       // dieses "pending" wieder abräumen MUSS. Zwei getrennt hingeschriebene Bedingungen könnten
@@ -151,14 +164,50 @@ export async function POST(req: NextRequest) {
       // KontrollAnforderung verknüpfen + fulfilledAt server-seitig setzen (unveränderlich).
       // Nur bereits AUSGELÖSTE Anforderungen (wirksamAb erreicht) — sonst könnte ein zufällig
       // kollidierender Selbstkontroll-Code eine noch unsichtbare, geplante Auto-Kontrolle erfüllen.
-      if (type === "PRUEFUNG" && kontrollCode) {
-        await tx.kontrollAnforderung.updateMany({
-          where: {
-            userId: session.user.id, code: kontrollCode, entryId: null, withdrawnAt: null,
-            ...aktiveKontrolleWhere(),
-          },
-          data: { entryId: created.id, fulfilledAt: new Date() },
-        });
+      //
+      // ZWEI Zuordnungswege, und der Unterschied ist der Kern des Geräte-Toggles:
+      //
+      // 1. Mit Code-Pflicht ist der Code der SCHLÜSSEL — er sagt, WELCHE Anforderung dieses Foto
+      //    beantwortet. Ohne passenden Code wird nichts erfüllt; eine freiwillige Selbstkontrolle
+      //    lässt eine offene Anforderung also unberührt.
+      // 2. Ohne Code-Pflicht gibt es keinen Schlüssel. Dann beantwortet das Foto die EINE offene
+      //    Anforderung — es gibt nie mehr als eine (requestKontrolle lehnt eine zweite mit
+      //    INSPECTION_ALREADY_ACTIVE ab, der Poller zieht überschneidende Auto-Kontrollen zurück).
+      //    Damit erfüllt hier auch eine freiwillig erfasste Kontrolle die offene Anforderung — das
+      //    ist gewollt: ohne Code ist eine „freiwillige" von einer „beantworteten" nicht mehr zu
+      //    unterscheiden, und die Einreichung ist da.
+      //
+      // `orderBy deadline asc` + `take 1` statt updateMany: sollte der Überschneidungs-Schutz doch
+      // einmal zwei Zeilen durchlassen (er ist ein Best-Effort-Read-then-Write, siehe
+      // requestKontrolle), erfüllt ein Foto genau EINE — die dringendste — statt beide auf einmal.
+      if (type === "PRUEFUNG" && verification) {
+        const openWhere = {
+          userId: session.user.id, entryId: null, withdrawnAt: null,
+          ...aktiveKontrolleWhere(),
+        };
+        // Der Rundum-Weg trifft NUR Anforderungen, die selbst ohne Code entstanden sind (`code: null`).
+        // Ohne diese Schranke wäre der Toggle ein Umweg um eine bestehende Kontrolle: eine Anforderung
+        // MIT Code, gestellt während ein Code-Gerät getragen wurde, liesse sich erfüllen, indem der Sub
+        // aufschliesst, ein Gerät ohne Code-Pflicht anlegt und ein blankes Foto einreicht — der Code
+        // wäre nie getippt und nie geprüft worden. Ob ein Code verlangt wird, entscheidet das
+        // Gerät zur EINREICHUNG; welchen Nachweis eine Anforderung verlangt, steht in IHR.
+        const target =
+          verification.kind === "code"
+            ? await tx.kontrollAnforderung.findFirst({ where: { ...openWhere, code: verification.code }, select: { id: true } })
+            : verification.kind === "none" && verification.codeRequired
+              // Freiwillige Selbstkontrolle an einem Gerät MIT Code-Pflicht: erfüllt nichts.
+              ? null
+              : await tx.kontrollAnforderung.findFirst({
+                  where: { ...openWhere, code: null },
+                  orderBy: { deadline: "asc" },
+                  select: { id: true },
+                });
+        if (target) {
+          await tx.kontrollAnforderung.update({
+            where: { id: target.id },
+            data: { entryId: created.id, fulfilledAt: new Date() },
+          });
+        }
       }
 
       // VerschlussAnforderung (ANFORDERUNG) als erfüllt markieren + ggf. SPERRZEIT erstellen
@@ -285,9 +334,9 @@ export async function POST(req: NextRequest) {
 
   markLastAction();
 
-  // Beide Fire-and-forget-Blöcke unten (Geräte-Check + KI-Verifikation) brauchen denselben letzten
-  // Lock-Entry — einmal laden, teilen (spart einen SQLite-Roundtrip je PRUEFUNG-Foto). getLatestKgEntry
-  // liefert type + deviceId (Geräte-Check) + kontrollCode (via deriveSealCode für die Siegel-Prüfung).
+  // Der Geräte-Check braucht den letzten Lock-Entry (welches Gerät ist verschlossen?). Die
+  // Foto-Verifikation braucht ihn NICHT mehr: was sie zu prüfen hat, steht in `verification`, und das
+  // wurde in der Transaktion aus demselben Eintrag abgeleitet — dort, wo es konsistent ist.
   const latestLockPromise =
     type === "PRUEFUNG" && imageUrl ? getLatestKgEntry(session.user.id) : null;
 
@@ -446,53 +495,19 @@ export async function POST(req: NextRequest) {
     } catch { /* ignore notification errors */ }
   })();
 
-  // Server-side AI verification for PRUEFUNG entries — never trusted from client.
-  // Fire-and-forget (blockiert die Antwort NICHT, konsistent zum Geräte-Check oben): der Eintrag ist
-  // bereits committed mit verifikationStatus:"pending" ("Verifizierung läuft" in der UI, siehe oben).
-  // WICHTIG: das Ergebnis muss IMMER zurückgeschrieben werden — auch bei null (kein Code erkannt/kein
-  // Match, der häufigste Fall) und bei einer Exception — sonst bleibt der Eintrag für immer auf
-  // "pending" hängen. null → "unverified" (Keyholder kann manuell verifizieren); "rejected" wird nie
-  // automatisch gesetzt, nur vom Admin (siehe kontrolleService.ts resolveKontrolle).
-  if (type === "PRUEFUNG" && imageUrl && kontrollCode) {
-    const entryId = entry.id;
-    const photoUrl = imageUrl;
-    const code = kontrollCode;
-    // Respect the user's photo rotation — otherwise rotated images fail server-side verify
-    // even though the client preview matched.
-    const safeRotation: Rotation = VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0;
-    (async () => {
-      let status: "ai" | null = null;
-      let reason: string | null = null;
-      let reasonDetected: string | null = null;
-      try {
-        // Aktive Siegel-Nummer server-seitig ableiten (nie vom Client): bei aktivem Siegel müssen
-        // Kontroll-Code UND Siegel-Nummer im Foto lesbar sein (Dual-Prüfung). Lock-Entry geteilt
-        // mit dem Geräte-Check (latestLockPromise).
-        const result = await verifyKontrolleCodeDeduped(session.user.id, photoUrl, code, safeRotation, deriveSealCode(await latestLockPromise));
-        status = result?.match ? "ai" : null;
-        // Persist WHY it didn't match, so "Unverified" isn't a dead end for the keyholder/admin
-        // (see src/lib/kontrollen.ts mapKontrolleRow + AdminKontrolleListClient).
-        if (result && !result.match) {
-          reason = result.reason ?? null;
-          // Nur *Wrong-Gründe interpolieren {detected} (siehe formatVerifyReason) — bei *Missing
-          // gäbe es sonst einen irreführenden Wert in der DB, der nie gerendert wird.
-          reasonDetected =
-            reason === "codeWrong" ? result.detected
-            : reason === "sealWrong" ? (result.sealDetected ?? null)
-            : null;
-        }
-      } catch (err) {
-        console.error("[POST /api/entries] AI verification failed for entry", entryId, err);
-      }
-      try {
-        await prisma.entry.update({
-          where: { id: entryId },
-          data: { verifikationStatus: status, verifikationReason: reason, verifikationReasonDetected: reasonDetected },
-        });
-      } catch (err) {
-        console.error("[POST /api/entries] verifikationStatus write failed for entry", entryId, err);
-      }
-    })();
+  // Foto-Verifikation (Code bzw. nur Siegel) — der Vorgang inkl. der Pflicht, das oben gesetzte
+  // "pending" durch einen Endzustand zu ersetzen, liegt in inspectionVerificationService. Hier steht
+  // nur der Start, und `verification` ist derselbe Wert, der oben den Startwert bestimmt hat.
+  if (verification && imageUrl) {
+    void runInspectionVerification({
+      entryId: entry.id,
+      userId: session.user.id,
+      photoUrl: imageUrl,
+      // Die Foto-Drehung des Nutzers respektieren — sonst scheitert die Server-Prüfung an einem
+      // gedrehten Bild, das in der Client-Vorschau gematcht hat.
+      rotation: VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0,
+      verification,
+    });
   }
 
   // Schlüssel-Erkennung auf dem Box-Foto — wie die Code-Verifikation server-seitig und

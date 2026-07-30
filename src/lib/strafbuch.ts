@@ -7,7 +7,8 @@ import { hhmmToMinutes } from "@/lib/autoKontrolleService";
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
   id: string;
-  code: string;
+  /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+  code: string | null;
   deadline: Date;
   fulfilledAt: Date | null;
   entryStartTime: Date | null;

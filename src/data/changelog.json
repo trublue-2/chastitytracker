@@ -1,5 +1,46 @@
 [
   {
+    "version": "4.58.0",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neu pro Gerät einstellbar: ob eine Kontrolle den handschriftlichen Code im Foto verlangt. Ist er abgeschaltet, kommt die Anforderung ohne Code — Mail, Push und Formular fragen keinen ab, und es genügt das Foto. Umstellen kann das nur dein Keyholder; du siehst den Schalter, kannst ihn aber nicht bedienen. Für alle anderen Geräte bleibt alles wie bisher.",
+          "en": "New per-device setting: whether an inspection requires the handwritten code in the photo. With it off, the request comes without a code — mail, push and the form ask for none, and the photo is enough. Only your keyholder can change it; you can see the switch but not operate it. For every other device nothing changes."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Bei einem Gerät ohne Code erfüllt auch eine selbst erfasste Kontrolle die offene Anforderung. Ohne Code ist eine freiwillige Aufnahme von einer angeforderten nicht mehr zu unterscheiden — und die Einreichung liegt vor.",
+          "en": "On a device without a code, an inspection you record yourself also fulfils the open request. Without a code there is no telling a voluntary photo from a requested one — and the submission is there."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Kontrollen, bei denen nichts zu prüfen war, stehen jetzt als „Kein Code nötig“ da statt als „Unverifiziert“. Letzteres heisst geprüft-und-nicht-bestätigt und sah wie ein Fehlschlag aus.",
+          "en": "Inspections with nothing to verify now show as “No code required” instead of “Unverified”. The latter means checked-and-not-confirmed and looked like a failure."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Ein Gerät ohne Code-Pflicht ist kein Umweg um eine bestehende Kontrolle: eine Anforderung, die mit Code gestellt wurde, verlangt ihn weiterhin. Sie liesse sich sonst erfüllen, indem man aufschliesst, ein Gerät ohne Code-Pflicht anlegt und ein blankes Foto einreicht.",
+          "en": "A device without a code requirement is not a way around an existing inspection: a request issued with a code still needs it. Otherwise it could be satisfied by unlocking, putting on a code-free device and submitting a blank photo."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ist bei einer Kontrolle ohne Code die Schlüsselbox versiegelt, wird weiterhin die Siegelnummer im Foto geprüft. Sie beweist etwas anderes als der Code — dass die Box unberührt ist — und fällt mit ihm nicht weg.",
+          "en": "If the key box is sealed, the seal number is still checked in the photo for a code-free inspection. It proves something different from the code — that the box is untouched — and does not disappear with it."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.57.2",
     "date": "2026-07-30",
     "changes": [

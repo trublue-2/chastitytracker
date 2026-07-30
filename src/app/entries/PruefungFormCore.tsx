@@ -55,6 +55,9 @@ interface Props {
   initialKommentar?: string;
   /** Aktives Siegel: die Siegel-Nummer muss zusätzlich zum Code auf dem Foto lesbar sein. */
   sealRequired?: boolean;
+  /** Verlangt das getragene Gerät einen Kontroll-Code? false → weder Anzeige noch Eingabefeld, und
+   *  es wird keiner mitgeschickt. Default true = Bestandsverhalten. */
+  codeRequired?: boolean;
   mobileDesktopMode?: boolean;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster, das den Schlüssel zeigt.
    *  Nur beim Neuanlegen — beim Bearbeiten wird kein Nachweis nachgereicht. */
@@ -68,7 +71,7 @@ interface Props {
 }
 
 export default function PruefungFormCore({
-  initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, mobileDesktopMode,
+  initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired = true, mobileDesktopMode,
   boxConfirm = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
@@ -190,7 +193,9 @@ export default function PruefungFormCore({
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
       note: note.trim() || null,
-      kontrollCode: kontrollCode || null,
+      // Ohne Code-Pflicht keinen mitschicken: die Anforderung hat keinen, es gäbe nichts zu
+      // vergleichen — und ein Wert hier liesse den Server einen Code-Vergleich versuchen.
+      kontrollCode: codeRequired ? (kontrollCode || null) : null,
       verifikationStatus: aiMatch === true ? "ai" : null,
       imageRotation: rotation,
       ...(boxConfirm && boxPhoto.imageUrl ? { boxImageUrl: boxPhoto.imageUrl, boxImageRotation: boxPhoto.rotation } : {}),
@@ -296,7 +301,11 @@ export default function PruefungFormCore({
         </Card>
       )}
 
-      {!hasPrefilledCode && (
+      {!codeRequired && (
+        <p className="text-xs text-foreground-muted">{t("noCodeNeeded")}</p>
+      )}
+
+      {!hasPrefilledCode && codeRequired && (
         <Input
           label={t("controlCode")}
           hint={t("controlCodeHint")}

@@ -65,8 +65,10 @@ export interface EntryList extends Envelope {
    *  für gespeicherte Alt-Einträge — ein v2-„wrong" ohne `detected` kann in v3 „not_checked" sein.
    *  v4: neue Stufe `deviceCheck.status: "pending"` (Erkennung läuft noch). Bis v3 war eine frisch
    *  eingereichte Kontrolle von einer fertig-geprüften ohne Befund nicht zu unterscheiden — beide
-   *  „not_checked"; ab v4 ist „not_checked" endgültig. Additiv daneben: `verifikationFailure`. */
-  schemaVersion: 4;
+   *  „not_checked"; ab v4 ist „not_checked" endgültig. Additiv daneben: `verifikationFailure`.   *  v5: `verifikationStatus` kann jetzt „not_required" sein — das getragene Gerät verlangt keinen
+   *  Kontroll-Code (`Device.requireInspectionCode: false`), es war also nichts zu prüfen. Bis v4
+   *  wäre derselbe Fall als `null` („unverifiziert") erschienen und hätte wie ein Fehlschlag gelesen. */
+  schemaVersion: 5;
   user: string;
   /** Total entries matching the filter, before the limit is applied. */
   totalCount: number;
@@ -101,7 +103,7 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
   ]);
 
   return {
-    schemaVersion: 4 as const,
+    schemaVersion: 5 as const,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     totalCount,

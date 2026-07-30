@@ -60,7 +60,8 @@ type PruefungEntry = {
 
 type KontrollAnforderung = {
   id: string;
-  code: string;
+  /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+  code: string | null;
   deadline: Date;
   createdAt: Date;
   fulfilledAt: Date | null;

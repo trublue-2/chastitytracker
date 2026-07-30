@@ -110,6 +110,11 @@ zählt. Es ist immer nur EINE Direktive aktiv; Erfüllung automatisch bei passen
   `verifikationFailure` (`reason`: codeMissing = kein Code lesbar · codeWrong = andere Ziffern
   gelesen (`detected`) · sealMissing/sealWrong analog fürs Siegel). Ohne diesen Grund ist `null`
   nicht deutbar: ein unlesbares Foto sieht dann aus wie ein falscher Code.
+- `verifikationStatus: "not_required"` heisst: es war NICHTS zu prüfen. Das getragene Gerät verlangt
+  keinen Kontroll-Code (`Device.requireInspectionCode: false`), und es lief auch keine Siegel-Prüfung.
+  Nicht mit `null` („unverifiziert" — geprüft und nicht bestätigt) und nicht mit `ai`/`manual`
+  (bestätigt) verwechseln. Solche Kontrollen werden durch das eingereichte Foto erfüllt, nicht durch
+  einen Code-Vergleich; ihr `code` ist `null`.
 - `windowOpenNow: null` = kein Fenster offen, NICHT „Öffnen verboten" (die Antwort ist `openingAllowedNow`).
 - `pullOffRisk`: `true` = abstreifbar/unsicher, `false` = geprüft sicher, `null` = nie beurteilt.
 - `securityLevel` (SECURING/TRUST_ONLY) ist v.a. für sichernde Geräte (KG, Halsreif) sinnvoll; `null`

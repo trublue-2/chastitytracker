@@ -16,7 +16,8 @@ import { inspectionHelpUrl } from "@/lib/constants";
 export interface DashboardAlertsProps {
   offeneKontrolle: {
     deadline: string;
-    code: string;
+    /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+    code: string | null;
     kommentar: string | null;
     overdue: boolean;
     href: string;

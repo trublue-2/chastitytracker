@@ -68,25 +68,111 @@ export function deriveSealCode(latest: { type: string; kontrollCode: string | nu
 /** Die Siegel-Nummer, die bei der Kontrolle ZUSÄTZLICH zum Kontroll-Code auf dem Foto lesbar sein
  *  muss — oder null. Legacy-Zeilen (Siegel == Code, aus der Zeit vor der Zufallscode-Umstellung)
  *  liefern null: der Code IST dort die Siegel-Nummer, keine Dual-Prüfung. Single source der
- *  „Siegel ≠ Code"-Regel für alle Aufrufer (Mail-Text, Formular-Hinweis). */
-export function requiredSealCode(code: string, sealCode: string | null): string | null {
+ *  „Siegel ≠ Code"-Regel für alle Aufrufer (Mail-Text, Formular-Hinweis).
+ *
+ *  `code: null` (Gerät ohne Code-Pflicht) → das Siegel ist das EINZIGE, was im Foto lesbar sein muss.
+ *  Die Bedingung `sealCode !== code` trifft das von selbst: ohne Code kann nichts mit ihm
+ *  zusammenfallen. Das Siegel bleibt also unabhängig vom Toggle bestehen — es beweist etwas anderes
+ *  als der Code, nämlich dass die Schlüsselbox unberührt ist. */
+export function requiredSealCode(code: string | null, sealCode: string | null): string | null {
   return sealCode && sealCode !== code ? sealCode : null;
 }
 
-/** Verlangt eine Kontrolle mit diesem Code ZUSÄTZLICH die Siegel-Nummer im Foto? True, wenn ein
- *  aktives Siegel existiert, das vom Code abweicht. Bündelt die Kette (Lock-Entry → deriveSealCode →
- *  requiredSealCode) für Formular-Hinweis (Neuanlage + Edit) — eine Regel, eine Stelle. `latest` wird
- *  übergeben (kein interner Query), damit Aufrufer ihr bestehendes Fetch/Batch behalten. */
+/** Muss die Siegel-Nummer im Foto lesbar sein? Bündelt die Kette (Lock-Entry → deriveSealCode →
+ *  requiredSealCode) für den Formular-Hinweis (Neuanlage + Edit) — eine Regel, eine Stelle. `latest`
+ *  wird übergeben (kein interner Query), damit Aufrufer ihr bestehendes Fetch/Batch behalten.
+ *
+ *  Der Fall `code: null` verzweigt an `codeRequired`, und die Unterscheidung ist nötig:
+ *  - Gerät OHNE Code-Pflicht: das Siegel ist das Einzige, was gelesen werden muss → true, sobald eines
+ *    aktiv ist. (Früher gab ein `!!code`-Guard hier blind `false` zurück und widersprach damit dem
+ *    Vertrag von `requiredSealCode`, das genau diesen Fall abdeckt.)
+ *  - Gerät MIT Code-Pflicht, aber kein Code eingereicht (freiwillige Selbstkontrolle): es wird gar
+ *    nichts geprüft, also auch kein Siegel verlangt → false. */
 export function sealRequiredForCode(
   code: string | null | undefined,
   latest: { type: string; kontrollCode: string | null } | null,
+  codeRequired = true,
 ): boolean {
-  return !!code && requiredSealCode(code, deriveSealCode(latest)) !== null;
+  if (codeRequired && !code) return false;
+  return requiredSealCode(code ?? null, deriveSealCode(latest)) !== null;
 }
 
 /** Frische 5-stellige Kontroll-Code-Nummer (10000–99999). */
 export function generateKontrollCode(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
+}
+
+/**
+ * Verlangt eine Kontrolle mit DIESEM Gerät den handschriftlichen Code im Foto?
+ *
+ * Gefragt wird das Gerät am aktiven VERSCHLUSS-Eintrag — also das, das der Sub gerade trägt. Die
+ * Antwort entscheidet zwei Dinge zugleich: ob die Anforderung überhaupt einen Code bekommt, und
+ * (in der entries-Route) ob die Erfüllung über den Code-Vergleich oder über „die eine offene
+ * Anforderung" läuft. Deshalb EINE Funktion und nicht zwei Abfragen.
+ *
+ * `true` als Vorgabe in allen Zweifelsfällen — kein Gerät am Verschluss (Alt-Eintrag, Admin-Pfad),
+ * Gerät nicht mehr auffindbar: das ist das Bestandsverhalten, und eine fehlende Information ist kein
+ * Grund, eine Kontrolle zu entschärfen.
+ */
+export async function inspectionCodeRequired(
+  deviceId: string | null,
+  client: PrismaTx | typeof prisma = prisma,
+): Promise<boolean> {
+  if (!deviceId) return true;
+  const device = await client.device.findUnique({
+    where: { id: deviceId },
+    select: { requireInspectionCode: true },
+  });
+  return device?.requireInspectionCode ?? true;
+}
+
+/**
+ * Was an einem eingereichten Kontroll-Foto überhaupt zu prüfen ist.
+ *
+ * Drei Fälle, und die Unterscheidung trägt drei Entscheidungen der entries-Route: den Startwert von
+ * `verifikationStatus`, welche Prüfung nach dem Commit läuft, und ob die Anforderung über den
+ * Code-Vergleich oder über „die eine offene" erfüllt wird. Als EIN Wert, damit die drei nicht
+ * auseinanderlaufen können.
+ *
+ * - `code`: der Normalfall. Der Code muss im Foto lesbar sein, ein aktives Siegel zusätzlich.
+ * - `seal`: das Gerät verlangt keinen Code, aber die Schlüsselbox ist versiegelt. Dann ist die
+ *   Siegel-Nummer das Einzige, was gelesen werden muss — sie beweist etwas anderes als der Code
+ *   (Box unberührt) und fällt mit ihm nicht weg.
+ * - `none`: nichts zu lesen. `codeRequired` unterscheidet dabei zwei sehr verschiedene Gründe:
+ *   eine freiwillige Selbstkontrolle ohne Code an einem Gerät, das einen verlangt (→ Status bleibt
+ *   „unverifiziert", es hätte einer sein sollen), gegen ein Gerät ohne Code-Pflicht (→ `not_required`,
+ *   es war nie einer vorgesehen).
+ */
+export type InspectionVerification =
+  | { kind: "code"; code: string; sealCode: string | null }
+  | { kind: "seal"; sealCode: string }
+  | { kind: "none"; codeRequired: boolean };
+
+/** Leitet aus Einreichung + Geräte-Regel + Siegel ab, was zu prüfen ist. Pure — der Aufrufer hat
+ *  Lock-Eintrag und Geräte-Regel schon geladen. */
+export function plannedVerification(opts: {
+  /** Der vom Sub eingetippte Code (leer/null = keiner eingereicht). */
+  submittedCode: string | null | undefined;
+  /** Verlangt das getragene Gerät einen Code? Siehe {@link inspectionCodeRequired}. */
+  codeRequired: boolean;
+  /** Aktive Siegel-Nummer der Schlüsselbox, siehe {@link deriveSealCode}. */
+  sealCode: string | null;
+}): InspectionVerification {
+  const { submittedCode, codeRequired, sealCode } = opts;
+  if (codeRequired && submittedCode) {
+    return { kind: "code", code: submittedCode, sealCode };
+  }
+  // Ohne Code-Pflicht zählt ein trotzdem mitgeschickter Code NICHT: die Anforderung hat keinen, es
+  // gäbe nichts zu vergleichen. Bleibt das Siegel, falls eines aktiv ist.
+  if (!codeRequired && sealCode) return { kind: "seal", sealCode };
+  return { kind: "none", codeRequired };
+}
+
+/** Der `verifikationStatus`, mit dem der Eintrag ANGELEGT wird — `pending` nur, wenn danach wirklich
+ *  eine Prüfung läuft, die ihn ersetzt. Gegenstück zur Auswertung nach dem Commit. */
+export function initialVerificationStatus(v: InspectionVerification): "pending" | "not_required" | null {
+  if (v.kind !== "none") return "pending";
+  return v.codeRequired ? null : "not_required";
 }
 
 /** True, wenn der User eine LAUFENDE Kontrolle hat — angelegt, nicht erfüllt, nicht zurückgezogen,
@@ -141,7 +227,7 @@ export interface RequestKontrolleParams {
  */
 export async function requestKontrolle(
   params: RequestKontrolleParams,
-): Promise<ServiceResult<{ code: string; deadline: string; scheduledFor: string | null }>> {
+): Promise<ServiceResult<{ code: string | null; deadline: string; scheduledFor: string | null }>> {
   const { userId, kommentar, deadlineH, delayMinutes } = params;
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
 
@@ -156,7 +242,7 @@ export async function requestKontrolle(
   // Frist läuft ab Auslösung (bei sofort = jetzt, bei geplant = wirksamAb).
   const deadline = new Date((wirksamAb ?? now).getTime() + hours * 60 * 60 * 1000);
 
-  let code: string;
+  let code: string | null;
   let sealCode: string | null;
   let controlId: string;
   // Wurf- und Fang-Seite hängen an derselben Tabelle: `fail()` akzeptiert nur Codes, die unten
@@ -184,10 +270,17 @@ export async function requestKontrolle(
         throw fail("ALREADY_ACTIVE");
       }
 
-      // Immer frischer Zufallscode (Frische-Beweis) — die Siegel-Nummer wird bei der
-      // Verifikation ZUSÄTZLICH geprüft, nicht mehr als Kontroll-Code wiederverwendet.
+      // Frischer Zufallscode (Frische-Beweis) — die Siegel-Nummer wird bei der Verifikation
+      // ZUSÄTZLICH geprüft, nicht mehr als Kontroll-Code wiederverwendet.
+      //
+      // Ausser das verschlossene Gerät verlangt keinen (`requireInspectionCode: false`): dann
+      // entsteht die Anforderung OHNE Code. Das Gerät steht am Lock-Entry, ist hier also schon
+      // geladen — der User muss für eine Kontrolle verschlossen sein (Guard oben), es gibt zum
+      // Anforderungs-Zeitpunkt somit immer genau ein zuständiges Gerät. Ohne Gerät (Alt-Verschluss)
+      // bleibt es beim Code: das ist das Bestandsverhalten, und ein fehlendes Gerät ist kein Grund,
+      // eine Kontrolle zu entschärfen.
       const seal = deriveSealCode(latest);
-      const c = generateKontrollCode();
+      const c = (await inspectionCodeRequired(latest.deviceId, tx)) ? generateKontrollCode() : null;
 
       const ka = await tx.kontrollAnforderung.create({
         data: {
@@ -253,11 +346,15 @@ export function inspectionIntro(t: EmailTranslator, msLeft: number): string {
  * `sealCode` = aktive Siegel-Nummer (oder null): weicht sie vom Code ab, verlangt die Mail
  * zusätzlich das Siegel auf dem Foto; ist sie gleich dem Code (Legacy-Zeilen von vor der
  * Zufallscode-Umstellung), bleibt das alte „Siegel-Nummer"-Label.
+ * `code: null` → Mail und Push nennen keinen Code; verlangt bleibt das Foto (und, falls ein Siegel
+ * aktiv ist, dessen Nummer).
  * No-op if the user has no e-mail. Push is fire-and-forget.
  */
 export async function sendKontrolleNotification(opts: {
   user: { id: string; email: string | null; username: string; locale: string };
-  code: string;
+  /** null = diese Kontrolle verlangt keinen Code (Gerät mit `requireInspectionCode: false`). Mail und
+   *  Push nennen dann keinen, und der Link führt ohne vorbelegtes Feld aufs Formular. */
+  code: string | null;
   sealCode: string | null;
   kommentar: string | null;
   deadline: Date;
@@ -291,13 +388,25 @@ export async function sendKontrolleNotification(opts: {
   const intro = inspectionIntro(t, deadline.getTime() - Date.now());
   const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
 
-  const kommentarParam = kommentar ? `&kommentar=${encodeURIComponent(kommentar)}` : "";
-  const link = `${appBaseUrl()}/dashboard/new/pruefung?code=${code}${kommentarParam}`;
+  // Query aus Teilen bauen statt zusammenstückeln: ohne Code fiele bei einem handgeschriebenen
+  // `?code=…&kommentar=…` das erste Trennzeichen weg und der Kommentar landete am `?`-Platz.
+  const params = new URLSearchParams();
+  if (code) params.set("code", code);
+  if (kommentar) params.set("kommentar", kommentar);
+  const query = params.toString();
+  const formPath = `/dashboard/new/pruefung${query ? `?${query}` : ""}`;
+  const link = `${appBaseUrl()}${formPath}`;
   const helpUrl = inspectionHelpUrl(locale);
   const deadlineStr = formatDateTime(deadline);
   const codeLabel = sealCode && !sealRequired
     ? t("inspectionCodeLabelSeal")
     : t("inspectionCodeLabelControl");
+  // Ohne Code die grosse Ziffern-Kachel weglassen und stattdessen sagen, dass keiner nötig ist —
+  // sonst stünde in der Mail eine Überschrift ohne Inhalt.
+  const codeBlockHtml = code
+    ? `<p><strong>${codeLabel}</strong></p>
+      <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>`
+    : `<p>${escHtml(t("inspectionNoCodeHint"))}</p>`;
   const sealHintHtml = sealRequired
     ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0;font-size:14px;color:#1e3a8a"><strong>${t("inspectionSealHintLabel")}</strong> ${t("inspectionSealHintText")}</p></div>`
     : "";
@@ -310,8 +419,7 @@ export async function sendKontrolleNotification(opts: {
       `${emailGreeting(t, user.username)}
       <p>${escHtml(intro)}</p>
       ${kommentarHtml}
-      <p><strong>${codeLabel}</strong></p>
-      <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>
+      ${codeBlockHtml}
       ${sealHintHtml}
       <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>`,
       t("inspectionButton"),
@@ -326,14 +434,17 @@ export async function sendKontrolleNotification(opts: {
     ),
   );
 
-  const pushParts = [t("inspectionPushCode", { code }), t("inspectionPushDeadline", { deadline: deadlineStr })];
+  const pushParts = [
+    ...(code ? [t("inspectionPushCode", { code })] : []),
+    t("inspectionPushDeadline", { deadline: deadlineStr }),
+  ];
   if (sealRequired) pushParts.push(t("inspectionPushSeal"));
   if (kommentar) pushParts.push(kommentar);
   firePush(
     user.id,
     t("inspectionPushTitle"),
     pushParts.join(" · "),
-    `/dashboard/new/pruefung?code=${code}`,
+    formPath,
     badge,
   );
 }

@@ -10,6 +10,7 @@ export const ANFORDERUNG_PILLS: Record<string, { labelKey: string; cls: string }
 
 export const VERIFIKATION_PILLS: Record<string, { labelKey: string; cls: string }> = {
   unverified: { labelKey: "pillUnverified", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
+  not_required: { labelKey: "pillNotRequired", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
   pending:    { labelKey: "pillPending",    cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
   ai:         { labelKey: "pillAi",         cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
   manual:     { labelKey: "pillManual",     cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
@@ -40,6 +41,7 @@ const ANFORDERUNG_KEYS: Record<string, string> = {
 
 const VERIFIKATION_KEYS: Record<string, string> = {
   unverified: "pillUnverified",
+  not_required: "pillNotRequired",
   pending:    "pillPending",
   ai:         "pillAi",
   manual:     "pillManual",

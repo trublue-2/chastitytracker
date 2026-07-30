@@ -132,6 +132,7 @@ export const DEVICE_CODES = [
   "DEVICE_CURRENCY_REQUIRED",
   "DEVICE_NOT_ARCHIVED",
   "DEVICE_ARCHIVED_NOT_EDITABLE",
+  "DEVICE_INVALID_CODE_REQUIREMENT",
 ] as const;
 
 /** /api/box/relock — den Box-Schliessbefehl neu setzen (Reparaturweg, wenn die Box offen steht,

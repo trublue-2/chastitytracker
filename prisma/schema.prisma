@@ -365,7 +365,10 @@ model KontrollAnforderung {
   id                       String    @id @default(cuid())
   userId                   String
   user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code                     String
+  // null = diese Kontrolle verlangt keinen Code (Gerät mit `requireInspectionCode: false`). Dann ist
+  // der Code auch nicht der Schlüssel, über den der eingereichte Eintrag seine Anforderung findet —
+  // das tut die „eine offene Anforderung"-Regel in der entries-Route.
+  code                     String?
   kommentar                String?
   deadline                 DateTime
   createdAt                DateTime  @default(now())
@@ -527,6 +530,12 @@ model Device {
   // lookalikeClusterId: gleiche Optik = gleicher Cluster. Mismatch INNERHALB eines Clusters ist soft, nie ein Vergehen.
   lookalikeClusterId String?
   pullOffRisk        Boolean? // true = abstreifbar (unsicher), false = geprüft sicher, null = nie beurteilt (K-08)
+  // Verlangt eine Kontrolle mit DIESEM Gerät den handschriftlichen Kontroll-Code im Foto?
+  // Default true = Bestandsverhalten. false: die Anforderung entsteht ohne Code, das Formular fragt
+  // keinen ab, und die Erfüllung läuft über die eine offene Anforderung statt über den Code-Vergleich
+  // (siehe kontrolleService/entries-Route). Nur vom Keyholder/Admin setzbar — es schwächt eine
+  // Kontrolle, und ein Sub, der sie selbst abschalten kann, kontrolliert sich nicht mehr.
+  requireInspectionCode Boolean @default(true)
   material           String? // Edelstahl | Kunststoff | Silikon
   bauform            String? // flach | voll | standard | Plug ...
   healthFlags        String? // JSON string[] — Druckstellen, scheuert, rutscht ...

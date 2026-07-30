@@ -24,7 +24,8 @@ export interface OffenseJudgment {
 
 /** A Kontroll-based offense in Strafbuch form (Zwischenstufe von `get_offenses`). */
 export interface StrafbuchControlRow extends OffenseJudgment {
-  code: string;
+  /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+  code: string | null;
   deadline: string;
   fulfilledAt: string | null;
   entryTime: string | null;
@@ -191,7 +192,10 @@ export interface OffenseRow {
 }
 
 export interface LedgerResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `context.code` einer Kontroll-Zeile kann jetzt `null` sein — das getragene Gerät verlangt
+   *  keinen Kontroll-Code (`Device.requireInspectionCode: false`). Bis v2 war dort immer eine Zahl;
+   *  ein `null` heisst NICHT „Code unbekannt", sondern „diese Kontrolle hatte keinen". */
+  schemaVersion: 3;
   user: string;
   detectedOffenseCount: number;
   openOffenseCount: number;
@@ -323,7 +327,7 @@ export async function getOffenses(username: string, opts: GetOffensesOptions = {
   for (const r of rows) r.notes = notesByEntity.get(entityKey("offense", r.id)) ?? [];
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     detectedOffenseCount: sb.detectedOffenseCount,

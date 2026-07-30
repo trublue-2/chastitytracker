@@ -30,7 +30,7 @@ interface InspectionEscalationUser {
  * toggles" design: the timestamp always advances once the caller invokes this, only the
  * user-visible notice is gated here.
  */
-export async function sendInspectionReminder(ka: { id: string; code: string; user: InspectionEscalationUser }): Promise<void> {
+export async function sendInspectionReminder(ka: { id: string; code: string | null; user: InspectionEscalationUser }): Promise<void> {
   await prisma.kontrollAnforderung.update({
     where: { id: ka.id },
     data: { benachrichtigtReminderAt: new Date() },
@@ -38,8 +38,10 @@ export async function sendInspectionReminder(ka: { id: string; code: string; use
   if (ka.user.inspectionReminderEnabled) {
     await notifyUser(ka.user.id, {
       subjectKey: "inspectionReminderSubject",
-      messageKey: "inspectionReminderMessage",
-      params: { code: ka.code },
+      // Ohne Code eine eigene Variante statt `{code}` mit Leerstring zu füttern — sonst stünde
+      // „Deine Kontrolle mit Code  ist überfällig" in der Mail.
+      messageKey: ka.code ? "inspectionReminderMessage" : "inspectionReminderMessageNoCode",
+      params: ka.code ? { code: ka.code } : {},
       inbox: { ref: { type: "control", id: ka.id } },
       alwaysNotify: true,
     });
@@ -99,12 +101,12 @@ export async function autoMarkInspectionRemoved(ka: { id: string; userId: string
 /** Sends the Stage-2 "auto-marked-removed" notice to the sub AND their keyholders/admins. Call
  *  AFTER the transaction in {@link autoMarkInspectionRemoved} commits (notifications are not
  *  transactional and must never block/roll back the state change). */
-export async function notifyInspectionAutoMarked(opts: { userId: string; username: string; code: string; controlId: string }): Promise<void> {
+export async function notifyInspectionAutoMarked(opts: { userId: string; username: string; code: string | null; controlId: string }): Promise<void> {
   const { userId, username, code, controlId } = opts;
   await notifyUser(userId, {
     subjectKey: "inspectionAutoRemovedSubjectSub",
-    messageKey: "inspectionAutoRemovedMessageSub",
-    params: { code },
+    messageKey: code ? "inspectionAutoRemovedMessageSub" : "inspectionAutoRemovedMessageSubNoCode",
+    params: code ? { code } : {},
     inbox: { ref: { type: "control", id: controlId } },
     alwaysNotify: true,
   });
@@ -112,8 +114,8 @@ export async function notifyInspectionAutoMarked(opts: { userId: string; usernam
   await Promise.all(controllers.map((c) =>
     notifyUser(c.id, {
       subjectKey: "inspectionAutoRemovedSubjectKeyholder",
-      messageKey: "inspectionAutoRemovedMessageKeyholder",
-      params: { username, code },
+      messageKey: code ? "inspectionAutoRemovedMessageKeyholder" : "inspectionAutoRemovedMessageKeyholderNoCode",
+      params: code ? { username, code } : { username },
       // Empfänger ist der KEYHOLDER, nicht der Sub: eine Nachricht in seinen persönlichen
       // Posteingang zu schreiben, hiesse, sie dem falschen Thread zuzuordnen. Der Keyholder-Kanal
       // kommt mit Etappe 2.

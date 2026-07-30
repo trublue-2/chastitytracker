@@ -127,10 +127,14 @@ export function buildLockState<E extends LockEntry>(
 
 // ── Offene Anforderungen ──────────────────────────────────────────────────────
 
-export interface OpenKontrolleView { code: string; deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null }
+export interface OpenKontrolleView {
+  /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
+  code: string | null;
+  deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null;
+}
 
 export function mapOpenKontrolle(
-  k: { code: string; deadline: Date; kommentar: string | null } | null,
+  k: { code: string | null; deadline: Date; kommentar: string | null } | null,
   now: Date, fmt: Fmt,
 ): OpenKontrolleView | null {
   if (!k) return null;
