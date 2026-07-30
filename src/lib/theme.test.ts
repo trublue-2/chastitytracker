@@ -170,9 +170,11 @@ describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
     .sort();
 
   it("findet die bekannten Wrapper-Dateien", () => {
-    // Untergrenze statt exakter Zahl: neue Wrapper sind erlaubt, ein kaputter Glob (0 Dateien,
-    // Suite trotzdem grün) nicht.
-    expect(WRAPPER_FILES.length).toBeGreaterThanOrEqual(7);
+    // Untergrenze statt exakter Zahl: neue Wrapper sind erlaubt, eine kaputte Suche (0 Dateien,
+    // Suite trotzdem grün) nicht. Fällt ein Wrapper planmässig weg, gehört die Zahl mit ihm
+    // gesenkt — der Test gated das Deploy, die Meldung muss also sagen, was zu tun ist.
+    expect(WRAPPER_FILES.length, `nur ${WRAPPER_FILES.length} Wrapper-Dateien gefunden — Suche kaputt, oder ein Wrapper ist planmässig entfallen (dann diese Zahl senken)`)
+      .toBeGreaterThanOrEqual(7);
   });
 
   it.each(WRAPPER_FILES)("%s", (file) => {
