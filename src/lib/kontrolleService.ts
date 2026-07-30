@@ -10,6 +10,7 @@ import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constant
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
 
@@ -388,13 +389,7 @@ export async function sendKontrolleNotification(opts: {
   const intro = inspectionIntro(t, deadline.getTime() - Date.now());
   const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
 
-  // Query aus Teilen bauen statt zusammenstückeln: ohne Code fiele bei einem handgeschriebenen
-  // `?code=…&kommentar=…` das erste Trennzeichen weg und der Kommentar landete am `?`-Platz.
-  const params = new URLSearchParams();
-  if (code) params.set("code", code);
-  if (kommentar) params.set("kommentar", kommentar);
-  const query = params.toString();
-  const formPath = `/dashboard/new/pruefung${query ? `?${query}` : ""}`;
+  const formPath = inspectionHref(code, { kommentar });
   const link = `${appBaseUrl()}${formPath}`;
   const helpUrl = inspectionHelpUrl(locale);
   const deadlineStr = formatDateTime(deadline);

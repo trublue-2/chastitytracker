@@ -10,6 +10,7 @@ import LiveTrainingGoals from "./LiveTrainingGoals";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 interface Props {
   sessionStart: Date;
@@ -179,8 +180,12 @@ export default async function LaufendeSessionCard({
             // gelassen statt still entfernt — fällt der Filter dort je weg, muss diese Zeile wie in
             // `SessionList` einen Keyholder-Riegel bekommen, sonst erfasst der Keyholder die
             // Kontrolle seines Subs auf dem eigenen Konto.
-            captureHref: !ev.entryId && ev.type === "kontrolle" && ev.kontrolleCode
-              ? `/dashboard/new/pruefung?code=${ev.kontrolleCode}`
+            // Die frühere Zusatzbedingung `&& ev.kontrolleCode` ist entfallen: sie stammte aus der
+            // Zeit des handgebauten `?code=${…}`, das ohne Code wörtlich `?code=null` ergeben hätte.
+            // `inspectionHref` lässt einen fehlenden Code weg — und eine Kontrolle ohne Code (Gerät mit
+            // `requireInspectionCode: false`) muss ihren Knopf behalten, genau wie in `SessionList`.
+            captureHref: !ev.entryId && ev.type === "kontrolle"
+              ? inspectionHref(ev.kontrolleCode)
               : null,
             deadlineStr: ev.deadline ? formatDateTime(ev.deadline, dl, tz) : null,
             isOverdue: ev.kontrolleAnforderungStatus === "overdue",

@@ -3,6 +3,7 @@ import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, h
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { keyProofFor, NO_TELEMETRY_KEY_PROOF } from "@/lib/boxKeyProof";
+import { inspectionHref } from "@/lib/entryFormRoute";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
 interface KontrolleItem {
@@ -168,7 +169,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             // Der Erfassen-Weg hängt am OFFEN-Sein, nicht am Code: eine Kontrolle ohne Code (Gerät
             // mit `requireInspectionCode: false`) ist genauso zu beantworten — sie verlöre sonst
             // ihren einzigen Knopf.
-            captureHref: !k.entryId ? `/dashboard/new/pruefung${k.code ? `?code=${k.code}` : ""}` : null,
+            captureHref: !k.entryId ? inspectionHref(k.code) : null,
             captureDisabled: keyholderView,
             deadlineStr: k.deadline ? formatDateTime(k.deadline, dl, tz) : null,
             isOverdue: k.anforderungStatus === "overdue",

@@ -30,6 +30,7 @@ import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -145,17 +146,6 @@ export default async function DashboardPage() {
 
   // ── Serialize for client ──
   const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
-  // Query aus Teilen bauen, nicht zusammenstückeln: eine Kontrolle ohne Code (Gerät mit
-  // `requireInspectionCode: false`) ergäbe sonst wörtlich `?code=null` — dasselbe Muster wie in
-  // sendKontrolleNotification.
-  const kontrolleParams = new URLSearchParams();
-  if (offeneKontrolle?.code) kontrolleParams.set("code", offeneKontrolle.code);
-  if (offeneKontrolle?.kommentar) kontrolleParams.set("kommentar", offeneKontrolle.kommentar);
-  const kontrolleQuery = kontrolleParams.toString();
-  const kontrolleHref = offeneKontrolle
-    ? `/dashboard/new/pruefung${kontrolleQuery ? `?${kontrolleQuery}` : ""}`
-    : "";
-
   const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
     ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
     : null;
@@ -168,7 +158,7 @@ export default async function DashboardPage() {
       code: offeneKontrolle.code,
       kommentar: offeneKontrolle.kommentar,
       overdue: kontrolleOverdue,
-      href: kontrolleHref,
+      href: inspectionHref(offeneKontrolle.code, { kommentar: offeneKontrolle.kommentar }),
     } : null,
 
     offeneVerschlussAnf: offeneVerschlussAnf ? {

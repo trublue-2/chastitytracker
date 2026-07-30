@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -59,7 +60,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       desc: t("inspectionSubtitle"),
       disabled: false,
       color: "text-inspect",
-      href: "/dashboard/new/pruefung",
+      href: inspectionHref(),
     },
     {
       type: "orgasmus",
