@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 
-type BadgeVariant = "lock" | "unlock" | "inspect" | "orgasm" | "request" | "sperrzeit" | "warn" | "ok" | "neutral";
+export type BadgeVariant = "lock" | "unlock" | "inspect" | "orgasm" | "request" | "sperrzeit" | "warn" | "ok" | "neutral";
 type BadgeSize = "sm" | "default";
 
 interface BadgeProps {

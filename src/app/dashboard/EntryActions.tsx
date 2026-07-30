@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { MoreVertical, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
+import RowActionsMenu from "@/app/components/RowActionsMenu";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
@@ -29,24 +29,12 @@ export default function EntryActions({ id, editHref, showDelete = true, tz = APP
   const t = useTranslations("entryActions");
   const tc = useTranslations("common");
   const tStats = useTranslations("stats");
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, right: 0 });
   const [error, setError] = useState("");
   const [modalStep, setModalStep] = useState<"confirm" | "chainBreak" | null>(null);
   const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null);
   const [saving, setSaving] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const dl = toDateLocale(useLocale());
-
-  function openMenu() {
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
-    }
-    setOpen(true);
-  }
 
   function closeModal() {
     setModalStep(null);
@@ -55,24 +43,7 @@ export default function EntryActions({ id, editHref, showDelete = true, tz = APP
     setSaving(false);
   }
 
-  useEffect(() => {
-    if (!open) return;
-    function onOutside(e: MouseEvent | TouchEvent) {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    }
-    document.addEventListener("mousedown", onOutside);
-    document.addEventListener("touchstart", onOutside);
-    return () => {
-      document.removeEventListener("mousedown", onOutside);
-      document.removeEventListener("touchstart", onOutside);
-    };
-  }, [open]);
-
   function handleDeleteClick() {
-    setOpen(false);
     setError("");
     setModalStep("confirm");
   }
@@ -130,46 +101,15 @@ export default function EntryActions({ id, editHref, showDelete = true, tz = APP
   }
 
   return (
-    <div className="relative flex-shrink-0">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={openMenu}
-        className="w-6 h-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground hover:bg-surface-raised active:bg-border transition"
-        aria-label={t("ariaActions")}
-      >
-        <MoreVertical size={16} />
-      </button>
-
-      {open && (
-        <div
-          ref={menuRef}
-          style={{ top: pos.top, right: pos.right }}
-          className="fixed w-36 bg-surface border border-border-subtle rounded-xl shadow-lg z-50 overflow-hidden"
-        >
-          <Link
-            href={editHref}
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted hover:bg-surface-raised transition"
-          >
-            <Pencil size={14} className="text-foreground-faint" />
-            {t("edit")}
-          </Link>
-          {showDelete && (
-            <>
-              <div className="border-t border-border-subtle" />
-              <button
-                type="button"
-                onClick={handleDeleteClick}
-                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-warn hover:bg-warn-bg transition"
-              >
-                <Trash2 size={14} />
-                {t("delete")}
-              </button>
-            </>
-          )}
-        </div>
-      )}
+    <>
+      <RowActionsMenu
+        items={[
+          { label: t("edit"), icon: <Pencil size={14} className="text-foreground-faint" />, href: editHref },
+          ...(showDelete
+            ? [{ label: t("delete"), icon: <Trash2 size={14} />, onSelect: handleDeleteClick, danger: true }]
+            : []),
+        ]}
+      />
 
       <ActionModal
         open={modalStep === "confirm"}
@@ -214,6 +154,6 @@ export default function EntryActions({ id, editHref, showDelete = true, tz = APP
           {t("cancel")}
         </Button>
       </ActionModal>
-    </div>
+    </>
   );
 }

@@ -199,7 +199,8 @@
     "verifying": "Verifizierung läuft",
     "reason": "Grund",
     "from": "von",
-    "imageUnavailable": "Bild nicht verfügbar"
+    "imageUnavailable": "Bild nicht verfügbar",
+    "actions": "Aktionen"
   },
   "adminNav": {
     "overview": "Übersicht",
@@ -1106,7 +1107,6 @@
     "deleteBoth": "Beide löschen",
     "cancel": "Abbrechen",
     "partnerChanged": "Der Partner-Eintrag wurde zwischenzeitlich geändert. Bitte Seite neu laden.",
-    "ariaActions": "Aktionen",
     "edit": "Eintrag anpassen",
     "delete": "Löschen"
   },
@@ -1291,7 +1291,14 @@
       "ai": "KI-Keyholder"
     },
     "notifyLabel": "Mail und Push bei neuen Nachrichten",
-    "notifyHint": "Anforderungen und Fristen werden immer gemeldet. Nachrichten kannst du auch still im Posteingang sammeln lassen."
+    "notifyHint": "Anforderungen und Fristen werden immer gemeldet. Nachrichten kannst du auch still im Posteingang sammeln lassen.",
+    "catInspection": "Kontrolle",
+    "catLock": "Sperre & Verschluss",
+    "catOrgasm": "Orgasmus",
+    "catPenalty": "Strafe",
+    "catSystem": "System",
+    "openTarget": "Kontrolle jetzt erfüllen",
+    "deleteConfirm": "Diese Nachricht endgültig löschen? Der Vorgang selbst bleibt erhalten — aber falls ein Straftext dranhängt, kannst du ihn danach nirgends mehr nachlesen."
   },
   "emails": {
     "greeting": "Hallo {username},",
