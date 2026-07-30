@@ -238,6 +238,20 @@ The container starts as `root` to fix volume ownership, then drops to `www-data`
 
 At startup, the entrypoint script automatically runs Prisma migrations and creates the initial admin user (if none exists). See the [Self-Hosting](#self-hosting) section below for a sample `docker-compose.yml` and a complete `.env` template.
 
+### Pre-built images
+
+Published to `ghcr.io/trublue-2/chastitytracker` on three rolling channels, `:feature` → `:portal` → `:latest`:
+
+| Tag | Purpose |
+| --- | --- |
+| `:latest` | Official release. Only moved by an explicit promotion — **use this one** |
+| `:portal` | Every build from `main`. Not release-gated |
+| `:feature` | Feature branches and pre-release builds |
+
+Immutable tags are also published for the current build: `v<version>` (from `main` only) and `sha-<commit>`. Pin one of those if you need a fixed target — but note the removal below.
+
+> **Older image versions were removed from the registry on 2026-07-29.** Everything published before that date is gone, including all `v3.x` and earlier `v4.x` version tags — they contained files that have since been removed from the repository. If you pinned a specific version tag, switch to `:latest`; a pull of a removed tag will fail. Running containers are unaffected until their next pull.
+
 ## Self-Hosting
 
 You are free to run the tracker on your own server for **any noncommercial purpose** — personal use, hobby projects, non-profit communities, and the like — under the terms of the [PolyForm Noncommercial License 1.0.0](./LICENSE.md). Commercial use (e.g. running it as a paid service for others) is not covered by this license.
