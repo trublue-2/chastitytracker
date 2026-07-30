@@ -1,0 +1,191 @@
+name: Promote image to a channel
+
+# Befördert ein BESTEHENDES Image in einen Kanal — per Retag über die Registry, ohne Rebuild.
+# Damit ist der Release nachweislich dasselbe Image, das vorher als :portal gelaufen ist, und
+# ein Rollback ist ein Retag statt eines Builds.
+#
+#   :portal  ← setzt jeder main-Build von docker.yml selbst (hier nur für Rollback nötig)
+#   :latest  ← ausschliesslich hier: der offizielle Release für alle, inkl. Self-Hoster
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Zielkanal"
+        type: choice
+        options: [latest, portal]
+        default: latest
+      source:
+        # Ein Dispatch-`default:` kann KEINE Expression enthalten (`on:` wertet ${{ }} nicht
+        # aus und es gibt zu dem Zeitpunkt keinen Checkout) — leer lassen, im Job auflösen.
+        description: "Quell-Tag (z.B. v4.56.1, sha-abc1234). Leer = v<Version aus package.json des Refs>."
+        required: false
+        default: ""
+      deploy:
+        # Default false: ein :latest-Promote betrifft Self-Hoster, nicht die eigene Flotte —
+        # dort ist nichts auf :latest gepinnt und der Deploy würde (korrekt) mit „keine
+        # Instanz passt" fehlschlagen. Für einen :portal-Rollback bewusst auf true setzen.
+        description: "Nach dem Retag die auf diesen Kanal gepinnten Instanzen ausrollen?"
+        type: boolean
+        default: false
+
+# Serialisiert gegen den Deploy aus docker.yml (gleiche Gruppe dort).
+concurrency:
+  group: deploy-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  IMG: ghcr.io/${{ github.repository }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # refs/tags/release verschieben
+      packages: write # Kanal-Tag nach GHCR pushen
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Nur für `git merge-base --is-ancestor` nötig — das Setzen des Tags läuft über die
+          # API und bräuchte keine Historie.
+          fetch-depth: 0
+
+      - name: Quell-Tag auflösen
+        id: resolve
+        run: |
+          set -euo pipefail
+          SRC="$SOURCE_INPUT"
+          [ -n "$SRC" ] || SRC="v$(jq -r .version package.json)"
+          case "$SRC" in
+            *[!A-Za-z0-9._-]*) echo "::error::Ungültiger Quell-Tag."; exit 1 ;;
+          esac
+          echo "source=$SRC" >> "$GITHUB_OUTPUT"
+          echo "Quelle: $SRC → :$CHANNEL_INPUT"
+        env:
+          SOURCE_INPUT: ${{ inputs.source }}
+          CHANNEL_INPUT: ${{ inputs.channel }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Kein setup-buildx: `imagetools` redet nur mit der Registry, braucht also keine
+      # Builder-Instanz — und ohne `version:` würde die Action ohnehin die buildx-Version des
+      # Runners verwenden, also auch nichts pinnen.
+      - name: Guard — Quelle existiert und stammt von main
+        id: rev
+        env:
+          SRC: ${{ steps.resolve.outputs.source }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "$IMG:$SRC" >/dev/null \
+            || { echo "::error::$IMG:$SRC existiert nicht in GHCR."; exit 1; }
+
+          # Der Commit steckt im Image selbst (org.opencontainers.image.revision, von
+          # metadata-action gesetzt). `.Image` ist bei einem Index eine Map nach Plattform,
+          # bei einem Einzelmanifest die Config direkt — jq deckt beide Formen ab.
+          SHA=$(docker buildx imagetools inspect "$IMG:$SRC" --format '{{json .Image}}' \
+            | jq -r 'if has("config") then . else (."linux/amd64" // (to_entries | map(.value) | .[0])) end
+                     | .config.Labels["org.opencontainers.image.revision"] // empty')
+          if [ ${#SHA} -ne 40 ]; then
+            echo "::error::Kein brauchbares org.opencontainers.image.revision-Label an $IMG:$SRC."
+            exit 1
+          fi
+          case "$SHA" in *[!0-9a-f]*) echo "::error::Revision-Label ist kein Commit-SHA."; exit 1 ;; esac
+
+          # DER Guard — bewusst NICHT über einen Versionsvergleich: :v5.0.0 lag schon mit dem
+          # Digest eines ungemergten Branches in GHCR, ein Versionsvergleich hätte dieses
+          # Vor-Merge-Image anstandslos auf :latest gehoben. Ausserdem nimmt
+          # `gh workflow run --ref` nur Branch/Tag, keinen SHA — ein Versions-Guard wäre für
+          # ältere Releases gar nicht erfüllbar.
+          # `origin/main` und die volle Historie liegen durch fetch-depth: 0 bereits lokal —
+          # kein zusätzliches `git fetch` nötig. Die Ancestry-Prüfung braucht die Kette
+          # zwischen $SHA und main-Spitze, deshalb ist ein Shallow-Checkout hier nicht möglich.
+          git cat-file -e "${SHA}^{commit}" 2>/dev/null \
+            || { echo "::error::Commit $SHA liegt nicht in diesem Repo."; exit 1; }
+          git merge-base --is-ancestor "$SHA" origin/main \
+            || { echo "::error::Commit $SHA liegt nicht auf main — Promote abgelehnt."; exit 1; }
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Image gebaut aus $SHA (auf main)."
+
+      - name: Retag (kein Rebuild, Digest bleibt)
+        env:
+          SRC: ${{ steps.resolve.outputs.source }}
+          DST: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          digest() { docker buildx imagetools inspect --raw "$1" | sha256sum | cut -d' ' -f1; }
+          BEFORE="$(digest "$IMG:$SRC")"
+          # --prefer-index=false: bei EINEM Nicht-Index-Source würde imagetools sonst eine
+          # Manifest-List drumherum bauen → neuer Digest. Heute sind unsere Tags Indexe
+          # (provenance mode=max ist bei public repos Default), aber `provenance: false`
+          # würde das lautlos kippen.
+          docker buildx imagetools create --prefer-index=false --tag "$IMG:$DST" "$IMG:$SRC"
+          AFTER="$(digest "$IMG:$DST")"
+          echo "$SRC = $BEFORE"
+          echo "$DST = $AFTER"
+          # Harter Fehler, keine Warnung: „der Release ist bitgleich das erprobte Image" ist die
+          # zentrale Zusage dieses Workflows — eine Prüfung, die nur ins Log schreibt, prüft sie
+          # nicht.
+          if [ "$BEFORE" != "$AFTER" ]; then
+            echo "::error::Digest weicht ab — das Manifest wurde umgehüllt statt kopiert."
+            exit 1
+          fi
+
+      - name: release-Tag auf den Commit des Images setzen
+        if: ${{ inputs.channel == 'latest' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ steps.rev.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # Auf den Commit des IMAGES, nicht auf HEAD: nur so beschreibt
+          # refs/tags/release/src/data/changelog.json exakt das Image auf :latest — daran
+          # hängt der Update-Hinweis in jeder Instanz.
+          # Über die API statt git push (kein Shallow-Thema); PATCH-dann-POST deckt den Fall
+          # „Tag existiert noch nicht" ab, wo PATCH mit 422 antwortet.
+          gh api -X PATCH "repos/${{ github.repository }}/git/refs/tags/release" \
+                 -f sha="$SHA" -F force=true \
+            || gh api -X POST "repos/${{ github.repository }}/git/refs" \
+                      -f ref=refs/tags/release -f sha="$SHA"
+          echo "refs/tags/release → $SHA"
+
+      # Die drei Artefakte eines Release (Image-Tag :latest, Git-Tag `release`, changelog.json
+      # an diesem Commit) müssen zusammenpassen — sonst kündigt der Update-Hinweis der Flotte
+      # eine andere Version an, als :latest liefert. Über die API gelesen, nicht über raw:
+      # der raw-CDN cacht 5 Minuten und würde einen alten Stand bestätigen.
+      - name: Changelog am release-Tag gegen die promotete Version prüfen
+        if: ${{ inputs.channel == 'latest' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ steps.rev.outputs.sha }}
+          SRC: ${{ steps.resolve.outputs.source }}
+        run: |
+          set -euo pipefail
+          # Der Vergleich gilt nur für Versions-Quellen; ein :sha-…-Promote hat keine Version
+          # im Tag, dort bleibt die Ausgabe informativ.
+          HEAD_VERSION=$(gh api -H "Accept: application/vnd.github.raw" \
+            "repos/${{ github.repository }}/contents/src/data/changelog.json?ref=$SHA" \
+            | jq -r '.[0].version')
+          case "$SRC" in
+            v*)
+              if [ "v$HEAD_VERSION" != "$SRC" ]; then
+                echo "::error::changelog.json am Commit $SHA nennt v$HEAD_VERSION, promotet wurde $SRC."
+                exit 1
+              fi
+              ;;
+          esac
+          echo "changelog.json am release-Tag: v$HEAD_VERSION"
+
+  deploy:
+    needs: promote
+    if: ${{ inputs.deploy }}
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      image: ghcr.io/${{ github.repository }}
+      # Nur die Instanzen, die auf genau diesen Kanal gepinnt sind — kein Umpinnen.
+      pinnedTo: ${{ inputs.channel }}
