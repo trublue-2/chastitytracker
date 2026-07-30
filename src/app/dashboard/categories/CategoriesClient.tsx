@@ -177,7 +177,6 @@ export default function CategoriesClient({ categories: initial, userId, username
         title={tCommon("delete")}
         icon={<Trash2 size={20} className="text-warn" />}
         iconBg="var(--color-warn-bg)"
-        theme="user"
       >
         <p className="text-sm text-foreground-muted">
           {t("deleteConfirm", { name: deleteModal?.name ?? "" })}

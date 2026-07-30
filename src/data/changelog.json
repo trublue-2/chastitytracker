@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.58.3",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Rückfragen und Formulare, die über der Seite liegen, folgen wieder dem eingestellten Design. Im dunklen Modus erschienen sie hell mitten auf dunkler Seite (etwa beim Löschen einer Nachricht im Posteingang), im hellen Adminportal umgekehrt dunkel — dasselbe galt für Kurzmeldungen und die Vollbild-Ansicht eines Fotos. Auch der Streifen, der beim Überscrollen am Rand sichtbar wird, ist jetzt in der richtigen Farbe.",
+          "en": "Confirmation dialogs and forms that sit above the page follow the selected design again. In dark mode they showed up light in the middle of a dark page (for example when deleting a message in the inbox), and the other way round in the light admin portal — the same applied to toasts and the fullscreen photo view. The strip that appears at the edge when you overscroll now has the right colour too."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.2",
     "date": "2026-07-30",
     "changes": [
