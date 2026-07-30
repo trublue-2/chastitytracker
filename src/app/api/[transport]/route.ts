@@ -237,7 +237,10 @@ function registerTools(server: McpServer) {
           "full situation: each entry's type, timestamp, free-text note/comment, opening reason " +
           "(oeffnenGrund), orgasm type (orgasmusArt), control code, code verification status, device, " +
           "the device-check (deviceCheck: was the locked device recognised in the control photo — " +
-          "status ok/wrong/missing/not_checked — wrong NUR mit benanntem detected, sonst not_checked), " +
+          "status pending/ok/wrong/missing/not_checked — wrong NUR mit benanntem detected, sonst not_checked; " +
+          "pending = the recognition is still running, ask again in a few minutes, do NOT read it as a result), " +
+          "why the code verification did not match (verifikationFailure: reason + what was read — the only way " +
+          "to tell an unreadable code from a wrong one when verifikationStatus is null), " +
           "whether a photo exists (+ its EXIF capture time) and whether the time was back-/post-dated. " +
           "Newest first. Use this for the narrative context that the aggregate tools (keyholder_dashboard, " +
           "get_session, get_offenses) leave out.",
@@ -351,8 +354,12 @@ function registerTools(server: McpServer) {
           "dataDiscrepancies (echte Bild-Diskrepanzen als Hinweis, KEINE Vergehen; cluster-interne " +
           "Verwechslungen ausgeblendet) und currentRun.todayIncludesPriorSession (today enthält Anteil " +
           "einer früheren Session → ≠ Lauf-Dauer). currentRun.since = Lauf-Anfang (deckt sich mit " +
-          "durationHours); currentRun.currentSegmentSince = Beginn des AKTUELLEN Segments, weicht bei " +
-          "Reinigungspausen von since ab (A-01). Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
+          "durationHours); currentRun.currentSegmentSince/currentSegmentDurationHours = Beginn und Dauer " +
+          "des AKTUELLEN Segments, weichen bei Reinigungspausen von since/durationHours ab (A-01). " +
+          "ACHTUNG bei wornNow: `deviceName` nennt das Gerät des aktuellen SEGMENTS, `since`/" +
+          "`durationHours` messen den ganzen LAUF — nach einem Gerätewechsel in einer Pause gehören die " +
+          "beiden NICHT zusammen. Die zum Gerät passende Uhr ist `deviceSince`/`deviceDurationHours`. " +
+          "Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
           "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details.",
         inputSchema: {},
       },
@@ -733,6 +740,8 @@ function registerTools(server: McpServer) {
           "Without id this hits ALL open ones of that kind — since several lock requests can be open at once, " +
           "pass id to cancel exactly one. For lock_request/lock_period, a dryRun without id lists each open one " +
           "(id, status, message, dates) so you can see which to pick. " +
+          "The response always names what actually went (withdrawnItems: id, status, dates, message, and the " +
+          "code for inspections) — read it, the count alone does not tell you WHICH directives you took away. " +
           "target=inspection never touches an AUTOMATIC inspection that has not triggered yet — those are " +
           "deliberately hidden from you (see keyholder_dashboard.scheduledDirectives) and are not yours to " +
           "cancel; an automatic one that has already triggered is withdrawn like any other." +

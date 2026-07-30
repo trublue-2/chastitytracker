@@ -15,9 +15,16 @@ describe("effectiveDeviceCheckStatus", () => {
   });
 
   it("reicht alle anderen Stufen unverändert durch", () => {
-    for (const s of ["ok", "missing", "error"]) expect(effectiveDeviceCheckStatus(s, null)).toBe(s);
+    for (const s of ["pending", "ok", "missing", "error"]) expect(effectiveDeviceCheckStatus(s, null)).toBe(s);
     expect(effectiveDeviceCheckStatus("ok", "Cage A")).toBe("ok");
     expect(effectiveDeviceCheckStatus(null, null)).toBeNull();
+  });
+
+  it("'pending' bleibt 'pending' und wird NICHT mit 'nicht geprüft' verschmolzen", () => {
+    // Genau diese Unterscheidung fehlte: kurz nach dem Einreichen las sich „läuft noch" wie
+    // „kein Befund", und derselbe Eintrag meldete eine Viertelstunde später etwas anderes.
+    expect(effectiveDeviceCheckStatus("pending", null)).toBe("pending");
+    expect(effectiveDeviceCheckStatus("pending", null)).not.toBeNull();
   });
 
   it("unbekannte Rohwerte fallen auf null statt in den Enum zu rutschen", () => {

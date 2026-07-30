@@ -21,8 +21,11 @@ export interface TimelineResult extends Envelope {
    *  MCP-Befundliste 2026-07-17) — vorher fiel "kein Gerät angegeben" fälschlich auf "declared".
    *  v4: `detail.deviceCheck` eines control-Events ist „wrong" nur noch mit benanntem `detected`;
    *  „Gerät sichtbar, aber nicht zuordenbar" ist „not_checked" — auch rückwirkend (Issue #44). Ein
-   *  ungeprüfter Check ist jetzt "not_checked" statt `null`, wie in get_session. */
-  schemaVersion: 4;
+   *  ungeprüfter Check ist jetzt "not_checked" statt `null`, wie in get_session.
+   *  v5: `detail.deviceCheck` kennt die Stufe "pending" (Erkennung läuft noch) — ein v4-"not_checked"
+   *  konnte auch „noch nicht fertig" heissen, ein v5-"not_checked" heisst endgültig „kein Befund".
+   *  Additiv daneben: `detail.verifikationFailure` bei control-Events. */
+  schemaVersion: 5;
   user: string;
   from: string | null;
   to: string | null;
@@ -61,7 +64,7 @@ export async function timeline(username: string, opts: TimelineOptions = {}): Pr
         raw.push({ at: seg.end, type: "unlock", deviceName: seg.deviceEffective.name, detail: { sessionId: s.id, endedBy: seg.endedBy } });
       }
       for (const c of seg.controls) {
-        raw.push({ at: c.time, type: "control", deviceName: seg.deviceEffective.name, detail: { code: c.code, verifikationStatus: c.verifikationStatus, deviceCheck: mcpDeviceCheckStatus(c.deviceCheckStatus), detected: c.detected, expected: c.expected } });
+        raw.push({ at: c.time, type: "control", deviceName: seg.deviceEffective.name, detail: { code: c.code, verifikationStatus: c.verifikationStatus, verifikationFailure: c.verifikationFailure, deviceCheck: mcpDeviceCheckStatus(c.deviceCheckStatus), detected: c.detected, expected: c.expected } });
       }
     }
   }
@@ -80,7 +83,7 @@ export async function timeline(username: string, opts: TimelineOptions = {}): Pr
   const sliced = filtered.length > limit ? filtered.slice(filtered.length - limit) : filtered;
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     from: iso(from ?? null),

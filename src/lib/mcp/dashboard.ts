@@ -165,6 +165,9 @@ export interface DashboardResult extends Envelope {
      *  Wiederverschluss). Ohne Pausen identisch mit `since`, weiterhin gesetzt (kein Sonderfall). */
     currentSegmentSince: string | null;
     durationHours: number | null;
+    /** Dauer seit `currentSegmentSince` — die Zahl, die zum gemeldeten `deviceName` gehört. Ohne
+     *  Reinigungspause identisch mit `durationHours`. */
+    currentSegmentDurationHours: number | null;
     /** MASSGEBLICHES Gerät des aktuellen Segments (deviceEffective — bei image-conflict das
      *  verifizierte). Deckt sich mit get_session/device_stats. Siehe deviceDeclared für den Konflikt. */
     deviceName: string | null;
@@ -186,10 +189,26 @@ export interface DashboardResult extends Envelope {
    *  (eine Routine-Kontrolle hat kein verlangtes Gerät). Cluster-interne Verwechslungen sind hier
    *  bewusst ausgeblendet. */
   dataDiscrepancies: { count: number; items: DiscrepancyItem[] };
-  /** Was JETZT getragen wird — KG + alle Kategorien vereint. `since` = Lauf-Anfang (wie
-   *  `currentRun.since`; für das KG-Segment-Detail bei Reinigungspausen `get_session` nutzen —
-   *  diese Zeile hier bleibt bewusst kompakt, ohne Segment-Granularität). */
-  wornNow: { category: string; deviceName: string | null; deviceDeclared: string | null; deviceConfidence: DeviceConfidence | null; since: string | null; durationHours: number | null }[];
+  /** Was JETZT getragen wird — KG + alle Kategorien vereint.
+   *
+   *  ACHTUNG, zwei verschiedene Uhren in EINER Zeile: `since`/`durationHours` messen den LAUF (wie
+   *  `currentRun.since`), `deviceName` nennt aber das Gerät des AKTUELLEN SEGMENTS. Nach einem
+   *  Gerätewechsel in einer Reinigungspause gehören die beiden nicht zusammen — wer sie paart,
+   *  liest „<neues Gerät> seit <Lauf-Anfang>". Dafür stehen `deviceSince`/`deviceDurationHours`
+   *  daneben: die Uhr, die zum genannten Gerät gehört. Ohne Pause sind beide Paare identisch.
+   *  (Kategorie-Zeilen kennen keine Segmentierung — dort sind sie es immer.) */
+  wornNow: {
+    category: string;
+    deviceName: string | null;
+    deviceDeclared: string | null;
+    deviceConfidence: DeviceConfidence | null;
+    since: string | null;
+    durationHours: number | null;
+    /** Seit wann DIESES Gerät getragen wird (Segment-Anfang) — passt zu `deviceName`. */
+    deviceSince: string | null;
+    /** Dauer seit `deviceSince` — passt zu `deviceName`. */
+    deviceDurationHours: number | null;
+  }[];
   /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / Orgasmus-Fenster.
    *  Zeiten ISO-8601 mit Offset (die liveState-Mapper bekommen das `iso`-Format durchgereicht); zusätzlich
    *  remainingMinutes/overdue für direkte Fristfragen. Beim Orgasmus-Fenster zeigt `active` an,
@@ -462,13 +481,24 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
   const wornNow: DashboardResult["wornNow"] = [];
   if (lock.isLocked) {
-    wornNow.push({ category: "KG", deviceName: kgEffectiveName, deviceDeclared: kgDeclaredName, deviceConfidence: kgConfidence, since: lock.since, durationHours: lock.currentDurationHours });
+    wornNow.push({
+      category: "KG", deviceName: kgEffectiveName, deviceDeclared: kgDeclaredName, deviceConfidence: kgConfidence,
+      since: lock.since, durationHours: lock.currentDurationHours,
+      // Die einzige Zeile, in der die beiden Uhren auseinandergehen können: nur das KG kennt
+      // Segmente (Reinigungspausen), und nur dort kann sich das Gerät mitten im Lauf ändern.
+      deviceSince: lock.currentSegmentSince, deviceDurationHours: lock.currentSegmentDurationHours,
+    });
   }
   for (const w of activeWearSessions) {
     // Wear-Sessions durchlaufen keine KG-Bildkontroll-Segmentierung → deklariert == effektiv,
     // deviceConfidence "declared" — konsistent mit get_session, das eine Wear-Session über
     // reconcileDevice ohne Bildkontrolle ebenfalls auf "declared" auflöst (N-2).
-    wornNow.push({ category: w.category, deviceName: w.deviceName, deviceDeclared: w.deviceName, deviceConfidence: "declared", since: w.since, durationHours: w.durationHours });
+    wornNow.push({
+      category: w.category, deviceName: w.deviceName, deviceDeclared: w.deviceName, deviceConfidence: "declared",
+      since: w.since, durationHours: w.durationHours,
+      // Ohne Segmentierung ist der Lauf das Gerät: beide Uhren sind hier per Konstruktion dieselbe.
+      deviceSince: w.since, deviceDurationHours: w.durationHours,
+    });
   }
 
   const openOffenseRows = ledger.offenses.filter((o) => o.status === "open");
@@ -495,6 +525,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       since: lock.since,
       currentSegmentSince: lock.currentSegmentSince,
       durationHours: lock.currentDurationHours,
+      currentSegmentDurationHours: lock.currentSegmentDurationHours,
       deviceName: kgEffectiveName,
       deviceDeclared: kgDeclaredName,
       deviceConfidence: kgConfidence,

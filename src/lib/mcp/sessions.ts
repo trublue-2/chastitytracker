@@ -1,6 +1,7 @@
 import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/sessionModel";
+import type { VerifyFailure } from "@/lib/verifyReason";
 import { msToHours } from "@/lib/utils";
-import { resolveUserId, makeIso, buildEnvelope, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, mcpDeviceCheckStatus, type Envelope, type Iso, type NoteDTO, type EntityRef } from "@/lib/mcp/common";
+import { resolveUserId, makeIso, buildEnvelope, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, mcpDeviceCheckStatus, type Envelope, type Iso, type NoteDTO, type EntityRef, type McpDeviceCheckStatus } from "@/lib/mcp/common";
 
 /** get_session — Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes
  *  + Daten-Qualitäts-Flags. Rein lesend, MCP-only.
@@ -26,12 +27,13 @@ export interface SegmentView {
   deviceEffective: { id: string | null; name: string | null };
   deviceConfidence: Segment["deviceConfidence"];
   endedBy: Segment["endedBy"];
-  controls: { id: string; time: string; code: string | null; verifikationStatus: string | null; deviceCheck: DeviceCheckView; detected: string | null; expected: string | null; notes: NoteDTO[] }[];
+  controls: { id: string; time: string; code: string | null; verifikationStatus: string | null; verifikationFailure: VerifyFailure | null; deviceCheck: DeviceCheckView; detected: string | null; expected: string | null; notes: NoteDTO[] }[];
   notes: NoteDTO[];
 }
 
 /** Bild-gegen-Deklaration-Kontrolle einer PRUEFUNG (N-4/N-11, MCP-Restliste 2026-07-17).
- *  `status`: "ok" (Bild bestätigt) | "wrong" (Bild widerspricht der DEKLARATION — ein anderes,
+ *  `status`: "pending" (Erkennung läuft noch — NICHT als Befund lesen, gleich nochmal abrufen) |
+ *  "ok" (Bild bestätigt) | "wrong" (Bild widerspricht der DEKLARATION — ein anderes,
  *  BENANNTES Gerät war zu sehen) | "missing" (kein Gerät erkannt) | "not_checked" (nicht geprüft oder
  *  nicht prüfbar — ersetzt das frühere mehrdeutige `null`).
  *  `isOffense` ist IMMER false: ein deviceCheck vergleicht Bild vs. Deklaration, NICHT gegen eine
@@ -40,7 +42,7 @@ export interface SegmentView {
  *  (keine Referenzbilder / Bild unbrauchbar / Gerät nicht zuordenbar / nicht angefordert) wird
  *  derzeit nicht unterschieden. */
 export interface DeviceCheckView {
-  status: "ok" | "wrong" | "missing" | "not_checked";
+  status: McpDeviceCheckStatus;
   isOffense: false;
 }
 
@@ -92,8 +94,12 @@ export interface SessionListResult extends Envelope {
    *  Semantik-/Formänderungen an Bestandsfeldern → Bump.
    *  v6: `deviceCheck.status` „wrong" setzt jetzt ein im Bild BENANNTES Gerät voraus; war nur
    *  irgendetwas zu sehen, das keiner Referenz zuzuordnen war, ist der Status „not_checked" statt
-   *  „wrong". Gilt rückwirkend auch für gespeicherte Alt-Kontrollen (Issue #44). */
-  schemaVersion: 6;
+   *  „wrong". Gilt rückwirkend auch für gespeicherte Alt-Kontrollen (Issue #44).
+   *  v7: `deviceCheck.status` kennt die neue Stufe „pending" (Erkennung läuft noch). Bis v6 meldete
+   *  eine frisch eingereichte Kontrolle „not_checked" und wechselte Minuten später auf ein Ergebnis —
+   *  ein v6-„not_checked" ist also nicht zwingend endgültig, ein v7-„not_checked" schon. Daneben
+   *  additiv: `verifikationFailure` nennt den Grund eines Nicht-Matches. */
+  schemaVersion: 7;
   user: string;
   returnedCount: number;
   sessions: SessionView[];
@@ -128,6 +134,9 @@ function controlView(c: LinkedControl, notesByEntity: Map<string, NoteDTO[]>, is
     time: iso(c.time)!,
     code: c.code,
     verifikationStatus: c.verifikationStatus,
+    // Warum die KI-Verifikation nicht gematcht hat — sonst ist `verifikationStatus: null` eine
+    // Sackgasse (nicht verifiziert, Grund unbekannt). null = gematcht oder nie gelaufen.
+    verifikationFailure: c.verifikationFailure,
     // N-4/N-11: bekannte Stufen durchreichen, alles andere (inkl. null) → "not_checked" (statt
     // mehrdeutigem null oder einem ungültigen Rohwert per Cast); isOffense immer false.
     deviceCheck: { status: mcpDeviceCheckStatus(c.deviceCheckStatus), isOffense: false as const },
@@ -224,7 +233,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   const notesByEntity = await notesForEntities(userId, selected.flatMap(refsOfSession), {}, undefined, timezone);
 
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     returnedCount: selected.length,

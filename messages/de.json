@@ -776,6 +776,7 @@
     "deviceExpectedLabel": "erwartet",
     "deviceNoneLabel": "keins erkannt",
     "deviceUncheckableLabel": "nicht prüfbar",
+    "devicePendingLabel": "Erkennung läuft",
     "statsTitle": "Statistik",
     "allStats": "Alle Statistiken",
     "strafbuch": "Strafbuch",

@@ -57,7 +57,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("currentRun und nextRelevant behalten ihre Unterfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result.currentRun).sort()).toEqual(
-      ["isLocked", "since", "currentSegmentSince", "durationHours", "deviceName", "deviceDeclared", "deviceConfidence", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
+      ["isLocked", "since", "currentSegmentSince", "durationHours", "currentSegmentDurationHours", "deviceName", "deviceDeclared", "deviceConfidence", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
     );
     expect(Object.keys(result.nextRelevant).sort()).toEqual(["openControl", "activeLockPeriod", "interruptedLockPeriod", "openOrgasmWindow", "openLockRequest", "openLockRequests"].sort());
   });

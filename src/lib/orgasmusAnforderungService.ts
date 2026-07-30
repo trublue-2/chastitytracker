@@ -109,16 +109,31 @@ export function orgasmusWithdrawNotice(refId?: string): NotifyContent {
 }
 
 /** Withdraws the user's currently open orgasm directive(s) (not yet fulfilled/withdrawn).
- *  Used by the MCP `withdraw` tool (userId-scoped — "neuste offene"). */
-export async function withdrawOrgasmusAnforderung(userId: string): Promise<ServiceResult<{ count: number }>> {
-  const res = await prisma.orgasmusAnforderung.updateMany({
-    where: { userId, fulfilledAt: null, withdrawnAt: null },
-    data: { withdrawnAt: new Date() },
+ *  Used by the MCP `withdraw` tool (userId-scoped — "neuste offene").
+ *
+ *  Gibt die stornierten Zeilen mit zurück, aus derselben Transaktion — der Aufrufer benennt sie in
+ *  seiner Antwort (`withdrawnItems`) und muss sie nicht mit einer eigenen, potentiell abweichenden
+ *  Abfrage nachschlagen. Gleiche Begründung wie bei `withdrawVerschlussAnforderung`. */
+export async function withdrawOrgasmusAnforderung(
+  userId: string,
+): Promise<ServiceResult<{ count: number; rows: { id: string; endetAt: Date; nachricht: string | null }[] }>> {
+  const rows = await prisma.$transaction(async (tx) => {
+    const open = await tx.orgasmusAnforderung.findMany({
+      where: { userId, fulfilledAt: null, withdrawnAt: null },
+      select: { id: true, endetAt: true, nachricht: true },
+    });
+    if (open.length > 0) {
+      await tx.orgasmusAnforderung.updateMany({
+        where: { id: { in: open.map((o) => o.id) } },
+        data: { withdrawnAt: new Date() },
+      });
+    }
+    return open;
   });
-  if (res.count > 0) {
+  if (rows.length > 0) {
     await notifyUser(userId, orgasmusWithdrawNotice());
   }
-  return { ok: true, data: { count: res.count } };
+  return { ok: true, data: { count: rows.length, rows } };
 }
 
 /** Withdraws a single OrgasmusAnforderung by id (not yet fulfilled/withdrawn). Used by the admin

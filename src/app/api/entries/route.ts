@@ -13,8 +13,7 @@ import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, ac
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
-import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
-import { checkDeviceInPhoto } from "@/lib/detectDevice";
+import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
@@ -120,6 +119,11 @@ export async function POST(req: NextRequest) {
       // findet nie eine Verifikation statt → bleibt korrekt bei null ("unverified").
       const initialVerifikationStatus =
         type === "PRUEFUNG" && imageUrl && kontrollCode ? "pending" : null;
+      // Dasselbe für den Geräte-Check, der ebenfalls erst nach dem Commit läuft. Die Bedingung kommt
+      // aus deviceCheckService — derselbe Ausdruck entscheidet unten, ob der Lauf gestartet wird, der
+      // dieses "pending" wieder abräumen MUSS. Zwei getrennt hingeschriebene Bedingungen könnten
+      // auseinanderlaufen und die Zeile für immer auf "pending" stehen lassen.
+      const initialDeviceCheck = deviceCheckApplies(type, imageUrl) ? "pending" : null;
 
       const created = await tx.entry.create({
         data: {
@@ -133,6 +137,7 @@ export async function POST(req: NextRequest) {
           orgasmusArt: orgasmusArt || null,
           kontrollCode: kontrollCode || null,
           verifikationStatus: initialVerifikationStatus,
+          deviceCheck: initialDeviceCheck,
           deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
           // Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur VERSCHLUSS)
           codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,
@@ -288,27 +293,15 @@ export async function POST(req: NextRequest) {
 
   // Kontroll-Geräte-Check (advisory): ist das aktuell verschlossene Gerät im Kontroll-Foto sichtbar?
   // Server-seitig + fire-and-forget (blockiert die Antwort NICHT); Ergebnis landet als entry.deviceCheck,
-  // das der Keyholder sieht. Läuft nur, wenn der Nutzer verschlossen ist und ein Gerät hinterlegt hat.
-  if (type === "PRUEFUNG" && imageUrl) {
-    const entryId = entry.id;
-    const userId = session.user.id;
-    const photoUrl = imageUrl;
-    (async () => {
-      try {
-        const lockEntry = await latestLockPromise;
-        if (lockEntry?.type !== "VERSCHLUSS" || !lockEntry.deviceId) return; // nicht verschlossen / kein Gerät
-        const references = await gatherDeviceReferences(userId);
-        const result = await checkDeviceInPhoto(photoUrl, references, lockEntry.deviceId);
-        if (result) {
-          await prisma.entry.update({
-            where: { id: entryId },
-            data: { deviceCheck: result.status, deviceCheckNote: result.detected, deviceCheckExpected: result.expected },
-          });
-        }
-      } catch (e) {
-        structuredLog("detect-device", "kontrolle_check_failed", { entryId, error: (e as Error).message });
-      }
-    })();
+  // das der Keyholder sieht. Der Vorgang (inkl. der Pflicht, das oben gesetzte "pending" IMMER durch
+  // einen Endzustand zu ersetzen) liegt in deviceCheckService — hier steht nur der Start.
+  if (deviceCheckApplies(type, imageUrl)) {
+    void runDeviceCheck({
+      entryId: entry.id,
+      userId: session.user.id,
+      photoUrl: imageUrl!,
+      lockEntry: latestLockPromise ?? Promise.resolve(null),
+    });
   }
 
   // Notify admins based on per-user NotificationPreference (fire-and-forget)

@@ -104,7 +104,16 @@ zählt. Es ist immer nur EINE Direktive aktiv; Erfüllung automatisch bei passen
   nicht geprüft, kein Vorwurf. \`expected\`/\`detected\` sind zum Prüfzeitpunkt eingefroren — ein altes
   \`wrong\` NICHT gegen das heute deklarierte Gerät lesen. \`wrong\` setzt ein BENANNTES anderes Gerät
   voraus (\`detected\` gesetzt); war nur „irgendetwas" zu sehen, das keiner Referenz zuzuordnen war,
-  ist das \`not_checked\` — ein Nicht-Befund, kein Negativbefund.
+  ist das \`not_checked\` — ein Nicht-Befund, kein Negativbefund. Dasselbe gilt, wenn die Ansicht die
+  bekannten Geräte gar nicht trennen kann (Ausschnitt, verdecktes Merkmal): auch das ist
+  \`not_checked\`, nicht \`wrong\`.
+- \`deviceCheck.status: "pending"\` = die Erkennung LÄUFT NOCH (sie startet erst nach dem Einreichen
+  und braucht je nach Backend Sekunden bis Minuten). Kein Befund, sondern die Aufforderung, gleich
+  nochmal zu schauen. Nur \`not_checked\` heisst „fertig, nichts festgestellt".
+- \`verifikationStatus: null\` heisst „nicht (automatisch) verifiziert" — WARUM steht in
+  \`verifikationFailure\` (\`reason\`: codeMissing = kein Code lesbar · codeWrong = andere Ziffern
+  gelesen (\`detected\`) · sealMissing/sealWrong analog fürs Siegel). Ohne diesen Grund ist \`null\`
+  nicht deutbar: ein unlesbares Foto sieht dann aus wie ein falscher Code.
 - \`windowOpenNow: null\` = kein Fenster offen, NICHT „Öffnen verboten" (die Antwort ist \`openingAllowedNow\`).
 - \`pullOffRisk\`: \`true\` = abstreifbar/unsicher, \`false\` = geprüft sicher, \`null\` = nie beurteilt.
 - \`securityLevel\` (SECURING/TRUST_ONLY) ist v.a. für sichernde Geräte (KG, Halsreif) sinnvoll; \`null\`

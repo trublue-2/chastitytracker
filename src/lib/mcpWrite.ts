@@ -403,14 +403,26 @@ export interface WithdrawArgs {
 /** Prüft, dass die per id gewählte Direktive zum Ziel-Sub UND zur angegebenen Art gehört — die id
  *  kommt vom Agenten, nicht aus einer bereits gefilterten Liste. Ohne diese Schranke zöge ein
  *  vertippter oder verwechselter Wert eine fremde Direktive zurück, und die Antwort meldete brav
- *  Erfolg. Die Zustands-Regeln (bereits zurückgezogen/erfüllt) prüft der Service selbst. */
-async function assertOwnedDirective(id: string, userId: string, target: WithdrawArgs["target"]): Promise<void> {
+ *  Erfolg. Die Zustands-Regeln (bereits zurückgezogen/erfüllt) prüft der Service selbst.
+ *
+ *  Gibt die geprüfte Zeile zurück, damit die Antwort sie benennen kann (`withdrawnItems`) — sie ist
+ *  hier ohnehin geladen, ein zweiter Fetch wäre dieselbe Zeile ein zweites Mal. */
+async function assertOwnedDirective(id: string, userId: string, target: WithdrawArgs["target"]): Promise<OpenDirective> {
   const art = target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT";
   const row = await prisma.verschlussAnforderung.findUnique({
     where: { id },
-    select: { userId: true, art: true },
+    select: { id: true, userId: true, art: true, wirksamAb: true, benachrichtigtAt: true, endetAt: true, nachricht: true },
   });
   if (!row || row.userId !== userId || row.art !== art) throw new Error(`No open ${target} with id ${id}.`);
+  return row;
+}
+
+/** Eine tatsächlich zurückgezogene Direktive. Dieselbe Form wie die dryRun-`targets`
+ *  ({@link DirectiveRow}), plus `code` für Kontrollen — damit „was WÜRDE weggehen" und „was IST
+ *  weggegangen" nicht in zwei verschiedenen Formen gelesen werden müssen. */
+interface WithdrawnItem extends DirectiveRow {
+  /** Der 5-stellige Kontroll-Code (nur `target: "inspection"`), sonst null. */
+  code: string | null;
 }
 
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
@@ -418,7 +430,7 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   if (args.id && args.target !== "lock_request" && args.target !== "lock_period") {
     throw new Error("id is only supported for target lock_request or lock_period.");
   }
-  if (args.id) await assertOwnedDirective(args.id, userId, args.target);
+  const owned = args.id ? await assertOwnedDirective(args.id, userId, args.target) : null;
   if (args.dryRun) {
     // Reine Lese-Vorschau: zeigt, was ein echter Aufruf träfe, ohne etwas zurückzuziehen. Dieselbe
     // "offen"-Definition wie withdrawVerschlussAnforderung/withdrawOrgasmusAnforderung/resolveKontrolle
@@ -461,18 +473,50 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   // `notified` = wusste der Sub von der Direktive? Eine terminierte, noch nicht ausgeloeste ist fuer
   // ihn unsichtbar; sie zu stornieren meldet ihm nichts. Die Antwort darf das nicht anders behaupten.
   let notified = true;
+  // WAS weggegangen ist, Zeile für Zeile. Zahlen allein benennen es nicht: der Rückzug ohne `id` ist
+  // ein Rundumschlag und trifft auch Direktiven, von denen der Aufrufer nichts wusste (belegter Fall
+  // 28.07.2026: eine falsch terminierte Kontrolle zurückgezogen, `withdrawn: 3` — zwei weitere waren
+  // offen).
+  //
+  // Die SICHTBARKEIT je Zeile stammt immer aus der Antwort des Service, der sie storniert hat — nie
+  // aus einem eigenen Nachlesen. Sonst könnte der Poller genau dazwischen auslösen und die Liste
+  // („war geplant, er wusste nichts davon") dem Zähler widersprechen, der es besser weiss. Genau
+  // diese Verwirrung soll das Feld beenden.
+  //
+  // Beim Rundumschlag über `target` kommen auch die ZEILEN aus der Transaktion des Service. Bei den
+  // beiden id-gezielten Pfaden (`owned`, und je Zeile bei `inspection`) ist das nicht nötig: dort
+  // steht die id von vornherein fest, es gibt keine Menge, die abweichen könnte — nur der Status
+  // muss vom Service kommen, und er tut es.
+  const withdrawnItems: WithdrawnItem[] = [];
+  const isoFn = await isoForUser(userId);
+  const lockItem = (row: OpenDirective): WithdrawnItem => ({ ...directiveRow(row, isoFn), code: null });
   // Über die Shared-Services zurückziehen → der Nutzer wird konsistent benachrichtigt (wie in der Admin-UI).
-  if (args.id) {
+  if (owned) {
     // Genau eine Zeile — sonst identisch zum Rundumschlag unten, inklusive Antwort-Formulierung.
-    ({ notified } = unwrap(await withdrawVerschlussAnforderungById(args.id)));
+    // Auf `owned` verzweigen statt auf `args.id`: dieselbe Bedingung, aber der Compiler weiss es.
+    ({ notified } = unwrap(await withdrawVerschlussAnforderungById(owned.id)));
     count = 1;
     hidden = notified ? 0 : 1;
+    // Sichtbarkeit aus `notified` ableiten, NICHT aus dem `owned`-Abbild: das wurde vor dem Rückzug
+    // gelesen, und stempelte der Poller in der Zwischenzeit `benachrichtigtAt`, meldete die Zeile
+    // „scheduled", während Zähler und Meldung derselben Antwort „der Sub wurde benachrichtigt" sagen.
+    withdrawnItems.push({
+      ...lockItem(owned),
+      status: notified ? "triggered" : "scheduled",
+    });
   } else if (args.target === "orgasm_directive") {
-    count = unwrap(await withdrawOrgasmusAnforderung(userId)).count;
-  } else if (args.target === "lock_request") {
-    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "ANFORDERUNG")));
-  } else if (args.target === "lock_period") {
-    ({ count, hidden, notified } = unwrap(await withdrawVerschlussAnforderung(userId, "SPERRZEIT")));
+    // Orgasmus-Anforderungen kennen kein `wirksamAb` (nicht terminierbar, siehe delayedTrigger) —
+    // der Sub weiss immer von ihnen. `directiveRow` leitet daraus von selbst "triggered" ab, statt
+    // dass diese Stelle die Sichtbarkeits-Regel ein zweites Mal von Hand formuliert.
+    const { count: n, rows } = unwrap(await withdrawOrgasmusAnforderung(userId));
+    count = n;
+    for (const o of rows) withdrawnItems.push(lockItem({ ...o, wirksamAb: null, benachrichtigtAt: null }));
+  } else if (args.target === "lock_request" || args.target === "lock_period") {
+    const { count: n, hidden: h, notified: was, rows } = unwrap(
+      await withdrawVerschlussAnforderung(userId, args.target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT"),
+    );
+    count = n; hidden = h; notified = was;
+    for (const s of rows) withdrawnItems.push(lockItem(s));
   } else if (args.target === "inspection") {
     // Jede offene (noch nicht eingereichte) Inspektion per id zurückziehen — auch TERMINIERTE, aber
     // nur so weit, wie `keyholderVisibleKontrolleWhere` reicht: eine noch nicht ausgelöste
@@ -481,31 +525,42 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     // den Sub unsichtbar, und die Meldung wäre der Verrat des Plans.
     const open = await prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere() },
-      select: { id: true },
+      select: { id: true, code: true, deadline: true, wirksamAb: true, kommentar: true },
     });
     notified = false;
     for (const ka of open) {
-      if (unwrap(await resolveKontrolle(ka.id, "withdraw")).notified) notified = true;
+      // Dieselbe Antwort treibt Zähler UND Zeile: `status` kann dem `hidden` nicht widersprechen.
+      const wasNotified = unwrap(await resolveKontrolle(ka.id, "withdraw")).notified;
+      if (wasNotified) notified = true;
       else hidden++; // schweigend storniert = der Sub kannte sie nicht (terminiert, nicht ausgelöst)
+      withdrawnItems.push({
+        id: ka.id,
+        status: wasNotified ? "triggered" : "scheduled",
+        scheduledFor: isoFn(ka.wirksamAb),
+        endsAt: isoFn(ka.deadline), // bei einer Kontrolle ist das Ende die Erfüllungs-FRIST
+        message: ka.kommentar,
+        code: ka.code,
+      });
     }
     count = open.length;
   } else {
     throw new Error(`Unknown withdraw target: ${args.target}`);
   }
-  if (count === 0) return { ok: true, withdrawn: 0, hidden: 0, message: `Nothing open to withdraw for ${args.target}.` };
+  if (count === 0) return { ok: true, withdrawn: 0, hidden: 0, withdrawnItems: [], message: `Nothing open to withdraw for ${args.target}.` };
   // Gemischter Treffer (laufend + geplant): beides benennen. Der Rückzug per target ist bewusst ein
   // Rundumschlag — er darf nur nicht so klingen, als hätte er eine einzige Direktive erwischt.
   const mixed = hidden > 0 && hidden < count;
   if (mixed) {
     return {
-      ok: true, withdrawn: count, hidden,
-      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently.`,
+      ok: true, withdrawn: count, hidden, withdrawnItems,
+      message: `Withdrew ${count} ${args.target}: ${count - hidden} already triggered (the user was notified by e-mail + push) and ${hidden} still SCHEDULED — those they never learned about, and were withdrawn silently. See withdrawnItems for which ones.`,
     };
   }
   return {
     ok: true,
     withdrawn: count,
     hidden,
+    withdrawnItems,
     message: notified
       ? `Withdrew ${count} ${args.target}; the user was notified by e-mail + push.`
       : `Withdrew ${count} ${args.target}. It had not been triggered yet, so the user was NOT notified — they never learned it existed.`,

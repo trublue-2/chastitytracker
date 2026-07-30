@@ -31,6 +31,14 @@ export interface LockState {
    *  Reinigungspause, sonst identisch mit `since`). Der alte `since`-Wert vor A-01. */
   currentSegmentSince: string | null;
   currentDurationHours: number | null;
+  /** Dauer des AKTUELLEN Segments (seit `currentSegmentSince`) — das Gegenstück zu
+   *  `currentDurationHours`, das den ganzen Lauf misst. Ohne Reinigungspause identisch.
+   *
+   *  Existiert, weil `deviceName` das Gerät DIESES Segments nennt: wer den Namen mit der Lauf-Dauer
+   *  paart, liest „Jura Cocoon seit 13.2 h", obwohl das Gerät erst beim letzten Wiederverschluss
+   *  angelegt wurde. Ein Segment hat per Konstruktion keine Pause in sich, also ist das schlicht
+   *  `now − currentSegmentSince`. */
+  currentSegmentDurationHours: number | null;
   deviceName: string | null;
   /** Schlüssel-Deklaration des AKTUELLEN Verschlusses (siehe `Entry.keyInBox`). Nicht verschlossen → null. */
   keyInBox: boolean | null;
@@ -106,6 +114,10 @@ export function buildLockState<E extends LockEntry>(
     since,
     currentSegmentSince,
     currentDurationHours,
+    // Aus DEMSELBEN Lock-Eintrag wie deviceName — die Zahl, die zum genannten Gerät gehört.
+    currentSegmentDurationHours: isLocked && currentLock
+      ? msToHours(now.getTime() - currentLock.startTime.getTime())
+      : null,
     deviceName: isLocked ? (currentLock?.device?.name ?? null) : null,
     // Aus DEMSELBEN Lock-Eintrag wie deviceName: nach einer Reinigungspause gilt die Angabe des
     // Wiederverschlusses, nicht die des Session-Starts.

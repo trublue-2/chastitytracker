@@ -207,10 +207,19 @@ export function generateAutoKontrollen(
   // Ohne festes Fenster (Bestand): Trigger UND Frist je Segment → keine Überlappung, Frist strikt vor
   // awakeEnd (= Schlaf-Start). In GANZZAHL-Minuten (keine Float-/Rundungs-Kanten).
   const segSize = (awakeEnd - awakeStart) / x;
+  // Die Segment-Kappung darf die Mindest-Frist NICHT unterlaufen. Vorher stand unten `Math.max(1, …)`,
+  // was in einem engen Wach-Fenster Slots mit 1-Minuten-Frist erzeugte: für den Sub unerfüllbar, und
+  // `repairAutoKontrollen.durOk` stuft sie sofort als Verletzer ein und ersetzt sie — der Plan hätte
+  // gegen sich selbst gearbeitet. Die Prüfung steht VOR der Schleife, weil `segSize` über alle
+  // Segmente konstant ist: passt `fristVon` in eines nicht, passt es in keines. (Im Fenster-Zweig
+  // muss `windowDeadlineMin` dagegen je Trigger entscheiden — dort kappt der Schlaf-Beginn, nicht
+  // die Segmentgrösse.)
+  const maxDur = Math.floor(segSize);
+  if (maxDur < fristVon) return out;
   for (let i = 0; i < x; i++) {
     const segStart = awakeStart + i * segSize;
     const segEnd = awakeStart + (i + 1) * segSize;
-    const dur = Math.min(randomInt(fristVon, fristBis, rand), Math.max(1, Math.floor(segSize)));
+    const dur = Math.min(randomInt(fristVon, fristBis, rand), maxDur);
     const triggerMin = Math.ceil(segStart);
     const triggerMax = Math.min(Math.floor(segEnd - dur), awakeEnd - 1 - dur); // Frist ≤ awakeEnd−1
     if (triggerMax < triggerMin) continue; // Segment zu klein → überspringen

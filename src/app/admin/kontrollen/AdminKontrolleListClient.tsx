@@ -22,17 +22,25 @@ function DeviceFact({ t, row }: { t: ReturnType<typeof useTranslations>; row: Ad
   // error = die KI konnte nicht prüfen (Bild/Referenzen unladbar o.ä.) — klar von „kein Gerät erkannt"
   // (missing) und „kein Check gelaufen" (null → gar kein Chip) getrennt.
   const isError = row.deviceCheck === "error";
+  // pending = die Erkennung läuft noch. Weder ok noch Problem: orange „in Arbeit" und OHNE
+  // Status-Icon — dieselbe Lesart wie die pending-Verifikations-Pill (siehe kontrollePills). Ein
+  // Warn-Dreieck stünde für einen Befund, den es noch nicht gibt.
+  const isPending = row.deviceCheck === "pending";
+  // Das „erwartet"-Suffix ergänzt einen ABWEICHENDEN Befund; bei pending gibt es keinen.
+  const showExpected = !isOk && !isPending && row.deviceCheckExpected;
   return (
-    <Badge variant={isOk ? "ok" : "warn"} size="sm" icon={<Lock size={12} />} label={t("deviceLabel")}>
-      {isError
+    <Badge variant={isOk ? "ok" : isPending ? "inspect" : "warn"} size="sm" icon={<Lock size={12} />} label={t("deviceLabel")}>
+      {isPending
+        ? <span className="italic opacity-80">{t("devicePendingLabel")}</span>
+        : isError
         ? <span className="italic opacity-80">{t("deviceUncheckableLabel")}</span>
         : row.deviceCheck === "missing"
         ? <span className="italic opacity-80">{t("deviceNoneLabel")}</span>
         : <span className="font-semibold">{row.deviceCheckNote ?? "—"}</span>}
-      {!isOk && row.deviceCheckExpected && (
+      {showExpected && (
         <span className="opacity-80">· {t("deviceExpectedLabel")} {row.deviceCheckExpected}</span>
       )}
-      {isOk ? <Check size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
+      {isPending ? null : isOk ? <Check size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
     </Badge>
   );
 }
@@ -64,7 +72,7 @@ export interface AdminKontrolleRowData {
   /** Warum die automatische Verifikation nicht gematcht hat (localized), nur bei "unverified" gesetzt. */
   verifikationReasonStr: string | null;
   /** Kontroll-Geräte-Check: null = nicht geprüft · "ok" · "wrong" (ein anderes, BENANNTES Gerät —
-   *  `deviceCheckNote` ist dann gesetzt) · "missing" (kein Gerät erkannt) · "error" (nicht prüfbar,
+   *  `deviceCheckNote` ist dann gesetzt) · "pending" (Erkennung läuft noch) · "missing" (kein Gerät erkannt) · "error" (nicht prüfbar,
    *  inkl. „Gerät sichtbar, aber keiner Referenz zuzuordnen"). */
   deviceCheck: DeviceCheckStatus | null;
   /** Im Foto erkanntes Gerät (Name) oder null. */

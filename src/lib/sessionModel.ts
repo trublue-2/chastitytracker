@@ -1,4 +1,5 @@
 import { effectiveDeviceCheckStatus, type DeviceCheckStatus } from "@/lib/deviceCheck";
+import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
 import { buildPairs, mergeWearPairs, msToHours, type ReinigungSettings, WEAR_PAIR, type WearPair } from "@/lib/utils";
 
 /**
@@ -25,6 +26,8 @@ export interface SegmentEntry {
   oeffnenGrund?: string | null;
   kontrollCode?: string | null;
   verifikationStatus?: string | null;
+  verifikationReason?: string | null;
+  verifikationReasonDetected?: string | null;
   deviceCheck?: string | null;
   deviceCheckNote?: string | null;
   deviceCheckExpected?: string | null;
@@ -49,6 +52,10 @@ export interface LinkedControl {
   time: Date;
   code: string | null;
   verifikationStatus: string | null;
+  /** Warum die automatische Verifikation NICHT gematcht hat; null = gematcht oder nie gelaufen.
+   *  Nur bei `verifikationStatus: null` aussagekräftig — ein späteres Urteil des Keyholders
+   *  (manual/rejected) überschreibt den Status, nicht den gespeicherten Grund. */
+  verifikationFailure: VerifyFailure | null;
   /** Normalisiert (`effectiveDeviceCheckStatus`): ok | wrong | missing | error | null (nicht geprüft). */
   deviceCheckStatus: DeviceCheckStatus | null;
   detected: string | null;
@@ -152,6 +159,7 @@ function linkControls(controls: SegmentEntry[], start: Date, end: Date | null, n
       time: c.startTime,
       code: c.kontrollCode ?? null,
       verifikationStatus: c.verifikationStatus ?? null,
+      verifikationFailure: toVerifyFailure(c.verifikationStatus, c.verifikationReason, c.verifikationReasonDetected),
       deviceCheckStatus: effectiveDeviceCheckStatus(c.deviceCheck ?? null, c.deviceCheckNote ?? null),
       detected: c.deviceCheckNote ?? null,
       expected: c.deviceCheckExpected ?? null,

@@ -1,5 +1,60 @@
 [
   {
+    "version": "4.57.0",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle lässt dir jetzt immer die volle vorgesehene Zeit — gerechnet ab dem Moment, in dem du sie bekommst. Bisher lief die Uhr ab dem geplanten Zeitpunkt: kam die Meldung verspätet, war die Frist schon angebrochen oder sogar abgelaufen, und die Kontrolle wurde als zu spät gebucht, obwohl du sie nie einhalten konntest.",
+          "en": "An inspection now always gives you its full intended time — counted from the moment you are told. Until now the clock started at the planned time: if the notification arrived late, the window was already eaten into or gone, and the inspection was recorded as late even though you never had a chance to meet it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Sehr kurze, nicht einhaltbare Fristen können bei den automatischen Kontrollen nicht mehr entstehen. In einem engen Wach-Fenster wurden sie auf die Länge des Zeitabschnitts zusammengedrückt und konnten dabei unter die eingestellte Mindestdauer fallen.",
+          "en": "Automatic inspections can no longer end up with a very short, unmeetable deadline. In a narrow waking window they were squeezed down to the length of the time slot and could fall below the configured minimum."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Geräte-Erkennung behauptet nicht mehr das falsche Gerät, wenn das Foto die Unterscheidung nicht hergibt. Zeigt der Ausschnitt zwei ähnlich aussehende Geräte gleich gut, meldet sie „nicht prüfbar“ statt zu raten — bisher konnte daraus ein Falsch-Befund werden. Hinterlegte Angaben zu Material und Bauform helfen ihr jetzt zusätzlich beim Auseinanderhalten.",
+          "en": "The device recognition no longer claims the wrong device when the photo cannot tell them apart. If the shot fits two similar-looking devices equally well, it reports “not checkable” instead of guessing — until now that could turn into a false finding. Recorded material and build details now help it distinguish them as well."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Solange die Geräte-Erkennung an einem frisch eingereichten Kontrollfoto arbeitet, steht bei der Kontrolle „Erkennung läuft“. Vorher sah dieser Zwischenzustand genauso aus wie „nichts festgestellt“, und derselbe Eintrag zeigte kurz darauf ein anderes Ergebnis.",
+          "en": "While the device recognition is still working on a freshly submitted inspection photo, the inspection shows “detection running”. Previously this intermediate state looked exactly like “nothing found”, and the same entry showed a different result moments later."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Deine Keyholderin sieht jetzt auch, WARUM eine Kontrolle nicht automatisch bestätigt wurde — ob der Code nicht lesbar war, andere Ziffern erkannt wurden oder das Siegel fehlte. Bisher stand dort nur „nicht verifiziert“, ohne jeden Anhaltspunkt.",
+          "en": "Your keyholder can now also see WHY an inspection was not confirmed automatically — whether the code was unreadable, different digits were recognised, or the seal was missing. Until now it only said “unverified”, with nothing to go on."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Zieht deine Keyholderin Anforderungen zurück, wird ihr jetzt aufgelistet, welche genau weggefallen sind. Ein Rückzug ohne gezielte Auswahl trifft alle offenen — bisher stand dort nur eine Anzahl, sodass unbemerkt mehr verschwinden konnte als gemeint.",
+          "en": "When your keyholder withdraws requests, the response now lists exactly which ones went. A withdrawal without a specific target hits every open one — until now it reported only a count, so more could disappear unnoticed than intended."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "In der Übersicht deiner Keyholderin passen Gerätename und Tragedauer wieder zusammen. Nach einem Gerätewechsel in einer Reinigungspause stand neben dem neuen Gerät die Dauer des ganzen Laufs.",
+          "en": "In your keyholder's overview, device name and wearing time match again. After a device swap during a cleaning break, the new device was shown next to the duration of the entire run."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.56.1",
     "date": "2026-07-28",
     "changes": [

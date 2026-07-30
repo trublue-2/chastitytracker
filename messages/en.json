@@ -776,6 +776,7 @@
     "deviceExpectedLabel": "expected",
     "deviceNoneLabel": "none detected",
     "deviceUncheckableLabel": "not checkable",
+    "devicePendingLabel": "detection running",
     "statsTitle": "Statistics",
     "allStats": "All statistics",
     "strafbuch": "Punishment Log",

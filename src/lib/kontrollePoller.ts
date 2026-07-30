@@ -6,6 +6,7 @@ import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/vers
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
+import { deadlineFromDispatch } from "@/lib/delayedTrigger";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -81,8 +82,17 @@ async function processDue(): Promise<void> {
         // Notification selbst.
         const sealCode = deriveSealCode(latest);
 
-        await sendKontrolleNotification({ user: ka.user, code: ka.code, sealCode, kommentar: ka.kommentar, deadline: ka.deadline, controlId: ka.id });
-        await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: new Date() } });
+        // Die Frist zählt ab dem Moment, in dem der Sub sie ERFÄHRT, nicht ab dem geplanten
+        // Auslöse-Zeitpunkt (siehe deadlineFromDispatch). Im Normalfall sind das Sekunden Versatz.
+        // Damit kann eine stark verspätete Frist in Randfällen ins Schlaf-Fenster ragen, das die
+        // Planung meidet — bewusst in Kauf genommen: eine unerfüllbare Frist erzeugt ein
+        // Falsch-Vergehen, eine um Minuten verschobene nicht.
+        const sentAt = new Date();
+        const deadline = deadlineFromDispatch(ka, sentAt);
+
+        await sendKontrolleNotification({ user: ka.user, code: ka.code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id });
+        // Frist mitschreiben: Mail, Strafbuch-Beurteilung und Eskalation müssen dieselbe lesen.
+        await prisma.kontrollAnforderung.update({ where: { id: ka.id }, data: { benachrichtigtAt: sentAt, deadline } });
       } catch (e) {
         // benachrichtigtAt bleibt null → nächster Lauf versucht es erneut.
         console.error(`[kontrollePoller] Auslösung fehlgeschlagen (${ka.id}):`, (e as Error).message);
