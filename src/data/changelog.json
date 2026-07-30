@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.58.2",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Der Link aufs Kontroll-Formular wird überall an derselben Stelle gebaut — Dashboard, Session-Listen, Erfassen-Menü, Mail und Push. Vorher entstand er sechsmal von Hand, und nicht jede Variante kodierte Sonderzeichen; ein Code oder Kommentar mit „&“ hätte den Link dort still zerlegt.",
+          "en": "The link to the inspection form is now built in one place for all of them — dashboard, session lists, the capture menu, mail and push. It used to be assembled by hand six times over, and not every variant escaped special characters; a code or comment containing “&” would have silently broken the link there."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.1",
     "date": "2026-07-30",
     "changes": [

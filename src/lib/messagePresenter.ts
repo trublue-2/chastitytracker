@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { InboxMessage, MessageSenderKind } from "@/lib/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messageCategories";
+import { inspectionHref } from "@/lib/entryFormRoute";
 
 /** Eine anzeigefertige Nachricht: alle Texte aufgelöst, keine i18n-Schlüssel mehr. */
 export interface PresentedMessage {
@@ -38,7 +39,9 @@ export async function presentMessages(messages: InboxMessage[], locale: string):
     refMissing: m.refMissing,
     category: messageCategory(m.bodyKey),
     // Die offene Kontrolle führt auf ihre Handlung: das Prüfungs-Formular mit vorbelegtem Code.
-    refHref: m.refActionCode ? `/dashboard/new/pruefung?code=${encodeURIComponent(m.refActionCode)}` : null,
+    // Über `inspectionHref`, damit auch diese Stelle am zentralen Bauplatz hängt — der Helfer kam
+    // parallel dazu und konnte den Posteingang noch nicht kennen.
+    refHref: m.refActionCode ? inspectionHref(m.refActionCode) : null,
     senderKind: m.senderKind,
     read: m.read,
   }));

@@ -1,16 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { expectImportFree } from "@/test/importFree";
 import { codedError, codeOf } from "./codedError";
 
-// Die Importfreiheit ist eine Bundle-Zusicherung, kein Stil: `constants.ts` → `entryErrors.ts` →
-// hier, und `constants.ts` ist aus Client-Komponenten erreichbar. Ein einziger Server-Import
-// (`next/server`, `prisma`) zöge den Server-Code ins Client-Bundle — ohne Typfehler, ohne Testrot.
-// Darum wird die Eigenschaft geprüft statt nur im Header behauptet.
+// Die Kette `constants.ts` → `entryErrors.ts` → hier ist aus Client-Komponenten erreichbar —
+// Begründung in `expectImportFree`.
 describe("codedError.ts bleibt importfrei", () => {
   it("enthält keine import-/require-Anweisung", () => {
-    const source = readFileSync("src/lib/codedError.ts", "utf8");
-    const imports = source.match(/^\s*import\s|[^.\w]require\s*\(/gm) ?? [];
-    expect(imports).toEqual([]);
+    expectImportFree("src/lib/codedError.ts");
   });
 });
 
