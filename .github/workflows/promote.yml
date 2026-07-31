@@ -111,6 +111,43 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Image gebaut aus $SHA (auf main)."
 
+      # Die drei Artefakte eines Release (Image-Tag :latest, Git-Tag `release`, changelog.json
+      # an diesem Commit) müssen zusammenpassen — sonst kündigt der Update-Hinweis der Flotte
+      # eine andere Version an, als :latest liefert.
+      #
+      # VOR dem Retag, nicht danach: ein Guard hinter der Änderung verhindert nichts mehr, er
+      # kommentiert sie nur. Genau so ging der Promote von v4.60.2 aus — Retag und `release`-Tag
+      # standen bereits, als der rote Lauf die Abweichung meldete, und der Release war draussen.
+      #
+      # Dieselbe Zusicherung prüft `changelogVersion.test.ts` schon beim Commit gegen den
+      # Arbeitsstand. Hier bleibt sie trotzdem: geprüft wird der Commit des IMAGES, der auch
+      # Jahre alt oder von Hand als `source` gesetzt sein kann.
+      - name: Guard — Changelog am Quell-Commit nennt die promotete Version
+        if: ${{ inputs.channel == 'latest' }}
+        env:
+          SHA: ${{ steps.rev.outputs.sha }}
+          SRC: ${{ steps.resolve.outputs.source }}
+        run: |
+          set -euo pipefail
+          # Der Vergleich gilt nur für Versions-Quellen; ein :sha-…-Promote hat keine Version
+          # im Tag, dort bleibt die Ausgabe informativ.
+          #
+          # Aus dem lokalen Klon statt über die API: `fetch-depth: 0` oben und der Schritt davor
+          # (`git cat-file -e` + `--is-ancestor origin/main`) haben den Commit samt Tree bereits
+          # garantiert. Spart Round-Trip und Token. Die Contents-API war NICHT falsch — mit
+          # `?ref=<sha>` liest sie einen unveränderlichen Commit, der raw-CDN-Cache (Grund für
+          # den `Accept: …raw`-Header von damals) konnte sie also gar nicht treffen.
+          HEAD_VERSION=$(git show "$SHA:src/data/changelog.json" | jq -r '.[0].version')
+          case "$SRC" in
+            v*)
+              if [ "v$HEAD_VERSION" != "$SRC" ]; then
+                echo "::error::changelog.json am Commit $SHA nennt v$HEAD_VERSION, promotet wurde $SRC. Kein Retag."
+                exit 1
+              fi
+              ;;
+          esac
+          echo "changelog.json am Quell-Commit: v$HEAD_VERSION"
+
       - name: Retag (kein Rebuild, Digest bleibt)
         env:
           SRC: ${{ steps.resolve.outputs.source }}
@@ -147,38 +184,17 @@ jobs:
           # hängt der Update-Hinweis in jeder Instanz.
           # Über die API statt git push (kein Shallow-Thema); PATCH-dann-POST deckt den Fall
           # „Tag existiert noch nicht" ab, wo PATCH mit 422 antwortet.
+          #
+          # Dieser Schritt liegt bewusst NACH dem Retag und hat bewusst KEINE Kompensation:
+          # scheitert er, ist :latest neu und der Tag alt — der Update-Hinweis bleibt dann
+          # schlicht stehen. Andersherum kündigte die Flotte eine Version an, die :latest noch
+          # nicht liefert. Und die Reparatur ist ein erneuter Lauf mit derselben Quelle: Retag
+          # auf denselben Digest und PATCH mit `force` sind idempotent.
           gh api -X PATCH "repos/${{ github.repository }}/git/refs/tags/release" \
                  -f sha="$SHA" -F force=true \
             || gh api -X POST "repos/${{ github.repository }}/git/refs" \
                       -f ref=refs/tags/release -f sha="$SHA"
           echo "refs/tags/release → $SHA"
-
-      # Die drei Artefakte eines Release (Image-Tag :latest, Git-Tag `release`, changelog.json
-      # an diesem Commit) müssen zusammenpassen — sonst kündigt der Update-Hinweis der Flotte
-      # eine andere Version an, als :latest liefert. Über die API gelesen, nicht über raw:
-      # der raw-CDN cacht 5 Minuten und würde einen alten Stand bestätigen.
-      - name: Changelog am release-Tag gegen die promotete Version prüfen
-        if: ${{ inputs.channel == 'latest' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SHA: ${{ steps.rev.outputs.sha }}
-          SRC: ${{ steps.resolve.outputs.source }}
-        run: |
-          set -euo pipefail
-          # Der Vergleich gilt nur für Versions-Quellen; ein :sha-…-Promote hat keine Version
-          # im Tag, dort bleibt die Ausgabe informativ.
-          HEAD_VERSION=$(gh api -H "Accept: application/vnd.github.raw" \
-            "repos/${{ github.repository }}/contents/src/data/changelog.json?ref=$SHA" \
-            | jq -r '.[0].version')
-          case "$SRC" in
-            v*)
-              if [ "v$HEAD_VERSION" != "$SRC" ]; then
-                echo "::error::changelog.json am Commit $SHA nennt v$HEAD_VERSION, promotet wurde $SRC."
-                exit 1
-              fi
-              ;;
-          esac
-          echo "changelog.json am release-Tag: v$HEAD_VERSION"
 
   deploy:
     needs: promote

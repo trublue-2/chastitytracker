@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.60.3",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Sicherung, die vor einer Veröffentlichung prüft, ob die Versionsangaben zusammenpassen, greift jetzt VOR der Freigabe statt danach. Bisher lief sie als letzter Schritt: Sie meldete die Abweichung zwar, aber da war die Version bereits veröffentlicht. Jetzt bricht sie ab, und es wird nichts freigegeben.",
+          "en": "The safeguard that checks whether the version details match before a release now runs BEFORE the release instead of after it. Until now it ran as the last step: it did report the mismatch, but by then the version was already published. It now aborts, and nothing is released."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.2",
     "date": "2026-07-31",
     "changes": [
