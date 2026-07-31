@@ -9,16 +9,9 @@ import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
-import useToast from "@/app/hooks/useToast";
-import { useApiError } from "@/app/hooks/useApiError";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
 type Fenster = { start: string; end: string };
-
-/** Ein Fenster zählt nur mit vollständigem, aufsteigendem Paar — genau das speichert der Service. */
-function isCompleteFenster(f: Fenster): boolean {
-  return Boolean(f.start && f.end && f.start < f.end);
-}
 
 export default function ReinigungToggle({
   userId,
@@ -35,8 +28,6 @@ export default function ReinigungToggle({
 }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
-  const toast = useToast();
-  const apiError = useApiError();
   const { saving, save } = useUserSettingsSave(userId);
   const [erlaubt, setErlaubt] = useState(initialErlaubt);
   const [maxMin, setMaxMin] = useState(initialMaxMinuten);
@@ -54,14 +45,10 @@ export default function ReinigungToggle({
   }
 
   // Fenster separat speichern (nur reinigungsFenster) — der Service lässt die anderen Felder
-  // unberührt. Unvollständige/rückwärts laufende Paare verwirft der Service still; die würde ein
-  // `{ok:true}` sonst als gespeichert ausweisen, obwohl sie nie in der DB landen. Deshalb hier
-  // vorab ablehnen — und lokal erst übernehmen, wenn der Server den Stand angenommen hat.
+  // unberührt. Ein unvollständiges/rückwärts laufendes Paar lehnt er mit einem stabilen Code ab
+  // (`useUserSettingsSave` zeigt ihn als Toast) — die Regel steht dort, nicht hier nochmal.
+  // Lokal erst übernehmen, wenn der Server den Stand angenommen hat.
   async function saveFenster(next: Fenster[]): Promise<boolean> {
-    if (!next.every(isCompleteFenster)) {
-      toast.error(apiError("timeRangeInvalid"));
-      return false;
-    }
     const ok = await save({ reinigungsFenster: next });
     if (ok) setFenster(next);
     return ok;

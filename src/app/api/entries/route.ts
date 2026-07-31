@@ -13,6 +13,7 @@ import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
+import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
 
   let withdrawnSperrzeit = false;
   let lockStartTime: Date | null = null;
+  // Schliesst dieser VERSCHLUSS eine Reinigungspause ab? In der Transaktion aus demselben
+  // Lock-Eintrag abgeleitet, den der Guard ohnehin liest — nach dem Commit löst er die Kontrolle aus.
+  let beendetReinigungspause = false;
   let requiredAnforderungDeviceIds: string[] = [];
   // In der Transaktion abgeleitet (braucht den Lock-Eintrag), NACH dem Commit für die eigentliche
   // Prüfung wiederverwendet — deshalb hier draussen. null = keine PRUEFUNG mit Foto.
@@ -105,6 +109,7 @@ export async function POST(req: NextRequest) {
         if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
           throw entryGuardError("TIME_BEFORE");
         }
+        beendetReinigungspause = latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
       }
       if (type === "OEFFNEN") {
         const latest = await getLatestKgEntry(session.user.id, tx);
@@ -333,6 +338,15 @@ export async function POST(req: NextRequest) {
   }
 
   markLastAction();
+
+  // Wiederverschluss nach einer Reinigungspause → Kontrolle in Kürze („zeig mir, dass du wieder
+  // drin bist"). Fire-and-forget wie der Geräte-Check: die Planung ist eine Poller-Vorbereitung,
+  // keine Voraussetzung der Antwort. Die Regel selbst (Verzögerung, ersetzte Plan-Zeile,
+  // Schlaf-Fenster-Sonderfall) liegt in autoKontrolleService.
+  if (beendetReinigungspause) {
+    void scheduleCleaningRelockInspection(session.user.id).catch((e) =>
+      console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));
+  }
 
   // Der Geräte-Check braucht den letzten Lock-Entry (welches Gerät ist verschlossen?). Die
   // Foto-Verifikation braucht ihn NICHT mehr: was sie zu prüfen hat, steht in `verification`, und das

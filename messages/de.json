@@ -46,6 +46,7 @@
     "WEAR_DEVICE_REQUIRED": "Gerät ist erforderlich",
     "WEAR_PHOTO_REQUIRED": "Foto ist bei dieser Kategorie zwingend",
     "timeRangeInvalid": "Ende muss nach dem Start liegen",
+    "CLEANING_WINDOWS_TOO_MANY": "Zu viele Reinigungsfenster",
     "USER_NO_EMAIL": "Der Benutzer hat keine E-Mail-Adresse",
     "INVALID_DATETIME": "Ungültiger Zeitpunkt",
     "INVALID_CATEGORY": "Ungültige Kategorie",

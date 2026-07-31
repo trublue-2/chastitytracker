@@ -114,6 +114,15 @@ invisible to the sub until it fires and surfaces under
 `keyholder_dashboard.scheduledDirectives` meanwhile. `withdraw` also cancels a
 scheduled (not-yet-triggered) directive of the same kind.
 
+`set_cleaning` covers every cleaning rule the admin UI has: `allowed`,
+`maxMinutes`, `maxPerDay` and `windows` (the daily time windows). `windows`
+**replaces the whole list** — retiming, adding and deleting a window all go
+through it, so pass every window that should remain (read the current ones from
+`get_context.cleaning.windows`). `windows: []` removes them all, which does *not*
+forbid cleaning: without windows it is simply no longer tied to a time of day —
+`allowed: false` is what forbids it. Times are the sub's wall clock and a window
+cannot cross midnight (split it: `22:00–24:00` plus `00:00–06:00`).
+
 **V2 knowledge / context writes** — `upsert_note`, `link_note`, `set_device_meta`,
 `set_health_hold`, `upsert_appointment`, `upsert_recurring_context`. Each takes a
 mandatory `reason` (audited), supports `dryRun`, and runs in a transaction with a

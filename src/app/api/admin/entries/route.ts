@@ -43,6 +43,10 @@ export async function POST(req: NextRequest) {
       }
 
       // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
+      // Aus demselben Grund löst ein VERSCHLUSS hier auch KEINE Reinigungs-Kontrolle aus (die
+      // steht am Selbst-Erfassungs-Pfad des Subs, siehe `scheduleCleaningRelockInspection`): ein um
+      // 23:00 nachgetragener Verschluss von 14:00 würde sonst eine Kontrolle „in 15–45 Minuten"
+      // planen — der Planer rechnet ab jetzt, nicht ab `startTime`.
       // Hinweis: die Admin-Route hat bewusst KEINEN TIME_BEFORE-Guard (Backdating ist erlaubt) —
       // der neue Eintrag darf also zeitlich VOR den bisher jüngsten KG-Eintrag rutschen. `prev` ist
       // dabei NICHT dasselbe wie `getLatestKgEntry`: nur ohne Backdating (dem Normalfall) fallen

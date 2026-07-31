@@ -9,7 +9,7 @@ import {
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -176,9 +176,13 @@ const MCP_SERVER_INSTRUCTIONS =
   "`get_context` (autoInspections + cleaning).\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
   "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Kontrollen werden MANUELL über " +
+  "`set_cleaning`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … `set_cleaning` deckt ALLE " +
+  "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
+  "Uhrzeit statt sie zu verbieten). Kontrollen werden MANUELL über " +
   "`request_inspection` veranlasst; die Einstellungen der AUTOMATISCHEN Kontrollen sind über den MCP " +
-  "NICHT änderbar (nur lesbar via get_context.autoInspections).\n" +
+  "NICHT änderbar (nur lesbar via get_context.autoInspections). Zusätzlich zum Tagesplan folgt auf jeden " +
+  "Wiederverschluss nach einer Reinigungspause selbsttätig eine Kontrolle — feste Regel, keine Einstellung " +
+  "(Details: `explain_model`, Abschnitt 3).\n" +
   "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
   "`upsert_appointment`, `upsert_recurring_context`.\n" +
   "Alle Writes sind agent-autonom und erfordern KEINE Bestätigung — entscheide und führe direkt aus, ohne " +
@@ -840,12 +844,25 @@ function registerTools(server: McpServer) {
       {
         title: "Set cleaning (Reinigung) rules",
         description:
-          "Sets the cleaning-pause rules: whether short cleaning openings are allowed, the max minutes per " +
-          "pause, and the max pauses per day (0 = unlimited). Only provided fields change." + KEYHOLDER_SILENT,
+          "Sets the cleaning-pause rules: whether short cleaning openings are allowed at all, the max minutes " +
+          "per pause, the max pauses per day (0 = unlimited), and the daily time windows in which cleaning is " +
+          "permitted. Only provided fields change; read the current values from get_context.cleaning first. " +
+          "`windows` REPLACES the whole list (that is how a window is retimed, added or deleted) — pass every " +
+          "window you want to keep, not just the new one. `windows:[]` clears them, which does NOT forbid " +
+          "cleaning: with no windows it is simply no longer tied to a time of day. Use allowed:false to forbid " +
+          "it. Windows only bind while a lock period that permits cleaning is running " +
+          "(get_context.cleaning.windowsBinding)." + KEYHOLDER_SILENT,
         inputSchema: {
-          allowed: z.boolean().optional().describe("Allow cleaning pauses?"),
+          allowed: z.boolean().optional().describe("Allow cleaning pauses at all?"),
           maxMinutes: z.number().int().nonnegative().optional().describe(`Max minutes per cleaning pause (clamped to ${CLEANING_MAX_MINUTES_RANGE.min}–${CLEANING_MAX_MINUTES_RANGE.max}).`),
           maxPerDay: z.number().int().nonnegative().optional().describe(`Max pauses per day, 0 = unlimited (clamped to ${CLEANING_MAX_PER_DAY_RANGE.min}–${CLEANING_MAX_PER_DAY_RANGE.max}).`),
+          windows: z.array(z.object({
+            start: z.string().describe(`Window start, "HH:MM" in the sub's local time (00:00–23:59).`),
+            end: z.string().describe(`Window end, "HH:MM" in the sub's local time, after start (up to "24:00").`),
+          })).optional().describe(
+            `The complete new list of daily cleaning windows (max ${CLEANING_WINDOWS_MAX}), replacing the current one. ` +
+            `A window cannot cross midnight — split it (e.g. 22:00–24:00 plus 00:00–06:00).`,
+          ),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

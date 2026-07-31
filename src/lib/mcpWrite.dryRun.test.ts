@@ -66,6 +66,7 @@ import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeServic
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, collectDetectedOffenses } from "@/lib/strafurteilService";
+import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const userFindUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
@@ -88,7 +89,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(JETZT);
   userMock.mockResolvedValue({ id: "u1", username: "sub", role: "admin" });
-  userFindUniqueOrThrowMock.mockResolvedValue({ reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0 });
+  userFindUniqueOrThrowMock.mockResolvedValue({ reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0, reinigungsFenster: JSON.stringify([{ start: "19:00", end: "20:00" }]) });
   strafeRecordFindUniqueMock.mockResolvedValue(null);
   // Default: ref ist ein aktuell erkanntes Vergehen (punish/dismiss-diff braucht das, siehe B-05-Guard
   // gegen OFFENSE_NOT_FOUND). Tests, die genau diesen Guard prüfen, setzen [] explizit.
@@ -464,5 +465,71 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
     expect(r.wouldSucceed).toBe(false);
     expect(r.problem).toBe("LOCK_DURATION_OR_END");
     expect(createVerschlussAnforderung).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * set_cleaning.windows: die Reinigungs-Fenster über den MCP umlegen, ergänzen, löschen. Die Liste
+ * ERSETZT den Stand — deshalb muss der Agent sehen, was er dabei verdrängt (diff), und darf keine
+ * Fenster still verlieren, wenn ein Paar Murks ist (der Lese-Pfad verwirft solche Paare, siehe
+ * parseReinigungsFenster — genau das wäre hier eine unbemerkte Löschung).
+ */
+describe("set_cleaning: Reinigungs-Fenster", () => {
+  const setReinigungMock = setReinigungSettings as unknown as ReturnType<typeof vi.fn>;
+  beforeEach(() => setReinigungMock.mockResolvedValue({ ok: true, data: null }));
+
+  it("ersetzt die ganze Liste — der Service bekommt genau die übergebenen Fenster", async () => {
+    const windows = [{ start: "07:00", end: "08:00" }, { start: "19:00", end: "20:30" }];
+    const r = await mcpSetCleaning("sub", { windows }) as { message: string };
+    expect(setReinigungMock).toHaveBeenCalledWith("u1", { erlaubt: undefined, maxMinuten: undefined, maxProTag: undefined, fenster: windows });
+    expect(r.message).toContain("07:00-08:00, 19:00-20:30");
+  });
+
+  it("windows:[] löscht alle Fenster — und die Meldung sagt, dass das die Reinigung NICHT verbietet", async () => {
+    const r = await mcpSetCleaning("sub", { windows: [] }) as { message: string };
+    expect(setReinigungMock).toHaveBeenCalledWith("u1", expect.objectContaining({ fenster: [] }));
+    expect(r.message).toMatch(/no longer restricted to times of day/);
+    expect(r.message).toMatch(/allowed:false/);
+  });
+
+  it("ohne windows bleiben die Fenster unberührt (undefined, nicht [])", async () => {
+    await mcpSetCleaning("sub", { maxMinutes: 20 });
+    expect(setReinigungMock).toHaveBeenCalledWith("u1", expect.objectContaining({ fenster: undefined }));
+  });
+
+  it("ein ungültiges Paar wird mit Index + Grund abgelehnt, statt still zu verschwinden", async () => {
+    await expect(mcpSetCleaning("sub", { windows: [{ start: "07:00", end: "08:00" }, { start: "19:00", end: "18:00" }] }))
+      .rejects.toThrow(/windows\[1\] \{"start":"19:00","end":"18:00"\}: The end must be after the start/);
+    expect(setReinigungMock).not.toHaveBeenCalled();
+  });
+
+  it("dieselbe Ablehnung schon im dryRun — der Preview darf nichts versprechen, was der Commit ablehnt", async () => {
+    await expect(mcpSetCleaning("sub", { dryRun: true, windows: [{ start: "25:00", end: "26:00" }] }))
+      .rejects.toThrow(/windows\[0\].*Invalid time/);
+  });
+
+  it("zu viele Fenster werden abgelehnt — ohne Index, die Liste als Ganzes ist zu lang", async () => {
+    const windows = Array.from({ length: CLEANING_WINDOWS_MAX + 1 }, () => ({ start: "07:00", end: "08:00" }));
+    await expect(mcpSetCleaning("sub", { windows })).rejects.toThrow(/^windows: Too many cleaning windows$/);
+    expect(setReinigungMock).not.toHaveBeenCalled();
+  });
+
+  it("ganz ohne Feld: der Hinweis nennt windows mit", async () => {
+    await expect(mcpSetCleaning("sub", {})).rejects.toThrow(/allowed, maxMinutes, maxPerDay, windows/);
+  });
+
+  it("dryRun zeigt die ALTE gegen die NEUE Liste und committet nichts", async () => {
+    const r = await mcpSetCleaning("sub", { dryRun: true, windows: [{ start: "06:00", end: "07:00" }] }) as {
+      preview: { windows: string[] }; diff: Record<string, [unknown, unknown]>;
+    };
+    expect(r.preview.windows).toEqual(["06:00-07:00"]);
+    expect(r.diff.windows).toEqual([["19:00-20:00"], ["06:00-07:00"]]);
+    expect(setReinigungMock).not.toHaveBeenCalled();
+  });
+
+  it("dryRun ohne windows: kein Fenster-Diff (unberührt heisst unberührt)", async () => {
+    const r = await mcpSetCleaning("sub", { dryRun: true, allowed: true }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.windows).toBeUndefined();
+    expect(r.diff.allowed).toEqual([false, true]);
   });
 });
