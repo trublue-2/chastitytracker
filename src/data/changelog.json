@@ -9,6 +9,13 @@
           "de": "Eine auf einen Zeitpunkt gelegte Einschliess-Anforderung verfiel bisher, wenn der Sub zu diesem Zeitpunkt bereits verschlossen war — richtig so, denn sie war ja erfüllt. Mit ihr verfiel aber auch die Sperrzeit, die sie mitbrachte: die entsteht sonst erst beim Einschliessen, und genau dieser Schritt fällt hier aus. Der Keyholder verlor die Sperre also ausgerechnet dann, wenn der Sub alles richtig gemacht hatte. Jetzt wird sie übernommen: eine Mindest-Tragedauer zählt ab dem Auslöse-Zeitpunkt, ein fest gesetztes Sperr-Ende gilt unverändert. Die Anforderung selbst wird als erfüllt verbucht (kein Vermerk wegen zu späten Einschliessens), und der Sub bekommt die Sperrzeit wie jede andere gemeldet — er hat von der terminierten Anforderung nie erfahren und wüsste sonst nichts von der Sperre.",
           "en": "A lock request scheduled for a future moment used to lapse if the sub was already locked at that moment — correctly so, since it was already satisfied. But the lock period it carried lapsed with it: that period is otherwise created at the moment of locking, and that step is exactly what does not happen here. So the keyholder lost the lock period precisely when the sub had done everything right. It is now carried over: a minimum wearing duration counts from the trigger moment, a fixed lock end applies unchanged. The request itself is recorded as fulfilled (no late-lock mark), and the sub is notified of the lock period like any other — he never learned of the scheduled request and would otherwise not know about the lock."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Einschliess-Anforderung, die den Sub nie erreicht hat, konnte im Strafbuch als „zu spät eingeschlossen\" auftauchen. Möglich war das bei einer terminierten Anforderung mit fest gesetzter Frist, die vor dem Auslöse-Zeitpunkt lag: sie löste aus, wurde nie verschickt — und hinterliess eine Zeile mit abgelaufener Frist. Solche Anforderungen werden jetzt gar nicht erst als Versäumnis gezählt; was der Sub nie gesehen hat, kann er nicht versäumen.",
+          "en": "A lock request that never reached the sub could show up in the offense book as a late lock. This was possible for a scheduled request whose fixed deadline lay before its trigger moment: it triggered, was never sent — and left behind a row with an expired deadline. Such requests are no longer counted as a miss at all; the sub cannot miss what he never saw."
+        }
       }
     ]
   },

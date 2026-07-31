@@ -237,30 +237,27 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         ? isLocked
         : !isLocked || checkLockEnd(va.endetAt, va.wirksamAb, now) !== null;
       if (obsolete) {
-        // Gegenstandslos heisst nicht wertlos: eine ANFORDERUNG, die einen bereits verschlossenen
-        // Sub antrifft, ist ERFÜLLT — ihre mitgebrachte Sperrzeit bleibt aber gewollt und würde mit
-        // dem Rückzug verfallen. Die Regel liegt im Service; hier steht nur, dass sie zuerst
-        // gefragt wird. `null` = nichts zu übernehmen → wie bisher zurückziehen.
-        const uebernommen = art === "ANFORDERUNG"
-          ? await carryOverSperrzeitOnAlreadyLocked(va, now)
-          : null;
-        if (uebernommen) {
-          // Nach dem Commit (Notifications sind nicht transaktional). Der Sub hat von der
-          // terminierten Anforderung nie erfahren — ohne diese Meldung liefe er in eine Sperre,
-          // von der er nichts weiss, und die nächste Öffnung wäre ein unverschuldetes Vergehen.
-          await sendVerschlussAnforderungNotifications({
-            userId: va.userId,
-            user: va.user,
-            art: "SPERRZEIT",
-            nachricht: va.nachricht,
-            endetAtDate: uebernommen.endetAt,
-            requestId: uebernommen.sperrzeitId,
+        // Gegenstandslos heisst nicht wertlos: eine ANFORDERUNG an einen bereits verschlossenen Sub
+        // ist ERFÜLLT, und die Sperrzeit, die sie mitbringt, bleibt gewollt. Warum und mit welchem
+        // Anker steht bei `carryOverSperrzeitOnAlreadyLocked`; `null` = nichts zu übernehmen.
+        const uebernommen = art === "ANFORDERUNG" ? await carryOverSperrzeitOnAlreadyLocked(va, now) : null;
+        if (!uebernommen) {
+          await prisma.verschlussAnforderung.update({
+            where: { id: va.id },
+            data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.obsolete },
           });
           continue;
         }
-        await prisma.verschlussAnforderung.update({
-          where: { id: va.id },
-          data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.obsolete },
+        // Nach dem Commit (Notifications sind nicht transaktional). Der Sub hat von der terminierten
+        // Anforderung nie erfahren — ohne diese Meldung liefe er in eine Sperre, von der er nichts
+        // weiss, und die nächste Öffnung wäre ein unverschuldetes Vergehen.
+        await sendVerschlussAnforderungNotifications({
+          userId: va.userId,
+          user: va.user,
+          art: "SPERRZEIT",
+          nachricht: uebernommen.nachricht,
+          endetAtDate: uebernommen.endetAt,
+          requestId: uebernommen.sperrzeitId,
         });
         continue;
       }

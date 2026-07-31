@@ -30,7 +30,7 @@ const anforderung = (over: Partial<{ dauerH: number | null; sperrEndetAt: Date |
 
 beforeEach(() => {
   vi.clearAllMocks();
-  txMock.verschlussAnforderung.create.mockResolvedValue({ id: "s-neu" });
+  txMock.verschlussAnforderung.create.mockResolvedValue({ id: "s-neu", nachricht: "24h drin bleiben" });
   txMock.verschlussAnforderung.update.mockResolvedValue({});
 });
 
@@ -61,13 +61,19 @@ describe("carryOverSperrzeitOnAlreadyLocked", () => {
     expect(data).toMatchObject({
       userId: "u1", art: "SPERRZEIT", nachricht: "24h drin bleiben", reinigungErlaubt: true,
       endetAt: new Date(X.getTime() + 24 * STUNDE),
-      // Sofort gültig (nicht vor dem Sub verborgen) und als zugestellt vermerkt — der Poller
-      // schickt die Meldung unmittelbar nach dem Commit.
-      wirksamAb: null, benachrichtigtAt: X,
+      // Sofort gültig ⇒ nicht vor dem Sub verborgen. KEIN `benachrichtigtAt`: der Stempel meint
+      // „Mail/Push ging raus", und der Versand liegt hinter dem Commit (der Poller schickt).
+      wirksamAb: null,
     });
+    expect(data).not.toHaveProperty("benachrichtigtAt");
   });
 
-  it("verbucht die Anforderung als ERFÜLLT, nicht als zurückgezogen (kein late_lock)", async () => {
+  it("gibt die Nachricht der GESCHRIEBENEN Zeile zurück — die Meldung zitiert die Sperrzeit", async () => {
+    const r = (await carryOverSperrzeitOnAlreadyLocked(anforderung(), X))!;
+    expect(r.nachricht).toBe("24h drin bleiben");
+  });
+
+  it("verbucht die Anforderung als ERFÜLLT, nicht als zurückgezogen", async () => {
     await carryOverSperrzeitOnAlreadyLocked(anforderung(), X);
     expect(txMock.verschlussAnforderung.update).toHaveBeenCalledWith({
       where: { id: "a1" }, data: { fulfilledAt: X },

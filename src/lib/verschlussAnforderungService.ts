@@ -514,8 +514,10 @@ export interface DueLockRequest extends LockRequestSperrzeit {
  * war. Mit ihr verfiel aber auch die SPERRZEIT, die sie mitbrachte — die entsteht sonst erst beim
  * ERFÜLLEN (`entries/route.ts`), und dieser Pfad wird nie erreicht, wenn der Sub schon zu ist. Der
  * Keyholder verlor damit die Sperre ausgerechnet in dem Fall, in dem der Sub alles richtig gemacht
- * hat. Also: Anforderung als ERFÜLLT verbuchen (sie WURDE erfüllt — `isLateLock` liest genau
- * `fulfilledAt`, es entsteht kein `late_lock`) und die Sperrzeit trotzdem anlegen.
+ * hat. Also: Anforderung als ERFÜLLT verbuchen (sie WURDE erfüllt) und die Sperrzeit trotzdem
+ * anlegen. Ein `late_lock` entsteht dadurch nicht — nicht wegen `fulfilledAt` (das hilft nur,
+ * solange die Frist noch läuft; ein absolutes `endetAt` darf vor dem Auslöse-Zeitpunkt liegen),
+ * sondern weil das Strafbuch eine nie zugestellte Anforderung gar nicht erst als verspätet zählt.
  *
  * Die Sperrzeit zählt ab `now`, dem Auslöse-Zeitpunkt (siehe {@link sperrzeitEndeFromRequest}), und
  * ist sofort aktiv (`wirksamAb: null` ⇒ nicht vor dem Sub verborgen). Sie zieht — wie der
@@ -530,11 +532,11 @@ export interface DueLockRequest extends LockRequestSperrzeit {
 export async function carryOverSperrzeitOnAlreadyLocked(
   va: DueLockRequest,
   now: Date,
-): Promise<{ sperrzeitId: string; endetAt: Date } | null> {
+): Promise<{ sperrzeitId: string; endetAt: Date; nachricht: string | null } | null> {
+  // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`sperrEndetAt`) — ein aus `dauerH`
+  // gerechnetes liegt per Konstruktion vorn. Eine tote Sperre anzulegen hilft niemandem.
   const endetAt = sperrzeitEndeFromRequest(va, now);
-  // `checkLockEnd` statt eines blossen `> now`: dieselbe Regel wie überall sonst am Sperr-Ende.
-  // Trifft nur den absoluten Fall — ein aus `dauerH` gerechnetes Ende liegt per Konstruktion vorn.
-  if (!endetAt || checkLockEnd(endetAt, null, now) !== null) return null;
+  if (!endetAt || endetAt <= now) return null;
 
   const sperrzeit = await prisma.$transaction(async (tx) => {
     const created = await tx.verschlussAnforderung.create({
@@ -544,18 +546,21 @@ export async function carryOverSperrzeitOnAlreadyLocked(
         nachricht: va.nachricht,
         endetAt,
         reinigungErlaubt: va.reinigungErlaubt,
-        // Sofort gültig UND als zugestellt vermerkt: der Aufrufer meldet sie unmittelbar danach.
+        // Sofort gültig ⇒ nicht vor dem Sub verborgen. `benachrichtigtAt` bleibt null wie bei der
+        // Sperrzeit aus dem Erfüllungs-Pfad: der Stempel meint „Mail/Push ging raus", und der Versand
+        // liegt hinter dem Commit — ihn vorab zu setzen behauptete eine Zustellung, die scheitern kann.
         wirksamAb: null,
-        benachrichtigtAt: now,
       },
-      select: { id: true },
+      select: { id: true, nachricht: true },
     });
     await tx.verschlussAnforderung.update({ where: { id: va.id }, data: { fulfilledAt: now } });
     return created;
   });
 
   void notifyHeimdallForUserId(va.userId);
-  return { sperrzeitId: sperrzeit.id, endetAt };
+  // `nachricht` aus der GESCHRIEBENEN Zeile, nicht aus der Quelle: die Meldung zitiert damit das,
+  // was wirklich in der Sperrzeit steht.
+  return { sperrzeitId: sperrzeit.id, endetAt, nachricht: sperrzeit.nachricht };
 }
 
 /**
