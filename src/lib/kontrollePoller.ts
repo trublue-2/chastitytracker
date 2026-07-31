@@ -3,7 +3,8 @@ import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getLatestKgEntry, getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/verschlussAnforderungService";
-import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen } from "@/lib/autoKontrolleService";
+import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
+import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { deadlineFromDispatch } from "@/lib/delayedTrigger";
@@ -66,7 +67,10 @@ async function processDue(): Promise<void> {
         // Auto-Kontrolle zurückziehen (kein Nachholen — dieselbe Behandlung wie offener KG). Die
         // Sperrzeit-Abfrage läuft nur, wenn der Sub schon verschlossen ist (obiger Check bestanden)
         // und der Schalter gesetzt ist.
-        if (ka.auto && ka.user.autoKontrolleNurBeiSperre && !(await getActiveSperrzeit(ka.userId))) {
+        // `!ka.cleaningRelock`: für die Kontrolle nach einer Reinigungspause gilt der Schalter nicht —
+        // ihr Anlass ist die Reinigung selbst, nicht der Tagesplan, und ohne laufende Sperrzeit ist
+        // sie genauso berechtigt.
+        if (ka.auto && !ka.cleaningRelock && ka.user.autoKontrolleNurBeiSperre && !(await getActiveSperrzeit(ka.userId))) {
           await withdrawKa(ka.id);
           continue;
         }
@@ -177,12 +181,17 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       entryId: null,
       user: { inspectionAutoMarkEnabled: true },
     },
-    include: { user: { select: { id: true, username: true, inspectionAutoMarkDelayMinutes: true } } },
+    include: { user: { select: { ...AUTO_KONTROLLE_SETTINGS_SELECT, username: true, inspectionAutoMarkDelayMinutes: true } } },
     take: 50,
   });
   for (const ka of autoMarkDue) {
     const dueAt = ka.benachrichtigtReminderAt!.getTime() + ka.user.inspectionAutoMarkDelayMinutes * 60_000;
     if (dueAt > now.getTime()) continue;
+    // Stufe 2 beendet die laufende Session (AUTO_ENTFERNT-Eintrag). Für eine Kontrolle, die nach
+    // einer Reinigungspause IM SCHLAF-FENSTER zugestellt wurde, bleibt es deshalb bei der Mahnung
+    // (Stufe 1 oben läuft normal): verschlafene Minuten dürfen die Session nicht abbrechen.
+    // LIVE abgeleitet statt beim Anlegen eingefroren — ein verschobenes Schlaf-Fenster gilt sofort.
+    if (ka.cleaningRelock && isSleepingAt(autoKontrolleSettingsFromUser(ka.user), ka.benachrichtigtAt ?? ka.wirksamAb ?? ka.deadline, ka.user.timezone ?? APP_TZ)) continue;
     try {
       const result = await autoMarkInspectionRemoved({ id: ka.id, userId: ka.userId });
       if (!result.skipped) {

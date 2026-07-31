@@ -266,6 +266,15 @@ export const INSPECTION_RANDOM_DELAY = { min: 5, max: 65 } as const;
 /** Automatische Kontrollen pro Tag — Min und Max derselben Zeile teilen auch den Fallback. */
 export const AUTO_INSPECTION_PER_DAY_RANGE = { min: 0, max: 12, fallback: 0 } as const satisfies NumberRange;
 
+/** Verzögerung der Kontrolle nach einem Wiederverschluss, der eine Reinigungspause beendet: der
+ *  Sub soll den Beleg nicht direkt an die Reinigung anschliessen können, aber nah genug daran,
+ *  dass er das Gerät nicht in der Zwischenzeit wieder abnimmt. */
+export const CLEANING_RELOCK_INSPECTION_DELAY = { min: 15, max: 45 } as const;
+/** Dieselbe Kontrolle, wenn sie im Schlaf-Fenster landet: kürzer, weil sie den Sub ohnehin nur beim
+ *  ohnehin wachen Wiederverschluss trifft — und ohne Eskalationsstufe 2, damit verschlafene Minuten
+ *  keine Session beenden (die Regel steht bei `scheduleCleaningRelockInspection`). */
+export const CLEANING_RELOCK_INSPECTION_DELAY_SLEEP = { min: 5, max: 15 } as const;
+
 /** Grenzen der Erfüllungsfrist einer automatischen Kontrolle (Minuten). */
 const AUTO_INSPECTION_DEADLINE = { min: 5, max: 240 } as const;
 /** Untere Frist-Grenze („von"). */

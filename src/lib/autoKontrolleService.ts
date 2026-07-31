@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp, randomInt } from "@/lib/utils";
+import { APP_TZ, midnightInTZ, dateAtLocalMinutes, formatTime, clamp, randomInt } from "@/lib/utils";
 import {
   NO_FIELDS_TO_UPDATE, INVALID_TIME, HHMM, AUTO_INSPECTION_PER_DAY_RANGE,
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+  CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
-import { GENUINELY_WITHDRAWN_WHERE } from "@/lib/queries";
+import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE } from "@/lib/queries";
 
 /**
  * Automatische Kontrollen: pro Tag und Sub eine ZUFÄLLIGE Anzahl `x ∈ [perDayMin, perDayMax]` zufällig
@@ -367,7 +368,9 @@ export function autoKontrolleSettingsFromUser(u: {
   };
 }
 
-const AUTO_USER_SELECT = {
+/** Die User-Spalten, aus denen `autoKontrolleSettingsFromUser` die Settings baut (plus id/timezone).
+ *  Exportiert, damit ein Aufrufer ausserhalb (Poller) dieselben Felder lädt, statt sie abzuschreiben. */
+export const AUTO_KONTROLLE_SETTINGS_SELECT = {
   id: true, timezone: true, autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true,
   autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
@@ -375,16 +378,109 @@ const AUTO_USER_SELECT = {
   autoKontrolleNurBeiSperre: true,
 } as const;
 
-/** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null). */
-async function createAutoKontrollen(userId: string, slots: { wirksamAb: Date; deadline: Date }[]): Promise<number> {
+/** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null).
+ *  `extra` trägt die HERKUNFT (heute `cleaningRelock`) — die eine Stelle, an der eine Auto-Zeile
+ *  entsteht, bleibt damit auch die eine Stelle, die weiss, wie eine Auto-Zeile aussieht. */
+async function createAutoKontrollen(
+  userId: string, slots: { wirksamAb: Date; deadline: Date }[], extra: { cleaningRelock?: boolean } = {},
+): Promise<number> {
   if (slots.length === 0) return 0;
   await prisma.kontrollAnforderung.createMany({
     data: slots.map((s) => ({
       userId, code: generateKontrollCode(), deadline: s.deadline, wirksamAb: s.wirksamAb,
-      benachrichtigtAt: null, auto: true,
+      benachrichtigtAt: null, auto: true, ...extra,
     })),
   });
   return slots.length;
+}
+
+// ── Kontrolle nach einem Wiederverschluss, der eine Reinigungspause beendet ───
+
+/** Liegt `at` im Schlaf-Fenster der Sub? Die Wanduhr-Minute kommt aus dem Zeitzonen-Formatter, nicht
+ *  aus Minuten-Arithmetik ab einem Anker: hier wird EIN Zeitpunkt beurteilt, kein Plan aufgespannt,
+ *  und die Formatierung ist auch an Umstellungstagen exakt (siehe `minuteAxis` für den Plan-Fall). */
+export function isSleepingAt(settings: AutoKontrolleSettings, at: Date, tz: string): boolean {
+  return isInQuietMinutes(
+    hhmmToMinutes(settings.ruheVon), hhmmToMinutes(settings.ruheBis),
+    hhmmToMinutes(formatTime(at, "de-CH", tz)),
+  );
+}
+
+/** Was {@link scheduleCleaningRelockInspection} geplant hat (null = nichts geplant). */
+export interface CleaningRelockPlan {
+  /** Wann die Kontrolle ausgelöst (= dem Sub zugestellt) wird. */
+  wirksamAb: Date;
+  deadline: Date;
+  /** Die Kontrolle landet im Schlaf-Fenster: kurze Verzögerung, keine Eskalationsstufe 2. */
+  imSchlaf: boolean;
+  /** Die geplante Auto-Kontrolle, die sie ersetzt hat — null, wenn keine mehr offen war. */
+  ersetzteId: string | null;
+}
+
+/**
+ * Plant die Kontrolle NACH einem Wiederverschluss, der eine Reinigungspause beendet: „du hast dich
+ * gerade selbst geöffnet — zeig mir, dass du wieder drin bist."
+ *
+ * - Verzögerung {@link CLEANING_RELOCK_INSPECTION_DELAY} (15–45 min), damit der Beleg nicht direkt an
+ *   die Reinigung anschliesst; Frist wie bei jeder Auto-Kontrolle zufällig aus [fristVon, fristBis].
+ * - Sie ERSETZT die nächste noch nicht zugestellte Auto-Kontrolle des Tages (die Tagesanzahl bleibt
+ *   damit gleich). Ist keine mehr offen, wird sie trotzdem ausgelöst — der Anlass zählt, nicht das
+ *   Kontingent. Eine bereits ZUGESTELLTE lässt sich nicht ersetzen: der Sub kennt sie schon.
+ * - Landet die Kontrolle im Schlaf-Fenster, gilt die kurze Verzögerung
+ *   ({@link CLEANING_RELOCK_INSPECTION_DELAY_SLEEP}, 5–15 min — der Sub ist beim Wiederverschluss ja
+ *   ohnehin wach), und die Eskalation bleibt bei der Mahnung stehen: Stufe 2 (die einen
+ *   AUTO_ENTFERNT-Eintrag schreibt und damit die laufende Session beendet) fällt aus. „Im
+ *   Schlaf-Fenster" heisst hier: der Wiederverschluss ODER die daraus errechnete Auslösung liegt
+ *   darin — eine Auslösung um 23:10 ist eine Nacht-Kontrolle, auch wenn der Verschluss um 22:55
+ *   knapp davor lag. Der Verzicht auf Stufe 2 steht NICHT in der Zeile: der Poller leitet ihn beim
+ *   Eskalieren aus `cleaningRelock` + {@link isSleepingAt} ab, damit ein verschobenes Schlaf-Fenster
+ *   sofort gilt statt gegen einen beim Anlegen eingefrorenen Wert zu laufen.
+ *
+ * Folgt dem Hauptschalter der Automatik (`aktiv`); die Einstellung „nur während Sperrzeit" gilt
+ * bewusst NICHT (der Anlass ist die Reinigung selbst — siehe `cleaningRelock` im Poller).
+ * Ausgelöst wird das am SELBST-Erfassungs-Pfad des Subs (POST /api/entries); eine nachträgliche
+ * Admin-Korrektur plant nichts (sie liegt in der Vergangenheit, siehe dort).
+ * Fire-and-forget vom Aufrufer, deshalb wirft die Funktion nicht in den Request zurück.
+ */
+export async function scheduleCleaningRelockInspection(
+  userId: string, now: Date = new Date(), rand: () => number = Math.random,
+): Promise<CleaningRelockPlan | null> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
+  if (!u) return null;
+  const settings = autoKontrolleSettingsFromUser(u);
+  if (!settings.aktiv) return null;
+  const tz = u.timezone ?? APP_TZ;
+
+  // Erst mit der langen Verzögerung rechnen, dann prüfen, wo sie landet: fällt Verschluss ODER
+  // Auslösung in den Schlaf, gilt die kurze. Ein zweiter Durchgang genügt — die kurze Spanne liegt
+  // ganz in der langen, kann also nicht aus dem Schlaf-Fenster herausfallen, in das die lange fiel.
+  const langeVerzoegerung = randomInt(CLEANING_RELOCK_INSPECTION_DELAY.min, CLEANING_RELOCK_INSPECTION_DELAY.max, rand);
+  const imSchlaf =
+    isSleepingAt(settings, now, tz) ||
+    isSleepingAt(settings, new Date(now.getTime() + langeVerzoegerung * 60_000), tz);
+  const verzoegerung = imSchlaf
+    ? randomInt(CLEANING_RELOCK_INSPECTION_DELAY_SLEEP.min, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP.max, rand)
+    : langeVerzoegerung;
+
+  const { von: fristVon, bis: fristBis } = fristRange(settings);
+  const wirksamAb = new Date(now.getTime() + verzoegerung * 60_000);
+  const deadline = new Date(wirksamAb.getTime() + randomInt(fristVon, fristBis, rand) * 60_000);
+
+  // Die zu ersetzende Zeile: die nächste geplante, noch NICHT zugestellte Auto-Kontrolle. Der
+  // `benachrichtigtAt: null`-Filter steht bewusst auch im delete (wie in replanToday…): zwischen Lesen
+  // und Löschen kann der Minuten-Poller sie zugestellt haben, und eine zugestellte Kontrolle darf dem
+  // Sub nicht unter den Händen verschwinden.
+  const ersetzbar = await prisma.kontrollAnforderung.findFirst({
+    where: { userId, ...AUTO_PLAN_WHERE, withdrawnAt: null, entryId: null, benachrichtigtAt: null, wirksamAb: { gt: now } },
+    orderBy: { wirksamAb: "asc" },
+    select: { id: true },
+  });
+  const geloescht = ersetzbar
+    ? (await prisma.kontrollAnforderung.deleteMany({ where: { id: ersetzbar.id, benachrichtigtAt: null, withdrawnAt: null } })).count
+    : 0;
+
+  await createAutoKontrollen(userId, [{ wirksamAb, deadline }], { cleaningRelock: true });
+  return { wirksamAb, deadline, imSchlaf, ersetzteId: geloescht > 0 ? ersetzbar!.id : null };
 }
 
 /** Würfelt den Tagesplan frisch aus und legt ihn an — für einen Tag, für den noch kein Plan existiert.
@@ -401,7 +497,7 @@ export async function ensureDailyAutoKontrollenForUser(
 ): Promise<number> {
   if (!settings.aktiv || perDayRange(settings).max <= 0) return 0;
   const already = await prisma.kontrollAnforderung.count({
-    where: { userId, auto: true, createdAt: { gte: midnightInTZ(now, tz) } },
+    where: { userId, ...AUTO_PLAN_WHERE, createdAt: { gte: midnightInTZ(now, tz) } },
   });
   if (already > 0) return 0;
   return rollFreshDay(userId, settings, now, tz);
@@ -416,7 +512,7 @@ export async function replanTodayAutoKontrollenForUser(
   userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
 ): Promise<number> {
   const rows = await prisma.kontrollAnforderung.findMany({
-    where: { userId, auto: true, withdrawnAt: null, createdAt: { gte: midnightInTZ(now, tz) } },
+    where: { userId, ...AUTO_PLAN_WHERE, withdrawnAt: null, createdAt: { gte: midnightInTZ(now, tz) } },
     select: { id: true, wirksamAb: true, deadline: true, benachrichtigtAt: true },
   });
   // `createAutoKontrollen` setzt immer ein `wirksamAb`; eine Auto-Zeile ohne ist nicht planbar → ignorieren.
@@ -442,7 +538,7 @@ export async function replanTodayAutoKontrollenForUser(
 
 /** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro Kalendertag der jeweiligen Sub). */
 export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
-  const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_USER_SELECT });
+  const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   for (const u of users) {
     try {
       await ensureDailyAutoKontrollenForUser(u.id, autoKontrolleSettingsFromUser(u), now, u.timezone ?? APP_TZ);
@@ -465,6 +561,8 @@ export async function deleteWithdrawnAutoKontrollen(now: Date): Promise<number> 
   // Per-User-Tag-Grenze: die "heutige Mitternacht" hängt an der Sub-Zeitzone, deshalb kann nicht ein
   // globales midnightInTZ(now) alle Zeilen filtern — sonst würde für Nicht-CH-Subs zu früh/spät gelöscht.
   const candidates = await prisma.kontrollAnforderung.findMany({
+    // Bewusst `auto: true` statt AUTO_PLAN_WHERE: zurückgezogenes Listen-Rauschen ist Rauschen,
+    // egal aus welcher Quelle die Zeile stammt.
     where: { auto: true, ...GENUINELY_WITHDRAWN_WHERE },
     select: { id: true, createdAt: true, user: { select: { timezone: true } } },
   });
@@ -520,7 +618,7 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   // Leeres `data` heisst jetzt eindeutig: gar kein Feld übergeben (ungültige Uhrzeiten sind oben
   // schon als INVALID_TIME rausgeflogen).
   if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
-  const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_USER_SELECT });
+  const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_KONTROLLE_SETTINGS_SELECT });
 
   // Änderung sofort auf den laufenden Tag anwenden. Der Replan ist idempotent: ändert der Patch nichts
   // an der Slot-Verteilung (z.B. reines Aktiv-Toggle bei schon geplantem Tag), bleiben die Zeiten stehen.

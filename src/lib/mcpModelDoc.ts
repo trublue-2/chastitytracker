@@ -67,6 +67,13 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   aktiven Sperrzeit, die Reinigung erlaubt; ausserhalb einer Sperre ist eine Reinigungsöffnung immer
   erlaubt. \`windowsBinding\`/\`windowsBindingReason\` sagt, ob und warum \`windows\` gerade greift.
 - Eine Reinigungsöffnung = ein OEFFNEN mit \`oeffnenGrund=REINIGUNG\`.
+- **Nach jedem selbst erfassten Wiederverschluss, der eine Reinigungspause beendet, folgt
+  automatisch eine Kontrolle**
+  (15–45 min danach) — „zeig mir, dass du wieder drin bist". Sie ERSETZT die nächste noch nicht
+  zugestellte Auto-Kontrolle des Tages; war keine mehr offen, kommt sie zusätzlich. Fällt sie ins
+  Schlaf-Fenster, kommt sie schon nach 5–15 min, mahnt bei Versäumnis aber nur: die laufende Session
+  wird dann NICHT automatisch abgebrochen. Diese Kontrolle ist fest verdrahtet und hängt nur am
+  Hauptschalter der Auto-Kontrollen; „nur während Sperrzeit" gilt für sie nicht.
 - Geändert wird all das über \`set_cleaning\` (\`allowed\`, \`maxMinutes\`, \`maxPerDay\`, \`windows\`).
   \`windows\` ERSETZT die ganze Liste — umlegen, ergänzen und löschen laufen alle darüber, also immer
   auch die Fenster mitschicken, die bleiben sollen (Bestand: \`get_context.cleaning.windows\`).

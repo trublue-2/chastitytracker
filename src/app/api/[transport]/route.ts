@@ -176,9 +176,13 @@ const MCP_SERVER_INSTRUCTIONS =
   "`get_context` (autoInspections + cleaning).\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
   "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Kontrollen werden MANUELL über " +
+  "`set_cleaning`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … `set_cleaning` deckt ALLE " +
+  "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
+  "Uhrzeit statt sie zu verbieten). Kontrollen werden MANUELL über " +
   "`request_inspection` veranlasst; die Einstellungen der AUTOMATISCHEN Kontrollen sind über den MCP " +
-  "NICHT änderbar (nur lesbar via get_context.autoInspections).\n" +
+  "NICHT änderbar (nur lesbar via get_context.autoInspections). Zusätzlich zum Tagesplan folgt auf jeden " +
+  "Wiederverschluss nach einer Reinigungspause selbsttätig eine Kontrolle — feste Regel, keine Einstellung " +
+  "(Details: `explain_model`, Abschnitt 3).\n" +
   "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
   "`upsert_appointment`, `upsert_recurring_context`.\n" +
   "Alle Writes sind agent-autonom und erfordern KEINE Bestätigung — entscheide und führe direkt aus, ohne " +

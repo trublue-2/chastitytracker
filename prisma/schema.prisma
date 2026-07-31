@@ -391,6 +391,10 @@ model KontrollAnforderung {
   autoMarkedRemovedAt      DateTime?
   autoMarkedEntryId        String?   @unique
   autoMarkedEntry          Entry?    @relation("KontrolleAutoMarkedEntry", fields: [autoMarkedEntryId], references: [id], onDelete: SetNull)
+  // HERKUNFT dieser Auto-Zeile: aus einem Wiederverschluss nach einer Reinigungspause statt aus dem
+  // gewürfelten Tagesplan. Nicht aus der Zeile rekonstruierbar, deshalb eine Spalte; was daran hängt,
+  // steht bei `scheduleCleaningRelockInspection`.
+  cleaningRelock           Boolean   @default(false)
 
   @@index([userId, withdrawnAt])
   @@index([userId, entryId])

@@ -31,6 +31,21 @@ export const GENUINELY_WITHDRAWN_WHERE = {
 } satisfies Prisma.KontrollAnforderungWhereInput;
 
 /**
+ * Where-Fragment: die Zeilen des gewürfelten TAGESPLANS der Auto-Kontrollen — also automatische
+ * Kontrollen OHNE die ereignisgetriebenen.
+ *
+ * `auto: true` allein reicht nicht mehr, seit eine Auto-Kontrolle auch aus einem Ereignis entstehen
+ * kann (Wiederverschluss nach einer Reinigungspause, `cleaningRelock`). Für die Tagesplanung ist der
+ * Unterschied load-bearing: zählte eine Ereignis-Zeile als Plan, verhinderte ein Wiederverschluss
+ * kurz nach Mitternacht den Tagesplan des ganzen Tages, und die Neuplanung bei Settings-Änderungen
+ * löschte sie als „liegt im Schlaf-Fenster"-Verstoss wieder weg.
+ */
+export const AUTO_PLAN_WHERE = {
+  auto: true,
+  cleaningRelock: false,
+} satisfies Prisma.KontrollAnforderungWhereInput;
+
+/**
  * Where-Fragment: bereits AKTIVE VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) — sofortige
  * (wirksamAb null) und zeitversetzte, die schon ausgelöst haben (wirksamAb <= jetzt). Eine
  * ZUKÜNFTIG geplante (wirksamAb in der Zukunft) gilt NICHT als aktiv: eine geplante SPERRZEIT
@@ -127,7 +142,9 @@ export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = 
   return tx.entry.findFirst({
     where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
     orderBy: { startTime: "desc" },
-    select: { type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true },
+    // `oeffnenGrund` gehört dazu, weil der Lock-Zustand allein nicht sagt, WARUM zuletzt geöffnet
+    // wurde — die Kontrolle nach einer Reinigungspause hängt genau daran (entries-Route).
+    select: { type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true, oeffnenGrund: true },
   });
 }
 
