@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.60.2",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Beim Ausrollen einer neuen Version erkennt der Server ein Instanz-Verzeichnis jetzt nur noch dann als Instanz, wenn dort neben der Container-Beschreibung auch deren Konfiguration liegt. Halb angelegte oder aufgegebene Verzeichnisse werden damit übersprungen statt vergeblich gestartet. Für die Nutzung ändert sich nichts.",
+          "en": "When a new version is rolled out, the server now only treats a directory as an instance if the container configuration sits next to the container description. Half-created or abandoned directories are skipped instead of being started in vain. Nothing changes for day-to-day use."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.1",
     "date": "2026-07-31",
     "changes": [
