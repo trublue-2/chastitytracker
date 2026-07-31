@@ -1,18 +1,5 @@
 [
   {
-    "version": "4.60.2",
-    "date": "2026-07-31",
-    "changes": [
-      {
-        "type": "chore",
-        "text": {
-          "de": "Beim Ausrollen eines Updates zählte das Skript auch Ordner als Instanz, die von einer gelöschten übrig geblieben waren — der Löschvorgang entfernt die Konfigurationsdatei mit den Zugangsdaten, lässt die Container-Beschreibung aber liegen. An solchen Ordnern brach der Start sofort ab und färbte den ganzen Lauf rot, obwohl keine echte Instanz betroffen war. Als Instanz gilt jetzt nur noch ein Ordner, der beide Dateien hat; übersprungene werden gezählt und im Protokoll gemeldet, statt still zu verschwinden.",
-          "en": "When rolling out an update, the script also counted leftover folders from deleted instances as instances — deletion removes the configuration file holding the credentials but leaves the container description behind. Startup failed immediately on such folders and turned the whole run red although no real instance was affected. A folder now only counts as an instance if it has both files; skipped ones are counted and reported in the log instead of vanishing silently."
-        }
-      }
-    ]
-  },
-  {
     "version": "4.60.1",
     "date": "2026-07-31",
     "changes": [
