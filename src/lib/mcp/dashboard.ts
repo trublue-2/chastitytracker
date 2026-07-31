@@ -537,7 +537,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     rec.currentRunHours != null && periods.kg.today - rec.currentRunHours > ROUND_EPSILON_H;
 
   // Aufgaben: Zustand wird aus den Einträgen abgeleitet, deshalb laden → auswerten → nur die offenen.
-  const openTasks: OpenTaskView[] = (await getEvaluatedTasks(trackingCtx.userId, now, undefined, { kgEntries: trackingCtx.entries, wearEntries: trackingCtx.entries }))
+  const openTasks: OpenTaskView[] = (await getEvaluatedTasks(trackingCtx.userId, now, {
+    kgEntries: trackingCtx.entries, wearEntries: trackingCtx.entries, reinigung: trackingCtx.reinigung,
+  }))
     .filter((e) => isTaskOpen(e.evaluation.state))
     .map((e) => ({
       id: e.task.id,

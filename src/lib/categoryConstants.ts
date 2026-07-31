@@ -153,9 +153,24 @@ export function validateCategoryInput(input: {
  * Zentral, weil dieselben vier Pfad-Varianten vorher an jeder Aufrufstelle von Hand
  * zusammengesetzt wurden. Der Keyholder-Zweig ist dabei nicht Kosmetik: zeigt eine Karte in seiner
  * Ansicht auf `/dashboard/...`, wirft `proxy.ts` ihn nach `/admin` — der Link ist dann schlicht tot.
+ *
+ * Die Query kommt aus `URLSearchParams`, leere Werte fallen weg — dieselbe Konvention wie
+ * `inspectionHref`. Von Hand gebaute `?a=…&b=…`-Ketten sind genau die Fehlerquelle, gegen die beide
+ * Funktionen geschrieben sind.
  */
-export function wearActionHref(opts: { categoryId: string; active: boolean; adminUserId?: string }): string {
+export function wearActionHref(opts: {
+  categoryId: string;
+  active: boolean;
+  adminUserId?: string;
+  /** Das konkret geforderte Gerät (Bedingung einer Aufgabe) — sonst wählt der Sub im Formular. */
+  deviceId?: string | null;
+  /** Wohin nach dem Speichern? Trägt die Ketten-Weiterleitung der Aufgaben-Bedingungen. */
+  redirectTo?: string | null;
+}): string {
   const form = opts.active ? "wear-end" : "wear-begin";
   const base = opts.adminUserId ? `/admin/users/${opts.adminUserId}/aktionen` : "/dashboard/new";
-  return `${base}/${form}?category=${opts.categoryId}`;
+  const q = new URLSearchParams({ category: opts.categoryId });
+  if (opts.deviceId) q.set("device", opts.deviceId);
+  if (opts.redirectTo) q.set("redirectTo", opts.redirectTo);
+  return `${base}/${form}?${q}`;
 }

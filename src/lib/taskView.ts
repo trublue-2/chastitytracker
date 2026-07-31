@@ -1,5 +1,6 @@
 import type { EvaluatedTask } from "@/lib/taskIntervals";
 import type { TaskState } from "@/lib/tasks";
+import { wearActionHref } from "@/lib/categoryConstants";
 
 /**
  * Die serialisierbare Sicht auf eine ausgewertete Aufgabe — das, was `TaskCard` rendert.
@@ -39,12 +40,18 @@ export interface TaskCardData {
 }
 
 /** Wohin führt eine offene Bedingung? KG in die Verschluss-Maske, alles andere ins Trage-Formular
- *  der Kategorie (mit dem geforderten Gerät, falls eines genannt ist). */
-function requirementHref(r: EvaluatedTask["requirements"][number]): string | null {
-  if (r.type === "KG_LOCKED") return "/dashboard/new/verschluss";
+ *  der Kategorie (mit dem geforderten Gerät, falls eines genannt ist).
+ *
+ *  Der Pfad kommt aus `wearActionHref` — dem einen Bauplatz dieser Route. Ihn hier nachzubauen
+ *  hiesse, dass eine Routen-Änderung die Bedingungs-Links still ins Leere zeigen lässt: genau auf
+ *  dem Weg, der den Sub vor einem Vergehen bewahren soll. */
+function requirementHref(r: EvaluatedTask["requirements"][number], redirectTo: string | null): string | null {
+  if (r.type === "KG_LOCKED") {
+    const q = redirectTo ? `?${new URLSearchParams({ redirectTo })}` : "";
+    return `/dashboard/new/verschluss${q}`;
+  }
   if (!r.categoryId) return null; // Kategorie gelöscht — es gibt kein Formular mehr dafür.
-  const device = r.deviceId ? `&device=${r.deviceId}` : "";
-  return `/dashboard/new/wear-begin?category=${r.categoryId}${device}`;
+  return wearActionHref({ categoryId: r.categoryId, active: false, deviceId: r.deviceId, redirectTo });
 }
 
 /**
@@ -59,17 +66,20 @@ export function toTaskCard(e: EvaluatedTask, withLinks: boolean): TaskCardData {
     id: r.id,
     label: r.label,
     satisfied: r.satisfied,
-    href: withLinks ? requirementHref(r) : null,
+    href: withLinks ? requirementHref(r, null) : null,
   }));
 
   // Von hinten nach vorne verketten: jeder offene Schritt kennt so den bereits fertig verketteten
   // Rest. Erfüllte Bedingungen sind keine Kettenglieder — sonst schickte die Kette den Sub in ein
   // Formular für ein Gerät, das er schon trägt.
+  //
+  // Neu gebaut statt angehängt: das Ziel gehört als Parameter in den Bauplatz der URL, nicht als
+  // `?`/`&`-Rechnerei an eine fertige Zeichenkette.
   let next: string | null = null;
   for (let i = requirements.length - 1; i >= 0; i--) {
     const r = requirements[i];
     if (r.satisfied || !r.href) continue;
-    if (next) r.href = `${r.href}${r.href.includes("?") ? "&" : "?"}redirectTo=${encodeURIComponent(next)}`;
+    if (next) r.href = withLinks ? requirementHref(e.requirements[i], next) : null;
     next = r.href;
   }
 

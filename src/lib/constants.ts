@@ -472,8 +472,13 @@ export const TASK_DESCRIPTION_MAX_LENGTH = 2000;
 /** Voreingestellte Kulanz (Minuten) zum Anlegen der geforderten Geräte, ab Erstellung der Aufgabe. */
 export const TASK_DEFAULT_START_GRACE_MIN = 30;
 /** Zulässiger Bereich der Kulanz. Ein negativer Wert würde die Endzeit-Prüfung umdrehen und eine
- *  Aufgabe erlauben, deren Frist bereits abgelaufen ist. */
-export const TASK_START_GRACE_RANGE = { min: 0, max: 24 * 60, fallback: TASK_DEFAULT_START_GRACE_MIN } as const;
+ *  Aufgabe erlauben, deren Frist bereits abgelaufen ist.
+ *
+ *  Bewusst KEIN {@link NumberRange}: dem Typ fehlt hier nicht bloss `fallback`, er wäre eine falsche
+ *  Zusage. Ein `NumberRange` ist das Versprechen „hiermit klemmt `clamp()`" — und genau `clamp()`
+ *  darf auf dieses Feld nicht angewandt werden, weil sein `Math.round(value) || fallback` aus der
+ *  ausdrücklich gesetzten 0 („sofort anfangen") den Default machte. Siehe `createTask`. */
+export const TASK_START_GRACE_RANGE = { min: 0, max: 24 * 60 } as const;
 /** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
  *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
 export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;

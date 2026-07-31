@@ -19,15 +19,18 @@ import type { TaskState } from "@/lib/tasks";
  */
 
 /** Zustands-Ton der Statuszeile. `warn` bleibt den echten Fehlschlägen vorbehalten — eine noch offene
- *  Bedingung ist kein Alarm. */
-const STATE_VARIANT: Record<TaskState, "ok" | "warn" | "neutral"> = {
-  pending: "neutral",
-  partial: "neutral",
-  running: "neutral",
-  done: "ok",
-  missed: "warn",
-  aborted: "warn",
-  withdrawn: "neutral",
+ *  Bedingung ist kein Alarm.
+ *
+ *  Direkt die Klasse statt eines Zwischen-Tokens: der einzige Leser übersetzte ihn eine Zeile später
+ *  ohnehin in genau diese drei Werte. Ein neuer Zustand wäre sonst zwei Stellen. */
+const STATE_COLOR: Record<TaskState, string> = {
+  pending: "text-foreground-muted",
+  partial: "text-foreground-muted",
+  running: "text-foreground-muted",
+  done: "text-ok-text",
+  missed: "text-warn-text",
+  aborted: "text-warn-text",
+  withdrawn: "text-foreground-muted",
 };
 
 export default function TaskCard({
@@ -137,8 +140,7 @@ function StateLine({
   timeOnly: (iso: string) => string;
 }) {
   const t = useTranslations("tasks");
-  const variant = STATE_VARIANT[task.state];
-  const color = variant === "ok" ? "text-ok-text" : variant === "warn" ? "text-warn-text" : "text-foreground-muted";
+  const color = STATE_COLOR[task.state];
 
   let text: string;
   if (task.state === "aborted") {

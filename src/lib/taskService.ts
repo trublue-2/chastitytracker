@@ -116,17 +116,30 @@ function checkTaskFields(
   return null;
 }
 
+/** Die geprüften Bedingungen in Speicher-Form — was `checkRequirements` zurückgibt und `createTask`
+ *  unverändert anlegt. */
+type NormalizedRequirement = ReturnType<typeof normalizeRequirement>;
+
 /**
  * Bedingungen prüfen: Form, Besitz, keine Dubletten, kein KG als Trage-Bedingung.
  *
  * Gebündelt statt je Bedingung einzeln — drei Bedingungen ergaben sonst bis zu sechs serielle
  * Round-Trips für eine Handvoll IDs.
+ *
+ * Normalisiert wird EINMAL, im Formular-Durchgang, und das Ergebnis wandert weiter bis in
+ * `prisma.create`. Vorher lief `normalizeRequirement` vier Mal über dieselbe Liste, und zwei
+ * benachbarte Zeilen lasen einmal den rohen und einmal den normalisierten Wert — heute derselbe,
+ * aber die Zusicherung „die Nullungen stehen an genau einer Stelle" hing damit an vier Lesern.
+ *
+ * Die FORM-Prüfungen sehen bewusst weiter den Rohwert: eine `categoryId` an „verschlossen" ist eine
+ * Falscheingabe, die abgewiesen gehört — nach der Normalisierung wäre sie unsichtbar weggeputzt.
  */
 async function checkRequirements(
   userId: string,
   reqs: TaskRequirementInput[],
-): Promise<ServiceFailure | null> {
+): Promise<ServiceFailure | { ok: true; normalized: NormalizedRequirement[] }> {
   const seen = new Set<string>();
+  const normalized: NormalizedRequirement[] = [];
   for (const r of reqs) {
     if (!(TASK_REQUIREMENT_TYPES as readonly string[]).includes(r.type)) {
       return serviceFail(400, "TASK_REQUIREMENT_INVALID");
@@ -144,10 +157,11 @@ async function checkRequirements(
     const key = `${n.type}:${n.deviceId ?? ""}:${n.categoryId ?? ""}`;
     if (seen.has(key)) return serviceFail(400, "TASK_DUPLICATE_REQUIREMENT");
     seen.add(key);
+    normalized.push(n);
   }
 
-  const deviceIds = [...new Set(reqs.map((r) => r.deviceId).filter((v): v is string => !!v))];
-  const categoryIds = [...new Set(reqs.map((r) => normalizeRequirement(r).categoryId).filter((v): v is string => !!v))];
+  const deviceIds = [...new Set(normalized.map((r) => r.deviceId).filter((v): v is string => !!v))];
+  const categoryIds = [...new Set(normalized.map((r) => r.categoryId).filter((v): v is string => !!v))];
 
   const [devices, categories] = await Promise.all([
     deviceIds.length
@@ -166,8 +180,7 @@ async function checkRequirements(
   const deviceById = new Map(devices.map((d) => [d.id, d]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
-  for (const r of reqs) {
-    const n = normalizeRequirement(r);
+  for (const n of normalized) {
     if (n.deviceId) {
       const dev = deviceById.get(n.deviceId);
       if (!dev) return serviceFail(400, "INVALID_DEVICE");
@@ -185,7 +198,7 @@ async function checkRequirements(
       if (cat.isBuiltIn) return serviceFail(400, "TASK_REQUIREMENT_KG_CATEGORY");
     }
   }
-  return null;
+  return { ok: true, normalized };
 }
 
 /** Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub. */
@@ -212,8 +225,8 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
   const user = await prisma.user.findUnique({ where: { id: p.userId }, select: { id: true } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
 
-  const reqError = await checkRequirements(p.userId, reqs);
-  if (reqError) return reqError;
+  const checked = await checkRequirements(p.userId, reqs);
+  if (!checked.ok) return checked;
 
   const isPunishment = p.isPunishment ?? false;
   const task = await prisma.task.create({
@@ -226,7 +239,7 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
       isPunishment,
       penaltyReason: effectivePenaltyReason(isPunishment, p.penaltyReason),
       requirements: {
-        create: reqs.map((r, i) => ({ ...normalizeRequirement(r), sortOrder: i })),
+        create: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })),
       },
     },
   });
@@ -235,6 +248,7 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
     subjectKey: "taskAssignedSubject",
     messageKey: "taskAssignedMessage",
     params: { title: task.title, until: formatDateTime(task.holdUntil) },
+    alwaysNotify: true,
   });
 
   return { ok: true, data: { id: task.id } };
@@ -276,6 +290,7 @@ export async function updateTask(
     subjectKey: "taskChangedSubject",
     messageKey: "taskChangedMessage",
     params: { title: next.title, until: formatDateTime(next.holdUntil) },
+    alwaysNotify: true,
   });
 
   return { ok: true, data: { id, userId } };
@@ -300,6 +315,7 @@ export async function withdrawTask(id: string, userId: string): Promise<ServiceR
     subjectKey: "taskWithdrawnSubject",
     messageKey: "taskWithdrawnMessage",
     params: { title: t.title },
+    alwaysNotify: true,
   });
   return { ok: true, data: { userId } };
 }

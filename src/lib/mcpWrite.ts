@@ -1224,15 +1224,27 @@ async function resolveAnyDeviceId(userId: string, categoryId: string, name: stri
   return match.id;
 }
 
-/** „Bis wann halten" aus den zwei erlaubten Formen. Genau eine muss kommen. */
-function resolveHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date {
+/** „Bis wann halten" aus den erlaubten Formen — `undefined`, wenn keine davon kam.
+ *
+ *  Getrennt von {@link resolveHoldUntil}, weil die beiden Aufrufer sich genau darin unterscheiden:
+ *  `create_task` BRAUCHT eine Frist, `edit_task` lässt sie weg, wenn sie unverändert bleibt. Wer
+ *  hier eine dritte Form ergänzt (`holdDays`), ändert eine Stelle — vorher stand die Bedingung
+ *  „welche Form kam?" zusätzlich als Ausdruck am `edit_task`-Aufruf und wäre dort still veraltet. */
+function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date | undefined {
   if (args.holdUntilAt) {
     const d = new Date(args.holdUntilAt);
     if (Number.isNaN(d.getTime())) throw new Error(`Invalid holdUntilAt: "${args.holdUntilAt}"`);
     return d;
   }
   if (args.holdHours != null) return new Date(now.getTime() + args.holdHours * 3600_000);
-  throw new Error("Either holdUntilAt or holdHours is required.");
+  return undefined;
+}
+
+/** Dasselbe, aber Pflicht — für `create_task`, wo eine Aufgabe ohne Frist keinen Sinn ergibt. */
+function resolveHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date {
+  const d = parseHoldUntil(args, now);
+  if (!d) throw new Error("Either holdUntilAt or holdHours is required.");
+  return d;
 }
 
 /** Bedingungs-Namen → ids. Getrennt vom Commit, damit die dryRun-Vorschau dieselbe Auflösung (und
@@ -1294,7 +1306,7 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
   const patch = {
     title: args.title,
     description: args.description,
-    holdUntil: args.holdUntilAt || args.holdHours != null ? resolveHoldUntil(args, new Date()) : undefined,
+    holdUntil: parseHoldUntil(args, new Date()),
     isPunishment: args.isPunishment,
     penaltyReason: args.penaltyReason,
   };

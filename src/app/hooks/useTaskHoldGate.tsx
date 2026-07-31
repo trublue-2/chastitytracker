@@ -4,8 +4,7 @@ import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
-import Button from "@/app/components/Button";
-import Sheet from "@/app/components/Sheet";
+import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import type { TaskWarning } from "@/lib/taskIntervals";
 
@@ -61,38 +60,24 @@ export default function useTaskHoldGate({
     </Card>
   );
 
-  // Bewusst dieselbe Bauform wie die beiden Warnungen in `OeffnenFormCore`: `Sheet`, und der
-  // RISIKOFREIE Knopf ist der primäre. Ein Modal mit „Trotzdem ablegen" in Primärfarbe stünde im
-  // selben Formular neben zwei Sheets mit umgekehrter Hierarchie — die riskante Wahl wäre
-  // ausgerechnet die optisch betonte.
+  // Dieselbe Bauform wie die beiden Warnungen in `OeffnenFormCore` — und zwar durch dieselbe
+  // Komponente, nicht durch dieselben Klassen: `RiskConfirmSheet` hält fest, dass der RISIKOFREIE
+  // Knopf der primäre ist. Ein Modal mit „Trotzdem ablegen" in Primärfarbe stünde im selben
+  // Formular neben zwei Sheets mit umgekehrter Hierarchie.
   const modal = (
-    <Sheet open={asking} onClose={() => setAsking(false)} title="">
-      <div className="flex flex-col gap-5">
-        <div className="flex items-start gap-3">
-          <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
-          <div className="flex flex-col gap-1.5">
-            <p className="font-bold text-foreground text-base leading-snug">{t("warnTitle")}</p>
-            {lines}
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Button type="button" variant="primary" fullWidth onClick={() => setAsking(false)}>
-            {tc("cancel")}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            fullWidth
-            onClick={() => {
-              setAsking(false);
-              onConfirm();
-            }}
-          >
-            {t("warnConfirm")}
-          </Button>
-        </div>
-      </div>
-    </Sheet>
+    <RiskConfirmSheet
+      open={asking}
+      onClose={() => setAsking(false)}
+      title={t("warnTitle")}
+      stayLabel={tc("cancel")}
+      proceedLabel={t("warnConfirm")}
+      onProceed={() => {
+        setAsking(false);
+        onConfirm();
+      }}
+    >
+      {lines}
+    </RiskConfirmSheet>
   );
 
   return { armed, warningCard, modal };

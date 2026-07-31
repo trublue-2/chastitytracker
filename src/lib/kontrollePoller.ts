@@ -129,6 +129,16 @@ async function processDue(): Promise<void> {
 
     // Ergebnis fälliger Aufgaben melden. Eigener Block auf der eigenen Tabelle — der frühere
     // Leak-Befund betraf die GETEILTE Anforderungs-Tabelle, hier gibt es keine Überschneidung.
+    //
+    // Bewusst `await`, anders als der Health-Check eine Zeile darüber: der Block hält seine
+    // Zustellung nicht in `globalThis` fest, sondern stempelt sie in der DB (`resultNotifiedAt`) —
+    // und zwar erst NACH der Schleife. Liefe er zweimal überlappend, meldeten beide Läufe dieselben
+    // Aufgaben, bevor der erste stempelt. Der `running`-Riegel des Tickers ist damit Teil der
+    // Einmal-Zusage, nicht bloss Bequemlichkeit. Der Health-Check darf laufen lassen, weil er nichts
+    // verschickt, was doppelt ankommen könnte.
+    //
+    // Steht bewusst am ENDE des Tickes: die zeitkritischen Blöcke (Kontroll-/Sperrzeit-Mails) sind
+    // dann längst durch, verzögert wird höchstens der NÄCHSTE Tick.
     await processDueTasks(now).catch((e) => console.error("[processDueTasks]", e));
   } finally {
     running = false;

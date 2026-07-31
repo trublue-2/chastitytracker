@@ -1462,6 +1462,7 @@
     "requirementSatisfied": "satisfied",
     "requirementOpen": "still open",
     "showMore": "{count} more",
+    "showLess": "Show less",
     "markDoneQueued": "Will be sent once you are back online",
     "heldByTask": "Required by a task",
     "emptyHint": "No task set yet."

@@ -45,7 +45,6 @@ export default function TaskFields({
   redirectTo: string;
 }) {
   const t = useTranslations("tasks");
-  const ta = useTranslations("admin");
   const apiError = useApiError();
   const router = useRouter();
 
@@ -61,7 +60,7 @@ export default function TaskFields({
   const [penaltyReason, setPenaltyReason] = useState("");
   // Absende-Mechanik (saving/error/networkError/finally) über den geteilten Hook — sie war in den
   // Anforderungs-Formularen schon zweimal von Hand geschrieben.
-  const { saving, error, setError, submit } = useEntrySubmit<Record<string, unknown>>(
+  const { saving, error, submit } = useEntrySubmit<Record<string, unknown>>(
     async (payload) => {
       const res = await fetch("/api/admin/tasks", {
         method: "POST",
@@ -79,11 +78,11 @@ export default function TaskFields({
       ? new Date(Date.now() + (parseFloat(hours) || 2) * 3600_000)
       : fromDatetimeLocal(holdUntil, tz);
 
-    if (until.getTime() <= Date.now()) {
-      setError(ta("futureDateRequired"));
-      return;
-    }
-
+    // Keine eigene Frist-Prüfung hier: der Service verlangt mehr als „in der Zukunft" — die Endzeit
+    // muss hinter der Kulanzfrist liegen, sonst wäre die Aufgabe gar nicht erst zu beginnen. Eine
+    // zweite, schwächere Schranke im Formular liesse genau die Eingaben durch, die der Server danach
+    // mit einer anderen Begründung abweist. `TASK_HOLD_UNTIL_TOO_SOON` kommt über
+    // `parseApiErrorCode` übersetzt zurück und landet in derselben Fehlerzeile.
     void submit({
       userId,
       title: title.trim(),

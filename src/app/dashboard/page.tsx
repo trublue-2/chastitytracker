@@ -22,9 +22,8 @@ import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
-import { getEvaluatedTasks, isRecentEnough } from "@/lib/taskIntervals";
+import { getEvaluatedTasks, isHeldByTask, isRecentEnough } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
-import { isTaskOpen } from "@/lib/tasks";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 import WearSessionList from "./WearSessionList";
@@ -129,19 +128,20 @@ export default async function DashboardPage() {
 
   // Aufgaben: Zustand wird abgeleitet, deshalb erst laden, dann auswerten. `evaluateTasks` lädt ohne
   // Aufgaben gar nichts nach — Nutzer ohne Aufgaben zahlen keinen Preis dafür.
-  // `entries` steht hier längst — durchreichen, statt dieselben Zeilen ein zweites Mal zu laden und
-  // ein zweites Mal zu paaren.
-  const evaluatedTasks = (await getEvaluatedTasks(userId, now, tTasks("requirementKgLocked"), { kgEntries: entries, wearEntries: entries }))
+  // `entries` und die Reinigungs-Regeln stehen hier längst — durchreichen, statt dieselben Zeilen ein
+  // zweites Mal zu laden und ein zweites Mal zu paaren.
+  const evaluatedTasks = (await getEvaluatedTasks(userId, now, {
+    kgLabel: tTasks("requirementKgLocked"), kgEntries: entries, wearEntries: entries, reinigung,
+  }))
     .filter((e) => isRecentEnough(e, now));
   const taskCards = evaluatedTasks.map((e) => toTaskCard(e, true));
 
-  // Kategorien, die eine laufende Aufgabe gerade festhält. Die Trage-Karte ist vollflächig ein Link
-  // aufs Ablege-Formular — ohne Markierung sähe eine gebundene Session aus wie jede andere.
-  const taskHeldCategories = new Set(
-    evaluatedTasks
-      .filter((e) => isTaskOpen(e.evaluation.state))
-      .flatMap((e) => e.requirements.filter((r) => r.type === "WEAR" && r.satisfied).map((r) => r.categoryId)),
-  );
+  // Die Trage-Karte ist vollflächig ein Link aufs Ablege-Formular — ohne Markierung sähe eine
+  // gebundene Session aus wie jede andere. Gefragt wird je Session (Kategorie UND Gerät) über
+  // `isHeldByTask`, also mit demselben Prädikat wie die Warnung im Formular: eine Bedingung auf ein
+  // bestimmtes Gerät darf nicht die ganze Kategorie markieren, vor der danach niemand warnt.
+  const isSessionHeldByTask = (categoryId: string, deviceId: string) =>
+    isHeldByTask(evaluatedTasks, { categoryId, deviceId });
 
   // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard). Läuft
   // KEINE Sperre, hätte es sonst nirgends Platz — dann zeigen wir es als führende Zeile in der
@@ -263,7 +263,7 @@ export default async function DashboardPage() {
           categoryIcon: s.categoryIcon,
           deviceName: s.deviceName,
           since: s.since.toISOString(),
-          heldReason: taskHeldCategories.has(s.categoryId) ? tTasks("heldByTask") : null,
+          heldReason: isSessionHeldByTask(s.categoryId, s.deviceId) ? tTasks("heldByTask") : null,
           imageUrl: s.imageUrl,
         }))}
         serverNow={now.toISOString()}

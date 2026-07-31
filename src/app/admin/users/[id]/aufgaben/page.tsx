@@ -32,7 +32,7 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
     take: 100,
     include: TASK_INCLUDE,
   });
-  const evaluated = await evaluateTasks(id, tasks, now, t("requirementKgLocked"));
+  const evaluated = await evaluateTasks(id, tasks, now, { kgLabel: t("requirementKgLocked") });
 
   // Bewusst OHNE Kategorien-Gate: eine Aufgabe ist Text plus 0..n Bedingungen. „KG verschlossen"
   // kommt nicht aus den Kategorien, und eine reine Freitext-Aufgabe braucht überhaupt keine —

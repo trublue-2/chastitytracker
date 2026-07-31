@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
-import { ChevronDown, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Card from "@/app/components/Card";
 import { wearActionHref } from "@/lib/categoryConstants";
 import { CategoryIconTile } from "@/app/components/CategoryPhotoThumb";

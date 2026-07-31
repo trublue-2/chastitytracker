@@ -250,10 +250,13 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     prisma.task.findMany({ where: { userId, withdrawnAt: null }, include: TASK_INCLUDE }),
   ]);
 
-  // Öffnungen und Verschlüsse liegen aus demselben Promise.all vor — durchreichen statt neu laden.
-  // Trage-Einträge lädt das Strafbuch nicht; `wearEntries` bleibt deshalb bewusst offen, damit
-  // `evaluateTasks` sie selbst holt statt sie für leer zu halten.
-  const unfulfilledTasks = (await evaluateTasks(userId, tasks, now, undefined, { kgEntries: [...oeffnungen, ...verschluesse] }))
+  // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
+  // durchreichen statt neu laden. Trage-Einträge lädt das Strafbuch nicht; `wearEntries` bleibt
+  // deshalb bewusst offen, damit `evaluateTasks` sie selbst holt statt sie für leer zu halten.
+  const unfulfilledTasks = (await evaluateTasks(userId, tasks, now, {
+    kgEntries: [...oeffnungen, ...verschluesse],
+    reinigung: { erlaubt: user?.reinigungErlaubt ?? false, maxMinuten: user?.reinigungMaxMinuten ?? 0 },
+  }))
     .filter((e) => isTaskOffense(e.evaluation.state))
     .sort((a, b) => b.task.holdUntil.getTime() - a.task.holdUntil.getTime())
     .map((e) => ({

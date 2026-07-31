@@ -47,9 +47,17 @@ export default function OpenTasks({ tasks, tz }: { tasks: TaskCardData[]; tz: st
           </li>
         ))}
       </ul>
-      {hidden > 0 && (
+      {/* Sichtbar, sobald es überhaupt etwas zu klappen gibt — nicht nur solange noch etwas verborgen
+          ist. An `hidden > 0` gehängt verschwand die Zeile beim Aufklappen mitsamt dem einzigen Weg
+          zurück, und `open` war dann konstant `false`: die Chevron-Drehung und `aria-expanded`, für
+          die es `ExpandToggle` gibt, liefen ins Leere. */}
+      {tasks.length > EXPANDED && (
         <div className="mt-2">
-          <ExpandToggle label={t("showMore", { count: hidden })} open={showAll} onToggle={() => setShowAll(true)} />
+          <ExpandToggle
+            label={showAll ? t("showLess") : t("showMore", { count: hidden })}
+            open={showAll}
+            onToggle={() => setShowAll((v) => !v)}
+          />
         </div>
       )}
     </DashboardBlock>

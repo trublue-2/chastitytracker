@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { buildPairs, type ReinigungSettings, type WearPair } from "@/lib/utils";
-import { buildWearSessions, wearSessionPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
+import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type ReinigungSettings, type WearPair } from "@/lib/utils";
+import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/sessionModel";
 import { SESSION_ENTRY_SELECT } from "@/lib/queries";
 import { evaluateTask, coversPoint, isTaskOpen, type Interval, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
 
@@ -89,6 +89,9 @@ export interface TaskEntrySource {
   kgEntries?: KgEntry[];
   /** WEAR_BEGIN/WEAR_END — braucht `device.id` und `device.categoryId`. */
   wearEntries?: SegmentEntry[];
+  /** Die Reinigungs-Regeln des Nutzers. Dieselbe Abkürzung wie bei den Einträgen: wer sie ohnehin
+   *  geladen hat (Dashboard, Strafbuch, MCP-Dashboard), spart die zusätzliche User-Abfrage. */
+  reinigung?: ReinigungSettings;
 }
 
 /** Wie weit zurück eine bereits abgeschlossene Aufgabe noch auf dem Dashboard steht. Danach nur noch
@@ -136,10 +139,9 @@ export function isRecentEnough(e: EvaluatedTask, now: Date): boolean {
 export async function getEvaluatedTasks(
   userId: string,
   now: Date,
-  kgLabel?: string,
-  source: TaskEntrySource = {},
+  opts: TaskEntrySource & { kgLabel?: string } = {},
 ): Promise<EvaluatedTask[]> {
-  return evaluateTasks(userId, await getDashboardTasks(userId, now), now, kgLabel, source);
+  return evaluateTasks(userId, await getDashboardTasks(userId, now), now, opts);
 }
 
 /** Was die Warnung vor dem Ablegen anzeigt. */
@@ -153,6 +155,35 @@ export interface TaskWarning {
 export type TaskTarget = { kg: true } | { categoryId: string; deviceId?: string | null };
 
 /**
+ * Meint diese Bedingung GENAU das, was gerade abgelegt werden soll?
+ *
+ * Eine Bedingung auf ein bestimmtes Gerät trifft nur dieses Gerät, nicht seine ganze Kategorie —
+ * sonst hinge eine Aufgabe „trage Plug A" auch an Plug B.
+ *
+ * Geteilt von der Warnung VOR dem Ablegen ({@link getTasksBlocking}) und der Markierung der
+ * laufenden Trage-Karte. Beide beantworten dieselbe Frage und müssen dieselbe Antwort geben: sonst
+ * trägt die Karte ein Warnzeichen, dessen Formular nicht warnt (oder umgekehrt), und jede neue
+ * Bedingungsart müsste an zwei Stellen nachgezogen werden.
+ */
+export function requirementMatchesTarget(
+  r: Pick<EvaluatedTask["requirements"][number], "type" | "categoryId" | "deviceId">,
+  target: TaskTarget,
+): boolean {
+  if ("kg" in target) return r.type === "KG_LOCKED";
+  if (r.type !== "WEAR") return false;
+  return r.deviceId ? r.deviceId === target.deviceId : r.categoryId === target.categoryId;
+}
+
+/** Hält eine LAUFENDE Aufgabe dieses Ziel gerade fest? Nur erfüllte Bedingungen zählen — was ohnehin
+ *  nicht gilt, kann durch das Ablegen auch nicht kaputtgehen. */
+export function isHeldByTask(evaluated: EvaluatedTask[], target: TaskTarget): boolean {
+  return evaluated.some(
+    (e) => isTaskOpen(e.evaluation.state)
+      && e.requirements.some((r) => r.satisfied && requirementMatchesTarget(r, target)),
+  );
+}
+
+/**
  * Laufende Aufgaben, die GENAU das verlangen, was der Sub gerade ablegen will.
  *
  * Ohne diese Abfrage sind es zwei Taps von „Aufgabe läuft" zu „Vergehen": die laufende Trage-Karte
@@ -163,21 +194,17 @@ export type TaskTarget = { kg: true } | { categoryId: string; deviceId?: string 
  * auch nicht kaputtgehen.
  */
 export async function getTasksBlocking(userId: string, now: Date, target: TaskTarget): Promise<TaskWarning[]> {
-  const matches = (r: EvaluatedTask["requirements"][number]): boolean => {
-    if ("kg" in target) return r.type === "KG_LOCKED";
-    if (r.type !== "WEAR") return false;
-    return r.deviceId ? r.deviceId === target.deviceId : r.categoryId === target.categoryId;
-  };
-
-  // Vorfilter in SQL: nennt gar keine Aufgabe dieses Gerät bzw. den KG, ist die Antwort leer — und
-  // die Eintragstabellen werden nicht angefasst. Das ist der Normalfall auf zwei Formular-Seiten, die
-  // sonst bei JEDEM Aufbau die ganze Trage-Historie paaren würden.
+  // Der Vorfilter steht IN der Abfrage, nicht davor: nennt gar keine Aufgabe dieses Gerät bzw. den
+  // KG, kommt sie leer zurück, `evaluateTasks` steigt sofort aus und die Eintragstabellen werden
+  // nicht angefasst. Das ist der Normalfall auf zwei Formular-Seiten, die sonst bei JEDEM Aufbau die
+  // ganze Trage-Historie paaren würden. Als vorgeschaltetes `count` wäre es dieselbe Bedingung
+  // zweimal — einmal in SQL, einmal in `matches()` — und ein Rundgang mehr.
   //
   // Bewusst NUR strukturell (Besitz + Bedingungsart), ohne `holdUntil`/`completedAt`: der Zustand ist
   // abgeleitet, und ein Vorfilter, der enger greift als die Auswertung danach, verschluckt genau die
   // Warnung, für die es die Funktion gibt. Eine bereits selbst gemeldete, aber noch laufende Aufgabe
   // ist weiterhin offen — sie fiele sonst raus, und der Sub liefe ohne Vorwarnung in ein Vergehen.
-  const relevant = await prisma.task.count({
+  const rows = await prisma.task.findMany({
     where: {
       userId,
       withdrawnAt: null,
@@ -187,11 +214,13 @@ export async function getTasksBlocking(userId: string, now: Date, target: TaskTa
           : { type: "WEAR", OR: [{ categoryId: target.categoryId }, ...(target.deviceId ? [{ deviceId: target.deviceId }] : [])] },
       },
     },
+    orderBy: { holdUntil: "desc" },
+    take: 50,
+    include: TASK_INCLUDE,
   });
-  if (relevant === 0) return [];
 
-  return (await getEvaluatedTasks(userId, now))
-    .filter((e) => isTaskOpen(e.evaluation.state) && e.requirements.some((r) => r.satisfied && matches(r)))
+  return (await evaluateTasks(userId, rows, now))
+    .filter((e) => isHeldByTask([e], target))
     .map((e) => ({ title: e.task.title, holdUntil: e.task.holdUntil.toISOString() }));
 }
 
@@ -206,37 +235,39 @@ export async function evaluateTasks(
   userId: string,
   tasks: TaskWithRequirements[],
   now: Date,
-  /** Anzeigename der KG-Bedingung. Wo keine Bedingungsnamen gebraucht werden (Strafbuch, Heartbeat),
-   *  reicht der Default — „KG" ist in beiden Sprachen derselbe Eigenname. */
-  kgLabel = "KG",
-  /** Bereits geladene Einträge des Aufrufers. Was fehlt, wird nachgeladen. */
-  source: TaskEntrySource = {},
+  /** Bereits Geladenes des Aufrufers plus der Anzeigename der KG-Bedingung. Was fehlt, wird
+   *  nachgeladen. EIN Objekt statt Positions-Parametern, weil die Aufrufer ohne Bedingungsnamen
+   *  (Strafbuch, Heartbeat) sonst ein literales `undefined` übergeben müssten, um an die Quellen zu
+   *  kommen. */
+  opts: TaskEntrySource & {
+    /** Anzeigename der KG-Bedingung. Wo keine Bedingungsnamen gebraucht werden, reicht der Default —
+     *  „KG" ist in beiden Sprachen derselbe Eigenname. */
+    kgLabel?: string;
+  } = {},
 ): Promise<EvaluatedTask[]> {
   if (tasks.length === 0) return [];
+  const kgLabel = opts.kgLabel ?? "KG";
 
   const needsKg = tasks.some((t) => t.requirements.some((r) => r.type === "KG_LOCKED"));
   const needsWear = tasks.some((t) => t.requirements.some((r) => r.type === "WEAR"));
 
-  const byTime = <T extends { startTime: Date }>(list: T[]) =>
-    [...list].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-
   const [kgEntries, wearEntries, reinigung] = await Promise.all([
     !needsKg ? Promise.resolve([])
-      : source.kgEntries ? Promise.resolve(byTime(source.kgEntries.filter((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN")))
+      : opts.kgEntries ? Promise.resolve(filterAndSortPairEntries(opts.kgEntries, KG_PAIR))
       : prisma.entry.findMany({
-          where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+          where: { userId, type: { in: [KG_PAIR.close, KG_PAIR.open] } },
           orderBy: { startTime: "asc" },
           select: { id: true, type: true, startTime: true, oeffnenGrund: true },
         }),
     !needsWear ? Promise.resolve([])
-      : source.wearEntries ? Promise.resolve(byTime(source.wearEntries.filter((e) => e.type === "WEAR_BEGIN" || e.type === "WEAR_END")))
+      : opts.wearEntries ? Promise.resolve(filterAndSortPairEntries(opts.wearEntries, WEAR_PAIR))
       : prisma.entry.findMany({
-          where: { userId, type: { in: ["WEAR_BEGIN", "WEAR_END"] } },
+          where: { userId, type: { in: [WEAR_PAIR.close, WEAR_PAIR.open] } },
           orderBy: { startTime: "asc" },
           select: SESSION_ENTRY_SELECT,
         }),
     // Die Reinigungs-Regeln des Nutzers — siehe die Begründung bei `kgPairs`.
-    !needsKg ? Promise.resolve(null) : prisma.user.findUnique({
+    !needsKg || opts.reinigung ? Promise.resolve(null) : prisma.user.findUnique({
       where: { id: userId },
       select: { reinigungErlaubt: true, reinigungMaxMinuten: true },
     }),
@@ -247,7 +278,7 @@ export async function evaluateTasks(
   // nicht. Deshalb `buildPairs` mit den Reinigungs-Regeln statt des schlichten `buildKgWearPairs` —
   // sonst bekäme der Sub ein Vergehen für ein Verhalten, das ihm ausdrücklich erlaubt ist, und das
   // Strafbuch beurteilte dieselbe Öffnung an zwei Stellen gegensätzlich.
-  const reinigungSettings: ReinigungSettings = {
+  const reinigungSettings: ReinigungSettings = opts.reinigung ?? {
     erlaubt: reinigung?.reinigungErlaubt ?? false,
     maxMinuten: reinigung?.reinigungMaxMinuten ?? 0,
   };
@@ -256,28 +287,32 @@ export async function evaluateTasks(
     .map((p) => ({ start: p.verschluss.startTime, end: p.oeffnen?.startTime ?? now }));
   const wearSessions = buildWearSessions(wearEntries, now);
   const pairsByCategory = wearSessionPairsByCategory(wearSessions, now);
-
   /** Intervalle je GERÄT — für die engere „genau dieses Gerät"-Bedingung. Als Map wie die
    *  Kategorie-Variante: bei mehreren Aufgaben mit Geräte-Bedingung wäre ein Filter über alle
-   *  Sessions je Bedingung sonst quadratisch. Eine Trage-Session hat genau ein Gerät
-   *  (`buildWearSessions` gruppiert danach), es steht am Kopf-Segment. */
-  const pairsByDevice = new Map<string, Interval[]>();
-  for (const s of wearSessions) {
-    const deviceId = s.segments[0]?.deviceDeclared.id;
-    if (!deviceId) continue;
-    const iv = { start: s.start, end: s.end ?? now };
-    const list = pairsByDevice.get(deviceId);
-    if (list) list.push(iv);
-    else pairsByDevice.set(deviceId, [iv]);
-  }
+   *  Sessions je Bedingung sonst quadratisch. */
+  const pairsByDevice = wearSessionPairsByDevice(wearSessions, now);
+
+  // EINMAL verschmelzen, nicht je Aufgabe: die Listen sind über alle Aufgaben dieselben Objekte
+  // (eine je Kategorie, eine je Gerät, eine fürs KG). `intersectAll` verschmilzt seine Eingaben
+  // selbst — bei zehn Aufgaben mit je zwei Bedingungen wären das zwanzig Sorts derselben Handvoll
+  // Listen. Verschmolzen ist die Eingabe für `intersectAll` unverändert gültig, und `coversPoint`
+  // ist gegenüber dem Verschmelzen ohnehin blind (siehe `tasks.ts`).
+  const merged = new Map<Interval[], Interval[]>();
+  const mergeOnce = (list: Interval[]): Interval[] => {
+    const hit = merged.get(list);
+    if (hit) return hit;
+    const m = mergeWearPairs(list);
+    merged.set(list, m);
+    return m;
+  };
 
   return tasks.map((task) => {
     const perRequirement: Interval[][] = task.requirements.map((r) => {
       // „Verschlossen" heisst verschlossen — welches KG dabei getragen wird, fordert das Formular
       // heute nicht an (dafür gibt es die Verschluss-Anforderung mit Gerätevorgabe).
-      if (r.type === "KG_LOCKED") return kgPairs;
-      if (r.deviceId) return pairsByDevice.get(r.deviceId) ?? [];
-      return r.categoryId ? (pairsByCategory.get(r.categoryId) ?? []) : [];
+      if (r.type === "KG_LOCKED") return mergeOnce(kgPairs);
+      if (r.deviceId) return mergeOnce(pairsByDevice.get(r.deviceId) ?? []);
+      return r.categoryId ? mergeOnce(pairsByCategory.get(r.categoryId) ?? []) : [];
     });
 
     // „Erfüllt" heisst: gilt JETZT. Direkt aus den Intervallen statt aus `missing` abgeleitet — das

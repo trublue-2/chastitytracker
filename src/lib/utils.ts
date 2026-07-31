@@ -523,8 +523,10 @@ function normalizeBuildPairsOptions(
   return { types: arg.types ?? KG_PAIR, reinigung: arg.reinigung };
 }
 
-/** Filters entries to the given pair-types, then sorts ascending by startTime. */
-function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
+/** Filters entries to the given pair-types, then sorts ascending by startTime.
+ *  Exported for callers that hand `buildPairs`/`buildWearSessions` a pre-loaded, unsorted entry list
+ *  (see `TaskEntrySource`) — they must not re-spell the type literals. */
+export function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
   entries: E[],
   types: PairTypes,
 ): E[] {

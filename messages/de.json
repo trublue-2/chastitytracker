@@ -1462,6 +1462,7 @@
     "requirementSatisfied": "erfüllt",
     "requirementOpen": "noch offen",
     "showMore": "{count} weitere",
+    "showLess": "Weniger anzeigen",
     "markDoneQueued": "Wird gesendet, sobald du wieder online bist",
     "heldByTask": "Von einer Aufgabe gefordert",
     "emptyHint": "Noch keine Aufgabe gestellt."

@@ -757,6 +757,12 @@ model Task {
 
   @@index([userId, withdrawnAt, completedAt])
   @@index([userId, holdUntil])
+  // Für `processDueTasks` im Minuten-Tick. Der sucht OHNE `userId` — die beiden Indizes darüber
+  // haben ihn als Präfix und sind damit unbrauchbar, die Abfrage lief als vollständiger Tabellen-Scan
+  // plus Sortierung, jede Minute, auf jeder Instanz. `resultNotifiedAt` steht vorn, weil es bei
+  // praktisch jeder Altzeile gesetzt ist: der IS-NULL-Bereich bleibt winzig, egal wie gross die
+  // Tabelle wird.
+  @@index([resultNotifiedAt, holdUntil])
 }
 
 // Eine Bedingung einer Aufgabe. Mehrere je Aufgabe sind der Normalfall („KG verschlossen UND Halsband

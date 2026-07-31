@@ -278,6 +278,10 @@ export interface DeviceWearing {
   device: DeviceRef;
   start: Date;
   durationMs: number;
+  /** Ende des SPÄTESTEN Segments dieses Geräts; null, solange eines davon offen läuft. Zusammen mit
+   *  `start` die Strecke, über die das Gerät in dieser Session getragen wurde — eine Reinigungspause
+   *  darin unterbricht sie nicht (siehe `wearSessionPairsByDevice`). */
+  end: Date | null;
 }
 
 /**
@@ -300,8 +304,10 @@ export function segmentsByDevice(segments: Segment[]): Map<string, DeviceWearing
     if (cur) {
       cur.durationMs += s.durationMs;
       if (s.start < cur.start) cur.start = s.start;
+      // `null` (offenes Segment) gewinnt: solange irgendeines läuft, hat die Strecke kein Ende.
+      if (cur.end && (!s.end || s.end > cur.end)) cur.end = s.end;
     } else {
-      byDevice.set(key, { device: s.deviceEffective, start: s.start, durationMs: s.durationMs });
+      byDevice.set(key, { device: s.deviceEffective, start: s.start, durationMs: s.durationMs, end: s.end });
     }
   }
   return byDevice;
@@ -418,6 +424,37 @@ export function wearSessionPairsByCategory(sessions: Session[], now: Date = new 
     else byCategory.set(s.categoryId, [pair]);
   }
   return byCategory;
+}
+
+/**
+ * Dieselben Intervalle JE GERÄT — für Sichten, die ein BESTIMMTES Gerät meinen statt seiner
+ * Kategorie (heute: die Geräte-Bedingung einer Aufgabe).
+ *
+ * Zugerechnet wird über {@link segmentsByDevice}, also nach dem MASSGEBLICHEN Gerät
+ * (`deviceEffective`) und über ALLE Segmente — dieselbe Regel wie `deviceBreakdown` und
+ * `device_stats`. Bei WEAR-Sessions fällt das heute mit „Gerät des Kopf-Segments" zusammen (ein
+ * Segment, `deviceConfidence: "declared"`); die Regel hier zu wiederholen statt sie zu benutzen
+ * hiesse, sich auf genau diese Invariante zu verlassen, ohne sie zu nennen.
+ *
+ * Der Schlüssel ist die Geräte-**id**: eine Bedingung zeigt auf eine `Device`-Zeile. Segmente ohne
+ * id (Alt-Daten, unzugeordnet) fallen weg — auf sie kann keine Bedingung zeigen.
+ *
+ * Das Intervall reicht vom frühesten bis zum spätesten Segment des Geräts in dieser Session. Eine
+ * Reinigungspause dazwischen unterbricht also nicht — dieselbe Lesart wie bei der Kategorie-Variante,
+ * und dieselbe, die die App sonst überall auf „durchgehend getragen" anwendet.
+ */
+export function wearSessionPairsByDevice(sessions: Session[], now: Date = new Date()): Map<string, WearPair[]> {
+  const byDevice = new Map<string, WearPair[]>();
+  for (const s of sessions) {
+    for (const w of segmentsByDevice(s.segments).values()) {
+      if (!w.device.id) continue;
+      const pair: WearPair = { start: w.start, end: w.end ?? now };
+      const list = byDevice.get(w.device.id);
+      if (list) list.push(pair);
+      else byDevice.set(w.device.id, [pair]);
+    }
+  }
+  return byDevice;
 }
 
 /** Dieselben Intervalle als WANDUHR-Zeit je Kategorie: Überlappungen verschmolzen, damit zwei
