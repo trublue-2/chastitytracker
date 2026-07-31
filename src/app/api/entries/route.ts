@@ -14,6 +14,7 @@ import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
 import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
+import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
@@ -223,14 +224,18 @@ export async function POST(req: NextRequest) {
         // Vergehen im Strafbuch, obwohl der Sub genau das Verlangte getan hat.
         // Geplante, noch nicht versendete bleiben aussen vor — sie dürfen nicht vorzeitig als
         // erfüllt gelten (dringendste zuerst, siehe getOpenLockRequests).
+        // EIN Zeitstempel für den ganzen Vorgang: Auswahl, Erfüllt-Marke und der Anker der
+        // Sperrzeiten sind derselbe Verschluss — drei `new Date()` liessen sie um Millisekunden
+        // auseinanderlaufen und den Block nur mit echter Uhr testen.
+        const jetzt = new Date();
         const offeneAnforderungen = await tx.verschlussAnforderung.findMany({
-          where: { ...openLockRequestWhere(session.user.id), ...activeVerschlussAnforderungWhere(new Date()) },
+          where: { ...openLockRequestWhere(session.user.id), ...activeVerschlussAnforderungWhere(jetzt) },
           orderBy: LOCK_REQUEST_ORDER,
         });
         if (offeneAnforderungen.length > 0) {
           await tx.verschlussAnforderung.updateMany({
             where: { id: { in: offeneAnforderungen.map((a) => a.id) } },
-            data: { fulfilledAt: new Date() },
+            data: { fulfilledAt: jetzt },
           });
           // Die GEFORDERTEN Geräte aller erfüllten Anforderungen einsammeln (Anforderungen OHNE
           // Gerätevorgabe stellen keine und fallen weg). Mehrere können verschiedene Geräte verlangen;
@@ -251,7 +256,7 @@ export async function POST(req: NextRequest) {
         // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
         // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
         const neueSperrzeiten = offeneAnforderungen.flatMap((a) => {
-          const sperrEnde = a.sperrEndetAt ?? (a.dauerH ? new Date(Date.now() + a.dauerH * 60 * 60 * 1000) : null);
+          const sperrEnde = sperrzeitEndeFromRequest(a, jetzt); // Anker: der Verschluss des Subs
           return sperrEnde
             ? [{
                 userId: session.user.id,

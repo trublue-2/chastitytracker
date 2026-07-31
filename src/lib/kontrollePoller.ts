@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getLatestKgEntry, getIsLocked, getActiveSperrzeit } from "@/lib/queries";
-import { sendVerschlussAnforderungNotifications, checkLockEnd } from "@/lib/verschlussAnforderungService";
+import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverSperrzeitOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
@@ -237,9 +237,27 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         ? isLocked
         : !isLocked || checkLockEnd(va.endetAt, va.wirksamAb, now) !== null;
       if (obsolete) {
-        await prisma.verschlussAnforderung.update({
-          where: { id: va.id },
-          data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.obsolete },
+        // Gegenstandslos heisst nicht wertlos: eine ANFORDERUNG an einen bereits verschlossenen Sub
+        // ist ERFÜLLT, und die Sperrzeit, die sie mitbringt, bleibt gewollt. Warum und mit welchem
+        // Anker steht bei `carryOverSperrzeitOnAlreadyLocked`; `null` = nichts zu übernehmen.
+        const uebernommen = art === "ANFORDERUNG" ? await carryOverSperrzeitOnAlreadyLocked(va, now) : null;
+        if (!uebernommen) {
+          await prisma.verschlussAnforderung.update({
+            where: { id: va.id },
+            data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.obsolete },
+          });
+          continue;
+        }
+        // Nach dem Commit (Notifications sind nicht transaktional). Der Sub hat von der terminierten
+        // Anforderung nie erfahren — ohne diese Meldung liefe er in eine Sperre, von der er nichts
+        // weiss, und die nächste Öffnung wäre ein unverschuldetes Vergehen.
+        await sendVerschlussAnforderungNotifications({
+          userId: va.userId,
+          user: va.user,
+          art: "SPERRZEIT",
+          nachricht: uebernommen.nachricht,
+          endetAtDate: uebernommen.endetAt,
+          requestId: uebernommen.sperrzeitId,
         });
         continue;
       }

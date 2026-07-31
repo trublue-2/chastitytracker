@@ -3,6 +3,7 @@ import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalM
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
+import { isHiddenFromSub } from "@/lib/delayedTrigger";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
@@ -313,7 +314,14 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     }));
 
   // Late locks — an ANFORDERUNG (lock request) whose deadline passed without a timely VERSCHLUSS.
+  //
+  // `!isHiddenFromSub`: eine Anforderung, die dem Sub nie zugestellt wurde, kann er nicht versäumt
+  // haben. Erreichbar wird das über eine TERMINIERTE Anforderung mit ABSOLUTER Frist, die vor dem
+  // Auslöse-Zeitpunkt liegt (nur `fristH` zählt ab `wirksamAb`): sie löst aus, wird nicht verschickt
+  // — und hinterlässt eine Zeile, deren Frist schon abgelaufen ist. Ohne diesen Filter bekäme der
+  // Sub dafür ein Vergehen, obwohl er von der Anforderung nie erfahren hat.
   const lateLocks = lockRequests
+    .filter((a) => !isHiddenFromSub(a))
     .filter((a): a is typeof a & { endetAt: Date } => a.endetAt !== null)
     .filter((a) => isLateLock(a, now))
     .map((a) => ({ id: a.id, endetAt: a.endetAt, fulfilledAt: a.fulfilledAt, nachricht: a.nachricht }));

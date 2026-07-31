@@ -55,6 +55,27 @@ export function checkLockEnd(
   return endetAt > now ? null : "LOCK_PERIOD_END_MUST_BE_FUTURE";
 }
 
+/** Die Felder EINER Anforderung, aus denen die mitgebrachte Sperrzeit entsteht. */
+export interface LockRequestSperrzeit {
+  dauerH: number | null;
+  sperrEndetAt: Date | null;
+}
+
+/**
+ * Das Ende der Sperrzeit, die diese Anforderung mitbringt — `null` heisst: sie bringt keine mit.
+ *
+ * Zwei Wege, EINE Regel: ein absolutes Sperr-Ende (`sperrEndetAt`, Wanduhr) gewinnt und bleibt fix,
+ * egal wann die Sperre zustande kommt; sonst zählt `dauerH` ab `abZeitpunkt`. Was dieser Zeitpunkt
+ * ist, entscheidet der Aufrufer und ist der einzige Unterschied zwischen den beiden Wegen, auf denen
+ * eine Sperrzeit entsteht: beim Erfüllen ist es der Verschluss des Subs (`entries/route.ts`), bei
+ * einer terminierten Anforderung, die auf einen bereits verschlossenen Sub trifft, die Auslösung
+ * (`kontrollePoller.ts`) — dort wäre der lange zurückliegende Verschluss der falsche Anker: eine
+ * 24h-Sperre wäre bei einem seit 30h verschlossenen Sub im Moment ihrer Entstehung schon abgelaufen.
+ */
+export function sperrzeitEndeFromRequest(a: LockRequestSperrzeit, abZeitpunkt: Date): Date | null {
+  return a.sperrEndetAt ?? (a.dauerH ? new Date(abZeitpunkt.getTime() + a.dauerH * 60 * 60 * 1000) : null);
+}
+
 /**
  * Creates a VerschlussAnforderung (ANFORDERUNG) or Sperrzeit (SPERRZEIT) for a user.
  * Single source of truth shared by POST /api/admin/verschluss-anforderung and the MCP write tool.
@@ -476,6 +497,70 @@ export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT", refId
   return art === "SPERRZEIT"
     ? { subjectKey: "lockPeriodWithdrawnSubject", messageKey: "lockPeriodWithdrawnMessage", inbox }
     : { subjectKey: "lockRequestWithdrawnSubject", messageKey: "lockRequestWithdrawnMessage", inbox };
+}
+
+/** Die Felder, die {@link carryOverSperrzeitOnAlreadyLocked} von der fälligen Anforderung braucht. */
+export interface DueLockRequest extends LockRequestSperrzeit {
+  id: string;
+  userId: string;
+  nachricht: string | null;
+  reinigungErlaubt: boolean;
+}
+
+/**
+ * Eine TERMINIERTE Einschliess-Anforderung wird fällig — und der Sub ist bereits verschlossen.
+ *
+ * Bisher endete das als `obsolete`: die Anforderung war gegenstandslos, weil ihr Ziel schon erreicht
+ * war. Mit ihr verfiel aber auch die SPERRZEIT, die sie mitbrachte — die entsteht sonst erst beim
+ * ERFÜLLEN (`entries/route.ts`), und dieser Pfad wird nie erreicht, wenn der Sub schon zu ist. Der
+ * Keyholder verlor damit die Sperre ausgerechnet in dem Fall, in dem der Sub alles richtig gemacht
+ * hat. Also: Anforderung als ERFÜLLT verbuchen (sie WURDE erfüllt) und die Sperrzeit trotzdem
+ * anlegen. Ein `late_lock` entsteht dadurch nicht — nicht wegen `fulfilledAt` (das hilft nur,
+ * solange die Frist noch läuft; ein absolutes `endetAt` darf vor dem Auslöse-Zeitpunkt liegen),
+ * sondern weil das Strafbuch eine nie zugestellte Anforderung gar nicht erst als verspätet zählt.
+ *
+ * Die Sperrzeit zählt ab `now`, dem Auslöse-Zeitpunkt (siehe {@link sperrzeitEndeFromRequest}), und
+ * ist sofort aktiv (`wirksamAb: null` ⇒ nicht vor dem Sub verborgen). Sie zieht — wie der
+ * Erfüllungs-Pfad und anders als `createVerschlussAnforderung` — KEINE bestehende Sperrzeit zurück:
+ * welche von mehreren gilt, entscheidet `foldActiveSperrzeiten`.
+ *
+ * Liefert die neue Sperrzeit, oder `null`, wenn es nichts zu übernehmen gab (keine Sperrzeit an der
+ * Anforderung, oder ihr absolutes Ende liegt schon in der Vergangenheit) — dann bleibt es beim
+ * bisherigen Rückzug als `obsolete`. Benachrichtigt wird NICHT hier: die Meldung gehört hinter den
+ * Commit, der Aufrufer schickt sie (Notifications sind nicht transaktional).
+ */
+export async function carryOverSperrzeitOnAlreadyLocked(
+  va: DueLockRequest,
+  now: Date,
+): Promise<{ sperrzeitId: string; endetAt: Date; nachricht: string | null } | null> {
+  // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`sperrEndetAt`) — ein aus `dauerH`
+  // gerechnetes liegt per Konstruktion vorn. Eine tote Sperre anzulegen hilft niemandem.
+  const endetAt = sperrzeitEndeFromRequest(va, now);
+  if (!endetAt || endetAt <= now) return null;
+
+  const sperrzeit = await prisma.$transaction(async (tx) => {
+    const created = await tx.verschlussAnforderung.create({
+      data: {
+        userId: va.userId,
+        art: "SPERRZEIT",
+        nachricht: va.nachricht,
+        endetAt,
+        reinigungErlaubt: va.reinigungErlaubt,
+        // Sofort gültig ⇒ nicht vor dem Sub verborgen. `benachrichtigtAt` bleibt null wie bei der
+        // Sperrzeit aus dem Erfüllungs-Pfad: der Stempel meint „Mail/Push ging raus", und der Versand
+        // liegt hinter dem Commit — ihn vorab zu setzen behauptete eine Zustellung, die scheitern kann.
+        wirksamAb: null,
+      },
+      select: { id: true, nachricht: true },
+    });
+    await tx.verschlussAnforderung.update({ where: { id: va.id }, data: { fulfilledAt: now } });
+    return created;
+  });
+
+  void notifyHeimdallForUserId(va.userId);
+  // `nachricht` aus der GESCHRIEBENEN Zeile, nicht aus der Quelle: die Meldung zitiert damit das,
+  // was wirklich in der Sperrzeit steht.
+  return { sperrzeitId: sperrzeit.id, endetAt, nachricht: sperrzeit.nachricht };
 }
 
 /**
