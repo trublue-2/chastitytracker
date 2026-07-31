@@ -1,5 +1,31 @@
 [
   {
+    "version": "4.60.3",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Sicherung, die vor einer Veröffentlichung prüft, ob die Versionsangaben zusammenpassen, greift jetzt VOR der Freigabe statt danach. Bisher lief sie als letzter Schritt: Sie meldete die Abweichung zwar, aber da war die Version bereits veröffentlicht. Jetzt bricht sie ab, und es wird nichts freigegeben.",
+          "en": "The safeguard that checks whether the version details match before a release now runs BEFORE the release instead of after it. Until now it ran as the last step: it did report the mismatch, but by then the version was already published. It now aborts, and nothing is released."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.60.2",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Beim Ausrollen einer neuen Version erkennt der Server ein Instanz-Verzeichnis jetzt nur noch dann als Instanz, wenn dort neben der Container-Beschreibung auch deren Konfiguration liegt. Halb angelegte oder aufgegebene Verzeichnisse werden damit übersprungen statt vergeblich gestartet. Für die Nutzung ändert sich nichts.",
+          "en": "When a new version is rolled out, the server now only treats a directory as an instance if the container configuration sits next to the container description. Half-created or abandoned directories are skipped instead of being started in vain. Nothing changes for day-to-day use."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.1",
     "date": "2026-07-31",
     "changes": [
