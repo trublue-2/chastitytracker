@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, midnightInTZ, dateAtLocalMinutes, clamp, randomInt } from "@/lib/utils";
 import {
-  NO_FIELDS_TO_UPDATE, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE,
+  NO_FIELDS_TO_UPDATE, INVALID_TIME, HHMM, AUTO_INSPECTION_PER_DAY_RANGE,
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/kontrolleService";
@@ -92,7 +92,6 @@ function raiseMaxToMin(min: number | undefined, max: number): number {
   return min !== undefined && max < min ? min : max;
 }
 
-export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 /** "HH:MM" → Minuten seit Mitternacht (0–1439). */
 export function hhmmToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);

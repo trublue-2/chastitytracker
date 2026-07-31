@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { aktivesReinigungsFenster, countCleaningUsedToday, nextReinigungsFenster } from "./reinigungService";
+import {
+  aktivesReinigungsFenster, countCleaningUsedToday, nextReinigungsFenster,
+  parseReinigungsFenster, reinigungsFensterProblem, reinigungsFensterListProblem, formatReinigungsFenster,
+} from "./reinigungService";
+import { CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/constants";
 
 describe("aktivesReinigungsFenster — per-user timezone", () => {
   const windows = [{ start: "20:00", end: "22:00" }];
@@ -79,5 +83,72 @@ describe("countCleaningUsedToday", () => {
 
   it("leere Liste → 0", () => {
     expect(countCleaningUsedToday([], now, TZ)).toBe(0);
+  });
+});
+
+describe("reinigungsFensterProblem (Schreib-Regel)", () => {
+  it("gültige Fenster: kein Problem", () => {
+    expect(reinigungsFensterProblem({ start: "19:00", end: "20:00" })).toBeNull();
+    expect(reinigungsFensterProblem({ start: "00:00", end: "24:00" })).toBeNull(); // ganzer Tag
+  });
+
+  it("liefert den stabilen Code, statt still zu verwerfen", () => {
+    expect(reinigungsFensterProblem({ start: "19:00", end: "18:00" })).toBe(TIME_RANGE_INVALID);
+    expect(reinigungsFensterProblem({ start: "19:00", end: "19:00" })).toBe(TIME_RANGE_INVALID);
+    expect(reinigungsFensterProblem({ start: "7:00", end: "8:00" })).toBe(INVALID_TIME);
+    expect(reinigungsFensterProblem({ start: "19:00" })).toBe(INVALID_TIME);
+    expect(reinigungsFensterProblem({ start: "25:00", end: "26:00" })).toBe(INVALID_TIME);
+    expect(reinigungsFensterProblem({ start: "19:70", end: "20:00" })).toBe(INVALID_TIME);
+    expect(reinigungsFensterProblem(null)).toBe(INVALID_TIME);
+  });
+
+  it("24:00 nur als Ende — als Start läge nichts danach", () => {
+    expect(reinigungsFensterProblem({ start: "24:00", end: "24:30" })).toBe(INVALID_TIME);
+  });
+
+  it("was die Schreib-Regel durchlässt, behält der Lese-Pfad (die eine strikt über der anderen)", () => {
+    const kandidaten = [
+      { start: "00:00", end: "24:00" }, { start: "05:30", end: "07:00" },
+      { start: "22:00", end: "23:59" }, { start: "19:00", end: "18:00" },
+      { start: "25:00", end: "26:00" }, { start: "7:00", end: "8:00" },
+    ];
+    const geschrieben = kandidaten.filter((f) => reinigungsFensterProblem(f) === null);
+    expect(parseReinigungsFenster(geschrieben)).toEqual(geschrieben);
+  });
+
+  it("gespeicherte Alt-Fenster bleiben lesbar, auch wenn die Schreib-Regel sie heute ablehnte", () => {
+    // Ein per API abgelegtes „99:00-99:30" ist Bestand — der Lese-Pfad darf es nicht nachträglich
+    // löschen, nur neu schreiben lässt es sich nicht mehr.
+    expect(parseReinigungsFenster([{ start: "99:00", end: "99:30" }])).toEqual([{ start: "99:00", end: "99:30" }]);
+    expect(reinigungsFensterProblem({ start: "99:00", end: "99:30" })).not.toBeNull();
+  });
+});
+
+describe("reinigungsFensterListProblem (Schreib-Regel der ganzen Liste)", () => {
+  it("gültige Liste (auch leer): kein Problem", () => {
+    expect(reinigungsFensterListProblem([])).toBeNull();
+    expect(reinigungsFensterListProblem([{ start: "07:00", end: "08:00" }, { start: "19:00", end: "20:00" }])).toBeNull();
+  });
+
+  it("nennt den Index des schuldigen Paares", () => {
+    expect(reinigungsFensterListProblem([{ start: "07:00", end: "08:00" }, { start: "19:00", end: "18:00" }]))
+      .toEqual({ code: TIME_RANGE_INVALID, index: 1 });
+  });
+
+  it("zu viele Fenster — der Code trägt keinen Index (die Liste als Ganzes ist zu lang)", () => {
+    const zuViele = Array.from({ length: CLEANING_WINDOWS_MAX + 1 }, () => ({ start: "07:00", end: "08:00" }));
+    expect(reinigungsFensterListProblem(zuViele)).toEqual({ code: CLEANING_WINDOWS_TOO_MANY });
+    expect(reinigungsFensterListProblem(zuViele.slice(1))).toBeNull(); // genau CLEANING_WINDOWS_MAX
+  });
+
+  it("was kein Array ist, löscht NICHT still alle Fenster", () => {
+    expect(reinigungsFensterListProblem("19:00-20:00")).toEqual({ code: INVALID_TIME });
+    expect(reinigungsFensterListProblem(null)).toEqual({ code: INVALID_TIME });
+  });
+});
+
+describe("formatReinigungsFenster", () => {
+  it("eine Zeile je Fenster", () => {
+    expect(formatReinigungsFenster({ start: "19:00", end: "20:00" })).toBe("19:00-20:00");
   });
 });

@@ -148,6 +148,8 @@ export const BOX_CODES = [
 export const SETTINGS_CODES = [
   "noFieldsToUpdate",
   "invalidTime",
+  "timeRangeInvalid",
+  "CLEANING_WINDOWS_TOO_MANY",
 ] as const;
 
 /** Every code the service layer can return — the set the i18n parity test iterates. */

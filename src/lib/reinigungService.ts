@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
-import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import {
+  CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY,
+  HHMM, INVALID_TIME, NO_FIELDS_TO_UPDATE, TIME_RANGE_INVALID,
+} from "@/lib/constants";
 
 export interface ReinigungsFenster {
   start: string; // "HH:MM"
@@ -19,6 +23,60 @@ export interface SetReinigungParams {
   fenster?: unknown;
 }
 
+/** Form eines GESPEICHERTEN Fensters: zwei „HH:MM"-Strings, aufsteigend. Bewusst toleranter als
+ *  {@link HHMM} (die Schreib-Regel) — siehe {@link fensterShape}. */
+const HHMM_SHAPE = /^\d{2}:\d{2}$/;
+/** Als ENDE zusätzlich erlaubt: „bis Mitternacht". Als Start sinnlos (nichts läge danach). */
+const MIDNIGHT_END = "24:00";
+
+/** Die LESE-Regel EINES Fenster-Paares: Form + aufsteigende Reihenfolge, sonst `null`. Bewusst
+ *  tolerant gegenüber der Uhrzeit selbst — sie beurteilt BESTAND, und ein einmal gespeichertes
+ *  Fenster nachträglich strenger zu lesen hiesse, es dem Sub lautlos wegzunehmen. Die strengere
+ *  SCHREIB-Regel setzt darauf auf: {@link reinigungsFensterProblem} lässt nur eine Teilmenge davon
+ *  durch (per Test gepinnt), damit kein angenommener Schreibvorgang beim Lesen wieder verschwindet. */
+function fensterShape(f: unknown): ReinigungsFenster | null {
+  const start = (f as { start?: unknown })?.start;
+  const end = (f as { end?: unknown })?.end;
+  if (typeof start !== "string" || typeof end !== "string") return null;
+  if (!HHMM_SHAPE.test(start) || !HHMM_SHAPE.test(end) || start >= end) return null;
+  return { start, end };
+}
+
+/**
+ * Die SCHREIB-Regel EINES Fenster-Paares: der stabile Fehler-Code, `null` heisst gültig.
+ *
+ * Der Lese-Pfad verwirft Murks still (richtig für Bestand) — für einen Schreiber wäre genau das die
+ * Falle: „19:00–18:00" käme als `ok` zurück und hätte in Wahrheit ein Fenster GELÖSCHT. Dieselbe
+ * Haltung wie beim Geschwister-Service (`setAutoKontrolleSettings` → `INVALID_TIME`).
+ */
+export function reinigungsFensterProblem(f: unknown): ServiceErrorCode | null {
+  const start = (f as { start?: unknown })?.start;
+  const end = (f as { end?: unknown })?.end;
+  if (typeof start !== "string" || !HHMM.test(start)) return INVALID_TIME;
+  if (typeof end !== "string" || !(HHMM.test(end) || end === MIDNIGHT_END)) return INVALID_TIME;
+  if (start >= end) return TIME_RANGE_INVALID;
+  return null;
+}
+
+/** Die SCHREIB-Regel der GANZEN Liste: Array, Länge, jedes Paar. Liefert den stabilen Fehler-Code
+ *  plus — wo es eines gibt — den Index des schuldigen Paares: der Service braucht nur den Code, ein
+ *  MCP-Agent auch die Stelle. EINE Prüfung für beide, statt einer Kopie je Aufrufer. */
+export function reinigungsFensterListProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {
+  if (!Array.isArray(raw)) return { code: INVALID_TIME };
+  if (raw.length > CLEANING_WINDOWS_MAX) return { code: CLEANING_WINDOWS_TOO_MANY };
+  for (const [index, f] of raw.entries()) {
+    const code = reinigungsFensterProblem(f);
+    if (code) return { code, index };
+  }
+  return null;
+}
+
+/** Ein Fenster als eine Zeile („19:00-20:00") — für Meldungen und Feld-Diffs, wo eine Liste von
+ *  Objekten unlesbar wäre. */
+export function formatReinigungsFenster(f: ReinigungsFenster): string {
+  return `${f.start}-${f.end}`;
+}
+
 /** Parst + validiert die Fenster-Liste aus User.reinigungsFenster (JSON-String ODER Array;
  *  tolerant: Murks → []). SQLite/Prisma 5 speichert das Feld als TEXT, daher String-Pfad. */
 export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
@@ -29,14 +87,8 @@ export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
   if (!Array.isArray(arr)) return [];
   const out: ReinigungsFenster[] = [];
   for (const f of arr) {
-    const start = (f as { start?: unknown })?.start;
-    const end = (f as { end?: unknown })?.end;
-    if (
-      typeof start === "string" && typeof end === "string" &&
-      /^\d{2}:\d{2}$/.test(start) && /^\d{2}:\d{2}$/.test(end) && start < end
-    ) {
-      out.push({ start, end });
-    }
+    const fenster = fensterShape(f);
+    if (fenster) out.push(fenster);
   }
   return out;
 }
@@ -157,6 +209,10 @@ export function buildReinigungView(user: ReinigungUserFields, usedToday: number,
 /**
  * Updates a user's cleaning-pause (Reinigung) settings. Only provided fields change; numeric
  * fields are clamped to their valid ranges. Shared by PATCH /api/admin/users/[id] and the MCP tool.
+ *
+ * `fenster` ERSETZT die Liste als Ganzes (`[]` löscht sie) und wird abgelehnt, statt still
+ * beschnitten zu werden: ein verworfenes Paar wäre für den Aufrufer nicht von „gespeichert" zu
+ * unterscheiden — er hätte ein Fenster gelöscht und ein `ok` bekommen.
  */
 export async function setReinigungSettings(userId: string, params: SetReinigungParams): Promise<ServiceResult<null>> {
   const data: {
@@ -167,8 +223,12 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
   if (params.erlaubt !== undefined) data.reinigungErlaubt = params.erlaubt;
   if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, CLEANING_MAX_MINUTES_RANGE);
   if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, CLEANING_MAX_PER_DAY_RANGE);
-  // Als JSON-String ablegen (TEXT-Spalte) — nur validierte Paare.
-  if (params.fenster !== undefined) data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
+  if (params.fenster !== undefined) {
+    const problem = reinigungsFensterListProblem(params.fenster);
+    if (problem) return serviceFail(400, problem.code);
+    // Als JSON-String ablegen (TEXT-Spalte).
+    data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
+  }
 
   if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
 

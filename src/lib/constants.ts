@@ -202,6 +202,15 @@ export const NO_FIELDS_TO_UPDATE = "noFieldsToUpdate";
 /** Stabiler Fehler-Code für ein Feld, das keine gültige „HH:MM"-Uhrzeit ist. */
 export const INVALID_TIME = "invalidTime";
 
+/** Stabiler Fehler-Code für ein „von – bis"-Paar, dessen Ende nicht nach dem Start liegt. */
+export const TIME_RANGE_INVALID = "timeRangeInvalid";
+
+/** Eine Uhrzeit des Tages, „HH:MM" im 24-Stunden-Format. EINE Quelle für alle Wanduhr-Felder
+ *  (Schlaf-/Auslöse-Fenster der Auto-Kontrollen, Reinigungs-Fenster) — hier statt in einem der
+ *  Services, weil beide dieselbe Regel brauchen und ein Import zwischen ihnen einen Modul-Zyklus
+ *  schlösse (reinigungService → autoKontrolleService → queries → reinigungService). */
+export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 /** Zulässiger Wertebereich EINES Zahlen-Feldes. `fallback` = Wert bei fehlender Eingabe — NICHT die
  *  Untergrenze, deshalb ein eigenes Feld. Wann er greift, entscheidet die jeweilige Klemm-Funktion und
  *  ist bewusst verschieden: `clamp` (Server) nimmt ihn auch für einen auf 0 gerundeten Wert,
@@ -230,6 +239,12 @@ export interface NumberRange {
 export const CLEANING_MAX_MINUTES_RANGE = { min: 1, max: 120, fallback: 15 } as const satisfies NumberRange;
 /** Reinigungspausen pro Tag (0 = unbegrenzt). */
 export const CLEANING_MAX_PER_DAY_RANGE = { min: 0, max: 20, fallback: 0 } as const satisfies NumberRange;
+/** Höchstzahl der Reinigungs-Fenster eines Tages (Listen-Länge, kein Zahlen-Feld → kein `NumberRange`).
+ *  Durchgesetzt in `setReinigungSettings`, also für JEDEN Schreiber der Spalte. */
+export const CLEANING_WINDOWS_MAX = 12;
+/** Stabiler Fehler-Code, wenn ein Schreibvorgang mehr als {@link CLEANING_WINDOWS_MAX} Fenster setzt.
+ *  Nennt die Zahl bewusst nicht — dafür bräuchte die Meldung einen ICU-Parameter (siehe DEVICE_CODES). */
+export const CLEANING_WINDOWS_TOO_MANY = "CLEANING_WINDOWS_TOO_MANY";
 
 /** Grenzen beider Eskalationsstufen einer überfälligen Kontrolle: 5 min – 24 h. */
 const INSPECTION_ESCALATION_DELAY = { min: 5, max: 1440 } as const;

@@ -63,6 +63,12 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   aktiven Sperrzeit, die Reinigung erlaubt; ausserhalb einer Sperre ist eine Reinigungsöffnung immer
   erlaubt. `windowsBinding`/`windowsBindingReason` sagt, ob und warum `windows` gerade greift.
 - Eine Reinigungsöffnung = ein OEFFNEN mit `oeffnenGrund=REINIGUNG`.
+- Geändert wird all das über `set_cleaning` (`allowed`, `maxMinutes`, `maxPerDay`, `windows`).
+  `windows` ERSETZT die ganze Liste — umlegen, ergänzen und löschen laufen alle darüber, also immer
+  auch die Fenster mitschicken, die bleiben sollen (Bestand: `get_context.cleaning.windows`).
+  `windows: []` löscht alle und verbietet damit NICHTS: ohne Fenster ist die Reinigung nur nicht mehr
+  an eine Tageszeit gebunden — verbieten tut `allowed: false`. Zeiten sind Wanduhrzeit der Sub, und
+  ein Fenster kann nicht über Mitternacht laufen (dann zwei: `22:00–24:00` und `00:00–06:00`).
 
 ## 4. Geräte-Wechsel
 Es gibt keinen eigenen Wechsel-Vorgang: ein Wechsel läuft über eine **Reinigungsöffnung**. Folgen: er

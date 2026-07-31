@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.59.0",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Reinigungsfenster mit unvollständiger oder rückwärts laufender Zeit wurde beim Speichern stillschweigend weggeworfen — die Einstellungsseite meldete Erfolg, obwohl das Fenster nie ankam. Sie fing das bisher selbst ab; jetzt lehnt es die Speicherung selbst ab, mit Begründung, unabhängig davon, wer sie anstösst.",
+          "en": "A cleaning window with an incomplete or backwards time range was silently discarded on save — the settings page reported success although the window never arrived. It used to catch this itself; now the save path rejects it with a reason, no matter who triggers it."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Keyholder-KI kann jetzt auch die Reinigungsfenster setzen — die Tageszeiten, in denen eine Reinigungsöffnung erlaubt ist. Bisher konnte sie über die Schnittstelle nur die Erlaubnis an sich, die Dauer je Öffnung und die Anzahl pro Tag ändern; die Fenster liessen sich nur lesen und mussten von Hand in den Einstellungen nachgezogen werden. Die Liste wird dabei als Ganzes gesetzt: umlegen, ergänzen und löschen laufen alle über denselben Weg. Eine geleerte Liste verbietet die Reinigung nicht, sondern löst sie von der Uhrzeit.",
+          "en": "The keyholder AI can now also set the cleaning windows — the times of day at which a cleaning opening is permitted. Until now the interface let it change only the permission itself, the minutes per opening and the number per day; the windows were readable only and had to be adjusted by hand in the settings. The list is set as a whole: retiming, adding and deleting all go the same way. An emptied list does not forbid cleaning — it detaches it from the clock."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.7",
     "date": "2026-07-30",
     "changes": [
