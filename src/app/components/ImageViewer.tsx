@@ -82,12 +82,11 @@ function PinchZoomImage({ src, alt, onError }: { src: string; alt: string; onErr
 /**
  * Reusable fullscreen image overlay.
  *
- * Rendered via React Portal on document.body so no parent stacking context
- * (sticky headers, backdrop-filter navbars) can clip it.
- *
- * Inline styles are intentional for the backdrop + z-index: Tailwind CSS v4
- * resolves bg-black as var(--color-black) which can be overridden by data-theme
- * wrappers. Using #000 literals and numeric z-index avoids that entirely.
+ * Rendered via React Portal on document.body: that lifts the overlay out of
+ * every ancestor of the call site, so none can confine its z-index inside a
+ * stacking context or capture its `position: fixed` as containing block.
+ * No call site does either today — the portal is what keeps it that way
+ * without having to re-audit them.
  *
  * @param title  Optional node shown left of the close button.
  * @param panel  Optional content rendered in the bottom sheet panel.
@@ -145,15 +144,21 @@ export function FullscreenImageModal({
 
   const modal = (
     /*
-     * Inline backgroundColor + zIndex are load-bearing.
-     * - backgroundColor: '#000' bypasses Tailwind v4's CSS var resolution
-     *   (bg-black → var(--color-black)) which can resolve to undefined inside
-     *   a data-theme wrapper, leaving the backdrop transparent.
-     * - zIndex: 99999 as a number avoids any purge / specificity issues with
-     *   Tailwind's z-[9999] utility. It must beat z-40 (bottom navs) and
-     *   z-30 (sticky headers).
-     * - isolation: 'isolate' forces a new stacking context on the modal root
-     *   so nothing inside can accidentally leak behind the backdrop.
+     * The root is styled inline, but NOT because Tailwind would fail here —
+     * every property below has a utility equivalent (fixed, inset-0, flex,
+     * flex-col, isolate, bg-black, z-[99999]). Load-bearing is only the
+     * z-index VALUE:
+     * - zIndex 99999 must stay above everything that can share the screen:
+     *   z-50 (sheets, menus, PhotoCapture — the components a thumbnail gets
+     *   opened from), z-40 (bottom navs), z-30 (sticky headers) and the two
+     *   z-[9999] portals (ToastProvider, ActionModal).
+     * - isolation: 'isolate' is belt-and-braces: a position:fixed element with
+     *   a non-auto z-index already opens its own stacking context.
+     * - backgroundColor '#000' is a leftover, not a workaround. The overlay
+     *   this replaced (v2.2.4) used plain bg-black and worked: --color-black
+     *   comes from Tailwind's own theme layer, and no [data-theme] block in
+     *   globals.css redefines it. bg-black is the Design-System-conform
+     *   spelling and would behave identically.
      */
     <div
       role="dialog"

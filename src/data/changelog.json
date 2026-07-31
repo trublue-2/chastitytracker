@@ -20,6 +20,171 @@
     ]
   },
   {
+    "version": "4.60.3",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Sicherung, die vor einer Veröffentlichung prüft, ob die Versionsangaben zusammenpassen, greift jetzt VOR der Freigabe statt danach. Bisher lief sie als letzter Schritt: Sie meldete die Abweichung zwar, aber da war die Version bereits veröffentlicht. Jetzt bricht sie ab, und es wird nichts freigegeben.",
+          "en": "The safeguard that checks whether the version details match before a release now runs BEFORE the release instead of after it. Until now it ran as the last step: it did report the mismatch, but by then the version was already published. It now aborts, and nothing is released."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.60.2",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Beim Ausrollen einer neuen Version erkennt der Server ein Instanz-Verzeichnis jetzt nur noch dann als Instanz, wenn dort neben der Container-Beschreibung auch deren Konfiguration liegt. Halb angelegte oder aufgegebene Verzeichnisse werden damit übersprungen statt vergeblich gestartet. Für die Nutzung ändert sich nichts.",
+          "en": "When a new version is rolled out, the server now only treats a directory as an instance if the container configuration sits next to the container description. Half-created or abandoned directories are skipped instead of being started in vain. Nothing changes for day-to-day use."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.60.1",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine auf einen Zeitpunkt gelegte Einschliess-Anforderung verfiel bisher, wenn der Sub zu diesem Zeitpunkt bereits verschlossen war — richtig so, denn sie war ja erfüllt. Mit ihr verfiel aber auch die Sperrzeit, die sie mitbrachte: die entsteht sonst erst beim Einschliessen, und genau dieser Schritt fällt hier aus. Der Keyholder verlor die Sperre also ausgerechnet dann, wenn der Sub alles richtig gemacht hatte. Jetzt wird sie übernommen: eine Mindest-Tragedauer zählt ab dem Auslöse-Zeitpunkt, ein fest gesetztes Sperr-Ende gilt unverändert. Die Anforderung selbst wird als erfüllt verbucht (kein Vermerk wegen zu späten Einschliessens), und der Sub bekommt die Sperrzeit wie jede andere gemeldet — er hat von der terminierten Anforderung nie erfahren und wüsste sonst nichts von der Sperre.",
+          "en": "A lock request scheduled for a future moment used to lapse if the sub was already locked at that moment — correctly so, since it was already satisfied. But the lock period it carried lapsed with it: that period is otherwise created at the moment of locking, and that step is exactly what does not happen here. So the keyholder lost the lock period precisely when the sub had done everything right. It is now carried over: a minimum wearing duration counts from the trigger moment, a fixed lock end applies unchanged. The request itself is recorded as fulfilled (no late-lock mark), and the sub is notified of the lock period like any other — he never learned of the scheduled request and would otherwise not know about the lock."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Einschliess-Anforderung, die den Sub nie erreicht hat, konnte im Strafbuch als „zu spät eingeschlossen\" auftauchen. Möglich war das bei einer terminierten Anforderung mit fest gesetzter Frist, die vor dem Auslöse-Zeitpunkt lag: sie löste aus, wurde nie verschickt — und hinterliess eine Zeile mit abgelaufener Frist. Solche Anforderungen werden jetzt gar nicht erst als Versäumnis gezählt; was der Sub nie gesehen hat, kann er nicht versäumen.",
+          "en": "A lock request that never reached the sub could show up in the offense book as a late lock. This was possible for a scheduled request whose fixed deadline lay before its trigger moment: it triggered, was never sent — and left behind a row with an expired deadline. Such requests are no longer counted as a miss at all; the sub cannot miss what he never saw."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.60.0",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Nach einem Wiederverschluss, der eine Reinigungspause beendet, folgt jetzt automatisch eine Kontrolle: 15 bis 45 Minuten später, zufällig. Sie tritt an die Stelle der nächsten noch nicht zugestellten Kontrolle des Tagesplans, sodass die Anzahl der Kontrollen gleich bleibt; war für den Rest des Tages keine mehr geplant, kommt sie zusätzlich. Fällt sie ins Schlaf-Fenster, kommt sie schon nach 5 bis 15 Minuten — dann bleibt es bei einer Mahnung, und eine laufende Trage-Session wird nicht mehr automatisch beendet. Die Regel hängt am Hauptschalter der automatischen Kontrollen; die Einstellung „nur während einer Sperrzeit\" gilt für sie nicht, weil der Anlass die Reinigung selbst ist.",
+          "en": "A re-lock that ends a cleaning break is now followed by an automatic inspection: 15 to 45 minutes later, at random. It takes the place of the next not-yet-delivered inspection of the daily plan, so the number of inspections stays the same; if none was left planned for the rest of the day, it comes on top. If it falls inside the sleep window it arrives after just 5 to 15 minutes — and then stops at a reminder: a running wearing session is no longer ended automatically. The rule follows the main switch for automatic inspections; the \"only during a lock period\" setting does not apply to it, because the cleaning itself is the trigger."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die Kurzanleitung, die die Keyholder-KI beim Verbinden erhält, kannte zwei Neuerungen noch nicht: dass sich die Reinigungsfenster über dieselbe Schnittstelle setzen lassen wie die übrigen Reinigungs-Regeln, und dass nach einer Reinigungspause selbsttätig eine Kontrolle folgt. Beides steht jetzt dort, wo die KI es vor der ersten Anweisung liest, statt nur in der ausführlichen Referenz.",
+          "en": "The short briefing the keyholder AI receives on connecting was missing two additions: that the cleaning windows can be set through the same interface as the other cleaning rules, and that an inspection follows a cleaning break automatically. Both are now where the AI reads them before its first directive, instead of only in the long reference."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.59.0",
+    "date": "2026-07-31",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Reinigungsfenster mit unvollständiger oder rückwärts laufender Zeit wurde beim Speichern stillschweigend weggeworfen — die Einstellungsseite meldete Erfolg, obwohl das Fenster nie ankam. Sie fing das bisher selbst ab; jetzt lehnt es die Speicherung selbst ab, mit Begründung, unabhängig davon, wer sie anstösst.",
+          "en": "A cleaning window with an incomplete or backwards time range was silently discarded on save — the settings page reported success although the window never arrived. It used to catch this itself; now the save path rejects it with a reason, no matter who triggers it."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Keyholder-KI kann jetzt auch die Reinigungsfenster setzen — die Tageszeiten, in denen eine Reinigungsöffnung erlaubt ist. Bisher konnte sie über die Schnittstelle nur die Erlaubnis an sich, die Dauer je Öffnung und die Anzahl pro Tag ändern; die Fenster liessen sich nur lesen und mussten von Hand in den Einstellungen nachgezogen werden. Die Liste wird dabei als Ganzes gesetzt: umlegen, ergänzen und löschen laufen alle über denselben Weg. Eine geleerte Liste verbietet die Reinigung nicht, sondern löst sie von der Uhrzeit.",
+          "en": "The keyholder AI can now also set the cleaning windows — the times of day at which a cleaning opening is permitted. Until now the interface let it change only the permission itself, the minutes per opening and the number per day; the windows were readable only and had to be adjusted by hand in the settings. The list is set as a whole: retiming, adding and deleting all go the same way. An emptied list does not forbid cleaning — it detaches it from the clock."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.7",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die automatische Prüfung vor einer Veröffentlichung lässt jetzt auch die Testreihe mitlaufen. Bisher lief nur die Typprüfung; die Tests startete jemand von Hand oder eben nicht. Damit können Fehler, die weder beim Übersetzen noch beim Bauen auffallen, nicht mehr unbemerkt auf die Instanzen gelangen.",
+          "en": "The automatic check that runs before a release now also runs the test suite. Until now only the type check ran; the tests were started by hand, or not at all. Faults that show up in neither compilation nor the build can no longer reach the instances unnoticed."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.6",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Rückfragen und Formulare, die über der Seite liegen, hängen an einem Element der Seite. Bekäme dieses Element bestimmte CSS-Eigenschaften, würden sie künftig nicht mehr über dem Fenster stehen, sondern in dieses Element hineinrutschen — lautlos und ohne Fehlermeldung. Bisher war das nur als Notiz im Code festgehalten, und die Notiz war unvollständig. Sie ist jetzt korrekt, steht an der richtigen Stelle und wird von einem Test überwacht.",
+          "en": "Confirmation dialogs and forms that sit above the page are attached to an element of the page. If that element were given certain CSS properties, they would no longer sit above the window but slide into that element instead — silently and without any error. Until now this was only recorded as a note in the code, and the note was incomplete. It is now correct, sits in the right place, and is guarded by a test."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.5",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Mehrere interne Notizen im Code der Vollbild-Ansicht eines Fotos waren falsch: Sie begründeten die schwarze Blende damit, dass das Umschalten des Designs ihr sonst die Farbe nehme, und nannten für die Überlagerung Gründe, die so nicht zutreffen. An anderen Stellen der App liegt genau dieselbe Blende seit jeher über den gewöhnlichen Weg. Notizen richtiggestellt, an der Darstellung ändert sich nichts.",
+          "en": "Several internal notes in the code of the fullscreen photo view were wrong: they justified the black backdrop by claiming that switching the design would otherwise strip its colour, and gave reasons for the overlay that do not hold up. Elsewhere in the app the very same backdrop has always been done the ordinary way. The notes have been corrected; nothing changes about what you see."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.4",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Wer keine E-Mail-Adresse hinterlegt hat, erfährt von einer angeforderten Kontrolle jetzt trotzdem — über Push und den Posteingang. Bisher brach die Benachrichtigung ohne Adresse ganz ab: die Frist lief, die Kontrolle wurde versäumt, und anschliessend griffen Mahnung und automatische Buchung auf einer Anforderung, von der man nie erfahren hatte.",
+          "en": "If you have no e-mail address on file, you now still hear about a requested inspection — through push and your inbox. Until now the notification stopped entirely without an address: the deadline ran, the inspection was missed, and the reminder and automatic booking then acted on a request you had never been told about."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Gerät, dessen neuestes Referenzfoto nicht mehr lesbar ist, fällt nicht mehr aus der Geräte-Erkennung. Vorher konnte eine einzelne fehlende Datei dazu führen, dass jede Kontrolle dieses Geräts dauerhaft als „nicht prüfbar“ endete, obwohl weitere brauchbare Fotos hinterlegt waren.",
+          "en": "A device whose newest reference photo can no longer be read no longer drops out of the device recognition. Previously a single missing file could make every inspection of that device end up permanently “not checkable”, even though other usable photos were on file."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Geräte-Erkennung teilt ihre Referenzfotos jetzt nach Relevanz auf: das Gerät, das getragen werden soll, und optisch gleiche Geräte bekommen mehr Vergleichsbilder als solche, die ohnehin ausscheiden. Ausserdem werden nur noch die Fotos von der Platte gelesen, die auch wirklich verglichen werden — bisher wurde ein Teil umsonst geladen.",
+          "en": "The device recognition now splits its reference photos by relevance: the device you are supposed to be wearing, and devices that look like it, get more comparison images than those that are ruled out anyway. It also only reads the photos from disk that are actually compared — until now some were loaded for nothing."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.58.3",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Rückfragen und Formulare, die über der Seite liegen, folgen wieder dem eingestellten Design. Im dunklen Modus erschienen sie hell mitten auf dunkler Seite (etwa beim Löschen einer Nachricht im Posteingang), im hellen Adminportal umgekehrt dunkel — dasselbe galt für Kurzmeldungen und die Vollbild-Ansicht eines Fotos. Auch der Streifen, der beim Überscrollen am Rand sichtbar wird, ist jetzt in der richtigen Farbe.",
+          "en": "Confirmation dialogs and forms that sit above the page follow the selected design again. In dark mode they showed up light in the middle of a dark page (for example when deleting a message in the inbox), and the other way round in the light admin portal — the same applied to toasts and the fullscreen photo view. The strip that appears at the edge when you overscroll now has the right colour too."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.58.2",
     "date": "2026-07-30",
     "changes": [

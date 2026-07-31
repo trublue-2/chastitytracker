@@ -21,5 +21,9 @@ export function getThemeInitScript(role: ThemeRole) {
   const lightTheme = LIGHT_THEME[role];
   const selector = SELECTORS[role];
 
-  return `(function(){try{var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";var e=document.querySelector("${selector}");if(e)e.setAttribute("data-theme",t);}catch(e){}})();`;
+  // Setzt dieselben zwei Ziele unter derselben Bedingung wie `applyTheme` — Begründung dort.
+  // Reihenfolge, Selektor-Wahl (`body.querySelector`) und der Wrapper-Vorbehalt müssen mitwandern,
+  // wenn sich das drüben ändert; hier liegt der Wrapper zwar immer vor (dieses Skript steht IN
+  // ihm), aber zwei Regeln für dieselbe Sache driften sonst irgendwann auseinander.
+  return `(function(){try{var e=document.body.querySelector("${selector}");if(!e)return;var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";document.documentElement.setAttribute("data-theme",t);e.setAttribute("data-theme",t);}catch(e){}})();`;
 }

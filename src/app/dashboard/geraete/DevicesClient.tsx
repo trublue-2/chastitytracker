@@ -266,7 +266,6 @@ export default function DevicesClient({ devices: initialDevices, categories, use
         title={deleteModal?.entryCount ? t("archive") : tCommon("delete")}
         icon={<Trash2 size={20} className="text-warn" />}
         iconBg="var(--color-warn-bg)"
-        theme="user"
       >
         <p className="text-sm text-foreground-muted">
           {deleteModal?.entryCount

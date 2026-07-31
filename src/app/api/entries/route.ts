@@ -13,6 +13,8 @@ import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
+import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
+import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
@@ -80,6 +82,9 @@ export async function POST(req: NextRequest) {
 
   let withdrawnSperrzeit = false;
   let lockStartTime: Date | null = null;
+  // Schliesst dieser VERSCHLUSS eine Reinigungspause ab? In der Transaktion aus demselben
+  // Lock-Eintrag abgeleitet, den der Guard ohnehin liest — nach dem Commit löst er die Kontrolle aus.
+  let beendetReinigungspause = false;
   let requiredAnforderungDeviceIds: string[] = [];
   // In der Transaktion abgeleitet (braucht den Lock-Eintrag), NACH dem Commit für die eigentliche
   // Prüfung wiederverwendet — deshalb hier draussen. null = keine PRUEFUNG mit Foto.
@@ -105,6 +110,7 @@ export async function POST(req: NextRequest) {
         if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
           throw entryGuardError("TIME_BEFORE");
         }
+        beendetReinigungspause = latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
       }
       if (type === "OEFFNEN") {
         const latest = await getLatestKgEntry(session.user.id, tx);
@@ -218,14 +224,18 @@ export async function POST(req: NextRequest) {
         // Vergehen im Strafbuch, obwohl der Sub genau das Verlangte getan hat.
         // Geplante, noch nicht versendete bleiben aussen vor — sie dürfen nicht vorzeitig als
         // erfüllt gelten (dringendste zuerst, siehe getOpenLockRequests).
+        // EIN Zeitstempel für den ganzen Vorgang: Auswahl, Erfüllt-Marke und der Anker der
+        // Sperrzeiten sind derselbe Verschluss — drei `new Date()` liessen sie um Millisekunden
+        // auseinanderlaufen und den Block nur mit echter Uhr testen.
+        const jetzt = new Date();
         const offeneAnforderungen = await tx.verschlussAnforderung.findMany({
-          where: { ...openLockRequestWhere(session.user.id), ...activeVerschlussAnforderungWhere(new Date()) },
+          where: { ...openLockRequestWhere(session.user.id), ...activeVerschlussAnforderungWhere(jetzt) },
           orderBy: LOCK_REQUEST_ORDER,
         });
         if (offeneAnforderungen.length > 0) {
           await tx.verschlussAnforderung.updateMany({
             where: { id: { in: offeneAnforderungen.map((a) => a.id) } },
-            data: { fulfilledAt: new Date() },
+            data: { fulfilledAt: jetzt },
           });
           // Die GEFORDERTEN Geräte aller erfüllten Anforderungen einsammeln (Anforderungen OHNE
           // Gerätevorgabe stellen keine und fallen weg). Mehrere können verschiedene Geräte verlangen;
@@ -246,7 +256,7 @@ export async function POST(req: NextRequest) {
         // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
         // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
         const neueSperrzeiten = offeneAnforderungen.flatMap((a) => {
-          const sperrEnde = a.sperrEndetAt ?? (a.dauerH ? new Date(Date.now() + a.dauerH * 60 * 60 * 1000) : null);
+          const sperrEnde = sperrzeitEndeFromRequest(a, jetzt); // Anker: der Verschluss des Subs
           return sperrEnde
             ? [{
                 userId: session.user.id,
@@ -333,6 +343,15 @@ export async function POST(req: NextRequest) {
   }
 
   markLastAction();
+
+  // Wiederverschluss nach einer Reinigungspause → Kontrolle in Kürze („zeig mir, dass du wieder
+  // drin bist"). Fire-and-forget wie der Geräte-Check: die Planung ist eine Poller-Vorbereitung,
+  // keine Voraussetzung der Antwort. Die Regel selbst (Verzögerung, ersetzte Plan-Zeile,
+  // Schlaf-Fenster-Sonderfall) liegt in autoKontrolleService.
+  if (beendetReinigungspause) {
+    void scheduleCleaningRelockInspection(session.user.id).catch((e) =>
+      console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));
+  }
 
   // Der Geräte-Check braucht den letzten Lock-Entry (welches Gerät ist verschlossen?). Die
   // Foto-Verifikation braucht ihn NICHT mehr: was sie zu prüfen hat, steht in `verification`, und das

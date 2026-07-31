@@ -88,13 +88,32 @@ jobs:
             }
 
             # Targets bestimmen
+            #
+            # Eine Instanz ist ein Ordner mit `docker-compose.yml` UND `.env` — beides, nicht nur das
+            # erste. Beim Löschen entfernt das Portal ausschliesslich die `.env` und lässt die
+            # `docker-compose.yml` liegen; für das Portal selbst ist der Ordner damit weg (es erkennt
+            # Instanzen an der `.env`), für diese Schleife war er es nicht. `docker compose` scheitert
+            # an so einem Ordner sofort, weil das Compose-File `env_file: .env` verlangt — und riss
+            # den ganzen Lauf mit ins Rot, obwohl keine echte Instanz betroffen war.
+            #
+            # Übersprungene werden GEZÄHLT und gemeldet: ein stiller Filter sähe für den Betrachter
+            # genauso aus wie eine Flotte, die geschrumpft ist.
             if [ -n "$INSTANCES_INPUT" ]; then
               IFS=',' read -ra TARGETS <<< "$INSTANCES_INPUT"
             else
               TARGETS=()
+              ORPHANED=0
               for dir in "$INSTANCES_DIR"/*/; do
-                [ -f "$dir/docker-compose.yml" ] && TARGETS+=("$(basename "$dir")")
+                [ -f "$dir/docker-compose.yml" ] || continue
+                if [ -f "$dir/.env" ]; then
+                  TARGETS+=("$(basename "$dir")")
+                else
+                  ORPHANED=$((ORPHANED + 1))
+                fi
               done
+              if [ "$ORPHANED" -gt 0 ]; then
+                echo "→ $ORPHANED Ordner ohne .env übersprungen (Rest einer gelöschten Instanz)."
+              fi
             fi
 
             # ── Pin-Filter ─────────────────────────────────────────────────────────────

@@ -85,8 +85,10 @@ export function visionMaxRefsPerDevice(): number {
   return Number.isFinite(n) && n >= 1 ? n : 2;
 }
 
-/** Harte Obergrenze für die GESAMTzahl Referenzbilder im Geräte-Prompt (über alle Geräte), damit
- *  die Latenz bei vielen Geräten nicht explodiert. Env: VISION_MAX_TOTAL_REFS (Default 6). */
+/** Obergrenze für die GESAMTzahl Referenzbilder im Geräte-Prompt (über alle Geräte), damit die
+ *  Latenz bei vielen Geräten nicht explodiert. Verteilt wird sie von `allocateImageBudget`.
+ *  NICHT hart: jedes Gerät braucht sein Grundbild, um überhaupt Kandidat zu sein — gibt es mehr
+ *  Geräte als Budget, wird sie bewusst überzogen. Env: VISION_MAX_TOTAL_REFS (Default 6). */
 export function visionMaxTotalRefs(): number {
   const n = Number(process.env.VISION_MAX_TOTAL_REFS);
   return Number.isFinite(n) && n >= 1 ? n : 6;
@@ -200,6 +202,15 @@ export const NO_FIELDS_TO_UPDATE = "noFieldsToUpdate";
 /** Stabiler Fehler-Code für ein Feld, das keine gültige „HH:MM"-Uhrzeit ist. */
 export const INVALID_TIME = "invalidTime";
 
+/** Stabiler Fehler-Code für ein „von – bis"-Paar, dessen Ende nicht nach dem Start liegt. */
+export const TIME_RANGE_INVALID = "timeRangeInvalid";
+
+/** Eine Uhrzeit des Tages, „HH:MM" im 24-Stunden-Format. EINE Quelle für alle Wanduhr-Felder
+ *  (Schlaf-/Auslöse-Fenster der Auto-Kontrollen, Reinigungs-Fenster) — hier statt in einem der
+ *  Services, weil beide dieselbe Regel brauchen und ein Import zwischen ihnen einen Modul-Zyklus
+ *  schlösse (reinigungService → autoKontrolleService → queries → reinigungService). */
+export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 /** Zulässiger Wertebereich EINES Zahlen-Feldes. `fallback` = Wert bei fehlender Eingabe — NICHT die
  *  Untergrenze, deshalb ein eigenes Feld. Wann er greift, entscheidet die jeweilige Klemm-Funktion und
  *  ist bewusst verschieden: `clamp` (Server) nimmt ihn auch für einen auf 0 gerundeten Wert,
@@ -228,6 +239,12 @@ export interface NumberRange {
 export const CLEANING_MAX_MINUTES_RANGE = { min: 1, max: 120, fallback: 15 } as const satisfies NumberRange;
 /** Reinigungspausen pro Tag (0 = unbegrenzt). */
 export const CLEANING_MAX_PER_DAY_RANGE = { min: 0, max: 20, fallback: 0 } as const satisfies NumberRange;
+/** Höchstzahl der Reinigungs-Fenster eines Tages (Listen-Länge, kein Zahlen-Feld → kein `NumberRange`).
+ *  Durchgesetzt in `setReinigungSettings`, also für JEDEN Schreiber der Spalte. */
+export const CLEANING_WINDOWS_MAX = 12;
+/** Stabiler Fehler-Code, wenn ein Schreibvorgang mehr als {@link CLEANING_WINDOWS_MAX} Fenster setzt.
+ *  Nennt die Zahl bewusst nicht — dafür bräuchte die Meldung einen ICU-Parameter (siehe DEVICE_CODES). */
+export const CLEANING_WINDOWS_TOO_MANY = "CLEANING_WINDOWS_TOO_MANY";
 
 /** Grenzen beider Eskalationsstufen einer überfälligen Kontrolle: 5 min – 24 h. */
 const INSPECTION_ESCALATION_DELAY = { min: 5, max: 1440 } as const;
@@ -248,6 +265,15 @@ export const INSPECTION_RANDOM_DELAY = { min: 5, max: 65 } as const;
 
 /** Automatische Kontrollen pro Tag — Min und Max derselben Zeile teilen auch den Fallback. */
 export const AUTO_INSPECTION_PER_DAY_RANGE = { min: 0, max: 12, fallback: 0 } as const satisfies NumberRange;
+
+/** Verzögerung der Kontrolle nach einem Wiederverschluss, der eine Reinigungspause beendet: der
+ *  Sub soll den Beleg nicht direkt an die Reinigung anschliessen können, aber nah genug daran,
+ *  dass er das Gerät nicht in der Zwischenzeit wieder abnimmt. */
+export const CLEANING_RELOCK_INSPECTION_DELAY = { min: 15, max: 45 } as const;
+/** Dieselbe Kontrolle, wenn sie im Schlaf-Fenster landet: kürzer, weil sie den Sub ohnehin nur beim
+ *  ohnehin wachen Wiederverschluss trifft — und ohne Eskalationsstufe 2, damit verschlafene Minuten
+ *  keine Session beenden (die Regel steht bei `scheduleCleaningRelockInspection`). */
+export const CLEANING_RELOCK_INSPECTION_DELAY_SLEEP = { min: 5, max: 15 } as const;
 
 /** Grenzen der Erfüllungsfrist einer automatischen Kontrolle (Minuten). */
 const AUTO_INSPECTION_DEADLINE = { min: 5, max: 240 } as const;

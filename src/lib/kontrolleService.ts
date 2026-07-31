@@ -341,6 +341,65 @@ export function inspectionIntro(t: EmailTranslator, msLeft: number): string {
   return t("inspectionRequestedIntroHoursMinutes", { hours, minutes });
 }
 
+/** Der Mail-Körper der Kontroll-Anforderung. Eigene Funktion, weil sie der einzige Teil ist, der
+ *  eine Adresse braucht — so bleibt der Versand-Ablauf daneben auf einer Ebene lesbar (Posteingang →
+ *  Mail, falls Adresse → Push) statt vierzig eingerückte Zeilen dazwischen zu haben. */
+async function sendInspectionMail(o: {
+  to: string;
+  t: EmailTranslator;
+  locale: string;
+  username: string;
+  code: string | null;
+  sealCode: string | null;
+  sealRequired: boolean;
+  kommentar: string | null;
+  deadline: Date;
+  deadlineStr: string;
+  formPath: string;
+}): Promise<void> {
+  const { to, t, locale, username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath } = o;
+  const intro = inspectionIntro(t, deadline.getTime() - Date.now());
+  const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
+
+  const link = `${appBaseUrl()}${formPath}`;
+  const helpUrl = inspectionHelpUrl(locale);
+  const codeLabel = sealCode && !sealRequired
+    ? t("inspectionCodeLabelSeal")
+    : t("inspectionCodeLabelControl");
+  // Ohne Code die grosse Ziffern-Kachel weglassen und stattdessen sagen, dass keiner nötig ist —
+  // sonst stünde in der Mail eine Überschrift ohne Inhalt.
+  const codeBlockHtml = code
+    ? `<p><strong>${codeLabel}</strong></p>
+      <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>`
+    : `<p>${escHtml(t("inspectionNoCodeHint"))}</p>`;
+  const sealHintHtml = sealRequired
+    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0;font-size:14px;color:#1e3a8a"><strong>${t("inspectionSealHintLabel")}</strong> ${t("inspectionSealHintText")}</p></div>`
+    : "";
+
+  await sendMailSafe(
+    to,
+    `KG-Tracker – ${t("inspectionRequestedSubject")}`,
+    dashboardEmailHtml(
+      t("inspectionRequestedSubject"),
+      `${emailGreeting(t, username)}
+      <p>${escHtml(intro)}</p>
+      ${kommentarHtml}
+      ${codeBlockHtml}
+      ${sealHintHtml}
+      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>`,
+      t("inspectionButton"),
+      {
+        buttonColor: EMAIL_BUTTON_COLORS.inspection,
+        buttonHref: link,
+        // Link-Fallback + Hilfe-Footer stehen NACH dem Button — dafür gibt es den afterHtml-Slot.
+        afterHtml:
+          `<p style="color:#94a3b8;font-size:12px">${escHtml(t("inspectionLinkFallback", { link }))}</p>` +
+          `<p style="color:#64748b;font-size:13px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px">${escHtml(t("inspectionHelpText"))} <a href="${helpUrl}" style="color:${EMAIL_BUTTON_COLORS.default}">${escHtml(t("inspectionHelpLink"))}</a></p>`,
+      },
+    ),
+  );
+}
+
 /**
  * Sends the inspection e-mail (code + deadline + link) and a push to the user.
  * Reused by the immediate path in requestKontrolle and by the delayed-trigger poller.
@@ -349,7 +408,8 @@ export function inspectionIntro(t: EmailTranslator, msLeft: number): string {
  * Zufallscode-Umstellung), bleibt das alte „Siegel-Nummer"-Label.
  * `code: null` → Mail und Push nennen keinen Code; verlangt bleibt das Foto (und, falls ein Siegel
  * aktiv ist, dessen Nummer).
- * No-op if the user has no e-mail. Push is fire-and-forget.
+ * Ohne hinterlegte Adresse entfällt nur die Mail — Posteingang und Push laufen unabhängig davon.
+ * Push is fire-and-forget.
  */
 export async function sendKontrolleNotification(opts: {
   user: { id: string; email: string | null; username: string; locale: string };
@@ -377,57 +437,24 @@ export async function sendKontrolleNotification(opts: {
     once: true,
   });
 
-  // Bekannter Nebenbefund, hier bewusst NICHT mitgeändert: ohne Adresse bricht diese Funktion ab,
-  // bevor sie den Push sendet — die Kontrolle erreichte den Sub bisher über gar keinen Kanal.
-  // Seit dieser Zeile steht sie wenigstens im Posteingang.
-  if (!user.email) return;
   const sealRequired = requiredSealCode(code, sealCode) !== null;
 
   const locale = toLocale(user.locale);
   const t = await emailT(locale);
 
-  const intro = inspectionIntro(t, deadline.getTime() - Date.now());
-  const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
-
   const formPath = inspectionHref(code, { kommentar });
-  const link = `${appBaseUrl()}${formPath}`;
-  const helpUrl = inspectionHelpUrl(locale);
   const deadlineStr = formatDateTime(deadline);
-  const codeLabel = sealCode && !sealRequired
-    ? t("inspectionCodeLabelSeal")
-    : t("inspectionCodeLabelControl");
-  // Ohne Code die grosse Ziffern-Kachel weglassen und stattdessen sagen, dass keiner nötig ist —
-  // sonst stünde in der Mail eine Überschrift ohne Inhalt.
-  const codeBlockHtml = code
-    ? `<p><strong>${codeLabel}</strong></p>
-      <div style="font-size:48px;font-weight:bold;letter-spacing:12px;color:#f97316;text-align:center;padding:24px;background:#fff7ed;border-radius:12px;margin:16px 0">${code}</div>`
-    : `<p>${escHtml(t("inspectionNoCodeHint"))}</p>`;
-  const sealHintHtml = sealRequired
-    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0;font-size:14px;color:#1e3a8a"><strong>${t("inspectionSealHintLabel")}</strong> ${t("inspectionSealHintText")}</p></div>`
-    : "";
 
-  await sendMailSafe(
-    user.email,
-    `KG-Tracker – ${t("inspectionRequestedSubject")}`,
-    dashboardEmailHtml(
-      t("inspectionRequestedSubject"),
-      `${emailGreeting(t, user.username)}
-      <p>${escHtml(intro)}</p>
-      ${kommentarHtml}
-      ${codeBlockHtml}
-      ${sealHintHtml}
-      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>`,
-      t("inspectionButton"),
-      {
-        buttonColor: EMAIL_BUTTON_COLORS.inspection,
-        buttonHref: link,
-        // Link-Fallback + Hilfe-Footer stehen NACH dem Button — dafür gibt es den afterHtml-Slot.
-        afterHtml:
-          `<p style="color:#94a3b8;font-size:12px">${escHtml(t("inspectionLinkFallback", { link }))}</p>` +
-          `<p style="color:#64748b;font-size:13px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px">${escHtml(t("inspectionHelpText"))} <a href="${helpUrl}" style="color:${EMAIL_BUTTON_COLORS.default}">${escHtml(t("inspectionHelpLink"))}</a></p>`,
-      },
-    ),
-  );
+  // Nur die MAIL hängt an der Adresse — Posteingang (oben) und Push (unten) laufen unabhängig
+  // davon, wie bei den Geschwister-Diensten (`verschlussAnforderungService`,
+  // `orgasmusAnforderungService`). Vorher stieg die Funktion hier ganz aus: ein Sub ohne Adresse
+  // erfuhr von der Kontrolle über gar keinen Kanal, versäumte sie — und die Eskalation (Mahnung,
+  // Auto-Buchung als Öffnen) lief auf einer Anforderung, die ihn nie erreicht hatte. Über den
+  // manuellen Pfad kann das nicht entstehen (`requestKontrolle` weist ohne Adresse ab), wohl aber
+  // über die automatischen Kontrollen: die plant `autoKontrolleService` ohne solche Prüfung.
+  if (user.email) {
+    await sendInspectionMail({ to: user.email, t, locale, username: user.username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath });
+  }
 
   const pushParts = [
     ...(code ? [t("inspectionPushCode", { code })] : []),

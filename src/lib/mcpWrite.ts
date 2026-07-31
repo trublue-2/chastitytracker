@@ -5,7 +5,7 @@ import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, me
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
-import { setReinigungSettings, maxPausesPerDaySentinel } from "@/lib/reinigungService";
+import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
@@ -106,8 +106,15 @@ const EN_ERRORS: Record<string, string> = en.errors;
  *  Object-Property und würde eine Funktion als Fehlertext werfen. Unbekannter Code → roher Token,
  *  besser als eine irreführende Meldung. */
 function unwrap<T>(r: ServiceResult<T>): T {
-  if (!r.ok) throw new Error(Object.hasOwn(EN_ERRORS, r.error) ? EN_ERRORS[r.error] : r.error);
+  if (!r.ok) throw new Error(enErrorText(r.error));
   return r.data;
+}
+
+/** Der englische Satz zu einem Service-Fehler-Code. Auch für Prüfungen, die ein Tool VOR dem Service
+ *  vorwegnimmt (Fenster-Liste im dryRun) — dieselbe Regel muss denselben Satz ergeben, egal ob sie
+ *  am Rand oder im Service zuschlägt. */
+function enErrorText(code: string): string {
+  return Object.hasOwn(EN_ERRORS, code) ? EN_ERRORS[code] : code;
 }
 
 export interface RequestLockArgs {
@@ -776,29 +783,56 @@ export interface SetCleaningArgs {
   allowed?: boolean;
   maxMinutes?: number;
   maxPerDay?: number;
+  /** Die Tages-Fenster VOLLSTÄNDIG ersetzen; `[]` löscht sie, Weglassen lässt sie unberührt
+   *  (Bedeutung: siehe Tool-Beschreibung in `route.ts`). */
+  windows?: { start: string; end: string }[];
   dryRun?: boolean;
 }
+
+/**
+ * Wirft die Fenster-Regel des Services ({@link reinigungsFensterListProblem}) als Satz — mit der
+ * STELLE, an der es klemmt. Der Service lehnt dieselbe Liste ohnehin ab; hier vorab, damit auch der
+ * dryRun sie sieht und der Agent das schuldige Paar nicht raten muss.
+ */
+function assertCleaningWindows(windows: { start: string; end: string }[]): void {
+  const problem = reinigungsFensterListProblem(windows);
+  if (!problem) return;
+  const stelle = problem.index === undefined ? "windows" : `windows[${problem.index}] ${JSON.stringify(windows[problem.index])}`;
+  throw new Error(`${stelle}: ${enErrorText(problem.code)}`);
+}
+
 export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
   const userId = await resolveTargetUserId(username);
-  if (args.allowed === undefined && args.maxMinutes === undefined && args.maxPerDay === undefined) {
-    throw new Error("Provide at least one of: allowed, maxMinutes, maxPerDay.");
+  if (args.allowed === undefined && args.maxMinutes === undefined && args.maxPerDay === undefined && args.windows === undefined) {
+    throw new Error("Provide at least one of: allowed, maxMinutes, maxPerDay, windows.");
   }
+  // VOR dem dryRun-Zweig: eine ungültige Fenster-Liste muss auch der Preview als Fehler zeigen,
+  // sonst verspricht er einen Stand, den der Commit danach ablehnt.
+  const windows = args.windows;
+  if (windows) assertCleaningWindows(windows);
   if (args.dryRun) {
     // Zeigt den GEKLEMMTEN Wert, nicht den rohen Input — sonst täuscht der Preview genau die
     // stille Klemmung vor, die er aufdecken soll (setReinigungSettings klemmt intern identisch).
     const current = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true },
+      select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true },
     });
     const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, CLEANING_MAX_MINUTES_RANGE) : undefined;
     const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, CLEANING_MAX_PER_DAY_RANGE) : undefined;
     // maxPerDay durch denselben Null-Sentinel wie get_context.cleaning (0 = "unbegrenzt" → null nach
     // aussen) — sonst zeigt dieser Preview für denselben Zustand eine andere Zahl als get_context.
-    const before: Record<string, unknown> = { allowed: current.reinigungErlaubt, maxMinutes: current.reinigungMaxMinuten, maxPerDay: maxPausesPerDaySentinel(current.reinigungMaxProTag) };
+    // Die Fenster als "HH:MM-HH:MM"-Zeilen: der Diff soll die ganze ALTE gegen die ganze NEUE Liste
+    // zeigen (die Ersetzung ist der Punkt), und eine Liste von Objekten liest dort niemand.
+    const before: Record<string, unknown> = {
+      allowed: current.reinigungErlaubt, maxMinutes: current.reinigungMaxMinuten,
+      maxPerDay: maxPausesPerDaySentinel(current.reinigungMaxProTag),
+      windows: parseReinigungsFenster(current.reinigungsFenster).map(formatReinigungsFenster),
+    };
     const after: Record<string, unknown> = {
       allowed: args.allowed ?? before.allowed,
       maxMinutes: clampedMinutes ?? before.maxMinutes,
       maxPerDay: clampedPerDay !== undefined ? maxPausesPerDaySentinel(clampedPerDay) : before.maxPerDay,
+      windows: windows ? windows.map(formatReinigungsFenster) : before.windows,
     };
     return dryRunPreview("set_cleaning", undefined, {
       ...after,
@@ -810,8 +844,18 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
     erlaubt: args.allowed,
     maxMinuten: args.maxMinutes,
     maxProTag: args.maxPerDay,
+    fenster: windows,
   }));
-  return { ok: true, message: "Cleaning settings updated." };
+  return { ok: true, message: `Cleaning settings updated.${windowsNote(windows)}` };
+}
+
+/** Der Zusatz zur Erfolgsmeldung, wenn die Fenster ersetzt wurden. Eine geleerte Liste bekommt einen
+ *  eigenen Satz: „keine Fenster" heisst NICHT „keine Reinigung", sondern „jederzeit" — dieselbe
+ *  Verwechslung, vor der die Tool-Beschreibung warnt, hier noch einmal am Ergebnis. */
+function windowsNote(windows: ReinigungsFenster[] | undefined): string {
+  if (!windows) return "";
+  if (windows.length === 0) return " All cleaning windows removed — cleaning is no longer restricted to times of day (use allowed:false to forbid it).";
+  return ` Cleaning windows replaced (${windows.length}): ${windows.map(formatReinigungsFenster).join(", ")}.`;
 }
 
 // Hinweis: Es gibt bewusst KEIN mcpSetAutoInspections mehr — die Einstellungen der automatischen

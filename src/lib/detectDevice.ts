@@ -1,6 +1,6 @@
-import type { DeviceCheckStatus } from "@/lib/deviceCheck";
+import { sameLookalikeCluster, type DeviceCheckStatus } from "@/lib/deviceCheck";
 import { loadUploadedImage, type ImageData } from "@/lib/imageUtils";
-import { visionDeviceMaxImagePx, visionMaxTotalRefs } from "@/lib/constants";
+import { visionDeviceMaxImagePx, visionMaxRefsPerDevice, visionMaxTotalRefs } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
 import { visionComplete, visionConfigured, type VisionBlock } from "@/lib/vision";
 import { parseJsonObject } from "@/lib/vision/parse";
@@ -21,6 +21,9 @@ export interface DeviceReference {
    *  `healthFlags` und `retentionNotes` sagen nichts über das Bild und hätten im Prompt nur
    *  ablenkendes Gewicht. */
   visualTraits: string | null;
+  /** Optisch gleiche Geräte tragen denselben Cluster. Beim Kontroll-Check bekommen sie mehr
+   *  Referenzbilder ab — sie sind die Kandidaten, an denen die Unterscheidung hängt. */
+  lookalikeClusterId: string | null;
   /** All available reference image URLs for this device (device photo + recent Verschluss entries). */
   imageUrls: string[];
 }
@@ -43,32 +46,135 @@ interface DeviceSet {
   newImg: ImageData;
 }
 
+/**
+ * Verteilt das Bild-Budget auf die Geräte. `available[i]` = wie viele Bilder Gerät i überhaupt hat,
+ * `priority[i]` = ob es die Entscheidung trägt. Ergebnis: die Anzahl Bilder je Gerät.
+ *
+ * **Jedes Gerät bekommt mindestens ein Bild** — ohne eines ist es gar kein Kandidat mehr, und ein
+ * eingehaltenes Budget wäre wertlos, wenn dafür ein Gerät aus dem Vergleich fällt. Bei mehr Geräten
+ * als Budget wird es deshalb überzogen (Verhalten wie bisher).
+ *
+ * **Der Rest geht reihum, Prioritätsgeräte zuerst.** Beim Kontroll-Check ist die Frage asymmetrisch —
+ * „wird das ERWARTETE Gerät getragen?". Das erwartete Gerät und die optisch mit ihm verwechselbaren
+ * (gleicher `lookalikeClusterId`) tragen die Antwort; ein Kandidat, der visuell ohnehin ausscheidet,
+ * braucht kein zweites Bild. Vorher teilte `floor(total / n)` stur: bei sechs Geräten und Budget 6
+ * blieb je EIN Bild übrig, unabhängig davon, wie viele hinterlegt waren — und ausgewählt nach
+ * Aktualität, nicht nach Aussagekraft. Genau daran kippte die Unterscheidung zweier Vollmetall-KG
+ * (Issue #45).
+ *
+ * Ohne Prioritäten (Klassifikation, `detectDevice`) sind alle gleich und es bleibt beim
+ * gleichmässigen Reihum — das nutzt das Budget dann sogar besser aus als die alte Division, die
+ * einen Rest ungenutzt liegen liess.
+ *
+ * **Grenze der Wirkung, damit sie niemand überschätzt:** Weil jedes Gerät sein Grundbild bekommt,
+ * bleibt nur `total − Geräteanzahl` zu verteilen. Bei knappem Budget (`total ≈ n`) gibt es nichts zu
+ * priorisieren, bei grosszügigem laufen ohnehin alle in `perDeviceCap` — die Verteilung entscheidet
+ * also nur im Band dazwischen. Sie ersetzt deshalb NICHT die zweite Ursache aus Issue #45: welche
+ * Bilder gewählt werden (nach `createdAt`, also Aktualität statt Aussagekraft), bleibt offen.
+ */
+export function allocateImageBudget(
+  available: number[],
+  total: number,
+  priority: boolean[],
+  perDeviceCap = Infinity,
+): number[] {
+  available = available.map((a) => Math.min(a, perDeviceCap));
+  const quota = available.map((a) => Math.min(1, a));
+  let left = total - quota.reduce((sum, q) => sum + q, 0);
+
+  const index = available.map((_, i) => i);
+  const groups = [index.filter((i) => priority[i]), index.filter((i) => !priority[i])];
+  for (const group of groups) {
+    // Reihum statt am Stück: zwei Prioritätsgeräte teilen sich den Rest, statt dass das erste
+    // alles nimmt — bei einer Verwechslung sind beide Seiten gleich wichtig.
+    let gave = true;
+    while (left > 0 && gave) {
+      gave = false;
+      for (const i of group) {
+        if (left === 0) break;
+        if (quota[i] >= available[i]) continue;
+        quota[i]++;
+        left--;
+        gave = true;
+      }
+    }
+  }
+  return quota;
+}
+
+/**
+ * Lädt aus `urls` so lange, bis `want` Bilder beisammen sind — nicht die ersten `want` URLs.
+ *
+ * Der Unterschied ist nicht akademisch: eine Referenz kann auf eine gelöschte Datei zeigen
+ * (`addReferenceFromUpload` übernimmt die URL, ohne die Datei zu kopieren — wird der Eintrag später
+ * gelöscht, verschwindet sie unter der Referenz weg). Die Bilder stehen nach `createdAt desc`, die
+ * tote Datei ist also bevorzugt die ERSTE. Würde stur `slice(0, want)` geladen, verlöre ein Gerät
+ * mit Kontingent 1 sein einziges Bild und fiele ganz aus dem Vergleich — beim Kontroll-Check hiesse
+ * das „nicht prüfbar" statt eines Befunds, obwohl brauchbare Bilder danebenliegen.
+ *
+ * Im Normalfall ist das EIN Durchgang mit genau `want` Ladevorgängen; nachgelegt wird nur, wenn
+ * tatsächlich etwas fehlschlug.
+ */
+async function loadUpTo(urls: string[], want: number, maxPx: number): Promise<ImageData[]> {
+  const out: ImageData[] = [];
+  let next = 0;
+  while (out.length < want && next < urls.length) {
+    const batch = urls.slice(next, next + (want - out.length));
+    next += batch.length;
+    for (const img of await Promise.all(batch.map((u) => loadUploadedImage(u, { maxPx })))) {
+      if (img) out.push(img);
+    }
+  }
+  return out;
+}
+
 /** Lädt (runterskaliert) alle Referenzbilder + das Query-Bild und vergibt stabile DEVICE_n-Keys.
- *  Geteilt von detectDevice (Klassifikation) und checkDeviceInPhoto (Presence/Match). */
-async function loadDeviceSet(references: DeviceReference[], queryImageUrl: string): Promise<DeviceSet | null> {
+ *  Geteilt von detectDevice (Klassifikation) und checkDeviceInPhoto (Presence/Match).
+ *  `expectedDeviceId` (nur der Kontroll-Check hat eins) lenkt das Bild-Budget auf das erwartete
+ *  Gerät und dessen Lookalike-Cluster — siehe {@link allocateImageBudget}. */
+async function loadDeviceSet(
+  references: DeviceReference[],
+  queryImageUrl: string,
+  expectedDeviceId?: string,
+): Promise<DeviceSet | null> {
   const maxPx = visionDeviceMaxImagePx(); // kleiner als bei Ziffern — mehrere Bilder, Form reicht
+  // Query-Bild sofort anstossen: es hängt an keiner Referenz und ist meist das grösste der Menge
+  // (frischer Kamera-Upload). Erst am Ende abgewartet, damit sein Dekodieren mitläuft.
+  const newImgP = loadUploadedImage(queryImageUrl, { maxPx });
+
+  // Prioritär ist das erwartete Gerät samt seinem Lookalike-Cluster. Bewusst auf den ROHEN
+  // Referenzen gerechnet, nicht auf geladenen Bildern: das Budget entscheidet dann, WAS überhaupt
+  // von der Platte gelesen und skaliert wird, statt alles zu dekodieren und den Überschuss wieder
+  // wegzuwerfen (bei zehn Geräten mit je zwei Bildern 20 Ladevorgänge für 10 genutzte, also die
+  // Hälfte umsonst — jeder davon ein Dateizugriff plus sharp-Durchlauf).
+  const cluster = references.find((r) => r.deviceId === expectedDeviceId)?.lookalikeClusterId;
+  const priority = references.map(
+    (r) => r.deviceId === expectedDeviceId || sameLookalikeCluster(r.lookalikeClusterId, cluster),
+  );
+  const quota = allocateImageBudget(
+    references.map((r) => r.imageUrls.length),
+    visionMaxTotalRefs(),
+    priority,
+    visionMaxRefsPerDevice(),
+  );
+
   const loadedRefs: LoadedReference[] = (
     await Promise.all(
-      references.map(async (ref) => {
-        const images = (
-          await Promise.all(ref.imageUrls.map((u) => loadUploadedImage(u, { maxPx })))
-        ).filter((img): img is ImageData => img !== null);
-        return images.length > 0 ? { deviceId: ref.deviceId, deviceName: ref.deviceName, visualTraits: ref.visualTraits, images } : null;
+      references.map(async (ref, i) => {
+        const images = await loadUpTo(ref.imageUrls, quota[i], maxPx);
+        return images.length > 0
+          ? { deviceId: ref.deviceId, deviceName: ref.deviceName, visualTraits: ref.visualTraits, images }
+          : null;
       })
     )
   ).filter((r): r is LoadedReference => r !== null);
   if (loadedRefs.length === 0) return null;
 
-  // Bilder je Gerät begrenzen (Latenz dominiert von der Bild-Anzahl): fairer Anteil aus dem
-  // Gesamt-Budget, min. 1. Best-effort — bei mehr Geräten als visionMaxTotalRefs() bleibt es bei
-  // 1 Bild/Gerät, die Gesamtzahl kann das Budget dann übersteigen (jedes Gerät braucht ≥1 Bild).
-  const perDevice = Math.max(1, Math.floor(visionMaxTotalRefs() / loadedRefs.length));
-  for (const r of loadedRefs) r.images = r.images.slice(0, perDevice);
-
-  const newImg = await loadUploadedImage(queryImageUrl, { maxPx });
+  const newImg = await newImgP;
   if (!newImg) return null;
 
   const deviceKeys = loadedRefs.map((ref, i) => ({ key: `DEVICE_${i + 1}`, deviceId: ref.deviceId, deviceName: ref.deviceName, visualTraits: ref.visualTraits }));
+  dlog("budget", { expectedDeviceId: expectedDeviceId ?? null, perDevice: quota.join(",") });
   return { loadedRefs, deviceKeys, newImg };
 }
 
@@ -206,7 +312,7 @@ export async function checkDeviceInPhoto(
     return null;
   }
 
-  const set = await loadDeviceSet(references, queryImageUrl);
+  const set = await loadDeviceSet(references, queryImageUrl, lockedDeviceId);
   if (!set) {
     // Bild/Referenzen nicht ladbar → geprüft werden WOLLTE, ging aber nicht: nicht prüfbar.
     dlog("check:load_failed", { queryImageUrl, refCount: references.length });

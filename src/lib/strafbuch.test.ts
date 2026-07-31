@@ -286,6 +286,55 @@ describe("buildStrafbuch — das Reinigungs-Kontingent zählt den Kalendertag de
 
 // ─── Stichtag: ab wann gilt die Fenster-Regel? ─────────────────────────────
 
+/**
+ * Ein `late_lock` setzt voraus, dass der Sub die Anforderung überhaupt kannte. Erreichbar wurde das
+ * Gegenteil über eine TERMINIERTE Anforderung mit ABSOLUTER Frist vor dem Auslöse-Zeitpunkt: sie
+ * löst aus, wird nicht verschickt (der Sub ist schon verschlossen, die Sperrzeit wird übernommen) —
+ * und hinterliesse eine Zeile mit abgelaufener Frist, für die niemand etwas kann.
+ */
+describe("buildStrafbuch — nie zugestellte Anforderungen sind keine Versäumnisse", () => {
+  const JETZT = new Date("2026-07-31T18:00:00Z");
+  const ABGELAUFEN = new Date("2026-07-31T12:00:00Z");
+
+  /** Eine ausgelöste, aber nie zugestellte Anforderung (`wirksamAb` gesetzt, `benachrichtigtAt` null). */
+  const anforderung = (over: object = {}) => ({
+    id: "a1", art: "ANFORDERUNG", endetAt: ABGELAUFEN, fulfilledAt: null, nachricht: null,
+    wirksamAb: new Date("2026-07-31T17:00:00Z"), benachrichtigtAt: null, withdrawnAt: null, ...over,
+  });
+
+  const mockAnforderungen = (rows: unknown[]) =>
+    db.verschlussAnforderung.findMany.mockImplementation((args: { where?: { art?: string } }) =>
+      Promise.resolve(args?.where?.art === "ANFORDERUNG" ? rows : []),
+    );
+
+  beforeEach(() => {
+    mockOeffnungen([]);
+    db.user.findUnique.mockResolvedValue({
+      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
+      reinigungsFenster: null, timezone: "Europe/Zurich",
+    });
+  });
+
+  it("eine nie zugestellte Anforderung mit abgelaufener Frist ist KEIN late_lock", async () => {
+    mockAnforderungen([anforderung()]);
+    const sb = await buildStrafbuch("u1", JETZT);
+    expect(sb.lateLocks).toEqual([]);
+  });
+
+  it("dieselbe Zeile ZUGESTELLT bleibt ein late_lock", async () => {
+    mockAnforderungen([anforderung({ benachrichtigtAt: new Date("2026-07-31T17:00:05Z") })]);
+    const sb = await buildStrafbuch("u1", JETZT);
+    expect(sb.lateLocks.map((l) => l.id)).toEqual(["a1"]);
+  });
+
+  it("eine SOFORTIGE Anforderung (`wirksamAb` null) zählt weiterhin", async () => {
+    // Sofort heisst: der Sub kennt sie per Konstruktion (siehe isHiddenFromSub).
+    mockAnforderungen([anforderung({ wirksamAb: null })]);
+    const sb = await buildStrafbuch("u1", JETZT);
+    expect(sb.lateLocks.map((l) => l.id)).toEqual(["a1"]);
+  });
+});
+
 describe("cleaningWindowEnforcedFrom — je Instanz, nicht je Code-Stand", () => {
   const NOW = new Date("2026-07-20T12:00:00Z");
 

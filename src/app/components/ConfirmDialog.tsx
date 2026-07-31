@@ -28,7 +28,6 @@ export default function ConfirmDialog({
   confirmLabel,
   onConfirm,
   onCancel,
-  theme = "user",
   danger = false,
   loading = false,
   icon,
@@ -39,7 +38,6 @@ export default function ConfirmDialog({
   confirmLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
-  theme?: "admin" | "user";
   /** Zerstörende Aktion: roter Bestätigen-Knopf. */
   danger?: boolean;
   /** Läuft die Aktion noch (Netzabruf), zeigt der Knopf seinen Spinner. */
@@ -56,7 +54,6 @@ export default function ConfirmDialog({
       title={title}
       icon={icon ?? <AlertTriangle size={20} style={{ color: "var(--color-warn)" }} />}
       iconBg="var(--color-warn-bg)"
-      theme={theme}
     >
       <p className="text-sm text-foreground-muted">{message}</p>
       <Button variant={danger ? "danger" : "primary"} fullWidth loading={loading} onClick={onConfirm}>

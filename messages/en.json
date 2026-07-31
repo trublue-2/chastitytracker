@@ -46,6 +46,7 @@
     "noFieldsToUpdate": "No fields to update",
     "invalidTime": "Invalid time",
     "timeRangeInvalid": "The end must be after the start",
+    "CLEANING_WINDOWS_TOO_MANY": "Too many cleaning windows",
     "USER_NO_EMAIL": "The user has no e-mail address",
     "INVALID_DATETIME": "Invalid date or time",
     "INVALID_CATEGORY": "Invalid category",
