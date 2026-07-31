@@ -14,6 +14,7 @@ import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
 import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
+import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { sendPushToUser } from "@/lib/push";
@@ -251,7 +252,9 @@ export async function POST(req: NextRequest) {
         // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
         // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
         const neueSperrzeiten = offeneAnforderungen.flatMap((a) => {
-          const sperrEnde = a.sperrEndetAt ?? (a.dauerH ? new Date(Date.now() + a.dauerH * 60 * 60 * 1000) : null);
+          // Anker ist der Verschluss des Subs (jetzt) — dieselbe Regel wie beim Poller-Pfad, der auf
+          // einen bereits verschlossenen Sub trifft, nur mit dessen Auslösung als Anker.
+          const sperrEnde = sperrzeitEndeFromRequest(a, new Date());
           return sperrEnde
             ? [{
                 userId: session.user.id,

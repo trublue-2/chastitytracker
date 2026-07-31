@@ -39,6 +39,10 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   der Sperrzeit, wo die neue die alte ablöst). EIN Verschluss erfüllt alle offenen; jede bringt ihre
   Sperrzeit mit, und die strengste setzt sich durch (spätestes Ende). Ändern: \`edit_lock_request\`,
   einzeln zurückziehen: \`withdraw\` mit \`id\`.
+- **Eine TERMINIERTE Anforderung, die einen bereits verschlossenen Sub antrifft, gilt als erfüllt** —
+  und ihre Sperrzeit wird trotzdem gesetzt (Mindest-Tragedauer ab dem Auslöse-Zeitpunkt, ein
+  absolutes Sperr-Ende unverändert). Der Sub bekommt sie als normale Sperrzeit gemeldet; die
+  Anforderung selbst hat er nie gesehen. Kein \`late_lock\` — er hat nichts versäumt.
 - **\`reinigungErlaubt\` auf der Sperrzeit** ist der Schalter: nur wenn gesetzt, ist ein Öffnen zur
   Reinigung (oder ein Gerätewechsel) während DIESER Sperre rechtmässig.
 - **Box** = die physische Schlüssel-Lockbox hinter einer Sperre. **Während einer Sperrzeit hält die
