@@ -6,8 +6,15 @@ import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import KontrolleFields from "./kontrolle/KontrolleFields";
+import type { InspectionTargetOption } from "@/lib/inspectionTarget";
 
-export default function KontrolleButton({ userId, hasEmail }: { userId: string; hasEmail: boolean }) {
+export default function KontrolleButton({ userId, hasEmail, targets }: {
+  userId: string;
+  hasEmail: boolean;
+  /** Vom Server vorberechnete Ziele, wo die Seite sie ohnehin lädt. Ohne sie holt das Formular sie
+   *  selbst — die Admin-Übersicht listet viele Subs und soll dafür nicht je Zeile abfragen. */
+  targets?: InspectionTargetOption[];
+}) {
   const t = useTranslations("admin");
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -34,6 +41,7 @@ export default function KontrolleButton({ userId, hasEmail }: { userId: string; 
         <KontrolleFields
           userId={userId}
           onSuccess={() => { setOpen(false); router.refresh(); }}
+          initialTargets={targets}
         />
       </ActionModal>
     </>

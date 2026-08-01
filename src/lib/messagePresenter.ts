@@ -41,7 +41,9 @@ export async function presentMessages(messages: InboxMessage[], locale: string):
     // Die offene Kontrolle führt auf ihre Handlung: das Prüfungs-Formular mit vorbelegtem Code.
     // Über `inspectionHref`, damit auch diese Stelle am zentralen Bauplatz hängt — der Helfer kam
     // parallel dazu und konnte den Posteingang noch nicht kennen.
-    refHref: m.refActionCode ? inspectionHref(m.refActionCode) : null,
+    // Mit dem ZIEL (v5.0.1): ohne `categoryId` führte der Link einer Trage-Kontrolle aufs
+    // KG-Formular, und die Einreichung von dort erfüllt sie nicht.
+    refHref: m.refActionCode ? inspectionHref(m.refActionCode, { categoryId: m.refActionCategoryId }) : null,
     senderKind: m.senderKind,
     read: m.read,
   }));

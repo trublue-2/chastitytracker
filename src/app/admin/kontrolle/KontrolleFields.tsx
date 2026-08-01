@@ -17,6 +17,13 @@ import type { InspectionTargetOption } from "@/lib/inspectionTarget";
  *  Modell „KG", und ein Sentinel-String hier müsste beim Absenden wieder zurückübersetzt werden. */
 const KG_VALUE = "";
 
+/** Das vorausgewählte Ziel: das erste angebotene, NICHT stur der KG. Trägt der Sub etwas, ohne
+ *  verschlossen zu sein, ist die Trage-Kategorie das einzige Ziel — und dann fehlt das Select (eine
+ *  Option ist keine Wahl). Ein fixer KG-Startwert hiesse hier: das Formular schickt ein Ziel, das
+ *  gar nicht angeboten wurde, und die Anfrage scheitert mit „nicht verschlossen". */
+const defaultTargetValue = (targets: InspectionTargetOption[]): string =>
+  targets[0]?.categoryId ?? KG_VALUE;
+
 /**
  * Shared form body for "Kontrolle anfordern".
  * Caller wraps this in an ActionModal and provides onSuccess.
@@ -38,7 +45,7 @@ export default function KontrolleFields({
   const [kommentar, setKommentar] = useState("");
   const [deadlineH, setDeadlineH] = useState("4");
   const [targets, setTargets] = useState<InspectionTargetOption[]>(initialTargets ?? []);
-  const [targetValue, setTargetValue] = useState<string>(KG_VALUE);
+  const [targetValue, setTargetValue] = useState<string>(defaultTargetValue(initialTargets ?? []));
   const [pinDevice, setPinDevice] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -51,7 +58,11 @@ export default function KontrolleFields({
     let cancelled = false;
     fetch(`/api/admin/inspection-targets?userId=${encodeURIComponent(userId)}`)
       .then((res) => (res.ok ? res.json() : []))
-      .then((data: InspectionTargetOption[]) => { if (!cancelled) setTargets(data); })
+      .then((data: InspectionTargetOption[]) => {
+        if (cancelled) return;
+        setTargets(data);
+        setTargetValue(defaultTargetValue(data));
+      })
       .catch(() => { /* Ziel-Auswahl bleibt aus: die Kontrolle geht dann auf den KG wie bisher */ });
     return () => { cancelled = true; };
   }, [userId, initialTargets]);

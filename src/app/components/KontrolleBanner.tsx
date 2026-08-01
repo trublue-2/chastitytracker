@@ -69,7 +69,9 @@ export default function KontrolleBanner({
             ? <AlertCircle size={13} className="flex-shrink-0 text-warn" />
             : <AlertTriangle size={13} className="flex-shrink-0 text-inspect" />
           }
-          {target && <span className="font-semibold">{target}</span>}
+          {/* Trennzeichen IM Span: zwischen zwei JSX-Ausdrücken auf eigenen Zeilen verwirft JSX
+              den Whitespace, „Plug" und „bis" liefen sonst zusammen. */}
+          {target && <span className="font-semibold">{target} · </span>}
           {overdue ? t("overdue") : t("until")}
           {" "}{deadlineStr}
           {code && <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>}

@@ -141,7 +141,15 @@ export async function POST(req: NextRequest) {
       const submissionDeviceId = inspectionTarget && !isKgTarget(inspectionTarget)
         ? inspectionTarget.deviceId
         : inspectionTarget?.activeDeviceId ?? null;
-      inspectionExpectedDeviceId = submissionDeviceId;
+      // Der GERÄTE-CHECK bekommt das Gerät nur beim KG-Ziel. `gatherDeviceReferences` sammelt
+      // ausschliesslich Geräte der eingebauten Kategorie, und der Vision-Prompt fragt nach einem
+      // Keuschheitsgürtel — für ein Trage-Gerät fände `checkDeviceInPhoto` keine Referenz und
+      // meldete „nicht prüfbar" (error) an JEDER Trage-Kontrolle. Ohne Gerät läuft der Check gar
+      // nicht und die Zeile endet auf `null` = „nicht geprüft", was der Wahrheit entspricht.
+      // Trage-Ziele hier mitzuprüfen ist ein eigenes Stück Arbeit (Referenzen + Prompt je Kategorie).
+      inspectionExpectedDeviceId = inspectionTarget && isKgTarget(inspectionTarget)
+        ? inspectionTarget.activeDeviceId
+        : null;
       // Was an dieser Einreichung zu prüfen ist — EINE Ableitung für den Startwert unten, für die
       // Prüfung nach dem Commit und für die Art der Erfüllung. Die Siegel-Nummer kommt aus dem
       // Lock-Eintrag, den nur das KG-Ziel mitbringt (`lockEntry`); eine Trage-Kontrolle hat keine.

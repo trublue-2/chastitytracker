@@ -19,6 +19,7 @@ vi.mock("@/lib/queries", () => ({
 }));
 
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "./inspectionTarget";
+import { buildKontrolleItems } from "./utils";
 import { prisma } from "@/lib/prisma";
 import { getLatestKgEntry, getActiveWearSessionForCategory } from "@/lib/queries";
 
@@ -144,5 +145,41 @@ describe("inspectionTargetWhere — welches Foto erfüllt welche Kontrolle", () 
     const where = { ...inspectionTargetWhere(plug, "plug-1"), OR: [{ wirksamAb: null }] };
     expect(where.AND).toHaveLength(1);
     expect(where.OR).toEqual([{ wirksamAb: null }]);
+  });
+});
+
+describe("buildKontrolleItems — die KG-Liste bleibt KG", () => {
+  // Die Liste füttert Paarbildung, Zeitstrahl und Statistik der KG-Session. Eine Trage-Kontrolle
+  // dort hiesse: ein Plug-Foto steht als Nachweis der laufenden Sperre, und die Kontroll-Zahl der
+  // Session ist zu hoch.
+  const NOW = new Date("2026-08-02T12:00:00Z");
+  const anforderung = (id: string, categoryId: string | null) => ({
+    id, deadline: new Date("2026-08-02T16:00:00Z"), kommentar: null, code: null, categoryId,
+    fulfilledAt: null, createdAt: new Date("2026-08-02T11:00:00Z"), withdrawnAt: null,
+    entryId: null, autoMarkedRemovedAt: null, entry: null,
+  });
+  const pruefung = (id: string, deviceId: string | null) => ({
+    id, startTime: NOW, createdAt: NOW, imageUrl: null, note: null,
+    kontrollCode: null, verifikationStatus: null, deviceId,
+  });
+
+  it("lässt Kategorie-Anforderungen und Trage-Prüfungen draussen", () => {
+    const items = buildKontrolleItems(
+      [anforderung("kg", null), anforderung("plug", "cat-plug")],
+      [pruefung("e-kg", null), pruefung("e-plug", "plug-1")],
+      NOW,
+    );
+    expect(items.map((i) => i.id).sort()).toEqual(["e-kg", "kg"]);
+  });
+
+  it("Altzeilen ohne die neuen Felder zählen als KG — sie stammen aus der Zeit vor den Zielen", () => {
+    const legacy = { ...anforderung("alt", null) } as Record<string, unknown>;
+    delete legacy.categoryId;
+    const items = buildKontrolleItems(
+      [legacy as Parameters<typeof buildKontrolleItems>[0][number]],
+      [],
+      NOW,
+    );
+    expect(items).toHaveLength(1);
   });
 });

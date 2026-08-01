@@ -9,9 +9,10 @@ import KontrolleButton from "@/app/admin/KontrolleButton";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "@/app/admin/kontrollen/AdminKontrolleListClient";
-import { getIsLocked, getActiveWearSessions, keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { buildKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
 import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
+import { listInspectionTargets } from "@/lib/inspectionTarget";
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -29,7 +30,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/kontrollen`);
 
-  const [pruefungen, alleAnforderungen, isLocked, activeWear] = await Promise.all([
+  const [pruefungen, alleAnforderungen, targets] = await Promise.all([
     prisma.entry.findMany({
       where: { userId: id, type: "PRUEFUNG" },
       orderBy: { startTime: "desc" },
@@ -44,8 +45,9 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       orderBy: { createdAt: "desc" },
       include: { user: { select: { username: true, timezone: true } }, ...KONTROLLE_TARGET_INCLUDE },
     }),
-    getIsLocked(id),
-    getActiveWearSessions(id),
+    // Dieselbe Ziel-Menge wie das Formular (inkl. Kategorien-Feature-Flag) — ein eigener
+    // Lock-/Trage-Check hier wäre eine zweite Wahrheit darüber, wann Anfordern überhaupt geht.
+    listInspectionTargets(id),
   ]);
 
   const { pruefungRows, offeneRows } = buildKontrolleRows(pruefungen, alleAnforderungen, now);
@@ -67,7 +69,7 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
   return (
     <>
       {/* Anfordern nur mit laufendem Ziel — verschlossen oder etwas getragen (v5.0.1). */}
-      {(isLocked || activeWear.length > 0) && <KontrolleButton userId={id} hasEmail={!!user.email} />}
+      {targets.length > 0 && <KontrolleButton userId={id} hasEmail={!!user.email} targets={targets} />}
 
       {sortedOffene.length > 0 && (
         <Card padding="none" className="overflow-hidden">

@@ -854,6 +854,8 @@ type KontrollAnforderungIn = {
   id: string; deadline: Date; kommentar: string | null;
   /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
   code: string | null;
+  /** ZIEL: null = KG. Gesetzt = Trage-Kontrolle, die in dieser (KG-)Liste nichts zu suchen hat. */
+  categoryId?: string | null;
   fulfilledAt: Date | null; createdAt: Date; withdrawnAt: Date | null; entryId: string | null;
   wirksamAb?: Date | null;
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
@@ -865,6 +867,9 @@ type PruefungEntryIn = {
   id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null;
   kontrollCode: string | null; verifikationStatus: string | null; keyDetected?: boolean | null;
   boxImageUrl?: string | null;
+  /** Gesetzt = das GEZEIGTE Gerät einer Trage-Kontrolle (v5.0.1); eine KG-Prüfung trägt keines
+   *  (das verschlossene Gerät steht am VERSCHLUSS). Entscheidet die KG-Filterung unten. */
+  deviceId?: string | null;
 };
 export type KontrolleItem = {
   id: string; time: Date; imageUrl: string | null; code: string | null;
@@ -883,12 +888,26 @@ export type KontrolleItem = {
   boxImageUrl: string | null;
 };
 
-/** Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries. */
+/**
+ * Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries.
+ *
+ * NUR KG-Kontrollen (v5.0.1). Die Liste hängt an der KG-Session — sie füttert die Paarbildung
+ * (`buildPairs`), den Zeitstrahl und die Statistik. Eine Trage-Kontrolle gehört dort nicht hin: sie
+ * beweist etwas über einen Plug, nicht über den Verschluss, und würde als Nachweis der laufenden
+ * KG-Session gelesen. Gefiltert wird HIER statt an den drei Aufrufern — dort wäre es dreimal
+ * dieselbe Regel, und wer sie an einer Stelle vergisst, bekommt keinen Fehler, sondern ein
+ * falsches Bild.
+ *
+ * Das Kennzeichen ist das ZIEL: `categoryId === null` an der Anforderung, kein Gerät am Eintrag.
+ * (Der KG-Prüfungs-Eintrag trägt bewusst nie eines, siehe /api/entries.)
+ */
 export function buildKontrolleItems(
-  alleAnforderungen: KontrollAnforderungIn[],
-  pruefungEntries: PruefungEntryIn[],
+  alleAnforderungenRaw: KontrollAnforderungIn[],
+  pruefungEntriesRaw: PruefungEntryIn[],
   now: Date
 ): KontrolleItem[] {
+  const alleAnforderungen = alleAnforderungenRaw.filter(k => (k.categoryId ?? null) === null);
+  const pruefungEntries = pruefungEntriesRaw.filter(e => (e.deviceId ?? null) === null);
   const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
   return [
     ...alleAnforderungen.map(k => ({

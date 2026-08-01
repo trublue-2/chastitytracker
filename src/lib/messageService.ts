@@ -167,6 +167,9 @@ export interface InboxMessage {
   /** Code der offenen Kontrolle, falls die Nachricht auf eine zeigt — der Presenter macht daraus
    *  das Ziel. Sonst null: es gibt keine Seite, die etwas beiträgt. */
   refActionCode: string | null;
+  /** ZIEL dieser Kontrolle (`categoryId`, null = KG). Muss mit in den Link: ohne ihn landet eine
+   *  Trage-Kontrolle auf dem KG-Formular, und die Einreichung beantwortet sie nicht (v5.0.1). */
+  refActionCategoryId: string | null;
   /** Referenz gesetzt, Objekt aber nicht (mehr) auflösbar. Muster: `unknownRef` in lib/mcp/notes.ts. */
   refMissing: boolean;
   read: boolean;
@@ -239,6 +242,8 @@ type RefDetail = {
    *  Router-Pfade: `category` und Link sitzen dann beide in der Anzeige-Schicht. */
   actionCode: string | null;
   /** Für den Sub verborgen (terminierte, noch nicht ausgelöste Direktive). */
+  /** Nur bei Kontrollen: das Ziel für den Formular-Link (null = KG bzw. keine Handlung offen). */
+  actionCategoryId?: string | null;
   hidden: boolean;
 };
 
@@ -253,7 +258,8 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
     // Mehr als der Kommentar: aus Code + Zustand entsteht das Link-Ziel (siehe unten).
     controlIds.length ? prisma.kontrollAnforderung.findMany({
       where: { id: { in: controlIds }, userId: subjectUserId },
-      select: { id: true, kommentar: true, code: true, entryId: true, withdrawnAt: true, deadline: true, wirksamAb: true, benachrichtigtAt: true, autoMarkedRemovedAt: true },
+      // `categoryId`: das Ziel gehört zum Link (siehe refActionCategoryId).
+      select: { id: true, kommentar: true, code: true, categoryId: true, entryId: true, withdrawnAt: true, deadline: true, wirksamAb: true, benachrichtigtAt: true, autoMarkedRemovedAt: true },
     }) : [],
     // wirksamAb/benachrichtigtAt mitlesen: dieselbe Zeile beantwortet Text UND Sichtbarkeit — sonst
     // fragte der Listen-Pfad diese Tabelle zweimal (einmal hier, einmal über hiddenRefKeys).
@@ -276,6 +282,7 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
     details.set(refKey("control", c.id), {
       text: c.kommentar,
       actionCode: open ? c.code : null,
+      actionCategoryId: open ? c.categoryId : null,
       hidden: isHiddenFromSub(c),
     });
   }
@@ -341,6 +348,7 @@ export async function listMessagesFor(
       body: row.body,
       refText: key ? details.get(key)?.text ?? null : null,
       refActionCode: key ? details.get(key)?.actionCode ?? null : null,
+      refActionCategoryId: key ? details.get(key)?.actionCategoryId ?? null : null,
       refMissing: key !== null && !details.has(key),
       read: row.reads.length > 0,
     });
