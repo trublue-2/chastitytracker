@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type ReinigungSettings, type WearPair } from "@/lib/utils";
 import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/sessionModel";
 import { SESSION_ENTRY_SELECT } from "@/lib/queries";
-import { evaluateTask, coversPoint, isTaskOpen, needsKeyholderReview, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
+import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
 
 /**
  * Das Bindeglied zwischen Aufgaben und Einträgen: baut je Bedingung die Zeiträume, in denen sie galt,
@@ -108,19 +108,48 @@ export interface TaskEntrySource {
   reinigung?: ReinigungSettings;
 }
 
-/** Wie weit zurück eine bereits abgeschlossene Aufgabe noch auf dem Dashboard steht. Danach nur noch
- *  in der Historie — ohne diese Alterung wächst die Dashboard-Spalte monoton. */
+/** Wie weit zurück eine ABGESCHLOSSENE Aufgabe noch als „kürzlich" gilt — die Alterung, ohne die die
+ *  Dashboard-Spalte monoton wächst. Gelesen von der SQL-Vorauswahl (jeder Abschluss) und von
+ *  {@link belongsOnDashboard} (dort nur noch für Vergehen; erfüllte fallen sofort weg). Die
+ *  Vorauswahl ist damit weiter gefasst als die Anzeige — genau die Richtung, die nichts verliert. */
 const RECENT_WINDOW_MS = 24 * 3600_000;
+
+/** Deckel der Aufgaben-Liste des Subs. Die Auswertung ist eine Rechnung je Aufgabe und jede Karte
+ *  reist als Prop zum Client — beides steigt linear, also bleibt die Liste eine Liste. Was noch
+ *  offen ist, hängt NICHT an diesem Deckel (siehe {@link getEvaluatedTaskHistory}). */
+const HISTORY_LIMIT = 25;
+
+/** Deckel der relevanten Aufgaben. Der Extremfall vieler Versäumnisse, nicht der Normalfall. */
+const RELEVANT_LIMIT = 50;
+
+/**
+ * Die grobe SQL-Entsprechung von {@link belongsOnDashboard} — bewusst zu WEIT gefasst: sie hält ein
+ * paar Zeilen mehr, aber sie verliert keine.
+ *
+ * Der Zustand ist abgeleitet und damit nicht filterbar, die Vorauswahl passiert deshalb über die
+ * Zeit. `completedAt: null` bleibt ohne Zeitgrenze: eine Aufgabe, deren Bedingungen hielten, wartet
+ * auf die Selbstmeldung des Subs, und die heilt sie auch noch später. Fiele sie nach 24 h heraus,
+ * könnte er sie nie mehr melden.
+ */
+function relevantTaskWhere(userId: string, now: Date) {
+  return {
+    userId,
+    withdrawnAt: null,
+    OR: [
+      { completedAt: null },
+      { holdUntil: { gte: new Date(now.getTime() - RECENT_WINDOW_MS) } },
+      // Solange ein Nachweis WEDER maschinell bestätigt NOCH vom Menschen beurteilt ist, bleibt die
+      // Aufgabe drin. Ohne diesen Zweig fiel sie raus, sobald der Sub zusätzlich „erledigt" gemeldet
+      // hatte (`completedAt` gesetzt) und 24 h seit der Frist vergangen waren — die Sichtung der
+      // Keyholderin stand dann noch aus, aber die Zeile war schon auf SQL-Ebene weg.
+      { proofs: { some: { verifikationStatus: null, reviewAccepted: null } } },
+    ],
+  };
+}
 
 /**
  * Die Aufgaben, die den Sub JETZT etwas angehen: alles Laufende plus das, was in den letzten 24 h
  * endete.
- *
- * Der Zustand ist abgeleitet und damit nicht filterbar — die Vorauswahl passiert deshalb über die
- * Zeit. `completedAt: null` bleibt bewusst ohne Zeitgrenze: eine Aufgabe, deren Bedingungen hielten,
- * wartet auf die Selbstmeldung des Subs, und die heilt sie auch noch später. Fiele sie nach 24 h vom
- * Dashboard, könnte er sie nie mehr melden. Das `take` deckelt den Extremfall vieler versäumter
- * Aufgaben.
  */
 export async function getDashboardTasks(userId: string, now: Date): Promise<TaskWithRequirements[]> {
   // `desc` + `take` behält die JÜNGSTEN. Aufsteigend sortiert hätte der Deckel die ältesten behalten
@@ -129,26 +158,9 @@ export async function getDashboardTasks(userId: string, now: Date): Promise<Task
   // keine Ablege-Warnung, kein Heartbeat — und am Ende trotzdem ein Vergehen für etwas, das der Sub
   // nie zu sehen bekam.
   const rows = await prisma.task.findMany({
-    where: {
-      userId,
-      withdrawnAt: null,
-      OR: [
-        { completedAt: null },
-        { holdUntil: { gte: new Date(now.getTime() - RECENT_WINDOW_MS) } },
-        // Solange ein Nachweis WEDER maschinell bestätigt NOCH vom Menschen beurteilt ist, bleibt die
-        // Aufgabe drin. Der Zustand `awaitingReview` ist abgeleitet und damit nicht filterbar — das
-        // hier ist seine grobe SQL-Entsprechung, bewusst zu WEIT gefasst: sie hält ein paar Zeilen
-        // mehr, aber sie verliert keine.
-        //
-        // Ohne sie fiel die Aufgabe raus, sobald der Sub zusätzlich „erledigt" gemeldet hatte
-        // (`completedAt` gesetzt) und 24 h seit der Frist vergangen waren — die Sichtung der
-        // Keyholderin stand dann noch aus, aber die Zeile war schon auf SQL-Ebene weg. Die
-        // Alterungs-Ausnahme in `isRecentEnough` hätte sie nie zu sehen bekommen.
-        { proofs: { some: { verifikationStatus: null, reviewAccepted: null } } },
-      ],
-    },
+    where: relevantTaskWhere(userId, now),
     orderBy: { holdUntil: "desc" },
-    take: 50,
+    take: RELEVANT_LIMIT,
     include: TASK_INCLUDE,
   });
   // Angezeigt wird nach nächster Frist zuerst.
@@ -199,14 +211,68 @@ export async function loadTaskProofViews(taskIds: string[]): Promise<Map<string,
   return byTask;
 }
 
-/** Gehört die Aufgabe noch aufs Dashboard? Offene immer, Abgeschlossene nur kurz — danach Historie. */
-export function isRecentEnough(e: EvaluatedTask, now: Date): boolean {
-  if (isTaskOpen(e.evaluation.state)) return true;
+/**
+ * Gehört die Aufgabe aufs Dashboard? Das Dashboard zeigt, was den Sub JETZT etwas angeht — alles
+ * Weitere steht in der Aufgaben-Liste.
+ *
+ * `done` fällt SOFORT weg, nicht erst nach 24 h: eine erfüllte Aufgabe verlangt nichts mehr, und eine
+ * Karte, die einen Tag lang „Erfüllt" meldet, ist genau die Wand, vor der die Liste bewahren soll.
+ * Ein Versäumnis bleibt dagegen kurz stehen — es ist eine Nachricht an den Sub, keine Quittung.
+ */
+export function belongsOnDashboard(e: EvaluatedTask, now: Date): boolean {
+  const { state } = e.evaluation;
+  if (isTaskOpen(state)) return true;
   // Eine ausstehende Sichtung altert NICHT weg: sie wartet auf eine Handlung der Keyholderin, und
   // die hat keine Frist. Fiele sie nach 24 h aus der Ansicht, verschwände die Aufgabe in einem
   // Zustand, in dem noch niemand geurteilt hat — weder erfüllt noch versäumt, nur weg.
-  if (needsKeyholderReview(e.evaluation.state)) return true;
+  if (needsKeyholderReview(state)) return true;
+  // Nur ein VERGEHEN bleibt noch kurz stehen. Über `isTaskOffense` statt über einen eigenen
+  // Zustands-Vergleich: kommt je ein dritter Vergehens-Zustand dazu, zieht ihn der geteilte Typ hier
+  // mit — abgeschrieben wäre er still vom Dashboard verschwunden. Erfüllte und zurückgezogene
+  // Aufgaben fallen damit sofort weg; letztere hielt früher die `withdrawnAt: null`-Bedingung von
+  // `getDashboardTasks` fern, die die Liste bewusst nicht mehr setzt.
+  if (!isTaskOffense(state)) return false;
   return now.getTime() - e.task.holdUntil.getTime() <= RECENT_WINDOW_MS;
+}
+
+/**
+ * Die Aufgaben-Liste des Subs, ausgewertet, neueste Frist zuerst — und darin garantiert alles, was
+ * das Dashboard als Karte zeigen muss.
+ *
+ * ZWEI Abfragen, EINE Auswertung. Die zweite (die letzten {@link HISTORY_LIMIT}) ist die Liste, die
+ * erste (dieselbe Vorauswahl wie {@link getDashboardTasks}) ist die Versicherung dagegen, dass der
+ * Deckel eine offene Aufgabe verschluckt: ein Sub mit 25 jüngeren, längst erfüllten Aufgaben hätte
+ * die eine alte verloren, die noch auf seine Selbstmeldung wartet — samt dem einzigen Knopf, mit dem
+ * er sie je melden könnte. Beide Abfragen laufen über denselben Index, parallel, und die Auswertung
+ * (der teure Teil: Paarung der gesamten Eintragshistorie) läuft danach genau einmal.
+ *
+ * Aus dem Ergebnis leitet das Dashboard seine Karten mit {@link belongsOnDashboard} ab.
+ */
+export async function getEvaluatedTaskHistory(
+  userId: string,
+  now: Date,
+  opts: TaskEntrySource & { kgLabel?: string } = {},
+): Promise<EvaluatedTask[]> {
+  const [relevant, recent] = await Promise.all([
+    prisma.task.findMany({
+      where: relevantTaskWhere(userId, now),
+      orderBy: { holdUntil: "desc" },
+      take: RELEVANT_LIMIT,
+      include: TASK_INCLUDE,
+    }),
+    prisma.task.findMany({
+      where: { userId },
+      orderBy: { holdUntil: "desc" },
+      take: HISTORY_LIMIT,
+      include: TASK_INCLUDE,
+    }),
+  ]);
+  // Die Überschneidung ist der Normalfall — vereinigt wird über die Id, sortiert bleibt es wie
+  // geladen: neueste Frist zuerst.
+  const byId = new Map(recent.map((t) => [t.id, t]));
+  for (const t of relevant) byId.set(t.id, t);
+  const merged = [...byId.values()].sort((a, b) => b.holdUntil.getTime() - a.holdUntil.getTime());
+  return evaluateTasks(userId, merged, now, opts);
 }
 
 /** Laden + auswerten in einem — die Kette `getDashboardTasks` → `evaluateTasks` stand sonst an vier

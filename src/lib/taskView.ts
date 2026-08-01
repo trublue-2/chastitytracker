@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { firstOutOfOrderProof, type TaskState } from "@/lib/tasks";
+import { firstOutOfOrderProof, isTaskOpen, type TaskState } from "@/lib/tasks";
 import { wearActionHref } from "@/lib/categoryConstants";
 
 /**
@@ -57,6 +57,40 @@ export interface TaskCardProof {
   reviewNote: string | null;
 }
 
+/**
+ * Was der Sub als NÄCHSTES tun muss — die eine Frage, die Karte und Knopf gemeinsam beantworten.
+ *
+ * Hier und nicht in den Komponenten, weil sie sonst zweimal beantwortet wird: die Karte fragte nach
+ * `requirements[].satisfied`, der Melde-Knopf nach `evaluation.missing` — zwei Felder, die sich
+ * unterscheiden, sobald die Frist verstrichen ist. Die Karte zeigte dann „Bedingung erfüllen" und
+ * darunter den Abschluss-Knopf: zwei Aufforderungen für einen Schritt.
+ */
+export type TaskNextStep =
+  /** Eine Bedingung gilt noch nicht. `href` fehlt, wo die Kategorie gelöscht wurde. */
+  | { kind: "requirement"; label: string; href: string | null }
+  /** Der nächste Nachweis ist fällig. */
+  | { kind: "proof"; label: string; href: string | null }
+  /** Nur noch die Selbstmeldung — den nicht messbaren Teil bestätigt der Sub selbst. */
+  | { kind: "confirm" };
+
+/** @returns null, wenn der Sub nichts (mehr) tun kann: fremde Sicht, erfüllt, versäumt oder in
+ *  der Sichtung der Keyholderin. */
+export function nextTaskStep(task: TaskCardData): TaskNextStep | null {
+  if (!task.actionable || !isTaskOpen(task.state)) return null;
+  // Die Selbstmeldung steht VOR den Bedingungen: ist die Frist einmal durchgehalten, darf der Sub
+  // ablegen (siehe `isHeldByTask`) — eine dann unerfüllte Bedingung ist kein offener Schritt mehr,
+  // sondern erledigte Vergangenheit. Ohne diesen Vorrang schickte die Karte ihn zurück ins
+  // Trage-Formular für eine Aufgabe, die er nur noch melden muss.
+  if (task.awaitingConfirmation) return { kind: "confirm" };
+  const requirement = task.requirements.find((r) => !r.satisfied);
+  if (requirement) return { kind: "requirement", label: requirement.label, href: requirement.href };
+  const proof = task.proofs.find((p) => p.state === "open");
+  if (proof) return { kind: "proof", label: proof.description, href: proof.href };
+  // Alles liegt an, die Frist läuft noch: melden darf er trotzdem schon — „Wohnung gestaubsaugt"
+  // ist wahr, sobald es getan ist, nicht erst wenn das Halsband abends abkommt.
+  return { kind: "confirm" };
+}
+
 export interface TaskCardData {
   id: string;
   title: string;
@@ -76,6 +110,11 @@ export interface TaskCardData {
   /** Geforderte Nachweis-Fotos (Issue #39). Leer, wo keine gefordert sind. */
   proofs: TaskCardProof[];
   completionNote: string | null;
+  /** Sieht der Sub seine eigene, noch beeinflussbare Aufgabe an? Dann — und nur dann — trägt die
+   *  Karte den nächsten Schritt und der Aufrufer den Melde-Knopf. Fällt mit `withLinks` zusammen und
+   *  wird deshalb dort gesetzt: als zweites Prop an der Karte wäre es eine Angabe, die man an jedem
+   *  neuen Aufrufer passend zum Ersten raten muss. */
+  actionable: boolean;
 }
 
 /** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
@@ -182,5 +221,6 @@ export function toTaskCard(
     requirements,
     proofs,
     completionNote: e.task.completionNote,
+    actionable: withLinks,
   };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { toTaskCard } from "./taskView";
+import { nextTaskStep, toTaskCard } from "./taskView";
 import { safeInternalPath } from "./utils";
-import type { EvaluatedTask } from "./taskIntervals";
+import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
 
 const EVAL: TaskEvaluation = {
@@ -85,6 +85,47 @@ describe("toTaskCard — Deep-Links", () => {
   it("lässt eine Bedingung ohne Kategorie (gelöscht) linklos statt ins Leere zu zeigen", () => {
     const card = toTaskCard(evaluated([{ ...wear("r1", "Weg", "c1"), categoryId: null }]), true);
     expect(card.requirements[0].href).toBeNull();
+  });
+});
+
+describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
+  const proof = (over: Partial<TaskProofView> = {}): TaskProofView => ({
+    id: "p1", taskId: "t1", sortOrder: 0, description: "Sauberes Wohnzimmer", requireCode: false,
+    code: null, submittedAt: null, imageExifTime: null, imageUrl: null,
+    verifikationStatus: null, verifikationReason: null, reviewAccepted: null, reviewNote: null,
+    ...over,
+  });
+
+  it("zeigt dem Keyholder nichts — es ist nicht seine Aufgabe", () => {
+    expect(nextTaskStep(toTaskCard(evaluated([wear("r1", "Knebel", "c1")]), false))).toBeNull();
+  });
+
+  it("nennt zuerst die offene Bedingung, mit dem Weg dorthin", () => {
+    const step = nextTaskStep(toTaskCard(evaluated([wear("r1", "Knebel", "c1")], { state: "pending" }), true));
+    expect(step).toEqual({ kind: "requirement", label: "Knebel", href: "/dashboard/new/wear-begin?category=c1" });
+  });
+
+  it("nennt danach den nächsten Nachweis", () => {
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "running" }), true, [proof()]);
+    expect(nextTaskStep(card)).toEqual({ kind: "proof", label: "Sauberes Wohnzimmer", href: "/dashboard/new/task-proof/p1" });
+  });
+
+  it("bleibt bei der Selbstmeldung, wenn die Frist durchgehalten ist — auch wenn das Gerät inzwischen ab ist", () => {
+    // Nach `holdUntil` darf der Sub ablegen (siehe `isHeldByTask`). Läge hier die Bedingung vorn,
+    // schickte ihn die Karte zurück ins Trage-Formular für etwas, das er nur noch melden muss.
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", false)], { state: "running", awaitingConfirmation: true }), true);
+    expect(nextTaskStep(card)).toEqual({ kind: "confirm" });
+  });
+
+  it("erlaubt die Meldung schon während der laufenden Frist", () => {
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "running" }), true);
+    expect(nextTaskStep(card)).toEqual({ kind: "confirm" });
+  });
+
+  it("schweigt, sobald der Sub nichts mehr tun kann", () => {
+    for (const state of ["done", "missed", "aborted", "withdrawn", "awaitingReview"] as const) {
+      expect(nextTaskStep(toTaskCard(evaluated([], { state }), true))).toBeNull();
+    }
   });
 });
 

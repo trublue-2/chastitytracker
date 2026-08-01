@@ -22,7 +22,8 @@ import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
-import { getEvaluatedTasks, isHeldByTask, isRecentEnough, loadTaskProofViews } from "@/lib/taskIntervals";
+import TaskList from "./TaskList";
+import { getEvaluatedTaskHistory, isHeldByTask, belongsOnDashboard, loadTaskProofViews } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
@@ -140,14 +141,21 @@ export default async function DashboardPage() {
   // Aufgaben gar nichts nach — Nutzer ohne Aufgaben zahlen keinen Preis dafür.
   // `entries` und die Reinigungs-Regeln stehen hier längst — durchreichen, statt dieselben Zeilen ein
   // zweites Mal zu laden und ein zweites Mal zu paaren.
-  const evaluatedTasks = (await getEvaluatedTasks(userId, now, {
+  // EINMAL alles laden: der Aufgaben-Block zeigt daraus, was jetzt zu tun ist, die Liste darunter
+  // den ganzen Bestand. Zwei Abfragen wären dieselben Zeilen zweimal.
+  const evaluatedTasks = await getEvaluatedTaskHistory(userId, now, {
     kgLabel: tTasks("requirementKgLocked"), kgEntries: entries, wearEntries: entries, reinigung,
-  }))
-    .filter((e) => isRecentEnough(e, now));
+  });
   // Die Anzeige-Felder der Nachweise (Beschreibung, Code) hängen nicht am Auswertungs-Include —
   // eine Abfrage über die sichtbaren Aufgaben, nicht eine je Karte.
   const proofViews = await loadTaskProofViews(evaluatedTasks.map((e) => e.task.id));
-  const taskCards = evaluatedTasks.map((e) => toTaskCard(e, true, proofViews.get(e.task.id) ?? []));
+  const card = (e: (typeof evaluatedTasks)[number], withLinks: boolean) =>
+    toTaskCard(e, withLinks, proofViews.get(e.task.id) ?? []);
+  // Oben nach nächster Frist zuerst (die Liste kommt absteigend, also umdrehen) — was am dringendsten
+  // ist, steht zuoberst.
+  const taskCards = evaluatedTasks.filter((e) => belongsOnDashboard(e, now)).reverse().map((e) => card(e, true));
+  // Die Liste ist die ARCHIV-Sicht: keine Deep-Links, denn die Formulare stehen an den Karten oben.
+  const taskListCards = evaluatedTasks.map((e) => card(e, false));
 
   // Die Trage-Karte ist vollflächig ein Link aufs Ablege-Formular — ohne Markierung sähe eine
   // gebundene Session aus wie jede andere. Gefragt wird je Session (Kategorie UND Gerät) über
@@ -311,6 +319,13 @@ export default async function DashboardPage() {
       {wearSessionRows.length > 0 && (
         <DashboardBlock>
           <WearSessionList sessions={wearSessionRows} />
+        </DashboardBlock>
+      )}
+      {/* Der ganze Bestand — hier unten bei den übrigen Historien-Listen, nicht oben bei dem, was
+          gerade zu tun ist. */}
+      {taskListCards.length > 0 && (
+        <DashboardBlock>
+          <TaskList tasks={taskListCards} tz={tz} />
         </DashboardBlock>
       )}
     </div>
