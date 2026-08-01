@@ -671,11 +671,16 @@ function registerTools(server: McpServer) {
         title: "Request inspection (Kontrolle)",
         description:
           "Requests a photo inspection: e-mails the user a code they must show in a photo within a " +
-          "deadline (default 4h). Only valid when the user is currently locked. Can be triggered " +
-          "time-delayed so the user does not know exactly when it strikes." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
+          "deadline (default 4h). Targets the chastity device by default (requires the user to be " +
+          "locked), or a wear category via `category` (requires a running wear session in it). One " +
+          "inspection per target may be open at a time — a KG and a plug inspection can run in " +
+          "parallel. Can be triggered time-delayed so the user does not know exactly when it strikes."
+          + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
           comment: z.string().optional().describe("Instruction shown to the user."),
+          category: z.string().optional().describe('Target category, e.g. "Plug". Omit or "KG" for the chastity device.'),
+          device: z.string().optional().describe("Target exactly this device (by name) instead of any device of the category. It must be the one currently locked/worn."),
           delayMinutes: z.coerce.number().optional().describe(
             `Delay before the code reaches the user. Omit for a random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} min delay; `
             + `0 = immediate; any other value is clamped to ${INSPECTION_DELAY_RANGE.min}–${INSPECTION_DELAY_RANGE.max} `

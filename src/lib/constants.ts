@@ -132,6 +132,12 @@ export function orgasmusAnforderungArtLabel(art: OrgasmusAnforderungArt, t: (key
 // escalation reminder is ignored (see inspectionEscalationService.ts). Protected like REINIGUNG
 // (reservedCodes() covers all of OEFFNEN_GRUENDE), but unlike REINIGUNG it must never be
 // user-selectable — see SYSTEM_ONLY_OPENING_CODES below, filtered out of the sub's own dropdown.
+/** Eintragstypen, die ein Gerät tragen — Ownership-Guard und `create` beider Entry-Routen lesen
+ *  dieselbe Liste. Getrennte Literale liefen auseinander: ein Gerät validiert, aber nicht
+ *  gespeichert (oder umgekehrt) fällt niemandem auf. PRUEFUNG kam mit den Ziel-Kontrollen dazu (v5.0.1).
+ *  Hinweis: `VerschlussAnforderung.deviceId` ist NICHT gemeint — das ist die Anforderung, kein Eintrag. */
+export const DEVICE_BEARING_TYPES: readonly string[] = ["VERSCHLUSS", "WEAR_BEGIN", "WEAR_END", "PRUEFUNG"];
+
 export const AUTO_ENTFERNT_REASON = "AUTO_ENTFERNT";
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES", AUTO_ENTFERNT_REASON] as const;
 export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];

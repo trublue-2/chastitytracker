@@ -9,8 +9,9 @@ import KontrolleButton from "@/app/admin/KontrolleButton";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "@/app/admin/kontrollen/AdminKontrolleListClient";
-import { getIsLocked, keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { getIsLocked, getActiveWearSessions, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { buildKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
+import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -28,18 +29,23 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/kontrollen`);
 
-  const [pruefungen, alleAnforderungen, isLocked] = await Promise.all([
+  const [pruefungen, alleAnforderungen, isLocked, activeWear] = await Promise.all([
     prisma.entry.findMany({
       where: { userId: id, type: "PRUEFUNG" },
       orderBy: { startTime: "desc" },
-      include: { user: { select: { username: true, timezone: true } } },
+      // `device` mit Kategorie: die Zeile zeigt an, WAS kontrolliert wurde (siehe buildKontrolleRows).
+      include: {
+        user: { select: { username: true, timezone: true } },
+        device: { select: { name: true, category: { select: { name: true, isBuiltIn: true } } } },
+      },
     }),
     prisma.kontrollAnforderung.findMany({
       where: { userId: id, ...keyholderVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
-      include: { user: { select: { username: true, timezone: true } } },
+      include: { user: { select: { username: true, timezone: true } }, ...KONTROLLE_TARGET_INCLUDE },
     }),
     getIsLocked(id),
+    getActiveWearSessions(id),
   ]);
 
   const { pruefungRows, offeneRows } = buildKontrolleRows(pruefungen, alleAnforderungen, now);
@@ -60,7 +66,8 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
 
   return (
     <>
-      {isLocked && <KontrolleButton userId={id} hasEmail={!!user.email} />}
+      {/* Anfordern nur mit laufendem Ziel — verschlossen oder etwas getragen (v5.0.1). */}
+      {(isLocked || activeWear.length > 0) && <KontrolleButton userId={id} hasEmail={!!user.email} />}
 
       {sortedOffene.length > 0 && (
         <Card padding="none" className="overflow-hidden">

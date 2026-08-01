@@ -85,6 +85,23 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   an eine Tageszeit gebunden — verbieten tut \`allowed: false\`. Zeiten sind Wanduhrzeit der Sub, und
   ein Fenster kann nicht über Mitternacht laufen (dann zwei: \`22:00–24:00\` und \`00:00–06:00\`).
 
+## 3a. Kontrollen (\`request_inspection\`)
+- Eine Kontrolle hat ein **Ziel**: ohne Angabe der Keuschheitsgürtel (der Sub muss dafür verschlossen
+  sein), mit \`category\` eine Trage-Kategorie („Plug") — dann muss er gerade etwas daraus tragen.
+  \`device\` verengt auf genau ein Gerät; es muss das getragene sein, sonst wäre die Kontrolle nicht
+  erfüllbar.
+- **Je Ziel darf eine Kontrolle laufen.** Eine zweite auf dasselbe Ziel wird abgelehnt
+  (\`INSPECTION_ALREADY_ACTIVE\`) — bei zwei offenen wäre nicht entscheidbar, welche ein Foto
+  beantwortet. KG und Plug nebeneinander sind dagegen normal; \`openControls\` zeigt alle, jede mit
+  ihrem \`target\`.
+- Erfüllt wird eine Kontrolle nur durch ein Foto **desselben Ziels**: ein Plug-Foto hakt keine
+  KG-Kontrolle ab.
+- Ob ein handschriftlicher Code verlangt wird, entscheidet das getragene GERÄT
+  (\`requireInspectionCode\`) — inzwischen an jedem Gerät einstellbar, nicht nur am KG.
+- Versäumt der Sub eine Kontrolle, mahnt die Automatik und bucht danach (falls eingeschaltet) das
+  Ende: beim KG eine Öffnung, bei einer Trage-Kontrolle das Ablegen. Das Vergehen steht so oder so
+  im Strafbuch.
+
 ## 4. Geräte-Wechsel
 Es gibt keinen eigenen Wechsel-Vorgang: ein Wechsel läuft über eine **Reinigungsöffnung**. Folgen: er
 verbraucht das Tages-Reinigungskontingent, und während einer Sperre ist er nur rechtmässig, wenn die
@@ -155,7 +172,7 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
 - \`maxPausesPerDay\` ist eine ANZAHL, keine Minuten.
 - Ein Geräte-Wechsel ist normal (Reinigungspfad) — kein Vergehen an sich. \`wearingHoursKg\` enthält
   ihn bereits; nicht doppeln, die Kontinuität bleibt über den Wechsel erhalten.
-- \`openControl: null\` = gerade keine Kontrolle offen, NICHT „ausgelaufen". Kontrollen verschwinden
+- \`openControls: []\` = gerade keine Kontrolle offen, NICHT „ausgelaufen". Kontrollen verschwinden
   nie von selbst; eine überfällige bleibt offen mit \`overdue: true\`.
 - \`deviceCheck.status: "wrong"\` ist KEIN Vergehen — der Check vergleicht Bild vs. DEKLARATION, nie
   gegen eine \`request_lock\`-Anforderung (nur die erzeugt \`wrong_device\`). \`not_checked\`/\`null\` =

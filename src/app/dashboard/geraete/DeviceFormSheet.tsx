@@ -52,9 +52,6 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
   const [categoryId, setCategoryId] = useState<string>(defaultCategoryId);
   // Default true = Bestandsverhalten; ein neues Gerät verlangt einen Code, bis jemand ihn abschaltet.
   const [requireCode, setRequireCode] = useState(device?.requireInspectionCode ?? true);
-  // Kontrollen gibt es nur in der eingebauten KG-Kategorie — `isBuiltIn` IST deren Kennung (der Name
-  // ist frei umbenennbar, siehe loadCategoryNames).
-  const isBuiltInCategory = (categories ?? []).some((c) => c.id === categoryId && c.isBuiltIn);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -102,7 +99,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
       currency: parsedPrice !== null ? currency : null,
       categoryId: categoryId || null,
     };
-    if (canEditInspectionCode && isBuiltInCategory) payload.requireInspectionCode = requireCode;
+    if (canEditInspectionCode) payload.requireInspectionCode = requireCode;
     if (userId) payload.userId = userId;
 
     try {
@@ -158,18 +155,16 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
             />
           )}
 
-          {/* Kontroll-Code-Pflicht: nur bei der eingebauten Kategorie (KG) — die Trage-Kategorien
-              kennen keine Kontrollen, dort hätte der Schalter nichts zu schalten. Sichtbar auch für
-              den Sub, bedienbar nur für Keyholder/Admin (die PATCH-Route weist es ebenfalls ab). */}
-          {isBuiltInCategory && (
-            <Toggle
-              label={t("requireInspectionCodeLabel")}
-              description={canEditInspectionCode ? t("requireInspectionCodeDesc") : t("requireInspectionCodeLocked")}
-              checked={requireCode}
-              disabled={!canEditInspectionCode}
-              onChange={setRequireCode}
-            />
-          )}
+          {/* Kontroll-Code-Pflicht: für JEDES Gerät, seit Kontrollen auch auf Trage-Kategorien
+              zielen können (v5.0.1). Sichtbar auch für den Sub, bedienbar nur für Keyholder/Admin
+              (die PATCH-Route weist es ebenfalls ab). */}
+          <Toggle
+            label={t("requireInspectionCodeLabel")}
+            description={canEditInspectionCode ? t("requireInspectionCodeDesc") : t("requireInspectionCodeLocked")}
+            checked={requireCode}
+            disabled={!canEditInspectionCode}
+            onChange={setRequireCode}
+          />
 
           <Textarea
             label={t("description")}

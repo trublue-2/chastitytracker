@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox, getOpenLockRequests } from "@/lib/queries";
+import { getOpenKontrollen, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox, getOpenLockRequests } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, mapInterruptedSperrzeit, mapOpenLockRequest,
@@ -161,8 +161,12 @@ export interface DashboardResult extends Envelope {
    *  v8: `directives.openTasks` enthält jetzt AUCH Aufgaben im Zustand `awaitingReview` (Issue #39) —
    *  die Menge der möglichen `state`-Werte hat sich damit erweitert, und das ist kein rein additives
    *  Feld: eine Auswertung, die bisher jeden Eintrag als „der Sub ist am Zug" las, läge falsch. Dazu
-   *  je Aufgabe `proofs[]` — die Adresse, ohne die `review_task_proof` nicht aufrufbar wäre. */
-  schemaVersion: 8;
+   *  je Aufgabe `proofs[]` — die Adresse, ohne die `review_task_proof` nicht aufrufbar wäre.
+   *
+   *  v9: `nextRelevant.openControl` (Einzelwert) ist zu `nextRelevant.openControls` (Array)
+   *  geworden — seit Kontrollen auf Trage-Kategorien zielen können (v5.0.1), läuft je Ziel eine,
+   *  und ein Einzelwert verschwiege die übrigen Fristen. Jede trägt ihr `target`. */
+  schemaVersion: 9;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -230,10 +234,12 @@ export interface DashboardResult extends Envelope {
    *  Die Sichten aus `mcp/liveState.ts` werden unverändert übernommen, statt sie hier erneut zu
    *  beschreiben und Feld für Feld umzukopieren: sonst müsste jedes neue Feld an zwei Stellen
    *  nachgezogen werden, und wer es vergisst, lässt es stillschweigend aus dem Dashboard fallen.
-   *  Dadurch trägt `openControl` jetzt auch den Kommentar des Keyholders und `openOrgasmWindow`
+   *  Dadurch trägt `openControls` jetzt auch den Kommentar des Keyholders und `openOrgasmWindow`
    *  dessen Nachricht. */
   nextRelevant: {
-    openControl: OpenKontrolleView | null;
+    /** ALLE offenen Kontrollen, dringendste Frist zuerst — je Ziel kann eine laufen (v5.0.1).
+     *  Leeres Array = keine offen. Welches Ziel gemeint ist, steht in `target`. */
+    openControls: OpenKontrolleView[];
     activeLockPeriod: ActiveSperrzeitView | null;
     /** Eine durch eine ÖFFNUNG beendete Sperrzeit, deren ursprüngliches Ende noch nicht verstrichen
      *  ist. Sie wird gerade NICHT vollstreckt (`activeLockPeriod` bleibt null) — aber die Konsequenz
@@ -514,9 +520,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
-  const [openKontrolleRow, activeSperrzeitRow, openLockRequestRows, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
+  const [openKontrolleRows, activeSperrzeitRow, openLockRequestRows, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
          rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives] = await Promise.all([
-    getOpenKontrolle(trackingCtx.userId, now),
+    getOpenKontrollen(trackingCtx.userId, now),
     getActiveSperrzeit(trackingCtx.userId),
     getOpenLockRequests(trackingCtx.userId, now),
     getInterruptedSperrzeit(trackingCtx.userId, now),
@@ -610,7 +616,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,
@@ -631,7 +637,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     dataDiscrepancies: { count: discrepancyItems.length, items: discrepancyItems.slice(0, 5) },
     wornNow,
     nextRelevant: {
-      openControl: mapOpenKontrolle(openKontrolleRow, now, fmt),
+      openControls: openKontrolleRows.map((k) => mapOpenKontrolle(k, now, fmt)!),
       activeLockPeriod: mapActiveSperrzeit(activeSperrzeitRow, now, fmt),
       // Eine laufende Sperrzeit LÖST die unterbrochene AB: die Keyholderin hat auf den Bruch
       // geantwortet, die alte muss nicht weiter angemahnt werden. Ohne diese Ablösung bliebe eine

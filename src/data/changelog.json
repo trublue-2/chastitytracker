@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.0.1",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Kontrollen gibt es jetzt auch für Trage-Kategorien: Der Keyholder verlangt ein Foto von dem, was du gerade trägst — wahlweise von einem bestimmten Gerät. Je Ziel kann eine Kontrolle laufen, eine Plug-Kontrolle blockiert die Kontrolle des Keuschheitsgürtels also nicht.",
+          "en": "Inspections now cover wear categories too: the keyholder can ask for a photo of what you are currently wearing, optionally of one specific device. One inspection per target may run, so a plug inspection does not block the chastity-device one."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Schalter „Kontroll-Code verlangen\" steht jetzt bei jedem Gerät, nicht mehr nur beim Keuschheitsgürtel.",
+          "en": "The \"require inspection code\" switch is now available on every device, not just the chastity device."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.0",
     "date": "2026-07-30",
     "changes": [

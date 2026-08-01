@@ -13,6 +13,10 @@ interface Props {
    *  entfällt die Code-Anzeige ganz, statt „Code: —" zu behaupten, es gäbe einen. */
   code: string | null;
   kommentar?: string | null;
+  /** ZIEL der Kontrolle (Geräte- bzw. Kategoriename), null = KG. Steht im Banner, weil der Sub
+   *  sonst nicht weiss, WAS er fotografieren soll — bei mehreren parallelen Kontrollen entscheidet
+   *  genau das. */
+  target?: string | null;
   overdue: boolean;
   variant: "large" | "compact";
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
@@ -37,6 +41,7 @@ export default function KontrolleBanner({
   deadline,
   code,
   kommentar,
+  target,
   overdue,
   variant,
   href,
@@ -64,6 +69,7 @@ export default function KontrolleBanner({
             ? <AlertCircle size={13} className="flex-shrink-0 text-warn" />
             : <AlertTriangle size={13} className="flex-shrink-0 text-inspect" />
           }
+          {target && <span className="font-semibold">{target}</span>}
           {overdue ? t("overdue") : t("until")}
           {" "}{deadlineStr}
           {code && <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>}
@@ -81,7 +87,10 @@ export default function KontrolleBanner({
         : <AlertTriangle size={22} className="flex-shrink-0 text-inspect" />
       }
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold">{overdue ? t("overdueTitle") : (openLabel ?? defaultOpenLabel)}</p>
+        <p className="text-sm font-bold">
+          {overdue ? t("overdueTitle") : (openLabel ?? defaultOpenLabel)}
+          {target && <span className="font-semibold"> · {target}</span>}
+        </p>
         <p className="text-xs opacity-80">
           {overdue ? t("overduePrefix") : t("untilPrefix")} {deadlineStr}
           {code && <> · {t("code")}: <span className="font-mono font-bold">{code}</span></>}

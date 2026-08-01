@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { markLastAction } from "@/lib/appMeta";
 import { detectKeyInBox } from "@/lib/verifyCode";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrolleService";
-import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
+import { DEVICE_BEARING_TYPES, validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/inspectionTarget";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
@@ -89,10 +90,14 @@ export async function POST(req: NextRequest) {
   // In der Transaktion abgeleitet (braucht den Lock-Eintrag), NACH dem Commit für die eigentliche
   // Prüfung wiederverwendet — deshalb hier draussen. null = keine PRUEFUNG mit Foto.
   let verification: InspectionVerification | null = null;
+  // Das Gerät, das im Kontroll-Foto zu sehen sein sollte — beim KG das verschlossene, bei einer
+  // Trage-Kontrolle das gezeigte. Aus derselben Ziel-Auflösung wie `verification`, damit
+  // Code-Prüfung und Geräte-Check dasselbe Ziel meinen.
+  let inspectionExpectedDeviceId: string | null = null;
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
-      if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
+      if (deviceId && DEVICE_BEARING_TYPES.includes(type)) {
         const device = await validateDeviceOwnership(deviceId, session.user.id, tx);
         if (!device) throw entryGuardError("INVALID_DEVICE");
       }
@@ -123,16 +128,28 @@ export async function POST(req: NextRequest) {
         withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx, "user");
       }
 
+      // WELCHES ZIEL beantwortet diese Einreichung? Ohne Gerät der KG (Bestandsverhalten), mit
+      // einem Gerät einer Trage-Kategorie deren Kontrolle. Dieselbe Auflösung wie beim Anlegen der
+      // Anforderung — sonst könnte eine Kontrolle auf ein Ziel zeigen, das die Erfüllung anders liest.
+      const resolvedTarget = type === "PRUEFUNG" && imageUrl
+        ? await resolveInspectionTarget(session.user.id, { deviceId: deviceId || null }, tx)
+        : null;
+      if (resolvedTarget && !resolvedTarget.ok) throw entryGuardError("INVALID_DEVICE");
+      const inspectionTarget = resolvedTarget?.ok ? resolvedTarget.target : null;
+      // Das Gerät, an dem die Code-Pflicht hängt: bei einer Trage-Kontrolle das GEZEIGTE (es steht
+      // im Foto), beim KG das verschlossene (das Foto zeigt das Siegel, nicht zwingend das Gerät).
+      const submissionDeviceId = inspectionTarget && !isKgTarget(inspectionTarget)
+        ? inspectionTarget.deviceId
+        : inspectionTarget?.activeDeviceId ?? null;
+      inspectionExpectedDeviceId = submissionDeviceId;
       // Was an dieser Einreichung zu prüfen ist — EINE Ableitung für den Startwert unten, für die
-      // Prüfung nach dem Commit und für die Art der Erfüllung. Braucht den Lock-Eintrag (getragenes
-      // Gerät + aktives Siegel); für Nicht-PRUEFUNG gibt es nichts zu holen und nichts zu prüfen.
-      const lock = type === "PRUEFUNG" && imageUrl ? await getLatestKgEntry(session.user.id, tx) : null;
-      const lockedDeviceId = lock?.type === "VERSCHLUSS" ? lock.deviceId : null;
-      verification = lock
+      // Prüfung nach dem Commit und für die Art der Erfüllung. Die Siegel-Nummer kommt aus dem
+      // Lock-Eintrag, den nur das KG-Ziel mitbringt (`lockEntry`); eine Trage-Kontrolle hat keine.
+      verification = inspectionTarget
         ? plannedVerification({
             submittedCode: kontrollCode,
-            codeRequired: await inspectionCodeRequired(lockedDeviceId, tx),
-            sealCode: deriveSealCode(lock),
+            codeRequired: await inspectionCodeRequired(submissionDeviceId, tx),
+            sealCode: deriveSealCode(inspectionTarget.lockEntry),
           })
         : null;
       // "pending" nur, wenn danach wirklich eine Prüfung läuft, die es ersetzt (siehe unten);
@@ -157,7 +174,11 @@ export async function POST(req: NextRequest) {
           kontrollCode: kontrollCode || null,
           verifikationStatus: initialVerifikationStatus,
           deviceCheck: initialDeviceCheck,
-          deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
+          // PRUEFUNG trägt seit v5.0.1 ebenfalls ein Gerät: bei einer Trage-Kontrolle ist es das
+          // gezeigte und damit das einzige, woran später erkennbar ist, WAS kontrolliert wurde.
+          deviceId: DEVICE_BEARING_TYPES.includes(type)
+            ? (deviceId || null)
+            : null,
           // Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur VERSCHLUSS)
           codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,
           codeReadable: type === "VERSCHLUSS" && codeImageUrl ? (codeReadable ?? null) : null,
@@ -186,9 +207,12 @@ export async function POST(req: NextRequest) {
       // `orderBy deadline asc` + `take 1` statt updateMany: sollte der Überschneidungs-Schutz doch
       // einmal zwei Zeilen durchlassen (er ist ein Best-Effort-Read-then-Write, siehe
       // requestKontrolle), erfüllt ein Foto genau EINE — die dringendste — statt beide auf einmal.
-      if (type === "PRUEFUNG" && verification) {
+      if (type === "PRUEFUNG" && verification && inspectionTarget) {
         const openWhere = {
           userId: session.user.id, entryId: null, withdrawnAt: null,
+          // Nur Anforderungen auf DIESES Ziel: ein Plug-Foto darf keine KG-Kontrolle abhaken und
+          // umgekehrt (siehe inspectionTargetWhere).
+          ...inspectionTargetWhere(inspectionTarget, submissionDeviceId),
           ...aktiveKontrolleWhere(),
         };
         // Der Rundum-Weg trifft NUR Anforderungen, die selbst ohne Code entstanden sind (`code: null`).
@@ -353,22 +377,18 @@ export async function POST(req: NextRequest) {
       console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));
   }
 
-  // Der Geräte-Check braucht den letzten Lock-Entry (welches Gerät ist verschlossen?). Die
-  // Foto-Verifikation braucht ihn NICHT mehr: was sie zu prüfen hat, steht in `verification`, und das
-  // wurde in der Transaktion aus demselben Eintrag abgeleitet — dort, wo es konsistent ist.
-  const latestLockPromise =
-    type === "PRUEFUNG" && imageUrl ? getLatestKgEntry(session.user.id) : null;
-
-  // Kontroll-Geräte-Check (advisory): ist das aktuell verschlossene Gerät im Kontroll-Foto sichtbar?
-  // Server-seitig + fire-and-forget (blockiert die Antwort NICHT); Ergebnis landet als entry.deviceCheck,
-  // das der Keyholder sieht. Der Vorgang (inkl. der Pflicht, das oben gesetzte "pending" IMMER durch
-  // einen Endzustand zu ersetzen) liegt in deviceCheckService — hier steht nur der Start.
+  // Kontroll-Geräte-Check (advisory): ist das erwartete Gerät im Kontroll-Foto sichtbar? Welches das
+  // ist, steht schon fest — die Ziel-Auflösung in der Transaktion hat es bestimmt, dieselbe Quelle
+  // wie für die Code-Prüfung. Server-seitig + fire-and-forget (blockiert die Antwort NICHT);
+  // Ergebnis landet als entry.deviceCheck, das der Keyholder sieht. Der Vorgang (inkl. der Pflicht,
+  // das oben gesetzte "pending" IMMER durch einen Endzustand zu ersetzen) liegt in
+  // deviceCheckService — hier steht nur der Start.
   if (deviceCheckApplies(type, imageUrl)) {
     void runDeviceCheck({
       entryId: entry.id,
       userId: session.user.id,
       photoUrl: imageUrl!,
-      lockEntry: latestLockPromise ?? Promise.resolve(null),
+      expectedDeviceId: inspectionExpectedDeviceId,
     });
   }
 

@@ -31,10 +31,14 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   inspectionReminderMessageNoCode: "inspection",
   inspectionAutoRemovedMessageSub: "inspection",
   inspectionAutoRemovedMessageSubNoCode: "inspection",
+  inspectionAutoRemovedMessageSubWear: "inspection",
+  inspectionAutoRemovedMessageSubWearNoCode: "inspection",
   // Geht an die Keyholder, nicht in den Sub-Posteingang (notify.ts, `inbox: false`) — steht hier nur,
   // damit die Tabelle über alle Body-Keys vollständig ist.
   inspectionAutoRemovedMessageKeyholder: "inspection",
   inspectionAutoRemovedMessageKeyholderNoCode: "inspection",
+  inspectionAutoRemovedMessageKeyholderWear: "inspection",
+  inspectionAutoRemovedMessageKeyholderWearNoCode: "inspection",
 
   lockRequestBody: "lock",
   lockPeriodSetBody: "lock",

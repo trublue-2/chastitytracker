@@ -301,6 +301,7 @@ model DeviceCategory {
   devices  Device[]
   vorgaben         TrainingVorgabe[]
   taskRequirements TaskRequirement[]
+  kontrollen       KontrollAnforderung[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -372,6 +373,15 @@ model KontrollAnforderung {
   // der Code auch nicht der Schlüssel, über den der eingereichte Eintrag seine Anforderung findet —
   // das tut die „eine offene Anforderung"-Regel in der entries-Route.
   code                     String?
+  // ZIEL der Kontrolle. Beide null = der KG (Bestandsverhalten): die Kontrolle hängt am aktiven
+  // VERSCHLUSS. `categoryId` gesetzt = Trage-Kontrolle auf diese Kategorie („zeig mir den Plug"),
+  // erfüllt aus der laufenden WEAR-Session. `deviceId` zusätzlich verengt sie auf GENAU dieses
+  // Gerät und hat Vorrang — dieselbe Kategorie/Gerät-Staffelung wie bei TaskRequirement.
+  // SetNull statt Cascade: eine gelöschte Kategorie darf die Kontroll-Historie nicht mitreissen.
+  categoryId               String?
+  category                 DeviceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  deviceId                 String?
+  device                   Device?   @relation("KontrolleDevice", fields: [deviceId], references: [id], onDelete: SetNull)
   kommentar                String?
   deadline                 DateTime
   createdAt                DateTime  @default(now())
@@ -403,6 +413,9 @@ model KontrollAnforderung {
   @@index([userId, entryId])
   @@index([wirksamAb])
   @@index([userId, autoMarkedRemovedAt])
+  // „Läuft für DIESES Ziel schon eine Kontrolle?" — der Guard, der beim Anlegen JEDER Kontrolle
+  // läuft (hasActiveKontrolle), filtert auf userId + categoryId.
+  @@index([userId, categoryId])
 }
 
 model VerschlussAnforderung {
@@ -591,6 +604,7 @@ model Device {
   boxEvents               BoxEvent[]
   referenceImages         DeviceReferenceImage[]
   taskRequirements        TaskRequirement[]
+  kontrollen              KontrollAnforderung[] @relation("KontrolleDevice")
 
   @@index([userId, archivedAt])
   @@index([categoryId])
