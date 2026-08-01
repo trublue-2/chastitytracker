@@ -7,6 +7,7 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import CategoryPhotoThumb from "@/app/components/CategoryPhotoThumb";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
+import ListPager from "@/app/components/ListPager";
 import { categoryStyle } from "@/lib/categoryConstants";
 
 import type { WearSessionRow } from "@/lib/wearSessionRows";
@@ -77,29 +78,7 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
         })}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-          <button
-            type="button"
-            onClick={() => setPage((p) => p - 1)}
-            disabled={page === 0}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            ← {tCommon("previous")}
-          </button>
-          <span className="text-xs text-foreground-faint tabular-nums">
-            {page + 1} / {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            {tCommon("next")} →
-          </button>
-        </div>
-      )}
+      <ListPager page={page} totalPages={totalPages} onPage={setPage} />
 
       {openRow?.imageUrl && (
         <FullscreenImageModal

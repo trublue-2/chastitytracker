@@ -12,8 +12,7 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { isTaskOpen } from "@/lib/tasks";
-import type { TaskCardData } from "@/lib/taskView";
+import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
 
 /** Wie viele Aufgaben offen ausliegen, bevor der Rest zusammenklappt. Eine Aufgabe mit Frist ist das
  *  Dringendste auf der Seite — aber fünf davon wären eine Wand statt eines Signals. */
@@ -40,9 +39,11 @@ export default function OpenTasks({ tasks, tz }: { tasks: TaskCardData[]; tz: st
         {visible.map((task) => (
           <li key={task.id}>
             <TaskCard task={task} subTz={tz} subLabel="">
-              {/* Gemeldet wird erst, wenn die Bedingungen auch wirklich gelten — vorher wäre die
-                  Meldung eine Aussage über ein Ergebnis, das es noch nicht gibt. */}
-              {isTaskOpen(task.state) && task.missing.length === 0 && <MarkDoneButton taskId={task.id} />}
+              {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten
+                  Schritt nennt — eine Regel, eine Quelle. Getrennt beantwortet, sagte die Karte
+                  „Bedingung erfüllen" und der Knopf darunter „Als erledigt melden": zwei
+                  Aufforderungen für einen Schritt. */}
+              {nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} />}
             </TaskCard>
           </li>
         ))}
@@ -101,8 +102,14 @@ function MarkDoneButton({ taskId }: { taskId: string }) {
   }
 
   return (
-    <Button type="button" variant="secondary" fullWidth loading={saving} onClick={handle} icon={<Check size={16} />}>
-      {t("markDone")}
-    </Button>
+    <div className="flex flex-col gap-1.5">
+      {/* Primär, nicht sekundär: das ist die letzte Handlung der Aufgabe, nicht eine Nebenoption. */}
+      <Button type="button" variant="primary" fullWidth loading={saving} onClick={handle} icon={<Check size={16} />}>
+        {t("markDone")}
+      </Button>
+      {/* Wofür der Knopf da ist. Ohne diesen Satz war unklar, was er über die abgehakten Bedingungen
+          hinaus noch behauptet — nämlich das, was die App gar nicht messen kann. */}
+      <p className="text-xs text-foreground-faint">{t("markDoneHint")}</p>
+    </div>
   );
 }

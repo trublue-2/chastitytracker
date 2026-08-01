@@ -1,4 +1,5 @@
 import type { EntryValidationCode } from "@/lib/entryErrors";
+import type { TaskState } from "@/lib/tasks";
 
 export const VALID_LOCALES = ["de", "en"] as const;
 export type Locale = (typeof VALID_LOCALES)[number];
@@ -315,6 +316,23 @@ export const TYPE_COLORS: Record<string, string> = {
   ORGASMUS: "text-[var(--color-orgasm)]",
   WEAR_BEGIN: "text-foreground-muted",
   WEAR_END: "text-foreground-muted",
+};
+
+/** Zustands-Ton einer Aufgabe — geteilt von der Karte und der Aufgaben-Liste. `warn` bleibt den
+ *  echten Fehlschlägen vorbehalten: eine noch offene Bedingung ist kein Alarm, und eine ausstehende
+ *  Sichtung erst recht nicht (der Sub hat dort getan, was er konnte).
+ *
+ *  Hier statt in der Karte, weil er beim Zustand hängt und nicht am Bauteil: die Liste braucht
+ *  denselben Ton, ohne dafür eine Client-Komponente samt Icons und Bildbetrachter zu importieren. */
+export const TASK_STATE_COLOR: Record<TaskState, string> = {
+  pending: "text-foreground-muted",
+  partial: "text-foreground-muted",
+  running: "text-foreground-muted",
+  done: "text-ok-text",
+  missed: "text-warn-text",
+  aborted: "text-warn-text",
+  withdrawn: "text-foreground-muted",
+  awaitingReview: "text-foreground-muted",
 };
 
 // ── Notification event types (shared by API + admin UI) ─────────────────────

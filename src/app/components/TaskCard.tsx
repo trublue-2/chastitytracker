@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ListChecks, Check, ChevronRight, Circle } from "lucide-react";
+import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
 import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import { formatDateTimeDual, formatTime, toDateLocale } from "@/lib/utils";
-import type { TaskCardData } from "@/lib/taskView";
-import type { TaskState } from "@/lib/tasks";
+import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
+import { TASK_STATE_COLOR } from "@/lib/constants";
 
 /**
  * Eine Aufgabe als Karte — geteilt von der Keyholder-Historie und dem Sub-Dashboard.
@@ -19,23 +19,6 @@ import type { TaskState } from "@/lib/tasks";
  * nur der ZUSTAND.
  */
 
-/** Zustands-Ton der Statuszeile. `warn` bleibt den echten Fehlschlägen vorbehalten — eine noch offene
- *  Bedingung ist kein Alarm.
- *
- *  Direkt die Klasse statt eines Zwischen-Tokens: der einzige Leser übersetzte ihn eine Zeile später
- *  ohnehin in genau diese drei Werte. Ein neuer Zustand wäre sonst zwei Stellen. */
-const STATE_COLOR: Record<TaskState, string> = {
-  pending: "text-foreground-muted",
-  partial: "text-foreground-muted",
-  running: "text-foreground-muted",
-  done: "text-ok-text",
-  missed: "text-warn-text",
-  aborted: "text-warn-text",
-  withdrawn: "text-foreground-muted",
-  // Neutral, nicht warnend: der Sub hat getan, was er konnte — es fehlt ein Urteil, kein Verhalten.
-  awaitingReview: "text-foreground-muted",
-};
-
 /** Die Liste, in der Bedingungen und Nachweise stehen — dieselbe Umrandung, dieselben Trenner.
  *  Zwei Listen mit identischem Rahmen direkt untereinander sähen sonst zufällig gleich aus statt
  *  absichtlich. */
@@ -44,6 +27,19 @@ function ChecklistBox({ children }: { children: React.ReactNode }) {
     <ul className="flex flex-col rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
       {children}
     </ul>
+  );
+}
+
+/** Das Handlungswort am Ende einer antippbaren Zeile. Ein Chevron allein sagt „hier geht es weiter",
+ *  aber nicht, was dort passiert — genau das war offen („Wo muss ich klicken, um ein Foto zu
+ *  erfassen?", Rückmeldung 02.08.2026). */
+function RowAction({ icon, label }: { icon?: React.ReactNode; label: string }) {
+  return (
+    <span className="shrink-0 flex items-center gap-1 text-xs font-semibold text-foreground">
+      {icon}
+      {label}
+      <ChevronRight size={14} className="text-foreground-faint" />
+    </span>
   );
 }
 
@@ -135,7 +131,7 @@ export default function TaskCard({
                 {/* Der Zustand steht in Farbe UND Text — ein Häkchen allein liest ein Screenreader
                     als „check mark", nicht als „erfüllt". */}
                 <span className="sr-only">{r.satisfied ? t("requirementSatisfied") : t("requirementOpen")}</span>
-                {r.href && !r.satisfied && <ChevronRight size={16} className="text-foreground-faint shrink-0" />}
+                {r.href && !r.satisfied && <RowAction label={t("requirementAction")} />}
               </ChecklistRow>
             ))}
           </ChecklistBox>
@@ -181,7 +177,7 @@ export default function TaskCard({
                   )}
                 </span>
                 <span className="sr-only">{t(`proofState_${p.state}`)}</span>
-                {p.href && <ChevronRight size={16} className="text-foreground-faint shrink-0" />}
+                {p.href && <RowAction icon={<Camera size={14} />} label={t("proofCapture")} />}
               </ChecklistRow>
             ))}
           </ChecklistBox>
@@ -193,10 +189,56 @@ export default function TaskCard({
           <p className="text-xs text-foreground-faint break-words">{task.completionNote}</p>
         )}
 
+        <NextStep task={task} />
+
         {children}
       </div>
     </Card>
   );
+}
+
+/**
+ * Was der Sub JETZT tun muss — genau EIN Schritt, mit dem Weg dorthin.
+ *
+ * Die Karte zeigt Bedingungen, Nachweise und Zustand nebeneinander; sie sagt damit vollständig, WIE
+ * es steht, aber nicht, WO man anfängt (Rückmeldung 02.08.2026). Diese Zeile beantwortet das und
+ * nichts sonst.
+ *
+ * Die Rangfolge ist die der Auswertung: erst müssen die Bedingungen gelten (ohne sie läuft die Zeit
+ * gar nicht), dann kommen die Nachweise in ihrer geforderten Reihenfolge, und zuletzt bleibt die
+ * Selbstmeldung für den Textteil, den keine Maschine prüfen kann.
+ */
+function NextStep({ task }: { task: TaskCardData }) {
+  const t = useTranslations("tasks");
+  const step = nextTaskStep(task);
+  if (!step) return null;
+
+  const { text, href, icon } =
+    step.kind === "requirement"
+      ? { text: t("nextStepRequirement", { label: step.label }), href: step.href, icon: <ArrowRight size={16} /> }
+      : step.kind === "proof"
+        ? { text: t("nextStepProof", { description: step.label }), href: step.href, icon: <Camera size={16} /> }
+        // Kein Link: die Meldung ist ein Knopf, den der Aufrufer als `children` unter diese Zeile
+        // stellt. Sie erklärt ihn — „wofür ist der Knopf?" war die Frage, nicht „wo ist er?".
+        : { text: t("nextStepConfirm"), href: null, icon: <Check size={16} /> };
+
+  const inner = (
+    <>
+      <span className="shrink-0 text-foreground-muted" aria-hidden>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-semibold uppercase tracking-wider text-foreground-faint">
+          {t("nextStepLabel")}
+        </span>
+        <span className="block text-sm text-foreground break-words">{text}</span>
+      </span>
+      {href && <ChevronRight size={16} className="shrink-0 text-foreground-faint" />}
+    </>
+  );
+
+  const cls = "flex items-center gap-3 rounded-xl bg-surface-raised px-3 py-2.5";
+  return href
+    ? <Link href={href} className={`${cls} hover:bg-surface transition active:scale-[0.98]`}>{inner}</Link>
+    : <div className={cls}>{inner}</div>;
 }
 
 /** Klartext statt nacktem Zustandswort — „abgebrochen" allein wäre nicht unterscheidbar von
@@ -211,7 +253,7 @@ function StateLine({
   timeOnly: (iso: string) => string;
 }) {
   const t = useTranslations("tasks");
-  const color = STATE_COLOR[task.state];
+  const color = TASK_STATE_COLOR[task.state];
 
   let text: string;
   if (task.state === "aborted") {
