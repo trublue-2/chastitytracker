@@ -5,9 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useApiError } from "@/app/hooks/useApiError";
+import { parseApiErrorCode } from "@/lib/apiClient";
 
 function ResetPasswordForm() {
   const t = useTranslations("resetPassword");
+  const tc = useTranslations("common");
   const apiError = useApiError();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -23,15 +25,21 @@ function ResetPasswordForm() {
     setError("");
     if (password !== confirm) { setError(t("mismatch")); return; }
     setLoading(true);
-    const res = await fetch("/api/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, password }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) { setError(apiError(data.error)); return; }
-    router.push("/login?reset=1");
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+      // `parseApiErrorCode` statt `res.json()`: eine HTML-Fehlerseite (500 vom Server, 502 vom Proxy)
+      // liesse ein rohes `.json()` hier werfen — der Nutzer bekäme gar keine Meldung.
+      if (!res.ok) { setError(apiError(await parseApiErrorCode(res))); return; }
+      router.push("/login?reset=1");
+    } catch {
+      setError(tc("networkError"));
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (!token) {

@@ -11,6 +11,7 @@ import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
+import { parseApiErrorCode } from "@/lib/apiClient";
 
 export default function NewUserPage() {
   const t = useTranslations("admin");
@@ -34,20 +35,24 @@ export default function NewUserPage() {
       role: fd.get("role") as string,
     };
 
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    setSaving(false);
-    if (!res.ok) {
-      const data = await res.json();
-      setError(apiError(data.error));
-      return;
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      // `parseApiErrorCode` statt `res.json()`: eine HTML-Fehlerseite (500 vom Server, 502 vom Proxy)
+      // liesse ein rohes `.json()` hier werfen — der Nutzer bekäme gar keine Meldung.
+      if (!res.ok) {
+        setError(apiError(await parseApiErrorCode(res)));
+        return;
+      }
+      router.push("/admin/users");
+    } catch {
+      setError(tc("networkError"));
+    } finally {
+      setSaving(false);
     }
-
-    router.push("/admin/users");
   }
 
   const roleOptions = [

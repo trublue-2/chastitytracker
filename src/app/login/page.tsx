@@ -13,6 +13,7 @@ import { syncLocaleCookieFromLogin } from "@/lib/locale";
 
 export default function LoginPage() {
   const t = useTranslations("login");
+  const tc = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -20,17 +21,32 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Warum die abgelehnte Anmeldung scheiterte — Sperre oder falsche Daten.
+   *
+   * Die Auskunft ist eine Verfeinerung, kein Teil der Anmeldung: antwortet die Route nicht oder nicht
+   * mit dem erwarteten JSON, darf das die Meldung nicht verschlucken. „Ungültige Anmeldedaten" wäre
+   * dann auch nur geraten — bei einer gestörten Datenbank scheitert die Anmeldung selbst bei
+   * richtigem Passwort. Deshalb in dem Fall die neutrale Meldung.
+   */
+  async function rejectionMessage(): Promise<string> {
+    const data = await fetch(`/api/auth/lockout?username=${encodeURIComponent(username)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+    if (!data) return t("loginFailed");
+    return data.locked ? t("accountLocked") : t("invalidCredentials");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const result = await signIn("credentials", { username, password, redirect: false });
-    setLoading(false);
-    if (result?.error) {
-      const lockRes = await fetch(`/api/auth/lockout?username=${encodeURIComponent(username)}`);
-      const lockData = await lockRes.json();
-      setError(lockData.locked ? t("accountLocked") : t("invalidCredentials"));
-    } else {
+    try {
+      const result = await signIn("credentials", { username, password, redirect: false });
+      if (result?.error) {
+        setError(await rejectionMessage());
+        return;
+      }
       clearSwUserCache();
       const session = await getSession(); // Session-Cookie sicher gesetzt, bevor der Landing-Resolver auf "/" greift.
       // Sprache dieses Accounts übernehmen — sonst bliebe das Cookie eines vorher an DIESEM Browser
@@ -39,6 +55,10 @@ export default function LoginPage() {
       // Ziel entscheidet der serverseitige Resolver (src/lib/landing.ts) anhand der startPage-Präferenz.
       router.push("/");
       router.refresh();
+    } catch {
+      setError(tc("networkError"));
+    } finally {
+      setLoading(false);
     }
   }
 

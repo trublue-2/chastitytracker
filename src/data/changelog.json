@@ -20,6 +20,59 @@
     ]
   },
   {
+    "version": "4.60.6",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine fehlgeschlagene Anmeldung zeigt wieder eine Meldung an — auch dann, wenn die Prüfung auf gesperrte Konten im Hintergrund nicht antwortet.",
+          "en": "A failed sign-in shows a message again — even when the background check for locked accounts does not respond."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.60.5",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der KI-Keyholder wird beim Verbinden neu ausdrücklich angewiesen, seine Wissensschicht zu pflegen: festhalten was er gelernt hat, Dauervorgaben und Grenzen anpinnen, genannte Termine sofort eintragen. Bisher stand dort nur, welche Werkzeuge es gibt — mit dem Ergebnis, dass Direktiven vergeben, aber nichts festgehalten wurde und die KI zwischen zwei Sitzungen alles vergass.",
+          "en": "On connecting, the AI keyholder is now explicitly told to maintain its knowledge layer: record what it learned, pin standing directives and limits, enter mentioned dates right away. Previously it was only told which tools exist — with the result that directives were issued but nothing was recorded, and the AI forgot everything between sessions."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Regel-Vorlage lässt sich jetzt auch ansehen, wenn schon Regeln im Feld stehen — zum Vergleichen und Nachziehen fehlender Abschnitte. Eingefügt wird sie weiterhin nur in ein leeres Feld, ein bestehendes Regelwerk kann sie nicht überschreiben.",
+          "en": "The rules template can now also be viewed when rules are already in the field — to compare and fill in what is missing. It is still only inserted into an empty field and can never overwrite an existing rulebook."
+        }
+      }
+    ]
+  },
+  {
+    "version": "4.60.4",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die KI-Keyholder-Regeln lassen sich jetzt mit einer Vorlage starten: solange das Feld leer ist, füllt „Vorlage einfügen\" ein fertiges Regelwerk ein — Rolle, harte Grenzen, Strafen-Staffel, Pflege der Wissensschicht (Notizen, Termine, Gerätewissen) und Ton. Der Text wird nur eingefügt, nicht gespeichert; sobald Regeln dastehen, verschwindet der Knopf und kann nichts überschreiben.",
+          "en": "The AI keyholder rules can now start from a template: while the field is empty, \"Insert template\" fills in a ready-made rulebook — role, hard limits, the offence ladder, keeping the knowledge layer current (notes, appointments, device knowledge) and tone. The text is only inserted, never saved implicitly; once rules are there the button disappears and cannot overwrite them."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Unter den KI-Keyholder-Regeln steht neu ein Link auf die öffentliche Erklärung, wie der KI-Keyholder über MCP funktioniert.",
+          "en": "Below the AI keyholder rules there is now a link to the public explanation of how the AI keyholder works over MCP."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.3",
     "date": "2026-07-31",
     "changes": [

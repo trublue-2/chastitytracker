@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { formatDateTimeDual, toDateLocale, APP_TZ } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
+import HelpLink from "@/app/components/HelpLink";
 
 interface Props {
   deadline: Date;
@@ -103,14 +104,7 @@ export default function KontrolleBanner({
   return (
     <div className="flex flex-col gap-1.5">
       {card}
-      <a
-        href={helpHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="self-start text-xs font-medium text-inspect underline underline-offset-2 opacity-80 hover:opacity-100"
-      >
-        {t("help")}
-      </a>
+      <HelpLink href={helpHref} label={t("help")} className="text-inspect" />
     </div>
   );
 }

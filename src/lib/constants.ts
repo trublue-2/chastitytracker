@@ -19,6 +19,14 @@ export function inspectionHelpUrl(locale: string): string {
   return locale === "en" ? `${MARKETING_URL}/en/faq` : `${MARKETING_URL}/faq`;
 }
 
+/** Locale-aware link to the public AI-keyholder/MCP explainer. The two locales are separate posts
+ *  with their own slugs (linked via `translationSlug` on the marketing side), not one path prefixed. */
+export function mcpHelpUrl(locale: string): string {
+  return locale === "en"
+    ? `${MARKETING_URL}/en/blog/ai-keyholder-mcp`
+    : `${MARKETING_URL}/blog/ki-keyholder-mcp`;
+}
+
 export const LOCALES = [
   { value: "de", label: "DE" },
   { value: "en", label: "EN" },

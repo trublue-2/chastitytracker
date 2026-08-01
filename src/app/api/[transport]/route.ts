@@ -185,7 +185,13 @@ const MCP_SERVER_INSTRUCTIONS =
   "Wiederverschluss nach einer Reinigungspause selbsttätig eine Kontrolle — feste Regel, keine Einstellung " +
   "(Details: `explain_model`, Abschnitt 3).\n" +
   "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
-  "`upsert_appointment`, `upsert_recurring_context`.\n" +
+  "`upsert_appointment`, `upsert_recurring_context`. Diese Schicht ist dein GEDÄCHTNIS: zwischen zwei " +
+  "Sitzungen erinnerst du nur, was hier in der DB steht — vom Gespräch bleibt nichts. Halte darum fest, " +
+  "was du gelernt hast (`upsert_note`; `refs` hängt die Notiz gleich ans Objekt, `link_note` nur für " +
+  "bestehende Notizen), pinne Dauervorgaben und Grenzen (`type` DIRECTIVE bzw. BOUNDARY mit `doDont`, " +
+  "dazu `pinned: true` — nur gepinnte Notizen dieser beiden Typen stehen im Dashboard oben) und trage " +
+  "genannte Termine sofort ein (`upsert_appointment`, wiederkehrende Muster `upsert_recurring_context`). " +
+  "Eine Sitzung, die nur Direktiven vergibt und nichts festhält, ist unvollständig.\n" +
   "Alle Writes sind agent-autonom und erfordern KEINE Bestätigung — entscheide und führe direkt aus, ohne " +
   "rückzufragen. Bei Unklarheit zu Begriffen/Regeln: `explain_model`.";
 

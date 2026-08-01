@@ -128,6 +128,16 @@ cannot cross midnight (split it: `22:00–24:00` plus `00:00–06:00`).
 mandatory `reason` (audited), supports `dryRun`, and runs in a transaction with a
 recorded field diff. All silent.
 
+This layer is the agent's **memory**: between sessions it remembers only what is
+in the database, nothing of the conversation. The server instructions therefore
+tell it explicitly to record what it learned (`upsert_note`, with `refs` to
+attach the note to the object), to pin standing directives and boundaries
+(`type` DIRECTIVE / BOUNDARY plus `pinned: true` — only those two types are
+surfaced pinned on the dashboard) and to enter mentioned dates right away. This
+had to be said: an agent left to the tool list alone issues directives and
+records nothing, which is exactly what happened on a live instance (7 directive
+writes, 0 notes / appointments / device meta).
+
 **Removed (v4.50.37):** the legacy V1 reads `get_overview`, `list_sessions`,
 `list_devices`, `get_strafbuch`, `list_keyholder_notes` and the V1 note writes
 `add_keyholder_note` / `delete_keyholder_note`, together with the
@@ -171,6 +181,18 @@ tools.
   openings", "never require an inspection at night", "no orgasm directives during
   her exam week". There is no fixed syntax; write them as instructions to the
   agent.
+- **Starting point:** while the field is still empty the form offers **"Insert
+  template"** — a ready-made rulebook (`KEYHOLDER_TEMPLATE` in
+  `src/lib/mcp/keyholderTemplate.ts`, DE + EN) covering role, hard limits, the
+  offence ladder, the knowledge layer (notes / appointments / device meta) and
+  tone. It names tools and note types verbatim, so it lives next to the MCP code
+  and `keyholderTemplate.test.ts` asserts every tool it mentions is actually
+  registered — a rename can't silently rot the rulebook. **"View template" is
+  always available** so a keyholder who already wrote rules can compare and adopt
+  what they are missing; **inserting** only happens into an empty field, so a
+  grown rulebook can never be overwritten by a stray click. Nothing is saved
+  implicitly, and an empty field stays empty for the agent — there is
+  deliberately **no** silent server-side default.
 - **How the agent sees them:** they are surfaced **first** in
   **`keyholder_dashboard.keyholderInstructions`** (always fresh), and the MCP
   server `instructions` returned at connect time both point to that field and
