@@ -287,7 +287,9 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 
 ### Changelog
 - Erlaubte `type`-Werte: `feat`, `fix`, `security`, `perf`, `chore`, `ui` — **nicht** `refactor`
-- Version bump + Changelog immer im **gleichen Commit** wie die Änderung
+- **Ab v5 bekommt nicht jeder Commit eine eigene Versionsnummer.** Gebumpt wird gebündelt, wenn ein zusammenhängender Stand fertig ist. Ein Commit ohne Bump bekommt auch **keinen** Changelog-Eintrag — seine Details stehen in der Commit-Message.
+- **Wenn** gebumpt wird: Version + Changelog im **gleichen Commit** wie die Änderung
+- **Einträge sind knapp — ein bis zwei Sätze.** Was sich für den Nutzer geändert hat, nicht jede Bedingung und jeder Sonderfall. Wer erklärt, welcher Knopf wohin führt, schreibt eine Bedienungsanleitung statt eines Changelogs.
 
 ## Design System – Shared Primitives
 

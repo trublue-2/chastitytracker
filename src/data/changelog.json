@@ -6,15 +6,15 @@
       {
         "type": "feat",
         "text": {
-          "de": "Der Keyholder kann jetzt Aufgaben stellen — auch ohne Bezug zum Keuschheitsgürtel. Eine Aufgabe besteht aus einem Text und beliebig vielen Bedingungen: bestimmte Geräte tragen, den Käfig verschlossen halten, oder ganz ohne Gerät. Dazu ein Zeitpunkt, bis zu dem alles durchgehend gehalten werden muss. Legst du eines der geforderten Geräte vorher ab, gilt die Aufgabe als nicht erfüllt — die App warnt dich vorher und fragt nach. Im Dashboard siehst du, was noch fehlt, und kommst mit einem Tippen direkt ins richtige Formular; nach dem Speichern führt dich die App gleich zur nächsten offenen Bedingung. Zum Abschluss meldest du die Aufgabe als erledigt. Aufgaben können als Strafe gekennzeichnet werden. Eine erlaubte Reinigungspause unterbricht eine Aufgabe nicht.",
-          "en": "The keyholder can now set tasks — including ones unrelated to the chastity device. A task consists of a text and any number of conditions: wear certain devices, keep the cage locked, or no device at all. Plus a time by which everything must have been held continuously. If you remove one of the required devices before then, the task counts as unfulfilled — the app warns you first and asks for confirmation. Your dashboard shows what is still missing and takes you straight to the right form with one tap; after saving it moves you on to the next open condition. You report the task as done at the end. Tasks can be marked as a punishment. A permitted cleaning break does not interrupt a task."
+          "de": "Der Keyholder kann jetzt Aufgaben stellen — ein Auftrag mit beliebig vielen Bedingungen (bestimmte Geräte tragen, verschlossen bleiben) und einer Frist, bis zu der alles durchgehend gelten muss. Das Dashboard zeigt, was noch fehlt; zum Abschluss meldest du die Aufgabe als erledigt.",
+          "en": "The keyholder can now set tasks — an assignment with any number of conditions (wear certain devices, stay locked) and a deadline by which everything must have been held continuously. Your dashboard shows what is still missing; you report the task as done at the end."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Meldungen zu Aufgaben landen jetzt auch im Posteingang — gestellt, geändert, zurückgezogen, erfüllt oder versäumt, mit der Kennzeichnung „Aufgabe“. Wer eine Mail verpasst, kann also nachlesen, was verlangt war.",
-          "en": "Task notices now also land in your inbox — set, changed, withdrawn, fulfilled or missed, labelled “Task”. If you miss a mail, you can still read up on what was asked of you."
+          "de": "Meldungen zu Aufgaben landen auch im Posteingang — gestellt, geändert, zurückgezogen, erfüllt oder versäumt. Wer eine Mail verpasst, kann nachlesen, was verlangt war.",
+          "en": "Task notices also land in your inbox — set, changed, withdrawn, fulfilled or missed. If you miss a mail, you can still read up on what was asked of you."
         }
       }
     ]
