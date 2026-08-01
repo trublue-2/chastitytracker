@@ -141,7 +141,7 @@ export default async function DashboardPage() {
   // `isHeldByTask`, also mit demselben Prädikat wie die Warnung im Formular: eine Bedingung auf ein
   // bestimmtes Gerät darf nicht die ganze Kategorie markieren, vor der danach niemand warnt.
   const isSessionHeldByTask = (categoryId: string, deviceId: string) =>
-    isHeldByTask(evaluatedTasks, { categoryId, deviceId });
+    isHeldByTask(evaluatedTasks, { categoryId, deviceId }, now);
 
   // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard). Läuft
   // KEINE Sperre, hätte es sonst nirgends Platz — dann zeigen wir es als führende Zeile in der

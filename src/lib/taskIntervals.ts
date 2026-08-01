@@ -174,11 +174,33 @@ export function requirementMatchesTarget(
   return r.deviceId ? r.deviceId === target.deviceId : r.categoryId === target.categoryId;
 }
 
-/** Hält eine LAUFENDE Aufgabe dieses Ziel gerade fest? Nur erfüllte Bedingungen zählen — was ohnehin
- *  nicht gilt, kann durch das Ablegen auch nicht kaputtgehen. */
-export function isHeldByTask(evaluated: EvaluatedTask[], target: TaskTarget): boolean {
+/**
+ * Hält eine laufende Aufgabe dieses Ziel gerade fest — kann das Ablegen sie also noch kaputtmachen?
+ *
+ * Drei Bedingungen, jede aus einem anderen Grund:
+ *  - `isTaskOpen`: abgeschlossene und zurückgezogene Aufgaben stellen keine Forderung mehr.
+ *  - `r.satisfied`: was ohnehin nicht gilt, kann durch das Ablegen nicht kaputtgehen.
+ *  - `now < holdUntil`: die Frist muss noch LAUFEN.
+ *
+ * Der dritte Punkt ist nicht offensichtlich. Eine Aufgabe, die bis `holdUntil` durchgehalten hat und
+ * nur noch auf die Selbstmeldung wartet, bleibt `running` und damit offen — die Selbstmeldung ist
+ * bewusst unbefristet, sonst könnte der Sub sie nie mehr nachholen. Ihre Bedingung ist weiterhin
+ * erfüllt, solange er das Gerät trägt. Ohne diese dritte Bedingung warnte das Ablege-Formular in
+ * genau diesem Fenster — mit einer bereits VERGANGENEN Frist im Text („verlangt dieses Gerät noch
+ * bis 10:00", gezeigt um 10:05) und der Behauptung, das Ablegen gelte als nicht erfüllt.
+ *
+ * Die Behauptung ist falsch: `evaluateTask` prüft die Deckung nur bis `until = min(now, holdUntil)`.
+ * Ist `holdUntil` verstrichen, liegt die geprüfte Spanne vollständig fest — jedes spätere Ablegen
+ * endet nach `holdUntil` und ändert an `coversContinuously(…, startedAt, holdUntil)` nichts mehr.
+ * Der Zustand kann von dort weder nach `aborted` noch nach `missed` kippen.
+ *
+ * Das Fenster war nicht klein: es öffnet mit `holdUntil` und bleibt offen, bis der Sub meldet oder
+ * ablegt. Wer sein Gerät nicht in derselben Minute abnimmt, in der die Frist ablief, lief hinein.
+ */
+export function isHeldByTask(evaluated: EvaluatedTask[], target: TaskTarget, now: Date): boolean {
   return evaluated.some(
     (e) => isTaskOpen(e.evaluation.state)
+      && now < e.task.holdUntil
       && e.requirements.some((r) => r.satisfied && requirementMatchesTarget(r, target)),
   );
 }
@@ -220,7 +242,7 @@ export async function getTasksBlocking(userId: string, now: Date, target: TaskTa
   });
 
   return (await evaluateTasks(userId, rows, now))
-    .filter((e) => isHeldByTask([e], target))
+    .filter((e) => isHeldByTask([e], target, now))
     .map((e) => ({ title: e.task.title, holdUntil: e.task.holdUntil.toISOString() }));
 }
 
