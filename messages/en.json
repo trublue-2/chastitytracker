@@ -251,6 +251,7 @@
     "submit": "Sign in",
     "submitting": "Signing in…",
     "invalidCredentials": "Invalid credentials",
+    "loginFailed": "Sign-in failed. Please try again later.",
     "accountLocked": "Too many failed attempts. Please try again in 15 minutes.",
     "forgotPassword": "Forgot password?",
     "language": "Language"

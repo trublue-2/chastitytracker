@@ -1,5 +1,18 @@
 [
   {
+    "version": "4.60.6",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine fehlgeschlagene Anmeldung zeigt wieder eine Meldung an — auch dann, wenn die Prüfung auf gesperrte Konten im Hintergrund nicht antwortet.",
+          "en": "A failed sign-in shows a message again — even when the background check for locked accounts does not respond."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.5",
     "date": "2026-08-01",
     "changes": [

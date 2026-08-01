@@ -251,6 +251,7 @@
     "submit": "Anmelden",
     "submitting": "Anmelden…",
     "invalidCredentials": "Ungültige Anmeldedaten",
+    "loginFailed": "Anmeldung fehlgeschlagen. Bitte später erneut versuchen.",
     "accountLocked": "Zu viele Fehlversuche. Bitte versuche es in 15 Minuten erneut.",
     "forgotPassword": "Passwort vergessen?",
     "language": "Sprache"
