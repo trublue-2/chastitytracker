@@ -78,6 +78,7 @@ model User {
   orgasmusAnforderungen          OrgasmusAnforderung[]
   devices                        Device[]
   strafeRecords                  StrafeRecord[]
+  adminPasswordChanges           AdminPasswordChange[]    @relation("AdminPasswordChangeSub")
   adminRelationships             AdminUserRelationship[]  @relation("AdminRelationships")
   userRelationships              AdminUserRelationship[]  @relation("UserRelationships")
   pushSubscriptions              PushSubscription[]
@@ -491,6 +492,42 @@ model RateLimit {
   key     String   @id
   count   Int      @default(1)
   resetAt DateTime
+}
+
+// Passwortwechsel an einem ADMIN-Konto, während für einen Sub eine Sperrzeit lief.
+//
+// Warum überhaupt gespeichert: Das Strafbuch ist eine Live-Ableitung aus Einträgen und
+// Anforderungen — ein Passwortwechsel hinterlässt dort nichts (der Reset-Token wird beim Einlösen
+// gelöscht). Ohne diese Zeile gäbe es nichts, woraus sich das Vergehen ableiten liesse.
+//
+// Warum der Sperrzeit-Zustand hier festgeschrieben wird und nicht beim Lesen neu berechnet: Eine
+// später zurückgezogene oder bearbeitete Sperrzeit würde das Vergehen sonst rückwirkend
+// verschwinden lassen. `subUserId` ist der Sub, dessen Sperrzeit lief — ihm gehört das Vergehen,
+// nicht dem Admin-Konto, dessen Passwort geändert wurde (beim Solo-Spieler dieselbe Person, aber
+// zwei Konten). Ein Wechsel während mehrerer laufender Sperrzeiten erzeugt je Sub eine Zeile.
+//
+// Es wird NUR dieser eine Fall erfasst: Ziel ist ein Admin-Konto UND es lief eine Sperrzeit.
+// Alltägliche Passwortwechsel bleiben ungespeichert — sonst ertrinkt der eine Eintrag, auf den es
+// ankommt, im Rauschen.
+model AdminPasswordChange {
+  id             String   @id @default(cuid())
+  // Der Sub, dessen Sperrzeit lief — Eigentümer des Vergehens, Filter von buildStrafbuch.
+  subUserId      String
+  subUser        User     @relation("AdminPasswordChangeSub", fields: [subUserId], references: [id], onDelete: Cascade)
+  // Das Admin-Konto, dessen Passwort geändert wurde.
+  adminUserId    String
+  adminUsername  String // Abbild zum Zeitpunkt der Änderung — überlebt Umbenennung und Löschung
+  // Weg: "reset_token" (Postfach-Zugriff — der interessante Fall) | "self" | "set_by_other"
+  via            String
+  // Wer die Änderung ausgelöst hat; null beim Token-Weg (keine Sitzung).
+  actorUserId    String?
+  // Die Sperrzeit, die zum Zeitpunkt lief — für die Anzeige, nicht als Fremdschlüssel-Zwang:
+  // sie darf gelöscht werden, ohne das Vergehen mitzunehmen.
+  sperrzeitId    String?
+  sperrzeitEndetAt DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([subUserId, createdAt])
 }
 
 // Urteil über ein erkanntes Vergehen. Lebenszyklus: erkannt (kein Record) →

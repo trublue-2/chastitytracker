@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
 import { getActiveSperrzeit, getIsLocked } from "@/lib/queries";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { recordAdminPasswordChange } from "@/lib/passwordAudit";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
@@ -60,6 +61,12 @@ export async function PATCH(
     if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
     const passwordHash = await bcrypt.hash(body.password, 12);
     await prisma.user.update({ where: { id }, data: { passwordHash } });
+    // Zweiter `auth()`-Aufruf, weil die Guards oben nur erlauben/ablehnen und die Sitzung nicht
+    // durchreichen (58 Aufrufstellen — deren Signatur zu ändern gehört nicht in diesen Patch).
+    // Kostet bei der JWT-Strategie nur ein Cookie-Decode, und ein fremdgesetztes Passwort ist
+    // selten; wer es war, ist für den Keyholder die halbe Information.
+    const actorUserId = (await auth())?.user?.id ?? null;
+    await recordAdminPasswordChange(id, "set_by_other", actorUserId);
     return NextResponse.json({ ok: true });
   }
 
