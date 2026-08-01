@@ -3,7 +3,7 @@ import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { listEntries } from "@/lib/mcp/entries";
-import { loadMcpImage } from "@/lib/mcp/entryImage";
+import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
@@ -12,7 +12,7 @@ import {
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, mcpImagesEnabled } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -1241,19 +1241,17 @@ function registerTools(server: McpServer) {
       (args, extra) => runV2Write(upsertRecurringContextDef, extra, args),
     );
 
-    registerImageTool(server);
 }
 
 /**
- * Registriert das Bild-Werkzeug — nur wenn `ENABLE_MCP_IMAGES=true` gesetzt ist.
+ * Das Bild-Werkzeug. Wird nur registriert, wenn der Sub-Schlüssel passt — das entscheidet der
+ * Aufrufer, siehe `buildAuthHandler`.
  *
- * Nicht registrieren statt registrieren-und-verweigern: ohne die Variable erscheint es nicht einmal
- * in `tools/list`. Ein Werkzeug, das da ist und „nein" sagt, ist eine Ankündigung; eines, das nicht
+ * Nicht registrieren statt registrieren-und-verweigern: ohne Schlüssel erscheint es nicht einmal in
+ * `tools/list`. Ein Werkzeug, das da ist und „nein" sagt, ist eine Ankündigung; eines, das nicht
  * existiert, ist keine.
  */
 function registerImageTool(server: McpServer) {
-  if (!mcpImagesEnabled()) return;
-
   server.registerTool(
     "get_image",
     {
@@ -1267,7 +1265,11 @@ function registerImageTool(server: McpServer) {
         "control photo for PRUEFUNG) or \"box\" (the key-box window shot), both with the entryId " +
         "from list_entries; or \"task_proof\" with the taskId and the 1-based proofIndex from " +
         "keyholder_dashboard.openTasks. Returns the image plus a caption naming the entry and the " +
-        "capture time.",
+        "capture time. " +
+        "LIMITS — these are rules, not faults: only entries recorded within the last 24h have a " +
+        "retrievable photo, and you may fetch 4 per hour, 12 per day. list_entries still lists the " +
+        "whole archive; most of it has no image you can reach. Pick the one you actually want to " +
+        "look at, and ask the user directly for anything older.",
       inputSchema: {
         source: z.enum(["entry", "box", "task_proof"]).describe("Which photo to fetch."),
         entryId: z.string().optional().describe("Entry id from list_entries. Required for source entry/box."),
@@ -1303,7 +1305,17 @@ function registerImageTool(server: McpServer) {
  *  (best-effort DB-Read der Keyholder-Regeln) befüllt werden. */
 async function buildAuthHandler(): Promise<(req: Request) => Promise<Response>> {
   const instructions = await buildServerInstructions();
-  const handler = createMcpHandler(registerTools, { instructions }, { basePath: "/api", maxDuration: 60 });
+  // Der Sub-Schlüssel braucht die Datenbank, die Werkzeug-Registrierung ist synchron — deshalb hier
+  // auflösen. Das Tor steht damit an genau einer Stelle, dort wo der Wert entsteht.
+  const imagesVisible = await mcpImageToolVisible();
+  const handler = createMcpHandler(
+    (server) => {
+      registerTools(server);
+      if (imagesVisible) registerImageTool(server);
+    },
+    { instructions },
+    { basePath: "/api", maxDuration: 60 },
+  );
   return withMcpAuth(handler, verifyToken, { required: true });
 }
 

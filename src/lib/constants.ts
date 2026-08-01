@@ -69,12 +69,19 @@ export function bildersafeEnabled(): boolean {
   return process.env.ENABLE_BILDERSAFE?.toLowerCase() === "true";
 }
 
-/** Gibt der Keyholder-KI das Werkzeug, ein einzelnes Foto abzurufen. Opt-in pro Instanz via
- *  `ENABLE_MCP_IMAGES=true` (Default aus); ohne die Variable wird das Werkzeug nicht registriert.
- *  Case-insensitive wie die anderen Flags — `True` darf nicht still als „aus" durchrutschen. */
-export function mcpImagesEnabled(): boolean {
-  return process.env.ENABLE_MCP_IMAGES?.toLowerCase() === "true";
-}
+/** Grenzen des Bild-Abrufs. Freigeschaltet wird er NICHT hier, sondern über `mcpImageKeyUnlocked()`
+ *  in `src/lib/mcp/entryImage.ts` — der Schlüssel braucht die Datenbank und kann deshalb nicht in
+ *  dieser client-erreichbaren Datei liegen.
+ *
+ *  BEWUSST NICHT über ENV justierbar, anders als die Px-Budgets darunter:
+ *  das sind keine Leistungs-Stellschrauben, sondern die Zusage, wie weit der Abruf reicht. Eine
+ *  Zusage, die sich per Umgebungsvariable aufweichen lässt, ist keine.
+ *
+ *  Zusammen genommen ist das Archiv damit nicht mehr erreichbar, sondern nur noch das, was gerade
+ *  passiert ist: 24 Stunden Reichweite, 4 Bilder pro Stunde, 12 pro Tag. */
+export const MCP_IMAGE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+export const MCP_IMAGE_PER_HOUR = 4;
+export const MCP_IMAGE_PER_DAY = 12;
 
 /** Kantenlänge, auf die ein Foto für den MCP heruntergerechnet wird. BEWUSST getrennt von
  *  `visionMaxImagePx()`: der Wert dort ist auf eine lokale Vision-Box getunt, und wer ihn für sein
