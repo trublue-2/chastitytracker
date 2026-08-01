@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import Sheet from "@/app/components/Sheet";
 import TaskCard from "@/app/components/TaskCard";
 import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { TASK_STATE_COLOR } from "@/lib/constants";
 import type { TaskCardData } from "@/lib/taskView";
@@ -27,15 +28,13 @@ const PAGE_SIZE = 5;
 export default function TaskList({ tasks, tz }: { tasks: TaskCardData[]; tz: string }) {
   const t = useTranslations("tasks");
   const locale = useLocale();
-  const [page, setPage] = useState(0);
+  const { page, setPage, totalPages, visible } = usePagedList(tasks, PAGE_SIZE);
   // Ein Sheet für die ganze Liste statt eines je Zeile — offen sein kann ohnehin nur eines.
   const [openTask, setOpenTask] = useState<TaskCardData | null>(null);
 
   if (tasks.length === 0) return null;
 
   const dl = toDateLocale(locale);
-  const totalPages = Math.ceil(tasks.length / PAGE_SIZE);
-  const paginated = tasks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
@@ -46,7 +45,7 @@ export default function TaskList({ tasks, tz }: { tasks: TaskCardData[]; tz: str
       </div>
 
       <div className="divide-y divide-border-subtle">
-        {paginated.map((task) => (
+        {visible.map((task) => (
           <button
             key={task.id}
             type="button"
