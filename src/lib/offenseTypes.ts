@@ -16,11 +16,12 @@
  * bekommt dagegen KEINEN Compile-Fehler: die Strafbuch-Seite listet feste JSX-Blöcke je Art, ohne
  * exhaustive Prüfung.
  *
- * Stand heute deckt sie sechs der zehn kanonischen Arten ab — `unauthorized_opening`,
+ * Stand heute deckt sie sechs der elf kanonischen Arten ab — `unauthorized_opening`,
  * `late_control`, `rejected_control`, `auto_removed_control`, `unfulfilled_task` (je mit Urteil)
  * und `cleaning_limit` (nur Anzeige, mit „Rückgängig" statt Urteil). Es fehlen `wrong_device`,
- * `missed_orgasm`, `late_lock` und `cleaning_not_relocked`, obwohl `buildStrafbuch` sie ableitet und
- * der MCP sie beurteilen kann. Wer eine elfte Art ergänzt, muss die Anzeige von Hand nachziehen.
+ * `missed_orgasm`, `late_lock`, `cleaning_not_relocked` und `admin_password_change`, obwohl
+ * `buildStrafbuch` sie ableitet und der MCP sie beurteilen kann. Wer eine zwölfte Art ergänzt, muss
+ * die Anzeige von Hand nachziehen.
  */
 
 /** Canonical offense type → stored StrafeRecord.offenseType. */
@@ -37,6 +38,7 @@ export const STORED_TYPE = {
   late_lock: "VERSCHLUSS_ANFORDERUNG",
   cleaning_not_relocked: "REINIGUNG_NICHT_VERSCHLOSSEN",
   unfulfilled_task: "AUFGABE",
+  admin_password_change: "ADMIN_PASSWORT",
 } as const;
 
 /**

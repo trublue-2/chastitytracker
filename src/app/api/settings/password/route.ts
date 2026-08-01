@@ -3,6 +3,7 @@ import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { passwordErrorCode } from "@/lib/constants";
+import { recordAdminPasswordChange } from "@/lib/passwordAudit";
 
 // Eigener Handler statt userSelfFieldRoute: der Body-Key (`newPassword`) weicht von der Spalte
 // (`passwordHash`) ab und der Wert wird vor dem Schreiben gehasht.
@@ -18,6 +19,7 @@ export async function PATCH(req: NextRequest) {
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id: session.user.id }, data: { passwordHash } });
+  await recordAdminPasswordChange(session.user.id, "self", session.user.id);
 
   return NextResponse.json({ ok: true });
 }

@@ -100,6 +100,16 @@ Notable V2 read fields:
   (allowed / maxMinutesPerBreak / maxPausesPerDay / usedToday / windows /
   windowOpenNow). These moved here from the removed `get_overview`.
 - `get_devices` — includes `purchasePrice` and `currency` per device.
+- `get_offenses` — carries the offense type `admin_password_change`: the password of an **admin**
+  account was changed while a lock period was running for this sub. `via` names the route —
+  `reset_token` (mailbox access), `self`, `set_by_other`. This is the one offense that is **not**
+  derived live: it is written at the moment it happens (`AdminPasswordChange`), because a lock
+  period withdrawn later must not erase it retroactively. Judge it like any other via
+  `judge_offense`. Two limits worth knowing: a password set through the **portal** by the platform
+  operator bypasses the app's API and produces no offense (it is recorded in the portal's own
+  activity log), and on a **self-hosted** instance whoever owns the database can delete the row —
+  this is a self-binding aid, not tamper-proof evidence. The admin **Strafbuch page does not show
+  this category** (nor four older ones); it is visible over MCP only.
 - `get_offenses` — includes a `generatedAt` / `timezone` header and `entryNote`
   on late/rejected controls.
 

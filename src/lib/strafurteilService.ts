@@ -57,6 +57,9 @@ export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
     // refId = Task.id. Anders als bei den Reinigungs-Vergehen braucht es kein Präfix: die id gehört
     // keiner zweiten Vergehensart, und `StrafeRecord.refId` ist global eindeutig.
     ...sb.unfulfilledTasks.map((t) => mk("unfulfilled_task", t.id, t.failedAt ?? t.holdUntil)),
+    // refId ist die AdminPasswordChange-id: eigener Namensraum, kollidiert nicht mit Entry-/
+    // Anforderungs-ids und bleibt stabil, auch wenn die Sperrzeit später zurückgezogen wird.
+    ...sb.adminPasswordChanges.map((p) => mk("admin_password_change", p.id, p.at)),
   ];
 }
 

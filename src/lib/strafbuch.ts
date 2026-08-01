@@ -84,6 +84,17 @@ export interface StrafbuchData {
     /** Nur bei `aborted`: wann die Bedingung wegfiel. */
     failedAt: Date | null;
   }[];
+  /** Passwortwechsel an einem Admin-Konto, während für diesen Sub eine Sperrzeit lief. Anders als
+   *  alle anderen Vergehen NICHT live abgeleitet, sondern beim Vorgang festgeschrieben
+   *  (`AdminPasswordChange`) — eine später zurückgezogene Sperrzeit darf das Vergehen nicht
+   *  rückwirkend tilgen. */
+  adminPasswordChanges: {
+    id: string;
+    at: Date;
+    adminUsername: string;
+    via: string;
+    sperrzeitEndetAt: Date | null;
+  }[];
   /** Judgment records — each marks an offense (by `refId`) as PUNISHED or DISMISSED. */
   strafeRecords: {
     refId: string;
@@ -231,7 +242,7 @@ export function cleaningRelockObligation(
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks] = await Promise.all([
+  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
@@ -248,6 +259,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     // Zurückgezogene bleiben draussen: ein Rückzug ist der Entschluss der Keyholderin, kein
     // Versäumnis des Subs, und darf nie zu einem Vergehen werden.
     prisma.task.findMany({ where: { userId, withdrawnAt: null }, include: TASK_INCLUDE }),
+    prisma.adminPasswordChange.findMany({ where: { subUserId: userId }, orderBy: { createdAt: "desc" } }),
   ]);
 
   // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
@@ -424,6 +436,13 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     lateLocks,
     cleaningNotRelocked,
     unfulfilledTasks,
+    adminPasswordChanges: adminPasswordChangesRaw.map((p) => ({
+      id: p.id,
+      at: p.createdAt,
+      adminUsername: p.adminUsername,
+      via: p.via,
+      sperrzeitEndetAt: p.sperrzeitEndetAt,
+    })),
     strafeRecords: strafeRecordsRaw.map((r) => ({
       refId: r.refId,
       offenseType: r.offenseType,

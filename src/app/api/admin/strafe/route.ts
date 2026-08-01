@@ -44,6 +44,11 @@ export async function POST(req: Request) {
   } else if (offenseType === "AUFGABE") {
     const task = await prisma.task.findUnique({ where: { id: refId } });
     if (!task || task.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } else if (offenseType === "ADMIN_PASSWORT") {
+    // refId ist eine AdminPasswordChange.id; der Sub steht dort als `subUserId` (das Vergehen
+    // gehört ihm, nicht dem Admin-Konto, dessen Passwort geändert wurde).
+    const pc = await prisma.adminPasswordChange.findUnique({ where: { id: refId } });
+    if (!pc || pc.subUserId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   } else if (offenseType === "REINIGUNG_NICHT_VERSCHLOSSEN") {
     // refId is "relock:<entryId>" — shares its entry with REINIGUNG_LIMIT, see cleaningNotRelockedRef.
     const entryId = entryIdFromCleaningNotRelockedRef(refId);

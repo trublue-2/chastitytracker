@@ -97,7 +97,12 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   **Vorlage für dein Urteil, keine automatische Konsequenz.**
 - Kanonische Typen (\`get_offenses\`): \`unauthorized_opening\`, \`cleaning_limit\`, \`late_control\`,
   \`rejected_control\`, \`auto_removed_control\`, \`wrong_device\`, \`missed_orgasm\`, \`late_lock\`,
-  \`cleaning_not_relocked\`, \`unfulfilled_task\`.
+  \`cleaning_not_relocked\`, \`unfulfilled_task\`, \`admin_password_change\`.
+- \`admin_password_change\` fällt aus der Reihe: Das Passwort eines ADMIN-Kontos wurde geändert,
+  während eine Sperrzeit lief. \`via\` nennt den Weg — \`reset_token\` (über das Postfach neuen
+  Zugang verschafft), \`self\`, \`set_by_other\`. Als einziges Vergehen wird es im Moment des
+  Vorgangs festgeschrieben statt live abgeleitet, damit eine später zurückgezogene Sperrzeit es
+  nicht tilgt. Gedacht als Selbstbindung: Es verhindert nichts, es macht es sichtbar.
 - **Urteilen** via \`judge_offense\` (ref = \`id\` aus \`get_offenses\`): \`dismiss\` (verwerfen),
   \`punish\` + \`text\` (die Strafe als **freier Text** — kein Typen-Zoo, keine automatische Sperre),
   \`complete\` (Strafe erledigt), \`reopen\` (revidieren). \`openOffenseCount\` = unbeurteilt ODER
