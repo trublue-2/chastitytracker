@@ -6,9 +6,10 @@ import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { startDeadline, isTaskResultFinal } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, TASK_DEFAULT_START_GRACE_MIN,
-  TASK_START_GRACE_RANGE, TASK_REQUIREMENT_TYPES, type TaskRequirementType,
+  TASK_START_GRACE_RANGE, TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
+  TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/constants";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, generateKontrollCode } from "@/lib/utils";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.
@@ -41,6 +42,50 @@ function normalizeRequirement(r: TaskRequirementInput) {
   };
 }
 
+/** Ein gefordertes Nachweis-Foto, wie der Keyholder es stellt (Issue #39). */
+export interface TaskProofInput {
+  /** Was auf dem Bild zu sehen sein muss. Pflicht — ohne sie weiss der Sub nicht, was er fotografieren soll. */
+  description: string;
+  /** Handschriftlichen Zufallscode verlangen? Nur damit ist der Nachweis maschinell prüfbar; ohne
+   *  Code geht er zur Sichtung an den Keyholder. */
+  requireCode?: boolean;
+}
+
+/**
+ * Prüft die geforderten Nachweise und bringt sie in Speicher-Form — inklusive der Code-Vergabe.
+ *
+ * Dieselbe Form wie `checkRequirements` darüber: prüfen und in Speicher-Form zurückgeben, damit der
+ * Aufrufer nicht ein zweites Mal normalisiert.
+ *
+ * Die Reihenfolge der Eingabe IST die Soll-Reihenfolge (`sortOrder`) — sie trägt die Kernforderung
+ * der Anforderung: Verschluss vor Plug vor Rechnungen.
+ */
+function normalizeProof(p: TaskProofInput, sortOrder: number) {
+  const requireCode = p.requireCode ?? false;
+  return {
+    sortOrder,
+    description: p.description.trim(),
+    requireCode,
+    // Der Code entsteht HIER und nicht beim Einreichen: er ist die Vorgabe, die der Sub im Bild
+    // zeigen muss, und muss feststehen, bevor er die Aufgabe zu sehen bekommt.
+    code: requireCode ? generateKontrollCode() : null,
+  };
+}
+type NormalizedProof = ReturnType<typeof normalizeProof>;
+
+function checkProofs(proofs: TaskProofInput[]): ServiceFailure | { ok: true; rows: NormalizedProof[] } {
+  if (proofs.length > TASK_PROOF_MAX) return serviceFail(400, "TASK_TOO_MANY_PROOFS");
+  const rows: NormalizedProof[] = [];
+  for (const [i, p] of proofs.entries()) {
+    const n = normalizeProof(p, i);
+    if (!n.description || n.description.length > TASK_PROOF_DESCRIPTION_MAX_LENGTH) {
+      return serviceFail(400, "TASK_PROOF_INVALID");
+    }
+    rows.push(n);
+  }
+  return { ok: true, rows };
+}
+
 export interface CreateTaskParams {
   userId: string;
   title: string;
@@ -50,6 +95,8 @@ export interface CreateTaskParams {
   isPunishment?: boolean;
   penaltyReason?: string | null;
   requirements?: TaskRequirementInput[];
+  /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie entstehen müssen. */
+  proofs?: TaskProofInput[];
 }
 
 /** Änderbare Felder. `undefined` = unverändert; `null` löscht (Beschreibung, Straf-Anlass). */
@@ -229,6 +276,9 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
   const checked = await checkRequirements(p.userId, reqs);
   if (!checked.ok) return checked;
 
+  const checkedProofs = checkProofs(p.proofs ?? []);
+  if (!checkedProofs.ok) return checkedProofs;
+
   const isPunishment = p.isPunishment ?? false;
   const task = await prisma.task.create({
     data: {
@@ -242,6 +292,7 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
       requirements: {
         create: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })),
       },
+      proofs: { create: checkedProofs.rows },
     },
   });
 

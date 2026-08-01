@@ -6,7 +6,7 @@ import {
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP,
 } from "@/lib/constants";
-import { generateKontrollCode } from "@/lib/kontrolleService";
+import { generateKontrollCode } from "@/lib/utils";
 import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE } from "@/lib/queries";
 
 /**

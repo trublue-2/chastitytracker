@@ -478,6 +478,19 @@ export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
 
 export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
 
+/**
+ * Frische 5-stellige Zufalls-Nummer (10000–99999) — der handschriftliche Code, den ein Foto zeigen
+ * muss, damit die Bilderkennung es überhaupt beurteilen kann.
+ *
+ * Hier und nicht im Kontroll-Service, obwohl sie dort entstand: sie hat keinerlei Bezug zur
+ * `KontrollAnforderung` und wird inzwischen von drei fachlich verschiedenen Stellen gebraucht
+ * (Kontrolle, Auto-Kontrolle, Aufgaben-Nachweis). Der Aufgaben-Service zog sich sonst über einen
+ * Einzeiler den gesamten Mail-/Push-Importgraphen des Kontroll-Services herein.
+ */
+export function generateKontrollCode(): string {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
 /** Type-pair definition for pair-building. KG_PAIR is the default; WEAR_PAIR is for
  *  user-defined non-KG categories (Plug, Collar, etc.). */
 export type PairTypes = { close: string; open: string };

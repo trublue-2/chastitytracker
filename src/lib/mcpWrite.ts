@@ -1194,6 +1194,8 @@ export interface CreateTaskArgs {
   holdHours?: number;
   requireKgLocked?: boolean;
   requireWearing?: TaskRequirementArg[];
+  /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie ENTSTEHEN müssen. */
+  requireProof?: { description: string; requireCode?: boolean }[];
   startGraceMinutes?: number;
   isPunishment?: boolean;
   penaltyReason?: string;
@@ -1267,6 +1269,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   const userId = await resolveTargetUserId(username);
   const holdUntil = resolveHoldUntil(args, new Date());
   const requirements = await resolveTaskRequirements(userId, args);
+  const proofCount = args.requireProof?.length ?? 0;
 
   if (args.dryRun) {
     return dryRunPreview("create_task", undefined, {
@@ -1274,6 +1277,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
       holdUntil: holdUntil.toISOString(),
       requirementCount: requirements.length,
       requiresKgLocked: requirements.some((r) => r.type === "KG_LOCKED"),
+      proofCount,
       startGraceMinutes: args.startGraceMinutes ?? null,
       isPunishment: args.isPunishment ?? false,
     });
@@ -1288,14 +1292,18 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     isPunishment: args.isPunishment,
     penaltyReason: args.penaltyReason,
     requirements,
+    proofs: args.requireProof,
   }));
-  return {
-    ok: true,
-    id: data.id,
-    message: requirements.length === 0
-      ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdUntil.toISOString()}.`
-      : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY until ${holdUntil.toISOString()}; taking one off earlier makes the task unfulfilled.`,
-  };
+  const conditionPart = requirements.length === 0
+    ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdUntil.toISOString()}.`
+    : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY until ${holdUntil.toISOString()}; taking one off earlier makes the task unfulfilled.`;
+  // Der Nachweis-Teil sagt ausdrücklich, was die Automatik NICHT entscheidet: sonst wartet der Agent
+  // auf ein Urteil, das ohne ihn nie kommt.
+  const proofPart = proofCount === 0 ? "" :
+    ` ${proofCount} photo proof(s) required, in the given order — the CAPTURE times must ascend. `
+    + `Proofs without a code cannot be decided automatically: the task then waits in "awaitingReview" `
+    + `for YOU to accept or reject them.`;
+  return { ok: true, id: data.id, message: conditionPart + proofPart };
 }
 
 export async function mcpEditTask(username: string, args: EditTaskArgs) {

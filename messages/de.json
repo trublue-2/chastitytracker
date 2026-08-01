@@ -117,7 +117,9 @@
     "TASK_HOLD_UNTIL_TOO_SOON": "Der Endzeitpunkt muss weit genug in der Zukunft liegen, damit die Aufgabe überhaupt begonnen werden kann",
     "TASK_REQUIREMENT_INVALID": "Ungültige Bedingung",
     "TASK_REQUIREMENT_KG_CATEGORY": "Der Keuschheitsgürtel wird über die Bedingung „verschlossen\" gefordert, nicht als Trage-Kategorie",
-    "TASK_DUPLICATE_REQUIREMENT": "Dieselbe Bedingung wurde mehrfach angegeben"
+    "TASK_DUPLICATE_REQUIREMENT": "Dieselbe Bedingung wurde mehrfach angegeben",
+    "TASK_PROOF_INVALID": "Jeder Nachweis braucht eine Beschreibung, was zu sehen sein muss",
+    "TASK_TOO_MANY_PROOFS": "Zu viele Nachweise für eine Aufgabe"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -1431,6 +1433,12 @@
     "descriptionPlaceholder": "Was genau zu tun ist …",
     "requirementsLabel": "Bedingungen",
     "requirementsHint": "Alle gewählten Bedingungen müssen GLEICHZEITIG erfüllt sein, damit die Zeit läuft. Ohne Bedingung ist es eine reine Textaufgabe.",
+    "proofsLabel": "Nachweis-Fotos",
+    "proofsHint": "Optional: verlange Fotos als Nachweis, in der Reihenfolge, in der sie aufzunehmen sind. Ohne Zufallscode im Bild legst du den Nachweis später selbst vor.",
+    "proofAdd": "Nachweis hinzufügen",
+    "proofRemove": "Nachweis entfernen",
+    "proofPlaceholder": "Was muss zu sehen sein?",
+    "proofRequireCode": "Zufallscode im Bild verlangen",
     "requirementKgLocked": "KG verschlossen",
     "anyDevice": "Beliebiges Gerät",
     "deviceLabel": "Gerät",

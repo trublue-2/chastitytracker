@@ -957,7 +957,13 @@ function registerTools(server: McpServer) {
           "= requireKgLocked plus two requireWearing entries and holdUntilAt=15:00. Taking one of them off " +
           "before the deadline makes the task unfulfilled (an offense of type unfulfilled_task). Without " +
           "conditions it is a plain to-do that the user reports done. State is DERIVED from the user's own " +
-          "entries — nothing to confirm manually. A task may be flagged as a punishment." + KEYHOLDER_NOTE,
+          "entries — nothing to confirm manually. A task may be flagged as a punishment. " +
+          "Additionally you may demand PHOTO PROOFS via requireProof: the user submits one photo per entry, " +
+          "and their CAPTURE times must ascend in the order you list them (capture time, not upload time — " +
+          "otherwise uploading everything at the end would pass). A proof with requireCode is checked " +
+          "automatically against a random code the user must write in the shot; every other proof, and any " +
+          "photo without a capture timestamp, puts the task into \"awaitingReview\" until YOU accept or " +
+          "reject it — it is then neither fulfilled nor missed." + KEYHOLDER_NOTE,
         inputSchema: {
           title: z.string().describe("Short title, e.g. \"Vacuum the flat\"."),
           description: z.string().optional().describe("The full instruction shown to the user."),
@@ -968,6 +974,10 @@ function registerTools(server: McpServer) {
             category: z.string().describe("Category name, e.g. \"Halsband\". Not \"KG\" — use requireKgLocked."),
             device: z.string().optional().describe("Require this specific device of that category."),
           })).optional().describe("Devices that must be worn continuously."),
+          requireProof: z.array(z.object({
+            description: z.string().describe("What must be visible, e.g. \"the closed lock\" or \"a photo with at least two receipts\"."),
+            requireCode: z.boolean().optional().describe("Demand a handwritten random code in the shot. Only these are decided automatically; without it the proof waits for your review."),
+          })).optional().describe("Photo proofs, in the order they must be TAKEN."),
           startGraceMinutes: z.number().min(0).optional().describe("Minutes the user has to put everything on (default 30). Starting later counts as not held continuously."),
           isPunishment: z.boolean().optional().describe("Mark the task as a punishment."),
           penaltyReason: z.string().optional().describe("What the punishment is for. Only kept when isPunishment is true."),
@@ -985,8 +995,9 @@ function registerTools(server: McpServer) {
         description:
           "Changes an existing task — title, instruction, deadline, punishment flag. Only fields you pass " +
           "are changed. Moving the deadline takes effect immediately (state is derived, not frozen). The " +
-          "CONDITIONS themselves cannot be changed: withdraw the task and set a new one instead, otherwise " +
-          "the user would be judged against conditions he never got." + KEYHOLDER_NOTE,
+          "CONDITIONS and PROOFS themselves cannot be changed: withdraw the task and set a new one instead, " +
+          "otherwise the user would be judged against something he never got — a proof text or code changed " +
+          "after the fact would bind him to a demand he did not know when he took the photo." + KEYHOLDER_NOTE,
         inputSchema: {
           id: z.string().describe("Task id (from keyholder_dashboard.openTasks or get_offenses)."),
           title: z.string().optional(),

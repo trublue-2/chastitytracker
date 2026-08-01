@@ -15,6 +15,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
+// Nur den Zufall festnageln — `utils` ist sonst reine Arithmetik und soll echt laufen.
+vi.mock("@/lib/utils", async (orig) => ({ ...(await orig<object>()), generateKontrollCode: () => "12345" }));
 
 import { createTask, updateTask, withdrawTask, completeTask, mergeTaskPatch, effectivePenaltyReason } from "./taskService";
 import { prisma } from "@/lib/prisma";
@@ -163,6 +165,53 @@ describe("createTask", () => {
     const created = taskCreateMock.mock.calls[0][0].data.requirements.create;
     expect(created.map((r: { sortOrder: number }) => r.sortOrder)).toEqual([0, 1]);
     expect(created[0].categoryId).toBeNull(); // KG_LOCKED trägt keine Kategorie
+  });
+});
+
+describe("createTask — Nachweis-Fotos (Issue #39)", () => {
+  const proofsOf = () => taskCreateMock.mock.calls[0][0].data.proofs.create;
+
+  it("die Eingabe-Reihenfolge IST die Soll-Reihenfolge", async () => {
+    await createTask({ ...base, proofs: [
+      { description: "Verschluss" }, { description: "Plug" }, { description: "Rechnungen" },
+    ] });
+    expect(proofsOf().map((p: { sortOrder: number; description: string }) => [p.sortOrder, p.description]))
+      .toEqual([[0, "Verschluss"], [1, "Plug"], [2, "Rechnungen"]]);
+  });
+
+  /** Der Code ist die VORGABE, die der Sub im Bild zeigen muss — er muss feststehen, bevor er die
+   *  Aufgabe sieht. Deshalb entsteht er beim Stellen, nicht beim Einreichen. */
+  it("Code-Pflicht vergibt einen Code, ohne Pflicht bleibt er leer", async () => {
+    await createTask({ ...base, proofs: [
+      { description: "mit Code", requireCode: true }, { description: "ohne Code" },
+    ] });
+    expect(proofsOf()[0]).toMatchObject({ requireCode: true, code: "12345" });
+    expect(proofsOf()[1]).toMatchObject({ requireCode: false, code: null });
+  });
+
+  it("Beschreibung ist Pflicht — eine leere Zeile ist ein Versehen, keine Forderung", async () => {
+    const res = await createTask({ ...base, proofs: [{ description: "   " }] });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_PROOF_INVALID");
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("zu lange Beschreibung wird abgewiesen", async () => {
+    const res = await createTask({ ...base, proofs: [{ description: "x".repeat(201) }] });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_PROOF_INVALID");
+  });
+
+  it("mehr als zehn Nachweise werden abgewiesen", async () => {
+    const many = Array.from({ length: 11 }, (_, i) => ({ description: `N${i}` }));
+    const res = await createTask({ ...base, proofs: many });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_TOO_MANY_PROOFS");
+  });
+
+  it("ohne Nachweise bleibt die Liste leer — der Normalfall zahlt nichts", async () => {
+    await createTask(base);
+    expect(proofsOf()).toEqual([]);
   });
 });
 

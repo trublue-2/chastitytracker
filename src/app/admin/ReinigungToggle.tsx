@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, X } from "lucide-react";
+import RemoveRowButton from "@/app/components/RemoveRowButton";
 import Toggle from "@/app/components/Toggle";
 import TimeInput from "@/app/components/TimeInput";
 import NumberInput from "@/app/components/NumberInput";
@@ -108,15 +109,12 @@ export default function ReinigungToggle({
                   ariaLabel={`${t("reinigungFensterLabel")} ${tc("to")}`}
                   onCommit={(v) => saveFenster(fenster.map((x, j) => (j === i ? { ...x, end: v } : x)))}
                 />
-                <button
-                  type="button"
+                <RemoveRowButton
                   onClick={() => saveFenster(fenster.filter((_, j) => j !== i))}
                   disabled={saving}
-                  aria-label={t("reinigungFensterRemove")}
-                  className="p-1 text-foreground-faint hover:text-foreground disabled:opacity-50"
-                >
-                  <X size={16} />
-                </button>
+                  ariaLabel={t("reinigungFensterRemove")}
+                  tone="neutral"
+                />
               </div>
             ))}
             <button

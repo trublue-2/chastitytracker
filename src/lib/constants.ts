@@ -481,5 +481,11 @@ export const TASK_DEFAULT_START_GRACE_MIN = 30;
 export const TASK_START_GRACE_RANGE = { min: 0, max: 24 * 60 } as const;
 /** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
  *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
+/** Wie viele Nachweis-Fotos eine Aufgabe höchstens fordern darf. Nicht willkürlich: jeder Nachweis
+ *  ist ein eigener Gang zum Handy, und die Reihenfolge muss belegbar bleiben. Zehn ist grosszügig
+ *  über dem Leitbeispiel (drei) und deckelt zugleich, was `evaluateProofs` je Auswertung sortiert. */
+export const TASK_PROOF_MAX = 10;
+/** Was auf dem Bild zu sehen sein muss — eine Anweisung, kein Aufsatz. */
+export const TASK_PROOF_DESCRIPTION_MAX_LENGTH = 200;
 export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;
 export type TaskRequirementType = (typeof TASK_REQUIREMENT_TYPES)[number];

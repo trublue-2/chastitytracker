@@ -117,7 +117,9 @@
     "TASK_HOLD_UNTIL_TOO_SOON": "The end time must be far enough in the future for the task to be started at all",
     "TASK_REQUIREMENT_INVALID": "Invalid condition",
     "TASK_REQUIREMENT_KG_CATEGORY": "The chastity device is required via the \"locked\" condition, not as a wear category",
-    "TASK_DUPLICATE_REQUIREMENT": "The same condition was given more than once"
+    "TASK_DUPLICATE_REQUIREMENT": "The same condition was given more than once",
+    "TASK_PROOF_INVALID": "Every proof needs a description of what must be visible",
+    "TASK_TOO_MANY_PROOFS": "Too many proofs for one task"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -1431,6 +1433,12 @@
     "descriptionPlaceholder": "What exactly to do …",
     "requirementsLabel": "Conditions",
     "requirementsHint": "All selected conditions must be met AT THE SAME TIME for the clock to run. Without a condition it is a plain text task.",
+    "proofsLabel": "Photo proofs",
+    "proofsHint": "Optional: demand photos as proof, in the order they must be taken. Without a random code in the shot you review the proof yourself.",
+    "proofAdd": "Add proof",
+    "proofRemove": "Remove proof",
+    "proofPlaceholder": "What must be visible?",
+    "proofRequireCode": "Demand a random code in the shot",
     "requirementKgLocked": "Chastity device locked",
     "anyDevice": "Any device",
     "deviceLabel": "Device",

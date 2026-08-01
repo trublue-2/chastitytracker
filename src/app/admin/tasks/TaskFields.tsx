@@ -17,8 +17,9 @@ import { parseApiErrorCode } from "@/lib/apiClient";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
 import { TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
-import type { TaskRequirementInput } from "@/lib/taskService";
+import type { TaskRequirementInput, TaskProofInput } from "@/lib/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
+import TaskProofPicker from "./TaskProofPicker";
 
 /** Schnellwahl für die Endzeit. Das Modell kennt nur den absoluten Zeitpunkt (EINE Wahrheit); die
  *  Stunden-Knöpfe rechnen ihn nur bequem aus — „trage den Knebel 2 Stunden" ist damit zwei Taps. */
@@ -56,6 +57,7 @@ export default function TaskFields({
   const [hours, setHours] = useState("2");
   const [holdUntil, setHoldUntil] = useState(() => toDatetimeLocal(new Date(nowBaseMs + 2 * 3600_000), tz));
   const [requirements, setRequirements] = useState<TaskRequirementInput[]>([]);
+  const [proofs, setProofs] = useState<TaskProofInput[]>([]);
   const [isPunishment, setIsPunishment] = useState(false);
   const [penaltyReason, setPenaltyReason] = useState("");
   // Absende-Mechanik (saving/error/networkError/finally) über den geteilten Hook — sie war in den
@@ -89,6 +91,9 @@ export default function TaskFields({
       description: description.trim() || undefined,
       holdUntil: until.toISOString(),
       requirements,
+      // Leere Zeilen fallen weg: eine angelegte, aber nie ausgefüllte Nachweis-Zeile ist ein
+      // Versehen, keine Forderung — der Service wiese sie sonst mit einem Fehler ab.
+      proofs: proofs.filter((p) => p.description.trim()),
       isPunishment,
       penaltyReason: isPunishment ? penaltyReason.trim() || undefined : undefined,
     });
@@ -124,6 +129,8 @@ export default function TaskFields({
         value={requirements}
         onChange={setRequirements}
       />
+
+      <TaskProofPicker value={proofs} onChange={setProofs} />
 
       <FieldTabs
         label={t("holdUntilLabel")}

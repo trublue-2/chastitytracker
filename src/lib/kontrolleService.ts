@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { generateKontrollCode } from "@/lib/utils";
 import { sendMailSafe, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
@@ -96,11 +97,6 @@ export function sealRequiredForCode(
 ): boolean {
   if (codeRequired && !code) return false;
   return requiredSealCode(code ?? null, deriveSealCode(latest)) !== null;
-}
-
-/** Frische 5-stellige Kontroll-Code-Nummer (10000–99999). */
-export function generateKontrollCode(): string {
-  return String(Math.floor(10000 + Math.random() * 90000));
 }
 
 /**

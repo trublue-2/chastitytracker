@@ -123,9 +123,20 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
   Selbstmeldung, auf die du ihn behaften kannst. Bis sie kommt, steht `awaitingUserConfirmation`.
 - **Nicht erfüllt** ergibt EIN Vergehen `unfulfilled_task` mit zwei Ausprägungen: `missed` (nie
   rechtzeitig begonnen) und `aborted` (begonnen, dann eine Bedingung vor der Frist abgelegt).
+- **Nachweis-Fotos** (`requireProof`) sind eine ZWEITE Achse neben den Bedingungen: erfüllt ist die
+  Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
+  (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach `holdUntil`
+  eingereicht zählt nicht mehr.
+- Nur ein Nachweis mit `requireCode` wird **automatisch** entschieden: der Sub muss einen
+  Zufallscode ins Bild schreiben. Jeder andere Nachweis — und jedes Foto ohne Aufnahmezeit — bringt
+  die Aufgabe in `awaitingReview`: weder erfüllt noch versäumt, **du** bist am Zug. Auch ein
+  durchgefallener Code-Check ist bewusst KEIN Vergehen, sondern ein Fall für dich: die Bilderkennung
+  liest schräge Fotos falsch, und niemand soll für eine Fehllesung bestraft werden.
 - **Zurückziehen** (`withdraw target:"task"`, id nötig) ist DEIN Entschluss und wird nie ein Vergehen.
-- Die **Bedingungen selbst** sind nicht änderbar. Willst du andere: zurückziehen und neu stellen —
-  sonst würde der Sub an Bedingungen gemessen, die er nie bekommen hat.
+- **Bedingungen und Nachweise selbst** sind nicht änderbar. Willst du andere: zurückziehen und neu
+  stellen — sonst würde der Sub an etwas gemessen, das er nie bekommen hat. Bei einem Nachweis wiegt
+  das doppelt: ein nachträglich geänderter Text oder Code bände ihn an eine Vorgabe, die er beim
+  Fotografieren noch gar nicht kannte.
 
 ## 7. Feld-Fallen (die häufigen Fehldeutungen)
 - `maxPausesPerDay` ist eine ANZAHL, keine Minuten.

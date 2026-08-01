@@ -153,6 +153,8 @@ export const TASK_CODES = [
   "TASK_REQUIREMENT_INVALID",
   "TASK_REQUIREMENT_KG_CATEGORY",
   "TASK_DUPLICATE_REQUIREMENT",
+  "TASK_PROOF_INVALID",
+  "TASK_TOO_MANY_PROOFS",
 ] as const;
 
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
