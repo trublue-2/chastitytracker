@@ -941,6 +941,8 @@
     "keyholderInstructionsSave": "Speichern",
     "keyholderInstructionsSaved": "Gespeichert",
     "keyholderInstructionsError": "Speichern fehlgeschlagen",
+    "keyholderInstructionsHelp": "Wie funktioniert der KI-Keyholder?",
+    "keyholderInstructionsTemplateInsert": "Vorlage einfügen",
     "sectionVorgaben": "Trainingsvorgaben",
     "notificationsTitle": "Benachrichtigungen",
     "notifyMailTitle": "Per E-Mail",

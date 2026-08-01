@@ -171,6 +171,16 @@ tools.
   openings", "never require an inspection at night", "no orgasm directives during
   her exam week". There is no fixed syntax; write them as instructions to the
   agent.
+- **Starting point:** while the field is still empty the form offers **"Insert
+  template"** — a ready-made rulebook (`KEYHOLDER_TEMPLATE` in
+  `src/lib/mcp/keyholderTemplate.ts`, DE + EN) covering role, hard limits, the
+  offence ladder, the knowledge layer (notes / appointments / device meta) and
+  tone. It names tools and note types verbatim, so it lives next to the MCP code
+  and `keyholderTemplate.test.ts` asserts every tool it mentions is actually
+  registered — a rename can't silently rot the rulebook. It is inserted for
+  editing, never saved implicitly, and the button disappears as soon as the field
+  holds text, so it cannot overwrite a grown rulebook. An empty field stays empty
+  for the agent — there is deliberately **no** silent server-side default.
 - **How the agent sees them:** they are surfaced **first** in
   **`keyholder_dashboard.keyholderInstructions`** (always fresh), and the MCP
   server `instructions` returned at connect time both point to that field and
