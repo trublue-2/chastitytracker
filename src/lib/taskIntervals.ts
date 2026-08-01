@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type ReinigungSettings, type WearPair } from "@/lib/utils";
 import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/sessionModel";
 import { SESSION_ENTRY_SELECT } from "@/lib/queries";
-import { evaluateTask, coversPoint, isTaskOpen, type Interval, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
+import { evaluateTask, coversPoint, isTaskOpen, needsKeyholderReview, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
 
 /**
  * Das Bindeglied zwischen Aufgaben und Einträgen: baut je Bedingung die Zeiträume, in denen sie galt,
@@ -35,6 +35,10 @@ export interface TaskWithRequirements {
     category: { name: string } | null;
     device: { name: string; categoryId: string | null } | null;
   }[];
+  /** Geforderte Nachweis-Fotos (Issue #39). Leer bei Aufgaben ohne Nachweis-Pflicht.
+   *  Genau `ProofLike` — die Anzeige-Felder (`description`, `imageUrl`, `reviewNote`) lädt die
+   *  Sicht, die sie rendert. Hier wären sie auf jedem heissen Pfad mitgeschleppter Ballast. */
+  proofs: ProofLike[];
 }
 
 /** Was die Anzeige braucht: die Aufgabe, ihr abgeleiteter Zustand und die benannten Bedingungen. */
@@ -64,6 +68,16 @@ export const TASK_INCLUDE = {
     include: {
       category: { select: { name: true } },
       device: { select: { name: true, categoryId: true } },
+    },
+  },
+  // Die Soll-Reihenfolge IST `sortOrder` — sortiert laden, damit `evaluateProofs` sie nicht raten muss.
+  // `select` wie bei `requirements`: nur was die AUSWERTUNG liest. `description`/`imageUrl`/
+  // `reviewNote` sind Anzeige-Felder und hätten auf Heartbeat, Poller und Strafbuch nichts zu suchen.
+  proofs: {
+    orderBy: { sortOrder: "asc" },
+    select: {
+      id: true, sortOrder: true, requireCode: true, submittedAt: true,
+      imageExifTime: true, verifikationStatus: true, verifikationReason: true, reviewAccepted: true,
     },
   },
 } as const;
@@ -118,7 +132,20 @@ export async function getDashboardTasks(userId: string, now: Date): Promise<Task
     where: {
       userId,
       withdrawnAt: null,
-      OR: [{ completedAt: null }, { holdUntil: { gte: new Date(now.getTime() - RECENT_WINDOW_MS) } }],
+      OR: [
+        { completedAt: null },
+        { holdUntil: { gte: new Date(now.getTime() - RECENT_WINDOW_MS) } },
+        // Solange ein Nachweis WEDER maschinell bestätigt NOCH vom Menschen beurteilt ist, bleibt die
+        // Aufgabe drin. Der Zustand `awaitingReview` ist abgeleitet und damit nicht filterbar — das
+        // hier ist seine grobe SQL-Entsprechung, bewusst zu WEIT gefasst: sie hält ein paar Zeilen
+        // mehr, aber sie verliert keine.
+        //
+        // Ohne sie fiel die Aufgabe raus, sobald der Sub zusätzlich „erledigt" gemeldet hatte
+        // (`completedAt` gesetzt) und 24 h seit der Frist vergangen waren — die Sichtung der
+        // Keyholderin stand dann noch aus, aber die Zeile war schon auf SQL-Ebene weg. Die
+        // Alterungs-Ausnahme in `isRecentEnough` hätte sie nie zu sehen bekommen.
+        { proofs: { some: { verifikationStatus: null, reviewAccepted: null } } },
+      ],
     },
     orderBy: { holdUntil: "desc" },
     take: 50,
@@ -131,6 +158,10 @@ export async function getDashboardTasks(userId: string, now: Date): Promise<Task
 /** Gehört die Aufgabe noch aufs Dashboard? Offene immer, Abgeschlossene nur kurz — danach Historie. */
 export function isRecentEnough(e: EvaluatedTask, now: Date): boolean {
   if (isTaskOpen(e.evaluation.state)) return true;
+  // Eine ausstehende Sichtung altert NICHT weg: sie wartet auf eine Handlung der Keyholderin, und
+  // die hat keine Frist. Fiele sie nach 24 h aus der Ansicht, verschwände die Aufgabe in einem
+  // Zustand, in dem noch niemand geurteilt hat — weder erfüllt noch versäumt, nur weg.
+  if (needsKeyholderReview(e.evaluation.state)) return true;
   return now.getTime() - e.task.holdUntil.getTime() <= RECENT_WINDOW_MS;
 }
 
@@ -349,7 +380,7 @@ export async function evaluateTasks(
       satisfied: coversPoint(perRequirement[i], now),
     }));
 
-    const evaluation = evaluateTask(task, requirements, perRequirement, now);
+    const evaluation = evaluateTask(task, requirements, perRequirement, now, task.proofs);
     return { task, evaluation, requirements };
   });
 }

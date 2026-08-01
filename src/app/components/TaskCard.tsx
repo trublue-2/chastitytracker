@@ -31,6 +31,8 @@ const STATE_COLOR: Record<TaskState, string> = {
   missed: "text-warn-text",
   aborted: "text-warn-text",
   withdrawn: "text-foreground-muted",
+  // Neutral, nicht warnend: der Sub hat getan, was er konnte — es fehlt ein Urteil, kein Verhalten.
+  awaitingReview: "text-foreground-muted",
 };
 
 export default function TaskCard({
@@ -153,6 +155,8 @@ function StateLine({
     text = t("stateWithdrawn");
   } else if (task.state === "done") {
     text = t("stateDone");
+  } else if (task.state === "awaitingReview") {
+    text = t("stateAwaitingReview");
   } else if (task.awaitingConfirmation) {
     text = t("stateAwaitingConfirmation");
   } else if (task.state === "running" && task.startedAt) {

@@ -1419,6 +1419,8 @@
     "taskDoneMessageKeyholder": "{username} hat die Aufgabe „{title}“ erfüllt.",
     "taskFailedSubjectKeyholder": "Aufgabe nicht erfüllt",
     "taskFailedMessageKeyholder": "{username} hat die Aufgabe „{title}“ nicht erfüllt.",
+    "taskReviewSubjectKeyholder": "Nachweise sichten",
+    "taskReviewMessageKeyholder": "{username} hat die Nachweise zur Aufgabe „{title}“ eingereicht. Sie warten auf deine Sichtung.",
     "taskAwaitingSubject": "Aufgabe bereit zum Melden",
     "taskAwaitingMessage": "Du hast alle Bedingungen der Aufgabe „{title}“ gehalten. Melde sie im Dashboard als erledigt."
   },
@@ -1450,6 +1452,7 @@
     "stateMissingPrefix": "Fehlt noch:",
     "stateRunning": "Läuft seit {since}",
     "stateDone": "Erfüllt",
+    "stateAwaitingReview": "Nachweise eingereicht — warten auf Sichtung",
     "stateMissed": "Versäumt — nie begonnen",
     "stateAborted": "Vorzeitig abgelegt",
     "stateWithdrawn": "Zurückgezogen",

@@ -3,7 +3,7 @@ import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serv
 import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
-import { startDeadline, isTaskOpen } from "@/lib/tasks";
+import { startDeadline, isTaskResultFinal } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, TASK_DEFAULT_START_GRACE_MIN,
   TASK_START_GRACE_RANGE, TASK_REQUIREMENT_TYPES, type TaskRequirementType,
@@ -447,18 +447,39 @@ export async function processDueTasks(now: Date): Promise<void> {
           continue;
         }
 
-        // Nur ENDZUSTÄNDE melden. Eine noch offene Aufgabe (`pending`/`partial`) hat kein Ergebnis,
-        // über das sich berichten liesse — sie als „versäumt" zu melden UND zu stempeln, hiesse ein
-        // Urteil zu fällen, das die Auswertung selbst noch nicht gefällt hat, und es gegen jede
-        // spätere Korrektur zu versiegeln (das Strafbuch bleibt live abgeleitet und widerspräche der
-        // Meldung).
+        // Nur ENDZUSTÄNDE melden — und zwar POSITIV geprüft (`isTaskResultFinal`), nicht als „nicht
+        // offen". Der Unterschied ist keine Stilfrage: `awaitingReview` (Nachweise eingereicht,
+        // Sichtung der Keyholderin steht aus) ist weder offen noch entschieden. Gegen `isTaskOpen`
+        // geprüft fiele er durch, landete im Endzustands-Zweig und würde als „versäumt" gemeldet UND
+        // gestempelt — eine falsche, unwiderrufliche Meldung an beide Seiten, während die
+        // Keyholderin noch gar nicht geurteilt hat. Wer einen weiteren Zustand ergänzt, muss ihn in
+        // `isTaskResultFinal` bewusst aufnehmen, statt dass er hier stillschweigend als Fehlschlag
+        // durchgeht.
         //
-        // Erreichbar war das nur über eine unter die Startfrist verkürzte `holdUntil` — den Weg hat
-        // `updateTask` inzwischen zu. Der Riegel bleibt trotzdem: eine stumme Verzögerung ist der
-        // richtige Ausgang für einen Zustand, den wir hier nicht erwarten, eine falsche
-        // Endmeldung nicht. Ohne Stempel greift der nächste Tick sie wieder auf, sobald sie
-        // tatsächlich entschieden ist.
-        if (isTaskOpen(e.evaluation.state)) {
+        // Ohne Stempel greift der nächste Tick die Aufgabe wieder auf, sobald sie entschieden ist —
+        // eine stumme Verzögerung ist der richtige Ausgang, eine falsche Endmeldung nicht.
+        // Nachweise liegen vor, aber die Sichtung der Keyholderin steht aus: SIE ist am Zug, also
+        // bekommt sie die Meldung — und die Zeile wird gestempelt.
+        //
+        // Nicht stempeln wäre hier derselbe Stau, den `c77dec2` schon einmal behoben hat: die Zeile
+        // bliebe ewig in der Abfrage, sortierte als älteste nach vorn und besetzte den `take`-Deckel.
+        // Sichtet die Keyholderin ein paar Tage nicht, stünde ab 50 solchen Aufgaben die
+        // Ergebnismeldung für ALLE Nutzer still.
+        //
+        // Der Stempel bedeutet damit „gemeldet", nicht „entschieden". Das ERGEBNIS nach der Sichtung
+        // verschickt folgerichtig die Sichtung selbst (Etappe 4) — der Poller sieht die Zeile nicht
+        // wieder, und das ist richtig: ein menschliches Urteil soll nicht bis zum nächsten Tick warten.
+        if (e.evaluation.state === "awaitingReview") {
+          await notifyControllers(controllers, {
+            subjectKey: "taskReviewSubjectKeyholder",
+            messageKey: "taskReviewMessageKeyholder",
+            params: { username, title: e.task.title },
+          });
+          await markNotified(e.task.id);
+          continue;
+        }
+
+        if (!isTaskResultFinal(e.evaluation.state)) {
           console.warn("[processDueTasks] fällig, aber ohne Endzustand — Meldung verschoben:", e.task.id, e.evaluation.state);
           continue;
         }

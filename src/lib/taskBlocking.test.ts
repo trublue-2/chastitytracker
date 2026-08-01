@@ -37,6 +37,7 @@ function evaluated(
       completionNote: null,
       withdrawnAt: null,
       requirements: [],
+      proofs: [],
     },
     evaluation: { ...EVAL, ...evaluation },
     requirements,

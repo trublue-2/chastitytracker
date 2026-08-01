@@ -40,7 +40,18 @@ export type TaskState =
   /** Von der Keyholderin zurückgenommen. Bewusst ein eigener Zustand und nicht `aborted`: das eine
    *  ist ihr Entschluss, das andere ein Versäumnis des Subs — und ein Rückzug darf nie ein Vergehen
    *  werden. Als Zustand statt als Aufrufer-Pflicht, damit ihn niemand vergessen kann. */
-  | "withdrawn";
+  | "withdrawn"
+  /**
+   * Bedingungen gehalten und alle Nachweise da, aber mindestens einer ist maschinell nicht
+   * entscheidbar und wartet auf die Sichtung der Keyholderin.
+   *
+   * Ein eigener Zustand, weil weder „erfüllt" noch „versäumt" wahr wäre: der Sub hat getan, was er
+   * konnte, und niemand hat bisher geurteilt. Ihn als `done` zu führen verschenkte das Urteil, als
+   * `missed` bestrafte er eine ausstehende Handlung der Keyholderin. Für den SUB ist die Aufgabe
+   * damit abgeschlossen (er kann nichts mehr tun), für die KEYHOLDERIN offen — deshalb zählt er
+   * nicht zu {@link isTaskOpen}, wohl aber zu {@link needsKeyholderReview}.
+   */
+  | "awaitingReview";
 
 export interface TaskRequirementLike {
   id: string;
@@ -134,18 +145,112 @@ export function coversPoint(intervals: Interval[], at: Date): boolean {
   return intervals.some((iv) => iv.start.getTime() <= t && t <= iv.end.getTime());
 }
 
+/** Ein gefordertes Nachweis-Foto, so weit die Auswertung es kennt (siehe `TaskProof`). */
+export interface ProofLike {
+  id: string;
+  sortOrder: number;
+  /** Verlangt einen Zufallscode im Bild — nur damit ist der Nachweis maschinell entscheidbar. */
+  requireCode: boolean;
+  submittedAt: Date | null;
+  /** Aufnahmezeit (EXIF). Fehlt sie, ist die Reihenfolge nicht prüfbar. */
+  imageExifTime: Date | null;
+  /** Wie am Kontroll-Eintrag: null = nicht geprüft (oder nicht gematcht), "ai" = erkannt und passend.
+   *  Den GRUND eines Nicht-Matches trägt `verifikationReason` — für die Auswertung genügt hier, DASS
+   *  nicht gematcht wurde. */
+  verifikationStatus: string | null;
+  /** Gesetzt, wenn die Prüfung lief und NICHT matchte (`VerifyReason`). Unterscheidet „noch nicht
+   *  geprüft" von „geprüft und durchgefallen" — beide haben `verifikationStatus: null`. */
+  verifikationReason: string | null;
+  reviewAccepted: boolean | null;
+}
+
+/** Das Urteil über die Nachweis-Achse einer Aufgabe. */
+export type ProofVerdict =
+  /** Die Aufgabe fordert gar keine Nachweise. Verhält sich für `evaluateTask` wie `complete`, ist
+   *  aber bewusst unterscheidbar: die Anzeige blendet den Nachweis-Teil danach ganz aus, statt einen
+   *  leeren Abschnitt „alle erbracht" zu zeigen. */
+  | "none"
+  /** Noch nicht alle da, aber die Frist läuft. */
+  | "pending"
+  /** Alle da, geprüft, in Ordnung. */
+  | "complete"
+  /** Wartet auf die Sichtung der Keyholderin. */
+  | "needsReview"
+  /** Endgültig nicht erbracht: fehlend, zu spät, falsche Reihenfolge oder abgelehnt. */
+  | "failed";
+
+/**
+ * Wertet die Nachweise aus — getrennt von den Bedingungen, weil sie etwas anderes sind: ein
+ * Nachweis ist ein EREIGNIS mit einem Zeitpunkt, keine Bedingung mit einem Intervall.
+ *
+ * Reihenfolge gilt nur unter den Nachweisen: die Aufnahmezeiten müssen der `sortOrder` folgen
+ * (Verschluss vor Plug vor Rechnungen). Ein Bezug zu den Trage-Bedingungen wäre strenger, als die
+ * Anforderung meint — ein Foto knapp vor dem Anlegen des Geräts wäre sonst ein Fehlschlag.
+ *
+ * Massgeblich ist die AUFNAHME-Zeit, nicht die Upload-Zeit: sonst genügte es, alle Fotos am Ende
+ * hochzuladen, und die geforderte Reihenfolge wäre eine Fiktion.
+ */
+export function evaluateProofs(proofs: ProofLike[], task: Pick<TaskLike, "holdUntil">, now: Date): ProofVerdict {
+  if (proofs.length === 0) return "none";
+
+  const ordered = [...proofs].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  /**
+   * Maschinell BESTÄTIGT — die einzige Automatik, die hier etwas entscheiden darf.
+   *
+   * Ein durchgefallener Code-Check ist ausdrücklich KEIN Fehlschlag: die Bilderkennung liest
+   * schräge oder unscharfe Fotos falsch (`verifyCode.ts` führt eigens eine Fuzzy-Toleranz für
+   * 1↔7 und 0↔6, weil genau das vorkommt). Ihn hart als Vergehen zu werten hiesse, einen Menschen
+   * für eine Fehllesung zu bestrafen, die nie jemand gesehen hat.
+   *
+   * Die App macht das anderswo schon richtig: eine Kontrolle mit gescheitertem Auto-Check ist
+   * „nicht verifiziert" und wandert zur Sichtung — ins Strafbuch kommt sie erst, wenn der Keyholder
+   * sie ausdrücklich ABLEHNT. Hier gilt dasselbe.
+   */
+  const codeConfirmed = (p: ProofLike) => p.requireCode && p.verifikationStatus !== null;
+
+  // Nur das ausdrückliche Nein eines MENSCHEN beendet die Sache. Alles andere ist Zwischenstand.
+  if (ordered.some((p) => p.reviewAccepted === false)) return "failed";
+
+  // Eingereicht heisst: RECHTZEITIG eingereicht. Nach der Frist zählt es nicht mehr, sonst wäre die
+  // Frist bedeutungslos — man könnte beliebig lange nachliefern.
+  const counted = (p: ProofLike) => p.submittedAt !== null && p.submittedAt <= task.holdUntil;
+  if (!ordered.every(counted)) {
+    return now < task.holdUntil ? "pending" : "failed";
+  }
+
+  // Reihenfolge: streng aufsteigende Aufnahmezeiten. Fehlt eine, ist sie nicht prüfbar — dann
+  // entscheidet die Keyholderin, statt dass wir raten.
+  const times = ordered.map((p) => p.imageExifTime);
+  if (times.some((t) => t === null)) return "needsReview";
+  for (let i = 1; i < times.length; i++) {
+    if (times[i]!.getTime() <= times[i - 1]!.getTime()) return "failed";
+  }
+
+  // Automatisch entscheidbar ist nur ein Nachweis MIT erkanntem Code. Alles andere („Foto mit zwei
+  // Rechnungen") ist eine Aussage über den Bildinhalt, die keine Maschine abschliessend trifft.
+  const settled = (p: ProofLike) => p.reviewAccepted === true || codeConfirmed(p);
+  return ordered.every(settled) ? "complete" : "needsReview";
+}
+
 /**
  * Wertet eine Aufgabe aus. `perRequirement[i]` sind die Intervalle der Bedingung `requirements[i]`
  * (gleiche Reihenfolge).
  *
  * Ablauf: Beginn = erster Zeitpunkt, ab dem die Schnittmenge gilt UND der innerhalb der Kulanzfrist
  * liegt. Von dort muss die Schnittmenge bis `holdUntil` lückenlos decken.
+ *
+ * ZWEI ACHSEN. Bedingungen sind Zustände über Intervalle, Nachweise sind Ereignisse mit einem
+ * Zeitpunkt ({@link evaluateProofs}). Erfüllt ist die Aufgabe nur, wenn beide stimmen. Die Reihenfolge
+ * der Urteile ist dabei nicht beliebig — ein Verhalten des Subs schlägt ein ausstehendes Urteil der
+ * Keyholderin, sonst verdeckte eine offene Sichtung ein echtes Versäumnis.
  */
 export function evaluateTask(
   task: TaskLike,
   requirements: TaskRequirementLike[],
   perRequirement: Interval[][],
   now: Date,
+  proofs: ProofLike[] = [],
 ): TaskEvaluation {
   const base: TaskEvaluation = {
     state: "pending",
@@ -159,10 +264,17 @@ export function evaluateTask(
   // Zurückgezogen schlägt alles: weder offen noch Vergehen, egal was die Einträge sagen.
   if (task.withdrawnAt) return { ...base, state: "withdrawn" };
 
+  const proofVerdict = evaluateProofs(proofs, task, now);
+
   // Aufgabe ohne Bedingungen: allein die Selbstmeldung entscheidet — aber sie muss RECHTZEITIG sein.
   // Ohne den Zeitvergleich heilte eine Meldung von heute eine gestern verpasste Frist rückwirkend und
   // das Vergehen verschwände spurlos.
   if (requirements.length === 0) {
+    // Ohne Bedingungen tragen allein Selbstmeldung und Nachweise. Stehen Nachweise noch aus, ist die
+    // Aufgabe offen bzw. wartet auf die Sichtung — die Selbstmeldung allein macht sie nicht fertig.
+    if (proofVerdict === "failed") return { ...base, state: "missed" };
+    if (proofVerdict === "needsReview") return { ...base, state: "awaitingReview" };
+    if (proofVerdict === "pending") return { ...base, state: "pending" };
     if (task.completedAt) {
       return { ...base, state: task.completedAt <= task.holdUntil ? "done" : "missed" };
     }
@@ -235,6 +347,21 @@ export function evaluateTask(
 
   if (now < task.holdUntil) return { ...base, state: "running", startedAt };
 
+  // Bedingungen gehalten. Jetzt die Nachweise.
+  //
+  // Der Fehlschlag steht hier und NICHT als früher Ausstieg oben: sonst überschriebe er die
+  // Bedingungs-Achse vollständig und meldete `missed` ohne `startedAt` — „nie begonnen" für jemanden,
+  // der durchgehend getragen und nur das letzte Foto vergessen hat. Der Beleg ist kein Beiwerk: das
+  // Strafbuch liest `missed` ausdrücklich als „nie (rechtzeitig) begonnen", und bei `aborted` hängt
+  // die Abbruch-Meldung an `failedRequirement`/`failedAt`. Ein Urteil ohne seinen Beleg lässt sich
+  // weder prüfen noch bestreiten.
+  if (proofVerdict === "failed") return { ...base, state: "missed", startedAt };
+
+  // Eine ausstehende Sichtung steht VOR der Selbstmeldung, denn sie ist der Grund, warum noch
+  // niemand urteilen kann. Den Sub hier zur Meldung zu drängen, während die Keyholderin am Zug ist,
+  // wäre die falsche Aufforderung an die falsche Person.
+  if (proofVerdict === "needsReview") return { ...base, state: "awaitingReview", startedAt };
+
   // Durchgehalten. Der Textteil („ist die Wohnung sauber?") ist nicht prüfbar — dafür die Selbstmeldung.
   // Sie muss NACH dem Beginn liegen: eine Meldung aus Minute 1, bevor überhaupt alles anlag, ist keine
   // Aussage über das Ergebnis.
@@ -243,7 +370,26 @@ export function evaluateTask(
   return { ...base, state: "done", startedAt };
 }
 
-/** Zählt als offen und damit anzeigepflichtig? */
+/**
+ * Steht das Ergebnis endgültig fest — gibt es also etwas zu MELDEN?
+ *
+ * Positiv formuliert und nicht als „nicht offen": `awaitingReview` ist weder offen noch entschieden,
+ * und genau daran ist der Poller schon einmal hängengeblieben. Er meldete den Zustand als „versäumt"
+ * und stempelte es fest, weil er nur `isTaskOpen` kannte. Wer einen sechsten Zustand ergänzt, muss
+ * ihn hier bewusst aufnehmen, statt dass er stillschweigend als Fehlschlag durchgeht.
+ */
+export function isTaskResultFinal(state: TaskState): boolean {
+  return state === "done" || state === "missed" || state === "aborted";
+}
+
+/** Wartet die Aufgabe auf die Sichtung der Keyholderin? Für den Sub ist sie damit erledigt, für die
+ *  Keyholderin ist sie eine offene Pflicht — deshalb ein eigenes Prädikat neben {@link isTaskOpen}. */
+export function needsKeyholderReview(state: TaskState): boolean {
+  return state === "awaitingReview";
+}
+
+/** Zählt als offen und damit anzeigepflichtig? Aus Sicht des SUBS: was er noch beeinflussen kann.
+ *  `awaitingReview` gehört bewusst nicht dazu — er hat dort nichts mehr zu tun. */
 export function isTaskOpen(state: TaskState): boolean {
   return state === "pending" || state === "partial" || state === "running";
 }

@@ -123,6 +123,27 @@ describe("processDueTasks — Regressionen aus dem Code-Review", () => {
   });
 
   /**
+   * REGRESSION (Issue #39): `awaitingReview` ist weder offen noch entschieden. Gegen `isTaskOpen`
+   * geprüft fiel der Zustand durch beide Wächter, landete im Endzustands-Zweig und wurde als
+   * „versäumt" gemeldet UND gestempelt — während die Keyholderin noch gar nicht geurteilt hatte.
+   *
+   * Richtig ist: SIE ist am Zug, also bekommt SIE die Meldung. Der Sub hört nichts (für ihn ist die
+   * Aufgabe erledigt), und gestempelt wird trotzdem — sonst besetzt die Zeile den `take`-Deckel für
+   * immer, derselbe Stau, den `c77dec2` schon einmal behoben hat.
+   */
+  it("REGRESSION: wartende Sichtung geht an die Keyholderin, nicht als Versäumnis an den Sub", async () => {
+    findMany.mockResolvedValue([row("t1")]);
+    evaluate.mockResolvedValue([evaluated("t1", "awaitingReview")]);
+
+    await processDueTasks(NOW);
+
+    expect(notify).not.toHaveBeenCalled();
+    expect(notifyKh).toHaveBeenCalledOnce();
+    expect(notifyKh.mock.calls[0][1].subjectKey).toBe("taskReviewSubjectKeyholder");
+    expect(stamped()).toEqual(["t1"]);
+  });
+
+  /**
    * Der Stempel ist die einzige Einmal-Zusage (eine Dedup im Posteingang gibt es nicht). Gesammelt
    * am Ende der Schleife lag zwischen der ersten Mail und dem Schreiben ein Fenster über ALLE
    * Aufgaben des Nutzers — ein Prozess-Neustart darin wiederholte jede davon.

@@ -754,6 +754,7 @@ model Task {
   resultNotifiedAt DateTime?
 
   requirements TaskRequirement[]
+  proofs       TaskProof[]
 
   @@index([userId, withdrawnAt, completedAt])
   @@index([userId, holdUntil])
@@ -787,6 +788,60 @@ model TaskRequirement {
   @@index([taskId])
   @@index([categoryId])
   @@index([deviceId])
+}
+
+/// Ein gefordertes Nachweis-Foto einer Aufgabe (Issue #39).
+///
+/// EIGENE Tabelle statt eines dritten `TaskRequirement.type` — und das ist keine Kosmetik: eine
+/// Bedingung ist ein ZUSTAND, den `evaluateTask` als Intervall schneidet; ein Nachweis ist ein
+/// EREIGNIS ohne Intervall. In derselben Tabelle müsste `intersectAll` ihn zum Sonderfall machen —
+/// ausgerechnet in der Logik, in der ein Fehler unverdiente Vergehen erzeugt. Dieselbe Begründung,
+/// aus der die Aufgabe selbst eigene Tabellen bekam statt einer dritten `art` an
+/// `VerschlussAnforderung`.
+///
+/// Erzeugt bewusst KEINEN `Entry`: ein neuer Eintragstyp liefe durch Paarbildung, Statistik und
+/// Zeitstrahl, die alle nichts von Nachweisen wissen. Die Bilddaten hängen deshalb hier.
+model TaskProof {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /// Soll-Reihenfolge: die Aufnahmezeiten müssen ihr folgen (Verschluss vor Plug vor Rechnungen).
+  sortOrder Int @default(0)
+  /// Was auf dem Bild zu sehen sein muss — Freitext der Keyholderin.
+  description String
+  /// Verlangt einen handschriftlichen Zufallscode im Bild. Nur damit ist der Nachweis maschinell
+  /// entscheidbar; ohne Code geht er zur Sichtung an die Keyholderin.
+  requireCode Boolean @default(false)
+  /// Der geforderte Code. Null, wenn `requireCode` false ist.
+  code String?
+
+  // ── Einreichung durch den Sub ──
+  imageUrl String?
+  /// Aufnahmezeit aus den EXIF-Daten. MASSGEBLICH für die Reihenfolge — die Upload-Zeit wäre
+  /// wertlos, weil dann alle Fotos am Schluss hochgeladen einfach passten. Fehlt sie, ist die
+  /// Reihenfolge nicht prüfbar und der Nachweis geht zur Sichtung.
+  imageExifTime DateTime?
+  /// Wann eingereicht. Nach `Task.holdUntil` eingereicht zählt NICHT mehr — sonst wäre die Frist
+  /// bedeutungslos.
+  submittedAt DateTime?
+  /// Ergebnis der Code-Erkennung — DIESELBEN drei Felder wie am `Entry` einer Kontrolle, damit
+  /// `verifyCode.ts`/`toVerifyFailure()` unverändert darauf passen. Ein blosses `Boolean?` hätte den
+  /// Grund weggeworfen, den die Prüfung ohnehin liefert („kein Code im Bild" vs. „falscher Code, es
+  /// stand 41287 da") — und die nächste Etappe hätte ein zweites, paralleles Grund-Schema neben
+  /// `VerifyReason` gebraucht.
+  /// null = nicht geprüft · "ai" = erkannt und passend.
+  verifikationStatus String?
+  /// `VerifyReason`-Code, wenn NICHT gematcht hat (codeMissing/codeWrong). Sprachneutral.
+  verifikationReason String?
+  /// Bei `codeWrong`: die abweichend gelesene Nummer.
+  verifikationReasonDetected String?
+
+  // ── Sichtung durch die Keyholderin ──
+  reviewedAt     DateTime?
+  reviewAccepted Boolean?
+  reviewNote     String?
+
+  @@index([taskId, sortOrder])
 }
 
 model NotificationPreference {

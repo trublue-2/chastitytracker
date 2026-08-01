@@ -59,6 +59,7 @@ export const MESSAGE_BODY_KEYS = [
   "taskFailedMessage",
   "taskDoneMessageKeyholder",
   "taskFailedMessageKeyholder",
+  "taskReviewMessageKeyholder",
 ] as const;
 
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];

@@ -1419,6 +1419,8 @@
     "taskDoneMessageKeyholder": "{username} completed the task “{title}”.",
     "taskFailedSubjectKeyholder": "Task not completed",
     "taskFailedMessageKeyholder": "{username} did not complete the task “{title}”.",
+    "taskReviewSubjectKeyholder": "Proof to review",
+    "taskReviewMessageKeyholder": "{username} submitted the proof for the task “{title}”. It is waiting for your review.",
     "taskAwaitingSubject": "Task ready to report",
     "taskAwaitingMessage": "You held every condition of the task “{title}”. Report it as done in your dashboard."
   },
@@ -1450,6 +1452,7 @@
     "stateMissingPrefix": "Still missing:",
     "stateRunning": "Running since {since}",
     "stateDone": "Fulfilled",
+    "stateAwaitingReview": "Proof submitted — awaiting review",
     "stateMissed": "Missed — never started",
     "stateAborted": "Removed early",
     "stateWithdrawn": "Withdrawn",

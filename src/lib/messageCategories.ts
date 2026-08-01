@@ -58,6 +58,7 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   // (`inbox: false` in taskService.ts) — hier nur, damit die Tabelle vollständig bleibt.
   taskDoneMessageKeyholder: "task",
   taskFailedMessageKeyholder: "task",
+  taskReviewMessageKeyholder: "task",
 };
 
 /**
