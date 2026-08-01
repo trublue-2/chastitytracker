@@ -8,6 +8,7 @@ import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import TaskCard from "@/app/components/TaskCard";
 import WithdrawButton from "@/app/admin/WithdrawButton";
+import ProofReviewActions from "@/app/admin/tasks/ProofReviewActions";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
 import { loadTaskProofViews } from "@/lib/taskIntervals";
@@ -65,19 +66,26 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
           action={{ label: t("actionTitle"), href: newHref }}
         />
       ) : (
-        evaluated.map((e) => (
-          <TaskCard
-            key={e.task.id}
-            task={toTaskCard(e, false, proofViews.get(e.task.id) ?? [])}
-            viewerTz={session?.user?.timezone ?? APP_TZ}
-            subTz={user.timezone ?? APP_TZ}
-            subLabel={ta("subTimePrefix")}
-          >
-            {isTaskOpen(e.evaluation.state) && (
-              <WithdrawButton id={e.task.id} apiPath="/api/admin/tasks" title={t("withdraw")} showLabel colorToken="neutral" />
-            )}
-          </TaskCard>
-        ))
+        evaluated.map((e) => {
+          const card = toTaskCard(e, false, proofViews.get(e.task.id) ?? []);
+          return (
+            <TaskCard
+              key={e.task.id}
+              task={card}
+              viewerTz={session?.user?.timezone ?? APP_TZ}
+              subTz={user.timezone ?? APP_TZ}
+              subLabel={ta("subTimePrefix")}
+            >
+              {/* Die Sichtung steht an der Karte, nicht hinter einer weiteren Seite: sie ist der
+                  einzige Ausweg aus `awaitingReview`, und dort liegt auch das Foto, über das
+                  geurteilt wird. */}
+              <ProofReviewActions proofs={card.proofs} />
+              {isTaskOpen(e.evaluation.state) && (
+                <WithdrawButton id={e.task.id} apiPath="/api/admin/tasks" title={t("withdraw")} showLabel colorToken="neutral" />
+              )}
+            </TaskCard>
+          );
+        })
       )}
     </>
   );

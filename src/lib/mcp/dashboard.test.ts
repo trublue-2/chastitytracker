@@ -49,7 +49,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("liefert exakt die Vertragsfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result).sort()).toEqual([...DASHBOARD_KEYS].sort());
-    expect(result.schemaVersion).toBe(7); // v7: openControl.code nullable (Gerät ohne Code-Pflicht); v6: openLockRequest = die DRINGENDSTE von mehreren
+    expect(result.schemaVersion).toBe(8); // v8: openTasks enthält auch `awaitingReview` (+ awaitingYourReview); v7: openControl.code nullable; v6: openLockRequest = die DRINGENDSTE von mehreren
     // Die Keyholder-Regeln reicht das Dashboard aus dem (lean) Overview durch.
     expect(result.keyholderInstructions).toBe(TEST_USER.mcpKeyholderInstructions);
   });

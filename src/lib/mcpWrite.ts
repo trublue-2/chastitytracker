@@ -15,6 +15,7 @@ import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELA
 import { clamp, randomInt } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
+import { reviewTaskProof } from "@/lib/taskProofService";
 import { createTask, updateTask, withdrawTask, mergeTaskPatch, type TaskRequirementInput } from "@/lib/taskService";
 
 /**
@@ -1304,6 +1305,71 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     + `Proofs without a code cannot be decided automatically: the task then waits in "awaitingReview" `
     + `for YOU to accept or reject them.`;
   return { ok: true, id: data.id, message: conditionPart + proofPart };
+}
+
+export interface ReviewTaskProofArgs {
+  taskId: string;
+  /** Position des Nachweises (1-basiert, wie in `keyholder_dashboard`/der App gezählt). */
+  index: number;
+  accepted: boolean;
+  note?: string;
+  dryRun?: boolean;
+}
+
+/**
+ * Sichtung eines eingereichten Nachweis-Fotos (Issue #39).
+ *
+ * Angesprochen über Aufgabe + POSITION, nicht über die Nachweis-id: die id steht nirgends in einer
+ * Lese-Sicht, und die Position ist genau das, was der Agent sieht („der zweite Nachweis"). Eine id
+ * zu verlangen, die er sich nicht beschaffen kann, wäre ein Werkzeug ohne Eingang.
+ */
+export async function mcpReviewTaskProof(username: string, args: ReviewTaskProofArgs) {
+  const userId = await resolveTargetUserId(username);
+  const task = await prisma.task.findUnique({
+    where: { id: args.taskId },
+    select: {
+      id: true, title: true, userId: true, withdrawnAt: true,
+      // Nur was Adressierung und Vorschau brauchen — `imageUrl`, `code` und die Verifikations-Felder
+      // liest hier niemand (gleiche Regel wie `TASK_INCLUDE`).
+      proofs: { orderBy: { sortOrder: "asc" }, select: { id: true, description: true, submittedAt: true, reviewedAt: true } },
+    },
+  });
+  // Auflösung, nicht Zustand: eine unbekannte id ist keine Vorschau wert.
+  if (!task || task.userId !== userId) throw new Error(`Task not found: ${args.taskId}`);
+
+  const proof = task.proofs[args.index - 1];
+  if (!proof) {
+    throw new Error(`Task "${task.title}" has ${task.proofs.length} proof(s); index ${args.index} does not exist.`);
+  }
+
+  if (args.dryRun) {
+    // Zustands-Regeln gehen als `problem` in die Vorschau, nicht als Wurf — wie bei jedem anderen
+    // Werkzeug hier. Ein dryRun soll sagen, was passieren WÜRDE, auch wenn die Antwort „nichts" ist.
+    // Beide Zustands-Regeln, die der Service durchsetzt — sonst verspräche die Vorschau Erfolg, wo
+    // der echte Aufruf abweist. `mcpEditTask` prüft `withdrawnAt` aus demselben Grund.
+    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE"
+      : !proof.submittedAt ? "TASK_PROOF_NOT_SUBMITTED"
+      : undefined;
+    return dryRunPreview("review_task_proof", problem, {
+      taskId: task.id,
+      title: task.title,
+      index: args.index,
+      description: proof.description,
+      accepted: args.accepted,
+      previouslyReviewed: proof.reviewedAt !== null,
+    });
+  }
+
+  // Die Zustands-Prüfung selbst liegt im Service — hier stünde sie ein zweites Mal, mit zweitem Text.
+
+  unwrap(await reviewTaskProof(proof.id, userId, { accepted: args.accepted, note: args.note }));
+  return {
+    ok: true,
+    taskId: task.id,
+    message: args.accepted
+      ? `Proof ${args.index} accepted. If that was the last open one, the task result was sent to both sides.`
+      : `Proof ${args.index} rejected — the task counts as unfulfilled (offense unfulfilled_task). The user was told.`,
+  };
 }
 
 export async function mcpEditTask(username: string, args: EditTaskArgs) {

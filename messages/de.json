@@ -122,7 +122,8 @@
     "TASK_TOO_MANY_PROOFS": "Zu viele Nachweise für eine Aufgabe",
     "TASK_PROOF_NOT_FOUND": "Diesen Nachweis gibt es nicht",
     "TASK_PROOF_ALREADY_SUBMITTED": "Dieser Nachweis wurde bereits eingereicht",
-    "TASK_PROOF_TOO_LATE": "Die Frist der Aufgabe ist abgelaufen — dieser Nachweis zählt nicht mehr"
+    "TASK_PROOF_TOO_LATE": "Die Frist der Aufgabe ist abgelaufen — dieser Nachweis zählt nicht mehr",
+    "TASK_PROOF_NOT_SUBMITTED": "Dieser Nachweis wurde noch nicht eingereicht"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -1427,7 +1428,11 @@
     "taskReviewSubjectKeyholder": "Nachweise sichten",
     "taskReviewMessageKeyholder": "{username} hat die Nachweise zur Aufgabe „{title}“ eingereicht. Sie warten auf deine Sichtung.",
     "taskAwaitingSubject": "Aufgabe bereit zum Melden",
-    "taskAwaitingMessage": "Du hast alle Bedingungen der Aufgabe „{title}“ gehalten. Melde sie im Dashboard als erledigt."
+    "taskAwaitingMessage": "Du hast alle Bedingungen der Aufgabe „{title}“ gehalten. Melde sie im Dashboard als erledigt.",
+    "taskProofAcceptedSubject": "Nachweis angenommen",
+    "taskProofAcceptedMessage": "Dein Nachweis zur Aufgabe „{title}“ wurde angenommen.",
+    "taskProofRejectedSubject": "Nachweis abgelehnt",
+    "taskProofRejectedMessage": "Dein Nachweis zur Aufgabe „{title}“ wurde abgelehnt."
   },
   "tasks": {
     "titleLabel": "Titel",
@@ -1494,6 +1499,10 @@
     "showLess": "Weniger anzeigen",
     "markDoneQueued": "Wird gesendet, sobald du wieder online bist",
     "heldByTask": "Von einer Aufgabe gefordert",
-    "emptyHint": "Noch keine Aufgabe gestellt."
+    "emptyHint": "Noch keine Aufgabe gestellt.",
+    "proofAccept": "Annehmen",
+    "proofReject": "Ablehnen",
+    "proofReviewFor": "Nachweis {index}: {description}",
+    "proofReviewNotePlaceholder": "Anmerkung (optional) — der Sub sieht sie"
   }
 }

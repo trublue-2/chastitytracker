@@ -158,6 +158,7 @@ export const TASK_CODES = [
   "TASK_PROOF_NOT_FOUND",
   "TASK_PROOF_ALREADY_SUBMITTED",
   "TASK_PROOF_TOO_LATE",
+  "TASK_PROOF_NOT_SUBMITTED",
 ] as const;
 
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry

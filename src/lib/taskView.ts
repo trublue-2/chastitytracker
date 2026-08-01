@@ -50,6 +50,9 @@ export interface TaskCardProof {
   state: TaskCardProofState;
   /** Deep-Link ins Aufnahme-Formular. Null beim Keyholder und bei bereits eingereichten. */
   href: string | null;
+  /** Das eingereichte Foto. Ohne es kann die Keyholderin nicht urteilen — und der Sub sieht, was er
+   *  abgegeben hat. Null, solange nichts eingereicht ist. */
+  imageUrl: string | null;
   /** Anmerkung der Keyholderin zur Sichtung. */
   reviewNote: string | null;
 }
@@ -76,8 +79,11 @@ export interface TaskCardData {
 }
 
 /** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
- *  eines MENSCHEN schlägt jede Automatik. */
-function proofState(p: TaskProofView, outOfOrderId: string | null): TaskCardProofState {
+ *  eines MENSCHEN schlägt jede Automatik.
+ *
+ *  Exportiert, weil auch das MCP-Dashboard ihn ausliefert — der Keyholder-Agent sieht dann genau das,
+ *  was die Karte zeigt. Zwei Ableitungen desselben Zustands wären zwei Antworten auf dieselbe Frage. */
+export function taskProofState(p: TaskProofView, outOfOrderId: string | null): TaskCardProofState {
   // Die Reihenfolge schlägt alles: sie ist der Grund, aus dem die Aufgabe scheitert, und muss an der
   // Zeile stehen, die sie gebrochen hat.
   if (p.id === outOfOrderId) return "outOfOrder";
@@ -148,13 +154,14 @@ export function toTaskCard(
   )?.id ?? null;
 
   const proofs: TaskCardProof[] = proofViews.map((p) => {
-    const state = proofState(p, outOfOrderId);
+    const state = taskProofState(p, outOfOrderId);
     return {
       id: p.id,
       description: p.description,
       code: p.code,
       state,
       href: withLinks && state === "open" ? `/dashboard/new/task-proof/${p.id}` : null,
+      imageUrl: p.imageUrl,
       reviewNote: p.reviewNote,
     };
   });

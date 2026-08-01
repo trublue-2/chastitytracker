@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import FormError from "@/app/components/FormError";
+import { useActionPatch } from "@/app/hooks/useActionPatch";
 
 interface Props {
   id: string;
@@ -30,26 +30,16 @@ const colorClasses: Record<Props["colorToken"], string> = {
 
 export default function WithdrawButton({ id, apiPath, title, showLabel, colorToken }: Props) {
   const tc = useTranslations("common");
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
+  const { saving, run } = useActionPatch();
   const [error, setError] = useState("");
 
   async function handle() {
-    setSaving(true);
     setError("");
-    try {
-      const res = await fetch(`${apiPath}/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "withdraw" }),
-      });
-      if (!res.ok) throw new Error(tc("savingError"));
-      router.refresh();
-    } catch {
-      setError(tc("networkError"));
-    } finally {
-      setSaving(false);
-    }
+    const res = await run(`${apiPath}/${id}`, { action: "withdraw" });
+    // Bewusst allgemein: an dieser Stelle steht kein Platz für einen aufgelösten Fehler-Code, und
+    // der Rückzug hat auch keine, die der Nutzer unterscheiden könnte.
+    if (!res) setError(tc("networkError"));
+    else if (!res.ok) setError(tc("savingError"));
   }
 
   return (

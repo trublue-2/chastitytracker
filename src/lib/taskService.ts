@@ -435,6 +435,46 @@ export async function completeTask(
 }
 
 /**
+ * Die Ergebnis-Meldung einer entschiedenen Aufgabe: an den Sub UND an die Keyholder, plus der
+ * Stempel, der die Einmal-Zusage trägt.
+ *
+ * EINE Stelle, weil es zwei Auslöser gibt: den Minuten-Tick (die Frist läuft ab) und die Sichtung
+ * eines Nachweises (ein Mensch entscheidet, `taskProofService.ts`). Beide melden dasselbe Ereignis
+ * mit denselben vier Texten — getrennt geschrieben liefen sie beim nächsten Textwechsel auseinander,
+ * und niemand bekäme davon einen Fehler.
+ */
+export async function notifyTaskResult(opts: {
+  userId: string;
+  taskId: string;
+  title: string;
+  done: boolean;
+  controllers: { id: string }[];
+  username: string;
+  now: Date;
+  /** Höchstens EINE Zeile dieses Texts im Posteingang. Der Poller setzt das (ein Retry nach einem
+   *  Absturz darf keine zweite hinterlassen); die SICHTUNG nicht — dort ist eine Wiederholung ein
+   *  korrigiertes Urteil, und das muss der Sub sehen. Ohne die Unterscheidung bliebe nach
+   *  „abgelehnt → doch angenommen → wieder abgelehnt" das falsche Ergebnis als letzte Zeile stehen. */
+  once: boolean;
+}): Promise<void> {
+  const { userId, taskId, title, done, controllers, username, now, once } = opts;
+  await notifyUser(userId, {
+    subjectKey: done ? "taskDoneSubject" : "taskFailedSubject",
+    messageKey: done ? "taskDoneMessage" : "taskFailedMessage",
+    params: { title },
+    // `once` ist die DAUERHAFTE Einmal-Zusage. Der Stempel unten ist ein Zeitstempel, der beim
+    // Schreiben scheitern kann; diese Sperre sitzt an der Nachricht selbst.
+    inbox: { ref: { type: "task", id: taskId }, once },
+  });
+  await notifyControllers(controllers, {
+    subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",
+    messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
+    params: { username, title },
+  });
+  await prisma.task.update({ where: { id: taskId }, data: { resultNotifiedAt: now } });
+}
+
+/**
  * Meldet das Ergebnis fälliger Aufgaben — einmal, an Sub und Keyholder.
  *
  * Läuft im bestehenden Minuten-Tick. Ungefährlich für die anderen Poller-Blöcke, weil er
@@ -543,22 +583,10 @@ export async function processDueTasks(now: Date): Promise<void> {
           continue;
         }
 
-        const done = e.evaluation.state === "done";
-        await notifyUser(userId, {
-          subjectKey: done ? "taskDoneSubject" : "taskFailedSubject",
-          messageKey: done ? "taskDoneMessage" : "taskFailedMessage",
-          params: { title: e.task.title },
-          // `once` ist hier die DAUERHAFTE Einmal-Zusage. `resultNotifiedAt` allein ist ein
-          // Zeitstempel, der beim Schreiben scheitern kann; diese Sperre sitzt an der Nachricht
-          // selbst und überlebt einen Neustart zwischen Zustellung und Stempel.
-          inbox: { ref: { type: "task", id: e.task.id }, once: true },
+        await notifyTaskResult({
+          userId, taskId: e.task.id, title: e.task.title,
+          done: e.evaluation.state === "done", controllers, username, now, once: true,
         });
-        await notifyControllers(controllers, {
-          subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",
-          messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
-          params: { username, title: e.task.title },
-        });
-        await markNotified(e.task.id);
       }
     } catch (err) {
       // Nie den Tick abbrechen — der nächste Lauf versucht es erneut (resultNotifiedAt bleibt null).

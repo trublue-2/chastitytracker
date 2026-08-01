@@ -122,7 +122,8 @@
     "TASK_TOO_MANY_PROOFS": "Too many proofs for one task",
     "TASK_PROOF_NOT_FOUND": "This proof does not exist",
     "TASK_PROOF_ALREADY_SUBMITTED": "This proof has already been submitted",
-    "TASK_PROOF_TOO_LATE": "The task deadline has passed — this proof no longer counts"
+    "TASK_PROOF_TOO_LATE": "The task deadline has passed — this proof no longer counts",
+    "TASK_PROOF_NOT_SUBMITTED": "This proof has not been submitted yet"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -1427,7 +1428,11 @@
     "taskReviewSubjectKeyholder": "Proof to review",
     "taskReviewMessageKeyholder": "{username} submitted the proof for the task “{title}”. It is waiting for your review.",
     "taskAwaitingSubject": "Task ready to report",
-    "taskAwaitingMessage": "You held every condition of the task “{title}”. Report it as done in your dashboard."
+    "taskAwaitingMessage": "You held every condition of the task “{title}”. Report it as done in your dashboard.",
+    "taskProofAcceptedSubject": "Proof accepted",
+    "taskProofAcceptedMessage": "Your proof for the task “{title}” was accepted.",
+    "taskProofRejectedSubject": "Proof rejected",
+    "taskProofRejectedMessage": "Your proof for the task “{title}” was rejected."
   },
   "tasks": {
     "titleLabel": "Title",
@@ -1494,6 +1499,10 @@
     "showLess": "Show less",
     "markDoneQueued": "Will be sent once you are back online",
     "heldByTask": "Required by a task",
-    "emptyHint": "No task set yet."
+    "emptyHint": "No task set yet.",
+    "proofAccept": "Accept",
+    "proofReject": "Reject",
+    "proofReviewFor": "Proof {index}: {description}",
+    "proofReviewNotePlaceholder": "Note (optional) — the user sees it"
   }
 }

@@ -9,12 +9,23 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { taskProof: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() } },
+  prisma: {
+    taskProof: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
+    task: { findMany: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn() },
+  },
 }));
 vi.mock("@/lib/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
+vi.mock("@/lib/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {} }));
+vi.mock("@/lib/taskService", () => ({ notifyTaskResult: vi.fn() }));
 
-import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason } from "./taskProofService";
+import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, reviewTaskProof } from "./taskProofService";
+import { notifyUser } from "@/lib/notify";
+import { evaluateTasks } from "@/lib/taskIntervals";
+import { notifyTaskResult } from "@/lib/taskService";
 import { prisma } from "@/lib/prisma";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 
@@ -22,6 +33,11 @@ const find = prisma.taskProof.findFirst as unknown as ReturnType<typeof vi.fn>;
 const update = prisma.taskProof.updateMany as unknown as ReturnType<typeof vi.fn>;
 const updateOne = prisma.taskProof.update as unknown as ReturnType<typeof vi.fn>;
 const verify = verifyKontrolleCodeDetailed as unknown as ReturnType<typeof vi.fn>;
+const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
+const evaluate = evaluateTasks as unknown as ReturnType<typeof vi.fn>;
+const taskFindMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
+const taskUpdate = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
+const notifyResult = notifyTaskResult as unknown as ReturnType<typeof vi.fn>;
 
 const NOW = new Date("2026-07-25T14:00:00Z");
 const HOLD_UNTIL = new Date("2026-07-25T18:00:00Z");
@@ -46,6 +62,9 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   update.mockResolvedValue({ count: 1 });
   updateOne.mockResolvedValue({});
+  taskFindMany.mockResolvedValue([{ id: "t1" }]);
+  taskUpdate.mockResolvedValue({});
+  (prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ username: "sub" });
 });
 
 describe("submitTaskProof — Schranken", () => {
@@ -185,5 +204,102 @@ describe("submitTaskProof — was gespeichert wird", () => {
     const res = await submitTaskProof("p1", "u1", { ...PAYLOAD, imageExifTime: null });
     expect(res.ok).toBe(true);
     expect(written().imageExifTime).toBeNull();
+  });
+});
+
+describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
+  /** Ein eingereichter Nachweis, über den geurteilt werden kann. */
+  const submitted = (over: Record<string, unknown> = {}) => ({
+    id: "p1",
+    submittedAt: new Date("2026-07-25T13:00:00Z"),
+    task: { id: "t1", title: "Einkaufen", withdrawnAt: null },
+    ...over,
+  });
+  /** Was die Sichtung geschrieben hat. */
+  const reviewed = () => updateOne.mock.calls[0][0].data;
+  const evaluatedAs = (state: string) => evaluate.mockResolvedValue([{ evaluation: { state } }]);
+
+  it("schreibt Urteil, Zeitpunkt und Anmerkung", async () => {
+    find.mockResolvedValue(submitted());
+    evaluatedAs("awaitingReview");
+    const res = await reviewTaskProof("p1", "u1", { accepted: true, note: "  sauber  " });
+    expect(res.ok).toBe(true);
+    expect(reviewed().reviewAccepted).toBe(true);
+    expect(reviewed().reviewedAt).toEqual(NOW);
+    expect(reviewed().reviewNote).toBe("sauber");
+  });
+
+  it("eine leere Anmerkung wird zu null, nicht zu einem leeren Text", async () => {
+    find.mockResolvedValue(submitted());
+    evaluatedAs("awaitingReview");
+    await reviewTaskProof("p1", "u1", { accepted: false, note: "   " });
+    expect(reviewed().reviewNote).toBeNull();
+  });
+
+  it("über einen noch nicht eingereichten Nachweis lässt sich nicht urteilen", async () => {
+    find.mockResolvedValue(submitted({ submittedAt: null }));
+    const res = await reviewTaskProof("p1", "u1", { accepted: true });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_PROOF_NOT_SUBMITTED");
+    expect(updateOne).not.toHaveBeenCalled();
+  });
+
+  it("fremder Nachweis wird nicht gefunden (IDOR-Schutz)", async () => {
+    find.mockResolvedValue(null);
+    const res = await reviewTaskProof("p1", "u1", { accepted: true });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_PROOF_NOT_FOUND");
+  });
+
+  /**
+   * Der Poller hat seine Meldung („bitte sichten") längst abgegeben und die Zeile dabei gestempelt —
+   * er sieht sie nie wieder. Das ERGEBNIS muss deshalb von der Handlung kommen, die es herbeiführt.
+   */
+  it("steht die Aufgabe danach fest, geht die ERGEBNIS-Meldung raus (geteilter Helfer)", async () => {
+    find.mockResolvedValue(submitted());
+    evaluatedAs("done");
+    await reviewTaskProof("p1", "u1", { accepted: true });
+    expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ taskId: "t1", done: true }));
+    // Der Sub bekommt NICHT zusätzlich die Sichtungs-Meldung — das Ergebnis ist die Nachricht.
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("Ablehnung meldet den Fehlschlag", async () => {
+    find.mockResolvedValue(submitted());
+    evaluatedAs("missed");
+    await reviewTaskProof("p1", "u1", { accepted: false });
+    expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ done: false }));
+  });
+
+  /**
+   * REGRESSION: Ein korrigiertes Urteil MUSS eine neue Zeile im Posteingang bekommen.
+   *
+   * Der Poller setzt `once`, damit ein Retry nach einem Absturz keine zweite Zeile hinterlässt. Für
+   * die Sichtung wäre dieselbe Sperre falsch: nach „abgelehnt → doch angenommen" verschluckte sie
+   * die Korrektur, und als letzte Zeile bliebe das falsche Ergebnis stehen.
+   */
+  it("REGRESSION: die Sichtung setzt KEIN `once` — sonst bliebe die Korrektur unsichtbar", async () => {
+    find.mockResolvedValue(submitted());
+    evaluatedAs("done");
+    await reviewTaskProof("p1", "u1", { accepted: true });
+    expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ once: false }));
+  });
+
+  /** Frist läuft noch oder ein anderer Nachweis fehlt: es GIBT noch kein Ergebnis. */
+  it("steht sie noch nicht fest, erfährt nur der Sub von der Sichtung", async () => {
+    find.mockResolvedValue(submitted());
+    evaluatedAs("awaitingReview");
+    await reviewTaskProof("p1", "u1", { accepted: true });
+    expect(notify.mock.calls[0][1].subjectKey).toBe("taskProofAcceptedSubject");
+    expect(notifyResult).not.toHaveBeenCalled();
+  });
+
+  /** Die Sichtung IST geschrieben — eine gescheiterte Meldung darf sie nicht mitreissen. */
+  it("eine gescheiterte Meldung lässt das Urteil stehen", async () => {
+    find.mockResolvedValue(submitted());
+    evaluate.mockRejectedValue(new Error("Auswertung kaputt"));
+    const res = await reviewTaskProof("p1", "u1", { accepted: true });
+    expect(res.ok).toBe(true);
+    expect(updateOne).toHaveBeenCalled();
   });
 });

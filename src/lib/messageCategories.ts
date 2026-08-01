@@ -59,6 +59,8 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   taskDoneMessageKeyholder: "task",
   taskFailedMessageKeyholder: "task",
   taskReviewMessageKeyholder: "task",
+  taskProofAcceptedMessage: "task",
+  taskProofRejectedMessage: "task",
 };
 
 /**

@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/verifyCode";
 import { structuredLog } from "@/lib/serverLog";
+import { notifyUser } from "@/lib/notify";
+import { getControllersOfUser } from "@/lib/keyholder";
+import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { isTaskResultFinal } from "@/lib/tasks";
+import { notifyTaskResult } from "@/lib/taskService";
 
 /**
  * Der Sub reicht ein gefordertes Nachweis-Foto ein (Issue #39, Etappe 3).
@@ -117,4 +122,86 @@ export function proofSubmitBlockedReason(
   // ist. Die klare Absage im Moment des Absendens ist ehrlicher.
   if (now > proof.task.holdUntil) return "TASK_PROOF_TOO_LATE";
   return null;
+}
+
+/**
+ * Die Keyholderin sichtet einen eingereichten Nachweis (Issue #39, Etappe 4).
+ *
+ * Sie ist der Ausweg aus `awaitingReview` — und ohne sie wäre der Zustand eine Sackgasse: die
+ * Felder `reviewAccepted`/`reviewNote` wurden bis hierher überall GELESEN, aber von niemandem
+ * geschrieben.
+ *
+ * Bewusst WIEDERHOLBAR: ein Urteil lässt sich ändern. Der Zustand einer Aufgabe ist abgeleitet, eine
+ * korrigierte Sichtung wirkt also sofort und vollständig — und die Alternative wäre, dass eine
+ * versehentliche Ablehnung den Sub unwiderruflich ein Vergehen kostet.
+ */
+export async function reviewTaskProof(
+  proofId: string,
+  userId: string,
+  p: { accepted: boolean; note?: string | null },
+): Promise<ServiceResult<{ taskId: string }>> {
+  const proof = await prisma.taskProof.findFirst({
+    where: { id: proofId, task: { userId } },
+    include: { task: { select: { id: true, title: true, withdrawnAt: true } } },
+  });
+  if (!proof) return serviceFail(404, "TASK_PROOF_NOT_FOUND");
+  if (proof.task.withdrawnAt) return serviceFail(400, "TASK_NOT_EDITABLE");
+  // Über einen Nachweis, den es noch gar nicht gibt, lässt sich nicht urteilen.
+  if (!proof.submittedAt) return serviceFail(400, "TASK_PROOF_NOT_SUBMITTED");
+
+  await prisma.taskProof.update({
+    where: { id: proofId },
+    data: { reviewedAt: new Date(), reviewAccepted: p.accepted, reviewNote: p.note?.trim() || null },
+  });
+
+  await notifyProofReviewed(proof.task.id, userId, proof.task.title, p.accepted);
+  return { ok: true, data: { taskId: proof.task.id } };
+}
+
+/**
+ * Meldet, was aus der Aufgabe nach der Sichtung geworden ist.
+ *
+ * Warum HIER und nicht im Poller: der hat seine Meldung längst abgegeben („bitte sichten") und die
+ * Zeile dabei gestempelt — er sieht sie nie wieder. Das Ergebnis muss deshalb von der Handlung
+ * kommen, die es herbeigeführt hat. Das ist ohnehin die bessere Stelle: ein menschliches Urteil soll
+ * nicht bis zum nächsten Minuten-Tick warten.
+ *
+ * Steht die Aufgabe danach fest, geht die ERGEBNIS-Meldung raus (an Sub und Keyholder) und die Zeile
+ * wird gestempelt, damit der Poller nicht nachlegt. Steht sie noch nicht fest — die Frist läuft
+ * noch, oder ein anderer Nachweis fehlt —, erfährt nur der Sub, dass sein Nachweis beurteilt wurde.
+ */
+async function notifyProofReviewed(taskId: string, userId: string, title: string, accepted: boolean): Promise<void> {
+  try {
+    const rows = await prisma.task.findMany({ where: { id: taskId }, include: TASK_INCLUDE });
+    const [evaluated] = await evaluateTasks(userId, rows, new Date());
+    if (!evaluated) return;
+
+    if (!isTaskResultFinal(evaluated.evaluation.state)) {
+      await notifyUser(userId, {
+        subjectKey: accepted ? "taskProofAcceptedSubject" : "taskProofRejectedSubject",
+        messageKey: accepted ? "taskProofAcceptedMessage" : "taskProofRejectedMessage",
+        params: { title },
+        alwaysNotify: true,
+        inbox: { ref: { type: "task", id: taskId } },
+      });
+      return;
+    }
+
+    const [controllers, user] = await Promise.all([
+      getControllersOfUser(userId),
+      prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+    ]);
+    // Derselbe Helfer, den der Poller benutzt — er stempelt auch, damit dieser nicht nachlegt.
+    await notifyTaskResult({
+      userId, taskId, title,
+      done: evaluated.evaluation.state === "done",
+      controllers, username: user?.username ?? "", now: new Date(),
+      // KEIN `once`: eine zweite Sichtung ist ein korrigiertes Urteil. Verschluckte der Posteingang
+      // sie, bliebe nach „abgelehnt → doch angenommen" das falsche Ergebnis als letzte Zeile stehen.
+      once: false,
+    });
+  } catch (err) {
+    // Die Sichtung IST geschrieben — eine gescheiterte Meldung darf sie nicht mitreissen.
+    structuredLog("taskProof", "review_notify_failed", { taskId, error: (err as Error).message });
+  }
 }

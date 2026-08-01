@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ListChecks, Check, ChevronRight, Circle } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
+import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import { formatDateTimeDual, formatTime, toDateLocale } from "@/lib/utils";
 import type { TaskCardData } from "@/lib/taskView";
@@ -169,6 +170,14 @@ export default function TaskCard({
                   )}
                   {p.reviewNote && (
                     <span className="text-xs text-foreground-faint italic break-words">{p.reviewNote}</span>
+                  )}
+                  {/* Das eingereichte Foto: für die Keyholderin die Grundlage ihres Urteils, für den
+                      Sub der Beleg, was er abgegeben hat. Klein und antippbar — `ImageViewer` bringt
+                      die Vollbild-Ansicht mit. */}
+                  {p.imageUrl && (
+                    <span className="mt-1.5 block">
+                      <ImageViewer src={p.imageUrl} alt={p.description} width={72} height={72} className="rounded-lg" />
+                    </span>
                   )}
                 </span>
                 <span className="sr-only">{t(`proofState_${p.state}`)}</span>

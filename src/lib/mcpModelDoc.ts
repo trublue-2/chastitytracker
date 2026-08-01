@@ -136,6 +136,10 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
   die Aufgabe in \`awaitingReview\`: weder erfüllt noch versäumt, **du** bist am Zug. Auch ein
   durchgefallener Code-Check ist bewusst KEIN Vergehen, sondern ein Fall für dich: die Bilderkennung
   liest schräge Fotos falsch, und niemand soll für eine Fehllesung bestraft werden.
+- **Sichtung** (\`review_task_proof\`): der EINZIGE Ausweg aus \`awaitingReview\`. Du nimmst einen
+  Nachweis an oder lehnst ihn ab, angesprochen über Aufgabe + Position. Ablehnen macht die Aufgabe
+  zum Vergehen, Annehmen des letzten offenen schliesst sie ab — beides meldet die App sofort an
+  beide Seiten, ohne auf den nächsten Tick zu warten. Ein Urteil lässt sich korrigieren.
 - **Zurückziehen** (\`withdraw target:"task"\`, id nötig) ist DEIN Entschluss und wird nie ein Vergehen.
 - **Bedingungen und Nachweise selbst** sind nicht änderbar. Willst du andere: zurückziehen und neu
   stellen — sonst würde der Sub an etwas gemessen, das er nie bekommen hat. Bei einem Nachweis wiegt

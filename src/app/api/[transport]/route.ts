@@ -6,7 +6,8 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask, mcpEditTask,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
 import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
@@ -986,6 +987,30 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("create_task", extra, args, (u) => mcpCreateTask(u, args)),
+    );
+
+    server.registerTool(
+      "review_task_proof",
+      {
+        title: "Review a submitted proof",
+        description:
+          "Judges ONE submitted proof photo of a task: accept or reject, optionally with a note the user " +
+          "sees. This is the ONLY way out of the state \"awaitingReview\" — a proof without a code (or one " +
+          "whose code the image check could not confirm) is neither fulfilled nor missed until you decide. " +
+          "Address the proof by task plus its POSITION (1-based), the way keyholder_dashboard lists it. " +
+          "Rejecting makes the task unfulfilled (offense unfulfilled_task); accepting the last open proof " +
+          "completes it. Either way the user is told, and if the task is thereby decided its result goes " +
+          "out to both sides at once. A judgment can be revised — say so if you change your mind." + KEYHOLDER_NOTE,
+        inputSchema: {
+          taskId: z.string().describe("The task, from keyholder_dashboard.openTasks[].id."),
+          index: z.number().int().positive().describe("Which proof, 1-based, in the order they were demanded."),
+          accepted: z.boolean().describe("true = the proof counts, false = it does not."),
+          note: z.string().optional().describe("Shown to the user next to the proof — say WHY, especially when rejecting."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("review_task_proof", extra, args, (u) => mcpReviewTaskProof(u, args)),
     );
 
     server.registerTool(
