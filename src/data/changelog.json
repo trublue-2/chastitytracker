@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.60.5",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der KI-Keyholder wird beim Verbinden neu ausdrücklich angewiesen, seine Wissensschicht zu pflegen: festhalten was er gelernt hat, Dauervorgaben und Grenzen anpinnen, genannte Termine sofort eintragen. Bisher stand dort nur, welche Werkzeuge es gibt — mit dem Ergebnis, dass Direktiven vergeben, aber nichts festgehalten wurde und die KI zwischen zwei Sitzungen alles vergass.",
+          "en": "On connecting, the AI keyholder is now explicitly told to maintain its knowledge layer: record what it learned, pin standing directives and limits, enter mentioned dates right away. Previously it was only told which tools exist — with the result that directives were issued but nothing was recorded, and the AI forgot everything between sessions."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Regel-Vorlage lässt sich jetzt auch ansehen, wenn schon Regeln im Feld stehen — zum Vergleichen und Nachziehen fehlender Abschnitte. Eingefügt wird sie weiterhin nur in ein leeres Feld, ein bestehendes Regelwerk kann sie nicht überschreiben.",
+          "en": "The rules template can now also be viewed when rules are already in the field — to compare and fill in what is missing. It is still only inserted into an empty field and can never overwrite an existing rulebook."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.4",
     "date": "2026-08-01",
     "changes": [
