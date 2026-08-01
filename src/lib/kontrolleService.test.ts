@@ -18,19 +18,19 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
 
   it("true, wenn eine sichtbare (unmittelbare) Kontrolle existiert", async () => {
     findFirstMock.mockResolvedValue({ id: "ka1" });
-    const result = await hasActiveKontrolle("u1", NOW);
+    const result = await hasActiveKontrolle("u1", NOW, { categoryId: null });
     expect(result).toBe(true);
   });
 
   it("false, wenn keine passende Zeile gefunden wird", async () => {
     findFirstMock.mockResolvedValue(null);
-    const result = await hasActiveKontrolle("u1", NOW);
+    const result = await hasActiveKontrolle("u1", NOW, { categoryId: null });
     expect(result).toBe(false);
   });
 
   it("Query filtert entryId:null, withdrawnAt:null und (wirksamAb:null ODER bereits erreicht)", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW);
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
     const arg = findFirstMock.mock.calls[0][0];
     expect(arg.where).toMatchObject({ userId: "u1", entryId: null, withdrawnAt: null });
     expect(arg.where.OR).toEqual([{ wirksamAb: null }, { wirksamAb: { lte: NOW } }]);
@@ -42,7 +42,7 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
 
   it("blockiert nur LAUFENDE: deadline muss noch in der Zukunft liegen (überfällige zählen nicht)", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW);
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
     const arg = findFirstMock.mock.calls[0][0];
     // deadline >= now grenzt Status "open" von "overdue" ab. Eine überfällige, nie beantwortete
     // Kontrolle (deadline < now) würde sonst jede künftige (auch Auto-)Kontrolle dauerhaft
@@ -52,16 +52,27 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
 
   it("excludeId schliesst die geprüfte Zeile selbst aus (Poller-Fall: 'irgendeine ANDERE aktive')", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW, { excludeId: "self-id" });
+    await hasActiveKontrolle("u1", NOW, { categoryId: null, excludeId: "self-id" });
     const arg = findFirstMock.mock.calls[0][0];
     expect(arg.where.id).toEqual({ not: "self-id" });
   });
 
   it("ohne excludeId wird kein id-Filter gesetzt (requestKontrolle-Fall: neue Zeile existiert noch nicht)", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW);
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
     const arg = findFirstMock.mock.calls[0][0];
     expect(arg.where.id).toBeUndefined();
+  });
+
+  it("filtert auf das ZIEL: eine Plug-Kontrolle blockiert keine KG-Kontrolle (v5.0.1)", async () => {
+    findFirstMock.mockResolvedValue(null);
+    await hasActiveKontrolle("u1", NOW, { categoryId: "cat-plug" });
+    expect(findFirstMock.mock.calls[0][0].where.categoryId).toBe("cat-plug");
+
+    // `null` ist der KG und wird EXPLIZIT gefiltert — ohne dieses Feld in der Where-Klausel würde
+    // jede laufende Kategorie-Kontrolle auch die KG-Kontrolle blockieren.
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
+    expect(findFirstMock.mock.calls[1][0].where.categoryId).toBeNull();
   });
 });
 

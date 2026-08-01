@@ -4,6 +4,7 @@ import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
+import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
@@ -228,6 +229,10 @@ export interface RequestInspectionArgs {
   deadlineHours?: number;
   comment?: string;
   delayMinutes?: number;
+  /** Ziel: Kategorie-Name („Plug"). Fehlt/„KG" = der Keuschheitsgürtel (Bestandsverhalten). */
+  category?: string;
+  /** Ziel: Gerätename innerhalb der Kategorie. Verengt sie auf genau dieses Gerät. */
+  device?: string;
   dryRun?: boolean;
 }
 /** Delay-Policy (nur MCP): kein Wert → zufällig aus `INSPECTION_RANDOM_DELAY`; ≤0 → sofort; sonst auf
@@ -256,6 +261,10 @@ function inspectionDelayNote(requested: number | undefined, effective: number): 
 export async function mcpRequestInspection(username: string, args: RequestInspectionArgs) {
   const userId = await resolveTargetUserId(username);
   const requestedDelayMinutes = args.delayMinutes ?? null;
+  // Namen → ids VOR dem dryRun-Zweig: die Vorschau soll an einem unbekannten Kategorie-/Gerätenamen
+  // genauso scheitern wie der echte Aufruf, sonst prüft sie nicht das, was sie ankündigt.
+  const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
+  const deviceId = args.device ? await resolveAnyDeviceId(userId, categoryId, args.device) : null;
   if (args.dryRun) {
     // Kein Zufallswert im Preview: ein hier gewürfelter Delay würde bei jedem dryRun-Aufruf einen
     // anderen Wert zeigen, ohne dass der echte Commit denselben zieht — ehrlicher, den Zufallsfall
@@ -265,13 +274,19 @@ export async function mcpRequestInspection(username: string, args: RequestInspec
     const preview = effective === null
       ? { delayMinutes: `random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} (drawn fresh on commit)`, delayNote: null }
       : { delayMinutes: effective, delayNote: inspectionDelayNote(args.delayMinutes, effective) };
-    // Advisory (siehe request_lock): eine Kontrolle verlangt einen verschlossenen User ohne bereits
-    // laufende Kontrolle. hasActiveKontrolle ist dieselbe Prüfung wie auf dem echten Pfad.
-    const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED"
-      : (await hasActiveKontrolle(userId, new Date())) ? "INSPECTION_ALREADY_ACTIVE" : undefined;
+    // Advisory (siehe request_lock): dieselbe Entscheidung wie der echte Pfad, aus derselben
+    // Funktion — ein hier nachgebauter Check wäre genau der Unterschied, den der dryRun
+    // verschweigen würde.
+    const resolved = await resolveInspectionTarget(userId, { categoryId, deviceId });
+    const target = resolved.ok ? resolved.target : null;
+    const problem = inspectionPreconditionProblem(
+      target,
+      target?.active === true && await hasActiveKontrolle(userId, new Date(), { categoryId: target.categoryId }),
+    );
     return dryRunPreview("request_inspection", problem, {
       deadlineHours: args.deadlineHours ?? null,
       comment: args.comment ?? null,
+      target: inspectionTargetLabel(target, "KG"),
       requestedDelayMinutes,
       ...preview,
     });
@@ -282,25 +297,30 @@ export async function mcpRequestInspection(username: string, args: RequestInspec
   const delayNote = inspectionDelayNote(args.delayMinutes, delayMinutes);
   const noteSuffix = delayNote ? ` ${delayNote}` : "";
 
-  const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes }));
+  const data = unwrap(await requestKontrolle({
+    userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes, categoryId, deviceId,
+  }));
 
+  // Das Ziel im Klartext (die Antwort spricht sonst von „the inspection", obwohl es mehrere
+  // gleichzeitig geben kann — je Ziel eine).
+  const targetText = args.device ?? args.category ?? "KG";
   // `delayMinutes`/`requestedDelayMinutes` auch als Felder, nicht nur im Fliesstext: ein Aufrufer,
   // der die Zeit weiterverarbeitet, soll die Abweichung prüfen können, ohne die Meldung zu parsen.
-  const delayFields = { delayMinutes, requestedDelayMinutes, delayNote };
+  const delayFields = { delayMinutes, requestedDelayMinutes, delayNote, target: targetText };
   if (data.scheduledFor) {
     return {
       ok: true,
       scheduledFor: data.scheduledFor,
       deadline: data.deadline,
       ...delayFields,
-      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.` + noteSuffix,
+      message: `Inspection (${targetText}) scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.` + noteSuffix,
     };
   }
   return {
     ok: true,
     deadline: data.deadline,
     ...delayFields,
-    message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` + noteSuffix,
+    message: `Inspection (${targetText}) requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` + noteSuffix,
   };
 }
 
@@ -1215,15 +1235,20 @@ export interface EditTaskArgs {
 }
 
 /** Auflösung eines Gerätenamens über ALLE aktiven Geräte — `resolveDeviceId` sieht per
- *  `getUserDeviceOptions` nur KG-Geräte, und eine Aufgabe fordert gerade die anderen. */
-async function resolveAnyDeviceId(userId: string, categoryId: string, name: string): Promise<string> {
+ *  `getUserDeviceOptions` nur KG-Geräte, und eine Aufgabe fordert gerade die anderen.
+ *  `categoryId: null` sucht über alle Kategorien: `request_inspection` darf ein Gerät benennen,
+ *  ohne die Kategorie zu kennen — sie ergibt sich daraus (siehe resolveInspectionTarget). */
+async function resolveAnyDeviceId(userId: string, categoryId: string | null, name: string): Promise<string> {
   const devices = await prisma.device.findMany({
-    where: { userId, categoryId, archivedAt: null },
+    where: { userId, archivedAt: null, ...(categoryId ? { categoryId } : {}) },
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true },
   });
   const match = matchByNameCI(devices, name);
-  if (!match) throw new Error(`Device not found in this category: "${name}". Available: ${devices.map((d) => d.name).join(", ") || "none"}`);
+  if (!match) {
+    const scope = categoryId ? " in this category" : "";
+    throw new Error(`Device not found${scope}: "${name}". Available: ${devices.map((d) => d.name).join(", ") || "none"}`);
+  }
   return match.id;
 }
 

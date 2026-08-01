@@ -11,6 +11,16 @@ import { APP_TZ } from "@/lib/utils";
  * der Zukunft, z.B. geplante Auto-Kontrollen) bleiben verborgen — ÜBERALL: Sub-Sichten (Dashboard,
  * Stats, MCP) UND Admin/Strafbuch (sonst sähe die Keyholderin die geplanten Zufallszeiten).
  */
+/** Prisma-`include`, das die ZIEL-Namen einer Kontroll-Zeile mitlädt — Futter für
+ *  `inspectionTargetLabel`. Als Konstante, weil sechs Sichten dieselben zwei Relationen brauchen
+ *  und ein vergessenes `include` das Label still verschwinden lässt (kein Compile-Fehler, nur ein
+ *  leeres Feld). Gleiches Muster wie `TASK_INCLUDE`. Steht hier statt in `inspectionTarget.ts`,
+ *  weil das Modul von HIER importiert — andersherum wäre es ein Zyklus. */
+export const KONTROLLE_TARGET_INCLUDE = {
+  category: { select: { name: true } },
+  device: { select: { name: true } },
+} satisfies Prisma.KontrollAnforderungInclude;
+
 export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
 }
@@ -346,8 +356,9 @@ export async function getActiveWearSessions(userId: string): Promise<(ActiveWear
 export async function getActiveWearSessionForCategory(
   userId: string,
   categoryId: string,
+  client: PrismaTx | typeof prisma = prisma,
 ): Promise<ActiveWearSession | null> {
-  const latest = await prisma.entry.findFirst({
+  const latest = await client.entry.findFirst({
     where: {
       userId,
       type: { in: ["WEAR_BEGIN", "WEAR_END"] },
@@ -508,13 +519,17 @@ export function foldActiveSperrzeiten<T extends { endetAt: Date | null; reinigun
   return { ...enforcing, reinigungErlaubt: rows.every((r) => r.reinigungErlaubt) };
 }
 
-/** Die aktuell OFFENE (noch nicht eingereichte) Kontroll-Anforderung, oder null. Geplante, noch
- *  nicht ausgelöste Kontrollen bleiben unsichtbar (`aktiveKontrolleWhere`).
- *  Genutzt von `keyholder_dashboard`. */
-export async function getOpenKontrolle(userId: string, now: Date = new Date()) {
-  return prisma.kontrollAnforderung.findFirst({
+/** ALLE aktuell OFFENEN (noch nicht eingereichten) Kontroll-Anforderungen, dringendste Frist zuerst.
+ *  Geplante, noch nicht ausgelöste bleiben unsichtbar (`aktiveKontrolleWhere`).
+ *
+ *  Mehrzahl seit v5.0.1: je ZIEL darf eine laufen (KG und Plug parallel, siehe
+ *  `hasActiveKontrolle`). Eine einzelne zurückzugeben hiesse, dem Keyholder-Agenten eine Frist zu
+ *  verschweigen, die der Sub gerade hat. Genutzt von `keyholder_dashboard`. */
+export async function getOpenKontrollen(userId: string, now: Date = new Date()) {
+  return prisma.kontrollAnforderung.findMany({
     where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
-    orderBy: { createdAt: "desc" },
+    orderBy: { deadline: "asc" },
+    include: KONTROLLE_TARGET_INCLUDE,
   });
 }
 

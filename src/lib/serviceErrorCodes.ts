@@ -53,6 +53,12 @@ export const INSPECTION_CODES = [
   "INSPECTION_NO_SUBMISSION",
   "INSPECTION_ALREADY_ACTIVE",
   "INSPECTION_NOT_WITHDRAWN",
+  // Ziel-Kontrollen (v5.0.1): das Gegenstück zu USER_NOT_LOCKED für Trage-Kategorien, dazu die
+  // beiden Fehler, die nur ein ZIEL haben kann — es existiert nicht (mehr), oder das verlangte
+  // Gerät ist nicht das getragene.
+  "USER_NOT_WEARING",
+  "INSPECTION_TARGET_INVALID",
+  "INSPECTION_DEVICE_NOT_ACTIVE",
 ] as const;
 
 /** vorgabeService (training goals). `INVALID_CATEGORY` sass hier, solange der vorgabeService der

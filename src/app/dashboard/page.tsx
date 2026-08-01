@@ -13,7 +13,7 @@ import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest, KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
@@ -34,6 +34,7 @@ import InactiveCategories from "./InactiveCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { inspectionHref } from "@/lib/entryFormRoute";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -58,7 +59,12 @@ export default async function DashboardPage() {
       include: { device: { select: { id: true, categoryId: true, name: true } } },
     }),
     // Zeitversetzt geplante Kontrollen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
-    prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
+    prisma.kontrollAnforderung.findMany({
+      where: { userId, ...aktiveKontrolleWhere(now) },
+      orderBy: { createdAt: "desc" },
+      // Ziel-Namen fürs Banner: der Sub muss wissen, WAS er zeigen soll.
+      include: { entry: true, ...KONTROLLE_TARGET_INCLUDE },
+    }),
     getActiveVorgabe(userId, now),
     // Zeitversetzt geplante Anforderungen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
     // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
@@ -78,7 +84,11 @@ export default async function DashboardPage() {
   };
 
   // ── Compute derived state ──
-  const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
+  // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit der
+  // knappsten Frist oben steht.
+  const offeneKontrollen = alleAnforderungen
+    .filter((k) => !k.entryId && !k.withdrawnAt)
+    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
 
   const latest = [...entries]
     .filter((e) => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
@@ -169,7 +179,6 @@ export default async function DashboardPage() {
   const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
 
   // ── Serialize for client ──
-  const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
   const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
     ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
     : null;
@@ -177,13 +186,15 @@ export default async function DashboardPage() {
   const alertProps: DashboardAlertsProps = {
     tz,
 
-    offeneKontrolle: offeneKontrolle ? {
-      deadline: offeneKontrolle.deadline.toISOString(),
-      code: offeneKontrolle.code,
-      kommentar: offeneKontrolle.kommentar,
-      overdue: kontrolleOverdue,
-      href: inspectionHref(offeneKontrolle.code, { kommentar: offeneKontrolle.kommentar }),
-    } : null,
+    offeneKontrollen: offeneKontrollen.map((k) => ({
+      id: k.id,
+      deadline: k.deadline.toISOString(),
+      code: k.code,
+      kommentar: k.kommentar,
+      target: inspectionTargetLabel(k),
+      overdue: k.deadline < now,
+      href: inspectionHref(k.code, { kommentar: k.kommentar, categoryId: k.categoryId }),
+    })),
 
     offeneVerschlussAnf: offeneVerschlussAnf ? {
       nachricht: joinParts(

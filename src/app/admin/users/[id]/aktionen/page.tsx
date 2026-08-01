@@ -40,17 +40,22 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
 
   const hasEmail = !!user.email;
+  // Gibt es überhaupt ein Ziel für eine Kontrolle? Der KG zählt nur verschlossen, jede laufende
+  // Trage-Session ebenfalls (dieselbe Menge, die /api/admin/inspection-targets liefert).
+  const hasInspectionTarget = isLocked || activeWear.length > 0;
   const base = `/admin/users/${id}/aktionen`;
 
   return (
     <>
       <ActionRowGroup title={t("aktionenAnforderungen")}>
+        {/* Kontrollen brauchen ein LAUFENDES Ziel — verschlossen ODER etwas getragen (v5.0.1).
+            Ohne beides gäbe es nichts zu zeigen, und `requestKontrolle` würde ablehnen. */}
         <ActionRow
-          href={hasEmail && isLocked ? `${base}/kontrolle` : undefined}
+          href={hasEmail && hasInspectionTarget ? `${base}/kontrolle` : undefined}
           icon={<Bell size={20} strokeWidth={2} />}
           iconStyle={tone("inspect")}
           title={t("requestInspection")}
-          hint={hasEmail && isLocked ? t("requestInspectionHint") : !hasEmail ? t("noEmail") : t("entryOnlyIfLocked")}
+          hint={hasEmail && hasInspectionTarget ? t("requestInspectionHint") : !hasEmail ? t("noEmail") : t("entryOnlyIfLockedOrWorn")}
         />
 
         {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}

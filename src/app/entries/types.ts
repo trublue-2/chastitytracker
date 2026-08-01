@@ -28,6 +28,9 @@ export interface PruefungPayload {
   imageExifTime: string | null;
   note: string | null;
   kontrollCode: string | null;
+  /** Das kontrollierte Gerät — gesetzt bei Trage-Kontrollen (v5.0.1), null beim KG (dort steht das
+   *  Gerät am VERSCHLUSS). Es bestimmt zugleich, WELCHE offene Anforderung das Foto beantwortet. */
+  deviceId?: string | null;
   verifikationStatus: "ai" | null;
   /** Clockwise rotation applied to the photo in the form (0|90|180|270).
    *  Server-side AI verify must use the same rotation as the client preview. */

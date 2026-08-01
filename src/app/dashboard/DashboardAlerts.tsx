@@ -14,14 +14,19 @@ import { inspectionHelpUrl } from "@/lib/constants";
  *  Rendert nichts, wenn keine Anforderung offen ist: als leerer Block wäre er kein Flex-Item mehr
  *  und überspringt seinen Abstand automatisch (siehe `DashboardBlock`). */
 export interface DashboardAlertsProps {
-  offeneKontrolle: {
+  /** ALLE offenen Kontrollen, dringendste zuerst. Seit v5.0.1 kann je Ziel eine laufen (KG und
+   *  Plug parallel) — eine einzelne würde die andere verschweigen, samt ihrer Frist. */
+  offeneKontrollen: {
+    id: string;
     deadline: string;
     /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
     code: string | null;
     kommentar: string | null;
+    /** Ziel (Geräte-/Kategoriename), null = KG. */
+    target: string | null;
     overdue: boolean;
     href: string;
-  } | null;
+  }[];
 
   offeneVerschlussAnf: {
     nachricht: string | null;
@@ -39,31 +44,33 @@ export interface DashboardAlertsProps {
 }
 
 export default async function DashboardAlerts({
-  offeneKontrolle,
+  offeneKontrollen,
   offeneVerschlussAnf,
   offeneOrgasmusAnf,
   tz,
 }: DashboardAlertsProps) {
-  if (!offeneKontrolle && !offeneVerschlussAnf && !offeneOrgasmusAnf) return null;
+  if (offeneKontrollen.length === 0 && !offeneVerschlussAnf && !offeneOrgasmusAnf) return null;
 
   const t = await getTranslations("dashboard");
   const locale = await getLocale();
 
   return (
     <DashboardBlock className="flex flex-col gap-4">
-      {offeneKontrolle && (
+      {offeneKontrollen.map((k) => (
         <KontrolleBanner
-          deadline={new Date(offeneKontrolle.deadline)}
-          code={offeneKontrolle.code}
-          kommentar={offeneKontrolle.kommentar}
-          overdue={offeneKontrolle.overdue}
+          key={k.id}
+          deadline={new Date(k.deadline)}
+          code={k.code}
+          kommentar={k.kommentar}
+          target={k.target}
+          overdue={k.overdue}
           variant="large"
-          href={offeneKontrolle.href}
+          href={k.href}
           openLabel={t("inspectionRequired")}
           helpHref={inspectionHelpUrl(locale)}
           tz={tz}
         />
-      )}
+      ))}
 
       {offeneVerschlussAnf && (
         <LockRequestBanner

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
-import { validateEntryPayload } from "@/lib/constants";
+import { validateEntryPayload, DEVICE_BEARING_TYPES } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, getKgNeighbors } from "@/lib/queries";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Validate deviceId ownership inside transaction to avoid TOCTOU
-      if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
+      if (deviceId && DEVICE_BEARING_TYPES.includes(type)) {
         const device = await validateDeviceOwnership(deviceId, userId, tx);
         if (!device) throw entryGuardError("INVALID_DEVICE");
       }
@@ -81,7 +81,12 @@ export async function POST(req: NextRequest) {
           imageUrl: imageUrl || null,
           imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
           kontrollCode: kontrollCode || null,
-          deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
+          // PRUEFUNG trägt seit v5.0.1 das kontrollierte Gerät (Trage-Kontrollen) — hier nur als
+          // Datum am Eintrag: eine vom Keyholder nachgetragene Prüfung erfüllt bewusst keine
+          // Anforderung (das tut nur die Einreichung des Subs, siehe /api/entries).
+          deviceId: DEVICE_BEARING_TYPES.includes(type)
+            ? (deviceId || null)
+            : null,
         },
       });
     });

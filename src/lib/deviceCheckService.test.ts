@@ -24,14 +24,14 @@ const updateMock = prisma.entry.update as unknown as ReturnType<typeof vi.fn>;
 const refsMock = gatherDeviceReferences as unknown as ReturnType<typeof vi.fn>;
 const checkMock = checkDeviceInPhoto as unknown as ReturnType<typeof vi.fn>;
 
-const LOCKED = { type: "VERSCHLUSS", deviceId: "d1" };
-
-const run = (lockEntry: unknown) =>
+/** Das erwartete Gerät kommt fertig vom Aufrufer (seit v5.0.1 aus der Ziel-Auflösung der Kontrolle,
+ *  siehe inspectionTarget.ts) — der Service schlägt es nicht mehr selbst nach. */
+const run = (expectedDeviceId: string | null) =>
   runDeviceCheck({
     entryId: "e1",
     userId: "u1",
     photoUrl: "/api/uploads/q.jpg",
-    lockEntry: lockEntry as Promise<{ type: string; deviceId: string | null } | null>,
+    expectedDeviceId,
   });
 
 /** Der geschriebene deviceCheck-Wert des (einzigen) Update-Aufrufs. */
@@ -61,7 +61,7 @@ describe("deviceCheckApplies — die EINE Bedingung für Startwert und Lauf", ()
   });
 
   it("hängt NICHT am Kontroll-Code — eine freiwillige Selbstkontrolle wird auch geprüft", () => {
-    // Anders als die Code-Verifikation: geprüft wird das Foto gegen das verschlossene Gerät.
+    // Anders als die Code-Verifikation: geprüft wird das Foto gegen das erwartete Gerät.
     expect(deviceCheckApplies("PRUEFUNG", "/api/uploads/q.jpg")).toBe(true);
   });
 });
@@ -69,7 +69,7 @@ describe("deviceCheckApplies — die EINE Bedingung für Startwert und Lauf", ()
 describe("runDeviceCheck — 'pending' wird IMMER durch einen Endzustand ersetzt", () => {
   it("Befund vorhanden → er wird geschrieben", async () => {
     checkMock.mockResolvedValue({ status: "ok", detected: "Cage A", expected: "Cage A" });
-    await run(Promise.resolve(LOCKED));
+    await run("d1");
 
     expect(updateMock).toHaveBeenCalledTimes(1);
     expect(updateMock).toHaveBeenCalledWith({
@@ -78,23 +78,13 @@ describe("runDeviceCheck — 'pending' wird IMMER durch einen Endzustand ersetzt
     });
   });
 
-  it("nicht verschlossen → null, nicht 'pending' (nichts zu prüfen ist ein ENDzustand)", async () => {
-    await run(Promise.resolve({ type: "OEFFNEN", deviceId: null }));
+  it("kein erwartetes Gerät → null, nicht 'pending' (nichts zu prüfen ist ein ENDzustand)", async () => {
+    // Der Sammelfall: nicht verschlossen, nichts getragen, oder ein Alt-Eintrag ohne Gerät — der
+    // Aufrufer liefert dann `null`, und hier gibt es nichts nachzuschlagen.
+    await run(null);
 
     expect(checkMock).not.toHaveBeenCalled();
     expect(updateMock).toHaveBeenCalledTimes(1);
-    expect(writtenStatus()).toBeNull();
-  });
-
-  it("verschlossen, aber kein Gerät hinterlegt → null", async () => {
-    await run(Promise.resolve({ type: "VERSCHLUSS", deviceId: null }));
-
-    expect(checkMock).not.toHaveBeenCalled();
-    expect(writtenStatus()).toBeNull();
-  });
-
-  it("gar kein Lock-Eintrag → null", async () => {
-    await run(Promise.resolve(null));
     expect(writtenStatus()).toBeNull();
   });
 
@@ -102,7 +92,7 @@ describe("runDeviceCheck — 'pending' wird IMMER durch einen Endzustand ersetzt
     // Der Fall, der vorher gar nicht zurückschrieb: Feature aus. Mit einem gesetzten "pending" wäre
     // die Zeile damit dauerhaft auf „läuft noch" stehen geblieben.
     checkMock.mockResolvedValue(null);
-    await run(Promise.resolve(LOCKED));
+    await run("d1");
 
     expect(updateMock).toHaveBeenCalledTimes(1);
     expect(writtenStatus()).toBeNull();
@@ -110,14 +100,9 @@ describe("runDeviceCheck — 'pending' wird IMMER durch einen Endzustand ersetzt
 
   it("Referenz-Laden wirft → 'error' (wollte prüfen, ging nicht), und es wird geschrieben", async () => {
     refsMock.mockRejectedValue(new Error("EIO"));
-    await run(Promise.resolve(LOCKED));
+    await run("d1");
 
     expect(updateMock).toHaveBeenCalledTimes(1);
-    expect(writtenStatus()).toBe("error");
-  });
-
-  it("der Lock-Lookup selbst wirft → 'error', kein unbehandelter Rejection", async () => {
-    await expect(run(Promise.reject(new Error("db down")))).resolves.toBeUndefined();
     expect(writtenStatus()).toBe("error");
   });
 
@@ -125,6 +110,6 @@ describe("runDeviceCheck — 'pending' wird IMMER durch einen Endzustand ersetzt
     checkMock.mockResolvedValue({ status: "ok", detected: "Cage A", expected: "Cage A" });
     updateMock.mockRejectedValue(new Error("locked db"));
 
-    await expect(run(Promise.resolve(LOCKED))).resolves.toBeUndefined();
+    await expect(run("d1")).resolves.toBeUndefined();
   });
 });

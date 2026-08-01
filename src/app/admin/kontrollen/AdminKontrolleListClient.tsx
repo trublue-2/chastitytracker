@@ -54,6 +54,9 @@ export interface AdminKontrolleRowData {
   pillCls: string | null;
   username?: string | null;
   code: string | null;
+  /** ZIEL der Kontrolle: Geräte- bzw. Kategoriename. null = KG (dort ist „Kontrolle" ohne Zusatz
+   *  gemeint — ein Label an jeder KG-Zeile wäre reines Rauschen). */
+  target: string | null;
   fulfilledAtStr: string | null;
   deadlineStr: string | null;
   createdAtStr: string | null;
@@ -132,6 +135,11 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
               {row.pillLabel && (
                 <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
               )}
+              {row.target && (
+                <DetailField label={t("kontrolleTarget")}>
+                  <p className="text-sm text-foreground-muted">{row.target}</p>
+                </DetailField>
+              )}
               {row.verifikationReasonStr && (
                 <p className="text-xs text-warn">{row.verifikationReasonStr}</p>
               )}
@@ -209,8 +217,13 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
               {row.verifikationReasonStr && (
                 <p className="text-xs text-warn">{row.verifikationReasonStr}</p>
               )}
-              {(row.code || row.deviceCheck) && (
+              {(row.code || row.target || row.deviceCheck) && (
                 <div className="flex items-center gap-2 flex-wrap">
+                  {row.target && (
+                    <Badge variant="neutral" size="sm" label={t("kontrolleTarget")}>
+                      <span className="font-medium">{row.target}</span>
+                    </Badge>
+                  )}
                   {row.code && (
                     <Badge variant="inspect" size="sm" icon={<ScanLine size={12} />} label={t("codeLabel")}>
                       <span className="font-mono font-bold">{row.code}</span>

@@ -58,6 +58,10 @@ interface Props {
   /** Verlangt das getragene Gerät einen Kontroll-Code? false → weder Anzeige noch Eingabefeld, und
    *  es wird keiner mitgeschickt. Default true = Bestandsverhalten. */
   codeRequired?: boolean;
+  /** ZIEL der Kontrolle: das kontrollierte Gerät (Trage-Kontrolle). null/weggelassen = KG. */
+  targetDeviceId?: string | null;
+  /** Name des Ziels für die Anzeige („Kontrolle: Plug") — null beim KG. */
+  targetLabel?: string | null;
   mobileDesktopMode?: boolean;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster, das den Schlüssel zeigt.
    *  Nur beim Neuanlegen — beim Bearbeiten wird kein Nachweis nachgereicht. */
@@ -72,6 +76,7 @@ interface Props {
 
 export default function PruefungFormCore({
   initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired = true, mobileDesktopMode,
+  targetDeviceId = null, targetLabel = null,
   boxConfirm = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
@@ -196,6 +201,8 @@ export default function PruefungFormCore({
       // Ohne Code-Pflicht keinen mitschicken: die Anforderung hat keinen, es gäbe nichts zu
       // vergleichen — und ein Wert hier liesse den Server einen Code-Vergleich versuchen.
       kontrollCode: codeRequired ? (kontrollCode || null) : null,
+      // Nur bei Trage-Kontrollen gesetzt; beim KG bleibt es weg (dort steht das Gerät am VERSCHLUSS).
+      deviceId: targetDeviceId ?? null,
       verifikationStatus: aiMatch === true ? "ai" : null,
       imageRotation: rotation,
       ...(boxConfirm && boxPhoto.imageUrl ? { boxImageUrl: boxPhoto.imageUrl, boxImageRotation: boxPhoto.rotation } : {}),
@@ -228,6 +235,18 @@ export default function PruefungFormCore({
           <div className="flex items-start gap-2.5">
             <WifiOff size={16} className="flex-shrink-0 text-warn mt-0.5" />
             <p className="text-sm text-warn-text">{tOffline("photoRequiresConnection")}</p>
+          </div>
+        </Card>
+      )}
+
+      {/* Das ZIEL: bei einer Trage-Kontrolle muss im Foto ein anderes Gerät zu sehen sein als beim
+          KG — ohne diese Zeile wüsste der Sub nicht, welche seiner offenen Kontrollen er gerade
+          beantwortet. */}
+      {targetLabel && (
+        <Card padding="compact">
+          <div className="flex items-center gap-3">
+            <Badge variant="inspect" label={t("target")} size="sm" />
+            <span className="font-semibold text-foreground">{targetLabel}</span>
           </div>
         </Card>
       )}

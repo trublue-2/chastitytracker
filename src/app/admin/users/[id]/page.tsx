@@ -22,6 +22,8 @@ import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
 import ActiveWearSessions from "@/app/dashboard/ActiveWearSessions";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import KontrolleItemListClient, { type KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import OrgasmenListClient, { type OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
@@ -63,7 +65,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const flagOn = deviceCategoriesEnabled();
   const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories, deviceCount] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { id: true, name: true, categoryId: true } } } }),
-    prisma.kontrollAnforderung.findMany({ where: { userId: id, ...keyholderVisibleKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
+    prisma.kontrollAnforderung.findMany({
+      where: { userId: id, ...keyholderVisibleKontrolleWhere(now) },
+      orderBy: { createdAt: "desc" },
+      // Ziel-Namen fürs Banner (v5.0.1) — sonst stünde dort „Kontrolle offen", ohne wofür.
+      include: { entry: true, ...KONTROLLE_TARGET_INCLUDE },
+    }),
     getActiveVorgabe(id, now),
     getKeyholderSperrzeit(id),
     getKeyholderOrgasmusAnforderung(id),
@@ -178,6 +185,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           deadline={offeneKontrolle.deadline}
           code={offeneKontrolle.code}
           kommentar={offeneKontrolle.kommentar}
+          target={inspectionTargetLabel(offeneKontrolle)}
           overdue={offeneKontrolle.deadline < now}
           variant="large"
           tz={tz}

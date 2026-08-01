@@ -24,11 +24,15 @@ export function isEntryFormRoute(pathname: string): boolean {
  */
 export function inspectionHref(
   code?: string | null,
-  opts?: { kommentar?: string | null },
+  opts?: { kommentar?: string | null; categoryId?: string | null },
 ): string {
   const params = new URLSearchParams();
   if (code) params.set("code", code);
   if (opts?.kommentar) params.set("kommentar", opts.kommentar);
+  // Das ZIEL (v5.0.1): ohne es landet eine Trage-Kontrolle auf dem KG-Formular und der Sub reicht
+  // ein Foto ein, das seine Kontrolle gar nicht beantwortet. Fehlt der Parameter, bleibt es beim
+  // KG — das ist die Bedeutung von `categoryId: null` im ganzen Modell.
+  if (opts?.categoryId) params.set("cat", opts.categoryId);
   const query = params.toString();
   return `/dashboard/new/pruefung${query ? `?${query}` : ""}`;
 }

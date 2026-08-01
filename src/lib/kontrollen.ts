@@ -3,6 +3,7 @@ import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import { effectiveDeviceCheckStatus } from "@/lib/deviceCheck";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
 
 /** Raw row built from PRUEFUNG entries + KontrollAnforderungen, ready for display mapping. */
@@ -25,6 +26,9 @@ export interface KontrolleRow {
   deviceCheckNote: string | null;
   deviceCheckExpected: string | null;
   code: string | null;
+  /** ZIEL: Geräte- bzw. Kategoriename, null = KG. Aus der Anforderung, ersatzweise (bei einer
+   *  freiwilligen Prüfung ohne Anforderung) aus dem Gerät des Eintrags. */
+  target: string | null;
   deadline: Date | null;
   createdAt: Date | null;
   fulfilledAt: Date | null;
@@ -45,6 +49,8 @@ export interface KontrolleRow {
 type PruefungEntry = {
   id: string;
   startTime: Date;
+  /** Das kontrollierte Gerät (Trage-Kontrollen ab v5.0.1); KG-Prüfungen tragen keines. */
+  device?: { name: string; category: { name: string; isBuiltIn: boolean } | null } | null;
   imageUrl: string | null;
   boxImageUrl?: string | null;
   note: string | null;
@@ -60,6 +66,9 @@ type PruefungEntry = {
 
 type KontrollAnforderung = {
   id: string;
+  /** ZIEL der Anforderung — die Namen kommen aus den Relationen, nicht aus den ids. */
+  category?: { name: string } | null;
+  device?: { name: string } | null;
   /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
   code: string | null;
   deadline: Date;
@@ -107,6 +116,9 @@ export function buildKontrolleRows(
       deviceCheckNote: e.deviceCheckNote ?? null,
       deviceCheckExpected: e.deviceCheckExpected ?? null,
       code: ka?.code ?? e.kontrollCode ?? null,
+      // Das Ziel der ANFORDERUNG gewinnt: sie sagt, was verlangt war. Ohne Anforderung (freiwillige
+      // Prüfung) bleibt das gezeigte Gerät — bei einer KG-Prüfung ist beides leer.
+      target: inspectionTargetLabel(ka) ?? (e.device && !e.device.category?.isBuiltIn ? e.device.name : null),
       deadline: ka?.deadline ?? null,
       createdAt: ka?.createdAt ?? null,
       fulfilledAt: e.startTime,
@@ -138,6 +150,7 @@ export function buildKontrolleRows(
       deviceCheckNote: null,
       deviceCheckExpected: null,
       code: k.code,
+      target: inspectionTargetLabel(k),
       deadline: k.deadline,
       createdAt: k.createdAt,
       fulfilledAt: null,
@@ -211,6 +224,7 @@ export function mapKontrolleRow(
     imageUrl: row.imageUrl,
     boxImageUrl: row.boxImageUrl,
     kommentar: row.kommentar,
+    target: row.target,
     pillLabel: kPill?.label ?? null,
     pillCls: kPill?.cls ?? null,
     username: includeUsername ? row.username : null,
