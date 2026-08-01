@@ -939,6 +939,8 @@
     "keyholderInstructionsSave": "Save",
     "keyholderInstructionsSaved": "Saved",
     "keyholderInstructionsError": "Save failed",
+    "keyholderInstructionsHelp": "How does the AI keyholder work?",
+    "keyholderInstructionsTemplateInsert": "Insert template",
     "mobileUploadAdminTitle": "File picker on mobile",
     "mobileUploadAdminDesc": "Show file picker instead of direct camera on mobile",
     "sectionVorgaben": "Training goals",
