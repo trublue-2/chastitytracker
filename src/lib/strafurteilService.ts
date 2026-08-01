@@ -4,6 +4,7 @@ import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { senderKindOf } from "@/lib/messageService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { markLastAction } from "@/lib/appMeta";
+import { STORED_TYPE, type OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /**
  * Urteils-Lebenszyklus über erkannte Vergehen:
@@ -14,35 +15,10 @@ import { markLastAction } from "@/lib/appMeta";
  * Die Klugheit liegt im Urteilstext, nicht im Feld. „erledigtAt" schließt den Loop.
  */
 
-/** MCP-kanonischer Vergehenstyp ↔ gespeicherter offenseType. */
-export type OffenseCanonicalType =
-  | "unauthorized_opening"
-  | "late_control"
-  | "rejected_control"
-  | "auto_removed_control"
-  | "cleaning_limit"
-  | "wrong_device"
-  | "missed_orgasm"
-  | "late_lock"
-  | "cleaning_not_relocked"
-  | "unfulfilled_task";
-
-/** Canonical offense type → stored StrafeRecord.offenseType. Exported so the manual-punish route
- *  (src/app/api/admin/strafe/route.ts) can validate against the same list instead of a hand-copied one. */
-export const STORED_TYPE: Record<OffenseCanonicalType, string> = {
-  unauthorized_opening: "OEFFNEN_ENTRY",
-  late_control: "KONTROLLANFORDERUNG",
-  rejected_control: "KONTROLLANFORDERUNG",
-  // Eigener Typ statt "KONTROLLANFORDERUNG" — eine vermutete Entfernung (Kontrolle nicht
-  // beantwortet, System hat automatisch geöffnet) ist etwas anderes als eine verspätete Einreichung.
-  auto_removed_control: "AUTO_ENTFERNT",
-  cleaning_limit: "REINIGUNG_LIMIT",
-  wrong_device: "FALSCHES_GERAET",
-  missed_orgasm: "ORGASMUS_ANWEISUNG",
-  late_lock: "VERSCHLUSS_ANFORDERUNG",
-  cleaning_not_relocked: "REINIGUNG_NICHT_VERSCHLOSSEN",
-  unfulfilled_task: "AUFGABE",
-};
+/** Vergehens-Taxonomie: liegt in `offenseTypes.ts`, weil dieses Modul Prisma zieht und die Tabelle
+ *  auch aus Client-Komponenten (Strafbuch-Seite) erreichbar sein muss. Hier re-exportiert, damit die
+ *  bestehenden Importeure unverändert bleiben. */
+export { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
 
 export interface DetectedOffense {
   canonicalType: OffenseCanonicalType;

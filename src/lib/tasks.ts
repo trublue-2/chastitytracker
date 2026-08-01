@@ -248,7 +248,17 @@ export function isTaskOpen(state: TaskState): boolean {
   return state === "pending" || state === "partial" || state === "running";
 }
 
-/** Ein Vergehen? `missed` (nie begonnen) und `aborted` (zu früh abgelegt) schliessen einander aus. */
-export function isTaskOffense(state: TaskState): boolean {
+/**
+ * Die Zustände, die ein Vergehen sind — `missed` (nie begonnen) und `aborted` (zu früh abgelegt),
+ * die einander ausschliessen.
+ *
+ * Eigener Typ, weil das Paar sonst an jeder Stelle einzeln abgeschrieben wird, die ein Vergehen
+ * weiterreicht (Strafbuch-Daten, Strafbuch-Anzeige). Kommt je ein dritter Vergehens-Zustand dazu,
+ * bricht dort der Compiler, statt dass die Anzeige ihn still weglässt.
+ */
+export type TaskOffenseState = Extract<TaskState, "missed" | "aborted">;
+
+/** Ein Vergehen? Als Type-Guard, damit der Aufrufer den engeren Typ auch bekommt statt ihn zu casten. */
+export function isTaskOffense(state: TaskState): state is TaskOffenseState {
   return state === "missed" || state === "aborted";
 }

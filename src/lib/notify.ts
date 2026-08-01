@@ -15,6 +15,11 @@ export type NotifyInbox =
       bodyKey?: MessageBodyKey;
       ref?: MessageRef;
       senderKind?: MessageSenderKind;
+      /** Höchstens EINE Nachricht dieses Texts pro Bezugsobjekt — braucht `ref`. Für Meldungen, die
+       *  ein einmaliges Ereignis festhalten (gestellt, zurückgezogen, Ergebnis): ein Retry nach
+       *  einem Absturz darf keine zweite, dauerhafte Zeile hinterlassen. Semantik und Grenzen in
+       *  `RecordMessageParams.once`. */
+      once?: boolean;
     };
 
 /**
@@ -68,6 +73,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
       params,
       senderKind: inbox?.senderKind,
       ref: inbox?.ref,
+      once: inbox?.once,
     });
     if (!alwaysNotify) channels = await getMessageChannels(userId);
   }

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown, XCircle } from "lucide-react";
 import { parseApiError } from "@/lib/apiClient";
+import type { StoredOffenseType } from "@/lib/offenseTypes";
+import type { TaskOffenseState } from "@/lib/tasks";
 
 export interface StrafeRecordData {
   refId: string;
@@ -28,6 +30,17 @@ export interface UnerlaubteOeffnungRow {
   note: string | null;
   sperrzetEndetAtStr: string | null;
   sperrzetUnbefristet: boolean;
+}
+
+/** Eine nicht erfüllte Aufgabe. `state` unterscheidet „nie (rechtzeitig) begonnen" von
+ *  „begonnen und vor der Frist abgelegt" — dieselbe Unterscheidung wie im Strafbuch-Modell. */
+export interface AufgabeRow {
+  id: string;
+  title: string;
+  holdUntilStr: string;
+  state: TaskOffenseState;
+  /** Nur bei `aborted`: wann die Bedingung wegfiel. Beleg statt blossem Vorwurf. */
+  failedAtStr: string | null;
 }
 
 export interface KontrollRow {
@@ -89,6 +102,10 @@ interface Labels {
   strafbuchErledigtBadge: string;
   strafbuchAlsErledigt: string;
   strafbuchWiederOffen: string;
+  strafbuchAufgaben: string;
+  strafbuchAufgabeVersaeumt: string;
+  strafbuchAufgabeAbgebrochen: string;
+  strafbuchAufgabeAbgelegtAm: string;
 }
 
 interface Props {
@@ -98,13 +115,14 @@ interface Props {
   abgelehnt: KontrollRow[];
   autoEntfernt: KontrollRow[];
   reinigungLimitVergehen: ReinigungLimitRow[];
+  unfulfilledTasks: AufgabeRow[];
   strafeRecords: StrafeRecordData[];
   labels: Labels;
 }
 
 const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, strafeRecords, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, strafeRecords, labels }: Props) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
@@ -120,12 +138,16 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const openZuSpaet = zuSpaet.filter(k => !closedIds.has(k.id));
   const openAbgelehnt = abgelehnt.filter(k => !closedIds.has(k.id));
   const openAutoEntfernt = autoEntfernt.filter(k => !closedIds.has(k.id));
+  const openAufgaben = unfulfilledTasks.filter(a => !closedIds.has(a.id));
 
-  const hasAnyOpen = openOeffnungen.length > 0 || openZuSpaet.length > 0 || openAbgelehnt.length > 0 || openAutoEntfernt.length > 0;
-  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0 || autoEntfernt.length > 0 || reinigungLimitVergehen.length > 0;
+  const hasAnyOpen = openOeffnungen.length > 0 || openZuSpaet.length > 0 || openAbgelehnt.length > 0 || openAutoEntfernt.length > 0 || openAufgaben.length > 0;
+  const hasAny = unerlaubteOeffnungen.length > 0 || zuSpaet.length > 0 || abgelehnt.length > 0 || autoEntfernt.length > 0 || reinigungLimitVergehen.length > 0 || unfulfilledTasks.length > 0;
   const hasPunished = strafeRecords.filter(r => r.refId && !reinigungLimitVergehen.some(rl => rl.entryId === r.refId)).length > 0;
 
-  type OffenseType = "KONTROLLANFORDERUNG" | "OEFFNEN_ENTRY" | "REINIGUNG_LIMIT" | "AUTO_ENTFERNT";
+  // Die gespeicherten Vergehenstypen kommen aus der geteilten Taxonomie (`offenseTypes.ts`), nicht
+  // aus einer Union von Hand. Vorher standen hier vier von zehn Werten — sechs Vergehensarten
+  // konnten auf dieser Seite gar nicht erscheinen, obwohl das Strafbuch sie ableitet.
+  type OffenseType = StoredOffenseType;
 
   function Section({ title, openCount, totalCount, children }: {
     title: string; openCount: number; totalCount: number; children: React.ReactNode;
@@ -345,6 +367,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const abgelehntDisplay = showAll ? abgelehnt : openAbgelehnt;
   const autoEntferntDisplay = showAll ? autoEntfernt : openAutoEntfernt;
   // Reinigung-Limit offenses are auto-logged — always shown (no open/closed split)
+  const aufgabenDisplay = showAll ? unfulfilledTasks : openAufgaben;
   const reinigungDisplay = reinigungLimitVergehen;
 
   return (
@@ -460,6 +483,34 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
                 <p className="text-xs text-foreground-faint">{labels.frist}: {k.deadlineStr}</p>
                 {k.kommentar && <span className="text-xs text-foreground-faint italic">{labels.instructionLabel}: {k.kommentar}</span>}
                 <JudgmentSlot refId={k.id} offenseType="AUTO_ENTFERNT" />
+              </div>
+            );
+          })}
+        </Section>
+      )}
+
+      {aufgabenDisplay.length > 0 && (
+        <Section title={labels.strafbuchAufgaben}
+          openCount={openAufgaben.length}
+          totalCount={unfulfilledTasks.length}>
+          {aufgabenDisplay.map((a) => {
+            const judged = closedIds.has(a.id);
+            return (
+              <div key={a.id} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
+                <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
+                  {a.title}
+                  {" — "}
+                  <span className="text-warn font-normal">
+                    {a.state === "aborted" ? labels.strafbuchAufgabeAbgebrochen : labels.strafbuchAufgabeVersaeumt}
+                  </span>
+                </p>
+                <p className="text-xs text-foreground-faint">{labels.frist}: {a.holdUntilStr}</p>
+                {/* Bei „abgebrochen" den Beleg nennen: wann die Bedingung wegfiel. Ein Vorwurf ohne
+                    Zeitpunkt lässt sich weder prüfen noch bestreiten. */}
+                {a.failedAtStr && (
+                  <p className="text-xs text-foreground-faint">{labels.strafbuchAufgabeAbgelegtAm} {a.failedAtStr}</p>
+                )}
+                <JudgmentSlot refId={a.id} offenseType="AUFGABE" />
               </div>
             );
           })}

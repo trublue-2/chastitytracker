@@ -10,6 +10,7 @@ vi.mock("@/lib/prisma", () => ({
     kontrollAnforderung: { findMany: vi.fn() },
     verschlussAnforderung: { findMany: vi.fn() },
     orgasmusAnforderung: { findMany: vi.fn() },
+    task: { findMany: vi.fn() },
   },
 }));
 
@@ -127,6 +128,30 @@ describe("Freitexte werden live gelesen, nicht kopiert", () => {
     mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "weg" })]);
     const { messages } = await listMessagesFor("u1");
     expect(messages[0].refMissing).toBe(true);
+  });
+
+  it("die ANWEISUNG einer Aufgabe kommt aus der Aufgabe — sie stand vorher gar nicht im Posteingang", async () => {
+    // Der Titel bleibt bewusst ein Parameter der Nachricht (eine Nachricht ist die Aufzeichnung
+    // dessen, was damals gesagt wurde); die Beschreibung ist der Freitext und wird live gelesen.
+    mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "task", refEntityId: "t1" })]);
+    mock(prisma.task.findMany).mockResolvedValue([{ id: "t1", description: "die ganze Wohnung, nicht nur das Wohnzimmer" }]);
+    const { messages } = await listMessagesFor("u1");
+    expect(messages[0].refText).toBe("die ganze Wohnung, nicht nur das Wohnzimmer");
+    expect(messages[0].refMissing).toBe(false);
+  });
+
+  it("eine Aufgabe ist nie verborgen — sie kennt keine Terminierung", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "task", refEntityId: "t1" })]);
+    mock(prisma.task.findMany).mockResolvedValue([{ id: "t1", description: null }]);
+    const { messages } = await listMessagesFor("u1");
+    expect(messages).toHaveLength(1);
+  });
+
+  it("auch die Aufgabe wird auf den Sub eingegrenzt", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "task", refEntityId: "t1" })]);
+    mock(prisma.task.findMany).mockResolvedValue([{ id: "t1", description: null }]);
+    await listMessagesFor("u1");
+    expect(mock(prisma.task.findMany).mock.calls[0][0].where).toMatchObject({ userId: "u1" });
   });
 
   it("Bezugsobjekte werden IMMER auf den Sub eingegrenzt (kein Blick in fremde Zeilen)", async () => {

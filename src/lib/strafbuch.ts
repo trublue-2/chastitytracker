@@ -4,7 +4,7 @@ import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPer
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
-import { isTaskOffense } from "@/lib/tasks";
+import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
@@ -80,7 +80,7 @@ export interface StrafbuchData {
     id: string;
     title: string;
     holdUntil: Date;
-    state: "missed" | "aborted";
+    state: TaskOffenseState;
     /** Nur bei `aborted`: wann die Bedingung wegfiel. */
     failedAt: Date | null;
   }[];
@@ -257,15 +257,20 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     kgEntries: [...oeffnungen, ...verschluesse],
     reinigung: { erlaubt: user?.reinigungErlaubt ?? false, maxMinuten: user?.reinigungMaxMinuten ?? 0 },
   }))
-    .filter((e) => isTaskOffense(e.evaluation.state))
     .sort((a, b) => b.task.holdUntil.getTime() - a.task.holdUntil.getTime())
-    .map((e) => ({
-      id: e.task.id,
-      title: e.task.title,
-      holdUntil: e.task.holdUntil,
-      state: e.evaluation.state as "missed" | "aborted",
-      failedAt: e.evaluation.failedAt,
-    }));
+    // `flatMap` statt `filter` + `map`: der Type-Guard verengt `e.evaluation.state` nur INNERHALB
+    // seines eigenen Zweigs. Über `filter` bliebe `e` ungenarrowed (der Guard greift auf ein
+    // verschachteltes Feld, nicht auf das Element), und die Zuweisung bräuchte wieder einen Cast —
+    // der einen dritten Vergehens-Zustand genauso still verschluckte wie zuvor.
+    .flatMap((e) => isTaskOffense(e.evaluation.state)
+      ? [{
+          id: e.task.id,
+          title: e.task.title,
+          holdUntil: e.task.holdUntil,
+          state: e.evaluation.state,
+          failedAt: e.evaluation.failedAt,
+        }]
+      : []);
 
   // Windows that explicitly permit opening to perform the directed orgasm — an OEFFNEN inside
   // such a window is not an unauthorized opening (like the REINIGUNG exception).

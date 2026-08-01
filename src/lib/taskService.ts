@@ -250,6 +250,13 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
     messageKey: "taskAssignedMessage",
     params: { title: task.title, until: formatDateTime(task.holdUntil) },
     alwaysNotify: true,
+    // Die Nachricht ZEIGT auf die Aufgabe, statt ihre Beschreibung zu kopieren — der Posteingang
+    // liest sie beim Anzeigen frisch. Titel und Frist bleiben bewusst Parameter: eine Nachricht ist
+    // die Aufzeichnung dessen, was zu diesem Zeitpunkt gesagt wurde, und eine spätere Änderung trägt
+    // `taskChanged` als eigene Zeile nach.
+    // `once`: eine Aufgabe wird genau einmal gestellt. Ein Retry nach einem Absturz darf keine
+    // zweite, dauerhafte Zeile hinterlassen.
+    inbox: { ref: { type: "task", id: task.id }, once: true },
   });
 
   return { ok: true, data: { id: task.id } };
@@ -311,6 +318,9 @@ export async function updateTask(
     messageKey: "taskChangedMessage",
     params: { title: next.title, until: formatDateTime(next.holdUntil) },
     alwaysNotify: true,
+    // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
+    // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
+    inbox: { ref: { type: "task", id } },
   });
 
   return { ok: true, data: { id, userId } };
@@ -336,6 +346,7 @@ export async function withdrawTask(id: string, userId: string): Promise<ServiceR
     messageKey: "taskWithdrawnMessage",
     params: { title: t.title },
     alwaysNotify: true,
+    inbox: { ref: { type: "task", id }, once: true },
   });
   return { ok: true, data: { userId } };
 }
@@ -430,6 +441,7 @@ export async function processDueTasks(now: Date): Promise<void> {
             subjectKey: "taskAwaitingSubject",
             messageKey: "taskAwaitingMessage",
             params: { title: e.task.title },
+            inbox: { ref: { type: "task", id: e.task.id }, once: true },
           });
           await markNotified(e.task.id);
           continue;
@@ -456,6 +468,10 @@ export async function processDueTasks(now: Date): Promise<void> {
           subjectKey: done ? "taskDoneSubject" : "taskFailedSubject",
           messageKey: done ? "taskDoneMessage" : "taskFailedMessage",
           params: { title: e.task.title },
+          // `once` ist hier die DAUERHAFTE Einmal-Zusage. `resultNotifiedAt` allein ist ein
+          // Zeitstempel, der beim Schreiben scheitern kann; diese Sperre sitzt an der Nachricht
+          // selbst und überlebt einen Neustart zwischen Zustellung und Stempel.
+          inbox: { ref: { type: "task", id: e.task.id }, once: true },
         });
         await notifyControllers(controllers, {
           subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",

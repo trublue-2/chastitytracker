@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/utils";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow } from "./StrafbuchClient";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow, type AufgabeRow } from "./StrafbuchClient";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -53,6 +53,17 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const zuSpaet: KontrollRow[] = sb.lateControls.map((k) => toKontrollRow(k, k.backdated));
   const abgelehnt: KontrollRow[] = sb.rejectedControls.map((k) => toKontrollRow(k, false));
   const autoEntfernt: KontrollRow[] = sb.autoRemovedControls.map((k) => toKontrollRow(k, false));
+
+  // Aufgaben-Vergehen: das Strafbuch leitet sie ab, der MCP kann sie beurteilen — nur diese Seite
+  // zeigte sie nicht. Ein Vergehen, das der Keyholder in der Oberfläche nicht sieht, ist praktisch
+  // keines.
+  const aufgaben: AufgabeRow[] = sb.unfulfilledTasks.map((a) => ({
+    id: a.id,
+    title: a.title,
+    holdUntilStr: fmtDual(a.holdUntil),
+    state: a.state,
+    failedAtStr: a.failedAt ? fmtDual(a.failedAt) : null,
+  }));
 
   const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
@@ -113,6 +124,10 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchErledigtBadge: t("strafbuchErledigtBadge"),
     strafbuchAlsErledigt: t("strafbuchAlsErledigt"),
     strafbuchWiederOffen: t("strafbuchWiederOffen"),
+    strafbuchAufgaben: t("strafbuchAufgaben"),
+    strafbuchAufgabeVersaeumt: t("strafbuchAufgabeVersaeumt"),
+    strafbuchAufgabeAbgebrochen: t("strafbuchAufgabeAbgebrochen"),
+    strafbuchAufgabeAbgelegtAm: t("strafbuchAufgabeAbgelegtAm"),
   };
 
   return (
@@ -123,6 +138,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       abgelehnt={abgelehnt}
       autoEntfernt={autoEntfernt}
       reinigungLimitVergehen={reinigungLimitVergehen}
+      unfulfilledTasks={aufgaben}
       strafeRecords={strafeRecords}
       labels={labels}
     />
