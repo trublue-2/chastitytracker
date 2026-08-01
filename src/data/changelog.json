@@ -1,5 +1,32 @@
 [
   {
+    "version": "5.0.2",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine erfüllte Aufgabe verschwindet jetzt sofort vom Dashboard. Dafür steht unten eine Liste deiner Aufgaben, in der du auch Erledigtes, Versäumtes und Zurückgezogenes nachschlägst — Antippen zeigt die ganze Aufgabe.",
+          "en": "A fulfilled task now disappears from your dashboard right away. In exchange there is a list of your tasks further down, where you can look up what was done, missed or withdrawn — tap a row for the full task."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Aufgaben-Karte sagt jetzt, was als Nächstes zu tun ist, und Nachweis-Zeilen führen sichtbar zur Foto-Aufnahme. „Als erledigt melden\" erscheint erst, wenn wirklich nur noch die Meldung fehlt, und erklärt, was du damit bestätigst.",
+          "en": "The task card now names the next step, and proof rows visibly lead to taking the photo. \"Report as done\" only appears once the report is genuinely all that is left, and says what you are confirming with it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Blätterbare Listen zeigten eine leere Seite, wenn die Liste unter die gerade geöffnete Seite schrumpfte.",
+          "en": "Paginated lists showed an empty page when the list shrank below the page you had open."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.1",
     "date": "2026-08-02",
     "changes": [
