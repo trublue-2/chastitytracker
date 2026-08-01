@@ -24,7 +24,8 @@ export type OffenseCanonicalType =
   | "wrong_device"
   | "missed_orgasm"
   | "late_lock"
-  | "cleaning_not_relocked";
+  | "cleaning_not_relocked"
+  | "admin_password_change";
 
 /** Canonical offense type → stored StrafeRecord.offenseType. Exported so the manual-punish route
  *  (src/app/api/admin/strafe/route.ts) can validate against the same list instead of a hand-copied one. */
@@ -40,6 +41,7 @@ export const STORED_TYPE: Record<OffenseCanonicalType, string> = {
   missed_orgasm: "ORGASMUS_ANWEISUNG",
   late_lock: "VERSCHLUSS_ANFORDERUNG",
   cleaning_not_relocked: "REINIGUNG_NICHT_VERSCHLOSSEN",
+  admin_password_change: "ADMIN_PASSWORT",
 };
 
 export interface DetectedOffense {
@@ -76,6 +78,9 @@ export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
     ...sb.missedOrgasmInstructions.map((m) => mk("missed_orgasm", m.id, m.endetAt)),
     ...sb.lateLocks.map((a) => mk("late_lock", a.id, a.fulfilledAt ?? a.endetAt)),
     ...sb.cleaningNotRelocked.map((c) => mk("cleaning_not_relocked", cleaningNotRelockedRef(c.entryId), c.relockAt ?? c.deadline)),
+    // refId ist die AdminPasswordChange-id: eigener Namensraum, kollidiert nicht mit Entry-/
+    // Anforderungs-ids und bleibt stabil, auch wenn die Sperrzeit später zurückgezogen wird.
+    ...sb.adminPasswordChanges.map((p) => mk("admin_password_change", p.id, p.at)),
   ];
 }
 

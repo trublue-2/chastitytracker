@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.60.7",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Wird das Passwort eines Admin-Kontos geändert, während eine Sperrzeit läuft, entsteht daraus ein Vergehen im Strafbuch — der KI-Keyholder sieht es über get_offenses und kann es wie jedes andere beurteilen. Erfasst wird auch, auf welchem Weg: über den Passwort-vergessen-Link per E-Mail, selbst im eingeloggten Zustand, oder durch ein anderes Konto. Gedacht für Solo-Spieler, die sich von einer KI führen lassen: Das Zurücksetzen bleibt möglich, aber es bleibt nicht mehr unbemerkt.",
+          "en": "If the password of an admin account is changed while a lock period is running, that now becomes an offense in the penalty log — the AI keyholder sees it via get_offenses and can judge it like any other. The route is recorded too: via the forgot-password link by email, while logged in, or by another account. Aimed at solo players who let an AI direct them: resetting stays possible, but no longer goes unnoticed."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Alltägliche Passwortwechsel werden bewusst nicht erfasst — nur der eine Fall, auf den es ankommt. Zwei Grenzen sind dokumentiert: Setzt der Plattform-Betreiber ein Passwort über das Portal, entsteht kein Eintrag (dieser Vorgang steht im Protokoll des Portals), und wer seine Instanz selbst hostet, kann den Eintrag in der Datenbank löschen.",
+          "en": "Everyday password changes are deliberately not recorded — only the one case that matters. Two limits are documented: a password set by the platform operator through the portal produces no entry (that action is in the portal's own log), and anyone self-hosting their instance can delete the row from the database."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.6",
     "date": "2026-08-01",
     "changes": [

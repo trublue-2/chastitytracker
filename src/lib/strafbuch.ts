@@ -71,6 +71,17 @@ export interface StrafbuchData {
     relockAt: Date | null;
     note: string | null;
   }[];
+  /** Passwortwechsel an einem Admin-Konto, während für diesen Sub eine Sperrzeit lief. Anders als
+   *  alle anderen Vergehen NICHT live abgeleitet, sondern beim Vorgang festgeschrieben
+   *  (`AdminPasswordChange`) — eine später zurückgezogene Sperrzeit darf das Vergehen nicht
+   *  rückwirkend tilgen. */
+  adminPasswordChanges: {
+    id: string;
+    at: Date;
+    adminUsername: string;
+    via: string;
+    sperrzeitEndetAt: Date | null;
+  }[];
   /** Judgment records — each marks an offense (by `refId`) as PUNISHED or DISMISSED. */
   strafeRecords: {
     refId: string;
@@ -218,7 +229,7 @@ export function cleaningRelockObligation(
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen] = await Promise.all([
+  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, adminPasswordChangesRaw] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
@@ -232,6 +243,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     }),
     prisma.strafeRecord.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
     prisma.orgasmusAnforderung.findMany({ where: { userId } }),
+    prisma.adminPasswordChange.findMany({ where: { subUserId: userId }, orderBy: { createdAt: "desc" } }),
   ]);
 
   // Windows that explicitly permit opening to perform the directed orgasm — an OEFFNEN inside
@@ -385,6 +397,13 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
     lateLocks,
     cleaningNotRelocked,
+    adminPasswordChanges: adminPasswordChangesRaw.map((p) => ({
+      id: p.id,
+      at: p.createdAt,
+      adminUsername: p.adminUsername,
+      via: p.via,
+      sperrzeitEndetAt: p.sperrzeitEndetAt,
+    })),
     strafeRecords: strafeRecordsRaw.map((r) => ({
       refId: r.refId,
       offenseType: r.offenseType,
