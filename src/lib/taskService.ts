@@ -3,6 +3,7 @@ import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serv
 import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { startDeadline, isTaskOpen } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, TASK_DEFAULT_START_GRACE_MIN,
   TASK_START_GRACE_RANGE, TASK_REQUIREMENT_TYPES, type TaskRequirementType,
@@ -266,7 +267,10 @@ export async function updateTask(
   userId: string,
   patch: UpdateTaskParams,
 ): Promise<ServiceResult<{ id: string; userId: string }>> {
-  const t = await prisma.task.findFirst({ where: { id, userId } });
+  const t = await prisma.task.findFirst({
+    where: { id, userId },
+    include: { _count: { select: { requirements: true } } },
+  });
   if (!t) return serviceFail(404, "TASK_NOT_FOUND");
   if (t.withdrawnAt || t.completedAt) return serviceFail(400, "TASK_NOT_EDITABLE");
 
@@ -275,7 +279,23 @@ export async function updateTask(
   // vor Tagen gestellten Aufgabe liesse sich die Frist damit auf einen längst vergangenen Zeitpunkt
   // setzen — der Sub bekäme sofort ein Versäumnis, ohne je handeln zu können. Ein Vertipper im Datum
   // reicht dafür. Verkürzen auf „gleich fällig" bleibt möglich (Issue #29), nur eben nicht rückwärts.
-  const fieldError = checkTaskFields(next, new Date());
+  //
+  // UND nicht unter die STARTFRIST: `holdUntil <= createdAt + startGraceMin` ist kein strenger
+  // Sonderfall, sondern ein widersprüchlicher Zustand — die Aufgabe verlangt Deckung bis zu einem
+  // Zeitpunkt, zu dem der Sub noch gar nicht angefangen haben muss. `createTask` verbietet ihn
+  // deshalb; `updateTask` liess ihn zu, und dahinter lagen drei verschiedene Fehlurteile:
+  //   · Sub tut nichts        → Zustand bleibt `pending` (kein Endzustand), der Poller meldet
+  //                             trotzdem „versäumt" und stempelt das dauerhaft.
+  //   · Sub legt danach an    → `running`, obwohl die Frist längst vorbei ist.
+  //   · dito + Selbstmeldung  → **`done`**. Die Aufgabe gilt als erfüllt, obwohl das Gerät vor der
+  //                             Frist nie getragen wurde (`coversContinuously` gibt bei
+  //                             `from >= until` früh `true` zurück — die zu deckende Spanne ist leer).
+  // Nur bei Aufgaben MIT Bedingungen: ohne sie gibt es nichts anzulegen, und die Kulanz ist ohne
+  // Bedeutung — dieselbe Unterscheidung wie in `createTask`.
+  const minEnd = t._count.requirements > 0
+    ? new Date(Math.max(Date.now(), startDeadline(t).getTime()))
+    : new Date();
+  const fieldError = checkTaskFields(next, minEnd);
   if (fieldError) return fieldError;
 
   // Zustand in der Where-Klausel: läuft parallel ein Rückzug oder eine Erledigt-Meldung, greift
@@ -389,7 +409,15 @@ export async function processDueTasks(now: Date): Promise<void> {
         prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
       ]);
       const username = user?.username ?? "";
-      const notified: string[] = [];
+
+      // Je Aufgabe stempeln, direkt nach IHRER Zustellung — nicht gesammelt am Ende der Schleife.
+      // Der Stempel ist die einzige Einmal-Zusage, die es hier gibt (eine Dedup im Posteingang
+      // existiert nicht). Gesammelt am Schluss lag zwischen der ersten verschickten Mail und dem
+      // Schreiben ein Fenster über ALLE Aufgaben des Nutzers: ein Prozess-Neustart darin — Deploy,
+      // OOM — und im nächsten Tick bekamen Sub und Keyholder jede davon ein zweites Mal. Jetzt ist
+      // das Fenster eine Aufgabe breit.
+      const markNotified = (taskId: string) =>
+        prisma.task.update({ where: { id: taskId }, data: { resultNotifiedAt: now } });
 
       for (const e of evaluated) {
         // Bedingungen hielten, nur die Selbstmeldung fehlt: den Sub daran ERINNERN statt ihn zu
@@ -403,7 +431,23 @@ export async function processDueTasks(now: Date): Promise<void> {
             messageKey: "taskAwaitingMessage",
             params: { title: e.task.title },
           });
-          notified.push(e.task.id);
+          await markNotified(e.task.id);
+          continue;
+        }
+
+        // Nur ENDZUSTÄNDE melden. Eine noch offene Aufgabe (`pending`/`partial`) hat kein Ergebnis,
+        // über das sich berichten liesse — sie als „versäumt" zu melden UND zu stempeln, hiesse ein
+        // Urteil zu fällen, das die Auswertung selbst noch nicht gefällt hat, und es gegen jede
+        // spätere Korrektur zu versiegeln (das Strafbuch bleibt live abgeleitet und widerspräche der
+        // Meldung).
+        //
+        // Erreichbar war das nur über eine unter die Startfrist verkürzte `holdUntil` — den Weg hat
+        // `updateTask` inzwischen zu. Der Riegel bleibt trotzdem: eine stumme Verzögerung ist der
+        // richtige Ausgang für einen Zustand, den wir hier nicht erwarten, eine falsche
+        // Endmeldung nicht. Ohne Stempel greift der nächste Tick sie wieder auf, sobald sie
+        // tatsächlich entschieden ist.
+        if (isTaskOpen(e.evaluation.state)) {
+          console.warn("[processDueTasks] fällig, aber ohne Endzustand — Meldung verschoben:", e.task.id, e.evaluation.state);
           continue;
         }
 
@@ -418,10 +462,7 @@ export async function processDueTasks(now: Date): Promise<void> {
           messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
           params: { username, title: e.task.title },
         });
-        notified.push(e.task.id);
-      }
-      if (notified.length > 0) {
-        await prisma.task.updateMany({ where: { id: { in: notified } }, data: { resultNotifiedAt: now } });
+        await markNotified(e.task.id);
       }
     } catch (err) {
       // Nie den Tick abbrechen — der nächste Lauf versucht es erneut (resultNotifiedAt bleibt null).

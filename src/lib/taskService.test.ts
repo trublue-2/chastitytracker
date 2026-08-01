@@ -167,7 +167,9 @@ describe("createTask", () => {
 });
 
 describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", () => {
-  const offen = { id: "t1", userId: "u1", title: "Wohnung staubsaugen", description: null, holdUntil: IN_DREI_STUNDEN, isPunishment: false, penaltyReason: null, createdAt: JETZT, completedAt: null, withdrawnAt: null };
+  // `startGraceMin` + `_count` gehören zur Zeile, die `updateTask` lädt: die neue Endzeit wird gegen
+  // die Startfrist geprüft, und die gilt nur für Aufgaben MIT Bedingungen.
+  const offen = { id: "t1", userId: "u1", title: "Wohnung staubsaugen", description: null, holdUntil: IN_DREI_STUNDEN, isPunishment: false, penaltyReason: null, createdAt: JETZT, startGraceMin: 30, completedAt: null, withdrawnAt: null, _count: { requirements: 1 } };
 
   it("verlängert die Endzeit und meldet es dem Sub", async () => {
     taskFindMock.mockResolvedValue(offen);
@@ -207,6 +209,42 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
     taskFindMock.mockResolvedValue({ ...offen, isPunishment: true, penaltyReason: "zu spät" });
     await updateTask("t1", "u1", { isPunishment: false });
     expect(taskUpdateMock.mock.calls[0][0].data.penaltyReason).toBeNull();
+  });
+
+  /**
+   * REGRESSION: `holdUntil` darf nicht unter die STARTFRIST (`createdAt + startGraceMin`) rutschen.
+   *
+   * Das ist kein strenger Sonderfall, sondern ein widersprüchlicher Zustand: die Aufgabe verlangt
+   * Deckung bis zu einem Zeitpunkt, zu dem der Sub noch gar nicht angefangen haben muss.
+   * `createTask` verbietet ihn; `updateTask` liess ihn zu. Dahinter lagen drei Fehlurteile, mit
+   * `evaluateTask` nachgemessen (Aufgabe 12:00 erstellt, Kulanz 30 min, Frist auf 12:10 verkürzt):
+   *   · Sub tut nichts       → `pending`, aber der Poller meldete „versäumt" und stempelte es fest
+   *   · Sub legt 12:15 an    → `running`, obwohl die Frist um 12:10 ablief
+   *   · dito + Selbstmeldung → **`done`** — erfüllt, ohne das Gerät je vor der Frist getragen zu
+   *     haben (`coversContinuously` gibt bei `from >= until` früh `true` zurück)
+   */
+  it("REGRESSION: Endzeit unter die Startfrist zu verkürzen wird abgelehnt", async () => {
+    taskFindMock.mockResolvedValue(offen); // erstellt 12:00, Kulanz 30 min → Startfrist 12:30
+    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-25T12:10:00Z") });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_HOLD_UNTIL_TOO_SOON");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("nach Ablauf der Startfrist bleibt Verkürzen möglich (Issue #29)", async () => {
+    // Vor drei Tagen gestellt: die Startfrist ist längst verstrichen, „gleich fällig" bleibt erlaubt.
+    taskFindMock.mockResolvedValue({ ...offen, createdAt: new Date("2026-07-22T12:00:00Z") });
+    const gleich = new Date("2026-07-25T12:30:00Z");
+    const res = await updateTask("t1", "u1", { holdUntil: gleich });
+    expect(res.ok).toBe(true);
+    expect(taskUpdateMock.mock.calls[0][0].data.holdUntil).toEqual(gleich);
+  });
+
+  it("Aufgabe OHNE Bedingungen kennt keine Startfrist — nur „in der Zukunft“ zählt", async () => {
+    // Ohne Bedingungen gibt es nichts anzulegen; die Kulanz ist bedeutungslos (wie in `createTask`).
+    taskFindMock.mockResolvedValue({ ...offen, _count: { requirements: 0 } });
+    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-25T12:10:00Z") });
+    expect(res.ok).toBe(true);
   });
 });
 
