@@ -1,7 +1,9 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { listEntries } from "@/lib/mcp/entries";
+import { loadMcpImage } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
@@ -10,7 +12,7 @@ import {
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, mcpImagesEnabled } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -29,21 +31,37 @@ import { getActionLog } from "@/lib/mcp/actionlog";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+/** Ein Inhaltsblock einer Werkzeug-Antwort — der Typ des SDK, nicht eine Teilmenge daneben. Bis auf
+ *  ein Werkzeug liefern alle reinen Text; der Bild-Block trägt base64 statt einer URL, der Client
+ *  lädt also nichts nach. */
+type ToolContent = ContentBlock;
+
+type ToolResult = { content: ToolContent[]; isError?: boolean };
 
 /** Resolves MCP_USERNAME, runs the aggregator, and wraps the result as a tool response.
- *  Centralizes the misconfig check + error handling shared by all tools. */
-async function runTool<T>(label: string, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+ *  Centralizes the misconfig check + error handling shared by all tools.
+ *
+ *  `render` bestimmt, wie das Ergebnis zu Inhaltsblöcken wird. Alle Werkzeuge bis auf eines nehmen
+ *  die Vorgabe (JSON als Text); ein Ergebnis, das kein Text ist, würde sonst durch `JSON.stringify`
+ *  und wieder zurück laufen — bei einem base64-Bild verdoppelt das die Nutzlast ohne Gegenwert. */
+async function runToolWith<T>(
+  label: string,
+  fn: (username: string) => Promise<T>,
+  render: (data: T) => ToolContent[],
+): Promise<ToolResult> {
   const username = process.env.MCP_USERNAME;
   if (!username) {
     return { content: [{ type: "text", text: "Server misconfigured: MCP_USERNAME is not set." }], isError: true };
   }
   try {
-    const data = await fn(username);
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    return { content: render(await fn(username)) };
   } catch (e) {
     return { content: [{ type: "text", text: `${label} failed: ${(e as Error).message}` }], isError: true };
   }
+}
+
+async function runTool<T>(label: string, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+  return runToolWith(label, fn, (data) => [{ type: "text", text: JSON.stringify(data, null, 2) }]);
 }
 
 /** Auth context the MCP SDK passes to tool callbacks. The OAuth branch of verifyToken stores the
@@ -1222,6 +1240,63 @@ function registerTools(server: McpServer) {
       },
       (args, extra) => runV2Write(upsertRecurringContextDef, extra, args),
     );
+
+    registerImageTool(server);
+}
+
+/**
+ * Registriert das Bild-Werkzeug — nur wenn `ENABLE_MCP_IMAGES=true` gesetzt ist.
+ *
+ * Nicht registrieren statt registrieren-und-verweigern: ohne die Variable erscheint es nicht einmal
+ * in `tools/list`. Ein Werkzeug, das da ist und „nein" sagt, ist eine Ankündigung; eines, das nicht
+ * existiert, ist keine.
+ */
+function registerImageTool(server: McpServer) {
+  if (!mcpImagesEnabled()) return;
+
+  server.registerTool(
+    "get_image",
+    {
+      title: "Fetch one photo",
+      description:
+        "Returns ONE named photo so you can look at it yourself. On demand only — nothing is " +
+        "delivered automatically. Use it when you want to check something specific: how the device " +
+        "sits after a change, the skin under the ring, or to read the device recognition yourself " +
+        "when deviceCheck reports something uncertain. " +
+        "Address it via source: \"entry\" (the entry's own photo — device/seal for VERSCHLUSS, the " +
+        "control photo for PRUEFUNG) or \"box\" (the key-box window shot), both with the entryId " +
+        "from list_entries; or \"task_proof\" with the taskId and the 1-based proofIndex from " +
+        "keyholder_dashboard.openTasks. Returns the image plus a caption naming the entry and the " +
+        "capture time.",
+      inputSchema: {
+        source: z.enum(["entry", "box", "task_proof"]).describe("Which photo to fetch."),
+        entryId: z.string().optional().describe("Entry id from list_entries. Required for source entry/box."),
+        taskId: z.string().optional().describe("Task id from keyholder_dashboard.openTasks. Required for source task_proof."),
+        proofIndex: z.number().int().min(1).optional().describe("1-based proof position, same address as review_task_proof. Required for source task_proof."),
+      },
+    },
+    (args) => runToolWith(
+      "get_image",
+      async (username) => {
+        const img = await loadMcpImage(username, args);
+        // Wer welches Bild wann gesehen hat, gehört ins Instanz-Log — nicht als Kontrolle, sondern
+        // damit ein Abruf überhaupt eine Spur hinterlässt. Hier und nicht im Renderer: `render` ist
+        // als reine Abbildung dokumentiert, und dies ist sein erster Nutzer.
+        // Scope "MCP" wie `logMcpWrite`, damit ein grep alles vom MCP findet. `redactDigits`, weil
+        // die Bildunterschrift Freitext des Keyholders trägt (Aufgaben-Titel, Nachweis-Beschreibung)
+        // — genau der Ort, an dem versehentlich ein Kontroll-Code steht, und die Logs bleiben ein
+        // halbes Jahr liegen.
+        structuredLog("MCP", "image", { source: args.source, caption: redactDigits(img.caption) });
+        return img;
+      },
+      // Die Bildunterschrift steht VOR dem Bild: sie sagt, was gleich kommt, und bleibt lesbar,
+      // falls der Client den Bild-Block nicht darstellen kann.
+      (img) => [
+        { type: "text", text: img.caption },
+        { type: "image", data: img.base64, mimeType: img.mediaType },
+      ],
+    ),
+  );
 }
 
 /** Baut den auth-umhüllten MCP-Handler. Async, weil die Server-Instructions erst per await-Helfer

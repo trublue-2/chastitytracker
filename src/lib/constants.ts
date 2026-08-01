@@ -69,6 +69,22 @@ export function bildersafeEnabled(): boolean {
   return process.env.ENABLE_BILDERSAFE?.toLowerCase() === "true";
 }
 
+/** Gibt der Keyholder-KI das Werkzeug, ein einzelnes Foto abzurufen. Opt-in pro Instanz via
+ *  `ENABLE_MCP_IMAGES=true` (Default aus); ohne die Variable wird das Werkzeug nicht registriert.
+ *  Case-insensitive wie die anderen Flags — `True` darf nicht still als „aus" durchrutschen. */
+export function mcpImagesEnabled(): boolean {
+  return process.env.ENABLE_MCP_IMAGES?.toLowerCase() === "true";
+}
+
+/** Kantenlänge, auf die ein Foto für den MCP heruntergerechnet wird. BEWUSST getrennt von
+ *  `visionMaxImagePx()`: der Wert dort ist auf eine lokale Vision-Box getunt, und wer ihn für sein
+ *  eigenes Modell senkt, darf damit nicht verkleinern, was das Keyholder-Modell zu sehen bekommt.
+ *  Env: `MCP_IMAGE_MAX_PX` (Default 1400). */
+export function mcpImageMaxPx(): number {
+  const n = Number(process.env.MCP_IMAGE_MAX_PX);
+  return Number.isFinite(n) && n >= 256 ? n : 1400;
+}
+
 /** Max. Kantenlänge (px), auf die Bilder VOR einer Vision-Anfrage runterskaliert werden.
  *  Reduziert die Vision-Tokens/Latenz drastisch (v.a. lokale Modelle wie Ollama) bei kaum
  *  Genauigkeitsverlust für Ziffern/Geräte. Justierbar via `VISION_MAX_IMAGE_PX` (Default 1024). */
