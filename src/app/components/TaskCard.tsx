@@ -35,6 +35,42 @@ const STATE_COLOR: Record<TaskState, string> = {
   awaitingReview: "text-foreground-muted",
 };
 
+/** Die Liste, in der Bedingungen und Nachweise stehen — dieselbe Umrandung, dieselben Trenner.
+ *  Zwei Listen mit identischem Rahmen direkt untereinander sähen sonst zufällig gleich aus statt
+ *  absichtlich. */
+function ChecklistBox({ children }: { children: React.ReactNode }) {
+  return (
+    <ul className="flex flex-col rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
+      {children}
+    </ul>
+  );
+}
+
+/** Eine Zeile darin, wahlweise als Link. `align` unterscheidet die einzeiligen Bedingungen von den
+ *  mehrzeiligen Nachweisen (Beschreibung + Code + Anmerkung). */
+function ChecklistRow({
+  href,
+  align = "center",
+  children,
+}: {
+  href?: string | null;
+  align?: "center" | "start";
+  children: React.ReactNode;
+}) {
+  const cls = `flex ${align === "start" ? "items-start" : "items-center"} gap-3 px-3 py-2.5 min-h-12`;
+  return (
+    <li>
+      {href ? (
+        <Link href={href} className={`${cls} hover:bg-surface-raised transition active:scale-[0.98]`}>
+          {children}
+        </Link>
+      ) : (
+        <div className={cls}>{children}</div>
+      )}
+    </li>
+  );
+}
+
 export default function TaskCard({
   task,
   viewerTz,
@@ -83,39 +119,63 @@ export default function TaskCard({
         {/* Bedingungen als Zeilen, nie als Badge-Reihe: `Badge` ist `whitespace-nowrap`, und
             Gerätenamen vergibt der Nutzer frei — auf 375 px liefe die Zeile sonst über. */}
         {task.requirements.length > 0 && (
-          <ul className="flex flex-col rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
-            {task.requirements.map((r) => {
-              const inner = (
-                <>
-                  <span
-                    className={`size-5 rounded-md flex items-center justify-center shrink-0 ${
-                      r.satisfied ? "bg-ok text-background" : "text-foreground-faint"
-                    }`}
-                    aria-hidden
-                  >
-                    {r.satisfied ? <Check size={14} strokeWidth={3} /> : <Circle size={12} />}
-                  </span>
-                  <span className="min-w-0 flex-1 text-sm text-foreground truncate">{r.label}</span>
-                  {/* Der Zustand steht in Farbe UND Text — ein Häkchen allein liest ein Screenreader
-                      als „check mark", nicht als „erfüllt". */}
-                  <span className="sr-only">{r.satisfied ? t("requirementSatisfied") : t("requirementOpen")}</span>
-                  {r.href && !r.satisfied && <ChevronRight size={16} className="text-foreground-faint shrink-0" />}
-                </>
-              );
-              const cls = "flex items-center gap-3 px-3 py-2.5 min-h-12";
-              return (
-                <li key={r.id}>
-                  {r.href && !r.satisfied ? (
-                    <Link href={r.href} className={`${cls} hover:bg-surface-raised transition active:scale-[0.98]`}>
-                      {inner}
-                    </Link>
-                  ) : (
-                    <div className={cls}>{inner}</div>
+          <ChecklistBox>
+            {task.requirements.map((r) => (
+              <ChecklistRow key={r.id} href={r.href && !r.satisfied ? r.href : null}>
+                <span
+                  className={`size-5 rounded-md flex items-center justify-center shrink-0 ${
+                    r.satisfied ? "bg-ok text-background" : "text-foreground-faint"
+                  }`}
+                  aria-hidden
+                >
+                  {r.satisfied ? <Check size={14} strokeWidth={3} /> : <Circle size={12} />}
+                </span>
+                <span className="min-w-0 flex-1 text-sm text-foreground truncate">{r.label}</span>
+                {/* Der Zustand steht in Farbe UND Text — ein Häkchen allein liest ein Screenreader
+                    als „check mark", nicht als „erfüllt". */}
+                <span className="sr-only">{r.satisfied ? t("requirementSatisfied") : t("requirementOpen")}</span>
+                {r.href && !r.satisfied && <ChevronRight size={16} className="text-foreground-faint shrink-0" />}
+              </ChecklistRow>
+            ))}
+          </ChecklistBox>
+        )}
+
+        {/* Nachweise als eigene Liste unter den Bedingungen: sie sind eine ZWEITE Achse, keine
+            weiteren Bedingungen. Bewusst nicht in dieselbe Liste gemischt — die Bedingungen sind
+            Zustände („trägst du das gerade?"), ein Nachweis ist eine Handlung mit Zeitpunkt. */}
+        {task.proofs.length > 0 && (
+          <ChecklistBox>
+            {task.proofs.map((p, i) => (
+              <ChecklistRow key={p.id} href={p.href} align="start">
+                {/* Die Nummer, nicht ein Häkchen: die Reihenfolge IST die Forderung. */}
+                <span
+                  className={`size-5 rounded-md flex items-center justify-center shrink-0 text-[11px] font-semibold tabular-nums ${
+                    p.state === "rejected" || p.state === "outOfOrder" ? "bg-warn text-background"
+                      : p.state === "confirmed" ? "bg-ok text-background"
+                      : "text-foreground-faint"
+                  }`}
+                  aria-hidden
+                >
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 flex flex-col">
+                  <span className="text-sm text-foreground break-words">{p.description}</span>
+                  {/* Der Code MUSS sichtbar sein — ohne ihn kann der Nachweis nicht erbracht
+                      werden. Monospace und gesperrt, damit er von Hand abschreibbar ist. */}
+                  {p.code && p.state === "open" && (
+                    <span className="text-xs text-[var(--color-inspect)] font-mono tracking-widest">
+                      {t("proofCodeLabel")}: {p.code}
+                    </span>
                   )}
-                </li>
-              );
-            })}
-          </ul>
+                  {p.reviewNote && (
+                    <span className="text-xs text-foreground-faint italic break-words">{p.reviewNote}</span>
+                  )}
+                </span>
+                <span className="sr-only">{t(`proofState_${p.state}`)}</span>
+                {p.href && <ChevronRight size={16} className="text-foreground-faint shrink-0" />}
+              </ChecklistRow>
+            ))}
+          </ChecklistBox>
         )}
 
         <StateLine task={task} dual={dual} timeOnly={(iso) => formatTime(iso, dl, viewerTz ?? subTz)} />

@@ -22,7 +22,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
-import { getEvaluatedTasks, isHeldByTask, isRecentEnough } from "@/lib/taskIntervals";
+import { getEvaluatedTasks, isHeldByTask, isRecentEnough, loadTaskProofViews } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
@@ -134,7 +134,10 @@ export default async function DashboardPage() {
     kgLabel: tTasks("requirementKgLocked"), kgEntries: entries, wearEntries: entries, reinigung,
   }))
     .filter((e) => isRecentEnough(e, now));
-  const taskCards = evaluatedTasks.map((e) => toTaskCard(e, true));
+  // Die Anzeige-Felder der Nachweise (Beschreibung, Code) hängen nicht am Auswertungs-Include —
+  // eine Abfrage über die sichtbaren Aufgaben, nicht eine je Karte.
+  const proofViews = await loadTaskProofViews(evaluatedTasks.map((e) => e.task.id));
+  const taskCards = evaluatedTasks.map((e) => toTaskCard(e, true, proofViews.get(e.task.id) ?? []));
 
   // Die Trage-Karte ist vollflächig ein Link aufs Ablege-Formular — ohne Markierung sähe eine
   // gebundene Session aus wie jede andere. Gefragt wird je Session (Kategorie UND Gerät) über

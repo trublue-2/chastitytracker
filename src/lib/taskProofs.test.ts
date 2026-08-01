@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateProofs, evaluateTask, isTaskOffense, isTaskOpen, needsKeyholderReview, type ProofLike } from "./tasks";
+import { evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTaskOpen, needsKeyholderReview, type ProofLike } from "./tasks";
 
 /**
  * Die Nachweis-Achse (Issue #39): geforderte Fotos mit vorgegebener Reihenfolge.
@@ -212,6 +212,77 @@ describe("evaluateTask — beide Achsen zusammen", () => {
   it("Aufgabe OHNE Bedingungen, Nachweise noch offen und Frist läuft → offen", () => {
     const r = evaluateTask(base, [], [], d("2026-07-25T14:00:00Z"), [proof({ submittedAt: null, imageExifTime: null })]);
     expect(r.state).toBe("pending");
+  });
+});
+
+describe("REGRESSION: laufende Code-Prüfung ist kein Urteil", () => {
+  /**
+   * Die Prüfung startet erst NACH dem Speichern (Etappe 3, `runTaskProofVerification`). Reicht der
+   * Sub kurz vor der Frist ein, ist sie beim nächsten Poller-Tick vielleicht noch unterwegs.
+   *
+   * Ohne eigenen Zwischenstand hätte der Poller „bitte sichten" an die Keyholderin gemeldet UND
+   * gestempelt — und das Ergebnis, das Sekunden später „erfüllt" lautet, hätte niemand mehr erfahren.
+   */
+  it("eingereicht, Code gefordert, noch nicht geprüft → `checking`, nicht `needsReview`", () => {
+    const p = [proof({ verifikationStatus: null, verifikationReason: null })];
+    expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("checking");
+  });
+
+  it("die Auswertung meldet die laufende Prüfung an den Poller", () => {
+    const REQ = [{ id: "r1", label: "Knebel" }];
+    const base = { createdAt: d("2026-07-25T12:00:00Z"), holdUntil: HOLD_UNTIL, startGraceMin: 30, completedAt: null, withdrawnAt: null };
+    const held = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T20:00:00Z") }]];
+    const r = evaluateTask(base, REQ, held, d("2026-07-25T19:00:00Z"), [
+      proof({ verifikationStatus: null, verifikationReason: null }),
+    ]);
+    // Für den Sub sieht es aus wie „wartet" — er kann nichts tun. Der Poller darf es nicht melden.
+    expect(r.state).toBe("awaitingReview");
+    expect(r.proofCheckPending).toBe(true);
+  });
+
+  it("ist die Prüfung durch, ist nichts mehr offen", () => {
+    const r = evaluateTask(
+      { createdAt: d("2026-07-25T12:00:00Z"), holdUntil: HOLD_UNTIL, startGraceMin: 30, completedAt: null, withdrawnAt: null },
+      [{ id: "r1", label: "Knebel" }],
+      [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T20:00:00Z") }]],
+      d("2026-07-25T19:00:00Z"),
+      [proof()],
+    );
+    expect(r.proofCheckPending).toBe(false);
+  });
+
+  /** Ohne Code-Pflicht gibt es keine Automatik, auf die man warten könnte. */
+  it("ohne Code-Pflicht wartet nichts — das ist eine echte Sichtung", () => {
+    const p = [proof({ requireCode: false, verifikationStatus: null, verifikationReason: null })];
+    expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("needsReview");
+  });
+});
+
+describe("firstOutOfOrderProof — der Beleg für den Fehlschlag", () => {
+  const at = (iso: string, sortOrder: number, id: string) => proof({ id, sortOrder, imageExifTime: d(iso) });
+
+  /**
+   * Die Anzeige braucht ihn: sonst zeigt jede Nachweis-Zeile für sich „erbracht" (jeder Code stimmte
+   * ja), während die Aufgabe darunter „versäumt" meldet — zwei grüne Häkchen über einem Versäumnis,
+   * ohne dass irgendwo stünde, was schiefging.
+   */
+  it("nennt den Nachweis, der die Reihenfolge bricht", () => {
+    const p = [at("2026-07-25T13:00:00Z", 0, "erster"), at("2026-07-25T12:00:00Z", 1, "zweiter")];
+    expect(firstOutOfOrderProof(p)?.id).toBe("zweiter");
+  });
+
+  it("in richtiger Reihenfolge gibt es keinen", () => {
+    const p = [at("2026-07-25T12:00:00Z", 0, "a"), at("2026-07-25T13:00:00Z", 1, "b")];
+    expect(firstOutOfOrderProof(p)).toBeNull();
+  });
+
+  it("bei drei Nachweisen den ERSTEN Bruch, nicht den letzten", () => {
+    const p = [
+      at("2026-07-25T12:00:00Z", 0, "a"),
+      at("2026-07-25T11:00:00Z", 1, "b"),
+      at("2026-07-25T10:00:00Z", 2, "c"),
+    ];
+    expect(firstOutOfOrderProof(p)?.id).toBe("b");
   });
 });
 

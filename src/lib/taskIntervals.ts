@@ -155,6 +155,50 @@ export async function getDashboardTasks(userId: string, now: Date): Promise<Task
   return rows.reverse();
 }
 
+/** Ein Nachweis, wie ihn die ANZEIGE braucht — mit Beschreibung und Code, die `TASK_INCLUDE`
+ *  bewusst nicht lädt. */
+export interface TaskProofView {
+  id: string;
+  taskId: string;
+  sortOrder: number;
+  description: string;
+  requireCode: boolean;
+  /** Der Code, den der Sub ins Bild schreiben muss. Null ohne Code-Pflicht. */
+  code: string | null;
+  submittedAt: Date | null;
+  /** Aufnahmezeit — die Anzeige braucht sie, um den Nachweis zu benennen, der die Reihenfolge
+   *  bricht (`firstOutOfOrderProof`). */
+  imageExifTime: Date | null;
+  imageUrl: string | null;
+  verifikationStatus: string | null;
+  verifikationReason: string | null;
+  reviewAccepted: boolean | null;
+  reviewNote: string | null;
+}
+
+/**
+ * Die Anzeige-Felder der Nachweise, je Aufgabe gebündelt.
+ *
+ * Eine eigene Abfrage statt eines breiteren `TASK_INCLUDE`: die Beschreibung ist ein Freitext und
+ * der Code eine Vorgabe — beides braucht NUR, wer die Karte rendert. Heartbeat, Poller und Strafbuch
+ * fragen dieselbe Auswertung, brauchen davon aber kein Zeichen. Die Kosten gehören auf den
+ * Anzeige-Pfad, nicht auf jeden Tick.
+ */
+export async function loadTaskProofViews(taskIds: string[]): Promise<Map<string, TaskProofView[]>> {
+  if (taskIds.length === 0) return new Map();
+  const rows = await prisma.taskProof.findMany({
+    where: { taskId: { in: taskIds } },
+    orderBy: { sortOrder: "asc" },
+  });
+  const byTask = new Map<string, TaskProofView[]>();
+  for (const r of rows) {
+    const list = byTask.get(r.taskId);
+    if (list) list.push(r);
+    else byTask.set(r.taskId, [r]);
+  }
+  return byTask;
+}
+
 /** Gehört die Aufgabe noch aufs Dashboard? Offene immer, Abgeschlossene nur kurz — danach Historie. */
 export function isRecentEnough(e: EvaluatedTask, now: Date): boolean {
   if (isTaskOpen(e.evaluation.state)) return true;

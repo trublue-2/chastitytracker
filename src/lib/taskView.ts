@@ -1,5 +1,5 @@
-import type { EvaluatedTask } from "@/lib/taskIntervals";
-import type { TaskState } from "@/lib/tasks";
+import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
+import { firstOutOfOrderProof, type TaskState } from "@/lib/tasks";
 import { wearActionHref } from "@/lib/categoryConstants";
 
 /**
@@ -20,6 +20,40 @@ export interface TaskCardRequirement {
   href: string | null;
 }
 
+/** Der Zustand EINES Nachweises, wie ihn die Karte zeigt. Bewusst feiner als das Gesamturteil der
+ *  Aufgabe: der Sub muss sehen, welches Foto noch fehlt und welches beanstandet wurde. */
+export type TaskCardProofState =
+  /** Noch nicht eingereicht. */
+  | "open"
+  /** Erbracht — entweder maschinell über den Code bestätigt oder von der Keyholderin angenommen.
+   *  Die beiden sind bewusst EIN Zustand: für den Sub bedeuten sie dasselbe („erledigt"), und wer
+   *  geurteilt hat, steht in der Sichtungs-Anmerkung. Zwei Zustände, die überall gleich behandelt
+   *  werden, sind einer zu viel. */
+  | "confirmed"
+  /** Eingereicht, wartet auf die Sichtung der Keyholderin (ohne Code-Pflicht, ohne Aufnahmezeit,
+   *  oder Code nicht erkannt). */
+  | "review"
+  /** Von der Keyholderin abgelehnt. */
+  | "rejected"
+  /** Aufnahmezeit bricht die geforderte Reihenfolge — dieser Nachweis ist der Grund, warum die
+   *  Aufgabe scheitert. Ohne diesen Zustand zeigte die Zeile „erbracht" (ihr Code stimmte ja),
+   *  während die Aufgabe darunter „versäumt" meldet. */
+  | "outOfOrder";
+
+export interface TaskCardProof {
+  id: string;
+  /** Was zu sehen sein muss. */
+  description: string;
+  /** Der Code, den der Sub ins Bild schreiben muss. Null ohne Code-Pflicht.
+   *  MUSS sichtbar sein — ohne ihn kann er den Nachweis gar nicht erbringen. */
+  code: string | null;
+  state: TaskCardProofState;
+  /** Deep-Link ins Aufnahme-Formular. Null beim Keyholder und bei bereits eingereichten. */
+  href: string | null;
+  /** Anmerkung der Keyholderin zur Sichtung. */
+  reviewNote: string | null;
+}
+
 export interface TaskCardData {
   id: string;
   title: string;
@@ -36,7 +70,21 @@ export interface TaskCardData {
   failedAt: string | null;
   awaitingConfirmation: boolean;
   requirements: TaskCardRequirement[];
+  /** Geforderte Nachweis-Fotos (Issue #39). Leer, wo keine gefordert sind. */
+  proofs: TaskCardProof[];
   completionNote: string | null;
+}
+
+/** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
+ *  eines MENSCHEN schlägt jede Automatik. */
+function proofState(p: TaskProofView, outOfOrderId: string | null): TaskCardProofState {
+  // Die Reihenfolge schlägt alles: sie ist der Grund, aus dem die Aufgabe scheitert, und muss an der
+  // Zeile stehen, die sie gebrochen hat.
+  if (p.id === outOfOrderId) return "outOfOrder";
+  if (p.reviewAccepted === true) return "confirmed";
+  if (p.reviewAccepted === false) return "rejected";
+  if (!p.submittedAt) return "open";
+  return p.verifikationStatus !== null ? "confirmed" : "review";
 }
 
 /** Wohin führt eine offene Bedingung? KG in die Verschluss-Maske, alles andere ins Trage-Formular
@@ -61,7 +109,14 @@ function requirementHref(r: EvaluatedTask["requirements"][number], redirectTo: s
  * zweiten, dieser den der dritten. Damit wird aus drei Navigationen eine — fürs Leitbeispiel
  * (KG + Halsband + Knebel) der Unterschied zwischen „drei Mal zurück aufs Dashboard" und einem Durchlauf.
  */
-export function toTaskCard(e: EvaluatedTask, withLinks: boolean): TaskCardData {
+export function toTaskCard(
+  e: EvaluatedTask,
+  withLinks: boolean,
+  /** Anzeige-Felder der Nachweise (Beschreibung, Code) — separat geladen, siehe
+   *  `loadTaskProofViews`. Fehlen sie, zeigt die Karte keine Nachweise: besser nichts als eine
+   *  Zeile ohne den Code, den der Sub zeigen müsste. */
+  proofViews: TaskProofView[] = [],
+): TaskCardData {
   const requirements: TaskCardRequirement[] = e.requirements.map((r) => ({
     id: r.id,
     label: r.label,
@@ -83,6 +138,27 @@ export function toTaskCard(e: EvaluatedTask, withLinks: boolean): TaskCardData {
     next = r.href;
   }
 
+  // Nachweise sind KEINE Kettenglieder: jeder ist eine eigene Aufnahme zu einem eigenen Zeitpunkt,
+  // und die Reihenfolge ist gerade die Forderung — sie hintereinander wegzuklicken wäre das
+  // Gegenteil dessen, was verlangt ist.
+  // Welcher Nachweis die Reihenfolge bricht, weiss nur die geteilte Regel aus `tasks.ts` — die
+  // Anzeige darf sie nicht nachbauen, sonst zeigt sie irgendwann etwas anderes als das Urteil.
+  const outOfOrderId = firstOutOfOrderProof(
+    [...proofViews].sort((a, b) => a.sortOrder - b.sortOrder),
+  )?.id ?? null;
+
+  const proofs: TaskCardProof[] = proofViews.map((p) => {
+    const state = proofState(p, outOfOrderId);
+    return {
+      id: p.id,
+      description: p.description,
+      code: p.code,
+      state,
+      href: withLinks && state === "open" ? `/dashboard/new/task-proof/${p.id}` : null,
+      reviewNote: p.reviewNote,
+    };
+  });
+
   return {
     id: e.task.id,
     title: e.task.title,
@@ -97,6 +173,7 @@ export function toTaskCard(e: EvaluatedTask, withLinks: boolean): TaskCardData {
     failedAt: e.evaluation.failedAt?.toISOString() ?? null,
     awaitingConfirmation: e.evaluation.awaitingConfirmation,
     requirements,
+    proofs,
     completionNote: e.task.completionNote,
   };
 }

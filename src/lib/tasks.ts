@@ -81,6 +81,11 @@ export interface TaskEvaluation {
   failedAt: Date | null;
   /** Bedingungen erfüllt, aber die Selbstmeldung fehlt noch (nur bei Aufgaben mit Bedingungen). */
   awaitingConfirmation: boolean;
+  /** Ein Nachweis wartet noch auf seine automatische Code-Prüfung. Nur für den Poller: er darf ein
+   *  Ergebnis erst melden UND stempeln, wenn es feststeht — sonst ist die Meldung „bitte sichten"
+   *  raus und dauerhaft gestempelt, während die Prüfung Sekunden später „erfüllt" ergibt und das
+   *  niemand mehr erfährt. */
+  proofCheckPending: boolean;
 }
 
 /** Späteste Zeit, zu der begonnen werden darf. Wer danach erst anfängt, hat per Definition nicht
@@ -176,8 +181,32 @@ export type ProofVerdict =
   | "complete"
   /** Wartet auf die Sichtung der Keyholderin. */
   | "needsReview"
+  /** Eingereicht, aber die automatische Code-Prüfung läuft noch. Für den Sub sieht das aus wie
+   *  „wartet auf Sichtung" — der Unterschied zählt nur für den Poller: er darf das Ergebnis noch
+   *  nicht melden, weil die Prüfung es in Sekunden noch umdrehen kann. */
+  | "checking"
   /** Endgültig nicht erbracht: fehlend, zu spät, falsche Reihenfolge oder abgelehnt. */
   | "failed";
+
+/**
+ * Der ERSTE Nachweis, dessen Aufnahmezeit die geforderte Reihenfolge bricht — oder `null`.
+ *
+ * Exportiert, weil die Anzeige ihn braucht: ohne ihn zeigte jede Nachweis-Zeile für sich „erbracht"
+ * (jeder Code stimmte ja), während die Aufgabe darunter „versäumt" meldet. Zwei grüne Häkchen über
+ * einem Versäumnis, ohne dass irgendwo stünde, WAS schiefging — der Sub könnte es nicht einmal
+ * bestreiten. Die Regel darf deshalb nur EINMAL existieren, nicht hier und noch einmal in `taskView`.
+ *
+ * Erwartet eine nach `sortOrder` sortierte Liste mit vollständigen Aufnahmezeiten.
+ */
+export function firstOutOfOrderProof(orderedWithTimes: ProofLike[]): ProofLike | null {
+  for (let i = 1; i < orderedWithTimes.length; i++) {
+    const prev = orderedWithTimes[i - 1].imageExifTime;
+    const cur = orderedWithTimes[i].imageExifTime;
+    if (!prev || !cur) continue;
+    if (cur.getTime() <= prev.getTime()) return orderedWithTimes[i];
+  }
+  return null;
+}
 
 /**
  * Wertet die Nachweise aus — getrennt von den Bedingungen, weil sie etwas anderes sind: ein
@@ -223,14 +252,18 @@ export function evaluateProofs(proofs: ProofLike[], task: Pick<TaskLike, "holdUn
   // entscheidet die Keyholderin, statt dass wir raten.
   const times = ordered.map((p) => p.imageExifTime);
   if (times.some((t) => t === null)) return "needsReview";
-  for (let i = 1; i < times.length; i++) {
-    if (times[i]!.getTime() <= times[i - 1]!.getTime()) return "failed";
-  }
+  if (firstOutOfOrderProof(ordered)) return "failed";
 
   // Automatisch entscheidbar ist nur ein Nachweis MIT erkanntem Code. Alles andere („Foto mit zwei
   // Rechnungen") ist eine Aussage über den Bildinhalt, die keine Maschine abschliessend trifft.
   const settled = (p: ProofLike) => p.reviewAccepted === true || codeConfirmed(p);
-  return ordered.every(settled) ? "complete" : "needsReview";
+  if (ordered.every(settled)) return "complete";
+
+  // Code gefordert, eingereicht, aber weder bestätigt noch mit Grund versehen: die Prüfung läuft
+  // noch (sie startet erst NACH dem Speichern). Das ist ein Zwischenstand, kein Urteil.
+  const checking = (p: ProofLike) =>
+    p.requireCode && p.verifikationStatus === null && p.verifikationReason === null;
+  return ordered.some(checking) ? "checking" : "needsReview";
 }
 
 /**
@@ -259,6 +292,9 @@ export function evaluateTask(
     failedRequirement: null,
     failedAt: null,
     awaitingConfirmation: false,
+    proofCheckPending: proofs.some(
+      (p) => p.requireCode && p.submittedAt !== null && p.verifikationStatus === null && p.verifikationReason === null,
+    ),
   };
 
   // Zurückgezogen schlägt alles: weder offen noch Vergehen, egal was die Einträge sagen.
@@ -273,7 +309,7 @@ export function evaluateTask(
     // Ohne Bedingungen tragen allein Selbstmeldung und Nachweise. Stehen Nachweise noch aus, ist die
     // Aufgabe offen bzw. wartet auf die Sichtung — die Selbstmeldung allein macht sie nicht fertig.
     if (proofVerdict === "failed") return { ...base, state: "missed" };
-    if (proofVerdict === "needsReview") return { ...base, state: "awaitingReview" };
+    if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview" };
     if (proofVerdict === "pending") return { ...base, state: "pending" };
     if (task.completedAt) {
       return { ...base, state: task.completedAt <= task.holdUntil ? "done" : "missed" };
@@ -360,7 +396,7 @@ export function evaluateTask(
   // Eine ausstehende Sichtung steht VOR der Selbstmeldung, denn sie ist der Grund, warum noch
   // niemand urteilen kann. Den Sub hier zur Meldung zu drängen, während die Keyholderin am Zug ist,
   // wäre die falsche Aufforderung an die falsche Person.
-  if (proofVerdict === "needsReview") return { ...base, state: "awaitingReview", startedAt };
+  if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview", startedAt };
 
   // Durchgehalten. Der Textteil („ist die Wohnung sauber?") ist nicht prüfbar — dafür die Selbstmeldung.
   // Sie muss NACH dem Beginn liegen: eine Meldung aus Minute 1, bevor überhaupt alles anlag, ist keine

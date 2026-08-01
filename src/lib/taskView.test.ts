@@ -11,6 +11,7 @@ const EVAL: TaskEvaluation = {
   failedRequirement: null,
   failedAt: null,
   awaitingConfirmation: false,
+  proofCheckPending: false,
 };
 
 function evaluated(

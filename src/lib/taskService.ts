@@ -520,6 +520,14 @@ export async function processDueTasks(now: Date): Promise<void> {
         // Der Stempel bedeutet damit „gemeldet", nicht „entschieden". Das ERGEBNIS nach der Sichtung
         // verschickt folgerichtig die Sichtung selbst (Etappe 4) — der Poller sieht die Zeile nicht
         // wieder, und das ist richtig: ein menschliches Urteil soll nicht bis zum nächsten Tick warten.
+        // Läuft die automatische Code-Prüfung noch, ist gar nichts zu melden: sie kann das Ergebnis
+        // in Sekunden auf „erfüllt" drehen. Meldeten wir hier „bitte sichten" UND stempelten, wäre
+        // die Aufgabe für den Poller erledigt — das echte Ergebnis erführe danach niemand mehr.
+        // Ohne Stempel greift der nächste Tick sie wieder auf, dann mit Ergebnis.
+        if (e.evaluation.proofCheckPending) {
+          continue;
+        }
+
         if (e.evaluation.state === "awaitingReview") {
           await notifyControllers(controllers, {
             subjectKey: "taskReviewSubjectKeyholder",

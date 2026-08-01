@@ -10,6 +10,7 @@ import TaskCard from "@/app/components/TaskCard";
 import WithdrawButton from "@/app/admin/WithdrawButton";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
+import { loadTaskProofViews } from "@/lib/taskIntervals";
 import { isTaskOpen } from "@/lib/tasks";
 import { APP_TZ } from "@/lib/utils";
 
@@ -33,6 +34,9 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
     include: TASK_INCLUDE,
   });
   const evaluated = await evaluateTasks(id, tasks, now, { kgLabel: t("requirementKgLocked") });
+  // Auch der Keyholder sieht die Nachweise — ohne Deep-Links (es sind nicht seine Formulare), aber
+  // mit Beschreibung, Zustand und seiner eigenen Sichtungs-Anmerkung.
+  const proofViews = await loadTaskProofViews(evaluated.map((e) => e.task.id));
 
   // Bewusst OHNE Kategorien-Gate: eine Aufgabe ist Text plus 0..n Bedingungen. „KG verschlossen"
   // kommt nicht aus den Kategorien, und eine reine Freitext-Aufgabe braucht überhaupt keine —
@@ -64,7 +68,7 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
         evaluated.map((e) => (
           <TaskCard
             key={e.task.id}
-            task={toTaskCard(e, false)}
+            task={toTaskCard(e, false, proofViews.get(e.task.id) ?? [])}
             viewerTz={session?.user?.timezone ?? APP_TZ}
             subTz={user.timezone ?? APP_TZ}
             subLabel={ta("subTimePrefix")}
