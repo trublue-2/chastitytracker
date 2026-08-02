@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextTaskStep, toTaskCard } from "./taskView";
+import { nextTaskStep, taskDeadlineKey, toTaskCard } from "./taskView";
 import { safeInternalPath } from "./utils";
 import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
@@ -86,6 +86,23 @@ describe("toTaskCard — Deep-Links", () => {
   it("lässt eine Bedingung ohne Kategorie (gelöscht) linklos statt ins Leere zu zeigen", () => {
     const card = toTaskCard(evaluated([{ ...wear("r1", "Weg", "c1"), categoryId: null }]), true);
     expect(card.requirements[0].href).toBeNull();
+  });
+});
+
+describe("taskDeadlineKey — „Halten bis“ nur, wo es etwas zu halten gibt", () => {
+  it("nennt die Haltefrist, sobald die Aufgabe Bedingungen trägt", () => {
+    expect(taskDeadlineKey(toTaskCard(evaluated([wear("r1", "Knebel", "c1")]), false))).toBe("holdUntilShort");
+  });
+
+  it("nennt bei einer reinen Textaufgabe einen Termin", () => {
+    expect(taskDeadlineKey(toTaskCard(evaluated([]), false))).toBe("deadlineShort");
+  });
+
+  it("bleibt bei der Haltefrist, wenn die Aufgabe längst vorbei ist — die Überschrift steht in JEDEM Zustand", () => {
+    // Der Grund, aus dem hier NICHT `holdRunning` gefragt wird: das ist nach Ablauf false, die Karte
+    // trüge dann über einer erfüllten Trage-Aufgabe rückwirkend „Erledigen bis".
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "done", holdRunning: false }), false);
+    expect(taskDeadlineKey(card)).toBe("holdUntilShort");
   });
 });
 

@@ -9,7 +9,7 @@ import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { formatDateTimeDual, toDateLocale } from "@/lib/utils";
 import { TASK_STATE_COLOR } from "@/lib/constants";
-import type { TaskCardData } from "@/lib/taskView";
+import { taskDeadlineKey, type TaskCardData } from "@/lib/taskView";
 
 const PAGE_SIZE = 5;
 
@@ -73,7 +73,7 @@ export default function TaskList({
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-semibold text-foreground truncate">{task.title}</span>
               <span className="block text-xs text-foreground-faint tabular-nums truncate">
-                {t("holdUntilShort", { date: formatDateTimeDual(task.holdUntil, dl, viewerTz, tz, subLabel) })}
+                {t(taskDeadlineKey(task), { date: formatDateTimeDual(task.holdUntil, dl, viewerTz, tz, subLabel) })}
               </span>
             </span>
             <span className={`text-xs font-medium shrink-0 ${TASK_STATE_COLOR[task.state]}`}>

@@ -8,7 +8,7 @@ import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
 import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
-import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
+import { nextTaskStep, taskDeadlineKey, type TaskCardData } from "@/lib/taskView";
 import { TASK_STATE_COLOR } from "@/lib/constants";
 
 /**
@@ -99,7 +99,7 @@ export default function TaskCard({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground break-words">{task.title}</p>
-            <p className="text-xs text-foreground-muted">{t("holdUntilShort", { date: dual(task.holdUntil) })}</p>
+            <p className="text-xs text-foreground-muted">{t(taskDeadlineKey(task), { date: dual(task.holdUntil) })}</p>
           </div>
           {task.isPunishment && <Badge variant="warn" size="sm" label={t("punishmentBadge")} className="shrink-0" />}
         </div>

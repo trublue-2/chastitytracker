@@ -140,6 +140,26 @@ export interface TaskCardData {
   actionable: boolean;
 }
 
+/**
+ * Welcher Text steht über der Frist einer Aufgabe: „Halten bis" oder „Erledigen bis"?
+ *
+ * `holdUntil` bedeutet zweierlei — mit Bedingungen eine HALTEFRIST, ohne Bedingungen ein TERMIN
+ * (dieselbe Unterscheidung, die {@link TaskEvaluation.holdRunning} für den nächsten Schritt trifft).
+ * Die Karte zeigte bisher fest „Halten bis", auch über einer reinen Textaufgabe, bei der es nichts zu
+ * halten gibt.
+ *
+ * NICHT über `holdRunning`, obwohl das naheliegt: das misst „die Haltefrist läuft GERADE" und ist bei
+ * einer erfüllten oder versäumten Aufgabe mit Bedingungen falsch — die Karte trägt ihre Überschrift
+ * aber in JEDEM Zustand. Die Frage hier ist „gibt es überhaupt etwas zu halten", und die beantwortet
+ * allein die Bedingungsliste.
+ *
+ * Hier und nicht in der Komponente: Kartenkopf und Listenzeile ({@link TaskCardData}-Verwender)
+ * stellen dieselbe Frage, und zwei Ternäre in zwei Dateien driften auseinander.
+ */
+export function taskDeadlineKey(task: Pick<TaskCardData, "requirements">): "holdUntilShort" | "deadlineShort" {
+  return task.requirements.length > 0 ? "holdUntilShort" : "deadlineShort";
+}
+
 /** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
  *  eines MENSCHEN schlägt jede Automatik.
  *
