@@ -70,6 +70,30 @@ export function bildersafeEnabled(): boolean {
   return process.env.ENABLE_BILDERSAFE?.toLowerCase() === "true";
 }
 
+/** Grenzen des Bild-Abrufs. Freigeschaltet wird er NICHT hier, sondern über `mcpImageKeyUnlocked()`
+ *  in `src/lib/mcp/entryImage.ts` — der Schlüssel braucht die Datenbank und kann deshalb nicht in
+ *  dieser client-erreichbaren Datei liegen.
+ *
+ *  BEWUSST NICHT über ENV justierbar, anders als die Px-Budgets darunter:
+ *  das sind keine Leistungs-Stellschrauben, sondern die Zusage, wie weit der Abruf reicht. Eine
+ *  Zusage, die sich per Umgebungsvariable aufweichen lässt, ist keine.
+ *
+ *  Zusammen genommen ist das Archiv damit nicht mehr erreichbar, sondern nur noch das, was gerade
+ *  passiert ist: 24 Stunden Reichweite, 4 Bilder pro Stunde, 12 pro Tag. */
+export const MCP_IMAGE_MAX_AGE_H = 24;
+export const MCP_IMAGE_MAX_AGE_MS = MCP_IMAGE_MAX_AGE_H * 60 * 60 * 1000;
+export const MCP_IMAGE_PER_HOUR = 4;
+export const MCP_IMAGE_PER_DAY = 12;
+
+/** Kantenlänge, auf die ein Foto für den MCP heruntergerechnet wird. BEWUSST getrennt von
+ *  `visionMaxImagePx()`: der Wert dort ist auf eine lokale Vision-Box getunt, und wer ihn für sein
+ *  eigenes Modell senkt, darf damit nicht verkleinern, was das Keyholder-Modell zu sehen bekommt.
+ *  Env: `MCP_IMAGE_MAX_PX` (Default 1400). */
+export function mcpImageMaxPx(): number {
+  const n = Number(process.env.MCP_IMAGE_MAX_PX);
+  return Number.isFinite(n) && n >= 256 ? n : 1400;
+}
+
 /** Max. Kantenlänge (px), auf die Bilder VOR einer Vision-Anfrage runterskaliert werden.
  *  Reduziert die Vision-Tokens/Latenz drastisch (v.a. lokale Modelle wie Ollama) bei kaum
  *  Genauigkeitsverlust für Ziffern/Geräte. Justierbar via `VISION_MAX_IMAGE_PX` (Default 1024). */

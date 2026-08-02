@@ -11,6 +11,7 @@ import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWind
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
+import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
 import { diffFields } from "@/lib/mcp/writeFramework";
 import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
@@ -1381,22 +1382,13 @@ export interface ReviewTaskProofArgs {
  */
 export async function mcpReviewTaskProof(username: string, args: ReviewTaskProofArgs) {
   const userId = await resolveTargetUserId(username);
-  const task = await prisma.task.findUnique({
-    where: { id: args.taskId },
-    select: {
-      id: true, title: true, userId: true, withdrawnAt: true,
-      // Nur was Adressierung und Vorschau brauchen — `imageUrl`, `code` und die Verifikations-Felder
-      // liest hier niemand (gleiche Regel wie `TASK_INCLUDE`).
-      proofs: { orderBy: { sortOrder: "asc" }, select: { id: true, description: true, submittedAt: true, reviewedAt: true } },
-    },
+  // Adressierung über `resolveTaskProof` — geteilt mit jedem anderen Werkzeug, das einen Nachweis
+  // anspricht, damit die versprochene „gleiche Adresse" nicht aus zwei Kopien besteht.
+  // Nur was Adressierung und Vorschau brauchen — `imageUrl`, `code` und die Verifikations-Felder
+  // liest hier niemand (gleiche Regel wie `TASK_INCLUDE`).
+  const { task, proof } = await resolveTaskProof(userId, args.taskId, args.index, {
+    id: true, description: true, submittedAt: true, reviewedAt: true,
   });
-  // Auflösung, nicht Zustand: eine unbekannte id ist keine Vorschau wert.
-  if (!task || task.userId !== userId) throw new Error(`Task not found: ${args.taskId}`);
-
-  const proof = task.proofs[args.index - 1];
-  if (!proof) {
-    throw new Error(`Task "${task.title}" has ${task.proofs.length} proof(s); index ${args.index} does not exist.`);
-  }
 
   if (args.dryRun) {
     // Zustands-Regeln gehen als `problem` in die Vorschau, nicht als Wurf — wie bei jedem anderen
