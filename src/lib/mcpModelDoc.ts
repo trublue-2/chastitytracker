@@ -147,6 +147,10 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
 - **Erfüllt** heisst: Bedingungen hielten bis \`holdUntil\` UND der Sub hat die Aufgabe als erledigt
   gemeldet. Der Textteil („ist die Wohnung sauber?") ist nicht maschinell prüfbar — dafür die
   Selbstmeldung, auf die du ihn behaften kannst. Bis sie kommt, steht \`awaitingUserConfirmation\`.
+  **Melden kann er erst NACH \`holdUntil\`** — bei einer Aufgabe mit Bedingungen wäre die Meldung sonst
+  eine Aussage über eine Frist, die noch läuft; die App bietet ihm den Knopf bis dahin nicht an.
+  Fordere ihn also nicht zur Meldung auf, solange die Frist läuft. Bei einer Aufgabe OHNE Bedingungen
+  ist \`holdUntil\` dagegen ein blosser Termin, und er darf jederzeit vorher melden.
 - **Nicht erfüllt** ergibt EIN Vergehen \`unfulfilled_task\` mit zwei Ausprägungen: \`missed\` (nie
   rechtzeitig begonnen) und \`aborted\` (begonnen, dann eine Bedingung vor der Frist abgelegt).
 - **Nachweis-Fotos** (\`requireProof\`) sind eine ZWEITE Achse neben den Bedingungen: erfüllt ist die

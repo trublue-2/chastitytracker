@@ -11,6 +11,7 @@ const EVAL: TaskEvaluation = {
   failedRequirement: null,
   failedAt: null,
   awaitingConfirmation: false,
+  holdRunning: false,
   proofCheckPending: false,
 };
 
@@ -118,8 +119,17 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     expect(nextTaskStep(card)).toEqual({ kind: "confirm" });
   });
 
-  it("erlaubt die Meldung schon während der laufenden Frist", () => {
-    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "running" }), true);
+  it("verlangt während der laufenden Haltefrist nur Halten — nicht die Meldung", () => {
+    // Der Kern der Sache: „halte den njoy bis 18:36" ist um 17:41 noch nicht wahr. Ein Melde-Knopf
+    // in diesem Moment liesse den Sub eine Stunde bestätigen, die noch nicht stattgefunden hat.
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "running", holdRunning: true }), true);
+    expect(nextTaskStep(card)).toEqual({ kind: "hold", until: "2026-07-25T15:00:00.000Z" });
+  });
+
+  it("lässt eine Aufgabe OHNE Bedingungen sofort melden — dort ist die Frist ein Termin", () => {
+    // „Staubsaugen bis 18:36" ist wahr, sobald gesaugt ist. Hier wäre Warten die falsche Antwort —
+    // `evaluateTask` setzt `holdRunning` für sie nie.
+    const card = toTaskCard(evaluated([], { state: "pending" }), true);
     expect(nextTaskStep(card)).toEqual({ kind: "confirm" });
   });
 

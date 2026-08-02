@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { formatElapsedMs } from "@/lib/utils";
-import useTick from "@/app/hooks/useTick";
+import useRemainingMs from "@/app/hooks/useRemainingMs";
 
 /**
  * Live countdown für die verbleibende Sperrzeit. Tickt jede Minute.
@@ -17,10 +17,9 @@ export default function SperrzeitRemaining({
 }) {
   const locale = useLocale();
   const t = useTranslations("admin");
-  useTick(60_000);
+  const remainingMs = useRemainingMs(endetAt);
 
-  const remainingMs = new Date(endetAt).getTime() - Date.now();
-  if (remainingMs <= 0) return null;
+  if (remainingMs === 0) return null;
 
   return (
     <span suppressHydrationWarning className={className}>

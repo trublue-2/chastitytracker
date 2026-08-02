@@ -21,6 +21,7 @@ function evaluated(state: TaskState): EvaluatedTask {
     failedRequirement: null,
     failedAt: null,
     awaitingConfirmation: false,
+    holdRunning: false,
     proofCheckPending: false,
   };
   return {

@@ -1560,6 +1560,8 @@
     "nextStepLabel": "Nächster Schritt",
     "nextStepRequirement": "Bedingung erfüllen: {label}",
     "nextStepProof": "Foto aufnehmen: {description}",
+    "nextStepHold": "Bedingungen halten — noch {remaining}.",
+    "nextStepHoldOver": "Frist abgelaufen.",
     "nextStepConfirm": "Alles erfüllt — melde die Aufgabe unten als erledigt.",
     "requirementAction": "Erfassen",
     "proofCapture": "Foto aufnehmen",

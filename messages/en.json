@@ -1560,6 +1560,8 @@
     "nextStepLabel": "Next step",
     "nextStepRequirement": "Meet condition: {label}",
     "nextStepProof": "Take photo: {description}",
+    "nextStepHold": "Keep the conditions — {remaining} to go.",
+    "nextStepHoldOver": "Deadline reached.",
     "nextStepConfirm": "All conditions met — report the task as done below.",
     "requirementAction": "Record",
     "proofCapture": "Take photo",

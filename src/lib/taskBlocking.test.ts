@@ -17,6 +17,7 @@ const EVAL: TaskEvaluation = {
   failedRequirement: null,
   failedAt: null,
   awaitingConfirmation: false,
+  holdRunning: true,
   proofCheckPending: false,
 };
 

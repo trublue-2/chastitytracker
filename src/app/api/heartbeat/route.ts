@@ -77,8 +77,13 @@ export async function GET() {
   // Die Auswertung liest die Trage-/Verschluss-Einträge und ist damit teurer als die Zeilen darüber;
   // `evaluateTasks` steigt bei leerer Liste aber sofort aus. Nutzer ohne offene Aufgaben (die
   // Mehrheit) zahlen also nur die eine indizierte Task-Abfrage, die oben ohnehin mitläuft.
+  //
+  // `holdRunning` gehört mit in die Zeile, obwohl es kein eigener Zustand ist: beim Ablauf der
+  // Haltefrist bleibt `state` auf „läuft", allein die Selbstmeldung wird möglich. Ohne dieses Zeichen
+  // sähe die Signatur den Übergang nicht, und der Melde-Knopf erschiene erst beim nächsten
+  // Seitenaufbau — für eine Aufgabe, die längst fertig gehalten ist.
   const taskSig = (await evaluateTasks(userId, openTasks, now))
-    .map((e) => `${e.task.id}:${e.evaluation.state}`)
+    .map((e) => `${e.task.id}:${e.evaluation.state}:${e.evaluation.holdRunning}`)
     .sort()
     .join(",");
 

@@ -191,6 +191,57 @@ describe("evaluateTask — Leitbeispiel (KG + Halsband + Knebel bis 15:00)", () 
   });
 });
 
+describe("holdRunning — läuft die Haltefrist gerade?", () => {
+  /**
+   * Die Anzeige hängt daran, ob sie die Selbstmeldung anbietet: solange gehalten wird, ist „erledigt"
+   * eine Aussage über eine Stunde, die noch nicht stattgefunden hat. Deshalb steht die Tatsache hier
+   * und nicht in der Karte — und deshalb braucht sie einen Test, der die Grenze wirklich überschreitet
+   * statt sie zu stempeln.
+   */
+  const reqs = [KG, HALSBAND, KNEBEL];
+  const all = (end: string): Interval[][] =>
+    [0, 1, 2].map(() => [iv("2026-07-25T12:10:00Z", end)]);
+
+  it("ist wahr, solange alle Bedingungen anliegen und 15:00 noch nicht erreicht ist", () => {
+    const r = evaluateTask(task(), reqs, all("2026-07-25T14:59:00Z"), d("2026-07-25T14:59:00Z"));
+    expect(r.state).toBe("running");
+    expect(r.holdRunning).toBe(true);
+    expect(r.awaitingConfirmation).toBe(false);
+  });
+
+  it("kippt mit dem Ablauf der Frist auf die Selbstmeldung — beides nie gleichzeitig", () => {
+    const r = evaluateTask(task(), reqs, all("2026-07-25T15:05:00Z"), d("2026-07-25T15:05:00Z"));
+    expect(r.holdRunning).toBe(false);
+    expect(r.awaitingConfirmation).toBe(true);
+  });
+
+  it("bleibt falsch, wo noch gar nicht gehalten wird — eine fehlende Bedingung hält nichts", () => {
+    const r = evaluateTask(task(), reqs, [
+      [iv("2026-07-25T12:10:00Z", "2026-07-25T13:00:00Z")],
+      [iv("2026-07-25T12:10:00Z", "2026-07-25T13:00:00Z")],
+      [], // Knebel fehlt
+    ], d("2026-07-25T13:00:00Z"));
+    expect(r.holdRunning).toBe(false);
+  });
+
+  it("bleibt falsch bei einer Aufgabe OHNE Bedingungen — dort ist die Frist ein Termin", () => {
+    // Der Unterschied, um den es geht: „staubsauge bis 15:00" darf sofort gemeldet werden.
+    const r = evaluateTask(task(), [], [], d("2026-07-25T13:00:00Z"));
+    expect(r.state).toBe("pending");
+    expect(r.holdRunning).toBe(false);
+  });
+
+  it("bleibt falsch, nachdem eine Bedingung wegfiel — abgebrochen wird nicht mehr gehalten", () => {
+    const r = evaluateTask(task(), reqs, [
+      [iv("2026-07-25T12:10:00Z", "2026-07-25T14:30:00Z")],
+      [iv("2026-07-25T12:10:00Z", "2026-07-25T14:30:00Z")],
+      [iv("2026-07-25T12:10:00Z", "2026-07-25T14:00:00Z")],
+    ], d("2026-07-25T14:30:00Z"));
+    expect(r.state).toBe("aborted");
+    expect(r.holdRunning).toBe(false);
+  });
+});
+
 describe("REGRESSION: frühere Trage-Historie darf die Aufgabe nicht kapern", () => {
   // Gefunden im Code-Review von E1: die Beginn-Suche nahm das FRÜHESTE je aufgezeichnete Intervall,
   // auch eines, das lange vor der Aufgabe endete. Trug der Sub dieselben Geräte zufällig morgens

@@ -85,6 +85,9 @@ export type TaskNextStep =
   | { kind: "requirement"; label: string; href: string | null }
   /** Der nächste Nachweis ist fällig. */
   | { kind: "proof"; label: string; href: string | null }
+  /** Alles liegt an, die Haltefrist läuft — zu tun ist nur noch: so lassen. Kein Handlungsangebot,
+   *  sondern ein Zustand; `until` trägt die Frist für den Countdown. */
+  | { kind: "hold"; until: string }
   /** Nur noch die Selbstmeldung — den nicht messbaren Teil bestätigt der Sub selbst. */
   | { kind: "confirm" };
 
@@ -101,8 +104,11 @@ export function nextTaskStep(task: TaskCardData): TaskNextStep | null {
   if (requirement) return { kind: "requirement", label: requirement.label, href: requirement.href };
   const proof = task.proofs.find((p) => p.state === "open");
   if (proof) return { kind: "proof", label: proof.description, href: proof.href };
-  // Alles liegt an, die Frist läuft noch: melden darf er trotzdem schon — „Wohnung gestaubsaugt"
-  // ist wahr, sobald es getan ist, nicht erst wenn das Halsband abends abkommt.
+  // Läuft die Haltefrist, ist Halten der Schritt — die Selbstmeldung wäre eine Aussage über eine
+  // Stunde, die noch nicht stattgefunden hat. Welche Frist eine Haltefrist ist und welche bloss ein
+  // Termin („staubsauge bis 18:36" — da ist „erledigt" wahr, sobald es getan ist), beantwortet
+  // `holdRunning` aus der Auswertung; hier wird es nicht noch einmal hergeleitet.
+  if (task.holdRunning) return { kind: "hold", until: task.holdUntil };
   return { kind: "confirm" };
 }
 
@@ -121,6 +127,8 @@ export interface TaskCardData {
   failedRequirement: string | null;
   failedAt: string | null;
   awaitingConfirmation: boolean;
+  /** Die Haltefrist läuft gerade — siehe `TaskEvaluation.holdRunning`. */
+  holdRunning: boolean;
   requirements: TaskCardRequirement[];
   /** Geforderte Nachweis-Fotos (Issue #39). Leer, wo keine gefordert sind. */
   proofs: TaskCardProof[];
@@ -237,6 +245,7 @@ export function toTaskCard(
     failedRequirement: e.evaluation.failedRequirement?.label ?? null,
     failedAt: e.evaluation.failedAt?.toISOString() ?? null,
     awaitingConfirmation: e.evaluation.awaitingConfirmation,
+    holdRunning: e.evaluation.holdRunning,
     requirements,
     proofs,
     completionNote: e.task.completionNote,

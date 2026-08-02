@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight } from "lucide-react";
+import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight, Hourglass } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
 import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
-import { formatDateTimeDual, formatTime, toDateLocale } from "@/lib/utils";
+import useRemainingMs from "@/app/hooks/useRemainingMs";
+import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
 import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
 import { TASK_STATE_COLOR } from "@/lib/constants";
 
@@ -207,20 +208,40 @@ export default function TaskCard({
  * Die Rangfolge ist die der Auswertung: erst müssen die Bedingungen gelten (ohne sie läuft die Zeit
  * gar nicht), dann kommen die Nachweise in ihrer geforderten Reihenfolge, und zuletzt bleibt die
  * Selbstmeldung für den Textteil, den keine Maschine prüfen kann.
+ *
+ * Nicht jeder Schritt ist eine Handlung: läuft die Haltefrist noch, steht hier ein ZUSTAND mit
+ * Countdown. Genau dort stand vorher „Alles erfüllt — melde die Aufgabe unten als erledigt", während
+ * die Zeile darüber „Läuft seit 17:37" meldete — zwei Aussagen über denselben Moment, von denen die
+ * auffälligere (grüner Knopf) die falsche war.
  */
 function NextStep({ task }: { task: TaskCardData }) {
   const t = useTranslations("tasks");
   const step = nextTaskStep(task);
   if (!step) return null;
 
-  const { text, href, icon } =
-    step.kind === "requirement"
-      ? { text: t("nextStepRequirement", { label: step.label }), href: step.href, icon: <ArrowRight size={16} /> }
-      : step.kind === "proof"
-        ? { text: t("nextStepProof", { description: step.label }), href: step.href, icon: <Camera size={16} /> }
-        // Kein Link: die Meldung ist ein Knopf, den der Aufrufer als `children` unter diese Zeile
-        // stellt. Sie erklärt ihn — „wofür ist der Knopf?" war die Frage, nicht „wo ist er?".
-        : { text: t("nextStepConfirm"), href: null, icon: <Check size={16} /> };
+  // Flache Kette, kein Ternär-Turm: dieselbe Bauform wie `StateLine` darunter, die dieselbe Aufgabe
+  // hat (ein Wert aus mehreren Fällen).
+  let text: React.ReactNode;
+  let href: string | null = null;
+  let icon: React.ReactNode;
+  if (step.kind === "requirement") {
+    text = t("nextStepRequirement", { label: step.label });
+    href = step.href;
+    icon = <ArrowRight size={16} />;
+  } else if (step.kind === "proof") {
+    text = t("nextStepProof", { description: step.label });
+    href = step.href;
+    icon = <Camera size={16} />;
+  } else if (step.kind === "hold") {
+    // Kein Link und kein Knopf: hier ist nichts zu TUN ausser zu halten.
+    text = <HoldRemaining until={step.until} />;
+    icon = <Hourglass size={16} />;
+  } else {
+    // Kein Link: die Meldung ist ein Knopf, den der Aufrufer als `children` unter diese Zeile
+    // stellt. Sie erklärt ihn — „wofür ist der Knopf?" war die Frage, nicht „wo ist er?".
+    text = t("nextStepConfirm");
+    icon = <Check size={16} />;
+  }
 
   const inner = (
     <>
@@ -239,6 +260,25 @@ function NextStep({ task }: { task: TaskCardData }) {
   return href
     ? <Link href={href} className={`${cls} hover:bg-surface transition active:scale-[0.98]`}>{inner}</Link>
     : <div className={cls}>{inner}</div>;
+}
+
+/** Wie lange noch gehalten werden muss, live. Die Frist steht zwar schon im Kopf der Karte, aber als
+ *  Datum — „18:36" beantwortet nicht, wie lange das noch ist, und genau das ist hier die Frage. */
+function HoldRemaining({ until }: { until: string }) {
+  const t = useTranslations("tasks");
+  const locale = useLocale();
+  const remainingMs = useRemainingMs(until);
+
+  // Abgelaufen, und die Karte steht trotzdem noch: der Server hat den Zustandswechsel noch nicht
+  // geliefert (Uhren-Drift zwischen Handy und Server, oder offline). „noch 0min" wäre dann eine
+  // Aufforderung zu warten, die nie endet — der schlichte Satz stimmt in beiden Fällen.
+  return (
+    <span suppressHydrationWarning>
+      {remainingMs === 0
+        ? t("nextStepHoldOver")
+        : t("nextStepHold", { remaining: formatElapsedMs(remainingMs, locale) })}
+    </span>
+  );
 }
 
 /** Klartext statt nacktem Zustandswort — „abgebrochen" allein wäre nicht unterscheidbar von

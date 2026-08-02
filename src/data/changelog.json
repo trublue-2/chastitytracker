@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.0.4",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bei Aufgaben, die etwas durchgehend verlangen, erscheint „Als erledigt melden\" erst nach Ablauf der Frist — solange sie läuft, zeigt die Karte die verbleibende Zeit. Aufgaben ohne solche Bedingungen lassen sich weiterhin jederzeit melden.",
+          "en": "For tasks that require something to be held, \"Report as done\" now appears only once the deadline has passed — while it runs, the card shows the remaining time. Tasks without such conditions can still be reported at any time."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.3",
     "date": "2026-08-02",
     "changes": [

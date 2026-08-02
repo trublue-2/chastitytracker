@@ -81,6 +81,20 @@ export interface TaskEvaluation {
   failedAt: Date | null;
   /** Bedingungen erfüllt, aber die Selbstmeldung fehlt noch (nur bei Aufgaben mit Bedingungen). */
   awaitingConfirmation: boolean;
+  /**
+   * Die Bedingungen liegen an und `holdUntil` ist noch nicht erreicht — es wird gerade GEHALTEN.
+   *
+   * Nur bei Aufgaben MIT Bedingungen wahr, und darin steckt der Unterschied, den `holdUntil` allein
+   * nicht hergibt: mit Bedingungen ist es eine HALTEFRIST („halte den Plug bis 18:36"), ohne
+   * Bedingungen ein TERMIN („staubsauge bis 18:36"). Nur im ersten Fall ist eine Selbstmeldung vor
+   * Ablauf eine Aussage über eine Stunde, die noch nicht stattgefunden hat.
+   *
+   * Hier und nicht in der Anzeige, obwohl sich beides aus `requirements.length` und einer Uhr
+   * herleiten liesse: der Vergleich mit `holdUntil` steht ohnehin genau hier (siehe unten), und die
+   * Karte ist eine Client-Komponente. Sie müsste die Zeit ein zweites Mal messen — und der Knopf
+   * spränge beim Hydrieren, wenn die Uhr des Handys anders geht als die des Servers.
+   */
+  holdRunning: boolean;
   /** Ein Nachweis wartet noch auf seine automatische Code-Prüfung. Nur für den Poller: er darf ein
    *  Ergebnis erst melden UND stempeln, wenn es feststeht — sonst ist die Meldung „bitte sichten"
    *  raus und dauerhaft gestempelt, während die Prüfung Sekunden später „erfüllt" ergibt und das
@@ -292,6 +306,7 @@ export function evaluateTask(
     failedRequirement: null,
     failedAt: null,
     awaitingConfirmation: false,
+    holdRunning: false,
     proofCheckPending: proofs.some(
       (p) => p.requireCode && p.submittedAt !== null && p.verifikationStatus === null && p.verifikationReason === null,
     ),
@@ -381,7 +396,10 @@ export function evaluateTask(
     };
   }
 
-  if (now < task.holdUntil) return { ...base, state: "running", startedAt };
+  // Der EINE Ort, an dem „die Haltefrist läuft noch" gemessen wird — deshalb trägt die Auswertung
+  // die Tatsache auch nach aussen, statt die Anzeige sie aus der Abwesenheit von
+  // `awaitingConfirmation` erschliessen zu lassen.
+  if (now < task.holdUntil) return { ...base, state: "running", startedAt, holdRunning: true };
 
   // Bedingungen gehalten. Jetzt die Nachweise.
   //

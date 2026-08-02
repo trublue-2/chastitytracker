@@ -31,7 +31,12 @@ export default function OpenTasks({ tasks, tz }: { tasks: TaskCardData[]; tz: st
             {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten
                 Schritt nennt — eine Regel, eine Quelle. Getrennt beantwortet, sagte die Karte
                 „Bedingung erfüllen" und der Knopf darunter „Als erledigt melden": zwei
-                Aufforderungen für einen Schritt. */}
+                Aufforderungen für einen Schritt.
+
+                Dass er beim Ablauf der Haltefrist von selbst erscheint, besorgt der `Heartbeat`:
+                seine Signatur trägt `holdRunning` mit, ein eigener Timer wäre ein zweiter Kanal für
+                dieselbe Frage. Preis: bis zu einem Poll-Takt Verzögerung — bei einer Haltefrist von
+                Stunden nicht der Rede wert. */}
             {nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} />}
           </TaskCard>
         ))}
