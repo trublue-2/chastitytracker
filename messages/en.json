@@ -373,7 +373,9 @@
     "photoMain": "Entry",
     "photoBox": "Box",
     "cleaningPauseLabel": "Cleaning break – remaining",
-    "cleaningPauseRelock": "Lock up again"
+    "cleaningPauseRelock": "Lock up again",
+    "categoryNoDevice": "No device — nothing can be tracked here",
+    "categoryAddDevice": "Add device"
   },
   "newEntry": {
     "title": "New entry",
@@ -1286,7 +1288,10 @@
     "nameRequired": "Name is required",
     "createdToast": "Category created",
     "savedToast": "Category updated",
-    "deletedToast": "Category deleted"
+    "deletedToast": "Category deleted",
+    "firstDeviceLabel": "First device (optional)",
+    "firstDevicePlaceholder": "e.g. black collar",
+    "firstDeviceHint": "Without a device nothing can be tracked in this category. Photo, price and inspection code can be added later."
   },
   "devices": {
     "title": "My devices",

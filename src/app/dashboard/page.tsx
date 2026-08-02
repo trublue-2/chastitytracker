@@ -32,6 +32,7 @@ import ActiveWearSessions from "./ActiveWearSessions";
 import CategoriesPromoCard from "./CategoriesPromoCard";
 import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
+import IncompleteCategories from "./IncompleteCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { inspectionHref } from "@/lib/entryFormRoute";
@@ -184,6 +185,17 @@ export default async function DashboardPage() {
   // beide daraus ab (je GERÄT gepaart, Überlappungen für die Stunden verschmolzen).
   const wearSessionList = buildWearSessions(entries, now);
   const wearSessionRows = buildWearSessionRows(allNonKgCategories, wearSessionList, dl, entries);
+
+  // Bespielbar ist eine Kategorie erst mit Gerät — ohne eines lässt sich darin nichts erfassen. Die
+  // Trennung gilt nur für die ANZEIGE der Kategorie-Blöcke; die Session-Liste oben bekommt weiter
+  // alle, sonst verschwänden vergangene Sessions einer Kategorie, deren Gerät archiviert wurde.
+  const playableCategories = allNonKgCategories.filter((c) => c.deviceCount > 0);
+  // Eine laufende Session schliesst „unfertig" aus, auch wenn ihr Gerät inzwischen archiviert wurde:
+  // sonst stünde direkt unter „Plug — läuft seit 14:00" die Karte „hier lässt sich nichts erfassen".
+  // Dieselbe Bedingung wie bei den bespielbaren Kategorien unten.
+  const incompleteCategories = allNonKgCategories.filter(
+    (c) => c.deviceCount === 0 && !wearSessions.some((s) => s.categoryId === c.id),
+  );
   const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
 
   // ── Serialize for client ──
@@ -291,6 +303,10 @@ export default async function DashboardPage() {
         serverNow={now.toISOString()}
       />
       {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
+      {/* Ohne Gerät ist die Kategorie ein halber Schritt, kein Zustand — sichtbar hier statt unten
+          im eingeklappten „Nicht getragen" (Issue #49). Ohne Feature-Flag ist die Liste leer, der
+          Block blendet sich selbst aus. */}
+      <IncompleteCategories categories={incompleteCategories} />
       <CategoryGoalsToday
         userId={userId}
         activeWearSessions={wearSessions}
@@ -299,7 +315,7 @@ export default async function DashboardPage() {
         kgGoal={inlineKgGoal}
       />
       <InactiveCategories
-        categories={allNonKgCategories
+        categories={playableCategories
           .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))
           .map((c) => ({
             ...c,

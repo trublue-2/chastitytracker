@@ -46,12 +46,16 @@ interface Props {
   username?: string;
   /** When true, render a link to category management. Set by server based on feature flag. */
   showCategoriesLink?: boolean;
+  /** Kommt der Nutzer aus dem „Kategorie hat noch kein Gerät"-Hinweis, öffnet sich das Formular
+   *  sofort mit dieser Kategorie. Ohne das landet er auf einer Liste und muss den Knopf suchen —
+   *  genau die Reibung, an der das Onboarding heute abbricht (Issue #49). */
+  initialCategoryId?: string;
   /** Darf der Betrachter die Kontroll-Code-Pflicht umstellen? Nur Keyholder/Admin — der Sub sieht den
    *  Schalter, kann ihn aber nicht bedienen (die Route weist es ebenfalls ab). */
   canEditInspectionCode?: boolean;
 }
 
-export default function DevicesClient({ devices: initialDevices, categories, userId, username, showCategoriesLink = false, canEditInspectionCode = false }: Props) {
+export default function DevicesClient({ devices: initialDevices, categories, userId, username, showCategoriesLink = false, canEditInspectionCode = false, initialCategoryId }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
   const apiError = useApiError();
@@ -60,7 +64,11 @@ export default function DevicesClient({ devices: initialDevices, categories, use
 
   const [showArchived, setShowArchived] = useState(false);
   const [filterCategoryId, setFilterCategoryId] = useState<string | "all">("all");
-  const [formMode, setFormMode] = useState<"closed" | "add" | "edit">("closed");
+  const [formMode, setFormMode] = useState<"closed" | "add" | "edit">(initialCategoryId ? "add" : "closed");
+  // Die Vorwahl aus der URL gilt für GENAU diese eine Anlage. Bliebe sie stehen, öffnete ein Reload
+  // das Formular erneut (für eine Kategorie, die inzwischen ein Gerät hat) und jede spätere Anlage
+  // auf dieser Seite stünde still auf der alten Kategorie statt auf dem KG.
+  const [presetCategoryId, setPresetCategoryId] = useState(initialCategoryId);
   const [editDevice, setEditDevice] = useState<DeviceRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeviceRow | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -101,6 +109,9 @@ export default function DevicesClient({ devices: initialDevices, categories, use
   function closeForm() {
     setFormMode("closed");
     setEditDevice(null);
+    // Verbraucht: die URL trägt sie zwar weiter, aber sie darf weder das Formular erneut öffnen noch
+    // die nächste Anlage vorbelegen.
+    setPresetCategoryId(undefined);
   }
 
   function handleSaved() {
@@ -166,6 +177,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
             onSaved={handleSaved}
             device={editDevice}
             categories={categories}
+            initialCategoryId={presetCategoryId}
             userId={userId}
             canEditInspectionCode={canEditInspectionCode}
           />

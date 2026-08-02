@@ -113,6 +113,13 @@
           "de": "Der Keyholder-Agent kann jetzt ebenfalls mit einer Aufgabe bestrafen: create_task nimmt die Referenz eines erkannten Vergehens entgegen und schreibt Aufgabe und Urteil zusammen.",
           "en": "The keyholder agent can now punish with a task as well: create_task accepts the reference of a detected offense and writes task and verdict together."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Beim Anlegen einer Kategorie lässt sich gleich das erste Gerät benennen — ohne Gerät liess sich in einer Kategorie nichts erfassen, und gesagt wurde es nirgends. Kategorien ohne Gerät stehen jetzt sichtbar im Dashboard und führen direkt zum Anlegen.",
+          "en": "When creating a category you can now name its first device right away — without a device nothing could be tracked in it, and nothing said so. Categories without a device now appear visibly on the dashboard and lead straight to adding one."
+        }
       }
     ]
   },

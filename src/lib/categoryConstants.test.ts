@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  deviceFormHref,
+  CATEGORY_QUERY_KEY,
   CATEGORY_COLORS,
   CATEGORY_ICONS,
   CATEGORY_COLOR_HEX,
@@ -136,5 +138,17 @@ describe("validateCategoryInput", () => {
 
   it("returns null when no fields are passed (PATCH with empty body)", () => {
     expect(validateCategoryInput({})).toBeNull();
+  });
+});
+
+describe("deviceFormHref — der zweite Schritt nach einer neuen Kategorie", () => {
+  it("führt auf die Geräte-Seite mit vorgewählter Kategorie", () => {
+    expect(deviceFormHref("c1")).toBe("/dashboard/geraete?category=c1");
+  });
+
+  it("nutzt denselben Schlüssel, den die Seite ausliest", () => {
+    // Der Link setzt ihn, die Seite liest ihn — als zwei lose Zeichenketten schaltete ein
+    // Umbenennen die Vorwahl still ab, und der Nutzer landete wieder beim Suchen.
+    expect(new URL(deviceFormHref("c1"), "https://x").searchParams.get(CATEGORY_QUERY_KEY)).toBe("c1");
   });
 });

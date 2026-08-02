@@ -147,6 +147,18 @@ export function validateCategoryInput(input: {
   return null;
 }
 
+/** Query-Schlüssel für „diese Kategorie ist vorgewählt" — derselbe Name wie in den Trage-Formularen,
+ *  statt eines dritten für dieselbe Sache. An zwei Enden gebraucht (Link setzt ihn, Seite liest ihn):
+ *  als lose Zeichenkette schaltete ein Umbenennen die Vorwahl still ab. */
+export const CATEGORY_QUERY_KEY = "category";
+
+/** Link auf das Geräte-Formular mit vorgewählter Kategorie — der zweite Schritt nach dem Anlegen
+ *  einer Kategorie (Issue #49). Ohne die Vorwahl landet der Nutzer auf einer Liste und muss den
+ *  richtigen Knopf suchen; genau diese Reibung kostet das Onboarding. */
+export function deviceFormHref(categoryId: string): string {
+  return `/dashboard/geraete?${new URLSearchParams({ [CATEGORY_QUERY_KEY]: categoryId })}`;
+}
+
 /**
  * Link auf das Trage-Formular einer Kategorie — beginnen oder beenden, Sub- oder Keyholder-Sicht.
  *

@@ -21,6 +21,7 @@ import {
   type CategoryIcon,
 } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
 import Toggle from "@/app/components/Toggle";
 import type { CategoryRow } from "./CategoriesClient";
 
@@ -51,6 +52,10 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
   );
   const [requirePhoto, setRequirePhoto] = useState<boolean>(category?.requirePhoto ?? false);
   const [allowVorgaben, setAllowVorgaben] = useState<boolean>(category?.allowVorgaben ?? true);
+  // Nur beim ANLEGEN: eine Kategorie ohne Gerät ist eine Sackgasse — erfassen lässt sich darin
+  // nichts. Beide Schritte in einem Formular, damit sie gar nicht erst entstehen kann (Issue #49).
+  // Optional bleibt es trotzdem: wer mehrere Kategorien vorbereitet, soll nicht ausgebremst werden.
+  const [firstDeviceName, setFirstDeviceName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -76,6 +81,7 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
       allowVorgaben,
     };
     if (userId) payload.userId = userId;
+    if (!isEdit && firstDeviceName.trim()) payload.firstDeviceName = firstDeviceName.trim();
     const url = isEdit ? `/api/categories/${category!.id}` : "/api/categories";
     const method = isEdit ? "PATCH" : "POST";
 
@@ -112,6 +118,18 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
           required
           disabled={saving}
         />
+
+        {!isEdit && (
+          <Input
+            label={t("firstDeviceLabel")}
+            value={firstDeviceName}
+            onChange={(e) => setFirstDeviceName(e.target.value)}
+            placeholder={t("firstDevicePlaceholder")}
+            maxLength={DEVICE_NAME_MAX_LENGTH}
+            hint={t("firstDeviceHint")}
+            disabled={saving}
+          />
+        )}
 
         {/* Color picker */}
         <div className="flex flex-col gap-1.5">

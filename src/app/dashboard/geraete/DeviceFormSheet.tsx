@@ -24,20 +24,24 @@ interface Props {
   onSaved: () => void;
   device: DeviceRow | null;
   categories?: CategoryOption[];
+  /** Vorwahl beim Anlegen (Link aus dem Dashboard-Hinweis „Kategorie hat noch kein Gerät").
+   *  Beim Bearbeiten gewinnt die Kategorie des Geräts. */
+  initialCategoryId?: string;
   /** Set when admin creates device for another user */
   userId?: string;
   /** Darf der Betrachter die Kontroll-Code-Pflicht umstellen? Nur Keyholder/Admin. */
   canEditInspectionCode?: boolean;
 }
 
-export default function DeviceForm({ onClose, onSaved, device, categories, userId, canEditInspectionCode = false }: Props) {
+export default function DeviceForm({ onClose, onSaved, device, categories, initialCategoryId, userId, canEditInspectionCode = false }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
   const apiError = useApiError();
   const toast = useToast();
 
-  // Pick a sensible default category: edit→existing, create→KG built-in.
+  // Pick a sensible default category: edit→existing, create→vorgewählt (Link), sonst KG built-in.
   const defaultCategoryId = device?.categoryId
+    ?? initialCategoryId
     ?? categories?.find((c) => c.isBuiltIn)?.id
     ?? categories?.[0]?.id
     ?? "";

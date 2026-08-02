@@ -385,11 +385,24 @@ export async function getActiveWearSessionForCategory(
 
 /** Returns non-KG device categories with tracking enabled, ordered by sortOrder then createdAt. */
 export async function getNonKgTrackingCategories(userId: string) {
-  return prisma.deviceCategory.findMany({
+  const rows = await prisma.deviceCategory.findMany({
     where: { userId, isBuiltIn: false, trackingEnabled: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { id: true, name: true, color: true, icon: true },
+    // `deviceCount` entscheidet, ob die Kategorie überhaupt bespielbar ist: ohne Gerät lässt sich
+    // darin nichts erfassen, und das Dashboard weist sie als unfertig aus statt sie wie jede andere
+    // zu behandeln (Issue #49). Im selben Select, also ohne zusätzliche Abfrage.
+    //
+    // ARCHIVIERTE zählen nicht mit: die Frage ist „lässt sich hier erfassen?", nicht „gab es hier je
+    // ein Gerät?". Die Verwaltungsseite zählt bewusst anders (`categoryRows.ts`) — dort ist es eine
+    // Bestandsangabe.
+    select: {
+      id: true, name: true, color: true, icon: true,
+      _count: { select: { devices: { where: { archivedAt: null } } } },
+    },
   });
+  // Flach benannt wie überall sonst (`categoryRows.ts`, `GET /api/categories`) — `_count.devices`
+  // wäre die dritte Schreibweise derselben Zahl.
+  return rows.map(({ _count, ...c }) => ({ ...c, deviceCount: _count.devices }));
 }
 
 /** Returns the currently active KG TrainingVorgabe for a user, or null.
