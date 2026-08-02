@@ -1,10 +1,10 @@
 # Kommunikation in der App: Posteingang für Sub und Keyholder
 
-**Status:** Konzept · nichts umgesetzt
-**Erstellt:** 2026-07-26
-**Auslöser:** Das App-Icon zeigt ein Nachrichten-Badge, es gibt in der App aber keinen Ort, an dem man
+**Status:** Etappe 1 umgesetzt (v4.56.0, erweitert bis v4.58.1) · Etappe 2 und 3 offen
+**Erstellt:** 2026-07-26 · **Ist-Stand nachgezogen:** 2026-07-31
+**Auslöser:** Das App-Icon zeigte ein Nachrichten-Badge, es gab in der App aber keinen Ort, an dem man
 Nachrichten nachliest. Bestandsaufnahme und Entwurf entstanden aus vier parallelen Code-Analysen.
-**Zielversion:** 5.x — nicht auf `main` (4.52.x).
+~~**Zielversion:** 5.x — nicht auf `main` (4.52.x).~~ *(überholt — siehe Hinweis zur Umsetzung.)*
 **Hinweis zur Umsetzung:** Etappe 1 wurde mit v4.56.0 von `main` aus gebaut (Branch `feat/messages`), nicht auf `feat/tasks` — das Feature hängt an keiner Stelle vom Aufgaben-Konstrukt ab. Belege im Text, die auf `TaskCard.tsx`, `taskService.ts` oder `ExpandToggle.tsx` zeigen, beziehen sich auf den v5-Branch und existieren auf `main` nicht.
 
 Verwandte Issues: **#37** (Träger erbittet Aufschluss/Orgasmus), **#36** (offene Strafen sichtbar),
@@ -12,7 +12,88 @@ Verwandte Issues: **#37** (Träger erbittet Aufschluss/Orgasmus), **#36** (offen
 
 ---
 
+## Ist-Stand: Wann welche Meldung an den Sub geht
+
+Aus dem Code abgeleitet, Stand 2026-07-31 (v4.60.0). **22 `bodyKey`s** (`messageService.ts:26-53`),
+davon **20 an den Sub** — zwei sind Keyholder-Meldungen und tragen deshalb `inbox: false`.
+
+Die Spalte **Schalter** meint „Mail und Push bei neuen Nachrichten"
+(`NotificationPreference.MESSAGE_RECEIVED`, fehlende Zeile = an, `notificationPrefs.ts:9-25`).
+**„nein" heisst: geht raus, auch wenn der Sub ihn ausschaltet.** Die Trennlinie ist bewusst gezogen —
+alles mit **Frist oder Pflicht** ist nicht stummschaltbar, reine Statusmeldungen sind es. Der
+Posteingang-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der Persistenz.
+
+### Kontrolle
+
+| Ereignis | Ausgelöst durch | `bodyKey` | Mail | Push | Schalter | Stille-Regel |
+|---|---|---|---|---|---|---|
+| Kontrolle angefordert | `requestKontrolle` (Keyholder/MCP, sofort) · Poller bei `wirksamAb` · Auto-Kontrolle · Wiederverschluss nach Reinigungspause | `inspectionRequestedMessage` | ✔ | ✔ | **nein** | Frist zählt ab Zustellung (`deadlineFromDispatch`), nicht ab Plan-Zeitpunkt |
+| Kontrolle manuell bestätigt | `resolveKontrolle("manuallyVerify")` | `inspectionConfirmedMessage` | ✔ | ✔ | ja | — |
+| Kontrolle abgelehnt | `resolveKontrolle("reject")` | `inspectionRejectedMessage` | ✔ | ✔ | ja | — |
+| Kontrolle zurückgezogen | `resolveKontrolle("withdraw")` | `inspectionResolvedWithdrawnMessage` | ✔ | ✔ | ja | **nur wenn** `!isHiddenFromSub` — eine noch nicht ausgelöste Kontrolle verriete sich sonst durch ihren Rückzug |
+| Mahnung (Stufe 1) | Poller, `inspectionReminderDelayMinutes` nach Deadline | `inspectionReminderMessage` / `…NoCode` | ✔ | ✔ | **nein** | nur bei `inspectionReminderEnabled`; der Zeitstempel wird trotzdem immer gesetzt (Anker für Stufe 2) |
+| Auto-Ablage als Öffnen (Stufe 2) | Poller, `inspectionAutoMarkDelayMinutes` nach der Mahnung | `inspectionAutoRemovedMessageSub` / `…NoCode` | ✔ | ✔ | **nein** | entfällt im Schlaf-Fenster nach einem Reinigungs-Relock |
+| ↳ dieselbe Auto-Ablage an die Keyholder | Poller | `inspectionAutoRemovedMessageKeyholder` / `…NoCode`, **`inbox: false`** | ✔ | ✔ | ja | geht **nicht** an den Sub — der Keyholder-Posteingang kommt mit Etappe 2 |
+
+### Verschluss / Sperrzeit
+
+| Ereignis | Ausgelöst durch | `bodyKey` | Mail | Push | Schalter | Stille-Regel |
+|---|---|---|---|---|---|---|
+| Einschliess-Anforderung gestellt | `createVerschlussAnforderung` (sofort) · Poller bei `wirksamAb` | `lockRequestBody` | ✔ | ✔ | **nein** | Poller zieht zurück statt zu senden, wenn der Sub inzwischen verschlossen ist |
+| Sperrzeit gesetzt | dito, `art=SPERRZEIT` | `lockPeriodSetBody` | ✔ | ✔ | **nein** | Poller zieht zurück, wenn der Sub offen ist oder das Sperr-Ende schon vorbei |
+| Anforderung geändert | `updateLockRequest` | `lockRequestChangedMessage` | ✔ | ✔ | **nein** | nur wenn bereits sichtbar. Verborgen + neu „sofort" ⇒ volle Zustellung als `lockRequestBody`; verborgen + weiter terminiert ⇒ **stumm**, der Poller stellt den frischen Stand zu |
+| Sperr-Ende geändert | `updateSperrzeitEnde` | `lockPeriodChangedMessage` | ✔ | ✔ | **nein** | nur wenn `!isHiddenFromSub` |
+| Sperr-Ende auf unbefristet | dito, `endetAt = null` | `lockPeriodChangedMessageIndefinite` | ✔ | ✔ | **nein** | dito |
+| Anforderung zurückgezogen | `withdrawVerschlussAnforderung(ById)` | `lockRequestWithdrawnMessage` | ✔ | ✔ | ja | nur wenn der Sub von mindestens einer der stornierten Zeilen wusste |
+| Sperrzeit zurückgezogen | dito | `lockPeriodWithdrawnMessage` | ✔ | ✔ | ja | dito |
+
+### Orgasmus
+
+| Ereignis | Ausgelöst durch | `bodyKey` | Mail | Push | Schalter | Stille-Regel |
+|---|---|---|---|---|---|---|
+| Anweisung erteilt | `createOrgasmusAnforderung` (`ANWEISUNG`) | `orgasmAnweisungIntro` | ✔ | ✔ | **nein** | immer sofort — für Orgasmus-Direktiven gibt es keinen Poller-Pfad |
+| Gelegenheit gewährt | dito (`GELEGENHEIT`) | `orgasmGelegenheitIntro` | ✔ | ✔ | **nein** | dito |
+| Direktive zurückgezogen | `withdrawOrgasmusAnforderung(ById)` | `orgasmWithdrawnMessage` | ✔ | ✔ | ja | — |
+
+### Strafe
+
+| Ereignis | Ausgelöst durch | `bodyKey` | Mail | Push | Schalter | Stille-Regel |
+|---|---|---|---|---|---|---|
+| Strafe verhängt | `judgeOffense` (MCP/KI) · `POST /api/admin/strafe` (Keyholder) | **immer** `penaltyMessageNoReason`, dazu `ref: offense` | ✔ (Mail nutzt `penaltyMessage` mit `{reason}`) | ✔ | ja | nur bei `status=PUNISHED` — ein Verwerfen meldet nichts. `senderKind` kommt über `senderKindOf(judgedBy)` aus `ai`/`admin`/`system` |
+
+Der Straftext wird **nicht** in die Nachricht kopiert: die Mail interpoliert ihn, der Posteingang
+liest ihn beim Anzeigen frisch über `ref` vom `StrafeRecord`. Dasselbe Muster bei Kontroll-Kommentar
+(`ref: control`) und Anforderungs-Nachricht (`ref: lockRequest`) — die Verlink-Entscheidung aus 3.2,
+im Code angekommen.
+
+### Ohne Posteingang
+
+| Ereignis | Ausgelöst durch | Empfänger | Mail | Push |
+|---|---|---|---|---|
+| Passwort-Reset-Link | `POST /api/auth/forgot-password` | Sub | ✔ | — |
+| KI-Health-Alarm | `healthCheck` | `HEALTHCHECK_ALERT_EMAIL` | ✔ | — |
+| Eintrag des Subs (VERSCHLUSS/OEFFNEN/PRUEFUNG/ORGASMUS/Trage-Ereignis) | `POST /api/entries` | Keyholder + globale Admins | ✔ | ✔ |
+
+Die letzte Zeile ist der Gegenverkehr aus 1.1 — unverändert ohne Persistenz und weiterhin die
+einzige Stelle im Projekt mit hartkodiert deutschem Meldungstext (siehe Nebenbefund 2).
+
+### Was daran auffällt
+
+- **Die Strafe ist die einzige Meldung mit Konsequenz, die stummschaltbar ist.** Schaltet der Sub
+  Mail und Push ab, erfährt er von einer verhängten Strafe nur beim Öffnen des Posteingangs. Das ist
+  in sich stimmig (die Nachricht bleibt ja nachlesbar) und war der Kern-Befund aus 1.2 — aber es ist
+  die einzige Zeile der Tabelle, bei der „ja" in der Schalter-Spalte nicht selbstverständlich ist.
+- **Jede terminierte Direktive hat ihre eigene Stille-Regel**, und alle drei laufen über
+  `isHiddenFromSub()`. Das ist die Zusage aus 4.3, an vier Aufrufern eingelöst — aber eben an jedem
+  einzeln. Ein fünfter Aufrufer, der sie vergisst, fällt durch keinen Test.
+
+---
+
 ## 1. Bestand
+
+> **Historisch — Aufnahme vom 26.07.2026, vor Etappe 1.** Der Abschnitt bleibt als Begründung stehen,
+> warum das Feature gebaut wurde; was davon heute noch gilt, steht oben. Einzelne überholte Befunde
+> sind unten markiert.
 
 ### 1.1 Was die App heute verschickt
 
@@ -29,6 +110,9 @@ Es existiert weder eine Route noch eine Tabelle noch eine Seite für Nachrichten
 | System → beide | Mahnungen, Auto-Buchungen, Aufgaben-Ergebnisse, Passwort-Reset |
 
 ### 1.2 Was spurlos verschwindet
+
+> **Behoben (v4.56.0).** Alle hier genannten Meldungen schreiben heute eine `Message` — siehe die
+> Tabellen oben. Die Liste bleibt, weil sie den Umfang des Problems belegt.
 
 Diese Meldungen existieren nach dem Versand nirgends mehr — kein DB-Feld, keine Ansicht:
 
@@ -58,8 +142,13 @@ verschwinden mit ihm, weil das Dashboard ausschliesslich **offene** Direktiven l
 - `NotificationPreference` steuert **nur** die Meldungen über Sub-Einträge an die Keyholder
   (`entries/route.ts:318-319`). Der gesamte Keyholder→Sub-Verkehr läuft daran vorbei: `notifyUser`
   fragt keine Präferenz ab. **Der Sub hat keinen Ausschalter.**
+  **Überholt (v4.56.0):** `MESSAGE_RECEIVED` + `getMessageChannels()` sind der Ausschalter; was er
+  nicht erreicht, steht in der Schalter-Spalte der Tabellen oben.
 
 ### 1.4 Das Badge ist eine Konstante
+
+> **Behoben (v4.56.0).** Die Zahl wird serverseitig gerechnet (`recordMessageAndBadge()` gibt sie
+> zurück, alle Versandpfade reichen sie an `firePush` durch) und trägt ungelesene Nachrichten.
 
 `public/sw.js:100-101` setzt `setAppBadge(1)`, das APNs-Payload setzt `badge: 1`
 (`src/lib/push.ts:60`). Zehn Meldungen ergeben 1. Geräumt wird nur im Service Worker beim
@@ -393,11 +482,11 @@ Jede Etappe ist rein additiv — kein bestehendes Feld ändert sich, kein `schem
 Bei 26 Instanzen und einem MCP, der historische Werte interpretierbar halten muss, ist das die einzige
 Form, die sich in Schritten ausrollen lässt.
 
-| # | Inhalt | Risiko |
-|---|---|---|
-| **1** | `Message` + `MessageRead`; `notifyUser` schreibt zusätzlich eine Schlüssel-Nachricht; Posteingang für den Sub (nur lesen); `MESSAGE_RECEIVED` in den Präferenzen; Badge serverberechnet | niedrig |
-| **2** | Antwort und Rückfrage des Subs mit Objektbezug; Keyholder-Ansicht; Quittieren; Idempotenz und Offline-Cache | mittel |
-| **3** | MCP: `send_message` (V2) + `read_messages`; Zähler additiv im `keyholder_dashboard`; Aufräumregel im Tageswechsel | niedrig |
+| # | Inhalt | Risiko | Stand |
+|---|---|---|---|
+| **1** | `Message` + `MessageRead`; `notifyUser` schreibt zusätzlich eine Schlüssel-Nachricht; Posteingang für den Sub (nur lesen); `MESSAGE_RECEIVED` in den Präferenzen; Badge serverberechnet | niedrig | **umgesetzt** (v4.56.0). Darüber hinaus gebaut: Kategorien (`messageCategories.ts`), Zeilen-Menü, Löschen, Link zur offenen Kontrolle (v4.57.3/v4.58.1) |
+| **2** | Antwort und Rückfrage des Subs mit Objektbezug; Keyholder-Ansicht; Quittieren; Idempotenz und Offline-Cache | mittel | offen — `MessageRead.acknowledgedAt` und `clientMessageId` liegen bereit, `senderKind: "sub"` gibt es noch nicht |
+| **3** | MCP: `send_message` (V2) + `read_messages`; Zähler additiv im `keyholder_dashboard`; Aufräumregel im Tageswechsel | niedrig | offen |
 
 **Wenn nur eine Sache geht: Etappe 1.** Sie ist die kleinste, ändert **keinen einzigen Aufrufer** —
 `NotifyContent` trägt bereits Schlüssel, Parameter und Ziel-URL — und behebt allein den härtesten
@@ -431,11 +520,13 @@ Befund: dass der Sub heute nicht nachlesen kann, wofür er bestraft wurde.
 
 Unabhängig vom Konzept, aber beim Lesen gefunden:
 
-1. **Ein Sub ohne hinterlegte E-Mail erfährt von einer angeforderten Kontrolle über gar keinen Kanal.**
+1. ~~**Ein Sub ohne hinterlegte E-Mail erfährt von einer angeforderten Kontrolle über gar keinen Kanal.**
    `sendKontrolleNotification` bricht bei fehlender Adresse ganz oben ab (`kontrolleService.ts:233`),
-   der Push steht erst danach (`:280`). Bei Verschluss und Orgasmus ist das korrekt getrennt.
+   der Push steht erst danach (`:280`). Bei Verschluss und Orgasmus ist das korrekt getrennt.~~
+   **Behoben:** nur noch die Mail hängt an der Adresse; Posteingang und Push laufen unabhängig davon
+   (`kontrolleService.ts`, `sendKontrolleNotification`).
 2. **Die Meldungen über Sub-Einträge sind hartkodiert deutsch** (`entries/route.ts:330`, `:344-366`) —
    die einzige Stelle im Projekt, die die Empfänger-Sprache ignoriert. Wenn dieser Pfad ohnehin
-   angefasst wird, gehört das mit korrigiert.
+   angefasst wird, gehört das mit korrigiert. *(Stand 31.07.2026 unverändert.)*
 3. **`KeyholderActionLog` hat keine Oberfläche.** Das vollständigste Audit-Log im Schema ist nur über
    den MCP sichtbar — für den Sub gar nicht.
