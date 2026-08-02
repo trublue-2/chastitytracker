@@ -55,6 +55,21 @@ export interface TaskCardProof {
   imageUrl: string | null;
   /** Anmerkung der Keyholderin zur Sichtung. */
   reviewNote: string | null;
+  /**
+   * Das Urteil eines MENSCHEN, mit seinem Zeitpunkt — getrennt von {@link state}, der es mit der
+   * Code-Bestätigung zu „erbracht" verschmilzt.
+   *
+   * Für den Sub ist diese Verschmelzung richtig (beides heisst „erledigt"), für die Sichtungs-Ansicht
+   * nicht: dort stand über einem längst angenommenen Nachweis dasselbe neutrale „Annehmen /
+   * Ablehnen" wie über einem unbeurteilten. Wer über den MCP geurteilt hatte, sah im Web keine Spur
+   * davon und beurteilte dieselben Fotos ein zweites Mal (Rückmeldung 02.08.2026).
+   *
+   * Urteil und Zeitpunkt als EIN Feld, weil sie zusammen geschrieben werden (`reviewTaskProof`) und
+   * nur zusammen etwas aussagen: „angenommen" ohne Zeitpunkt lässt offen, ob das vor einer Minute
+   * oder vor einer Woche geschah. Zwei nullbare Felder hätten dieselbe Anzeige um einen Zweig
+   * erweitert, den niemand je erreicht.
+   */
+  review: { accepted: boolean; at: string } | null;
 }
 
 /**
@@ -202,6 +217,10 @@ export function toTaskCard(
       href: withLinks && state === "open" ? `/dashboard/new/task-proof/${p.id}` : null,
       imageUrl: p.imageUrl,
       reviewNote: p.reviewNote,
+      // Beides oder nichts: `reviewTaskProof` schreibt Urteil und Zeitstempel in einem Zug.
+      review: p.reviewAccepted !== null && p.reviewedAt
+        ? { accepted: p.reviewAccepted, at: p.reviewedAt.toISOString() }
+        : null,
     };
   });
 

@@ -30,11 +30,16 @@ import LockRequestBanner from "@/app/components/LockRequestBanner";
 import WithdrawButton from "@/app/admin/WithdrawButton";
 import SessionList from "@/app/dashboard/SessionList";
 import WearSessionList from "@/app/dashboard/WearSessionList";
+import TaskList from "@/app/dashboard/TaskList";
+import TaskCardStack from "@/app/components/TaskCardStack";
+import KeyholderTaskCard from "@/app/admin/tasks/KeyholderTaskCard";
+import { getEvaluatedTaskHistory, belongsOnDashboard, loadTaskProofViews } from "@/lib/taskIntervals";
+import { toTaskCard } from "@/lib/taskView";
 import CategoryGoalsToday from "@/app/dashboard/CategoryGoalsToday";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import Card from "@/app/components/Card";
 import Link from "next/link";
-import { Lock, ClipboardList, Droplets, ChevronRight } from "lucide-react";
+import { ClipboardList, Droplets, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 
 export default async function AdminUserOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -46,6 +51,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const td = await getTranslations("dashboard");
   const tc = await getTranslations("common");
   const tOrgasm = await getTranslations("orgasmForm");
+  const tTasks = await getTranslations("tasks");
   const dl = toDateLocale(await getLocale());
 
   const user = await prisma.user.findUnique({ where: { id } });
@@ -129,14 +135,40 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // aus der Telemetrie (`boxKeyProof.ts`) fragt noch ab, damit die Keyholderin dieselben Pillen
   // sieht wie der Sub; deshalb hier kein `Promise.all` mehr.
   const boxReinigung = buildBoxReinigungView(user, entries, effectiveSperrzeit, now, tz);
-  const telemetryKeyProof = await loadTelemetryKeyProof(user.id, pairs);
+  // Aufgaben — dieselbe Aufteilung wie im Sub-Dashboard: oben die Karten dessen, was ihn jetzt
+  // etwas angeht, unten die ganze Liste. Ohne sie zeigte diese Übersicht alles ausser dem einen,
+  // was der Keyholder selbst gestellt hat.
+  // `entries` und die Reinigungs-Regeln stehen längst — durchreichen, statt dieselben Zeilen ein
+  // zweites Mal zu laden und ein zweites Mal zu paaren. Parallel zum Schlüssel-Nachweis: die beiden
+  // wissen nichts voneinander.
+  const [telemetryKeyProof, evaluatedTasks] = await Promise.all([
+    loadTelemetryKeyProof(user.id, pairs),
+    getEvaluatedTaskHistory(id, now, {
+      kgLabel: tTasks("requirementKgLocked"), kgEntries: entries, wearEntries: entries, reinigung,
+    }),
+  ]);
   const sessionEvents = activePair ? buildSessionEvents(activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof) : [];
+
+  const taskProofViews = await loadTaskProofViews(evaluatedTasks.map((e) => e.task.id));
+  // Ohne Deep-Links: es sind nicht seine Formulare. Was er tun kann, hängt `KeyholderTaskCard` an.
+  const taskCard = (e: (typeof evaluatedTasks)[number]) => toTaskCard(e, false, taskProofViews.get(e.task.id) ?? []);
+  const taskCards = evaluatedTasks.map(taskCard);
+  // Nächste Frist zuerst (die Liste kommt absteigend, also umdrehen) — wie im Sub-Dashboard.
+  const openTaskCards = evaluatedTasks.filter((e) => belongsOnDashboard(e, now)).reverse().map(taskCard);
 
   return (
     <>
       {/* Dieselbe Karte wie im Sub-Dashboard, an derselben Stelle (zuoberst): die Keyholderin sah
           den Box-Zustand bisher nirgends — weder Ist/Soll noch, ob die Box überhaupt noch funkt. */}
       {heimdallEnabled() && <BoxStatusCard userId={id} tz={tz} viewerTz={viewerTz} reinigung={boxReinigung} />}
+
+      {/* Aufgaben an derselben Stelle wie beim Sub — über der Session-Karte. Eine Aufgabe mit Frist
+          ist das Einzige hier, das in den nächsten Stunden zu einem Vergehen werden kann. */}
+      <TaskCardStack>
+        {openTaskCards.map((card) => (
+          <KeyholderTaskCard key={card.id} task={card} viewerTz={viewerTz} subTz={tz} />
+        ))}
+      </TaskCardStack>
 
       {activePair ? (
         <LaufendeSessionCard
@@ -271,6 +303,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
       <SessionList keyholderView pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
 
       {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
+
+      {/* Dieselbe Liste wie im Sub-Dashboard, an derselben Stelle: unten bei den Historien. Fristen
+          stehen wie überall sonst auf dieser Seite in BEIDEN Zeitzonen — die Sub-Zeit trägt dazu ihr
+          Präfix, sonst wechselte mitten in der Spalte stumm die Uhr. */}
+      <TaskList tasks={taskCards} tz={tz} viewerTz={viewerTz} subLabel={subLabel} />
 
       {kontrollItems.length > 0 && (
         <Card padding="none" className="overflow-hidden">

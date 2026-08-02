@@ -185,6 +185,10 @@ export interface TaskProofView {
   verifikationStatus: string | null;
   verifikationReason: string | null;
   reviewAccepted: boolean | null;
+  /** Wann geurteilt wurde. Für die Sichtungs-Zeile: „Angenommen" ohne Zeitpunkt lässt offen, ob es
+   *  vor einer Minute oder vor einer Woche geschah — und ob es das eigene Urteil war oder das des
+   *  Keyholder-Agenten, der zwischendurch gearbeitet hat. */
+  reviewedAt: Date | null;
   reviewNote: string | null;
 }
 

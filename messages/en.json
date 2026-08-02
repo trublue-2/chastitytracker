@@ -1537,6 +1537,11 @@
     "emptyHint": "No task set yet.",
     "proofAccept": "Accept",
     "proofReject": "Reject",
+    "proofReviewedAccepted": "Accepted on {at}",
+    "proofReviewedRejected": "Rejected on {at}",
+    "proofCodeConfirmed": "Confirmed by code",
+    "proofOutOfOrder": "Out of order",
+    "proofAwaitingReview": "Awaiting your verdict",
     "proofReviewFor": "Proof {index}: {description}",
     "proofReviewNotePlaceholder": "Note (optional) — the user sees it"
   }

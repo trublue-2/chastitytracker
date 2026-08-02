@@ -1537,6 +1537,11 @@
     "emptyHint": "Noch keine Aufgabe gestellt.",
     "proofAccept": "Annehmen",
     "proofReject": "Ablehnen",
+    "proofReviewedAccepted": "Angenommen am {at}",
+    "proofReviewedRejected": "Abgelehnt am {at}",
+    "proofCodeConfirmed": "Über den Code bestätigt",
+    "proofOutOfOrder": "Ausserhalb der Reihenfolge",
+    "proofAwaitingReview": "Wartet auf dein Urteil",
     "proofReviewFor": "Nachweis {index}: {description}",
     "proofReviewNotePlaceholder": "Anmerkung (optional) — der Sub sieht sie"
   }

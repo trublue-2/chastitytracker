@@ -23,6 +23,20 @@
           "de": "Blätterbare Listen zeigten eine leere Seite, wenn die Liste unter die gerade geöffnete Seite schrumpfte.",
           "en": "Paginated lists showed an empty page when the list shrank below the page you had open."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Keyholder-Übersicht zeigt jetzt dieselben Aufgaben wie das Dashboard des Subs: oben die laufenden, unten die ganze Liste — samt Sichtung und Rückzug direkt an der Karte.",
+          "en": "The keyholder overview now shows the same tasks as the sub's dashboard: the running ones on top, the full list below — including review and withdrawal right on the card."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Ein bereits beurteilter Nachweis zeigt sein Urteil jetzt auch bei der Sichtung — vorher stand über einem längst angenommenen Foto dasselbe neutrale „Annehmen / Ablehnen\" wie über einem unbeurteilten.",
+          "en": "A proof that has already been judged now shows its verdict in the review block — previously a long-accepted photo carried the same neutral \"accept / reject\" pair as an unjudged one."
+        }
       }
     ]
   },

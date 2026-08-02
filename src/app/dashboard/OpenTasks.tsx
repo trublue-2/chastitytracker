@@ -6,17 +6,13 @@ import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import TaskCard from "@/app/components/TaskCard";
-import ExpandToggle from "@/app/components/ExpandToggle";
+import TaskCardStack from "@/app/components/TaskCardStack";
 import Button from "@/app/components/Button";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
-
-/** Wie viele Aufgaben offen ausliegen, bevor der Rest zusammenklappt. Eine Aufgabe mit Frist ist das
- *  Dringendste auf der Seite — aber fünf davon wären eine Wand statt eines Signals. */
-const EXPANDED = 2;
 
 /**
  * Der Aufgaben-Block des Sub-Dashboards — Rang 3, direkt über der Session-Karte.
@@ -25,42 +21,21 @@ const EXPANDED = 2;
  * nächsten Stunden zu einem Vergehen werden kann.
  */
 export default function OpenTasks({ tasks, tz }: { tasks: TaskCardData[]; tz: string }) {
-  const t = useTranslations("tasks");
-  const [showAll, setShowAll] = useState(false);
-
   if (tasks.length === 0) return null;
-
-  const visible = showAll ? tasks : tasks.slice(0, EXPANDED);
-  const hidden = tasks.length - visible.length;
 
   return (
     <DashboardBlock>
-      <ul className="flex flex-col gap-2">
-        {visible.map((task) => (
-          <li key={task.id}>
-            <TaskCard task={task} subTz={tz} subLabel="">
-              {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten
-                  Schritt nennt — eine Regel, eine Quelle. Getrennt beantwortet, sagte die Karte
-                  „Bedingung erfüllen" und der Knopf darunter „Als erledigt melden": zwei
-                  Aufforderungen für einen Schritt. */}
-              {nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} />}
-            </TaskCard>
-          </li>
+      <TaskCardStack>
+        {tasks.map((task) => (
+          <TaskCard key={task.id} task={task} subTz={tz} subLabel="">
+            {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten
+                Schritt nennt — eine Regel, eine Quelle. Getrennt beantwortet, sagte die Karte
+                „Bedingung erfüllen" und der Knopf darunter „Als erledigt melden": zwei
+                Aufforderungen für einen Schritt. */}
+            {nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} />}
+          </TaskCard>
         ))}
-      </ul>
-      {/* Sichtbar, sobald es überhaupt etwas zu klappen gibt — nicht nur solange noch etwas verborgen
-          ist. An `hidden > 0` gehängt verschwand die Zeile beim Aufklappen mitsamt dem einzigen Weg
-          zurück, und `open` war dann konstant `false`: die Chevron-Drehung und `aria-expanded`, für
-          die es `ExpandToggle` gibt, liefen ins Leere. */}
-      {tasks.length > EXPANDED && (
-        <div className="mt-2">
-          <ExpandToggle
-            label={showAll ? t("showLess") : t("showMore", { count: hidden })}
-            open={showAll}
-            onToggle={() => setShowAll((v) => !v)}
-          />
-        </div>
-      )}
+      </TaskCardStack>
     </DashboardBlock>
   );
 }

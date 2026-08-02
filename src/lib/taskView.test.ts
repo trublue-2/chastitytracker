@@ -92,7 +92,8 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
   const proof = (over: Partial<TaskProofView> = {}): TaskProofView => ({
     id: "p1", taskId: "t1", sortOrder: 0, description: "Sauberes Wohnzimmer", requireCode: false,
     code: null, submittedAt: null, imageExifTime: null, imageUrl: null,
-    verifikationStatus: null, verifikationReason: null, reviewAccepted: null, reviewNote: null,
+    verifikationStatus: null, verifikationReason: null,
+    reviewAccepted: null, reviewedAt: null, reviewNote: null,
     ...over,
   });
 

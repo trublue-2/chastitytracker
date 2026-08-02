@@ -6,13 +6,10 @@ import { getTranslations } from "next-intl/server";
 import { ClipboardList } from "lucide-react";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
-import TaskCard from "@/app/components/TaskCard";
-import WithdrawButton from "@/app/admin/WithdrawButton";
-import ProofReviewActions from "@/app/admin/tasks/ProofReviewActions";
+import KeyholderTaskCard from "@/app/admin/tasks/KeyholderTaskCard";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
 import { loadTaskProofViews } from "@/lib/taskIntervals";
-import { isTaskOpen } from "@/lib/tasks";
 import { APP_TZ } from "@/lib/utils";
 
 /** Die Aufgaben-Historie eines Subs — ohne sie sähe der Keyholder im Web nie, ob eine gestellte
@@ -66,26 +63,14 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
           action={{ label: t("actionTitle"), href: newHref }}
         />
       ) : (
-        evaluated.map((e) => {
-          const card = toTaskCard(e, false, proofViews.get(e.task.id) ?? []);
-          return (
-            <TaskCard
-              key={e.task.id}
-              task={card}
-              viewerTz={session?.user?.timezone ?? APP_TZ}
-              subTz={user.timezone ?? APP_TZ}
-              subLabel={ta("subTimePrefix")}
-            >
-              {/* Die Sichtung steht an der Karte, nicht hinter einer weiteren Seite: sie ist der
-                  einzige Ausweg aus `awaitingReview`, und dort liegt auch das Foto, über das
-                  geurteilt wird. */}
-              <ProofReviewActions proofs={card.proofs} />
-              {isTaskOpen(e.evaluation.state) && (
-                <WithdrawButton id={e.task.id} apiPath="/api/admin/tasks" title={t("withdraw")} showLabel colorToken="neutral" />
-              )}
-            </TaskCard>
-          );
-        })
+        evaluated.map((e) => (
+          <KeyholderTaskCard
+            key={e.task.id}
+            task={toTaskCard(e, false, proofViews.get(e.task.id) ?? [])}
+            viewerTz={session?.user?.timezone ?? APP_TZ}
+            subTz={user.timezone ?? APP_TZ}
+          />
+        ))
       )}
     </>
   );
