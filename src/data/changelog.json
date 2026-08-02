@@ -16,6 +16,27 @@
           "de": "In der Kontroll-Übersicht der Keyholderin blieb „Zurück\" nach dem Schrumpfen der Liste anklickbar, tat aber ein paar Klicks lang nichts.",
           "en": "In the keyholder's inspection overview, \"Back\" stayed clickable after the list shrank but did nothing for the first few clicks."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Strafbuch zeigt jetzt alle Vergehen. Falsches Gerät, versäumte Orgasmus-Anweisung, versäumte Verschluss-Anforderung, nach der Reinigung nicht wieder verschlossen und Passwortwechsel während einer Sperrzeit wurden zwar erkannt, aber nicht angezeigt — bei manchen Subs stand deshalb „Kein Eintrag im Strafbuch\", obwohl ein offenes Vergehen vorlag.",
+          "en": "The punishment log now shows every offense. Wrong device, missed orgasm directive, missed lock request, not re-locking after cleaning and a password change during a lock period were all detected but never displayed — so some subs saw \"No entries in the punishment log\" while an open offense existed."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Reinigungslimit lässt sich jetzt wie bei jedem anderen Vergehen eine Strafe verhängen oder das Vergehen verwerfen; bisher gab es dort nur einen Rückgängig-Knopf, der meist nichts tat.",
+          "en": "A cleaning-limit offense can now be punished or dismissed like any other; until now it only offered an undo button that usually did nothing."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Frist einer Kontrolle steht neu auf einer Stunde statt vier und lässt sich in Minuten statt Stunden angeben — für kurze Fristen musstest du bisher Bruchteile einer Stunde ausrechnen.",
+          "en": "An inspection's deadline now defaults to one hour instead of four and can be entered in minutes rather than hours — short deadlines previously meant working out fractions of an hour."
+        }
       }
     ]
   },

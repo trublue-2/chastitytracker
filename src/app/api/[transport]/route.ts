@@ -10,7 +10,7 @@ import {
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -677,7 +677,7 @@ function registerTools(server: McpServer) {
           "parallel. Can be triggered time-delayed so the user does not know exactly when it strikes."
           + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
-          deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
+          deadlineHours: z.number().positive().optional().describe(`Deadline in hours (default ${INSPECTION_DEADLINE_DEFAULT_H}). Fractions allowed, e.g. 0.25 for 15 minutes. Counts from when the inspection is triggered.`),
           comment: z.string().optional().describe("Instruction shown to the user."),
           category: z.string().optional().describe('Target category, e.g. "Plug". Omit or "KG" for the chastity device.'),
           device: z.string().optional().describe("Target exactly this device (by name) instead of any device of the category. It must be the one currently locked/worn."),

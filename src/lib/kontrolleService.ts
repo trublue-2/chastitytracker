@@ -7,7 +7,7 @@ import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { recordMessageAndBadge } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
-import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
+import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { type PrismaTx } from "@/lib/queries";
@@ -213,7 +213,8 @@ export async function hasActiveKontrolle(
 export interface RequestKontrolleParams {
   userId: string;
   kommentar?: string | null;
-  /** Deadline in hours (default 4). */
+  /** Deadline in hours (default 1). Bruchteile sind erlaubt — das Formular schickt eine in
+   *  Minuten gewählte Frist als Stunden-Bruch (5 min = 1/12). */
   deadlineH?: number | null;
   /** Verzögerte Auslösung in Minuten (>0). Fehlt/0 = sofort. Die 5–65-/Random-Policy
    *  liegt beim Aufrufer (MCP) — der Service verzögert nur mechanisch. */
@@ -249,7 +250,7 @@ export async function requestKontrolle(
   if (!user.email) return serviceFail(400, "USER_NO_EMAIL");
 
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
-  const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
+  const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : INSPECTION_DEADLINE_DEFAULT_H;
   const now = new Date();
   const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, { delayMinutes });
   // Frist läuft ab Auslösung (bei sofort = jetzt, bei geplant = wirksamAb).

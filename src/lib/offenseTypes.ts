@@ -12,16 +12,14 @@
  *
  * REICHWEITE DER ZUSAGE — bewusst genau benannt, damit sich niemand auf mehr verlässt, als sie
  * trägt: Diese Tabelle bleibt vollständig, und wer aus ihr ABLEITET (`OFFENSE_TYPES` im Ledger,
- * `StoredOffenseType` hier) erbt die Vollständigkeit. Wer den Typ nur als Prop-Typ verwendet,
- * bekommt dagegen KEINEN Compile-Fehler: die Strafbuch-Seite listet feste JSX-Blöcke je Art, ohne
- * exhaustive Prüfung.
+ * `StoredOffenseType` hier) erbt die Vollständigkeit.
  *
- * Stand heute deckt sie sechs der elf kanonischen Arten ab — `unauthorized_opening`,
- * `late_control`, `rejected_control`, `auto_removed_control`, `unfulfilled_task` (je mit Urteil)
- * und `cleaning_limit` (nur Anzeige, mit „Rückgängig" statt Urteil). Es fehlen `wrong_device`,
- * `missed_orgasm`, `late_lock`, `cleaning_not_relocked` und `admin_password_change`, obwohl
- * `buildStrafbuch` sie ableitet und der MCP sie beurteilen kann. Wer eine zwölfte Art ergänzt, muss
- * die Anzeige von Hand nachziehen.
+ * Die Strafbuch-Seite deckt seit v5.0.3 alle Arten ab und hält das mit
+ * {@link AssertCoversAllOffenses} fest — eine zwölfte Art hier bricht dort den Build, statt still
+ * unsichtbar zu bleiben. Vorher waren es sechs von elf: `wrong_device`, `missed_orgasm`,
+ * `late_lock`, `cleaning_not_relocked` und `admin_password_change` wurden abgeleitet und waren über
+ * den MCP beurteilbar, erschienen aber in keiner Oberfläche. Genau diese Lücke ist der Grund für
+ * die Zusicherung — sie fiel nur auf, weil jemand die Liste von Hand nachzählte.
  */
 
 /** Canonical offense type → stored StrafeRecord.offenseType. */
@@ -60,3 +58,17 @@ export type OffenseCanonicalType = keyof typeof STORED_TYPE;
  * bricht der Aufrufer.
  */
 export type StoredOffenseType = (typeof STORED_TYPE)[OffenseCanonicalType];
+
+/**
+ * Die Vollständigkeits-Zusage einer Anzeige als Typ: `true`, solange `Covered` jede kanonische Art
+ * enthält — sonst ein Objekttyp, der die fehlende Art im Feldnamen trägt. Eine Anzeige hängt sich
+ * mit `const _: AssertCoversAllOffenses<…> = true;` daran; fehlt eine Art, nennt der Compiler sie
+ * beim Namen, statt dass die Zeile stumm aus der Oberfläche fällt.
+ *
+ * Hier statt beim Aufrufer, weil die Zusage der TABELLE gehört: sie ist die Stelle, an der eine
+ * zwölfte Art entsteht, und die Stelle, die der nächste Autor liest.
+ */
+export type AssertCoversAllOffenses<Covered extends OffenseCanonicalType> =
+  [Exclude<OffenseCanonicalType, Covered>] extends [never]
+    ? true
+    : { fehlendeVergehensart: Exclude<OffenseCanonicalType, Covered> };

@@ -268,6 +268,11 @@ export const INSPECTION_REMINDER_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY,
 /** Verzögerung bis zum automatischen Vermerk (Stufe 2). */
 export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY, fallback: 60 } as const satisfies NumberRange;
 
+/** Vorgabe-Frist einer Kontrollanforderung in Stunden. Hier, weil sie an drei Stellen auftaucht:
+ *  Formular-Startwert, Service-Fallback und die MCP-Tool-Beschreibung. Die dritte ist Prosa — als
+ *  Literal geschrieben informiert sie den Agenten still falsch, sobald die Vorgabe wandert. */
+export const INSPECTION_DEADLINE_DEFAULT_H = 1;
+
 /** Erlaubte Auslöse-Verzögerung einer über den MCP angeforderten Kontrolle: 5 min – 24 h. Kein
  *  Admin-Setting, sondern die `request_inspection`-Policy — hier, weil Tool-Schema (Beschreibung
  *  des Bereichs) und Service (`clamp`) denselben Bereich nennen müssen. `fallback` greift nur für
