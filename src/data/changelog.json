@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.0.3",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die leere Seite beim Schrumpfen einer Liste ist jetzt auch in den übrigen blätterbaren Listen weg — Einschlüsse, Kontrollen, Orgasmen und die Kontroll-Übersicht der Keyholderin.",
+          "en": "The empty page after a list shrinks is now gone from the remaining paginated lists as well — lockups, inspections, orgasms and the keyholder's inspection overview."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "In der Kontroll-Übersicht der Keyholderin blieb „Zurück\" nach dem Schrumpfen der Liste anklickbar, tat aber ein paar Klicks lang nichts.",
+          "en": "In the keyholder's inspection overview, \"Back\" stayed clickable after the list shrank but did nothing for the first few clicks."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.2",
     "date": "2026-08-02",
     "changes": [
