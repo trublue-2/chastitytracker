@@ -43,6 +43,10 @@ export interface AufgabeRow {
   state: TaskOffenseState;
   /** Nur bei `aborted`: wann die Bedingung wegfiel. Beleg statt blossem Vorwurf. */
   failedAtStr: string | null;
+  /** War die Aufgabe die Strafe für ein früheres Vergehen? Dann ist dieses hier aus jenem entstanden. */
+  isPenaltyTask: boolean;
+  /** Anlass-Freitext, wo einer gesetzt ist — Zusatz zur Kette, nicht ihr Beleg. */
+  penaltyReason: string | null;
 }
 
 export interface KontrollRow {
@@ -151,6 +155,7 @@ interface Labels {
   strafbuchAufgabeVersaeumt: string;
   strafbuchAufgabeAbgebrochen: string;
   strafbuchAufgabeAbgelegtAm: string;
+  strafbuchStrafaufgabeKette: string;
   strafbuchNichtVerschlossen: string;
   strafbuchNichtVerschlossenNie: string;
   strafbuchWiederVerschlossen: string;
@@ -562,6 +567,11 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
           {/* Bei „abgebrochen" den Beleg nennen: wann die Bedingung wegfiel. Ein Vorwurf ohne
               Zeitpunkt lässt sich weder prüfen noch bestreiten. */}
           {a.failedAtStr && <p className={FACT_CLS}>{labels.strafbuchAufgabeAbgelegtAm} {a.failedAtStr}</p>}
+          {a.isPenaltyTask && (
+            <p className={FACT_CLS}>
+              {labels.strafbuchStrafaufgabeKette}{a.penaltyReason ? ` — ${a.penaltyReason}` : ""}
+            </p>
+          )}
         </>
       ),
     }))),

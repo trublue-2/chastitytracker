@@ -12,6 +12,7 @@ import {
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/constants";
 import { formatDateTime, generateKontrollCode } from "@/lib/utils";
+import { structuredLog } from "@/lib/serverLog";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.
@@ -484,8 +485,12 @@ export async function completeTask(
  * eines Nachweises (ein Mensch entscheidet, `taskProofService.ts`). Beide melden dasselbe Ereignis
  * mit denselben vier Texten — getrennt geschrieben liefen sie beim nächsten Textwechsel auseinander,
  * und niemand bekäme davon einen Fehler.
+ *
+ * „Settle", nicht „notify": die Funktion MELDET nicht nur, sie schliesst das Ergebnis ab — sie
+ * stempelt den Versand (`resultNotifiedAt`) und schliesst die Strafe, deren Aufgabe erfüllt wurde.
+ * Alles drei gehört zusammen, und der Name soll nicht verschweigen, was hier geschrieben wird.
  */
-export async function notifyTaskResult(opts: {
+export async function settleTaskResult(opts: {
   userId: string;
   taskId: string;
   title: string;
@@ -514,6 +519,41 @@ export async function notifyTaskResult(opts: {
     params: { username, title },
   });
   await prisma.task.update({ where: { id: taskId }, data: { resultNotifiedAt: now } });
+
+  // War die Aufgabe eine STRAFE, ist die Strafe mit ihr abgearbeitet. Hier und nicht im Poller:
+  // dieser Helfer ist der EINE Trichter, durch den jeder Endzustand läuft — der Minuten-Tick ebenso
+  // wie die Sichtung eines Nachweises, die eine wartende Aufgabe nachträglich erfüllt. Am Poller
+  // allein hinge eine spät angenommene Sichtung in der Luft, und die Strafe bliebe für immer offen.
+  // War die Aufgabe eine STRAFE, ist die Strafe mit ihr abgearbeitet.
+  if (done) await closePenaltyForFulfilledTask(taskId, now);
+}
+
+/**
+ * Schliesst die Strafe, deren Aufgabe gerade erfüllt wurde.
+ *
+ * Das ist der Kreis, den das Feature bis hierher offen liess: die Aufgabe war erfüllt, die Strafe
+ * stand trotzdem als offen im Strafbuch, bis der Keyholder von Hand „erledigt" klickte. Die App
+ * WEISS aber, dass sie abgearbeitet ist — die Aufgabe IST ihre Definition von Erfüllung.
+ *
+ * Nur bei einer ERFÜLLTEN Aufgabe (der Aufrufer prüft das). Eine versäumte Strafaufgabe lässt die
+ * Strafe offen: sie ist nicht abgearbeitet, und ihr Versäumnis wird zusätzlich ein eigenes Vergehen.
+ * `status: "PUNISHED"` und `erledigtAt: null` in der Bedingung: ein zurückgezogenes Urteil wird nicht
+ * nachträglich zur erledigten Strafe, und ein zweiter Lauf überschreibt den ersten Zeitpunkt nicht.
+ *
+ * WIRFT NIE — wie `runDeviceCheck`: der Aufrufer hat seine Meldung zu diesem Zeitpunkt verschickt UND
+ * gestempelt. Ein Fehler hier darf sie nicht mitreissen, sonst wiederholte der nächste Tick eine
+ * Nachricht, die der Sub längst hat. Er bleibt als Logzeile sichtbar, statt still zu verschwinden.
+ */
+async function closePenaltyForFulfilledTask(taskId: string, now: Date): Promise<void> {
+  try {
+    const res = await prisma.strafeRecord.updateMany({
+      where: { taskId, status: "PUNISHED", erledigtAt: null },
+      data: { erledigtAt: now },
+    });
+    if (res.count > 0) structuredLog("task", "penalty_closed", { taskId });
+  } catch (err) {
+    structuredLog("task", "penalty_close_failed", { taskId, error: (err as Error).message });
+  }
 }
 
 /**
@@ -625,7 +665,7 @@ export async function processDueTasks(now: Date): Promise<void> {
           continue;
         }
 
-        await notifyTaskResult({
+        await settleTaskResult({
           userId, taskId: e.task.id, title: e.task.title,
           done: e.evaluation.state === "done", controllers, username, now, once: true,
         });

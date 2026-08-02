@@ -46,18 +46,18 @@ vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
 });
 vi.mock("@/lib/strafurteilService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/strafurteilService")>();
-  return { ...actual, judgeOffense: vi.fn(), collectDetectedOffenses: vi.fn() };
+  return { ...actual, judgeOffense: vi.fn(), requireDetectedOffense: vi.fn() };
 });
 // buildStrafbuch aggregiert quer über viele Prisma-Tabellen (Entry, VerschlussAnforderung, AppMeta,
 // ...) — für den judge_offense-dryRun (B-05: "ist der ref noch ein live erkanntes Vergehen?") reicht
-// ein Mock, dessen konkreter Rückgabewert egal ist, weil collectDetectedOffenses direkt daneben
+// ein Mock, dessen konkreter Rückgabewert egal ist, weil requireDetectedOffense direkt daneben
 // ebenfalls gemockt ist und ihn nicht interpretiert.
 vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn().mockResolvedValue({}) }));
 
 import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
   mcpWithdraw, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection,
-  mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense,
+  mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask,
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
@@ -65,7 +65,7 @@ import { requestKontrolle, resolveKontrolle, hasActiveKontrolle } from "@/lib/ko
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense, collectDetectedOffenses } from "@/lib/strafurteilService";
+import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
@@ -76,7 +76,7 @@ const sperrzeitFindManyMock = prisma.verschlussAnforderung.findMany as unknown a
 const vaFindUniqueMock = prisma.verschlussAnforderung.findUnique as unknown as ReturnType<typeof vi.fn>;
 const entryFindFirstMock = prisma.entry.findFirst as unknown as ReturnType<typeof vi.fn>;
 const strafeRecordFindUniqueMock = prisma.strafeRecord.findUnique as unknown as ReturnType<typeof vi.fn>;
-const collectDetectedOffensesMock = collectDetectedOffenses as unknown as ReturnType<typeof vi.fn>;
+const detectedOffenseMock = requireDetectedOffense as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-07-17T12:00:00Z");
 const MORGEN = new Date("2026-07-18T12:00:00Z");
@@ -93,7 +93,7 @@ beforeEach(() => {
   strafeRecordFindUniqueMock.mockResolvedValue(null);
   // Default: ref ist ein aktuell erkanntes Vergehen (punish/dismiss-diff braucht das, siehe B-05-Guard
   // gegen OFFENSE_NOT_FOUND). Tests, die genau diesen Guard prüfen, setzen [] explizit.
-  collectDetectedOffensesMock.mockReturnValue([{ canonicalType: "unauthorized_opening", offenseType: "OEFFNEN_ENTRY", refId: "o1", at: JETZT }]);
+  detectedOffenseMock.mockResolvedValue({ canonicalType: "unauthorized_opening", offenseType: "OEFFNEN_ENTRY", refId: "o1", at: JETZT });
   (prisma.orgasmusAnforderung.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
   (prisma.verschlussAnforderung.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
   (prisma.kontrollAnforderung.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
@@ -261,6 +261,47 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
   });
 });
 
+describe("create_task als Strafe (offenseRef)", () => {
+  it("meldet eine tote ref als Problem, statt Erfolg vorzutäuschen", async () => {
+    // Sonst legt der Agent seinem Nutzer eine Vorschau vor, die der Commit mit OFFENSE_NOT_FOUND
+    // ablehnt — die Vorschau ist genau dafür da, das vorher zu wissen.
+    detectedOffenseMock.mockResolvedValue(null);
+
+    const r = await mcpCreateTask("sub", {
+      dryRun: true, title: "Wohnung staubsaugen", holdHours: 4, offenseRef: "weg",
+    }) as { wouldSucceed: boolean; problem?: string; preview: Record<string, unknown> };
+
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("OFFENSE_NOT_FOUND");
+  });
+
+  it("weist die Aufgabe als Strafe aus — auch wenn der Aufrufer isPunishment nicht setzt", async () => {
+    // Die ref ERZWINGT die Strafe (`punishWithTask` setzt `isPunishment: true`). Zeigte die Vorschau
+    // hier `false`, widerspräche sie dem Commit.
+    detectedOffenseMock.mockResolvedValue({ canonicalType: "unauthorized_opening", offenseType: "OEFFNEN_ENTRY", refId: "o1", at: JETZT });
+
+    const r = await mcpCreateTask("sub", {
+      dryRun: true, title: "Wohnung staubsaugen", holdHours: 4, offenseRef: "o1",
+    }) as { wouldSucceed: boolean; preview: Record<string, unknown> };
+
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.preview.isPunishment).toBe(true);
+    expect(r.preview.penaltyForOffense).toBe("o1");
+  });
+
+  it("ohne offenseRef bleibt es eine gewöhnliche Aufgabe — ohne Strafbuch-Aufbau", async () => {
+    detectedOffenseMock.mockClear();
+
+    const r = await mcpCreateTask("sub", { dryRun: true, title: "Einkaufen", holdHours: 2 }) as {
+      wouldSucceed: boolean; preview: Record<string, unknown>;
+    };
+
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.preview.penaltyForOffense).toBeNull();
+    expect(detectedOffenseMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines bestehenden Objekts)", () => {
   it("edit_training_goal: diff zeigt genau die geänderten Felder [alt, neu]", async () => {
     trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: "alt" });
@@ -333,7 +374,7 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
 
   it("judge_offense: punish auf ref ohne aktuell erkanntes Vergehen liefert KEINEN diff (würde real OFFENSE_NOT_FOUND ablehnen)", async () => {
     strafeRecordFindUniqueMock.mockResolvedValue(null);
-    collectDetectedOffensesMock.mockReturnValue([]); // ref "o1" ist nicht (mehr) darunter
+    detectedOffenseMock.mockResolvedValue(null); // ref "o1" ist kein erkanntes Vergehen (mehr)
     const r = await mcpJudgeOffense("sub", { dryRun: true, ref: "o1", action: "punish", text: "20 Schläge" }) as { diff?: Record<string, [unknown, unknown]> };
     expect(r.diff).toBeUndefined();
   });

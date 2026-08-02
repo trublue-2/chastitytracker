@@ -6,7 +6,7 @@ import { notifyUser } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskResultFinal } from "@/lib/tasks";
-import { notifyTaskResult } from "@/lib/taskService";
+import { settleTaskResult } from "@/lib/taskService";
 
 /**
  * Der Sub reicht ein gefordertes Nachweis-Foto ein (Issue #39, Etappe 3).
@@ -192,7 +192,7 @@ async function notifyProofReviewed(taskId: string, userId: string, title: string
       prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
     ]);
     // Derselbe Helfer, den der Poller benutzt — er stempelt auch, damit dieser nicht nachlegt.
-    await notifyTaskResult({
+    await settleTaskResult({
       userId, taskId, title,
       done: evaluated.evaluation.state === "done",
       controllers, username: user?.username ?? "", now: new Date(),

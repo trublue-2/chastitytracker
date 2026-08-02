@@ -20,12 +20,12 @@ vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
 vi.mock("@/lib/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {} }));
-vi.mock("@/lib/taskService", () => ({ notifyTaskResult: vi.fn() }));
+vi.mock("@/lib/taskService", () => ({ settleTaskResult: vi.fn() }));
 
 import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, reviewTaskProof } from "./taskProofService";
 import { notifyUser } from "@/lib/notify";
 import { evaluateTasks } from "@/lib/taskIntervals";
-import { notifyTaskResult } from "@/lib/taskService";
+import { settleTaskResult } from "@/lib/taskService";
 import { prisma } from "@/lib/prisma";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 
@@ -37,7 +37,7 @@ const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
 const evaluate = evaluateTasks as unknown as ReturnType<typeof vi.fn>;
 const taskFindMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
 const taskUpdate = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
-const notifyResult = notifyTaskResult as unknown as ReturnType<typeof vi.fn>;
+const notifyResult = settleTaskResult as unknown as ReturnType<typeof vi.fn>;
 
 const NOW = new Date("2026-07-25T14:00:00Z");
 const HOLD_UNTIL = new Date("2026-07-25T18:00:00Z");

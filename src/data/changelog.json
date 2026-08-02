@@ -92,6 +92,27 @@
           "de": "Im Strafbuch heisst der Knopf jetzt „Bestrafen“ statt „Als bestraft markieren“ — bestraft ist die Strafe erst, wenn du sie danach als erledigt markierst.",
           "en": "In the ledger the button now reads \"Punish\" instead of \"Mark as punished\" — the penalty is only served once you mark it as done afterwards."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine erfüllte Strafaufgabe schliesst die Strafe jetzt von selbst — bisher blieb sie im Strafbuch offen, bis der Keyholder von Hand „erledigt“ klickte.",
+          "en": "A fulfilled penalty task now closes the penalty by itself — until now it stayed open in the ledger until the keyholder ticked \"done\" by hand."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Eine versäumte Strafaufgabe zeigt im Strafbuch, wofür sie stand. So ist zu sehen, dass ein Vergehen aus einem früheren entstanden ist, statt es für eigenständig zu halten.",
+          "en": "A missed penalty task now shows in the ledger what it was a penalty for — so you can see that one offense grew out of an earlier one instead of taking it for a fresh one."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Keyholder-Agent kann jetzt ebenfalls mit einer Aufgabe bestrafen: create_task nimmt die Referenz eines erkannten Vergehens entgegen und schreibt Aufgabe und Urteil zusammen.",
+          "en": "The keyholder agent can now punish with a task as well: create_task accepts the reference of a detected offense and writes task and verdict together."
+        }
       }
     ]
   },

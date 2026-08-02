@@ -15,6 +15,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     task: { findMany: vi.fn(), update: vi.fn() },
     user: { findUnique: vi.fn() },
+    // Eine erfüllte Aufgabe schliesst die Strafe, deren Aufgabe sie war (`penaltyTaskLink.ts`).
+    strafeRecord: { updateMany: vi.fn(async () => ({ count: 0 })) },
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
@@ -35,6 +37,7 @@ const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
 const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;
 const controllers = getControllersOfUser as unknown as ReturnType<typeof vi.fn>;
 const evaluate = evaluateTasks as unknown as ReturnType<typeof vi.fn>;
+const closePenalty = prisma.strafeRecord.updateMany as unknown as ReturnType<typeof vi.fn>;
 
 const NOW = new Date("2026-07-25T15:00:00Z");
 
@@ -57,6 +60,7 @@ beforeEach(() => {
   controllers.mockResolvedValue([{ id: "kh1" }]);
   userFind.mockResolvedValue({ username: "sub" });
   update.mockResolvedValue({});
+  closePenalty.mockResolvedValue({ count: 0 });
   notify.mockResolvedValue(undefined);
   notifyKh.mockResolvedValue(undefined);
 });
@@ -71,6 +75,43 @@ describe("processDueTasks — Endzustände", () => {
     expect(subjects()).toEqual(["taskDoneSubject"]);
     expect(notifyKh).toHaveBeenCalledOnce();
     expect(stamped()).toEqual(["t1"]);
+  });
+
+  it("erfüllte Strafaufgabe schliesst die Strafe, deren Aufgabe sie war", async () => {
+    // Der Kreis: die App WEISS, dass die Strafe abgearbeitet ist — die Aufgabe ist ihre Definition
+    // von Erfüllung. Vorher blieb sie im Strafbuch offen, bis der Keyholder von Hand klickte.
+    findMany.mockResolvedValue([row("t1")]);
+    evaluate.mockResolvedValue([evaluated("t1", "done")]);
+
+    await processDueTasks(NOW);
+
+    expect(closePenalty).toHaveBeenCalledWith({
+      where: { taskId: "t1", status: "PUNISHED", erledigtAt: null },
+      data: { erledigtAt: NOW },
+    });
+  });
+
+  it("eine VERSÄUMTE Strafaufgabe lässt die Strafe offen", async () => {
+    // Sie ist nicht abgearbeitet — und ihr Versäumnis wird zusätzlich ein eigenes Vergehen.
+    findMany.mockResolvedValue([row("t1")]);
+    evaluate.mockResolvedValue([evaluated("t1", "missed")]);
+
+    await processDueTasks(NOW);
+
+    expect(closePenalty).not.toHaveBeenCalled();
+  });
+
+  it("ein Fehler beim Schliessen der Strafe reisst die bereits verschickte Meldung nicht mit", async () => {
+    // Die Meldung ist zu diesem Zeitpunkt raus UND gestempelt. Würde der Nachlauf sie mitreissen,
+    // wiederholte der nächste Tick eine Nachricht, die der Sub längst hat.
+    findMany.mockResolvedValue([row("t1"), row("t2")]);
+    evaluate.mockResolvedValue([evaluated("t1", "done"), evaluated("t2", "done")]);
+    closePenalty.mockRejectedValue(new Error("db weg"));
+
+    await processDueTasks(NOW);
+
+    expect(stamped()).toEqual(["t1", "t2"]);
+    expect(subjects()).toEqual(["taskDoneSubject", "taskDoneSubject"]);
   });
 
   it("versäumte und abgebrochene Aufgaben melden den Fehlschlag", async () => {

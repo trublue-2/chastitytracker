@@ -975,7 +975,9 @@ function registerTools(server: McpServer) {
           "otherwise uploading everything at the end would pass). A proof with requireCode is checked " +
           "automatically against a random code the user must write in the shot; every other proof, and any " +
           "photo without a capture timestamp, puts the task into \"awaitingReview\" until YOU accept or " +
-          "reject it — it is then neither fulfilled nor missed." + KEYHOLDER_NOTE,
+          "reject it — it is then neither fulfilled nor missed. " +
+          "Pass offenseRef to make the task the PENALTY for a detected offense instead of a free-text one — " +
+          "judge_offense is then not needed, the judgment is written with the task." + KEYHOLDER_NOTE,
         inputSchema: {
           title: z.string().describe("Short title, e.g. \"Vacuum the flat\"."),
           description: z.string().optional().describe("The full instruction shown to the user."),
@@ -993,6 +995,12 @@ function registerTools(server: McpServer) {
           startGraceMinutes: z.number().min(0).optional().describe("Minutes the user has to put everything on (default 30). Starting later counts as not held continuously."),
           isPunishment: z.boolean().optional().describe("Mark the task as a punishment."),
           penaltyReason: z.string().optional().describe("What the punishment is for. Only kept when isPunishment is true."),
+          offenseRef: z.string().optional().describe(
+            "The `ref` of a currently detected offense (from get_offenses). Makes this task the PENALTY for it: " +
+            "task and judgment are written together, the offense counts as PUNISHED with this task as the penalty, " +
+            "and a previous penalty task for the same offense is withdrawn. The penalty counts as served once the " +
+            "task is fulfilled; missing it leaves the penalty open AND becomes a new offense of its own.",
+          ),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

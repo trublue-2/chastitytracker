@@ -83,6 +83,12 @@ export interface StrafbuchData {
     state: TaskOffenseState;
     /** Nur bei `aborted`: wann die Bedingung wegfiel. */
     failedAt: Date | null;
+    /** `refId` des Vergehens, dessen Strafe diese Aufgabe war — aus `StrafeRecord.taskId`. Null bei
+     *  gewöhnlichen Aufgaben. Macht die Kette sichtbar: eine versäumte Strafe erzeugt ein neues
+     *  Vergehen, und das soll man ihm ansehen. */
+    penaltyForRef: string | null;
+    /** Anlass-Freitext der Aufgabe, wo einer gesetzt ist — Zusatz zur Kette, nicht ihr Beleg. */
+    penaltyReason: string | null;
   }[];
   /** Passwortwechsel an einem Admin-Konto, während für diesen Sub eine Sperrzeit lief. Anders als
    *  alle anderen Vergehen NICHT live abgeleitet, sondern beim Vorgang festgeschrieben
@@ -265,6 +271,12 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
   // durchreichen statt neu laden. Trage-Einträge lädt das Strafbuch nicht; `wearEntries` bleibt
   // deshalb bewusst offen, damit `evaluateTasks` sie selbst holt statt sie für leer zu halten.
+  // Aufgabe → Vergehen, dessen Strafe sie ist. Aus den ohnehin geladenen Urteils-Zeilen, also ohne
+  // eine einzige zusätzliche Abfrage.
+  const penaltyTaskOrigin = new Map(
+    strafeRecordsRaw.flatMap((r) => (r.taskId ? [[r.taskId, r.refId] as const] : [])),
+  );
+
   const unfulfilledTasks = (await evaluateTasks(userId, tasks, now, {
     kgEntries: [...oeffnungen, ...verschluesse],
     reinigung: { erlaubt: user?.reinigungErlaubt ?? false, maxMinuten: user?.reinigungMaxMinuten ?? 0 },
@@ -281,6 +293,16 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
           holdUntil: e.task.holdUntil,
           state: e.evaluation.state,
           failedAt: e.evaluation.failedAt,
+          // Die KETTE: war diese Aufgabe die Strafe für ein früheres Vergehen, ist ihr Versäumnis ein
+          // Vergehen, das aus jenem entstanden ist. Wer sie erneut bestraft, dreht eine Spirale und
+          // soll das sehen.
+          //
+          // Die Quelle ist die VERKNÜPFUNG (`StrafeRecord.taskId`), nicht der Anlass-Freitext: den
+          // setzt nur das Web-Formular über seine Vorbelegung. Eine Strafaufgabe des Keyholder-Agenten
+          // (`create_task` mit `offenseRef`) hat gar keinen — die Kette wäre auf genau dem Weg
+          // unsichtbar, der sie am ehesten braucht. Der Text kommt als Zusatz mit, wo er da ist.
+          penaltyForRef: penaltyTaskOrigin.get(e.task.id) ?? null,
+          penaltyReason: e.task.penaltyReason,
         }]
       : []);
 

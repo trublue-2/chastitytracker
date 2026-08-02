@@ -64,6 +64,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     holdUntilStr: fmtDual(a.holdUntil),
     state: a.state,
     failedAtStr: a.failedAt ? fmtDual(a.failedAt) : null,
+    isPenaltyTask: a.penaltyForRef !== null,
+    penaltyReason: a.penaltyReason,
   }));
 
   // Die fünf folgenden Arten fehlten hier bis v5.0.3 — dieselbe Lücke wie bei den Aufgaben oben.
@@ -161,6 +163,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchAufgabeVersaeumt: t("strafbuchAufgabeVersaeumt"),
     strafbuchAufgabeAbgebrochen: t("strafbuchAufgabeAbgebrochen"),
     strafbuchAufgabeAbgelegtAm: t("strafbuchAufgabeAbgelegtAm"),
+    strafbuchStrafaufgabeKette: t("strafbuchStrafaufgabeKette"),
     strafbuchNichtVerschlossen: t("strafbuchNichtVerschlossen"),
     strafbuchNichtVerschlossenNie: t("strafbuchNichtVerschlossenNie"),
     strafbuchWiederVerschlossen: t("strafbuchWiederVerschlossen"),

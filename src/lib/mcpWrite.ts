@@ -8,7 +8,7 @@ import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTarge
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
+import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { diffFields } from "@/lib/mcp/writeFramework";
@@ -1175,7 +1175,7 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // von oben (siehe `problem`-Kommentar), damit ein teurer Strafbuch-Aufbau nicht bei jedem dryRun
     // erzwungen wird, sondern nur dann, wenn er für den diff gebraucht wird.
     const offenseIsLive = !problem && (args.action === "punish" || args.action === "dismiss")
-      ? collectDetectedOffenses(await buildStrafbuch(userId)).some((o) => o.refId === args.ref)
+      ? !!(await requireDetectedOffense(userId, args.ref, new Date()))
       : false;
     const knownTransition =
       args.action === "punish" || args.action === "dismiss" ? offenseIsLive
@@ -1227,6 +1227,8 @@ export interface CreateTaskArgs {
   startGraceMinutes?: number;
   isPunishment?: boolean;
   penaltyReason?: string;
+  /** `ref` eines erkannten Vergehens — macht die Aufgabe zu dessen Strafe (Details am Tool-Schema). */
+  offenseRef?: string;
   dryRun?: boolean;
 }
 
@@ -1299,24 +1301,37 @@ async function resolveTaskRequirements(userId: string, args: CreateTaskArgs): Pr
 }
 
 export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
+  const now = new Date();
   const userId = await resolveTargetUserId(username);
-  const holdUntil = resolveHoldUntil(args, new Date());
+  const holdUntil = resolveHoldUntil(args, now);
   const requirements = await resolveTaskRequirements(userId, args);
   const proofCount = args.requireProof?.length ?? 0;
 
   if (args.dryRun) {
-    return dryRunPreview("create_task", undefined, {
+    // Nur hier: der Commit-Pfad prüft dieselbe Schranke in `punishWithTask` noch einmal, und ein
+    // Strafbuch-Aufbau kostet ein Dutzend Abfragen. Die Vorschau braucht sie trotzdem — sonst legt
+    // der Agent eine Vorschau vor, die der Commit mit OFFENSE_NOT_FOUND ablehnt.
+    const offenseIsLive = args.offenseRef ? !!(await requireDetectedOffense(userId, args.offenseRef, now)) : null;
+    // Die tote ref gehört in den `problem`-Slot des Rahmens, nicht in ein Zusatzfeld: `wouldSucceed`
+    // leitet sich daraus ab. Sonst meldete die Vorschau Erfolg für einen Commit, der mit
+    // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor.
+    return dryRunPreview("create_task", offenseIsLive === false ? "OFFENSE_NOT_FOUND" : undefined, {
       title: args.title,
       holdUntil: holdUntil.toISOString(),
       requirementCount: requirements.length,
       requiresKgLocked: requirements.some((r) => r.type === "KG_LOCKED"),
       proofCount,
       startGraceMinutes: args.startGraceMinutes ?? null,
-      isPunishment: args.isPunishment ?? false,
+      // Die ref ERZWINGT die Strafe — `punishWithTask` setzt `isPunishment: true`, unabhängig vom
+      // Argument. Die Vorschau muss dasselbe sagen, sonst zeigt sie `false` und der Commit schreibt `true`.
+      isPunishment: !!args.offenseRef || !!args.isPunishment,
+      // Beide Angaben, nicht nur die ref: „das Vergehen gilt danach als bestraft" ist die Folge,
+      // über die der Agent seinen Nutzer aufklären muss.
+      penaltyForOffense: args.offenseRef ?? null,
     });
   }
 
-  const data = unwrap(await createTask({
+  const params = {
     userId,
     title: args.title,
     description: args.description,
@@ -1326,7 +1341,10 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     penaltyReason: args.penaltyReason,
     requirements,
     proofs: args.requireProof,
-  }));
+  };
+  const data = unwrap(args.offenseRef
+    ? await punishWithTask({ ...params, refId: args.offenseRef, judgedBy: "ai" })
+    : await createTask(params));
   const conditionPart = requirements.length === 0
     ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdUntil.toISOString()}.`
     : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY until ${holdUntil.toISOString()}; taking one off earlier makes the task unfulfilled.`;
@@ -1336,7 +1354,13 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     ` ${proofCount} photo proof(s) required, in the given order — the CAPTURE times must ascend. `
     + `Proofs without a code cannot be decided automatically: the task then waits in "awaitingReview" `
     + `for YOU to accept or reject them.`;
-  return { ok: true, id: data.id, message: conditionPart + proofPart };
+  // Der Strafteil zuerst: er ist das, was der Agent seinem Nutzer schuldet — die Aufgabe ist hier
+  // nicht bloss gestellt, sondern ein Urteil über ein Vergehen.
+  const penaltyPart = args.offenseRef
+    ? `Offense ${args.offenseRef} is now judged as PUNISHED, with this task as the penalty. `
+      + `It counts as served once the task is fulfilled; missing it leaves the penalty open AND becomes a new offense. `
+    : "";
+  return { ok: true, id: data.id, message: penaltyPart + conditionPart + proofPart };
 }
 
 export interface ReviewTaskProofArgs {

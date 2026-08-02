@@ -1117,7 +1117,8 @@
     "minutesUnit": "min",
     "unitHours": "Hours",
     "unitMinutes": "Minutes",
-    "strafbuchStrafaufgabe": "Task as penalty"
+    "strafbuchStrafaufgabe": "Task as penalty",
+    "strafbuchStrafaufgabeKette": "This task was itself a penalty"
   },
   "forgotPassword": {
     "title": "Forgot password",

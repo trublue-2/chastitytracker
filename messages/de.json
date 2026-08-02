@@ -1117,7 +1117,8 @@
     "minutesUnit": "min",
     "unitHours": "Stunden",
     "unitMinutes": "Minuten",
-    "strafbuchStrafaufgabe": "Aufgabe als Strafe"
+    "strafbuchStrafaufgabe": "Aufgabe als Strafe",
+    "strafbuchStrafaufgabeKette": "Diese Aufgabe war selbst eine Strafe"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

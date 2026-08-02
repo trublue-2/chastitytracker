@@ -565,10 +565,10 @@ model StrafeRecord {
   /// Die Aufgabe, die DIESE Strafe ist — statt „20 Schläge" als Freitext eine gestellte Aufgabe mit
   /// Frist. Null bei Freitext-Strafen und bei jedem DISMISSED.
   ///
-  /// Heute trägt die Spalte die Herkunft und das Aufräumen: wird ein Urteil ersetzt oder
-  /// zurückgenommen, zieht `writeJudgment` die daran hängende Aufgabe zurück. Das automatische
-  /// Schliessen des Kreises (Aufgabe erfüllt → `erledigtAt`) ist NOCH nicht gebaut — bis dahin
-  /// bleibt „erledigt" ein Klick des Keyholders.
+  /// Die Spalte trägt drei Dinge: die Herkunft (das Strafbuch weist eine versäumte Strafaufgabe als
+  /// Glied einer Kette aus), das Aufräumen (wird ein Urteil ersetzt oder zurückgenommen, zieht
+  /// `writeJudgment` die daran hängende Aufgabe zurück) und den Abschluss — eine erfüllte Aufgabe
+  /// setzt `erledigtAt` von selbst (`settleTaskResult`), statt auf einen Klick des Keyholders zu warten.
   taskId        String?
   /// `SetNull`, nicht `Cascade`: ein Urteil ist die Aufzeichnung einer Entscheidung und überlebt die
   /// Aufgabe. Zurückgezogen wird eine Strafaufgabe ohnehin über `withdrawnAt`, nicht gelöscht.
