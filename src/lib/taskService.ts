@@ -4,6 +4,7 @@ import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serv
 import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import type { PrismaTx } from "@/lib/queries";
 import { startDeadline, isTaskResultFinal } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, TASK_DEFAULT_START_GRACE_MIN,
@@ -100,17 +101,6 @@ export interface CreateTaskParams {
   proofs?: TaskProofInput[];
 }
 
-/**
- * Der Datenbank-Zugang einer Aufgaben-Operation: der Standard-Client oder eine laufende Transaktion.
- *
- * ALLES muss darüber laufen, Prüf-Abfragen eingeschlossen. Der SQLite-Pool dieser App hält GENAU EINE
- * Verbindung (`prisma.ts`): eine Abfrage über den Basis-Client, während eine Transaktion die
- * Verbindung hält, wartet auf sich selbst — nach fünf Sekunden läuft die Transaktion ab, der
- * anschliessende Schreibvorgang trifft auf eine geschlossene Transaktion (P2028), und der Aufrufer
- * bekommt einen 500. Das ist kein Lastproblem, sondern ein sicherer Selbstblock bei JEDEM Aufruf.
- */
-type TaskDb = Prisma.TransactionClient;
-
 /** Änderbare Felder. `undefined` = unverändert; `null` löscht (Beschreibung, Straf-Anlass). */
 export interface UpdateTaskParams {
   title?: string;
@@ -195,7 +185,7 @@ type NormalizedRequirement = ReturnType<typeof normalizeRequirement>;
  * Falscheingabe, die abgewiesen gehört — nach der Normalisierung wäre sie unsichtbar weggeputzt.
  */
 async function checkRequirements(
-  db: TaskDb,
+  db: PrismaTx,
   userId: string,
   reqs: TaskRequirementInput[],
 ): Promise<ServiceFailure | { ok: true; normalized: NormalizedRequirement[] }> {
@@ -273,10 +263,23 @@ async function checkRequirements(
  * Gibt Titel und Frist mit zurück, damit der Aufrufer sie für genau diese Nachricht nicht ein
  * zweites Mal aus seinen Rohdaten zusammensuchen muss.
  */
-export async function createTaskTx(
-  db: TaskDb,
-  p: CreateTaskParams,
-): Promise<ServiceResult<{ id: string; title: string; holdUntil: Date }>> {
+/** Eine geprüfte Aufgabe, fertig zum Schreiben. Zwischenstand zwischen {@link checkTask} und
+ *  {@link writeTask} — er trägt genau das, was `task.create` braucht, und nichts mehr. */
+export interface CheckedTask {
+  data: Prisma.TaskCreateInput;
+}
+
+/**
+ * Prüft die Parameter einer neuen Aufgabe — Feldgrenzen, Besitz von Gerät und Kategorie — und bringt
+ * sie in Speicher-Form.
+ *
+ * Getrennt vom Schreiben, weil das Prüfen DREI bis VIER Abfragen kostet und nichts festschreibt.
+ * Zusammen mit dem Schreiben in einer Transaktion belegte es die einzige SQLite-Verbindung dieser
+ * App für die gesamte Dauer — jede andere Anfrage wartete hinter einer Prüfung, die nur liest. Und
+ * die Ablehnung („Frist zu früh") fällt so ausserhalb an, wo sie ohne Umweg über einen abgebrochenen
+ * Vorgang zurückgegeben werden kann.
+ */
+export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<ServiceResult<CheckedTask>> {
   const now = new Date();
   // Bewusst OHNE `clamp`: dessen `Math.round(value) || fallback` macht aus einer ausdrücklich
   // gesetzten 0 („sofort anfangen") den Default 30 — der dokumentierte Wertebereich beginnt aber bei
@@ -287,14 +290,18 @@ export async function createTaskTx(
   );
   const reqs = p.requirements ?? [];
 
-  // Erst die reinen Parameter, dann die DB — wie in `createVerschlussAnforderung`.
-  // Ohne Bedingungen gibt es nichts anzulegen: `holdUntil` ist dann eine schlichte Frist, die
-  // Kulanz spielt keine Rolle.
+  // Erst ALLE reinen Parameter, dann die DB — wie in `createVerschlussAnforderung`. Ohne Bedingungen
+  // gibt es nichts anzulegen: `holdUntil` ist dann eine schlichte Frist, die Kulanz spielt keine Rolle.
   const fieldError = checkTaskFields(
     { title: p.title, description: p.description ?? null, holdUntil: p.holdUntil },
     reqs.length > 0 ? new Date(now.getTime() + graceMin * 60_000) : now,
   );
   if (fieldError) return fieldError;
+
+  // Die Nachweise sind reine Rechnerei — vor die Abfragen, damit eine kaputte Liste ohne eine
+  // einzige Abfrage abgewiesen wird.
+  const checkedProofs = checkProofs(p.proofs ?? []);
+  if (!checkedProofs.ok) return checkedProofs;
 
   const user = await db.user.findUnique({ where: { id: p.userId }, select: { id: true } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
@@ -302,34 +309,38 @@ export async function createTaskTx(
   const checked = await checkRequirements(db, p.userId, reqs);
   if (!checked.ok) return checked;
 
-  const checkedProofs = checkProofs(p.proofs ?? []);
-  if (!checkedProofs.ok) return checkedProofs;
-
   const isPunishment = p.isPunishment ?? false;
-  const task = await db.task.create({
+  return {
+    ok: true,
     data: {
-      userId: p.userId,
-      title: p.title.trim(),
-      description: p.description?.trim() || null,
-      holdUntil: p.holdUntil,
-      startGraceMin: graceMin,
-      isPunishment,
-      penaltyReason: effectivePenaltyReason(isPunishment, p.penaltyReason),
-      requirements: {
-        create: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })),
+      data: {
+        user: { connect: { id: p.userId } },
+        title: p.title.trim(),
+        description: p.description?.trim() || null,
+        holdUntil: p.holdUntil,
+        startGraceMin: graceMin,
+        isPunishment,
+        penaltyReason: effectivePenaltyReason(isPunishment, p.penaltyReason),
+        requirements: { create: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })) },
+        proofs: { create: checkedProofs.rows },
       },
-      proofs: { create: checkedProofs.rows },
     },
-  });
+  };
+}
 
-  return { ok: true, data: { id: task.id, title: task.title, holdUntil: task.holdUntil } };
+/** Schreibt die geprüfte Aufgabe. Ein einziger Vorgang — genau so viel, wie in eine fremde
+ *  Transaktion gehört. Gibt Titel und Frist mit zurück, damit der Aufrufer sie für seine Nachricht
+ *  nicht ein zweites Mal aus den Rohdaten zusammensucht. */
+export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<{ id: string; title: string; holdUntil: Date }> {
+  const task = await tx.task.create({ data: checked.data });
+  return { id: task.id, title: task.title, holdUntil: task.holdUntil };
 }
 
 /** Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub. */
 export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ id: string }>> {
-  const created = await createTaskTx(prisma, p);
-  if (!created.ok) return created;
-  const task = created.data;
+  const checked = await checkTask(prisma, p);
+  if (!checked.ok) return checked;
+  const task = await writeTask(prisma, checked.data);
 
   await notifyUser(p.userId, {
     subjectKey: "taskAssignedSubject",

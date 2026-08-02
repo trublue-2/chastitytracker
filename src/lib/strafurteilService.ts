@@ -4,8 +4,7 @@ import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { senderKindOf } from "@/lib/messageService";
 import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/serviceResult";
-import { codedError, codeOf } from "@/lib/codedError";
-import { createTaskTx, type CreateTaskParams } from "@/lib/taskService";
+import { checkTask, writeTask, type CreateTaskParams } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
 import { STORED_TYPE, type OffenseCanonicalType } from "@/lib/offenseTypes";
@@ -119,6 +118,21 @@ export function judgmentStatus(action: "punish" | "dismiss"): "PUNISHED" | "DISM
 }
 
 /**
+ * Das Vergehen, über das geurteilt werden soll — oder null, wenn es aktuell gar nicht (mehr)
+ * erkannt ist.
+ *
+ * Die eine Schranke gegen Urteile über Nicht-Vergehen. Sie wertet das ganze Strafbuch aus und gehört
+ * deshalb IMMER vor eine Transaktion.
+ */
+export async function requireDetectedOffense(
+  userId: string,
+  refId: string,
+  now: Date,
+): Promise<DetectedOffense | null> {
+  return collectDetectedOffenses(await buildStrafbuch(userId, now)).find((o) => o.refId === refId) ?? null;
+}
+
+/**
  * Bestrafen, indem eine AUFGABE gestellt wird — statt „20 Schläge" als Freitext eine Forderung mit
  * Frist, deren Erfüllung die App selbst mitbekommt.
  *
@@ -134,36 +148,27 @@ export async function punishWithTask(
 ): Promise<ServiceResult<{ id: string }>> {
   const now = new Date();
 
-  // Dieselbe Schranke wie in `judgeOffense`: nur über ein aktuell ERKANNTES Vergehen lässt sich
-  // urteilen. Sie steht vor der Transaktion, weil sie nur liest und das ganze Strafbuch auswertet.
-  const offense = collectDetectedOffenses(await buildStrafbuch(p.userId, now)).find((o) => o.refId === p.refId);
+  // Beide Prüfungen stehen VOR der Transaktion: sie lesen nur, und sie kosten zusammen ein Dutzend
+  // Abfragen. Innerhalb hielten sie die einzige SQLite-Verbindung dieser App für ihre ganze Dauer.
+  // Nur über ein aktuell ERKANNTES Vergehen lässt sich urteilen — dieselbe Schranke wie in
+  // `judgeOffense`.
+  const offense = await requireDetectedOffense(p.userId, p.refId, now);
   if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
 
-  // Die Ablehnung des Formulars (Titel zu lang, Frist zu früh, Gerät fremd) soll den Aufrufer im
-  // Klartext erreichen. Deshalb aufheben und nach dem Rollback zurückgeben, statt sie in einen
-  // generischen Transaktionsfehler zu verwandeln. Als Feld eines Objekts, nicht als lose Variable:
-  // eine Zuweisung im Callback verfolgt TypeScript nicht, `let failure` verengte sich auf `never` —
-  // und ein späteres Entfernen der Zuweisung wäre still durchgegangen.
-  const box: { failure?: ServiceFailure } = {};
-  let created: { id: string; title: string; holdUntil: Date };
+  // Die Ablehnung des Formulars (Titel zu lang, Frist zu früh, Gerät fremd) erreicht den Aufrufer
+  // damit direkt, statt aus einem abgebrochenen Vorgang zurückgetragen werden zu müssen.
+  const checked = await checkTask(prisma, { ...p, isPunishment: true });
+  if (!checked.ok) return checked;
 
-  try {
-    created = await prisma.$transaction(async (tx) => {
-      const task = await createTaskTx(tx, { ...p, isPunishment: true });
-      if (!task.ok) {
-        box.failure = task;
-        throw codedError("TASK_REJECTED");
-      }
-      await writeJudgment(tx, {
-        userId: p.userId, offenseType: offense.offenseType, refId: p.refId, now,
-        status: "PUNISHED", reason: task.data.title, judgedBy: p.judgedBy, taskId: task.data.id,
-      });
-      return task.data;
+  // Was bleibt, sind die zwei Schreibvorgänge, die zusammengehören: die Aufgabe und ihr Urteil.
+  const created = await prisma.$transaction(async (tx) => {
+    const task = await writeTask(tx, checked.data);
+    await writeJudgment(tx, {
+      userId: p.userId, offense, now,
+      status: "PUNISHED", reason: task.title, judgedBy: p.judgedBy, taskId: task.id,
     });
-  } catch (e) {
-    if (codeOf(e) === "TASK_REJECTED" && box.failure) return box.failure;
-    throw e;
-  }
+    return task;
+  });
 
   // NACH der Transaktion: eine Mail lässt sich nicht zurückrollen. Und genau eine — die Strafe IST
   // die Aufgabe, zwei Nachrichten wären zweimal dieselbe Neuigkeit.
@@ -184,32 +189,40 @@ export async function punishWithTask(
  * beim Sub weiter, und wenn ihre Frist verstreicht, erzeugt sie als „nicht erfüllte Aufgabe" ein
  * neues Vergehen — die Korrektur eines Urteils würde ein Vergehen erfinden.
  */
+/**
+ * Zieht die Aufgabe zurück, die am bisherigen Urteil dieses Vergehens hängt.
+ *
+ * Über die BEZIEHUNG statt über ein vorher gelesenes `taskId`: das spart die Abfrage und macht den
+ * Besitz-Vergleich zu einer Bedingung der Anweisung selbst. Im Anlege-Fall trifft sie nur die ALTE
+ * Aufgabe — die neue ist zu diesem Zeitpunkt noch nicht verknüpft (das `upsert` folgt erst danach).
+ *
+ * `withdrawnAt: null` in der Bedingung: ein zweiter Rückzug fasst null Zeilen an, statt den
+ * Zeitpunkt des ersten zu überschreiben.
+ */
+async function withdrawLinkedTask(tx: Prisma.TransactionClient, refId: string, userId: string, now: Date): Promise<void> {
+  await tx.task.updateMany({
+    where: { userId, withdrawnAt: null, strafeRecords: { some: { refId } } },
+    data: { withdrawnAt: now },
+  });
+}
+
 async function writeJudgment(
   tx: Prisma.TransactionClient,
   p: {
-    userId: string; offenseType: string; refId: string; now: Date;
+    userId: string; offense: DetectedOffense; now: Date;
     status: "PUNISHED" | "DISMISSED"; reason: string | null;
     judgedBy: JudgeOffenseParams["judgedBy"]; taskId: string | null;
   },
 ): Promise<{ id: string }> {
-  const previous = await tx.strafeRecord.findUnique({
-    where: { refId: p.refId },
-    select: { userId: true, taskId: true },
-  });
-  if (previous?.taskId && previous.taskId !== p.taskId && previous.userId === p.userId) {
-    await tx.task.updateMany({
-      where: { id: previous.taskId, userId: p.userId, withdrawnAt: null },
-      data: { withdrawnAt: p.now },
-    });
-  }
+  await withdrawLinkedTask(tx, p.offense.refId, p.userId, p.now);
 
   const data = {
     status: p.status, reason: p.reason, judgedBy: p.judgedBy,
     erledigtAt: null, bestraftDatum: p.now, taskId: p.taskId,
   };
   return tx.strafeRecord.upsert({
-    where: { refId: p.refId },
-    create: { userId: p.userId, offenseType: p.offenseType, refId: p.refId, ...data },
+    where: { refId: p.offense.refId },
+    create: { userId: p.userId, offenseType: p.offense.offenseType, refId: p.offense.refId, ...data },
     update: data,
     select: { id: true },
   });
@@ -243,19 +256,10 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
     // nicht mehr gibt — und ihr Verstreichen wäre später ein neues Vergehen. Zurückgezogen, nicht
     // gelöscht: der Sub hat sie gesehen, und ein Rückzug ist die dafür vorgesehene Endstation.
     const removed = await prisma.$transaction(async (tx) => {
-      const rec = await tx.strafeRecord.findUnique({
-        where: { refId: p.refId },
-        select: { userId: true, taskId: true },
-      });
-      if (!rec || rec.userId !== p.userId) return false;
-      if (rec.taskId) {
-        await tx.task.updateMany({
-          where: { id: rec.taskId, userId: p.userId, withdrawnAt: null },
-          data: { withdrawnAt: now },
-        });
-      }
-      await tx.strafeRecord.delete({ where: { refId: p.refId } });
-      return true;
+      // Erst der Rückzug: danach gibt es die Verknüpfung nicht mehr, über die er sein Ziel findet.
+      await withdrawLinkedTask(tx, p.refId, p.userId, now);
+      const del = await tx.strafeRecord.deleteMany({ where: { userId: p.userId, refId: p.refId } });
+      return del.count > 0;
     });
     if (!removed) return serviceFail(404, "JUDGMENT_NOT_FOUND");
     return { ok: true, data: { status: "open", done: false } };
@@ -273,11 +277,9 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   const penaltyTextError = checkPenaltyText(p.action, p.text);
   if (penaltyTextError) return serviceFail(400, penaltyTextError);
 
-  // Vergehen muss aktuell erkannt sein (verhindert Urteile über Nicht-Vergehen).
-  const offenses = collectDetectedOffenses(await buildStrafbuch(p.userId, now));
-  const offense = offenses.find((o) => o.refId === p.refId);
   // Die ref stand früher im Fehlertext; sie ist ein Aufrufer-Argument, das der MCP-Agent bereits
   // kennt — ein Code ohne Interpolation genügt und bleibt übersetzbar.
+  const offense = await requireDetectedOffense(p.userId, p.refId, now);
   if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
 
   const status = judgmentStatus(p.action);
@@ -285,7 +287,7 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   // Schreibvorgänge, die zusammengehören. `taskId: null`: dieser Weg ist der Freitext, er LÖST eine
   // bestehende Aufgabe vom Urteil, statt sie stillschweigend weiterzuschleppen.
   const record = await prisma.$transaction((tx) => writeJudgment(tx, {
-    userId: p.userId, offenseType: offense.offenseType, refId: p.refId, now,
+    userId: p.userId, offense, now,
     status, reason: text, judgedBy: p.judgedBy, taskId: null,
   }));
 

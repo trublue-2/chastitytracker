@@ -12,30 +12,25 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 const tx = {
-  strafeRecord: { findUnique: vi.fn(), upsert: vi.fn(), delete: vi.fn() },
+  strafeRecord: { upsert: vi.fn(), deleteMany: vi.fn() },
   task: { updateMany: vi.fn() },
 };
 vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    // Der echte `$transaction` rollt bei einem Wurf zurück; hier genügt es, den Wurf durchzulassen
-    // und zu prüfen, dass der Aufrufer ihn als Ablehnung des Formulars zurückgibt.
-    $transaction: vi.fn(async (fn: (c: typeof tx) => Promise<unknown>) => fn(tx)),
-    strafeRecord: { deleteMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
-  },
+  prisma: { $transaction: vi.fn(async (fn: (c: typeof tx) => Promise<unknown>) => fn(tx)) },
 }));
 vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn() }));
-vi.mock("@/lib/taskService", () => ({ createTaskTx: vi.fn() }));
+vi.mock("@/lib/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
-vi.mock("@/lib/messageService", () => ({ senderKindOf: () => "human" }));
 
 import { punishWithTask, judgeOffense } from "./strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
-import { createTaskTx } from "@/lib/taskService";
+import { checkTask, writeTask } from "@/lib/taskService";
 import { notifyUser } from "@/lib/notify";
 
 const strafbuch = buildStrafbuch as unknown as ReturnType<typeof vi.fn>;
-const create = createTaskTx as unknown as ReturnType<typeof vi.fn>;
+const check = checkTask as unknown as ReturnType<typeof vi.fn>;
+const write = writeTask as unknown as ReturnType<typeof vi.fn>;
 const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
 
 /** Ein Strafbuch, das genau ein Vergehen kennt: eine nicht erfüllte Aufgabe mit `refId` „t-1". */
@@ -60,9 +55,10 @@ const PARAMS = {
 beforeEach(() => {
   vi.clearAllMocks();
   strafbuch.mockResolvedValue(strafbuchWith("t-1"));
-  tx.strafeRecord.findUnique.mockResolvedValue(null);
   tx.strafeRecord.upsert.mockResolvedValue({ id: "s1" });
-  create.mockResolvedValue({ ok: true, data: { id: "task-9", title: "Wohnung staubsaugen", holdUntil: HOLD_UNTIL } });
+  tx.strafeRecord.deleteMany.mockResolvedValue({ count: 1 });
+  check.mockResolvedValue({ ok: true, data: { data: {} } });
+  write.mockResolvedValue({ id: "task-9", title: "Wohnung staubsaugen", holdUntil: HOLD_UNTIL });
 });
 
 describe("punishWithTask", () => {
@@ -70,8 +66,10 @@ describe("punishWithTask", () => {
     const res = await punishWithTask(PARAMS);
 
     expect(res).toEqual({ ok: true, data: { id: "task-9" } });
-    // Die Aufgabe wird als Strafe angelegt — im Schreib-Client der Transaktion, als erstes Argument.
-    expect(create).toHaveBeenCalledWith(tx, expect.objectContaining({ isPunishment: true }));
+    // Geprüft wird VOR der Transaktion (ein Dutzend Abfragen, die nichts festschreiben),
+    // geschrieben darin.
+    expect(check).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ isPunishment: true }));
+    expect(write).toHaveBeenCalledWith(tx, expect.anything());
     // Das Urteil trägt die Aufgabe — das ist die Verbindung, auf der alles Weitere aufbaut.
     const upsert = tx.strafeRecord.upsert.mock.calls[0][0];
     expect(upsert.where).toEqual({ refId: "t-1" });
@@ -83,12 +81,12 @@ describe("punishWithTask", () => {
   });
 
   it("zieht die ersetzte Strafaufgabe zurück, statt sie weiterlaufen zu lassen", async () => {
-    tx.strafeRecord.findUnique.mockResolvedValue({ userId: "u1", taskId: "task-alt" });
-
     await punishWithTask(PARAMS);
 
+    // Über die Beziehung, nicht über eine vorher gelesene id — die NEUE Aufgabe ist zu diesem
+    // Zeitpunkt noch nicht verknüpft, getroffen wird also nur die alte.
     expect(tx.task.updateMany).toHaveBeenCalledWith({
-      where: { id: "task-alt", userId: "u1", withdrawnAt: null },
+      where: { userId: "u1", withdrawnAt: null, strafeRecords: { some: { refId: "t-1" } } },
       data: { withdrawnAt: expect.any(Date) },
     });
   });
@@ -96,29 +94,27 @@ describe("punishWithTask", () => {
   it("nimmt bei einer Rücknahme die Strafaufgabe mit", async () => {
     // Bliebe sie stehen, forderte die App weiter eine Strafe ein, die es nicht mehr gibt — und ihr
     // Verstreichen wäre später ein neues Vergehen, das niemand begangen hat.
-    tx.strafeRecord.findUnique.mockResolvedValue({ userId: "u1", taskId: "task-9" });
-
     const res = await judgeOffense({ userId: "u1", refId: "t-1", action: "reopen", judgedBy: "admin" });
 
     expect(res).toEqual({ ok: true, data: { status: "open", done: false } });
     expect(tx.task.updateMany).toHaveBeenCalledWith({
-      where: { id: "task-9", userId: "u1", withdrawnAt: null },
+      where: { userId: "u1", withdrawnAt: null, strafeRecords: { some: { refId: "t-1" } } },
       data: { withdrawnAt: expect.any(Date) },
     });
-    expect(tx.strafeRecord.delete).toHaveBeenCalledWith({ where: { refId: "t-1" } });
+    expect(tx.strafeRecord.deleteMany).toHaveBeenCalledWith({ where: { userId: "u1", refId: "t-1" } });
   });
 
   it("urteilt nicht über ein Vergehen, das gar nicht erkannt ist", async () => {
     const res = await punishWithTask({ ...PARAMS, refId: "fremd" });
 
     expect(res).toEqual({ ok: false, status: 404, error: "OFFENSE_NOT_FOUND" });
-    expect(create).not.toHaveBeenCalled();
+    expect(check).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
   });
 
   it("gibt die Ablehnung des Formulars durch und schreibt kein Urteil", async () => {
     // Der Grund muss den Keyholder im Klartext erreichen — nicht als generischer Transaktionsfehler.
-    create.mockResolvedValue({ ok: false, status: 400, error: "TASK_HOLD_UNTIL_TOO_SOON" });
+    check.mockResolvedValue({ ok: false, status: 400, error: "TASK_HOLD_UNTIL_TOO_SOON" });
 
     const res = await punishWithTask(PARAMS);
 

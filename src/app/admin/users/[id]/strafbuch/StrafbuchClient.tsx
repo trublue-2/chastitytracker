@@ -191,9 +191,10 @@ interface Props {
 interface OffenseRow {
   refId: string;
   body: (judged: boolean) => React.ReactNode;
-  /** Straf-Anlass für eine Aufgabe als Strafe — die ZEILE, nicht ihre Sektion: der Text landet in
-   *  `Task.penaltyReason` und der Sub liest ihn. Pflichtfeld, damit eine neue Vergehensart nicht
-   *  still mit „Automatisch entfernt" für jede ihrer Zeilen dasteht. */
+  /** Was diese Zeile vom Rest ihrer Sektion unterscheidet — Zeitpunkt, Code, Titel. Die Vergehensart
+   *  kommt beim Rendern aus dem Sektions-Titel davor; zusammen ergibt das den Straf-Anlass, der in
+   *  `Task.penaltyReason` landet und den der Sub liest. Pflichtfeld, damit eine neue Vergehensart
+   *  nicht still mit einer nichtssagenden Zeile dasteht. */
   anlass: string;
 }
 
@@ -445,7 +446,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     return (
       <div className="mt-2">
         <Link href={href}
-          className="text-xs font-medium text-foreground-muted border border-border hover:bg-surface-raised hover:text-foreground transition px-2.5 py-1 rounded-lg flex items-center gap-1">
+          className={`${CHIP_CLS} text-foreground-muted border-border hover:bg-surface-raised hover:text-foreground`}>
           <ClipboardList size={11} />
           {labels.strafbuchStrafaufgabe}
         </Link>
@@ -453,15 +454,20 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
+  /** Die Geometrie der kleinen Urteils-Knöpfe. Nur die FARBE unterscheidet sie — als vierte Kopie
+   *  der ganzen Klassenkette drifteten Polsterung und Radius beim nächsten Umbau auseinander. */
+  const CHIP_CLS = "text-xs font-medium border transition px-2.5 py-1 rounded-lg flex items-center gap-1";
+
   /** Nebenangabe unter der Kopfzeile (Frist, Zeitpunkt). */
   const FACT_CLS = "text-xs text-foreground-faint";
   /** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
   const NOTE_CLS = "text-xs text-foreground-faint italic";
 
-  /** Der Straf-Anlass einer Kontroll-Zeile: Art, Code und Frist. Ohne den Code stünde bei zwei
-   *  Kontrollen desselben Tages zweimal derselbe Anlass — und der Sub liest ihn an seiner Aufgabe. */
-  const kontrollAnlass = (art: string, k: KontrollRow) =>
-    `${art}: ${labels.strafbuchKontrollePrefix}${k.code ? ` ${k.code}` : ""} (${labels.frist} ${k.deadlineStr})`;
+  /** Der Straf-Anlass einer Kontroll-Zeile: Code und Frist. Ohne den Code stünde bei zwei
+   *  Kontrollen desselben Tages zweimal derselbe Anlass — und der Sub liest ihn an seiner Aufgabe.
+   *  Die Vergehens-ART setzt die Sektion davor, sie steht dort ohnehin. */
+  const kontrollAnlass = (k: KontrollRow) =>
+    `${labels.strafbuchKontrollePrefix}${k.code ? ` ${k.code}` : ""} (${labels.frist} ${k.deadlineStr})`;
 
   /** Die Zeile einer Kontroll-Sektion — Code, Vorwurf, Frist, Anweisung. Der Vorwurf ist das
    *  Einzige, was die drei Kontroll-Arten unterscheidet, also kommt genau er als `vorwurf` rein. */
@@ -500,7 +506,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const sections = [
     sec("unauthorized_opening", labels.strafbuchUnerlaubteOeffnungen, unerlaubteOeffnungen.map((o) => ({
       refId: o.id,
-      anlass: `${labels.strafbuchUnerlaubteOeffnungen}: ${labels.strafbuchGeoeffnetAm} ${o.startTimeStr}`,
+      anlass: `${labels.strafbuchGeoeffnetAm} ${o.startTimeStr}`,
       body: (judged) => {
         const qualifier = o.sperrzetUnbefristet
           ? labels.strafbuchTrotzUnbefristet
@@ -521,7 +527,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("late_control", labels.strafbuchZuSpaet, zuSpaet.map((k) => ({
       refId: k.id,
-      anlass: kontrollAnlass(labels.strafbuchZuSpaet, k),
+      anlass: kontrollAnlass(k),
       body: kontrollBody(k, (
         <>
           {labels.strafbuchEingereicht} {k.fulfilledAtStr}
@@ -532,7 +538,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("rejected_control", labels.strafbuchAbgelehnt, abgelehnt.map((k) => ({
       refId: k.id,
-      anlass: kontrollAnlass(labels.strafbuchAbgelehnt, k),
+      anlass: kontrollAnlass(k),
       body: kontrollBody(
         k,
         <>{labels.strafbuchAbgelehntAm} {k.entryStartTimeStr ?? k.deadlineStr}</>,
@@ -542,13 +548,13 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("auto_removed_control", labels.strafbuchAutoEntfernt, autoEntfernt.map((k) => ({
       refId: k.id,
-      anlass: kontrollAnlass(labels.strafbuchAutoEntfernt, k),
+      anlass: kontrollAnlass(k),
       body: kontrollBody(k, <>{labels.strafbuchAutoEntferntAm} {k.entryStartTimeStr ?? k.deadlineStr}</>),
     }))),
 
     sec("unfulfilled_task", labels.strafbuchAufgaben, unfulfilledTasks.map((a) => ({
       refId: a.id,
-      anlass: `${labels.strafbuchAufgaben}: „${a.title}" (${a.holdUntilStr})`,
+      anlass: `„${a.title}" (${a.holdUntilStr})`,
       body: (judged) => (
         <>
           {titleLine(judged, a.title, a.state === "aborted" ? labels.strafbuchAufgabeAbgebrochen : labels.strafbuchAufgabeVersaeumt)}
@@ -562,7 +568,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("cleaning_limit", labels.strafbuchReinigungLimit, reinigungLimitVergehen.map((r) => ({
       refId: r.entryId,
-      anlass: `${labels.strafbuchReinigungLimit}: ${r.startTimeStr}`,
+      anlass: `${r.startTimeStr}`,
       body: (judged) => (
         <>
           <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
@@ -575,7 +581,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("cleaning_not_relocked", labels.strafbuchNichtVerschlossen, nichtVerschlossen.map((c) => ({
       refId: c.refId,
-      anlass: `${labels.strafbuchNichtVerschlossen}: ${c.startTimeStr}`,
+      anlass: `${c.startTimeStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchGeoeffnetAm} {c.startTimeStr}</>,
@@ -591,7 +597,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("late_lock", labels.strafbuchVerschlussVersaeumt, verschlussVersaeumt.map((a) => ({
       refId: a.id,
-      anlass: `${labels.strafbuchVerschlussVersaeumt}: ${labels.strafbuchVerschlussFrist} ${a.endetAtStr}`,
+      anlass: `${labels.strafbuchVerschlussFrist} ${a.endetAtStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.frist} {a.endetAtStr}</>,
@@ -606,7 +612,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("missed_orgasm", labels.strafbuchOrgasmusVersaeumt, orgasmusVersaeumt.map((m) => ({
       refId: m.id,
-      anlass: `${labels.strafbuchOrgasmusVersaeumt}: ${m.endetAtStr}`,
+      anlass: `${m.endetAtStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchOrgasmusAbgelaufen} {m.endetAtStr}</>,
@@ -621,7 +627,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("wrong_device", labels.strafbuchFalschesGeraet, falschesGeraet.map((v) => ({
       refId: v.entryId,
-      anlass: `${labels.strafbuchFalschesGeraet}: ${v.startTimeStr}`,
+      anlass: `${v.startTimeStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchFalschesGeraetAm} {v.startTimeStr}</>,
@@ -634,7 +640,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("admin_password_change", labels.strafbuchAdminPasswort, adminPasswort.map((p) => ({
       refId: p.id,
-      anlass: `${labels.strafbuchAdminPasswort}: ${p.atStr}`,
+      anlass: `${p.atStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchAdminPasswortAm} {p.atStr}</>,
@@ -683,7 +689,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               return (
                 <div key={r.refId} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                   {r.body(judged)}
-                  <JudgmentSlot refId={r.refId} offenseType={STORED_TYPE[s.canonical]} anlass={r.anlass} />
+                  <JudgmentSlot refId={r.refId} offenseType={STORED_TYPE[s.canonical]} anlass={`${s.title}: ${r.anlass}`} />
                 </div>
               );
             })}

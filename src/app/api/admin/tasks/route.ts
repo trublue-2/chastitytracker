@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { createTask, type CreateTaskParams } from "@/lib/taskService";
 import { punishWithTask } from "@/lib/strafurteilService";
+import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 /** Keyholder stellt dem Sub eine Aufgabe. */
@@ -34,8 +35,9 @@ export async function POST(req: NextRequest) {
     // Mit `offenseRef` ist die Aufgabe die STRAFE für ein Vergehen: dann entstehen Aufgabe und
     // Urteil zusammen, sonst stünden sie unverbunden nebeneinander. `judgedBy: "admin"` — der
     // MCP-Agent urteilt über `judge_offense`, nicht über diese Route.
-    const result = typeof body.offenseRef === "string" && body.offenseRef
-      ? await punishWithTask({ ...params, refId: body.offenseRef, judgedBy: "admin" })
+    const offenseRef = body[TASK_FORM_QUERY.offenseRef];
+    const result = typeof offenseRef === "string" && offenseRef
+      ? await punishWithTask({ ...params, refId: offenseRef, judgedBy: "admin" })
       : await createTask(params);
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true, id: result.data.id });

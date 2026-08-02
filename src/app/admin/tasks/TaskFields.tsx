@@ -17,6 +17,7 @@ import { parseApiErrorCode } from "@/lib/apiClient";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
 import { TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
 import type { TaskRequirementInput, TaskProofInput } from "@/lib/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
 import TaskProofPicker from "./TaskProofPicker";
@@ -107,8 +108,9 @@ export default function TaskFields({
       penaltyReason: isPunishment ? penaltyReason.trim() || undefined : undefined,
       // Trägt die Aufgabe eine Vergehens-ref, schreibt die Route sie samt Urteil — das Vergehen gilt
       // damit als bestraft. Der Haken darf das nicht abschalten: die ref ist der Grund, aus dem
-      // dieses Formular überhaupt geöffnet wurde.
-      offenseRef,
+      // dieses Formular überhaupt geöffnet wurde. Der Schlüssel kommt aus derselben Konstante wie
+      // die Query — umbenannt fiele die Aufgabe sonst still auf „gewöhnlich" zurück.
+      [TASK_FORM_QUERY.offenseRef]: offenseRef,
     });
   }
 
