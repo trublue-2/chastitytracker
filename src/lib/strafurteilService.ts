@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { senderKindOf } from "@/lib/messageService";
-import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { checkTask, writeTask, type CreateTaskParams } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
@@ -179,17 +179,6 @@ export async function punishWithTask(
 }
 
 /**
- * Schreibt das Urteil über ein Vergehen — die EINE Stelle, an der ein `StrafeRecord` entsteht.
- *
- * `taskId` ist Pflicht-Argument, nicht optional: der Freitext-Weg muss eine frühere Strafaufgabe
- * ausdrücklich mit `null` lösen. Als optionales Feld liess er sie stehen, und ein verworfenes
- * Vergehen behielt eine Aufgabe, die das Schema ausdrücklich ausschliesst.
- *
- * Wird eine bestehende Strafaufgabe ersetzt, ZIEHT sie diese Funktion zurück. Sonst liefe die alte
- * beim Sub weiter, und wenn ihre Frist verstreicht, erzeugt sie als „nicht erfüllte Aufgabe" ein
- * neues Vergehen — die Korrektur eines Urteils würde ein Vergehen erfinden.
- */
-/**
  * Zieht die Aufgabe zurück, die am bisherigen Urteil dieses Vergehens hängt.
  *
  * Über die BEZIEHUNG statt über ein vorher gelesenes `taskId`: das spart die Abfrage und macht den
@@ -206,6 +195,17 @@ async function withdrawLinkedTask(tx: Prisma.TransactionClient, refId: string, u
   });
 }
 
+/**
+ * Schreibt das Urteil über ein Vergehen — die EINE Stelle, an der ein `StrafeRecord` entsteht.
+ *
+ * `taskId` ist Pflicht-Argument, nicht optional: der Freitext-Weg muss eine frühere Strafaufgabe
+ * ausdrücklich mit `null` lösen. Als optionales Feld liess er sie stehen, und ein verworfenes
+ * Vergehen behielt eine Aufgabe, die das Schema ausdrücklich ausschliesst.
+ *
+ * Wird eine bestehende Strafaufgabe ersetzt, ZIEHT sie diese Funktion zurück. Sonst liefe die alte
+ * beim Sub weiter, und wenn ihre Frist verstreicht, erzeugt sie als „nicht erfüllte Aufgabe" ein
+ * neues Vergehen — die Korrektur eines Urteils würde ein Vergehen erfinden.
+ */
 async function writeJudgment(
   tx: Prisma.TransactionClient,
   p: {

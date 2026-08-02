@@ -1155,11 +1155,16 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // `problem` schon feststeht (Preview wird ohnehin als wouldSucceed:false verworfen).
     const record = problem ? null : await prisma.strafeRecord.findUnique({
       where: { refId: args.ref },
-      select: { userId: true, status: true, reason: true, judgedBy: true, erledigtAt: true },
+      select: { userId: true, status: true, reason: true, judgedBy: true, erledigtAt: true, taskId: true },
     });
     const existing = record?.userId === userId ? record : null;
+    // `penaltyTask` steht im diff, weil ein Urteil MEHR bewegt als seine eigene Zeile: hängt eine
+    // Strafaufgabe daran, zieht `writeJudgment` sie zurück (reopen, dismiss, neues punish). Ohne
+    // dieses Feld meldete die Vorschau ein blosses Verschwinden von Urteils-Feldern, während der
+    // Commit dem Sub eine laufende Forderung nimmt — genau die Art Nebenwirkung, für die es die
+    // Vorschau gibt.
     const before: Record<string, unknown> = existing
-      ? { status: existing.status, reason: existing.reason, judgedBy: existing.judgedBy, erledigtAt: iso(existing.erledigtAt) }
+      ? { status: existing.status, reason: existing.reason, judgedBy: existing.judgedBy, erledigtAt: iso(existing.erledigtAt), penaltyTask: existing.taskId }
       : {};
     // reopen ohne bestehenden Record (JUDGMENT_NOT_FOUND), complete auf einem nicht-PUNISHED Record
     // (PENALTY_NOT_PUNISHED) und punish/dismiss auf einem ref, das kein aktuell erkanntes Vergehen
@@ -1180,8 +1185,10 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // delete_training_goal: das Objekt verschwindet, das ist ein Wert, keine Abwesenheit).
     const after: Record<string, unknown> | undefined = !knownTransition ? undefined
       : args.action === "reopen" ? Object.fromEntries(Object.keys(before).map((key) => [key, null]))
-      : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: iso(existing!.erledigtAt ?? new Date()) }
-      : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: "ai", erledigtAt: null };
+      // `complete` schliesst nur den Loop und lässt die Aufgabe, wie sie ist.
+      : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: iso(existing!.erledigtAt ?? new Date()), penaltyTask: existing!.taskId }
+      // punish/dismiss über den FREITEXT-Weg löst eine bestehende Strafaufgabe und zieht sie zurück.
+      : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: "ai", erledigtAt: null, penaltyTask: null };
     return dryRunPreview("judge_offense", problem ?? undefined, { ref: args.ref, action: args.action, text: args.text ?? null }, after ? diffFields(before, after) : undefined);
   }
   const r = unwrap(await judgeOffense({

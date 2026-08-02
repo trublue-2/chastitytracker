@@ -252,17 +252,6 @@ async function checkRequirements(
   return { ok: true, normalized };
 }
 
-/**
- * Prüft und schreibt eine Aufgabe — ohne zu benachrichtigen.
- *
- * Die Transaktions-Variante: `db` ist ausdrücklich das ERSTE Argument, damit ein Aufrufer es nicht
- * vergessen kann (dasselbe Muster wie `createOeffnenEntryTx`). Und sie meldet NICHTS: eine Mail
- * lässt sich nicht zurückrollen, gehört also hinter das Commit — {@link createTask} tut das, ein
- * grösserer Vorgang wie `punishWithTask` schickt stattdessen seine eigene, EINE Nachricht.
- *
- * Gibt Titel und Frist mit zurück, damit der Aufrufer sie für genau diese Nachricht nicht ein
- * zweites Mal aus seinen Rohdaten zusammensuchen muss.
- */
 /** Eine geprüfte Aufgabe, fertig zum Schreiben. Zwischenstand zwischen {@link checkTask} und
  *  {@link writeTask} — er trägt genau das, was `task.create` braucht, und nichts mehr. */
 export interface CheckedTask {
@@ -328,9 +317,16 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
   };
 }
 
-/** Schreibt die geprüfte Aufgabe. Ein einziger Vorgang — genau so viel, wie in eine fremde
- *  Transaktion gehört. Gibt Titel und Frist mit zurück, damit der Aufrufer sie für seine Nachricht
- *  nicht ein zweites Mal aus den Rohdaten zusammensucht. */
+/**
+ * Schreibt die geprüfte Aufgabe. Ein einziger Vorgang — genau so viel, wie in eine fremde
+ * Transaktion gehört; `tx` ist ausdrücklich das ERSTE Argument, damit es niemand vergisst (dasselbe
+ * Muster wie `createOeffnenEntryTx`).
+ *
+ * Und sie meldet NICHTS: eine Mail lässt sich nicht zurückrollen, gehört also hinter das Commit —
+ * {@link createTask} tut das, ein grösserer Vorgang wie `punishWithTask` schickt seine eigene, EINE
+ * Nachricht. Titel und Frist kommen mit zurück, damit der Aufrufer sie dafür nicht ein zweites Mal
+ * aus seinen Rohdaten zusammensucht.
+ */
 export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<{ id: string; title: string; holdUntil: Date }> {
   const task = await tx.task.create({ data: checked.data });
   return { id: task.id, title: task.title, holdUntil: task.holdUntil };

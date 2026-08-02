@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
     if (Number.isNaN(holdUntil.getTime())) return errorResponse(400, "INVALID_DATETIME");
 
     // Felder EINZELN übernehmen, nie den rohen Body spreaden: was der Service an Parametern kennt,
-    // wäre sonst von aussen setzbar. Ein `suppressNotice: true` im Request legte dem Sub eine
-    // Aufgabe an, von der er nie erfährt — und ihr Versäumen wird ihm später als Vergehen
-    // vorgehalten.
+    // wäre sonst von aussen setzbar. `punishWithTask` nimmt zusätzlich `judgedBy` — mit einem
+    // Spread liesse sich „ai" hineinreichen, und das Urteil eines Menschen stünde im Strafbuch und
+    // in der Nachricht an den Sub als Urteil der KI.
     const params: CreateTaskParams = {
       userId: body.userId,
       title: body.title,
