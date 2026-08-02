@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 
 export interface StatsKontrolleRow {
   id: string;
@@ -19,18 +19,14 @@ const PAGE_SIZE = 10;
 /** Paginated list of unified Kontrollen (anforderung + standalone Prüfungen).
  *  Pre-formatted strings come from the server to avoid date-formatting churn here. */
 export default function StatsKontrollenList({ rows }: { rows: StatsKontrolleRow[] }) {
-  const [page, setPage] = useState(0);
-  const tCommon = useTranslations("common");
+  const { page, setPage, totalPages, visible } = usePagedList(rows, PAGE_SIZE);
 
   if (rows.length === 0) return null;
-
-  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
-  const paginated = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <>
       <div className="divide-y divide-border-subtle">
-        {paginated.map((k) => (
+        {visible.map((k) => (
           <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
             <div className="flex items-center gap-2 flex-wrap">
               {k.pillLabel && k.pillCls && (
@@ -46,29 +42,7 @@ export default function StatsKontrollenList({ rows }: { rows: StatsKontrolleRow[
         ))}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-          <button
-            type="button"
-            onClick={() => setPage((p) => p - 1)}
-            disabled={page === 0}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            ← {tCommon("previous")}
-          </button>
-          <span className="text-xs text-foreground-faint tabular-nums">
-            {page + 1} / {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            {tCommon("next")} →
-          </button>
-        </div>
-      )}
+      <ListPager page={page} totalPages={totalPages} onPage={setPage} />
     </>
   );
 }

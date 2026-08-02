@@ -7,6 +7,8 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
+import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 
 export interface KontrolleItemData {
   id: string;
@@ -106,15 +108,12 @@ export default function KontrolleItemListClient({
   items: KontrolleItemData[];
   imageAlt: string;
 }) {
-  const tc = useTranslations("common");
-  const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(items.length / PAGE_SIZE);
-  const paginated = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(items, PAGE_SIZE);
 
   return (
     <>
       <div className="divide-y divide-border-subtle">
-        {paginated.map((k) => (
+        {visible.map((k) => (
           <div key={k.id} className="px-4 py-3 flex items-start gap-3">
             <KontrolleThumb k={k} imageAlt={imageAlt} />
             <div className="flex-1 min-w-0 flex flex-col gap-1">
@@ -142,19 +141,7 @@ export default function KontrolleItemListClient({
           </div>
         ))}
       </div>
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-          <button type="button" onClick={() => setPage(p => p - 1)} disabled={page === 0}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            ← {tc("previous")}
-          </button>
-          <span className="text-xs text-foreground-faint tabular-nums">{page + 1} / {totalPages}</span>
-          <button type="button" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            {tc("next")} →
-          </button>
-        </div>
-      )}
+      <ListPager page={page} totalPages={totalPages} onPage={setPage} />
     </>
   );
 }
