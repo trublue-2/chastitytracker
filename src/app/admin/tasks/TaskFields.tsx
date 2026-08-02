@@ -173,9 +173,18 @@ export default function TaskFields({
           value={holdUntil}
           onChange={(e) => setHoldUntil(e.target.value)}
           min={minNow}
-          hint={t("holdUntilHint", { tz })}
+          hint={t("holdUntilTzHint", { tz })}
         />
       )}
+
+      {/* `holdUntil` bedeutet ZWEIERLEI: mit Bedingungen „bis dahin durchgehend halten", ohne
+          Bedingungen schlicht „bis dahin erledigen". Eine feste Beschriftung konnte darum nur einen
+          der beiden Fälle treffen — über einer reinen Textaufgabe stand „Durchgehend halten", obwohl
+          es nichts zu halten gab. Der Satz richtet sich stattdessen nach dem, was gerade gefordert
+          ist; die Beschriftung darüber nennt nur noch die Frist selbst. */}
+      <p className="text-xs text-foreground-faint">
+        {requirements.length > 0 ? t("holdUntilHintRequirements") : t("holdUntilHintPlain")}
+      </p>
 
       <div className="flex flex-col gap-2">
         <Checkbox
