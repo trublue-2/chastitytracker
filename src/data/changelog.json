@@ -120,6 +120,13 @@
           "de": "Beim Anlegen einer Kategorie lässt sich gleich das erste Gerät benennen — ohne Gerät liess sich in einer Kategorie nichts erfassen, und gesagt wurde es nirgends. Kategorien ohne Gerät stehen jetzt sichtbar im Dashboard und führen direkt zum Anlegen.",
           "en": "When creating a category you can now name its first device right away — without a device nothing could be tracked in it, and nothing said so. Categories without a device now appear visibly on the dashboard and lead straight to adding one."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Meldungen an den Keyholder über Einträge des Trägers kommen jetzt in seiner Sprache — Titel, Beschriftungen und Öffnungsgründe waren dort fest deutsch, als einzige Meldung der App.",
+          "en": "Notifications to the keyholder about the wearer's entries now arrive in the keyholder's language — titles, labels and opening reasons were hardcoded German there, the only notification in the app that was."
+        }
       }
     ]
   },

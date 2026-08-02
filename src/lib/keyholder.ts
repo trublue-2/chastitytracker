@@ -103,16 +103,24 @@ export async function getKeyholdersOfUser(subId: string): Promise<{ id: string; 
  * query alone would miss them). Deduped by id; returns id + email. Keyholders are inherently
  * scoped to their sub; global admins stay global so an instance owner keeps full visibility.
  */
-export async function getControllersOfUser(subId: string): Promise<{ id: string; email: string | null }[]> {
+/** Ein Keyholder als Empfänger einer Meldung. `locale` gehört dazu, weil jede Meldung in SEINER
+ *  Sprache gerendert wird — ohne sie bräuchte jeder Aufrufer eine zweite Abfrage über dieselben ids. */
+export interface Controller {
+  id: string;
+  email: string | null;
+  locale: string;
+}
+
+export async function getControllersOfUser(subId: string): Promise<Controller[]> {
   const [admins, rels] = await Promise.all([
-    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, email: true } }),
+    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, email: true, locale: true } }),
     prisma.adminUserRelationship.findMany({
       where: { userId: subId },
-      select: { admin: { select: { id: true, email: true } } },
+      select: { admin: { select: { id: true, email: true, locale: true } } },
     }),
   ]);
-  const byId = new Map<string, { id: string; email: string | null }>();
+  const byId = new Map<string, Controller>();
   for (const a of admins) byId.set(a.id, a);
-  for (const r of rels) byId.set(r.admin.id, { id: r.admin.id, email: r.admin.email });
+  for (const r of rels) byId.set(r.admin.id, r.admin);
   return [...byId.values()];
 }

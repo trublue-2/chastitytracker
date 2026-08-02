@@ -5,8 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { markLastAction } from "@/lib/appMeta";
 import { detectKeyInBox } from "@/lib/verifyCode";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrolleService";
-import { DEVICE_BEARING_TYPES, validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
-import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
+import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/inspectionTarget";
@@ -18,11 +18,7 @@ import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
 import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
-import { sendPushToUser } from "@/lib/push";
-import { getControllersOfUser } from "@/lib/keyholder";
-import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/mail";
-import { formatDateTime, formatDuration } from "@/lib/utils";
-import { getTranslations } from "next-intl/server";
+import { notifyControllersAboutEntry } from "@/lib/entryNotify";
 
 export async function GET() {
   const session = await requireApi();
@@ -400,147 +396,24 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Notify admins based on per-user NotificationPreference (fire-and-forget)
-  (async () => {
-    try {
-      const eventTypes: string[] = [];
-      if (type === "VERSCHLUSS") eventTypes.push("VERSCHLUSS");
-      if (type === "OEFFNEN") {
-        eventTypes.push("OEFFNUNG_IMMER");
-        if (withdrawnSperrzeit) eventTypes.push("OEFFNUNG_VERBOTEN");
-      }
-      if (type === "ORGASMUS") eventTypes.push("ORGASMUS");
-      if (type === "PRUEFUNG" && kontrollCode) eventTypes.push("KONTROLLE_ANGEFORDERT");
-      if (type === "PRUEFUNG" && !kontrollCode) eventTypes.push("KONTROLLE_FREIWILLIG");
-      if (type === "WEAR_BEGIN") eventTypes.push("WEAR_BEGIN_ANY");
-      if (type === "WEAR_END") eventTypes.push("WEAR_END_ANY");
-
-      if (eventTypes.length === 0) return;
-
-      const prefs = await prisma.notificationPreference.findMany({
-        where: { userId: session.user.id, eventType: { in: eventTypes }, OR: [{ mail: true }, { push: true }] },
-      });
-      if (prefs.length === 0) return;
-
-      const shouldPush = prefs.some((p) => p.push);
-      const shouldMail = prefs.some((p) => p.mail);
-
-      // Build descriptive message
-      const username = session.user.name ?? "User";
-      const time = formatDateTime(new Date(startTime));
-      const [tOpen, tOrgasm] = await Promise.all([
-        getTranslations({ locale: "de", namespace: "openForm" }),
-        getTranslations({ locale: "de", namespace: "orgasmForm" }),
-      ]);
-      let title = "";
-      let pushBody = "";
-
-      // Labels über die Reason-Config des Entry-Owners (= handelnder User) auflösen — Custom-Labels
-      // erscheinen so auch in Push/Mail, mit Built-in-i18n/Rohwert als Fallback.
-      const openingCfg = effectiveOeffnenGruende(reasonUser?.oeffnenGruendeConfig);
-      const orgasmCfg = effectiveOrgasmusArten(reasonUser?.orgasmusArtenConfig);
-      const grundLabel = (g: string) => resolveReasonLabel(g, openingCfg, "opening", tOpen);
-      const orgasmusArtLabel = (a: string) => resolveOrgasmusArtDisplay(a, orgasmCfg, tOrgasm) ?? a;
-
-      if (type === "VERSCHLUSS") {
-        title = `${username} hat sich eingeschlossen`;
-        pushBody = time;
-      } else if (type === "OEFFNEN") {
-        title = `${username} hat sich geöffnet`;
-        pushBody = oeffnenGrund ? `${time} · Grund: ${grundLabel(oeffnenGrund)}` : time;
-      } else if (type === "ORGASMUS") {
-        title = `${username} — Orgasmus`;
-        pushBody = orgasmusArt ? `${time} · ${orgasmusArtLabel(orgasmusArt)}` : time;
-      } else if (type === "PRUEFUNG") {
-        title = kontrollCode ? `${username} hat Kontrolle erfüllt` : `${username} — Selbstkontrolle`;
-        pushBody = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
-      } else if (type === "WEAR_BEGIN" || type === "WEAR_END") {
-        // Resolve category name for the notification body via the device.
-        const dev = deviceId
-          ? await prisma.device.findUnique({
-              where: { id: deviceId },
-              select: { name: true, category: { select: { name: true } } },
-            })
-          : null;
-        const catName = dev?.category?.name ?? "?";
-        const verb = type === "WEAR_BEGIN" ? "trägt" : "hat abgelegt";
-        title = `${username} ${verb} ${catName}`;
-        pushBody = dev?.name ? `${time} · ${dev.name}` : time;
-      }
-
-      const adminUrl = `/admin/users/${session.user.id}`;
-      const adminLink = `${appBaseUrl()}${adminUrl}`;
-
-      // Recipients = global admins + the sub's keyholders (controllers via AdminUserRelationship).
-      // Keyholders are role "user", so a role:"admin" query alone would miss them.
-      const recipients = await getControllersOfUser(session.user.id);
-
-      if (shouldPush) {
-        await Promise.allSettled(
-          recipients.map((a) => sendPushToUser(a.id, title, pushBody, adminUrl))
-        );
-      }
-      if (shouldMail) {
-        const details: string[] = [];
-        details.push(`<strong>Zeitpunkt:</strong> ${escHtml(time)}`);
-
-        if (type === "OEFFNEN" && oeffnenGrund) {
-          details.push(`<strong>Grund:</strong> ${escHtml(grundLabel(oeffnenGrund))}`);
-        }
-        if (type === "ORGASMUS" && orgasmusArt) {
-          details.push(`<strong>Art:</strong> ${escHtml(orgasmusArtLabel(orgasmusArt))}`);
-        }
-        if (kontrollCode) {
-          details.push(`<strong>Siegel / Code:</strong> <span style="font-family:monospace;font-weight:bold;color:#f97316">${escHtml(kontrollCode)}</span>`);
-        }
-        if (type === "OEFFNEN" && lockStartTime) {
-          const dur = formatDuration(lockStartTime, new Date(startTime));
-          details.push(`<strong>Tragedauer:</strong> ${escHtml(dur)}`);
-        }
-
-        details.push(`<strong>Foto:</strong> ${imageUrl ? "Ja ✓" : "Nein"}`);
-
-        // Schlüssel-Deklaration im Klartext, „nicht in der Box" in Rot: das ist die eine Angabe,
-        // die entscheidet, ob der Verschluss überhaupt hardware-gesichert ist. Bewusst die
-        // DEKLARATION, nicht das KI-Urteil — die Mail geht sofort raus, die Erkennung läuft erst.
-        if (type === "VERSCHLUSS" && keyInBoxDeclared !== null) {
-          details.push(
-            keyInBoxDeclared
-              ? `<strong>Schlüssel:</strong> in der Box`
-              : `<strong>Schlüssel:</strong> <span style="color:#dc2626;font-weight:bold">NICHT in der Box</span>`,
-          );
-        }
-
-        if (note) {
-          details.push(`<strong>Notiz:</strong> <em>${escHtml(note)}</em>`);
-        }
-
-        const accent = TYPE_EMAIL_COLORS[type] ?? "#1e293b";
-
-        const emailHtml = `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <div style="border-left:4px solid ${accent};padding-left:16px;margin-bottom:16px">
-            <h2 style="color:#1e293b;margin:0 0 4px 0">${escHtml(title)}</h2>
-          </div>
-          <table style="width:100%;border-collapse:collapse;font-size:14px;color:#334155">
-            ${details.map((d) => `<tr><td style="padding:6px 0;border-bottom:1px solid #f1f5f9">${d}</td></tr>`).join("")}
-          </table>
-          <p style="margin-top:20px">
-            <a href="${escHtml(adminLink)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:bold;font-size:14px">
-              Im Admin-Dashboard ansehen →
-            </a>
-          </p>
-          <p style="color:#94a3b8;font-size:12px;margin-top:12px">Falls der Link nicht funktioniert: ${escHtml(adminLink)}</p>
-        </div>`;
-
-        for (const r of recipients) {
-          if (r.email) {
-            void sendMailSafe(r.email, `KG-Tracker – ${title}`, emailHtml);
-          }
-        }
-      }
-    } catch { /* ignore notification errors */ }
-  })();
+  // Meldung an die Keyholder — in DEREN Sprache, nicht in der des Servers (Issue #43). Der ganze
+  // Aufbau liegt in `entryNotify.ts`: er hängt am Empfänger, nicht am Schreibpfad, und wirft nie.
+  void notifyControllersAboutEntry({
+    userId: session.user.id,
+    username: session.user.name ?? "User",
+    type,
+    startTime: new Date(startTime),
+    withdrawnSperrzeit,
+    oeffnenGrund,
+    orgasmusArt,
+    kontrollCode,
+    note,
+    imageUrl,
+    keyInBoxDeclared,
+    lockStartTime,
+    deviceId,
+    reasonConfig: reasonUser,
+  });
 
   // Foto-Verifikation (Code bzw. nur Siegel) — der Vorgang inkl. der Pflicht, das oben gesetzte
   // "pending" durch einen Endzustand zu ersetzen, liegt in inspectionVerificationService. Hier steht
