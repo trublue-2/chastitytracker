@@ -562,8 +562,20 @@ model StrafeRecord {
   judgedBy      String? // "ai" | "admin" | "system"
   erledigtAt    DateTime? // nur PUNISHED: null = Strafe offen, gesetzt = erledigt (Loop geschlossen)
   createdAt     DateTime  @default(now())
+  /// Die Aufgabe, die DIESE Strafe ist — statt „20 Schläge" als Freitext eine gestellte Aufgabe mit
+  /// Frist. Null bei Freitext-Strafen und bei jedem DISMISSED.
+  ///
+  /// Heute trägt die Spalte die Herkunft und das Aufräumen: wird ein Urteil ersetzt oder
+  /// zurückgenommen, zieht `writeJudgment` die daran hängende Aufgabe zurück. Das automatische
+  /// Schliessen des Kreises (Aufgabe erfüllt → `erledigtAt`) ist NOCH nicht gebaut — bis dahin
+  /// bleibt „erledigt" ein Klick des Keyholders.
+  taskId        String?
+  /// `SetNull`, nicht `Cascade`: ein Urteil ist die Aufzeichnung einer Entscheidung und überlebt die
+  /// Aufgabe. Zurückgezogen wird eine Strafaufgabe ohnehin über `withdrawnAt`, nicht gelöscht.
+  task          Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([taskId])
 }
 
 model Device {
@@ -806,6 +818,9 @@ model Task {
 
   requirements TaskRequirement[]
   proofs       TaskProof[]
+  /// Die Urteile, deren Strafe DIESE Aufgabe ist. Eine Liste, kein einzelnes Feld: eine Sammelstrafe
+  /// über mehrere Vergehen soll später ohne Migration möglich sein.
+  strafeRecords StrafeRecord[]
 
   @@index([userId, withdrawnAt, completedAt])
   @@index([userId, holdUntil])

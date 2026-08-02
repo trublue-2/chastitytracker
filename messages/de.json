@@ -809,11 +809,11 @@
     "strafbuchZuSpaet": "Zu spät erfüllte Kontrollen",
     "strafbuchAbgelehnt": "Abgelehnte Kontrollen",
     "strafbuchNoEntries": "Kein Eintrag im Strafbuch.",
-    "strafbuchWurdeBestraft": "Als bestraft markieren",
+    "strafbuchWurdeBestraft": "Bestrafen",
     "strafbuchAlleAnzeigen": "Alle Vergehen anzeigen",
     "strafbuchOffeneAnzeigen": "Nur offene Vergehen anzeigen",
     "strafbuchAbbrechen": "Abbrechen",
-    "strafbuchRueckgaengig": "Rükgängig",
+    "strafbuchRueckgaengig": "Rückgängig",
     "strafbuchVerwerfen": "Verwerfen",
     "strafbuchVerworfenBadge": "Verworfen",
     "strafbuchBegruendung": "Begründung",
@@ -1116,7 +1116,8 @@
     "hoursUnit": "h",
     "minutesUnit": "min",
     "unitHours": "Stunden",
-    "unitMinutes": "Minuten"
+    "unitMinutes": "Minuten",
+    "strafbuchStrafaufgabe": "Aufgabe als Strafe"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
@@ -1360,6 +1361,8 @@
   "emails": {
     "greeting": "Hallo {username},",
     "dashboardButton": "Zum Dashboard →",
+    "penaltyTaskSubject": "Strafe: Aufgabe gestellt",
+    "penaltyTaskMessage": "Der Keyholder hat als Strafe eine Aufgabe gestellt: „{title}“ — zu halten bis {until}.",
     "penaltySubject": "Strafe verhängt",
     "penaltyMessage": "Der Keyholder hat eine Strafe verhängt: {reason}",
     "penaltyMessageNoReason": "Der Keyholder hat eine Strafe verhängt.",
@@ -1557,6 +1560,7 @@
     "proofOutOfOrder": "Ausserhalb der Reihenfolge",
     "proofAwaitingReview": "Wartet auf dein Urteil",
     "proofReviewFor": "Nachweis {index}: {description}",
-    "proofReviewNotePlaceholder": "Anmerkung (optional) — der Sub sieht sie"
+    "proofReviewNotePlaceholder": "Anmerkung (optional) — der Sub sieht sie",
+    "actionTitlePenalty": "Strafaufgabe stellen"
   }
 }

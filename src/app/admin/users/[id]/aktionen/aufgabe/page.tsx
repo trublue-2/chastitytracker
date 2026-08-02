@@ -8,9 +8,23 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { ClipboardList } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import TaskFields from "@/app/admin/tasks/TaskFields";
+import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
 
-export default async function AdminTaskPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminTaskPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  /** Aus dem Strafbuch: `offenseRef` macht die Aufgabe zur Strafe für dieses Vergehen, `anlass`
+   *  belegt den Anlass-Text vor. Beides nur Vorbelegung — geprüft wird die ref auf dem Server. */
+  searchParams: Promise<{ offenseRef?: string; anlass?: string }>;
+}) {
   const { id: userId } = await params;
+  const query = await searchParams;
+  // Über die geteilten Schlüssel, nicht über Feldnamen: so bricht ein Umbenennen hier und im
+  // Link-Bauplatz gemeinsam, statt die Vorbelegung still abzuschalten.
+  const offenseRef = query[TASK_FORM_QUERY.offenseRef];
+  const anlass = query[TASK_FORM_QUERY.anlass];
   await assertKeyholderOrAdmin(userId);
 
   const [t, tt, categories, tz] = await Promise.all([
@@ -38,14 +52,18 @@ export default async function AdminTaskPage({ params }: { params: Promise<{ id: 
       icon={<ClipboardList size={20} strokeWidth={2} />}
       iconBg="var(--background-subtle)"
       iconColor="var(--foreground)"
-      title={tt("actionTitle")}
+      title={offenseRef ? tt("actionTitlePenalty") : tt("actionTitle")}
     >
       <TaskFields
         userId={userId}
         categories={categories}
         tz={tz}
         minNow={nowDatetimeLocal(tz)}
-        redirectTo={`/admin/users/${userId}/aufgaben`}
+        // Zurück dorthin, wo die Aufgabe gestellt wurde: aus dem Strafbuch ins Strafbuch, sonst in
+        // die Aufgaben-Liste.
+        redirectTo={`/admin/users/${userId}/${offenseRef ? "strafbuch" : "aufgaben"}`}
+        offenseRef={offenseRef}
+        initialPenaltyReason={anlass}
       />
     </AdminActionFormShell>
   );

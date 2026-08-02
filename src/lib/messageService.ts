@@ -27,6 +27,7 @@ export const MESSAGE_BODY_KEYS = [
   // Strafe
   "penaltyMessage",
   "penaltyMessageNoReason",
+  "penaltyTaskMessage",
   // Kontrolle
   "inspectionRequestedMessage",
   "inspectionConfirmedMessage",

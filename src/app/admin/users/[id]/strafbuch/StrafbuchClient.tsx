@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, ChevronDown, XCircle } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle, ChevronDown, ClipboardList, XCircle } from "lucide-react";
 import { parseApiError } from "@/lib/apiClient";
+import { taskFormHref } from "@/lib/entryFormRoute";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
 import type { TaskOffenseState } from "@/lib/tasks";
 
@@ -116,6 +118,7 @@ interface Labels {
   strafbuchAutoEntferntAm: string;
   strafbuchNoEntries: string;
   strafbuchWurdeBestraft: string;
+  strafbuchStrafaufgabe: string;
   strafbuchAbbrechen: string;
   strafbuchRueckgaengig: string;
   strafbuchGeoeffnetAm: string;
@@ -188,6 +191,10 @@ interface Props {
 interface OffenseRow {
   refId: string;
   body: (judged: boolean) => React.ReactNode;
+  /** Straf-Anlass für eine Aufgabe als Strafe — die ZEILE, nicht ihre Sektion: der Text landet in
+   *  `Task.penaltyReason` und der Sub liest ihn. Pflichtfeld, damit eine neue Vergehensart nicht
+   *  still mit „Automatisch entfernt" für jede ihrer Zeilen dasteht. */
+  anlass: string;
 }
 
 /** Baut eine Sektion. Generisch nur, damit `canonical` sein LITERAL behält — daraus zieht die
@@ -398,12 +405,13 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   }
 
   /** 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Aktionen. */
-  function JudgmentSlot({ refId, offenseType }: { refId: string; offenseType: StoredOffenseType }) {
+  function JudgmentSlot({ refId, offenseType, anlass }: { refId: string; offenseType: StoredOffenseType; anlass: string }) {
     if (punishedIds.has(refId)) return <PunishedBadge refId={refId} />;
     if (dismissedIds.has(refId)) return <DismissedBadge refId={refId} />;
     return (
       <div className="flex flex-wrap items-start gap-2">
         <WurdeBestraftButton refId={refId} offenseType={offenseType} />
+        <StrafaufgabeButton refId={refId} anlass={anlass} />
         <VerwerfenButton refId={refId} offenseType={offenseType} />
       </div>
     );
@@ -425,10 +433,35 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
+  /**
+   * Bestrafen, indem eine AUFGABE gestellt wird — der Weg vom Vergehen direkt ins Aufgaben-Formular.
+   *
+   * Ein Link, kein Formular an Ort und Stelle: eine Aufgabe hat Titel, Frist, Bedingungen und
+   * Nachweis-Fotos, und das alles gibt es dort schon. Die Vergehens-ref reist als Query mit; erst der
+   * Server macht daraus Aufgabe UND Urteil — hier wird nichts entschieden, nur weitergeleitet.
+   */
+  function StrafaufgabeButton({ refId, anlass }: { refId: string; anlass: string }) {
+    const href = taskFormHref(userId, { offenseRef: refId, anlass });
+    return (
+      <div className="mt-2">
+        <Link href={href}
+          className="text-xs font-medium text-foreground-muted border border-border hover:bg-surface-raised hover:text-foreground transition px-2.5 py-1 rounded-lg flex items-center gap-1">
+          <ClipboardList size={11} />
+          {labels.strafbuchStrafaufgabe}
+        </Link>
+      </div>
+    );
+  }
+
   /** Nebenangabe unter der Kopfzeile (Frist, Zeitpunkt). */
   const FACT_CLS = "text-xs text-foreground-faint";
   /** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
   const NOTE_CLS = "text-xs text-foreground-faint italic";
+
+  /** Der Straf-Anlass einer Kontroll-Zeile: Art, Code und Frist. Ohne den Code stünde bei zwei
+   *  Kontrollen desselben Tages zweimal derselbe Anlass — und der Sub liest ihn an seiner Aufgabe. */
+  const kontrollAnlass = (art: string, k: KontrollRow) =>
+    `${art}: ${labels.strafbuchKontrollePrefix}${k.code ? ` ${k.code}` : ""} (${labels.frist} ${k.deadlineStr})`;
 
   /** Die Zeile einer Kontroll-Sektion — Code, Vorwurf, Frist, Anweisung. Der Vorwurf ist das
    *  Einzige, was die drei Kontroll-Arten unterscheidet, also kommt genau er als `vorwurf` rein. */
@@ -467,6 +500,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const sections = [
     sec("unauthorized_opening", labels.strafbuchUnerlaubteOeffnungen, unerlaubteOeffnungen.map((o) => ({
       refId: o.id,
+      anlass: `${labels.strafbuchUnerlaubteOeffnungen}: ${labels.strafbuchGeoeffnetAm} ${o.startTimeStr}`,
       body: (judged) => {
         const qualifier = o.sperrzetUnbefristet
           ? labels.strafbuchTrotzUnbefristet
@@ -487,6 +521,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("late_control", labels.strafbuchZuSpaet, zuSpaet.map((k) => ({
       refId: k.id,
+      anlass: kontrollAnlass(labels.strafbuchZuSpaet, k),
       body: kontrollBody(k, (
         <>
           {labels.strafbuchEingereicht} {k.fulfilledAtStr}
@@ -497,6 +532,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("rejected_control", labels.strafbuchAbgelehnt, abgelehnt.map((k) => ({
       refId: k.id,
+      anlass: kontrollAnlass(labels.strafbuchAbgelehnt, k),
       body: kontrollBody(
         k,
         <>{labels.strafbuchAbgelehntAm} {k.entryStartTimeStr ?? k.deadlineStr}</>,
@@ -506,11 +542,13 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("auto_removed_control", labels.strafbuchAutoEntfernt, autoEntfernt.map((k) => ({
       refId: k.id,
+      anlass: kontrollAnlass(labels.strafbuchAutoEntfernt, k),
       body: kontrollBody(k, <>{labels.strafbuchAutoEntferntAm} {k.entryStartTimeStr ?? k.deadlineStr}</>),
     }))),
 
     sec("unfulfilled_task", labels.strafbuchAufgaben, unfulfilledTasks.map((a) => ({
       refId: a.id,
+      anlass: `${labels.strafbuchAufgaben}: „${a.title}" (${a.holdUntilStr})`,
       body: (judged) => (
         <>
           {titleLine(judged, a.title, a.state === "aborted" ? labels.strafbuchAufgabeAbgebrochen : labels.strafbuchAufgabeVersaeumt)}
@@ -524,6 +562,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("cleaning_limit", labels.strafbuchReinigungLimit, reinigungLimitVergehen.map((r) => ({
       refId: r.entryId,
+      anlass: `${labels.strafbuchReinigungLimit}: ${r.startTimeStr}`,
       body: (judged) => (
         <>
           <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
@@ -536,6 +575,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("cleaning_not_relocked", labels.strafbuchNichtVerschlossen, nichtVerschlossen.map((c) => ({
       refId: c.refId,
+      anlass: `${labels.strafbuchNichtVerschlossen}: ${c.startTimeStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchGeoeffnetAm} {c.startTimeStr}</>,
@@ -551,6 +591,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("late_lock", labels.strafbuchVerschlussVersaeumt, verschlussVersaeumt.map((a) => ({
       refId: a.id,
+      anlass: `${labels.strafbuchVerschlussVersaeumt}: ${labels.strafbuchVerschlussFrist} ${a.endetAtStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.frist} {a.endetAtStr}</>,
@@ -565,6 +606,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("missed_orgasm", labels.strafbuchOrgasmusVersaeumt, orgasmusVersaeumt.map((m) => ({
       refId: m.id,
+      anlass: `${labels.strafbuchOrgasmusVersaeumt}: ${m.endetAtStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchOrgasmusAbgelaufen} {m.endetAtStr}</>,
@@ -579,6 +621,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("wrong_device", labels.strafbuchFalschesGeraet, falschesGeraet.map((v) => ({
       refId: v.entryId,
+      anlass: `${labels.strafbuchFalschesGeraet}: ${v.startTimeStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchFalschesGeraetAm} {v.startTimeStr}</>,
@@ -591,6 +634,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("admin_password_change", labels.strafbuchAdminPasswort, adminPasswort.map((p) => ({
       refId: p.id,
+      anlass: `${labels.strafbuchAdminPasswort}: ${p.atStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchAdminPasswortAm} {p.atStr}</>,
@@ -639,7 +683,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               return (
                 <div key={r.refId} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                   {r.body(judged)}
-                  <JudgmentSlot refId={r.refId} offenseType={STORED_TYPE[s.canonical]} />
+                  <JudgmentSlot refId={r.refId} offenseType={STORED_TYPE[s.canonical]} anlass={r.anlass} />
                 </div>
               );
             })}

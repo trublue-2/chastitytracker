@@ -1,8 +1,12 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { senderKindOf } from "@/lib/messageService";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/serviceResult";
+import { codedError, codeOf } from "@/lib/codedError";
+import { createTaskTx, type CreateTaskParams } from "@/lib/taskService";
+import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
 import { STORED_TYPE, type OffenseCanonicalType } from "@/lib/offenseTypes";
 
@@ -114,12 +118,146 @@ export function judgmentStatus(action: "punish" | "dismiss"): "PUNISHED" | "DISM
   return action === "punish" ? "PUNISHED" : "DISMISSED";
 }
 
+/**
+ * Bestrafen, indem eine AUFGABE gestellt wird — statt „20 Schläge" als Freitext eine Forderung mit
+ * Frist, deren Erfüllung die App selbst mitbekommt.
+ *
+ * Ein Vorgang, nicht zwei: Aufgabe und Urteil entstehen in derselben Transaktion. Nacheinander
+ * geschrieben liesse ein Abbruch dazwischen eine Strafaufgabe beim Sub stehen, über die nie jemand
+ * geurteilt hat — der Keyholder sähe das Vergehen weiter als offen und bestrafte es ein zweites Mal.
+ *
+ * Die Strafe im Urteil ist der TITEL der Aufgabe. Der Freitext bleibt damit gefüllt, auch wo nur er
+ * gelesen wird (MCP-Strafbuch, Nachricht), und `taskId` trägt die Verbindung für alles Weitere.
+ */
+export async function punishWithTask(
+  p: CreateTaskParams & { refId: string; judgedBy: JudgeOffenseParams["judgedBy"] },
+): Promise<ServiceResult<{ id: string }>> {
+  const now = new Date();
+
+  // Dieselbe Schranke wie in `judgeOffense`: nur über ein aktuell ERKANNTES Vergehen lässt sich
+  // urteilen. Sie steht vor der Transaktion, weil sie nur liest und das ganze Strafbuch auswertet.
+  const offense = collectDetectedOffenses(await buildStrafbuch(p.userId, now)).find((o) => o.refId === p.refId);
+  if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
+
+  // Die Ablehnung des Formulars (Titel zu lang, Frist zu früh, Gerät fremd) soll den Aufrufer im
+  // Klartext erreichen. Deshalb aufheben und nach dem Rollback zurückgeben, statt sie in einen
+  // generischen Transaktionsfehler zu verwandeln. Als Feld eines Objekts, nicht als lose Variable:
+  // eine Zuweisung im Callback verfolgt TypeScript nicht, `let failure` verengte sich auf `never` —
+  // und ein späteres Entfernen der Zuweisung wäre still durchgegangen.
+  const box: { failure?: ServiceFailure } = {};
+  let created: { id: string; title: string; holdUntil: Date };
+
+  try {
+    created = await prisma.$transaction(async (tx) => {
+      const task = await createTaskTx(tx, { ...p, isPunishment: true });
+      if (!task.ok) {
+        box.failure = task;
+        throw codedError("TASK_REJECTED");
+      }
+      await writeJudgment(tx, {
+        userId: p.userId, offenseType: offense.offenseType, refId: p.refId, now,
+        status: "PUNISHED", reason: task.data.title, judgedBy: p.judgedBy, taskId: task.data.id,
+      });
+      return task.data;
+    });
+  } catch (e) {
+    if (codeOf(e) === "TASK_REJECTED" && box.failure) return box.failure;
+    throw e;
+  }
+
+  // NACH der Transaktion: eine Mail lässt sich nicht zurückrollen. Und genau eine — die Strafe IST
+  // die Aufgabe, zwei Nachrichten wären zweimal dieselbe Neuigkeit.
+  await notifyUser(p.userId, strafaufgabeNotice(created, p.judgedBy));
+  markLastAction();
+
+  return { ok: true, data: { id: created.id } };
+}
+
+/**
+ * Schreibt das Urteil über ein Vergehen — die EINE Stelle, an der ein `StrafeRecord` entsteht.
+ *
+ * `taskId` ist Pflicht-Argument, nicht optional: der Freitext-Weg muss eine frühere Strafaufgabe
+ * ausdrücklich mit `null` lösen. Als optionales Feld liess er sie stehen, und ein verworfenes
+ * Vergehen behielt eine Aufgabe, die das Schema ausdrücklich ausschliesst.
+ *
+ * Wird eine bestehende Strafaufgabe ersetzt, ZIEHT sie diese Funktion zurück. Sonst liefe die alte
+ * beim Sub weiter, und wenn ihre Frist verstreicht, erzeugt sie als „nicht erfüllte Aufgabe" ein
+ * neues Vergehen — die Korrektur eines Urteils würde ein Vergehen erfinden.
+ */
+async function writeJudgment(
+  tx: Prisma.TransactionClient,
+  p: {
+    userId: string; offenseType: string; refId: string; now: Date;
+    status: "PUNISHED" | "DISMISSED"; reason: string | null;
+    judgedBy: JudgeOffenseParams["judgedBy"]; taskId: string | null;
+  },
+): Promise<{ id: string }> {
+  const previous = await tx.strafeRecord.findUnique({
+    where: { refId: p.refId },
+    select: { userId: true, taskId: true },
+  });
+  if (previous?.taskId && previous.taskId !== p.taskId && previous.userId === p.userId) {
+    await tx.task.updateMany({
+      where: { id: previous.taskId, userId: p.userId, withdrawnAt: null },
+      data: { withdrawnAt: p.now },
+    });
+  }
+
+  const data = {
+    status: p.status, reason: p.reason, judgedBy: p.judgedBy,
+    erledigtAt: null, bestraftDatum: p.now, taskId: p.taskId,
+  };
+  return tx.strafeRecord.upsert({
+    where: { refId: p.refId },
+    create: { userId: p.userId, offenseType: p.offenseType, refId: p.refId, ...data },
+    update: data,
+    select: { id: true },
+  });
+}
+
+/** Die eine Nachricht einer Strafaufgabe: sie nennt die Strafe und zeigt auf die Aufgabe, damit der
+ *  Sub von der Nachricht aus direkt sieht, was zu tun ist. */
+function strafaufgabeNotice(
+  task: { id: string; title: string; holdUntil: Date },
+  judgedBy: string | null,
+): NotifyContent {
+  return {
+    subjectKey: "penaltyTaskSubject",
+    messageKey: "penaltyTaskMessage",
+    params: { title: task.title, until: formatDateTime(task.holdUntil) },
+    alwaysNotify: true,
+    inbox: {
+      ref: { type: "task", id: task.id },
+      senderKind: senderKindOf(judgedBy),
+      // Eine Aufgabe wird genau einmal gestellt — ein Retry darf keine zweite Zeile hinterlassen.
+      once: true,
+    },
+  };
+}
+
 export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult<JudgeOffenseResult>> {
   const now = new Date();
 
   if (p.action === "reopen") {
-    const del = await prisma.strafeRecord.deleteMany({ where: { userId: p.userId, refId: p.refId } });
-    if (del.count === 0) return serviceFail(404, "JUDGMENT_NOT_FOUND");
+    // Die Strafaufgabe geht mit: bliebe sie stehen, forderte die App weiter eine Strafe ein, die es
+    // nicht mehr gibt — und ihr Verstreichen wäre später ein neues Vergehen. Zurückgezogen, nicht
+    // gelöscht: der Sub hat sie gesehen, und ein Rückzug ist die dafür vorgesehene Endstation.
+    const removed = await prisma.$transaction(async (tx) => {
+      const rec = await tx.strafeRecord.findUnique({
+        where: { refId: p.refId },
+        select: { userId: true, taskId: true },
+      });
+      if (!rec || rec.userId !== p.userId) return false;
+      if (rec.taskId) {
+        await tx.task.updateMany({
+          where: { id: rec.taskId, userId: p.userId, withdrawnAt: null },
+          data: { withdrawnAt: now },
+        });
+      }
+      await tx.strafeRecord.delete({ where: { refId: p.refId } });
+      return true;
+    });
+    if (!removed) return serviceFail(404, "JUDGMENT_NOT_FOUND");
     return { ok: true, data: { status: "open", done: false } };
   }
 
@@ -143,11 +281,13 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
 
   const status = judgmentStatus(p.action);
-  const record = await prisma.strafeRecord.upsert({
-    where: { refId: p.refId },
-    create: { userId: p.userId, offenseType: offense.offenseType, refId: p.refId, bestraftDatum: now, status, reason: text, judgedBy: p.judgedBy, erledigtAt: null },
-    update: { status, reason: text, judgedBy: p.judgedBy, erledigtAt: null, bestraftDatum: now },
-  });
+  // In einer Transaktion, weil das Urteil eine frühere Strafaufgabe zurückziehen kann — zwei
+  // Schreibvorgänge, die zusammengehören. `taskId: null`: dieser Weg ist der Freitext, er LÖST eine
+  // bestehende Aufgabe vom Urteil, statt sie stillschweigend weiterzuschleppen.
+  const record = await prisma.$transaction((tx) => writeJudgment(tx, {
+    userId: p.userId, offenseType: offense.offenseType, refId: p.refId, now,
+    status, reason: text, judgedBy: p.judgedBy, taskId: null,
+  }));
 
   // Nur bei verhängter Strafe benachrichtigen (ein Verwerfen ist für den Nutzer belanglos).
   if (status === "PUNISHED") await notifyUser(p.userId, strafeVerhaengtNotice(text, record.id, p.judgedBy));

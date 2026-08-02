@@ -11,6 +11,7 @@ import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
 import { loadTaskProofViews } from "@/lib/taskIntervals";
 import { APP_TZ } from "@/lib/utils";
+import { taskFormHref } from "@/lib/entryFormRoute";
 
 /** Die Aufgaben-Historie eines Subs — ohne sie sähe der Keyholder im Web nie, ob eine gestellte
  *  Aufgabe erfüllt wurde. Zurückgezogene bleiben sichtbar: es sind seine eigenen Rückzüge, gleiche
@@ -39,7 +40,7 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
   // Bewusst OHNE Kategorien-Gate: eine Aufgabe ist Text plus 0..n Bedingungen. „KG verschlossen"
   // kommt nicht aus den Kategorien, und eine reine Freitext-Aufgabe braucht überhaupt keine —
   // beides funktioniert mit leerer Kategorienliste. Ein Gate hätte hier nur weggesperrt, was geht.
-  const newHref = `/admin/users/${id}/aktionen/aufgabe`;
+  const newHref = taskFormHref(id);
 
   return (
     <>

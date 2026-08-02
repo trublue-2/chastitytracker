@@ -809,7 +809,7 @@
     "strafbuchZuSpaet": "Late Inspections",
     "strafbuchAbgelehnt": "Rejected Inspections",
     "strafbuchNoEntries": "No entries in the punishment log.",
-    "strafbuchWurdeBestraft": "Mark as punished",
+    "strafbuchWurdeBestraft": "Punish",
     "strafbuchAlleAnzeigen": "Show all offenses",
     "strafbuchOffeneAnzeigen": "Show open offenses only",
     "strafbuchAbbrechen": "Cancel",
@@ -1116,7 +1116,8 @@
     "hoursUnit": "h",
     "minutesUnit": "min",
     "unitHours": "Hours",
-    "unitMinutes": "Minutes"
+    "unitMinutes": "Minutes",
+    "strafbuchStrafaufgabe": "Task as penalty"
   },
   "forgotPassword": {
     "title": "Forgot password",
@@ -1360,6 +1361,8 @@
   "emails": {
     "greeting": "Hi {username},",
     "dashboardButton": "Go to dashboard →",
+    "penaltyTaskSubject": "Penalty: task assigned",
+    "penaltyTaskMessage": "The keyholder has assigned a task as your penalty: \"{title}\" — to be held until {until}.",
     "penaltySubject": "Penalty issued",
     "penaltyMessage": "The keyholder has issued a penalty: {reason}",
     "penaltyMessageNoReason": "The keyholder has issued a penalty.",
@@ -1557,6 +1560,7 @@
     "proofOutOfOrder": "Out of order",
     "proofAwaitingReview": "Awaiting your verdict",
     "proofReviewFor": "Proof {index}: {description}",
-    "proofReviewNotePlaceholder": "Note (optional) — the user sees it"
+    "proofReviewNotePlaceholder": "Note (optional) — the user sees it",
+    "actionTitlePenalty": "Assign penalty task"
   }
 }

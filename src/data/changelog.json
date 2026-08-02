@@ -78,6 +78,20 @@
           "de": "Ein bereits beurteilter Nachweis zeigt sein Urteil jetzt auch bei der Sichtung — vorher stand über einem längst angenommenen Foto dasselbe neutrale „Annehmen / Ablehnen\" wie über einem unbeurteilten.",
           "en": "A proof that has already been judged now shows its verdict in the review block — previously a long-accepted photo carried the same neutral \"accept / reject\" pair as an unjudged one."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Ein Vergehen lässt sich jetzt mit einer Aufgabe bestrafen statt mit einem Freitext: „Aufgabe als Strafe“ im Strafbuch führt ins Aufgaben-Formular, und Aufgabe und Urteil entstehen zusammen. Wird das Urteil geändert oder zurückgenommen, verschwindet die Strafaufgabe mit.",
+          "en": "An offense can now be punished with a task instead of free text: \"Task as penalty\" in the ledger opens the task form, and task and verdict are created together. Change or undo the verdict and the penalty task goes with it."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Strafbuch heisst der Knopf jetzt „Bestrafen“ statt „Als bestraft markieren“ — bestraft ist die Strafe erst, wenn du sie danach als erledigt markierst.",
+          "en": "In the ledger the button now reads \"Punish\" instead of \"Mark as punished\" — the penalty is only served once you mark it as done afterwards."
+        }
       }
     ]
   },

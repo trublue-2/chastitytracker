@@ -35,6 +35,8 @@ export default function TaskFields({
   tz,
   minNow,
   redirectTo,
+  offenseRef,
+  initialPenaltyReason,
 }: {
   userId: string;
   categories: PickerCategory[];
@@ -44,6 +46,11 @@ export default function TaskFields({
   minNow: string;
   /** Wohin nach dem Speichern. */
   redirectTo: string;
+  /** Kommt das Formular aus dem Strafbuch, ist die Aufgabe die STRAFE für dieses Vergehen: die Route
+   *  legt dann Aufgabe und Urteil zusammen an. Ohne die ref ist es eine gewöhnliche Aufgabe. */
+  offenseRef?: string;
+  /** Vorbelegter Anlass — die Zeile des Vergehens, damit sie niemand abtippt. */
+  initialPenaltyReason?: string;
 }) {
   const t = useTranslations("tasks");
   const apiError = useApiError();
@@ -58,8 +65,10 @@ export default function TaskFields({
   const [holdUntil, setHoldUntil] = useState(() => toDatetimeLocal(new Date(nowBaseMs + 2 * 3600_000), tz));
   const [requirements, setRequirements] = useState<TaskRequirementInput[]>([]);
   const [proofs, setProofs] = useState<TaskProofInput[]>([]);
-  const [isPunishment, setIsPunishment] = useState(false);
-  const [penaltyReason, setPenaltyReason] = useState("");
+  // Aus dem Strafbuch heraus ist beides gesetzt und der Haken bleibt sichtbar: der Keyholder soll
+  // sehen, dass er gerade eine Strafe stellt — nicht bloss eine Aufgabe, die zufällig so heisst.
+  const [isPunishment, setIsPunishment] = useState(!!offenseRef);
+  const [penaltyReason, setPenaltyReason] = useState(initialPenaltyReason ?? "");
   // Absende-Mechanik (saving/error/networkError/finally) über den geteilten Hook — sie war in den
   // Anforderungs-Formularen schon zweimal von Hand geschrieben.
   const { saving, error, submit } = useEntrySubmit<Record<string, unknown>>(
@@ -96,6 +105,10 @@ export default function TaskFields({
       proofs: proofs.filter((p) => p.description.trim()),
       isPunishment,
       penaltyReason: isPunishment ? penaltyReason.trim() || undefined : undefined,
+      // Trägt die Aufgabe eine Vergehens-ref, schreibt die Route sie samt Urteil — das Vergehen gilt
+      // damit als bestraft. Der Haken darf das nicht abschalten: die ref ist der Grund, aus dem
+      // dieses Formular überhaupt geöffnet wurde.
+      offenseRef,
     });
   }
 
@@ -167,6 +180,10 @@ export default function TaskFields({
           label={t("isPunishmentLabel")}
           checked={isPunishment}
           onChange={(e) => setIsPunishment(e.target.checked)}
+          // Aus dem Strafbuch heraus ist das keine Wahl: der Server legt die Aufgabe ohnehin als
+          // Strafe an. Abwählbar meldete der Haken einen Zustand, den der Server überschreibt — und
+          // verwürfe dabei still den vorbelegten Anlass.
+          disabled={!!offenseRef}
         />
         {isPunishment && (
           <Input

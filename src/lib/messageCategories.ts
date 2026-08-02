@@ -22,6 +22,7 @@ export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
 const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   penaltyMessage: "penalty",
   penaltyMessageNoReason: "penalty",
+  penaltyTaskMessage: "penalty",
 
   inspectionRequestedMessage: "inspection",
   inspectionConfirmedMessage: "inspection",

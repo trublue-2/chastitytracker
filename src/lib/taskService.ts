@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { notifyUser, notifyControllers } from "@/lib/notify";
@@ -99,6 +100,17 @@ export interface CreateTaskParams {
   proofs?: TaskProofInput[];
 }
 
+/**
+ * Der Datenbank-Zugang einer Aufgaben-Operation: der Standard-Client oder eine laufende Transaktion.
+ *
+ * ALLES muss darüber laufen, Prüf-Abfragen eingeschlossen. Der SQLite-Pool dieser App hält GENAU EINE
+ * Verbindung (`prisma.ts`): eine Abfrage über den Basis-Client, während eine Transaktion die
+ * Verbindung hält, wartet auf sich selbst — nach fünf Sekunden läuft die Transaktion ab, der
+ * anschliessende Schreibvorgang trifft auf eine geschlossene Transaktion (P2028), und der Aufrufer
+ * bekommt einen 500. Das ist kein Lastproblem, sondern ein sicherer Selbstblock bei JEDEM Aufruf.
+ */
+type TaskDb = Prisma.TransactionClient;
+
 /** Änderbare Felder. `undefined` = unverändert; `null` löscht (Beschreibung, Straf-Anlass). */
 export interface UpdateTaskParams {
   title?: string;
@@ -183,6 +195,7 @@ type NormalizedRequirement = ReturnType<typeof normalizeRequirement>;
  * Falscheingabe, die abgewiesen gehört — nach der Normalisierung wäre sie unsichtbar weggeputzt.
  */
 async function checkRequirements(
+  db: TaskDb,
   userId: string,
   reqs: TaskRequirementInput[],
 ): Promise<ServiceFailure | { ok: true; normalized: NormalizedRequirement[] }> {
@@ -213,13 +226,13 @@ async function checkRequirements(
 
   const [devices, categories] = await Promise.all([
     deviceIds.length
-      ? prisma.device.findMany({
+      ? db.device.findMany({
           where: { id: { in: deviceIds }, userId, archivedAt: null },
           select: { id: true, category: { select: { isBuiltIn: true } } },
         })
       : Promise.resolve([]),
     categoryIds.length
-      ? prisma.deviceCategory.findMany({
+      ? db.deviceCategory.findMany({
           where: { id: { in: categoryIds }, userId },
           select: { id: true, isBuiltIn: true },
         })
@@ -249,8 +262,21 @@ async function checkRequirements(
   return { ok: true, normalized };
 }
 
-/** Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub. */
-export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ id: string }>> {
+/**
+ * Prüft und schreibt eine Aufgabe — ohne zu benachrichtigen.
+ *
+ * Die Transaktions-Variante: `db` ist ausdrücklich das ERSTE Argument, damit ein Aufrufer es nicht
+ * vergessen kann (dasselbe Muster wie `createOeffnenEntryTx`). Und sie meldet NICHTS: eine Mail
+ * lässt sich nicht zurückrollen, gehört also hinter das Commit — {@link createTask} tut das, ein
+ * grösserer Vorgang wie `punishWithTask` schickt stattdessen seine eigene, EINE Nachricht.
+ *
+ * Gibt Titel und Frist mit zurück, damit der Aufrufer sie für genau diese Nachricht nicht ein
+ * zweites Mal aus seinen Rohdaten zusammensuchen muss.
+ */
+export async function createTaskTx(
+  db: TaskDb,
+  p: CreateTaskParams,
+): Promise<ServiceResult<{ id: string; title: string; holdUntil: Date }>> {
   const now = new Date();
   // Bewusst OHNE `clamp`: dessen `Math.round(value) || fallback` macht aus einer ausdrücklich
   // gesetzten 0 („sofort anfangen") den Default 30 — der dokumentierte Wertebereich beginnt aber bei
@@ -270,17 +296,17 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
   );
   if (fieldError) return fieldError;
 
-  const user = await prisma.user.findUnique({ where: { id: p.userId }, select: { id: true } });
+  const user = await db.user.findUnique({ where: { id: p.userId }, select: { id: true } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
 
-  const checked = await checkRequirements(p.userId, reqs);
+  const checked = await checkRequirements(db, p.userId, reqs);
   if (!checked.ok) return checked;
 
   const checkedProofs = checkProofs(p.proofs ?? []);
   if (!checkedProofs.ok) return checkedProofs;
 
   const isPunishment = p.isPunishment ?? false;
-  const task = await prisma.task.create({
+  const task = await db.task.create({
     data: {
       userId: p.userId,
       title: p.title.trim(),
@@ -295,6 +321,15 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
       proofs: { create: checkedProofs.rows },
     },
   });
+
+  return { ok: true, data: { id: task.id, title: task.title, holdUntil: task.holdUntil } };
+}
+
+/** Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub. */
+export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ id: string }>> {
+  const created = await createTaskTx(prisma, p);
+  if (!created.ok) return created;
+  const task = created.data;
 
   await notifyUser(p.userId, {
     subjectKey: "taskAssignedSubject",
