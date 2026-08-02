@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 
 export interface OrgasmusItemData {
   id: string;
@@ -15,15 +15,12 @@ export interface OrgasmusItemData {
 const PAGE_SIZE = 10;
 
 export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[] }) {
-  const tc = useTranslations("common");
-  const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(items.length / PAGE_SIZE);
-  const paginated = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(items, PAGE_SIZE);
 
   return (
     <>
       <div className="divide-y divide-border-subtle">
-        {paginated.map((e) => (
+        {visible.map((e) => (
           <div key={e.id} className="px-5 py-3 flex items-start gap-3 hover:bg-surface-raised/60 transition">
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-foreground tabular-nums">{e.dateStr}</span>
@@ -34,19 +31,7 @@ export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[
           </div>
         ))}
       </div>
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-          <button type="button" onClick={() => setPage(p => p - 1)} disabled={page === 0}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            ← {tc("previous")}
-          </button>
-          <span className="text-xs text-foreground-faint tabular-nums">{page + 1} / {totalPages}</span>
-          <button type="button" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition">
-            {tc("next")} →
-          </button>
-        </div>
-      )}
+      <ListPager page={page} totalPages={totalPages} onPage={setPage} />
     </>
   );
 }

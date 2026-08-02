@@ -7,9 +7,11 @@ import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
 import HoursInput from "@/app/components/HoursInput";
+import FieldTabs from "@/app/components/FieldTabs";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import { parseApiErrorCode } from "@/lib/apiClient";
+import { INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { InspectionTargetOption } from "@/lib/inspectionTarget";
 
@@ -23,6 +25,22 @@ const KG_VALUE = "";
  *  gar nicht angeboten wurde, und die Anfrage scheitert mit „nicht verschlossen". */
 const defaultTargetValue = (targets: InspectionTargetOption[]): string =>
   targets[0]?.categoryId ?? KG_VALUE;
+
+/**
+ * Die Frist wahlweise in Stunden oder Minuten. Eine Kontrolle ist der Griff zum Handy plus ein
+ * Foto — in Stunden gedacht ist das gröber, als die Sache verlangt, deshalb die Umschaltung.
+ *
+ * `step` ist auch die Rasterung beim Wechsel der Einheit und die HTML-Validierung des Feldes: ein
+ * Wert daneben (0.1 h bei step 0.25) liesse das Formular nicht mehr absenden. Darum keine feinere
+ * Stufe als hier deklariert — wer feiner will, schaltet auf Minuten.
+ */
+const FRIST_UNITS = {
+  h: { min: 0.25, step: 0.25 },
+  min: { min: 5, step: 5 },
+} as const;
+type FristUnit = keyof typeof FRIST_UNITS;
+
+const toHours = (value: number, unit: FristUnit) => (unit === "min" ? value / 60 : value);
 
 /**
  * Shared form body for "Kontrolle anfordern".
@@ -43,7 +61,8 @@ export default function KontrolleFields({
   const tc = useTranslations("common");
   const apiError = useApiError();
   const [kommentar, setKommentar] = useState("");
-  const [deadlineH, setDeadlineH] = useState("4");
+  const [frist, setFrist] = useState(String(INSPECTION_DEADLINE_DEFAULT_H));
+  const [fristUnit, setFristUnit] = useState<FristUnit>("h");
   const [targets, setTargets] = useState<InspectionTargetOption[]>(initialTargets ?? []);
   const [targetValue, setTargetValue] = useState<string>(defaultTargetValue(initialTargets ?? []));
   const [pinDevice, setPinDevice] = useState(false);
@@ -69,6 +88,17 @@ export default function KontrolleFields({
 
   const selectedTarget = targets.find((x) => (x.categoryId ?? KG_VALUE) === targetValue) ?? null;
 
+  /** Beim Wechsel zieht die DAUER mit, nicht die Zahl: aus 1 h wird 60 min, nicht 1 min. */
+  function switchFristUnit(next: FristUnit) {
+    if (next === fristUnit) return;
+    const hours = toHours(parseFloat(frist) || INSPECTION_DEADLINE_DEFAULT_H, fristUnit);
+    const { min, step } = FRIST_UNITS[next];
+    // Auf `step` gerastert, sonst weist die HTML-Validierung den Wert als Schrittweiten-Fehler ab.
+    const snapped = Math.max(min, Math.round((next === "min" ? hours * 60 : hours) / step) * step);
+    setFristUnit(next);
+    setFrist(String(snapped));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -80,7 +110,7 @@ export default function KontrolleFields({
         body: JSON.stringify({
           userId,
           kommentar: kommentar.trim() || undefined,
-          deadlineH: parseFloat(deadlineH) || 4,
+          deadlineH: toHours(parseFloat(frist) || INSPECTION_DEADLINE_DEFAULT_H, fristUnit),
           categoryId: targetValue || undefined,
           // Nur wenn ausdrücklich verlangt: ohne Pin erfüllt jedes Gerät der Kategorie, mit Pin
           // genau dieses — und ein Gerätewechsel macht die Kontrolle unerfüllbar.
@@ -128,7 +158,25 @@ export default function KontrolleFields({
         rows={2}
       />
 
-      <HoursInput label={t("kontrolleHours")} value={deadlineH} onChange={setDeadlineH} min={0.1} step={0.1} unit={t("hoursUnit")} />
+      <div className="flex flex-col gap-2">
+        <FieldTabs
+          label={t("frist")}
+          value={fristUnit}
+          options={[
+            { value: "h", label: t("unitHours") },
+            { value: "min", label: t("unitMinutes") },
+          ]}
+          onChange={switchFristUnit}
+        />
+        <HoursInput
+          value={frist}
+          onChange={setFrist}
+          ariaLabel={t("frist")}
+          min={FRIST_UNITS[fristUnit].min}
+          step={FRIST_UNITS[fristUnit].step}
+          unit={fristUnit === "min" ? t("minutesUnit") : t("hoursUnit")}
+        />
+      </div>
 
       <FormError message={error} variant="compact" />
 

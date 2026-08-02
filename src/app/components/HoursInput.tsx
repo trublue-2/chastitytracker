@@ -10,7 +10,7 @@ import Input from "./Input";
  * vierte Kopie gewesen. Breite, Einheit und Feld-Ausrichtung liegen jetzt an einer Stelle — dieselbe
  * Bündelung wie bei {@link FieldTabs}, dem optischen Nachbarn im selben Formular.
  *
- * Grenzen (`min`/`step`) bleiben beim Aufrufer: 0.1 h für eine Kontrollfrist und 1 h für eine
+ * Grenzen (`min`/`step`) bleiben beim Aufrufer: 0.25 h für eine Kontrollfrist und 1 h für eine
  * Mindest-Tragedauer sind unterschiedliche fachliche Aussagen, keine Stil-Varianten.
  */
 export default function HoursInput({
@@ -18,23 +18,26 @@ export default function HoursInput({
   onChange,
   min,
   step,
-  label,
+  ariaLabel,
   unit,
 }: {
   value: string;
   onChange: (value: string) => void;
   min: number;
   step: number;
-  /** Optionale Beschriftung LINKS vom Feld (Kontroll-Frist nutzt sie, die anderen nicht). */
-  label?: string;
+  /**
+   * Name des Feldes für Assistenztechnik. Nötig, wo die sichtbare Beschriftung NEBEN dem Feld steht
+   * (die Kontroll-Frist beschriftet den Einheiten-Umschalter darüber) — ohne ihn liest sich das Feld
+   * als namenloses Spinbutton vor. Kein sichtbares Label: das stünde dann doppelt da.
+   */
+  ariaLabel?: string;
   /** Übersetzte Einheit, z.B. „h". */
   unit: string;
 }) {
   return (
     <div className="flex items-center gap-2">
-      {label && <label className="text-xs text-foreground-faint whitespace-nowrap">{label}</label>}
       <div className="w-24">
-        <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} min={min} step={step} />
+        <Input type="number" aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} min={min} step={step} />
       </div>
       <span className="text-xs text-foreground-faint">{unit}</span>
     </div>

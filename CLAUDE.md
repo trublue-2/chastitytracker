@@ -98,7 +98,7 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `User` – username, email, passwordHash, role (`user`/`admin`), reinigungErlaubt, mobileDesktopUpload
 - `Entry` – type (`VERSCHLUSS`|`OEFFNEN`|`PRUEFUNG`|`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, verifikationStatus, oeffnenGrund
 - `TrainingVorgabe` – Zeitraum mit min. Tragedauer pro Tag/Woche/Monat, pro User
-- `KontrollAnforderung` – code (5-stellig), deadline (4h), userId, fulfilledAt, withdrawnAt, kommentar
+- `KontrollAnforderung` – code (5-stellig), deadline (Vorgabe 1h, im Formular in Stunden oder Minuten wählbar), userId, fulfilledAt, withdrawnAt, kommentar
 - `VerschlussAnforderung` – art (`ANFORDERUNG`/`SPERRZEIT`), userId, nachricht, endetAt, dauerH, fulfilledAt, withdrawnAt
 - `StrafeRecord` – userId, offenseType (`KONTROLLANFORDERUNG`|`OEFFNEN_ENTRY`), refId, bestraftDatum, notiz
 - `NotificationPreference` – userId, eventType, mail, push (pro Event-Typ)
@@ -140,7 +140,7 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `PATCH/DELETE /api/admin/vorgaben/[id]` – Vorgabe bearbeiten / löschen
 - `PATCH /api/settings/password` – Eigenes Passwort ändern
 - `POST /api/admin/demo` – DemoUser mit Beispieldaten anlegen (nur Admin)
-- `POST /api/admin/kontrolle` – Kontrolle anfordern: sendet 5-stelligen Code per E-Mail, 4h Frist (nur Admin, User muss verschlossen sein)
+- `POST /api/admin/kontrolle` – Kontrolle anfordern: sendet 5-stelligen Code per E-Mail, Frist per `deadlineH` (Vorgabe 1h, Bruchteile erlaubt) (nur Admin, User muss verschlossen sein)
 - `POST /api/auth/forgot-password` – Passwort-Reset-Token per E-Mail senden
 - `POST /api/auth/reset-password` – Passwort mit Token zurücksetzen
 - `POST /api/verify-kontrolle` – Handgeschriebenen Code im Foto per Claude Vision erkennen (Auth required, body: `{ imageUrl, expectedCode }`, returns `{ detected, match }`)
