@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { firstOutOfOrderProof, isTaskOpen, type TaskState } from "@/lib/tasks";
+import { firstOutOfOrderProof, isTaskOpen, startDeadline, type TaskState } from "@/lib/tasks";
 import { wearActionHref } from "@/lib/categoryConstants";
 
 /**
@@ -120,6 +120,16 @@ export interface TaskCardData {
   penaltyReason: string | null;
   /** ISO — die Karte formatiert in der Zeitzone des Betrachters. */
   holdUntil: string;
+  /**
+   * Bis wann spätestens ALLE Bedingungen anliegen müssen (`createdAt` + Kulanzfrist) — ISO, null
+   * ohne Bedingungen (dann gibt es nichts anzulegen).
+   *
+   * Diese Frist ist hart: wer danach erst anfängt, hat per Definition nicht durchgehend gehalten und
+   * bekommt ein Vergehen. Sie stand bisher NUR im Datenmodell — weder das Formular der Keyholderin
+   * noch die Karte des Subs nannten sie. Eine Frist, die eine Strafe auslöst und die niemand sehen
+   * kann, ist die eine Sorte Frist, die es nicht geben darf.
+   */
+  startDeadline: string | null;
   state: TaskState;
   startedAt: string | null;
   /** Namen der jetzt fehlenden Bedingungen — „Fehlt noch: Knebel". */
@@ -158,6 +168,25 @@ export interface TaskCardData {
  */
 export function taskDeadlineKey(task: Pick<TaskCardData, "requirements">): "holdUntilShort" | "deadlineShort" {
   return task.requirements.length > 0 ? "holdUntilShort" : "deadlineShort";
+}
+
+/**
+ * Die Startfrist, WENN sie noch etwas aussagt — sonst null.
+ *
+ * Nur solange nie begonnen wurde. Danach ist sie beantwortet: über einer laufenden Aufgabe wäre
+ * „Beginn spätestens 17:06" eine Warnung vor etwas, das längst geschehen ist. Bei `missed` bleibt sie
+ * bewusst stehen — dort ist sie kein Hinweis mehr, sondern der BELEG für das Urteil, und ein Vorwurf
+ * ohne Beleg lässt sich nicht bestreiten.
+ *
+ * `withdrawn` fällt heraus: eine zurückgenommene Aufgabe hat keine Frist mehr, die jemanden bindet.
+ *
+ * Gibt den WERT zurück und nicht bloss ein Ja/Nein: ein Prädikat zwingt jeden Aufrufer, die
+ * Null-Prüfung daneben zu wiederholen (der Typ `string | null` verengt sich an einem `boolean`
+ * nicht), und die zweite Frage kann von der ersten abweichen.
+ */
+export function visibleStartDeadline(task: Pick<TaskCardData, "startDeadline" | "startedAt" | "state">): string | null {
+  if (task.startedAt !== null || task.state === "withdrawn") return null;
+  return task.startDeadline;
 }
 
 /** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
@@ -259,6 +288,9 @@ export function toTaskCard(
     isPunishment: e.task.isPunishment,
     penaltyReason: e.task.penaltyReason,
     holdUntil: e.task.holdUntil.toISOString(),
+    // Ohne Bedingungen ist die Kulanzfrist bedeutungslos (es gibt nichts anzulegen) — dieselbe
+    // Unterscheidung, die `createTask` beim Prüfen der Endzeit trifft.
+    startDeadline: e.requirements.length > 0 ? startDeadline(e.task).toISOString() : null,
     state: e.evaluation.state,
     startedAt: e.evaluation.startedAt?.toISOString() ?? null,
     missing: e.evaluation.missing.map((m) => m.label),

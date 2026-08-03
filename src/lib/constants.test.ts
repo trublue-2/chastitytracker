@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { validateEntryPayload, deviceCategoriesEnabled, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES } from "./constants";
+import { validateEntryPayload, deviceCategoriesEnabled, clampStartGrace, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES, TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE } from "./constants";
 
 const FUTURE_SAFE_TIME = "2030-01-01T10:00:00Z";
 
@@ -164,5 +164,28 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
         { allowFuture: true, requirePhotoForPruefung: false },
       )).toBeNull();
     });
+  });
+});
+
+describe("clampStartGrace — eine Klemmung für Server UND Formular-Vorschau", () => {
+  it("lässt die ausdrückliche 0 stehen („sofort anfangen“)", () => {
+    // Der ganze Grund, aus dem dieses Feld nicht über `clamp()` läuft: dessen `|| fallback` machte
+    // aus der 0 den Default — der dokumentierte Bereich beginnt aber bei 0.
+    expect(clampStartGrace(0)).toBe(0);
+  });
+
+  it("nimmt die Vorgabe, wo nichts (Lesbares) dasteht", () => {
+    expect(clampStartGrace(undefined)).toBe(TASK_DEFAULT_START_GRACE_MIN);
+    // Ein leeres Zahlenfeld liefert NaN — ungeklemmt liefe das bis in die Datenbank.
+    expect(clampStartGrace(Number.NaN)).toBe(TASK_DEFAULT_START_GRACE_MIN);
+  });
+
+  it("holt Werte ausserhalb des Bereichs an die Grenze", () => {
+    expect(clampStartGrace(-600)).toBe(TASK_START_GRACE_RANGE.min);
+    expect(clampStartGrace(99_999)).toBe(TASK_START_GRACE_RANGE.max);
+  });
+
+  it("rundet Bruchteile — Minuten sind ganze Zahlen", () => {
+    expect(clampStartGrace(12.4)).toBe(12);
   });
 });

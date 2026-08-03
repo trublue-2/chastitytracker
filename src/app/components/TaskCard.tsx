@@ -8,7 +8,7 @@ import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
 import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
-import { nextTaskStep, taskDeadlineKey, type TaskCardData } from "@/lib/taskView";
+import { nextTaskStep, taskDeadlineKey, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
 import { TASK_STATE_COLOR } from "@/lib/constants";
 
 /**
@@ -89,6 +89,7 @@ export default function TaskCard({
   const locale = useLocale();
   const dl = toDateLocale(locale);
   const dual = (iso: string) => formatDateTimeDual(iso, dl, viewerTz, subTz, subLabel);
+  const startBy = visibleStartDeadline(task);
 
   return (
     <Card padding="none">
@@ -186,6 +187,13 @@ export default function TaskCard({
 
         <StateLine task={task} dual={dual} timeOnly={(iso) => formatTime(iso, dl, viewerTz ?? subTz)} />
 
+        {/* Die Startfrist — die einzige Frist der Aufgabe, die bisher nirgends stand, obwohl ihr
+            Verstreichen ein Vergehen erzeugt. Unter der Zustandszeile, weil sie deren Aussage
+            ergänzt („noch nicht begonnen" → „und zwar bis wann"). */}
+        {startBy && (
+          <p className="text-xs text-foreground-faint">{t("startDeadlineHint", { date: dual(startBy) })}</p>
+        )}
+
         {task.completionNote && (
           <p className="text-xs text-foreground-faint break-words">{task.completionNote}</p>
         )}
@@ -248,7 +256,9 @@ function NextStep({ task }: { task: TaskCardData }) {
       <span className="shrink-0 text-foreground-muted" aria-hidden>{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-[11px] font-semibold uppercase tracking-wider text-foreground-faint">
-          {t("nextStepLabel")}
+          {/* „Nächster Schritt: Die Bedingungen gelten durchgehend" wäre ein Widerspruch in sich —
+              beim Halten ist gerade NICHTS zu tun. Die Überschrift benennt darum den Zustand. */}
+          {t(step.kind === "hold" ? "nextStepLabelHold" : "nextStepLabel")}
         </span>
         <span className="block text-sm text-foreground break-words">{text}</span>
       </span>
@@ -301,7 +311,10 @@ function StateLine({
       ? `${t("stateAborted")} — ${t("abortedDetail", { requirement: task.failedRequirement, at: dual(task.failedAt) })}`
       : t("stateAborted");
   } else if (task.state === "missed") {
-    text = t("stateMissed");
+    // `missed` hat ZWEI Wege: nie (rechtzeitig) begonnen — oder durchgehalten und am Nachweis
+    // gescheitert (`evaluateTask` gibt dort ein `startedAt` mit). Wer getragen und nur das letzte
+    // Foto vergessen hat, las bisher „nie begonnen": ein Vorwurf, der nachweislich falsch ist.
+    text = task.startedAt ? t("stateMissedProof") : t("stateMissed");
   } else if (task.state === "withdrawn") {
     text = t("stateWithdrawn");
   } else if (task.state === "done") {

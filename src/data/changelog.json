@@ -1,5 +1,32 @@
 [
   {
+    "version": "5.0.5",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Aufgaben-Fristen sind eindeutig beschriftet. Auf der Karte steht statt „Bedingungen halten“, dass die Bedingungen durchgehend gelten müssen; im Formular heissen die beiden Wege zur Frist „Endet in“ und „Endet um“ und zeigen darunter den errechneten Endzeitpunkt.",
+          "en": "Task deadlines are labelled unambiguously. The card now says the conditions apply continuously instead of “keep the conditions”; in the form the two ways to set the deadline are called “Ends in” and “Ends at”, with the resulting end time shown below."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Zeit zum Anlegen ist sichtbar: Sie steht auf der Aufgaben-Karte und lässt sich beim Stellen einstellen. Bisher lief diese Frist unbemerkt mit, obwohl die Aufgabe nach ihrem Ablauf als versäumt gilt.",
+          "en": "The time to get ready is visible: it appears on the task card and can be set when the task is assigned. Until now this deadline ran unnoticed, even though the task counts as missed once it passes."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Aufgabe, die getragen, aber ohne den geforderten Nachweis abgeschlossen wurde, meldet nicht mehr „nie begonnen“.",
+          "en": "A task that was worn through but finished without the required proof no longer reports “never started”."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.4",
     "date": "2026-08-02",
     "changes": [
