@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  evaluateTask, intersectAll, coversContinuously, startDeadline, isTaskOpen, isTaskOffense,
+  evaluateTask, intersectAll, coversContinuously, startDeadline, minHoldMs, isTaskOpen, isTaskOffense,
   type Interval, type TaskLike, type TaskRequirementLike,
 } from "./tasks";
 
@@ -78,6 +78,26 @@ describe("coversContinuously", () => {
 describe("startDeadline — Kulanzfrist", () => {
   it("Erstellung + Kulanzminuten", () => {
     expect(startDeadline(task())).toEqual(d("2026-07-25T12:30:00Z"));
+  });
+});
+
+/** Die Zahl, die beide Seiten meinen: der Keyholder stellt „drei Stunden", verlangt aber nur
+ *  zweieinhalb — die Kulanzfrist geht davon ab. Sie steht in der Vorschau des Formulars UND auf der
+ *  Karte des Subs; driften die auseinander, ist es eine Zusage, die niemand einhält. */
+describe("minHoldMs — was am Ende wirklich zu halten ist", () => {
+  it("zieht die Kulanzfrist von der Gesamtspanne ab", () => {
+    // Erstellt 12:00, Kulanz 30 min, Ende 15:00 → spätester Start 12:30, also 2,5 h zu halten.
+    expect(minHoldMs(task())).toBe(2.5 * 3600_000);
+  });
+
+  it("ist ohne Kulanz die volle Spanne", () => {
+    expect(minHoldMs({ ...task(), startGraceMin: 0 })).toBe(3 * 3600_000);
+  });
+
+  it("wird negativ, wo die Frist vor dem spätesten Start liegt — der Widerspruch bleibt sichtbar", () => {
+    // Genau der Zustand, den `checkTaskFields` mit TASK_HOLD_UNTIL_TOO_SOON abweist. Auf 0 geklemmt
+    // sähe er aus wie „nichts zu halten" statt wie „unmöglich".
+    expect(minHoldMs({ ...task(), holdUntil: d("2026-07-25T12:10:00Z") })).toBeLessThan(0);
   });
 });
 

@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.0.6",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Aufgaben-Formular fragt in der Reihenfolge, in der die Sache abläuft: erst die Zeit zum Anlegen, dann die Frist. Der feste Endzeitpunkt steckt nicht mehr in einem Reiter, sondern hinter „Festen Zeitpunkt wählen“ unter der Eingabe.",
+          "en": "The task form now asks in the order things happen: first the time to get ready, then the deadline. A fixed end time is no longer a tab but sits behind “Pick a fixed time” below the input."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Formular und Aufgaben-Karte nennen die Mindest-Haltezeit. Bei „endet in 2 h“ mit 30 Minuten Zeit zum Anlegen sind das eineinhalb Stunden — die Stundenzahl ist die Frist, nicht die Tragezeit.",
+          "en": "Form and task card now state the minimum holding time. With “ends in 2 h” and 30 minutes to get ready that is one and a half hours — the hours set the deadline, not the wearing time."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.5",
     "date": "2026-08-03",
     "changes": [

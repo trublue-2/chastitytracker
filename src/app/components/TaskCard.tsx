@@ -191,7 +191,17 @@ export default function TaskCard({
             Verstreichen ein Vergehen erzeugt. Unter der Zustandszeile, weil sie deren Aussage
             ergänzt („noch nicht begonnen" → „und zwar bis wann"). */}
         {startBy && (
-          <p className="text-xs text-foreground-faint">{t("startDeadlineHint", { date: dual(startBy) })}</p>
+          <>
+            <p className="text-xs text-foreground-faint">{t("startDeadlineHint", { date: dual(startBy) })}</p>
+            {/* Wie lange es am Ende wirklich zu halten ist — dieselbe Zahl, die die Keyholderin beim
+                Stellen als Zusage sieht (`minHoldMs`). Ohne sie stünden hier zwei Zeitpunkte, und der
+                Sub müsste die Differenz im Kopf bilden: genau die Rechnung, die der anderen Seite
+                abgenommen wird. Nur solange nie begonnen wurde — danach zählt die Restzeit, die der
+                Countdown im nächsten Schritt nennt, nicht mehr das Minimum. */}
+            <p className="text-xs text-foreground-faint">
+              {t("holdMinHint", { duration: formatElapsedMs(new Date(task.holdUntil).getTime() - new Date(startBy).getTime(), locale) })}
+            </p>
+          </>
         )}
 
         {task.completionNote && (

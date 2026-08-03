@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import FieldLabel from "./FieldLabel";
 import Input from "./Input";
 
 /**
@@ -48,7 +49,7 @@ export default function HoursInput({
   const id = useId();
   return (
     <div className="flex flex-col gap-2">
-      {label && <label htmlFor={id} className="text-xs text-foreground-faint">{label}</label>}
+      {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <div className="flex items-center gap-2">
         <div className="w-24">
           <Input id={id} type="number" aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} min={min} step={step} />
