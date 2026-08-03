@@ -116,3 +116,50 @@ describe("notifyControllersAboutEntry", () => {
     await expect(notifyControllersAboutEntry(BASE)).resolves.toBeUndefined();
   });
 });
+
+/**
+ * WER meldet für WEN — und wer bekommt es dann.
+ *
+ * Der Auslöser (03.08.2026) war der zweite Fall: eine Keyholderin, die selbst getrackt wird, trug
+ * über den Keyholder-Bereich ihren EIGENEN Verschluss ein. Actor und Träger sind dort dieselbe
+ * Person, und ihr Sub — der über `AdminUserRelationship` ihr Keyholder ist — bekam nichts.
+ */
+describe("Empfängerkreis", () => {
+  beforeEach(() => {
+    prefs.mockResolvedValue([{ mail: true, push: true }]);
+  });
+
+  it("erfasst jemand für SICH SELBST, bleibt die Empfängerliste vollständig", async () => {
+    // LadyN ist Admin (steht damit in ihrer eigenen Kontrolleur-Liste) und hat einen Keyholder.
+    controllers.mockResolvedValue([
+      { id: "ladyN", email: "lady@example.test", locale: "de" },
+      { id: "egberto", email: "sub@example.test", locale: "de" },
+    ]);
+
+    await notifyControllersAboutEntry({ ...BASE, userId: "ladyN", actorUserId: "ladyN" });
+
+    const to = mail.mock.calls.map((c) => c[0]).sort();
+    expect(to).toEqual(["lady@example.test", "sub@example.test"]);
+  });
+
+  it("erfasst jemand für JEMAND ANDEREN, fällt er selbst raus", async () => {
+    controllers.mockResolvedValue([
+      { id: "ladyN", email: "lady@example.test", locale: "de" },
+      { id: "andere", email: "other@example.test", locale: "de" },
+    ]);
+
+    // Die Keyholderin trägt für ihren Sub nach — eine Mail an sich selbst wäre sinnlos.
+    await notifyControllersAboutEntry({ ...BASE, userId: "sub1", actorUserId: "ladyN" });
+
+    expect(mail.mock.calls.map((c) => c[0])).toEqual(["other@example.test"]);
+    expect(push.mock.calls.map((c) => c[0])).toEqual(["andere"]);
+  });
+
+  it("ohne Actor-Angabe wird niemand gestrichen", async () => {
+    controllers.mockResolvedValue([{ id: "kh", email: "kh@example.test", locale: "de" }]);
+
+    await notifyControllersAboutEntry({ ...BASE });
+
+    expect(mail.mock.calls.map((c) => c[0])).toEqual(["kh@example.test"]);
+  });
+});
