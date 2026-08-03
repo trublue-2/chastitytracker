@@ -36,12 +36,14 @@ Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
 
 | Tag | Für wen | Wann er wandert |
 |-----|---------|-----------------|
-| `:feature` | trublues Instanz, Tests vor dem Merge | Feature-Branch-Build, oder `main`-Build mit `tagFeature=true` |
+| `:feature` | trublues Instanz **und mittestende Fremd-Instanzen**, Tests vor dem Merge | Feature-Branch-Build, oder `main`-Build mit `tagFeature=true` |
 | `:portal` | die Portal-Instanzen | jeder `main`-Build |
 | `:latest` | alle, inkl. Self-Hoster — der **offizielle Release** | nur durch `promote.yml` |
 | `:v<version>`, `:sha-<sha>` | unveränderliche Referenz zum Pinnen, Promoten, Rollback | pro `main`-Build (`v…`) bzw. pro Build (`sha-…`) |
 
 Ein `main`-Build veröffentlicht also **nichts** an Self-Hoster — das ist der Punkt der Kanäle. `:latest` bewegt sich erst, wenn du promotest, und dann per Digest-Retag: der Release ist bitgleich das Image, das die Portal-Flotte schon fährt.
+
+⚠️ **`:feature` ist nicht mehr nur die eigene Instanz.** Auf dem Kanal sitzen inzwischen auch Nutzer, die freiwillig mittesten. Ein Feature-Dispatch startet damit fremde Produktiv-Instanzen neu und spielt ihnen unfertigen Stand ein — das ist gewollt, aber es ist kein folgenloser Test mehr. Wer hier dispatcht, tut es im Wissen, dass nicht nur der eigene Container betroffen ist; welche Instanzen das sind, sagt der Pin in ihrer `docker-compose.yml`, nicht diese Datei (Instanznamen Dritter gehören nicht ins öffentliche Repo).
 
 **Regel — bei jedem `main`-Build IMMER `tagFeature=true`**, damit `:feature` (trublue) nie hinter `main` zurückfällt. Der Deploy leitet `pinnedTo` daraus ab und startet dann genau die Instanzen neu, deren Tag sich bewegt hat (`portal,feature`).
 
