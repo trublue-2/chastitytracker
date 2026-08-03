@@ -538,8 +538,24 @@ export const TASK_DEFAULT_START_GRACE_MIN = 30;
  *  Bewusst KEIN {@link NumberRange}: dem Typ fehlt hier nicht bloss `fallback`, er wäre eine falsche
  *  Zusage. Ein `NumberRange` ist das Versprechen „hiermit klemmt `clamp()`" — und genau `clamp()`
  *  darf auf dieses Feld nicht angewandt werden, weil sein `Math.round(value) || fallback` aus der
- *  ausdrücklich gesetzten 0 („sofort anfangen") den Default machte. Siehe `createTask`. */
+ *  ausdrücklich gesetzten 0 („sofort anfangen") den Default machte. Siehe {@link clampStartGrace}. */
 export const TASK_START_GRACE_RANGE = { min: 0, max: 24 * 60 } as const;
+/**
+ * Die Kulanz auf ihren Bereich bringen — der EINE Ort, an dem dieser Wert geklemmt wird.
+ *
+ * Genau wegen der Sonderregel oben: `clamp()` scheidet aus, also müsste jede Aufrufstelle die
+ * Klemmung von Hand hinschreiben. Genau das stand kurzzeitig doppelt da (Service und Formular), und
+ * nur eine der beiden Fassungen fing eine leere Eingabe ab — ein `NaN` wäre bis in die Datenbank
+ * durchgelaufen.
+ *
+ * `undefined` (Feld nicht gesetzt) und eine unlesbare Eingabe führen beide auf den Default: wer keine
+ * gültige Zahl nennt, bekommt die Vorgabe, nicht die Bereichsgrenze.
+ */
+export function clampStartGrace(value: number | undefined): number {
+  const rounded = Math.round(value ?? TASK_DEFAULT_START_GRACE_MIN);
+  if (!Number.isFinite(rounded)) return TASK_DEFAULT_START_GRACE_MIN;
+  return Math.min(TASK_START_GRACE_RANGE.max, Math.max(TASK_START_GRACE_RANGE.min, rounded));
+}
 /** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
  *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
 /** Wie viele Nachweis-Fotos eine Aufgabe höchstens fordern darf. Nicht willkürlich: jeder Nachweis

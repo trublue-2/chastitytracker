@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextTaskStep, taskDeadlineKey, toTaskCard } from "./taskView";
+import { nextTaskStep, taskDeadlineKey, toTaskCard, visibleStartDeadline } from "./taskView";
 import { safeInternalPath } from "./utils";
 import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
@@ -103,6 +103,43 @@ describe("taskDeadlineKey — „Halten bis“ nur, wo es etwas zu halten gibt",
     // trüge dann über einer erfüllten Trage-Aufgabe rückwirkend „Erledigen bis".
     const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "done", holdRunning: false }), false);
     expect(taskDeadlineKey(card)).toBe("holdUntilShort");
+  });
+});
+
+describe("startDeadline auf der Karte — die Frist, die ein Vergehen auslöst, muss sichtbar sein", () => {
+  it("rechnet die Kulanzfrist auf die Erstellung", () => {
+    // createdAt 12:00 + 30 min Kulanz.
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1")]), false);
+    expect(card.startDeadline).toBe("2026-07-25T12:30:00.000Z");
+  });
+
+  it("lässt sie bei einer reinen Textaufgabe weg — es gibt nichts anzulegen", () => {
+    expect(toTaskCard(evaluated([]), false).startDeadline).toBeNull();
+  });
+
+  it("zeigt sie, solange nie begonnen wurde", () => {
+    for (const state of ["pending", "partial"] as const) {
+      const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1")], { state }), true);
+      expect(visibleStartDeadline(card)).toBe("2026-07-25T12:30:00.000Z");
+    }
+  });
+
+  it("zeigt sie bei „versäumt“ weiter — dort ist sie der Beleg des Urteils, nicht mehr eine Warnung", () => {
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1")], { state: "missed" }), true);
+    expect(visibleStartDeadline(card)).toBe("2026-07-25T12:30:00.000Z");
+  });
+
+  it("verstummt, sobald begonnen wurde — die Frage ist dann beantwortet", () => {
+    const card = toTaskCard(
+      evaluated([wear("r1", "Knebel", "c1", true)], { state: "running", startedAt: new Date("2026-07-25T12:10:00Z") }),
+      true,
+    );
+    expect(visibleStartDeadline(card)).toBeNull();
+  });
+
+  it("verstummt bei einer zurückgezogenen Aufgabe — sie bindet niemanden mehr", () => {
+    const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1")], { state: "withdrawn" }), true);
+    expect(visibleStartDeadline(card)).toBeNull();
   });
 });
 

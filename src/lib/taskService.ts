@@ -7,8 +7,8 @@ import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { startDeadline, isTaskResultFinal } from "@/lib/tasks";
 import {
-  TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, TASK_DEFAULT_START_GRACE_MIN,
-  TASK_START_GRACE_RANGE, TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
+  TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace,
+  TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/constants";
 import { formatDateTime, generateKontrollCode } from "@/lib/utils";
@@ -271,13 +271,7 @@ export interface CheckedTask {
  */
 export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<ServiceResult<CheckedTask>> {
   const now = new Date();
-  // Bewusst OHNE `clamp`: dessen `Math.round(value) || fallback` macht aus einer ausdrücklich
-  // gesetzten 0 („sofort anfangen") den Default 30 — der dokumentierte Wertebereich beginnt aber bei
-  // 0 und wäre damit unerreichbar.
-  const graceMin = Math.min(
-    TASK_START_GRACE_RANGE.max,
-    Math.max(TASK_START_GRACE_RANGE.min, Math.round(p.startGraceMin ?? TASK_DEFAULT_START_GRACE_MIN)),
-  );
+  const graceMin = clampStartGrace(p.startGraceMin);
   const reqs = p.requirements ?? [];
 
   // Erst ALLE reinen Parameter, dann die DB — wie in `createVerschlussAnforderung`. Ohne Bedingungen
