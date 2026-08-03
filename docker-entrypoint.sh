@@ -23,6 +23,13 @@ else
   printf "│  ADMIN_PASSWORD : %-34s│\n" "(nicht gesetzt → Zufallspasswort)"
 fi
 printf "│  NEXTAUTH_URL   : %-34s│\n" "${NEXTAUTH_URL:-'(nicht gesetzt)'}"
+# Ob eine Instanz überhaupt mailfähig ist, stand bisher nirgends im Log — und ohne SMTP_HOST
+# überspringt `sendMail` still jeden Versand. Hier steht es in der Zeile, in der man ohnehin schaut.
+# Der Bindestrich statt des Pfeils der Nachbarzeilen ist Absicht: `printf` der BusyBox-Shell (Alpine,
+# also der echte Container) zählt für `%-34s` BYTES, nicht Zeichen — ein „→" (3 Bytes) verschiebt
+# genau diese Zeile aus dem Kasten. Bei den Bestandszeilen ist das bereits so, hier nicht mehr.
+printf "│  SMTP_HOST      : %-34s│\n" "${SMTP_HOST:-'(nicht gesetzt - kein Versand)'}"
+printf "│  SMTP_FROM      : %-34s│\n" "${SMTP_FROM:-'(nicht gesetzt)'}"
 printf "│  DATABASE_URL   : %-34s│\n" "file:/app/data/prod.db"
 printf "│  data/ owner    : %-34s│\n" "$(stat -c '%U (%u)' /app/data 2>/dev/null || echo '?')"
 echo "└─────────────────────────────────────────────────────┘"
