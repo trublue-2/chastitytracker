@@ -20,15 +20,20 @@ export async function sendMail(to: string, subject: string, html: string) {
   // Ohne konfiguriertes SMTP still übersprungen statt geworfen — eine fehlende Mail-Config darf
   // keinen Business-Flow (Reset, Kontrolle, Benachrichtigung) mit einem 500 abbrechen.
   if (!process.env.SMTP_HOST) {
-    structuredLog("mail", "skipped_no_smtp", { subject });
+    structuredLog("mail", "skipped_no_smtp", { to, subject });
     return;
   }
-  await transporter.sendMail({
+  const info = await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to,
     subject,
     html,
   });
+  // Ein geglückter Versand hinterliess bisher KEINE Spur — „gehen die Mails raus?" war damit nur am
+  // MTA zu beantworten, nicht am Instanz-Log. Hier und nicht in `sendMailSafe`, damit auch die
+  // Aufrufer mitzählen, die direkt `sendMail` nehmen (Health-Check-Alarm).
+  // `messageId` ist der Faden zum MTA-Log: dieselbe ID steht dort an der angenommenen Nachricht.
+  structuredLog("mail", "sent", { to, subject, messageId: info.messageId });
 }
 
 /** Fehler-toleranter Versand: fängt jeden Wurf (ungültige/Fake-Adresse, SMTP-Ausfall, Auth-Fehler)
@@ -38,7 +43,9 @@ export async function sendMailSafe(to: string, subject: string, html: string): P
   try {
     await sendMail(to, subject, html);
   } catch (e) {
-    structuredLog("mail", "send_failed", { subject, error: (e as Error).message });
+    // Der Empfänger gehört in die Fehlerzeile: „Versand fehlgeschlagen" ohne ihn beantwortet nicht,
+    // WEN es nicht erreicht hat — und genau das ist die Frage, wenn ein Sub nichts bekommt.
+    structuredLog("mail", "send_failed", { to, subject, error: (e as Error).message });
   }
 }
 

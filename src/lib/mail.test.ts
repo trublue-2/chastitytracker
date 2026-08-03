@@ -1,6 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { escHtml, noticeBoxHtml, dashboardEmailHtml, appBaseUrl } from "./mail";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { escHtml, noticeBoxHtml, dashboardEmailHtml, appBaseUrl, sendMail, sendMailSafe } from "./mail";
 import { EMAIL_BUTTON_COLORS } from "./constants";
+
+const { transportSend } = vi.hoisted(() => ({ transportSend: vi.fn() }));
+vi.mock("nodemailer", () => ({
+  default: { createTransport: () => ({ sendMail: transportSend }) },
+}));
 
 /** Kollabiert Whitespace zwischen Tags — die Einrückung des Templates ist irrelevant fürs Rendering. */
 const norm = (html: string) => html.replace(/>\s+</g, "><").trim();
@@ -61,5 +66,56 @@ describe("dashboardEmailHtml", () => {
 
   it("omits the afterHtml slot entirely when unused", () => {
     expect(norm(dashboardEmailHtml("T", "<p>i</p>", "B"))).toMatch(/<\/a><\/p><\/div>$/);
+  });
+});
+
+/**
+ * Der Versand muss eine SPUR hinterlassen — sonst ist „gehen die Mails raus?" nur am MTA zu
+ * beantworten und nicht am Log der Instanz. Und die Spur muss den Empfänger nennen: „fehlgeschlagen"
+ * ohne ihn sagt nicht, wen es nicht erreicht hat.
+ */
+describe("sendMail — Logspur", () => {
+  const prevHost = process.env.SMTP_HOST;
+  let logged: string[] = [];
+
+  beforeEach(() => {
+    logged = [];
+    transportSend.mockReset();
+    vi.spyOn(console, "log").mockImplementation((...a: unknown[]) => { logged.push(a.join(" ")); });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (prevHost === undefined) delete process.env.SMTP_HOST;
+    else process.env.SMTP_HOST = prevHost;
+  });
+
+  it("meldet den geglückten Versand mit Empfänger, Betreff und der ID des MTA", async () => {
+    process.env.SMTP_HOST = "mail.test";
+    transportSend.mockResolvedValue({ messageId: "<abc@test>" });
+
+    await sendMail("sub@test.example", "Kontrolle angefordert", "<p>x</p>");
+
+    expect(logged.join("\n")).toContain("[mail]");
+    expect(logged.join("\n")).toContain("sent to=sub@test.example");
+    expect(logged.join("\n")).toContain("messageId=<abc@test>");
+  });
+
+  it("nennt den Empfänger auch dort, wo ohne SMTP still übersprungen wird", async () => {
+    delete process.env.SMTP_HOST;
+
+    await sendMail("sub@test.example", "Kontrolle angefordert", "<p>x</p>");
+
+    expect(transportSend).not.toHaveBeenCalled();
+    expect(logged.join("\n")).toContain("skipped_no_smtp to=sub@test.example");
+  });
+
+  it("nennt den Empfänger im Fehlerfall — die Frage ist ja, wen es nicht erreicht hat", async () => {
+    process.env.SMTP_HOST = "mail.test";
+    transportSend.mockRejectedValue(new Error("550 unknown user"));
+
+    await sendMailSafe("sub@test.example", "Kontrolle angefordert", "<p>x</p>");
+
+    expect(logged.join("\n")).toContain("send_failed to=sub@test.example");
+    expect(logged.join("\n")).toContain("550 unknown user");
   });
 });
