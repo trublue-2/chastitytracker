@@ -108,6 +108,22 @@ export function startDeadline(task: Pick<TaskLike, "createdAt" | "startGraceMin"
   return new Date(task.createdAt.getTime() + task.startGraceMin * 60_000);
 }
 
+/**
+ * Wie lange MINDESTENS zu halten ist: von der spätesten erlaubten Startzeit bis zum Ende.
+ *
+ * Die Zahl, die beide Seiten eigentlich meinen — der Keyholder stellt „2 Stunden", verlangt damit
+ * aber nur eineinhalb, weil die Kulanzfrist davon abgeht. Sie steht hier und nicht im Formular, weil
+ * dieselbe Grösse an drei Stellen gebraucht wird: die Vorschau der Keyholderin, die Karte des Subs
+ * und — als Vorzeichen — die Schranke des Servers.
+ *
+ * Ein Ergebnis ≤ 0 ist genau der Zustand, den `checkTaskFields` mit `TASK_HOLD_UNTIL_TOO_SOON`
+ * abweist: die Aufgabe verlangte Deckung bis zu einem Zeitpunkt, zu dem noch gar nicht begonnen sein
+ * muss. Deshalb keine Klemmung auf 0 — der Aufrufer soll den Widerspruch sehen können.
+ */
+export function minHoldMs(task: Pick<TaskLike, "createdAt" | "startGraceMin" | "holdUntil">): number {
+  return task.holdUntil.getTime() - startDeadline(task).getTime();
+}
+
 /** Schnittmenge zweier bereits verschmolzener, aufsteigend sortierter Intervall-Listen. */
 function intersectTwo(a: Interval[], b: Interval[]): Interval[] {
   const out: Interval[] = [];

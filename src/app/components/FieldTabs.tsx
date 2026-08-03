@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import FieldLabel from "./FieldLabel";
 import Tabs from "./Tabs";
 
 /**
@@ -28,7 +29,7 @@ export default function FieldTabs<T extends string>({
   const labelId = useId();
   return (
     <div className="flex flex-col gap-2">
-      <span id={labelId} className="text-xs text-foreground-faint">{label}</span>
+      <FieldLabel id={labelId}>{label}</FieldLabel>
       <Tabs
         variant="segmented"
         tabs={options.map((o) => ({ key: o.value, label: o.label }))}

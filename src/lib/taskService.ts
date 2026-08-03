@@ -278,7 +278,9 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
   // gibt es nichts anzulegen: `holdUntil` ist dann eine schlichte Frist, die Kulanz spielt keine Rolle.
   const fieldError = checkTaskFields(
     { title: p.title, description: p.description ?? null, holdUntil: p.holdUntil },
-    reqs.length > 0 ? new Date(now.getTime() + graceMin * 60_000) : now,
+    // Über `startDeadline` wie in `updateTask`: die Startfrist ist EINE Regel, keine Addition, die
+    // jede Prüfstelle für sich hinschreibt.
+    reqs.length > 0 ? startDeadline({ createdAt: now, startGraceMin: graceMin }) : now,
   );
   if (fieldError) return fieldError;
 
