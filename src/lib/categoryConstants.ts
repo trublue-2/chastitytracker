@@ -1,4 +1,5 @@
 import { KG_BUILTIN_SLUG } from "@/lib/deviceCategories";
+import { entryFormBase } from "@/lib/entryFormRoute";
 
 /** User-pickable color palette for DeviceCategory (per UI Designer spec).
  *  cat-steel is reserved for the KG built-in identity. The remaining 11 are user-pickable.
@@ -180,7 +181,7 @@ export function wearActionHref(opts: {
   redirectTo?: string | null;
 }): string {
   const form = opts.active ? "wear-end" : "wear-begin";
-  const base = opts.adminUserId ? `/admin/users/${opts.adminUserId}/aktionen` : "/dashboard/new";
+  const base = entryFormBase(opts.adminUserId);
   const q = new URLSearchParams({ category: opts.categoryId });
   if (opts.deviceId) q.set("device", opts.deviceId);
   if (opts.redirectTo) q.set("redirectTo", opts.redirectTo);

@@ -207,7 +207,13 @@ export function mapKontrolleRow(
   const kPill = row.entryId
     ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
     : anfPill ? { label: t(anfPill.labelKey), cls: anfPill.cls } : null;
-  const timeCorrected = row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt);
+  // Bei „zu spät" IMMER den echten Einreichzeitpunkt zeigen, nicht erst ab der 5-Minuten-Schwelle
+  // von `isTimeCorrected`. Genau darauf beruht das Urteil (`isPastDeadlineUnfulfilled` liest
+  // `fulfilledAt` = Server-Uhr beim Absenden), während die Karte daneben die frei wählbare
+  // Eintrags-Zeit zeigt. Lagen beide nur zwei Minuten auseinander, blieb der Hinweis aus und die
+  // Zeile las sich als Widerspruch: „18:59, Frist 19:01 — zu spät". Vorfall 03.08.2026.
+  const timeCorrected = row.fulfilledAt && row.submittedAt
+    && (row.anforderungStatus === "late" || isTimeCorrected(row.fulfilledAt, row.submittedAt));
   // Auto-Kontrollen: das technische createdAt (Batch-Erstellzeitpunkt, meist Mitternacht) ist
   // für den Keyholder irreführend — anzeigen soll man, wann sie tatsächlich versendet wurde. Das
   // Label wird hier (statt am Client) einmal aufgelöst, damit beide Render-Stellen in
@@ -235,9 +241,14 @@ export function mapKontrolleRow(
     createdLabel: createdIsSent ? t("sentLabel") : t("createdLabel"),
     withdrawnAtStr: row.withdrawnAt ? fmt(row.withdrawnAt) : null,
     scheduledForStr: row.scheduledFor ? fmt(row.scheduledFor) : null,
-    timeCorrectedStr: timeCorrected
-      ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmt(row.fulfilledAt!)} · ${t("systemLabel")}: ${fmt(row.submittedAt!)}`
-      : null,
+    // Zwei Fälle, zwei Formulierungen: weichen die Zeiten deutlich ab, war es eine Korrektur
+    // („angegeben/System"). Liegen sie nur Minuten auseinander und die Kontrolle gilt trotzdem als
+    // zu spät, ist nichts korrigiert worden — dann zählt schlicht, wann eingereicht wurde.
+    timeCorrectedStr: !timeCorrected
+      ? null
+      : isTimeCorrected(row.fulfilledAt!, row.submittedAt)
+        ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmt(row.fulfilledAt!)} · ${t("systemLabel")}: ${fmt(row.submittedAt!)}`
+        : `${t("strafbuchEingereicht")}: ${fmt(row.submittedAt!)}`,
     note: row.note,
     kontrolleId: row.kontrolleId,
     entryId: row.entryId,

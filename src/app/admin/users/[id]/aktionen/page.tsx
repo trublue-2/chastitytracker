@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { Lock, LockOpen, ClipboardCheck, ClipboardList, Droplets, Bell } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getIsLocked, getActiveSperrzeit, getActiveWearSessions } from "@/lib/queries";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
@@ -24,25 +24,16 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
 
-  const flagOn = deviceCategoriesEnabled();
-  const [isLocked, activeSperrzeit, categories, activeWear] = await Promise.all([
+  const [isLocked, activeSperrzeit, categories] = await Promise.all([
     getIsLocked(id),
     getActiveSperrzeit(id),
-    flagOn
-      ? prisma.deviceCategory.findMany({
-          where: { userId: id, isBuiltIn: false },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-          select: { id: true, name: true, color: true, icon: true },
-        })
-      : Promise.resolve([]),
-    flagOn ? getActiveWearSessions(id) : Promise.resolve([]),
+    buildNewEntryCategoryRows(id),
   ]);
-  const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
 
   const hasEmail = !!user.email;
   // Gibt es überhaupt ein Ziel für eine Kontrolle? Der KG zählt nur verschlossen, jede laufende
   // Trage-Session ebenfalls (dieselbe Menge, die /api/admin/inspection-targets liefert).
-  const hasInspectionTarget = isLocked || activeWear.length > 0;
+  const hasInspectionTarget = isLocked || categories.some((c) => c.activeDeviceName !== null);
   const base = `/admin/users/${id}/aktionen`;
 
   return (
@@ -139,7 +130,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
         />
 
         {categories.map((c) => {
-          const active = activeByCategory.get(c.id);
+          const active = c.activeDeviceName;
           const style = categoryStyle(c.color);
           return (
             <ActionRow
@@ -148,7 +139,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
               icon={<CategoryIconRender name={c.icon} className="size-5" />}
               iconStyle={{ backgroundColor: style.backgroundColor, color: style.color }}
               title={c.name}
-              hint={active ? `${tw("endShort")} · ${active.deviceName}` : tw("titleBegin")}
+              hint={active ? `${tw("endShort")} · ${active}` : tw("titleBegin")}
             />
           );
         })}

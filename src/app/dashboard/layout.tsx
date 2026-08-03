@@ -7,12 +7,11 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { getIsLocked, getActiveWearSessions } from "@/lib/queries";
-import { deviceCategoriesEnabled, bildersafeEnabled } from "@/lib/constants";
+import { getIsLocked } from "@/lib/queries";
+import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
+import { bildersafeEnabled } from "@/lib/constants";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
-import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
 
 // SECURITY: user-spezifisch (auth() → Rolle/Avatar/Daten). Nie statisch/geteilt cachen — erzwingt
 // per-Request-Rendering inkl. der RSC-Navigations-Payloads. Härtet gegen einen fehlkonfigurierten
@@ -28,26 +27,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // so the keyholder nav entry appears exactly when access actually works. No extra DB query.
   const isKeyholder = (user as { controlsSubs?: boolean } | undefined)?.controlsSubs ?? false;
 
-  const flagOn = deviceCategoriesEnabled();
-  const [isLocked, categories, activeWear] = await Promise.all([
+  const [isLocked, categoryRows] = await Promise.all([
     userId ? getIsLocked(userId) : Promise.resolve(false),
-    userId && flagOn
-      ? prisma.deviceCategory.findMany({
-          where: { userId, isBuiltIn: false, trackingEnabled: true },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-          select: { id: true, name: true, color: true, icon: true },
-        })
-      : Promise.resolve([]),
-    userId && flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
+    userId ? buildNewEntryCategoryRows(userId) : Promise.resolve([]),
   ]);
-  const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
-  const categoryRows: NewEntryCategoryRow[] = categories.map((c) => ({
-    id: c.id,
-    name: c.name,
-    color: c.color,
-    icon: c.icon,
-    activeDeviceName: activeByCategory.get(c.id)?.deviceName ?? null,
-  }));
 
   return (
     // Gleiche Begründung wie im Admin-Layout: das Inline-Skript setzt `data-theme` vor der

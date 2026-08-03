@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { SESSION_ENTRY_SELECT, getUserTimezone } from "@/lib/queries";
+import { SESSION_ENTRY_SELECT, getUserTimezone, getNonKgTrackingCategories, getActiveWearSessions } from "@/lib/queries";
 import { buildKgWearPairs, wearingHoursFromPairs, getWeekStart } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import type { CategoryRow } from "@/app/dashboard/categories/CategoriesClient";
+import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
 
 /**
  * Die Kategorie-Karten für die Kategorien-Seite — geteilt von der Sub-Sicht
@@ -68,4 +70,32 @@ export async function buildCategoryRows(userId: string, now: Date): Promise<Cate
       weeklyHours: wearingHoursFromPairs(pairs, wocheStart, now),
     };
   });
+}
+
+/**
+ * Die Kategorie-Zeilen der „Neu erfassen"-Auswahl — je Kategorie mit dem Namen des aktuell
+ * getragenen Geräts (oder null), woraus die Auswahl „Tragen beginnen" bzw. „beenden" ableitet.
+ *
+ * Geteilt vom Sub-Dashboard (`dashboard/layout.tsx`), der Keyholder-Aktionenseite und der
+ * Keyholder-Sicht des Sheets (über `GET /api/admin/users/[id]`). Die Ableitung stand dreimal Zeile
+ * für Zeile da — und die dritte Kopie war bereits abgedriftet: der Aktionen-Seite fehlte
+ * `trackingEnabled: true`, sie bot also auch für Kategorien ohne Zeiterfassung ein „Tragen
+ * beginnen" an. Diese Funktion ist ab jetzt die eine Wahrheit.
+ *
+ * Flag aus: leere Liste, ohne Query — dieselbe Kurzschluss-Regel wie bei den Aufrufern vorher.
+ */
+export async function buildNewEntryCategoryRows(userId: string): Promise<NewEntryCategoryRow[]> {
+  if (!deviceCategoriesEnabled()) return [];
+  const [categories, activeWear] = await Promise.all([
+    getNonKgTrackingCategories(userId),
+    getActiveWearSessions(userId),
+  ]);
+  const activeByCategory = new Map(activeWear.map((s) => [s.categoryId, s]));
+  return categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+    icon: c.icon,
+    activeDeviceName: activeByCategory.get(c.id)?.deviceName ?? null,
+  }));
 }

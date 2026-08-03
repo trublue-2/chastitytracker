@@ -10,6 +10,10 @@ import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 export interface EntryNotifyParams {
   /** Der Träger, dessen Eintrag gemeldet wird. */
   userId: string;
+  /** Wer den Eintrag ERFASST hat. Auf dem Sub-Pfad der Träger selbst, auf dem Keyholder-Pfad
+   *  (`POST /api/admin/entries`) die Keyholderin — sie fällt dann aus der Empfängerliste, sie hat
+   *  ihn ja gerade getippt. Fehlt der Wert, wird niemand gestrichen. */
+  actorUserId?: string;
   username: string;
   type: string;
   startTime: Date;
@@ -158,7 +162,15 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
     const shouldPush = prefs.some((x) => x.push);
     const shouldMail = prefs.some((x) => x.mail);
 
-    const recipients = await getControllersOfUser(p.userId);
+    // Den Handelnden streichen NUR, wenn er für JEMAND ANDEREN erfasst hat: dann wäre es eine
+    // Meldung über etwas, das er gerade selbst getippt hat. Erfasst jemand für SICH, bleibt die
+    // Liste unangetastet — `getControllersOfUser` liefert alle Admins, und ein Träger mit
+    // Admin-Rolle (Ein-Personen-Instanz) steht darin selbst; ihn zu filtern nähme ihm die Meldung
+    // über seine eigenen Einträge.
+    const all = await getControllersOfUser(p.userId);
+    const recipients = p.actorUserId && p.actorUserId !== p.userId
+      ? all.filter((r) => r.id !== p.actorUserId)
+      : all;
     if (recipients.length === 0) return;
 
     // Nur die Trage-Meldungen nennen Gerät und Kategorie. Verschluss und Kontrolle tragen ebenfalls
