@@ -1,5 +1,32 @@
 [
   {
+    "version": "5.0.7",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Trägt deine Keyholderin einen Eintrag für dich nach, lösen jetzt auch Mail und Push aus — bisher blieb es dabei still. Solche Nachträge erfüllen ausserdem offene Einschliess- und Orgasmus-Anordnungen, statt sie als versäumt stehen zu lassen.",
+          "en": "When your keyholder records an entry on your behalf, mail and push now go out — until now it stayed silent. Such entries also settle open lock and orgasm directives instead of leaving them to lapse."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine als „zu spät“ markierte Kontrolle zeigt jetzt, wann sie tatsächlich eingereicht wurde. Bisher stand dort nur die im Formular gewählte Uhrzeit — die Bewertung wirkte dadurch widersprüchlich.",
+          "en": "An inspection marked “fulfilled late” now shows when it was actually submitted. Previously only the time picked in the form was visible, which made the verdict look contradictory."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Keyholder-Bereich öffnet das Plus-Symbol direkt die Auswahl zum Erfassen.",
+          "en": "In the keyholder view, the plus button now opens the entry picker directly."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.6",
     "date": "2026-08-03",
     "changes": [

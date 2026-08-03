@@ -148,9 +148,23 @@ export async function getUserDeviceOptions(userId: string): Promise<DeviceOption
  *  Das schmale `select` trägt genau die Felder, die die Aufrufer brauchen: `type` (Lock-Zustand),
  *  `startTime` (Zeit-Guards), `kontrollCode` (deriveSealCode), `deviceId` (Geräte-Check) und
  *  `keyInBox` (Schlüssel-Deklaration, siehe `getCurrentLockKeyInBox`). */
-export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = prisma) {
+export function getLatestKgEntry(
+  userId: string,
+  tx: PrismaTx | typeof prisma = prisma,
+  { at, excludeId }: { at?: Date; excludeId?: string } = {},
+) {
   return tx.entry.findFirst({
-    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+    where: {
+      userId,
+      type: { in: ["VERSCHLUSS", "OEFFNEN"] },
+      // `at`: „was galt ZU DIESEM ZEITPUNKT" statt „was gilt jetzt" — nötig auf dem Keyholder-Pfad,
+      // der rückdatieren darf; für einen nachgetragenen Eintrag ist der global jüngste Lock-Eintrag
+      // der falsche Bezug. `excludeId` lässt einen bereits geschriebenen Eintrag aus, der sonst bei
+      // `at = seine eigene startTime` sein eigener Vorgänger wäre (gleiches Motiv wie bei
+      // `getEntryNeighbors`; die Alternative wäre ein als Rundungsfehler getarntes `at - 1ms`).
+      ...(at ? { startTime: { lte: at } } : {}),
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
     orderBy: { startTime: "desc" },
     // `oeffnenGrund` gehört dazu, weil der Lock-Zustand allein nicht sagt, WARUM zuletzt geöffnet
     // wurde — die Kontrolle nach einer Reinigungspause hängt genau daran (entries-Route).

@@ -67,7 +67,7 @@ export interface LockRequestSperrzeit {
  * Zwei Wege, EINE Regel: ein absolutes Sperr-Ende (`sperrEndetAt`, Wanduhr) gewinnt und bleibt fix,
  * egal wann die Sperre zustande kommt; sonst zählt `dauerH` ab `abZeitpunkt`. Was dieser Zeitpunkt
  * ist, entscheidet der Aufrufer und ist der einzige Unterschied zwischen den beiden Wegen, auf denen
- * eine Sperrzeit entsteht: beim Erfüllen ist es der Verschluss des Subs (`entries/route.ts`), bei
+ * eine Sperrzeit entsteht: beim Erfüllen ist es der Verschluss des Subs (`entryFulfilment.ts`), bei
  * einer terminierten Anforderung, die auf einen bereits verschlossenen Sub trifft, die Auslösung
  * (`kontrollePoller.ts`) — dort wäre der lange zurückliegende Verschluss der falsche Anker: eine
  * 24h-Sperre wäre bei einem seit 30h verschlossenen Sub im Moment ihrer Entstehung schon abgelaufen.
@@ -512,7 +512,7 @@ export interface DueLockRequest extends LockRequestSperrzeit {
  *
  * Bisher endete das als `obsolete`: die Anforderung war gegenstandslos, weil ihr Ziel schon erreicht
  * war. Mit ihr verfiel aber auch die SPERRZEIT, die sie mitbrachte — die entsteht sonst erst beim
- * ERFÜLLEN (`entries/route.ts`), und dieser Pfad wird nie erreicht, wenn der Sub schon zu ist. Der
+ * ERFÜLLEN (`entryFulfilment.ts`), und dieser Pfad wird nie erreicht, wenn der Sub schon zu ist. Der
  * Keyholder verlor damit die Sperre ausgerechnet in dem Fall, in dem der Sub alles richtig gemacht
  * hat. Also: Anforderung als ERFÜLLT verbuchen (sie WURDE erfüllt) und die Sperrzeit trotzdem
  * anlegen. Ein `late_lock` entsteht dadurch nicht — nicht wegen `fulfilledAt` (das hilft nur,

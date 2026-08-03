@@ -19,13 +19,16 @@ export function isEntryFormRoute(pathname: string): boolean {
  * manipuliertem Payload) und verwirft eine absolute URL still. Wer hier „vereinheitlicht", killt das
  * Antippen der nativen Push-Meldung ohne Fehlermeldung.
  *
- * Das Keyholder-PRÜFUNGS-Formular (`/admin/users/:id/aktionen/pruefung`) ist bewusst NICHT hier: es
- * nimmt weder Code noch Kommentar entgegen, ein gemeinsamer Helfer würde die Vorbelegung still
- * verschlucken. Das Aufgaben-Formular schon — siehe {@link taskFormHref}.
+ * `adminUserId` zeigt auf das Keyholder-PRÜFUNGS-Formular (`/admin/users/:id/aktionen/pruefung`) —
+ * der Weg, auf dem die Keyholderin eine Kontrolle FÜR den Sub erfasst. **Achtung:** dieses Formular
+ * liest weder `code` noch `kommentar`; beides zusammen mit `adminUserId` zu übergeben, baut einen
+ * Link, dessen Vorbelegung still verfällt. Der einzige Aufrufer (`NewEntrySheet`) übergibt darum
+ * keinen Code. Wird das Formular je vorbelegbar, ist hier nichts zu ändern — nur diese Warnung zu
+ * löschen. Das Aufgaben-Formular ist ein eigener Bauplatz — siehe {@link taskFormHref}.
  */
 export function inspectionHref(
   code?: string | null,
-  opts?: { kommentar?: string | null; categoryId?: string | null },
+  opts?: { kommentar?: string | null; categoryId?: string | null; adminUserId?: string },
 ): string {
   const params = new URLSearchParams();
   if (code) params.set("code", code);
@@ -35,7 +38,14 @@ export function inspectionHref(
   // KG — das ist die Bedeutung von `categoryId: null` im ganzen Modell.
   if (opts?.categoryId) params.set("cat", opts.categoryId);
   const query = params.toString();
-  return `/dashboard/new/pruefung${query ? `?${query}` : ""}`;
+  return `${entryFormBase(opts?.adminUserId)}/pruefung${query ? `?${query}` : ""}`;
+}
+
+/** Wurzel der Erfassungs-Formulare: der Sub erfasst unter `/dashboard/new`, die Keyholderin für ihn
+ *  unter `/admin/users/<id>/aktionen`. Dieselbe Umschaltung braucht `wearActionHref`
+ *  (categoryConstants.ts) — hier steht sie EINMAL, statt in jedem Link-Bauplatz erneut. */
+export function entryFormBase(adminUserId?: string): string {
+  return adminUserId ? `/admin/users/${adminUserId}/aktionen` : "/dashboard/new";
 }
 
 /** Die Query-Schlüssel des Aufgaben-Formulars. Als Konstanten, weil sie an ZWEI Enden stehen: der

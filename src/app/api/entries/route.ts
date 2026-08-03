@@ -19,6 +19,7 @@ import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
+import { applyEntryFulfilment, punishWrongDevice } from "@/lib/entryFulfilment";
 
 export async function GET() {
   const session = await requireApi();
@@ -211,122 +212,20 @@ export async function POST(req: NextRequest) {
       // `orderBy deadline asc` + `take 1` statt updateMany: sollte der Überschneidungs-Schutz doch
       // einmal zwei Zeilen durchlassen (er ist ein Best-Effort-Read-then-Write, siehe
       // requestKontrolle), erfüllt ein Foto genau EINE — die dringendste — statt beide auf einmal.
-      if (type === "PRUEFUNG" && verification && inspectionTarget) {
-        const openWhere = {
-          userId: session.user.id, entryId: null, withdrawnAt: null,
-          // Nur Anforderungen auf DIESES Ziel: ein Plug-Foto darf keine KG-Kontrolle abhaken und
-          // umgekehrt (siehe inspectionTargetWhere).
-          ...inspectionTargetWhere(inspectionTarget, submissionDeviceId),
-          ...aktiveKontrolleWhere(),
-        };
-        // Der Rundum-Weg trifft NUR Anforderungen, die selbst ohne Code entstanden sind (`code: null`).
-        // Ohne diese Schranke wäre der Toggle ein Umweg um eine bestehende Kontrolle: eine Anforderung
-        // MIT Code, gestellt während ein Code-Gerät getragen wurde, liesse sich erfüllen, indem der Sub
-        // aufschliesst, ein Gerät ohne Code-Pflicht anlegt und ein blankes Foto einreicht — der Code
-        // wäre nie getippt und nie geprüft worden. Ob ein Code verlangt wird, entscheidet das
-        // Gerät zur EINREICHUNG; welchen Nachweis eine Anforderung verlangt, steht in IHR.
-        const target =
-          verification.kind === "code"
-            ? await tx.kontrollAnforderung.findFirst({ where: { ...openWhere, code: verification.code }, select: { id: true } })
-            : verification.kind === "none" && verification.codeRequired
-              // Freiwillige Selbstkontrolle an einem Gerät MIT Code-Pflicht: erfüllt nichts.
-              ? null
-              : await tx.kontrollAnforderung.findFirst({
-                  where: { ...openWhere, code: null },
-                  orderBy: { deadline: "asc" },
-                  select: { id: true },
-                });
-        if (target) {
-          await tx.kontrollAnforderung.update({
-            where: { id: target.id },
-            data: { entryId: created.id, fulfilledAt: new Date() },
-          });
-        }
-      }
-
-      // VerschlussAnforderung (ANFORDERUNG) als erfüllt markieren + ggf. SPERRZEIT erstellen
-      if (type === "VERSCHLUSS") {
-        // ALLE offenen, bereits ausgelösten Anforderungen — mehrere dürfen koexistieren, und dieser
-        // eine Verschluss erfüllt sie alle: jede verlangte „sei verschlossen", und das ist er jetzt.
-        // Liesse man die übrigen offen, würden sie bei Fristablauf zu „zu spät verschlossen"-
-        // Vergehen im Strafbuch, obwohl der Sub genau das Verlangte getan hat.
-        // Geplante, noch nicht versendete bleiben aussen vor — sie dürfen nicht vorzeitig als
-        // erfüllt gelten (dringendste zuerst, siehe getOpenLockRequests).
-        // EIN Zeitstempel für den ganzen Vorgang: Auswahl, Erfüllt-Marke und der Anker der
-        // Sperrzeiten sind derselbe Verschluss — drei `new Date()` liessen sie um Millisekunden
-        // auseinanderlaufen und den Block nur mit echter Uhr testen.
-        const jetzt = new Date();
-        const offeneAnforderungen = await tx.verschlussAnforderung.findMany({
-          where: { ...openLockRequestWhere(session.user.id), ...activeVerschlussAnforderungWhere(jetzt) },
-          orderBy: LOCK_REQUEST_ORDER,
-        });
-        if (offeneAnforderungen.length > 0) {
-          await tx.verschlussAnforderung.updateMany({
-            where: { id: { in: offeneAnforderungen.map((a) => a.id) } },
-            data: { fulfilledAt: jetzt },
-          });
-          // Die GEFORDERTEN Geräte aller erfüllten Anforderungen einsammeln (Anforderungen OHNE
-          // Gerätevorgabe stellen keine und fallen weg). Mehrere können verschiedene Geräte verlangen;
-          // der Sub kann aber nur EINES tragen. Er gilt als korrekt, sobald sein Gerät irgendeine der
-          // GEFORDERTEN Vorgaben trifft — sonst würde er für einen Konflikt bestraft, den er gar nicht
-          // auflösen konnte (zwei Anforderungen, zwei verschiedene Pflicht-Geräte). Trifft er KEINE der
-          // geforderten, greift die Falsch-Gerät-Ahndung unten; eine geforderte Vorgabe wird also nicht
-          // dadurch entwertet, dass daneben eine geräte-freie Anforderung offen ist.
-          requiredAnforderungDeviceIds = offeneAnforderungen.map((a) => a.deviceId).filter((d): d is string => d !== null);
-        }
-        // SPERRZEIT-Ende je Anforderung: absolutes sperrEndetAt (Wanduhr) gewinnt und bleibt fix, egal
-        // wann tatsächlich verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
-        //
-        // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
-        // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
-        // handelt der Sub, und dass er sich zwischendurch selbst einschliesst, darf eine geplante
-        // Anweisung der Keyholderin nicht stillschweigend löschen — er kennt sie ja nicht einmal,
-        // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
-        // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
-        const neueSperrzeiten = offeneAnforderungen.flatMap((a) => {
-          const sperrEnde = sperrzeitEndeFromRequest(a, jetzt); // Anker: der Verschluss des Subs
-          return sperrEnde
-            ? [{
-                userId: session.user.id,
-                art: "SPERRZEIT",
-                nachricht: a.nachricht,
-                endetAt: sperrEnde,
-                reinigungErlaubt: a.reinigungErlaubt,
-              }]
-            : [];
-        });
-        // Ein Insert statt einer je Anforderung — der POST-Pfad des Subs ist heiss genug, dass sich
-        // N Round-Trips innerhalb der Transaktion nicht lohnen.
-        if (neueSperrzeiten.length > 0) {
-          await tx.verschlussAnforderung.createMany({ data: neueSperrzeiten });
-        }
-      }
-
-      // OrgasmusAnforderung als erfüllt markieren, wenn ein passender Orgasmus im Fenster erfasst wird.
-      // Matching auf vorgegebene Art (Basis), wenn gesetzt; sonst zählt jeder Orgasmus.
-      if (type === "ORGASMUS") {
-        const entryTime = new Date(startTime);
-        const offeneAnforderung = await tx.orgasmusAnforderung.findFirst({
-          where: {
-            userId: session.user.id,
-            fulfilledAt: null,
-            withdrawnAt: null,
-            beginntAt: { lte: entryTime },
-            endetAt: { gte: entryTime },
-          },
-          orderBy: { createdAt: "desc" },
-        });
-        if (
-          offeneAnforderung &&
-          (!offeneAnforderung.vorgegebeneArt ||
-            offeneAnforderung.vorgegebeneArt === parseOrgasmusArtBase(orgasmusArt))
-        ) {
-          await tx.orgasmusAnforderung.update({
-            where: { id: offeneAnforderung.id },
-            data: { fulfilledAt: new Date(), entryId: created.id },
-          });
-        }
-      }
+      // Was dieser Eintrag abhakt (Kontrolle, Verschluss-Anforderungen samt Sperrzeiten,
+      // Orgasmus-Anforderung) — dieselbe Logik wie auf dem Keyholder-Pfad, siehe
+      // entryFulfilment.ts. `at = new Date()`: die SERVER-Uhr, nie die frei wählbare Eintrags-Zeit
+      // (sonst datierte sich jeder Sub aus jeder Frist heraus). Die Ziel-Schranke reist mit, damit
+      // ein Plug-Foto keine KG-Kontrolle abhakt.
+      requiredAnforderungDeviceIds = await applyEntryFulfilment(
+        tx,
+        created,
+        {
+          verification,
+          targetWhere: inspectionTarget ? inspectionTargetWhere(inspectionTarget, submissionDeviceId) : null,
+        },
+        new Date(),
+      );
 
       // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
       // sie ihm NICHT folgt — steht in `boxCommandForEntry`. No-op ohne Heimdall/Box.
@@ -353,22 +252,8 @@ export async function POST(req: NextRequest) {
   // Auto-create StrafeRecord when user picked a different device than the Anforderung specified.
   // Automatische Ahndung ohne Urteilsschritt → sofort erledigt (judgedBy=system), damit sie
   // nicht als offene Strafe im Urteilsloop hängt.
-  if (type === "VERSCHLUSS" && requiredAnforderungDeviceIds.length > 0 && !requiredAnforderungDeviceIds.includes(deviceId || "")) {
-    try {
-      const now = new Date();
-      await prisma.strafeRecord.create({
-        data: {
-          userId: session.user.id,
-          offenseType: "FALSCHES_GERAET",
-          refId: entry.id,
-          bestraftDatum: now,
-          notiz: null,
-          judgedBy: "system",
-          erledigtAt: now,
-        },
-      });
-    } catch { /* ignore if duplicate — e.g. offline replay */ }
-  }
+  // Anderes als das geforderte Gerät → automatische Ahndung (siehe punishWrongDevice).
+  await punishWrongDevice(entry, requiredAnforderungDeviceIds);
 
   markLastAction();
 
@@ -399,6 +284,7 @@ export async function POST(req: NextRequest) {
   // Meldung an die Keyholder — in DEREN Sprache, nicht in der des Servers (Issue #43). Der ganze
   // Aufbau liegt in `entryNotify.ts`: er hängt am Empfänger, nicht am Schreibpfad, und wirft nie.
   void notifyControllersAboutEntry({
+    actorUserId: session.user.id,
     userId: session.user.id,
     username: session.user.name ?? "User",
     type,
