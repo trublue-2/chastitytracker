@@ -1,5 +1,32 @@
 [
   {
+    "version": "5.0.8",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Code-Erkennung im Kontrollfoto las wiederholt eine handgeschriebene Sieben oder Drei als Zwei und wies die Kontrolle als „falscher Code“ ab, obwohl der Code auf dem Foto klar lesbar war. Beide Verwechslungen werden jetzt wie das bekannte Eins/Sieben-Paar toleriert, und die Erkennung wird ausdrücklich darauf hingewiesen, die Striche einer Zwei von denen einer Sieben oder Drei zu unterscheiden.",
+          "en": "The code recognition on inspection photos repeatedly read a handwritten seven or three as a two and rejected the inspection as a wrong code, even though the code was clearly legible in the photo. Both confusions are now tolerated like the known one/seven pair, and the recognition is explicitly told to tell the strokes of a two apart from those of a seven or a three."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die tolerierten Ziffern-Paare stehen jetzt an einer Stelle beisammen, mit dem Hinweis, dass jedes weitere Paar den Kontroll-Code als Frische-Nachweis schwächt — neue Paare gehören nur dorthin, wenn eine Fehl-Lesung wirklich belegt ist. Die Siegel-Nummer bleibt davon unberührt und wird weiterhin exakt verglichen.",
+          "en": "The tolerated digit pairs now live together in one place, with a note that every additional pair weakens the control code as proof of freshness — new pairs belong there only once a misreading is actually documented. The seal number is unaffected and is still compared exactly."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Uhrzeit-Felder in den Einstellungen waren zu schmal und zeigten nur die Stunde — im Reinigungs-Fenster stand „08“ statt „08:00“. Sie sind jetzt breit genug für die volle Uhrzeit samt Uhr-Symbol des Browsers und behalten diese Breite auch auf schmalen Displays. Betrifft die Reinigungs-Fenster ebenso wie die Zeitfenster der automatischen Kontrollen.",
+          "en": "The time fields in the settings were too narrow and showed only the hour — a cleaning window read “08” instead of “08:00”. They are now wide enough for the full time including the browser's clock icon, and keep that width on narrow screens too. This affects the cleaning windows as well as the time windows of the automatic inspections."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.7",
     "date": "2026-08-03",
     "changes": [

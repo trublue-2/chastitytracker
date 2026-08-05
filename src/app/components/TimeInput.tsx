@@ -1,6 +1,6 @@
 "use client";
 
-import { inlineInputCls } from "@/app/components/inputStyles";
+import { inlineTimeInputCls } from "@/app/components/inputStyles";
 import { useSyncedDraft } from "@/app/hooks/useSyncedDraft";
 
 /** Rohe, kontrollierte „HH:MM"-Eingabe im Inline-Stil der Admin-Settings. Für Formulare mit eigenem
@@ -20,7 +20,7 @@ export function TimeField({ value, disabled, onChange, onBlur, ariaLabel }: {
       aria-label={ariaLabel}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
-      className={inlineInputCls}
+      className={inlineTimeInputCls}
     />
   );
 }
