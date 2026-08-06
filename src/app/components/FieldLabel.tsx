@@ -17,14 +17,20 @@
 export default function FieldLabel({
   id,
   htmlFor,
+  required,
   children,
 }: {
   id?: string;
   htmlFor?: string;
+  /** Pflichtfeld-Stern wie bei {@link Input}/{@link DateTimePicker} — dieselbe Auszeichnung, damit
+   *  eine Gruppe nicht optional AUSSIEHT, bloss weil ihr Feld seine Beschriftung von aussen bekommt.
+   *  Der Stern ist die Ankündigung; durchgesetzt wird die Pflicht am Feld selbst. */
+  required?: boolean;
   children: React.ReactNode;
 }) {
   const className = "text-xs text-foreground-faint";
+  const content = <>{children}{required && <span className="text-warn ml-0.5">*</span>}</>;
   return htmlFor
-    ? <label id={id} htmlFor={htmlFor} className={className}>{children}</label>
-    : <span id={id} className={className}>{children}</span>;
+    ? <label id={id} htmlFor={htmlFor} className={className}>{content}</label>
+    : <span id={id} className={className}>{content}</span>;
 }

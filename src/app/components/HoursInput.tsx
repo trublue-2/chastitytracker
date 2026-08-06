@@ -26,11 +26,12 @@ export default function HoursInput({
   step,
   ariaLabel,
   unit,
+  required,
 }: {
   /**
    * Sichtbare Beschriftung ÜBER der Zeile, im Stil der benachbarten {@link FieldTabs}. Wo sie steht,
    * ist `ariaLabel` überflüssig — die Beschriftung hängt per `htmlFor` am Feld. Ohne sie beschriftet
-   * der Aufrufer das Feld anderweitig (die Kontroll-Frist über den Einheiten-Umschalter darüber).
+   * der Aufrufer das Feld anderweitig ({@link DurationInput} über den Einheiten-Umschalter darüber).
    */
   label?: string;
   value: string;
@@ -39,12 +40,18 @@ export default function HoursInput({
   step: number;
   /**
    * Name des Feldes für Assistenztechnik. Nötig, wo die sichtbare Beschriftung NEBEN dem Feld steht
-   * (die Kontroll-Frist beschriftet den Einheiten-Umschalter darüber) — ohne ihn liest sich das Feld
-   * als namenloses Spinbutton vor. Kein sichtbares Label: das stünde dann doppelt da.
+   * ({@link DurationInput} beschriftet den Einheiten-Umschalter darüber) — ohne ihn liest sich das
+   * Feld als namenloses Spinbutton vor. Kein sichtbares Label: das stünde dann doppelt da.
    */
   ariaLabel?: string;
   /** Übersetzte Einheit, z.B. „h". */
   unit: string;
+  /**
+   * Muss das Feld ausgefüllt sein? Nur dort setzen, wo es KEINEN vorbelegten Wert gibt — sonst
+   * bewacht die Pflicht einen Wert, der ohnehin dasteht. Die Prüfung ist die des Browsers: das
+   * Formular sendet nicht ab, statt einen leeren Wert stillschweigend zu ersetzen.
+   */
+  required?: boolean;
 }) {
   const id = useId();
   return (
@@ -52,7 +59,7 @@ export default function HoursInput({
       {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <div className="flex items-center gap-2">
         <div className="w-24">
-          <Input id={id} type="number" aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} min={min} step={step} />
+          <Input id={id} type="number" aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} min={min} step={step} required={required} />
         </div>
         <span className="text-xs text-foreground-faint">{unit}</span>
       </div>

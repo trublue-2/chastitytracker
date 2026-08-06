@@ -297,6 +297,37 @@ export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY
  *  Literal geschrieben informiert sie den Agenten still falsch, sobald die Vorgabe wandert. */
 export const INSPECTION_DEADLINE_DEFAULT_H = 1;
 
+/**
+ * Rasterung einer Frist-Eingabe je Einheit — EINE Zahl für `min`/`step` des Feldes, für dessen
+ * HTML-Validierung und für das Runden beim Einheiten-Wechsel. Ein Wert neben dem Raster (0.1 h bei
+ * step 0.25) liesse das Formular nicht mehr absenden; wer feiner will als eine Viertelstunde,
+ * schaltet auf Minuten.
+ *
+ * `min` ist die kleinste sinnvolle EINGABE in dieser Einheit, keine fachliche Untergrenze — deshalb
+ * sind die beiden Zeilen auch nicht ineinander umrechenbar (5 min sind in Minuten erlaubt, in
+ * Stunden nicht). Was eine Frist wirklich mindestens sein muss, weiss der Server: die Aufgaben-
+ * Haltefrist etwa muss hinter der Kulanzfrist liegen (`TASK_HOLD_UNTIL_TOO_SOON`), und das hängt an
+ * einem zweiten Feld, das diese Konstante nicht kennt.
+ */
+export const DURATION_UNITS = {
+  h: { min: 0.25, step: 0.25 },
+  min: { min: 5, step: 5 },
+} as const;
+export type DurationUnit = keyof typeof DURATION_UNITS;
+
+/** Eingetippte Dauer → Stunden, die Einheit, in der Modell und Server rechnen. */
+export function durationToHours(value: number, unit: DurationUnit): number {
+  return unit === "min" ? value / 60 : value;
+}
+
+/** Stunden → der Wert, wie er in dieser Einheit ins Feld gehört: auf ihr Raster gerundet und nicht
+ *  unter ihr Minimum. Gegenstück zu {@link durationToHours} — der Weg zurück ins Formular. */
+export function durationFromHours(hours: number, unit: DurationUnit): number {
+  const { min, step } = DURATION_UNITS[unit];
+  const raw = unit === "min" ? hours * 60 : hours;
+  return Math.max(min, Math.round(raw / step) * step);
+}
+
 /** Erlaubte Auslöse-Verzögerung einer über den MCP angeforderten Kontrolle: 5 min – 24 h. Kein
  *  Admin-Setting, sondern die `request_inspection`-Policy — hier, weil Tool-Schema (Beschreibung
  *  des Bereichs) und Service (`clamp`) denselben Bereich nennen müssen. `fallback` greift nur für

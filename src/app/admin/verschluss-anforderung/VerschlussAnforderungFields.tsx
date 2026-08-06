@@ -165,7 +165,7 @@ export default function VerschlussAnforderungFields({
       />
 
       {mode === "duration" ? (
-        <HoursInput value={deadlineH} onChange={setDeadlineH} min={0.5} step={0.5} unit={t("hoursUnit")} />
+        <HoursInput value={deadlineH} onChange={setDeadlineH} min={0.5} step={0.5} unit={tc("hoursUnit")} />
       ) : (
         <DateTimePicker
           value={endetAt}
@@ -195,7 +195,7 @@ export default function VerschlussAnforderungFields({
               />
               {sperrMode === "duration" ? (
                 <>
-                  <HoursInput value={minDauerH} onChange={setMinDauerH} min={1} step={1} unit={t("hoursUnit")} />
+                  <HoursInput value={minDauerH} onChange={setMinDauerH} min={1} step={1} unit={tc("hoursUnit")} />
                   <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
                 </>
               ) : (

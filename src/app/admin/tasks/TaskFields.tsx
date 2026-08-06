@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, formatElapsedMs, toDateLocale } from "@/lib/utils";
 import useTick from "@/app/hooks/useTick";
 import DateTimePicker from "@/app/components/DateTimePicker";
+import DurationInput from "@/app/components/DurationInput";
 import FieldLabel from "@/app/components/FieldLabel";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
@@ -20,6 +21,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH,
   TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace,
+  durationToHours, durationFromHours, type DurationUnit,
 } from "@/lib/constants";
 import { minHoldMs, startDeadline } from "@/lib/tasks";
 import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
@@ -27,9 +29,10 @@ import type { TaskRequirementInput, TaskProofInput } from "@/lib/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
 import TaskProofPicker from "./TaskProofPicker";
 
-/** Schnellwahl für die Endzeit. Das Modell kennt nur den absoluten Zeitpunkt (EINE Wahrheit); die
- *  Stunden-Knöpfe rechnen ihn nur bequem aus — „trage den Knebel 2 Stunden" ist damit zwei Taps. */
-const QUICK_HOURS = [1, 2, 4, 8] as const;
+/** Schnellwahl für die Endzeit, in Stunden. Das Modell kennt nur den absoluten Zeitpunkt (EINE
+ *  Wahrheit); die Knöpfe rechnen ihn nur bequem aus — „trage den Knebel eine Viertelstunde" ist damit
+ *  zwei Taps. Die kurzen Stufen stehen vorne, weil die langen ohnehin die getippten sind. */
+const QUICK_HOURS = [0.25, 0.5, 1, 2, 4] as const;
 
 /**
  * Formular „Aufgabe stellen".
@@ -65,18 +68,28 @@ export default function TaskFields({
   initialPenaltyReason?: string;
 }) {
   const t = useTranslations("tasks");
+  // Die Einheiten stehen im gemeinsamen Namensraum, seit `DurationInput` sie braucht — die
+  // Kulanzfrist hier holt sie von dort, sonst stünde in EINEM Formular zweimal dieselbe Einheit in
+  // zwei Schreibweisen.
+  const tc = useTranslations("common");
   const locale = useLocale();
   const apiError = useApiError();
   const router = useRouter();
-  const holdLabelId = useId();
-
-  const nowBaseMs = fromDatetimeLocal(minNow, tz).getTime();
+  const holdUntilId = useId();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<"duration" | "datetime">("duration");
-  const [hours, setHours] = useState("2");
-  const [holdUntil, setHoldUntil] = useState(() => toDatetimeLocal(new Date(nowBaseMs + 2 * 3600_000), tz));
+  // Beide Zeit-Eingaben starten LEER — kein vorbelegter Wert.
+  //
+  // Vorbelegt waren hier zwei Stunden, und genau das war der Fehler: wer die Frist übersah, stellte
+  // sie trotzdem, ohne sie je gewählt zu haben (Rückmeldung 06.08.2026 — „ich schaffe keine 2 Stunden
+  // Knebel"). Ein Vorschlagswert ist harmlos, wo er nur bequem ist; hier ist er die Aussage, wie lange
+  // ein anderer Mensch etwas auszuhalten hat. Die soll bewusst getroffen werden, nicht durchgewinkt.
+  // Durchgesetzt wird das über `required` an beiden Feldern, nicht durch eine Prüfung beim Absenden.
+  const [hours, setHours] = useState("");
+  const [holdUnit, setHoldUnit] = useState<DurationUnit>("h");
+  const [holdUntil, setHoldUntil] = useState("");
   const [graceMin, setGraceMin] = useState(String(TASK_DEFAULT_START_GRACE_MIN));
   const [requirements, setRequirements] = useState<TaskRequirementInput[]>([]);
   const [proofs, setProofs] = useState<TaskProofInput[]>([]);
@@ -101,9 +114,12 @@ export default function TaskFields({
   // Die Endzeit aus dem gerade gewählten Reiter — EINE Rechnung für Vorschau und Absenden. Zwei
   // getrennte Fassungen wären genau die Sorte Abweichung, die die Vorschau widerlegen soll: sie
   // verspräche eine Zeit, die das Formular dann anders abschickt.
+  //
+  // Ein leeres Feld ergibt bewusst ein UNGÜLTIGES Datum und keinen Ersatzwert: die Vorschau zeigt
+  // dann nichts, statt eine Zeit zu nennen, die niemand gewählt hat.
   function endAt(nowMs: number): Date {
     return mode === "duration"
-      ? new Date(nowMs + (parseFloat(hours) || 2) * 3600_000)
+      ? new Date(nowMs + durationToHours(parseFloat(hours), holdUnit) * 3600_000)
       : fromDatetimeLocal(holdUntil, tz);
   }
 
@@ -115,7 +131,7 @@ export default function TaskFields({
    * beim Seitenaufruf vorbelegte Wert — nach zehn Minuten Formularausfüllen zehn Minuten zu früh.
    */
   function toggleMode() {
-    // Schlichte Funktion statt setState-Updater (Vorbild: `switchFristUnit` in `KontrolleFields`):
+    // Schlichte Funktion statt setState-Updater (Vorbild: `switchUnit` in `DurationInput`):
     // `mode` steht im Closure, und ein Updater muss REIN sein — unter StrictMode liefe er im Dev
     // zweimal und setzte die Endzeit zweimal mit unterschiedlichem `Date.now()`.
     //
@@ -124,14 +140,16 @@ export default function TaskFields({
     // Rückweg auf einem alten Stand landet — also auf einer anderen Endzeit als der eben gezeigten.
     const nowMs = Date.now();
     const end = endAt(nowMs);
-    if (Number.isNaN(end.getTime())) return; // halb getipptes Datum: nichts umzurechnen
+    // Noch nichts eingegeben (oder ein halb getipptes Datum): dann gibt es keine Zeit mitzunehmen —
+    // umgeschaltet wird trotzdem. Früher brach der Wechsel hier ganz ab, was mit dem leeren Startwert
+    // hiesse: der Weg zum festen Zeitpunkt wäre nur über eine erst eingetippte Dauer erreichbar.
+    const known = !Number.isNaN(end.getTime());
     if (mode === "duration") {
-      setHoldUntil(toDatetimeLocal(end, tz));
+      if (known) setHoldUntil(toDatetimeLocal(end, tz));
       setMode("datetime");
     } else {
-      // Auf die Viertelstunde gerundet, damit im Stundenfeld nicht „2.3833" landet.
-      const hoursFromNow = Math.max(1, Math.round(((end.getTime() - nowMs) / 3600_000) * 4) / 4);
-      setHours(String(hoursFromNow));
+      // Auf das Raster der Einheit gebracht, damit im Feld nicht „2.3833" landet.
+      if (known) setHours(String(durationFromHours((end.getTime() - nowMs) / 3600_000, holdUnit)));
       setMode("duration");
     }
   }
@@ -141,6 +159,8 @@ export default function TaskFields({
   // geändert werden. Es ist dieselbe Unterscheidung, die `taskDeadlineKey` auf der Anzeige-Seite und
   // `checkTask` auf der Server-Seite treffen: gibt es überhaupt etwas anzulegen?
   const hasRequirements = requirements.length > 0;
+  // Beide Eingabewege tragen dieselbe Beschriftung — sie benennen dieselbe Frage, nur anders gefragt.
+  const holdLabel = t(hasRequirements ? "holdUntilLabel" : "holdUntilLabelPlain");
   // Geklemmt wie im Service — mit derselben Funktion, damit die Vorschau denselben Wert zeigt, den
   // der Server am Ende schreibt.
   const graceEffective = clampStartGrace(parseFloat(graceMin));
@@ -148,6 +168,9 @@ export default function TaskFields({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const until = endAt(Date.now());
+    // Über die Oberfläche unerreichbar (beide Eingabewege sind `required`), aber `toISOString()`
+    // wirft auf einem ungültigen Datum — und das wäre statt einer Fehlermeldung ein Absturz.
+    if (Number.isNaN(until.getTime())) return;
 
     // Keine eigene Frist-Prüfung hier: der Service verlangt mehr als „in der Zukunft" — die Endzeit
     // muss hinter der Kulanzfrist liegen, sonst wäre die Aufgabe gar nicht erst zu beginnen. Eine
@@ -218,7 +241,7 @@ export default function TaskFields({
             onChange={setGraceMin}
             min={TASK_START_GRACE_RANGE.min}
             step={5}
-            unit={t("minutesUnit")}
+            unit={tc("minutesUnit")}
           />
           {/* Dieselbe Rechnung wie auf der Karte des Subs (`startDeadline`), damit die Vorschau nicht
               das eine verspricht und die Karte danach das andere anzeigt. Immer live: die Kulanz läuft
@@ -227,48 +250,64 @@ export default function TaskFields({
             at={(nowMs) => startDeadline({ createdAt: new Date(nowMs), startGraceMin: graceEffective })}
             live
             tz={tz}
-            line={(date) => t("previewStart", { date })}
+            line={(date) => ({ text: t("previewStart", { date }) })}
           />
           <p className="text-xs text-foreground-faint">{t("graceHint")}</p>
         </div>
       )}
 
       {/* Die Frist. Die Beschriftung nennt die FRAGE, nicht bloss „Frist": mit Bedingungen ist es eine
-          Haltefrist, ohne Bedingungen ein Termin.
+          Haltefrist, ohne Bedingungen ein Termin. Sie steht in beiden Eingabewegen an derselben
+          Stelle — beim Umschalter der Einheit bzw. über dem Zeitpunkt-Feld; eine Gruppen-Beschriftung
+          darüber stünde dann doppelt da.
           Der Umschalter „Endet in / Endet um" ist zum Aufklapper geworden: seit die Zeile darunter den
           errechneten Endzeitpunkt nennt, LAS sich der zweite Reiter wie eine zweite Anzeige desselben
           Werts (Rückmeldung 03.08.2026). Er ist trotzdem ein eigener EINGABEweg — „bis morgen früh
           07:00" wäre sonst wieder Kopfrechnen. Also: sichtbar ist der häufige Fall, der seltene ist
           einen Tap entfernt. */}
-      <div className="flex flex-col gap-2" role="group" aria-labelledby={holdLabelId}>
-        <FieldLabel id={holdLabelId}>{t(hasRequirements ? "holdUntilLabel" : "holdUntilLabelPlain")}</FieldLabel>
-
+      <div className="flex flex-col gap-2">
         {mode === "duration" ? (
           <>
-            <HoursInput
+            <DurationInput
+              label={holdLabel}
               ariaLabel={t("holdHoursLabel")}
               value={hours}
-              onChange={setHours}
-              min={1}
-              step={0.5}
-              unit={t("hoursUnit")}
+              unit={holdUnit}
+              onChange={(value, unit) => { setHours(value); setHoldUnit(unit); }}
+              required
             />
+            {/* Die Knöpfe setzen die Dauer in der GERADE gewählten Einheit — auf „Minuten" gestellt
+                trägt „1 h" also 60 ein, nicht 1. Sonst hiesse derselbe Knopf je nach Umschalter etwas
+                anderes. */}
             <div className="flex flex-wrap gap-2">
               {QUICK_HOURS.map((h) => (
-                <Button key={h} type="button" variant="secondary" size="sm" onClick={() => setHours(String(h))}>
-                  {t("quickHours", { hours: h })}
+                <Button
+                  key={h}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setHours(String(durationFromHours(h, holdUnit)))}
+                >
+                  {h < 1 ? t("quickMinutes", { minutes: durationFromHours(h, "min") }) : t("quickHours", { hours: h })}
                 </Button>
               ))}
             </div>
           </>
         ) : (
-          <DateTimePicker
-            aria-label={t("holdUntilAtLabel")}
-            value={holdUntil}
-            onChange={(e) => setHoldUntil(e.target.value)}
-            min={minNow}
-            hint={t("holdUntilTzHint", { tz })}
-          />
+          <>
+            {/* Bewusst `FieldLabel` und nicht das `label`-Prop des Wählers: dessen Beschriftung ist
+                versal und fett (eine FELD-Beschriftung), hier soll dieselbe leise Gruppen-Beschriftung
+                stehen wie im anderen Zweig — sonst springt der Block beim Umschalten optisch. */}
+            <FieldLabel htmlFor={holdUntilId} required>{holdLabel}</FieldLabel>
+            <DateTimePicker
+              id={holdUntilId}
+              value={holdUntil}
+              onChange={(e) => setHoldUntil(e.target.value)}
+              min={minNow}
+              hint={t("holdUntilTzHint", { tz })}
+              required
+            />
+          </>
         )}
 
         {/* Die MINDEST-Haltezeit steht dabei, weil die Stundenzahl gerade NICHT die Haltezeit ist: die
@@ -286,16 +325,22 @@ export default function TaskFields({
           line={(date, nowMs) => {
             // Über `minHoldMs` und nicht per eigener Rechnung: die Vorschau zeigt damit dieselbe
             // Grösse, gegen die der Server prüft (`TASK_HOLD_UNTIL_TOO_SOON`) und die der Sub auf
-            // seiner Karte liest. Ein Wert ≤ 0 ist der widersprüchliche Fall — dann steht hier nur
-            // das Ende, und die Ablehnung des Servers erklärt den Rest.
+            // seiner Karte liest.
             const holdMs = minHoldMs({
               createdAt: new Date(nowMs),
               startGraceMin: graceEffective,
               holdUntil: endAt(nowMs),
             });
-            return hasRequirements && holdMs > 0
-              ? t("previewEndHold", { date, duration: formatElapsedMs(holdMs, locale) })
-              : t("previewEnd", { date });
+            if (!hasRequirements) return { text: t("previewEnd", { date }) };
+            // Ein Wert ≤ 0 ist der widersprüchliche Fall: die Aufgabe wäre im Moment des Stellens
+            // schon vorbei, bevor überhaupt begonnen sein muss — der Server weist sie mit
+            // `TASK_HOLD_UNTIL_TOO_SOON` ab. Seit die Frist Viertelstunden erlaubt, ist das keine
+            // Ausnahme mehr, sondern zwei Taps entfernt („15 min" gegen die 30 Minuten Kulanz).
+            // Deshalb steht der Widerspruch HIER, wo beide Zahlen sichtbar sind, statt als 400er nach
+            // dem Absenden — die Vorschau hat ihn ohnehin schon gerechnet.
+            return holdMs > 0
+              ? { text: t("previewEndHold", { date, duration: formatElapsedMs(holdMs, locale) }) }
+              : { text: t("previewEndTooSoon", { date }), warn: true };
           }}
         />
 
@@ -353,8 +398,10 @@ export default function TaskFields({
  *
  * `live` schaltet den Takt: er lohnt nur, wo der Wert von „jetzt" abhängt (Dauer-Eingaben). Über
  * einem fest eingetippten Zeitpunkt liefe sonst ein Intervall, das jede Minute denselben String neu
- * berechnet. `suppressHydrationWarning` wie bei jedem anderen Uhr-Anzeiger der App (siehe
- * `HoldRemaining`) — der Server kennt die Uhr des Betrachters nicht.
+ * berechnet. Dasselbe gilt für die noch leere Eingabe: dann gibt es keinen Zeitpunkt, die Zeile
+ * zeigt nichts, und ein Takt hätte nichts zu aktualisieren — deshalb hängt er auch an der GÜLTIGKEIT
+ * und nicht nur am Modus. `suppressHydrationWarning` wie bei jedem anderen Uhr-Anzeiger der App
+ * (siehe `HoldRemaining`) — der Server kennt die Uhr des Betrachters nicht.
  *
  * Bewusst lokal und nicht in `src/app/components/`: es ist bisher EIN Formular. Kommt die zweite
  * Frist-Vorschau (Kontrolle, Verschluss-Anforderung), gehört sie dorthin.
@@ -367,24 +414,30 @@ function TimePreview({ at, live, tz, line }: {
   live: boolean;
   tz: string;
   /**
-   * Der fertige Satz. Bewusst beim Aufrufer: die Endzeile nennt zusätzlich die Mindest-Haltezeit,
-   * die Beginn-Zeile nicht — ein zweiter Schlüssel plus optionale Parameter hätte die Fallunterscheidung
-   * bloss in dieses Bauteil verschoben, das von Haltezeiten nichts wissen muss.
+   * Der fertige Satz, dazu ob er ein WIDERSPRUCH ist. Bewusst beim Aufrufer: die Endzeile nennt
+   * zusätzlich die Mindest-Haltezeit und kann in sich unmöglich werden, die Beginn-Zeile nicht — ein
+   * zweiter Schlüssel plus optionale Parameter hätte die Fallunterscheidung bloss in dieses Bauteil
+   * verschoben, das von Haltezeiten nichts wissen muss.
    */
-  line: (formatted: string, nowMs: number) => string;
+  line: (formatted: string, nowMs: number) => { text: string; warn?: boolean };
 }) {
   const locale = useLocale();
-  useTick(live ? 60_000 : 0);
 
   const nowMs = Date.now();
   const date = at(nowMs);
-  // Ein halb getipptes Datum ist kein Fehler, sondern ein Zwischenstand — dann steht hier nichts,
-  // statt „Ende: Invalid Date".
-  if (Number.isNaN(date.getTime())) return null;
+  // Ein halb getipptes oder noch leeres Feld ist kein Fehler, sondern ein Zwischenstand — dann steht
+  // hier nichts, statt „Ende: Invalid Date".
+  const valid = !Number.isNaN(date.getTime());
+  useTick(live && valid ? 60_000 : 0);
+  if (!valid) return null;
 
+  const { text, warn } = line(formatDateTime(date, toDateLocale(locale), tz), nowMs);
   return (
-    <p className="text-xs font-medium text-foreground-muted tabular-nums" suppressHydrationWarning>
-      {line(formatDateTime(date, toDateLocale(locale), tz), nowMs)}
+    <p
+      className={`text-xs font-medium tabular-nums ${warn ? "text-warn-text" : "text-foreground-muted"}`}
+      suppressHydrationWarning
+    >
+      {text}
     </p>
   );
 }

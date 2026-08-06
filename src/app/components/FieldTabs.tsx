@@ -20,16 +20,20 @@ export default function FieldTabs<T extends string>({
   value,
   options,
   onChange,
+  required,
 }: {
   label: string;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
+  /** Beschriftet die Gruppe ein PFLICHTfeld? Der Umschalter selbst ist immer gesetzt — gemeint ist
+   *  das Feld darunter, dessen Beschriftung diese hier ist. */
+  required?: boolean;
 }) {
   const labelId = useId();
   return (
     <div className="flex flex-col gap-2">
-      <FieldLabel id={labelId}>{label}</FieldLabel>
+      <FieldLabel id={labelId} required={required}>{label}</FieldLabel>
       <Tabs
         variant="segmented"
         tabs={options.map((o) => ({ key: o.value, label: o.label }))}
