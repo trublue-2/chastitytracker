@@ -1406,7 +1406,7 @@
     "inspectionHelpText": "Neu hier oder unsicher, was verlangt ist? So funktioniert eine Kontrolle:",
     "inspectionHelpLink": "Kontrollen erklärt",
     "inspectionPushTitle": "Kontrolle erforderlich",
-    "inspectionPushCode": "Code: {code}",
+    "inspectionPushTitleCode": "Kontrolle · {code}",
     "inspectionPushDeadline": "Frist: {deadline}",
     "inspectionPushSeal": "Siegel-Nummer mitfotografieren",
     "lockNoticeLabel": "Nachricht des Admins:",

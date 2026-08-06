@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { generateKontrollCode } from "@/lib/utils";
 import { sendMailSafe, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
@@ -436,6 +436,46 @@ async function sendInspectionMail(o: {
 }
 
 /**
+ * Titel + Text der Kontroll-Push. Ausgelagert und exportiert, weil hier zwei Zusicherungen hängen,
+ * die beim nächsten Umformulieren still brechen — die Push wird nämlich ABFOTOGRAFIERT (Code auf
+ * der Smartwatch statt auf einem Zettel), und die Erkennung muss die Ziffern im Bild finden:
+ *
+ * 1. Der CODE steht im TITEL, nicht im Text. Titel ist die grösste Schrift, die der Kanal hergibt —
+ *    Web-Push wie nativ kennen nur `title` + `body` und keinerlei Formatierung (`sw.js`,
+ *    `push.ts`). Im `body` stand er in der kleinsten Schrift (Rückmeldung 08/2026: „versteckt").
+ * 2. Im Text steht so WENIG wie möglich, was nach einem Code aussieht: die Frist am selben Tag nur
+ *    als Uhrzeit. Jede weitere Zahl im Bild ist eine, die die Erkennung für den Code halten kann.
+ *    Die MAIL behält die volle Frist-Angabe — sie wird nicht fotografiert.
+ */
+export function buildInspectionPush(opts: {
+  t: EmailTranslator;
+  code: string | null;
+  targetLabel: string | null;
+  deadline: Date;
+  /** Volle Frist-Angabe (wie in der Mail) — greift, wenn die Frist nicht mehr heute liegt. */
+  deadlineStr: string;
+  sealRequired: boolean;
+  kommentar: string | null;
+  /** Nur für Tests: der Stichtag des „liegt die Frist heute?"-Vergleichs. */
+  now?: Date;
+}): { title: string; body: string } {
+  const { t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar, now = new Date() } = opts;
+  const deadlineShort = formatDate(deadline) === formatDate(now) ? formatTime(deadline) : deadlineStr;
+  const parts = [
+    ...(targetLabel ? [targetLabel] : []),
+    t("inspectionPushDeadline", { deadline: deadlineShort }),
+  ];
+  if (sealRequired) parts.push(t("inspectionPushSeal"));
+  if (kommentar) parts.push(kommentar);
+  return {
+    // Ohne Code (Gerät ohne Code-Pflicht) bleibt der bisherige Titel — „Kontrolle · " mit nichts
+    // dahinter wäre eine Lücke, wo der Nutzer eine Zahl erwartet.
+    title: code ? t("inspectionPushTitleCode", { code }) : t("inspectionPushTitle"),
+    body: parts.join(" · "),
+  };
+}
+
+/**
  * Sends the inspection e-mail (code + deadline + link) and a push to the user.
  * Reused by the immediate path in requestKontrolle and by the delayed-trigger poller.
  * `sealCode` = aktive Siegel-Nummer (oder null): weicht sie vom Code ab, verlangt die Mail
@@ -496,18 +536,6 @@ export async function sendKontrolleNotification(opts: {
     await sendInspectionMail({ to: user.email, t, locale, username: user.username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel });
   }
 
-  const pushParts = [
-    ...(targetLabel ? [targetLabel] : []),
-    ...(code ? [t("inspectionPushCode", { code })] : []),
-    t("inspectionPushDeadline", { deadline: deadlineStr }),
-  ];
-  if (sealRequired) pushParts.push(t("inspectionPushSeal"));
-  if (kommentar) pushParts.push(kommentar);
-  firePush(
-    user.id,
-    t("inspectionPushTitle"),
-    pushParts.join(" · "),
-    formPath,
-    badge,
-  );
+  const push = buildInspectionPush({ t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar });
+  firePush(user.id, push.title, push.body, formPath, badge);
 }

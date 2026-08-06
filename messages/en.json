@@ -1406,7 +1406,7 @@
     "inspectionHelpText": "New here or unsure what's expected? Here's how an inspection works:",
     "inspectionHelpLink": "Inspections explained",
     "inspectionPushTitle": "Inspection required",
-    "inspectionPushCode": "Code: {code}",
+    "inspectionPushTitleCode": "Inspection · {code}",
     "inspectionPushDeadline": "Deadline: {deadline}",
     "inspectionPushSeal": "Include the seal number in the photo",
     "lockNoticeLabel": "Keyholder's message:",

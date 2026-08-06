@@ -12,6 +12,17 @@ import { localReadDigits } from "@/lib/ocr";
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
 const SEAL_VOCAB = `plastic security seal or numbered tag (e.g. coloured strip — yellow, red, blue, white — with a round locking head, a barcode and digits; often used to seal chastity devices). The seal may appear in any orientation — upside down, sideways or angled — read it as it would read when held upright. Preserve any leading zeros.`;
 
+/** Der Kontroll-Code darf auch von einem BILDSCHIRM abgelesen werden: die Push-Meldung trägt ihn
+ *  im Text (`kontrolleService`), eine gespiegelte Benachrichtigung auf der Smartwatch zeigt ihn
+ *  also ohne Zettel. Die Regel verlangte nie ein bestimmtes Medium („muss auf dem Foto erkennbar
+ *  sein"), nur der Prompt zählte Papier/Etikett/Plombe auf — und wies daneben an, lieber `null` zu
+ *  melden als zu raten. Wie SEAL_VOCAB als Konstante, damit die Quelle nicht zwischen Einzel- und
+ *  Dual-Modus driftet.
+ *
+ *  NUR für den Kontroll-Code. Die Siegel-Nummer bleibt physisch: sie ist der Manipulations-Nachweis,
+ *  und ein abfotografierter Bildschirm belegt nicht, dass die Plombe am Gerät sitzt. */
+const SCREEN_VOCAB = `shown on a screen — e.g. the app's notification on a phone or smartwatch display`;
+
 /** In beiden Vision-Prompts identisch — als Konstante gehalten (wie SEAL_VOCAB), damit die
  *  Handschrift-Warnung nicht zwischen Einzel- und Dual-Modus driftet.
  *  Benennt die beobachteten Fehl-Lesungen: neben dem klassischen 1/7 vor allem „als Zwei gelesen"
@@ -45,6 +56,7 @@ function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): 
       `The target number may appear in any of these forms:`,
       `• handwritten on a slip of paper or card,`,
       `• printed/typed on a tag, sticker or label,`,
+      `• ${SCREEN_VOCAB},`,
       `• printed on a ${SEAL_VOCAB}`,
       HANDWRITING_NOTE,
       digitCountNote("target number", expectedCode.length),
@@ -54,8 +66,11 @@ function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): 
   }
   return [
     `Look for TWO specific numbers in this image. Only these two numbers matter — ignore other numbers, barcodes, prices, or device serials that may also be visible.`,
-    `1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, or printed/typed on a tag, sticker or label.`,
+    `1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, printed/typed on a tag, sticker or label, or ${SCREEN_VOCAB}.`,
     `2. SEAL NUMBER ${effectiveSeal}: printed on a ${SEAL_VOCAB}`,
+    // Gegenstueck zu SCREEN_VOCAB: der Code darf vom Bildschirm kommen, die Plombe nicht. Ohne
+    // diesen Satz liegt die Verallgemeinerung nahe, sobald oben ein Display erlaubt ist.
+    `Read the seal number from the physical seal itself — a seal number shown on a screen or written by hand does not count as a seal.`,
     HANDWRITING_NOTE,
     digitCountNote("control code", expectedCode.length),
     digitCountNote("seal number", effectiveSeal.length),

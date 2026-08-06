@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // hasActiveKontrolle nutzt nur prisma.kontrollAnforderung.findFirst — mocken.
 vi.mock("@/lib/prisma", () => ({ prisma: { kontrollAnforderung: { findFirst: vi.fn() } } }));
 
-import { hasActiveKontrolle, inspectionIntro } from "./kontrolleService";
+import { hasActiveKontrolle, inspectionIntro, buildInspectionPush } from "./kontrolleService";
 import { emailT } from "@/lib/emailI18n";
 import { prisma } from "@/lib/prisma";
 
@@ -134,5 +134,50 @@ describe("inspectionIntro — die genannte Dauer muss der echten Frist entsprech
     expect(de(-min(5))).toContain("1 Minute ");
     expect(de(NaN)).toContain("1 Minute ");
     expect(de(NaN)).not.toContain("NaN");
+  });
+});
+
+describe("buildInspectionPush — der Code muss auf dem Foto der Smartwatch lesbar sein", () => {
+  const t = emailT("de");
+  // Frist 19:43 Ortszeit (Europe/Zurich) am 05.08., Stichtag am selben Tag.
+  const DEADLINE = new Date("2026-08-05T17:43:00Z");
+  const NOW = new Date("2026-08-05T10:00:00Z");
+  const base = {
+    t, code: "70499", targetLabel: null, deadline: DEADLINE,
+    deadlineStr: "05.08.2026, 19:43", sealRequired: false, kommentar: null, now: NOW,
+  };
+
+  it("stellt den Code in den TITEL — dort rendert die Uhr die grösste Schrift", () => {
+    const { title, body } = buildInspectionPush(base);
+    expect(title).toContain("70499");
+    // Und NICHT zusätzlich in den Text: dort stünde er klein und als zweite Zahl, die die
+    // Erkennung mit der Frist verwechseln kann.
+    expect(body).not.toContain("70499");
+  });
+
+  it("hält den Text frei von Zahlen, die wie ein Code aussehen: Frist heute nur als Uhrzeit", () => {
+    const { body } = buildInspectionPush(base);
+    expect(body).toContain("19:43");
+    expect(body).not.toContain("2026");
+  });
+
+  it("nennt die Frist voll, sobald sie nicht mehr heute liegt", () => {
+    const { body } = buildInspectionPush({ ...base, deadline: new Date("2026-08-06T17:43:00Z") });
+    expect(body).toContain("05.08.2026, 19:43");
+  });
+
+  it("ohne Code-Pflicht bleibt der bisherige Titel — keine Lücke, wo eine Zahl erwartet wird", () => {
+    const { title } = buildInspectionPush({ ...base, code: null });
+    expect(title).toBe(t("inspectionPushTitle"));
+    expect(title).not.toContain("·");
+  });
+
+  it("Ziel, Siegel-Hinweis und Kommentar bleiben im Text", () => {
+    const { body } = buildInspectionPush({
+      ...base, targetLabel: "Käfig", sealRequired: true, kommentar: "Bitte zügig",
+    });
+    expect(body.startsWith("Käfig · ")).toBe(true);
+    expect(body).toContain(t("inspectionPushSeal"));
+    expect(body.endsWith("Bitte zügig")).toBe(true);
   });
 });
