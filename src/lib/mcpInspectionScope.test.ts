@@ -21,12 +21,12 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/kontrolleService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/kontrolleService")>();
-  return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), hasActiveKontrolle: vi.fn() };
+  return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), resolveInspectionEntry: vi.fn(), hasActiveKontrolle: vi.fn() };
 });
 
-import { mcpWithdraw, mcpRequestInspection } from "./mcpWrite";
+import { mcpWithdraw, mcpRequestInspection, mcpResolveInspection } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { requestKontrolle, resolveKontrolle, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
 import { INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
 
@@ -142,5 +142,52 @@ describe("request_inspection macht eine geklemmte Verzögerung kenntlich", () =>
     expect(r.preview.delayMinutes).toContain("random");
     expect(r.preview.requestedDelayMinutes).toBeNull();
     expect(r.preview.delayNote).toBeNull();
+  });
+});
+
+/**
+ * Vorfall 07.08.2026: `resolve_inspection` suchte die zu beurteilende Kontrolle über die
+ * `KontrollAnforderung`. Eine freiwillige Selbstkontrolle hat keine — der Keyholder bekam
+ * „No submitted inspection", obwohl ein Foto vorlag. Adressiert wird deshalb der EINTRAG.
+ */
+describe("resolve_inspection findet auch die Selbstkontrolle", () => {
+  const entryFindFirstMock = prisma.entry.findFirst as unknown as ReturnType<typeof vi.fn>;
+  const kontrollFindFirstMock = prisma.kontrollAnforderung.findFirst as unknown as ReturnType<typeof vi.fn>;
+  const resolveEntryMock = resolveInspectionEntry as unknown as ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    resolveEntryMock.mockResolvedValue({ ok: true, data: { userId: "u1", notified: true } });
+  });
+
+  it("beurteilt den jüngsten Kontroll-Eintrag, ohne nach einer Anforderung zu suchen", async () => {
+    entryFindFirstMock.mockResolvedValue({ id: "e-selbst", verifikationStatus: null });
+
+    await mcpResolveInspection("sub", { action: "verify" });
+
+    expect(resolveInspectionEntry).toHaveBeenCalledWith("e-selbst", "manuallyVerify");
+    // Die Anforderung darf für die AUSWAHL keine Rolle mehr spielen — sonst bliebe die
+    // Selbstkontrolle wieder unauffindbar.
+    expect(kontrollFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("wählt nach Einreich-Zeitpunkt, nicht nach der frei wählbaren Eintrags-Zeit", async () => {
+    entryFindFirstMock.mockResolvedValue({ id: "e1", verifikationStatus: null });
+
+    await mcpResolveInspection("sub", { action: "reject" });
+
+    const arg = entryFindFirstMock.mock.lastCall?.[0];
+    // Beurteilt wird ein FOTO: eine nachgetragene Kontrolle ohne Bild ist keine Einreichung und
+    // dürfte die echte nicht verdecken.
+    expect(arg.where).toMatchObject({ userId: "u1", type: "PRUEFUNG", imageUrl: { not: null } });
+    // `startTime` ist vom Sub wählbar; nur `createdAt` bildet die Reihenfolge der Einreichungen ab.
+    expect(arg.orderBy).toEqual({ createdAt: "desc" });
+    expect(resolveInspectionEntry).toHaveBeenCalledWith("e1", "reject");
+  });
+
+  it("ohne jede Kontrolle bleibt es bei der klaren Fehlermeldung", async () => {
+    entryFindFirstMock.mockResolvedValue(null);
+
+    await expect(mcpResolveInspection("sub", { action: "verify" })).rejects.toThrow(/No submitted inspection/);
+    expect(resolveInspectionEntry).not.toHaveBeenCalled();
   });
 });
