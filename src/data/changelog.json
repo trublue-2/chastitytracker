@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.0.10",
+    "date": "2026-08-07",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Freiwillige Kontrollen — solche, die niemand angefordert hat — liessen sich nicht mehr bestätigen oder ablehnen: der Knopf tat nichts. Das geht wieder, in der Keyholder-Ansicht wie über die Keyholder-KI.",
+          "en": "Voluntary inspections — the ones nobody requested — could no longer be confirmed or rejected: the button did nothing. That works again, both in the keyholder view and through the keyholder AI."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bearbeitet der Keyholder eine bereits bestätigte Kontrolle, bleibt die Bestätigung jetzt erhalten. Bisher verschwand sie stillschweigend, sobald etwas daran geändert wurde.",
+          "en": "When a keyholder edits an already confirmed inspection, the confirmation now stays. Until now it silently vanished as soon as anything was changed."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.9",
     "date": "2026-08-05",
     "changes": [
