@@ -1,16 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// hasActiveKontrolle nutzt nur prisma.kontrollAnforderung.findFirst — mocken.
-vi.mock("@/lib/prisma", () => ({ prisma: { kontrollAnforderung: { findFirst: vi.fn() } } }));
+// hasActiveKontrolle nutzt nur prisma.kontrollAnforderung.findFirst; resolveInspectionEntry
+// zusätzlich entry.findUnique/update — mocken.
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    kontrollAnforderung: { findFirst: vi.fn() },
+    entry: { findUnique: vi.fn(), update: vi.fn() },
+  },
+}));
+vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
+vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 
-import { hasActiveKontrolle, inspectionIntro, buildInspectionPush } from "./kontrolleService";
+import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, resolveInspectionEntry } from "./kontrolleService";
 import { emailT } from "@/lib/emailI18n";
 import { prisma } from "@/lib/prisma";
+import { notifyUser } from "@/lib/notify";
 
 const findFirstMock = prisma.kontrollAnforderung.findFirst as unknown as ReturnType<typeof vi.fn>;
+const entryFindMock = prisma.entry.findUnique as unknown as ReturnType<typeof vi.fn>;
+const entryUpdateMock = prisma.entry.update as unknown as ReturnType<typeof vi.fn>;
+const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   findFirstMock.mockReset();
+  entryFindMock.mockReset();
+  entryUpdateMock.mockReset();
+  notifyMock.mockReset();
 });
 
 describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
@@ -179,5 +194,77 @@ describe("buildInspectionPush — der Code muss auf dem Foto der Smartwatch lesb
     expect(body.startsWith("Käfig · ")).toBe(true);
     expect(body).toContain(t("inspectionPushSeal"));
     expect(body.endsWith("Bitte zügig")).toBe(true);
+  });
+});
+
+/**
+ * Die Regression vom 07.08.2026: eine freiwillige Selbstkontrolle (PRUEFUNG ohne Anforderung) war
+ * nicht zu bestätigen. Der Weg über die Anforderung setzt eine `kontrolleId` voraus, die es dort
+ * nicht gibt — der Klick lief still ins Leere. Deshalb die Adressierung über den EINTRAG.
+ */
+describe("resolveInspectionEntry — Urteil über den Eintrag statt über die Anforderung", () => {
+  it("bestätigt eine Selbstkontrolle (ohne Anforderung) und meldet es dem Sub", async () => {
+    entryFindMock.mockResolvedValue({ userId: "u1", type: "PRUEFUNG" });
+    findFirstMock.mockResolvedValue(null);
+
+    const result = await resolveInspectionEntry("e1", "manuallyVerify");
+
+    // Gleiche Rückgabeform wie `resolveKontrolle` — dieselbe Operation, nur anders adressiert.
+    expect(result).toEqual({ ok: true, data: { userId: "u1", notified: true } });
+    expect(entryUpdateMock).toHaveBeenCalledWith({ where: { id: "e1" }, data: { verifikationStatus: "manual" } });
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+    const [userId, content] = notifyMock.mock.calls[0];
+    expect(userId).toBe("u1");
+    expect(content.subjectKey).toBe("inspectionConfirmedSubject");
+    // Ohne Anforderung gibt es kein Bezugsobjekt — die Nachricht darf auf nichts zeigen.
+    expect(content.inbox).toEqual({ ref: undefined, senderKind: "keyholder" });
+  });
+
+  it("Ablehnen setzt 'rejected' und meldet den passenden Text", async () => {
+    entryFindMock.mockResolvedValue({ userId: "u1", type: "PRUEFUNG" });
+    findFirstMock.mockResolvedValue(null);
+
+    await resolveInspectionEntry("e1", "reject");
+
+    expect(entryUpdateMock).toHaveBeenCalledWith({ where: { id: "e1" }, data: { verifikationStatus: "rejected" } });
+    expect(notifyMock.mock.calls[0][1].subjectKey).toBe("inspectionRejectedSubject");
+  });
+
+  it("gibt es doch eine Anforderung, trägt die Meldung deren Bezug — die Adressierung darf nichts ändern", async () => {
+    entryFindMock.mockResolvedValue({ userId: "u1", type: "PRUEFUNG" });
+    findFirstMock.mockResolvedValue({ id: "ka1" });
+
+    await resolveInspectionEntry("e1", "manuallyVerify");
+
+    expect(notifyMock.mock.calls[0][1].inbox).toEqual({
+      ref: { type: "control", id: "ka1" }, senderKind: "keyholder",
+    });
+  });
+
+  it("beurteilt nur Kontrollen: ein Verschluss-Eintrag wird nicht angefasst", async () => {
+    entryFindMock.mockResolvedValue({ userId: "u1", type: "VERSCHLUSS" });
+
+    const result = await resolveInspectionEntry("e1", "manuallyVerify");
+
+    expect(result).toEqual({ ok: false, status: 404, error: "INSPECTION_NOT_FOUND" });
+    expect(entryUpdateMock).not.toHaveBeenCalled();
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
+  it("unbekannter Eintrag → 404, ohne Schreibversuch", async () => {
+    entryFindMock.mockResolvedValue(null);
+
+    const result = await resolveInspectionEntry("weg", "manuallyVerify");
+
+    expect(result).toEqual({ ok: false, status: 404, error: "INSPECTION_NOT_FOUND" });
+    expect(entryUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("'withdraw' gehört an die Anforderung — am Eintrag abgelehnt, bevor irgendetwas geladen wird", async () => {
+    const result = await resolveInspectionEntry("e1", "withdraw");
+
+    expect(result).toEqual({ ok: false, status: 400, error: "UNKNOWN_ACTION" });
+    expect(entryFindMock).not.toHaveBeenCalled();
+    expect(entryUpdateMock).not.toHaveBeenCalled();
   });
 });
