@@ -9,6 +9,7 @@ import {
   DEFAULT_USER_CATEGORY_ICON,
   CATEGORY_SLUG_MAX_LENGTH,
 } from "@/lib/categoryConstants";
+import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
 
 const MAX_SLUG_SUFFIX = 99;
 
@@ -95,6 +96,11 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { name, color, icon, sortOrder, trackingEnabled, requirePhoto, allowVorgaben } = body;
+  // Der Name des ERSTEN Geräts, optional. Eine Kategorie ohne Gerät ist eine Sackgasse: erfassen
+  // lässt sich darin nichts, und gesagt wird es dem Nutzer nirgends deutlich (Issue #49 — zwei
+  // Instanzen standen wochenlang so da und haben danach nie wieder etwas erfasst). Beide Schritte
+  // in EINEM Vorgang, damit die Sackgasse gar nicht erst entstehen kann.
+  const firstDeviceName = typeof body.firstDeviceName === "string" ? body.firstDeviceName.trim() : "";
 
   let userId = session.user.id;
   if (body.userId && body.userId !== session.user.id) {
@@ -115,6 +121,12 @@ export async function POST(req: NextRequest) {
   const slugError = validateCategoryInput({ slug });
   if (slugError) return NextResponse.json({ error: slugError.error }, { status: 400 });
 
+  // Prosa wie die Prüfungen darüber: diese Route gibt anzeigbare Meldungen zurück, der Aufrufer
+  // rendert sie unverändert (`parseApiError`). Ein Code stünde dem Nutzer roh im Fehlerfeld.
+  if (firstDeviceName.length > DEVICE_NAME_MAX_LENGTH) {
+    return NextResponse.json({ error: `Gerätename zu lang (max. ${DEVICE_NAME_MAX_LENGTH} Zeichen)` }, { status: 400 });
+  }
+
   const created = await prisma.deviceCategory.create({
     data: {
       userId,
@@ -127,6 +139,9 @@ export async function POST(req: NextRequest) {
       requirePhoto: typeof requirePhoto === "boolean" ? requirePhoto : false,
       allowVorgaben: typeof allowVorgaben === "boolean" ? allowVorgaben : true,
       sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+      // Verschachtelt statt in einer eigenen Transaktion: Prisma schreibt beides atomar, und eine
+      // Kategorie, deren Gerät nicht entstand, wäre genau die Sackgasse, gegen die das Feld gebaut ist.
+      ...(firstDeviceName ? { devices: { create: { userId, name: firstDeviceName } } } : {}),
     },
   });
   return NextResponse.json(created, { status: 201 });

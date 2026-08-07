@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
-import { ChevronDown, Plus } from "lucide-react";
-import Card from "@/app/components/Card";
+import { Plus } from "lucide-react";
 import { wearActionHref } from "@/lib/categoryConstants";
-import { CategoryIconTile } from "@/app/components/CategoryPhotoThumb";
+import CategoryLinkRow from "@/app/components/CategoryLinkRow";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import ExpandToggle from "@/app/components/ExpandToggle";
 import { formatHours, toDateLocale } from "@/lib/utils";
 
 export interface InactiveCategoryRow {
@@ -36,45 +35,25 @@ export default function InactiveCategories({ categories }: Props) {
 
   return (
     <DashboardBlock>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between text-sm text-foreground-muted hover:text-foreground transition px-1 py-1"
-        aria-expanded={open}
-      >
-        <span>{t("inactiveCategories", { count: categories.length })}</span>
-        <ChevronDown
-          size={16}
-          className={`transition-transform ${open ? "rotate-180" : ""}`}
-          aria-hidden
-        />
-      </button>
+      <ExpandToggle
+        label={t("inactiveCategories", { count: categories.length })}
+        open={open}
+        onToggle={() => setOpen((v) => !v)}
+      />
       {open && (
         <ul className="mt-2 flex flex-col gap-2">
           {categories.map((c) => {
             const beginHref = wearActionHref({ categoryId: c.id, active: false });
             return (
               <li key={c.id}>
-                <Card>
-                  <Link
-                    href={beginHref}
-                    className="flex items-center gap-3 p-3 active:bg-background-subtle transition opacity-80 hover:opacity-100"
-                  >
-                    <CategoryIconTile color={c.color} icon={c.icon} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
-                      {c.todayHours > 0 && (
-                        <p className="text-xs text-foreground-faint">
-                          {tStats("day")} {formatHours(c.todayHours, dl)}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-xs text-foreground-faint shrink-0 flex items-center gap-1">
-                      <Plus size={12} />
-                      {t("titleBegin")}
-                    </span>
-                  </Link>
-                </Card>
+                <CategoryLinkRow
+                  href={beginHref}
+                  color={c.color}
+                  icon={c.icon}
+                  name={c.name}
+                  subtitle={c.todayHours > 0 ? `${tStats("day")} ${formatHours(c.todayHours, dl)}` : undefined}
+                  trailing={<><Plus size={12} />{t("titleBegin")}</>}
+                />
               </li>
             );
           })}

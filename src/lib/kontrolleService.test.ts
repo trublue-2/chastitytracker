@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // hasActiveKontrolle nutzt nur prisma.kontrollAnforderung.findFirst — mocken.
 vi.mock("@/lib/prisma", () => ({ prisma: { kontrollAnforderung: { findFirst: vi.fn() } } }));
 
-import { hasActiveKontrolle, inspectionIntro } from "./kontrolleService";
+import { hasActiveKontrolle, inspectionIntro, buildInspectionPush } from "./kontrolleService";
 import { emailT } from "@/lib/emailI18n";
 import { prisma } from "@/lib/prisma";
 
@@ -18,19 +18,19 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
 
   it("true, wenn eine sichtbare (unmittelbare) Kontrolle existiert", async () => {
     findFirstMock.mockResolvedValue({ id: "ka1" });
-    const result = await hasActiveKontrolle("u1", NOW);
+    const result = await hasActiveKontrolle("u1", NOW, { categoryId: null });
     expect(result).toBe(true);
   });
 
   it("false, wenn keine passende Zeile gefunden wird", async () => {
     findFirstMock.mockResolvedValue(null);
-    const result = await hasActiveKontrolle("u1", NOW);
+    const result = await hasActiveKontrolle("u1", NOW, { categoryId: null });
     expect(result).toBe(false);
   });
 
   it("Query filtert entryId:null, withdrawnAt:null und (wirksamAb:null ODER bereits erreicht)", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW);
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
     const arg = findFirstMock.mock.calls[0][0];
     expect(arg.where).toMatchObject({ userId: "u1", entryId: null, withdrawnAt: null });
     expect(arg.where.OR).toEqual([{ wirksamAb: null }, { wirksamAb: { lte: NOW } }]);
@@ -42,7 +42,7 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
 
   it("blockiert nur LAUFENDE: deadline muss noch in der Zukunft liegen (überfällige zählen nicht)", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW);
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
     const arg = findFirstMock.mock.calls[0][0];
     // deadline >= now grenzt Status "open" von "overdue" ab. Eine überfällige, nie beantwortete
     // Kontrolle (deadline < now) würde sonst jede künftige (auch Auto-)Kontrolle dauerhaft
@@ -52,16 +52,27 @@ describe("hasActiveKontrolle — Überschneidungs-Guard", () => {
 
   it("excludeId schliesst die geprüfte Zeile selbst aus (Poller-Fall: 'irgendeine ANDERE aktive')", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW, { excludeId: "self-id" });
+    await hasActiveKontrolle("u1", NOW, { categoryId: null, excludeId: "self-id" });
     const arg = findFirstMock.mock.calls[0][0];
     expect(arg.where.id).toEqual({ not: "self-id" });
   });
 
   it("ohne excludeId wird kein id-Filter gesetzt (requestKontrolle-Fall: neue Zeile existiert noch nicht)", async () => {
     findFirstMock.mockResolvedValue(null);
-    await hasActiveKontrolle("u1", NOW);
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
     const arg = findFirstMock.mock.calls[0][0];
     expect(arg.where.id).toBeUndefined();
+  });
+
+  it("filtert auf das ZIEL: eine Plug-Kontrolle blockiert keine KG-Kontrolle (v5.0.1)", async () => {
+    findFirstMock.mockResolvedValue(null);
+    await hasActiveKontrolle("u1", NOW, { categoryId: "cat-plug" });
+    expect(findFirstMock.mock.calls[0][0].where.categoryId).toBe("cat-plug");
+
+    // `null` ist der KG und wird EXPLIZIT gefiltert — ohne dieses Feld in der Where-Klausel würde
+    // jede laufende Kategorie-Kontrolle auch die KG-Kontrolle blockieren.
+    await hasActiveKontrolle("u1", NOW, { categoryId: null });
+    expect(findFirstMock.mock.calls[1][0].where.categoryId).toBeNull();
   });
 });
 
@@ -123,5 +134,50 @@ describe("inspectionIntro — die genannte Dauer muss der echten Frist entsprech
     expect(de(-min(5))).toContain("1 Minute ");
     expect(de(NaN)).toContain("1 Minute ");
     expect(de(NaN)).not.toContain("NaN");
+  });
+});
+
+describe("buildInspectionPush — der Code muss auf dem Foto der Smartwatch lesbar sein", () => {
+  const t = emailT("de");
+  // Frist 19:43 Ortszeit (Europe/Zurich) am 05.08., Stichtag am selben Tag.
+  const DEADLINE = new Date("2026-08-05T17:43:00Z");
+  const NOW = new Date("2026-08-05T10:00:00Z");
+  const base = {
+    t, code: "70499", targetLabel: null, deadline: DEADLINE,
+    deadlineStr: "05.08.2026, 19:43", sealRequired: false, kommentar: null, now: NOW,
+  };
+
+  it("stellt den Code in den TITEL — dort rendert die Uhr die grösste Schrift", () => {
+    const { title, body } = buildInspectionPush(base);
+    expect(title).toContain("70499");
+    // Und NICHT zusätzlich in den Text: dort stünde er klein und als zweite Zahl, die die
+    // Erkennung mit der Frist verwechseln kann.
+    expect(body).not.toContain("70499");
+  });
+
+  it("hält den Text frei von Zahlen, die wie ein Code aussehen: Frist heute nur als Uhrzeit", () => {
+    const { body } = buildInspectionPush(base);
+    expect(body).toContain("19:43");
+    expect(body).not.toContain("2026");
+  });
+
+  it("nennt die Frist voll, sobald sie nicht mehr heute liegt", () => {
+    const { body } = buildInspectionPush({ ...base, deadline: new Date("2026-08-06T17:43:00Z") });
+    expect(body).toContain("05.08.2026, 19:43");
+  });
+
+  it("ohne Code-Pflicht bleibt der bisherige Titel — keine Lücke, wo eine Zahl erwartet wird", () => {
+    const { title } = buildInspectionPush({ ...base, code: null });
+    expect(title).toBe(t("inspectionPushTitle"));
+    expect(title).not.toContain("·");
+  });
+
+  it("Ziel, Siegel-Hinweis und Kommentar bleiben im Text", () => {
+    const { body } = buildInspectionPush({
+      ...base, targetLabel: "Käfig", sealRequired: true, kommentar: "Bitte zügig",
+    });
+    expect(body.startsWith("Käfig · ")).toBe(true);
+    expect(body).toContain(t("inspectionPushSeal"));
+    expect(body.endsWith("Bitte zügig")).toBe(true);
   });
 });

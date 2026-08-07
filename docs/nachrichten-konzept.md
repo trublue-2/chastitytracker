@@ -5,7 +5,7 @@
 **Auslöser:** Das App-Icon zeigte ein Nachrichten-Badge, es gab in der App aber keinen Ort, an dem man
 Nachrichten nachliest. Bestandsaufnahme und Entwurf entstanden aus vier parallelen Code-Analysen.
 ~~**Zielversion:** 5.x — nicht auf `main` (4.52.x).~~ *(überholt — siehe Hinweis zur Umsetzung.)*
-**Hinweis zur Umsetzung:** Etappe 1 wurde mit v4.56.0 von `main` aus gebaut (Branch `feat/messages`), nicht auf `feat/tasks` — das Feature hängt an keiner Stelle vom Aufgaben-Konstrukt ab. Belege im Text, die auf `TaskCard.tsx`, `taskService.ts` oder `ExpandToggle.tsx` zeigen, beziehen sich auf den v5-Branch und existieren auf `main` nicht.
+**Hinweis zur Umsetzung:** Etappe 1 wurde mit v4.56.0 von `main` aus gebaut (Branch `feat/messages`), nicht auf `feat/tasks` — das Feature hängt an keiner Stelle vom Aufgaben-Konstrukt ab. Belege im Text, die auf `TaskCard.tsx`, `taskService.ts` oder `ExpandToggle.tsx` zeigen, stammen aus dem v5-Branch; seit dessen Merge nach `main` (06.08.2026) liegen beide Stränge zusammen und die Verweise stimmen wieder.
 
 Verwandte Issues: **#37** (Träger erbittet Aufschluss/Orgasmus), **#36** (offene Strafen sichtbar),
 **#38** (Belohnungen), **#40** (Punktekonto), **#42** (Frist-Widerspruch in der Kontroll-Mail).

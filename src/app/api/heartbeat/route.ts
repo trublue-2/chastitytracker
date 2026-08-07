@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
 import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
 import { visionConfigured } from "@/lib/vision";
 
@@ -14,6 +15,7 @@ const SETTLING_WINDOW_MS = 10 * 60_000;
  *  - sessionUserId → Account-Wechsel in einem anderen Tab (Hard-Reload)
  *  - pendingSig    → Signatur der offenen keyholder-initiierten Anforderungen (router.refresh,
  *                    damit z.B. neu angeforderte Kontrollen ohne manuellen Reload erscheinen)
+ *                    + offene Aufgaben MIT ihrem abgeleiteten Zustand (siehe `taskSig` unten)
  *                    + wartende KI-Verifikationen (verifikationStatus "pending") und wartende
  *                    Schlüssel-Erkennungen (Box-Foto ohne `keyDetected`) — sobald eine davon
  *                    abgeschlossen ist, ändert sich die Signatur und der Client aktualisiert
@@ -31,7 +33,7 @@ export async function GET() {
 
   const userId = session.user.id;
   const now = new Date();
-  const [kontrollen, anforderungen, sperrzeit, orgasmus, pendingVerifications, pendingKeyChecks] = await Promise.all([
+  const [kontrollen, anforderungen, sperrzeit, orgasmus, pendingVerifications, pendingKeyChecks, openTasks] = await Promise.all([
     prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       select: { id: true },
@@ -65,9 +67,28 @@ export async function GET() {
           take: 10,
         })
       : Promise.resolve([]),
+    getDashboardTasks(userId, now),
   ]);
 
+  // Aufgaben tragen ihren ABGELEITETEN Zustand in die Signatur, nicht nur ihre id: eine Aufgabe, die
+  // von „läuft" auf „vorzeitig abgelegt" kippt, behält ihre id — bei einer reinen ID-Signatur
+  // aktualisierte der Client nie, obwohl sich das Wichtigste geändert hat.
+  //
+  // Die Auswertung liest die Trage-/Verschluss-Einträge und ist damit teurer als die Zeilen darüber;
+  // `evaluateTasks` steigt bei leerer Liste aber sofort aus. Nutzer ohne offene Aufgaben (die
+  // Mehrheit) zahlen also nur die eine indizierte Task-Abfrage, die oben ohnehin mitläuft.
+  //
+  // `holdRunning` gehört mit in die Zeile, obwohl es kein eigener Zustand ist: beim Ablauf der
+  // Haltefrist bleibt `state` auf „läuft", allein die Selbstmeldung wird möglich. Ohne dieses Zeichen
+  // sähe die Signatur den Übergang nicht, und der Melde-Knopf erschiene erst beim nächsten
+  // Seitenaufbau — für eine Aufgabe, die längst fertig gehalten ist.
+  const taskSig = (await evaluateTasks(userId, openTasks, now))
+    .map((e) => `${e.task.id}:${e.evaluation.state}:${e.evaluation.holdRunning}`)
+    .sort()
+    .join(",");
+
   const pendingSig = [
+    "t:" + taskSig,
     "k:" + kontrollen.map((k) => k.id).sort().join(","),
     "v:" + anforderungen.map((a) => a.id).sort().join(","),
     "s:" + (sperrzeit?.id ?? ""),

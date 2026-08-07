@@ -3,6 +3,8 @@ import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalM
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
+import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
@@ -70,6 +72,23 @@ export interface StrafbuchData {
     deadline: Date;
     relockAt: Date | null;
     note: string | null;
+  }[];
+  /** Aufgaben, die nicht erfüllt wurden: `missed` = nie (rechtzeitig) begonnen, `aborted` = begonnen
+   *  und vor der Frist eine Bedingung abgelegt. Wie alles hier LIVE abgeleitet — ein korrigierter
+   *  Eintrag korrigiert auch das Vergehen. */
+  unfulfilledTasks: {
+    id: string;
+    title: string;
+    holdUntil: Date;
+    state: TaskOffenseState;
+    /** Nur bei `aborted`: wann die Bedingung wegfiel. */
+    failedAt: Date | null;
+    /** `refId` des Vergehens, dessen Strafe diese Aufgabe war — aus `StrafeRecord.taskId`. Null bei
+     *  gewöhnlichen Aufgaben. Macht die Kette sichtbar: eine versäumte Strafe erzeugt ein neues
+     *  Vergehen, und das soll man ihm ansehen. */
+    penaltyForRef: string | null;
+    /** Anlass-Freitext der Aufgabe, wo einer gesetzt ist — Zusatz zur Kette, nicht ihr Beleg. */
+    penaltyReason: string | null;
   }[];
   /** Passwortwechsel an einem Admin-Konto, während für diesen Sub eine Sperrzeit lief. Anders als
    *  alle anderen Vergehen NICHT live abgeleitet, sondern beim Vorgang festgeschrieben
@@ -229,7 +248,7 @@ export function cleaningRelockObligation(
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, adminPasswordChangesRaw] = await Promise.all([
+  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
@@ -243,8 +262,49 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     }),
     prisma.strafeRecord.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
     prisma.orgasmusAnforderung.findMany({ where: { userId } }),
+    // Zurückgezogene bleiben draussen: ein Rückzug ist der Entschluss der Keyholderin, kein
+    // Versäumnis des Subs, und darf nie zu einem Vergehen werden.
+    prisma.task.findMany({ where: { userId, withdrawnAt: null }, include: TASK_INCLUDE }),
     prisma.adminPasswordChange.findMany({ where: { subUserId: userId }, orderBy: { createdAt: "desc" } }),
   ]);
+
+  // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
+  // durchreichen statt neu laden. Trage-Einträge lädt das Strafbuch nicht; `wearEntries` bleibt
+  // deshalb bewusst offen, damit `evaluateTasks` sie selbst holt statt sie für leer zu halten.
+  // Aufgabe → Vergehen, dessen Strafe sie ist. Aus den ohnehin geladenen Urteils-Zeilen, also ohne
+  // eine einzige zusätzliche Abfrage.
+  const penaltyTaskOrigin = new Map(
+    strafeRecordsRaw.flatMap((r) => (r.taskId ? [[r.taskId, r.refId] as const] : [])),
+  );
+
+  const unfulfilledTasks = (await evaluateTasks(userId, tasks, now, {
+    kgEntries: [...oeffnungen, ...verschluesse],
+    reinigung: { erlaubt: user?.reinigungErlaubt ?? false, maxMinuten: user?.reinigungMaxMinuten ?? 0 },
+  }))
+    .sort((a, b) => b.task.holdUntil.getTime() - a.task.holdUntil.getTime())
+    // `flatMap` statt `filter` + `map`: der Type-Guard verengt `e.evaluation.state` nur INNERHALB
+    // seines eigenen Zweigs. Über `filter` bliebe `e` ungenarrowed (der Guard greift auf ein
+    // verschachteltes Feld, nicht auf das Element), und die Zuweisung bräuchte wieder einen Cast —
+    // der einen dritten Vergehens-Zustand genauso still verschluckte wie zuvor.
+    .flatMap((e) => isTaskOffense(e.evaluation.state)
+      ? [{
+          id: e.task.id,
+          title: e.task.title,
+          holdUntil: e.task.holdUntil,
+          state: e.evaluation.state,
+          failedAt: e.evaluation.failedAt,
+          // Die KETTE: war diese Aufgabe die Strafe für ein früheres Vergehen, ist ihr Versäumnis ein
+          // Vergehen, das aus jenem entstanden ist. Wer sie erneut bestraft, dreht eine Spirale und
+          // soll das sehen.
+          //
+          // Die Quelle ist die VERKNÜPFUNG (`StrafeRecord.taskId`), nicht der Anlass-Freitext: den
+          // setzt nur das Web-Formular über seine Vorbelegung. Eine Strafaufgabe des Keyholder-Agenten
+          // (`create_task` mit `offenseRef`) hat gar keinen — die Kette wäre auf genau dem Weg
+          // unsichtbar, der sie am ehesten braucht. Der Text kommt als Zusatz mit, wo er da ist.
+          penaltyForRef: penaltyTaskOrigin.get(e.task.id) ?? null,
+          penaltyReason: e.task.penaltyReason,
+        }]
+      : []);
 
   // Windows that explicitly permit opening to perform the directed orgasm — an OEFFNEN inside
   // such a window is not an unauthorized opening (like the REINIGUNG exception).
@@ -397,6 +457,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
     lateLocks,
     cleaningNotRelocked,
+    unfulfilledTasks,
     adminPasswordChanges: adminPasswordChangesRaw.map((p) => ({
       id: p.id,
       at: p.createdAt,

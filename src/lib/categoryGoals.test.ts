@@ -21,7 +21,7 @@ import type { SegmentEntry } from "@/lib/sessionModel";
  * bewusst aus der Funktion selbst (wie im Zwilling), also prüft der Test sie über `getUserTimezone`.
  */
 describe("buildCategoryWearGoals — Tages- und Wochengrenze in der Zeitzone der Sub", () => {
-  const CATEGORY = { id: "c1", name: "Plug", color: "#fff", icon: "plug" };
+  const CATEGORY = { id: "c1", name: "Plug", color: "#fff", icon: "plug", deviceCount: 1 };
   const DEVICE = { id: "d1", name: "Plug A", categoryId: "c1" };
 
   // Durchgehend getragen seit dem 01.07. — die Stunden hängen allein an der Periodengrenze.

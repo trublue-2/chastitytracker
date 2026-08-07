@@ -28,6 +28,9 @@ function mapDeviceCheck(e: { deviceCheck: string | null; deviceCheckNote: string
 }
 
 export interface EntryRow {
+  /** Stabile Adresse des Eintrags. Bis dahin trug diese Liste nur Merkmale, keine Kennung — ein
+   *  einzelner Eintrag liess sich damit beschreiben, aber nicht ansprechen. */
+  id: string;
   /** One of VALID_TYPES: VERSCHLUSS | OEFFNEN | PRUEFUNG | ORGASMUS | WEAR_BEGIN | WEAR_END */
   type: string;
   time: string;
@@ -51,6 +54,10 @@ export interface EntryRow {
    *  detected = im Foto erkanntes Gerät, expected = das verschlossene (Soll-)Gerät. */
   deviceCheck: { status: McpDeviceCheckStatus; detected: string | null; expected: string | null } | null;
   hasImage: boolean;
+  /** Ob eine Aufnahme durch das Sichtfenster der Schlüsselbox vorliegt. Steht neben `hasImage`, weil
+   *  es dieselbe Frage für die zweite Aufnahme beantwortet — ohne das Feld wäre nur zu erraten, ob
+   *  ein Eintrag überhaupt eines hat. */
+  hasBoxImage: boolean;
   imageExifTime: string | null;
   /** True when the entered time differs from the creation time (back-/post-dated). */
   timeCorrected: boolean;
@@ -109,6 +116,7 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
     totalCount,
     returnedCount: entries.length,
     entries: entries.map((e) => ({
+      id: e.id,
       type: e.type,
       time: formatDateTime(e.startTime, undefined, timezone),
       note: e.note,
@@ -120,6 +128,7 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
       deviceName: e.device?.name ?? null,
       deviceCheck: mapDeviceCheck(e),
       hasImage: !!e.imageUrl,
+      hasBoxImage: !!e.boxImageUrl,
       imageExifTime: e.imageExifTime ? formatDateTime(e.imageExifTime, undefined, timezone) : null,
       timeCorrected: isTimeCorrected(e.startTime, e.createdAt),
     })),

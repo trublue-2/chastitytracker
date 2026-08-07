@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
-import { getLatestKgEntry, getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/lib/inspectionTarget";
 import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverSperrzeitOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { deadlineFromDispatch } from "@/lib/delayedTrigger";
+import { processDueTasks } from "@/lib/taskService";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -56,10 +58,16 @@ async function processDue(): Promise<void> {
 
     for (const ka of due) {
       try {
-        // Siegel-Code-Erkennung fürs Mail-Label (wie beim Anlegen).
-        const latest = await getLatestKgEntry(ka.userId);
-        // Auto-Kontrolle bei offenem KG ist sinnlos → bei Fälligkeit zurückziehen statt senden.
-        if (ka.auto && latest?.type !== "VERSCHLUSS") {
+        // Der Zustand des ZIELS bei Zustellung — beim KG der Lock-Eintrag (Siegel + Gerät), bei
+        // einer Trage-Kontrolle die laufende Session. Auto-Kontrollen zielen immer auf den KG
+        // (`categoryId: null`), die Zweige darunter bleiben damit unverändert.
+        const resolved = await resolveInspectionTarget(ka.userId, ka);
+        const target = resolved.ok ? resolved.target : null;
+        const latest = target?.lockEntry ?? null;
+        // Eine Auto-Kontrolle auf ein Ziel, das gerade nicht läuft, ist sinnlos → bei Fälligkeit
+        // zurückziehen statt senden. Über `target.active` statt über den Lock-Eintrag: heute zielt
+        // jede Auto-Kontrolle auf den KG, aber „aktiv" heisst je Ziel etwas anderes.
+        if (ka.auto && !target?.active) {
           await withdrawKa(ka.id);
           continue;
         }
@@ -77,7 +85,7 @@ async function processDue(): Promise<void> {
         // Überschneidungs-Schutz: eine andere Kontrolle ist schon aktiv (Keyholder, KI, oder eine
         // andere Auto-Kontrolle) → diese hier verwerfen statt ausliefern (User-Entscheidung: kein
         // Nachholen, gilt für ALLE Quellen, nicht nur Auto).
-        if (await hasActiveKontrolle(ka.userId, now, { excludeId: ka.id })) {
+        if (await hasActiveKontrolle(ka.userId, now, { categoryId: ka.categoryId, excludeId: ka.id })) {
           await withdrawKa(ka.id);
           continue;
         }
@@ -91,9 +99,7 @@ async function processDue(): Promise<void> {
         // welches Gerät um 15:40 verschlossen ist, weiss um Mitternacht niemand. Verlangt es keinen,
         // wird der geplante Code hier verworfen — die Mail nennt dann keinen, und die Erfüllung läuft
         // über „die eine offene Anforderung" (siehe entries-Route).
-        const code = (await inspectionCodeRequired(latest?.type === "VERSCHLUSS" ? latest.deviceId : null))
-          ? ka.code
-          : null;
+        const code = (await inspectionCodeRequired(target?.activeDeviceId ?? null)) ? ka.code : null;
 
         // Die Frist zählt ab dem Moment, in dem der Sub sie ERFÄHRT, nicht ab dem geplanten
         // Auslöse-Zeitpunkt (siehe deadlineFromDispatch). Im Normalfall sind das Sekunden Versatz.
@@ -103,7 +109,10 @@ async function processDue(): Promise<void> {
         const sentAt = new Date();
         const deadline = deadlineFromDispatch(ka, sentAt);
 
-        await sendKontrolleNotification({ user: ka.user, code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id });
+        await sendKontrolleNotification({
+          user: ka.user, code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id,
+          target: { categoryId: ka.categoryId, label: inspectionTargetLabel(target) },
+        });
         // Frist UND Code mitschreiben: Mail, Strafbuch-Beurteilung, Eskalation und die Erfüllung
         // müssen dieselben Werte lesen. Ein verworfener Code darf nicht in der Zeile stehenbleiben —
         // sonst suchte die Erfüllung weiter nach einem Code, den der Sub nie bekommen hat.
@@ -125,6 +134,20 @@ async function processDue(): Promise<void> {
     // den zeitkritischen Poller-Tick (fällige Kontroll-/Sperrzeit-Mails) NICHT verzögern. Der State liegt
     // in globalThis, nicht am Tick gekoppelt; ohne `now`-Argument nutzt der Check die echte Ausführungszeit.
     void maybeRunHealthChecks().catch((e) => console.error("[health]", e));
+
+    // Ergebnis fälliger Aufgaben melden. Eigener Block auf der eigenen Tabelle — der frühere
+    // Leak-Befund betraf die GETEILTE Anforderungs-Tabelle, hier gibt es keine Überschneidung.
+    //
+    // Bewusst `await`, anders als der Health-Check eine Zeile darüber: der Block hält seine
+    // Zustellung nicht in `globalThis` fest, sondern stempelt sie in der DB (`resultNotifiedAt`) —
+    // und zwar erst NACH der Schleife. Liefe er zweimal überlappend, meldeten beide Läufe dieselben
+    // Aufgaben, bevor der erste stempelt. Der `running`-Riegel des Tickers ist damit Teil der
+    // Einmal-Zusage, nicht bloss Bequemlichkeit. Der Health-Check darf laufen lassen, weil er nichts
+    // verschickt, was doppelt ankommen könnte.
+    //
+    // Steht bewusst am ENDE des Tickes: die zeitkritischen Blöcke (Kontroll-/Sperrzeit-Mails) sind
+    // dann längst durch, verzögert wird höchstens der NÄCHSTE Tick.
+    await processDueTasks(now).catch((e) => console.error("[processDueTasks]", e));
   } finally {
     running = false;
   }
@@ -196,7 +219,10 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       const result = await autoMarkInspectionRemoved({ id: ka.id, userId: ka.userId });
       if (!result.skipped) {
         // Notifications are not transactional — send only after the state change committed.
-        await notifyInspectionAutoMarked({ userId: ka.userId, username: ka.user.username, code: ka.code, controlId: ka.id });
+        await notifyInspectionAutoMarked({
+          userId: ka.userId, username: ka.user.username, code: ka.code, controlId: ka.id,
+          wear: !isKgTarget(ka),
+        });
       }
     } catch (e) {
       console.error(`[kontrollePoller] Kontroll-Auto-Mark fehlgeschlagen (${ka.id}):`, (e as Error).message);

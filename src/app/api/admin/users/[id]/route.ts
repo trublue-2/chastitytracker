@@ -5,6 +5,7 @@ import { requireAdminApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
 import { getActiveSperrzeit, getIsLocked } from "@/lib/queries";
+import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { recordAdminPasswordChange } from "@/lib/passwordAudit";
 import { setReinigungSettings } from "@/lib/reinigungService";
@@ -23,13 +24,16 @@ export async function GET(
   const err = await requireKeyholderOrAdminApi(id);
   if (err) return err;
 
-  const [user, isLocked, offeneAnforderung, activeSperrzeit] = await Promise.all([
+  // `categoryRows`: die „Neu erfassen"-Auswahl der Keyholder-Sicht (AdminFAB) — dieselbe Ableitung
+  // wie im Sub-Dashboard, nur für den betrachteten Sub.
+  const [user, isLocked, offeneAnforderung, activeSperrzeit, categoryRows] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
     getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
     }),
     getActiveSperrzeit(id),
+    buildNewEntryCategoryRows(id),
   ]);
 
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -40,6 +44,7 @@ export async function GET(
     isLocked,
     hasOffeneAnforderung: !!offeneAnforderung,
     hasActiveSperrzeit: !!activeSperrzeit,
+    categoryRows,
   });
 }
 

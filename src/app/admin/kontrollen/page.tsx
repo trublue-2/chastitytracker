@@ -9,6 +9,7 @@ import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "./AdminKontrolleListClient";
 import { buildKontrolleRows, isKontrolleAlarm, mapKontrolleRow } from "@/lib/kontrollen";
+import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
 
 export default async function AdminKontrollenPage({
@@ -36,14 +37,19 @@ export default async function AdminKontrollenPage({
     prisma.entry.findMany({
       where: { type: "PRUEFUNG", ...(userId ? { userId } : {}) },
       orderBy: { startTime: "desc" },
-      include: { user: { select: { username: true, timezone: true } } },
+      // `device` mit Kategorie: die Kontroll-Zeile zeigt an, WAS kontrolliert wurde (KG-Prüfungen
+      // tragen kein Gerät, Trage-Kontrollen das gezeigte).
+      include: {
+        user: { select: { username: true, timezone: true } },
+        device: { select: { name: true, category: { select: { name: true, isBuiltIn: true } } } },
+      },
     }),
     prisma.kontrollAnforderung.findMany({
       // Keyholder-Sicht: manuell geplante Kontrollen ZEIGEN (stornierbar), nur zukünftige
       // Auto-/Zufalls-Kontrollen verbergen (Überraschungseffekt).
       where: { ...keyholderVisibleKontrolleWhere(now), ...(userId ? { userId } : {}) },
       orderBy: { createdAt: "desc" },
-      include: { user: { select: { username: true, timezone: true } } },
+      include: { user: { select: { username: true, timezone: true } }, ...KONTROLLE_TARGET_INCLUDE },
     }),
   ]);
 

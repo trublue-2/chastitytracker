@@ -1,4 +1,5 @@
 import type { EntryValidationCode } from "@/lib/entryErrors";
+import type { TaskState } from "@/lib/tasks";
 
 export const VALID_LOCALES = ["de", "en"] as const;
 export type Locale = (typeof VALID_LOCALES)[number];
@@ -69,6 +70,30 @@ export function bildersafeEnabled(): boolean {
   return process.env.ENABLE_BILDERSAFE?.toLowerCase() === "true";
 }
 
+/** Grenzen des Bild-Abrufs. Freigeschaltet wird er NICHT hier, sondern über `mcpImageKeyUnlocked()`
+ *  in `src/lib/mcp/entryImage.ts` — der Schlüssel braucht die Datenbank und kann deshalb nicht in
+ *  dieser client-erreichbaren Datei liegen.
+ *
+ *  BEWUSST NICHT über ENV justierbar, anders als die Px-Budgets darunter:
+ *  das sind keine Leistungs-Stellschrauben, sondern die Zusage, wie weit der Abruf reicht. Eine
+ *  Zusage, die sich per Umgebungsvariable aufweichen lässt, ist keine.
+ *
+ *  Zusammen genommen ist das Archiv damit nicht mehr erreichbar, sondern nur noch das, was gerade
+ *  passiert ist: 24 Stunden Reichweite, 4 Bilder pro Stunde, 12 pro Tag. */
+export const MCP_IMAGE_MAX_AGE_H = 24;
+export const MCP_IMAGE_MAX_AGE_MS = MCP_IMAGE_MAX_AGE_H * 60 * 60 * 1000;
+export const MCP_IMAGE_PER_HOUR = 4;
+export const MCP_IMAGE_PER_DAY = 12;
+
+/** Kantenlänge, auf die ein Foto für den MCP heruntergerechnet wird. BEWUSST getrennt von
+ *  `visionMaxImagePx()`: der Wert dort ist auf eine lokale Vision-Box getunt, und wer ihn für sein
+ *  eigenes Modell senkt, darf damit nicht verkleinern, was das Keyholder-Modell zu sehen bekommt.
+ *  Env: `MCP_IMAGE_MAX_PX` (Default 1400). */
+export function mcpImageMaxPx(): number {
+  const n = Number(process.env.MCP_IMAGE_MAX_PX);
+  return Number.isFinite(n) && n >= 256 ? n : 1400;
+}
+
 /** Max. Kantenlänge (px), auf die Bilder VOR einer Vision-Anfrage runterskaliert werden.
  *  Reduziert die Vision-Tokens/Latenz drastisch (v.a. lokale Modelle wie Ollama) bei kaum
  *  Genauigkeitsverlust für Ziffern/Geräte. Justierbar via `VISION_MAX_IMAGE_PX` (Default 1024). */
@@ -132,6 +157,12 @@ export function orgasmusAnforderungArtLabel(art: OrgasmusAnforderungArt, t: (key
 // escalation reminder is ignored (see inspectionEscalationService.ts). Protected like REINIGUNG
 // (reservedCodes() covers all of OEFFNEN_GRUENDE), but unlike REINIGUNG it must never be
 // user-selectable — see SYSTEM_ONLY_OPENING_CODES below, filtered out of the sub's own dropdown.
+/** Eintragstypen, die ein Gerät tragen — Ownership-Guard und `create` beider Entry-Routen lesen
+ *  dieselbe Liste. Getrennte Literale liefen auseinander: ein Gerät validiert, aber nicht
+ *  gespeichert (oder umgekehrt) fällt niemandem auf. PRUEFUNG kam mit den Ziel-Kontrollen dazu (v5.0.1).
+ *  Hinweis: `VerschlussAnforderung.deviceId` ist NICHT gemeint — das ist die Anforderung, kein Eintrag. */
+export const DEVICE_BEARING_TYPES: readonly string[] = ["VERSCHLUSS", "WEAR_BEGIN", "WEAR_END", "PRUEFUNG"];
+
 export const AUTO_ENTFERNT_REASON = "AUTO_ENTFERNT";
 export const OEFFNEN_GRUENDE = ["REINIGUNG", "KEYHOLDER", "NOTFALL", "ANDERES", AUTO_ENTFERNT_REASON] as const;
 export type OeffnenGrund = typeof OEFFNEN_GRUENDE[number];
@@ -261,6 +292,42 @@ export const INSPECTION_REMINDER_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY,
 /** Verzögerung bis zum automatischen Vermerk (Stufe 2). */
 export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY, fallback: 60 } as const satisfies NumberRange;
 
+/** Vorgabe-Frist einer Kontrollanforderung in Stunden. Hier, weil sie an drei Stellen auftaucht:
+ *  Formular-Startwert, Service-Fallback und die MCP-Tool-Beschreibung. Die dritte ist Prosa — als
+ *  Literal geschrieben informiert sie den Agenten still falsch, sobald die Vorgabe wandert. */
+export const INSPECTION_DEADLINE_DEFAULT_H = 1;
+
+/**
+ * Rasterung einer Frist-Eingabe je Einheit — EINE Zahl für `min`/`step` des Feldes, für dessen
+ * HTML-Validierung und für das Runden beim Einheiten-Wechsel. Ein Wert neben dem Raster (0.1 h bei
+ * step 0.25) liesse das Formular nicht mehr absenden; wer feiner will als eine Viertelstunde,
+ * schaltet auf Minuten.
+ *
+ * `min` ist die kleinste sinnvolle EINGABE in dieser Einheit, keine fachliche Untergrenze — deshalb
+ * sind die beiden Zeilen auch nicht ineinander umrechenbar (5 min sind in Minuten erlaubt, in
+ * Stunden nicht). Was eine Frist wirklich mindestens sein muss, weiss der Server: die Aufgaben-
+ * Haltefrist etwa muss hinter der Kulanzfrist liegen (`TASK_HOLD_UNTIL_TOO_SOON`), und das hängt an
+ * einem zweiten Feld, das diese Konstante nicht kennt.
+ */
+export const DURATION_UNITS = {
+  h: { min: 0.25, step: 0.25 },
+  min: { min: 5, step: 5 },
+} as const;
+export type DurationUnit = keyof typeof DURATION_UNITS;
+
+/** Eingetippte Dauer → Stunden, die Einheit, in der Modell und Server rechnen. */
+export function durationToHours(value: number, unit: DurationUnit): number {
+  return unit === "min" ? value / 60 : value;
+}
+
+/** Stunden → der Wert, wie er in dieser Einheit ins Feld gehört: auf ihr Raster gerundet und nicht
+ *  unter ihr Minimum. Gegenstück zu {@link durationToHours} — der Weg zurück ins Formular. */
+export function durationFromHours(hours: number, unit: DurationUnit): number {
+  const { min, step } = DURATION_UNITS[unit];
+  const raw = unit === "min" ? hours * 60 : hours;
+  return Math.max(min, Math.round(raw / step) * step);
+}
+
 /** Erlaubte Auslöse-Verzögerung einer über den MCP angeforderten Kontrolle: 5 min – 24 h. Kein
  *  Admin-Setting, sondern die `request_inspection`-Policy — hier, weil Tool-Schema (Beschreibung
  *  des Bereichs) und Service (`clamp`) denselben Bereich nennen müssen. `fallback` greift nur für
@@ -309,6 +376,23 @@ export const TYPE_COLORS: Record<string, string> = {
   ORGASMUS: "text-[var(--color-orgasm)]",
   WEAR_BEGIN: "text-foreground-muted",
   WEAR_END: "text-foreground-muted",
+};
+
+/** Zustands-Ton einer Aufgabe — geteilt von der Karte und der Aufgaben-Liste. `warn` bleibt den
+ *  echten Fehlschlägen vorbehalten: eine noch offene Bedingung ist kein Alarm, und eine ausstehende
+ *  Sichtung erst recht nicht (der Sub hat dort getan, was er konnte).
+ *
+ *  Hier statt in der Karte, weil er beim Zustand hängt und nicht am Bauteil: die Liste braucht
+ *  denselben Ton, ohne dafür eine Client-Komponente samt Icons und Bildbetrachter zu importieren. */
+export const TASK_STATE_COLOR: Record<TaskState, string> = {
+  pending: "text-foreground-muted",
+  partial: "text-foreground-muted",
+  running: "text-foreground-muted",
+  done: "text-ok-text",
+  missed: "text-warn-text",
+  aborted: "text-warn-text",
+  withdrawn: "text-foreground-muted",
+  awaitingReview: "text-foreground-muted",
 };
 
 // ── Notification event types (shared by API + admin UI) ─────────────────────
@@ -470,3 +554,46 @@ export function validateEntryPayload(
   }
   return null;
 }
+
+// ── Aufgaben (Task) ─────────────────────────────────────────────────────────
+/** Längen-Grenzen für Aufgaben-Texte. Zentral hier, nicht im Formular: dieselben Werte prüfen
+ *  Service (serverseitig verbindlich) und UI (`maxLength`). Ohne Grenze zerlegt ein langer Titel
+ *  das kompakte Banner in der Keyholder-Übersicht. Vorbild: `CATEGORY_NAME_MAX_LENGTH`. */
+export const TASK_TITLE_MAX_LENGTH = 80;
+export const TASK_DESCRIPTION_MAX_LENGTH = 2000;
+/** Voreingestellte Kulanz (Minuten) zum Anlegen der geforderten Geräte, ab Erstellung der Aufgabe. */
+export const TASK_DEFAULT_START_GRACE_MIN = 30;
+/** Zulässiger Bereich der Kulanz. Ein negativer Wert würde die Endzeit-Prüfung umdrehen und eine
+ *  Aufgabe erlauben, deren Frist bereits abgelaufen ist.
+ *
+ *  Bewusst KEIN {@link NumberRange}: dem Typ fehlt hier nicht bloss `fallback`, er wäre eine falsche
+ *  Zusage. Ein `NumberRange` ist das Versprechen „hiermit klemmt `clamp()`" — und genau `clamp()`
+ *  darf auf dieses Feld nicht angewandt werden, weil sein `Math.round(value) || fallback` aus der
+ *  ausdrücklich gesetzten 0 („sofort anfangen") den Default machte. Siehe {@link clampStartGrace}. */
+export const TASK_START_GRACE_RANGE = { min: 0, max: 24 * 60 } as const;
+/**
+ * Die Kulanz auf ihren Bereich bringen — der EINE Ort, an dem dieser Wert geklemmt wird.
+ *
+ * Genau wegen der Sonderregel oben: `clamp()` scheidet aus, also müsste jede Aufrufstelle die
+ * Klemmung von Hand hinschreiben. Genau das stand kurzzeitig doppelt da (Service und Formular), und
+ * nur eine der beiden Fassungen fing eine leere Eingabe ab — ein `NaN` wäre bis in die Datenbank
+ * durchgelaufen.
+ *
+ * `undefined` (Feld nicht gesetzt) und eine unlesbare Eingabe führen beide auf den Default: wer keine
+ * gültige Zahl nennt, bekommt die Vorgabe, nicht die Bereichsgrenze.
+ */
+export function clampStartGrace(value: number | undefined): number {
+  const rounded = Math.round(value ?? TASK_DEFAULT_START_GRACE_MIN);
+  if (!Number.isFinite(rounded)) return TASK_DEFAULT_START_GRACE_MIN;
+  return Math.min(TASK_START_GRACE_RANGE.max, Math.max(TASK_START_GRACE_RANGE.min, rounded));
+}
+/** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
+ *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
+/** Wie viele Nachweis-Fotos eine Aufgabe höchstens fordern darf. Nicht willkürlich: jeder Nachweis
+ *  ist ein eigener Gang zum Handy, und die Reihenfolge muss belegbar bleiben. Zehn ist grosszügig
+ *  über dem Leitbeispiel (drei) und deckelt zugleich, was `evaluateProofs` je Auswertung sortiert. */
+export const TASK_PROOF_MAX = 10;
+/** Was auf dem Bild zu sehen sein muss — eine Anweisung, kein Aufsatz. */
+export const TASK_PROOF_DESCRIPTION_MAX_LENGTH = 200;
+export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;
+export type TaskRequirementType = (typeof TASK_REQUIREMENT_TYPES)[number];

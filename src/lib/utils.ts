@@ -478,6 +478,19 @@ export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
 
 export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
 
+/**
+ * Frische 5-stellige Zufalls-Nummer (10000–99999) — der handschriftliche Code, den ein Foto zeigen
+ * muss, damit die Bilderkennung es überhaupt beurteilen kann.
+ *
+ * Hier und nicht im Kontroll-Service, obwohl sie dort entstand: sie hat keinerlei Bezug zur
+ * `KontrollAnforderung` und wird inzwischen von drei fachlich verschiedenen Stellen gebraucht
+ * (Kontrolle, Auto-Kontrolle, Aufgaben-Nachweis). Der Aufgaben-Service zog sich sonst über einen
+ * Einzeiler den gesamten Mail-/Push-Importgraphen des Kontroll-Services herein.
+ */
+export function generateKontrollCode(): string {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
 /** Type-pair definition for pair-building. KG_PAIR is the default; WEAR_PAIR is for
  *  user-defined non-KG categories (Plug, Collar, etc.). */
 export type PairTypes = { close: string; open: string };
@@ -523,8 +536,10 @@ function normalizeBuildPairsOptions(
   return { types: arg.types ?? KG_PAIR, reinigung: arg.reinigung };
 }
 
-/** Filters entries to the given pair-types, then sorts ascending by startTime. */
-function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
+/** Filters entries to the given pair-types, then sorts ascending by startTime.
+ *  Exported for callers that hand `buildPairs`/`buildWearSessions` a pre-loaded, unsorted entry list
+ *  (see `TaskEntrySource`) — they must not re-spell the type literals. */
+export function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
   entries: E[],
   types: PairTypes,
 ): E[] {
@@ -839,6 +854,8 @@ type KontrollAnforderungIn = {
   id: string; deadline: Date; kommentar: string | null;
   /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
   code: string | null;
+  /** ZIEL: null = KG. Gesetzt = Trage-Kontrolle, die in dieser (KG-)Liste nichts zu suchen hat. */
+  categoryId?: string | null;
   fulfilledAt: Date | null; createdAt: Date; withdrawnAt: Date | null; entryId: string | null;
   wirksamAb?: Date | null;
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
@@ -850,6 +867,9 @@ type PruefungEntryIn = {
   id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null;
   kontrollCode: string | null; verifikationStatus: string | null; keyDetected?: boolean | null;
   boxImageUrl?: string | null;
+  /** Gesetzt = das GEZEIGTE Gerät einer Trage-Kontrolle (v5.0.1); eine KG-Prüfung trägt keines
+   *  (das verschlossene Gerät steht am VERSCHLUSS). Entscheidet die KG-Filterung unten. */
+  deviceId?: string | null;
 };
 export type KontrolleItem = {
   id: string; time: Date; imageUrl: string | null; code: string | null;
@@ -868,12 +888,26 @@ export type KontrolleItem = {
   boxImageUrl: string | null;
 };
 
-/** Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries. */
+/**
+ * Builds a unified KontrolleItem list from KontrollAnforderungen + standalone PRUEFUNG entries.
+ *
+ * NUR KG-Kontrollen (v5.0.1). Die Liste hängt an der KG-Session — sie füttert die Paarbildung
+ * (`buildPairs`), den Zeitstrahl und die Statistik. Eine Trage-Kontrolle gehört dort nicht hin: sie
+ * beweist etwas über einen Plug, nicht über den Verschluss, und würde als Nachweis der laufenden
+ * KG-Session gelesen. Gefiltert wird HIER statt an den drei Aufrufern — dort wäre es dreimal
+ * dieselbe Regel, und wer sie an einer Stelle vergisst, bekommt keinen Fehler, sondern ein
+ * falsches Bild.
+ *
+ * Das Kennzeichen ist das ZIEL: `categoryId === null` an der Anforderung, kein Gerät am Eintrag.
+ * (Der KG-Prüfungs-Eintrag trägt bewusst nie eines, siehe /api/entries.)
+ */
 export function buildKontrolleItems(
-  alleAnforderungen: KontrollAnforderungIn[],
-  pruefungEntries: PruefungEntryIn[],
+  alleAnforderungenRaw: KontrollAnforderungIn[],
+  pruefungEntriesRaw: PruefungEntryIn[],
   now: Date
 ): KontrolleItem[] {
+  const alleAnforderungen = alleAnforderungenRaw.filter(k => (k.categoryId ?? null) === null);
+  const pruefungEntries = pruefungEntriesRaw.filter(e => (e.deviceId ?? null) === null);
   const linkedEntryIds = new Set(alleAnforderungen.map(k => k.entryId).filter(Boolean));
   return [
     ...alleAnforderungen.map(k => ({
@@ -920,6 +954,20 @@ export function buildKontrolleItems(
  *  Rückzüge. */
 export function isSubVisibleKontrolle(item: { anforderungStatus: string | null }): boolean {
   return item.anforderungStatus !== "withdrawn";
+}
+
+/**
+ * Ein aus der URL stammendes Weiterleitungsziel auf „interner Pfad" einengen — sonst `null`.
+ *
+ * Nötig, seit die Bedingungs-Links einer Aufgabe ein `?redirectTo=` mitgeben (Ketten-Weiterleitung
+ * von Bedingung zu Bedingung). Alle anderen `redirectTo` im Projekt baut der Server selbst; sobald
+ * der Wert aus der Adresszeile kommt, ist ein ungeprüftes `router.push(target)` eine offene
+ * Weiterleitung: `//example.com` und `https://example.com` sind für den Router externe Ziele.
+ * Backslashes fallen ebenfalls raus — manche Parser lesen `/\evil.com` wie `//evil.com`.
+ */
+export function safeInternalPath(path: string | undefined | null): string | null {
+  if (!path || !path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return null;
+  return path;
 }
 
 export function toDatetimeLocal(date: Date | string | null | undefined, tz = APP_TZ): string {

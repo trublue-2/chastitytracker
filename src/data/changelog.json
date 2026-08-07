@@ -1,5 +1,310 @@
 [
   {
+    "version": "5.0.9",
+    "date": "2026-08-05",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Kontroll-Code darf jetzt auch von einem Bildschirm abgelesen werden — die Push-Meldung trägt den Code, eine Smartwatch am Handgelenk zeigt ihn also ohne Zettel. Die Erkennung akzeptiert das Display ausdrücklich als Quelle; die Siegel-Nummer muss weiterhin von der Plombe selbst kommen.",
+          "en": "The inspection code may now also be read off a screen — the push notification carries the code, so a smartwatch on your wrist shows it without a paper slip. The recognition explicitly accepts a display as a source; the seal number must still come from the physical seal."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Passend dazu trägt die Kontroll-Meldung den Code jetzt im Titel statt im Fliesstext — auf einer Smartwatch steht er damit in der grössten Schrift. Die Frist erscheint am selben Tag nur noch als Uhrzeit, damit im Bild möglichst wenig steht, was mit dem Code verwechselt werden kann.",
+          "en": "To match, the inspection notification now carries the code in its title instead of the body text — on a smartwatch it appears in the largest type. A same-day deadline now shows only the time, so as little as possible in the picture can be mistaken for the code."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.8",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Code-Erkennung im Kontrollfoto las wiederholt eine handgeschriebene Sieben oder Drei als Zwei und wies die Kontrolle als „falscher Code“ ab, obwohl der Code auf dem Foto klar lesbar war. Beide Verwechslungen werden jetzt wie das bekannte Eins/Sieben-Paar toleriert, und die Erkennung wird ausdrücklich darauf hingewiesen, die Striche einer Zwei von denen einer Sieben oder Drei zu unterscheiden.",
+          "en": "The code recognition on inspection photos repeatedly read a handwritten seven or three as a two and rejected the inspection as a wrong code, even though the code was clearly legible in the photo. Both confusions are now tolerated like the known one/seven pair, and the recognition is explicitly told to tell the strokes of a two apart from those of a seven or a three."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Die tolerierten Ziffern-Paare stehen jetzt an einer Stelle beisammen, mit dem Hinweis, dass jedes weitere Paar den Kontroll-Code als Frische-Nachweis schwächt — neue Paare gehören nur dorthin, wenn eine Fehl-Lesung wirklich belegt ist. Die Siegel-Nummer bleibt davon unberührt und wird weiterhin exakt verglichen.",
+          "en": "The tolerated digit pairs now live together in one place, with a note that every additional pair weakens the control code as proof of freshness — new pairs belong there only once a misreading is actually documented. The seal number is unaffected and is still compared exactly."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Uhrzeit-Felder in den Einstellungen waren zu schmal und zeigten nur die Stunde — im Reinigungs-Fenster stand „08“ statt „08:00“. Sie sind jetzt breit genug für die volle Uhrzeit samt Uhr-Symbol des Browsers und behalten diese Breite auch auf schmalen Displays. Betrifft die Reinigungs-Fenster ebenso wie die Zeitfenster der automatischen Kontrollen.",
+          "en": "The time fields in the settings were too narrow and showed only the hour — a cleaning window read “08” instead of “08:00”. They are now wide enough for the full time including the browser's clock icon, and keep that width on narrow screens too. This affects the cleaning windows as well as the time windows of the automatic inspections."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.7",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein über den Keyholder-Bereich erfasster Eintrag löst jetzt Mail und Push aus — bisher blieb es still, gleich ob er für einen selbst oder für jemand anderen gedacht war. Offene Einschliess- und Orgasmus-Anordnungen werden dabei ebenfalls abgehakt.",
+          "en": "An entry recorded through the keyholder area now triggers mail and push — until now it stayed silent, whether it was meant for yourself or for someone else. Open lock and orgasm directives are settled along with it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine als „zu spät“ markierte Kontrolle zeigt jetzt, wann sie tatsächlich eingereicht wurde. Bisher stand dort nur die im Formular gewählte Uhrzeit — die Bewertung wirkte dadurch widersprüchlich.",
+          "en": "An inspection marked “fulfilled late” now shows when it was actually submitted. Previously only the time picked in the form was visible, which made the verdict look contradictory."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Keyholder-Bereich öffnet das Plus-Symbol direkt die Auswahl zum Erfassen.",
+          "en": "In the keyholder view, the plus button now opens the entry picker directly."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.6",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Aufgaben-Formular fragt in der Reihenfolge, in der die Sache abläuft: erst die Zeit zum Anlegen, dann die Frist. Der feste Endzeitpunkt steckt nicht mehr in einem Reiter, sondern hinter „Festen Zeitpunkt wählen“ unter der Eingabe.",
+          "en": "The task form now asks in the order things happen: first the time to get ready, then the deadline. A fixed end time is no longer a tab but sits behind “Pick a fixed time” below the input."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Formular und Aufgaben-Karte nennen die Mindest-Haltezeit. Bei „endet in 2 h“ mit 30 Minuten Zeit zum Anlegen sind das eineinhalb Stunden — die Stundenzahl ist die Frist, nicht die Tragezeit.",
+          "en": "Form and task card now state the minimum holding time. With “ends in 2 h” and 30 minutes to get ready that is one and a half hours — the hours set the deadline, not the wearing time."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.5",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Aufgaben-Fristen sind eindeutig beschriftet. Auf der Karte steht statt „Bedingungen halten“, dass die Bedingungen durchgehend gelten müssen; im Formular heissen die beiden Wege zur Frist „Endet in“ und „Endet um“ und zeigen darunter den errechneten Endzeitpunkt.",
+          "en": "Task deadlines are labelled unambiguously. The card now says the conditions apply continuously instead of “keep the conditions”; in the form the two ways to set the deadline are called “Ends in” and “Ends at”, with the resulting end time shown below."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Zeit zum Anlegen ist sichtbar: Sie steht auf der Aufgaben-Karte und lässt sich beim Stellen einstellen. Bisher lief diese Frist unbemerkt mit, obwohl die Aufgabe nach ihrem Ablauf als versäumt gilt.",
+          "en": "The time to get ready is visible: it appears on the task card and can be set when the task is assigned. Until now this deadline ran unnoticed, even though the task counts as missed once it passes."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Aufgabe, die getragen, aber ohne den geforderten Nachweis abgeschlossen wurde, meldet nicht mehr „nie begonnen“.",
+          "en": "A task that was worn through but finished without the required proof no longer reports “never started”."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.4",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bei Aufgaben, die etwas durchgehend verlangen, erscheint „Als erledigt melden\" erst nach Ablauf der Frist — solange sie läuft, zeigt die Karte die verbleibende Zeit. Aufgaben ohne solche Bedingungen lassen sich weiterhin jederzeit melden.",
+          "en": "For tasks that require something to be held, \"Report as done\" now appears only once the deadline has passed — while it runs, the card shows the remaining time. Tasks without such conditions can still be reported at any time."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.3",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die leere Seite beim Schrumpfen einer Liste ist jetzt auch in den übrigen blätterbaren Listen weg — Einschlüsse, Kontrollen, Orgasmen und die Kontroll-Übersicht der Keyholderin.",
+          "en": "The empty page after a list shrinks is now gone from the remaining paginated lists as well — lockups, inspections, orgasms and the keyholder's inspection overview."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "In der Kontroll-Übersicht der Keyholderin blieb „Zurück\" nach dem Schrumpfen der Liste anklickbar, tat aber ein paar Klicks lang nichts.",
+          "en": "In the keyholder's inspection overview, \"Back\" stayed clickable after the list shrank but did nothing for the first few clicks."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Strafbuch zeigt jetzt alle Vergehen. Falsches Gerät, versäumte Orgasmus-Anweisung, versäumte Verschluss-Anforderung, nach der Reinigung nicht wieder verschlossen und Passwortwechsel während einer Sperrzeit wurden zwar erkannt, aber nicht angezeigt — bei manchen Subs stand deshalb „Kein Eintrag im Strafbuch\", obwohl ein offenes Vergehen vorlag.",
+          "en": "The punishment log now shows every offense. Wrong device, missed orgasm directive, missed lock request, not re-locking after cleaning and a password change during a lock period were all detected but never displayed — so some subs saw \"No entries in the punishment log\" while an open offense existed."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Reinigungslimit lässt sich jetzt wie bei jedem anderen Vergehen eine Strafe verhängen oder das Vergehen verwerfen; bisher gab es dort nur einen Rückgängig-Knopf, der meist nichts tat.",
+          "en": "A cleaning-limit offense can now be punished or dismissed like any other; until now it only offered an undo button that usually did nothing."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Frist einer Kontrolle steht neu auf einer Stunde statt vier und lässt sich in Minuten statt Stunden angeben — für kurze Fristen musstest du bisher Bruchteile einer Stunde ausrechnen.",
+          "en": "An inspection's deadline now defaults to one hour instead of four and can be entered in minutes rather than hours — short deadlines previously meant working out fractions of an hour."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.2",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine erfüllte Aufgabe verschwindet jetzt sofort vom Dashboard. Dafür steht unten eine Liste deiner Aufgaben, in der du auch Erledigtes, Versäumtes und Zurückgezogenes nachschlägst — Antippen zeigt die ganze Aufgabe.",
+          "en": "A fulfilled task now disappears from your dashboard right away. In exchange there is a list of your tasks further down, where you can look up what was done, missed or withdrawn — tap a row for the full task."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Aufgaben-Karte sagt jetzt, was als Nächstes zu tun ist, und Nachweis-Zeilen führen sichtbar zur Foto-Aufnahme. „Als erledigt melden\" erscheint erst, wenn wirklich nur noch die Meldung fehlt, und erklärt, was du damit bestätigst.",
+          "en": "The task card now names the next step, and proof rows visibly lead to taking the photo. \"Report as done\" only appears once the report is genuinely all that is left, and says what you are confirming with it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Blätterbare Listen zeigten eine leere Seite, wenn die Liste unter die gerade geöffnete Seite schrumpfte.",
+          "en": "Paginated lists showed an empty page when the list shrank below the page you had open."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Keyholder-Übersicht zeigt jetzt dieselben Aufgaben wie das Dashboard des Subs: oben die laufenden, unten die ganze Liste — samt Sichtung und Rückzug direkt an der Karte.",
+          "en": "The keyholder overview now shows the same tasks as the sub's dashboard: the running ones on top, the full list below — including review and withdrawal right on the card."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Ein bereits beurteilter Nachweis zeigt sein Urteil jetzt auch bei der Sichtung — vorher stand über einem längst angenommenen Foto dasselbe neutrale „Annehmen / Ablehnen\" wie über einem unbeurteilten.",
+          "en": "A proof that has already been judged now shows its verdict in the review block — previously a long-accepted photo carried the same neutral \"accept / reject\" pair as an unjudged one."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Ein Vergehen lässt sich jetzt mit einer Aufgabe bestrafen statt mit einem Freitext: „Aufgabe als Strafe“ im Strafbuch führt ins Aufgaben-Formular, und Aufgabe und Urteil entstehen zusammen. Wird das Urteil geändert oder zurückgenommen, verschwindet die Strafaufgabe mit.",
+          "en": "An offense can now be punished with a task instead of free text: \"Task as penalty\" in the ledger opens the task form, and task and verdict are created together. Change or undo the verdict and the penalty task goes with it."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Strafbuch heisst der Knopf jetzt „Bestrafen“ statt „Als bestraft markieren“ — bestraft ist die Strafe erst, wenn du sie danach als erledigt markierst.",
+          "en": "In the ledger the button now reads \"Punish\" instead of \"Mark as punished\" — the penalty is only served once you mark it as done afterwards."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine erfüllte Strafaufgabe schliesst die Strafe jetzt von selbst — bisher blieb sie im Strafbuch offen, bis der Keyholder von Hand „erledigt“ klickte.",
+          "en": "A fulfilled penalty task now closes the penalty by itself — until now it stayed open in the ledger until the keyholder ticked \"done\" by hand."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Eine versäumte Strafaufgabe zeigt im Strafbuch, wofür sie stand. So ist zu sehen, dass ein Vergehen aus einem früheren entstanden ist, statt es für eigenständig zu halten.",
+          "en": "A missed penalty task now shows in the ledger what it was a penalty for — so you can see that one offense grew out of an earlier one instead of taking it for a fresh one."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Keyholder-Agent kann jetzt ebenfalls mit einer Aufgabe bestrafen: create_task nimmt die Referenz eines erkannten Vergehens entgegen und schreibt Aufgabe und Urteil zusammen.",
+          "en": "The keyholder agent can now punish with a task as well: create_task accepts the reference of a detected offense and writes task and verdict together."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Beim Anlegen einer Kategorie lässt sich gleich das erste Gerät benennen — ohne Gerät liess sich in einer Kategorie nichts erfassen, und gesagt wurde es nirgends. Kategorien ohne Gerät stehen jetzt sichtbar im Dashboard und führen direkt zum Anlegen.",
+          "en": "When creating a category you can now name its first device right away — without a device nothing could be tracked in it, and nothing said so. Categories without a device now appear visibly on the dashboard and lead straight to adding one."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Meldungen an den Keyholder über Einträge des Trägers kommen jetzt in seiner Sprache — Titel, Beschriftungen und Öffnungsgründe waren dort fest deutsch, als einzige Meldung der App.",
+          "en": "Notifications to the keyholder about the wearer's entries now arrive in the keyholder's language — titles, labels and opening reasons were hardcoded German there, the only notification in the app that was."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.1",
+    "date": "2026-08-02",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Kontrollen gibt es jetzt auch für Trage-Kategorien: Der Keyholder verlangt ein Foto von dem, was du gerade trägst — wahlweise von einem bestimmten Gerät. Je Ziel kann eine Kontrolle laufen, eine Plug-Kontrolle blockiert die Kontrolle des Keuschheitsgürtels also nicht.",
+          "en": "Inspections now cover wear categories too: the keyholder can ask for a photo of what you are currently wearing, optionally of one specific device. One inspection per target may run, so a plug inspection does not block the chastity-device one."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Schalter „Kontroll-Code verlangen\" steht jetzt bei jedem Gerät, nicht mehr nur beim Keuschheitsgürtel.",
+          "en": "The \"require inspection code\" switch is now available on every device, not just the chastity device."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.0.0",
+    "date": "2026-07-30",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Keyholder kann jetzt Aufgaben stellen — ein Auftrag mit beliebig vielen Bedingungen (bestimmte Geräte tragen, verschlossen bleiben) und einer Frist, bis zu der alles durchgehend gelten muss. Das Dashboard zeigt, was noch fehlt; zum Abschluss meldest du die Aufgabe als erledigt.",
+          "en": "The keyholder can now set tasks — an assignment with any number of conditions (wear certain devices, stay locked) and a deadline by which everything must have been held continuously. Your dashboard shows what is still missing; you report the task as done at the end."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Meldungen zu Aufgaben landen auch im Posteingang — gestellt, geändert, zurückgezogen, erfüllt oder versäumt. Wer eine Mail verpasst, kann nachlesen, was verlangt war.",
+          "en": "Task notices also land in your inbox — set, changed, withdrawn, fulfilled or missed. If you miss a mail, you can still read up on what was asked of you."
+        }
+      }
+    ]
+  },
+  {
     "version": "4.60.7",
     "date": "2026-08-01",
     "changes": [

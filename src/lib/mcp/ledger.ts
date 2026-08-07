@@ -64,6 +64,9 @@ export interface StrafbuchOverview {
   lateLocks: ({ deadline: string; fulfilledAt: string | null; message: string | null } & OffenseJudgment)[];
   /** REINIGUNG openings not (or too late) followed by a VERSCHLUSS within the re-lock deadline. */
   cleaningNotRelocked: ({ time: string; deadline: string; relockedAt: string | null; note: string | null } & OffenseJudgment)[];
+  /** Aufgaben, die nicht erfüllt wurden — `state` unterscheidet „nie begonnen" von „vorzeitig
+   *  abgelegt". Beides bleibt EIN Vergehenstyp: dieselbe Pflicht, nur zwei Arten sie zu verfehlen. */
+  unfulfilledTasks: ({ title: string; holdUntil: string; state: string; failedAt: string | null } & OffenseJudgment)[];
   /** Passwortwechsel an einem Admin-Konto während einer laufenden Sperrzeit. `via` unterscheidet
    *  die Wege; `reset_token` heisst: über das Postfach neuen Zugang verschafft. */
   adminPasswordChanges: ({ time: string; adminUsername: string; via: string; lockPeriodEndedAt: string | null } & OffenseJudgment)[];
@@ -158,6 +161,13 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       relockedAt: c.relockAt ? fmt(c.relockAt) : null,
       note: c.note,
       ...judge("cleaning_not_relocked", cleaningNotRelockedRef(c.entryId)),
+    })),
+    unfulfilledTasks: sb.unfulfilledTasks.map((t) => ({
+      title: t.title,
+      holdUntil: fmt(t.holdUntil),
+      state: t.state,
+      failedAt: t.failedAt ? fmt(t.failedAt) : null,
+      ...judge("unfulfilled_task", t.id),
     })),
     adminPasswordChanges: sb.adminPasswordChanges.map((p) => ({
       time: fmt(p.at),
@@ -277,6 +287,7 @@ export function buildOffenseRows(
     ...sb.missedOrgasmInstructions.map((m) => toRow(m.windowEndedAt, m, { message: m.message, requiredType: m.requiredType })),
     ...sb.lateLocks.map((a) => toRow(a.fulfilledAt ?? a.deadline, a, { deadline: a.deadline, fulfilledAt: a.fulfilledAt, message: a.message })),
     ...sb.cleaningNotRelocked.map((c) => toRow(c.relockedAt ?? c.deadline, c, { time: c.time, deadline: c.deadline, relockedAt: c.relockedAt, note: c.note })),
+    ...sb.unfulfilledTasks.map((t) => toRow(t.failedAt ?? t.holdUntil, t, { title: t.title, holdUntil: t.holdUntil, state: t.state, failedAt: t.failedAt })),
     ...sb.adminPasswordChanges.map((p) => toRow(p.time, p, { adminUsername: p.adminUsername, via: p.via, lockPeriodEndedAt: p.lockPeriodEndedAt })),
   ];
 }

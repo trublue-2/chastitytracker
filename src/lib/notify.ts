@@ -15,6 +15,11 @@ export type NotifyInbox =
       bodyKey?: MessageBodyKey;
       ref?: MessageRef;
       senderKind?: MessageSenderKind;
+      /** Höchstens EINE Nachricht dieses Texts pro Bezugsobjekt — braucht `ref`. Für Meldungen, die
+       *  ein einmaliges Ereignis festhalten (gestellt, zurückgezogen, Ergebnis): ein Retry nach
+       *  einem Absturz darf keine zweite, dauerhafte Zeile hinterlassen. Semantik und Grenzen in
+       *  `RecordMessageParams.once`. */
+      once?: boolean;
     };
 
 /**
@@ -68,6 +73,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
       params,
       senderKind: inbox?.senderKind,
       ref: inbox?.ref,
+      once: inbox?.once,
     });
     if (!alwaysNotify) channels = await getMessageChannels(userId);
   }
@@ -84,4 +90,22 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
     );
   }
   if (channels.push) firePush(userId, subject, message, url, badge);
+}
+
+/**
+ * Dieselbe Meldung an die Keyholder eines Subs — Mail und Push, aber NIE eine Posteingangs-Zeile.
+ *
+ * Der Posteingang gehört dem Sub: eine Nachricht mit der `subjectUserId` des Keyholders landete in
+ * dessen persönlichem Posteingang, als wäre sie seine eigene Direktive — ohne Fehler, nur falsch
+ * einsortiert. Der Keyholder-Kanal kommt mit Etappe 2 (docs/nachrichten-konzept.md).
+ *
+ * `inbox` ist deshalb aus dem Content-Typ ausgeschlossen und wird hier gesetzt: ein Aufrufer KANN es
+ * nicht vergessen. Die Empfänger kommen als Parameter statt aus `getControllersOfUser` —
+ * `processDueTasks` holt sie bewusst einmal je Nutzer statt einmal je Aufgabe.
+ */
+export async function notifyControllers(
+  controllers: { id: string }[],
+  content: Omit<NotifyContent, "inbox">,
+): Promise<void> {
+  await Promise.all(controllers.map((c) => notifyUser(c.id, { ...content, inbox: false })));
 }

@@ -42,14 +42,27 @@ export async function assertAdmin(): Promise<void> {
   if (!session || session.user.role !== "admin") redirect("/login");
 }
 
+/** API guard wie {@link requireKeyholderOrAdminApi}, gibt bei Erfolg aber die SESSION zurück — für
+ *  Routen, die den Handelnden brauchen (z.B. um ihn aus einer Empfängerliste zu streichen), ohne
+ *  ein zweites `auth()`. Gleiche Form wie {@link requireApi}, also auch dieselbe Prüfung beim
+ *  Aufrufer (`instanceof NextResponse`).
+ *
+ *  Bewusst eine eigene Funktion statt eines erweiterten Rückgabetyps der bestehenden: deren ~20
+ *  Aufrufer prüfen `if (err) return err`, und ein wahrheitswertiges Erfolgs-Objekt würde dort als
+ *  Antwort zurückgegeben — ein stiller 200 mit dem Guard-Ergebnis als Body. */
+export async function requireKeyholderOrAdminActor(targetUserId: string): Promise<ApiSession | NextResponse> {
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
+  if (session.user.role === "admin") return session;
+  if (await isKeyholderOf(session.user.id, targetUserId)) return session;
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+}
+
 /** API guard: allows a global admin OR a keyholder of `targetUserId`. Self-control is impossible
  *  (isKeyholderOf rejects actor === target). Returns a 401/403 NextResponse on denial, else null. */
 export async function requireKeyholderOrAdminApi(targetUserId: string): Promise<NextResponse | null> {
-  const session = await requireApi();
-  if (session instanceof NextResponse) return session;
-  if (session.user.role === "admin") return null;
-  if (await isKeyholderOf(session.user.id, targetUserId)) return null;
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await requireKeyholderOrAdminActor(targetUserId);
+  return actor instanceof NextResponse ? actor : null;
 }
 
 /** Page guard: returns the actor's id + whether they are a global admin if they are admin or

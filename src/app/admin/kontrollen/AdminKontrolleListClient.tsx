@@ -8,6 +8,8 @@ import Badge from "@/app/components/Badge";
 import DetailField from "@/app/components/DetailField";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
+import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
@@ -54,6 +56,9 @@ export interface AdminKontrolleRowData {
   pillCls: string | null;
   username?: string | null;
   code: string | null;
+  /** ZIEL der Kontrolle: Geräte- bzw. Kategoriename. null = KG (dort ist „Kontrolle" ohne Zusatz
+   *  gemeint — ein Label an jeder KG-Zeile wäre reines Rauschen). */
+  target: string | null;
   fulfilledAtStr: string | null;
   deadlineStr: string | null;
   createdAtStr: string | null;
@@ -132,6 +137,11 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
               {row.pillLabel && (
                 <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
               )}
+              {row.target && (
+                <DetailField label={t("kontrolleTarget")}>
+                  <p className="text-sm text-foreground-muted">{row.target}</p>
+                </DetailField>
+              )}
               {row.verifikationReasonStr && (
                 <p className="text-xs text-warn">{row.verifikationReasonStr}</p>
               )}
@@ -178,15 +188,11 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
 }
 
 export default function AdminKontrolleListClient({ items, allItems, labels }: { items: AdminKontrolleRowData[]; allItems?: AdminKontrolleRowData[]; labels: Labels }) {
-  const [page, setPage] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const t = useTranslations("admin");
-  const tc = useTranslations("common");
 
   const activeItems = showAll && allItems ? allItems : items;
-  const totalPages = Math.ceil(activeItems.length / PAGE_SIZE);
-  const safePage = Math.min(page, Math.max(0, totalPages - 1));
-  const paginated = activeItems.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(activeItems, PAGE_SIZE);
 
   function toggleShowAll() {
     setShowAll(v => !v);
@@ -196,7 +202,7 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
   return (
     <>
       <div className="divide-y divide-border-subtle">
-        {paginated.map((row, i) => (
+        {visible.map((row, i) => (
           <div key={i} className="px-4 py-3 flex items-start gap-3">
             <AdminKontrolleThumb row={row} labels={labels} />
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
@@ -209,8 +215,13 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
               {row.verifikationReasonStr && (
                 <p className="text-xs text-warn">{row.verifikationReasonStr}</p>
               )}
-              {(row.code || row.deviceCheck) && (
+              {(row.code || row.target || row.deviceCheck) && (
                 <div className="flex items-center gap-2 flex-wrap">
+                  {row.target && (
+                    <Badge variant="neutral" size="sm" label={t("kontrolleTarget")}>
+                      <span className="font-medium">{row.target}</span>
+                    </Badge>
+                  )}
                   {row.code && (
                     <Badge variant="inspect" size="sm" icon={<ScanLine size={12} />} label={t("codeLabel")}>
                       <span className="font-mono font-bold">{row.code}</span>
@@ -247,23 +258,12 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-        {totalPages > 1 ? (
-          <>
-            <button type="button" onClick={() => setPage(p => p - 1)} disabled={safePage === 0}
-              className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
-              ← {tc("back")}
-            </button>
-            <span className="text-xs text-foreground-faint tabular-nums">{safePage + 1} / {totalPages}</span>
-            <button type="button" onClick={() => setPage(p => p + 1)} disabled={safePage >= totalPages - 1}
-              className="text-xs font-medium text-foreground-muted disabled:opacity-40 hover:text-foreground transition">
-              {tc("next")} →
-            </button>
-          </>
-        ) : <span />}
-      </div>
+      <ListPager page={page} totalPages={totalPages} onPage={setPage} />
       {allItems && allItems.length > items.length && (
-        <div className="px-5 pb-3">
+        // Eigene Trennlinie und eigener Abstand, statt sich auf den `ListPager` darüber zu verlassen:
+        // der rendert bei nur einer Seite gar nichts, und dann stünde der Knopf ohne Abstand direkt
+        // unter der letzten Zeile.
+        <div className="px-5 py-3 border-t border-border-subtle">
           <button
             type="button"
             onClick={toggleShowAll}

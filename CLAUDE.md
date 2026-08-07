@@ -36,12 +36,14 @@ Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
 
 | Tag | Für wen | Wann er wandert |
 |-----|---------|-----------------|
-| `:feature` | trublues Instanz, Tests vor dem Merge | Feature-Branch-Build, oder `main`-Build mit `tagFeature=true` |
+| `:feature` | trublues Instanz **und mittestende Fremd-Instanzen**, Tests vor dem Merge | Feature-Branch-Build, oder `main`-Build mit `tagFeature=true` |
 | `:portal` | die Portal-Instanzen | jeder `main`-Build |
 | `:latest` | alle, inkl. Self-Hoster — der **offizielle Release** | nur durch `promote.yml` |
 | `:v<version>`, `:sha-<sha>` | unveränderliche Referenz zum Pinnen, Promoten, Rollback | pro `main`-Build (`v…`) bzw. pro Build (`sha-…`) |
 
 Ein `main`-Build veröffentlicht also **nichts** an Self-Hoster — das ist der Punkt der Kanäle. `:latest` bewegt sich erst, wenn du promotest, und dann per Digest-Retag: der Release ist bitgleich das Image, das die Portal-Flotte schon fährt.
+
+⚠️ **`:feature` ist nicht mehr nur die eigene Instanz.** Auf dem Kanal sitzen inzwischen auch Nutzer, die freiwillig mittesten. Ein Feature-Dispatch startet damit fremde Produktiv-Instanzen neu und spielt ihnen unfertigen Stand ein — das ist gewollt, aber es ist kein folgenloser Test mehr. Wer hier dispatcht, tut es im Wissen, dass nicht nur der eigene Container betroffen ist; welche Instanzen das sind, sagt der Pin in ihrer `docker-compose.yml`, nicht diese Datei (Instanznamen Dritter gehören nicht ins öffentliche Repo).
 
 **Regel — bei jedem `main`-Build IMMER `tagFeature=true`**, damit `:feature` (trublue) nie hinter `main` zurückfällt. Der Deploy leitet `pinnedTo` daraus ab und startet dann genau die Instanzen neu, deren Tag sich bewegt hat (`portal,feature`).
 
@@ -98,7 +100,7 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `User` – username, email, passwordHash, role (`user`/`admin`), reinigungErlaubt, mobileDesktopUpload
 - `Entry` – type (`VERSCHLUSS`|`OEFFNEN`|`PRUEFUNG`|`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, verifikationStatus, oeffnenGrund
 - `TrainingVorgabe` – Zeitraum mit min. Tragedauer pro Tag/Woche/Monat, pro User
-- `KontrollAnforderung` – code (5-stellig), deadline (4h), userId, fulfilledAt, withdrawnAt, kommentar
+- `KontrollAnforderung` – code (5-stellig), deadline (Vorgabe 1h, im Formular in Stunden oder Minuten wählbar), userId, fulfilledAt, withdrawnAt, kommentar
 - `VerschlussAnforderung` – art (`ANFORDERUNG`/`SPERRZEIT`), userId, nachricht, endetAt, dauerH, fulfilledAt, withdrawnAt
 - `StrafeRecord` – userId, offenseType (`KONTROLLANFORDERUNG`|`OEFFNEN_ENTRY`), refId, bestraftDatum, notiz
 - `NotificationPreference` – userId, eventType, mail, push (pro Event-Typ)
@@ -140,7 +142,7 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `PATCH/DELETE /api/admin/vorgaben/[id]` – Vorgabe bearbeiten / löschen
 - `PATCH /api/settings/password` – Eigenes Passwort ändern
 - `POST /api/admin/demo` – DemoUser mit Beispieldaten anlegen (nur Admin)
-- `POST /api/admin/kontrolle` – Kontrolle anfordern: sendet 5-stelligen Code per E-Mail, 4h Frist (nur Admin, User muss verschlossen sein)
+- `POST /api/admin/kontrolle` – Kontrolle anfordern: sendet 5-stelligen Code per E-Mail, Frist per `deadlineH` (Vorgabe 1h, Bruchteile erlaubt) (nur Admin, User muss verschlossen sein)
 - `POST /api/auth/forgot-password` – Passwort-Reset-Token per E-Mail senden
 - `POST /api/auth/reset-password` – Passwort mit Token zurücksetzen
 - `POST /api/verify-kontrolle` – Handgeschriebenen Code im Foto per Claude Vision erkennen (Auth required, body: `{ imageUrl, expectedCode }`, returns `{ detected, match }`)
@@ -259,7 +261,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/hooks/useUserSettingsSave.ts` — PATCH `/api/admin/users/[id]` + Toast/`saving` für die Admin-Settings-Toggles
 
 **Utilities:**
-- `src/lib/authGuards.ts` — `requireApi()` (Plain-Session-Guard, gibt die Session zurück), `requireAdminApi()`, `requireKeyholderOrAdminApi()`, `assertAdmin()`, `assertKeyholderOrAdmin()`
+- `src/lib/authGuards.ts` — `requireApi()` (Plain-Session-Guard, gibt die Session zurück), `requireAdminApi()`, `requireKeyholderOrAdminApi()` (erlaubt/lehnt ab), `requireKeyholderOrAdminActor()` (dasselbe, gibt die SESSION zurück — für Routen, die den Handelnden brauchen, statt eines zweiten `auth()`), `assertAdmin()`, `assertKeyholderOrAdmin()`
 - `src/lib/userSelfField.ts` — `userSelfFieldRoute()` für „User ändert EIN eigenes Feld"-PATCH-Routen (nur `SELF_EDITABLE_USER_FIELDS`)
 - `src/lib/apiClient.ts` — Client-seitig: `parseApiErrorCode()` (stabiler Fehler-Code aus einer Antwort, nie werfend → via `useApiError()` auflösen), `parseApiError()` (nur für Routen, deren `error` schon eine anzeigbare Meldung ist), `entryRequest()` (URL+Init für POST/PATCH `/api/entries`), `postAdminEntry()`/`submitAdminEntry()` — **nie** wieder `res.json().catch(() => ({}))` von Hand
 - `src/lib/codedError.ts` — `codedError(code)`/`codeOf(e)`: Fehler mit stabilem `_code`-Tag, um eine Transaktion abzubrechen und den Code AUSSERHALB (auch über Modulgrenzen) wieder einzufangen. Bewusst **importfrei** (per Test abgesichert), damit es aus client-erreichbaren Modulen benutzbar bleibt (`constants.ts` → `entryErrors.ts` → hier) — **nie** wieder `Object.assign(new Error(…), { _code })` oder `(e as {_code?: string})?._code` von Hand
@@ -269,6 +271,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/lib/constants.ts` — `VALID_TYPES`, `OEFFNEN_GRUENDE`, `ORGASMUS_ARTEN`, `isValidImageUrl()`, `validatePassword()`, `parseOrgasmusArtBase()`, `PASSWORD_MIN_LENGTH`, `BCRYPT_MAX_BYTES`; dazu `NumberRange` + die `*_RANGE`-Konstanten der Admin-Settings (Reinigung/Eskalation/Auto-Kontrollen) — **eine** Quelle für das `clamp()` im Service UND das `range`-Prop von `NumberInput`. Ein neues geklemmtes Zahlen-Feld bekommt hier seine Konstante, nie ein Literal am Call-Site
 - `src/lib/utils.ts` — `buildWearPairs()`, `wearingHoursFromPairs()`, `isTimeCorrected()`, `formatDuration()`, `formatDateTime()`, `toDatetimeLocal()`, `tzOffsetMsAt()` (TZ-Offset-Mess-Primitiv, gecachte Formatter), `decomposeMs()` (ms → Tage/Std/Min/Sek) — **nie** wieder `Intl…formatToParts` für Offsets oder `% 86_400_000` von Hand
 - `src/lib/delayedTrigger.ts` — `computeDelayedTrigger()`: die `{wirksamAb, benachrichtigtAt}`-Konvention für terminierte Anforderungen (Kontrolle + Verschluss); `isHiddenFromSub()` die Lese-Seite dazu; `deadlineFromDispatch()` verschiebt die geplante Frist-SPANNE auf den tatsächlichen Zustell-Zeitpunkt (ein verspäteter Poller-Tick darf keine unerfüllbare Frist zustellen) — **nie** eine Frist gegen `wirksamAb` rechnen, wenn der Sub sie erst jetzt erfährt
+- `src/lib/entryFulfilment.ts` — was ein neuer Eintrag ABHAKT (Verschluss-Anforderungen samt Sperrzeiten, Orgasmus-Anforderung und — nur auf dem Sub-Pfad — die Kontroll-Anforderung), geteilt von BEIDEN Erfassungs-Routen. Der Parameter `at` ist Stichtag der Auswahl UND Erfüllungs-Zeitstempel: Sub-Pfad `new Date()` (die Eintrags-Zeit ist frei wählbar — mit ihr datierte sich jeder Sub aus jeder Frist heraus), Keyholder-Pfad `entry.startTime` (dort ist Rückdatieren erlaubt; erfasst jemand für SICH SELBST, gilt wieder die Server-Uhr). Die Auswahl ist zusätzlich auf `createdAt <= at` beschränkt — ein Nachtrag erfüllt nur, was es zu seinem Zeitpunkt schon gab. Diese Asymmetrie ist Absicht, **nicht** „vereinheitlichen". Dazu `punishWrongDevice()` — nur der Sub-Pfad ahndet automatisch
 - `src/lib/deviceCheckService.ts` — der Kontroll-Geräte-Check als EIN Vorgang: `deviceCheckApplies()` entscheidet Startwert UND Lauf (eine Bedingung, nicht zwei), `runDeviceCheck()` ersetzt das beim Anlegen gesetzte `deviceCheck: "pending"` in JEDEM Ausgang durch einen Endzustand (ein gescheitertes Schreiben bleibt als Logzeile sichtbar). Neue asynchrone Nach-Commit-Prüfungen folgen diesem Muster, statt Startwert und Ergebnis über die Route zu verteilen
 - `src/lib/verifyReason.ts` — `VerifyReason`-Codes eines fehlgeschlagenen Foto-Checks; `formatVerifyReason()` für die UI, `toVerifyFailure()` für die Maschinen-Sichten (MCP). Ein `verifikationStatus: null` ohne Grund ist eine Sackgasse — **nie** den Rohwert casten, immer über `toVerifyFailure()` (härtet gegen Alt-/Fremdwerte)
 - `src/lib/queries.ts` — `getIsLocked()`, `getActiveVorgabe()`
@@ -287,7 +290,9 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 
 ### Changelog
 - Erlaubte `type`-Werte: `feat`, `fix`, `security`, `perf`, `chore`, `ui` — **nicht** `refactor`
-- Version bump + Changelog immer im **gleichen Commit** wie die Änderung
+- **Ab v5 bekommt nicht jeder Commit eine eigene Versionsnummer.** Gebumpt wird gebündelt, wenn ein zusammenhängender Stand fertig ist. Ein Commit ohne Bump bekommt auch **keinen** Changelog-Eintrag — seine Details stehen in der Commit-Message.
+- **Wenn** gebumpt wird: Version + Changelog im **gleichen Commit** wie die Änderung
+- **Einträge sind knapp — ein bis zwei Sätze.** Was sich für den Nutzer geändert hat, nicht jede Bedingung und jeder Sonderfall. Wer erklärt, welcher Knopf wohin führt, schreibt eine Bedienungsanleitung statt eines Changelogs.
 
 ## Design System – Shared Primitives
 

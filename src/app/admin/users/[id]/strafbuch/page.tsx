@@ -4,8 +4,9 @@ import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/utils";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
+import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow } from "./StrafbuchClient";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow } from "./StrafbuchClient";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -54,6 +55,58 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const abgelehnt: KontrollRow[] = sb.rejectedControls.map((k) => toKontrollRow(k, false));
   const autoEntfernt: KontrollRow[] = sb.autoRemovedControls.map((k) => toKontrollRow(k, false));
 
+  // Aufgaben-Vergehen: das Strafbuch leitet sie ab, der MCP kann sie beurteilen — nur diese Seite
+  // zeigte sie nicht. Ein Vergehen, das der Keyholder in der Oberfläche nicht sieht, ist praktisch
+  // keines.
+  const aufgaben: AufgabeRow[] = sb.unfulfilledTasks.map((a) => ({
+    id: a.id,
+    title: a.title,
+    holdUntilStr: fmtDual(a.holdUntil),
+    state: a.state,
+    failedAtStr: a.failedAt ? fmtDual(a.failedAt) : null,
+    isPenaltyTask: a.penaltyForRef !== null,
+    penaltyReason: a.penaltyReason,
+  }));
+
+  // Die fünf folgenden Arten fehlten hier bis v5.0.3 — dieselbe Lücke wie bei den Aufgaben oben.
+  const nichtVerschlossen: NichtVerschlossenRow[] = sb.cleaningNotRelocked.map((c) => ({
+    // Präfix-ref, weil sich dieses Vergehen seinen Eintrag mit REINIGUNG_LIMIT teilt.
+    refId: cleaningNotRelockedRef(c.entryId),
+    startTimeStr: fmtDual(c.startTime),
+    deadlineStr: fmtDual(c.deadline),
+    relockAtStr: c.relockAt ? fmtDual(c.relockAt) : null,
+    note: c.note,
+  }));
+
+  const verschlussVersaeumt: VerschlussVersaeumtRow[] = sb.lateLocks.map((a) => ({
+    id: a.id,
+    endetAtStr: fmtDual(a.endetAt),
+    fulfilledAtStr: a.fulfilledAt ? fmtDual(a.fulfilledAt) : null,
+    nachricht: a.nachricht,
+  }));
+
+  const orgasmusVersaeumt: OrgasmusVersaeumtRow[] = sb.missedOrgasmInstructions.map((m) => ({
+    id: m.id,
+    endetAtStr: fmtDual(m.endetAt),
+    nachricht: m.nachricht,
+    requiredArt: m.requiredArt,
+  }));
+
+  const falschesGeraet: FalschesGeraetRow[] = sb.wrongDeviceViolations.map((v) => ({
+    entryId: v.entryId,
+    startTimeStr: v.startTime ? fmtDual(v.startTime) : "–",
+    deviceName: v.deviceName,
+    note: v.note,
+  }));
+
+  const adminPasswort: AdminPasswortRow[] = sb.adminPasswordChanges.map((p) => ({
+    id: p.id,
+    atStr: fmtDual(p.at),
+    adminUsername: p.adminUsername,
+    via: p.via,
+    sperrzeitEndetAtStr: p.sperrzeitEndetAt ? fmtDual(p.sperrzeitEndetAt) : null,
+  }));
+
   const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
     status: r.status,
@@ -68,22 +121,16 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const labels = {
     errorFallback: tCommon("error"),
     networkError: tCommon("networkError"),
-    lockedUntil: t("lockedUntil"),
-    lockedIndefinite: t("lockedIndefinite"),
     frist: t("frist"),
-    systemLabel: t("systemLabel"),
-    givenLabel: t("givenLabel"),
-    timeCorrected: t("timeCorrected"),
-    fulfilledLabel: t("fulfilledLabel"),
     instructionLabel: t("instructionLabel"),
     strafbuchUnerlaubteOeffnungen: t("strafbuchUnerlaubteOeffnungen"),
     strafbuchZuSpaet: t("strafbuchZuSpaet"),
     strafbuchAbgelehnt: t("strafbuchAbgelehnt"),
     strafbuchAutoEntfernt: t("strafbuchAutoEntfernt"),
     strafbuchAutoEntferntAm: t("strafbuchAutoEntferntAm"),
-    strafbuchEmpty: t("strafbuchEmpty"),
     strafbuchNoEntries: t("strafbuchNoEntries"),
     strafbuchWurdeBestraft: t("strafbuchWurdeBestraft"),
+    strafbuchStrafaufgabe: t("strafbuchStrafaufgabe"),
     strafbuchAlleAnzeigen: t("strafbuchAlleAnzeigen"),
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
@@ -93,7 +140,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchSperreLiefBis: t("strafbuchSperreLiefBis"),
     strafbuchKontrollePrefix: t("strafbuchKontrollePrefix"),
     strafbuchEingereicht: t("strafbuchEingereicht"),
-    strafbuchFristWar: t("strafbuchFristWar"),
     strafbuchVordatiert: t("strafbuchVordatiert"),
     strafbuchAbgelehntAm: t("strafbuchAbgelehntAm"),
     strafbuchAblehnungsgrund: t("strafbuchAblehnungsgrund"),
@@ -113,6 +159,27 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchErledigtBadge: t("strafbuchErledigtBadge"),
     strafbuchAlsErledigt: t("strafbuchAlsErledigt"),
     strafbuchWiederOffen: t("strafbuchWiederOffen"),
+    strafbuchAufgaben: t("strafbuchAufgaben"),
+    strafbuchAufgabeVersaeumt: t("strafbuchAufgabeVersaeumt"),
+    strafbuchAufgabeAbgebrochen: t("strafbuchAufgabeAbgebrochen"),
+    strafbuchAufgabeAbgelegtAm: t("strafbuchAufgabeAbgelegtAm"),
+    strafbuchStrafaufgabeKette: t("strafbuchStrafaufgabeKette"),
+    strafbuchNichtVerschlossen: t("strafbuchNichtVerschlossen"),
+    strafbuchNichtVerschlossenNie: t("strafbuchNichtVerschlossenNie"),
+    strafbuchWiederVerschlossen: t("strafbuchWiederVerschlossen"),
+    strafbuchVerschlussFrist: t("strafbuchVerschlussFrist"),
+    strafbuchVerschlussVersaeumt: t("strafbuchVerschlussVersaeumt"),
+    strafbuchVerschlussNieErfuellt: t("strafbuchVerschlussNieErfuellt"),
+    strafbuchVerschlussZuSpaet: t("strafbuchVerschlussZuSpaet"),
+    strafbuchOrgasmusVersaeumt: t("strafbuchOrgasmusVersaeumt"),
+    strafbuchOrgasmusAbgelaufen: t("strafbuchOrgasmusAbgelaufen"),
+    strafbuchOrgasmusVorgegeben: t("strafbuchOrgasmusVorgegeben"),
+    strafbuchFalschesGeraet: t("strafbuchFalschesGeraet"),
+    strafbuchFalschesGeraetAm: t("strafbuchFalschesGeraetAm"),
+    strafbuchAdminPasswort: t("strafbuchAdminPasswort"),
+    strafbuchAdminPasswortAm: t("strafbuchAdminPasswortAm"),
+    strafbuchAdminPasswortKonto: t("strafbuchAdminPasswortKonto"),
+    deviceLabel: t("deviceLabel"),
   };
 
   return (
@@ -123,6 +190,12 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       abgelehnt={abgelehnt}
       autoEntfernt={autoEntfernt}
       reinigungLimitVergehen={reinigungLimitVergehen}
+      unfulfilledTasks={aufgaben}
+      nichtVerschlossen={nichtVerschlossen}
+      verschlussVersaeumt={verschlussVersaeumt}
+      orgasmusVersaeumt={orgasmusVersaeumt}
+      falschesGeraet={falschesGeraet}
+      adminPasswort={adminPasswort}
       strafeRecords={strafeRecords}
       labels={labels}
     />

@@ -12,9 +12,27 @@ import { localReadDigits } from "@/lib/ocr";
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
 const SEAL_VOCAB = `plastic security seal or numbered tag (e.g. coloured strip — yellow, red, blue, white — with a round locking head, a barcode and digits; often used to seal chastity devices). The seal may appear in any orientation — upside down, sideways or angled — read it as it would read when held upright. Preserve any leading zeros.`;
 
+/** Der Kontroll-Code darf auch von einem BILDSCHIRM abgelesen werden: die Push-Meldung trägt ihn
+ *  im Text (`kontrolleService`), eine gespiegelte Benachrichtigung auf der Smartwatch zeigt ihn
+ *  also ohne Zettel. Die Regel verlangte nie ein bestimmtes Medium („muss auf dem Foto erkennbar
+ *  sein"), nur der Prompt zählte Papier/Etikett/Plombe auf — und wies daneben an, lieber `null` zu
+ *  melden als zu raten. Wie SEAL_VOCAB als Konstante, damit die Quelle nicht zwischen Einzel- und
+ *  Dual-Modus driftet.
+ *
+ *  NUR für den Kontroll-Code. Die Siegel-Nummer bleibt physisch: sie ist der Manipulations-Nachweis,
+ *  und ein abfotografierter Bildschirm belegt nicht, dass die Plombe am Gerät sitzt. */
+const SCREEN_VOCAB = `shown on a screen — e.g. the app's notification on a phone or smartwatch display`;
+
 /** In beiden Vision-Prompts identisch — als Konstante gehalten (wie SEAL_VOCAB), damit die
- *  Handschrift-Warnung nicht zwischen Einzel- und Dual-Modus driftet. */
-const HANDWRITING_NOTE = `Note: in handwriting "1" often looks like "7" and vice versa — read carefully.`;
+ *  Handschrift-Warnung nicht zwischen Einzel- und Dual-Modus driftet.
+ *  Benennt die beobachteten Fehl-Lesungen: neben dem klassischen 1/7 vor allem „als Zwei gelesen"
+ *  (Nutzer-Rückmeldungen 08/2026: 91578→91528, 83375→83275 — beide Male eine Zwei, wo keine stand). */
+const HANDWRITING_NOTE = [
+  `Note on handwriting: "1" often looks like "7" and vice versa — read carefully.`,
+  `A handwritten "7" or "3" is easily misread as a "2". Before reporting a "2", check the strokes:`,
+  `a seven has a straight diagonal from a horizontal top bar, a three has two stacked open arcs,`,
+  `a two has a curved top ending in a flat horizontal base.`,
+].join("\n");
 
 /** „Genau N Ziffern, sonst null" — die einzige Stelle, an der die erwartete Stellenzahl im Prompt
  *  steht (in BEIDEN Modi gleich formuliert, damit derselbe handgeschriebene Code nicht je nach
@@ -38,6 +56,7 @@ function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): 
       `The target number may appear in any of these forms:`,
       `• handwritten on a slip of paper or card,`,
       `• printed/typed on a tag, sticker or label,`,
+      `• ${SCREEN_VOCAB},`,
       `• printed on a ${SEAL_VOCAB}`,
       HANDWRITING_NOTE,
       digitCountNote("target number", expectedCode.length),
@@ -47,8 +66,11 @@ function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): 
   }
   return [
     `Look for TWO specific numbers in this image. Only these two numbers matter — ignore other numbers, barcodes, prices, or device serials that may also be visible.`,
-    `1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, or printed/typed on a tag, sticker or label.`,
+    `1. CONTROL CODE ${expectedCode}: may be handwritten on a slip of paper or card, printed/typed on a tag, sticker or label, or ${SCREEN_VOCAB}.`,
     `2. SEAL NUMBER ${effectiveSeal}: printed on a ${SEAL_VOCAB}`,
+    // Gegenstueck zu SCREEN_VOCAB: der Code darf vom Bildschirm kommen, die Plombe nicht. Ohne
+    // diesen Satz liegt die Verallgemeinerung nahe, sobald oben ein Display erlaubt ist.
+    `Read the seal number from the physical seal itself — a seal number shown on a screen or written by hand does not count as a seal.`,
     HANDWRITING_NOTE,
     digitCountNote("control code", expectedCode.length),
     digitCountNote("seal number", effectiveSeal.length),
@@ -141,14 +163,28 @@ async function loadImageBuffer(
   return { base64, mediaType };
 }
 
+/** Ziffern-Paare, die die Erkennung in HANDSCHRIFT nachweislich vertauscht — als Paare notiert und
+ *  symmetrisch gelesen, damit keine Richtung vergessen wird. `2` hat zwei Partner (`7` und `3`),
+ *  deshalb eine Paar-Liste statt der früheren 1:1-Map.
+ *
+ *  Jedes Paar KOSTET: der Kontroll-Code ist der Frische-Nachweis der Kontrolle, und eine tolerierte
+ *  Ziffer lässt an dieser Stelle auch einen echt abweichenden Code als Treffer durchgehen. Neue
+ *  Paare nur bei belegten Fehl-Lesungen aufnehmen — nicht vorsorglich. */
+const CONFUSABLE_DIGIT_PAIRS = ["17", "06", "27", "23"];
+
+/** Sind die beiden Ziffern eines der tolerierten Paare — in beliebiger Richtung? Bewusst NICHT
+ *  transitiv: `3` und `7` sind beide mit `2` verwechselbar, untereinander aber nicht. */
+function isConfusable(x: string, y: string): boolean {
+  return CONFUSABLE_DIGIT_PAIRS.includes(x + y) || CONFUSABLE_DIGIT_PAIRS.includes(y + x);
+}
+
 /** Ziffernweiser Vergleich mit Toleranz für die klassischen Handschrift-Verwechslungen.
  *  Vorbedingung: gleich lange Ziffernfolgen — die `every`-Schleife allein würde ein kürzeres `a`
  *  als Präfix-Treffer durchgehen lassen, deshalb bleibt der Längen-Guard hier stehen, auch wenn
  *  der einzige Aufrufer die Länge bereits geprüft hat. */
 function fuzzyMatch(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
-  const similar: Record<string, string> = { "1": "7", "7": "1", "0": "6", "6": "0" };
-  return a.split("").every((ch, i) => ch === b[i] || similar[ch] === b[i]);
+  return a.split("").every((ch, i) => ch === b[i] || isConfusable(ch, b[i]));
 }
 
 // VerifyReason + its i18n formatting live in verifyReason.ts (client-safe — no sharp/fs/next-headers)
@@ -175,9 +211,10 @@ export type VerifyDetailedResult = {
 };
 
 /** Bewertet EINE erkannte Nummer gegen den Erwartungswert: normalisieren (Whitespace/
- *  Nicht-Ziffern), Stellenzahl-Gate, exakter Vergleich, optionale Fuzzy-Toleranz (1↔7, 0↔6).
- *  Override-Fall: Modell liest die richtigen Ziffern, meldet aber match=false.
- *  `allowFuzzy`: nur für den HANDGESCHRIEBENEN Kontroll-Code (dort ist 1↔7/0↔6-Verwechslung real).
+ *  Nicht-Ziffern), Stellenzahl-Gate, exakter Vergleich, optionale Fuzzy-Toleranz
+ *  (`CONFUSABLE_DIGIT_PAIRS`). Override-Fall: Modell liest die richtigen Ziffern, meldet aber
+ *  match=false.
+ *  `allowFuzzy`: nur für den HANDGESCHRIEBENEN Kontroll-Code (dort sind diese Verwechslungen real).
  *  Für die GEDRUCKTE Siegel-Nummer aus → exakter Match, damit ein transponiertes Fremd-Siegel
  *  nicht durchrutscht (die Siegel-Prüfung ist der Manipulations-/Frische-Nachweis).
  *
@@ -233,7 +270,7 @@ export function evaluateVerifyResponse(
 
   const code = evaluateDetected(parsed.detectedCode, parsed.matchCode, expectedCode);
   // Siegel-Nummer ist gedruckt → exakter Match (kein Fuzzy), sonst würde ein transponiertes
-  // Fremd-Siegel (0↔6/1↔7) als gültig durchgehen und den Siegel-Nachweis aushebeln.
+  // Fremd-Siegel als gültig durchgehen und den Siegel-Nachweis aushebeln.
   const seal = evaluateDetected(parsed.detectedSeal, parsed.matchSeal, sealCode, false);
   const match = code.match && seal.match;
   // Grund spiegelt die Card-Auswahl im Form (seal-first: `sealMatch === false → sealMismatch`):

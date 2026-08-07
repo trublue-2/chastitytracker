@@ -19,8 +19,23 @@ const MESSAGES = { de, en } as unknown as Record<Locale, LooseMessages>;
  * `locale` (already loaded with the user record); it is clamped to a valid locale here.
  */
 export function emailT(locale: string | null | undefined) {
+  return localeT(locale, "emails");
+}
+
+/**
+ * Übersetzer für einen BELIEBIGEN Namensraum in der Sprache des Empfängers.
+ *
+ * Gebraucht, wo eine Meldung Texte ausserhalb von `emails` zusammensetzt: die Öffnungsgründe und
+ * Orgasmus-Arten liegen in `openForm`/`orgasmForm`, weil sie auch das Formular beschriftet. Bis
+ * hierher wurden sie mit `getTranslations({ locale: "de" })` gerendert — die einzige Stelle im
+ * Projekt, die den Empfänger ignorierte (Issue #43).
+ *
+ * Dieselbe Begründung wie bei `emailT`: `createTranslator` statt `getTranslations`, damit es auch
+ * ausserhalb eines Requests läuft.
+ */
+export function localeT(locale: string | null | undefined, namespace: string) {
   const loc = toLocale(locale);
-  return createTranslator({ locale: loc, messages: MESSAGES[loc], namespace: "emails" });
+  return createTranslator({ locale: loc, messages: MESSAGES[loc], namespace });
 }
 
 export type EmailTranslator = Awaited<ReturnType<typeof emailT>>;

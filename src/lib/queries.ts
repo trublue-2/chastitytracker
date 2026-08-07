@@ -11,6 +11,16 @@ import { APP_TZ } from "@/lib/utils";
  * der Zukunft, z.B. geplante Auto-Kontrollen) bleiben verborgen — ÜBERALL: Sub-Sichten (Dashboard,
  * Stats, MCP) UND Admin/Strafbuch (sonst sähe die Keyholderin die geplanten Zufallszeiten).
  */
+/** Prisma-`include`, das die ZIEL-Namen einer Kontroll-Zeile mitlädt — Futter für
+ *  `inspectionTargetLabel`. Als Konstante, weil sechs Sichten dieselben zwei Relationen brauchen
+ *  und ein vergessenes `include` das Label still verschwinden lässt (kein Compile-Fehler, nur ein
+ *  leeres Feld). Gleiches Muster wie `TASK_INCLUDE`. Steht hier statt in `inspectionTarget.ts`,
+ *  weil das Modul von HIER importiert — andersherum wäre es ein Zyklus. */
+export const KONTROLLE_TARGET_INCLUDE = {
+  category: { select: { name: true } },
+  device: { select: { name: true } },
+} satisfies Prisma.KontrollAnforderungInclude;
+
 export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
 }
@@ -138,9 +148,23 @@ export async function getUserDeviceOptions(userId: string): Promise<DeviceOption
  *  Das schmale `select` trägt genau die Felder, die die Aufrufer brauchen: `type` (Lock-Zustand),
  *  `startTime` (Zeit-Guards), `kontrollCode` (deriveSealCode), `deviceId` (Geräte-Check) und
  *  `keyInBox` (Schlüssel-Deklaration, siehe `getCurrentLockKeyInBox`). */
-export function getLatestKgEntry(userId: string, tx: PrismaTx | typeof prisma = prisma) {
+export function getLatestKgEntry(
+  userId: string,
+  tx: PrismaTx | typeof prisma = prisma,
+  { at, excludeId }: { at?: Date; excludeId?: string } = {},
+) {
   return tx.entry.findFirst({
-    where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN"] } },
+    where: {
+      userId,
+      type: { in: ["VERSCHLUSS", "OEFFNEN"] },
+      // `at`: „was galt ZU DIESEM ZEITPUNKT" statt „was gilt jetzt" — nötig auf dem Keyholder-Pfad,
+      // der rückdatieren darf; für einen nachgetragenen Eintrag ist der global jüngste Lock-Eintrag
+      // der falsche Bezug. `excludeId` lässt einen bereits geschriebenen Eintrag aus, der sonst bei
+      // `at = seine eigene startTime` sein eigener Vorgänger wäre (gleiches Motiv wie bei
+      // `getEntryNeighbors`; die Alternative wäre ein als Rundungsfehler getarntes `at - 1ms`).
+      ...(at ? { startTime: { lte: at } } : {}),
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
     orderBy: { startTime: "desc" },
     // `oeffnenGrund` gehört dazu, weil der Lock-Zustand allein nicht sagt, WARUM zuletzt geöffnet
     // wurde — die Kontrolle nach einer Reinigungspause hängt genau daran (entries-Route).
@@ -346,8 +370,9 @@ export async function getActiveWearSessions(userId: string): Promise<(ActiveWear
 export async function getActiveWearSessionForCategory(
   userId: string,
   categoryId: string,
+  client: PrismaTx | typeof prisma = prisma,
 ): Promise<ActiveWearSession | null> {
-  const latest = await prisma.entry.findFirst({
+  const latest = await client.entry.findFirst({
     where: {
       userId,
       type: { in: ["WEAR_BEGIN", "WEAR_END"] },
@@ -374,11 +399,24 @@ export async function getActiveWearSessionForCategory(
 
 /** Returns non-KG device categories with tracking enabled, ordered by sortOrder then createdAt. */
 export async function getNonKgTrackingCategories(userId: string) {
-  return prisma.deviceCategory.findMany({
+  const rows = await prisma.deviceCategory.findMany({
     where: { userId, isBuiltIn: false, trackingEnabled: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { id: true, name: true, color: true, icon: true },
+    // `deviceCount` entscheidet, ob die Kategorie überhaupt bespielbar ist: ohne Gerät lässt sich
+    // darin nichts erfassen, und das Dashboard weist sie als unfertig aus statt sie wie jede andere
+    // zu behandeln (Issue #49). Im selben Select, also ohne zusätzliche Abfrage.
+    //
+    // ARCHIVIERTE zählen nicht mit: die Frage ist „lässt sich hier erfassen?", nicht „gab es hier je
+    // ein Gerät?". Die Verwaltungsseite zählt bewusst anders (`categoryRows.ts`) — dort ist es eine
+    // Bestandsangabe.
+    select: {
+      id: true, name: true, color: true, icon: true,
+      _count: { select: { devices: { where: { archivedAt: null } } } },
+    },
   });
+  // Flach benannt wie überall sonst (`categoryRows.ts`, `GET /api/categories`) — `_count.devices`
+  // wäre die dritte Schreibweise derselben Zahl.
+  return rows.map(({ _count, ...c }) => ({ ...c, deviceCount: _count.devices }));
 }
 
 /** Returns the currently active KG TrainingVorgabe for a user, or null.
@@ -508,13 +546,17 @@ export function foldActiveSperrzeiten<T extends { endetAt: Date | null; reinigun
   return { ...enforcing, reinigungErlaubt: rows.every((r) => r.reinigungErlaubt) };
 }
 
-/** Die aktuell OFFENE (noch nicht eingereichte) Kontroll-Anforderung, oder null. Geplante, noch
- *  nicht ausgelöste Kontrollen bleiben unsichtbar (`aktiveKontrolleWhere`).
- *  Genutzt von `keyholder_dashboard`. */
-export async function getOpenKontrolle(userId: string, now: Date = new Date()) {
-  return prisma.kontrollAnforderung.findFirst({
+/** ALLE aktuell OFFENEN (noch nicht eingereichten) Kontroll-Anforderungen, dringendste Frist zuerst.
+ *  Geplante, noch nicht ausgelöste bleiben unsichtbar (`aktiveKontrolleWhere`).
+ *
+ *  Mehrzahl seit v5.0.1: je ZIEL darf eine laufen (KG und Plug parallel, siehe
+ *  `hasActiveKontrolle`). Eine einzelne zurückzugeben hiesse, dem Keyholder-Agenten eine Frist zu
+ *  verschweigen, die der Sub gerade hat. Genutzt von `keyholder_dashboard`. */
+export async function getOpenKontrollen(userId: string, now: Date = new Date()) {
+  return prisma.kontrollAnforderung.findMany({
     where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
-    orderBy: { createdAt: "desc" },
+    orderBy: { deadline: "asc" },
+    include: KONTROLLE_TARGET_INCLUDE,
   });
 }
 

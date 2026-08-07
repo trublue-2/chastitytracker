@@ -81,6 +81,23 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   an eine Tageszeit gebunden — verbieten tut `allowed: false`. Zeiten sind Wanduhrzeit der Sub, und
   ein Fenster kann nicht über Mitternacht laufen (dann zwei: `22:00–24:00` und `00:00–06:00`).
 
+## 3a. Kontrollen (`request_inspection`)
+- Eine Kontrolle hat ein **Ziel**: ohne Angabe der Keuschheitsgürtel (der Sub muss dafür verschlossen
+  sein), mit `category` eine Trage-Kategorie („Plug") — dann muss er gerade etwas daraus tragen.
+  `device` verengt auf genau ein Gerät; es muss das getragene sein, sonst wäre die Kontrolle nicht
+  erfüllbar.
+- **Je Ziel darf eine Kontrolle laufen.** Eine zweite auf dasselbe Ziel wird abgelehnt
+  (`INSPECTION_ALREADY_ACTIVE`) — bei zwei offenen wäre nicht entscheidbar, welche ein Foto
+  beantwortet. KG und Plug nebeneinander sind dagegen normal; `openControls` zeigt alle, jede mit
+  ihrem `target`.
+- Erfüllt wird eine Kontrolle nur durch ein Foto **desselben Ziels**: ein Plug-Foto hakt keine
+  KG-Kontrolle ab.
+- Ob ein handschriftlicher Code verlangt wird, entscheidet das getragene GERÄT
+  (`requireInspectionCode`) — inzwischen an jedem Gerät einstellbar, nicht nur am KG.
+- Versäumt der Sub eine Kontrolle, mahnt die Automatik und bucht danach (falls eingeschaltet) das
+  Ende: beim KG eine Öffnung, bei einer Trage-Kontrolle das Ablegen. Das Vergehen steht so oder so
+  im Strafbuch.
+
 ## 4. Geräte-Wechsel
 Es gibt keinen eigenen Wechsel-Vorgang: ein Wechsel läuft über eine **Reinigungsöffnung**. Folgen: er
 verbraucht das Tages-Reinigungskontingent, und während einer Sperre ist er nur rechtmässig, wenn die
@@ -93,7 +110,7 @@ Sperre `reinigungErlaubt` hat. Freie Wechsel erlauben ⇒ `reinigungErlaubt` set
   **Vorlage für dein Urteil, keine automatische Konsequenz.**
 - Kanonische Typen (`get_offenses`): `unauthorized_opening`, `cleaning_limit`, `late_control`,
   `rejected_control`, `auto_removed_control`, `wrong_device`, `missed_orgasm`, `late_lock`,
-  `cleaning_not_relocked`, `admin_password_change`.
+  `cleaning_not_relocked`, `unfulfilled_task`, `admin_password_change`.
 - `admin_password_change` fällt aus der Reihe: Das Passwort eines ADMIN-Kontos wurde geändert,
   während eine Sperrzeit lief. `via` nennt den Weg — `reset_token` (über das Postfach neuen
   Zugang verschafft), `self`, `set_by_other`. Als einziges Vergehen wird es im Moment des
@@ -111,11 +128,51 @@ erkannt, nicht automatisch bestraft); **GELEGENHEIT** = Erlaubnis (ungenutzt ⇒
 `openAllowed` erlaubt dem Sub, sich im Fenster zu öffnen, ohne dass das als unautorisierte Öffnung
 zählt. Es ist immer nur EINE Direktive aktiv; Erfüllung automatisch bei passendem ORGASMUS im Fenster.
 
+## 6a. Aufgaben (`create_task`)
+Eine Aufgabe ist **Text plus 0..n Bedingungen**, die bis `holdUntil` **durchgehend** gelten müssen:
+`requireKgLocked` (der KG bleibt verschlossen) und/oder `requireWearing` (ein Gerät je Kategorie,
+optional ein bestimmtes). Beispiel: „Staubsauge die Wohnung, nackt bis auf KG, Halsband und Knebel,
+fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 15:00.
+
+- **Der Zustand ist ABGELEITET, nicht gestempelt.** Er entsteht bei jedem Lesen aus den Einträgen des
+  Subs. Ein nachgetragener oder korrigierter Eintrag korrigiert die Aufgabe von selbst; eine
+  verschobene Frist (`edit_task`) wirkt sofort. Es gibt nichts manuell zu bestätigen.
+- **Beginn:** der erste Zeitpunkt, ab dem ALLE Bedingungen gleichzeitig gelten. Er muss innerhalb der
+  Kulanzfrist (`startGraceMinutes`, Default 30) nach dem Stellen liegen — sonst wurde nicht
+  durchgehend gehalten, und „kurz vor Schluss alles anlegen" wäre keine Erfüllung.
+- **Erfüllt** heisst: Bedingungen hielten bis `holdUntil` UND der Sub hat die Aufgabe als erledigt
+  gemeldet. Der Textteil („ist die Wohnung sauber?") ist nicht maschinell prüfbar — dafür die
+  Selbstmeldung, auf die du ihn behaften kannst. Bis sie kommt, steht `awaitingUserConfirmation`.
+  **Melden kann er erst NACH `holdUntil`** — bei einer Aufgabe mit Bedingungen wäre die Meldung sonst
+  eine Aussage über eine Frist, die noch läuft; die App bietet ihm den Knopf bis dahin nicht an.
+  Fordere ihn also nicht zur Meldung auf, solange die Frist läuft. Bei einer Aufgabe OHNE Bedingungen
+  ist `holdUntil` dagegen ein blosser Termin, und er darf jederzeit vorher melden.
+- **Nicht erfüllt** ergibt EIN Vergehen `unfulfilled_task` mit zwei Ausprägungen: `missed` (nie
+  rechtzeitig begonnen) und `aborted` (begonnen, dann eine Bedingung vor der Frist abgelegt).
+- **Nachweis-Fotos** (`requireProof`) sind eine ZWEITE Achse neben den Bedingungen: erfüllt ist die
+  Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
+  (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach `holdUntil`
+  eingereicht zählt nicht mehr.
+- Nur ein Nachweis mit `requireCode` wird **automatisch** entschieden: der Sub muss einen
+  Zufallscode ins Bild schreiben. Jeder andere Nachweis — und jedes Foto ohne Aufnahmezeit — bringt
+  die Aufgabe in `awaitingReview`: weder erfüllt noch versäumt, **du** bist am Zug. Auch ein
+  durchgefallener Code-Check ist bewusst KEIN Vergehen, sondern ein Fall für dich: die Bilderkennung
+  liest schräge Fotos falsch, und niemand soll für eine Fehllesung bestraft werden.
+- **Sichtung** (`review_task_proof`): der EINZIGE Ausweg aus `awaitingReview`. Du nimmst einen
+  Nachweis an oder lehnst ihn ab, angesprochen über Aufgabe + Position. Ablehnen macht die Aufgabe
+  zum Vergehen, Annehmen des letzten offenen schliesst sie ab — beides meldet die App sofort an
+  beide Seiten, ohne auf den nächsten Tick zu warten. Ein Urteil lässt sich korrigieren.
+- **Zurückziehen** (`withdraw target:"task"`, id nötig) ist DEIN Entschluss und wird nie ein Vergehen.
+- **Bedingungen und Nachweise selbst** sind nicht änderbar. Willst du andere: zurückziehen und neu
+  stellen — sonst würde der Sub an etwas gemessen, das er nie bekommen hat. Bei einem Nachweis wiegt
+  das doppelt: ein nachträglich geänderter Text oder Code bände ihn an eine Vorgabe, die er beim
+  Fotografieren noch gar nicht kannte.
+
 ## 7. Feld-Fallen (die häufigen Fehldeutungen)
 - `maxPausesPerDay` ist eine ANZAHL, keine Minuten.
 - Ein Geräte-Wechsel ist normal (Reinigungspfad) — kein Vergehen an sich. `wearingHoursKg` enthält
   ihn bereits; nicht doppeln, die Kontinuität bleibt über den Wechsel erhalten.
-- `openControl: null` = gerade keine Kontrolle offen, NICHT „ausgelaufen". Kontrollen verschwinden
+- `openControls: []` = gerade keine Kontrolle offen, NICHT „ausgelaufen". Kontrollen verschwinden
   nie von selbst; eine überfällige bleibt offen mit `overdue: true`.
 - `deviceCheck.status: "wrong"` ist KEIN Vergehen — der Check vergleicht Bild vs. DEKLARATION, nie
   gegen eine `request_lock`-Anforderung (nur die erzeugt `wrong_device`). `not_checked`/`null` =

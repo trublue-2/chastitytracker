@@ -53,6 +53,12 @@ export const INSPECTION_CODES = [
   "INSPECTION_NO_SUBMISSION",
   "INSPECTION_ALREADY_ACTIVE",
   "INSPECTION_NOT_WITHDRAWN",
+  // Ziel-Kontrollen (v5.0.1): das Gegenstück zu USER_NOT_LOCKED für Trage-Kategorien, dazu die
+  // beiden Fehler, die nur ein ZIEL haben kann — es existiert nicht (mehr), oder das verlangte
+  // Gerät ist nicht das getragene.
+  "USER_NOT_WEARING",
+  "INSPECTION_TARGET_INVALID",
+  "INSPECTION_DEVICE_NOT_ACTIVE",
 ] as const;
 
 /** vorgabeService (training goals). `INVALID_CATEGORY` sass hier, solange der vorgabeService der
@@ -142,6 +148,25 @@ export const BOX_CODES = [
   "BOX_RELOCK_KEY_NOT_IN_BOX",
 ] as const;
 
+/** taskService (Aufgaben: Anweisungstext + 0..n Bedingungen, die bis `holdUntil` durchgehend gelten). */
+export const TASK_CODES = [
+  "TASK_NOT_FOUND",
+  "TASK_NOT_EDITABLE",
+  "TASK_TITLE_REQUIRED",
+  "TASK_TITLE_TOO_LONG",
+  "TASK_DESCRIPTION_TOO_LONG",
+  "TASK_HOLD_UNTIL_TOO_SOON",
+  "TASK_REQUIREMENT_INVALID",
+  "TASK_REQUIREMENT_KG_CATEGORY",
+  "TASK_DUPLICATE_REQUIREMENT",
+  "TASK_PROOF_INVALID",
+  "TASK_TOO_MANY_PROOFS",
+  "TASK_PROOF_NOT_FOUND",
+  "TASK_PROOF_ALREADY_SUBMITTED",
+  "TASK_PROOF_TOO_LATE",
+  "TASK_PROOF_NOT_SUBMITTED",
+] as const;
+
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
@@ -164,6 +189,7 @@ export const SERVICE_ERROR_CODES = [
     ...REFERENCE_CODES,
     ...DEVICE_CODES,
     ...BOX_CODES,
+    ...TASK_CODES,
     ...SETTINGS_CODES,
   ]),
 ] as readonly string[];
@@ -182,4 +208,5 @@ export type ServiceErrorCode =
   | (typeof REFERENCE_CODES)[number]
   | (typeof DEVICE_CODES)[number]
   | (typeof BOX_CODES)[number]
+  | (typeof TASK_CODES)[number]
   | (typeof SETTINGS_CODES)[number];

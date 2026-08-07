@@ -36,18 +36,13 @@ export function deviceCheckApplies(type: string, imageUrl: string | null | undef
   return type === "PRUEFUNG" && !!imageUrl;
 }
 
-/** Der zuletzt geladene KG-Eintrag, soweit der Geräte-Check ihn braucht. Wird als schon laufendes
- *  Promise übergeben, weil der Aufrufer denselben Eintrag noch für die Code-Verifikation braucht —
- *  einmal laden, zweimal nutzen. */
-export type LockEntryForCheck = { type: string; deviceId: string | null } | null;
-
 /**
  * Führt den Geräte-Check aus und schreibt sein ERGEBNIS — auf einem Pfad, den jeder Ausgang nimmt.
  *
- * `null` als Ergebnis heisst „nicht geprüft" und ist ein legitimer Endzustand: entweder ist der Sub
- * gar nicht verschlossen / hat kein Gerät hinterlegt (nichts zu prüfen), oder es ist kein
- * Vision-Provider konfiguriert (Feature aus). Ein Fehler unterwegs wird zu `status: "error"`
- * („wollte prüfen, ging nicht") — dieselbe Lesart wie in `checkDeviceInPhoto`.
+ * `null` als Ergebnis heisst „nicht geprüft" und ist ein legitimer Endzustand: entweder ist für
+ * dieses Ziel gar kein Gerät bekannt (nichts zu prüfen), oder es ist kein Vision-Provider
+ * konfiguriert (Feature aus). Ein Fehler unterwegs wird zu `status: "error"` („wollte prüfen, ging
+ * nicht") — dieselbe Lesart wie in `checkDeviceInPhoto`.
  *
  * Wirft nie: der Aufrufer ist ein fire-and-forget-Kontext ohne jemanden, der einen Fehler behandeln
  * könnte. Beide Stufen (Prüfen, Schreiben) loggen ihr Scheitern getrennt — schlägt das Schreiben
@@ -59,22 +54,25 @@ export async function runDeviceCheck(opts: {
   /** Das Kontroll-Foto. Bewusst OHNE Rotation: `checkDeviceInPhoto` kennt keine — die Formerkennung
    *  ist drehungsunempfindlich, anders als das Lesen von Ziffern (dort dreht `verifyKontrolleCode`). */
   photoUrl: string;
-  lockEntry: Promise<LockEntryForCheck>;
+  /** Das Gerät, das im Foto zu sehen sein sollte: beim KG das verschlossene, bei einer
+   *  Trage-Kontrolle das gezeigte. null = keines bekannt (nicht verschlossen/getragen, Alt-Eintrag)
+   *  ⇒ nichts zu prüfen. Der Aufrufer leitet es aus dem ZIEL der Kontrolle ab
+   *  (`resolveInspectionTarget`), damit Code-Prüfung und Geräte-Check dasselbe Gerät meinen. */
+  expectedDeviceId: string | null;
 }): Promise<void> {
-  const { entryId, userId, photoUrl, lockEntry } = opts;
+  const { entryId, userId, photoUrl, expectedDeviceId } = opts;
   let result: DeviceCheckResult | null = null;
   try {
-    const lock = await lockEntry;
-    // Nicht verschlossen / kein Gerät ⇒ es gibt nichts zu prüfen: `result` bleibt null, unten wird
-    // "pending" auf `null` („nicht geprüft") zurückgesetzt.
-    if (lock?.type === "VERSCHLUSS" && lock.deviceId) {
+    // Kein Gerät ⇒ es gibt nichts zu prüfen: `result` bleibt null, unten wird "pending" auf `null`
+    // („nicht geprüft") zurückgesetzt.
+    if (expectedDeviceId) {
       const references = await gatherDeviceReferences(userId);
-      result = await checkDeviceInPhoto(photoUrl, references, lock.deviceId);
+      result = await checkDeviceInPhoto(photoUrl, references, expectedDeviceId);
     }
   } catch (e) {
     structuredLog("detect-device", "kontrolle_check_failed", { entryId, error: (e as Error).message });
-    // Geprüft werden WOLLTE, ging aber nicht. Das erwartete Gerät ist hier nicht bekannt — der
-    // Lookup ist ja gerade gescheitert.
+    // Geprüft werden WOLLTE, ging aber nicht. Der Name des erwarteten Geräts ist hier nicht bekannt
+    // — ihn zu ermitteln ist Teil dessen, was gerade gescheitert ist.
     result = { status: "error", detected: null, expected: null };
   }
   try {

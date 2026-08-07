@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrolle, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox, getOpenLockRequests } from "@/lib/queries";
+import { getOpenKontrollen, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox, getOpenLockRequests } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, mapInterruptedSperrzeit, mapOpenLockRequest,
@@ -14,6 +14,9 @@ import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
+import { getEvaluatedTasks, loadTaskProofViews, type TaskProofView } from "@/lib/taskIntervals";
+import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof } from "@/lib/tasks";
+import { taskProofState } from "@/lib/taskView";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
@@ -153,8 +156,17 @@ export interface DashboardResult extends Envelope {
    *  v7: `nextRelevant.openControl.code` kann jetzt `null` sein — das getragene Gerät kann von der
    *  Code-Pflicht befreit sein (`Device.requireInspectionCode: false`). Bis v6 war der Code immer eine
    *  Zahl; ein `null` heisst NICHT „Code unbekannt", sondern „diese Kontrolle hat keinen". Sie wird
-   *  dann durch das eingereichte Foto erfüllt, nicht durch einen Code-Vergleich. */
-  schemaVersion: 7;
+   *  dann durch das eingereichte Foto erfüllt, nicht durch einen Code-Vergleich.
+   *
+   *  v8: `directives.openTasks` enthält jetzt AUCH Aufgaben im Zustand `awaitingReview` (Issue #39) —
+   *  die Menge der möglichen `state`-Werte hat sich damit erweitert, und das ist kein rein additives
+   *  Feld: eine Auswertung, die bisher jeden Eintrag als „der Sub ist am Zug" las, läge falsch. Dazu
+   *  je Aufgabe `proofs[]` — die Adresse, ohne die `review_task_proof` nicht aufrufbar wäre.
+   *
+   *  v9: `nextRelevant.openControl` (Einzelwert) ist zu `nextRelevant.openControls` (Array)
+   *  geworden — seit Kontrollen auf Trage-Kategorien zielen können (v5.0.1), läuft je Ziel eine,
+   *  und ein Einzelwert verschwiege die übrigen Fristen. Jede trägt ihr `target`. */
+  schemaVersion: 9;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -222,10 +234,12 @@ export interface DashboardResult extends Envelope {
    *  Die Sichten aus `mcp/liveState.ts` werden unverändert übernommen, statt sie hier erneut zu
    *  beschreiben und Feld für Feld umzukopieren: sonst müsste jedes neue Feld an zwei Stellen
    *  nachgezogen werden, und wer es vergisst, lässt es stillschweigend aus dem Dashboard fallen.
-   *  Dadurch trägt `openControl` jetzt auch den Kommentar des Keyholders und `openOrgasmWindow`
+   *  Dadurch trägt `openControls` jetzt auch den Kommentar des Keyholders und `openOrgasmWindow`
    *  dessen Nachricht. */
   nextRelevant: {
-    openControl: OpenKontrolleView | null;
+    /** ALLE offenen Kontrollen, dringendste Frist zuerst — je Ziel kann eine laufen (v5.0.1).
+     *  Leeres Array = keine offen. Welches Ziel gemeint ist, steht in `target`. */
+    openControls: OpenKontrolleView[];
     activeLockPeriod: ActiveSperrzeitView | null;
     /** Eine durch eine ÖFFNUNG beendete Sperrzeit, deren ursprüngliches Ende noch nicht verstrichen
      *  ist. Sie wird gerade NICHT vollstreckt (`activeLockPeriod` bleibt null) — aber die Konsequenz
@@ -246,6 +260,10 @@ export interface DashboardResult extends Envelope {
      *  die erste davon. Mehrere sind seit v6 normal: sie ersetzen einander nicht, und EIN Verschluss
      *  erfüllt alle. Jede trägt ihre id für `edit_lock_request` / `withdraw`. */
     openLockRequests: OpenLockRequestView[];
+    /** Offene Aufgaben (create_task): Text + Bedingungen, die bis `holdUntil` DURCHGEHEND gelten
+     *  müssen. `state` ist ABGELEITET aus den Einträgen des Subs, nicht gestempelt. Jede trägt ihre
+     *  id für `edit_task` / `withdraw target:"task"`. */
+    openTasks: OpenTaskView[];
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
@@ -262,6 +280,58 @@ export interface DashboardResult extends Envelope {
   boxState: BoxStateView | null;
   /** Aktive Gesundheits-Zurückhaltung (§8) oder null. */
   healthHold: HealthHoldView | null;
+}
+
+/** Eine offene Aufgabe, wie der Keyholder sie sieht. */
+export interface OpenTaskView {
+  id: string;
+  title: string;
+  description: string | null;
+  /** Bis dahin müssen alle Bedingungen durchgehend gelten (ISO-8601 mit Offset). */
+  holdUntil: string;
+  /** pending = nichts erfüllt · partial = ein Teil · running = alles gilt, die Zeit läuft ·
+   *  awaitingReview = die Nachweise liegen vor, aber mindestens einer ist maschinell nicht
+   *  entscheidbar: DU bist am Zug (`review_task_proof`). Weder erfüllt noch versäumt, bis du urteilst. */
+  state: string;
+  /** Bedingungen, die JETZT nicht gelten — die Antwort auf „woran hängt es gerade?". */
+  missing: string[];
+  /** Seit wann alle Bedingungen gleichzeitig gelten; null = noch nie. */
+  startedAt: string | null;
+  /** Bedingungen hielten durch, es fehlt nur noch die Erledigt-Meldung des Subs. */
+  awaitingUserConfirmation: boolean;
+  /** Die geforderten Nachweis-Fotos, in der SOLL-Reihenfolge. `index` ist die Adresse für
+   *  `review_task_proof` — ohne diese Liste wüsstest du weder, wie viele es gibt, noch was sie
+   *  zeigen sollen, noch welchen du gerade beurteilst. Leer bei Aufgaben ohne Nachweis-Pflicht. */
+  proofs: OpenTaskProofView[];
+  isPunishment: boolean;
+}
+
+/** Die Nachweise einer Aufgabe für den Keyholder — inklusive der Regel, welcher die Reihenfolge
+ *  bricht. Dieselbe Ableitung wie auf der Karte (`taskProofState` + `firstOutOfOrderProof`), damit
+ *  Agent und Oberfläche nicht verschiedene Zustände zur selben Zeile nennen. */
+function taskProofViews(views: TaskProofView[]): OpenTaskProofView[] {
+  const ordered = [...views].sort((a, b) => a.sortOrder - b.sortOrder);
+  const outOfOrderId = firstOutOfOrderProof(ordered)?.id ?? null;
+  return ordered.map((p, i) => ({
+    index: i + 1,
+    description: p.description,
+    state: taskProofState(p, outOfOrderId),
+    reviewNote: p.reviewNote,
+  }));
+}
+
+/** Ein geforderter Nachweis, so weit der Keyholder ihn zum Urteilen braucht. */
+export interface OpenTaskProofView {
+  /** 1-basierte Position — die Adresse für `review_task_proof`. */
+  index: number;
+  /** Was auf dem Bild zu sehen sein muss (dein eigener Text beim Stellen). */
+  description: string;
+  /** open = noch nicht eingereicht · confirmed = erbracht (Code bestätigt oder von dir angenommen) ·
+   *  review = eingereicht, wartet auf DEIN Urteil · rejected = von dir abgelehnt ·
+   *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge. */
+  state: string;
+  /** Deine Anmerkung aus der Sichtung, falls du eine hinterlassen hast. */
+  reviewNote: string | null;
 }
 
 /** Eine vom Keyholder terminierte, noch nicht ausgelöste Direktive (für scheduledDirectives). */
@@ -450,9 +520,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
-  const [openKontrolleRow, activeSperrzeitRow, openLockRequestRows, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
+  const [openKontrolleRows, activeSperrzeitRow, openLockRequestRows, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
          rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives] = await Promise.all([
-    getOpenKontrolle(trackingCtx.userId, now),
+    getOpenKontrollen(trackingCtx.userId, now),
     getActiveSperrzeit(trackingCtx.userId),
     getOpenLockRequests(trackingCtx.userId, now),
     getInterruptedSperrzeit(trackingCtx.userId, now),
@@ -512,6 +582,32 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const todayIncludesPriorSession =
     rec.currentRunHours != null && periods.kg.today - rec.currentRunHours > ROUND_EPSILON_H;
 
+  // Aufgaben: Zustand wird aus den Einträgen abgeleitet, deshalb laden → auswerten → nur die offenen.
+  const evaluatedTasks = await getEvaluatedTasks(trackingCtx.userId, now, {
+    kgEntries: trackingCtx.entries, wearEntries: trackingCtx.entries, reinigung: trackingCtx.reinigung,
+  });
+  // Beschreibung und Zustand der Nachweise hängen nicht am Auswertungs-Include — eine Abfrage über
+  // die sichtbaren Aufgaben, damit `review_task_proof` überhaupt eine Adresse hat.
+  const proofViews = await loadTaskProofViews(evaluatedTasks.map((e) => e.task.id));
+  const openTasks: OpenTaskView[] = evaluatedTasks
+    // `awaitingReview` gehört ausdrücklich dazu, obwohl `isTaskOpen` es ausschliesst: für den SUB ist
+    // die Aufgabe erledigt (er kann nichts mehr tun), für DICH ist sie die offenste von allen — sie
+    // wartet auf dein Urteil. Sie hier wegzufiltern hiesse, sie genau der Person zu verbergen, die
+    // handeln muss.
+    .filter((e) => isTaskOpen(e.evaluation.state) || needsKeyholderReview(e.evaluation.state))
+    .map((e) => ({
+      id: e.task.id,
+      title: e.task.title,
+      description: e.task.description,
+      holdUntil: iso(e.task.holdUntil)!,
+      state: e.evaluation.state,
+      missing: e.evaluation.missing.map((m) => m.label),
+      startedAt: iso(e.evaluation.startedAt),
+      awaitingUserConfirmation: e.evaluation.awaitingConfirmation,
+      proofs: taskProofViews(proofViews.get(e.task.id) ?? []),
+      isPunishment: e.task.isPunishment,
+    }));
+
   // Einmal mappen, zweimal ausliefern: `openLockRequest` ist DASSELBE Objekt wie `openLockRequests[0]`
   // (die dringendste), nicht ein zweites, das auseinanderlaufen könnte.
   const openLockRequestViews = openLockRequestRows.map((r) => mapOpenLockRequest(r, now, fmt)!);
@@ -520,7 +616,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 7,
+    schemaVersion: 9,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,
@@ -541,7 +637,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     dataDiscrepancies: { count: discrepancyItems.length, items: discrepancyItems.slice(0, 5) },
     wornNow,
     nextRelevant: {
-      openControl: mapOpenKontrolle(openKontrolleRow, now, fmt),
+      openControls: openKontrolleRows.map((k) => mapOpenKontrolle(k, now, fmt)!),
       activeLockPeriod: mapActiveSperrzeit(activeSperrzeitRow, now, fmt),
       // Eine laufende Sperrzeit LÖST die unterbrochene AB: die Keyholderin hat auf den Bruch
       // geantwortet, die alte muss nicht weiter angemahnt werden. Ohne diese Ablösung bliebe eine
@@ -550,6 +646,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       // Sie wäre ein Dauer-Gespenst im Dashboard, das niemand mehr wegbekommt.
       interruptedLockPeriod: activeSperrzeitRow ? null : mapInterruptedSperrzeit(interruptedSperrzeitRow, fmt),
       openOrgasmWindow: mapOpenOrgasmusAnforderung(openOrgasmusRow, now, fmt),
+      openTasks,
       // Die dringendste zuerst (getOpenLockRequests sortiert danach) — sie steht zusätzlich einzeln,
       // damit die häufige Frage „was ist als Nächstes fällig?" nicht durch eine Liste muss.
       openLockRequest: openLockRequestViews[0] ?? null,

@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
-import { inspectionHref } from "@/lib/entryFormRoute";
+import { entryFormBase, inspectionHref } from "@/lib/entryFormRoute";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -25,12 +25,16 @@ interface Props {
   categoryRows?: NewEntryCategoryRow[];
   /** Bildersafe-Instanz: „Schlüsselbox-Code versiegeln"-Aktion (während verschlossen) anzeigen. */
   bildersafe?: boolean;
+  /** Gesetzt = Keyholder-Sicht: das Sheet erfasst FÜR diesen Sub und zeigt auf dessen
+   *  Aktionen-Formulare statt auf `/dashboard/new`. Ungesetzt = der Sub erfasst für sich selbst. */
+  adminUserId?: string;
 }
 
-export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false }: Props) {
+export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, adminUserId }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
   const router = useRouter();
+  const base = entryFormBase(adminUserId);
 
   const options = [
     {
@@ -41,7 +45,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       disabled: isLocked,
       disabledText: t("lockDisabled"),
       color: "text-lock",
-      href: "/dashboard/new/verschluss",
+      href: `${base}/verschluss`,
     },
     {
       type: "oeffnen",
@@ -51,7 +55,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       disabled: !isLocked,
       disabledText: t("openDisabled"),
       color: "text-unlock",
-      href: "/dashboard/new/oeffnen",
+      href: `${base}/oeffnen`,
     },
     {
       type: "pruefung",
@@ -60,7 +64,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       desc: t("inspectionSubtitle"),
       disabled: false,
       color: "text-inspect",
-      href: inspectionHref(),
+      href: inspectionHref(null, { adminUserId }),
     },
     {
       type: "orgasmus",
@@ -69,7 +73,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       desc: t("orgasmSubtitle"),
       disabled: false,
       color: "text-orgasm",
-      href: "/dashboard/new/orgasmus",
+      href: `${base}/orgasmus`,
     },
   ];
 
@@ -117,9 +121,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
         {/* Per-Category wear actions (begin or end based on state). */}
         {categoryRows.map((c) => {
           const active = c.activeDeviceName !== null;
-          const href = active
-            ? wearActionHref({ categoryId: c.id, active: true })
-            : wearActionHref({ categoryId: c.id, active: false });
+          const href = wearActionHref({ categoryId: c.id, active, adminUserId });
           const desc = active
             ? `${tw("endShort")} · ${c.activeDeviceName}`
             : tw("titleBegin");
@@ -147,12 +149,15 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
         })}
 
         {/* Bildersafe: Schlüsselbox-Code (neu) versiegeln — nur während verschlossen (hängt am
-            aktuellen Verschluss; deckt das Neu-Versiegeln nach einer Reinigungsöffnung ab). */}
-        {bildersafe && isLocked && (
+            aktuellen Verschluss; deckt das Neu-Versiegeln nach einer Reinigungsöffnung ab).
+            NICHT in der Keyholder-Sicht: unter `/admin/users/<id>/aktionen` gibt es kein
+            Bildersafe-Formular, der Eintrag führte dort ins Leere. Versiegeln ist ohnehin eine
+            Handlung des Subs — er allein hat den Code vor sich. */}
+        {bildersafe && isLocked && !adminUserId && (
           <>
             <button
               type="button"
-              onClick={() => handleSelect("/dashboard/new/bildersafe")}
+              onClick={() => handleSelect(`${base}/bildersafe`)}
               className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
             >
               <KeyRound size={22} className="text-lock shrink-0" />
@@ -163,7 +168,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
             </button>
             <button
               type="button"
-              onClick={() => handleSelect("/dashboard/new/bildersafe/anzeigen")}
+              onClick={() => handleSelect(`${base}/bildersafe/anzeigen`)}
               className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
             >
               <LockOpen size={22} className="text-unlock shrink-0" />

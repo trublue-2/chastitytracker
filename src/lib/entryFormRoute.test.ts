@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { expectImportFree } from "@/test/importFree";
-import { isEntryFormRoute, inspectionHref } from "./entryFormRoute";
+import { isEntryFormRoute, inspectionHref, taskFormHref } from "./entryFormRoute";
 
 // Client-Komponenten (`BottomNav`, `MoreMenu`, `NewEntrySheet`) UND server-only Code
 // (`kontrolleService` → Mail/Push) importieren dieses Modul — Begründung in `expectImportFree`.
@@ -41,5 +41,27 @@ describe("inspectionHref", () => {
     expect(inspectionHref("a&b#c")).toBe("/dashboard/new/pruefung?code=a%26b%23c");
     expect(inspectionHref("12345", { kommentar: "A & B" }))
       .toBe("/dashboard/new/pruefung?code=12345&kommentar=A+%26+B");
+  });
+});
+
+describe("taskFormHref — der Bauplatz des Aufgaben-Formulars", () => {
+  it("bleibt ohne Zusatz die nackte Route", () => {
+    expect(taskFormHref("u1")).toBe("/admin/users/u1/aktionen/aufgabe");
+  });
+
+  it("hängt Vergehens-ref und Anlass als Query an", () => {
+    expect(taskFormHref("u1", { offenseRef: "t-9", anlass: "Kontrolle 38185" }))
+      .toBe("/admin/users/u1/aktionen/aufgabe?offenseRef=t-9&anlass=Kontrolle+38185");
+  });
+
+  it("kodiert einen Anlass mit & und # — sonst zerfiele der Link still", () => {
+    // Der Anlass kommt aus Freitext (Aufgaben-Titel des Subs), er darf alles enthalten.
+    const href = taskFormHref("u1", { offenseRef: "t-9", anlass: "Wohnung & Bad #2" });
+    expect(href).toContain("anlass=Wohnung+%26+Bad+%232");
+    expect(new URL(href, "https://x").searchParams.get("anlass")).toBe("Wohnung & Bad #2");
+  });
+
+  it("lässt leere Werte weg, statt sie als leere Query mitzuschleppen", () => {
+    expect(taskFormHref("u1", { offenseRef: null, anlass: "" })).toBe("/admin/users/u1/aktionen/aufgabe");
   });
 });

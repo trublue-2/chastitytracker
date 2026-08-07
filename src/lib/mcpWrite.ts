@@ -4,17 +4,21 @@ import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
+import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses } from "@/lib/strafurteilService";
+import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
+import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
 import { diffFields } from "@/lib/mcp/writeFramework";
 import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
+import { reviewTaskProof } from "@/lib/taskProofService";
+import { createTask, updateTask, withdrawTask, mergeTaskPatch, type TaskRequirementInput } from "@/lib/taskService";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -226,6 +230,10 @@ export interface RequestInspectionArgs {
   deadlineHours?: number;
   comment?: string;
   delayMinutes?: number;
+  /** Ziel: Kategorie-Name („Plug"). Fehlt/„KG" = der Keuschheitsgürtel (Bestandsverhalten). */
+  category?: string;
+  /** Ziel: Gerätename innerhalb der Kategorie. Verengt sie auf genau dieses Gerät. */
+  device?: string;
   dryRun?: boolean;
 }
 /** Delay-Policy (nur MCP): kein Wert → zufällig aus `INSPECTION_RANDOM_DELAY`; ≤0 → sofort; sonst auf
@@ -254,6 +262,10 @@ function inspectionDelayNote(requested: number | undefined, effective: number): 
 export async function mcpRequestInspection(username: string, args: RequestInspectionArgs) {
   const userId = await resolveTargetUserId(username);
   const requestedDelayMinutes = args.delayMinutes ?? null;
+  // Namen → ids VOR dem dryRun-Zweig: die Vorschau soll an einem unbekannten Kategorie-/Gerätenamen
+  // genauso scheitern wie der echte Aufruf, sonst prüft sie nicht das, was sie ankündigt.
+  const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
+  const deviceId = args.device ? await resolveAnyDeviceId(userId, categoryId, args.device) : null;
   if (args.dryRun) {
     // Kein Zufallswert im Preview: ein hier gewürfelter Delay würde bei jedem dryRun-Aufruf einen
     // anderen Wert zeigen, ohne dass der echte Commit denselben zieht — ehrlicher, den Zufallsfall
@@ -263,13 +275,19 @@ export async function mcpRequestInspection(username: string, args: RequestInspec
     const preview = effective === null
       ? { delayMinutes: `random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} (drawn fresh on commit)`, delayNote: null }
       : { delayMinutes: effective, delayNote: inspectionDelayNote(args.delayMinutes, effective) };
-    // Advisory (siehe request_lock): eine Kontrolle verlangt einen verschlossenen User ohne bereits
-    // laufende Kontrolle. hasActiveKontrolle ist dieselbe Prüfung wie auf dem echten Pfad.
-    const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED"
-      : (await hasActiveKontrolle(userId, new Date())) ? "INSPECTION_ALREADY_ACTIVE" : undefined;
+    // Advisory (siehe request_lock): dieselbe Entscheidung wie der echte Pfad, aus derselben
+    // Funktion — ein hier nachgebauter Check wäre genau der Unterschied, den der dryRun
+    // verschweigen würde.
+    const resolved = await resolveInspectionTarget(userId, { categoryId, deviceId });
+    const target = resolved.ok ? resolved.target : null;
+    const problem = inspectionPreconditionProblem(
+      target,
+      target?.active === true && await hasActiveKontrolle(userId, new Date(), { categoryId: target.categoryId }),
+    );
     return dryRunPreview("request_inspection", problem, {
       deadlineHours: args.deadlineHours ?? null,
       comment: args.comment ?? null,
+      target: inspectionTargetLabel(target, "KG"),
       requestedDelayMinutes,
       ...preview,
     });
@@ -280,25 +298,30 @@ export async function mcpRequestInspection(username: string, args: RequestInspec
   const delayNote = inspectionDelayNote(args.delayMinutes, delayMinutes);
   const noteSuffix = delayNote ? ` ${delayNote}` : "";
 
-  const data = unwrap(await requestKontrolle({ userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes }));
+  const data = unwrap(await requestKontrolle({
+    userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes, categoryId, deviceId,
+  }));
 
+  // Das Ziel im Klartext (die Antwort spricht sonst von „the inspection", obwohl es mehrere
+  // gleichzeitig geben kann — je Ziel eine).
+  const targetText = args.device ?? args.category ?? "KG";
   // `delayMinutes`/`requestedDelayMinutes` auch als Felder, nicht nur im Fliesstext: ein Aufrufer,
   // der die Zeit weiterverarbeitet, soll die Abweichung prüfen können, ohne die Meldung zu parsen.
-  const delayFields = { delayMinutes, requestedDelayMinutes, delayNote };
+  const delayFields = { delayMinutes, requestedDelayMinutes, delayNote, target: targetText };
   if (data.scheduledFor) {
     return {
       ok: true,
       scheduledFor: data.scheduledFor,
       deadline: data.deadline,
       ...delayFields,
-      message: `Inspection scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.` + noteSuffix,
+      message: `Inspection (${targetText}) scheduled — the code will reach the user in ~${delayMinutes} min (at ${data.scheduledFor}); the deadline then runs to ${data.deadline}. The user cannot see it until it triggers.` + noteSuffix,
     };
   }
   return {
     ok: true,
     deadline: data.deadline,
     ...delayFields,
-    message: `Inspection requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` + noteSuffix,
+    message: `Inspection (${targetText}) requested immediately; the code was e-mailed to the user. Deadline: ${data.deadline}.` + noteSuffix,
   };
 }
 
@@ -400,7 +423,7 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
 }
 
 export interface WithdrawArgs {
-  target: "lock_request" | "lock_period" | "inspection" | "orgasm_directive";
+  target: "lock_request" | "lock_period" | "inspection" | "orgasm_directive" | "task";
   /** EINE Direktive gezielt zurückziehen (nur lock_request/lock_period). Ohne id trifft es alle
    *  offenen der Art — bei mehreren offenen Anforderungen wäre das mehr als gemeint. */
   id?: string;
@@ -434,8 +457,29 @@ interface WithdrawnItem extends DirectiveRow {
 
 export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   const userId = await resolveTargetUserId(username);
+  if (args.target === "task") {
+    // Aufgaben verlangen IMMER eine id: sie koexistieren beliebig, ein Rundumschlag über alle offenen
+    // wäre bei ihnen nie die gemeinte Geste.
+    if (!args.id) throw new Error("target task requires an id (from keyholder_dashboard.openTasks).");
+    const task = await prisma.task.findUnique({ where: { id: args.id }, select: { userId: true, title: true, holdUntil: true } });
+    if (!task || task.userId !== userId) throw new Error(`No task with id ${args.id}.`);
+    if (args.dryRun) {
+      return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: "task", id: args.id, title: task.title, willWithdraw: 1 } } satisfies DryRunPreview;
+    }
+    unwrap(await withdrawTask(args.id, userId));
+    const taskIso = await isoForUser(userId);
+    // `withdrawnItems` auch hier: die Werkzeug-Beschreibung sagt „the response ALWAYS names what
+    // actually went" — ein Zweig ohne die Liste macht daraus eine Lüge, und ein Agent, der sie
+    // ausliest, bekäme `undefined`. Aufgaben kennen keinen geplanten Zustand (der Sub sieht sie ab
+    // dem Stellen), deshalb immer `triggered` und `scheduledFor: null`.
+    return {
+      ok: true, withdrawn: 1, hidden: 0,
+      withdrawnItems: [{ id: args.id, status: "triggered", scheduledFor: null, endsAt: taskIso(task.holdUntil), message: task.title, code: null }] satisfies WithdrawnItem[],
+      message: `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.`,
+    };
+  }
   if (args.id && args.target !== "lock_request" && args.target !== "lock_period") {
-    throw new Error("id is only supported for target lock_request or lock_period.");
+    throw new Error("id is only supported for target lock_request, lock_period or task.");
   }
   const owned = args.id ? await assertOwnedDirective(args.id, userId, args.target) : null;
   if (args.dryRun) {
@@ -1112,11 +1156,16 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // `problem` schon feststeht (Preview wird ohnehin als wouldSucceed:false verworfen).
     const record = problem ? null : await prisma.strafeRecord.findUnique({
       where: { refId: args.ref },
-      select: { userId: true, status: true, reason: true, judgedBy: true, erledigtAt: true },
+      select: { userId: true, status: true, reason: true, judgedBy: true, erledigtAt: true, taskId: true },
     });
     const existing = record?.userId === userId ? record : null;
+    // `penaltyTask` steht im diff, weil ein Urteil MEHR bewegt als seine eigene Zeile: hängt eine
+    // Strafaufgabe daran, zieht `writeJudgment` sie zurück (reopen, dismiss, neues punish). Ohne
+    // dieses Feld meldete die Vorschau ein blosses Verschwinden von Urteils-Feldern, während der
+    // Commit dem Sub eine laufende Forderung nimmt — genau die Art Nebenwirkung, für die es die
+    // Vorschau gibt.
     const before: Record<string, unknown> = existing
-      ? { status: existing.status, reason: existing.reason, judgedBy: existing.judgedBy, erledigtAt: iso(existing.erledigtAt) }
+      ? { status: existing.status, reason: existing.reason, judgedBy: existing.judgedBy, erledigtAt: iso(existing.erledigtAt), penaltyTask: existing.taskId }
       : {};
     // reopen ohne bestehenden Record (JUDGMENT_NOT_FOUND), complete auf einem nicht-PUNISHED Record
     // (PENALTY_NOT_PUNISHED) und punish/dismiss auf einem ref, das kein aktuell erkanntes Vergehen
@@ -1127,7 +1176,7 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // von oben (siehe `problem`-Kommentar), damit ein teurer Strafbuch-Aufbau nicht bei jedem dryRun
     // erzwungen wird, sondern nur dann, wenn er für den diff gebraucht wird.
     const offenseIsLive = !problem && (args.action === "punish" || args.action === "dismiss")
-      ? collectDetectedOffenses(await buildStrafbuch(userId)).some((o) => o.refId === args.ref)
+      ? !!(await requireDetectedOffense(userId, args.ref, new Date()))
       : false;
     const knownTransition =
       args.action === "punish" || args.action === "dismiss" ? offenseIsLive
@@ -1137,8 +1186,10 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     // delete_training_goal: das Objekt verschwindet, das ist ein Wert, keine Abwesenheit).
     const after: Record<string, unknown> | undefined = !knownTransition ? undefined
       : args.action === "reopen" ? Object.fromEntries(Object.keys(before).map((key) => [key, null]))
-      : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: iso(existing!.erledigtAt ?? new Date()) }
-      : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: "ai", erledigtAt: null };
+      // `complete` schliesst nur den Loop und lässt die Aufgabe, wie sie ist.
+      : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: iso(existing!.erledigtAt ?? new Date()), penaltyTask: existing!.taskId }
+      // punish/dismiss über den FREITEXT-Weg löst eine bestehende Strafaufgabe und zieht sie zurück.
+      : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: "ai", erledigtAt: null, penaltyTask: null };
     return dryRunPreview("judge_offense", problem ?? undefined, { ref: args.ref, action: args.action, text: args.text ?? null }, after ? diffFields(before, after) : undefined);
   }
   const r = unwrap(await judgeOffense({
@@ -1154,4 +1205,242 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     : r.status === "open" ? "Judgment reopened — the offense is open again."
     : "Offense punished — the penalty was recorded; the user was notified by e-mail + push.";
   return { ok: true, status: r.status, done: r.done, message };
+}
+
+// ── Aufgaben ────────────────────────────────────────────────────────────────────────────────────
+
+export interface TaskRequirementArg {
+  /** Kategoriename („Halsband"); „KG" ist hier NICHT zulässig — dafür `requireKgLocked`. */
+  category: string;
+  /** Optional ein bestimmtes Gerät dieser Kategorie. */
+  device?: string;
+}
+
+export interface CreateTaskArgs {
+  title: string;
+  description?: string;
+  holdUntilAt?: string;
+  holdHours?: number;
+  requireKgLocked?: boolean;
+  requireWearing?: TaskRequirementArg[];
+  /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie ENTSTEHEN müssen. */
+  requireProof?: { description: string; requireCode?: boolean }[];
+  startGraceMinutes?: number;
+  isPunishment?: boolean;
+  penaltyReason?: string;
+  /** `ref` eines erkannten Vergehens — macht die Aufgabe zu dessen Strafe (Details am Tool-Schema). */
+  offenseRef?: string;
+  dryRun?: boolean;
+}
+
+export interface EditTaskArgs {
+  id: string;
+  title?: string;
+  description?: string;
+  holdUntilAt?: string;
+  holdHours?: number;
+  isPunishment?: boolean;
+  penaltyReason?: string;
+  dryRun?: boolean;
+}
+
+/** Auflösung eines Gerätenamens über ALLE aktiven Geräte — `resolveDeviceId` sieht per
+ *  `getUserDeviceOptions` nur KG-Geräte, und eine Aufgabe fordert gerade die anderen.
+ *  `categoryId: null` sucht über alle Kategorien: `request_inspection` darf ein Gerät benennen,
+ *  ohne die Kategorie zu kennen — sie ergibt sich daraus (siehe resolveInspectionTarget). */
+async function resolveAnyDeviceId(userId: string, categoryId: string | null, name: string): Promise<string> {
+  const devices = await prisma.device.findMany({
+    where: { userId, archivedAt: null, ...(categoryId ? { categoryId } : {}) },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true },
+  });
+  const match = matchByNameCI(devices, name);
+  if (!match) {
+    const scope = categoryId ? " in this category" : "";
+    throw new Error(`Device not found${scope}: "${name}". Available: ${devices.map((d) => d.name).join(", ") || "none"}`);
+  }
+  return match.id;
+}
+
+/** „Bis wann halten" aus den erlaubten Formen — `undefined`, wenn keine davon kam.
+ *
+ *  Getrennt von {@link resolveHoldUntil}, weil die beiden Aufrufer sich genau darin unterscheiden:
+ *  `create_task` BRAUCHT eine Frist, `edit_task` lässt sie weg, wenn sie unverändert bleibt. Wer
+ *  hier eine dritte Form ergänzt (`holdDays`), ändert eine Stelle — vorher stand die Bedingung
+ *  „welche Form kam?" zusätzlich als Ausdruck am `edit_task`-Aufruf und wäre dort still veraltet. */
+function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date | undefined {
+  if (args.holdUntilAt) {
+    const d = new Date(args.holdUntilAt);
+    if (Number.isNaN(d.getTime())) throw new Error(`Invalid holdUntilAt: "${args.holdUntilAt}"`);
+    return d;
+  }
+  if (args.holdHours != null) return new Date(now.getTime() + args.holdHours * 3600_000);
+  return undefined;
+}
+
+/** Dasselbe, aber Pflicht — für `create_task`, wo eine Aufgabe ohne Frist keinen Sinn ergibt. */
+function resolveHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date {
+  const d = parseHoldUntil(args, now);
+  if (!d) throw new Error("Either holdUntilAt or holdHours is required.");
+  return d;
+}
+
+/** Bedingungs-Namen → ids. Getrennt vom Commit, damit die dryRun-Vorschau dieselbe Auflösung (und
+ *  dieselben Fehlermeldungen bei unbekannten Namen) durchläuft wie der echte Aufruf. */
+async function resolveTaskRequirements(userId: string, args: CreateTaskArgs): Promise<TaskRequirementInput[]> {
+  const out: TaskRequirementInput[] = [];
+  if (args.requireKgLocked) out.push({ type: "KG_LOCKED" });
+  for (const r of args.requireWearing ?? []) {
+    const categoryId = await resolveCategoryId(userId, r.category);
+    out.push({
+      type: "WEAR",
+      categoryId,
+      deviceId: r.device ? await resolveAnyDeviceId(userId, categoryId, r.device) : null,
+    });
+  }
+  return out;
+}
+
+export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
+  const now = new Date();
+  const userId = await resolveTargetUserId(username);
+  const holdUntil = resolveHoldUntil(args, now);
+  const requirements = await resolveTaskRequirements(userId, args);
+  const proofCount = args.requireProof?.length ?? 0;
+
+  if (args.dryRun) {
+    // Nur hier: der Commit-Pfad prüft dieselbe Schranke in `punishWithTask` noch einmal, und ein
+    // Strafbuch-Aufbau kostet ein Dutzend Abfragen. Die Vorschau braucht sie trotzdem — sonst legt
+    // der Agent eine Vorschau vor, die der Commit mit OFFENSE_NOT_FOUND ablehnt.
+    const offenseIsLive = args.offenseRef ? !!(await requireDetectedOffense(userId, args.offenseRef, now)) : null;
+    // Die tote ref gehört in den `problem`-Slot des Rahmens, nicht in ein Zusatzfeld: `wouldSucceed`
+    // leitet sich daraus ab. Sonst meldete die Vorschau Erfolg für einen Commit, der mit
+    // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor.
+    return dryRunPreview("create_task", offenseIsLive === false ? "OFFENSE_NOT_FOUND" : undefined, {
+      title: args.title,
+      holdUntil: holdUntil.toISOString(),
+      requirementCount: requirements.length,
+      requiresKgLocked: requirements.some((r) => r.type === "KG_LOCKED"),
+      proofCount,
+      startGraceMinutes: args.startGraceMinutes ?? null,
+      // Die ref ERZWINGT die Strafe — `punishWithTask` setzt `isPunishment: true`, unabhängig vom
+      // Argument. Die Vorschau muss dasselbe sagen, sonst zeigt sie `false` und der Commit schreibt `true`.
+      isPunishment: !!args.offenseRef || !!args.isPunishment,
+      // Beide Angaben, nicht nur die ref: „das Vergehen gilt danach als bestraft" ist die Folge,
+      // über die der Agent seinen Nutzer aufklären muss.
+      penaltyForOffense: args.offenseRef ?? null,
+    });
+  }
+
+  const params = {
+    userId,
+    title: args.title,
+    description: args.description,
+    holdUntil,
+    startGraceMin: args.startGraceMinutes,
+    isPunishment: args.isPunishment,
+    penaltyReason: args.penaltyReason,
+    requirements,
+    proofs: args.requireProof,
+  };
+  const data = unwrap(args.offenseRef
+    ? await punishWithTask({ ...params, refId: args.offenseRef, judgedBy: "ai" })
+    : await createTask(params));
+  const conditionPart = requirements.length === 0
+    ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdUntil.toISOString()}.`
+    : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY until ${holdUntil.toISOString()}; taking one off earlier makes the task unfulfilled.`;
+  // Der Nachweis-Teil sagt ausdrücklich, was die Automatik NICHT entscheidet: sonst wartet der Agent
+  // auf ein Urteil, das ohne ihn nie kommt.
+  const proofPart = proofCount === 0 ? "" :
+    ` ${proofCount} photo proof(s) required, in the given order — the CAPTURE times must ascend. `
+    + `Proofs without a code cannot be decided automatically: the task then waits in "awaitingReview" `
+    + `for YOU to accept or reject them.`;
+  // Der Strafteil zuerst: er ist das, was der Agent seinem Nutzer schuldet — die Aufgabe ist hier
+  // nicht bloss gestellt, sondern ein Urteil über ein Vergehen.
+  const penaltyPart = args.offenseRef
+    ? `Offense ${args.offenseRef} is now judged as PUNISHED, with this task as the penalty. `
+      + `It counts as served once the task is fulfilled; missing it leaves the penalty open AND becomes a new offense. `
+    : "";
+  return { ok: true, id: data.id, message: penaltyPart + conditionPart + proofPart };
+}
+
+export interface ReviewTaskProofArgs {
+  taskId: string;
+  /** Position des Nachweises (1-basiert, wie in `keyholder_dashboard`/der App gezählt). */
+  index: number;
+  accepted: boolean;
+  note?: string;
+  dryRun?: boolean;
+}
+
+/**
+ * Sichtung eines eingereichten Nachweis-Fotos (Issue #39).
+ *
+ * Angesprochen über Aufgabe + POSITION, nicht über die Nachweis-id: die id steht nirgends in einer
+ * Lese-Sicht, und die Position ist genau das, was der Agent sieht („der zweite Nachweis"). Eine id
+ * zu verlangen, die er sich nicht beschaffen kann, wäre ein Werkzeug ohne Eingang.
+ */
+export async function mcpReviewTaskProof(username: string, args: ReviewTaskProofArgs) {
+  const userId = await resolveTargetUserId(username);
+  // Adressierung über `resolveTaskProof` — geteilt mit jedem anderen Werkzeug, das einen Nachweis
+  // anspricht, damit die versprochene „gleiche Adresse" nicht aus zwei Kopien besteht.
+  // Nur was Adressierung und Vorschau brauchen — `imageUrl`, `code` und die Verifikations-Felder
+  // liest hier niemand (gleiche Regel wie `TASK_INCLUDE`).
+  const { task, proof } = await resolveTaskProof(userId, args.taskId, args.index, {
+    id: true, description: true, submittedAt: true, reviewedAt: true,
+  });
+
+  if (args.dryRun) {
+    // Zustands-Regeln gehen als `problem` in die Vorschau, nicht als Wurf — wie bei jedem anderen
+    // Werkzeug hier. Ein dryRun soll sagen, was passieren WÜRDE, auch wenn die Antwort „nichts" ist.
+    // Beide Zustands-Regeln, die der Service durchsetzt — sonst verspräche die Vorschau Erfolg, wo
+    // der echte Aufruf abweist. `mcpEditTask` prüft `withdrawnAt` aus demselben Grund.
+    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE"
+      : !proof.submittedAt ? "TASK_PROOF_NOT_SUBMITTED"
+      : undefined;
+    return dryRunPreview("review_task_proof", problem, {
+      taskId: task.id,
+      title: task.title,
+      index: args.index,
+      description: proof.description,
+      accepted: args.accepted,
+      previouslyReviewed: proof.reviewedAt !== null,
+    });
+  }
+
+  // Die Zustands-Prüfung selbst liegt im Service — hier stünde sie ein zweites Mal, mit zweitem Text.
+
+  unwrap(await reviewTaskProof(proof.id, userId, { accepted: args.accepted, note: args.note }));
+  return {
+    ok: true,
+    taskId: task.id,
+    message: args.accepted
+      ? `Proof ${args.index} accepted. If that was the last open one, the task result was sent to both sides.`
+      : `Proof ${args.index} rejected — the task counts as unfulfilled (offense unfulfilled_task). The user was told.`,
+  };
+}
+
+export async function mcpEditTask(username: string, args: EditTaskArgs) {
+  const userId = await resolveTargetUserId(username);
+  const task = await prisma.task.findUnique({ where: { id: args.id } });
+  if (!task || task.userId !== userId) throw new Error(`Task not found: ${args.id}`);
+
+  const patch = {
+    title: args.title,
+    description: args.description,
+    holdUntil: parseHoldUntil(args, new Date()),
+    isPunishment: args.isPunishment,
+    penaltyReason: args.penaltyReason,
+  };
+
+  if (args.dryRun) {
+    // Über dieselbe pure Merge-Funktion wie der Commit — eine eigene Nachrechnung liefe auseinander.
+    const before = { title: task.title, description: task.description, holdUntil: task.holdUntil, isPunishment: task.isPunishment, penaltyReason: task.penaltyReason };
+    const after = mergeTaskPatch(before, patch);
+    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE" : undefined;
+    return dryRunPreview("edit_task", problem, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
+  }
+
+  unwrap(await updateTask(args.id, userId, patch));
+  return { ok: true, id: args.id, message: "Task updated. The user was notified." };
 }

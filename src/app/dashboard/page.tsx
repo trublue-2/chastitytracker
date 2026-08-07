@@ -13,7 +13,7 @@ import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest } from "@/lib/queries";
+import { getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions, getNonKgTrackingCategories, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, getOpenLockRequest, KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
@@ -21,6 +21,10 @@ import { effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay }
 import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
+import OpenTasks from "./OpenTasks";
+import TaskList from "./TaskList";
+import { getEvaluatedTaskHistory, isHeldByTask, belongsOnDashboard, loadTaskProofViews } from "@/lib/taskIntervals";
+import { toTaskCard } from "@/lib/taskView";
 import LaufendeSessionCard from "./LaufendeSessionCard";
 import SessionList from "./SessionList";
 import WearSessionList from "./WearSessionList";
@@ -28,9 +32,11 @@ import ActiveWearSessions from "./ActiveWearSessions";
 import CategoriesPromoCard from "./CategoriesPromoCard";
 import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
+import IncompleteCategories from "./IncompleteCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { inspectionHref } from "@/lib/entryFormRoute";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -41,6 +47,7 @@ export default async function DashboardPage() {
 
   const t = await getTranslations("dashboard");
   const tOrgasm = await getTranslations("orgasmForm");
+  const tTasks = await getTranslations("tasks");
   const dl = toDateLocale(await getLocale());
   const tz = session.user.timezone ?? APP_TZ;
   const now = new Date();
@@ -54,7 +61,12 @@ export default async function DashboardPage() {
       include: { device: { select: { id: true, categoryId: true, name: true } } },
     }),
     // Zeitversetzt geplante Kontrollen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
-    prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
+    prisma.kontrollAnforderung.findMany({
+      where: { userId, ...aktiveKontrolleWhere(now) },
+      orderBy: { createdAt: "desc" },
+      // Ziel-Namen fürs Banner: der Sub muss wissen, WAS er zeigen soll.
+      include: { entry: true, ...KONTROLLE_TARGET_INCLUDE },
+    }),
     getActiveVorgabe(userId, now),
     // Zeitversetzt geplante Anforderungen (wirksamAb in der Zukunft) bleiben für den Sub unsichtbar.
     // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
@@ -74,7 +86,11 @@ export default async function DashboardPage() {
   };
 
   // ── Compute derived state ──
-  const offeneKontrolle = alleAnforderungen.find(k => !k.entryId && !k.withdrawnAt) ?? null;
+  // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit der
+  // knappsten Frist oben steht.
+  const offeneKontrollen = alleAnforderungen
+    .filter((k) => !k.entryId && !k.withdrawnAt)
+    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
 
   const latest = [...entries]
     .filter((e) => ["VERSCHLUSS", "OEFFNEN"].includes(e.type))
@@ -122,6 +138,33 @@ export default async function DashboardPage() {
 
   const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, tz);
 
+  // Aufgaben: Zustand wird abgeleitet, deshalb erst laden, dann auswerten. `evaluateTasks` lädt ohne
+  // Aufgaben gar nichts nach — Nutzer ohne Aufgaben zahlen keinen Preis dafür.
+  // `entries` und die Reinigungs-Regeln stehen hier längst — durchreichen, statt dieselben Zeilen ein
+  // zweites Mal zu laden und ein zweites Mal zu paaren.
+  // EINMAL alles laden: der Aufgaben-Block zeigt daraus, was jetzt zu tun ist, die Liste darunter
+  // den ganzen Bestand. Zwei Abfragen wären dieselben Zeilen zweimal.
+  const evaluatedTasks = await getEvaluatedTaskHistory(userId, now, {
+    kgLabel: tTasks("requirementKgLocked"), kgEntries: entries, wearEntries: entries, reinigung,
+  });
+  // Die Anzeige-Felder der Nachweise (Beschreibung, Code) hängen nicht am Auswertungs-Include —
+  // eine Abfrage über die sichtbaren Aufgaben, nicht eine je Karte.
+  const proofViews = await loadTaskProofViews(evaluatedTasks.map((e) => e.task.id));
+  const card = (e: (typeof evaluatedTasks)[number], withLinks: boolean) =>
+    toTaskCard(e, withLinks, proofViews.get(e.task.id) ?? []);
+  // Oben nach nächster Frist zuerst (die Liste kommt absteigend, also umdrehen) — was am dringendsten
+  // ist, steht zuoberst.
+  const taskCards = evaluatedTasks.filter((e) => belongsOnDashboard(e, now)).reverse().map((e) => card(e, true));
+  // Die Liste ist die ARCHIV-Sicht: keine Deep-Links, denn die Formulare stehen an den Karten oben.
+  const taskListCards = evaluatedTasks.map((e) => card(e, false));
+
+  // Die Trage-Karte ist vollflächig ein Link aufs Ablege-Formular — ohne Markierung sähe eine
+  // gebundene Session aus wie jede andere. Gefragt wird je Session (Kategorie UND Gerät) über
+  // `isHeldByTask`, also mit demselben Prädikat wie die Warnung im Formular: eine Bedingung auf ein
+  // bestimmtes Gerät darf nicht die ganze Kategorie markieren, vor der danach niemand warnt.
+  const isSessionHeldByTask = (categoryId: string, deviceId: string) =>
+    isHeldByTask(evaluatedTasks, { categoryId, deviceId }, now);
+
   // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard). Läuft
   // KEINE Sperre, hätte es sonst nirgends Platz — dann zeigen wir es als führende Zeile in der
   // „Trainingsvorgaben"-Karte (dieselbe, die die Kategorie-Ziele trägt), damit der Sub sein KG-Ziel
@@ -142,10 +185,20 @@ export default async function DashboardPage() {
   // beide daraus ab (je GERÄT gepaart, Überlappungen für die Stunden verschmolzen).
   const wearSessionList = buildWearSessions(entries, now);
   const wearSessionRows = buildWearSessionRows(allNonKgCategories, wearSessionList, dl, entries);
+
+  // Bespielbar ist eine Kategorie erst mit Gerät — ohne eines lässt sich darin nichts erfassen. Die
+  // Trennung gilt nur für die ANZEIGE der Kategorie-Blöcke; die Session-Liste oben bekommt weiter
+  // alle, sonst verschwänden vergangene Sessions einer Kategorie, deren Gerät archiviert wurde.
+  const playableCategories = allNonKgCategories.filter((c) => c.deviceCount > 0);
+  // Eine laufende Session schliesst „unfertig" aus, auch wenn ihr Gerät inzwischen archiviert wurde:
+  // sonst stünde direkt unter „Plug — läuft seit 14:00" die Karte „hier lässt sich nichts erfassen".
+  // Dieselbe Bedingung wie bei den bespielbaren Kategorien unten.
+  const incompleteCategories = allNonKgCategories.filter(
+    (c) => c.deviceCount === 0 && !wearSessions.some((s) => s.categoryId === c.id),
+  );
   const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
 
   // ── Serialize for client ──
-  const kontrolleOverdue = offeneKontrolle ? offeneKontrolle.deadline < now : false;
   const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
     ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
     : null;
@@ -153,13 +206,15 @@ export default async function DashboardPage() {
   const alertProps: DashboardAlertsProps = {
     tz,
 
-    offeneKontrolle: offeneKontrolle ? {
-      deadline: offeneKontrolle.deadline.toISOString(),
-      code: offeneKontrolle.code,
-      kommentar: offeneKontrolle.kommentar,
-      overdue: kontrolleOverdue,
-      href: inspectionHref(offeneKontrolle.code, { kommentar: offeneKontrolle.kommentar }),
-    } : null,
+    offeneKontrollen: offeneKontrollen.map((k) => ({
+      id: k.id,
+      deadline: k.deadline.toISOString(),
+      code: k.code,
+      kommentar: k.kommentar,
+      target: inspectionTargetLabel(k),
+      overdue: k.deadline < now,
+      href: inspectionHref(k.code, { kommentar: k.kommentar, categoryId: k.categoryId }),
+    })),
 
     offeneVerschlussAnf: offeneVerschlussAnf ? {
       nachricht: joinParts(
@@ -205,6 +260,7 @@ export default async function DashboardPage() {
       {/* Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte. */}
       <DashboardAlerts {...alertProps} />
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
+      <OpenTasks tasks={taskCards} tz={tz} />
       {showLaufendeSession && (
         <DashboardBlock>
           <LaufendeSessionCard
@@ -241,11 +297,16 @@ export default async function DashboardPage() {
           categoryIcon: s.categoryIcon,
           deviceName: s.deviceName,
           since: s.since.toISOString(),
+          heldReason: isSessionHeldByTask(s.categoryId, s.deviceId) ? tTasks("heldByTask") : null,
           imageUrl: s.imageUrl,
         }))}
         serverNow={now.toISOString()}
       />
       {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
+      {/* Ohne Gerät ist die Kategorie ein halber Schritt, kein Zustand — sichtbar hier statt unten
+          im eingeklappten „Nicht getragen" (Issue #49). Ohne Feature-Flag ist die Liste leer, der
+          Block blendet sich selbst aus. */}
+      <IncompleteCategories categories={incompleteCategories} />
       <CategoryGoalsToday
         userId={userId}
         activeWearSessions={wearSessions}
@@ -254,7 +315,7 @@ export default async function DashboardPage() {
         kgGoal={inlineKgGoal}
       />
       <InactiveCategories
-        categories={allNonKgCategories
+        categories={playableCategories
           .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))
           .map((c) => ({
             ...c,
@@ -274,6 +335,13 @@ export default async function DashboardPage() {
       {wearSessionRows.length > 0 && (
         <DashboardBlock>
           <WearSessionList sessions={wearSessionRows} />
+        </DashboardBlock>
+      )}
+      {/* Der ganze Bestand — hier unten bei den übrigen Historien-Listen, nicht oben bei dem, was
+          gerade zu tun ist. */}
+      {taskListCards.length > 0 && (
+        <DashboardBlock>
+          <TaskList tasks={taskListCards} tz={tz} />
         </DashboardBlock>
       )}
     </div>

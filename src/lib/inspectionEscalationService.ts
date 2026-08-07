@@ -1,9 +1,11 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { clamp } from "@/lib/utils";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
+import { prepareWearEntry } from "@/lib/queries";
+import { resolveInspectionTarget, isKgTarget } from "@/lib/inspectionTarget";
 import {
   AUTO_ENTFERNT_REASON, toLocale, NO_FIELDS_TO_UPDATE,
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
@@ -50,11 +52,16 @@ export async function sendInspectionReminder(ka: { id: string; code: string | nu
 
 /**
  * Stage 2: auto-marks one overdue-and-reminded KontrollAnforderung as removed. Runs the
- * re-check + OEFFNEN-creation + KontrollAnforderung-update in a single transaction to close the
+ * re-check + Entry-creation + KontrollAnforderung-update in a single transaction to close the
  * race window against a late self-submission (see createOeffnenEntryTx). Returns `{skipped:true}`
- * when there's nothing to do — either someone already resolved the row (race) or the sub is no
- * longer locked (self-opened without ever answering the Kontrolle); neither case is an error to
- * retry. On a "no longer locked" skip, the row is withdrawn so it stops being picked up every tick.
+ * when there's nothing to do — either someone already resolved the row (race) or the target is no
+ * longer active (sub opened/removed it without ever answering the Kontrolle); neither case is an
+ * error to retry. On a "no longer active" skip, the row is withdrawn so it stops being picked up
+ * every tick.
+ *
+ * Der erzeugte Eintrag folgt dem ZIEL: beim KG ein OEFFNEN („Gerät ab"), bei einer Trage-Kontrolle
+ * ein WEAR_END auf dem getragenen Gerät. Beide sagen dasselbe — die Statistik soll keine Zeit
+ * ausweisen, für die der Nachweis verweigert wurde.
  */
 export async function autoMarkInspectionRemoved(ka: { id: string; userId: string }): Promise<{ skipped: boolean }> {
   const now = new Date();
@@ -67,27 +74,53 @@ export async function autoMarkInspectionRemoved(ka: { id: string; userId: string
       return { skipped: true }; // race: submitted/withdrawn/already auto-marked since the poller snapshot
     }
 
+    // Der Sub hat sich selbst geöffnet / abgelegt, ohne je zu antworten — nichts zu markieren.
+    // Zurückziehen, damit die Zeile aus der Fällig-Abfrage fällt statt jeden Tick neu geprüft zu
+    // werden. EIN Ausgang für beide Ziele, damit sich die Behandlung nicht auseinanderentwickelt.
+    const skipInactive = async () => {
+      await tx.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: now } });
+      return { skipped: true as const };
+    };
+
+    // „Läuft das Ziel noch, und mit welchem Gerät?" — über denselben Resolver wie das Anlegen. Eine
+    // hier nachgebaute Antwort könnte von der abweichen, gegen die die Kontrolle gestellt wurde.
+    const resolved = await resolveInspectionTarget(ka.userId, fresh, tx);
+    if (!resolved.ok || !resolved.target.active) return skipInactive();
+    const target = resolved.target;
+
+    // Persisted, not just displayed once — the note stays on the Entry forever (Strafbuch/audit
+    // history), so it's localized to the SUB's own stored language, not left hardcoded German.
+    // Dieselbe Notiz für beide Ziele: der Anlass ist derselbe, nur der Eintragstyp unterscheidet sich.
+    const tOpen = await getTranslations({ locale: toLocale(fresh.user.locale), namespace: "openForm" });
+    const note = tOpen("autoEntferntNote");
+
     let entryId: string;
-    try {
-      // Persisted, not just displayed once — the note stays on the Entry forever (Strafbuch/audit
-      // history), so it's localized to the SUB's own stored language, not left hardcoded German.
-      const tOpen = await getTranslations({ locale: toLocale(fresh.user.locale), namespace: "openForm" });
-      const created = await createOeffnenEntryTx(tx, {
-        userId: ka.userId,
-        startTime: now,
-        oeffnenGrund: AUTO_ENTFERNT_REASON,
-        note: tOpen("autoEntferntNote"),
-        source: "system",
+    if (!isKgTarget(target)) {
+      // Trage-Kontrolle: die laufende Session beenden. `prepareWearEntry` ist derselbe
+      // Invarianten-Guard wie auf dem Selbst-Erfassungs-Pfad (Reihenfolge, Zeitrichtung).
+      // Beendet wird, was GETRAGEN wird — auch wenn die Kontrolle ein anderes Gerät verlangte:
+      // der Nachweis fehlt für die laufende Session, und eine fremde kann sie nicht ersetzen.
+      const wornDeviceId = target.activeDeviceId!;
+      const wear = await prepareWearEntry(tx, ka.userId, "WEAR_END", wornDeviceId, now, null);
+      if (!wear.ok) return skipInactive();
+      const created = await tx.entry.create({
+        data: { userId: ka.userId, type: "WEAR_END", startTime: now, deviceId: wornDeviceId, note, source: "system" },
       });
-      entryId = created.entryId;
-    } catch (e: unknown) {
-      if (codeOf(e) === "NOT_LOCKED") {
-        // Sub already opened themselves without ever answering — nothing to auto-mark. Withdraw so
-        // this row drops out of the due-query instead of being re-checked every tick forever.
-        await tx.kontrollAnforderung.update({ where: { id: ka.id }, data: { withdrawnAt: now } });
-        return { skipped: true };
+      entryId = created.id;
+    } else {
+      try {
+        const created = await createOeffnenEntryTx(tx, {
+          userId: ka.userId,
+          startTime: now,
+          oeffnenGrund: AUTO_ENTFERNT_REASON,
+          note,
+          source: "system",
+        });
+        entryId = created.entryId;
+      } catch (e: unknown) {
+        if (codeOf(e) === "NOT_LOCKED") return skipInactive();
+        throw e;
       }
-      throw e;
     }
 
     await tx.kontrollAnforderung.update({
@@ -101,27 +134,28 @@ export async function autoMarkInspectionRemoved(ka: { id: string; userId: string
 /** Sends the Stage-2 "auto-marked-removed" notice to the sub AND their keyholders/admins. Call
  *  AFTER the transaction in {@link autoMarkInspectionRemoved} commits (notifications are not
  *  transactional and must never block/roll back the state change). */
-export async function notifyInspectionAutoMarked(opts: { userId: string; username: string; code: string | null; controlId: string }): Promise<void> {
-  const { userId, username, code, controlId } = opts;
+export async function notifyInspectionAutoMarked(opts: {
+  userId: string; username: string; code: string | null; controlId: string;
+  /** Trage-Kontrolle statt KG: Stufe 2 hat ein WEAR_END gebucht, kein Öffnen — und die Meldung
+   *  muss sagen, was tatsächlich passiert ist. */
+  wear?: boolean;
+}): Promise<void> {
+  const { userId, username, code, controlId, wear = false } = opts;
+  // Vier Textvarianten aus zwei Achsen (Ziel × Code) — als Suffixe zusammengesetzt statt als
+  // Kaskade von vier Ternären, die bei einer dritten Achse unlesbar würde.
+  const variant = `${wear ? "Wear" : ""}${code ? "" : "NoCode"}` as "" | "Wear" | "NoCode" | "WearNoCode";
   await notifyUser(userId, {
     subjectKey: "inspectionAutoRemovedSubjectSub",
-    messageKey: code ? "inspectionAutoRemovedMessageSub" : "inspectionAutoRemovedMessageSubNoCode",
+    messageKey: `inspectionAutoRemovedMessageSub${variant}`,
     params: code ? { code } : {},
     inbox: { ref: { type: "control", id: controlId } },
     alwaysNotify: true,
   });
-  const controllers = await getControllersOfUser(userId);
-  await Promise.all(controllers.map((c) =>
-    notifyUser(c.id, {
-      subjectKey: "inspectionAutoRemovedSubjectKeyholder",
-      messageKey: code ? "inspectionAutoRemovedMessageKeyholder" : "inspectionAutoRemovedMessageKeyholderNoCode",
-      params: code ? { username, code } : { username },
-      // Empfänger ist der KEYHOLDER, nicht der Sub: eine Nachricht in seinen persönlichen
-      // Posteingang zu schreiben, hiesse, sie dem falschen Thread zuzuordnen. Der Keyholder-Kanal
-      // kommt mit Etappe 2.
-      inbox: false,
-    }),
-  ));
+  await notifyControllers(await getControllersOfUser(userId), {
+    subjectKey: "inspectionAutoRemovedSubjectKeyholder",
+    messageKey: `inspectionAutoRemovedMessageKeyholder${variant}`,
+    params: code ? { username, code } : { username },
+  });
 }
 
 export interface SetInspectionEscalationParams {

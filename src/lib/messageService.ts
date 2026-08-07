@@ -27,6 +27,7 @@ export const MESSAGE_BODY_KEYS = [
   // Strafe
   "penaltyMessage",
   "penaltyMessageNoReason",
+  "penaltyTaskMessage",
   // Kontrolle
   "inspectionRequestedMessage",
   "inspectionConfirmedMessage",
@@ -36,8 +37,12 @@ export const MESSAGE_BODY_KEYS = [
   "inspectionReminderMessageNoCode",
   "inspectionAutoRemovedMessageSub",
   "inspectionAutoRemovedMessageSubNoCode",
+  "inspectionAutoRemovedMessageSubWear",
+  "inspectionAutoRemovedMessageSubWearNoCode",
   "inspectionAutoRemovedMessageKeyholder",
   "inspectionAutoRemovedMessageKeyholderNoCode",
+  "inspectionAutoRemovedMessageKeyholderWear",
+  "inspectionAutoRemovedMessageKeyholderWearNoCode",
   // Verschluss / Sperrzeit
   "lockRequestBody",
   "lockPeriodSetBody",
@@ -50,12 +55,24 @@ export const MESSAGE_BODY_KEYS = [
   "orgasmAnweisungIntro",
   "orgasmGelegenheitIntro",
   "orgasmWithdrawnMessage",
+  // Aufgaben
+  "taskAssignedMessage",
+  "taskChangedMessage",
+  "taskWithdrawnMessage",
+  "taskAwaitingMessage",
+  "taskDoneMessage",
+  "taskFailedMessage",
+  "taskDoneMessageKeyholder",
+  "taskFailedMessageKeyholder",
+  "taskReviewMessageKeyholder",
+  "taskProofAcceptedMessage",
+  "taskProofRejectedMessage",
 ] as const;
 
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];
 
 /** Objekt-Typen, auf die eine Nachricht zeigen kann. Namensschema wie `NoteRef.entityType`. */
-export type MessageRefType = "offense" | "control" | "lockRequest" | "orgasmDirective";
+export type MessageRefType = "offense" | "control" | "lockRequest" | "orgasmDirective" | "task";
 export interface MessageRef {
   type: MessageRefType;
   id: string;
@@ -151,6 +168,9 @@ export interface InboxMessage {
   /** Code der offenen Kontrolle, falls die Nachricht auf eine zeigt — der Presenter macht daraus
    *  das Ziel. Sonst null: es gibt keine Seite, die etwas beiträgt. */
   refActionCode: string | null;
+  /** ZIEL dieser Kontrolle (`categoryId`, null = KG). Muss mit in den Link: ohne ihn landet eine
+   *  Trage-Kontrolle auf dem KG-Formular, und die Einreichung beantwortet sie nicht (v5.0.1). */
+  refActionCategoryId: string | null;
   /** Referenz gesetzt, Objekt aber nicht (mehr) auflösbar. Muster: `unknownRef` in lib/mcp/notes.ts. */
   refMissing: boolean;
   read: boolean;
@@ -186,9 +206,10 @@ function keyOf(row: RefRow): string | null {
  * Die Referenz-Schlüssel, die für den Sub VERBORGEN sind.
  *
  * Nur `KontrollAnforderung` und `VerschlussAnforderung` tragen überhaupt das `{wirksamAb,
- * benachrichtigtAt}`-Paar (siehe delayedTrigger.ts) — Strafen und Orgasmus-Anweisungen können nicht
- * terminiert sein und sind deshalb nie verborgen. Genau deshalb fragt diese Funktion zwei Tabellen
- * und nicht vier: sie ist der heisse Pfad (Header, jede Dashboard-Seite).
+ * benachrichtigtAt}`-Paar (siehe delayedTrigger.ts) — Strafen, Orgasmus-Anweisungen und Aufgaben
+ * können nicht terminiert sein und sind deshalb nie verborgen. Genau deshalb fragt diese Funktion
+ * ZWEI Tabellen, nicht eine je Referenz-Art: sie ist der heisse Pfad (Header, jede Dashboard-Seite).
+ * Wer eine Referenz-Art ergänzt, prüft zuerst, ob sie terminierbar ist — nur dann gehört sie hierher.
  *
  * Immer auf den Sub eingegrenzt — eine Referenz auf die Zeile eines anderen Nutzers findet nichts,
  * statt sie preiszugeben.
@@ -222,26 +243,33 @@ type RefDetail = {
    *  Router-Pfade: `category` und Link sitzen dann beide in der Anzeige-Schicht. */
   actionCode: string | null;
   /** Für den Sub verborgen (terminierte, noch nicht ausgelöste Direktive). */
+  /** Nur bei Kontrollen: das Ziel für den Formular-Link (null = KG bzw. keine Handlung offen). */
+  actionCategoryId?: string | null;
   hidden: boolean;
 };
 
 /** Freitext + Link-Ziel je Referenz — nur für die ANZEIGE, deshalb getrennt von {@link hiddenRefKeys}:
  *  der Zähler braucht keinen einzigen dieser Texte. */
 async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<string, RefDetail>> {
-  const [offenseIds, controlIds, lockIds, orgasmIds] =
-    (["offense", "control", "lockRequest", "orgasmDirective"] as const).map((t) => idsOfType(rows, t));
+  const [offenseIds, controlIds, lockIds, orgasmIds, taskIds] =
+    (["offense", "control", "lockRequest", "orgasmDirective", "task"] as const).map((t) => idsOfType(rows, t));
 
-  const [offenses, controls, lockRequests, orgasmDirectives] = await Promise.all([
+  const [offenses, controls, lockRequests, orgasmDirectives, tasks] = await Promise.all([
     offenseIds.length ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, reason: true } }) : [],
     // Mehr als der Kommentar: aus Code + Zustand entsteht das Link-Ziel (siehe unten).
     controlIds.length ? prisma.kontrollAnforderung.findMany({
       where: { id: { in: controlIds }, userId: subjectUserId },
-      select: { id: true, kommentar: true, code: true, entryId: true, withdrawnAt: true, deadline: true, wirksamAb: true, benachrichtigtAt: true, autoMarkedRemovedAt: true },
+      // `categoryId`: das Ziel gehört zum Link (siehe refActionCategoryId).
+      select: { id: true, kommentar: true, code: true, categoryId: true, entryId: true, withdrawnAt: true, deadline: true, wirksamAb: true, benachrichtigtAt: true, autoMarkedRemovedAt: true },
     }) : [],
     // wirksamAb/benachrichtigtAt mitlesen: dieselbe Zeile beantwortet Text UND Sichtbarkeit — sonst
     // fragte der Listen-Pfad diese Tabelle zweimal (einmal hier, einmal über hiddenRefKeys).
     lockIds.length ? prisma.verschlussAnforderung.findMany({ where: { id: { in: lockIds }, userId: subjectUserId }, select: { id: true, nachricht: true, wirksamAb: true, benachrichtigtAt: true } }) : [],
     orgasmIds.length ? prisma.orgasmusAnforderung.findMany({ where: { id: { in: orgasmIds }, userId: subjectUserId }, select: { id: true, nachricht: true } }) : [],
+    // Die BESCHREIBUNG, nicht der Titel: sie ist der Freitext der Keyholderin — die eigentliche
+    // Anweisung („die Wohnung, nicht nur das Wohnzimmer"). Sie stand im Posteingang bisher gar
+    // nicht, und ohne sie ist eine Aufgabe dort nicht nachlesbar, sondern nur benannt.
+    taskIds.length ? prisma.task.findMany({ where: { id: { in: taskIds }, userId: subjectUserId }, select: { id: true, description: true } }) : [],
   ]);
 
   const now = new Date();
@@ -255,11 +283,16 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
     details.set(refKey("control", c.id), {
       text: c.kommentar,
       actionCode: open ? c.code : null,
+      actionCategoryId: open ? c.categoryId : null,
       hidden: isHiddenFromSub(c),
     });
   }
   for (const l of lockRequests) details.set(refKey("lockRequest", l.id), { text: l.nachricht, actionCode: null, hidden: isHiddenFromSub(l) });
   for (const d of orgasmDirectives) details.set(refKey("orgasmDirective", d.id), { text: d.nachricht, actionCode: null, hidden: false });
+  // `hidden: false`: eine Aufgabe kennt keine Terminierung — sie gilt ab dem Stellen, es gibt keinen
+  // Überraschungs-Zeitpunkt zu schützen (siehe `delayedTrigger.ts`, das nur Kontrolle und Verschluss
+  // betrifft).
+  for (const t of tasks) details.set(refKey("task", t.id), { text: t.description, actionCode: null, hidden: false });
   return details;
 }
 
@@ -316,6 +349,7 @@ export async function listMessagesFor(
       body: row.body,
       refText: key ? details.get(key)?.text ?? null : null,
       refActionCode: key ? details.get(key)?.actionCode ?? null : null,
+      refActionCategoryId: key ? details.get(key)?.actionCategoryId ?? null : null,
       refMissing: key !== null && !details.has(key),
       read: row.reads.length > 0,
     });

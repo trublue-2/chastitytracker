@@ -22,7 +22,7 @@ export interface DelayedTrigger {
  * scheduling"). Bei Auto-Kontrollen wäre es der Zufallsplan, dessen Überraschung der Sinn ist.
  *
  * **`benachrichtigtAt === null` allein genügt NICHT** — daran wäre der Fix fast gescheitert. Es gibt
- * eine sofort AKTIVE Sperrzeit ohne diesen Stempel: die, die `entries/route.ts` automatisch anlegt,
+ * eine sofort AKTIVE Sperrzeit ohne diesen Stempel: die, die `entryFulfilment.ts` automatisch anlegt,
  * wenn der Sub eine Verschluss-Anforderung erfüllt. Sie trägt kein `benachrichtigtAt`, weil niemand
  * eine Mail schicken musste — der Sub hat sich ja selbst gerade eingeschlossen und weiss davon.
  * Nur an `benachrichtigtAt` zu hängen, hätte für genau diese, häufigste Sperrzeit jede Meldung

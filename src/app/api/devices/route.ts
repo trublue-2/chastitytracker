@@ -60,15 +60,18 @@ export async function POST(req: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   const body = await req.json();
-  const { name, description, imageUrl, purchasePrice, currency, categoryId } = body;
+  const { name, description, imageUrl, purchasePrice, currency, categoryId, requireInspectionCode } = body;
 
   // Admin OR keyholder of the target may create devices for that user
   let userId = session.user.id;
+  // Handelt der Aufrufer als Keyholder/Admin? Für das eigene Gerät ist nur ein globaler Admin
+  // erhaben — dieselbe Staffelung wie in `entryManageAccess`, die die PATCH-Route benutzt.
+  let elevated = session.user.role === "admin";
   if (body.userId && body.userId !== session.user.id) {
-    if (!(await entryManageAccess(session.user.id, session.user.role, body.userId)).allowed) {
-      return errorResponse(403, "FORBIDDEN");
-    }
+    const access = await entryManageAccess(session.user.id, session.user.role, body.userId);
+    if (!access.allowed) return errorResponse(403, "FORBIDDEN");
     userId = body.userId;
+    elevated = access.elevated;
   }
 
   // Validation
@@ -93,6 +96,16 @@ export async function POST(req: NextRequest) {
   if (purchasePrice != null && !currency) {
     return errorResponse(400, "DEVICE_CURRENCY_REQUIRED");
   }
+  // Die Kontroll-Code-Pflicht ist KEIN Selbst-Feld — dieselbe Schranke wie beim Bearbeiten
+  // (siehe PATCH): sie abzuschalten schwächt eine Kontrolle. Fehlt sie im Body, greift der
+  // Schema-Default `true`; ein neues Gerät verlangt also einen Code, bis jemand ihn abschaltet.
+  if (requireInspectionCode !== undefined) {
+    if (typeof requireInspectionCode !== "boolean") {
+      return errorResponse(400, "DEVICE_INVALID_CODE_REQUIREMENT");
+    }
+    if (!elevated) return errorResponse(403, "FORBIDDEN");
+  }
+
   const category = await resolveOwnedCategory(categoryId, userId);
   if (!category.ok) return serviceFailure(category);
 
@@ -105,6 +118,7 @@ export async function POST(req: NextRequest) {
       purchasePrice: purchasePrice ?? null,
       currency: currency || null,
       categoryId: categoryId || null,
+      ...(requireInspectionCode !== undefined ? { requireInspectionCode } : {}),
     },
   });
 

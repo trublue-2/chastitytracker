@@ -1,15 +1,18 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { listEntries } from "@/lib/mcp/entries";
+import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -28,21 +31,37 @@ import { getActionLog } from "@/lib/mcp/actionlog";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+/** Ein Inhaltsblock einer Werkzeug-Antwort — der Typ des SDK, nicht eine Teilmenge daneben. Bis auf
+ *  ein Werkzeug liefern alle reinen Text; der Bild-Block trägt base64 statt einer URL, der Client
+ *  lädt also nichts nach. */
+type ToolContent = ContentBlock;
+
+type ToolResult = { content: ToolContent[]; isError?: boolean };
 
 /** Resolves MCP_USERNAME, runs the aggregator, and wraps the result as a tool response.
- *  Centralizes the misconfig check + error handling shared by all tools. */
-async function runTool<T>(label: string, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+ *  Centralizes the misconfig check + error handling shared by all tools.
+ *
+ *  `render` bestimmt, wie das Ergebnis zu Inhaltsblöcken wird. Alle Werkzeuge bis auf eines nehmen
+ *  die Vorgabe (JSON als Text); ein Ergebnis, das kein Text ist, würde sonst durch `JSON.stringify`
+ *  und wieder zurück laufen — bei einem base64-Bild verdoppelt das die Nutzlast ohne Gegenwert. */
+async function runToolWith<T>(
+  label: string,
+  fn: (username: string) => Promise<T>,
+  render: (data: T) => ToolContent[],
+): Promise<ToolResult> {
   const username = process.env.MCP_USERNAME;
   if (!username) {
     return { content: [{ type: "text", text: "Server misconfigured: MCP_USERNAME is not set." }], isError: true };
   }
   try {
-    const data = await fn(username);
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    return { content: render(await fn(username)) };
   } catch (e) {
     return { content: [{ type: "text", text: `${label} failed: ${(e as Error).message}` }], isError: true };
   }
+}
+
+async function runTool<T>(label: string, fn: (username: string) => Promise<T>): Promise<ToolResult> {
+  return runToolWith(label, fn, (data) => [{ type: "text", text: JSON.stringify(data, null, 2) }]);
 }
 
 /** Auth context the MCP SDK passes to tool callbacks. The OAuth branch of verifyToken stores the
@@ -251,7 +270,8 @@ function registerTools(server: McpServer) {
           "pending = the recognition is still running, ask again in a few minutes, do NOT read it as a result), " +
           "why the code verification did not match (verifikationFailure: reason + what was read — the only way " +
           "to tell an unreadable code from a wrong one when verifikationStatus is null), " +
-          "whether a photo exists (+ its EXIF capture time) and whether the time was back-/post-dated. " +
+          "whether a photo exists (+ its EXIF capture time), whether a key-box photo exists (hasBoxImage), " +
+          "the entry id (the address get_image takes) and whether the time was back-/post-dated. " +
           "Newest first. Use this for the narrative context that the aggregate tools (keyholder_dashboard, " +
           "get_session, get_offenses) leave out.",
         inputSchema: {
@@ -670,11 +690,16 @@ function registerTools(server: McpServer) {
         title: "Request inspection (Kontrolle)",
         description:
           "Requests a photo inspection: e-mails the user a code they must show in a photo within a " +
-          "deadline (default 4h). Only valid when the user is currently locked. Can be triggered " +
-          "time-delayed so the user does not know exactly when it strikes." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
+          "deadline (default 4h). Targets the chastity device by default (requires the user to be " +
+          "locked), or a wear category via `category` (requires a running wear session in it). One " +
+          "inspection per target may be open at a time — a KG and a plug inspection can run in " +
+          "parallel. Can be triggered time-delayed so the user does not know exactly when it strikes."
+          + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
-          deadlineHours: z.number().positive().optional().describe("Deadline in hours (default 4). Counts from when the inspection is triggered."),
+          deadlineHours: z.number().positive().optional().describe(`Deadline in hours (default ${INSPECTION_DEADLINE_DEFAULT_H}). Fractions allowed, e.g. 0.25 for 15 minutes. Counts from when the inspection is triggered.`),
           comment: z.string().optional().describe("Instruction shown to the user."),
+          category: z.string().optional().describe('Target category, e.g. "Plug". Omit or "KG" for the chastity device.'),
+          device: z.string().optional().describe("Target exactly this device (by name) instead of any device of the category. It must be the one currently locked/worn."),
           delayMinutes: z.coerce.number().optional().describe(
             `Delay before the code reaches the user. Omit for a random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} min delay; `
             + `0 = immediate; any other value is clamped to ${INSPECTION_DELAY_RANGE.min}–${INSPECTION_DELAY_RANGE.max} `
@@ -757,8 +782,8 @@ function registerTools(server: McpServer) {
           "cancel; an automatic one that has already triggered is withdrawn like any other." +
           KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
-          target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive"]).describe("Which open directive to withdraw."),
-          id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives). Only for lock_request/lock_period."),
+          target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive", "task"]).describe("Which open directive to withdraw. `task` always needs an id."),
+          id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives / openTasks). Only for lock_request/lock_period/task."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
@@ -952,6 +977,105 @@ function registerTools(server: McpServer) {
       (args, extra) => runWriteTool("edit_lock_request", extra, args, (u) => mcpEditLockRequest(u, args)),
     );
 
+    server.registerTool(
+      "create_task",
+      {
+        title: "Set a task",
+        description:
+          "Sets the user a task: free text plus any number of CONDITIONS that must hold CONTINUOUSLY " +
+          "until a point in time — wear a device (by category, optionally a specific one) and/or keep the " +
+          "chastity device locked. Example: \"vacuum the flat, wearing collar and gag, locked, until 15:00\" " +
+          "= requireKgLocked plus two requireWearing entries and holdUntilAt=15:00. Taking one of them off " +
+          "before the deadline makes the task unfulfilled (an offense of type unfulfilled_task). Without " +
+          "conditions it is a plain to-do that the user reports done. State is DERIVED from the user's own " +
+          "entries — nothing to confirm manually. A task may be flagged as a punishment. " +
+          "Additionally you may demand PHOTO PROOFS via requireProof: the user submits one photo per entry, " +
+          "and their CAPTURE times must ascend in the order you list them (capture time, not upload time — " +
+          "otherwise uploading everything at the end would pass). A proof with requireCode is checked " +
+          "automatically against a random code the user must write in the shot; every other proof, and any " +
+          "photo without a capture timestamp, puts the task into \"awaitingReview\" until YOU accept or " +
+          "reject it — it is then neither fulfilled nor missed. " +
+          "Pass offenseRef to make the task the PENALTY for a detected offense instead of a free-text one — " +
+          "judge_offense is then not needed, the judgment is written with the task." + KEYHOLDER_NOTE,
+        inputSchema: {
+          title: z.string().describe("Short title, e.g. \"Vacuum the flat\"."),
+          description: z.string().optional().describe("The full instruction shown to the user."),
+          holdUntilAt: z.string().optional().describe("Hold everything until this moment (ISO 8601, future)."),
+          holdHours: z.number().positive().optional().describe("Hold for this many hours from now. Ignored if holdUntilAt is given."),
+          requireKgLocked: z.boolean().optional().describe("The chastity device must stay locked for the whole time."),
+          requireWearing: z.array(z.object({
+            category: z.string().describe("Category name, e.g. \"Halsband\". Not \"KG\" — use requireKgLocked."),
+            device: z.string().optional().describe("Require this specific device of that category."),
+          })).optional().describe("Devices that must be worn continuously."),
+          requireProof: z.array(z.object({
+            description: z.string().describe("What must be visible, e.g. \"the closed lock\" or \"a photo with at least two receipts\"."),
+            requireCode: z.boolean().optional().describe("Demand a handwritten random code in the shot. Only these are decided automatically; without it the proof waits for your review."),
+          })).optional().describe("Photo proofs, in the order they must be TAKEN."),
+          startGraceMinutes: z.number().min(0).optional().describe("Minutes the user has to put everything on (default 30). Starting later counts as not held continuously."),
+          isPunishment: z.boolean().optional().describe("Mark the task as a punishment."),
+          penaltyReason: z.string().optional().describe("What the punishment is for. Only kept when isPunishment is true."),
+          offenseRef: z.string().optional().describe(
+            "The `ref` of a currently detected offense (from get_offenses). Makes this task the PENALTY for it: " +
+            "task and judgment are written together, the offense counts as PUNISHED with this task as the penalty, " +
+            "and a previous penalty task for the same offense is withdrawn. The penalty counts as served once the " +
+            "task is fulfilled; missing it leaves the penalty open AND becomes a new offense of its own.",
+          ),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("create_task", extra, args, (u) => mcpCreateTask(u, args)),
+    );
+
+    server.registerTool(
+      "review_task_proof",
+      {
+        title: "Review a submitted proof",
+        description:
+          "Judges ONE submitted proof photo of a task: accept or reject, optionally with a note the user " +
+          "sees. This is the ONLY way out of the state \"awaitingReview\" — a proof without a code (or one " +
+          "whose code the image check could not confirm) is neither fulfilled nor missed until you decide. " +
+          "Address the proof by task plus its POSITION (1-based), the way keyholder_dashboard lists it. " +
+          "Rejecting makes the task unfulfilled (offense unfulfilled_task); accepting the last open proof " +
+          "completes it. Either way the user is told, and if the task is thereby decided its result goes " +
+          "out to both sides at once. A judgment can be revised — say so if you change your mind." + KEYHOLDER_NOTE,
+        inputSchema: {
+          taskId: z.string().describe("The task, from keyholder_dashboard.openTasks[].id."),
+          index: z.number().int().positive().describe("Which proof, 1-based, in the order they were demanded."),
+          accepted: z.boolean().describe("true = the proof counts, false = it does not."),
+          note: z.string().optional().describe("Shown to the user next to the proof — say WHY, especially when rejecting."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("review_task_proof", extra, args, (u) => mcpReviewTaskProof(u, args)),
+    );
+
+    server.registerTool(
+      "edit_task",
+      {
+        title: "Change an open task",
+        description:
+          "Changes an existing task — title, instruction, deadline, punishment flag. Only fields you pass " +
+          "are changed. Moving the deadline takes effect immediately (state is derived, not frozen). The " +
+          "CONDITIONS and PROOFS themselves cannot be changed: withdraw the task and set a new one instead, " +
+          "otherwise the user would be judged against something he never got — a proof text or code changed " +
+          "after the fact would bind him to a demand he did not know when he took the photo." + KEYHOLDER_NOTE,
+        inputSchema: {
+          id: z.string().describe("Task id (from keyholder_dashboard.openTasks or get_offenses)."),
+          title: z.string().optional(),
+          description: z.string().optional().describe('New instruction; "" clears it.'),
+          holdUntilAt: z.string().optional().describe("New end (ISO 8601)."),
+          holdHours: z.number().positive().optional().describe("New end, in hours from now. Ignored if holdUntilAt is given."),
+          isPunishment: z.boolean().optional(),
+          penaltyReason: z.string().optional(),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("edit_task", extra, args, (u) => mcpEditTask(u, args)),
+    );
+
     // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──
     // ── Dry-Run + Transaktion + Diff). Alle agent-autonom (keine Berechtigungs-Stufen). ──
     const V2_WRITE_NOTE =
@@ -1132,11 +1256,78 @@ function registerTools(server: McpServer) {
     );
 }
 
+/**
+ * Das Bild-Werkzeug. Wird nur registriert, wenn der Sub-Schlüssel passt — das entscheidet der
+ * Aufrufer, siehe `buildAuthHandler`.
+ *
+ * Nicht registrieren statt registrieren-und-verweigern: ohne Schlüssel erscheint es nicht einmal in
+ * `tools/list`. Ein Werkzeug, das da ist und „nein" sagt, ist eine Ankündigung; eines, das nicht
+ * existiert, ist keine.
+ */
+function registerImageTool(server: McpServer) {
+  server.registerTool(
+    "get_image",
+    {
+      title: "Fetch one photo",
+      description:
+        "Returns ONE named photo so you can look at it yourself. On demand only — nothing is " +
+        "delivered automatically. Use it when you want to check something specific: how the device " +
+        "sits after a change, the skin under the ring, or to read the device recognition yourself " +
+        "when deviceCheck reports something uncertain. " +
+        "The sources: \"entry\" is the entry's own photo — device/seal for VERSCHLUSS, the control " +
+        "photo for PRUEFUNG; \"box\" is the shot through the key-box window; \"task_proof\" is a " +
+        "submitted task proof. Which field addresses which source is written on the fields " +
+        "themselves. Returns the image plus a caption naming the entry and the capture time. " +
+        `LIMITS — these are rules, not faults: only entries recorded within the last ${MCP_IMAGE_MAX_AGE_H}h have a ` +
+        `retrievable photo, and you may fetch ${MCP_IMAGE_PER_HOUR} per hour, ${MCP_IMAGE_PER_DAY} per day. list_entries still lists the ` +
+        "whole archive; most of it has no image you can reach. Pick the one you actually want to " +
+        "look at, and ask the user directly for anything older.",
+      inputSchema: {
+        source: z.enum(["entry", "box", "task_proof"]).describe("Which photo to fetch."),
+        entryId: z.string().optional().describe("Entry id from list_entries. Required for source entry/box."),
+        taskId: z.string().optional().describe("Task id from keyholder_dashboard.openTasks. Required for source task_proof."),
+        proofIndex: z.number().int().min(1).optional().describe("1-based proof position, same address as review_task_proof. Required for source task_proof."),
+      },
+    },
+    (args) => runToolWith(
+      "get_image",
+      async (username) => {
+        const img = await loadMcpImage(username, args);
+        // Wer welches Bild wann gesehen hat, gehört ins Instanz-Log — nicht als Kontrolle, sondern
+        // damit ein Abruf überhaupt eine Spur hinterlässt. Hier und nicht im Renderer: `render` ist
+        // als reine Abbildung dokumentiert, und dies ist sein erster Nutzer.
+        // Scope "MCP" wie `logMcpWrite`, damit ein grep alles vom MCP findet. `redactDigits`, weil
+        // die Bildunterschrift Freitext des Keyholders trägt (Aufgaben-Titel, Nachweis-Beschreibung)
+        // — genau der Ort, an dem versehentlich ein Kontroll-Code steht, und die Logs bleiben ein
+        // halbes Jahr liegen.
+        structuredLog("MCP", "image", { source: args.source, caption: redactDigits(img.caption) });
+        return img;
+      },
+      // Die Bildunterschrift steht VOR dem Bild: sie sagt, was gleich kommt, und bleibt lesbar,
+      // falls der Client den Bild-Block nicht darstellen kann.
+      (img) => [
+        { type: "text", text: img.caption },
+        { type: "image", data: img.base64, mimeType: img.mediaType },
+      ],
+    ),
+  );
+}
+
 /** Baut den auth-umhüllten MCP-Handler. Async, weil die Server-Instructions erst per await-Helfer
  *  (best-effort DB-Read der Keyholder-Regeln) befüllt werden. */
 async function buildAuthHandler(): Promise<(req: Request) => Promise<Response>> {
   const instructions = await buildServerInstructions();
-  const handler = createMcpHandler(registerTools, { instructions }, { basePath: "/api", maxDuration: 60 });
+  // Der Sub-Schlüssel braucht die Datenbank, die Werkzeug-Registrierung ist synchron — deshalb hier
+  // auflösen. Das Tor steht damit an genau einer Stelle, dort wo der Wert entsteht.
+  const imagesVisible = await mcpImageToolVisible();
+  const handler = createMcpHandler(
+    (server) => {
+      registerTools(server);
+      if (imagesVisible) registerImageTool(server);
+    },
+    { instructions },
+    { basePath: "/api", maxDuration: 60 },
+  );
   return withMcpAuth(handler, verifyToken, { required: true });
 }
 

@@ -28,13 +28,17 @@ interface Props {
   /** Verlangt das getragene Gerät einen Kontroll-Code? false → das Formular fragt keinen ab und
    *  schickt keinen (Gerät mit `requireInspectionCode: false`). Default true = Bestandsverhalten. */
   codeRequired?: boolean;
+  /** ZIEL der Kontrolle: das kontrollierte Gerät (Trage-Kontrolle). null = KG. */
+  targetDeviceId?: string | null;
+  /** Name des Ziels für die Anzeige — null beim KG. */
+  targetLabel?: string | null;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster. */
   boxConfirm?: boolean;
 }
 
-export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, targetDeviceId, targetLabel, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -60,6 +64,8 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       initialKommentar={initialKommentar}
       sealRequired={sealRequired}
       codeRequired={codeRequired}
+      targetDeviceId={targetDeviceId}
+      targetLabel={targetLabel}
       mobileDesktopMode={mobileDesktopMode}
       boxConfirm={boxConfirm}
       isEdit={!!initial}

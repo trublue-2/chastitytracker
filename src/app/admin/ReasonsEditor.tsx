@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import RemoveRowButton from "@/app/components/RemoveRowButton";
 import FormError from "@/app/components/FormError";
 import type { ReasonEntry } from "@/lib/reasonsService";
 
@@ -126,10 +127,12 @@ export default function ReasonsEditor({
                 <Trash2 size={16} />
               </span>
             ) : (
-              <button type="button" onClick={() => void commit(rowsRef.current.filter((_, j) => j !== i))} disabled={saving}
-                aria-label={t("reasonRemove")} className="p-1 text-foreground-faint hover:text-warn disabled:opacity-50 shrink-0">
-                <Trash2 size={16} />
-              </button>
+              <RemoveRowButton
+                onClick={() => void commit(rowsRef.current.filter((_, j) => j !== i))}
+                disabled={saving}
+                ariaLabel={t("reasonRemove")}
+                icon={<Trash2 size={16} />}
+              />
             )}
           </div>
         );

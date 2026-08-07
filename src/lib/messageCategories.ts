@@ -12,7 +12,7 @@ import type { BadgeVariant } from "@/app/components/Badge";
  * ziehen.
  */
 // Nur zur Typ-Ableitung — wer die Kategorien braucht, nimmt MESSAGE_CATEGORY_PILLS.
-const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "penalty", "system"] as const;
+const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "penalty", "task", "system"] as const;
 export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
 
 /**
@@ -22,6 +22,7 @@ export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
 const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   penaltyMessage: "penalty",
   penaltyMessageNoReason: "penalty",
+  penaltyTaskMessage: "penalty",
 
   inspectionRequestedMessage: "inspection",
   inspectionConfirmedMessage: "inspection",
@@ -31,10 +32,14 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   inspectionReminderMessageNoCode: "inspection",
   inspectionAutoRemovedMessageSub: "inspection",
   inspectionAutoRemovedMessageSubNoCode: "inspection",
+  inspectionAutoRemovedMessageSubWear: "inspection",
+  inspectionAutoRemovedMessageSubWearNoCode: "inspection",
   // Geht an die Keyholder, nicht in den Sub-Posteingang (notify.ts, `inbox: false`) — steht hier nur,
   // damit die Tabelle über alle Body-Keys vollständig ist.
   inspectionAutoRemovedMessageKeyholder: "inspection",
   inspectionAutoRemovedMessageKeyholderNoCode: "inspection",
+  inspectionAutoRemovedMessageKeyholderWear: "inspection",
+  inspectionAutoRemovedMessageKeyholderWearNoCode: "inspection",
 
   lockRequestBody: "lock",
   lockPeriodSetBody: "lock",
@@ -47,6 +52,20 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   orgasmAnweisungIntro: "orgasm",
   orgasmGelegenheitIntro: "orgasm",
   orgasmWithdrawnMessage: "orgasm",
+
+  taskAssignedMessage: "task",
+  taskChangedMessage: "task",
+  taskWithdrawnMessage: "task",
+  taskAwaitingMessage: "task",
+  taskDoneMessage: "task",
+  taskFailedMessage: "task",
+  // Wie bei den Kontroll-Keyholder-Meldungen: gehen an die Keyholder, nicht in den Sub-Posteingang
+  // (`inbox: false` in taskService.ts) — hier nur, damit die Tabelle vollständig bleibt.
+  taskDoneMessageKeyholder: "task",
+  taskFailedMessageKeyholder: "task",
+  taskReviewMessageKeyholder: "task",
+  taskProofAcceptedMessage: "task",
+  taskProofRejectedMessage: "task",
 };
 
 /**
@@ -82,5 +101,6 @@ export const MESSAGE_CATEGORY_PILLS: Record<MessageCategory, { labelKey: string;
   lock:       { labelKey: "catLock",       variant: "sperrzeit" },
   orgasm:     { labelKey: "catOrgasm",     variant: "orgasm" },
   penalty:    { labelKey: "catPenalty",    variant: "warn" },
+  task:       { labelKey: "catTask",       variant: "request" },
   system:     { labelKey: "catSystem",     variant: "neutral" },
 };

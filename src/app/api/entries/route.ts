@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { markLastAction } from "@/lib/appMeta";
 import { detectKeyInBox } from "@/lib/verifyCode";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrolleService";
-import { validateEntryPayload, TYPE_EMAIL_COLORS, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
-import { orgasmusValueAllowed, validOeffnenCodes, effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
+import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/inspectionTarget";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
@@ -17,11 +18,8 @@ import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
 import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
-import { sendPushToUser } from "@/lib/push";
-import { getControllersOfUser } from "@/lib/keyholder";
-import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/mail";
-import { formatDateTime, formatDuration } from "@/lib/utils";
-import { getTranslations } from "next-intl/server";
+import { notifyControllersAboutEntry } from "@/lib/entryNotify";
+import { applyEntryFulfilment, punishWrongDevice } from "@/lib/entryFulfilment";
 
 export async function GET() {
   const session = await requireApi();
@@ -89,10 +87,14 @@ export async function POST(req: NextRequest) {
   // In der Transaktion abgeleitet (braucht den Lock-Eintrag), NACH dem Commit für die eigentliche
   // Prüfung wiederverwendet — deshalb hier draussen. null = keine PRUEFUNG mit Foto.
   let verification: InspectionVerification | null = null;
+  // Das Gerät, das im Kontroll-Foto zu sehen sein sollte — beim KG das verschlossene, bei einer
+  // Trage-Kontrolle das gezeigte. Aus derselben Ziel-Auflösung wie `verification`, damit
+  // Code-Prüfung und Geräte-Check dasselbe Ziel meinen.
+  let inspectionExpectedDeviceId: string | null = null;
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Validate deviceId ownership inside transaction (VERSCHLUSS / WEAR_*)
-      if (deviceId && (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END")) {
+      if (deviceId && DEVICE_BEARING_TYPES.includes(type)) {
         const device = await validateDeviceOwnership(deviceId, session.user.id, tx);
         if (!device) throw entryGuardError("INVALID_DEVICE");
       }
@@ -123,16 +125,36 @@ export async function POST(req: NextRequest) {
         withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx, "user");
       }
 
+      // WELCHES ZIEL beantwortet diese Einreichung? Ohne Gerät der KG (Bestandsverhalten), mit
+      // einem Gerät einer Trage-Kategorie deren Kontrolle. Dieselbe Auflösung wie beim Anlegen der
+      // Anforderung — sonst könnte eine Kontrolle auf ein Ziel zeigen, das die Erfüllung anders liest.
+      const resolvedTarget = type === "PRUEFUNG" && imageUrl
+        ? await resolveInspectionTarget(session.user.id, { deviceId: deviceId || null }, tx)
+        : null;
+      if (resolvedTarget && !resolvedTarget.ok) throw entryGuardError("INVALID_DEVICE");
+      const inspectionTarget = resolvedTarget?.ok ? resolvedTarget.target : null;
+      // Das Gerät, an dem die Code-Pflicht hängt: bei einer Trage-Kontrolle das GEZEIGTE (es steht
+      // im Foto), beim KG das verschlossene (das Foto zeigt das Siegel, nicht zwingend das Gerät).
+      const submissionDeviceId = inspectionTarget && !isKgTarget(inspectionTarget)
+        ? inspectionTarget.deviceId
+        : inspectionTarget?.activeDeviceId ?? null;
+      // Der GERÄTE-CHECK bekommt das Gerät nur beim KG-Ziel. `gatherDeviceReferences` sammelt
+      // ausschliesslich Geräte der eingebauten Kategorie, und der Vision-Prompt fragt nach einem
+      // Keuschheitsgürtel — für ein Trage-Gerät fände `checkDeviceInPhoto` keine Referenz und
+      // meldete „nicht prüfbar" (error) an JEDER Trage-Kontrolle. Ohne Gerät läuft der Check gar
+      // nicht und die Zeile endet auf `null` = „nicht geprüft", was der Wahrheit entspricht.
+      // Trage-Ziele hier mitzuprüfen ist ein eigenes Stück Arbeit (Referenzen + Prompt je Kategorie).
+      inspectionExpectedDeviceId = inspectionTarget && isKgTarget(inspectionTarget)
+        ? inspectionTarget.activeDeviceId
+        : null;
       // Was an dieser Einreichung zu prüfen ist — EINE Ableitung für den Startwert unten, für die
-      // Prüfung nach dem Commit und für die Art der Erfüllung. Braucht den Lock-Eintrag (getragenes
-      // Gerät + aktives Siegel); für Nicht-PRUEFUNG gibt es nichts zu holen und nichts zu prüfen.
-      const lock = type === "PRUEFUNG" && imageUrl ? await getLatestKgEntry(session.user.id, tx) : null;
-      const lockedDeviceId = lock?.type === "VERSCHLUSS" ? lock.deviceId : null;
-      verification = lock
+      // Prüfung nach dem Commit und für die Art der Erfüllung. Die Siegel-Nummer kommt aus dem
+      // Lock-Eintrag, den nur das KG-Ziel mitbringt (`lockEntry`); eine Trage-Kontrolle hat keine.
+      verification = inspectionTarget
         ? plannedVerification({
             submittedCode: kontrollCode,
-            codeRequired: await inspectionCodeRequired(lockedDeviceId, tx),
-            sealCode: deriveSealCode(lock),
+            codeRequired: await inspectionCodeRequired(submissionDeviceId, tx),
+            sealCode: deriveSealCode(inspectionTarget.lockEntry),
           })
         : null;
       // "pending" nur, wenn danach wirklich eine Prüfung läuft, die es ersetzt (siehe unten);
@@ -157,7 +179,11 @@ export async function POST(req: NextRequest) {
           kontrollCode: kontrollCode || null,
           verifikationStatus: initialVerifikationStatus,
           deviceCheck: initialDeviceCheck,
-          deviceId: (type === "VERSCHLUSS" || type === "WEAR_BEGIN" || type === "WEAR_END") ? (deviceId || null) : null,
+          // PRUEFUNG trägt seit v5.0.1 ebenfalls ein Gerät: bei einer Trage-Kontrolle ist es das
+          // gezeigte und damit das einzige, woran später erkennbar ist, WAS kontrolliert wurde.
+          deviceId: DEVICE_BEARING_TYPES.includes(type)
+            ? (deviceId || null)
+            : null,
           // Bildersafe: versiegeltes Schlüsselbox-Code-Foto (nur VERSCHLUSS)
           codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,
           codeReadable: type === "VERSCHLUSS" && codeImageUrl ? (codeReadable ?? null) : null,
@@ -186,119 +212,20 @@ export async function POST(req: NextRequest) {
       // `orderBy deadline asc` + `take 1` statt updateMany: sollte der Überschneidungs-Schutz doch
       // einmal zwei Zeilen durchlassen (er ist ein Best-Effort-Read-then-Write, siehe
       // requestKontrolle), erfüllt ein Foto genau EINE — die dringendste — statt beide auf einmal.
-      if (type === "PRUEFUNG" && verification) {
-        const openWhere = {
-          userId: session.user.id, entryId: null, withdrawnAt: null,
-          ...aktiveKontrolleWhere(),
-        };
-        // Der Rundum-Weg trifft NUR Anforderungen, die selbst ohne Code entstanden sind (`code: null`).
-        // Ohne diese Schranke wäre der Toggle ein Umweg um eine bestehende Kontrolle: eine Anforderung
-        // MIT Code, gestellt während ein Code-Gerät getragen wurde, liesse sich erfüllen, indem der Sub
-        // aufschliesst, ein Gerät ohne Code-Pflicht anlegt und ein blankes Foto einreicht — der Code
-        // wäre nie getippt und nie geprüft worden. Ob ein Code verlangt wird, entscheidet das
-        // Gerät zur EINREICHUNG; welchen Nachweis eine Anforderung verlangt, steht in IHR.
-        const target =
-          verification.kind === "code"
-            ? await tx.kontrollAnforderung.findFirst({ where: { ...openWhere, code: verification.code }, select: { id: true } })
-            : verification.kind === "none" && verification.codeRequired
-              // Freiwillige Selbstkontrolle an einem Gerät MIT Code-Pflicht: erfüllt nichts.
-              ? null
-              : await tx.kontrollAnforderung.findFirst({
-                  where: { ...openWhere, code: null },
-                  orderBy: { deadline: "asc" },
-                  select: { id: true },
-                });
-        if (target) {
-          await tx.kontrollAnforderung.update({
-            where: { id: target.id },
-            data: { entryId: created.id, fulfilledAt: new Date() },
-          });
-        }
-      }
-
-      // VerschlussAnforderung (ANFORDERUNG) als erfüllt markieren + ggf. SPERRZEIT erstellen
-      if (type === "VERSCHLUSS") {
-        // ALLE offenen, bereits ausgelösten Anforderungen — mehrere dürfen koexistieren, und dieser
-        // eine Verschluss erfüllt sie alle: jede verlangte „sei verschlossen", und das ist er jetzt.
-        // Liesse man die übrigen offen, würden sie bei Fristablauf zu „zu spät verschlossen"-
-        // Vergehen im Strafbuch, obwohl der Sub genau das Verlangte getan hat.
-        // Geplante, noch nicht versendete bleiben aussen vor — sie dürfen nicht vorzeitig als
-        // erfüllt gelten (dringendste zuerst, siehe getOpenLockRequests).
-        // EIN Zeitstempel für den ganzen Vorgang: Auswahl, Erfüllt-Marke und der Anker der
-        // Sperrzeiten sind derselbe Verschluss — drei `new Date()` liessen sie um Millisekunden
-        // auseinanderlaufen und den Block nur mit echter Uhr testen.
-        const jetzt = new Date();
-        const offeneAnforderungen = await tx.verschlussAnforderung.findMany({
-          where: { ...openLockRequestWhere(session.user.id), ...activeVerschlussAnforderungWhere(jetzt) },
-          orderBy: LOCK_REQUEST_ORDER,
-        });
-        if (offeneAnforderungen.length > 0) {
-          await tx.verschlussAnforderung.updateMany({
-            where: { id: { in: offeneAnforderungen.map((a) => a.id) } },
-            data: { fulfilledAt: jetzt },
-          });
-          // Die GEFORDERTEN Geräte aller erfüllten Anforderungen einsammeln (Anforderungen OHNE
-          // Gerätevorgabe stellen keine und fallen weg). Mehrere können verschiedene Geräte verlangen;
-          // der Sub kann aber nur EINES tragen. Er gilt als korrekt, sobald sein Gerät irgendeine der
-          // GEFORDERTEN Vorgaben trifft — sonst würde er für einen Konflikt bestraft, den er gar nicht
-          // auflösen konnte (zwei Anforderungen, zwei verschiedene Pflicht-Geräte). Trifft er KEINE der
-          // geforderten, greift die Falsch-Gerät-Ahndung unten; eine geforderte Vorgabe wird also nicht
-          // dadurch entwertet, dass daneben eine geräte-freie Anforderung offen ist.
-          requiredAnforderungDeviceIds = offeneAnforderungen.map((a) => a.deviceId).filter((d): d is string => d !== null);
-        }
-        // SPERRZEIT-Ende je Anforderung: absolutes sperrEndetAt (Wanduhr) gewinnt und bleibt fix, egal
-        // wann tatsächlich verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
-        //
-        // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
-        // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
-        // handelt der Sub, und dass er sich zwischendurch selbst einschliesst, darf eine geplante
-        // Anweisung der Keyholderin nicht stillschweigend löschen — er kennt sie ja nicht einmal,
-        // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
-        // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
-        const neueSperrzeiten = offeneAnforderungen.flatMap((a) => {
-          const sperrEnde = sperrzeitEndeFromRequest(a, jetzt); // Anker: der Verschluss des Subs
-          return sperrEnde
-            ? [{
-                userId: session.user.id,
-                art: "SPERRZEIT",
-                nachricht: a.nachricht,
-                endetAt: sperrEnde,
-                reinigungErlaubt: a.reinigungErlaubt,
-              }]
-            : [];
-        });
-        // Ein Insert statt einer je Anforderung — der POST-Pfad des Subs ist heiss genug, dass sich
-        // N Round-Trips innerhalb der Transaktion nicht lohnen.
-        if (neueSperrzeiten.length > 0) {
-          await tx.verschlussAnforderung.createMany({ data: neueSperrzeiten });
-        }
-      }
-
-      // OrgasmusAnforderung als erfüllt markieren, wenn ein passender Orgasmus im Fenster erfasst wird.
-      // Matching auf vorgegebene Art (Basis), wenn gesetzt; sonst zählt jeder Orgasmus.
-      if (type === "ORGASMUS") {
-        const entryTime = new Date(startTime);
-        const offeneAnforderung = await tx.orgasmusAnforderung.findFirst({
-          where: {
-            userId: session.user.id,
-            fulfilledAt: null,
-            withdrawnAt: null,
-            beginntAt: { lte: entryTime },
-            endetAt: { gte: entryTime },
-          },
-          orderBy: { createdAt: "desc" },
-        });
-        if (
-          offeneAnforderung &&
-          (!offeneAnforderung.vorgegebeneArt ||
-            offeneAnforderung.vorgegebeneArt === parseOrgasmusArtBase(orgasmusArt))
-        ) {
-          await tx.orgasmusAnforderung.update({
-            where: { id: offeneAnforderung.id },
-            data: { fulfilledAt: new Date(), entryId: created.id },
-          });
-        }
-      }
+      // Was dieser Eintrag abhakt (Kontrolle, Verschluss-Anforderungen samt Sperrzeiten,
+      // Orgasmus-Anforderung) — dieselbe Logik wie auf dem Keyholder-Pfad, siehe
+      // entryFulfilment.ts. `at = new Date()`: die SERVER-Uhr, nie die frei wählbare Eintrags-Zeit
+      // (sonst datierte sich jeder Sub aus jeder Frist heraus). Die Ziel-Schranke reist mit, damit
+      // ein Plug-Foto keine KG-Kontrolle abhakt.
+      requiredAnforderungDeviceIds = await applyEntryFulfilment(
+        tx,
+        created,
+        {
+          verification,
+          targetWhere: inspectionTarget ? inspectionTargetWhere(inspectionTarget, submissionDeviceId) : null,
+        },
+        new Date(),
+      );
 
       // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
       // sie ihm NICHT folgt — steht in `boxCommandForEntry`. No-op ohne Heimdall/Box.
@@ -325,22 +252,8 @@ export async function POST(req: NextRequest) {
   // Auto-create StrafeRecord when user picked a different device than the Anforderung specified.
   // Automatische Ahndung ohne Urteilsschritt → sofort erledigt (judgedBy=system), damit sie
   // nicht als offene Strafe im Urteilsloop hängt.
-  if (type === "VERSCHLUSS" && requiredAnforderungDeviceIds.length > 0 && !requiredAnforderungDeviceIds.includes(deviceId || "")) {
-    try {
-      const now = new Date();
-      await prisma.strafeRecord.create({
-        data: {
-          userId: session.user.id,
-          offenseType: "FALSCHES_GERAET",
-          refId: entry.id,
-          bestraftDatum: now,
-          notiz: null,
-          judgedBy: "system",
-          erledigtAt: now,
-        },
-      });
-    } catch { /* ignore if duplicate — e.g. offline replay */ }
-  }
+  // Anderes als das geforderte Gerät → automatische Ahndung (siehe punishWrongDevice).
+  await punishWrongDevice(entry, requiredAnforderungDeviceIds);
 
   markLastAction();
 
@@ -353,166 +266,40 @@ export async function POST(req: NextRequest) {
       console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));
   }
 
-  // Der Geräte-Check braucht den letzten Lock-Entry (welches Gerät ist verschlossen?). Die
-  // Foto-Verifikation braucht ihn NICHT mehr: was sie zu prüfen hat, steht in `verification`, und das
-  // wurde in der Transaktion aus demselben Eintrag abgeleitet — dort, wo es konsistent ist.
-  const latestLockPromise =
-    type === "PRUEFUNG" && imageUrl ? getLatestKgEntry(session.user.id) : null;
-
-  // Kontroll-Geräte-Check (advisory): ist das aktuell verschlossene Gerät im Kontroll-Foto sichtbar?
-  // Server-seitig + fire-and-forget (blockiert die Antwort NICHT); Ergebnis landet als entry.deviceCheck,
-  // das der Keyholder sieht. Der Vorgang (inkl. der Pflicht, das oben gesetzte "pending" IMMER durch
-  // einen Endzustand zu ersetzen) liegt in deviceCheckService — hier steht nur der Start.
+  // Kontroll-Geräte-Check (advisory): ist das erwartete Gerät im Kontroll-Foto sichtbar? Welches das
+  // ist, steht schon fest — die Ziel-Auflösung in der Transaktion hat es bestimmt, dieselbe Quelle
+  // wie für die Code-Prüfung. Server-seitig + fire-and-forget (blockiert die Antwort NICHT);
+  // Ergebnis landet als entry.deviceCheck, das der Keyholder sieht. Der Vorgang (inkl. der Pflicht,
+  // das oben gesetzte "pending" IMMER durch einen Endzustand zu ersetzen) liegt in
+  // deviceCheckService — hier steht nur der Start.
   if (deviceCheckApplies(type, imageUrl)) {
     void runDeviceCheck({
       entryId: entry.id,
       userId: session.user.id,
       photoUrl: imageUrl!,
-      lockEntry: latestLockPromise ?? Promise.resolve(null),
+      expectedDeviceId: inspectionExpectedDeviceId,
     });
   }
 
-  // Notify admins based on per-user NotificationPreference (fire-and-forget)
-  (async () => {
-    try {
-      const eventTypes: string[] = [];
-      if (type === "VERSCHLUSS") eventTypes.push("VERSCHLUSS");
-      if (type === "OEFFNEN") {
-        eventTypes.push("OEFFNUNG_IMMER");
-        if (withdrawnSperrzeit) eventTypes.push("OEFFNUNG_VERBOTEN");
-      }
-      if (type === "ORGASMUS") eventTypes.push("ORGASMUS");
-      if (type === "PRUEFUNG" && kontrollCode) eventTypes.push("KONTROLLE_ANGEFORDERT");
-      if (type === "PRUEFUNG" && !kontrollCode) eventTypes.push("KONTROLLE_FREIWILLIG");
-      if (type === "WEAR_BEGIN") eventTypes.push("WEAR_BEGIN_ANY");
-      if (type === "WEAR_END") eventTypes.push("WEAR_END_ANY");
-
-      if (eventTypes.length === 0) return;
-
-      const prefs = await prisma.notificationPreference.findMany({
-        where: { userId: session.user.id, eventType: { in: eventTypes }, OR: [{ mail: true }, { push: true }] },
-      });
-      if (prefs.length === 0) return;
-
-      const shouldPush = prefs.some((p) => p.push);
-      const shouldMail = prefs.some((p) => p.mail);
-
-      // Build descriptive message
-      const username = session.user.name ?? "User";
-      const time = formatDateTime(new Date(startTime));
-      const [tOpen, tOrgasm] = await Promise.all([
-        getTranslations({ locale: "de", namespace: "openForm" }),
-        getTranslations({ locale: "de", namespace: "orgasmForm" }),
-      ]);
-      let title = "";
-      let pushBody = "";
-
-      // Labels über die Reason-Config des Entry-Owners (= handelnder User) auflösen — Custom-Labels
-      // erscheinen so auch in Push/Mail, mit Built-in-i18n/Rohwert als Fallback.
-      const openingCfg = effectiveOeffnenGruende(reasonUser?.oeffnenGruendeConfig);
-      const orgasmCfg = effectiveOrgasmusArten(reasonUser?.orgasmusArtenConfig);
-      const grundLabel = (g: string) => resolveReasonLabel(g, openingCfg, "opening", tOpen);
-      const orgasmusArtLabel = (a: string) => resolveOrgasmusArtDisplay(a, orgasmCfg, tOrgasm) ?? a;
-
-      if (type === "VERSCHLUSS") {
-        title = `${username} hat sich eingeschlossen`;
-        pushBody = time;
-      } else if (type === "OEFFNEN") {
-        title = `${username} hat sich geöffnet`;
-        pushBody = oeffnenGrund ? `${time} · Grund: ${grundLabel(oeffnenGrund)}` : time;
-      } else if (type === "ORGASMUS") {
-        title = `${username} — Orgasmus`;
-        pushBody = orgasmusArt ? `${time} · ${orgasmusArtLabel(orgasmusArt)}` : time;
-      } else if (type === "PRUEFUNG") {
-        title = kontrollCode ? `${username} hat Kontrolle erfüllt` : `${username} — Selbstkontrolle`;
-        pushBody = kontrollCode ? `${time} · Code: ${kontrollCode}` : time;
-      } else if (type === "WEAR_BEGIN" || type === "WEAR_END") {
-        // Resolve category name for the notification body via the device.
-        const dev = deviceId
-          ? await prisma.device.findUnique({
-              where: { id: deviceId },
-              select: { name: true, category: { select: { name: true } } },
-            })
-          : null;
-        const catName = dev?.category?.name ?? "?";
-        const verb = type === "WEAR_BEGIN" ? "trägt" : "hat abgelegt";
-        title = `${username} ${verb} ${catName}`;
-        pushBody = dev?.name ? `${time} · ${dev.name}` : time;
-      }
-
-      const adminUrl = `/admin/users/${session.user.id}`;
-      const adminLink = `${appBaseUrl()}${adminUrl}`;
-
-      // Recipients = global admins + the sub's keyholders (controllers via AdminUserRelationship).
-      // Keyholders are role "user", so a role:"admin" query alone would miss them.
-      const recipients = await getControllersOfUser(session.user.id);
-
-      if (shouldPush) {
-        await Promise.allSettled(
-          recipients.map((a) => sendPushToUser(a.id, title, pushBody, adminUrl))
-        );
-      }
-      if (shouldMail) {
-        const details: string[] = [];
-        details.push(`<strong>Zeitpunkt:</strong> ${escHtml(time)}`);
-
-        if (type === "OEFFNEN" && oeffnenGrund) {
-          details.push(`<strong>Grund:</strong> ${escHtml(grundLabel(oeffnenGrund))}`);
-        }
-        if (type === "ORGASMUS" && orgasmusArt) {
-          details.push(`<strong>Art:</strong> ${escHtml(orgasmusArtLabel(orgasmusArt))}`);
-        }
-        if (kontrollCode) {
-          details.push(`<strong>Siegel / Code:</strong> <span style="font-family:monospace;font-weight:bold;color:#f97316">${escHtml(kontrollCode)}</span>`);
-        }
-        if (type === "OEFFNEN" && lockStartTime) {
-          const dur = formatDuration(lockStartTime, new Date(startTime));
-          details.push(`<strong>Tragedauer:</strong> ${escHtml(dur)}`);
-        }
-
-        details.push(`<strong>Foto:</strong> ${imageUrl ? "Ja ✓" : "Nein"}`);
-
-        // Schlüssel-Deklaration im Klartext, „nicht in der Box" in Rot: das ist die eine Angabe,
-        // die entscheidet, ob der Verschluss überhaupt hardware-gesichert ist. Bewusst die
-        // DEKLARATION, nicht das KI-Urteil — die Mail geht sofort raus, die Erkennung läuft erst.
-        if (type === "VERSCHLUSS" && keyInBoxDeclared !== null) {
-          details.push(
-            keyInBoxDeclared
-              ? `<strong>Schlüssel:</strong> in der Box`
-              : `<strong>Schlüssel:</strong> <span style="color:#dc2626;font-weight:bold">NICHT in der Box</span>`,
-          );
-        }
-
-        if (note) {
-          details.push(`<strong>Notiz:</strong> <em>${escHtml(note)}</em>`);
-        }
-
-        const accent = TYPE_EMAIL_COLORS[type] ?? "#1e293b";
-
-        const emailHtml = `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <div style="border-left:4px solid ${accent};padding-left:16px;margin-bottom:16px">
-            <h2 style="color:#1e293b;margin:0 0 4px 0">${escHtml(title)}</h2>
-          </div>
-          <table style="width:100%;border-collapse:collapse;font-size:14px;color:#334155">
-            ${details.map((d) => `<tr><td style="padding:6px 0;border-bottom:1px solid #f1f5f9">${d}</td></tr>`).join("")}
-          </table>
-          <p style="margin-top:20px">
-            <a href="${escHtml(adminLink)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:bold;font-size:14px">
-              Im Admin-Dashboard ansehen →
-            </a>
-          </p>
-          <p style="color:#94a3b8;font-size:12px;margin-top:12px">Falls der Link nicht funktioniert: ${escHtml(adminLink)}</p>
-        </div>`;
-
-        for (const r of recipients) {
-          if (r.email) {
-            void sendMailSafe(r.email, `KG-Tracker – ${title}`, emailHtml);
-          }
-        }
-      }
-    } catch { /* ignore notification errors */ }
-  })();
+  // Meldung an die Keyholder — in DEREN Sprache, nicht in der des Servers (Issue #43). Der ganze
+  // Aufbau liegt in `entryNotify.ts`: er hängt am Empfänger, nicht am Schreibpfad, und wirft nie.
+  void notifyControllersAboutEntry({
+    actorUserId: session.user.id,
+    userId: session.user.id,
+    username: session.user.name ?? "User",
+    type,
+    startTime: new Date(startTime),
+    withdrawnSperrzeit,
+    oeffnenGrund,
+    orgasmusArt,
+    kontrollCode,
+    note,
+    imageUrl,
+    keyInBoxDeclared,
+    lockStartTime,
+    deviceId,
+    reasonConfig: reasonUser,
+  });
 
   // Foto-Verifikation (Code bzw. nur Siegel) — der Vorgang inkl. der Pflicht, das oben gesetzte
   // "pending" durch einen Endzustand zu ersetzen, liegt in inspectionVerificationService. Hier steht

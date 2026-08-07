@@ -24,20 +24,24 @@ interface Props {
   onSaved: () => void;
   device: DeviceRow | null;
   categories?: CategoryOption[];
+  /** Vorwahl beim Anlegen (Link aus dem Dashboard-Hinweis „Kategorie hat noch kein Gerät").
+   *  Beim Bearbeiten gewinnt die Kategorie des Geräts. */
+  initialCategoryId?: string;
   /** Set when admin creates device for another user */
   userId?: string;
   /** Darf der Betrachter die Kontroll-Code-Pflicht umstellen? Nur Keyholder/Admin. */
   canEditInspectionCode?: boolean;
 }
 
-export default function DeviceForm({ onClose, onSaved, device, categories, userId, canEditInspectionCode = false }: Props) {
+export default function DeviceForm({ onClose, onSaved, device, categories, initialCategoryId, userId, canEditInspectionCode = false }: Props) {
   const t = useTranslations("devices");
   const tCommon = useTranslations("common");
   const apiError = useApiError();
   const toast = useToast();
 
-  // Pick a sensible default category: edit→existing, create→KG built-in.
+  // Pick a sensible default category: edit→existing, create→vorgewählt (Link), sonst KG built-in.
   const defaultCategoryId = device?.categoryId
+    ?? initialCategoryId
     ?? categories?.find((c) => c.isBuiltIn)?.id
     ?? categories?.[0]?.id
     ?? "";
@@ -52,9 +56,6 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
   const [categoryId, setCategoryId] = useState<string>(defaultCategoryId);
   // Default true = Bestandsverhalten; ein neues Gerät verlangt einen Code, bis jemand ihn abschaltet.
   const [requireCode, setRequireCode] = useState(device?.requireInspectionCode ?? true);
-  // Kontrollen gibt es nur in der eingebauten KG-Kategorie — `isBuiltIn` IST deren Kennung (der Name
-  // ist frei umbenennbar, siehe loadCategoryNames).
-  const isBuiltInCategory = (categories ?? []).some((c) => c.id === categoryId && c.isBuiltIn);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -102,7 +103,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
       currency: parsedPrice !== null ? currency : null,
       categoryId: categoryId || null,
     };
-    if (canEditInspectionCode && isBuiltInCategory) payload.requireInspectionCode = requireCode;
+    if (canEditInspectionCode) payload.requireInspectionCode = requireCode;
     if (userId) payload.userId = userId;
 
     try {
@@ -158,18 +159,16 @@ export default function DeviceForm({ onClose, onSaved, device, categories, userI
             />
           )}
 
-          {/* Kontroll-Code-Pflicht: nur bei der eingebauten Kategorie (KG) — die Trage-Kategorien
-              kennen keine Kontrollen, dort hätte der Schalter nichts zu schalten. Sichtbar auch für
-              den Sub, bedienbar nur für Keyholder/Admin (die PATCH-Route weist es ebenfalls ab). */}
-          {isBuiltInCategory && (
-            <Toggle
-              label={t("requireInspectionCodeLabel")}
-              description={canEditInspectionCode ? t("requireInspectionCodeDesc") : t("requireInspectionCodeLocked")}
-              checked={requireCode}
-              disabled={!canEditInspectionCode}
-              onChange={setRequireCode}
-            />
-          )}
+          {/* Kontroll-Code-Pflicht: für JEDES Gerät, seit Kontrollen auch auf Trage-Kategorien
+              zielen können (v5.0.1). Sichtbar auch für den Sub, bedienbar nur für Keyholder/Admin
+              (die PATCH-Route weist es ebenfalls ab). */}
+          <Toggle
+            label={t("requireInspectionCodeLabel")}
+            description={canEditInspectionCode ? t("requireInspectionCodeDesc") : t("requireInspectionCodeLocked")}
+            checked={requireCode}
+            disabled={!canEditInspectionCode}
+            onChange={setRequireCode}
+          />
 
           <Textarea
             label={t("description")}

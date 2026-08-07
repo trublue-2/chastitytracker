@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { notifyUser } from "@/lib/notify";
-import { strafeVerhaengtNotice, STORED_TYPE, entryIdFromCleaningNotRelockedRef, judgmentStatus, checkPenaltyText } from "@/lib/strafurteilService";
+import { strafeVerhaengtNotice, STORED_TYPE, entryIdFromCleaningNotRelockedRef, judgmentStatus, checkPenaltyText, judgeOffense } from "@/lib/strafurteilService";
 import { markLastAction } from "@/lib/appMeta";
 
 const VALID_OFFENSE_TYPES = new Set(Object.values(STORED_TYPE));
@@ -41,6 +41,9 @@ export async function POST(req: Request) {
   } else if (offenseType === "ORGASMUS_ANWEISUNG") {
     const oa = await prisma.orgasmusAnforderung.findUnique({ where: { id: refId } });
     if (!oa || oa.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } else if (offenseType === "AUFGABE") {
+    const task = await prisma.task.findUnique({ where: { id: refId } });
+    if (!task || task.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   } else if (offenseType === "ADMIN_PASSWORT") {
     // refId ist eine AdminPasswordChange.id; der Sub steht dort als `subUserId` (das Vergehen
     // gehört ihm, nicht dem Admin-Konto, dessen Passwort geändert wurde).
@@ -92,7 +95,12 @@ export async function DELETE(req: Request) {
   const err = await requireKeyholderOrAdminApi(record.userId);
   if (err) return err;
 
-  await prisma.strafeRecord.delete({ where: { refId } });
+  // Über `judgeOffense` statt mit einem eigenen `delete`: die Rücknahme zieht auch die Strafaufgabe
+  // zurück, die am Urteil hängt. Von Hand gelöscht bliebe sie beim Sub stehen — die App forderte
+  // weiter eine Strafe ein, die es nicht mehr gibt, und ihr Verstreichen wäre später ein neues
+  // Vergehen. Genau diese Regel galt bisher nur auf dem MCP-Weg, während der Knopf hier daran vorbeilief.
+  const result = await judgeOffense({ userId: record.userId, refId, action: "reopen", judgedBy: "admin" });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true });
 }
 

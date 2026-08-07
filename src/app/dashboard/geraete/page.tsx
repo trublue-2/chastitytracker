@@ -3,10 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import DevicesClient from "./DevicesClient";
+import { CATEGORY_QUERY_KEY } from "@/lib/categoryConstants";
 
-export default async function DevicesPage() {
+export default async function DevicesPage({
+  searchParams,
+}: {
+  /** `category=<id>` öffnet das Anlege-Formular mit dieser Kategorie — der zweite Schritt nach dem
+   *  Anlegen einer Kategorie (Issue #49). */
+  searchParams: Promise<{ category?: string }>;
+}) {
   const session = await auth();
   if (!session) redirect("/login");
+  const requestedCategoryId = (await searchParams)[CATEGORY_QUERY_KEY];
 
   const [devices, categories] = await Promise.all([
     prisma.device.findMany({
@@ -50,6 +58,10 @@ export default async function DevicesPage() {
           requireInspectionCode: d.requireInspectionCode,
         }))}
         categories={categories}
+        // Nur eine EIGENE Kategorie wird vorgewählt: eine fremde oder erfundene id landete sonst als
+        // Vorwahl im Formular, für die es keine Auswahlzeile gibt — und bei nur einer Kategorie ist
+        // die Auswahl ausgeblendet, das Formular also ohne URL-Bearbeitung nicht mehr zu retten.
+        initialCategoryId={categories.some((c) => c.id === requestedCategoryId) ? requestedCategoryId : undefined}
         showCategoriesLink={deviceCategoriesEnabled()}
         canEditInspectionCode={session.user.role === "admin"}
       />

@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertCircle, Lock, LockOpen } from "lucide-react";
+import { Lock, LockOpen } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
+import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
+import type { TaskWarning } from "@/lib/taskIntervals";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -15,7 +17,7 @@ import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import EntryFormShell from "@/app/components/EntryFormShell";
 import Card from "@/app/components/Card";
-import Sheet from "@/app/components/Sheet";
+import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
 import type { BoxHold } from "@/lib/boxOpenOutlook";
 
@@ -41,11 +43,14 @@ interface Props {
   submitVariant?: "semantic" | "primary";
   submitLabel?: string;
   defaultGrund?: OeffnenGrund;
+  /** Laufende Aufgaben, die den KG noch verschlossen verlangen. Öffnen bricht sie ab. */
+  taskWarnings?: TaskWarning[];
 }
 
 export default function OeffnenFormCore({
   initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
+  taskWarnings = [],
 }: Props) {
   const t = useTranslations("openForm");
   const tCommon = useTranslations("common");
@@ -108,12 +113,17 @@ export default function OeffnenFormCore({
     await submit(payload);
   }
 
+  const taskGate = useTaskHoldGate({ warnings: taskWarnings, tz, onConfirm: () => { void doSave(); } });
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!grund) { setError(t("grundRequired")); return; }
     if (!note.trim()) { setError(t("commentRequired")); return; }
     if (isReinigungLimitReached) { setShowReinigungLimitWarning(true); return; }
     if (isGesperrtBlockiert) { setShowWarning(true); return; }
+    // Zuletzt die Aufgaben-Rückfrage: die anderen Warnungen betreffen das Öffnen selbst, diese die
+    // Folge für eine laufende Aufgabe.
+    if (taskGate.armed()) return;
     await doSave();
   }
 
@@ -135,67 +145,49 @@ export default function OeffnenFormCore({
 
   return (
     <>
-      <Sheet open={showReinigungLimitWarning} onClose={() => setShowReinigungLimitWarning(false)} title="">
-        <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
-            <div className="flex flex-col gap-1.5">
-              <p className="font-bold text-foreground text-base leading-snug">{t("reinigungLimitTitle")}</p>
-              <p className="text-sm text-foreground-muted">
-                {t("reinigungLimitSubtext", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button variant="primary" fullWidth onClick={() => setShowReinigungLimitWarning(false)}>
-              {t("reinigungLimitStay")}
-            </Button>
-            <Button variant="secondary" fullWidth loading={saving} onClick={handleReinigungLimitConfirm}>
-              {t("reinigungLimitOpenAnyway")}
-            </Button>
-          </div>
-        </div>
-      </Sheet>
+      <RiskConfirmSheet
+        open={showReinigungLimitWarning}
+        onClose={() => setShowReinigungLimitWarning(false)}
+        title={t("reinigungLimitTitle")}
+        stayLabel={t("reinigungLimitStay")}
+        proceedLabel={t("reinigungLimitOpenAnyway")}
+        onProceed={handleReinigungLimitConfirm}
+        proceeding={saving}
+      >
+        <p className="text-sm text-foreground-muted">
+          {t("reinigungLimitSubtext", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
+        </p>
+      </RiskConfirmSheet>
 
-      <Sheet open={showWarning} onClose={() => setShowWarning(false)} title="">
-        <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
-            <div className="flex flex-col gap-1.5">
-              <p className="font-bold text-foreground text-base leading-snug">
-                {grund === "REINIGUNG" ? t("modalTitleReinigung") : t("modalTitle")}
-              </p>
-              <p className="text-sm text-foreground-muted">
-                {grund !== "REINIGUNG" ? t("modalSubtext") : reinigungHintText}
-              </p>
-              {/* Der Eintrag dokumentiert die Öffnung — er vollzieht sie nicht. Bei einem VERBOTENEN
-                  Öffnen sendet der Server bewusst kein Box-Kommando (sonst vollstreckte das
-                  Dokumentieren des Verstosses den Verstoss). Ohne diesen Satz liest der Sub
-                  „Konsequenzen" und denkt ans Strafbuch, nicht an den Notschlüssel. */}
-              {hasBox && (
-                <p className="text-sm font-semibold text-warn mt-1">{t("modalBoxStaysLocked")}</p>
-              )}
-              <p className="text-xs text-sperrzeit font-semibold mt-1">
-                {sperrzeitUnbefristet
-                  ? t("modalLockedIndefinite")
-                  : sperrzeitEndetAt
-                    ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })
-                    : null}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button variant="primary" fullWidth onClick={() => setShowWarning(false)}>
-              {t("modalStay")}
-            </Button>
-            <Button variant="secondary" fullWidth loading={saving} onClick={() => { setShowWarning(false); doSave(forcedReinigung); }}>
-              {/* Mit Box trägt der Knopf nur ein — er öffnet nichts. Ohne Box ist der Eintrag die
-                  ganze Wahrheit, dort bleibt „Trotzdem öffnen" richtig. */}
-              {t(hasBox ? "modalRecordAnyway" : "modalOpenAnyway")}
-            </Button>
-          </div>
-        </div>
-      </Sheet>
+      <RiskConfirmSheet
+        open={showWarning}
+        onClose={() => setShowWarning(false)}
+        title={grund === "REINIGUNG" ? t("modalTitleReinigung") : t("modalTitle")}
+        stayLabel={t("modalStay")}
+        // Mit Box trägt der Knopf nur ein — er öffnet nichts. Ohne Box ist der Eintrag die ganze
+        // Wahrheit, dort bleibt „Trotzdem öffnen" richtig.
+        proceedLabel={t(hasBox ? "modalRecordAnyway" : "modalOpenAnyway")}
+        onProceed={() => { setShowWarning(false); doSave(forcedReinigung); }}
+        proceeding={saving}
+      >
+        <p className="text-sm text-foreground-muted">
+          {grund !== "REINIGUNG" ? t("modalSubtext") : reinigungHintText}
+        </p>
+        {/* Der Eintrag dokumentiert die Öffnung — er vollzieht sie nicht. Bei einem VERBOTENEN
+            Öffnen sendet der Server bewusst kein Box-Kommando (sonst vollstreckte das
+            Dokumentieren des Verstosses den Verstoss). Ohne diesen Satz liest der Sub
+            „Konsequenzen" und denkt ans Strafbuch, nicht an den Notschlüssel. */}
+        {hasBox && (
+          <p className="text-sm font-semibold text-warn mt-1">{t("modalBoxStaysLocked")}</p>
+        )}
+        <p className="text-xs text-sperrzeit font-semibold mt-1">
+          {sperrzeitUnbefristet
+            ? t("modalLockedIndefinite")
+            : sperrzeitEndetAt
+              ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })
+              : null}
+        </p>
+      </RiskConfirmSheet>
 
       <EntryFormShell
         onSubmit={handleSubmit}
@@ -215,6 +207,9 @@ export default function OeffnenFormCore({
         }
       >
         <RequiredHint />
+
+        {taskGate.warningCard}
+        {taskGate.modal}
 
         {isGesperrtBlockiert && (
           <Card variant="semantic" semantic="sperrzeit">

@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getActiveWearSessionForCategory } from "@/lib/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { getTasksBlocking } from "@/lib/taskIntervals";
 import WearForm from "../../WearForm";
 
 export default async function NewWearEndPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
@@ -29,6 +30,11 @@ export default async function NewWearEndPage({ searchParams }: { searchParams: P
 
   const tn = await getTranslations("newEntry");
   const t = await getTranslations("wearForm");
+  // Warnung VOR dem Ablegen: ohne sie wären es zwei Taps von „Aufgabe läuft" zu „Vergehen".
+  const taskWarnings = await getTasksBlocking(session.user.id, new Date(), {
+    categoryId,
+    deviceId: active.deviceId,
+  });
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-6">
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
@@ -41,6 +47,7 @@ export default async function NewWearEndPage({ searchParams }: { searchParams: P
           deviceName: active.deviceName,
           since: active.since.toISOString(),
         }}
+        taskWarnings={taskWarnings}
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
       />

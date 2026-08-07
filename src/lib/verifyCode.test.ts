@@ -30,6 +30,26 @@ describe("evaluateVerifyResponse — Einzel-Prüfung (kein Siegel)", () => {
     expect(r.match).toBe(true);
   });
 
+  // Die real gemeldeten Fehl-Lesungen (08/2026): die Erkennung liest eine Sieben bzw. eine Drei
+  // als Zwei, obwohl der Code auf dem Foto klar lesbar ist → war codeWrong, ist jetzt ein Treffer.
+  it.each([
+    ["7 als 2 gelesen", "91578", "91528"],
+    ["3 als 2 gelesen", "83375", "83275"],
+    ["2 als 7 gelesen (Gegenrichtung)", "91528", "91578"],
+    ["2 als 3 gelesen (Gegenrichtung)", "83275", "83375"],
+  ])("Fuzzy-Toleranz 2↔7 / 2↔3: %s", (_name, expected, detected) => {
+    const r = evaluateVerifyResponse({ detected, match: false }, expected, null);
+    expect(r.match).toBe(true);
+  });
+
+  // 3 und 7 sind BEIDE mit 2 verwechselbar, untereinander aber nicht — die Toleranz darf sich
+  // nicht über die gemeinsame 2 fortpflanzen (sonst wäre 3↔7 mittelbar mit-toleriert).
+  it("Toleranz ist nicht transitiv — 3↔7 bleibt ein Mismatch", () => {
+    const r = evaluateVerifyResponse({ detected: "12745", match: false }, CODE, null);
+    expect(r.match).toBe(false);
+    expect(r.reason).toBe("codeWrong");
+  });
+
   it("Wort-Sentinel 'null' als keine Erkennung → reason codeMissing", () => {
     const r = evaluateVerifyResponse({ detected: "null", match: false }, CODE, null);
     expect(r.detected).toBeNull();

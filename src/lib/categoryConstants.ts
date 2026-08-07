@@ -1,4 +1,5 @@
 import { KG_BUILTIN_SLUG } from "@/lib/deviceCategories";
+import { entryFormBase } from "@/lib/entryFormRoute";
 
 /** User-pickable color palette for DeviceCategory (per UI Designer spec).
  *  cat-steel is reserved for the KG built-in identity. The remaining 11 are user-pickable.
@@ -147,15 +148,42 @@ export function validateCategoryInput(input: {
   return null;
 }
 
+/** Query-Schlüssel für „diese Kategorie ist vorgewählt" — derselbe Name wie in den Trage-Formularen,
+ *  statt eines dritten für dieselbe Sache. An zwei Enden gebraucht (Link setzt ihn, Seite liest ihn):
+ *  als lose Zeichenkette schaltete ein Umbenennen die Vorwahl still ab. */
+export const CATEGORY_QUERY_KEY = "category";
+
+/** Link auf das Geräte-Formular mit vorgewählter Kategorie — der zweite Schritt nach dem Anlegen
+ *  einer Kategorie (Issue #49). Ohne die Vorwahl landet der Nutzer auf einer Liste und muss den
+ *  richtigen Knopf suchen; genau diese Reibung kostet das Onboarding. */
+export function deviceFormHref(categoryId: string): string {
+  return `/dashboard/geraete?${new URLSearchParams({ [CATEGORY_QUERY_KEY]: categoryId })}`;
+}
+
 /**
  * Link auf das Trage-Formular einer Kategorie — beginnen oder beenden, Sub- oder Keyholder-Sicht.
  *
  * Zentral, weil dieselben vier Pfad-Varianten vorher an jeder Aufrufstelle von Hand
  * zusammengesetzt wurden. Der Keyholder-Zweig ist dabei nicht Kosmetik: zeigt eine Karte in seiner
  * Ansicht auf `/dashboard/...`, wirft `proxy.ts` ihn nach `/admin` — der Link ist dann schlicht tot.
+ *
+ * Die Query kommt aus `URLSearchParams`, leere Werte fallen weg — dieselbe Konvention wie
+ * `inspectionHref`. Von Hand gebaute `?a=…&b=…`-Ketten sind genau die Fehlerquelle, gegen die beide
+ * Funktionen geschrieben sind.
  */
-export function wearActionHref(opts: { categoryId: string; active: boolean; adminUserId?: string }): string {
+export function wearActionHref(opts: {
+  categoryId: string;
+  active: boolean;
+  adminUserId?: string;
+  /** Das konkret geforderte Gerät (Bedingung einer Aufgabe) — sonst wählt der Sub im Formular. */
+  deviceId?: string | null;
+  /** Wohin nach dem Speichern? Trägt die Ketten-Weiterleitung der Aufgaben-Bedingungen. */
+  redirectTo?: string | null;
+}): string {
   const form = opts.active ? "wear-end" : "wear-begin";
-  const base = opts.adminUserId ? `/admin/users/${opts.adminUserId}/aktionen` : "/dashboard/new";
-  return `${base}/${form}?category=${opts.categoryId}`;
+  const base = entryFormBase(opts.adminUserId);
+  const q = new URLSearchParams({ category: opts.categoryId });
+  if (opts.deviceId) q.set("device", opts.deviceId);
+  if (opts.redirectTo) q.set("redirectTo", opts.redirectTo);
+  return `${base}/${form}?${q}`;
 }

@@ -7,6 +7,8 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import CategoryPhotoThumb from "@/app/components/CategoryPhotoThumb";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
+import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 import { categoryStyle } from "@/lib/categoryConstants";
 
 import type { WearSessionRow } from "@/lib/wearSessionRows";
@@ -18,7 +20,7 @@ const PAGE_SIZE = 5;
  *  and sorted by start time (newest first). Active sessions live in
  *  ActiveWearSessions at the top of the dashboard — they're filtered out here. */
 export default function WearSessionList({ sessions }: { sessions: WearSessionRow[] }) {
-  const [page, setPage] = useState(0);
+  const { page, setPage, totalPages, visible } = usePagedList(sessions, PAGE_SIZE);
   // Ein Modal für die ganze Liste statt eines je Zeile — es kann ohnehin nur eines offen sein.
   // Die ganze Zeile im State, weil das Detail-Panel Kategorie, Zeit und Gerät daraus zieht.
   const [openRow, setOpenRow] = useState<WearSessionRow | null>(null);
@@ -26,9 +28,6 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
   const tCommon = useTranslations("common");
 
   if (sessions.length === 0) return null;
-
-  const totalPages = Math.ceil(sessions.length / PAGE_SIZE);
-  const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
@@ -39,7 +38,7 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
       </div>
 
       <div className="divide-y divide-border-subtle">
-        {paginated.map((s) => {
+        {visible.map((s) => {
           const sameDay = s.startDateStr === s.endDateStr;
           return (
             <div key={s.id} className="flex items-center gap-3 px-5 py-3">
@@ -77,29 +76,7 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
         })}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-          <button
-            type="button"
-            onClick={() => setPage((p) => p - 1)}
-            disabled={page === 0}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            ← {tCommon("previous")}
-          </button>
-          <span className="text-xs text-foreground-faint tabular-nums">
-            {page + 1} / {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            {tCommon("next")} →
-          </button>
-        </div>
-      )}
+      <ListPager page={page} totalPages={totalPages} onPage={setPage} />
 
       {openRow?.imageUrl && (
         <FullscreenImageModal

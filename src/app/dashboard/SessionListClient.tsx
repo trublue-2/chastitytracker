@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, ChevronUp, Lock, LockOpen, Timer } from "lucide-react";
 import { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
+import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 import { toDateLocale } from "@/lib/utils";
 
 interface OeffnenFooter {
@@ -35,16 +37,13 @@ const PAGE_SIZE = 5;
 /** `tz` wird nur an `SessionTimeline` durchgereicht — Begründung dort. */
 export default function SessionListClient({ sessions, tz }: { sessions: SessionListData[]; tz: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
   const t = useTranslations("dashboard");
-  const tCommon = useTranslations("common");
   const locale = useLocale();
   const dl = toDateLocale(locale);
   // Freeze "now" at mount: historical sessions don't care about live time, and
   // recomputing on every render invalidates SessionTimeline's useMemo.
   const nowIso = useMemo(() => new Date().toISOString(), []);
-  const totalPages = Math.ceil(sessions.length / PAGE_SIZE);
-  const paginated = sessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(sessions, PAGE_SIZE);
 
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
@@ -57,7 +56,7 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
       {sessions.length === 0 && (
         <div className="py-20 text-center text-foreground-faint text-sm">{t("noEntries")}</div>
       )}
-      {paginated.map((session) => {
+      {visible.map((session) => {
         const isOpen = openId === session.id;
         return (
           <div key={session.id} className={isOpen ? "bg-surface-raised" : undefined}>
@@ -160,30 +159,9 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
       })}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-          <button
-            type="button"
-            onClick={() => { setPage(p => p - 1); setOpenId(null); }}
-            disabled={page === 0}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            ← {tCommon("previous")}
-          </button>
-          <span className="text-xs text-foreground-faint tabular-nums">
-            {page + 1} / {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => { setPage(p => p + 1); setOpenId(null); }}
-            disabled={page >= totalPages - 1}
-            className="text-xs font-medium text-foreground-muted disabled:text-foreground-faint hover:text-foreground transition"
-          >
-            {tCommon("next")} →
-          </button>
-        </div>
-      )}
+      {/* Aufgeklappt wird per `openId`, also zeigt die neue Seite ohnehin nichts Offenes. Zurückblättern
+          soll die Session aber ebenfalls zugeklappt zeigen — sonst springt das Panel wieder auf. */}
+      <ListPager page={page} totalPages={totalPages} onPage={(p) => { setPage(p); setOpenId(null); }} />
     </div>
   );
 }

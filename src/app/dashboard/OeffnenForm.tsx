@@ -10,6 +10,7 @@ import type { BoxHold } from "@/lib/boxOpenOutlook";
 import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
+import type { TaskWarning } from "@/lib/taskIntervals";
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
@@ -22,9 +23,10 @@ interface Props {
   boxHold?: BoxHold | null;
   hasBox?: boolean;
   redirectTo?: string;
+  taskWarnings?: TaskWarning[];
 }
 
-export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox, redirectTo }: Props) {
+export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox, redirectTo, taskWarnings }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -58,6 +60,7 @@ export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDef
       reinigung={reinigung}
       boxHold={boxHold}
       hasBox={hasBox}
+      taskWarnings={taskWarnings}
       isEdit={!!initial}
       submitFn={submitFn}
       onSuccess={onSuccess}

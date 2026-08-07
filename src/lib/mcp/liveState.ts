@@ -1,4 +1,5 @@
 import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type ReinigungSettings } from "@/lib/utils";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 
 /**
  * Der LIVE-Zustand eines Subs — Verschluss, offene Kontrolle, laufende Sperrzeit, offenes
@@ -130,16 +131,21 @@ export function buildLockState<E extends LockEntry>(
 export interface OpenKontrolleView {
   /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
   code: string | null;
+  /** ZIEL der Kontrolle: Geräte- bzw. Kategoriename. null = der Keuschheitsgürtel. Seit v5.0.1
+   *  können mehrere Kontrollen parallel laufen (eine je Ziel) — ohne dieses Feld wären sie nicht
+   *  auseinanderzuhalten. */
+  target: string | null;
   deadline: string; overdue: boolean; remainingMinutes: number; comment: string | null;
 }
 
 export function mapOpenKontrolle(
-  k: { code: string | null; deadline: Date; kommentar: string | null } | null,
+  k: { code: string | null; deadline: Date; kommentar: string | null; category?: { name: string } | null; device?: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenKontrolleView | null {
   if (!k) return null;
   return {
     code: k.code,
+    target: inspectionTargetLabel(k),
     deadline: fmt(k.deadline),
     overdue: k.deadline < now,
     remainingMinutes: minutesUntil(k.deadline, now),

@@ -8,6 +8,8 @@ import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import WithdrawButton from "./WithdrawButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
@@ -66,6 +68,8 @@ export default async function AdminPage() {
     prisma.kontrollAnforderung.findMany({
       where: { userId: { in: userIds }, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
+      // Ziel-Namen fürs Banner — seit v5.0.1 kann eine Kontrolle auch auf eine Trage-Kategorie zeigen.
+      include: KONTROLLE_TARGET_INCLUDE,
     }),
     // Dringendste zuerst (LOCK_REQUEST_ORDER): bei mehreren offenen zeigt die Kachel unten die
     // erste nicht-terminierte — das muss die mit der frühsten Frist sein, nicht eine beliebige.
@@ -127,7 +131,11 @@ export default async function AdminPage() {
       currentStatus: latestType,
       since: latestTime ?? null,
       offeneKontrolle: offeneKontrolle
-        ? { id: offeneKontrolle.id, deadline: offeneKontrolle.deadline, code: offeneKontrolle.code, kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now }
+        ? {
+            id: offeneKontrolle.id, deadline: offeneKontrolle.deadline, code: offeneKontrolle.code,
+            kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now,
+            target: inspectionTargetLabel(offeneKontrolle),
+          }
         : null,
       hasOffeneAnforderung: offeneVerschlussAnforderungen.length > 0,
       hasActiveSperrzeit: !!activeSperrzeit,
@@ -246,11 +254,12 @@ export default async function AdminPage() {
                         deadline={u.stats.offeneKontrolle.deadline}
                         code={u.stats.offeneKontrolle.code}
                         kommentar={u.stats.offeneKontrolle.kommentar}
+                        target={u.stats.offeneKontrolle.target}
                         overdue={u.stats.offeneKontrolle.overdue}
                         variant="compact"
                         tz={rowTz}
                         viewerTz={viewerTz}
-                        withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" titleKey="withdrawKontrolleTitle" colorToken="inspect" />}
+                        withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" title={t("withdrawKontrolleTitle")} colorToken="inspect" />}
                       />
                     )}
                     {u.stats.offeneAnforderungen.map((a) => (
@@ -265,7 +274,7 @@ export default async function AdminPage() {
                         tz={rowTz}
                         viewerTz={viewerTz}
                         subTimePrefix={subLabel}
-                        withdrawAction={<WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
+                        withdrawAction={<WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
                       />
                     ))}
                     {u.stats.activeSperrzeit && (
@@ -282,7 +291,7 @@ export default async function AdminPage() {
                         // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den
                         // Benutzer-Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
                         cleaningNote={t(u.stats.activeSperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
-                        withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" titleKey="withdrawLockTitle" colorToken="sperrzeit" />}
+                        withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
                       />
                     )}
                     {u.stats.offeneOrgasmusAnforderung && (
@@ -299,7 +308,7 @@ export default async function AdminPage() {
                         tz={rowTz}
                         viewerTz={viewerTz}
                         subTimePrefix={subLabel}
-                        withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" titleKey="withdrawOrgasmTitle" colorToken="orgasm" />}
+                        withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
                       />
                     )}
 
@@ -328,7 +337,7 @@ export default async function AdminPage() {
                                 {s.message && <p className="truncate opacity-80 mt-0.5">{s.message}</p>}
                               </div>
                               <span className="flex-shrink-0">
-                                <WithdrawButton id={s.id} apiPath={apiPath} titleKey="scheduledWithdrawTitle" colorToken={colorToken} />
+                                <WithdrawButton id={s.id} apiPath={apiPath} title={t("scheduledWithdrawTitle")} colorToken={colorToken} />
                               </span>
                             </div>
                           );

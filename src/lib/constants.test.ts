@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { validateEntryPayload, deviceCategoriesEnabled, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES } from "./constants";
+import { validateEntryPayload, deviceCategoriesEnabled, clampStartGrace, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES, TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, DURATION_UNITS, durationToHours, durationFromHours } from "./constants";
 
 const FUTURE_SAFE_TIME = "2030-01-01T10:00:00Z";
 
@@ -164,5 +164,66 @@ describe("validateEntryPayload — WEAR types feature flag", () => {
         { allowFuture: true, requirePhotoForPruefung: false },
       )).toBeNull();
     });
+  });
+});
+
+describe("clampStartGrace — eine Klemmung für Server UND Formular-Vorschau", () => {
+  it("lässt die ausdrückliche 0 stehen („sofort anfangen“)", () => {
+    // Der ganze Grund, aus dem dieses Feld nicht über `clamp()` läuft: dessen `|| fallback` machte
+    // aus der 0 den Default — der dokumentierte Bereich beginnt aber bei 0.
+    expect(clampStartGrace(0)).toBe(0);
+  });
+
+  it("nimmt die Vorgabe, wo nichts (Lesbares) dasteht", () => {
+    expect(clampStartGrace(undefined)).toBe(TASK_DEFAULT_START_GRACE_MIN);
+    // Ein leeres Zahlenfeld liefert NaN — ungeklemmt liefe das bis in die Datenbank.
+    expect(clampStartGrace(Number.NaN)).toBe(TASK_DEFAULT_START_GRACE_MIN);
+  });
+
+  it("holt Werte ausserhalb des Bereichs an die Grenze", () => {
+    expect(clampStartGrace(-600)).toBe(TASK_START_GRACE_RANGE.min);
+    expect(clampStartGrace(99_999)).toBe(TASK_START_GRACE_RANGE.max);
+  });
+
+  it("rundet Bruchteile — Minuten sind ganze Zahlen", () => {
+    expect(clampStartGrace(12.4)).toBe(12);
+  });
+});
+
+describe("Dauer-Einheiten", () => {
+  it("rechnet Minuten in Stunden um, Stunden bleiben Stunden", () => {
+    expect(durationToHours(15, "min")).toBeCloseTo(0.25);
+    expect(durationToHours(0.25, "h")).toBe(0.25);
+  });
+
+  it("gibt für eine leere Eingabe NaN weiter, statt einen Wert zu erfinden", () => {
+    // Das Formular startet mit leerem Feld; `parseFloat("")` ist NaN, und daraus muss ein UNGÜLTIGES
+    // Datum werden — ein Ersatzwert wäre genau die stille Vorbelegung, die hier abgeschafft wurde.
+    expect(durationToHours(Number.NaN, "h")).toBeNaN();
+  });
+
+  it("bringt eine Dauer verlustfrei in die andere Einheit", () => {
+    expect(durationFromHours(0.25, "min")).toBe(15);
+    expect(durationFromHours(1, "min")).toBe(60);
+    expect(durationFromHours(0.25, "h")).toBe(0.25);
+  });
+
+  it("rastert auf die Schrittweite der Ziel-Einheit", () => {
+    // Aus einem festen Zeitpunkt fällt selten eine runde Dauer — im Feld darf trotzdem kein
+    // „2.3833" landen, sonst weist die HTML-Validierung den eigenen Wert als Schrittfehler ab.
+    expect(durationFromHours(2.3833, "h")).toBe(2.5);
+    expect(durationFromHours(2.3833, "min")).toBe(145);
+  });
+
+  it("fällt nicht unter das Minimum der Einheit — auch nicht bei einer vergangenen Zeit", () => {
+    expect(durationFromHours(-3, "h")).toBe(DURATION_UNITS.h.min);
+    expect(durationFromHours(-3, "min")).toBe(DURATION_UNITS.min.min);
+  });
+
+  it("bleibt beim Hin- und Herschalten bei derselben Dauer", () => {
+    for (const hours of [0.25, 0.5, 1, 2, 4]) {
+      expect(durationToHours(durationFromHours(hours, "min"), "min")).toBeCloseTo(hours);
+      expect(durationToHours(durationFromHours(hours, "h"), "h")).toBeCloseTo(hours);
+    }
   });
 });

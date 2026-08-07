@@ -1,15 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import { generateKontrollCode } from "@/lib/utils";
 import { sendMailSafe, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { recordMessageAndBadge } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
-import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS } from "@/lib/constants";
+import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { getLatestKgEntry, type PrismaTx } from "@/lib/queries";
+import { type PrismaTx } from "@/lib/queries";
+import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { inspectionHref } from "@/lib/entryFormRoute";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
@@ -98,11 +100,6 @@ export function sealRequiredForCode(
   return requiredSealCode(code ?? null, deriveSealCode(latest)) !== null;
 }
 
-/** Frische 5-stellige Kontroll-Code-Nummer (10000–99999). */
-export function generateKontrollCode(): string {
-  return String(Math.floor(10000 + Math.random() * 90000));
-}
-
 /**
  * Verlangt eine Kontrolle mit DIESEM Gerät den handschriftlichen Code im Foto?
  *
@@ -176,8 +173,14 @@ export function initialVerificationStatus(v: InspectionVerification): "pending" 
   return v.codeRequired ? null : "not_required";
 }
 
-/** True, wenn der User eine LAUFENDE Kontrolle hat — angelegt, nicht erfüllt, nicht zurückgezogen,
- *  bereits sichtbar (sofort oder wirksamAb erreicht) UND noch innerhalb der Frist (deadline >= now).
+/** True, wenn für DIESES ZIEL eine LAUFENDE Kontrolle existiert — angelegt, nicht erfüllt, nicht
+ *  zurückgezogen, bereits sichtbar (sofort oder wirksamAb erreicht) UND noch innerhalb der Frist
+ *  (deadline >= now).
+ *
+ *  Seit v5.0.1 zählt das ZIEL mit (`categoryId`, null = KG): eine KG-Kontrolle und eine
+ *  Plug-Kontrolle dürfen nebeneinander laufen — sie verlangen verschiedene Nachweise und
+ *  behindern sich nicht. Zwei auf dasselbe Ziel bleiben ausgeschlossen: dort wäre nicht
+ *  entscheidbar, welche ein Foto beantwortet (siehe die Zuordnung in der entries-Route).
  *  Das entspricht genau Status "open" aus mapAnforderungStatus. Bewusst NICHT blockierend sind:
  *  - geplante (wirksamAb in Zukunft) — noch unsichtbar, es gibt nichts zu überschneiden;
  *  - überfällige (deadline < now) — das Fenster ist abgelaufen; eine solche Zeile würde sonst,
@@ -191,15 +194,16 @@ export function initialVerificationStatus(v: InspectionVerification): "pending" 
 export async function hasActiveKontrolle(
   userId: string,
   now: Date,
-  opts?: { excludeId?: string; tx?: PrismaTx },
+  opts: { categoryId: string | null; excludeId?: string; tx?: PrismaTx },
 ): Promise<boolean> {
-  const client = opts?.tx ?? prisma;
+  const client = opts.tx ?? prisma;
   const existing = await client.kontrollAnforderung.findFirst({
     where: {
       userId, entryId: null, withdrawnAt: null,
+      categoryId: opts.categoryId, // null = KG; das Ziel gehört zum Guard, nicht nur der User
       OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }], // sichtbar
       deadline: { gte: now },                                 // noch innerhalb der Frist (nicht überfällig)
-      ...(opts?.excludeId ? { id: { not: opts.excludeId } } : {}),
+      ...(opts.excludeId ? { id: { not: opts.excludeId } } : {}),
     },
     select: { id: true },
   });
@@ -209,11 +213,16 @@ export async function hasActiveKontrolle(
 export interface RequestKontrolleParams {
   userId: string;
   kommentar?: string | null;
-  /** Deadline in hours (default 4). */
+  /** Deadline in hours (default 1). Bruchteile sind erlaubt — das Formular schickt eine in
+   *  Minuten gewählte Frist als Stunden-Bruch (5 min = 1/12). */
   deadlineH?: number | null;
   /** Verzögerte Auslösung in Minuten (>0). Fehlt/0 = sofort. Die 5–65-/Random-Policy
    *  liegt beim Aufrufer (MCP) — der Service verzögert nur mechanisch. */
   delayMinutes?: number | null;
+  /** ZIEL der Kontrolle (v5.0.1). Beides weggelassen = KG, das Bestandsverhalten.
+   *  Siehe {@link resolveInspectionTarget}. */
+  categoryId?: string | null;
+  deviceId?: string | null;
 }
 
 /**
@@ -224,7 +233,11 @@ export interface RequestKontrolleParams {
  * itself is always random). Sends e-mail + push immediately — or, with delayMinutes, schedules it
  * (wirksamAb): the request stays invisible to the user and the deadline starts at trigger; the
  * poller (kontrollePoller) sends the notification when due.
- * Shared by POST /api/admin/kontrolle and the MCP write tool. User must be currently locked.
+ * Shared by POST /api/admin/kontrolle and the MCP write tool.
+ *
+ * Das ZIEL bestimmt, was aktiv sein muss: beim KG (Vorgabe) ein laufender VERSCHLUSS, bei einer
+ * Trage-Kategorie eine laufende WEAR-Session. Eine Kontrolle auf etwas, das der Sub gerade gar
+ * nicht trägt, wäre nicht erfüllbar — sie wird abgelehnt statt angelegt.
  */
 export async function requestKontrolle(
   params: RequestKontrolleParams,
@@ -237,7 +250,7 @@ export async function requestKontrolle(
   if (!user.email) return serviceFail(400, "USER_NO_EMAIL");
 
   const kommentarTrimmed = typeof kommentar === "string" ? kommentar.trim() : null;
-  const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : 4;
+  const hours = typeof deadlineH === "number" && deadlineH > 0 ? deadlineH : INSPECTION_DEADLINE_DEFAULT_H;
   const now = new Date();
   const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, { delayMinutes });
   // Frist läuft ab Auslösung (bei sofort = jetzt, bei geplant = wirksamAb).
@@ -246,47 +259,63 @@ export async function requestKontrolle(
   let code: string | null;
   let sealCode: string | null;
   let controlId: string;
+  let targetInfo: { categoryId: string | null; label: string | null };
   // Wurf- und Fang-Seite hängen an derselben Tabelle: `fail()` akzeptiert nur Codes, die unten
   // auch gemappt werden — ein Tippfehler ist ein Compile-Fehler, kein stiller 500.
+  // Die Schlüssel SIND die Fehlercodes, die `inspectionPreconditionProblem` liefert — so wandert
+  // sein Ergebnis ohne Übersetzungstabelle in `fail()`, und ein neuer Code dort ist hier ein
+  // Compile-Fehler statt eines stillen 500.
   const { table: ERRORS, fail } = serviceErrors({
-    NOT_LOCKED: { status: 400, error: "USER_NOT_LOCKED" },
-    ALREADY_ACTIVE: { status: 409, error: "INSPECTION_ALREADY_ACTIVE" },
+    USER_NOT_LOCKED: { status: 400, error: "USER_NOT_LOCKED" },
+    USER_NOT_WEARING: { status: 400, error: "USER_NOT_WEARING" },
+    INSPECTION_DEVICE_NOT_ACTIVE: { status: 400, error: "INSPECTION_DEVICE_NOT_ACTIVE" },
+    INSPECTION_TARGET_INVALID: { status: 400, error: "INSPECTION_TARGET_INVALID" },
+    INSPECTION_ALREADY_ACTIVE: { status: 409, error: "INSPECTION_ALREADY_ACTIVE" },
   });
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const latest = await getLatestKgEntry(userId, tx);
-      if (!latest || latest.type !== "VERSCHLUSS") {
-        throw fail("NOT_LOCKED");
-      }
+      const resolved = await resolveInspectionTarget(userId, params, tx);
+      if (!resolved.ok) throw fail("INSPECTION_TARGET_INVALID");
+      const target = resolved.target;
 
-      // Überschneidungs-Schutz: ablehnen statt eine bereits laufende Kontrolle stillschweigend zu
-      // ersetzen — egal ob die laufende von Keyholder, KI oder Auto-Kontrolle stammt. Der Check
-      // läuft in derselben Transaktion wie das Anlegen; das deckt den Alltag ab. Es ist ein
+      // Alle weiteren Vorbedingungen als EINE Entscheidung — dieselbe, die die MCP-dryRun-Vorschau
+      // zeigt. Der Überschneidungs-Schutz darin lehnt ab, statt eine bereits laufende Kontrolle
+      // stillschweigend zu ersetzen (egal ob von Keyholder, KI oder Automatik), und gilt PRO ZIEL.
+      // Er läuft in derselben Transaktion wie das Anlegen; das deckt den Alltag ab. Es ist ein
       // Best-Effort-Read-then-Write, KEIN harter Ausschluss: bei exakt gleichzeitigen Anfragen
       // können unter SQLite-Snapshot-Isolation beide "keine laufende" lesen und je eine Zeile
       // anlegen. Bei zwei Schreibern (Keyholder + KI) ist das vernachlässigbar, und die Folge wäre
       // nur zwei transiente Zeilen, von denen eine ohnehin abläuft — ein DB-Constraint kann
       // "aktiv innerhalb der Frist" (now-abhängig) nicht ausdrücken, daher bewusst kein Index.
-      if (await hasActiveKontrolle(userId, now, { tx })) {
-        throw fail("ALREADY_ACTIVE");
-      }
+      //
+      // Die Guard-Abfrage läuft nur, wenn das Ziel überhaupt läuft: bei totem Ziel steht das
+      // Ergebnis schon fest.
+      const problem = inspectionPreconditionProblem(
+        target,
+        target.active && await hasActiveKontrolle(userId, now, { categoryId: target.categoryId, tx }),
+      );
+      if (problem) throw fail(problem);
 
       // Frischer Zufallscode (Frische-Beweis) — die Siegel-Nummer wird bei der Verifikation
       // ZUSÄTZLICH geprüft, nicht mehr als Kontroll-Code wiederverwendet.
       //
-      // Ausser das verschlossene Gerät verlangt keinen (`requireInspectionCode: false`): dann
-      // entsteht die Anforderung OHNE Code. Das Gerät steht am Lock-Entry, ist hier also schon
-      // geladen — der User muss für eine Kontrolle verschlossen sein (Guard oben), es gibt zum
-      // Anforderungs-Zeitpunkt somit immer genau ein zuständiges Gerät. Ohne Gerät (Alt-Verschluss)
-      // bleibt es beim Code: das ist das Bestandsverhalten, und ein fehlendes Gerät ist kein Grund,
-      // eine Kontrolle zu entschärfen.
-      const seal = deriveSealCode(latest);
-      const c = (await inspectionCodeRequired(latest.deviceId, tx)) ? generateKontrollCode() : null;
+      // Ausser das getragene Gerät verlangt keinen (`requireInspectionCode: false`): dann entsteht
+      // die Anforderung OHNE Code. Welches Gerät zuständig ist, hat die Ziel-Auflösung schon
+      // beantwortet — das Ziel läuft (Guard oben), es gibt also genau eines. Ohne Gerät
+      // (Alt-Verschluss) bleibt es beim Code: das ist das Bestandsverhalten, und eine fehlende
+      // Information ist kein Grund, eine Kontrolle zu entschärfen.
+      //
+      // Die Siegel-Nummer gibt es nur beim KG — sie beweist, dass die Schlüsselbox unberührt ist,
+      // und zu einer Trage-Kontrolle gehört keine Box (`lockEntry` ist dort null).
+      const seal = deriveSealCode(target.lockEntry);
+      const c = (await inspectionCodeRequired(target.activeDeviceId, tx)) ? generateKontrollCode() : null;
 
       const ka = await tx.kontrollAnforderung.create({
         data: {
           userId,
           code: c,
+          categoryId: target.categoryId,
+          deviceId: target.deviceId,
           deadline,
           kommentar: kommentarTrimmed || null,
           wirksamAb,
@@ -294,11 +323,15 @@ export async function requestKontrolle(
         },
       });
 
-      return { code: c, sealCode: seal, id: ka.id };
+      return {
+        code: c, sealCode: seal, id: ka.id,
+        target: { categoryId: target.categoryId, label: inspectionTargetLabel(target) },
+      };
     });
     code = result.code;
     sealCode = result.sealCode;
     controlId = result.id;
+    targetInfo = result.target;
   } catch (e: unknown) {
     const mapped = mapServiceError(e, ERRORS);
     if (mapped) return mapped;
@@ -307,7 +340,7 @@ export async function requestKontrolle(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline, controlId });
+    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline, controlId, target: targetInfo });
   }
 
   return { ok: true, data: { code, deadline: deadline.toISOString(), scheduledFor: wirksamAb?.toISOString() ?? null } };
@@ -356,8 +389,9 @@ async function sendInspectionMail(o: {
   deadline: Date;
   deadlineStr: string;
   formPath: string;
+  targetLabel: string | null;
 }): Promise<void> {
-  const { to, t, locale, username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath } = o;
+  const { to, t, locale, username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel } = o;
   const intro = inspectionIntro(t, deadline.getTime() - Date.now());
   const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
 
@@ -386,6 +420,7 @@ async function sendInspectionMail(o: {
       ${kommentarHtml}
       ${codeBlockHtml}
       ${sealHintHtml}
+      ${targetLabel ? `<p><strong>${t("inspectionTargetLabel")}</strong> ${escHtml(targetLabel)}</p>` : ""}
       <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>`,
       t("inspectionButton"),
       {
@@ -398,6 +433,46 @@ async function sendInspectionMail(o: {
       },
     ),
   );
+}
+
+/**
+ * Titel + Text der Kontroll-Push. Ausgelagert und exportiert, weil hier zwei Zusicherungen hängen,
+ * die beim nächsten Umformulieren still brechen — die Push wird nämlich ABFOTOGRAFIERT (Code auf
+ * der Smartwatch statt auf einem Zettel), und die Erkennung muss die Ziffern im Bild finden:
+ *
+ * 1. Der CODE steht im TITEL, nicht im Text. Titel ist die grösste Schrift, die der Kanal hergibt —
+ *    Web-Push wie nativ kennen nur `title` + `body` und keinerlei Formatierung (`sw.js`,
+ *    `push.ts`). Im `body` stand er in der kleinsten Schrift (Rückmeldung 08/2026: „versteckt").
+ * 2. Im Text steht so WENIG wie möglich, was nach einem Code aussieht: die Frist am selben Tag nur
+ *    als Uhrzeit. Jede weitere Zahl im Bild ist eine, die die Erkennung für den Code halten kann.
+ *    Die MAIL behält die volle Frist-Angabe — sie wird nicht fotografiert.
+ */
+export function buildInspectionPush(opts: {
+  t: EmailTranslator;
+  code: string | null;
+  targetLabel: string | null;
+  deadline: Date;
+  /** Volle Frist-Angabe (wie in der Mail) — greift, wenn die Frist nicht mehr heute liegt. */
+  deadlineStr: string;
+  sealRequired: boolean;
+  kommentar: string | null;
+  /** Nur für Tests: der Stichtag des „liegt die Frist heute?"-Vergleichs. */
+  now?: Date;
+}): { title: string; body: string } {
+  const { t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar, now = new Date() } = opts;
+  const deadlineShort = formatDate(deadline) === formatDate(now) ? formatTime(deadline) : deadlineStr;
+  const parts = [
+    ...(targetLabel ? [targetLabel] : []),
+    t("inspectionPushDeadline", { deadline: deadlineShort }),
+  ];
+  if (sealRequired) parts.push(t("inspectionPushSeal"));
+  if (kommentar) parts.push(kommentar);
+  return {
+    // Ohne Code (Gerät ohne Code-Pflicht) bleibt der bisherige Titel — „Kontrolle · " mit nichts
+    // dahinter wäre eine Lücke, wo der Nutzer eine Zahl erwartet.
+    title: code ? t("inspectionPushTitleCode", { code }) : t("inspectionPushTitle"),
+    body: parts.join(" · "),
+  };
 }
 
 /**
@@ -420,8 +495,13 @@ export async function sendKontrolleNotification(opts: {
   kommentar: string | null;
   deadline: Date;
   controlId: string;
+  /** Das ZIEL der Kontrolle: `label` benennt es in Mail/Push (null beim KG — dort ist „die
+   *  Kontrolle" ohne Zusatz gemeint, ein Label wäre in jeder Mail Rauschen), `categoryId` führt den
+   *  Link aufs richtige Formular. */
+  target?: { categoryId: string | null; label: string | null };
 }): Promise<void> {
-  const { user, code, sealCode, kommentar, deadline, controlId } = opts;
+  const { user, code, sealCode, kommentar, deadline, controlId, target } = opts;
+  const targetLabel = target?.label ?? null;
 
   // VOR dem E-Mail-Guard: der Posteingang ist der einzige Kanal, der auch ohne hinterlegte Adresse
   // trägt. Der Kommentar des Keyholders wird NICHT mitkopiert — die Nachricht zeigt auf die
@@ -442,7 +522,7 @@ export async function sendKontrolleNotification(opts: {
   const locale = toLocale(user.locale);
   const t = await emailT(locale);
 
-  const formPath = inspectionHref(code, { kommentar });
+  const formPath = inspectionHref(code, { kommentar, categoryId: target?.categoryId ?? null });
   const deadlineStr = formatDateTime(deadline);
 
   // Nur die MAIL hängt an der Adresse — Posteingang (oben) und Push (unten) laufen unabhängig
@@ -453,20 +533,9 @@ export async function sendKontrolleNotification(opts: {
   // manuellen Pfad kann das nicht entstehen (`requestKontrolle` weist ohne Adresse ab), wohl aber
   // über die automatischen Kontrollen: die plant `autoKontrolleService` ohne solche Prüfung.
   if (user.email) {
-    await sendInspectionMail({ to: user.email, t, locale, username: user.username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath });
+    await sendInspectionMail({ to: user.email, t, locale, username: user.username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel });
   }
 
-  const pushParts = [
-    ...(code ? [t("inspectionPushCode", { code })] : []),
-    t("inspectionPushDeadline", { deadline: deadlineStr }),
-  ];
-  if (sealRequired) pushParts.push(t("inspectionPushSeal"));
-  if (kommentar) pushParts.push(kommentar);
-  firePush(
-    user.id,
-    t("inspectionPushTitle"),
-    pushParts.join(" · "),
-    formPath,
-    badge,
-  );
+  const push = buildInspectionPush({ t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar });
+  firePush(user.id, push.title, push.body, formPath, badge);
 }

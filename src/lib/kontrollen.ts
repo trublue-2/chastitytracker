@@ -3,6 +3,7 @@ import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import { effectiveDeviceCheckStatus } from "@/lib/deviceCheck";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
 
 /** Raw row built from PRUEFUNG entries + KontrollAnforderungen, ready for display mapping. */
@@ -25,6 +26,9 @@ export interface KontrolleRow {
   deviceCheckNote: string | null;
   deviceCheckExpected: string | null;
   code: string | null;
+  /** ZIEL: Geräte- bzw. Kategoriename, null = KG. Aus der Anforderung, ersatzweise (bei einer
+   *  freiwilligen Prüfung ohne Anforderung) aus dem Gerät des Eintrags. */
+  target: string | null;
   deadline: Date | null;
   createdAt: Date | null;
   fulfilledAt: Date | null;
@@ -45,6 +49,8 @@ export interface KontrolleRow {
 type PruefungEntry = {
   id: string;
   startTime: Date;
+  /** Das kontrollierte Gerät (Trage-Kontrollen ab v5.0.1); KG-Prüfungen tragen keines. */
+  device?: { name: string; category: { name: string; isBuiltIn: boolean } | null } | null;
   imageUrl: string | null;
   boxImageUrl?: string | null;
   note: string | null;
@@ -60,6 +66,9 @@ type PruefungEntry = {
 
 type KontrollAnforderung = {
   id: string;
+  /** ZIEL der Anforderung — die Namen kommen aus den Relationen, nicht aus den ids. */
+  category?: { name: string } | null;
+  device?: { name: string } | null;
   /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
   code: string | null;
   deadline: Date;
@@ -107,6 +116,9 @@ export function buildKontrolleRows(
       deviceCheckNote: e.deviceCheckNote ?? null,
       deviceCheckExpected: e.deviceCheckExpected ?? null,
       code: ka?.code ?? e.kontrollCode ?? null,
+      // Das Ziel der ANFORDERUNG gewinnt: sie sagt, was verlangt war. Ohne Anforderung (freiwillige
+      // Prüfung) bleibt das gezeigte Gerät — bei einer KG-Prüfung ist beides leer.
+      target: inspectionTargetLabel(ka) ?? (e.device && !e.device.category?.isBuiltIn ? e.device.name : null),
       deadline: ka?.deadline ?? null,
       createdAt: ka?.createdAt ?? null,
       fulfilledAt: e.startTime,
@@ -138,6 +150,7 @@ export function buildKontrolleRows(
       deviceCheckNote: null,
       deviceCheckExpected: null,
       code: k.code,
+      target: inspectionTargetLabel(k),
       deadline: k.deadline,
       createdAt: k.createdAt,
       fulfilledAt: null,
@@ -194,7 +207,13 @@ export function mapKontrolleRow(
   const kPill = row.entryId
     ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
     : anfPill ? { label: t(anfPill.labelKey), cls: anfPill.cls } : null;
-  const timeCorrected = row.fulfilledAt && isTimeCorrected(row.fulfilledAt, row.submittedAt);
+  // Bei „zu spät" IMMER den echten Einreichzeitpunkt zeigen, nicht erst ab der 5-Minuten-Schwelle
+  // von `isTimeCorrected`. Genau darauf beruht das Urteil (`isPastDeadlineUnfulfilled` liest
+  // `fulfilledAt` = Server-Uhr beim Absenden), während die Karte daneben die frei wählbare
+  // Eintrags-Zeit zeigt. Lagen beide nur zwei Minuten auseinander, blieb der Hinweis aus und die
+  // Zeile las sich als Widerspruch: „18:59, Frist 19:01 — zu spät". Vorfall 03.08.2026.
+  const timeCorrected = row.fulfilledAt && row.submittedAt
+    && (row.anforderungStatus === "late" || isTimeCorrected(row.fulfilledAt, row.submittedAt));
   // Auto-Kontrollen: das technische createdAt (Batch-Erstellzeitpunkt, meist Mitternacht) ist
   // für den Keyholder irreführend — anzeigen soll man, wann sie tatsächlich versendet wurde. Das
   // Label wird hier (statt am Client) einmal aufgelöst, damit beide Render-Stellen in
@@ -211,6 +230,7 @@ export function mapKontrolleRow(
     imageUrl: row.imageUrl,
     boxImageUrl: row.boxImageUrl,
     kommentar: row.kommentar,
+    target: row.target,
     pillLabel: kPill?.label ?? null,
     pillCls: kPill?.cls ?? null,
     username: includeUsername ? row.username : null,
@@ -221,9 +241,14 @@ export function mapKontrolleRow(
     createdLabel: createdIsSent ? t("sentLabel") : t("createdLabel"),
     withdrawnAtStr: row.withdrawnAt ? fmt(row.withdrawnAt) : null,
     scheduledForStr: row.scheduledFor ? fmt(row.scheduledFor) : null,
-    timeCorrectedStr: timeCorrected
-      ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmt(row.fulfilledAt!)} · ${t("systemLabel")}: ${fmt(row.submittedAt!)}`
-      : null,
+    // Zwei Fälle, zwei Formulierungen: weichen die Zeiten deutlich ab, war es eine Korrektur
+    // („angegeben/System"). Liegen sie nur Minuten auseinander und die Kontrolle gilt trotzdem als
+    // zu spät, ist nichts korrigiert worden — dann zählt schlicht, wann eingereicht wurde.
+    timeCorrectedStr: !timeCorrected
+      ? null
+      : isTimeCorrected(row.fulfilledAt!, row.submittedAt)
+        ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmt(row.fulfilledAt!)} · ${t("systemLabel")}: ${fmt(row.submittedAt!)}`
+        : `${t("strafbuchEingereicht")}: ${fmt(row.submittedAt!)}`,
     note: row.note,
     kontrolleId: row.kontrolleId,
     entryId: row.entryId,
