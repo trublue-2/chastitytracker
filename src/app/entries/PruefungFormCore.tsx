@@ -203,7 +203,12 @@ export default function PruefungFormCore({
       kontrollCode: codeRequired ? (kontrollCode || null) : null,
       // Nur bei Trage-Kontrollen gesetzt; beim KG bleibt es weg (dort steht das Gerät am VERSCHLUSS).
       deviceId: targetDeviceId ?? null,
-      verifikationStatus: aiMatch === true ? "ai" : null,
+      // KEIN `verifikationStatus`: den setzt ausschliesslich der Server (`initialVerifikationStatus`
+      // beim Anlegen, danach `runInspectionVerification` bzw. das Urteil des Keyholders). Beim
+      // Anlegen wurde der mitgeschickte Wert ohnehin verworfen — beim BEARBEITEN dagegen schrieb
+      // ihn die Entry-Route für einen erhabenen Bearbeiter durch: korrigierte die Keyholderin die
+      // Zeit einer bestätigten Kontrolle, war die Bestätigung danach still weg, weil `aiMatch` bei
+      // jedem Öffnen des Formulars wieder null ist.
       imageRotation: rotation,
       ...(boxConfirm && boxPhoto.imageUrl ? { boxImageUrl: boxPhoto.imageUrl, boxImageRotation: boxPhoto.rotation } : {}),
     });

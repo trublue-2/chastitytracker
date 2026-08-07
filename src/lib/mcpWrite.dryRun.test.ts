@@ -30,7 +30,7 @@ vi.mock("@/lib/verschlussAnforderungService", async (importOriginal) => {
 });
 vi.mock("@/lib/kontrolleService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/kontrolleService")>();
-  return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), hasActiveKontrolle: vi.fn() };
+  return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), resolveInspectionEntry: vi.fn(), hasActiveKontrolle: vi.fn() };
 });
 vi.mock("@/lib/vorgabeService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/vorgabeService")>();
@@ -61,7 +61,7 @@ import {
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
-import { requestKontrolle, resolveKontrolle, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
@@ -247,11 +247,13 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
   });
 
   it("resolve_inspection: gefundene Inspektion wird gemeldet, nichts aufgelöst", async () => {
-    kontrollFindFirstMock.mockResolvedValue({ id: "k1", entry: { verifikationStatus: null } });
+    // Adressiert wird der EINTRAG — eine Selbstkontrolle hat keine Anforderung, über die sie
+    // auffindbar wäre (Vorfall 07.08.2026).
+    entryFindFirstMock.mockResolvedValue({ id: "e1", verifikationStatus: null });
     const r = await mcpResolveInspection("sub", { dryRun: true, action: "verify" }) as { dryRun: boolean; preview: { id: string } };
     expect(r.dryRun).toBe(true);
-    expect(r.preview.id).toBe("k1");
-    expect(resolveKontrolle).not.toHaveBeenCalled();
+    expect(r.preview.id).toBe("e1");
+    expect(resolveInspectionEntry).not.toHaveBeenCalled();
   });
 
   it("judge_offense: punish ohne text wird auch im dryRun abgelehnt", async () => {
@@ -323,7 +325,7 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
   });
 
   it("resolve_inspection: diff zeigt den bisherigen gegen den resultierenden verifikationStatus", async () => {
-    kontrollFindFirstMock.mockResolvedValue({ id: "k1", entry: { verifikationStatus: "rejected" } });
+    entryFindFirstMock.mockResolvedValue({ id: "e1", verifikationStatus: "rejected" });
     const r = await mcpResolveInspection("sub", { dryRun: true, action: "verify" }) as { diff: Record<string, [unknown, unknown]> };
     expect(r.diff.verifikationStatus).toEqual(["rejected", "manual"]);
   });

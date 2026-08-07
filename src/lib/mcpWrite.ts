@@ -3,7 +3,7 @@ import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { requestKontrolle, resolveKontrolle, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
+import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
@@ -892,18 +892,32 @@ export interface ResolveInspectionArgs {
 }
 export async function mcpResolveInspection(username: string, args: ResolveInspectionArgs) {
   const userId = await resolveTargetUserId(username);
-  const ka = await prisma.kontrollAnforderung.findFirst({
-    where: { userId, entryId: { not: null }, withdrawnAt: null },
+  // Gesucht wird die juengste eingereichte Kontrolle — ueber den EINTRAG, nicht ueber die
+  // Anforderung. Die Suche ueber `KontrollAnforderung` liess die freiwillige Selbstkontrolle
+  // unauffindbar (sie hat keine Anforderung): der Keyholder bekam "No submitted inspection",
+  // obwohl ein Foto vorlag, und eine Kontrolle mit zurueckgezogener Anforderung wurde still
+  // uebersprungen — beurteilt wurde dann eine AELTERE. Beides derselbe Konstruktionsfehler wie in
+  // der Admin-UI (Vorfall 07.08.2026).
+  //
+  // `imageUrl: { not: null }` ist die EINREICHUNG: beurteilt wird ein Foto. Der Keyholder-Pfad darf
+  // eine Kontrolle ohne Foto nachtragen (`requirePhotoForPruefung: false`) — so eine Zeile ist
+  // nichts, worueber es ein Urteil geben koennte, und wuerde sonst die echte Einreichung verdecken.
+  //
+  // `createdAt` statt `startTime`: die Eintrags-Zeit ist frei waehlbar, die Reihenfolge der
+  // EINREICHUNGEN steht nur in der Server-Uhr.
+  const entry = await prisma.entry.findFirst({
+    where: { userId, type: "PRUEFUNG", imageUrl: { not: null } },
     orderBy: { createdAt: "desc" },
-    select: { id: true, entry: { select: { verifikationStatus: true } } },
+    select: { id: true, verifikationStatus: true },
   });
-  if (!ka) throw new Error("No submitted inspection to verify or reject.");
+  if (!entry) throw new Error("No submitted inspection to verify or reject.");
+  const action = args.action === "verify" ? "manuallyVerify" : "reject";
   if (args.dryRun) {
-    const before: Record<string, unknown> = { verifikationStatus: ka.entry?.verifikationStatus ?? null };
-    const after: Record<string, unknown> = { verifikationStatus: verifikationStatusFor(args.action === "verify" ? "manuallyVerify" : "reject") };
-    return dryRunPreview("resolve_inspection", undefined, { id: ka.id, action: args.action }, diffFields(before, after));
+    const before: Record<string, unknown> = { verifikationStatus: entry.verifikationStatus };
+    const after: Record<string, unknown> = { verifikationStatus: verifikationStatusFor(action) };
+    return dryRunPreview("resolve_inspection", undefined, { id: entry.id, action: args.action }, diffFields(before, after));
   }
-  unwrap(await resolveKontrolle(ka.id, args.action === "verify" ? "manuallyVerify" : "reject"));
+  unwrap(await resolveInspectionEntry(entry.id, action));
   return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}; the user was notified by e-mail + push.` };
 }
 
