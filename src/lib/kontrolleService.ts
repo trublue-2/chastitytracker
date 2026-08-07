@@ -5,7 +5,7 @@ import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { recordMessageAndBadge } from "@/lib/messageService";
+import { recordMessageAndBadge, type MessageRef } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
@@ -24,6 +24,28 @@ export function verifikationStatusFor(action: "manuallyVerify" | "reject"): "man
 }
 
 /**
+ * Das Urteil über ein eingereichtes Kontroll-Foto: Status am EINTRAG + Meldung an den Sub.
+ *
+ * Die eine Stelle für beide Adressierungen — über die Anforderung (`resolveKontrolle`) und über den
+ * Eintrag (`resolveInspectionEntry`). Der `ref` ist optional, weil eine freiwillige Selbstkontrolle
+ * kein Bezugsobjekt hat: es gibt keine Anforderung, auf die die Nachricht zeigen könnte.
+ */
+async function applyInspectionVerdict(
+  entryId: string,
+  userId: string,
+  action: "manuallyVerify" | "reject",
+  ref?: MessageRef,
+): Promise<void> {
+  await prisma.entry.update({ where: { id: entryId }, data: { verifikationStatus: verifikationStatusFor(action) } });
+  markLastAction();
+  const notif: NotifyContent =
+    action === "manuallyVerify"
+      ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage" }
+      : { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage" };
+  await notifyUser(userId, { ...notif, inbox: { ref, senderKind: "keyholder" } });
+}
+
+/**
  * Resolves an inspection by id: withdraw it, or manually verify / reject its submitted photo.
  * Shared by PATCH /api/admin/kontrollen/[id] and the MCP resolve_inspection tool.
  */
@@ -31,33 +53,58 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
   const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
   if (!ka) return serviceFail(404, "INSPECTION_NOT_FOUND");
 
-  if (action === "withdraw") {
-    if (ka.withdrawnAt) return serviceFail(400, "INSPECTION_ALREADY_WITHDRAWN");
-    await prisma.kontrollAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
-    markLastAction();
-  } else if (action === "manuallyVerify" || action === "reject") {
+  if (action === "manuallyVerify" || action === "reject") {
     if (!ka.entryId) return serviceFail(400, "INSPECTION_NO_SUBMISSION");
-    await prisma.entry.update({ where: { id: ka.entryId }, data: { verifikationStatus: verifikationStatusFor(action) } });
-    markLastAction();
-  } else {
-    return serviceFail(400, "UNKNOWN_ACTION");
+    // Immer gemeldet: ein Urteil setzt ein eingereichtes Foto voraus, die Kontrolle hat also
+    // laengst ausgeloest und ist dem Sub bekannt.
+    await applyInspectionVerdict(ka.entryId, ka.userId, action, { type: "control", id: ka.id });
+    return { ok: true, data: { userId: ka.userId, notified: true } };
   }
+  if (action !== "withdraw") return serviceFail(400, "UNKNOWN_ACTION");
+
+  if (ka.withdrawnAt) return serviceFail(400, "INSPECTION_ALREADY_WITHDRAWN");
+  await prisma.kontrollAnforderung.update({ where: { id }, data: { withdrawnAt: new Date() } });
+  markLastAction();
 
   // Eine noch nicht ausgeloeste Kontrolle ist fuer den Sub unsichtbar (`wirksamAb` in der Zukunft) —
   // ihren Rueckzug zu melden verriete sie. Bei Auto-Kontrollen waere es der Zufallsplan, dessen
-  // Ueberraschung der Sinn ist. Nur `withdraw` kann das treffen: `manuallyVerify`/`reject` setzen ein
-  // eingereichtes Foto voraus, die Kontrolle hat also laengst ausgeloest.
-  const notified = action !== "withdraw" || !isHiddenFromSub(ka);
+  // Ueberraschung der Sinn ist. Nur der Rueckzug kann das treffen, siehe oben.
+  const notified = !isHiddenFromSub(ka);
   if (notified) {
-    const inbox = { ref: { type: "control", id: ka.id }, senderKind: "keyholder" } as const;
-    const notif: NotifyContent =
-      action === "manuallyVerify" ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage", inbox }
-      : action === "reject" ? { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage", inbox }
-      : { subjectKey: "inspectionResolvedWithdrawnSubject", messageKey: "inspectionResolvedWithdrawnMessage", inbox };
-    await notifyUser(ka.userId, notif);
+    await notifyUser(ka.userId, {
+      subjectKey: "inspectionResolvedWithdrawnSubject",
+      messageKey: "inspectionResolvedWithdrawnMessage",
+      inbox: { ref: { type: "control", id: ka.id }, senderKind: "keyholder" },
+    });
   }
 
   return { ok: true, data: { userId: ka.userId, notified } };
+}
+
+/**
+ * Dasselbe Urteil, adressiert über den EINTRAG statt über eine Anforderung.
+ *
+ * Der Weg für die freiwillige Selbstkontrolle: zu ihr existiert keine `KontrollAnforderung`, sie ist
+ * über `resolveKontrolle` also gar nicht erreichbar (Vorfall 07.08.2026 — die Aktion lief dort ins
+ * Leere). Gibt es zum Eintrag doch eine Anforderung, bekommt die Meldung deren Bezug: die
+ * Adressierung darf am Ergebnis nichts ändern.
+ */
+export async function resolveInspectionEntry(
+  entryId: string,
+  action: KontrolleAction,
+): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
+  // `withdraw` gehört an die Anforderung — an einem Eintrag gibt es nichts zurückzuziehen.
+  if (action !== "manuallyVerify" && action !== "reject") return serviceFail(400, "UNKNOWN_ACTION");
+
+  const entry = await prisma.entry.findUnique({ where: { id: entryId }, select: { userId: true, type: true } });
+  // Ein Urteil gibt es nur über eine Kontrolle — ein Verschluss-/Öffnen-Eintrag ist keine.
+  if (!entry || entry.type !== "PRUEFUNG") return serviceFail(404, "INSPECTION_NOT_FOUND");
+
+  const ka = await prisma.kontrollAnforderung.findFirst({ where: { entryId }, select: { id: true } });
+  await applyInspectionVerdict(entryId, entry.userId, action, ka ? { type: "control", id: ka.id } : undefined);
+  // Gleiche Rückgabeform wie `resolveKontrolle` — dieselbe Operation, nur anders adressiert.
+  // `notified` ist beim Urteil immer wahr (das Foto liegt vor, die Kontrolle ist dem Sub bekannt).
+  return { ok: true, data: { userId: entry.userId, notified: true } };
 }
 
 /** Gültige Siegel-Nummer aus dem letzten Eintrag (5–8-stellig, nur bei aktivem VERSCHLUSS), sonst null.

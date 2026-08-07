@@ -69,16 +69,25 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "withdraw" }),
         });
-      } else if ((action === "manuallyVerify" || action === "reject") && entryId && kontrolleId) {
-        // Über die keyholder-fähige Kontrollen-Route (resolveKontrolle setzt verifikationStatus) —
-        // NICHT /api/entries (das ist owner-/admin-only → 403 für Keyholder).
-        res = await fetch(`/api/admin/kontrollen/${kontrolleId}`, {
+      } else if ((action === "manuallyVerify" || action === "reject") && entryId) {
+        // Am EINTRAG, nicht an der Anforderung: eine Selbstkontrolle hat keine (`kontrolleId` ist
+        // dort null), und die Kontrollen-Route erreicht sie deshalb nicht. Für angeforderte
+        // Kontrollen ist das Ergebnis dasselbe — die Route findet die Anforderung selbst.
+        res = await fetch(`/api/admin/entries/${entryId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action }),
         });
       }
-      if (res && !res.ok) {
+      // Auffangnetz, kein aktiver Pfad: heute deckt sich jede Zweig-Bedingung oben mit dem `can…`,
+      // das den zugehörigen Knopf zeigt. Driftet das je wieder auseinander — genau der Defekt vom
+      // 07.08.2026 —, endet es ohne diesen Zweig in einem stillen `router.refresh()`: Knopf
+      // gedrückt, nichts passiert, keine Meldung. Sichtbar scheitern ist besser.
+      if (!res) {
+        setError(apiError(null));
+        return;
+      }
+      if (!res.ok) {
         setError(apiError(await parseApiErrorCode(res)));
         return;
       }
