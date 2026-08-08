@@ -7,7 +7,8 @@ import {
   CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/utils";
-import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE } from "@/lib/queries";
+import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere } from "@/lib/queries";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Automatische Kontrollen: pro Tag und Sub eine ZUFÄLLIGE Anzahl `x ∈ [perDayMin, perDayMax]` zufällig
@@ -36,12 +37,6 @@ export type SetAutoKontrolleParams = Partial<AutoKontrolleSettings>;
 export interface AutoKontrolleSlot {
   wirksamAb: Date;
   deadline: Date;
-}
-
-/** Ein bereits in der DB liegender Slot. `sent` = dem Sub schon zugestellt ⇒ unantastbar. */
-export interface PlannedAutoKontrolle extends AutoKontrolleSlot {
-  id: string;
-  sent: boolean;
 }
 
 /** Geklemmter Min-/Max-Anzahl-Bereich pro Tag (`max` nie unter `min`). */
@@ -77,8 +72,8 @@ function awakeWindow(s: AutoKontrolleSettings): { start: number; end: number } {
  * Mitternacht reichenden Wach-Fensters.
  *
  * `minuteOf` ist die exakte Umkehrung von `at` — beide MÜSSEN denselben Anker teilen, sonst bilden
- * `generateAutoKontrollen` und `repairAutoKontrollen` dieselbe Minute auf Instants ab, die an einem
- * Umstellungstag eine Stunde auseinanderliegen (überlappende Slots, Frist im Schlaf-Fenster).
+ * die beiden Platzierer (`spreadOverDay`, `fillFreeGaps`) dieselbe Minute auf Instants ab, die an
+ * einem Umstellungstag eine Stunde auseinanderliegen (überlappende Slots, Frist im Schlaf-Fenster).
  */
 function minuteAxis(now: Date, awakeStart: number, tz: string): { at: (m: number) => Date; minuteOf: (d: Date) => number } {
   const awakeStartMs = dateAtLocalMinutes(now, awakeStart, tz).getTime();
@@ -128,8 +123,9 @@ function nextSleepStart(quietVon: number, trig: number): number {
 /** Frist eines Fenster-Triggers: normal (`trig+dur`), aber am nächsten Schlaf-Beginn gekappt — so
  *  liegt weder Auslösung noch Frist je im Schlaf. null, wenn nach dem Kappen nicht mehr die volle
  *  Mindest-Frist (`fristVon`) bleibt: dann ist der Trigger zu nah am Schlaf und wird übersprungen.
- *  Damit hält JEDER erzeugte Fenster-Slot `dur ∈ [fristVon, fristBis]` — dieselbe Gültigkeit, die
- *  `repairAutoKontrollen` prüft, sonst würfe generate Slots aus, die der nächste Replan wieder löscht. */
+ *  Damit hält JEDER erzeugte Fenster-Slot `dur ∈ [fristVon, fristBis]` — eine Kontrolle mit einer auf
+ *  Minuten zusammengestauchten Frist wäre für den Sub nicht erfüllbar. Lieber kein Slot als einer,
+ *  den er nicht schaffen kann. */
 function windowDeadlineMin(trig: number, dur: number, quietVon: number, fristVon: number): number | null {
   const deadline = Math.min(trig + dur, nextSleepStart(quietVon, trig) - 1);
   return deadline - trig >= fristVon ? deadline : null;
@@ -171,7 +167,24 @@ export function generateAutoKontrollen(
   const { min, max } = perDayRange(settings);
   if (max <= 0) return [];
   // Anzahl zufällig aus [min, max] (min == max → fixe Anzahl, wie bisher).
-  const x = randomInt(min, max, rand);
+  return spreadOverDay(settings, now, randomInt(min, max, rand), rand, tz);
+}
+
+/**
+ * Verteilt `x` Slots über den GANZEN Tag: je ein gleich grosses Segment pro Slot. Für den frischen
+ * Tagesplan, den der Poller zur Sub-Mitternacht anlegt.
+ *
+ * NUR dafür: die Segmente werden über das ganze Fenster gelegt und Slots, deren Trigger schon vorbei
+ * ist, fallen weg. Zur Mitternacht ist das keiner — mitten am Tag wären es die meisten. Wer während
+ * des Tages plant, nimmt {@link fillFreeGaps}; das füllt ab JETZT.
+ */
+function spreadOverDay(
+  settings: AutoKontrolleSettings,
+  now: Date,
+  x: number,
+  rand: () => number,
+  tz: string,
+): AutoKontrolleSlot[] {
   if (x <= 0) return [];
   const { von: fristVon, bis: fristBis } = fristRange(settings);
 
@@ -208,9 +221,8 @@ export function generateAutoKontrollen(
   // awakeEnd (= Schlaf-Start). In GANZZAHL-Minuten (keine Float-/Rundungs-Kanten).
   const segSize = (awakeEnd - awakeStart) / x;
   // Die Segment-Kappung darf die Mindest-Frist NICHT unterlaufen. Vorher stand unten `Math.max(1, …)`,
-  // was in einem engen Wach-Fenster Slots mit 1-Minuten-Frist erzeugte: für den Sub unerfüllbar, und
-  // `repairAutoKontrollen.durOk` stuft sie sofort als Verletzer ein und ersetzt sie — der Plan hätte
-  // gegen sich selbst gearbeitet. Die Prüfung steht VOR der Schleife, weil `segSize` über alle
+  // was in einem engen Wach-Fenster Slots mit 1-Minuten-Frist erzeugte — für den Sub unerfüllbar.
+  // Lieber kein Slot als einer, den er nicht schaffen kann. Die Prüfung steht VOR der Schleife, weil `segSize` über alle
   // Segmente konstant ist: passt `fristVon` in eines nicht, passt es in keines. (Im Fenster-Zweig
   // muss `windowDeadlineMin` dagegen je Trigger entscheiden — dort kappt der Schlaf-Beginn, nicht
   // die Segmentgrösse.)
@@ -246,114 +258,90 @@ function freeGaps(lower: number, upper: number, occupied: { start: number; end: 
   return gaps.filter(([a, b]) => b > a);
 }
 
-/**
- * Gleicht den BESTEHENDEN Tagesplan an geänderte Settings an, statt ihn neu zu würfeln: Slots, die die
- * neuen Settings noch erfüllen, bleiben stehen — nur die Verletzer werden ersetzt und die Tages-Anzahl
- * wieder auf `[perDayMin, perDayMax]` eingeregelt. Ohne relevante Änderung ist das Ergebnis leer, der
- * Aufrufer schreibt dann gar nichts.
- *
- * Ein Slot verletzt die Settings, wenn Trigger oder Frist im Schlaf-Fenster liegen oder die
- * Erfüllungsdauer ausserhalb von `[fristVon, fristBis]` liegt. MIT festem Auslöse-Fenster verletzt ein
- * Slot zusätzlich, wenn sein Trigger ausserhalb des Fensters liegt — so zieht auch ein mittags gesetztes
- * Fenster den heutigen Rest-Plan hinein. Bereits versendete Kontrollen sind für den Sub sichtbar und
- * bleiben immer stehen; sie belegen ihren Zeitraum und zählen aufs Tages-Kontingent.
- *
- * Nachgezogen wird nur, wenn die Anzahl UNTER `perDayMin` fällt (dann bis `perDayMin`), gestrichen nur
- * über `perDayMax` (dann die spätesten noch nicht versendeten). Ein blosses Anheben von `perDayMax`
- * plant also nichts nach — die Tages-Anzahl wurde bereits gewürfelt und bleibt gültig. Neue Slots landen
- * ausschliesslich in den freien Lücken des Trigger-Bereichs (Wach- bzw. festes Fenster), damit sie sich
- * nicht überlappen. Die Fill-Slots halten Trigger UND Frist innerhalb ihrer Lücke — anders als
- * `generate`, das im Fenster-Fall die Frist bis zum Schlaf-Beginn ziehen darf; das ist bewusst
- * konservativer (kein Überlappen mit dem nächsten Slot/Schlaf), der Effekt betrifft nur die letzte
- * Fenster-Minute.
- *
- * Reine Funktion (Zufall injizierbar); der Aufrufer führt `deleteIds` und `create` gegen die DB aus.
- */
-export function repairAutoKontrollen(
-  settings: AutoKontrolleSettings,
-  existing: PlannedAutoKontrolle[],
-  now: Date,
-  rand: () => number = Math.random,
-  tz: string = APP_TZ,
-): { deleteIds: string[]; create: AutoKontrolleSlot[] } {
-  const { min, max } = perDayRange(settings);
-  const { start: awakeStart, end: awakeEnd } = awakeWindow(settings);
-  // Abgeschaltet (oder kein Wach-Fenster) ⇒ nur die noch nicht versendeten Zeilen wegräumen.
-  if (!settings.aktiv || max <= 0 || awakeEnd <= awakeStart) {
-    return { deleteIds: existing.filter((e) => !e.sent).map((e) => e.id), create: [] };
-  }
-
-  const { von: fristVon, bis: fristBis } = fristRange(settings);
-  // Dieselbe Achse (Anker Wach-Beginn) wie `generateAutoKontrollen` — sonst liegen ersetzte und
-  // behaltene Slots an einem Umstellungstag eine Stunde auseinander.
-  const { at, minuteOf } = minuteAxis(now, awakeStart, tz);
-  const slots = existing.map((e) => ({
-    id: e.id, sent: e.sent,
-    start: minuteOf(e.wirksamAb),
-    end: minuteOf(e.deadline),
-  }));
-
-  // Der Trigger-Bereich als EIN Deskriptor: wohin ein Trigger darf (`lower`/`upper`), welche
-  // Zusatz-Intervalle darin belegt sind (Schlaf im Fenster) und wann ein Slot ihn verletzt. Ohne
-  // festes Fenster ist das exakt das bisherige Wach-Fenster-Verhalten — der Bestand bleibt unberührt.
+/** Wohin ein Trigger überhaupt darf: das feste Auslöse-Fenster, sonst das Wach-Fenster. `occupied`
+ *  sind die von vornherein belegten Intervalle darin (Schlaf innerhalb eines festen Fensters). */
+function triggerDomain(
+  settings: AutoKontrolleSettings, awake: { start: number; end: number },
+): { lower: number; upper: number; occupied: { start: number; end: number }[] } {
   const fixed = fixedWindowMinutes(settings);
-  const quietVon = hhmmToMinutes(settings.ruheVon);
-  const quietBis = hhmmToMinutes(settings.ruheBis);
-  const durOk = (s: { start: number; end: number }) => s.end - s.start >= fristVon && s.end - s.start <= fristBis;
-  const domain = fixed
-    ? {
-        lower: fixed.start, upper: fixed.end,
-        occupied: sleepBlocksWithin(fixed, quietVon, quietBis),
-        violates: (s: { start: number; end: number }) =>
-          s.start < fixed.start || s.start > fixed.end ||
-          isInQuietMinutes(quietVon, quietBis, s.start) ||
-          s.end > nextSleepStart(quietVon, s.start) || !durOk(s),
-      }
-    : {
-        lower: awakeStart, upper: awakeEnd,
-        occupied: [] as { start: number; end: number }[],
-        violates: (s: { start: number; end: number }) => s.start < awakeStart || s.end > awakeEnd || !durOk(s),
-      };
+  // Ohne festes Fenster endet der Bereich eine Minute VOR dem Schlaf-Beginn: `awakeEnd` ist bereits
+  // die erste Schlaf-Minute, eine Frist genau darauf läge im Schlaf. `spreadOverDay` rechnet mit
+  // derselben Grenze (`awakeEnd - 1 - dur`).
+  if (!fixed) return { lower: awake.start, upper: awake.end - 1, occupied: [] };
+  return {
+    lower: fixed.start,
+    upper: fixed.end,
+    occupied: sleepBlocksWithin(fixed, hhmmToMinutes(settings.ruheVon), hhmmToMinutes(settings.ruheBis)),
+  };
+}
 
-  const deleteIds = slots.filter((s) => !s.sent && domain.violates(s)).map((s) => s.id);
-  let keep = slots.filter((s) => s.sent || !domain.violates(s));
+/**
+ * Platziert `count` Slots in die freien Lücken des Trigger-Bereichs — an den `taken`-Kontrollen
+ * vorbei, die weder verschoben noch überlappt werden dürfen (heute: die dem Sub bereits zugestellten).
+ * Gefüllt wird immer die GRÖSSTE Lücke, bis keine mehr für die Mindest-Frist reicht.
+ *
+ * Anders als {@link spreadOverDay} füllt es ab JETZT (`minuteOf(now) + 1`) statt über den ganzen Tag —
+ * das macht es zum Platzierer für alles, was mitten am Tag geplant wird.
+ *
+ * Trigger UND Frist bleiben in derselben Lücke — bewusst konservativer als {@link spreadOverDay}, das
+ * im Fenster-Fall die Frist bis zum Schlaf-Beginn ziehen darf. Der Unterschied betrifft die letzte
+ * Fenster-Minute, verhindert aber jede Überlappung mit dem nächsten Slot. Schlaf-Blöcke im Fenster
+ * zählen als belegt → dort landet nie ein Trigger, und weil die Lücke am Schlaf-Block endet, liegt
+ * auch die Frist nie im Schlaf.
+ *
+ * Reine Funktion (Zufall injizierbar). Die Achse ist dieselbe wie in {@link spreadOverDay} (Anker
+ * Wach-Beginn), sonst lägen gefüllte und geplante Slots an einem Umstellungstag eine Stunde auseinander.
+ */
+export function fillFreeGaps(
+  settings: AutoKontrolleSettings,
+  taken: AutoKontrolleSlot[],
+  count: number,
+  now: Date,
+  rand: () => number,
+  tz: string,
+): AutoKontrolleSlot[] {
+  if (count <= 0) return [];
+  const { start: awakeStart, end: awakeEnd } = awakeWindow(settings);
+  const { von: fristVon, bis: fristBis } = fristRange(settings);
+  const { at, minuteOf } = minuteAxis(now, awakeStart, tz);
+  const domain = triggerDomain(settings, { start: awakeStart, end: awakeEnd });
+  const occupied = [
+    ...taken.map((t) => ({ start: minuteOf(t.wirksamAb), end: minuteOf(t.deadline) })),
+    ...domain.occupied,
+  ];
 
-  // Zu viele ⇒ die spätesten noch nicht versendeten streichen (die am wenigsten „feststehen").
-  if (keep.length > max) {
-    const dropped = new Set(
-      keep.filter((s) => !s.sent).sort((a, b) => b.start - a.start).slice(0, keep.length - max).map((s) => s.id),
-    );
-    deleteIds.push(...dropped);
-    keep = keep.filter((s) => !dropped.has(s.id));
-  }
-
-  // Zu wenige ⇒ in der grössten freien Lücke des Trigger-Bereichs nachziehen, bis keine mehr passt.
-  // Schlaf-Blöcke im Fenster zählen als belegt → dort landet nie ein Trigger, und weil die Lücke am
-  // Schlaf-Block endet, liegt auch die Frist (≤ Lückenende) nie im Schlaf.
-  const create: AutoKontrolleSlot[] = [];
-  let gaps = freeGaps(Math.max(domain.lower, minuteOf(now) + 1), domain.upper, [...keep, ...domain.occupied]);
-  for (let i = keep.length; i < min; i++) {
+  const out: AutoKontrolleSlot[] = [];
+  let gaps = freeGaps(Math.max(domain.lower, minuteOf(now) + 1), domain.upper, occupied);
+  for (let i = 0; i < count; i++) {
     if (gaps.length === 0) break;
     const best = gaps.reduce((bi, g, gi) => (gapLen(g) > gapLen(gaps[bi]) ? gi : bi), 0);
     if (gapLen(gaps[best]) < fristVon) break; // kein Platz mehr
     const [gapStart, gapEnd] = gaps[best];
     const dur = Math.min(randomInt(fristVon, fristBis, rand), gapEnd - gapStart);
     const trig = randomInt(gapStart, gapEnd - dur, rand);
-    create.push({ wirksamAb: at(trig), deadline: at(trig + dur) });
+    out.push({ wirksamAb: at(trig), deadline: at(trig + dur) });
     gaps.splice(best, 1, [gapStart, trig], [trig + dur, gapEnd]);
     gaps = gaps.filter(([a, b]) => b > a);
   }
-  return { deleteIds, create };
+  return out;
 }
 
-/** Liest die Auto-Kontroll-Settings aus einer User-Zeile. */
-export function autoKontrolleSettingsFromUser(u: {
+/** Die Auto-Kontroll-Spalten einer User-Zeile — die Rohform von {@link AutoKontrolleSettings}. */
+export interface AutoKontrolleUserFields {
   autoKontrolleAktiv: boolean; autoKontrollePerDayMin: number; autoKontrollePerDayMax: number;
   autoKontrolleRuheVon: string; autoKontrolleRuheBis: string;
   autoKontrolleFristVon: number; autoKontrolleFristBis: number;
   autoKontrolleFensterVon: string; autoKontrolleFensterBis: string;
   autoKontrolleNurBeiSperre: boolean;
-}): AutoKontrolleSettings {
+}
+
+/** Eine User-Zeile, wie sie {@link AUTO_KONTROLLE_SETTINGS_SELECT} lädt: Settings plus die Identität
+ *  und der Merker, für welchen Tag zuletzt gewürfelt wurde. AUS dem Select abgeleitet statt daneben
+ *  gepflegt — sonst driften Spaltenliste und Typ auseinander, ohne dass es jemand merkt. */
+export type AutoKontrolleUser = Prisma.UserGetPayload<{ select: typeof AUTO_KONTROLLE_SETTINGS_SELECT }>;
+
+/** Liest die Auto-Kontroll-Settings aus einer User-Zeile. */
+export function autoKontrolleSettingsFromUser(u: AutoKontrolleUserFields): AutoKontrolleSettings {
   return {
     aktiv: u.autoKontrolleAktiv,
     perDayMin: u.autoKontrollePerDayMin,
@@ -368,15 +356,35 @@ export function autoKontrolleSettingsFromUser(u: {
   };
 }
 
-/** Die User-Spalten, aus denen `autoKontrolleSettingsFromUser` die Settings baut (plus id/timezone).
+/** Die User-Spalten, aus denen `autoKontrolleSettingsFromUser` die Settings baut — plus Identität,
+ *  Zeitzone und den Tages-Merker, die zusammen die Tagesplanung entscheiden.
  *  Exportiert, damit ein Aufrufer ausserhalb (Poller) dieselben Felder lädt, statt sie abzuschreiben. */
 export const AUTO_KONTROLLE_SETTINGS_SELECT = {
   id: true, timezone: true, autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true,
   autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
   autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
-  autoKontrolleNurBeiSperre: true,
+  autoKontrolleNurBeiSperre: true, autoInspectionPlannedFor: true,
 } as const;
+
+/** Die Felder, an denen der TAGESPLAN hängt: ändert sich eines, wird der Tag neu gewürfelt.
+ *  `autoKontrolleNurBeiSperre` steht bewusst NICHT hier — es entscheidet erst bei Fälligkeit über die
+ *  Zustellung und lässt die Planung unberührt. */
+const PLANNING_FIELDS = [
+  "autoKontrolleAktiv", "autoKontrollePerDayMin", "autoKontrollePerDayMax",
+  "autoKontrolleRuheVon", "autoKontrolleRuheBis",
+  "autoKontrolleFristVon", "autoKontrolleFristBis",
+  "autoKontrolleFensterVon", "autoKontrolleFensterBis",
+] as const satisfies readonly (keyof AutoKontrolleUserFields)[];
+
+/** Jede Auto-Kontroll-Einstellung ist entweder Planung oder bewusst keine — wer eine neue hinzufügt,
+ *  muss sich hier entscheiden, sonst nennt der Compiler sie beim Namen. Ohne diese Zeile fiele ein
+ *  vergessenes Feld LAUTLOS aus dem Neuwurf: es speichert und wirkt, nur eben erst am nächsten Tag.
+ *  Das ist die einzige der zehn Feld-Listen dieses Moduls, deren Lücke man nicht sofort sieht. */
+type AssertNever<T extends never> = T;
+type _AllSettingsClassified = AssertNever<
+  Exclude<keyof AutoKontrolleUserFields, (typeof PLANNING_FIELDS)[number] | "autoKontrolleNurBeiSperre">
+>;
 
 /** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null).
  *  `extra` trägt die HERKUNFT (heute `cleaningRelock`) — die eine Stelle, an der eine Auto-Zeile
@@ -467,7 +475,7 @@ export async function scheduleCleaningRelockInspection(
   const deadline = new Date(wirksamAb.getTime() + randomInt(fristVon, fristBis, rand) * 60_000);
 
   // Die zu ersetzende Zeile: die nächste geplante, noch NICHT zugestellte Auto-Kontrolle. Der
-  // `benachrichtigtAt: null`-Filter steht bewusst auch im delete (wie in replanToday…): zwischen Lesen
+  // `benachrichtigtAt: null`-Filter steht bewusst auch im delete (wie im Neuwurf): zwischen Lesen
   // und Löschen kann der Minuten-Poller sie zugestellt haben, und eine zugestellte Kontrolle darf dem
   // Sub nicht unter den Händen verschwinden.
   const ersetzbar = await prisma.kontrollAnforderung.findFirst({
@@ -483,57 +491,105 @@ export async function scheduleCleaningRelockInspection(
   return { wirksamAb, deadline, imSchlaf, ersetzteId: geloescht > 0 ? ersetzbar!.id : null };
 }
 
-/** Würfelt den Tagesplan frisch aus und legt ihn an — für einen Tag, für den noch kein Plan existiert.
- *  Abgeschaltet (oder 0 Kontrollen/Tag) ⇒ nichts. */
-function rollFreshDay(userId: string, settings: AutoKontrolleSettings, now: Date, tz: string): Promise<number> {
-  if (!settings.aktiv || perDayRange(settings).max <= 0) return Promise.resolve(0);
-  return createAutoKontrollen(userId, generateAutoKontrollen(settings, now, Math.random, tz));
+/** Hält fest, dass für diesen Sub-Tag gewürfelt wurde. Der Merker ist die EINZIGE Spur eines Wurfs auf
+ *  „heute keine Kontrolle" (`perDayMin: 0`) — ohne ihn sähe der Minuten-Poller einen ungeplanten Tag
+ *  und würfelte im nächsten Tick weiter, bis endlich eine Kontrolle herauskam. Aus 50 % Chance wurde so
+ *  faktisch jeden Tag eine. */
+async function markDayPlanned(userId: string, now: Date, tz: string): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { autoInspectionPlannedFor: midnightInTZ(now, tz) } });
 }
 
-/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent: existieren schon heute (Tag der Sub)
- *  angelegte Auto-Zeilen, passiert nichts. (Vom Poller, einmal pro Tag.) */
-export async function ensureDailyAutoKontrollenForUser(
-  userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
-): Promise<number> {
-  if (!settings.aktiv || perDayRange(settings).max <= 0) return 0;
-  const already = await prisma.kontrollAnforderung.count({
-    where: { userId, ...AUTO_PLAN_WHERE, createdAt: { gte: midnightInTZ(now, tz) } },
-  });
-  if (already > 0) return 0;
-  return rollFreshDay(userId, settings, now, tz);
+/** Ist die Automatik für diesen Sub praktisch aus? Beide Einstiegspunkte (Tagesplanung und Neuwurf)
+ *  müssen sich darüber einig sein — sie entscheidet, ob überhaupt geschrieben wird. */
+function autoPlanningOff(settings: AutoKontrolleSettings): boolean {
+  return !settings.aktiv || perDayRange(settings).max <= 0;
 }
 
-/** Zieht den Tagesplan des LAUFENDEN Tages auf geänderte Settings nach (Settings-Änderungen wirken sofort).
- *  Existiert für heute noch gar kein Plan, wird er frisch gewürfelt; sonst gleicht `repairAutoKontrollen`
- *  den bestehenden Plan minimal an — bestehende Zeiten bleiben stehen, solange sie die neuen Settings
- *  erfüllen. Ohne relevante Änderung fällt kein einziger Schreibzugriff an. Gibt die Zahl der neu
- *  angelegten Kontrollen zurück. */
-export async function replanTodayAutoKontrollenForUser(
-  userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
-): Promise<number> {
-  const rows = await prisma.kontrollAnforderung.findMany({
-    where: { userId, ...AUTO_PLAN_WHERE, withdrawnAt: null, createdAt: { gte: midnightInTZ(now, tz) } },
-    select: { id: true, wirksamAb: true, deadline: true, benachrichtigtAt: true },
-  });
-  // `createAutoKontrollen` setzt immer ein `wirksamAb`; eine Auto-Zeile ohne ist nicht planbar → ignorieren.
-  const planned: PlannedAutoKontrolle[] = rows.flatMap((r) =>
-    r.wirksamAb ? [{ id: r.id, wirksamAb: r.wirksamAb, deadline: r.deadline, sent: r.benachrichtigtAt !== null }] : []);
+/** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent über den Tages-Merker. (Vom Poller,
+ *  einmal pro Tag der Sub.) */
+export async function ensureDailyAutoKontrollenForUser(user: AutoKontrolleUser, now: Date): Promise<number> {
+  const settings = autoKontrolleSettingsFromUser(user);
+  if (autoPlanningOff(settings)) return 0;
+  const tz = user.timezone ?? APP_TZ;
+  const day = midnightInTZ(now, tz);
+  if (user.autoInspectionPlannedFor?.getTime() === day.getTime()) return 0;
 
-  // Für heute existiert noch gar keine Auto-Zeile (Poller lief noch nicht, oder gerade erst aktiviert)
-  // → frisch würfeln. Auf `rows` prüfen, nicht auf `planned`: eine Zeile ohne `wirksamAb` ist zwar nicht
-  // planbar, aber vorhanden — ein frischer Tagesplan käme obendrauf.
-  if (rows.length === 0) return rollFreshDay(userId, settings, now, tz);
-
-  const { deleteIds, create } = repairAutoKontrollen(settings, planned, now, Math.random, tz);
-  if (deleteIds.length > 0) {
-    await prisma.kontrollAnforderung.deleteMany({
-      // `benachrichtigtAt`/`withdrawnAt` NOCHMALS im DELETE prüfen: zwischen dem `findMany` oben und
-      // hier kann der Minuten-Poller eine Zeile verschickt haben. Ohne diesen Filter löschten wir eine
-      // Kontrolle, deren Code dem Sub bereits per Mail/Push zugestellt wurde — unerfüllbar für ihn.
-      where: { id: { in: deleteIds }, benachrichtigtAt: null, withdrawnAt: null },
-    });
+  // Eine Zählung pro Sub und Tag — sie fängt einen Tagesplan ab, den der Merker (noch) nicht kennt:
+  // den am Deploy-Tag schon vorhandenen. Sie kann nur, was Zeilen hinterlassen hat; für einen Wurf auf
+  // NULL ist allein der Merker zuständig.
+  const already = await prisma.kontrollAnforderung.count({ where: todaysAutoPlanWhere(user.id, day) });
+  if (already > 0) {
+    await markDayPlanned(user.id, now, tz);
+    return 0;
   }
-  return createAutoKontrollen(userId, create);
+
+  // Der Merker NOCHMAL, frisch: der Poller arbeitet mit einer Momentaufnahme aller Subs, und zwischen
+  // dem Laden dieser Zeile und jetzt kann ein Neuwurf (Settings-Änderung) den Tag geplant haben — auch
+  // auf NULL Kontrollen, was die Zählung oben prinzipiell nicht sehen kann. Ohne diese zweite Frage
+  // überwürfe der Poller genau den 0-Tag, den zu bewahren der Sinn des Merkers ist.
+  const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { autoInspectionPlannedFor: true } });
+  if (fresh?.autoInspectionPlannedFor?.getTime() === day.getTime()) return 0;
+
+  const created = await createAutoKontrollen(user.id, generateAutoKontrollen(settings, now, Math.random, tz));
+  await markDayPlanned(user.id, now, tz);
+  return created;
+}
+
+/**
+ * Würfelt den heutigen Tagesplan NEU — der Weg, auf dem eine geänderte PLANUNGS-Einstellung sofort
+ * wirkt (siehe {@link PLANNING_FIELDS}).
+ *
+ * Neu gewürfelt heisst wirklich neu: die Tages-Anzahl wird frisch aus `[perDayMin, perDayMax]` gezogen,
+ * die noch nicht zugestellten Zeilen von heute fallen weg. Bereits ZUGESTELLTE bleiben stehen — der Sub
+ * kennt Code und Frist, sie lassen sich nicht zurücknehmen — und zählen aufs neue Kontingent: würfelt
+ * der Tag eine 1 und ist eine Kontrolle schon draussen, kommt heute keine mehr.
+ *
+ * Geplant wird über {@link fillFreeGaps}, also in die REST-Zeit des Tages und an den zugestellten
+ * Kontrollen vorbei — nicht über `spreadOverDay`. Der Unterschied ist load-bearing: ein Neuwurf um
+ * 20:00 mit Segmenten über den ganzen Tag verwürfe fast alles, was er gerade gelöscht hat (die
+ * Vormittags-Segmente sind vorbei), und der Tag endete meist leer. Dass für eine Änderung kurz vor
+ * dem Schlaf-Fenster kein Platz mehr bleibt, ist dagegen richtig so.
+ */
+export async function rerollTodayAutoKontrollenForUser(
+  userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
+): Promise<number> {
+  const day = midnightInTZ(now, tz);
+  // `benachrichtigtAt`/`withdrawnAt` gehören ins DELETE selbst: zwischen dem Entschluss und dem
+  // Löschen kann der Minuten-Poller eine Zeile verschickt haben, und eine zugestellte Kontrolle darf
+  // dem Sub nicht unter den Händen verschwinden. Zurückgezogene bleiben ebenfalls liegen — an ihnen
+  // hängt (versäumt/eskaliert) die History.
+  await prisma.kontrollAnforderung.deleteMany({
+    where: { ...todaysAutoPlanWhere(userId, day), benachrichtigtAt: null, withdrawnAt: null },
+  });
+
+  let slots: AutoKontrolleSlot[] = [];
+  if (!autoPlanningOff(settings)) {
+    // Aufs Kontingent zählt, was der Sub heute WIRKLICH bekommen hat: zugestellt und nicht
+    // zurückgenommen. Eine versäumte zählt mit (sie hat stattgefunden, das Vergehen hängt daran),
+    // eine vom Keyholder zurückgezogene nicht — genau die Rangfolge von `GENUINELY_WITHDRAWN_WHERE`.
+    const delivered = await prisma.kontrollAnforderung.findMany({
+      where: {
+        ...todaysAutoPlanWhere(userId, day),
+        benachrichtigtAt: { not: null },
+        NOT: GENUINELY_WITHDRAWN_WHERE,
+      },
+      select: { wirksamAb: true, deadline: true },
+    });
+    const { min, max } = perDayRange(settings);
+    // `createAutoKontrollen` setzt immer ein `wirksamAb`; eine Zeile ohne ist nicht auf der Zeitachse
+    // verortbar und kann deshalb keinen Zeitraum belegen (aufs Kontingent zählt sie trotzdem).
+    const occupied = delivered.flatMap((d) => (d.wirksamAb ? [{ wirksamAb: d.wirksamAb, deadline: d.deadline }] : []));
+    const remaining = randomInt(min, max, Math.random) - delivered.length;
+    slots = fillFreeGaps(settings, occupied, remaining, now, Math.random, tz);
+  }
+
+  const created = await createAutoKontrollen(userId, slots);
+  // Merker ZULETZT — dieselbe Reihenfolge wie in der Tagesplanung, und aus demselben Grund: scheitert
+  // das Anlegen, bleibt der Tag ungemerkt und der Poller plant ihn neu. Andersherum stünde der Merker
+  // auf einem Tag, für den nie Zeilen entstanden sind, und die Automatik schwiege bis Mitternacht —
+  // der Ausgang des Vorfalls vom 28.07.2026 (siehe `keyholderVisibleKontrolleWhere` in queries.ts).
+  await markDayPlanned(userId, now, tz);
+  return created;
 }
 
 /** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro Kalendertag der jeweiligen Sub). */
@@ -541,7 +597,7 @@ export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
   const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   for (const u of users) {
     try {
-      await ensureDailyAutoKontrollenForUser(u.id, autoKontrolleSettingsFromUser(u), now, u.timezone ?? APP_TZ);
+      await ensureDailyAutoKontrollenForUser(u, now);
     } catch (e) {
       console.error(`[autoKontrolle] Tagesplanung fehlgeschlagen (${u.id}):`, (e as Error).message);
     }
@@ -577,13 +633,7 @@ export async function deleteWithdrawnAutoKontrollen(now: Date): Promise<number> 
 /** Speichert die Auto-Kontroll-Settings eines Users (nur übergebene Felder; Zahlen geklemmt, HH:MM
  *  validiert, FristBis ≥ FristVon). Geteilt von PATCH /api/admin/users/[id]. */
 export async function setAutoKontrolleSettings(userId: string, params: SetAutoKontrolleParams): Promise<ServiceResult<null>> {
-  const data: {
-    autoKontrolleAktiv?: boolean; autoKontrollePerDayMin?: number; autoKontrollePerDayMax?: number;
-    autoKontrolleRuheVon?: string; autoKontrolleRuheBis?: string;
-    autoKontrolleFristVon?: number; autoKontrolleFristBis?: number;
-    autoKontrolleFensterVon?: string; autoKontrolleFensterBis?: string;
-    autoKontrolleNurBeiSperre?: boolean;
-  } = {};
+  const data: Partial<AutoKontrolleUserFields> = {};
 
   if (params.aktiv !== undefined) data.autoKontrolleAktiv = Boolean(params.aktiv);
   if (params.perDayMin !== undefined) data.autoKontrollePerDayMin = clamp(params.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE);
@@ -618,11 +668,23 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   // Leeres `data` heisst jetzt eindeutig: gar kein Feld übergeben (ungültige Uhrzeiten sind oben
   // schon als INVALID_TIME rausgeflogen).
   if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
+
+  // Der Stand VOR dem Schreiben — nur so lässt sich eine echte Wertänderung von einem Speichern
+  // unterscheiden, das denselben Wert nochmal schickt (das Formular sendet immer alle Felder).
+  // Verglichen wird gegen `data`, also gegen die bereits geklemmten/normalisierten Zielwerte: ein
+  // Wert, den `clamp` ohnehin auf den Bestand zurückholt, ist keine Änderung.
+  const before = await prisma.user.findUnique({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
+  if (!before) return serviceFail(404, "USER_NOT_FOUND");
+  const changed = (Object.keys(data) as (keyof AutoKontrolleUserFields)[]).filter((f) => data[f] !== before[f]);
+  if (changed.length === 0) return { ok: true, data: null }; // Speichern ohne Änderung: kein Schreibzugriff
+
   const user = await prisma.user.update({ where: { id: userId }, data, select: AUTO_KONTROLLE_SETTINGS_SELECT });
 
-  // Änderung sofort auf den laufenden Tag anwenden. Der Replan ist idempotent: ändert der Patch nichts
-  // an der Slot-Verteilung (z.B. reines Aktiv-Toggle bei schon geplantem Tag), bleiben die Zeiten stehen.
-  await replanTodayAutoKontrollenForUser(userId, autoKontrolleSettingsFromUser(user), new Date(), user.timezone ?? APP_TZ)
-    .catch((e) => console.error(`[autoKontrolle] Replan nach Settings-Änderung fehlgeschlagen (${userId}):`, (e as Error).message));
+  // Nur eine echte Änderung an einem Planungsfeld würfelt den laufenden Tag neu. Ein Speichern, das
+  // nur „nur bei Sperre" umlegt, lässt den Tagesplan in Ruhe.
+  if (changed.some((f) => (PLANNING_FIELDS as readonly string[]).includes(f))) {
+    await rerollTodayAutoKontrollenForUser(userId, autoKontrolleSettingsFromUser(user), new Date(), user.timezone ?? APP_TZ)
+      .catch((e) => console.error(`[autoKontrolle] Neuwurf nach Settings-Änderung fehlgeschlagen (${userId}):`, (e as Error).message));
+  }
   return { ok: true, data: null };
 }

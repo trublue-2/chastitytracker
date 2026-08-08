@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.0.11",
+    "date": "2026-08-08",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Sind null bis eine Kontrolle pro Tag eingestellt, gibt es jetzt auch wirklich Tage ohne Kontrolle — bisher kam faktisch jeden Tag eine.",
+          "en": "With zero to one inspection per day configured, days without an inspection now actually happen — until now there was effectively one every day."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Wird eine Einstellung der automatischen Kontrollen geändert, wird der laufende Tag neu ausgewürfelt. Bereits verschickte Kontrollen bleiben stehen und zählen mit.",
+          "en": "Changing an automatic-inspection setting now re-rolls the current day. Inspections already sent stay and count towards the day's total."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.10",
     "date": "2026-08-07",
     "changes": [
