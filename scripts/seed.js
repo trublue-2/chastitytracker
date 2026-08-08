@@ -95,6 +95,12 @@ async function ensureNotificationPrefs(userId) {
 async function main() {
   const username = process.env.ADMIN_USERNAME || "admin";
   const email = process.env.ADMIN_EMAIL || null;
+  // Sprache des Admin-Accounts beim ERSTEN Anlegen. Das Portal gibt hier die Sprache mit, in der
+  // sich der Nutzer registriert hat; ohne sie startete jede Instanz auf Deutsch, und das Portal
+  // las diesen Default später als vermeintliche Nutzerwahl zurück und schrieb seine Anschreiben
+  // danach. Wirkt nur bei der Neuanlage — die Wahl eines bestehenden Users wird nie überschrieben.
+  // Mirror of toLocale() in src/lib/constants.ts — seed.js is plain CJS and can't import from src.
+  const locale = process.env.ADMIN_LOCALE === "en" ? "en" : "de";
   // C1: KEIN ratebarer Default ("admin123"). Ohne ADMIN_PASSWORD wird ein starkes Zufalls-
   // passwort erzeugt und (nur beim Erststart, s.u.) genau einmal ins Log geschrieben.
   const passwordFromEnv = !!process.env.ADMIN_PASSWORD;
@@ -130,7 +136,7 @@ async function main() {
     } else {
       const passwordHash = await bcrypt.hash(password, 12);
       adminUser = await prisma.user.create({
-        data: { username, email, passwordHash, role: "admin" },
+        data: { username, email, passwordHash, role: "admin", locale },
       });
       console.log("┌─────────────────────────────────────────────────────┐");
       console.log("│  ERSTER START – Zugangsdaten                        │");

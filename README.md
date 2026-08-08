@@ -159,6 +159,7 @@ SMTP_FROM=<from-address>
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=<password>
 ADMIN_EMAIL=<email>
+ADMIN_LOCALE=de          # de | en — UI and notification language of that account (default: de)
 
 # AI verification — cloud (default). Omit ANTHROPIC_API_KEY to disable AI features.
 ANTHROPIC_API_KEY=<key>
@@ -338,6 +339,7 @@ SMTP_FROM="KG Tracker <no-reply@example.com>"
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=<strong-password>
 ADMIN_EMAIL=admin@example.com
+ADMIN_LOCALE=de          # de | en — UI and notification language of that account (default: de)
 
 # Passkey / WebAuthn — must match your public domain
 WEBAUTHN_RP_ID=tracker.example.com

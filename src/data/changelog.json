@@ -16,6 +16,13 @@
           "de": "Wird eine Einstellung der automatischen Kontrollen geändert, wird der laufende Tag neu ausgewürfelt. Bereits verschickte Kontrollen bleiben stehen und zählen mit.",
           "en": "Changing an automatic-inspection setting now re-rolls the current day. Inspections already sent stay and count towards the day's total."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Beim ersten Start lässt sich die Sprache des Administrator-Kontos vorgeben. Eine neu eingerichtete Instanz beginnt damit in der Sprache, in der sie bestellt wurde, statt immer auf Deutsch.",
+          "en": "The language of the administrator account can now be set on first start. A newly created instance therefore begins in the language it was ordered in, instead of always in German."
+        }
       }
     ]
   },

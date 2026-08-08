@@ -22,6 +22,7 @@ if [ -n "$ADMIN_PASSWORD" ]; then
 else
   printf "│  ADMIN_PASSWORD : %-34s│\n" "(nicht gesetzt → Zufallspasswort)"
 fi
+printf "│  ADMIN_LOCALE   : %-34s│\n" "${ADMIN_LOCALE:-'(nicht gesetzt - de)'}"
 printf "│  NEXTAUTH_URL   : %-34s│\n" "${NEXTAUTH_URL:-'(nicht gesetzt)'}"
 # Ob eine Instanz überhaupt mailfähig ist, stand bisher nirgends im Log — und ohne SMTP_HOST
 # überspringt `sendMail` still jeden Versand. Hier steht es in der Zeile, in der man ohnehin schaut.
