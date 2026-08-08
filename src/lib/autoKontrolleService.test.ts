@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { hhmmToMinutes, isInQuietMinutes, generateAutoKontrollen, repairAutoKontrollen, type AutoKontrolleSettings, type PlannedAutoKontrolle } from "./autoKontrolleService";
-import { dateAtLocalMinutes, midnightInTZ } from "./utils";
+import { hhmmToMinutes, isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, type AutoKontrolleSettings } from "./autoKontrolleService";
+import { dateAtLocalMinutes, midnightInTZ, formatTime } from "./utils";
 
-/** Diese Datei modelliert bewusst einen CH-Sub. */
+/** Alle Tests dieser Datei rechnen in der Zeitzone einer CH-Sub. */
 const TZ = "Europe/Zurich";
+/** Ortszeit eines Instants als „HH:MM" — die Sicht, in der die Regeln formuliert sind. */
+const hhmm = (d: Date) => formatTime(d, "de-CH", TZ);
 
 describe("hhmmToMinutes", () => {
   it("converts HH:MM to minutes since midnight", () => {
@@ -50,9 +52,8 @@ describe("generateAutoKontrollen", () => {
   it("ein Segment, in das die Mindest-Frist nicht passt, wird übersprungen statt gekappt", () => {
     // Enges Wach-Fenster (06:00–07:00 = 60 Min) auf 12 Kontrollen verteilt ⇒ 5 Minuten je Segment,
     // die Mindest-Frist ist 15. Vorher klemmte die Segment-Kappung die Frist auf die Segmentgrösse
-    // herunter (`Math.max(1, …)`) und erzeugte 5-Minuten-Slots: für den Sub kaum erfüllbar — und
-    // `repairAutoKontrollen` hätte sie als Verletzer sofort wieder ersetzt, weil `durOk` genau diese
-    // Untergrenze verlangt. Der Plan hätte gegen sich selbst gearbeitet.
+    // herunter (`Math.max(1, …)`) und erzeugte 5-Minuten-Slots: für den Sub nicht erfüllbar.
+    // Lieber kein Slot als einer, den er nicht schaffen kann.
     const eng: AutoKontrolleSettings = { ...base, perDayMin: 12, perDayMax: 12, ruheVon: "07:00", ruheBis: "06:00" };
     expect(generateAutoKontrollen(eng, now, () => 0.5)).toHaveLength(0);
   });
@@ -155,8 +156,7 @@ describe("generateAutoKontrollen — per-user timezone anchor", () => {
     ["Frühjahrs-Umstellungstag", "2026-03-29T12:00:00Z"],
     ["Herbst-Umstellungstag", "2026-10-25T12:00:00Z"],
   ])("legt die Slots am %s auf dieselbe Ortszeit", (_label, day) => {
-    const tz = "Europe/Zurich";
-    const hhmm = (d: Date) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit" }).format(d);
+    const tz = TZ;
     const slots = generateAutoKontrollen(settings, midnightInTZ(new Date(day), tz), () => 0, tz);
     expect(slots.map((s) => hhmm(s.wirksamAb))).toEqual(["06:00", "10:00", "14:00", "18:00"]);
     expect(slots.map((s) => hhmm(s.deadline))).toEqual(["06:15", "10:15", "14:15", "18:15"]);
@@ -167,7 +167,7 @@ describe("generateAutoKontrollen — per-user timezone anchor", () => {
   it.each(["2026-06-15T12:00:00Z", "2026-03-29T12:00:00Z", "2026-10-25T12:00:00Z"])(
     "erzeugt am %s streng aufsteigende, überlappungsfreie Slots (auch über Mitternacht/DST-Lücke)",
     (day) => {
-      const tz = "Europe/Zurich";
+      const tz = TZ;
       for (const [ruheVon, ruheBis] of [["22:00", "06:00"], ["01:30", "00:00"], ["02:00", "20:00"], ["23:00", "01:00"]]) {
         for (let seed = 0; seed < 40; seed++) {
           let n = seed;
@@ -191,9 +191,8 @@ describe("generateAutoKontrollen — per-user timezone anchor", () => {
 });
 
 describe("generateAutoKontrollen — festes Auslöse-Fenster", () => {
-  const tz = "Europe/Zurich";
+  const tz = TZ;
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), tz); // ganzer Tag Zukunft
-  const hhmm = (d: Date) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit" }).format(d);
   const win: AutoKontrolleSettings = {
     aktiv: true, perDayMin: 3, perDayMax: 3, ruheVon: "22:00", ruheBis: "06:00",
     fristVon: 15, fristBis: 60, fensterVon: "10:00", fensterBis: "16:00", nurBeiSperre: false,
@@ -268,203 +267,102 @@ describe("generateAutoKontrollen — festes Auslöse-Fenster", () => {
   });
 });
 
-describe("repairAutoKontrollen — festes Auslöse-Fenster", () => {
-  const tz = "Europe/Zurich";
-  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), tz);
+describe("fillFreeGaps — Nachplanen an zugestellten Kontrollen vorbei", () => {
+  const tz = TZ;
+  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), tz); // ganzer Tag in der Zukunft
   const at = (min: number) => dateAtLocalMinutes(now, min, tz);
   const minuteOf = (d: Date) => Math.round((d.getTime() - midnightInTZ(now, tz).getTime()) / 60_000);
-  const win: AutoKontrolleSettings = {
-    aktiv: true, perDayMin: 3, perDayMax: 3, ruheVon: "22:00", ruheBis: "06:00",
-    fristVon: 15, fristBis: 60, fensterVon: "10:00", fensterBis: "16:00", nurBeiSperre: false,
+  const base: AutoKontrolleSettings = {
+    aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
+    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false,
+  };
+  const win: AutoKontrolleSettings = { ...base, fensterVon: "10:00", fensterBis: "16:00" };
+
+  /** Kein Slot überlappt seinen Vorgänger (nach Trigger sortiert). */
+  const expectNoOverlap = (slots: { wirksamAb: Date; deadline: Date }[]) => {
+    const all = [...slots].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
+    for (let i = 1; i < all.length; i++) {
+      expect(all[i].wirksamAb.getTime()).toBeGreaterThanOrEqual(all[i - 1].deadline.getTime());
+    }
   };
 
-  it("zieht einen mittags gesetzten Fenster-Plan hinein: Trigger ausserhalb 10–16 werden ersetzt", () => {
-    // Plan wurde noch OHNE Fenster gewürfelt (übers Wach-Fenster verteilt) → die Trigger vor 10:00
-    // oder ab 16:00 verletzen das neue Fenster und werden durch In-Fenster-Slots ersetzt.
-    const existing = generateAutoKontrollen({ ...win, fensterVon: "", fensterBis: "" }, now, () => 0.5, tz)
-      .map((s, i) => ({ ...s, id: `k${i}`, sent: false }));
-    const outside = existing.filter((e) => minuteOf(e.wirksamAb) < 600 || minuteOf(e.wirksamAb) > 960).map((e) => e.id);
-    expect(outside.length).toBeGreaterThan(0);
-    const { deleteIds, create } = repairAutoKontrollen(win, existing, now, () => 0.5, tz);
-    expect(deleteIds.sort()).toEqual(outside.sort());
+  it("füllt nichts, wenn nichts zu füllen ist", () => {
+    expect(fillFreeGaps(base, [], 0, now, () => 0.5, tz)).toEqual([]);
+  });
+
+  it("bleibt im Wach-Fenster und umgeht die zugestellten Kontrollen", () => {
+    const taken = [{ wirksamAb: at(600), deadline: at(660) }];
+    const create = fillFreeGaps(base, taken, 3, now, () => 0.5, tz);
+    expect(create).toHaveLength(3);
     for (const s of create) {
-      expect(minuteOf(s.wirksamAb)).toBeGreaterThanOrEqual(600);
-      expect(minuteOf(s.wirksamAb)).toBeLessThanOrEqual(960);
+      expect(minuteOf(s.wirksamAb)).toBeGreaterThanOrEqual(6 * 60);
+      expect(minuteOf(s.deadline)).toBeLessThanOrEqual(22 * 60);
     }
+    expectNoOverlap([...taken, ...create]);
   });
 
-  it("erkennt einen im Fenster gewürfelten Plan als gültig (kein Umbau)", () => {
-    const existing = generateAutoKontrollen(win, now, () => 0.3, tz).map((s, i) => ({ ...s, id: `k${i}`, sent: false }));
-    expect(repairAutoKontrollen(win, existing, now, () => 0.3, tz)).toEqual({ deleteIds: [], create: [] });
-  });
-
-  it("nachgezogene Slots bleiben im Fenster und überlappen nicht", () => {
-    const existing = generateAutoKontrollen(win, now, () => 0.3, tz).map((s, i) => ({ ...s, id: `k${i}`, sent: false }));
-    const { create } = repairAutoKontrollen({ ...win, perDayMin: 5, perDayMax: 5 }, existing, now, () => 0.5, tz);
-    const all = [...existing, ...create].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
+  it("bleibt im festen Auslöse-Fenster", () => {
+    const create = fillFreeGaps(win, [{ wirksamAb: at(700), deadline: at(730) }], 2, now, () => 0.5, tz);
+    expect(create).toHaveLength(2);
     for (const s of create) {
       expect(minuteOf(s.wirksamAb)).toBeGreaterThanOrEqual(600);
       expect(minuteOf(s.deadline)).toBeLessThanOrEqual(960);
     }
-    for (let i = 1; i < all.length; i++) {
-      expect(all[i].wirksamAb.getTime()).toBeGreaterThanOrEqual(all[i - 1].deadline.getTime());
-    }
-  });
-});
-
-describe("repairAutoKontrollen", () => {
-  const tz = "Europe/Zurich";
-  const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), tz); // ganzer Tag in der Zukunft
-  const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
-  const at = (min: number) => dateAtLocalMinutes(now, min, tz);
-  const minuteOf = (d: Date) => Math.round((d.getTime() - midnightInTZ(now, tz).getTime()) / 60_000);
-
-  /** Der aktuelle Plan als PlannedAutoKontrolle[] — deterministisch aus generateAutoKontrollen. */
-  const plan = (settings = base, sent = 0): PlannedAutoKontrolle[] =>
-    generateAutoKontrollen(settings, now, () => 0.5, tz).map((s, i) => ({ ...s, id: `k${i}`, sent: i < sent }));
-
-  it("ändert nichts, wenn der Plan die Settings weiterhin erfüllt", () => {
-    expect(repairAutoKontrollen(base, plan(), now, () => 0.5, tz)).toEqual({ deleteIds: [], create: [] });
   });
 
-  it("ändert nichts bei einem reinen Aktiv-Toggle auf einem schon geplanten Tag", () => {
-    const existing = plan({ ...base, aktiv: false });
-    expect(repairAutoKontrollen(base, existing, now, () => 0.5, tz)).toEqual({ deleteIds: [], create: [] });
-  });
-
-  it("löscht die offenen Zeilen beim Deaktivieren, versendete bleiben", () => {
-    const { deleteIds, create } = repairAutoKontrollen({ ...base, aktiv: false }, plan(base, 2), now, () => 0.5, tz);
-    expect(deleteIds).toEqual(["k2", "k3"]);
-    expect(create).toEqual([]);
-  });
-
-  it("ersetzt nur die Slots, die das neue Schlaf-Fenster verletzen", () => {
-    // Wach-Fenster von 06–22 auf 12–22 verkürzt → die Vormittags-Slots fallen ins Schlaf-Fenster.
-    const existing = plan();
-    const wide = existing.filter((e) => minuteOf(e.wirksamAb) < 12 * 60).map((e) => e.id);
-    expect(wide.length).toBeGreaterThan(0);
-    const { deleteIds, create } = repairAutoKontrollen({ ...base, ruheBis: "12:00" }, existing, now, () => 0.5, tz);
-    expect(deleteIds).toEqual(wide);
-    expect(create).toHaveLength(wide.length); // 1:1 ersetzt (perDayMin bleibt 4)
+  it("lässt das Schlaf-Fenster INNERHALB eines festen Fensters frei", () => {
+    // Fenster 05:00–08:00 überlappt den Schlaf bis 06:00 → nur 06:00–08:00 ist bespielbar.
+    const settings = { ...base, fensterVon: "05:00", fensterBis: "08:00" };
+    const create = fillFreeGaps(settings, [], 2, now, () => 0.5, tz);
+    expect(create.length).toBeGreaterThan(0);
     for (const s of create) {
-      expect(minuteOf(s.wirksamAb)).toBeGreaterThanOrEqual(12 * 60);
-      expect(minuteOf(s.deadline)).toBeLessThanOrEqual(22 * 60);
+      expect(minuteOf(s.wirksamAb)).toBeGreaterThanOrEqual(6 * 60);
+      expect(minuteOf(s.deadline)).toBeLessThanOrEqual(8 * 60);
     }
   });
 
-  it("ersetzt Slots, deren Erfüllungsdauer aus dem neuen Frist-Bereich fällt", () => {
-    const existing: PlannedAutoKontrolle[] = [
-      { id: "short", wirksamAb: at(600), deadline: at(620), sent: false }, // 20 min
-      { id: "long", wirksamAb: at(700), deadline: at(790), sent: false },  // 90 min
-    ];
-    const settings = { ...base, perDayMin: 2, perDayMax: 2, fristVon: 30, fristBis: 60 };
-    const { deleteIds, create } = repairAutoKontrollen(settings, existing, now, () => 0.5, tz);
-    expect(deleteIds).toEqual(["short", "long"]);
-    expect(create).toHaveLength(2);
-    for (const s of create) {
-      const dur = minuteOf(s.deadline) - minuteOf(s.wirksamAb);
-      expect(dur).toBeGreaterThanOrEqual(30);
-      expect(dur).toBeLessThanOrEqual(60);
-    }
-  });
-
-  it("streicht bei gesenktem perDayMax die spätesten offenen Slots", () => {
-    const existing = plan(base, 1); // k0 versendet
-    const { deleteIds, create } = repairAutoKontrollen({ ...base, perDayMin: 2, perDayMax: 2 }, existing, now, () => 0.5, tz);
-    expect(deleteIds).toEqual(["k3", "k2"]); // spätester zuerst
-    expect(create).toEqual([]);
-  });
-
-  it("zieht bei angehobenem perDayMin überlappungsfrei nach", () => {
-    const existing = plan();
-    const { deleteIds, create } = repairAutoKontrollen({ ...base, perDayMin: 6, perDayMax: 6 }, existing, now, () => 0.5, tz);
-    expect(deleteIds).toEqual([]);
-    expect(create).toHaveLength(2);
-    const all = [...existing, ...create].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
-    for (let i = 1; i < all.length; i++) {
-      expect(all[i].wirksamAb.getTime()).toBeGreaterThanOrEqual(all[i - 1].deadline.getTime());
-    }
-  });
-
-  it("plant nichts nach, wenn nur perDayMax angehoben wird (Anzahl war schon gewürfelt)", () => {
-    const { deleteIds, create } = repairAutoKontrollen({ ...base, perDayMax: 12 }, plan(), now, () => 0.5, tz);
-    expect(deleteIds).toEqual([]);
-    expect(create).toEqual([]);
-  });
-
-  it("legt nachgezogene Slots nie in die Vergangenheit", () => {
+  it("legt nichts in die Vergangenheit", () => {
     const noon = dateAtLocalMinutes(now, 12 * 60, tz);
-    const existing: PlannedAutoKontrolle[] = [{ id: "a", wirksamAb: at(400), deadline: at(430), sent: true }];
-    const { create } = repairAutoKontrollen({ ...base, perDayMin: 3, perDayMax: 3 }, existing, noon, () => 0.5, tz);
+    const create = fillFreeGaps(base, [{ wirksamAb: at(400), deadline: at(430) }], 2, noon, () => 0.5, tz);
     expect(create.length).toBeGreaterThan(0);
     for (const s of create) expect(s.wirksamAb.getTime()).toBeGreaterThan(noon.getTime());
   });
 
-  it("bricht das Nachziehen ab, wenn keine Lücke mehr für fristVon reicht", () => {
-    // Wach-Fenster 06:00–07:00 (60 min), fristVon 60 → genau ein Slot passt.
-    const settings: AutoKontrolleSettings = { ...base, perDayMin: 5, perDayMax: 5, ruheVon: "07:00", ruheBis: "06:00", fristVon: 60, fristBis: 60 };
-    const { create } = repairAutoKontrollen(settings, [{ id: "a", wirksamAb: at(360), deadline: at(400), sent: true }], now, () => 0.5, tz);
+  it("bricht ab, wenn keine Lücke mehr für die Mindest-Frist reicht", () => {
+    // Wach-Fenster 06:00–07:00 (60 min), fristVon 60 → neben dem belegten Block passt nichts mehr.
+    const settings: AutoKontrolleSettings = { ...base, ruheVon: "07:00", ruheBis: "06:00", fristVon: 60, fristBis: 60 };
+    const create = fillFreeGaps(settings, [{ wirksamAb: at(360), deadline: at(400) }], 5, now, () => 0.5, tz);
     expect(create).toHaveLength(0); // Rest-Lücke 400–420 < 60 min
   });
-});
 
-describe("repairAutoKontrollen — gemeinsame Minuten-Achse mit generateAutoKontrollen", () => {
-  const tz = "Europe/Zurich";
-  const settings: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
-  const hhmm = (d: Date) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit" }).format(d);
+  // Regression: ein Wach-Fenster (00:30–23:00), das die DST-Wende SELBST enthält. Gefüllte Slots MÜSSEN
+  // auf derselben `awakeStart`-Achse materialisiert werden wie die geplanten. Würden sie über
+  // `dateAtLocalMinutes(now, minute)` aufgelöst, lägen die Slots hinter der Wende eine Stunde zu früh
+  // (hier 08:15 / 15:45 statt 09:15 / 16:45) — auf einer anderen Achse als die, die sie ergänzen.
+  it("materialisiert gefüllte Slots auf der Achse von generateAutoKontrollen (DST-Wende im Wach-Fenster)", () => {
+      const dstSettings: AutoKontrolleSettings = { ...base, ruheVon: "23:00", ruheBis: "00:30", perDayMin: 3, perDayMax: 3 };
+    const dstNow = midnightInTZ(new Date("2026-03-29T12:00:00Z"), tz);
+    const taken = generateAutoKontrollen(dstSettings, dstNow, () => 0, tz);
+    expect(taken.map((t) => hhmm(t.wirksamAb))).toEqual(["00:30", "09:00", "16:30"]);
 
-  // An den Umstellungstagen darf ein nachgezogener Slot nicht auf einer anderen Achse landen als die
-  // behaltenen: sonst überlappen sie in Echtzeit, obwohl ihre Plan-Minuten es nicht tun.
+    const create = fillFreeGaps(dstSettings, taken, 3, dstNow, () => 0, tz);
+    expect(create.map((c) => hhmm(c.wirksamAb))).toEqual(["00:45", "09:15", "16:45"]);
+    expectNoOverlap([...taken, ...create]);
+  });
+
   it.each([
     ["Normaltag", "2026-06-15T12:00:00Z"],
     ["Frühjahrs-Umstellungstag", "2026-03-29T12:00:00Z"],
     ["Herbst-Umstellungstag", "2026-10-25T12:00:00Z"],
-  ])("hält behaltene und nachgezogene Slots am %s überlappungsfrei", (_label, day) => {
-    const now = midnightInTZ(new Date(day), tz);
-    const existing: PlannedAutoKontrolle[] = generateAutoKontrollen(settings, now, () => 0, tz)
-      .map((s, i) => ({ ...s, id: `k${i}`, sent: false }));
-    const { deleteIds, create } = repairAutoKontrollen({ ...settings, perDayMin: 8, perDayMax: 8 }, existing, now, () => 0.5, tz);
-    expect(deleteIds).toEqual([]);
+  ])("hält geplante und gefüllte Slots am %s überlappungsfrei und ausserhalb des Schlafs", (_label, day) => {
+      const dayNow = midnightInTZ(new Date(day), tz);
+    const taken = generateAutoKontrollen(base, dayNow, () => 0, tz);
+    const create = fillFreeGaps(base, taken, 4, dayNow, () => 0.5, tz);
     expect(create.length).toBeGreaterThan(0);
-
-    const all = [...existing, ...create].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
-    for (let i = 1; i < all.length; i++) {
-      expect(all[i].wirksamAb.getTime()).toBeGreaterThanOrEqual(all[i - 1].deadline.getTime());
-    }
-    // Frist nie im Schlaf-Fenster (22:00–06:00 Ortszeit), auch nicht für die nachgezogenen.
+    expectNoOverlap([...taken, ...create]);
     for (const s of create) {
       expect(hhmm(s.wirksamAb) >= "06:00" && hhmm(s.wirksamAb) < "22:00").toBe(true);
       expect(hhmm(s.deadline) > "06:00" && hhmm(s.deadline) <= "22:00").toBe(true);
-    }
-  });
-
-  // Regression: ein Wach-Fenster (00:30–23:00), das die DST-Wende SELBST enthält. Nachgezogene Slots
-  // MÜSSEN auf derselben `awakeStart`-Achse materialisiert werden wie die behaltenen. Würden sie über
-  // `dateAtLocalMinutes(now, minute)` aufgelöst, lägen die Slots hinter der Wende eine Stunde zu früh
-  // (hier 08:15 / 15:45 statt 09:15 / 16:45) — auf einer anderen Achse als die Slots, die sie ergänzen.
-  it("materialisiert nachgezogene Slots auf der Achse von generateAutoKontrollen (DST-Wende im Wach-Fenster)", () => {
-    const dstSettings: AutoKontrolleSettings = { ...settings, ruheVon: "23:00", ruheBis: "00:30", perDayMin: 3, perDayMax: 3 };
-    const now = midnightInTZ(new Date("2026-03-29T12:00:00Z"), tz);
-    const existing: PlannedAutoKontrolle[] = generateAutoKontrollen(dstSettings, now, () => 0, tz)
-      .map((s, i) => ({ ...s, id: `k${i}`, sent: true })); // sent ⇒ unantastbar, müssen umgangen werden
-    expect(existing.map((e) => hhmm(e.wirksamAb))).toEqual(["00:30", "09:00", "16:30"]);
-
-    const { deleteIds, create } = repairAutoKontrollen({ ...dstSettings, perDayMin: 6, perDayMax: 6 }, existing, now, () => 0, tz);
-    expect(deleteIds).toEqual([]);
-    expect(create.map((c) => hhmm(c.wirksamAb))).toEqual(["00:45", "09:15", "16:45"]);
-
-    const all = [...existing, ...create].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
-    for (let i = 1; i < all.length; i++) {
-      expect(all[i].wirksamAb.getTime()).toBeGreaterThanOrEqual(all[i - 1].deadline.getTime());
-    }
-  });
-
-  it("erkennt einen von generateAutoKontrollen erzeugten Plan als gültig (Round-Trip der Achse)", () => {
-    for (const day of ["2026-06-15T12:00:00Z", "2026-03-29T12:00:00Z", "2026-10-25T12:00:00Z"]) {
-      const now = midnightInTZ(new Date(day), tz);
-      const existing: PlannedAutoKontrolle[] = generateAutoKontrollen(settings, now, () => 0.5, tz)
-        .map((s, i) => ({ ...s, id: `k${i}`, sent: false }));
-      expect(repairAutoKontrollen(settings, existing, now, () => 0.5, tz)).toEqual({ deleteIds: [], create: [] });
     }
   });
 });

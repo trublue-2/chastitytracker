@@ -47,13 +47,20 @@ export const GENUINELY_WITHDRAWN_WHERE = {
  * `auto: true` allein reicht nicht mehr, seit eine Auto-Kontrolle auch aus einem Ereignis entstehen
  * kann (Wiederverschluss nach einer Reinigungspause, `cleaningRelock`). Für die Tagesplanung ist der
  * Unterschied load-bearing: zählte eine Ereignis-Zeile als Plan, verhinderte ein Wiederverschluss
- * kurz nach Mitternacht den Tagesplan des ganzen Tages, und die Neuplanung bei Settings-Änderungen
- * löschte sie als „liegt im Schlaf-Fenster"-Verstoss wieder weg.
+ * kurz nach Mitternacht den Tagesplan des ganzen Tages — und der Neuwurf nach einer
+ * Settings-Änderung räumte sie mit dem Tagesplan weg, obwohl sie zu einem Ereignis gehört.
  */
 export const AUTO_PLAN_WHERE = {
   auto: true,
   cleaningRelock: false,
 } satisfies Prisma.KontrollAnforderungWhereInput;
+
+/** Where-Fragment: die Tagesplan-Zeilen EINES Subs für den laufenden Tag. `day` ist die Sub-lokale
+ *  Mitternacht (`midnightInTZ`) — die Tagesgrenze hängt an der Zeitzone der Sub, deshalb reicht der
+ *  Aufrufer sie herein, statt sie hier zu erraten. */
+export function todaysAutoPlanWhere(userId: string, day: Date): Prisma.KontrollAnforderungWhereInput {
+  return { userId, ...AUTO_PLAN_WHERE, createdAt: { gte: day } };
+}
 
 /**
  * Where-Fragment: bereits AKTIVE VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) — sofortige
@@ -77,9 +84,9 @@ export function activeVerschlussAnforderungWhere(now: Date = new Date()): Prisma
  * Bindet damit auch den SCHREIBENDEN Keyholder-Pfad: ein Rückzug ohne id (`withdraw
  * target=inspection`) darf höchstens treffen, was dieses Fragment zeigt. Was der Aufrufer nicht
  * sehen kann, darf er nicht wegnehmen — er zöge sonst den Rest des Auto-Tagesplans mit, ohne dass
- * es in Anfrage oder Antwort vorkäme, und der Poller legt ihn nicht neu an
- * (`ensureDailyAutoKontrollenForUser` zählt die zurückgezogenen Zeilen mit und hält den Tag für
- * erledigt). Vorfall 28.07.2026: ein Rückzug nahm zwei ungesehene Auto-Kontrollen mit, die
+ * es in Anfrage oder Antwort vorkäme, und der Poller legt ihn nicht neu an (der Tages-Merker
+ * `autoInspectionPlannedFor` hält den Tag für gewürfelt, egal was aus den Zeilen wurde — siehe
+ * `ensureDailyAutoKontrollenForUser`). Vorfall 28.07.2026: ein Rückzug nahm zwei ungesehene Auto-Kontrollen mit, die
  * Automatik schwieg den Rest des Tages. Wer die Sichtbarkeitsregel hier ändert, ändert damit
  * bewusst auch den Umfang dieses Rückzugs.
  */
