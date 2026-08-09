@@ -10,6 +10,7 @@ import {
   CATEGORY_SLUG_MAX_LENGTH,
 } from "@/lib/categoryConstants";
 import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
+import { COUNTABLE_DEVICES_SELECT } from "@/lib/queries";
 
 const MAX_SLUG_SUFFIX = 99;
 
@@ -63,7 +64,9 @@ export async function GET(req: NextRequest) {
       allowVorgaben: true,
       sortOrder: true,
       createdAt: true,
-      _count: { select: { devices: true, vorgaben: true } },
+      // Dieselbe Zählung wie Dashboard und Kategorie-Seite — ein dritter `deviceCount` mit eigener
+      // Regel wäre genau der Widerspruch, gegen den die beiden anderen angeglichen wurden.
+      _count: { select: { ...COUNTABLE_DEVICES_SELECT, vorgaben: true } },
     },
   });
 

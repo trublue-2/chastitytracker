@@ -31,6 +31,9 @@ export interface CategoryRow {
   vorgabeCount: number;
   /** Wear hours since the start of the current ISO week. */
   weeklyHours: number;
+  /** Trage-Kategorie ohne Gerät — hier lässt sich nichts erfassen (Issue #49). Serverseitig
+   *  entschieden, damit dieselbe Regel gilt wie im Dashboard. */
+  needsDevice: boolean;
   requirePhoto: boolean;
   allowVorgaben: boolean;
 }
@@ -291,6 +294,12 @@ function CategoryRowItem({
               <span className="text-base font-medium text-foreground truncate">{c.name}</span>
               {c.isBuiltIn && <Badge variant="lock" size="sm" label={t("builtInBadge")} />}
             </div>
+            {/* Der fehlende Schritt als eigene Zeile ÜBER dem Bestand, statt ihn zu ersetzen: die
+                Bestandszeile erklärt, warum sich genau diese Kategorie nicht löschen lässt — der
+                Löschwächter zählt archivierte Geräte und historische Vorgaben mit
+                (`api/categories/[id]`). Verdrängte der Hinweis sie, bliebe von der Absage nur ein
+                unerklärliches „wird verwendet" (Issue #49). */}
+            {c.needsDevice && <p className="text-xs text-warn-text mt-0.5">{t("noDevice")}</p>}
             <p className="text-xs text-foreground-muted mt-0.5">
               {t("usageStats", { devices: c.deviceCount, vorgaben: c.vorgabeCount })}
               {c.trackingEnabled && c.weeklyHours > 0 && ` · ${t("weekly", { hours: formatHours(c.weeklyHours, dl) })}`}

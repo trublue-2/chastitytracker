@@ -377,9 +377,7 @@
     "photoMain": "Eintrag",
     "photoBox": "Box",
     "cleaningPauseLabel": "Reinigungspause – noch",
-    "cleaningPauseRelock": "Wieder einschliessen",
-    "categoryNoDevice": "Kein Gerät — hier lässt sich nichts erfassen",
-    "categoryAddDevice": "Gerät anlegen"
+    "cleaningPauseRelock": "Wieder einschliessen"
   },
   "newEntry": {
     "title": "Neu erfassen",
@@ -1289,9 +1287,10 @@
     "createdToast": "Kategorie angelegt",
     "savedToast": "Kategorie aktualisiert",
     "deletedToast": "Kategorie gelöscht",
-    "firstDeviceLabel": "Erstes Gerät (optional)",
+    "firstDeviceLabel": "Erstes Device (optional)",
     "firstDevicePlaceholder": "z.B. Halsband schwarz",
-    "firstDeviceHint": "Ohne Gerät lässt sich in dieser Kategorie nichts erfassen. Foto, Preis und Kontroll-Code kannst du später ergänzen."
+    "firstDeviceHint": "Ohne Device lässt sich in dieser Kategorie nichts erfassen. Foto, Preis und Kontroll-Code kannst du später ergänzen.",
+    "noDevice": "Kein Device — hier lässt sich nichts erfassen"
   },
   "devices": {
     "title": "Meine Devices",

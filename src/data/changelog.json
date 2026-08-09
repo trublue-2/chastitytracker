@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.0.12",
+    "date": "2026-08-09",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Eine Kategorie ohne nutzbares Gerät fällt auf der Kategorie-Seite jetzt als fehlender Schritt auf, statt im selben Grau wie eine Bestandsangabe zu stehen. Ein archiviertes Gerät zählt dort ausserdem nicht mehr als vorhanden — Dashboard und Kategorie-Seite widersprachen sich sonst.",
+          "en": "A category without a usable device now stands out as a missing step on the categories page, instead of sitting there in the same grey as a stock figure. An archived device no longer counts as present there either — the dashboard and the categories page used to contradict each other."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.11",
     "date": "2026-08-08",
     "changes": [

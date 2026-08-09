@@ -404,6 +404,17 @@ export async function getActiveWearSessionForCategory(
   };
 }
 
+/**
+ * Zählbare Geräte einer Kategorie — ARCHIVIERTE nicht mitgezählt. Die Frage ist „lässt sich hier
+ * erfassen?", nicht „gab es hier je ein Gerät?", und dasselbe zeigt die Geräte-Seite von sich aus.
+ *
+ * Als Fragment und nicht als zwei gleichlautende `where`-Klauseln, weil genau diese Zählung
+ * zwischen Dashboard und Verwaltungsseite auseinanderlief: die eine wies eine Kategorie als
+ * unfertig aus, während die andere daneben „1 Device" zählte (Issue #49). Ein Produktbegriff mit
+ * einer Bearbeitungsstelle, analog `SESSION_ENTRY_SELECT`.
+ */
+export const COUNTABLE_DEVICES_SELECT = { devices: { where: { archivedAt: null } } } as const;
+
 /** Returns non-KG device categories with tracking enabled, ordered by sortOrder then createdAt. */
 export async function getNonKgTrackingCategories(userId: string) {
   const rows = await prisma.deviceCategory.findMany({
@@ -413,12 +424,12 @@ export async function getNonKgTrackingCategories(userId: string) {
     // darin nichts erfassen, und das Dashboard weist sie als unfertig aus statt sie wie jede andere
     // zu behandeln (Issue #49). Im selben Select, also ohne zusätzliche Abfrage.
     //
-    // ARCHIVIERTE zählen nicht mit: die Frage ist „lässt sich hier erfassen?", nicht „gab es hier je
-    // ein Gerät?". Die Verwaltungsseite zählt bewusst anders (`categoryRows.ts`) — dort ist es eine
-    // Bestandsangabe.
+    // `isBuiltIn`/`trackingEnabled` stehen hier nur, damit `categoryNeedsDevice()` die ganze Regel
+    // beantworten kann statt die Hälfte davon dem Aufrufer zu überlassen. Das `where` oben hält sie
+    // ohnehin konstant — die Redundanz kostet nichts und macht die Zeile für sich lesbar.
     select: {
-      id: true, name: true, color: true, icon: true,
-      _count: { select: { devices: { where: { archivedAt: null } } } },
+      id: true, name: true, color: true, icon: true, isBuiltIn: true, trackingEnabled: true,
+      _count: { select: COUNTABLE_DEVICES_SELECT },
     },
   });
   // Flach benannt wie überall sonst (`categoryRows.ts`, `GET /api/categories`) — `_count.devices`

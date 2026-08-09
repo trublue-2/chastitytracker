@@ -161,6 +161,35 @@ export function deviceFormHref(categoryId: string): string {
 }
 
 /**
+ * Fehlt dieser Kategorie das Gerät, ohne das sich darin nichts erfassen lässt? (Issue #49)
+ *
+ * Hier zentral, weil Dashboard und Kategorie-Seite dieselbe Frage stellen und sich die Antworten
+ * bereits widersprachen: das Dashboard wies eine Kategorie als unfertig aus, während die Verwaltung
+ * daneben „1 Device" zählte.
+ *
+ * Die Regel ist bewusst VOLLSTÄNDIG — sie beantwortet auch, für wen sie überhaupt gilt, statt das
+ * dem Aufrufer zu überlassen. Eine Bedingung, die per Kommentar an zwei Aufrufstellen erinnert
+ * werden muss, ist genau die Konstruktion, aus der dieses Issue entstanden ist; wer sie vergisst,
+ * bekäme ein plausibles „unfertig" auf dem KG.
+ *
+ * - **KG** bringt sein Gerät nicht über diese Seiten mit.
+ * - **Inventar-Kategorien** (Zeiterfassung aus) sind ohne Gerät leer, aber keine Sackgasse — dort
+ *   wird nichts erfasst.
+ * - `deviceCount` zählt nur NICHT-archivierte Geräte (`COUNTABLE_DEVICES_SELECT`).
+ * - Eine **laufende Session** schliesst „unfertig" aus: Geräte lassen sich mit offener Session
+ *   archivieren, und unter „Plug — läuft seit 14:00" darf nicht „hier lässt sich nichts erfassen"
+ *   stehen.
+ */
+export function categoryNeedsDevice(c: {
+  isBuiltIn: boolean;
+  trackingEnabled: boolean;
+  deviceCount: number;
+  hasActiveSession: boolean;
+}): boolean {
+  return !c.isBuiltIn && c.trackingEnabled && c.deviceCount === 0 && !c.hasActiveSession;
+}
+
+/**
  * Link auf das Trage-Formular einer Kategorie — beginnen oder beenden, Sub- oder Keyholder-Sicht.
  *
  * Zentral, weil dieselben vier Pfad-Varianten vorher an jeder Aufrufstelle von Hand

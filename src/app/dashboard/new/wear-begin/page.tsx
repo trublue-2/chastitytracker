@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceFormHref } from "@/lib/categoryConstants";
 import { getActiveWearSessionForCategory } from "@/lib/queries";
 import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
 import WearForm from "../../WearForm";
@@ -51,7 +52,7 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
         <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
         <div className="mt-4 p-6 rounded-xl border border-border bg-surface text-center">
           <p className="text-sm text-foreground-muted mb-3">{t("noDevicesInCategory", { name: category.name })}</p>
-          <Link href="/dashboard/geraete" className="text-sm font-medium text-foreground underline">
+          <Link href={deviceFormHref(category.id)} className="text-sm font-medium text-foreground underline">
             {t("addDeviceLink")}
           </Link>
         </div>

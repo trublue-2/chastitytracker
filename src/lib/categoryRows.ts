@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { SESSION_ENTRY_SELECT, getUserTimezone, getNonKgTrackingCategories, getActiveWearSessions } from "@/lib/queries";
+import { SESSION_ENTRY_SELECT, COUNTABLE_DEVICES_SELECT, getUserTimezone, getNonKgTrackingCategories, getActiveWearSessions } from "@/lib/queries";
 import { buildKgWearPairs, wearingHoursFromPairs, getWeekStart } from "@/lib/utils";
-import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
+import { buildWearSessions, isLiveOpenSession, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { deviceCategoriesEnabled } from "@/lib/constants";
+import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import type { CategoryRow } from "@/app/dashboard/categories/CategoriesClient";
 import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
 
@@ -17,6 +18,10 @@ import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
  *
  * `weeklyHours` ist WANDUHR-Zeit: KG aus VERSCHLUSS/OEFFNEN, die Trage-Kategorien je GERÄT gepaart
  * und überlappungsfrei verschmolzen (zwei gleichzeitig getragene Plugs = 2 h, nicht 4 h).
+ *
+ * `needsDevice` ist das einzige Feld hier, über das sich diese Seite mit einer ANDEREN einig sein
+ * muss: das Dashboard fällt dasselbe Urteil über dieselbe Kategorie. Es kommt deshalb aus
+ * `categoryNeedsDevice()` und wird hier nicht nachgerechnet (Issue #49).
  */
 export async function buildCategoryRows(userId: string, now: Date): Promise<CategoryRow[]> {
   const [categories, entries, tz] = await Promise.all([
@@ -35,7 +40,10 @@ export async function buildCategoryRows(userId: string, now: Date): Promise<Cate
         allowVorgaben: true,
         sortOrder: true,
         createdAt: true,
-        _count: { select: { devices: true, vorgaben: true } },
+        // Dieselbe Zählung wie im Dashboard. Vorher zählte diese Seite auch archivierte Geräte:
+        // war das einzige Gerät archiviert, wies das Dashboard die Kategorie als unfertig aus,
+        // während hier daneben „1 Device" stand — wer dem Hinweis folgte, fand die Gegenaussage.
+        _count: { select: { ...COUNTABLE_DEVICES_SELECT, vorgaben: true } },
       },
     }),
     prisma.entry.findMany({
@@ -47,8 +55,17 @@ export async function buildCategoryRows(userId: string, now: Date): Promise<Cate
   ]);
 
   const wocheStart = getWeekStart(now, tz);
-  const wearPairsByCategory = wearHourPairsByCategory(buildWearSessions(entries, now), now);
+  const wearSessions = buildWearSessions(entries, now);
+  const wearPairsByCategory = wearHourPairsByCategory(wearSessions, now);
   const kgPairs = buildKgWearPairs(entries, now);
+  // Für `needsDevice`: dieselbe Ausnahme wie im Dashboard, hier aus den ohnehin gebauten Sessions
+  // statt aus einer zweiten Abfrage. `isLiveOpenSession` statt eines eigenen `isOpen`-Vergleichs,
+  // weil „läuft wirklich" genau eine Definition haben soll. Auf DIESER Eingabe wären beide gleich —
+  // `buildWearSessions` lässt verwaiste Paare schon weg —, aber das ist eine Zusicherung eines
+  // anderen Moduls, und sie hier stillschweigend vorauszusetzen ist die teurere Variante.
+  const categoriesWithActiveSession = new Set(
+    wearSessions.filter(isLiveOpenSession).map((s) => s.categoryId),
+  );
 
   return categories.map((c) => {
     // KG: VERSCHLUSS/OEFFNEN (kein Kategorie-Filter — alle V/O-Einträge sind per Definition KG).
@@ -68,6 +85,12 @@ export async function buildCategoryRows(userId: string, now: Date): Promise<Cate
       deviceCount: c._count.devices,
       vorgabeCount: c._count.vorgaben,
       weeklyHours: wearingHoursFromPairs(pairs, wocheStart, now),
+      needsDevice: categoryNeedsDevice({
+        isBuiltIn: c.isBuiltIn,
+        trackingEnabled: c.trackingEnabled,
+        deviceCount: c._count.devices,
+        hasActiveSession: categoriesWithActiveSession.has(c.id),
+      }),
     };
   });
 }

@@ -24,7 +24,11 @@ export interface IncompleteCategoryRow {
  */
 export default async function IncompleteCategories({ categories }: { categories: IncompleteCategoryRow[] }) {
   if (categories.length === 0) return null;
-  const t = await getTranslations("dashboard");
+  // Namensraum `categories`, nicht `dashboard`: derselbe Satz steht auf der Kategorie-Seite, und
+  // zwei Kopien laufen bei der nächsten Umformulierung auseinander. Das Handlungswort kommt aus
+  // `wearForm` — dort steht es schon für denselben Leer-Zustand („keine Devices in dieser
+  // Kategorie"), und eine dritte Fassung von „Device anlegen" braucht niemand.
+  const [t, tWear] = await Promise.all([getTranslations("categories"), getTranslations("wearForm")]);
 
   return (
     <DashboardBlock>
@@ -36,9 +40,9 @@ export default async function IncompleteCategories({ categories }: { categories:
               color={c.color}
               icon={c.icon}
               name={c.name}
-              subtitle={t("categoryNoDevice")}
+              subtitle={t("noDevice")}
               subtitleTone="warn"
-              trailing={<><Plus size={12} />{t("categoryAddDevice")}<ChevronRight size={12} /></>}
+              trailing={<><Plus size={12} />{tWear("addDeviceLink")}<ChevronRight size={12} /></>}
             />
           </li>
         ))}
