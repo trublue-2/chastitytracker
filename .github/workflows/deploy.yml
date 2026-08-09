@@ -28,11 +28,6 @@ on:
         type: string
         required: true
 
-# Workflow-level `env` des Aufrufers wird NICHT an einen aufgerufenen Workflow weitergegeben —
-# das Flag muss hier eigenständig stehen (appleboy/ssh-action ist eine node20-Action).
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest

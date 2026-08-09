@@ -35,7 +35,6 @@ concurrency:
 
 env:
   IMG: ghcr.io/${{ github.repository }}
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   promote:
@@ -44,7 +43,7 @@ jobs:
       contents: write # refs/tags/release verschieben
       packages: write # Kanal-Tag nach GHCR pushen
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Nur für `git merge-base --is-ancestor` nötig — das Setzen des Tags läuft über die
           # API und bräuchte keine Historie.
@@ -66,7 +65,7 @@ jobs:
           CHANNEL_INPUT: ${{ inputs.channel }}
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
