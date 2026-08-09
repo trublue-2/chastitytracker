@@ -9,6 +9,7 @@ import {
   isValidCategoryIcon,
   slugifyCategoryName,
   validateCategoryInput,
+  categoryNeedsDevice,
   CATEGORY_NAME_MAX_LENGTH,
   CATEGORY_SLUG_MAX_LENGTH,
 } from "./categoryConstants";
@@ -150,5 +151,32 @@ describe("deviceFormHref — der zweite Schritt nach einer neuen Kategorie", () 
     // Der Link setzt ihn, die Seite liest ihn — als zwei lose Zeichenketten schaltete ein
     // Umbenennen die Vorwahl still ab, und der Nutzer landete wieder beim Suchen.
     expect(new URL(deviceFormHref("c1"), "https://x").searchParams.get(CATEGORY_QUERY_KEY)).toBe("c1");
+  });
+});
+
+describe("categoryNeedsDevice — Kategorie ohne bespielbares Gerät", () => {
+  const wearCategory = { isBuiltIn: false, trackingEnabled: true, deviceCount: 0, hasActiveSession: false };
+
+  it("meldet die Trage-Kategorie ohne Gerät als unfertig", () => {
+    expect(categoryNeedsDevice(wearCategory)).toBe(true);
+  });
+
+  it("lässt eine Kategorie mit Gerät in Ruhe", () => {
+    expect(categoryNeedsDevice({ ...wearCategory, deviceCount: 1 })).toBe(false);
+  });
+
+  it("nimmt eine laufende Session aus", () => {
+    // Ein Gerät lässt sich mit offener Session archivieren. Dann steht die Kategorie bei null
+    // zählbaren Geräten, wird aber gerade getragen — „hier lässt sich nichts erfassen" wäre dort
+    // die falsche Aussage, direkt unter der laufenden Session.
+    expect(categoryNeedsDevice({ ...wearCategory, hasActiveSession: true })).toBe(false);
+  });
+
+  it("gilt nicht für das KG — dessen Gerät kommt nicht über diese Seiten", () => {
+    expect(categoryNeedsDevice({ ...wearCategory, isBuiltIn: true })).toBe(false);
+  });
+
+  it("gilt nicht für Inventar-Kategorien — dort wird nichts erfasst", () => {
+    expect(categoryNeedsDevice({ ...wearCategory, trackingEnabled: false })).toBe(false);
   });
 });

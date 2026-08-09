@@ -35,6 +35,7 @@ import InactiveCategories from "./InactiveCategories";
 import IncompleteCategories from "./IncompleteCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 
@@ -190,11 +191,11 @@ export default async function DashboardPage() {
   // Trennung gilt nur für die ANZEIGE der Kategorie-Blöcke; die Session-Liste oben bekommt weiter
   // alle, sonst verschwänden vergangene Sessions einer Kategorie, deren Gerät archiviert wurde.
   const playableCategories = allNonKgCategories.filter((c) => c.deviceCount > 0);
-  // Eine laufende Session schliesst „unfertig" aus, auch wenn ihr Gerät inzwischen archiviert wurde:
-  // sonst stünde direkt unter „Plug — läuft seit 14:00" die Karte „hier lässt sich nichts erfassen".
-  // Dieselbe Bedingung wie bei den bespielbaren Kategorien unten.
-  const incompleteCategories = allNonKgCategories.filter(
-    (c) => c.deviceCount === 0 && !wearSessions.some((s) => s.categoryId === c.id),
+  // Eine Nachschlage-Menge statt einer linearen Suche je Kategorie — dieselbe Frage wird unten für
+  // die nicht getragenen Kategorien noch einmal gestellt.
+  const categoriesWithActiveSession = new Set(wearSessions.map((s) => s.categoryId));
+  const incompleteCategories = allNonKgCategories.filter((c) =>
+    categoryNeedsDevice({ ...c, hasActiveSession: categoriesWithActiveSession.has(c.id) }),
   );
   const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
 
@@ -316,7 +317,7 @@ export default async function DashboardPage() {
       />
       <InactiveCategories
         categories={playableCategories
-          .filter((c) => !wearSessions.some((s) => s.categoryId === c.id))
+          .filter((c) => !categoriesWithActiveSession.has(c.id))
           .map((c) => ({
             ...c,
             todayHours: wearingHoursFromPairs(
