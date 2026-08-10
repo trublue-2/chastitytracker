@@ -107,11 +107,26 @@ export function isInQuietMinutes(vonMin: number, bisMin: number, min: number): b
 /** Parst das optionale feste Auslöse-Fenster (HH:MM–HH:MM). Gültig NUR, wenn beide Zeiten valide sind
  *  UND Von < Bis (ein festes Fenster wrappt bewusst nicht über Mitternacht); sonst null → Fallback aufs
  *  Wach-Fenster. "" (leer, Default) → null. */
-function fixedWindowMinutes(s: AutoKontrolleSettings): { start: number; end: number } | null {
+export function fixedWindowMinutes(s: AutoKontrolleSettings): { start: number; end: number } | null {
   if (!HHMM.test(s.fensterVon) || !HHMM.test(s.fensterBis)) return null;
   const start = hhmmToMinutes(s.fensterVon);
   const end = hhmmToMinutes(s.fensterBis);
   return end > start ? { start, end } : null;
+}
+
+/** Liegt das feste Auslöse-Fenster VOLLSTÄNDIG im Schlaf-Fenster? Dann überspringt der Planer jeden
+ *  Trigger (`isInQuietMinutes`) und der Tag bleibt lautlos leer. Die Schreib-Seite
+ *  (`set_auto_inspections`) lehnt so eine Kombination damit ab, statt sie stumm wirkungslos zu
+ *  speichern. Das Fenster wrappt bewusst nicht (siehe `fixedWindowMinutes`), das Schlaf-Fenster schon. */
+export function triggerWindowAllQuiet(s: AutoKontrolleSettings): boolean {
+  const fixed = fixedWindowMinutes(s);
+  if (!fixed) return false;
+  const von = hhmmToMinutes(s.ruheVon);
+  const bis = hhmmToMinutes(s.ruheBis);
+  if (von === bis) return false; // kein Schlaf
+  return von < bis
+    ? fixed.start >= von && fixed.end <= bis          // 02:00–05:00: Fenster liegt darin
+    : fixed.start >= von || fixed.end <= bis;         // 22:00–06:00 (wrap): Fenster im Abend- ODER Morgen-Ast
 }
 
 /** Nächster Schlaf-Beginn ≥ `trig` (+1440, wenn der heutige Schlaf-Beginn schon vor dem Trigger liegt
@@ -356,6 +371,47 @@ export function autoKontrolleSettingsFromUser(u: AutoKontrolleUserFields): AutoK
   };
 }
 
+/**
+ * Dieselben Einstellungen in MCP-Sprache — die Sicht, die `get_context.autoInspections` liefert und
+ * gegen die `set_auto_inspections` seinen Diff zeigt. Hier neben {@link autoKontrolleSettingsFromUser}
+ * statt im MCP-Lese-Modul, damit die Schreib-Seite dafür nicht die Lese-Seite importieren muss
+ * (dieselbe Aufteilung wie `buildReinigungView` in `reinigungService`).
+ *
+ * `type` statt `interface`: nur ein Alias trägt die implizite Index-Signatur, die `diffFields`
+ * (Record<string, unknown>) auf der Schreib-Seite verlangt.
+ */
+export type AutoInspectionsView = {
+  active: boolean;
+  perDayMin: number;
+  perDayMax: number;
+  sleepFrom: string;
+  sleepUntil: string;
+  deadlineMinFrom: number;
+  deadlineMinTo: number;
+  triggerWindowFrom: string | null;
+  triggerWindowUntil: string | null;
+  onlyDuringLockPeriod: boolean;
+};
+
+/** Domänen-Settings → {@link AutoInspectionsView}. EINE Übersetzung für die Lese-Seite (get_context)
+ *  UND die Schreib-Seite (set_auto_inspections mit Preview/Diff) — sonst zeigte der Diff eines
+ *  Schreibvorgangs andere Feldnamen als die Sicht, gegen die der Agent ihn liest. */
+export function autoInspectionsView(s: AutoKontrolleSettings): AutoInspectionsView {
+  return {
+    active: s.aktiv,
+    perDayMin: s.perDayMin,
+    perDayMax: s.perDayMax,
+    sleepFrom: s.ruheVon,
+    sleepUntil: s.ruheBis,
+    deadlineMinFrom: s.fristVon,
+    deadlineMinTo: s.fristBis,
+    // K-17: "" = kein Fenster → null (ehrlicher als ein leerer String neben echten "HH:MM"-Werten).
+    triggerWindowFrom: s.fensterVon || null,
+    triggerWindowUntil: s.fensterBis || null,
+    onlyDuringLockPeriod: s.nurBeiSperre,
+  };
+}
+
 /** Die User-Spalten, aus denen `autoKontrolleSettingsFromUser` die Settings baut — plus Identität,
  *  Zeitzone und den Tages-Merker, die zusammen die Tagesplanung entscheiden.
  *  Exportiert, damit ein Aufrufer ausserhalb (Poller) dieselben Felder lädt, statt sie abzuschreiben. */
@@ -385,6 +441,22 @@ type AssertNever<T extends never> = T;
 type _AllSettingsClassified = AssertNever<
   Exclude<keyof AutoKontrolleUserFields, (typeof PLANNING_FIELDS)[number] | "autoKontrolleNurBeiSperre">
 >;
+
+/** Dieselbe Grenze auf der Settings-Sicht — und mit derselben Zusicherung versehen, damit die beiden
+ *  Listen nicht auseinanderlaufen können. Wer nur die Spalten-Liste pflegte, bekäme hier den Compiler. */
+const PLANNING_SETTINGS = [
+  "aktiv", "perDayMin", "perDayMax", "ruheVon", "ruheBis", "fristVon", "fristBis", "fensterVon", "fensterBis",
+] as const satisfies readonly (keyof AutoKontrolleSettings)[];
+type _AllSettingsViewClassified = AssertNever<
+  Exclude<keyof AutoKontrolleSettings, (typeof PLANNING_SETTINGS)[number] | "nurBeiSperre">
+>;
+
+/** Würde dieser Übergang den Tagesplan neu würfeln? Die Frage beantwortet sonst nur
+ *  {@link setAutoKontrolleSettings} für sich selbst; ein Aufrufer, der sein Ergebnis BESCHREIBEN will
+ *  (MCP `set_auto_inspections`), soll die Liste nicht ungeprüft abschreiben müssen. */
+export function planningChanged(before: AutoKontrolleSettings, after: AutoKontrolleSettings): boolean {
+  return PLANNING_SETTINGS.some((k) => before[k] !== after[k]);
+}
 
 /** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null).
  *  `extra` trägt die HERKUNFT (heute `cleaningRelock`) — die eine Stelle, an der eine Auto-Zeile

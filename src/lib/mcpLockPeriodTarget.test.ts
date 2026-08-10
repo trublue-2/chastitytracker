@@ -3,9 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /**
  * Mehrere offene Sperrzeiten können koexistieren: eine geplante überlebt eine Öffnung (sie ist noch
  * nicht aktiv), und schliesst sich der Sub danach über eine Verschluss-Anforderung wieder ein, legt
- * `entries/route.ts` eine zweite, sofort aktive an. Die alte Auswahl in `mcpEditLockPeriod`
- * (`findFirst` + `orderBy createdAt desc`) traf die richtige nur zufällig — und der `withdraw`-Rückzug
- * meldete ein nacktes `count`, ohne zu sagen, dass eine geplante mitgegangen ist.
+ * `entries/route.ts` eine zweite, sofort aktive an. Genau dann ist „die" Sperrzeit keine Antwort mehr:
+ * `mcpEditLockPeriod` verlangt ab zwei offenen die `id` und nennt im Fehler die Kandidaten. (Davor
+ * gewann still die ausgelöste — richtig geraten, aber eben geraten.) Der `withdraw`-Rückzug wiederum
+ * meldete früher ein nacktes `count`, ohne zu sagen, dass eine geplante mitgegangen ist.
  */
 
 vi.mock("@/lib/prisma", () => ({
@@ -64,19 +65,19 @@ beforeEach(() => {
 });
 
 describe("mcpEditLockPeriod — Zielwahl bei mehreren offenen Sperrzeiten", () => {
-  it("nimmt die AUSGELÖSTE, nicht die zuletzt angelegte", async () => {
-    // Der Kern des Bugs: sortiert man nach createdAt desc, gewinnt mal die eine, mal die andere.
-    // Gemeint ist immer die laufende — die, die der Sub kennt und die gerade durchsetzt.
-    openMock.mockResolvedValue([geplant, ausgeloest]); // geplante zuerst = "neueste" in der alten Logik
-    const res = await mcpEditLockPeriod("kg", { untilAt: NEUES_ENDE });
-
-    expect(updateEndeMock).toHaveBeenCalledWith("s2", new Date(NEUES_ENDE));
-    expect(res.id).toBe("s2");
+  it("mehrere offen und keine id → Fehler mit beiden Kandidaten, kein Schreibzugriff", async () => {
+    // Früher gewann hier die ausgelöste. Das traf meistens die richtige — zu wenig für einen Write,
+    // der zwischen Lesen und Schreiben auf ein anderes Objekt kippen kann (eine geplante löst aus).
+    // Die Kandidaten stehen IM Fehler, in derselben Form wie `untouched` (directiveRow).
+    openMock.mockResolvedValue([geplant, ausgeloest]);
+    await expect(mcpEditLockPeriod("kg", { untilAt: NEUES_ENDE }))
+      .rejects.toThrow(/2 lock periods are open.*"id":"s1","status":"scheduled".*"id":"s2","status":"triggered"/);
+    expect(updateEndeMock).not.toHaveBeenCalled();
   });
 
-  it("macht die Mehrdeutigkeit sichtbar: die unangetastete geplante wird als Datum gemeldet", async () => {
+  it("mit id: die unangetastete geplante wird als Datum gemeldet", async () => {
     openMock.mockResolvedValue([geplant, ausgeloest]);
-    const res = await mcpEditLockPeriod("kg", { untilAt: NEUES_ENDE });
+    const res = await mcpEditLockPeriod("kg", { untilAt: NEUES_ENDE, id: "s2" });
 
     expect(res.untouched).toEqual([{
       id: "s1",
@@ -96,13 +97,12 @@ describe("mcpEditLockPeriod — Zielwahl bei mehreren offenen Sperrzeiten", () =
     expect(res.message).not.toContain("lock periods are open");
   });
 
-  it("nur GEPLANTE offen → die neueste, und die Antwort sagt: nicht benachrichtigt", async () => {
-    const zweiteGeplante = { ...geplant, id: "s3" };
-    openMock.mockResolvedValue([zweiteGeplante, geplant]);
-    updateEndeMock.mockResolvedValue({ ok: true, data: { id: "s3", userId: "u1", notified: false } });
+  it("eine GEPLANTE offen → ohne id eindeutig, und die Antwort sagt: nicht benachrichtigt", async () => {
+    openMock.mockResolvedValue([geplant]);
+    updateEndeMock.mockResolvedValue({ ok: true, data: { id: "s1", userId: "u1", notified: false } });
 
     const res = await mcpEditLockPeriod("kg", { untilAt: NEUES_ENDE });
-    expect(res.id).toBe("s3");
+    expect(res.id).toBe("s1");
     expect(res.message).toContain("SCHEDULED");
     expect(res.message).toContain("NOT notified");
   });

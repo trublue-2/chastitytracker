@@ -96,7 +96,8 @@ Notable V2 read fields:
   `lock_period` / manual `inspection`, with `wirksamAb`), each cancelable via
   `withdraw`. Auto/random inspections are deliberately **not** listed (surprise).
 - `get_context` — `autoInspections` (the automatic-inspection settings:
-  active / perDay / sleep window / deadline window — read-only) and `cleaning`
+  active / perDay / sleep window / deadline window / trigger window; written via
+  `set_auto_inspections`) and `cleaning`
   (allowed / maxMinutesPerBreak / maxPausesPerDay / usedToday / windows /
   windowOpenNow). These moved here from the removed `get_overview`.
 - `get_devices` — includes `purchasePrice` and `currency` per device.
@@ -116,13 +117,20 @@ Notable V2 read fields:
 **Directive writes** — `request_lock`, `set_lock_period`,
 `edit_lock_period`, `request_inspection`, `resolve_inspection`, `request_orgasm`,
 `judge_offense`, `withdraw`, `set_training_goal` / `edit_training_goal` /
-`delete_training_goal` / `list_training_goals`, `set_cleaning`. Lock, lock-period,
+`delete_training_goal` / `list_training_goals`, `set_cleaning`,
+`set_auto_inspections`, `edit_lock_request`. Lock, lock-period,
 inspection, orgasm, resolve, withdraw and "punish" verdicts notify the sub
 (email + push); the rest are silent. `request_lock` and `set_lock_period` accept
 optional `delayMinutes` or `scheduledAt` to **schedule** the directive — it stays
 invisible to the sub until it fires and surfaces under
 `keyholder_dashboard.scheduledDirectives` meanwhile. `withdraw` also cancels a
 scheduled (not-yet-triggered) directive of the same kind.
+
+`edit_lock_period` and `edit_lock_request` both act on ONE open directive, and
+more than one can be open at a time (a scheduled lock period survives while the
+user re-locks). With more than one open, `id` is **required**: the error names
+the candidates so the caller can pick, rather than the triggered one silently
+winning. Any others stay untouched and are listed in the answer.
 
 `set_cleaning` covers every cleaning rule the admin UI has: `allowed`,
 `maxMinutes`, `maxPerDay` and `windows` (the daily time windows). `windows`
@@ -132,6 +140,21 @@ through it, so pass every window that should remain (read the current ones from
 forbid cleaning: without windows it is simply no longer tied to a time of day —
 `allowed: false` is what forbids it. Times are the sub's wall clock and a window
 cannot cross midnight (split it: `22:00–24:00` plus `00:00–06:00`).
+
+`set_auto_inspections` covers the settings of the **automatic** (random)
+inspections: `active`, `perDayMin` / `perDayMax`, the sleep window
+(`sleepFrom` / `sleepUntil`), the compliance-deadline range
+(`deadlineMinFrom` / `deadlineMinTo`), the optional fixed trigger window
+(`triggerWindowFrom` / `triggerWindowUntil`, `null` switches it off) and
+`onlyDuringLockPeriod`. Only provided fields change; read the current values from
+`get_context.autoInspections`. Setting one end of a pair past the other pulls the
+other end along, so the stored range always matches what the planner does.
+Changing a planning field re-rolls what is still pending today (delivered
+inspections stay). Combinations the planner would silently ignore are rejected: a
+half trigger window, one that runs backwards, and one that lies entirely inside
+the sleep window. Two rules are deliberately **not** settings: the inspection
+after a cleaning relock (it hangs on `active` alone) and the requirement that the
+sub be locked. A single inspection on demand stays `request_inspection`.
 
 **V2 knowledge / context writes** — `upsert_note`, `link_note`, `set_device_meta`,
 `set_health_hold`, `upsert_appointment`, `upsert_recurring_context`. Each takes a
@@ -229,9 +252,7 @@ tools.
   the server acts on the one `MCP_USERNAME`.
 - **Audit trail.** Every V2 write requires a `reason` and is recorded in
   `KeyholderActionLog`.
-- **Not available over MCP.** Automatic-inspection settings are **read-only**
-  (`get_context.autoInspections`); inspections are triggered manually via
-  `request_inspection`. The physical box is **not** controlled directly — MCP
+- **Not available over MCP.** The physical box is **not** controlled directly — MCP
   sets rules in the tracker, the box enforces them (see
   [`heimdall-box.md`](heimdall-box.md)).
 - **Replay protection & rate limits.** Authorization codes are single-use;

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
-import { autoKontrolleSettingsFromUser } from "@/lib/autoKontrolleService";
+import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
 import { getActiveSperrzeit, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
 
@@ -56,15 +56,9 @@ export interface ContextResult extends Envelope {
   schemaVersion: 3;
   user: string;
   healthHold: HealthHoldView | null;
-  /** Einstellungen der AUTOMATISCHEN Kontrollen (read-only; über den MCP nicht änderbar — Kontrollen
-   *  werden manuell via request_inspection veranlasst). active=false → keine Auto-Kontrollen. Pro Tag
-   *  wird eine ZUFÄLLIGE Anzahl aus [perDayMin, perDayMax] selbsttätig über den Tag verteilt
-   *  (perDayMin==perDayMax ⇒ fixe Anzahl); sleepFrom–sleepUntil = Schlaf-Fenster (Frist nie darin);
-   *  deadlineMinFrom–deadlineMinTo = zufällige Erfüllungsdauer-Spanne in Minuten. triggerWindowFrom/Until
-   *  = optionales festes Auslöse-Fenster (`null` = aus; dann verteilen sich die Auslösungen übers Wach-Fenster).
-   *  onlyDuringLockPeriod=true → eine fällige Auto-Kontrolle wird nur zugestellt, während eine aktive
-   *  Sperrzeit läuft; sonst zurückgezogen (kein Nachholen). false → jede laufende Verriegelung genügt. */
-  autoInspections: { active: boolean; perDayMin: number; perDayMax: number; sleepFrom: string; sleepUntil: string; deadlineMinFrom: number; deadlineMinTo: number; triggerWindowFrom: string | null; triggerWindowUntil: string | null; onlyDuringLockPeriod: boolean };
+  /** Einstellungen der AUTOMATISCHEN Kontrollen (änderbar über `set_auto_inspections`; die einzelne
+   *  Kontrolle wird weiterhin manuell via request_inspection veranlasst). */
+  autoInspections: AutoInspectionsView;
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
    *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
   cleaning: ContextReinigungView;
@@ -120,19 +114,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     user: username,
     ...buildEnvelope(now, iso, user.timezone ?? APP_TZ),
     healthHold,
-    autoInspections: {
-      active: auto.aktiv,
-      perDayMin: auto.perDayMin,
-      perDayMax: auto.perDayMax,
-      sleepFrom: auto.ruheVon,
-      sleepUntil: auto.ruheBis,
-      deadlineMinFrom: auto.fristVon,
-      deadlineMinTo: auto.fristBis,
-      // K-17: "" = kein Fenster → null (ehrlicher als ein leerer String neben echten "HH:MM"-Werten).
-      triggerWindowFrom: auto.fensterVon || null,
-      triggerWindowUntil: auto.fensterBis || null,
-      onlyDuringLockPeriod: auto.nurBeiSperre,
-    },
+    autoInspections: autoInspectionsView(auto),
     cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => apptView(a, iso)),
