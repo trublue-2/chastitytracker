@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hhmmToMinutes, isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, type AutoKontrolleSettings } from "./autoKontrolleService";
+import { hhmmToMinutes, isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, triggerWindowAllQuiet, type AutoKontrolleSettings } from "./autoKontrolleService";
 import { dateAtLocalMinutes, midnightInTZ, formatTime } from "./utils";
 
 /** Alle Tests dieser Datei rechnen in der Zeitzone einer CH-Sub. */
@@ -364,5 +364,40 @@ describe("fillFreeGaps — Nachplanen an zugestellten Kontrollen vorbei", () => 
       expect(hhmm(s.wirksamAb) >= "06:00" && hhmm(s.wirksamAb) < "22:00").toBe(true);
       expect(hhmm(s.deadline) > "06:00" && hhmm(s.deadline) <= "22:00").toBe(true);
     }
+  });
+});
+
+/** Die Prüfung, mit der die Schreib-Seite (`set_auto_inspections`) eine Kombination ablehnt, aus der
+ *  der Planer nie einen Slot bauen könnte — hier gegen genau die Fälle gehalten, die er verwirft. */
+describe("triggerWindowAllQuiet", () => {
+  const base: AutoKontrolleSettings = {
+    aktiv: true, perDayMin: 2, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
+    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false,
+  };
+  const withWindow = (von: string, bis: string, ruhe: [string, string] = ["22:00", "06:00"]) =>
+    ({ ...base, fensterVon: von, fensterBis: bis, ruheVon: ruhe[0], ruheBis: ruhe[1] });
+
+  it("ohne festes Fenster ist nichts zu prüfen", () => {
+    expect(triggerWindowAllQuiet(base)).toBe(false);
+  });
+
+  it("erkennt ein Fenster im Abend- bzw. Morgen-Ast eines wrappenden Schlaf-Fensters", () => {
+    expect(triggerWindowAllQuiet(withWindow("22:30", "23:30"))).toBe(true);
+    expect(triggerWindowAllQuiet(withWindow("01:00", "05:00"))).toBe(true);
+  });
+
+  it("lässt ein Fenster durch, das den Schlaf nur überlappt — dort bleiben wache Minuten", () => {
+    expect(triggerWindowAllQuiet(withWindow("05:00", "09:00"))).toBe(false);
+    expect(triggerWindowAllQuiet(withWindow("21:00", "23:00"))).toBe(false);
+    expect(triggerWindowAllQuiet(withWindow("10:00", "16:00"))).toBe(false);
+  });
+
+  it("rechnet auch mit einem Schlaf-Fenster ohne Mitternachts-Sprung (01:00–05:00)", () => {
+    expect(triggerWindowAllQuiet(withWindow("02:00", "04:00", ["01:00", "05:00"]))).toBe(true);
+    expect(triggerWindowAllQuiet(withWindow("02:00", "07:00", ["01:00", "05:00"]))).toBe(false);
+  });
+
+  it("ohne Schlaf-Fenster (von == bis) ist kein Fenster je verschlafen", () => {
+    expect(triggerWindowAllQuiet(withWindow("02:00", "04:00", ["06:00", "06:00"]))).toBe(false);
   });
 });

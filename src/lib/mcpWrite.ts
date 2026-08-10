@@ -13,7 +13,15 @@ import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
 import { diffFields } from "@/lib/mcp/writeFramework";
-import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import {
+  setAutoKontrolleSettings, autoKontrolleSettingsFromUser, autoInspectionsView, planningChanged,
+  fixedWindowMinutes, triggerWindowAllQuiet, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoKontrolleSettings,
+} from "@/lib/autoKontrolleService";
+import {
+  CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
+  HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+  type NumberRange,
+} from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
@@ -880,9 +888,149 @@ function windowsNote(windows: ReinigungsFenster[] | undefined): string {
   return ` Cleaning windows replaced (${windows.length}): ${windows.map(formatReinigungsFenster).join(", ")}.`;
 }
 
-// Hinweis: Es gibt bewusst KEIN mcpSetAutoInspections mehr — die Einstellungen der automatischen
-// Kontrollen dürfen über den MCP nicht geändert werden (nur manuelle Kontrollen via request_inspection).
-// Die Admin-UI nutzt setAutoKontrolleSettings direkt.
+// ── Automatic inspections (Auto-Kontrollen) settings ───────────────────────
+
+/** Die Felder von {@link SetAutoInspectionsArgs} ohne `dryRun` — die eine Liste, gegen die der
+ *  „mindestens ein Feld"-Guard prüft. `satisfies` bindet sie an den Args-Typ: ein neues Feld, das
+ *  hier fehlt, fällt beim Compile auf, statt still am Guard vorbeizulaufen. */
+const AUTO_INSPECTION_ARG_KEYS = [
+  "active", "perDayMin", "perDayMax", "sleepFrom", "sleepUntil",
+  "deadlineMinFrom", "deadlineMinTo", "triggerWindowFrom", "triggerWindowUntil", "onlyDuringLockPeriod",
+] as const satisfies readonly (keyof Omit<SetAutoInspectionsArgs, "dryRun">)[];
+
+export interface SetAutoInspectionsArgs {
+  active?: boolean;
+  perDayMin?: number;
+  perDayMax?: number;
+  sleepFrom?: string;
+  sleepUntil?: string;
+  deadlineMinFrom?: number;
+  deadlineMinTo?: number;
+  /** "HH:MM" setzt das feste Auslöse-Fenster, `null` schaltet es aus — dieselbe Konvention wie die
+   *  Lese-Seite (`get_context.autoInspections`), wo `null` „kein Fenster" heisst. */
+  triggerWindowFrom?: string | null;
+  triggerWindowUntil?: string | null;
+  onlyDuringLockPeriod?: boolean;
+  dryRun?: boolean;
+}
+
+/** Wirft, wenn ein „HH:MM"-Feld keines ist — VOR dem dryRun-Zweig, damit der Preview dieselbe
+ *  Ablehnung zeigt wie der Commit. Der Satz kommt aus dem Code des Services (`INVALID_TIME`), nicht
+ *  aus einer zweiten Formulierung: dieselbe Ablehnung soll überall denselben Grund nennen. */
+function assertHhmm(field: string, value: string): void {
+  if (!HHMM.test(value)) throw new Error(`${field}: "${value}" — ${enErrorText(INVALID_TIME)} (expected "HH:MM").`);
+}
+
+/**
+ * Bringt ein Von-/Bis-Paar auf `von <= bis`, ohne die ABSICHT des Patches zu verdrehen: der
+ * ausdrücklich gesetzte Wert gewinnt, die andere Seite zieht nach (beide gesetzt ⇒ „bis" steigt auf
+ * „von", wie im Service). Ohne das speichert ein halber Patch ein Paar, dessen eine Hälfte die
+ * Planung anschliessend still übergeht (`perDayRange`/`fristRange` heben „bis" ohnehin auf „von" an):
+ * „höchstens 2/Tag" gegen einen Bestand von min 4 stünde als 4–2 in der DB und wirkte als 4–4.
+ *
+ * Bewusst SCHÄRFER als `raiseMaxToMin` im Service, das nur die eine Richtung kennt (max steigt auf
+ * min): das Admin-Formular schickt immer beide Enden, ein MCP-Patch dagegen oft nur eines — erst
+ * dieser Aufrufer weiss also, welche Seite die Absicht trägt.
+ */
+function alignPair(patch: { min?: number; max?: number }, current: { min: number; max: number }): { min: number; max: number } {
+  const min = patch.min ?? current.min;
+  const max = patch.max ?? current.max;
+  if (min <= max) return { min, max };
+  return patch.min !== undefined ? { min, max: min } : { min: max, max };
+}
+
+/**
+ * Prüft das feste Auslöse-Fenster im ERGEBNIS-Stand: ein halbes Fenster, ein rückwärts laufendes oder
+ * eines, das ganz im Schlaf-Fenster liegt, würde der Planer allesamt kommentarlos übergehen (Fallback
+ * aufs Wach-Fenster bzw. gar keine Slots). Lieber hier ablehnen als stumm speichern.
+ *
+ * Ob ein Fenster ÜBERHAUPT greift, entscheidet dabei nicht dieser Code, sondern der Planer selbst
+ * (`fixedWindowMinutes` — dieselbe Funktion, die es später liest). Sonst stünde die Definition eines
+ * gültigen Fensters in zwei Modulen und diese Prüfung liefe irgendwann gegen eine Regel, die der
+ * Planer nicht mehr hat.
+ */
+function assertTriggerWindow(after: AutoKontrolleSettings): void {
+  const { fensterVon: from, fensterBis: until } = after;
+  if (!from && !until) return; // beide leer = kein Fenster, gewollt
+  if (!from || !until) {
+    throw new Error("A trigger window needs both triggerWindowFrom and triggerWindowUntil — pass null for both to switch it off.");
+  }
+  if (!fixedWindowMinutes(after)) {
+    throw new Error(`triggerWindowFrom (${from}) must be before triggerWindowUntil (${until}) — a trigger window cannot cross midnight.`);
+  }
+  if (triggerWindowAllQuiet(after)) {
+    throw new Error(`The trigger window ${from}–${until} lies entirely inside the sleep window ${after.ruheVon}–${after.ruheBis} — no inspection could ever be triggered.`);
+  }
+}
+
+/**
+ * Setzt die Einstellungen der AUTOMATISCHEN Kontrollen. Nur übergebene Felder ändern sich; gerechnet
+ * (und gespeichert) wird trotzdem der VOLLE Ergebnis-Stand — genau wie beim Admin-Formular, das
+ * ebenfalls immer alle Felder schickt. Der Service würfelt den laufenden Tag nur bei einer echten
+ * Planungs-Änderung neu.
+ */
+export async function mcpSetAutoInspections(username: string, args: SetAutoInspectionsArgs) {
+  const userId = await resolveTargetUserId(username);
+  if (AUTO_INSPECTION_ARG_KEYS.every((k) => args[k] === undefined)) {
+    throw new Error(`Provide at least one of: ${AUTO_INSPECTION_ARG_KEYS.join(", ")}.`);
+  }
+  if (args.sleepFrom !== undefined) assertHhmm("sleepFrom", args.sleepFrom);
+  if (args.sleepUntil !== undefined) assertHhmm("sleepUntil", args.sleepUntil);
+  if (args.triggerWindowFrom) assertHhmm("triggerWindowFrom", args.triggerWindowFrom);
+  if (args.triggerWindowUntil) assertHhmm("triggerWindowUntil", args.triggerWindowUntil);
+
+  const row = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
+  const before = autoKontrolleSettingsFromUser(row);
+
+  // Geklemmt wird HIER, nicht erst im Service: Preview und Paar-Ausrichtung müssen mit denselben
+  // Zahlen rechnen, die nachher in der DB stehen (setAutoKontrolleSettings klemmt intern identisch).
+  const clampOpt = (v: number | undefined, range: NumberRange) => (v === undefined ? undefined : clamp(v, range));
+  const perDay = alignPair(
+    { min: clampOpt(args.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE), max: clampOpt(args.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE) },
+    { min: before.perDayMin, max: before.perDayMax },
+  );
+  const frist = alignPair(
+    { min: clampOpt(args.deadlineMinFrom, AUTO_INSPECTION_DEADLINE_FROM_RANGE), max: clampOpt(args.deadlineMinTo, AUTO_INSPECTION_DEADLINE_TO_RANGE) },
+    { min: before.fristVon, max: before.fristBis },
+  );
+  // `null` = Fenster aus → "" (die Speicher-Form), `undefined` lässt den Bestand stehen.
+  const window = (v: string | null | undefined, current: string) => (v === undefined ? current : v ?? "");
+
+  const after: AutoKontrolleSettings = {
+    aktiv: args.active ?? before.aktiv,
+    perDayMin: perDay.min,
+    perDayMax: perDay.max,
+    ruheVon: args.sleepFrom ?? before.ruheVon,
+    ruheBis: args.sleepUntil ?? before.ruheBis,
+    fristVon: frist.min,
+    fristBis: frist.max,
+    fensterVon: window(args.triggerWindowFrom, before.fensterVon),
+    fensterBis: window(args.triggerWindowUntil, before.fensterBis),
+    nurBeiSperre: args.onlyDuringLockPeriod ?? before.nurBeiSperre,
+  };
+  assertTriggerWindow(after);
+
+  if (args.dryRun) {
+    const view = autoInspectionsView(after);
+    return dryRunPreview("set_auto_inspections", undefined, view, diffFields(autoInspectionsView(before), view));
+  }
+  unwrap(await setAutoKontrolleSettings(userId, after));
+  return { ok: true, message: `Automatic inspections updated.${autoInspectionsNote(before, after)}` };
+}
+
+/** Der Zusatz zur Erfolgsmeldung. Nennt die zwei Stände, die zwar gültig sind, aber nicht das tun,
+ *  was der Name verspricht (sonst meldet das Tool „updated" und der Agent glaubt, es kämen
+ *  Kontrollen) — und den Neuwurf nur dann, wenn der Service ihn wirklich ausgelöst hat. */
+function autoInspectionsNote(before: AutoKontrolleSettings, after: AutoKontrolleSettings): string {
+  if (!after.aktiv) return " Automatic inspections are OFF — no daily plan, and no inspection after a cleaning relock either.";
+  if (after.perDayMax <= 0) {
+    return " perDayMax is 0 — no daily inspections will be planned; only the inspection after a cleaning relock still applies.";
+  }
+  const count = after.perDayMin === after.perDayMax ? `${after.perDayMin}` : `${after.perDayMin}–${after.perDayMax}`;
+  const trigger = after.fensterVon ? `, triggers only ${after.fensterVon}–${after.fensterBis}` : "";
+  return ` ${count} per day, ${after.fristVon}–${after.fristBis} min to comply, sleep ${after.ruheVon}–${after.ruheBis}${trigger}.`
+    + (planningChanged(before, after) ? " Today's remaining plan was re-rolled." : "");
+}
 
 // ── Inspections: verify / reject the latest submission ──────────────────────
 
@@ -927,28 +1075,11 @@ export interface EditLockPeriodArgs {
   untilAt?: string;
   indefinite?: boolean;
   /** Die zu ändernde Sperrzeit explizit wählen (id aus `keyholder_dashboard.scheduledDirectives`).
-   *  Ohne id gewinnt die AUSGELÖSTE — siehe {@link mcpEditLockPeriod}. */
+   *  Pflicht, sobald mehr als eine offen ist — siehe {@link pickEditTarget}. */
   id?: string;
   dryRun?: boolean;
 }
 
-/**
- * Ändert das Ende EINER offenen Sperrzeit — offen heisst: nicht zurückgezogen, nicht beendet, also
- * inklusive einer terminierten, noch nicht ausgelösten.
- *
- * **Es kann mehr als eine offene geben** (warum: {@link foldActiveSperrzeiten}), und die alte
- * „nimm die neueste"-Auswahl traf die gemeinte nur durch Zufall der Sortierung.
- *
- * Auswahl ohne `id`: **die AUSGELÖSTE gewinnt** (`!isHiddenFromSub` — die, die der Sub kennt und die
- * gerade durchsetzt). Sagt die Keyholderin „die Sperrzeit", meint sie die laufende, nicht die für in
- * drei Wochen geplante. Ein harter Fehler („multiple open — specify id") wäre die Alternative, wurde
- * aber verworfen: der häufige Fall (eine laufende + eine geplante) ist eindeutig gemeint, und die KI
- * daran scheitern zu lassen kostet mehr, als die seltene Fehlwahl korrigierbar zu machen. Gibt es NUR
- * geplante, wird die neueste genommen.
- *
- * Die Mehrdeutigkeit bleibt nicht stumm: `untouched` nennt die nicht gewählten mit id und Status, und
- * über `id` lässt sich jede davon gezielt ansprechen.
- */
 /** Eine offene Direktive, die ein Edit-Tool treffen kann (Sperrzeit ODER Anforderung). */
 type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endetAt: Date | null; nachricht: string | null };
 
@@ -976,10 +1107,15 @@ function directiveRow(s: OpenDirective, iso: Iso): DirectiveRow {
 }
 
 /**
- * Wählt aus mehreren offenen Direktiven die gemeinte — und macht die Mehrdeutigkeit sichtbar,
- * statt sie zu verschlucken. Geteilt von `edit_lock_period` und `edit_lock_request`, damit die
- * Auswahl-Regel an EINER Stelle steht: ohne `id` gewinnt die AUSGELÖSTE (die, die der Sub kennt);
- * gibt es nur geplante, die erste der Liste.
+ * Wählt aus den offenen Direktiven die gemeinte. Geteilt von `edit_lock_period` und
+ * `edit_lock_request`, damit die Regel an EINER Stelle steht: ist genau eine offen, ist sie gemeint;
+ * sind es mehrere, ist `id` PFLICHT.
+ *
+ * Früher gewann ohne `id` die AUSGELÖSTE. Das traf meistens die richtige, aber „meistens" ist bei
+ * einem Schreibvorgang zu wenig: zwischen dem Lesen der Liste und dem Schreiben kann eine geplante
+ * Sperrzeit auslösen und damit die Wahl auf ein anderes Objekt kippen, als der dryRun gezeigt hat —
+ * und zwei parallele Sitzungen ändern so unbemerkt dieselbe Zeile. Ein Fehler, der die Kandidaten
+ * beim Namen nennt, kostet den Agenten eine Runde und nimmt beides weg.
  */
 function pickEditTarget<T extends OpenDirective>(
   open: T[],
@@ -988,14 +1124,21 @@ function pickEditTarget<T extends OpenDirective>(
   label: "lock period" | "lock request",
 ): { target: T; untouched: DirectiveRow[]; ambiguity: string } {
   if (open.length === 0) throw new Error(`No open ${label} to edit.`);
-  const target = id
-    ? open.find((s) => s.id === id)
-    : open.find((s) => !isHiddenFromSub(s)) ?? open[0];
+  if (!id && open.length > 1) {
+    // Die Kandidaten GLEICH mitliefern — und zwar als {@link directiveRow}, dieselbe Form wie
+    // `untouched`: ohne sie müsste der Agent erst ein Lese-Tool suchen, das dieselben Zeilen nochmal
+    // zeigt (und rät in der Zwischenzeit doch), und eine eigene Formulierung liesse Fehler und
+    // Antwort auseinanderlaufen. `message` gehört dazu — bei gleichem Status und Ende ist sie das
+    // einzige menschliche Unterscheidungsmerkmal.
+    const candidates = open.map((s) => JSON.stringify(directiveRow(s, iso))).join(", ");
+    throw new Error(`${open.length} ${label}s are open — pass id=… to say which one to edit: ${candidates}.`);
+  }
+  const target = id ? open.find((s) => s.id === id) : open[0];
   if (!target) throw new Error(`No open ${label} with id ${id} (it may be withdrawn, ended, or belong to someone else).`);
 
   const untouched = open.filter((s) => s.id !== target.id).map((s) => directiveRow(s, iso));
   const ambiguity = untouched.length === 0 ? ""
-    : ` NOTE: ${open.length} ${label}s are open — edited the ${isHiddenFromSub(target) ? "SCHEDULED" : "triggered"} one; the others are listed under "untouched". Pass id=… to edit one of those instead.`;
+    : ` NOTE: ${open.length} ${label}s are open — the others are listed under "untouched" and were not changed.`;
   return { target, untouched, ambiguity };
 }
 
@@ -1035,7 +1178,7 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
 // ── Lock request: change an open Einschliess-Anforderung ─────────────────────
 
 export interface EditLockRequestArgs {
-  /** Die zu ändernde Anforderung explizit wählen. Ohne id gewinnt die AUSGELÖSTE (siehe pickEditTarget). */
+  /** Die zu ändernde Anforderung wählen. Pflicht, sobald mehr als eine offen ist (siehe pickEditTarget). */
   id?: string;
   deadlineAt?: string;
   deadlineHours?: number;

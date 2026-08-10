@@ -101,6 +101,14 @@ direkt aus, ohne Rückfrage oder Bestätigung.
 - Versäumt der Sub eine Kontrolle, mahnt die Automatik und bucht danach (falls eingeschaltet) das
   Ende: beim KG eine Öffnung, bei einer Trage-Kontrolle das Ablegen. Das Vergehen steht so oder so
   im Strafbuch.
+- **Daneben laufen die AUTOMATISCHEN Kontrollen** (Bestand: \`get_context.autoInspections\`): der
+  Server würfelt pro Tag eine Anzahl aus \`perDayMin\`–\`perDayMax\` und verteilt sie selbsttätig über
+  den Tag. Ihre Regeln änderst du mit \`set_auto_inspections\` — Hauptschalter, Anzahl pro Tag,
+  Schlaf-Fenster (dort wird nie geweckt und keine Frist gelegt), Spanne der Erfüllungsfrist, ein
+  optionales festes Auslöse-Fenster und „nur während einer Sperrzeit zustellen". \`active: false\`
+  schaltet ALLES ab, auch die Kontrolle nach dem Wiederverschluss (Abschnitt 3); \`perDayMax: 0\`
+  nimmt nur den Tagesplan weg. Eine Änderung an der Planung würfelt den Rest des heutigen Tages neu
+  — bereits zugestellte Kontrollen bleiben.
 
 ## 4. Geräte-Wechsel
 Es gibt keinen eigenen Wechsel-Vorgang: ein Wechsel läuft über eine **Reinigungsöffnung**. Folgen: er

@@ -8,11 +8,11 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY } from "@/lib/constants";
+import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -195,11 +195,12 @@ const MCP_SERVER_INSTRUCTIONS =
   "`get_context` (autoInspections + cleaning).\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
   "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … `set_cleaning` deckt ALLE " +
+  "`set_cleaning`, `set_auto_inspections`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … `set_cleaning` deckt ALLE " +
   "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
-  "Uhrzeit statt sie zu verbieten). Kontrollen werden MANUELL über " +
-  "`request_inspection` veranlasst; die Einstellungen der AUTOMATISCHEN Kontrollen sind über den MCP " +
-  "NICHT änderbar (nur lesbar via get_context.autoInspections). Zusätzlich zum Tagesplan folgt auf jeden " +
+  "Uhrzeit statt sie zu verbieten). Eine EINZELNE Kontrolle veranlasst du weiterhin von Hand über " +
+  "`request_inspection`; die REGELN der automatischen Kontrollen (Hauptschalter, Anzahl/Tag, Schlaf-Fenster, " +
+  "Fristen, festes Auslöse-Fenster, nur-bei-Sperrzeit) ändert `set_auto_inspections` — Bestand lesen in " +
+  "get_context.autoInspections. Zusätzlich zum Tagesplan folgt auf jeden " +
   "Wiederverschluss nach einer Reinigungspause selbsttätig eine Kontrolle — feste Regel, keine Einstellung " +
   "(Details: `explain_model`, Abschnitt 3).\n" +
   "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
@@ -489,9 +490,9 @@ function registerTools(server: McpServer) {
         description:
           "MCP V2 — Kontext um das echte Leben (explain_model): aktiver HealthHold (Gesundheits-Zurückhaltung), " +
           "die Einstellungen der AUTOMATISCHEN Kontrollen (autoInspections: active/perDayMin/perDayMax/Schlaf-Fenster/" +
-          "Fristen — read-only, nicht via MCP änderbar), die Reinigungs-Regeln (cleaning: allowed/" +
+          "Fristen/Auslöse-Fenster — geändert werden sie mit `set_auto_inspections`), die Reinigungs-Regeln (cleaning: allowed/" +
           "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow/windowsBinding/" +
-          "windowsBindingReason/openingAllowedNow — windows binden NUR während einer aktiven Sperrzeit, " +
+          "windowsBindingReason/openingAllowedNow — geändert werden sie mit `set_cleaning`; windows binden NUR während einer aktiven Sperrzeit, " +
           "die Reinigen erlaubt; openingAllowedNow beantwortet direkt, ob JETZT eine Reinigungsöffnung " +
           "erlaubt ist, statt windows/windowOpenNow selbst zu verrechnen), der wiederkehrende " +
           "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree; ordinal/ordinalLabel " +
@@ -611,6 +612,16 @@ function registerTools(server: McpServer) {
     // ruft dieselbe preview()-Logik wie apply()); die V1-Vorschau tut das NICHT (siehe Docblock in
     // mcpWrite.ts) — dieselbe Beschreibung für beide zu verwenden würde das V2-Versprechen aufweichen.
     const dryRunFieldV1 = z.boolean().optional().describe("true = nur Vorschau, NICHT committen. Prüft Argument-Auflösung + die hier verfügbaren Regeln — NICHT alle service-internen Zustandsprüfungen (die laufen erst beim echten Commit).");
+    // Ein geklemmtes Zahlen-Feld der Settings-Tools: Schema-Grenzen UND der Bereich im Text kommen aus
+    // DERSELBEN `NumberRange`. Vorher stand der Bereich nur im Text, während das Schema alles bis zur
+    // Integer-Grenze zuliess — ein Client sah die echten Grenzen nicht und verliess sich auf den
+    // stillen Clamp im Service. Über diese Helferin können die beiden nicht mehr auseinanderlaufen.
+    // Damit lehnt der MCP-Pfad ab, wo der Service klemmen würde; der Admin-Formular-Pfad klemmt
+    // weiterhin still (er hat kein Schema, sein Eingabefeld begrenzt schon beim Tippen). Nicht jedes
+    // Zahlenfeld passt hier hinein: `delayMinutes` etwa hat mit 0/weggelassen zwei Sonderwerte
+    // AUSSERHALB seines Bereichs und nennt ihn deshalb weiter nur im Text.
+    const rangeField = (range: NumberRange, text: string, extra = "") =>
+      z.number().int().min(range.min).max(range.max).optional().describe(`${text} (${range.min}–${range.max}).${extra}`);
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
     // Tools, die auch auf TERMINIERTE (noch nicht ausgelöste) Direktiven wirken: dort schweigt der
@@ -626,6 +637,13 @@ function registerTools(server: McpServer) {
     // Für alle Tools mit delayMinutes/scheduledAt (request_lock, set_lock_period, request_inspection):
     // der Trigger-Zeitpunkt selbst darf dem Sub nie mitgeteilt werden (nicht in message/comment, nicht
     // im Gespräch) — sonst ist der Überraschungseffekt der Terminierung hinfällig.
+    // Beide Edit-Tools teilen die Zielwahl (`pickEditTarget`) — und damit auch ihre Beschreibung.
+    // Vorher stand die Regel in beiden Tool-Texten und beiden id-Feldern, also viermal.
+    const MULTI_OPEN_NOTE = (what: string) =>
+      ` More than one ${what} can be open at once; with more than one open, id is REQUIRED and the ` +
+      `error names the candidates. Any others stay untouched and are named in the answer.`;
+    const editIdField = (what: string, source: string) =>
+      z.string().optional().describe(`Which ${what} to edit (id from ${source}). Optional only while exactly one is open.`);
     const NO_SCHEDULE_DISCLOSURE =
       " IMPORTANT: never disclose the scheduled trigger time (delayMinutes/scheduledAt) to the user — " +
       "not in the message/comment field, not in conversation. Revealing it defeats the point of scheduling.";
@@ -885,8 +903,8 @@ function registerTools(server: McpServer) {
           "(get_context.cleaning.windowsBinding)." + KEYHOLDER_SILENT,
         inputSchema: {
           allowed: z.boolean().optional().describe("Allow cleaning pauses at all?"),
-          maxMinutes: z.number().int().nonnegative().optional().describe(`Max minutes per cleaning pause (clamped to ${CLEANING_MAX_MINUTES_RANGE.min}–${CLEANING_MAX_MINUTES_RANGE.max}).`),
-          maxPerDay: z.number().int().nonnegative().optional().describe(`Max pauses per day, 0 = unlimited (clamped to ${CLEANING_MAX_PER_DAY_RANGE.min}–${CLEANING_MAX_PER_DAY_RANGE.max}).`),
+          maxMinutes: rangeField(CLEANING_MAX_MINUTES_RANGE, "Max minutes per cleaning pause"),
+          maxPerDay: rangeField(CLEANING_MAX_PER_DAY_RANGE, "Max pauses per day, 0 = unlimited"),
           windows: z.array(z.object({
             start: z.string().describe(`Window start, "HH:MM" in the sub's local time (00:00–23:59).`),
             end: z.string().describe(`Window end, "HH:MM" in the sub's local time, after start (up to "24:00").`),
@@ -901,10 +919,37 @@ function registerTools(server: McpServer) {
       (args, extra) => runWriteTool("set_cleaning", extra, args, (u) => mcpSetCleaning(u, args)),
     );
 
-    // set_auto_inspections wird BEWUSST NICHT als MCP-Tool angeboten: der virtuelle Keyholder soll
-    // Kontrollen weiterhin MANUELL über request_inspection veranlassen, aber die Einstellungen der
-    // AUTOMATISCHEN Kontrollen (perDayMin/perDayMax/Schlaf-Fenster/Fristen) nicht ändern. Die autoKontrolle-Config
-    // bleibt nur LESBAR (get_context.autoInspections).
+    server.registerTool(
+      "set_auto_inspections",
+      {
+        title: "Set automatic-inspection settings",
+        description:
+          "Sets the settings of the AUTOMATIC (random) inspections: the master switch, how many per day, the " +
+          "sleep window, the compliance deadline range, the optional fixed trigger window, and whether they " +
+          "are only delivered during a lock period. Only provided fields change; read the current values from " +
+          "get_context.autoInspections first. Each day a RANDOM count from [perDayMin, perDayMax] is spread " +
+          "over the day on its own (equal values = a fixed count); perDayMax:0 plans none. Changing a planning " +
+          "field re-rolls what is still pending TODAY (already delivered inspections stay). This does not " +
+          "issue an inspection — a single one on demand is request_inspection. Two rules are NOT settings: " +
+          "the inspection after a cleaning relock (hangs on `active` alone), and that a random inspection " +
+          "needs the sub to be locked." + KEYHOLDER_SILENT,
+        inputSchema: {
+          active: z.boolean().optional().describe("Master switch. false = no automatic inspections at all (including the one after a cleaning relock)."),
+          perDayMin: rangeField(AUTO_INSPECTION_PER_DAY_RANGE, "Lower bound of the random count per day"),
+          perDayMax: rangeField(AUTO_INSPECTION_PER_DAY_RANGE, "Upper bound of the random count per day, 0 = none", " Setting one bound past the other pulls the other one along."),
+          sleepFrom: z.string().optional().describe(`Sleep window start, "HH:MM" in the sub's local time. No inspection is triggered in the sleep window and no deadline falls into it.`),
+          sleepUntil: z.string().optional().describe(`Sleep window end, "HH:MM" in the sub's local time.`),
+          deadlineMinFrom: rangeField(AUTO_INSPECTION_DEADLINE_FROM_RANGE, "Lower bound of the random time to comply, in minutes"),
+          deadlineMinTo: rangeField(AUTO_INSPECTION_DEADLINE_TO_RANGE, "Upper bound of the random time to comply, in minutes"),
+          triggerWindowFrom: z.string().nullable().optional().describe(`Fixed trigger window start, "HH:MM", or null to switch the window off (then triggers spread over the whole waking window). Both ends belong together.`),
+          triggerWindowUntil: z.string().nullable().optional().describe(`Fixed trigger window end, "HH:MM" after the start (it cannot cross midnight), or null to switch the window off.`),
+          onlyDuringLockPeriod: z.boolean().optional().describe("true = a due inspection is only delivered while an active lock period (SPERRZEIT) runs, otherwise it is withdrawn (never caught up). false = any running lock is enough."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_auto_inspections", extra, args, (u) => mcpSetAutoInspections(u, args)),
+    );
 
     server.registerTool(
       "resolve_inspection",
@@ -930,15 +975,11 @@ function registerTools(server: McpServer) {
           "Extends or shortens an open lock period (Sperrzeit) by changing its end — without " +
           "withdrawing and recreating it. Works on a SCHEDULED lock period too; the new end is then delivered " +
           "with the trigger notification. Set indefinite=true for open-ended, or untilAt for a new end (must " +
-          "be in the future). More than one lock period can be open at once (a scheduled one survives while " +
-          "the user re-locks); without id the already-TRIGGERED one is edited, and the answer names any others " +
-          "left untouched." + KEYHOLDER_NOTE + SCHEDULED_SILENT,
+          "be in the future). A scheduled lock period survives while the user re-locks." + MULTI_OPEN_NOTE("lock period") + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
           untilAt: z.string().optional().describe("New end (ISO 8601, future). Ignored if indefinite=true."),
           indefinite: z.boolean().optional().describe("Make the lock period open-ended."),
-          id: z.string().optional().describe(
-            "Edit THIS lock period (id from keyholder_dashboard.scheduledDirectives). Omit to edit the triggered one.",
-          ),
+          id: editIdField("lock period", "keyholder_dashboard.scheduledDirectives"),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
@@ -954,11 +995,9 @@ function registerTools(server: McpServer) {
           "Changes an open lock request (VerschlussAnforderung) instead of withdrawing and recreating it — " +
           "deadline, message, required device, the lock period it enforces after lock-up, and the scheduled " +
           "trigger time. Only fields you pass are changed. Works on a SCHEDULED request too; the updated " +
-          "version is then delivered when it triggers (use triggerNow to deliver it immediately). Several " +
-          "requests can be open at once; without id the already-TRIGGERED one is edited, and the answer names " +
-          "any others left untouched." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE + SCHEDULED_SILENT,
+          "version is then delivered when it triggers (use triggerNow to deliver it immediately)." + MULTI_OPEN_NOTE("lock request") + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE + SCHEDULED_SILENT,
         inputSchema: {
-          id: z.string().optional().describe("Edit THIS request (id from keyholder_dashboard.openLockRequests / scheduledDirectives). Omit to edit the triggered one."),
+          id: editIdField("request", "keyholder_dashboard.openLockRequests / scheduledDirectives"),
           deadlineAt: z.string().optional().describe("New absolute deadline to lock up (ISO 8601)."),
           deadlineHours: z.number().positive().optional().describe("New deadline in hours, counted from the (possibly new) trigger time. Ignored if deadlineAt is given."),
           minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) after lock-up. Replaces any absolute lockUntilAt."),

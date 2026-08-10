@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * K-01 (leichte Variante, MCP-Befundliste 2026-07-17): dryRun für alle 12 V1-Write-Tools — validiert
+ * K-01 (leichte Variante, MCP-Befundliste 2026-07-17): dryRun für alle V1-Write-Tools — validiert
  * Argument-Auflösung + die hier verfügbaren Regeln, OHNE die mutierende Service-Funktion aufzurufen.
  * Diese Tests pinnen zwei Dinge pro Tool: (1) dryRun:true committet NICHTS (die mutierende Funktion
  * wird nie aufgerufen), (2) wo eine echte Prüf-Funktion existiert (checkOrgasmWindowEnd,
@@ -36,6 +36,10 @@ vi.mock("@/lib/vorgabeService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/vorgabeService")>();
   return { ...actual, createVorgabe: vi.fn(), updateVorgabe: vi.fn(), deleteVorgabe: vi.fn(), listVorgaben: vi.fn() };
 });
+vi.mock("@/lib/autoKontrolleService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/autoKontrolleService")>();
+  return { ...actual, setAutoKontrolleSettings: vi.fn() };
+});
 vi.mock("@/lib/reinigungService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/reinigungService")>();
   return { ...actual, setReinigungSettings: vi.fn() };
@@ -57,13 +61,14 @@ vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn().mockResolvedValue({}
 import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
   mcpWithdraw, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection,
-  mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask,
+  mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask, mcpSetAutoInspections,
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings } from "@/lib/reinigungService";
+import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
@@ -89,7 +94,15 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(JETZT);
   userMock.mockResolvedValue({ id: "u1", username: "sub", role: "admin" });
-  userFindUniqueOrThrowMock.mockResolvedValue({ reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0, reinigungsFenster: JSON.stringify([{ start: "19:00", end: "20:00" }]) });
+  // Eine Zeile für beide Settings-Tools: set_cleaning liest die Reinigungs-, set_auto_inspections
+  // die Auto-Kontroll-Spalten desselben Users.
+  userFindUniqueOrThrowMock.mockResolvedValue({
+    reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0, reinigungsFenster: JSON.stringify([{ start: "19:00", end: "20:00" }]),
+    id: "u1", timezone: "Europe/Zurich", autoKontrolleAktiv: true,
+    autoKontrollePerDayMin: 2, autoKontrollePerDayMax: 4, autoKontrolleRuheVon: "22:00", autoKontrolleRuheBis: "06:00",
+    autoKontrolleFristVon: 15, autoKontrolleFristBis: 60, autoKontrolleFensterVon: "", autoKontrolleFensterBis: "",
+    autoKontrolleNurBeiSperre: false, autoInspectionPlannedFor: null,
+  });
   strafeRecordFindUniqueMock.mockResolvedValue(null);
   // Default: ref ist ein aktuell erkanntes Vergehen (punish/dismiss-diff braucht das, siehe B-05-Guard
   // gegen OFFENSE_NOT_FOUND). Tests, die genau diesen Guard prüfen, setzen [] explizit.
@@ -128,6 +141,12 @@ describe("dryRun committet nichts", () => {
     const r = await mcpSetCleaning("sub", { dryRun: true, maxMinutes: 30 });
     expect((r as { dryRun: boolean }).dryRun).toBe(true);
     expect(setReinigungSettings).not.toHaveBeenCalled();
+  });
+
+  it("set_auto_inspections", async () => {
+    const r = await mcpSetAutoInspections("sub", { dryRun: true, perDayMax: 6 });
+    expect((r as { dryRun: boolean }).dryRun).toBe(true);
+    expect(setAutoKontrolleSettings).not.toHaveBeenCalled();
   });
 
   it("judge_offense", async () => {
@@ -217,6 +236,8 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
     expect(updateVorgabe).not.toHaveBeenCalled();
   });
 
+  // Wie beim Auto-Kontroll-Zwilling: das Tool-Schema (route.ts) weist Werte ausserhalb des Bereichs
+  // inzwischen schon ab. Der Klemm-Schritt bleibt die zweite Linie für Aufrufer ohne zod-Validierung.
   it("set_cleaning: dryRun zeigt den GEKLEMMTEN Wert, nicht den rohen Input (K-06-Falle)", async () => {
     const r = await mcpSetCleaning("sub", { dryRun: true, maxMinutes: 9999 }) as { preview: { maxMinutes: number; maxMinutesClampedFrom?: number } };
     expect(r.preview.maxMinutes).toBe(120); // CLEANING_MAX_MINUTES_RANGE.max
@@ -426,12 +447,21 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
     expect(updateLockRequest).not.toHaveBeenCalled();
   });
 
-  it("ohne id gewinnt die AUSGELÖSTE, und die übrigen werden benannt statt verschwiegen", async () => {
+  it("mehrere offen und keine id → Fehler mit den Kandidaten, statt eine zu raten", async () => {
+    const geplant = anf({ id: "a2", wirksamAb: new Date("2026-08-04T12:00:00Z"), benachrichtigtAt: null });
+    sperrzeitFindManyMock.mockResolvedValue([geplant, anf()]);
+
+    // Die Kandidaten stehen IM Fehler — sonst müsste der Agent erst ein Lese-Tool suchen.
+    await expect(mcpEditLockRequest("sub", { message: "neu" })).rejects.toThrow(/2 lock requests are open.*"id":"a2".*"id":"a1"/);
+    expect(updateLockRequest).not.toHaveBeenCalled();
+  });
+
+  it("mit id wird genau die gemeinte geändert, die übrige steht unter untouched", async () => {
     const geplant = anf({ id: "a2", wirksamAb: new Date("2026-08-04T12:00:00Z"), benachrichtigtAt: null });
     sperrzeitFindManyMock.mockResolvedValue([geplant, anf()]);
     (updateLockRequest as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, data: { id: "a1", userId: "u1", notified: true, deliveredToPoller: false } });
 
-    const r = await mcpEditLockRequest("sub", { message: "neu" }) as { id: string; untouched: { id: string; status: string }[]; message: string };
+    const r = await mcpEditLockRequest("sub", { id: "a1", message: "neu" }) as { id: string; untouched: { id: string; status: string }[]; message: string };
     expect(r.id).toBe("a1");
     expect(r.untouched).toEqual([{ id: "a2", status: "scheduled", scheduledFor: "2026-08-04T14:00:00+02:00", endsAt: "2026-07-18T14:00:00+02:00", message: null }]);
     expect(r.message).toContain("2 lock requests are open");
