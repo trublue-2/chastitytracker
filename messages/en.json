@@ -265,7 +265,8 @@
     "userDesign": "User",
     "adminDesign": "Admin",
     "menu": "Open menu",
-    "devices": "My Devices"
+    "devices": "My Devices",
+    "penalties": "Penalties"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -1662,5 +1663,22 @@
       "name": "Recorded offense",
       "desc": "Entered by hand — not derived from the log."
     }
+  },
+  "penalties": {
+    "title": "Penalties",
+    "intro": "Penalties imposed on you. Only your keyholder can mark them as done.",
+    "dashboardTitle": "Open penalties",
+    "openTitle": "Open",
+    "doneTitle": "Done",
+    "viewAll": "View all",
+    "offenseAt": "Offence on {date}",
+    "offenseUnknown": "Offence no longer identifiable",
+    "judgedAt": "Imposed on {date}",
+    "doneAt": "done on {date}",
+    "badgeOpen": "Open",
+    "badgeDone": "Done",
+    "badgeTask": "Set as a task",
+    "empty": "No penalties",
+    "emptyHint": "No penalty has been imposed yet."
   }
 }

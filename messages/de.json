@@ -265,7 +265,8 @@
     "userDesign": "Benutzer",
     "adminDesign": "Admin",
     "menu": "Menü öffnen",
-    "devices": "Meine Devices"
+    "devices": "Meine Devices",
+    "penalties": "Strafen"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -1662,5 +1663,22 @@
       "name": "Notiertes Vergehen",
       "desc": "Von Hand eingetragen — nicht aus den Einträgen abgeleitet."
     }
+  },
+  "penalties": {
+    "title": "Strafen",
+    "intro": "Verhängte Strafen. Als erledigt melden kann sie nur deine Keyholderin.",
+    "dashboardTitle": "Offene Strafen",
+    "openTitle": "Offen",
+    "doneTitle": "Erledigt",
+    "viewAll": "Alle ansehen",
+    "offenseAt": "Vergehen vom {date}",
+    "offenseUnknown": "Vergehen nicht mehr zuordenbar",
+    "judgedAt": "Verhängt am {date}",
+    "doneAt": "erledigt am {date}",
+    "badgeOpen": "Offen",
+    "badgeDone": "Erledigt",
+    "badgeTask": "Als Aufgabe gestellt",
+    "empty": "Keine Strafen",
+    "emptyHint": "Es wurde noch keine Strafe verhängt."
   }
 }
