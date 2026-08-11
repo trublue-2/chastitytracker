@@ -5,6 +5,8 @@ import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
 import InspectionEscalationToggle from "@/app/admin/InspectionEscalationToggle";
+import OffenseRulesEditor from "@/app/admin/OffenseRulesEditor";
+import { getOffenseRules } from "@/lib/offenseRulesService";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
@@ -37,7 +39,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
 
-  const [user, vorgaben, categories, keyholders, t, tc, dl, tOrgasm, tOpen] = await Promise.all([
+  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id, deletedAt: null }, orderBy: { gueltigAb: "desc" } }), // B-04: soft-gelöschte Ziele ausblenden
     // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
@@ -47,6 +49,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       select: { id: true, name: true },
     }),
     getKeyholdersOfUser(id),
+    getOffenseRules(id),
     getTranslations("admin"),
     getTranslations("common"),
     getLocale().then(toDateLocale),
@@ -163,6 +166,11 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialAutoMarkEnabled={user.inspectionAutoMarkEnabled}
           initialAutoMarkDelayMinutes={user.inspectionAutoMarkDelayMinutes}
         />
+      </SettingsSection>
+
+      {/* Vergehen: welche Arten bei diesem Sub überhaupt zählen (Parameter bleiben in ihren Abschnitten) */}
+      <SettingsSection title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
+        <OffenseRulesEditor userId={user.id} initialRules={offenseRules} />
       </SettingsSection>
 
       {/* App */}
