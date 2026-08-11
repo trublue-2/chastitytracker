@@ -362,11 +362,19 @@ function messageWhere(subjectUserId: string, filter: MessageFilter = {}): Prisma
  * Terminierung ist — und sie zu rendern und dann auszublenden hiesse, sie schon ausgeliefert zu
  * haben.
  *
- * BEKANNTE UNSCHÄRFE: `total` zählt in der Datenbank, der Sichtbarkeits-Filter greift erst auf der
- * geladenen Seite. Eine verborgene Nachricht zählt also mit, ohne zu erscheinen — eine Seite kann
- * kürzer sein als `MESSAGE_PAGE_SIZE`. Der genaue Weg hiesse, für jede Zählung den ganzen
- * Posteingang samt seiner Bezugsobjekte aufzulösen; verborgene Zeilen sind selten (terminierte
- * Direktiven, verworfene Urteile), und der Preis stünde in keinem Verhältnis.
+ * BEKANNTE UNSCHÄRFE: Die Seitenzahl zählt in der DATENBANK, der Sichtbarkeits-Filter greift erst
+ * auf der geladenen Seite. Eine verborgene Nachricht zählt also mit, ohne zu erscheinen — eine Seite
+ * kann kürzer sein als `MESSAGE_PAGE_SIZE`, und bei aktivem Ungelesen-Filter kann `pageCount` eine
+ * etwas andere Menge meinen als die Zahl in der Glocke daneben (die kommt aus
+ * `visibleUnreadRows`, das die Sichtbarkeit auflöst).
+ *
+ * Bewusst so, aber NICHT weil das Auflösen zu teuer wäre — `visibleUnreadRows` tut genau das auf
+ * jeder Dashboard-Seite. Der genaue Weg hiesse, die Sichtbarkeit für ALLE Nachrichten des Nutzers
+ * aufzulösen (nicht nur die ungelesenen), also den ganzen Posteingang zu laden, statt eine
+ * indizierte Zählung zu fahren und 20 Zeilen zu holen. Verborgene Zeilen sind selten (terminierte
+ * Direktiven, verworfene Urteile); dafür den Normalfall linear mit dem Posteingang wachsen zu
+ * lassen, wäre der schlechtere Handel. Wird die Abweichung je störend, ist die Auflösung eine
+ * gemeinsame `visibleMessageIds(userId, filter)` für Zähler, Liste und Seitenzahl.
  */
 export async function listMessagesFor(
   subjectUserId: string,
