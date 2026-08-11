@@ -185,9 +185,10 @@ UPSTREAM_CHANGELOG_URL=<url>       # optional: eigene Changelog-Quelle (dann kei
 CLEANING_WINDOW_ENFORCED_FROM=<iso-date>   # optional
 # OVERRIDE des Melde-Stichtags der Vergehens-Nachrichten (ISO-8601). Gleiche Mechanik und gleiche
 # Warnung wie oben: den Stichtag schreibt die Migration `20260811150000_offense_announce_from` beim
-# ersten Boot jeder Instanz selbst. Vergehen mit einer Tatzeit DAVOR werden dem Träger nie gemeldet —
-# sonst kippte der erste Lauf nach dem Deploy seine ganze Historie in den Posteingang. Nur zum
-# bewussten Rückdatieren.
+# ersten Boot jeder Instanz selbst. Abgeleitete Vergehen mit einer Tatzeit DAVOR werden dem Träger
+# nie gemeldet — sonst kippte der erste Lauf nach dem Deploy seine ganze Historie in den Posteingang.
+# AUSGENOMMEN sind von Hand notierte Vergehen: die schreibt die Keyholderin fast immer über etwas
+# Vergangenes und würden sonst nie ankommen. Nur zum bewussten Rückdatieren.
 OFFENSE_ANNOUNCE_FROM=<iso-date>           # optional
 # Selfhosted-KI Health-Check (nur relevant bei lokalem Vision-/Embedding-Backend):
 HEALTHCHECK_INTERVAL_MIN=5         # optional: Prüfintervall in Minuten (Default 5)

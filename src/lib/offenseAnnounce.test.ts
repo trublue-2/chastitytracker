@@ -84,6 +84,24 @@ describe("announceableOffenses — was überhaupt meldbar ist", () => {
     expect(announceableOffenses([verworfen, bestraft, offen], SINCE).map((o) => o.refId)).toEqual(["o"]);
   });
 
+  it("meldet ein von Hand notiertes Vergehen auch VOR dem Stichtag", () => {
+    // Der Normalfall einer Notiz: die Keyholderin hält fest, was gestern war. Am Tatzeitpunkt gegen
+    // den Stichtag gemessen fiele praktisch jede Notiz durch und erreichte den Träger nie. Eine Flut
+    // droht hier nicht — notierte Vergehen entstehen einzeln und von Hand.
+    const notiert = offense({
+      refId: "n1", offenseType: "manual_offense", title: "Abmachung gebrochen",
+      offenseAt: new Date("2026-07-01T20:00:00Z"),
+    });
+
+    expect(announceableOffenses([notiert], SINCE).map((o) => o.refId)).toEqual(["n1"]);
+  });
+
+  it("beurteilt Notiertes trotzdem nach dem Zustand", () => {
+    const beurteilt = offense({ refId: "n2", offenseType: "manual_offense", state: "punished" });
+
+    expect(announceableOffenses([beurteilt], SINCE)).toEqual([]);
+  });
+
   it("nimmt ein Vergehen GENAU auf dem Stichtag mit", () => {
     // Die Grenze gehört zum gemeldeten Bereich: der Stichtag ist der Moment, ab dem gemeldet wird.
     expect(announceableOffenses([offense({ refId: "grenze", offenseAt: SINCE })], SINCE)).toHaveLength(1);

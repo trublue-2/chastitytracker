@@ -76,11 +76,20 @@ export type AnnounceableOffense = SubOffense & { offenseType: OffenseCanonicalTy
  * Was dabei bewusst NICHT gemeldet wird: ein Vergehen, das innerhalb dieses Fensters entsteht und
  * beurteilt wird. Bestraft erfährt er es über die Strafen-Nachricht; verworfen hat er es nie
  * erfahren, und dann gibt es auch nichts aufzulösen.
+ *
+ * AUSNAHME VOM STICHTAG: ein VON HAND notiertes Vergehen. Der Stichtag misst am Tatzeitpunkt, und
+ * für abgeleitete Vergehen ist das richtig. Eine Notiz schreibt die Keyholderin aber fast immer über
+ * etwas Vergangenes („gestern die Abmachung gebrochen") — in den Wochen nach dem Rollout fiele damit
+ * eine Notiz nach der anderen durch den Stichtag und erreichte den Träger nie. Eine Flut droht bei
+ * dieser Art nicht: die Tabelle entsteht mit derselben Version wie der Stichtag, es gibt zu diesem
+ * Zeitpunkt also nachweislich keinen Bestand, der hereinbrechen könnte.
  */
 export function announceableOffenses(offenses: SubOffense[], since: Date): AnnounceableOffense[] {
   return offenses.filter((o): o is AnnounceableOffense =>
-    o.state === "open" && o.offenseType !== null && o.offenseAt !== null && o.offenseAt >= since);
+    o.state === "open" && o.offenseType !== null && o.offenseAt !== null &&
+    (o.offenseType === "manual_offense" || o.offenseAt >= since));
 }
+
 
 /** Die Parameter der Meldung. Der Name der Vergehensart kommt als i18n-SCHLÜSSEL, nicht als fertiger
  *  Text: die Nachricht wird in der Sprache gelesen, die der Träger beim ÖFFNEN eingestellt hat, nicht
@@ -164,7 +173,7 @@ export async function announceNewOffenses(userId: string, now: Date = new Date()
 
 /** Frühestens so oft läuft der Abgleich je Träger. Zeit allein erzeugt Vergehen (abgelaufene
  *  Kontrollfrist, nicht wiederverschlossen, versäumte Aufgabe), es muss also getaktet nachgesehen
- *  werden — aber ein voller Strafbuch-Aufbau je Träger und Minute wäre verschwendet. Fünf Minuten
+ *  werden — aber ein voller Strafbuch-Aufbau je Konto und Minute wäre verschwendet. Fünf Minuten
  *  sind nah genug, dass eine Meldung nicht auffällig hinterherhinkt. */
 const ANNOUNCE_INTERVAL_MS = 5 * 60_000;
 
@@ -175,7 +184,7 @@ const ANNOUNCE_INTERVAL_MS = 5 * 60_000;
 const g = globalThis as unknown as { __offenseAnnounceAt?: number };
 
 /**
- * Vom Poller je Tick gerufen: meldet für ALLE Träger, gedrosselt auf {@link ANNOUNCE_INTERVAL_MS}.
+ * Vom Poller je Tick gerufen: meldet für ALLE Konten, gedrosselt auf {@link ANNOUNCE_INTERVAL_MS}.
  *
  * Am POLLER und nicht am Heartbeat, obwohl der Heartbeat der bequemere Aufhänger wäre. Drei Gründe,
  * jeder für sich ausreichend:
@@ -199,9 +208,11 @@ export async function maybeAnnounceOffenses(now: Date = new Date()): Promise<voi
   if (g.__offenseAnnounceAt && nowMs - g.__offenseAnnounceAt < ANNOUNCE_INTERVAL_MS) return;
   g.__offenseAnnounceAt = nowMs;
 
-  // Nur Träger: ein Konto ohne Einträge und ohne Aufgaben hat kein Strafbuch, und ein voller
-  // Aufbau dafür wäre reine Verschwendung. `role` ist der billigste Filter, den es dafür gibt.
-  const users = await prisma.user.findMany({ where: { role: "user" }, select: { id: true } });
+  // ALLE Konten, ohne Rollen-Filter. Ein Filter auf `role: "user"` wäre billiger, schlösse aber
+  // genau die Konten aus, die Keyholder UND Träger sind — auf einer Ein-Personen-Instanz ist das der
+  // Normalfall, und dort erschiene dann überhaupt keine Meldung. Ein Konto ohne Einträge kostet ein
+  // leeres Strafbuch; das ist der günstigere Preis als eine Rolle, die stillschweigend abschaltet.
+  const users = await prisma.user.findMany({ select: { id: true } });
   for (const u of users) {
     try {
       await announceNewOffenses(u.id, now);
