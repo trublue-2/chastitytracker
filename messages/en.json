@@ -1706,9 +1706,7 @@
   "penalties": {
     "title": "Offense record",
     "intro": "Every offense the app derives from your entries — with whether it has been ruled on yet.",
-    "dashboardTitle": "Open penalties",
     "openTitle": "Open penalties",
-    "doneTitle": "Completed",
     "viewAll": "View all",
     "offenseAt": "Offence on {date}",
     "offenseUnknown": "Offence no longer identifiable",
@@ -1719,7 +1717,7 @@
     "badgeTask": "Set as a task",
     "empty": "Nothing on record",
     "emptyHint": "This is what the app detects as an offense — and what your keyholder makes of it.",
-    "derivedNote": "The list is recalculated on every visit — a corrected entry can make a row disappear. Rows already ruled on always stay.",
+    "derivedNote": "The list is recalculated on every visit — a corrected entry can make a row disappear. Completed penalties drop out entirely.",
     "detectedTitle": "Not yet ruled on",
     "dismissedTitle": "Dropped",
     "badgeDismissed": "Dropped",

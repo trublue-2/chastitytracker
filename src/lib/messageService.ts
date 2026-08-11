@@ -2,7 +2,7 @@ import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
-import { isSubVisibleJudgment } from "@/lib/offenseTypes";
+import { judgmentMessageStillApplies } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
 
@@ -248,7 +248,7 @@ async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set
   const hidden = new Set<string>();
   for (const c of controls) if (isHiddenFromSub(c)) hidden.add(refKey("control", c.id));
   for (const l of lockRequests) if (isHiddenFromSub(l)) hidden.add(refKey("lockRequest", l.id));
-  for (const o of offenses) if (!isSubVisibleJudgment(o)) hidden.add(refKey("offense", o.id));
+  for (const o of offenses) if (!judgmentMessageStillApplies(o)) hidden.add(refKey("offense", o.id));
   return hidden;
 }
 
@@ -273,7 +273,7 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
 
   const [offenses, controls, lockRequests, orgasmDirectives, tasks] = await Promise.all([
     // `status` mitlesen: ein verworfenes Urteil darf den Sub gar nicht erst erreichen — siehe
-    // `isSubVisibleJudgment`. Ohne diese Spalte zeigte eine alte „Strafe verhängt"-Nachricht nach
+    // `judgmentMessageStillApplies`. Ohne diese Spalte zeigte eine alte „Strafe verhängt"-Nachricht nach
     // einer Korrektur auf PUNISHED→DISMISSED die VERWERFUNGS-Begründung.
     offenseIds.length ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, reason: true, status: true } }) : [],
     // Mehr als der Kommentar: aus Code + Zustand entsteht das Link-Ziel (siehe unten).
@@ -294,7 +294,7 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
 
   const now = new Date();
   const details = new Map<string, RefDetail>();
-  for (const o of offenses) details.set(refKey("offense", o.id), { text: o.reason, actionCode: null, hidden: !isSubVisibleJudgment(o) });
+  for (const o of offenses) details.set(refKey("offense", o.id), { text: o.reason, actionCode: null, hidden: !judgmentMessageStillApplies(o) });
   for (const c of controls) {
     // Ein Ziel gibt es NUR bei der offenen Kontrolle — dort steht eine Handlung an. Erfüllt,
     // abgelaufen, zurückgezogen oder noch nicht ausgelöst: kein Ziel, das etwas beiträgt. Der

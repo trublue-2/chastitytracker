@@ -139,7 +139,7 @@ describe("Freitexte werden live gelesen, nicht kopiert", () => {
   it("ein VERWORFENES Urteil erreicht den Sub nicht — auch nicht über eine alte Nachricht", async () => {
     // `writeJudgment` upsertet auf `refId`: eine Korrektur PUNISHED→DISMISSED behält die Zeile, und
     // die alte „Strafe verhängt"-Nachricht zeigte danach die VERWERFUNGS-Begründung. Genau die
-    // Zusage der Träger-Sicht, und sie gilt hier so gut wie dort (`isSubVisibleJudgment`).
+    // Nachricht ist dann nicht mehr wahr und wird ausgeblendet (`judgmentMessageStillApplies`).
     mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "s1" })]);
     mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "war abgesprochen", status: "DISMISSED" }]);
     const { messages } = await listMessagesFor("u1");

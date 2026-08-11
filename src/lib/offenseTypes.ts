@@ -65,22 +65,47 @@ export type OffenseCanonicalType = keyof typeof STORED_TYPE;
  */
 export type StoredOffenseType = (typeof STORED_TYPE)[OffenseCanonicalType];
 
+/** Wo ein Vergehen im Urteils-Lebenszyklus steht. */
+export type OffenseState =
+  /** Erkannt, noch nicht beurteilt. */
+  | "open"
+  /** Die Keyholderin hat es fallengelassen. */
+  | "dismissed"
+  /** Bestraft, Strafe noch offen. */
+  | "punished"
+  /** Bestraft und erledigt. */
+  | "done";
+
 /**
- * Darf der SUB dieses Urteil sehen? Genau dann, wenn es eine verhängte Strafe ist.
+ * Der Zustand eines Vergehens aus seinem Urteil — `undefined` heisst „kein Urteil".
  *
- * Ein `DISMISSED` ist die Entscheidung der Keyholderin, eine Anschuldigung fallenzulassen — sie soll
- * das können, ohne dass der Sub die Anschuldigung je gesehen hat. Das ist die teuerste Zusage der
- * Träger-Sicht, und deshalb steht sie hier als PRÄDIKAT und nicht als Kommentar in einem Konsumenten:
- * sie gilt für die Strafen-Liste (`openPenalties.ts`) UND für den Posteingang (`messageService.ts`),
- * dessen Referenz-Auflösung den Straftext bis v5.0.12 ohne jede Status-Prüfung ausgab. Ein Urteil,
- * das von PUNISHED auf DISMISSED korrigiert wird, behält seine Zeile (`writeJudgment` upsertet auf
- * `refId`) — die alte Nachricht zeigte danach die Verwerfungs-Begründung.
- *
- * Hier und nicht in `strafurteilService.ts`, weil `messageService` von dort nicht importieren kann
- * (der Service holt sich seinerseits `senderKindOf` von dort — es gäbe einen Zyklus). Dieses Modul
- * ist bewusst importfrei.
+ * Hier und nicht im Service, weil dieselbe Ableitung an mehreren Stellen gebraucht wird und die
+ * meisten davon kein Prisma importieren dürfen: die Träger-Sicht, das MCP-Ledger und die
+ * Admin-Strafbuch-Seite (Client-Komponente). Jede hat sie bisher von Hand aus `status` und
+ * `erledigtAt` gelesen — und „offen" bedeutete dabei bereits dreierlei: unbeurteilt (Träger),
+ * unbeurteilt ODER bestraft-nicht-erledigt (MCP), nicht-verworfen-und-nicht-erledigt (Admin). Ein
+ * fünfter Zustand wäre an drei Orten zu finden, und die übersehene Stelle meldet sich nicht.
  */
-export function isSubVisibleJudgment(record: { status: string }): boolean {
+export function offenseState(record: { status: string; erledigtAt: Date | null } | undefined): OffenseState {
+  if (!record) return "open";
+  if (record.status !== "PUNISHED") return "dismissed";
+  return record.erledigtAt ? "done" : "punished";
+}
+
+/**
+ * Passt die Nachricht „Strafe verhängt" noch zu ihrem Urteil?
+ *
+ * Sie trägt keine Kopie des Straftexts, sondern die Referenz — gelesen wird beim Anzeigen frisch aus
+ * dem `StrafeRecord`. Wird ein Urteil von PUNISHED auf DISMISSED korrigiert, behält die Zeile ihre
+ * id (`writeJudgment` upsertet auf `refId`), und die alte Nachricht zeigte plötzlich die
+ * VERWERFUNGS-Begründung unter der Überschrift „Strafe verhängt". Dann ist sie nicht mehr wahr und
+ * wird ausgeblendet — Zähler wie Liste, sonst stünde ein Badge über einem leeren Posteingang.
+ *
+ * ACHTUNG, das ist NICHT die Sichtbarkeitsregel des Trägers: sein Strafbuch (`subOffenses.ts`)
+ * zeigt seit v5.1 jedes Vergehen samt Zustand, auch die fallengelassenen. Was hier ausgeblendet
+ * wird, ist allein die nicht mehr zutreffende NACHRICHT.
+ */
+export function judgmentMessageStillApplies(record: { status: string }): boolean {
   return record.status === "PUNISHED";
 }
 

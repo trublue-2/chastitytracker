@@ -1,6 +1,6 @@
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import { offenseState, type OffenseCanonicalType, type OffenseState } from "@/lib/offenseTypes";
 
 /**
  * Das Strafbuch aus der Sicht des KG-TRÄGERS — die eine Stelle, an der es entsteht (Issue #36).
@@ -14,7 +14,8 @@ import type { OffenseCanonicalType } from "@/lib/offenseTypes";
  * teilbar. Zeigt man das Erkannte, muss man auch das VERWORFENE zeigen — sonst verschwindet eine
  * Zeile, die er gesehen hat, wortlos, und er kann „abgewunken" nicht von „Ableitung geändert" und
  * nicht von „kaputt" unterscheiden. Genau das beschädigt auch den Teil der Liste, der verlässlich
- * ist. Darum vier Zustände, alle sichtbar.
+ * ist. Darum trägt jede Zeile ihren Zustand — welche davon die Seite zeigt, entscheidet sie selbst
+ * (erledigte Strafen lässt sie weg, Begründung dort).
  *
  * Reine LESE-Sicht: urteilen und abschliessen kann nur die Keyholderin (`judgeOffense`).
  *
@@ -26,16 +27,9 @@ import type { OffenseCanonicalType } from "@/lib/offenseTypes";
  * `applyOffenseRules`).
  */
 
-/** Wo ein Vergehen im Urteils-Lebenszyklus steht. */
-export type SubOffenseState =
-  /** Erkannt, noch nicht beurteilt. */
-  | "open"
-  /** Die Keyholderin hat es fallengelassen. */
-  | "dismissed"
-  /** Bestraft, Strafe noch offen. */
-  | "punished"
-  /** Bestraft und erledigt. */
-  | "done";
+/** Der Zustand kommt aus `offenseTypes.ts` — dieselbe Ableitung nutzen Admin-Strafbuch und
+ *  MCP-Ledger. Hier re-exportiert, damit die Anzeige-Schicht ihn nicht quer importieren muss. */
+export type SubOffenseState = OffenseState;
 
 export interface SubOffense {
   /** Stabile Referenz (`StrafeRecord.refId` bzw. die ref aus `collectDetectedOffenses`). */
@@ -68,7 +62,7 @@ export interface SubOffense {
 /** Wann ist an dieser Zeile zuletzt etwas passiert? Danach wird sortiert — sonst stünde ein heute
  *  beurteiltes Vergehen von letzter Woche unter einem gestern erkannten. */
 function lastEventAt(o: SubOffense): number {
-  return (o.doneAt ?? o.judgedAt ?? o.offenseAt ?? new Date(0)).getTime();
+  return (o.doneAt ?? o.judgedAt ?? o.offenseAt)?.getTime() ?? 0;
 }
 
 /**
@@ -90,12 +84,6 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
   const manualById = new Map(sb.manualOffenses.map((m) => [m.id, m]));
   const taskById = new Map(sb.unfulfilledTasks.map((t) => [t.id, t]));
 
-  const stateOf = (r: (typeof sb.strafeRecords)[number] | undefined): SubOffenseState => {
-    if (!r) return "open";
-    if (r.status !== "PUNISHED") return "dismissed";
-    return r.erledigtAt ? "done" : "punished";
-  };
-
   const detected = collectDetectedOffenses(sb).map((o): SubOffense => {
     const r = judgments.get(o.refId);
     const manual = manualById.get(o.refId);
@@ -104,7 +92,7 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
       refId: o.refId,
       offenseType: o.canonicalType,
       offenseAt: o.at,
-      state: stateOf(r),
+      state: offenseState(r),
       detail: manual?.title ?? task?.title ?? null,
       detailText: manual?.description ?? null,
       text: r?.reason ?? null,
@@ -121,7 +109,7 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
       refId: r.refId,
       offenseType: null,
       offenseAt: null,
-      state: stateOf(r),
+      state: offenseState(r),
       detail: null,
       detailText: null,
       text: r.reason,

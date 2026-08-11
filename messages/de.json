@@ -1706,9 +1706,7 @@
   "penalties": {
     "title": "Strafbuch",
     "intro": "Alle Vergehen, die die App aus deinen Einträgen ableitet — mit dem Stand, ob darüber schon entschieden wurde.",
-    "dashboardTitle": "Offene Strafen",
     "openTitle": "Offene Strafen",
-    "doneTitle": "Erledigt",
     "viewAll": "Alle ansehen",
     "offenseAt": "Vergehen vom {date}",
     "offenseUnknown": "Vergehen nicht mehr zuordenbar",
@@ -1719,7 +1717,7 @@
     "badgeTask": "Als Aufgabe gestellt",
     "empty": "Nichts im Strafbuch",
     "emptyHint": "Hier steht, was die App als Vergehen erkennt — und was deine Keyholderin daraus macht.",
-    "derivedNote": "Die Liste wird bei jedem Aufruf neu berechnet — ein korrigierter Eintrag kann eine Zeile verschwinden lassen. Beurteilte Zeilen bleiben in jedem Fall stehen.",
+    "derivedNote": "Die Liste wird bei jedem Aufruf neu berechnet — ein korrigierter Eintrag kann eine Zeile verschwinden lassen. Erledigte Strafen fallen ganz weg.",
     "detectedTitle": "Noch nicht beurteilt",
     "dismissedTitle": "Fallengelassen",
     "badgeDismissed": "Fallengelassen",

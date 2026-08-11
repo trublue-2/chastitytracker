@@ -70,9 +70,9 @@ export default async function OpenPenalties({
   return (
     <DashboardBlock>
       <div className="flex items-center justify-between gap-3 mb-2">
-        {/* Eigener Titel statt des „Offen" der Seite: dort steht er unter der Überschrift
-            „Strafen", hier steht er für sich zwischen fremden Blöcken. */}
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("dashboardTitle")}</p>
+        {/* Derselbe Titel wie der erste Abschnitt der Strafbuch-Seite — es ist dieselbe Menge, und
+            zwei Namen dafür wären zwei Begriffe für eine Sache. */}
+        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("openTitle")}</p>
         <Link
           href="/dashboard/strafen"
           className="text-xs text-foreground-faint hover:text-foreground-muted transition-colors shrink-0"
