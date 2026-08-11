@@ -2,11 +2,12 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { senderKindOf } from "@/lib/messageService";
+import { recordSystemMessage, senderKindOf } from "@/lib/messageService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { checkTask, writeTask, type CreateTaskParams } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
+import { offenseWasAnnounced } from "@/lib/offenseAnnounce";
 import { STORED_TYPE, type OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /**
@@ -279,8 +280,32 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
     status, reason: text, judgedBy: p.judgedBy, taskId: null,
   }));
 
-  // Nur bei verhängter Strafe benachrichtigen (ein Verwerfen ist für den Nutzer belanglos).
-  if (status === "PUNISHED") await notifyUser(p.userId, strafeVerhaengtNotice(text, record.id, p.judgedBy));
+  if (status === "PUNISHED") {
+    await notifyUser(p.userId, strafeVerhaengtNotice(text, record.id, p.judgedBy));
+  } else {
+    // Das Verwerfen bekommt seine EIGENE Zeile — früher war es die einzige Entscheidung, von der der
+    // Träger nie erfuhr. Seit die Feststellung gemeldet wird, ist das nicht mehr bloss eine Lücke:
+    // er hat die Zeile „Vergehen festgestellt" gesehen, und ohne diese hier bliebe sie für immer im
+    // Ungewissen stehen.
+    //
+    // Nur Posteingang, kein Push und keine Mail: die Nachricht nimmt eine Last weg, statt eine
+    // aufzuerlegen. Wer dafür geweckt wird, lernt, Benachrichtigungen abzuschalten.
+    // NUR, wenn die Feststellung ihn je erreicht hat. Vor dem Melde-Stichtag abgeleitete Vergehen
+    // werden nie gemeldet — für die wäre diese Zeile das Ende einer Geschichte, die der Posteingang
+    // nie erzählt hat.
+    if (await offenseWasAnnounced(p.userId, offense.refId)) {
+      await recordSystemMessage({
+        subjectUserId: p.userId,
+        bodyKey: "offenseDismissedMessage",
+        // Auf das VERGEHEN, nicht auf das Urteil: dieselbe Referenz wie die Feststellungs-Meldung,
+        // damit beide Zeilen denselben Anlass zeigen und ihren Freitext live von dort holen.
+        ref: { type: "detectedOffense", id: offense.refId },
+        senderKind: senderKindOf(p.judgedBy),
+        // Wieder-eröffnen und erneut verwerfen ist möglich; zwei gleichlautende Zeilen dazu nicht.
+        once: true,
+      });
+    }
+  }
   markLastAction();
 
   return { ok: true, data: { status: status === "PUNISHED" ? "punished" : "dismissed", done: false } };

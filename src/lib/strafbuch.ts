@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { deployCutoff } from "@/lib/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
@@ -359,22 +360,13 @@ const ENFORCED_FROM_KEY = "cleaningWindowEnforcedFrom";
  * oder Korrigieren. Ohne beides (Zeile fehlt, Migration nie gelaufen) gilt der SICHERE Weg: `now`,
  * also ab jetzt — lieber ein Vergehen zu wenig als eines, das es damals nicht gab.
  */
-export async function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
-  const raw = process.env.CLEANING_WINDOW_ENFORCED_FROM;
-  if (raw) {
-    const parsed = new Date(raw);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-    // Ein unlesbares Datum darf NICHT stillschweigend zu "gar kein Stichtag" werden — das bestrafte
-    // rückwirkend die ganze Historie. Laut melden und die DB-Zeile nehmen.
-    console.error(`[strafbuch] CLEANING_WINDOW_ENFORCED_FROM ist kein gültiges Datum: "${raw}" — nutze den Stichtag aus der DB`);
-  }
-
-  const row = await prisma.appMeta.findUnique({ where: { key: ENFORCED_FROM_KEY } });
-  const stored = row ? new Date(row.value) : null;
-  if (stored && !Number.isNaN(stored.getTime())) return stored;
-
-  console.error(`[strafbuch] Kein Stichtag in AppMeta ("${ENFORCED_FROM_KEY}") — bewerte ab jetzt, keine rückwirkenden Vergehen`);
-  return now;
+export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
+  return deployCutoff(now, {
+    key: ENFORCED_FROM_KEY,
+    envVar: "CLEANING_WINDOW_ENFORCED_FROM",
+    logPrefix: "[strafbuch]",
+    fallbackNote: "bewerte ab jetzt, keine rückwirkenden Vergehen",
+  });
 }
 
 /** True if a REINIGUNG opening inside `sperre` doesn't break the Sperrzeit. Delegates to

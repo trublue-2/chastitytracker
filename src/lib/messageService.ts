@@ -31,6 +31,12 @@ export const MESSAGE_BODY_KEYS = [
   "penaltyMessage",
   "penaltyMessageNoReason",
   "penaltyTaskMessage",
+  // Vergehen — festgestellt (noch ohne Urteil) bzw. fallengelassen. Die Feststellung gibt es in
+  // zwei Fassungen: mit eigenem Anlass-Titel (notiertes Vergehen, Aufgabe) und ohne, wo die Art
+  // selbst schon alles sagt.
+  "offenseDetectedMessage",
+  "offenseDetectedMessageTitled",
+  "offenseDismissedMessage",
   // Kontrolle
   "inspectionRequestedMessage",
   "inspectionConfirmedMessage",
@@ -75,7 +81,14 @@ export const MESSAGE_BODY_KEYS = [
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];
 
 /** Objekt-Typen, auf die eine Nachricht zeigen kann. Namensschema wie `NoteRef.entityType`. */
-export type MessageRefType = "offense" | "control" | "lockRequest" | "orgasmDirective" | "task";
+/**
+ * `offense` zeigt auf die id des URTEILS (`StrafeRecord.id`) — die „Strafe verhängt"-Nachricht.
+ * `detectedOffense` zeigt auf die `refId` des VERGEHENS, also auf den Anlass, der auch ohne Urteil
+ * existiert. Zwei Namensräume, deshalb zwei Typen: dieselbe Zeile unter einem Namen zu führen hiesse,
+ * eine `refId` gegen `StrafeRecord.id` aufzulösen — das findet nichts und die Nachricht stünde als
+ * „nicht auflösbar" im Posteingang.
+ */
+export type MessageRefType = "offense" | "detectedOffense" | "control" | "lockRequest" | "orgasmDirective" | "task";
 export interface MessageRef {
   type: MessageRefType;
   id: string;
@@ -268,14 +281,23 @@ type RefDetail = {
 /** Freitext + Link-Ziel je Referenz — nur für die ANZEIGE, deshalb getrennt von {@link hiddenRefKeys}:
  *  der Zähler braucht keinen einzigen dieser Texte. */
 async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<string, RefDetail>> {
-  const [offenseIds, controlIds, lockIds, orgasmIds, taskIds] =
-    (["offense", "control", "lockRequest", "orgasmDirective", "task"] as const).map((t) => idsOfType(rows, t));
+  const [offenseIds, detectedIds, controlIds, lockIds, orgasmIds, taskIds] =
+    (["offense", "detectedOffense", "control", "lockRequest", "orgasmDirective", "task"] as const).map((t) => idsOfType(rows, t));
 
-  const [offenses, controls, lockRequests, orgasmDirectives, tasks] = await Promise.all([
+  const [judgments, controls, lockRequests, orgasmDirectives, tasks] = await Promise.all([
     // `status` mitlesen: ein verworfenes Urteil darf den Sub gar nicht erst erreichen — siehe
     // `judgmentMessageStillApplies`. Ohne diese Spalte zeigte eine alte „Strafe verhängt"-Nachricht nach
     // einer Korrektur auf PUNISHED→DISMISSED die VERWERFUNGS-Begründung.
-    offenseIds.length ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, reason: true, status: true } }) : [],
+    // EINE Abfrage für beide Vergehens-Bezüge. Die „Strafe verhängt"-Nachricht zeigt auf die id des
+    // Urteils, die Feststellungs-Meldung auf die `refId` des Vergehens (sie entsteht, BEVOR es ein
+    // Urteil gibt) — dieselbe Tabelle, zwei Spalten. Zwei findMany dafür wären derselbe Fehler, den
+    // der Kommentar bei den Verschluss-Anforderungen zwei Zeilen tiefer schon benennt.
+    offenseIds.length || detectedIds.length
+      ? prisma.strafeRecord.findMany({
+          where: { userId: subjectUserId, OR: [{ id: { in: offenseIds } }, { refId: { in: detectedIds } }] },
+          select: { id: true, refId: true, reason: true, status: true },
+        })
+      : [],
     // Mehr als der Kommentar: aus Code + Zustand entsteht das Link-Ziel (siehe unten).
     controlIds.length ? prisma.kontrollAnforderung.findMany({
       where: { id: { in: controlIds }, userId: subjectUserId },
@@ -294,7 +316,18 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
 
   const now = new Date();
   const details = new Map<string, RefDetail>();
-  for (const o of offenses) details.set(refKey("offense", o.id), { text: o.reason, actionCode: null, hidden: !judgmentMessageStillApplies(o) });
+  for (const o of judgments) details.set(refKey("offense", o.id), { text: o.reason, actionCode: null, hidden: !judgmentMessageStillApplies(o) });
+  // Über JEDE gemeldete Referenz, nicht nur über die gefundenen Urteile: ein noch unbeurteiltes
+  // Vergehen hat kein `StrafeRecord`, und das ist der Normalfall, keine kaputte Referenz — ohne
+  // diese Zeile stünde jede frisch gemeldete Zeile als „nicht auflösbar" im Posteingang.
+  //
+  // NIE verborgen, anders als die „Strafe verhängt"-Nachricht: diese Zeile sagt „ein Vergehen wurde
+  // festgestellt", und das bleibt wahr, egal was daraus wird. Sie zu verbergen, sobald das Urteil
+  // verworfen wird, wäre genau das lautlose Verschwinden, gegen das die Meldung gebaut ist.
+  const reasonByRef = new Map(judgments.map((j) => [j.refId, j.reason]));
+  for (const id of detectedIds) {
+    details.set(refKey("detectedOffense", id), { text: reasonByRef.get(id) ?? null, actionCode: null, hidden: false });
+  }
   for (const c of controls) {
     // Ein Ziel gibt es NUR bei der offenen Kontrolle — dort steht eine Handlung an. Erfüllt,
     // abgelaufen, zurückgezogen oder noch nicht ausgelöst: kein Ziel, das etwas beiträgt. Der

@@ -202,6 +202,11 @@ model Message {
   /// nicht eindeutig), und in SQLite steckt der TEXT-Primärschlüssel NICHT implizit im Index. Ohne
   /// ihn schiebt SQLite einen temporären B-Baum für den letzten Sortier-Term dazwischen.
   @@index([subjectUserId, audience, createdAt, id])
+  /// Der Abgleich „welche Vergehen wurden diesem Träger schon gemeldet?" (offenseAnnounce.ts) fragt
+  /// `WHERE subjectUserId = ? AND refEntityType = ?`. Der Index oben hat `audience` an zweiter
+  /// Stelle und kann das nicht bedienen — ohne diesen hier scannt jeder Melde-Lauf die ganze
+  /// Nachrichten-Tabelle des Trägers, und der Lauf läuft im Minuten-Poller über alle Träger.
+  @@index([subjectUserId, refEntityType, refEntityId])
 }
 
 // Gelesen-Kennzeichen je Leser. Eigene Tabelle statt Flag an der Nachricht, weil eine Nachricht an

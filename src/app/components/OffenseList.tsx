@@ -1,9 +1,9 @@
 import OffenseCard from "@/app/components/OffenseCard";
 import type { SubOffense } from "@/lib/subOffenses";
 
-/** Eine Liste von Vergehens-Karten. Steht wörtlich gleich im Dashboard-Block und auf der
- *  Strafbuch-Seite — die Projektregel kennt für gleichen JSX in zwei Dateien keine Grösse, ab der
- *  er bleiben darf. */
+/** Eine Liste von Vergehens-Karten. Seit dem Wegfall der Strafbuch-Seite nur noch vom
+ *  Dashboard-Block genutzt — bleibt eigenständig, weil die Trennung Liste/Karte den Block lesbar
+ *  hält und ein zweiter Aufrufer (gefilterte Sicht) absehbar ist. */
 export default function OffenseList({ offenses, tz }: { offenses: SubOffense[]; tz: string }) {
   return (
     <ul className="flex flex-col gap-2">

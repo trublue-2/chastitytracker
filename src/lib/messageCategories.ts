@@ -23,6 +23,9 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   penaltyMessage: "penalty",
   penaltyMessageNoReason: "penalty",
   penaltyTaskMessage: "penalty",
+  offenseDetectedMessage: "penalty",
+  offenseDetectedMessageTitled: "penalty",
+  offenseDismissedMessage: "penalty",
 
   inspectionRequestedMessage: "inspection",
   inspectionConfirmedMessage: "inspection",

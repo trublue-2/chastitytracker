@@ -274,8 +274,7 @@
     "userDesign": "Benutzer",
     "adminDesign": "Admin",
     "menu": "Menü öffnen",
-    "devices": "Meine Devices",
-    "penalties": "Strafbuch"
+    "devices": "Meine Devices"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -1538,7 +1537,10 @@
     "entryKeyInBox": "in der Box",
     "entryKeyNotInBox": "NICHT in der Box",
     "entryDetailNote": "Notiz:",
-    "entryAdminButton": "Im Admin-Dashboard ansehen →"
+    "entryAdminButton": "Im Admin-Dashboard ansehen →",
+    "offenseDetectedMessage": "Ein Vergehen wurde festgestellt: {offense}. Ob und wie es beurteilt wird, entscheidet der Keyholder.",
+    "offenseDetectedMessageTitled": "Ein Vergehen wurde festgestellt: {offense} — „{title}“. Ob und wie es beurteilt wird, entscheidet der Keyholder.",
+    "offenseDismissedMessage": "Der Keyholder hat ein festgestelltes Vergehen fallengelassen."
   },
   "tasks": {
     "titleLabel": "Titel",
@@ -1704,8 +1706,6 @@
     }
   },
   "penalties": {
-    "title": "Strafbuch",
-    "intro": "Alle Vergehen, die die App aus deinen Einträgen ableitet — mit dem Stand, ob darüber schon entschieden wurde.",
     "openTitle": "Offene Strafen",
     "viewAll": "Alle ansehen",
     "offenseAt": "Vergehen vom {date}",
@@ -1715,11 +1715,6 @@
     "badgeOpen": "Noch nicht beurteilt",
     "badgeDone": "Erledigt",
     "badgeTask": "Als Aufgabe gestellt",
-    "empty": "Nichts im Strafbuch",
-    "emptyHint": "Hier steht, was die App als Vergehen erkennt — und was deine Keyholderin daraus macht.",
-    "derivedNote": "Die Liste wird bei jedem Aufruf neu berechnet — ein korrigierter Eintrag kann eine Zeile verschwinden lassen. Erledigte Strafen fallen ganz weg.",
-    "detectedTitle": "Noch nicht beurteilt",
-    "dismissedTitle": "Fallengelassen",
     "badgeDismissed": "Fallengelassen",
     "badgePunished": "Strafe offen",
     "penaltyLabel": "Strafe",

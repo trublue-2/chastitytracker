@@ -275,9 +275,9 @@ describe("Verlinkung — nur wo eine Seite etwas beiträgt", () => {
     expect(await codeOf(control({ withdrawnAt: new Date() }))).toBeNull();
   });
 
-  // Der Sub hat seit v5.1 zwar eine Strafen-Seite, aber sie LISTET nur — es gibt dort nichts
+  // Der Strafen-Block des Dashboards LISTET nur — es gibt dort nichts
   // einzureichen, also auch kein Ziel für den Handlungs-Link der Nachricht.
-  it("Strafe → kein Ziel (die Strafen-Seite nimmt keine Handlung entgegen)", async () => {
+  it("Strafe → kein Ziel (der Strafen-Block nimmt keine Handlung entgegen)", async () => {
     mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "s1" })]);
     mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "Text", status: "PUNISHED" }]);
     const { messages } = await listMessagesFor("u1");

@@ -5,16 +5,16 @@ import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
 import { loadSubOffenses, openPenaltiesOf } from "@/lib/subOffenses";
 
-/** Wie viele Strafen im Dashboard ausliegen, bevor auf die Seite verwiesen wird. Kein Aufklapper wie
- *  beim Aufgaben-Stapel: „Alle ansehen" führt hier auf eine Seite, die es ohnehin gibt. */
+/** Wie viele Strafen im Dashboard ausliegen, bevor auf den Posteingang verwiesen wird. Kein
+ *  Aufklapper wie beim Aufgaben-Stapel: der ganze Verlauf steht ohnehin als Nachrichten bereit. */
 const DASHBOARD_LIMIT = 3;
 
 /**
  * Der Strafen-Block des Sub-Dashboards — UNTER dem Aufgaben-Block.
  *
  * Zeigt NUR die offenen Strafen, nicht das ganze Strafbuch: die Übersicht beantwortet „was steht
- * an?", nicht „was ist alles vorgefallen?". Erkannte, noch unbeurteilte Vergehen stehen auf der
- * Strafbuch-Seite — als Mängelliste auf dem Dashboard wären sie eine Dauerbeschallung.
+ * an?", nicht „was ist alles vorgefallen?". Erkannte, noch unbeurteilte Vergehen werden als
+ * Nachricht gemeldet — als Mängelliste auf dem Dashboard wären sie eine Dauerbeschallung.
  *
  * Begründung der Platzierung: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand. Sie
  * gehört deshalb weder über die Fristen-Banner noch zwischen sie.
@@ -70,11 +70,15 @@ export default async function OpenPenalties({
   return (
     <DashboardBlock>
       <div className="flex items-center justify-between gap-3 mb-2">
-        {/* Derselbe Titel wie der erste Abschnitt der Strafbuch-Seite — es ist dieselbe Menge, und
-            zwei Namen dafür wären zwei Begriffe für eine Sache. */}
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("openTitle")}</p>
+        {/* Ins POSTFACH, nicht mehr auf eine eigene Strafbuch-Seite: dort werden festgestellte
+            Vergehen und ihr Ausgang seit v5.1 als Nachrichten gemeldet — anders als eine Anzeige auf
+            der Live-Ableitung können die nicht mehr still verschwinden. (Vergehen von VOR dem
+            Melde-Stichtag der Instanz sind dort nicht nachgetragen.) Dieser Block bleibt daneben
+            stehen, weil er eine andere Frage beantwortet: nicht „was ist vorgefallen", sondern „was
+            fordert mich gerade". */}
         <Link
-          href="/dashboard/strafen"
+          href="/dashboard/messages"
           className="text-xs text-foreground-faint hover:text-foreground-muted transition-colors shrink-0"
         >
           {t("viewAll")} →

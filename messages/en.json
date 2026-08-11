@@ -274,8 +274,7 @@
     "userDesign": "User",
     "adminDesign": "Admin",
     "menu": "Open menu",
-    "devices": "My Devices",
-    "penalties": "Offense record"
+    "devices": "My Devices"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -1538,7 +1537,10 @@
     "entryKeyInBox": "in the box",
     "entryKeyNotInBox": "NOT in the box",
     "entryDetailNote": "Note:",
-    "entryAdminButton": "View in the admin dashboard →"
+    "entryAdminButton": "View in the admin dashboard →",
+    "offenseDetectedMessage": "An offense was recorded: {offense}. Whether and how it is judged is up to the keyholder.",
+    "offenseDetectedMessageTitled": "An offense was recorded: {offense} — \"{title}\". Whether and how it is judged is up to the keyholder.",
+    "offenseDismissedMessage": "The keyholder has dismissed a recorded offense."
   },
   "tasks": {
     "titleLabel": "Title",
@@ -1704,8 +1706,6 @@
     }
   },
   "penalties": {
-    "title": "Offense record",
-    "intro": "Every offense the app derives from your entries — with whether it has been ruled on yet.",
     "openTitle": "Open penalties",
     "viewAll": "View all",
     "offenseAt": "Offence on {date}",
@@ -1715,11 +1715,6 @@
     "badgeOpen": "Not yet ruled on",
     "badgeDone": "Completed",
     "badgeTask": "Set as a task",
-    "empty": "Nothing on record",
-    "emptyHint": "This is what the app detects as an offense — and what your keyholder makes of it.",
-    "derivedNote": "The list is recalculated on every visit — a corrected entry can make a row disappear. Completed penalties drop out entirely.",
-    "detectedTitle": "Not yet ruled on",
-    "dismissedTitle": "Dropped",
     "badgeDismissed": "Dropped",
     "badgePunished": "Penalty open",
     "penaltyLabel": "Penalty",

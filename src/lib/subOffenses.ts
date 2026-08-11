@@ -5,26 +5,26 @@ import { offenseState, type OffenseCanonicalType, type OffenseState } from "@/li
 /**
  * Das Strafbuch aus der Sicht des KG-TRÄGERS — die eine Stelle, an der es entsteht (Issue #36).
  *
- * VOLLSTÄNDIG, nicht als Ausschnitt: Er sieht jedes erkannte Vergehen, und zwar sofort, ohne dass
- * die Keyholderin etwas dafür tun muss. Bis v5.0.12 sah er nur die verhängten Strafen — die
- * Begründung dafür war, dass sie eine Anschuldigung fallenlassen können soll, ohne dass er sie je
- * gesehen hat.
+ * ZWEI ABNEHMER, zwei Fragen. Der Dashboard-Block (`OpenPenalties`) zeigt nur die OFFENEN Strafen —
+ * „was fordert mich gerade". Der Melder (`offenseAnnounce.ts`) nimmt die unbeurteilten und schreibt
+ * sie als Nachricht in den Posteingang — „was ist vorgefallen". Eine eigene Strafbuch-SEITE gibt es
+ * seit v5.1 nicht mehr; sie beantwortete beide Fragen halb.
  *
- * Diese Zusage ist mit dieser Fassung aufgegeben, und zwar bewusst und ganz: Sichtbarkeit ist nicht
- * teilbar. Zeigt man das Erkannte, muss man auch das VERWORFENE zeigen — sonst verschwindet eine
- * Zeile, die er gesehen hat, wortlos, und er kann „abgewunken" nicht von „Ableitung geändert" und
- * nicht von „kaputt" unterscheiden. Genau das beschädigt auch den Teil der Liste, der verlässlich
- * ist. Darum trägt jede Zeile ihren Zustand — welche davon die Seite zeigt, entscheidet sie selbst
- * (erledigte Strafen lässt sie weg, Begründung dort).
+ * WARUM DIE MELDUNG DEN AUSSCHLAG GAB: Bis v5.0.12 sah der Träger nur die verhängten Strafen — die
+ * Begründung war, dass die Keyholderin eine Anschuldigung fallenlassen können soll, ohne dass er sie
+ * je gesehen hat. Diese Zusage ist aufgegeben, und zwar bewusst: Sichtbarkeit ist nicht teilbar.
+ * Zeigt man das Erkannte, muss man auch das VERWORFENE zeigen — sonst verschwindet eine Zeile, die
+ * er gesehen hat, wortlos, und er kann „abgewunken" nicht von „Ableitung geändert" und nicht von
+ * „kaputt" unterscheiden. Als reine ANZEIGE auf einer Live-Ableitung liess sich das nicht halten;
+ * als geschriebene Nachricht schon, denn die kann nicht mehr verschwinden.
  *
  * Reine LESE-Sicht: urteilen und abschliessen kann nur die Keyholderin (`judgeOffense`).
  *
- * WAS ER DABEI ZU SEHEN BEKOMMT — und was die Seite ihm sagen muss: Erkennungen sind LIVE aus den
- * Einträgen abgeleitet. Sie können sich ändern, ohne dass jemand etwas tut — ein korrigierter
- * Eintrag lässt ein Vergehen verschwinden, und ein gesenktes Reinigungs-Kontingent lässt rückwirkend
- * welche entstehen (`reinigungLimitViolations` zählt gegen den HEUTIGEN Wert über die ganze
- * Historie). Beurteilte Zeilen sind davon ausgenommen: sie überleben jede Änderung (`judgedRefs` in
- * `applyOffenseRules`).
+ * WAS SICH DABEI ÄNDERN KANN: Erkennungen sind LIVE aus den Einträgen abgeleitet. Sie ändern sich,
+ * ohne dass jemand etwas tut — ein korrigierter Eintrag lässt ein Vergehen verschwinden, ein
+ * gesenktes Reinigungs-Kontingent lässt rückwirkend welche entstehen (`reinigungLimitViolations`
+ * zählt gegen den HEUTIGEN Wert über die ganze Historie). Beurteilte Zeilen sind ausgenommen: sie
+ * überleben jede Änderung (`judgedRefs` in `applyOffenseRules`).
  */
 
 /** Der Zustand kommt aus `offenseTypes.ts` — dieselbe Ableitung nutzen Admin-Strafbuch und
@@ -136,13 +136,14 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
 }
 
 /** Die noch offenen Strafen — was den Träger tatsächlich FORDERT. Der Dashboard-Block zeigt nur
- *  diese; das ganze Buch steht auf seiner eigenen Seite. */
+ *  diese; der ganze Verlauf steht als Nachrichten im Posteingang. */
 export function openPenaltiesOf(offenses: SubOffense[]): SubOffense[] {
   return offenses.filter((o) => o.state === "punished");
 }
 
 /**
- * Das Strafbuch eines Nutzers laden. Genutzt vom Dashboard-Block UND von `/dashboard/strafen`.
+ * Das Strafbuch eines Nutzers laden. Genutzt vom Dashboard-Block (offene Strafen) und vom
+ * Melder, der festgestellte Vergehen in den Posteingang schreibt (`offenseAnnounce.ts`).
  *
  * Kostet ein volles Strafbuch — das ist der Preis dafür, dass Vergehensart und Tatzeitpunkt hier
  * dieselben sind wie beim Keyholder. Eine billigere Abfrage nur auf `StrafeRecord` könnte weder das

@@ -20,8 +20,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "Das eigene Strafbuch ist jetzt vollständig einsehbar: offene Strafen, noch nicht beurteilte Vergehen und fallengelassene — bisher waren nur die verhängten Strafen sichtbar.",
-          "en": "Your own penalty record is now fully visible: open penalties, offenses not yet judged, and dismissed ones — previously only imposed penalties were shown."
+          "de": "Festgestellte Vergehen und ihr Ausgang landen neu als Nachricht im Posteingang — auch ein fallengelassenes. Das Dashboard zeigt weiterhin die offenen Strafen.",
+          "en": "Recorded offenses and their outcome now arrive as a message in your inbox — including a dismissed one. The dashboard still shows your open penalties."
         }
       },
       {

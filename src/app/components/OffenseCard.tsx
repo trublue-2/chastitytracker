@@ -18,7 +18,11 @@ const STATE_BADGE: Record<SubOffenseState, { key: string; variant: BadgeVariant 
 };
 
 /**
- * Ein Vergehen als Karte — geteilt vom Dashboard-Block und der Strafbuch-Seite des Trägers.
+ * Ein Vergehen als Karte — der Strafen-Block des Sub-Dashboards.
+ *
+ * Zeigt heute nur offene Strafen (`openPenaltiesOf`); die übrigen Zustände bleiben bedient, weil die
+ * Karte den ganzen Lebenszyklus beschreibt und ein Block, der auch Beurteiltes zeigt, keine neue
+ * Komponente brauchen soll.
  *
  * Rein lesend: der Träger kann weder urteilen noch eine Strafe abschliessen, deshalb trägt die Karte
  * anders als `TaskCard` gar keinen Aktions-Slot. Fällt eine dazu, gehört sie hierher und nicht in

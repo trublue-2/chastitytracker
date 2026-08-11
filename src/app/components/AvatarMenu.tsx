@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Settings, LogOut, Lock, Users, Gavel } from "lucide-react";
+import { Settings, LogOut, Lock, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { clearSwUserCache } from "@/lib/swMessages";
@@ -72,12 +72,6 @@ export default function AvatarMenu({ username, settingsHref, theme, version, isG
                 <Link href="/dashboard/geraete" onClick={() => setOpen(false)} className={itemNormal}>
                   <Lock size={16} strokeWidth={1.75} />
                   {t("devices")}
-                </Link>
-                {/* Bewusst hier und nicht in der Bottom-Nav: die ist voll, und die Strafen sind ein
-                    Nachschlage-Ziel — offene Strafen stehen ohnehin auf dem Dashboard. */}
-                <Link href="/dashboard/strafen" onClick={() => setOpen(false)} className={itemNormal}>
-                  <Gavel size={16} strokeWidth={1.75} />
-                  {t("penalties")}
                 </Link>
               </>
             )}

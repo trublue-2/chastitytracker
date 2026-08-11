@@ -22,6 +22,28 @@ export interface PresentedMessage {
 }
 
 /**
+ * Der Name der Vergehensart steht als i18n-SCHLÜSSEL in den Parametern, nicht als fertiger Text.
+ *
+ * Grund: die Nachricht wird in der Sprache gelesen, die beim ÖFFNEN gilt — nicht in der, die beim
+ * Schreiben galt. Ein zur Schreibzeit übersetzter Name bliebe für immer deutsch, auch wenn der
+ * Träger später auf Englisch umstellt. Aufgelöst wird er deshalb hier, wo ohnehin die Lesersprache
+ * bekannt ist.
+ *
+ * Ein unbekannter Schlüssel (zurückgebaute Vergehensart, Handeintrag) darf die Zeile nicht als
+ * rohen Pfad zeigen — `t.has()` beantwortet das, ohne den Fehlerkanal zu bemühen. Dasselbe Muster
+ * wie `useApiError()` für unbekannte Fehler-Codes.
+ */
+function withOffenseName(
+  params: Record<string, string | number> | null,
+  tOffenses: { (key: string): string; has(key: string): boolean },
+): Record<string, string | number> | undefined {
+  if (!params || params.offenseKey === undefined) return params ?? undefined;
+  const { offenseKey, ...rest } = params;
+  const key = String(offenseKey);
+  return { ...rest, offense: tOffenses.has(key) ? tOffenses(key) : key };
+}
+
+/**
  * Löst Nachrichten für die Anzeige auf — die EINE Stelle, an der aus `bodyKey` + `bodyParams` Text
  * wird. Geteilt von der Seite (erste Seite, serverseitig) und der GET-Route (Nachladen), damit beide
  * Wege dieselbe Zeile liefern.
@@ -30,11 +52,14 @@ export interface PresentedMessage {
  * `body` ⇒ roh übernehmen (Menschentext wird nie übersetzt und nie interpoliert).
  */
 export async function presentMessages(messages: InboxMessage[], locale: string): Promise<PresentedMessage[]> {
-  const t = await getTranslations({ locale, namespace: "emails" });
+  const [t, tOffenses] = await Promise.all([
+    getTranslations({ locale, namespace: "emails" }),
+    getTranslations({ locale, namespace: "offenses" }),
+  ]);
   return messages.map((m) => ({
     id: m.id,
     createdAt: m.createdAt.toISOString(),
-    text: m.bodyKey ? t(m.bodyKey, m.bodyParams ?? undefined) : (m.body ?? ""),
+    text: m.bodyKey ? t(m.bodyKey, withOffenseName(m.bodyParams, tOffenses)) : (m.body ?? ""),
     refText: m.refText,
     refMissing: m.refMissing,
     category: messageCategory(m.bodyKey),

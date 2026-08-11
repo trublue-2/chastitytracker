@@ -7,7 +7,7 @@ import { OFFENSE_MODE_I18N_KEYS } from "@/lib/offenseLabels";
 /**
  * Die Zusage von `OFFENSE_TYPE_I18N_KEYS` endet an der TypeScript-Grenze: der Compiler erzwingt,
  * dass jede Art einen SCHLÜSSEL hat — nicht, dass dahinter in beiden Sprachen ein TEXT steht. Ohne
- * diesen Test zeigt eine neue Art dem Träger auf `/dashboard/strafen` und dem Keyholder im
+ * diesen Test zeigt eine neue Art dem Träger im Posteingang und dem Keyholder im
  * Einstellungs-Abschnitt den rohen Schlüsselpfad, mit einer Konsolenwarnung als einzigem Signal.
  *
  * Vorbild: `serviceErrorCodes.test.ts` und `entryErrors.test.ts` tun dasselbe für ihre Namensräume.

@@ -8,6 +8,7 @@ import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt,
 import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
+import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch } from "@/lib/delayedTrigger";
 import { processDueTasks } from "@/lib/taskService";
 
@@ -134,6 +135,11 @@ async function processDue(): Promise<void> {
     // den zeitkritischen Poller-Tick (fällige Kontroll-/Sperrzeit-Mails) NICHT verzögern. Der State liegt
     // in globalThis, nicht am Tick gekoppelt; ohne `now`-Argument nutzt der Check die echte Ausführungszeit.
     void maybeRunHealthChecks().catch((e) => console.error("[health]", e));
+
+    // Festgestellte Vergehen in den Posteingang melden (intern auf fünf Minuten gedrosselt).
+    // FIRE-AND-FORGET aus demselben Grund wie der Health-Check: der Lauf baut je Träger ein volles
+    // Strafbuch und darf die zeitkritischen Fristen-Mails dieses Ticks nicht hinter sich anstellen.
+    void maybeAnnounceOffenses(now).catch((e) => console.error("[offenses]", e));
 
     // Ergebnis fälliger Aufgaben melden. Eigener Block auf der eigenen Tabelle — der frühere
     // Leak-Befund betraf die GETEILTE Anforderungs-Tabelle, hier gibt es keine Überschneidung.

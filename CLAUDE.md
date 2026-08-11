@@ -128,7 +128,7 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `src/lib/webauthn.ts` – Passkey/WebAuthn Konfiguration (rpId, rpOrigin)
 - `src/lib/verifyCode.ts` – Vision: handschriftlichen Code im Foto erkennen + Siegel-Erkennung (via `src/lib/vision/`)
 - `src/lib/vision/` – Provider-Abstraktion für Bildverifikation; `VERIFY_PROVIDER=anthropic|local` umschaltbar (lokal = Ollama, OpenAI-kompatibel). Siehe `docs/local-vision.md`. Ohne konfigurierten Provider greift der lokale Tesseract-OCR-/Schärfe-Fallback (`src/lib/ocr.ts`, `src/lib/imageReadability.ts`)
-- `src/lib/appMeta.ts` – `touchAppMeta()`/`markLastAction()`: Fire-and-forget-Zeitstempel in `AppMeta`, gelesen vom Portal-`sync-activity`-Cron (`lastUsedAt` in `proxy.ts`, `lastActionAt` bei echten Business-Aktionen)
+- `src/lib/appMeta.ts` – `deployCutoff()`: Deploy-Stichtag „ab wann gilt das auf DIESER Instanz" (ENV-Override → `AppMeta`-Zeile aus der Migration → sicherer Fallback `now`); genutzt von der Reinigungsfenster-Regel und den Vergehens-Meldungen — ein DRITTER Stichtag nimmt ihn, statt die Schritte erneut abzuschreiben. Dazu `touchAppMeta()`/`markLastAction()`: Fire-and-forget-Zeitstempel in `AppMeta`, gelesen vom Portal-`sync-activity`-Cron (`lastUsedAt` in `proxy.ts`, `lastActionAt` bei echten Business-Aktionen)
 - `src/lib/serverLog.ts` – Server-seitiges Logging
 
 **API Routes:**
@@ -183,6 +183,12 @@ UPSTREAM_CHANGELOG_URL=<url>       # optional: eigene Changelog-Quelle (dann kei
 # DIESE Instanz die Regel bekommt. Das Strafbuch ist eine LIVE-Ableitung: Öffnungen VOR dem Stichtag
 # werden ohne Fenster-Prüfung beurteilt. Diese Variable nur zum bewussten Rückdatieren/Korrigieren.
 CLEANING_WINDOW_ENFORCED_FROM=<iso-date>   # optional
+# OVERRIDE des Melde-Stichtags der Vergehens-Nachrichten (ISO-8601). Gleiche Mechanik und gleiche
+# Warnung wie oben: den Stichtag schreibt die Migration `20260811150000_offense_announce_from` beim
+# ersten Boot jeder Instanz selbst. Vergehen mit einer Tatzeit DAVOR werden dem Träger nie gemeldet —
+# sonst kippte der erste Lauf nach dem Deploy seine ganze Historie in den Posteingang. Nur zum
+# bewussten Rückdatieren.
+OFFENSE_ANNOUNCE_FROM=<iso-date>           # optional
 # Selfhosted-KI Health-Check (nur relevant bei lokalem Vision-/Embedding-Backend):
 HEALTHCHECK_INTERVAL_MIN=5         # optional: Prüfintervall in Minuten (Default 5)
 HEALTHCHECK_ALERT_EMAIL=<email>    # optional: Mail-Alarm bei Ausfall (leer = nur Log). Bei mehreren
