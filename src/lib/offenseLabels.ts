@@ -26,6 +26,12 @@ export const OFFENSE_TYPE_I18N_KEYS: Record<OffenseCanonicalType, string> = {
   manual_offense: "manualOffense",
 };
 
+/** Der i18n-Schlüssel des ANZEIGENAMENS einer Art, fertig zusammengesetzt — damit das `.name` nicht
+ *  an jeder Aufrufstelle erneut angehängt wird. */
+export function offenseNameKey(type: OffenseCanonicalType): string {
+  return `${OFFENSE_TYPE_I18N_KEYS[type]}.name`;
+}
+
 /** Die Reihenfolge, in der Vergehensarten angezeigt werden — vom Alltäglichen zum Seltenen, die
  *  beiden neuen am Schluss. Damit stehen sie in jeder Oberfläche gleich. */
 export const OFFENSE_TYPE_ORDER: OffenseCanonicalType[] = [

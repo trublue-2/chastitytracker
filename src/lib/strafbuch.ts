@@ -133,6 +133,10 @@ export interface StrafbuchData {
     reason: string | null;
     judgedBy: string | null;
     erledigtAt: Date | null;
+    /** Die Aufgabe, die als Strafe gestellt wurde (`punishWithTask`) — null beim Freitext-Weg. Die
+     *  Strafen-Sicht des Trägers braucht sie, um eine Strafe, die schon als Aufgabe auf dem
+     *  Dashboard steht, nicht ein zweites Mal in voller Länge zu zeigen. */
+    taskId: string | null;
   }[];
 }
 
@@ -624,6 +628,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       reason: r.reason,
       judgedBy: r.judgedBy,
       erledigtAt: r.erledigtAt,
+      taskId: r.taskId,
     })),
   };
 

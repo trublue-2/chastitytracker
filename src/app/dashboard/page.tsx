@@ -22,6 +22,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
+import OpenPenalties from "./OpenPenalties";
 import TaskList from "./TaskList";
 import { getEvaluatedTaskHistory, isHeldByTask, belongsOnDashboard, loadTaskProofViews } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
@@ -262,6 +263,10 @@ export default async function DashboardPage() {
       <DashboardAlerts {...alertProps} />
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
       <OpenTasks tasks={taskCards} tz={tz} />
+      {/* UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
+          Der Block lädt selbst — sonst müsste diese Seite dieselbe Auflösung noch einmal aufrufen,
+          nur um sie durchzureichen, und die Strafen-Seite täte es ein drittes Mal. */}
+      <OpenPenalties userId={userId} tz={tz} />
       {showLaufendeSession && (
         <DashboardBlock>
           <LaufendeSessionCard
