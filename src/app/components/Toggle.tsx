@@ -1,5 +1,7 @@
 "use client";
 
+import SettingLabel from "@/app/components/SettingLabel";
+
 interface ToggleProps {
   label: string;
   description?: string;
@@ -36,12 +38,7 @@ export default function Toggle({
         className,
       ].filter(Boolean).join(" ")}
     >
-      <div className="flex flex-col">
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        {description && (
-          <span className="text-xs text-foreground-faint">{description}</span>
-        )}
-      </div>
+      <SettingLabel label={label} description={description} />
       <span
         className={[
           "relative inline-flex shrink-0 w-12 h-7 rounded-full transition-colors duration-fast",

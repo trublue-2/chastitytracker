@@ -1,4 +1,5 @@
 import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import type { OffenseMode } from "@/lib/offenseRules";
 
 /**
  * Der i18n-Schlüssel je Vergehensart im Namensraum `offenses` — `<key>.name` benennt die Art,
@@ -31,6 +32,22 @@ export const OFFENSE_TYPE_I18N_KEYS: Record<OffenseCanonicalType, string> = {
 export function offenseNameKey(type: OffenseCanonicalType): string {
   return `${OFFENSE_TYPE_I18N_KEYS[type]}.name`;
 }
+
+/**
+ * Der i18n-Schlüssel je Regel-Modus im Namensraum `admin` — aus demselben Grund hier wie die
+ * Arten-Schlüssel: die Modi benennt jede Oberfläche, die Regeln zeigt oder setzt.
+ *
+ * Vollständig über alle Modi, nicht nur über die heute sichtbaren: welche eine Art anbietet, sagt
+ * `OFFENSE_RULE_MODES`. Ein Vorrat wie `["off", "lockedOnly"]` würde `off` und `lockedOnly` zeigen,
+ * einer wie `["on", "always"]` die beiden anderen — eine Teil-Tabelle liesse an genau dieser Stelle
+ * eine leere Beschriftung stehen.
+ */
+export const OFFENSE_MODE_I18N_KEYS: Record<OffenseMode, string> = {
+  off: "offenseModeOff",
+  on: "offenseModeOn",
+  lockedOnly: "offenseModeLockedOnly",
+  always: "offenseModeAlways",
+};
 
 /** Die Reihenfolge, in der Vergehensarten angezeigt werden — vom Alltäglichen zum Seltenen, die
  *  beiden neuen am Schluss. Damit stehen sie in jeder Oberfläche gleich. */

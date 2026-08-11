@@ -52,7 +52,7 @@ void _everyOffenseHasModes;
 
 /**
  * Die Fassung, die ohne jede Zeile gilt — also für jeden Bestandsnutzer und jeden Zeitpunkt vor der
- * ersten Änderung. Alles auf dem bisherigen Verhalten: die zehn abgeleiteten Arten zählen, der neue
+ * ersten Änderung. Alles auf dem bisherigen Verhalten: die elf bisherigen Arten zählen, der neue
  * Orgasmus-Schalter ist AUS. Ein Update darf niemandem über Nacht ein Vergehen anhängen.
  */
 export const OFFENSE_RULE_DEFAULT: Record<SwitchableOffenseType, OffenseMode> = {

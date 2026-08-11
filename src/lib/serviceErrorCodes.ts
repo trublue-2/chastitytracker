@@ -167,6 +167,15 @@ export const TASK_CODES = [
   "TASK_PROOF_NOT_SUBMITTED",
 ] as const;
 
+/** offenseRulesService (welche Vergehensarten bei einem Sub überhaupt gelten). Beide Codes trennen
+ *  zwei Fehler, die der Absender auseinanderhalten muss: die ART ist gar nicht schaltbar
+ *  (`manual_offense`, Tippfehler) — oder sie ist es, aber dieser MODUS gehört nicht zu ihr
+ *  (`lockedOnly` bei einer binären Art). */
+export const OFFENSE_RULE_CODES = [
+  "OFFENSE_TYPE_NOT_SWITCHABLE",
+  "OFFENSE_MODE_INVALID",
+] as const;
+
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
@@ -190,6 +199,7 @@ export const SERVICE_ERROR_CODES = [
     ...DEVICE_CODES,
     ...BOX_CODES,
     ...TASK_CODES,
+    ...OFFENSE_RULE_CODES,
     ...SETTINGS_CODES,
   ]),
 ] as readonly string[];
@@ -209,4 +219,5 @@ export type ServiceErrorCode =
   | (typeof DEVICE_CODES)[number]
   | (typeof BOX_CODES)[number]
   | (typeof TASK_CODES)[number]
+  | (typeof OFFENSE_RULE_CODES)[number]
   | (typeof SETTINGS_CODES)[number];

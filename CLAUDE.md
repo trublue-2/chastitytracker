@@ -239,6 +239,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/components/Textarea.tsx` — Styled Textarea
 - `src/app/components/Checkbox.tsx` — Styled Checkbox
 - `src/app/components/Toggle.tsx` — Styled Toggle-Switch
+- `src/app/components/SettingLabel.tsx` — Beschriftung einer Einstellungs-Zeile (Name + leise Erklärung darunter); von `Toggle` und von Zeilen mit anderer Bedienung (Auswahl statt Schalter) geteilt
 - `src/app/components/Badge.tsx` — Status-Badge
 - `src/app/components/Pill.tsx` — Pill-Label
 - `src/app/components/Sheet.tsx` — Bottom-Sheet / Slide-up Panel
@@ -258,7 +259,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 **Hooks:**
 - `src/app/hooks/usePhotoUpload.ts` — Upload + EXIF + Seal-Detect (für alle Foto-Forms)
 - `src/app/hooks/useSyncedDraft.ts` — lokaler Tippstand einer erst beim Blur committenden Eingabe, der einer externen `value` folgt (genutzt von `TimeInput`/`NumberInput`)
-- `src/app/hooks/useUserSettingsSave.ts` — PATCH `/api/admin/users/[id]` + Toast/`saving` für die Admin-Settings-Toggles
+- `src/app/hooks/useUserSettingsSave.ts` — `useSettingsSave(url, {refresh})`: PATCH + Toast/`saving`/`router.refresh()` für die Admin-Settings-Abschnitte; `useUserSettingsSave(userId)` ist die Fassung auf der Sammel-Route `/api/admin/users/[id]`, die die meisten Abschnitte nehmen. Ein Abschnitt mit eigener Route ruft `useSettingsSave` direkt (`refresh: false`, wenn seine Anzeige rein lokal ist)
 
 **Utilities:**
 - `src/lib/authGuards.ts` — `requireApi()` (Plain-Session-Guard, gibt die Session zurück), `requireAdminApi()`, `requireKeyholderOrAdminApi()` (erlaubt/lehnt ab), `requireKeyholderOrAdminActor()` (dasselbe, gibt die SESSION zurück — für Routen, die den Handelnden brauchen, statt eines zweiten `auth()`), `assertAdmin()`, `assertKeyholderOrAdmin()`
