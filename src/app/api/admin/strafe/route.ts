@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { notifyUser } from "@/lib/notify";
-import { strafeVerhaengtNotice, STORED_TYPE, judgmentStatus, checkPenaltyText, judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
+import { strafeVerhaengtNotice, STORED_TYPE, judgmentStatus, checkPenaltyText, judgeOffense, collectDetectedOffenses } from "@/lib/strafurteilService";
 import { markLastAction } from "@/lib/appMeta";
+import { buildStrafbuch } from "@/lib/strafbuch";
 
 const VALID_OFFENSE_TYPES = new Set(Object.values(STORED_TYPE));
 
@@ -39,11 +40,16 @@ export async function POST(req: Request) {
   // grundsätzlich nicht beurteilbar (404 auf „Wurde bestraft" und „Verwerfen"), ohne dass ein
   // Compiler oder Test etwas gesagt hätte. Genau das ist mit MANUAL_OFFENSE passiert. Der MCP-Weg
   // (`judgeOffense`) und `punishWithTask` gingen immer schon hier durch; DELETE weiter unten auch.
-  const detected = await requireDetectedOffense(userId, refId, new Date());
-  if (!detected) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  // Die ART kommt jetzt aus der Erkennung, nicht aus dem Request: der Client kann sie nicht mehr
-  // danebenlegen, und `offenseType` im Body ist nur noch eine Behauptung, die geprüft wird.
-  if (detected.offenseType !== offenseType) {
+  // ALLE Arten zu dieser refId, nicht nur die erste: zwei Arten können sich eine refId teilen —
+  // `unauthorized_opening` und `cleaning_limit` sind beide die `Entry.id` derselben OEFFNEN-Zeile,
+  // und eine Reinigungsöffnung über dem Kontingent während einer Sperrzeit ohne Reinigungserlaubnis
+  // ist beides. Gegen nur die erste geprüft, liesse sich die zweite Sektion nicht mehr beurteilen.
+  const detected = collectDetectedOffenses(await buildStrafbuch(userId, new Date()))
+    .filter((o) => o.refId === refId);
+  if (detected.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // `offenseType` aus dem Body ist damit nur noch eine Behauptung, die geprüft wird — der Client
+  // kann die Art nicht mehr danebenlegen.
+  if (!detected.some((o) => o.offenseType === offenseType)) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
 

@@ -218,9 +218,10 @@ function keyOf(row: RefRow): string | null {
 async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set<string>> {
   const controlIds = idsOfType(rows, "control");
   const lockRequestIds = idsOfType(rows, "lockRequest");
+  const offenseIds = idsOfType(rows, "offense");
 
   const scoped = { wirksamAb: true, benachrichtigtAt: true, id: true } as const;
-  const [controls, lockRequests] = await Promise.all([
+  const [controls, lockRequests, offenses] = await Promise.all([
     // Leere `in`-Liste = garantiert leeres Ergebnis: die Abfrage gar nicht erst stellen.
     controlIds.length
       ? prisma.kontrollAnforderung.findMany({ where: { id: { in: controlIds }, userId: subjectUserId }, select: scoped })
@@ -228,11 +229,19 @@ async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set
     lockRequestIds.length
       ? prisma.verschlussAnforderung.findMany({ where: { id: { in: lockRequestIds }, userId: subjectUserId }, select: scoped })
       : [],
+    // Der Urteils-Status gehört ZUM ZÄHLER, nicht nur zur Anzeige: verbirgt `refDetails` eine
+    // Nachricht zu einem verworfenen Urteil, der Zähler sie aber nicht, steht dauerhaft ein Badge
+    // über einem leeren Posteingang — und der Sub bekommt es nicht weg. Die beiden Pfade sind
+    // getrennt, weil der Zähler keine TEXTE braucht; dieselbe Sichtbarkeit brauchen sie sehr wohl.
+    offenseIds.length
+      ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, status: true } })
+      : [],
   ]);
 
   const hidden = new Set<string>();
   for (const c of controls) if (isHiddenFromSub(c)) hidden.add(refKey("control", c.id));
   for (const l of lockRequests) if (isHiddenFromSub(l)) hidden.add(refKey("lockRequest", l.id));
+  for (const o of offenses) if (!isSubVisibleJudgment(o)) hidden.add(refKey("offense", o.id));
   return hidden;
 }
 

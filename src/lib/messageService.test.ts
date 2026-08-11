@@ -124,6 +124,14 @@ describe("Freitexte werden live gelesen, nicht kopiert", () => {
     expect(messages[0].refMissing).toBe(false);
   });
 
+  it("die GLOCKE zählt ein verworfenes Urteil ebenso wenig — sonst stünde ein Badge über einem leeren Posteingang", async () => {
+    // Zähler und Liste müssen dieselbe Sichtbarkeit haben. Liefen sie auseinander, sähe der Sub
+    // dauerhaft „1 ungelesen" und fände nichts, was er lesen könnte.
+    mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "s1" })]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", status: "DISMISSED" }]);
+    expect(await unreadCountFor("u1")).toBe(0);
+  });
+
   it("ein VERWORFENES Urteil erreicht den Sub nicht — auch nicht über eine alte Nachricht", async () => {
     // `writeJudgment` upsertet auf `refId`: eine Korrektur PUNISHED→DISMISSED behält die Zeile, und
     // die alte „Strafe verhängt"-Nachricht zeigte danach die VERWERFUNGS-Begründung. Genau die

@@ -100,13 +100,25 @@ export type OffenseRuleResolver = (type: SwitchableOffenseType, at: Date) => Off
  * „keine Aussage" und fällt auf die vorherige Fassung zurück, statt still zu einem falschen Ja/Nein
  * zu werden.
  */
+/**
+ * Die Zeilen, die überhaupt etwas aussagen — unbekannte Art oder ein Modus, den diese Art nicht
+ * kennt, zählen als „keine Aussage" statt still zu einem falschen Ja/Nein zu werden.
+ *
+ * Exportiert, weil der Resolver nicht der einzige Leser ist: `buildStrafbuch` entscheidet aus
+ * denselben Zeilen, ob es die Orgasmus-Historie überhaupt laden muss. Beurteilte die eine Stelle
+ * eine Zeile als gültig und die andere nicht, lüde sie Daten für eine Regel, die gar nicht greift.
+ */
+export function validOffenseRuleChanges(changes: OffenseRuleChangeRow[]): OffenseRuleChangeRow[] {
+  return changes.filter((c) => {
+    const ok = isSwitchableOffenseType(c.offenseType) && isValidOffenseMode(c.offenseType, c.mode);
+    if (!ok) console.error(`[offenseRules] unbekannte Regel-Zeile verworfen: ${c.offenseType}=${c.mode}`);
+    return ok;
+  });
+}
+
 export function offenseRuleResolver(changes: OffenseRuleChangeRow[]): OffenseRuleResolver {
   const byType = new Map<string, OffenseRuleChangeRow[]>();
-  for (const c of changes) {
-    if (!isSwitchableOffenseType(c.offenseType) || !isValidOffenseMode(c.offenseType, c.mode)) {
-      console.error(`[offenseRules] unbekannte Regel-Zeile verworfen: ${c.offenseType}=${c.mode}`);
-      continue;
-    }
+  for (const c of validOffenseRuleChanges(changes)) {
     const list = byType.get(c.offenseType);
     if (list) list.push(c);
     else byType.set(c.offenseType, [c]);

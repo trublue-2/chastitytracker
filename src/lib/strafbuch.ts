@@ -6,7 +6,7 @@ import { hhmmToMinutes } from "@/lib/autoKontrolleService";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
-import { isSwitchableOffenseType, offenseRuleResolver, type OffenseRuleResolver } from "@/lib/offenseRules";
+import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
 import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
@@ -393,7 +393,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // Ab wann war `unauthorized_orgasm` je scharf? `undefined` = nie — dann braucht es die Einträge
   // gar nicht. Sonst reicht alles ab diesem Zeitpunkt: davor gilt zwingend der Default `off`, und
   // die Ableitung unten verwirft diese Einträge ohnehin. Der Filter ist damit verlustfrei.
-  const orgasmRuleArmedFrom = offenseRuleChanges
+  const orgasmRuleArmedFrom = validOffenseRuleChanges(offenseRuleChanges)
     .filter((c) => c.offenseType === "unauthorized_orgasm" && c.mode !== "off")
     .reduce<Date | undefined>((min, c) => (!min || c.effectiveFrom < min ? c.effectiveFrom : min), undefined);
 
