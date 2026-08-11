@@ -229,6 +229,7 @@
     "sealNumber": "Siegel-Nr.",
     "verified": "Verifiziert",
     "notVerified": "Nicht verifiziert",
+    "rejected": "Abgelehnt",
     "verifying": "Verifizierung läuft",
     "reason": "Grund",
     "from": "von",
@@ -1541,7 +1542,8 @@
     "entryAdminButton": "Im Admin-Dashboard ansehen →",
     "offenseDetectedMessage": "Ein Vergehen wurde festgestellt: {offense}. Ob und wie es beurteilt wird, entscheidet der Keyholder.",
     "offenseDetectedMessageTitled": "Ein Vergehen wurde festgestellt: {offense} — „{title}“. Ob und wie es beurteilt wird, entscheidet der Keyholder.",
-    "offenseDismissedMessage": "Der Keyholder hat ein festgestelltes Vergehen fallengelassen."
+    "offenseDismissedMessage": "Der Keyholder hat ein festgestelltes Vergehen fallengelassen.",
+    "wrongDeviceMessage": "Du hast mit einem anderen Gerät verschlossen als angefordert. Das wurde als Vergehen erfasst."
   },
   "tasks": {
     "titleLabel": "Titel",

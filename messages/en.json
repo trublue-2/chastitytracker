@@ -229,6 +229,7 @@
     "sealNumber": "Seal no.",
     "verified": "Verified",
     "notVerified": "Not verified",
+    "rejected": "Rejected",
     "verifying": "Verifying…",
     "reason": "Reason",
     "from": "from",
@@ -1541,7 +1542,8 @@
     "entryAdminButton": "View in the admin dashboard →",
     "offenseDetectedMessage": "An offense was recorded: {offense}. Whether and how it is judged is up to the keyholder.",
     "offenseDetectedMessageTitled": "An offense was recorded: {offense} — \"{title}\". Whether and how it is judged is up to the keyholder.",
-    "offenseDismissedMessage": "The keyholder has dismissed a recorded offense."
+    "offenseDismissedMessage": "The keyholder has dismissed a recorded offense.",
+    "wrongDeviceMessage": "You locked with a different device than the one requested. This has been recorded as an offense."
   },
   "tasks": {
     "titleLabel": "Title",

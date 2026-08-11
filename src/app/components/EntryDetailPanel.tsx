@@ -66,12 +66,23 @@ export default function EntryDetailPanel({
         <DetailField label={tc("controlCode")}>
           <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">
             {kontrollCode}
-            {verifikationStatus && (
-              verifikationStatus === "pending" ? (
-                <span className="ml-2 text-xs font-sans font-medium text-foreground-muted">{tc("verifying")}</span>
-              ) : (
-                <span className="ml-2 text-xs font-sans font-medium text-ok-text">✓ {tc("verified")}</span>
-              )
+            {/* Zustand → Beschriftung, nicht „pending oder gut". `rejected` ist ein regulär
+                geschriebener Wert (`verifikationStatusFor`), fiel unter der alten Fassung aber in den
+                Sonst-Zweig: eine ABGELEHNTE Kontrolle stand grün als „Verifiziert" da, während
+                daneben das Vergehen lief. Von zwei widersprechenden Auskünften glaubt man die grüne.
+                `not_required` sagt es ausdrücklich statt zu schweigen — ein Code ganz ohne Badge
+                wäre sonst nicht von einem fehlgeschlagenen Check zu unterscheiden. */}
+            {verifikationStatus === "pending" && (
+              <span className="ml-2 text-xs font-sans font-medium text-foreground-muted">{tc("verifying")}</span>
+            )}
+            {verifikationStatus === "rejected" && (
+              <span className="ml-2 text-xs font-sans font-medium text-warn-text">{tc("rejected")}</span>
+            )}
+            {(verifikationStatus === "ai" || verifikationStatus === "manual") && (
+              <span className="ml-2 text-xs font-sans font-medium text-ok-text">✓ {tc("verified")}</span>
+            )}
+            {verifikationStatus === "not_required" && (
+              <span className="ml-2 text-xs font-sans font-medium text-foreground-faint">{tc("notVerified")}</span>
             )}
           </p>
         </DetailField>

@@ -4,6 +4,8 @@ import type { InspectionVerification } from "@/lib/kontrolleService";
 
 type PrismaKontrollWhere = Prisma.KontrollAnforderungWhereInput;
 import { prisma } from "@/lib/prisma";
+import { recordSystemMessage } from "@/lib/messageService";
+import { getOffenseRules } from "@/lib/offenseRulesService";
 import {
   activeVerschlussAnforderungWhere,
   aktiveKontrolleWhere,
@@ -216,7 +218,9 @@ export async function applyEntryFulfilment(
  * Commit: die Ahndung darf den Eintrag nicht kippen.
  *
  * Automatische Ahndung ohne Urteilsschritt → sofort erledigt (`judgedBy: "system"`), damit sie
- * nicht als offene Strafe im Urteilsloop hängt. Leere `requiredDeviceIds` heisst „keine Vorgabe"
+ * nicht als offene Strafe im Urteilsloop hängt. Genau deshalb MELDET sie zusätzlich: sofort erledigt
+ * heisst, dass weder der Dashboard-Block (nur offene Strafen) noch der Melder (nur Unbeurteiltes)
+ * sie je zeigt — ohne die Nachricht bekäme der Träger einen Eintrag, den er nicht sehen kann. Leere `requiredDeviceIds` heisst „keine Vorgabe"
  * und niemals „falsches Gerät".
  */
 export async function punishWrongDevice(
@@ -227,6 +231,13 @@ export async function punishWrongDevice(
   // Das Gerät kommt aus der GEAHNDETEN Zeile, nicht aus dem Request: als Parameter liesse sich ein
   // anderes übergeben als das, was im Eintrag steht.
   if (requiredDeviceIds.length === 0 || requiredDeviceIds.includes(entry.deviceId || "")) return;
+  // Die Regel MUSS hier gelesen werden und nicht erst im Strafbuch. `applyOffenseRules` lässt
+  // beurteilte Zeilen stehen, und diese wird sofort mit `judgedBy: "system"` geschrieben — der
+  // nachgelagerte Filter griffe für diese Art also nie, die Regel wäre wirkungslos. Seit die Ahndung
+  // dem Träger auch gemeldet wird, wäre das nicht mehr nur eine stille Lücke, sondern ein
+  // Widerspruch in seinem Posteingang: eine Meldung über eine ausdrücklich abgeschaltete Art.
+  const rules = await getOffenseRules(entry.userId);
+  if (rules.wrong_device === "off") return;
   try {
     const now = new Date();
     await prisma.strafeRecord.create({
@@ -239,6 +250,19 @@ export async function punishWrongDevice(
         judgedBy: "system",
         erledigtAt: now,
       },
+    });
+    // Er MUSS davon erfahren. Anders als jedes andere Vergehen durchläuft dieses keinen
+    // Urteilsschritt: es wird sofort als erledigt geschrieben (siehe oben) und fällt damit durch
+    // beide Sub-Sichten — der Dashboard-Block zeigt nur offene Strafen, der Melder nur Unbeurteiltes.
+    // Ohne diese Zeile bekäme er einen Strafbuch-Eintrag, den er weder sehen noch bestreiten kann.
+    //
+    // Hier und nicht über den Melder, weil der Anlass JETZT ist: er hat gerade mit dem falschen Gerät
+    // verschlossen, und genau in diesem Moment ist die Meldung nützlich statt fünf Minuten später.
+    await recordSystemMessage({
+      subjectUserId: entry.userId,
+      bodyKey: "wrongDeviceMessage",
+      ref: { type: "detectedOffense", id: entry.id },
+      once: true,
     });
   } catch { /* ignore if duplicate — e.g. offline replay */ }
 }

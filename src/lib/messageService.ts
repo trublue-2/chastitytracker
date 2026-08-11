@@ -37,6 +37,9 @@ export const MESSAGE_BODY_KEYS = [
   "offenseDetectedMessage",
   "offenseDetectedMessageTitled",
   "offenseDismissedMessage",
+  // Automatisch geahndet, ohne Urteilsschritt — deshalb eine eigene Meldung: der Melder sieht sie
+  // nicht (er meldet nur Unbeurteiltes) und der Dashboard-Block auch nicht (nur offene Strafen).
+  "wrongDeviceMessage",
   // Kontrolle
   "inspectionRequestedMessage",
   "inspectionConfirmedMessage",
