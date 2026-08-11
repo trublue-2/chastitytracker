@@ -13,11 +13,16 @@ export default function ListPager({
   page,
   totalPages,
   onPage,
+  disabled,
 }: {
   /** Nullbasiert. */
   page: number;
   totalPages: number;
   onPage: (page: number) => void;
+  /** Während ein Ladevorgang läuft. Ohne das erzeugen zwei schnelle Klicks zwei Abrufe, deren
+   *  Antworten in beliebiger Reihenfolge eintreffen — und die Liste zeigt am Ende womöglich eine
+   *  andere Seite, als der Zähler daneben behauptet. */
+  disabled?: boolean;
 }) {
   const tCommon = useTranslations("common");
   if (totalPages <= 1) return null;
@@ -26,13 +31,13 @@ export default function ListPager({
 
   return (
     <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-      <button type="button" onClick={() => onPage(page - 1)} disabled={page === 0} className={cls}>
+      <button type="button" onClick={() => onPage(page - 1)} disabled={disabled || page === 0} className={cls}>
         ← {tCommon("previous")}
       </button>
       <span className="text-xs text-foreground-faint tabular-nums">
         {page + 1} / {totalPages}
       </span>
-      <button type="button" onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1} className={cls}>
+      <button type="button" onClick={() => onPage(page + 1)} disabled={disabled || page >= totalPages - 1} className={cls}>
         {tCommon("next")} →
       </button>
     </div>

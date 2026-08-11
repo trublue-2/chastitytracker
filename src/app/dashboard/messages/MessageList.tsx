@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckCheck, Inbox, ListChecks, Trash2, X } from "lucide-react";
@@ -58,6 +58,10 @@ export default function MessageList({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
+  // Die In-Flight-Marke als REF, nicht als State: `saving` stammt aus dem Render und ist für zwei
+  // Klicks aus demselben Render in beiden `false` — eine Schranke darauf lässt genau den Doppel-
+  // Abruf durch, den sie verhindern soll. Das Ref ist sofort nach dem ersten Klick gesetzt.
+  const loadInFlight = useRef(false);
   // Was gelöscht werden soll — hält gleichzeitig die Rückfrage offen (eine Quelle statt Flag + Id
   // nebeneinander). `"bulk"` steht für die Auswahl; beide Fälle teilen sich einen Dialog, der sich
   // nur in Text und Ziel unterscheidet.
@@ -107,6 +111,15 @@ export default function MessageList({
     setUnread(res.unread);
   }
 
+  /** Als gelesen, ohne aufzuklappen — für Zeilen, die nichts aufzuklappen haben. Derselbe Endpunkt,
+   *  den `toggle` beim Öffnen ruft. */
+  async function markRead(m: PresentedMessage) {
+    const res = await request<{ unread: number }>(`/api/messages/${m.id}/read`, "POST");
+    if (!res) return;
+    setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
+    setUnread(res.unread);
+  }
+
   async function markUnread(m: PresentedMessage) {
     const res = await request<{ unread: number }>(`/api/messages/${m.id}/read`, "DELETE");
     if (!res) return;
@@ -145,9 +158,10 @@ export default function MessageList({
    * Seite). Die Auswahl fällt dabei weg — angekreuzt wurde auf der Seite, die man verlässt.
    */
   async function load(nextPage: number, nextFilter: MessageFilter = filter) {
-    // Zweimal schnell auf „Weiter" wären zwei vollständige Runden, deren Verlierer verworfen wird —
-    // und je nach Reihenfolge stünde am Ende die falsche Seite da.
-    if (saving) return;
+    // Zweimal schnell auf „Weiter" wären zwei vollständige Runden; träfen die Antworten verkehrt
+    // herum ein, zeigte die Liste eine andere Seite als der Zähler daneben.
+    if (loadInFlight.current) return;
+    loadInFlight.current = true;
     setSaving(true);
     // Serialisierung aus `messageCategories` — dieselbe Quelle, die die Route wieder einliest.
     const params = messageFilterToParams(nextFilter);
@@ -155,6 +169,7 @@ export default function MessageList({
     const data = await request<{ messages: PresentedMessage[]; page: number; pageCount: number }>(
       `/api/messages?${params.toString()}`,
     );
+    loadInFlight.current = false;
     setSaving(false);
     if (!data) return;
     setMessages(data.messages);
@@ -265,6 +280,7 @@ export default function MessageList({
                 checked={selected?.has(m.id) ?? false}
                 onCheck={() => toggleSelected(m.id)}
                 onToggle={() => toggle(m)}
+                onMarkRead={() => markRead(m)}
                 onMarkUnread={() => markUnread(m)}
                 onDelete={() => setConfirmDelete(m)}
                 dl={dl}
@@ -274,7 +290,7 @@ export default function MessageList({
           ))}
         </ul>
 
-        <ListPager page={page} totalPages={pageCount} onPage={load} />
+        <ListPager page={page} totalPages={pageCount} onPage={load} disabled={saving} />
       </Card>
       )}
 

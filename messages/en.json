@@ -1405,7 +1405,8 @@
     "selectedCount": "{count} selected",
     "bulkRead": "Mark read",
     "bulkUnread": "Mark unread",
-    "bulkDeleteConfirm": "Delete {count} messages permanently?"
+    "bulkDeleteConfirm": "Delete {count} messages permanently?",
+    "markRead": "Mark as read"
   },
   "emails": {
     "greeting": "Hi {username},",

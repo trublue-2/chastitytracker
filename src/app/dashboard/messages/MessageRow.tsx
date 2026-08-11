@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Bot, Settings, Trash2, Undo2, UserRound } from "lucide-react";
+import { ArrowRight, Bot, Check, Settings, Trash2, Undo2, UserRound } from "lucide-react";
 import Badge from "@/app/components/Badge";
 import Checkbox from "@/app/components/Checkbox";
 import DetailField from "@/app/components/DetailField";
@@ -35,6 +35,7 @@ export default function MessageRow({
   checked,
   onCheck,
   onToggle,
+  onMarkRead,
   onMarkUnread,
   onDelete,
   dl,
@@ -46,6 +47,7 @@ export default function MessageRow({
   checked: boolean;
   onCheck: () => void;
   onToggle: () => void;
+  onMarkRead: () => void;
   onMarkUnread: () => void;
   onDelete: () => void;
   /** Datums-Locale (`toDateLocale`). */
@@ -102,12 +104,16 @@ export default function MessageRow({
     </span>
   );
 
+  // „Als gelesen" gehört ins Menü, seit nicht mehr jede Zeile aufklappbar ist: das Aufklappen WAR
+  // die Lese-Geste („Aufklappen IST das Lesen"), und eine kurze Nachricht ohne Bezug hat keine
+  // Aufklapp-Fläche mehr. Ohne diesen Eintrag bliebe sie dauerhaft ungelesen und die Glocke zählte
+  // sie ewig mit — wegzubekommen nur pauschal über „Alle als gelesen".
   const actions = (
     <RowActionsMenu
       items={[
-        ...(m.read
-          ? [{ label: t("markUnread"), icon: <Undo2 size={14} className="text-foreground-faint" />, onSelect: onMarkUnread }]
-          : []),
+        m.read
+          ? { label: t("markUnread"), icon: <Undo2 size={14} className="text-foreground-faint" />, onSelect: onMarkUnread }
+          : { label: t("markRead"), icon: <Check size={14} className="text-foreground-faint" />, onSelect: onMarkRead },
         { label: tc("delete"), icon: <Trash2 size={14} />, onSelect: onDelete, danger: true },
       ]}
     />
