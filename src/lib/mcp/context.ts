@@ -4,6 +4,7 @@ import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/l
 import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
 import { getActiveSperrzeit, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
+import { currentOffenseRules, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
@@ -52,7 +53,8 @@ export interface GetContextOptions {
 
 export interface ContextResult extends Envelope {
   /** v3: `autoInspections.triggerWindowFrom/Until` liefern `null` statt `""` für „kein Fenster" (K-17);
-   *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). */
+   *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). `offenseRules` kam rein
+   *  additiv dazu — keine bestehende Feld-Bedeutung ändert sich, also kein Versions-Bump. */
   schemaVersion: 3;
   user: string;
   healthHold: HealthHoldView | null;
@@ -62,6 +64,20 @@ export interface ContextResult extends Envelope {
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
    *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
   cleaning: ContextReinigungView;
+  /**
+   * Welche Vergehensarten bei diesem Sub GERADE gelten: `off`/`on`, bei `unauthorized_orgasm`
+   * zusätzlich `lockedOnly` (nur während einer Sperrzeit) und `always`.
+   *
+   * **Nur lesbar.** Es gibt bewusst KEIN Tool, das eine Regel umlegt — das entscheidet der Mensch in
+   * der Admin-Oberfläche, nicht du. Suche also nicht danach; hier steht, wonach das Strafbuch
+   * urteilt, damit du eine fehlende Vergehensart erklären kannst, statt sie für einen Fehler zu
+   * halten. `manual_offense` fehlt in der Liste: ein von Hand notiertes Vergehen ist nicht
+   * abschaltbar.
+   *
+   * Der Wert gilt für JETZT. Vergangene Taten werden nach der Fassung beurteilt, die zu ihrem
+   * Zeitpunkt galt — eine heute abgeschaltete Art kann also weiterhin ältere Vergehen zeigen.
+   */
+  offenseRules: Record<SwitchableOffenseType, OffenseMode>;
   recurringContext: ReturnType<typeof recurringView>[];
   appointments: ReturnType<typeof apptView>[];
 }
@@ -93,12 +109,15 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
     ...(apptTo ? { lte: apptTo } : {}),
   };
-  const [healthHold, recurring, appts, cleaningUsedToday, sperre] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedToday, sperre, offenseRuleChanges] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
     reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
     getActiveSperrzeit(userId),
+    // Die Regel-HISTORIE, nicht ein Zustand: `currentOffenseRules` löst daraus die für JETZT
+    // geltende Fassung auf — dieselbe Funktion, die auch die Admin-Oberfläche anzeigt.
+    prisma.offenseRuleChange.findMany({ where: { userId }, select: { offenseType: true, mode: true, effectiveFrom: true } }),
   ]);
 
   // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
@@ -116,6 +135,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     healthHold,
     autoInspections: autoInspectionsView(auto),
     cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
+    offenseRules: currentOffenseRules(offenseRuleChanges, now),
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => apptView(a, iso)),
   };

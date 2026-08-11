@@ -5,10 +5,11 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "./context";
+import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "./context";
 import { executeWrite } from "./writeFramework";
 import { prisma } from "@/lib/prisma";
-import { type PrismaMock } from "@/test/prismaMock";
+import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
+import { OFFENSE_RULE_DEFAULT } from "@/lib/offenseRules";
 
 const db = prisma as unknown as PrismaMock;
 
@@ -92,6 +93,39 @@ describe("expectedVersion requires id (OCC wiring)", () => {
 
   it("upsert_recurring_context rejects expectedVersion without id", () => {
     expect(() => upsertRecurringContextDef.validate!({ label: "HO", weekday: 1, expectedVersion: 1 })).toThrow(/expectedVersion.*id/i);
+  });
+});
+
+/**
+ * `offenseRules` in get_context: die AKTUELL geltende Fassung der schaltbaren Vergehensarten.
+ * Verdrahtungs-Test — die Auflösungs-Regel selbst (jüngste Zeile mit effectiveFrom <= t) ist in
+ * offenseRules.test.ts gepinnt. Hier zählt nur, dass get_context die HISTORIE lädt und daraus die
+ * heutige Fassung ableitet, statt eine Zeile roh durchzureichen.
+ */
+describe("getContext.offenseRules", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-11T12:00:00Z"));
+    db.user.findUnique.mockResolvedValue(TEST_USER);
+  });
+
+  it("ohne Änderungszeilen gilt der Default (ein Update hängt niemandem ein Vergehen an)", async () => {
+    const r = await getContext("sub");
+    expect(r.offenseRules).toEqual(OFFENSE_RULE_DEFAULT);
+    expect(db.offenseRuleChange.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "u1" } }),
+    );
+  });
+
+  it("eine bereits wirksame Änderung schlägt durch, eine künftige noch nicht", async () => {
+    db.offenseRuleChange.findMany.mockResolvedValue([
+      { offenseType: "unauthorized_orgasm", mode: "always", effectiveFrom: new Date("2026-08-01T00:00:00Z") },
+      { offenseType: "cleaning_limit", mode: "off", effectiveFrom: new Date("2026-09-01T00:00:00Z") },
+    ]);
+    const r = await getContext("sub");
+    expect(r.offenseRules.unauthorized_orgasm).toBe("always");
+    expect(r.offenseRules.cleaning_limit).toBe("on");
   });
 });
 
