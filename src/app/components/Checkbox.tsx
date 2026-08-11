@@ -5,10 +5,14 @@ import { Check } from "lucide-react";
 
 interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   label: string;
+  /** Beschriftung nur für Screenreader — für Kreuzchen in einer Liste, wo die Zeile daneben schon
+   *  sagt, worum es geht. Der Text bleibt PFLICHT: ein Kreuzchen ohne Namen ist für einen
+   *  Screenreader eine leere Schaltfläche. */
+  labelHidden?: boolean;
 }
 
 const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
-  { label, disabled, className = "", id: externalId, checked, ...rest },
+  { label, labelHidden, disabled, className = "", id: externalId, checked, ...rest },
   ref,
 ) {
   const autoId = useId();
@@ -50,7 +54,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
           )}
         </span>
       </span>
-      <span className="text-sm text-foreground">{label}</span>
+      <span className={labelHidden ? "sr-only" : "text-sm text-foreground"}>{label}</span>
     </label>
   );
 });

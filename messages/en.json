@@ -133,7 +133,9 @@
     "OFFENSE_TITLE_TOO_LONG": "The offense title is too long",
     "OFFENSE_DESCRIPTION_TOO_LONG": "The offense description is too long",
     "OFFENSE_ALREADY_WITHDRAWN": "This offense has already been withdrawn",
-    "OFFENSE_ALREADY_JUDGED": "This offense has already been judged. Undo the judgment first, then it can be withdrawn."
+    "OFFENSE_ALREADY_JUDGED": "This offense has already been judged. Undo the judgment first, then it can be withdrawn.",
+    "MESSAGE_IDS_REQUIRED": "No valid selection.",
+    "MESSAGE_ACTION_INVALID": "Unknown action."
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -1390,7 +1392,21 @@
     "catTask": "Task",
     "catSystem": "System",
     "openTarget": "Fulfil inspection now",
-    "deleteConfirm": "Delete this message for good? The underlying record stays — but if a penalty text is attached to it, you will not be able to read it anywhere afterwards."
+    "deleteConfirm": "Delete this message for good? The underlying record stays — but if a penalty text is attached to it, you will not be able to read it anywhere afterwards.",
+    "filterAll": "All",
+    "filterUnread": "Unread",
+    "filterCategoryLabel": "Filter by category",
+    "filterSenderLabel": "Filter by sender",
+    "filterAllCategories": "All categories",
+    "filterAllSenders": "All senders",
+    "emptyFilteredTitle": "Nothing in this selection",
+    "emptyFilteredText": "No messages match this filter. Reset the filter to see all of them.",
+    "select": "Select",
+    "selectRow": "Select message",
+    "selectedCount": "{count} selected",
+    "bulkRead": "Mark read",
+    "bulkUnread": "Mark unread",
+    "bulkDeleteConfirm": "Delete {count} messages permanently?"
   },
   "emails": {
     "greeting": "Hi {username},",

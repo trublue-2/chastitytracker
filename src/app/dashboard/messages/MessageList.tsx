@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowRight, Bot, CheckCheck, Inbox, Settings, Trash2, Undo2, UserRound } from "lucide-react";
+import { ArrowRight, Bot, CheckCheck, Inbox, ListChecks, Settings, Trash2, Undo2, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
@@ -14,23 +14,28 @@ import ConfirmDialog from "@/app/components/ConfirmDialog";
 import FormError from "@/app/components/FormError";
 import Badge from "@/app/components/Badge";
 import RowActionsMenu from "@/app/components/RowActionsMenu";
+import Checkbox from "@/app/components/Checkbox";
+import ListPager from "@/app/components/ListPager";
+import MessageFilterBar from "./MessageFilterBar";
+import MessageRow from "./MessageRow";
+import useIsClamped from "@/app/hooks/useIsClamped";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { formatDayMonth, formatTime, toDateLocale } from "@/lib/utils";
 import type { PresentedMessage } from "@/lib/messagePresenter";
-import type { MessageSenderKind } from "@/lib/messageService";
+import type { MessageFilter, MessageSenderKind } from "@/lib/messageService";
 import { MESSAGE_CATEGORY_PILLS } from "@/lib/messageCategories";
 
 const SENDER_ICON: Record<MessageSenderKind, typeof Bot> = { ai: Bot, keyholder: UserRound, system: Settings };
 
 export default function MessageList({
   initial,
-  initialCursor,
+  initialPageCount,
   initialUnread,
   tz,
 }: {
   initial: PresentedMessage[];
-  initialCursor: string | null;
+  initialPageCount: number;
   initialUnread: number;
   /** Zeitzone des Nutzers — Zeitstempel stehen überall in SEINER Zone, nicht in der des Servers. */
   tz: string;
@@ -42,8 +47,15 @@ export default function MessageList({
   const router = useRouter();
 
   const [messages, setMessages] = useState(initial);
-  const [cursor, setCursor] = useState(initialCursor);
+  const [page, setPage] = useState(1);
+  const [pageCount, setPageCount] = useState(initialPageCount);
+  const [filter, setFilter] = useState<MessageFilter>({});
   const [unread, setUnread] = useState(initialUnread);
+  // Die Auswahl als eigener Modus: Kreuzchen an jeder Zeile wären neben dem Ungelesen-Punkt eine
+  // zweite runde Marke links und würden die Zeile für den Normalfall verrauschen.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Eigener Zustand: sonst zeigte ein laufendes Nachladen den Lösch-Knopf als beschäftigt.
@@ -68,10 +80,13 @@ export default function MessageList({
   }, [unread, router]);
 
   /** Ein Weg für alle drei Aufrufe: Fehler-Code auflösen, Netzfehler benennen, sonst das Ergebnis. */
-  async function request<T>(url: string, method: "GET" | "POST" | "DELETE" = "GET"): Promise<T | null> {
+  async function request<T>(url: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown): Promise<T | null> {
     setError(null);
     try {
-      const res = await fetch(url, { method });
+      const res = await fetch(url, {
+        method,
+        ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+      });
       if (!res.ok) {
         setError(apiError(await parseApiErrorCode(res)));
         return null;
@@ -125,151 +140,164 @@ export default function MessageList({
     setUnread(res.unread);
   }
 
-  async function loadMore() {
-    if (!cursor) return;
+  /**
+   * Eine Seite holen — der EINE Weg, über den Blättern und Filtern laufen.
+   *
+   * Die Seite kommt aus der Antwort zurück, nicht aus der Anfrage: der Server klemmt sie ans Ende,
+   * wenn die angefragte hinter dem letzten Eintrag liegt (nach dem Löschen der letzten Zeile einer
+   * Seite). Die Auswahl fällt dabei weg — angekreuzt wurde auf der Seite, die man verlässt.
+   */
+  async function load(nextPage: number, nextFilter: MessageFilter = filter) {
     setSaving(true);
-    // Blättern ändert den Ungelesen-Stand nicht — die Antwort trägt ihn deshalb gar nicht.
-    const data = await request<{ messages: PresentedMessage[]; nextCursor: string | null }>(
-      `/api/messages?cursor=${encodeURIComponent(cursor)}`,
+    const params = new URLSearchParams({ page: String(nextPage) });
+    if (nextFilter.unreadOnly) params.set("unread", "1");
+    if (nextFilter.category) params.set("category", nextFilter.category);
+    if (nextFilter.senderKind) params.set("sender", nextFilter.senderKind);
+    const data = await request<{ messages: PresentedMessage[]; page: number; pageCount: number }>(
+      `/api/messages?${params.toString()}`,
     );
     setSaving(false);
     if (!data) return;
-    setMessages((prev) => [...prev, ...data.messages]);
-    setCursor(data.nextCursor);
+    setMessages(data.messages);
+    setPage(data.page);
+    setPageCount(data.pageCount);
+    setSelected(new Set());
+    setOpenId(null);
   }
 
-  // `&& !cursor`: der Sichtbarkeitsfilter kann eine ganze Seite leeren, obwohl weitere folgen —
-  // dann ist "Keine Nachrichten" falsch und der Weg zum Nachladen abgeschnitten.
-  if (messages.length === 0 && !cursor) {
-    return (
-      <Card>
-        <EmptyState icon={<Inbox size={40} />} title={t("emptyTitle")} description={t("emptyText")} />
-      </Card>
-    );
+  function applyFilter(next: MessageFilter) {
+    setFilter(next);
+    // Immer zurück auf Seite 1: ein Filter, der die Liste kürzt, liesse einen sonst auf einer Seite
+    // stehen, die es nicht mehr gibt.
+    void load(1, next);
   }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /** Massen-Aktion über die angekreuzten Zeilen. Danach die Seite frisch holen: Löschen verschiebt
+   *  alles Nachfolgende nach vorn, und der Gelesen-Zustand kann bei aktivem Ungelesen-Filter eine
+   *  Zeile von der Seite nehmen. */
+  async function bulk(action: "delete" | "read" | "unread") {
+    if (selected.size === 0) return;
+    setDeleting(action === "delete");
+    setSaving(true);
+    const res = await request<{ unread: number }>("/api/messages/bulk", "POST", { ids: [...selected], action });
+    setSaving(false);
+    setDeleting(false);
+    setConfirmBulkDelete(false);
+    if (!res) return;
+    setUnread(res.unread);
+    await load(page);
+  }
+
+  const filtered = Boolean(filter.unreadOnly || filter.category || filter.senderKind);
+  // Der Leer-Zustand darf nicht behaupten, es GEBE keine Nachrichten, wenn nur der Filter greift —
+  // und er darf die Filterleiste nicht mitnehmen, sonst kommt man aus dem leeren Filter nicht heraus.
+  const empty = messages.length === 0 && pageCount <= 1;
 
   return (
     <>
       {error && <div className="mb-3"><FormError message={error} /></div>}
 
+      <MessageFilterBar filter={filter} onChange={applyFilter} disabled={saving} />
+
+      {empty ? (
+        <Card>
+          <EmptyState
+            icon={<Inbox size={40} />}
+            title={filtered ? t("emptyFilteredTitle") : t("emptyTitle")}
+            description={filtered ? t("emptyFilteredText") : t("emptyText")}
+          />
+        </Card>
+      ) : (
       <Card padding="none">
+        {selecting && (
+          // Die Aktionsleiste steht ÜBER der Liste, nicht darunter: sie gehört zur Auswahl, und wer
+          // in einer langen Liste ankreuzt, soll nicht ans Ende scrollen müssen, um sie zu finden.
+          <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-border-subtle bg-surface-raised">
+            <span className="text-xs font-medium text-foreground-muted tabular-nums">
+              {t("selectedCount", { count: selected.size })}
+            </span>
+            <div className="flex-1" />
+            <Button variant="ghost" size="sm" disabled={selected.size === 0 || saving} onClick={() => bulk("read")}>
+              {t("bulkRead")}
+            </Button>
+            <Button variant="ghost" size="sm" disabled={selected.size === 0 || saving} onClick={() => bulk("unread")}>
+              {t("bulkUnread")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Trash2 size={16} />}
+              disabled={selected.size === 0 || saving}
+              onClick={() => setConfirmBulkDelete(true)}
+            >
+              {tc("delete")}
+            </Button>
+          </div>
+        )}
+
         <ul className="divide-y divide-border-subtle">
-          {messages.map((m) => {
-            const Icon = SENDER_ICON[m.senderKind];
-            const cat = MESSAGE_CATEGORY_PILLS[m.category];
-            const open = openId === m.id;
-            // Ein Bezug (Text oder Fehl-Hinweis) ist optional — viele Nachrichten haben bewusst
-            // keinen (siehe orgasmusAnforderungService: Rückzug ohne refId).
-            const hasRef = Boolean(m.refText) || m.refMissing;
-            return (
-              <li key={m.id}>
-                <ExpandRow
-                  open={open}
-                  onToggle={() => toggle(m)}
-                  actions={
-                    <RowActionsMenu
-                      items={[
-                        ...(m.read
-                          ? [{ label: t("markUnread"), icon: <Undo2 size={14} className="text-foreground-faint" />, onSelect: () => markUnread(m) }]
-                          : []),
-                        { label: tc("delete"), icon: <Trash2 size={14} />, onSelect: () => setConfirmDelete(m), danger: true },
-                      ]}
-                    />
-                  }
-                  label={
-                    <span className="flex items-start gap-2">
-                      {/* Ungelesen dreifach codiert: Punkt, Fettschrift, Text für Screenreader.
-                          Farbe allein ist in vier Themes und für Farbfehlsichtige keine Information. */}
-                      <span
-                        className={`mt-2 w-2 h-2 rounded-full shrink-0 ${m.read ? "bg-transparent" : "bg-warn"}`}
-                        aria-hidden="true"
-                      />
-                      {/* text-base: der Meldungstext ist die Überschrift der Zeile und muss sich von
-                          der text-xs-Metazeile und dem text-sm-Bezug deutlich abheben. */}
-                      <span className={`min-w-0 text-base ${m.read ? "font-medium" : "font-semibold"}`}>
-                        {!m.read && <span className="sr-only">{t("unread")} — </span>}
-                        {/* Zu ist die Zeile eine Vorschau, offen der ganze Text — der Text steht
-                            deshalb GENAU EINMAL da und wird im Panel nicht wiederholt. line-clamp
-                            statt truncate: ein „…" mitten im Straftext schnitte genau die
-                            Begründung ab, wegen der es den Posteingang gibt. */}
-                        <span className={open ? "whitespace-pre-wrap" : "line-clamp-2"}>{m.text}</span>
-                      </span>
-                    </span>
-                  }
-                  subtitle={
-                    // pl-4 = Punkt + gap: die Metazeile hängt unter dem Titel, nicht unter dem Punkt.
-                    // flex-wrap, weil Kategorie + Absender + Datum auf 390 px sonst überlaufen.
-                    <span className="flex items-center flex-wrap gap-x-1.5 gap-y-1 pl-4">
-                      <Badge size="sm" label={t(cat.labelKey)} variant={cat.variant} />
-                      {/* Icon, Absender und Zeit als EINE Einheit: bricht die Zeile, fällt der Umbruch
-                          zwischen Kategorie und Absender — nie zwischen Icon und Name.
-
-                          Die Absender-Angabe bleibt neben der Kategorie stehen: dass die KI geurteilt
-                          hat, ist eine Zusicherung und wird nicht durch das Thema ersetzt.
-
-                          Tag + Uhrzeit ohne Jahr (dieselbe Kurzform wie die Banner über
-                          `formatDayTimeDual`) — mit Jahr bricht die Zeile auf 390 px zusätzlich um. */}
-                      <span className="inline-flex items-center gap-1.5">
-                        <Icon size={12} aria-hidden="true" />
-                        {t(`sender.${m.senderKind}`)} · {formatDayMonth(m.createdAt, dl, tz)} {formatTime(m.createdAt, dl, tz)}
-                      </span>
-                    </span>
-                  }
-                >
-                  {/* Ohne Trennlinie: der Abstand setzt das Aufgeklappte ab. Der Inhalt beginnt bei
-                      pl-4 auf der Titelkante — nie links davon.
-
-                      Bedingungslos gerendert: `ExpandRow` zeigt sein Panel allein nach `open`,
-                      unabhängig davon, ob Inhalt kommt. Hing der Inhalt an `m.read`, leerte ein Klick
-                      auf „wieder als ungelesen" das Panel unter dem Finger. Es gibt immer mindestens
-                      etwas — heute den Bezug bzw. den Link, sonst nichts, und das ist in Ordnung. */}
-                  <div className="pt-1 space-y-3">
-                    {hasRef && (
-                      <div className="pl-4">
-                        <DetailField label={t("refLabel")}>
-                          {m.refText ? (
-                            <p className="text-sm text-foreground-muted whitespace-pre-wrap border-l-2 border-border pl-3">
-                              {m.refText}
-                            </p>
-                          ) : (
-                            <p className="text-sm text-foreground-faint italic">{t("refMissing")}</p>
-                          )}
-                        </DetailField>
-                      </div>
-                    )}
-                    {/* Verlinkt wird nur, wo eine Seite etwas beiträgt — heute die offene Kontrolle
-                        mit vorbelegtem Code. Der Link steht IM Panel, nicht im Titel: dessen
-                        Aufklapp-Fläche ist ein `button`, ein `a` darin wäre ungültiges Markup und
-                        würde den Klick verschlucken. */}
-                    {m.refHref && (
-                      <Link
-                        href={m.refHref}
-                        className="inline-flex items-center gap-1.5 pl-4 text-sm font-medium text-[var(--color-inspect)] hover:underline"
-                      >
-                        {t("openTarget")}
-                        <ArrowRight size={14} aria-hidden="true" />
-                      </Link>
-                    )}
-                  </div>
-                </ExpandRow>
-              </li>
-            );
-          })}
+          {messages.map((m) => (
+            <li key={m.id}>
+              <MessageRow
+                message={m}
+                open={openId === m.id}
+                selecting={selecting}
+                checked={selected.has(m.id)}
+                onCheck={() => toggleSelected(m.id)}
+                onToggle={() => toggle(m)}
+                onMarkUnread={() => markUnread(m)}
+                onDelete={() => setConfirmDelete(m)}
+                dl={dl}
+                tz={tz}
+              />
+            </li>
+          ))}
         </ul>
-      </Card>
 
-      <div className="flex flex-wrap gap-2 mt-4">
-        {unread > 0 && (
+        <ListPager page={page - 1} totalPages={pageCount} onPage={(p) => load(p + 1)} />
+      </Card>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 mt-4">
+        {unread > 0 && !selecting && (
           <Button variant="secondary" size="sm" icon={<CheckCheck size={16} />} onClick={() => setConfirmAll(true)}>
             {t("markAllRead")}
           </Button>
         )}
-        {cursor && (
-          <Button variant="ghost" size="sm" loading={saving} onClick={loadMore}>
-            {t("loadMore")}
+        {!empty && (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={selecting ? <X size={16} /> : <ListChecks size={16} />}
+            onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }}
+          >
+            {selecting ? tc("cancel") : t("select")}
           </Button>
         )}
       </div>
+
+      {/* Massen-Löschen: dieselbe Rückfrage wie beim Einzelnen, nur mit der Zahl — endgültig bleibt
+          endgültig, auch wenn man zwölf Zeilen auf einmal meint. */}
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        title={tc("delete")}
+        message={t("bulkDeleteConfirm", { count: selected.size })}
+        confirmLabel={tc("delete")}
+        danger
+        loading={deleting}
+        icon={<Trash2 size={20} style={{ color: "var(--color-warn)" }} />}
+        onConfirm={() => bulk("delete")}
+        onCancel={() => setConfirmBulkDelete(false)}
+      />
 
       {/* Rückfrage, weil „gelesen" hier eine Behauptung ist: zwölf Nachrichten stumm zu quittieren
           erzeugte eine, die hinterher niemand halten kann. */}

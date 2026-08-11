@@ -133,7 +133,9 @@
     "OFFENSE_TITLE_TOO_LONG": "Der Titel des Vergehens ist zu lang",
     "OFFENSE_DESCRIPTION_TOO_LONG": "Die Beschreibung des Vergehens ist zu lang",
     "OFFENSE_ALREADY_WITHDRAWN": "Dieses Vergehen wurde bereits zurückgezogen",
-    "OFFENSE_ALREADY_JUDGED": "Über dieses Vergehen wurde bereits geurteilt. Nimm zuerst das Urteil zurück, dann lässt es sich zurückziehen."
+    "OFFENSE_ALREADY_JUDGED": "Über dieses Vergehen wurde bereits geurteilt. Nimm zuerst das Urteil zurück, dann lässt es sich zurückziehen.",
+    "MESSAGE_IDS_REQUIRED": "Keine gültige Auswahl.",
+    "MESSAGE_ACTION_INVALID": "Unbekannte Aktion."
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -1390,7 +1392,21 @@
     "catTask": "Aufgabe",
     "catSystem": "System",
     "openTarget": "Kontrolle jetzt erfüllen",
-    "deleteConfirm": "Diese Nachricht endgültig löschen? Der Vorgang selbst bleibt erhalten — aber falls ein Straftext dranhängt, kannst du ihn danach nirgends mehr nachlesen."
+    "deleteConfirm": "Diese Nachricht endgültig löschen? Der Vorgang selbst bleibt erhalten — aber falls ein Straftext dranhängt, kannst du ihn danach nirgends mehr nachlesen.",
+    "filterAll": "Alle",
+    "filterUnread": "Ungelesen",
+    "filterCategoryLabel": "Nach Kategorie filtern",
+    "filterSenderLabel": "Nach Absender filtern",
+    "filterAllCategories": "Alle Kategorien",
+    "filterAllSenders": "Alle Absender",
+    "emptyFilteredTitle": "Nichts in dieser Auswahl",
+    "emptyFilteredText": "Mit diesem Filter gibt es keine Nachrichten. Filter zurücksetzen, um alle zu sehen.",
+    "select": "Auswählen",
+    "selectRow": "Nachricht auswählen",
+    "selectedCount": "{count} ausgewählt",
+    "bulkRead": "Als gelesen",
+    "bulkUnread": "Als ungelesen",
+    "bulkDeleteConfirm": "{count} Nachrichten endgültig löschen?"
   },
   "emails": {
     "greeting": "Hallo {username},",

@@ -30,7 +30,7 @@ export default async function MessagesPage() {
       <p className="text-xs text-foreground-faint mb-4">{t("intro")}</p>
       <MessageList
         initial={await presentMessages(page.messages, locale)}
-        initialCursor={page.nextCursor}
+        initialPageCount={page.pageCount}
         initialUnread={unread}
         tz={session.user.timezone ?? APP_TZ}
       />

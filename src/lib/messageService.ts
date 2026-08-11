@@ -1,5 +1,7 @@
 import { cache } from "react";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageCategory } from "@/lib/messageCategories";
 import { isSubVisibleJudgment } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
@@ -81,7 +83,10 @@ export interface MessageRef {
 
 /** Wer getippt hat. Zwei Achsen wie im Bestand (`StrafeRecord.judgedBy` / `KeyholderActionLog.source`):
  *  `kind` ist der Absender, nicht die Autorität. */
-export type MessageSenderKind = "system" | "keyholder" | "ai";
+/** Die Absender-Arten als Liste — die Filterleiste bietet alle an, die Route prüft gegen sie.
+ *  Der Typ leitet daraus ab statt daneben zu stehen. */
+export const MESSAGE_SENDER_KINDS = ["system", "keyholder", "ai"] as const;
+export type MessageSenderKind = (typeof MESSAGE_SENDER_KINDS)[number];
 
 /**
  * Autoritäts-Achse (`StrafeRecord.judgedBy`, `KeyholderActionLog.source`) → Absender-Achse.
@@ -177,7 +182,9 @@ export interface InboxMessage {
   read: boolean;
 }
 
-const MAX_PAGE_SIZE = 50;
+/** Zeilen je Seite im Posteingang. Klein genug, dass eine Seite auf einen Blick lesbar bleibt —
+ *  der Grund, warum aus dem wachsenden „Mehr laden" echte Seiten wurden. */
+export const MESSAGE_PAGE_SIZE = 20;
 
 function parseParams(raw: string | null): Record<string, string | number> | null {
   if (!raw) return null;
@@ -316,20 +323,78 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
  * nicht ausgelösten Direktive verriete genau die Überraschung, die der Sinn der Terminierung ist —
  * und sie zu rendern und dann auszublenden hiesse, sie schon ausgeliefert zu haben.
  */
+export interface MessageFilter {
+  /** Nur ungelesene. */
+  unreadOnly?: boolean;
+  category?: MessageCategory;
+  senderKind?: MessageSenderKind;
+}
+
+export interface MessagePage {
+  messages: InboxMessage[];
+  /** 1-basiert. Liegt die angefragte Seite hinter dem Ende, wird auf die letzte geklemmt. */
+  page: number;
+  pageCount: number;
+  /** Gesamtzahl der Nachrichten im aktuellen Filter. */
+  total: number;
+}
+
+/**
+ * Die Where-Klausel einer Posteingangs-Sicht — geteilt von Zählung und Seitenabfrage, damit „Seite 3
+ * von 7" und die Zeilen darauf denselben Filter meinen.
+ *
+ * Kategorie über die `bodyKey`s: die Zuordnung bleibt eine Anzeige-Entscheidung
+ * (`messageCategories.ts`), gefiltert wird über die Schlüssel, die dazu gehören. „system" ist dabei
+ * der Auffang-Topf und braucht die Umkehrung — sonst fielen die Freitext-Nachrichten (`bodyKey`
+ * null) aus jedem Filter heraus. `OR` statt `notIn` allein, weil SQL für `NULL NOT IN (…)` „unknown"
+ * liefert und die Zeile damit ausschlösse.
+ */
+function messageWhere(subjectUserId: string, filter: MessageFilter = {}): Prisma.MessageWhereInput {
+  return {
+    subjectUserId,
+    audience: "sub",
+    ...(filter.unreadOnly ? { reads: { none: { userId: subjectUserId } } } : {}),
+    ...(filter.senderKind ? { senderKind: filter.senderKind } : {}),
+    ...(filter.category
+      ? filter.category === "system"
+        ? { OR: [{ bodyKey: null }, { bodyKey: { notIn: bodyKeysOutsideSystem() } }] }
+        : { bodyKey: { in: bodyKeysOfCategory(filter.category) } }
+      : {}),
+  };
+}
+
+/**
+ * Eine SEITE des Posteingangs, absteigend nach Zeit, ohne die verborgenen.
+ *
+ * Der Sichtbarkeits-Filter steht bewusst hier und nicht in der Anzeige: eine Nachricht zu einer
+ * terminierten, noch nicht ausgelösten Direktive verriete genau die Überraschung, die der Sinn der
+ * Terminierung ist — und sie zu rendern und dann auszublenden hiesse, sie schon ausgeliefert zu
+ * haben.
+ *
+ * BEKANNTE UNSCHÄRFE: `total` zählt in der Datenbank, der Sichtbarkeits-Filter greift erst auf der
+ * geladenen Seite. Eine verborgene Nachricht zählt also mit, ohne zu erscheinen — eine Seite kann
+ * kürzer sein als `MESSAGE_PAGE_SIZE`. Der genaue Weg hiesse, für jede Zählung den ganzen
+ * Posteingang samt seiner Bezugsobjekte aufzulösen; verborgene Zeilen sind selten (terminierte
+ * Direktiven, verworfene Urteile), und der Preis stünde in keinem Verhältnis.
+ */
 export async function listMessagesFor(
   subjectUserId: string,
-  opts: { take?: number; cursor?: string } = {},
-): Promise<{ messages: InboxMessage[]; nextCursor: string | null }> {
-  const take = Math.min(Math.max(opts.take ?? MAX_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  opts: { page?: number; filter?: MessageFilter } = {},
+): Promise<MessagePage> {
+  const where = messageWhere(subjectUserId, opts.filter);
+  const total = await prisma.message.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / MESSAGE_PAGE_SIZE));
+  // Klemmen statt leer ausliefern: löscht der Nutzer die letzte Zeile von Seite 4, soll er Seite 4
+  // sehen — nicht eine leere Seite hinter dem Ende.
+  const page = Math.min(Math.max(Math.trunc(opts.page ?? 1), 1), pageCount);
+
   const rows = await prisma.message.findMany({
-    where: { subjectUserId, audience: "sub" },
-    // Zweites Sortierfeld: `createdAt` allein ist nicht eindeutig, und der Cursor ist die id —
-    // zwei Nachrichten mit derselben Sekunde an einer Seitengrenze würden sonst doppelt oder gar
-    // nicht ausgeliefert.
+    where,
+    // Zweites Sortierfeld: `createdAt` allein ist nicht eindeutig — zwei Nachrichten mit derselben
+    // Sekunde an einer Seitengrenze erschienen sonst doppelt oder gar nicht.
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    // Eins mehr als angefragt: nur so ist "gibt es noch weitere?" beantwortbar, ohne separat zu zählen.
-    take: take + 1,
-    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+    skip: (page - 1) * MESSAGE_PAGE_SIZE,
+    take: MESSAGE_PAGE_SIZE,
     select: {
       id: true,
       createdAt: true,
@@ -343,14 +408,12 @@ export async function listMessagesFor(
     },
   });
 
-  const page = rows.slice(0, take);
-  const nextCursor = rows.length > take ? page[page.length - 1].id : null;
   // Eine Auflösung für beides: `refDetails` liefert Text, Ziel UND Sichtbarkeit. `hiddenRefKeys`
   // bleibt die schlanke Variante für den Zähler (Header-Pfad), der keinen Text braucht.
-  const details = await refDetails(page, subjectUserId);
+  const details = await refDetails(rows, subjectUserId);
 
   const messages: InboxMessage[] = [];
-  for (const row of page) {
+  for (const row of rows) {
     const key = keyOf(row);
     if (key && details.get(key)?.hidden) continue;
     messages.push({
@@ -367,7 +430,7 @@ export async function listMessagesFor(
       read: row.reads.length > 0,
     });
   }
-  return { messages, nextCursor };
+  return { messages, page, pageCount, total };
 }
 
 /**
@@ -487,6 +550,58 @@ export async function setRead(subjectUserId: string, messageId: string, read: bo
  * `subjectUserId` ist wie bei {@link setRead} Teil der Suche, nicht nur des Aufrufs: eine geratene
  * ID findet damit nichts, statt die Nachricht eines fremden Nutzers zu löschen.
  */
+/**
+ * Mehrere Nachrichten auf einmal — löschen bzw. den Gelesen-Zustand setzen.
+ *
+ * `audience` und `subjectUserId` stehen in JEDER Where-Klausel, wie bei den Einzel-Fassungen: eine
+ * fremde id in der Liste trifft damit nichts, statt den Aufruf scheitern zu lassen. Das Ergebnis ist
+ * die Zahl der tatsächlich getroffenen Zeilen — der Aufrufer erfährt so, ob seine Auswahl noch
+ * aktuell war, ohne dass eine veraltete Zeile den ganzen Vorgang kippt.
+ *
+ * Die Ids werden vorher auf die eigenen eingegrenzt: `messageRead` kennt keine `subjectUserId`, ein
+ * `deleteMany` auf rohe Ids räumte sonst fremde Lese-Kennzeichen ab.
+ */
+async function ownMessageIds(subjectUserId: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await prisma.message.findMany({
+    where: { id: { in: ids }, subjectUserId, audience: "sub" },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
+export async function deleteMessages(subjectUserId: string, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const { count } = await prisma.message.deleteMany({
+    where: { id: { in: ids }, subjectUserId, audience: "sub" },
+  });
+  return count;
+}
+
+export async function setReadMany(subjectUserId: string, ids: string[], read: boolean): Promise<number> {
+  const own = await ownMessageIds(subjectUserId, ids);
+  if (own.length === 0) return 0;
+  if (!read) {
+    const { count } = await prisma.messageRead.deleteMany({
+      where: { messageId: { in: own }, userId: subjectUserId },
+    });
+    return count;
+  }
+  // Einzeln per upsert statt createMany — dieselbe Begründung wie in `markAllRead`: liest der Nutzer
+  // im zweiten Tab eine der Zeilen, liefe createMany in den Unique-Index und der ganze Aufruf
+  // schlüge fehl, obwohl der Zustand danach der gewünschte wäre. (SQLite kennt kein skipDuplicates.)
+  await Promise.all(
+    own.map((messageId) =>
+      prisma.messageRead.upsert({
+        where: { messageId_userId: { messageId, userId: subjectUserId } },
+        create: { messageId, userId: subjectUserId },
+        update: {},
+      }),
+    ),
+  );
+  return own.length;
+}
+
 export async function deleteMessage(subjectUserId: string, messageId: string): Promise<boolean> {
   // EIN `deleteMany` statt Suchen-dann-Löschen: atomar und idempotent. Bei zwei überlappenden
   // Aufrufen (zweiter Tab, Wiederholung nach Netz-Hänger) käme der Verlierer eines Read-then-Write

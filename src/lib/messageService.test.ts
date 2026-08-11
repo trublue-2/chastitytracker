@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 // Der Service liest Nachrichten + die vier Bezugsobjekte und schreibt Lese-Kennzeichen.
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    message: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn() },
+    message: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
     messageRead: { upsert: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
     strafeRecord: { findMany: vi.fn() },
     kontrollAnforderung: { findMany: vi.fn() },
@@ -30,6 +30,8 @@ const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.clearAllMocks();
   mock(prisma.message.create).mockResolvedValue({ id: "m-new" });
+  // Der Posteingang blättert seit v5.1 über Seiten: die Zählung entscheidet, wie viele es gibt.
+  mock(prisma.message.count).mockResolvedValue(1);
   for (const m of [prisma.strafeRecord, prisma.kontrollAnforderung, prisma.verschlussAnforderung, prisma.orgasmusAnforderung]) {
     mock(m.findMany).mockResolvedValue([]);
   }

@@ -15,6 +15,9 @@ import type { BadgeVariant } from "@/app/components/Badge";
 const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "penalty", "task", "system"] as const;
 export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
 
+/** Die Kategorien als Liste — für die Filterleiste, die alle anbieten muss. */
+export const MESSAGE_CATEGORY_LIST: readonly MessageCategory[] = MESSAGE_CATEGORIES;
+
 /**
  * Body-Key → Kategorie. Vollständig für alle `MESSAGE_BODY_KEYS`; `messageService.test.ts` erzwingt
  * das, damit ein neu hinzugefügter Schlüssel nicht stillschweigend als „system" durchrutscht.
@@ -104,3 +107,34 @@ export const MESSAGE_CATEGORY_PILLS: Record<MessageCategory, { labelKey: string;
   task:       { labelKey: "catTask",       variant: "request" },
   system:     { labelKey: "catSystem",     variant: "neutral" },
 };
+
+/**
+ * Die `bodyKey`s einer Kategorie — die Umkehrung der Tabelle oben.
+ *
+ * Damit lässt sich nach Kategorie filtern, OHNE eine Spalte nachzurüsten: die Zuordnung bleibt eine
+ * Anzeige-Entscheidung (Begründung oben), die Abfrage bekommt nur die Schlüssel, die dazu gehören.
+ * Abgeleitet statt danebengeschrieben — eine zweite Liste veraltete beim ersten neuen Schlüssel.
+ */
+export function bodyKeysOfCategory(category: MessageCategory): MessageBodyKey[] {
+  return (Object.keys(CATEGORY_BY_BODY_KEY) as MessageBodyKey[]).filter(
+    (key) => CATEGORY_BY_BODY_KEY[key] === category,
+  );
+}
+
+/**
+ * Die Schlüssel aller ANDEREN Kategorien — was übrig bleibt, ist „system".
+ *
+ * Denn `system` ist der Auffang-Topf: {@link messageCategory} schickt dorthin auch die Nachricht
+ * ohne Schlüssel (Freitext) und die mit einem unbekannten. Eine Filterung über die system-Schlüssel
+ * allein verlöre also genau die beiden Fälle, die es nur dort gibt.
+ */
+export function bodyKeysOutsideSystem(): MessageBodyKey[] {
+  return (Object.keys(CATEGORY_BY_BODY_KEY) as MessageBodyKey[]).filter(
+    (key) => CATEGORY_BY_BODY_KEY[key] !== "system",
+  );
+}
+
+/** True, wenn der Wert eine bekannte Kategorie ist — die Prüfung für den Query-Parameter. */
+export function isMessageCategory(value: string): value is MessageCategory {
+  return (MESSAGE_CATEGORIES as readonly string[]).includes(value);
+}

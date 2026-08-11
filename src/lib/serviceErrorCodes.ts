@@ -133,6 +133,13 @@ export const MANUAL_OFFENSE_CODES = [
   "OFFENSE_ALREADY_JUDGED",
 ] as const;
 
+/** Die Massen-Aktionen des Posteingangs (`/api/messages/bulk`). Der Nutzer bekommt sie nur zu
+ *  sehen, wenn eine Anfrage nicht aus der Oberfläche stammt — die kreuzt Zeilen an, die es gibt. */
+export const MESSAGE_BULK_CODES = [
+  "MESSAGE_IDS_REQUIRED",
+  "MESSAGE_ACTION_INVALID",
+] as const;
+
 /** deviceReferenceService (curated device reference photos). */
 export const REFERENCE_CODES = [
   "REFERENCE_ENTRY_NOT_FOUND",
@@ -215,6 +222,7 @@ export const SERVICE_ERROR_CODES = [
     ...ORGASM_DIRECTIVE_CODES,
     ...JUDGMENT_CODES,
     ...MANUAL_OFFENSE_CODES,
+    ...MESSAGE_BULK_CODES,
     ...REFERENCE_CODES,
     ...DEVICE_CODES,
     ...BOX_CODES,
@@ -236,6 +244,7 @@ export type ServiceErrorCode =
   | (typeof ORGASM_DIRECTIVE_CODES)[number]
   | (typeof JUDGMENT_CODES)[number]
   | (typeof MANUAL_OFFENSE_CODES)[number]
+  | (typeof MESSAGE_BULK_CODES)[number]
   | (typeof REFERENCE_CODES)[number]
   | (typeof DEVICE_CODES)[number]
   | (typeof BOX_CODES)[number]
