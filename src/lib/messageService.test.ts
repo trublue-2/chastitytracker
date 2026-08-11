@@ -118,10 +118,20 @@ describe("verborgene Direktiven bleiben verborgen", () => {
 describe("Freitexte werden live gelesen, nicht kopiert", () => {
   it("der Straftext kommt aus dem StrafeRecord, nicht aus der Nachricht", async () => {
     mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "s1" })]);
-    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "korrigierter Text" }]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "korrigierter Text", status: "PUNISHED" }]);
     const { messages } = await listMessagesFor("u1");
     expect(messages[0].refText).toBe("korrigierter Text");
     expect(messages[0].refMissing).toBe(false);
+  });
+
+  it("ein VERWORFENES Urteil erreicht den Sub nicht — auch nicht über eine alte Nachricht", async () => {
+    // `writeJudgment` upsertet auf `refId`: eine Korrektur PUNISHED→DISMISSED behält die Zeile, und
+    // die alte „Strafe verhängt"-Nachricht zeigte danach die VERWERFUNGS-Begründung. Genau die
+    // Zusage der Träger-Sicht, und sie gilt hier so gut wie dort (`isSubVisibleJudgment`).
+    mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "s1" })]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "war abgesprochen", status: "DISMISSED" }]);
+    const { messages } = await listMessagesFor("u1");
+    expect(messages).toHaveLength(0);
   });
 
   it("ein gelöschtes Bezugsobjekt wird als solches gemeldet, statt still zu verschwinden", async () => {
@@ -253,9 +263,11 @@ describe("Verlinkung — nur wo eine Seite etwas beiträgt", () => {
     expect(await codeOf(control({ withdrawnAt: new Date() }))).toBeNull();
   });
 
-  it("Strafe → kein Ziel (für den Sub gibt es kein Strafbuch)", async () => {
+  // Der Sub hat seit v5.1 zwar eine Strafen-Seite, aber sie LISTET nur — es gibt dort nichts
+  // einzureichen, also auch kein Ziel für den Handlungs-Link der Nachricht.
+  it("Strafe → kein Ziel (die Strafen-Seite nimmt keine Handlung entgegen)", async () => {
     mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "offense", refEntityId: "s1" })]);
-    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "Text" }]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", reason: "Text", status: "PUNISHED" }]);
     const { messages } = await listMessagesFor("u1");
     expect(messages[0].refActionCode).toBeNull();
   });

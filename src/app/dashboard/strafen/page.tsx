@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
 import { Gavel } from "lucide-react";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import PenaltyCard from "@/app/components/PenaltyCard";
 import EmptyState from "@/app/components/EmptyState";
-import { APP_TZ, toDateLocale } from "@/lib/utils";
+import { APP_TZ } from "@/lib/utils";
 import { loadSubPenalties, type SubPenalty } from "@/lib/openPenalties";
 
-// Wie das übrige Dashboard: user-spezifisch, nie geteilt gecacht.
-export const dynamic = "force-dynamic";
+
+/** Wie viele erledigte Strafen der Verlauf zeigt — derselbe Deckel wie bei der Aufgaben-Historie. */
+const DONE_LIMIT = 25;
 
 /**
  * Die Strafen des KG-Trägers (Issue #36) — bisher erfuhr er ihren Stand nur über die Keyholderin.
@@ -26,10 +27,9 @@ export default async function PenaltiesPage() {
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
-  const [{ open, done }, t, dl] = await Promise.all([
+  const [{ open, done }, t] = await Promise.all([
     loadSubPenalties(userId),
     getTranslations("penalties"),
-    getLocale().then(toDateLocale),
   ]);
   // Die Zeitzone des Trägers — es sind seine Strafen, und diese Seite ist seine.
   const tz = session.user.timezone ?? APP_TZ;
@@ -41,7 +41,7 @@ export default async function PenaltiesPage() {
         <ul className="flex flex-col gap-2">
           {penalties.map((p) => (
             <li key={p.refId}>
-              <PenaltyCard penalty={p} dl={dl} tz={tz} />
+              <PenaltyCard penalty={p} tz={tz} />
             </li>
           ))}
         </ul>
@@ -62,7 +62,9 @@ export default async function PenaltiesPage() {
       ) : (
         <>
           {section("openTitle", open)}
-          {section("doneTitle", done)}
+          {/* Der Verlauf wächst monoton — gedeckelt wie die Aufgaben-Historie (`TaskList`), sonst
+              rendert die Seite irgendwann jede je erledigte Strafe. */}
+          {section("doneTitle", done.slice(0, DONE_LIMIT))}
         </>
       )}
     </DashboardBlock>

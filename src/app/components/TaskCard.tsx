@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight, Hourglass } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
+import IconTile from "@/app/components/IconTile";
 import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
@@ -95,9 +96,7 @@ export default function TaskCard({
     <Card padding="none">
       <div className="flex flex-col gap-3 p-4 border-l-[3px] border-l-border-strong">
         <div className="flex items-start gap-3">
-          <div className="shrink-0 size-9 rounded-lg flex items-center justify-center bg-surface-raised text-foreground-muted" aria-hidden>
-            <ListChecks className="size-4" />
-          </div>
+          <IconTile icon={<ListChecks className="size-4" />} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground break-words">{task.title}</p>
             <p className="text-xs text-foreground-muted">{t(taskDeadlineKey(task), { date: dual(task.holdUntil) })}</p>

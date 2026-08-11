@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import IconTile from "@/app/components/IconTile";
 import { ListChecks } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Sheet from "@/app/components/Sheet";
@@ -67,9 +68,7 @@ export default function TaskList({
             onClick={() => setOpenTask(task)}
             className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-surface-raised transition"
           >
-            <span className="shrink-0 size-8 rounded-lg flex items-center justify-center bg-surface-raised text-foreground-muted" aria-hidden>
-              <ListChecks className="size-4" />
-            </span>
+            <IconTile size="sm" icon={<ListChecks className="size-4" />} />
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-semibold text-foreground truncate">{task.title}</span>
               <span className="block text-xs text-foreground-faint tabular-nums truncate">

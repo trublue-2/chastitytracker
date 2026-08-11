@@ -79,7 +79,6 @@ describe("selectSubPenalties — was der Träger sehen darf", () => {
       offenseAt: new Date("2026-07-30T08:00:00Z"),
       penaltyText: "20 Schläge",
       judgedAt: new Date("2026-08-01T10:00:00Z"),
-      done: false,
       taskId: null,
     });
   });
@@ -116,7 +115,7 @@ describe("selectSubPenalties — was der Träger sehen darf", () => {
     const { open, done } = selectSubPenalties(sb);
     expect(open.map((p) => p.refId)).toEqual(["e1"]);
     expect(done.map((p) => p.refId)).toEqual(["e2"]);
-    expect(done[0]).toMatchObject({ done: true, doneAt: new Date("2026-08-02T12:00:00Z") });
+    expect(done[0]).toMatchObject({ doneAt: new Date("2026-08-02T12:00:00Z") });
   });
 });
 
@@ -131,7 +130,7 @@ describe("selectSubPenalties — Auflösung und Reihenfolge", () => {
       lateControls: [control("k1")],
       rejectedControls: [control("k2")],
       strafeRecords: [judgment({ refId: "k1" }), judgment({ refId: "k2" })],
-    } as Partial<StrafbuchData>);
+    });
 
     const types = new Map(selectSubPenalties(sb).open.map((p) => [p.refId, p.offenseType]));
     expect(types.get("k1")).toBe("late_control");

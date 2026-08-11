@@ -74,6 +74,25 @@ export type StoredOffenseType = (typeof STORED_TYPE)[OffenseCanonicalType];
  * Hier statt beim Aufrufer, weil die Zusage der TABELLE gehört: sie ist die Stelle, an der eine
  * zwölfte Art entsteht, und die Stelle, die der nächste Autor liest.
  */
+/**
+ * Darf der SUB dieses Urteil sehen? Genau dann, wenn es eine verhängte Strafe ist.
+ *
+ * Ein `DISMISSED` ist die Entscheidung der Keyholderin, eine Anschuldigung fallenzulassen — sie soll
+ * das können, ohne dass der Sub die Anschuldigung je gesehen hat. Das ist die teuerste Zusage der
+ * Träger-Sicht, und deshalb steht sie hier als PRÄDIKAT und nicht als Kommentar in einem Konsumenten:
+ * sie gilt für die Strafen-Liste (`openPenalties.ts`) UND für den Posteingang (`messageService.ts`),
+ * dessen Referenz-Auflösung den Straftext bis v5.0.12 ohne jede Status-Prüfung ausgab. Ein Urteil,
+ * das von PUNISHED auf DISMISSED korrigiert wird, behält seine Zeile (`writeJudgment` upsertet auf
+ * `refId`) — die alte Nachricht zeigte danach die Verwerfungs-Begründung.
+ *
+ * Hier und nicht in `strafurteilService.ts`, weil `messageService` von dort nicht importieren kann
+ * (der Service holt sich seinerseits `senderKindOf` von dort — es gäbe einen Zyklus). Dieses Modul
+ * ist bewusst importfrei.
+ */
+export function isSubVisibleJudgment(record: { status: string }): boolean {
+  return record.status === "PUNISHED";
+}
+
 export type AssertCoversAllOffenses<Covered extends OffenseCanonicalType> =
   [Exclude<OffenseCanonicalType, Covered>] extends [never]
     ? true

@@ -1,6 +1,6 @@
 import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import { isSubVisibleJudgment, type OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /**
  * Die Strafen aus der Sicht des KG-TRÄGERS — die eine Stelle, an der sie entstehen (Issue #36).
@@ -31,7 +31,8 @@ export interface SubPenalty {
   /** Der Straftext — bei einer Strafaufgabe ihr Titel (siehe `punishWithTask`). */
   penaltyText: string | null;
   judgedAt: Date;
-  done: boolean;
+  /** Erledigt-Zeitpunkt; `null` = die Strafe ist offen. Es gibt bewusst kein zweites `done`-Feld
+   *  daneben — dieselbe Frage zweimal gespeichert driftet irgendwann auseinander. */
   doneAt: Date | null;
   /** Gesetzt, wenn die Strafe eine gestellte Aufgabe IST. */
   taskId: string | null;
@@ -62,7 +63,9 @@ export function selectSubPenalties(sb: StrafbuchData): SubPenalties {
   const byRef = new Map(collectDetectedOffenses(sb).map((o) => [o.refId, o]));
 
   const all: SubPenalty[] = sb.strafeRecords
-    .filter((r) => r.status === "PUNISHED")
+    // Die Zusage dieses Moduls als PRÄDIKAT, nicht als Filter-Ausdruck: derselbe Schnitt gilt im
+    // Posteingang (`messageService.refDetails`).
+    .filter(isSubVisibleJudgment)
     .map((r) => {
       const offense = byRef.get(r.refId);
       return {
@@ -71,17 +74,14 @@ export function selectSubPenalties(sb: StrafbuchData): SubPenalties {
         offenseAt: offense?.at ?? null,
         penaltyText: r.reason,
         judgedAt: r.bestraftDatum,
-        done: r.erledigtAt !== null,
         doneAt: r.erledigtAt,
         taskId: r.taskId,
       };
     });
 
   return {
-    open: all.filter((p) => !p.done).sort(byNewest((p) => p.judgedAt)),
-    // `doneAt` ist bei `done: true` immer gesetzt (es IST das Kriterium); der Fallback hält die
-    // Sortierung trotzdem total, statt bei einer Alt-Zeile still auf 1970 zu springen.
-    done: all.filter((p) => p.done).sort(byNewest((p) => p.doneAt ?? p.judgedAt)),
+    open: all.filter((p) => p.doneAt === null).sort(byNewest((p) => p.judgedAt)),
+    done: all.filter((p) => p.doneAt !== null).sort(byNewest((p) => p.doneAt ?? p.judgedAt)),
   };
 }
 

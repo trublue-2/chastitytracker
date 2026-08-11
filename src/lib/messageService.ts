@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { isSubVisibleJudgment } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
 
@@ -255,7 +256,10 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
     (["offense", "control", "lockRequest", "orgasmDirective", "task"] as const).map((t) => idsOfType(rows, t));
 
   const [offenses, controls, lockRequests, orgasmDirectives, tasks] = await Promise.all([
-    offenseIds.length ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, reason: true } }) : [],
+    // `status` mitlesen: ein verworfenes Urteil darf den Sub gar nicht erst erreichen — siehe
+    // `isSubVisibleJudgment`. Ohne diese Spalte zeigte eine alte „Strafe verhängt"-Nachricht nach
+    // einer Korrektur auf PUNISHED→DISMISSED die VERWERFUNGS-Begründung.
+    offenseIds.length ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, reason: true, status: true } }) : [],
     // Mehr als der Kommentar: aus Code + Zustand entsteht das Link-Ziel (siehe unten).
     controlIds.length ? prisma.kontrollAnforderung.findMany({
       where: { id: { in: controlIds }, userId: subjectUserId },
@@ -274,7 +278,7 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
 
   const now = new Date();
   const details = new Map<string, RefDetail>();
-  for (const o of offenses) details.set(refKey("offense", o.id), { text: o.reason, actionCode: null, hidden: false });
+  for (const o of offenses) details.set(refKey("offense", o.id), { text: o.reason, actionCode: null, hidden: !isSubVisibleJudgment(o) });
   for (const c of controls) {
     // Ein Ziel gibt es NUR bei der offenen Kontrolle — dort steht eine Handlung an. Erfüllt,
     // abgelaufen, zurückgezogen oder noch nicht ausgelöst: kein Ziel, das etwas beiträgt. Der

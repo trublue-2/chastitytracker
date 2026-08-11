@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -265,8 +266,14 @@ export default async function DashboardPage() {
       <OpenTasks tasks={taskCards} tz={tz} />
       {/* UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
           Der Block lädt selbst — sonst müsste diese Seite dieselbe Auflösung noch einmal aufrufen,
-          nur um sie durchzureichen, und die Strafen-Seite täte es ein drittes Mal. */}
-      <OpenPenalties userId={userId} tz={tz} />
+          nur um sie durchzureichen, und die Strafen-Seite täte es ein drittes Mal. Deshalb in
+          `Suspense`: sein Laden hängt sonst als weitere serielle Phase am Seiten-Rendering, und die
+          ganze Seite wartete auf einen Block, den die meisten Nutzer nie zu sehen bekommen.
+          `dashboardTaskIds` = die Aufgaben, die oben tatsächlich stehen — daran entscheidet der
+          Block, ob eine Strafaufgabe hier zu wiederholen wäre. */}
+      <Suspense fallback={null}>
+        <OpenPenalties userId={userId} tz={tz} now={now} dashboardTaskIds={new Set(taskCards.map((c) => c.id))} />
+      </Suspense>
       {showLaufendeSession && (
         <DashboardBlock>
           <LaufendeSessionCard
