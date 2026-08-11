@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, ClipboardList, Droplets, Bell } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, ClipboardList, Droplets, Bell, Gavel } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
@@ -93,6 +93,17 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           iconStyle={{ backgroundColor: "var(--color-surface-raised)", color: "var(--color-foreground-muted)" }}
           title={tt("actionTitle")}
           hint={tt("actionHint")}
+        />
+
+        {/* Steht bei den Anforderungen und nicht bei den Einträgen: die Zeilen dort legen einen
+            `Entry` an, ein notiertes Vergehen ist gerade die Art, die NICHT aus Einträgen
+            abgeleitet wird (`offenseTypes.ts`). Kein Gate — es hat keine Vorbedingung. */}
+        <ActionRow
+          href={`${base}/vergehen`}
+          icon={<Gavel size={20} strokeWidth={2} />}
+          iconStyle={tone("warn")}
+          title={t("recordOffense")}
+          hint={t("recordOffenseHint")}
         />
       </ActionRowGroup>
 

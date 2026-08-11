@@ -201,6 +201,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchOhneDirektive: t("strafbuchOhneDirektive"),
     strafbuchManuelleVergehen: t("strafbuchManuelleVergehen"),
     strafbuchNotiertVon: t("strafbuchNotiertVon"),
+    strafbuchZurueckziehen: t("strafbuchZurueckziehen"),
     deviceLabel: t("deviceLabel"),
   };
 

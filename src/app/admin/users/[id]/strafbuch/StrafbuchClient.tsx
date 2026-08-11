@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, ChevronDown, ClipboardList, XCircle } from "lucide-react";
-import { parseApiError } from "@/lib/apiClient";
+import { CheckCircle, ChevronDown, ClipboardList, Undo2, XCircle } from "lucide-react";
+import { parseApiError, parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
+import FormError from "@/app/components/FormError";
 import { taskFormHref } from "@/lib/entryFormRoute";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
 import type { TaskOffenseState } from "@/lib/tasks";
@@ -196,6 +198,7 @@ interface Labels {
   strafbuchOhneDirektive: string;
   strafbuchManuelleVergehen: string;
   strafbuchNotiertVon: string;
+  strafbuchZurueckziehen: string;
   deviceLabel: string;
 }
 
@@ -238,8 +241,65 @@ function sec<C extends OffenseCanonicalType>(canonical: C, title: string, rows: 
 
 const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
+/**
+ * Ein von Hand notiertes Vergehen zurückziehen — der Weg zurück für einen Fehleintrag. Die Route
+ * setzt `withdrawnAt`, löscht also nicht: das Vergehen fällt aus dem Strafbuch, bleibt aber
+ * nachlesbar.
+ *
+ * Auf MODUL-Ebene, weil eine Komponente mit eigenem Zustand dorthin gehört. Das allein rettet ihren
+ * Zustand hier noch nicht: ihr Elter `JudgmentSlot` wird weiterhin im Rumpf von `StrafbuchClient`
+ * deklariert, bekommt also bei jedem Eltern-Render eine neue Identität, und React hängt den
+ * Teilbaum samt `saving`/`error` neu ein. Praktisch heisst das: eine Fehlermeldung überlebt den
+ * nächsten Klick auf einen anderen Chip nicht. Das aufzulösen hiesse, `JudgmentSlot` (und die
+ * übrigen sechs Unter-Komponenten dieser Datei) mit herauszuziehen — eine eigene Aufräum-Runde,
+ * nicht Teil dieser Änderung. Der Rückzug ist idempotent, ein zweiter Klick ergibt einen 409.
+ */
+function ZurueckziehenButton({ id, chipClass, label, networkError, resolveError, onDone }: {
+  id: string;
+  chipClass: string;
+  label: string;
+  networkError: string;
+  resolveError: (code: string | null) => string;
+  onDone: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function withdraw() {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/offense", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) onDone();
+      else setError(resolveError(await parseApiErrorCode(res)));
+    } catch {
+      setError(networkError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <button type="button" onClick={withdraw} disabled={saving}
+        className={`${chipClass} text-foreground-faint border-border hover:bg-surface-raised hover:text-foreground disabled:opacity-50`}>
+        <Undo2 size={11} />
+        {label}
+      </button>
+      <FormError message={error} variant="compact" />
+    </div>
+  );
+}
+
 export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, manuelleVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
+  // Die Vergehens-Route (`/api/admin/offense`) liefert stabile Fehler-CODES; `/api/admin/strafe`
+  // liefert bis heute fertige Sätze und bleibt darum bei `parseApiError`.
+  const apiError = useApiError();
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
   const [openDismissId, setOpenDismissId] = useState<string | null>(null);
@@ -437,7 +497,12 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  /** 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Aktionen. */
+  /** 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Aktionen.
+   *
+   *  Der Rückzug hängt hier mit dran, weil er dieselbe Sichtbarkeitsregel hat wie die Urteils-Chips:
+   *  ist das Vergehen beurteilt, kehrt die Funktion oben aus, und er verschwindet mit ihnen. Nur die
+   *  von Hand NOTIERTE Art hat ihn überhaupt — alle anderen leiten sich aus Einträgen ab, dort gäbe
+   *  es nichts zurückzuziehen. */
   function JudgmentSlot({ refId, offenseType, anlass }: { refId: string; offenseType: StoredOffenseType; anlass: string }) {
     if (punishedIds.has(refId)) return <PunishedBadge refId={refId} />;
     if (dismissedIds.has(refId)) return <DismissedBadge refId={refId} />;
@@ -446,6 +511,10 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         <WurdeBestraftButton refId={refId} offenseType={offenseType} />
         <StrafaufgabeButton refId={refId} anlass={anlass} />
         <VerwerfenButton refId={refId} offenseType={offenseType} />
+        {offenseType === STORED_TYPE.manual_offense && (
+          <ZurueckziehenButton id={refId} chipClass={CHIP_CLS} label={labels.strafbuchZurueckziehen}
+            networkError={labels.networkError} resolveError={apiError} onDone={() => router.refresh()} />
+        )}
       </div>
     );
   }

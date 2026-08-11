@@ -40,6 +40,10 @@ export const SHARED_SERVICE_CODES = [
   "INVALID_ORGASM_TYPE",
   "USER_NO_EMAIL",
   "INVALID_DATETIME",
+  // Wie `NOT_FOUND` und `INVALID_IMAGE_URL` schon bei den Entry-Routen deklariert und hier bewusst
+  // MITBENUTZT statt dupliziert: „Zeitpunkt darf nicht in der Zukunft liegen" ist derselbe Satz,
+  // egal ob ein Eintrag oder ein notiertes Vergehen vordatiert wird.
+  "TIME_IN_FUTURE",
   "INTERNAL_ERROR",
   "UNKNOWN_ACTION",
   "USER_NOT_LOCKED",
@@ -104,14 +108,28 @@ export const ORGASM_DIRECTIVE_CODES = [
   "ORGASM_NOT_OPEN",
 ] as const;
 
-/** strafurteilService. Reachable only through the MCP (`judge_offense`) — no route calls it — so
- *  these surface as English sentences via `unwrap()`, never in the browser. They still need both
- *  translations: the parity test makes no exception, and a future admin route would need them. */
+/** strafurteilService, erreichbar über den MCP (`judge_offense`) — dort werden sie via `unwrap()` zu
+ *  englischen Sätzen. Ausnahme ist `OFFENSE_NOT_FOUND`: es beschreibt „zu dieser Referenz gibt es
+ *  kein offenes Vergehen" und gilt wörtlich auch für den Rückzug eines notierten Vergehens
+ *  (/api/admin/offense), der es im BROWSER zeigt — darum steht es hier und nicht doppelt unten.
+ *  Beide Übersetzungen braucht ohnehin jeder Code, der Paritätstest macht keine Ausnahme. */
 export const JUDGMENT_CODES = [
   "JUDGMENT_NOT_FOUND",
   "PENALTY_NOT_PUNISHED",
   "PENALTY_TEXT_REQUIRED",
   "OFFENSE_NOT_FOUND",
+] as const;
+
+/** manualOffenseService (von Hand notierte Vergehen).
+ *
+ *  Eigene `OFFENSE_*`-Codes statt der gleichlautenden `TASK_TITLE_*`: die Namensräume folgen hier
+ *  durchgehend dem Begriff, nicht dem Satz. Den Zukunfts-Zeitpunkt deckt dagegen das geteilte
+ *  `TIME_IN_FUTURE` ab — dort ist der Satz wirklich derselbe. */
+export const MANUAL_OFFENSE_CODES = [
+  "OFFENSE_TITLE_REQUIRED",
+  "OFFENSE_TITLE_TOO_LONG",
+  "OFFENSE_DESCRIPTION_TOO_LONG",
+  "OFFENSE_ALREADY_WITHDRAWN",
 ] as const;
 
 /** deviceReferenceService (curated device reference photos). */
@@ -195,6 +213,7 @@ export const SERVICE_ERROR_CODES = [
     ...LOCK_CODES,
     ...ORGASM_DIRECTIVE_CODES,
     ...JUDGMENT_CODES,
+    ...MANUAL_OFFENSE_CODES,
     ...REFERENCE_CODES,
     ...DEVICE_CODES,
     ...BOX_CODES,
@@ -215,6 +234,7 @@ export type ServiceErrorCode =
   | (typeof LOCK_CODES)[number]
   | (typeof ORGASM_DIRECTIVE_CODES)[number]
   | (typeof JUDGMENT_CODES)[number]
+  | (typeof MANUAL_OFFENSE_CODES)[number]
   | (typeof REFERENCE_CODES)[number]
   | (typeof DEVICE_CODES)[number]
   | (typeof BOX_CODES)[number]

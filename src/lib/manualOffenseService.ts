@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { markLastAction } from "@/lib/appMeta";
+import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 
 /**
  * Von Hand notierte Vergehen (`ManualOffense`) — die einzige Vergehensart, die GESCHRIEBEN statt
@@ -24,6 +26,48 @@ export interface CreateManualOffenseParams {
   description: string | null;
   /** Wer notiert hat: `"ai"` über den MCP, sonst der Username des Keyholders. */
   createdBy: string;
+}
+
+/**
+ * Prüft die Roh-Eingabe eines Formulars/einer Route und formt sie zu {@link CreateManualOffenseParams}.
+ *
+ * Getrennt vom Schreiben, weil die beiden Aufrufer verschieden absagen: der MCP wirft englische
+ * Sätze für den Agenten (`mcpRecordOffense`), der Browser braucht einen stabilen Fehler-CODE, den
+ * `useApiError()` übersetzt. Das ist genau die Trennung, die der Modul-Kopf meint („Wer eine
+ * übersetzte Absage braucht, formuliert sie an seinem Rand") — die REGELN stehen trotzdem hier,
+ * nicht in der Route.
+ *
+ * `typeof`-Prüfungen statt blossem `?.trim()`: die Route reicht rohes JSON durch, und ein
+ * `{"title": 5}` würfe sonst — aus einer Falscheingabe würde ein 500 statt eines 400.
+ */
+export function validateManualOffenseInput(input: {
+  userId: unknown;
+  occurredAt: unknown;
+  title: unknown;
+  description?: unknown;
+  createdBy: string;
+}): ServiceResult<CreateManualOffenseParams> {
+  if (typeof input.userId !== "string" || !input.userId) return serviceFail(400, "USER_ID_REQUIRED");
+
+  const title = typeof input.title === "string" ? input.title.trim() : "";
+  if (!title) return serviceFail(400, "OFFENSE_TITLE_REQUIRED");
+  if (title.length > MANUAL_OFFENSE_TITLE_MAX_LENGTH) return serviceFail(400, "OFFENSE_TITLE_TOO_LONG");
+
+  const description = typeof input.description === "string" ? input.description.trim() || null : null;
+  if ((description?.length ?? 0) > MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH) {
+    return serviceFail(400, "OFFENSE_DESCRIPTION_TOO_LONG");
+  }
+
+  const occurredAt = input.occurredAt instanceof Date ? input.occurredAt : new Date(String(input.occurredAt));
+  if (Number.isNaN(occurredAt.getTime())) return serviceFail(400, "INVALID_DATETIME");
+  // Dieselbe Schranke, die `mcpRecordOffense` zieht: ein Vergehen in der Zukunft wäre keine Notiz,
+  // sondern eine Prognose — und das Strafbuch beurteilt jede Tat nach der Regel-Fassung IHRES
+  // Zeitpunkts, die es für morgen noch nicht gibt. Strikt wie bei einem Eintrag
+  // (`validateEntryPayload`), mit demselben `TIME_IN_FUTURE`: eine eigene Kulanz stünde im
+  // Widerspruch zu dem Satz, den der Nutzer liest.
+  if (occurredAt > new Date()) return serviceFail(400, "TIME_IN_FUTURE");
+
+  return { ok: true, data: { userId: input.userId, occurredAt, title, description, createdBy: input.createdBy } };
 }
 
 /** Legt ein notiertes Vergehen an und gibt seine id zurück — zugleich seine Strafbuch-`ref`. */

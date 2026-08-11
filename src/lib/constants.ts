@@ -597,3 +597,11 @@ export const TASK_PROOF_MAX = 10;
 export const TASK_PROOF_DESCRIPTION_MAX_LENGTH = 200;
 export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;
 export type TaskRequirementType = (typeof TASK_REQUIREMENT_TYPES)[number];
+
+// ── Notierte Vergehen (ManualOffense) ───────────────────────────────────────
+/** Längen-Grenzen eines von Hand notierten Vergehens. Zentral hier aus demselben Grund wie bei den
+ *  Aufgaben: dieselben Werte prüft die Route (serverseitig verbindlich) und begrenzt das Formular
+ *  (`maxLength`). Der Titel trägt die Zeile im Strafbuch und wird zum Straf-Anlass einer
+ *  Strafaufgabe — dieselbe Rolle wie ein Aufgaben-Titel, darum dieselbe Grenze. */
+export const MANUAL_OFFENSE_TITLE_MAX_LENGTH = 80;
+export const MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH = 2000;
