@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { clamp } from "@/lib/utils";
+import { clamp, APP_TZ } from "@/lib/utils";
 import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
@@ -11,6 +11,7 @@ import {
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
 } from "@/lib/constants";
 import { codeOf } from "@/lib/codedError";
+import { isSleepingAt, autoKontrolleSettingsFromUser, type AutoKontrolleUserFields } from "@/lib/autoKontrolleService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 interface InspectionEscalationUser {
@@ -32,6 +33,47 @@ interface InspectionEscalationUser {
  * toggles" design: the timestamp always advances once the caller invokes this, only the
  * user-visible notice is gated here.
  */
+/**
+ * WANN Stufe 2 zuschlägt — dieselbe Rechnung, die `processInspectionEscalation` anwendet, nur
+ * vorwärts statt rückwärts. `null` heisst „gar nicht".
+ *
+ * Liegt HIER und nicht beim Anzeiger, weil die Zwei-Stufen-Logik sonst an zwei Orten stünde und der
+ * zweite nur die Hälfte der Regeln kennt. Genau das war der Fall: die erste Fassung im Dashboard
+ * rechnete stur `deadline + beide Verzögerungen` und übersah dabei zweierlei.
+ *
+ * ANKER ist der Mahn-Stempel, sobald er gesetzt ist — Stufe 2 zählt ihre Frist ab ihm, nicht ab der
+ * Kontrollfrist. Ohne diese Unterscheidung wäre die Ankündigung nicht bloss ungenau: wird
+ * `inspectionReminderDelayMinutes` nachträglich hochgesetzt, nachdem gestempelt wurde, verspräche
+ * die Anzeige Stunden, die es nicht gibt — und gebucht würde weit VOR der angekündigten Zeit. Eine
+ * Ankündigung, die zu spät liegt, ist schlimmer als gar keine.
+ *
+ * KEINE Vorhersage für eine Reinigungs-Kontrolle, die im Schlaf-Fenster zugestellt wurde: für die
+ * fällt Stufe 2 dauerhaft aus (siehe die Bedingung im Poller). Eine Drohung, die nie eintritt,
+ * kostet die Glaubwürdigkeit aller anderen.
+ */
+export function predictAutoMarkAt(
+  ka: {
+    deadline: Date;
+    benachrichtigtReminderAt: Date | null;
+    benachrichtigtAt: Date | null;
+    wirksamAb: Date | null;
+    cleaningRelock: boolean;
+  },
+  // Nur die Felder, die die Rechnung liest — nicht der ganze User: so kann ein Aufrufer eine
+  // schmale Zeile laden, statt eine breite laden zu müssen, weil der Typ sie verlangt.
+  user: Pick<InspectionEscalationUser, "inspectionAutoMarkEnabled" | "inspectionReminderDelayMinutes" | "inspectionAutoMarkDelayMinutes">
+    & AutoKontrolleUserFields & { timezone: string | null },
+): Date | null {
+  if (!user.inspectionAutoMarkEnabled) return null;
+  if (ka.cleaningRelock && isSleepingAt(autoKontrolleSettingsFromUser(user), ka.benachrichtigtAt ?? ka.wirksamAb ?? ka.deadline, user.timezone ?? APP_TZ)) {
+    return null;
+  }
+  const anchor = ka.benachrichtigtReminderAt
+    ? ka.benachrichtigtReminderAt.getTime()
+    : ka.deadline.getTime() + user.inspectionReminderDelayMinutes * 60_000;
+  return new Date(anchor + user.inspectionAutoMarkDelayMinutes * 60_000);
+}
+
 export async function sendInspectionReminder(ka: { id: string; code: string | null; user: InspectionEscalationUser }): Promise<void> {
   await prisma.kontrollAnforderung.update({
     where: { id: ka.id },

@@ -18,6 +18,10 @@ interface Props {
    *  genau das. */
   target?: string | null;
   overdue: boolean;
+  /** Wann das System selbst eingreift (Kontrolle als abgelegt buchen). Nur im ÜBERFÄLLIGEN
+   *  large-Banner gezeigt: solange die Frist läuft, ist sie selbst die Nachricht — danach ist die
+   *  Frage nicht mehr „bis wann", sondern „was passiert jetzt". */
+  autoMarkAt?: Date | null;
   variant: "large" | "compact";
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
@@ -43,6 +47,7 @@ export default function KontrolleBanner({
   kommentar,
   target,
   overdue,
+  autoMarkAt,
   variant,
   href,
   actions,
@@ -99,6 +104,13 @@ export default function KontrolleBanner({
         </p>
         {kommentar && (
           <p className="text-xs font-medium mt-1 opacity-90">{t("instruction")}: {kommentar}</p>
+        )}
+        {/* Die Folge, bevor sie eintritt. Ohne diese Zeile erfuhr der Sub vom Eingriff erst, als er
+            schon passiert war — die Automatik war für ihn ein Hinterhalt. */}
+        {overdue && autoMarkAt && (
+          <p className="text-xs font-semibold mt-1">
+            {t("autoMarkWarn", { time: formatDateTimeDual(autoMarkAt, dl, viewerTz, tz, t("subTimePrefix")) })}
+          </p>
         )}
       </div>
       {href && <span className="text-xs font-semibold opacity-70">{t("capture")}</span>}

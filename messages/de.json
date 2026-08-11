@@ -389,7 +389,8 @@
     "cleaningPauseLabel": "Reinigungspause – noch",
     "cleaningPauseRelock": "Wieder einschliessen",
     "cleaningRelockWarn": "Wieder einschliessen bis {time} — danach gilt der Verschluss als versäumt.",
-    "cleaningRelockWarnPassed": "Die Frist um {time} ist verstrichen — der Wiederverschluss gilt als versäumt."
+    "cleaningRelockWarnPassed": "Die Frist um {time} ist verstrichen — der Wiederverschluss gilt als versäumt.",
+    "lockNow": "Jetzt einschliessen"
   },
   "newEntry": {
     "title": "Neu erfassen",
@@ -669,7 +670,8 @@
     "subTimePrefix": "Sub",
     "instruction": "Anweisung",
     "capture": "→ Jetzt erfassen",
-    "help": "Wie funktioniert eine Kontrolle?"
+    "help": "Wie funktioniert eine Kontrolle?",
+    "autoMarkWarn": "Ohne Nachweis bis {time} wird das Gerät automatisch als abgelegt gebucht."
   },
   "stats": {
     "title": "Statistik",

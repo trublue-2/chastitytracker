@@ -6,7 +6,7 @@ import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/li
 import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverSperrzeitOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { APP_TZ } from "@/lib/utils";
-import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
+import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked, predictAutoMarkAt } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch } from "@/lib/delayedTrigger";
@@ -210,17 +210,18 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       entryId: null,
       user: { inspectionAutoMarkEnabled: true },
     },
-    include: { user: { select: { ...AUTO_KONTROLLE_SETTINGS_SELECT, username: true, inspectionAutoMarkDelayMinutes: true } } },
+    include: { user: { select: { ...AUTO_KONTROLLE_SETTINGS_SELECT, username: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true } } },
     take: 50,
   });
   for (const ka of autoMarkDue) {
-    const dueAt = ka.benachrichtigtReminderAt!.getTime() + ka.user.inspectionAutoMarkDelayMinutes * 60_000;
-    if (dueAt > now.getTime()) continue;
-    // Stufe 2 beendet die laufende Session (AUTO_ENTFERNT-Eintrag). Für eine Kontrolle, die nach
-    // einer Reinigungspause IM SCHLAF-FENSTER zugestellt wurde, bleibt es deshalb bei der Mahnung
-    // (Stufe 1 oben läuft normal): verschlafene Minuten dürfen die Session nicht abbrechen.
-    // LIVE abgeleitet statt beim Anlegen eingefroren — ein verschobenes Schlaf-Fenster gilt sofort.
-    if (ka.cleaningRelock && isSleepingAt(autoKontrolleSettingsFromUser(ka.user), ka.benachrichtigtAt ?? ka.wirksamAb ?? ka.deadline, ka.user.timezone ?? APP_TZ)) continue;
+    // DIESELBE Rechnung, die das Dashboard dem Sub ankündigt (`predictAutoMarkAt`). Sie enthält
+    // beides: den Mahn-Stempel als Anker und den Schlaf-Fenster-Sonderfall — für eine Kontrolle, die
+    // nach einer Reinigungspause IM SCHLAF-FENSTER zugestellt wurde, bleibt es bei der Mahnung
+    // (Stufe 1 oben läuft normal), verschlafene Minuten dürfen die Session nicht abbrechen. Wer hier
+    // rechnet und dort ankündigt, hat zwei Wahrheiten — und die Ankündigung ist die, die der Sub
+    // liest.
+    const dueAt = predictAutoMarkAt(ka, ka.user);
+    if (!dueAt || dueAt.getTime() > now.getTime()) continue;
     try {
       const result = await autoMarkInspectionRemoved({ id: ka.id, userId: ka.userId });
       if (!result.skipped) {

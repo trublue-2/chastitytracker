@@ -26,11 +26,18 @@ export interface DashboardAlertsProps {
     target: string | null;
     overdue: boolean;
     href: string;
+    /** Wann das System die Kontrolle selbsttätig als abgelegt bucht — null, wenn die Automatik aus
+     *  ist. Steht nur im überfälligen Banner: vorher ist die Frist die Nachricht. */
+    autoMarkAt: string | null;
   }[];
 
   offeneVerschlussAnf: {
     nachricht: string | null;
     endetAtLabel: string | null;
+    /** Frist verstrichen — das Banner wechselt auf Warnfarbe. */
+    overdue: boolean;
+    /** Ziel des Banners: das Verschluss-Formular, wo möglich mit vorbelegtem Gerät. */
+    href: string;
   } | null;
 
   offeneOrgasmusAnf: {
@@ -64,6 +71,7 @@ export default async function DashboardAlerts({
           kommentar={k.kommentar}
           target={k.target}
           overdue={k.overdue}
+          autoMarkAt={k.autoMarkAt ? new Date(k.autoMarkAt) : null}
           variant="large"
           href={k.href}
           openLabel={t("inspectionRequired")}
@@ -79,6 +87,9 @@ export default async function DashboardAlerts({
           label={t("lockRequested")}
           nachricht={offeneVerschlussAnf.nachricht}
           endetAtLabel={offeneVerschlussAnf.endetAtLabel}
+          overdue={offeneVerschlussAnf.overdue}
+          href={offeneVerschlussAnf.href}
+          actionLabel={t("lockNow")}
         />
       )}
 

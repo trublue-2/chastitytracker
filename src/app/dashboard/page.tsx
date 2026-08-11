@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
+import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
 import { prisma } from "@/lib/prisma";
 import {
@@ -76,7 +78,7 @@ export default async function DashboardPage() {
     // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
     getOpenLockRequest(userId, now),
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true, ...AUTO_KONTROLLE_SETTINGS_SELECT } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
@@ -249,6 +251,11 @@ export default async function DashboardPage() {
       target: inspectionTargetLabel(k),
       overdue: k.deadline < now,
       href: inspectionHref(k.code, { kommentar: k.kommentar, categoryId: k.categoryId }),
+      // WANN das System selbst eingreift — die Zahl, die der Sub bisher nirgends sehen konnte.
+      // Die Rechnung liegt neben der DURCHSETZUNG (`predictAutoMarkAt`), nicht hier: sie kennt den
+      // Mahn-Stempel als Anker und den Schlaf-Fenster-Sonderfall, und beides von Hand nachzubauen
+      // hiesse, die Zwei-Stufen-Logik ein zweites Mal zu führen.
+      autoMarkAt: userSettings ? predictAutoMarkAt(k, { ...userSettings, timezone: tz })?.toISOString() ?? null : null,
     })),
 
     offeneVerschlussAnf: offeneVerschlussAnf ? {
@@ -257,6 +264,13 @@ export default async function DashboardPage() {
         offeneVerschlussAnf.nachricht,
       ),
       endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl, tz) }) : null,
+      // Verstrichen heisst: es läuft bereits ein Vergehen (`late_lock`). Das Banner sah bisher aus
+      // wie am ersten Tag — der einzige Unterschied war ein Datum, das er selbst mit der Uhr
+      // vergleichen musste.
+      overdue: !!offeneVerschlussAnf.endetAt && offeneVerschlussAnf.endetAt < now,
+      // Ohne Geräte-Parameter: das Formular liest die offene Anforderung selbst und belegt ihr Gerät
+      // vor (`anforderungDeviceId`). Ein zweiter Weg dorthin wäre eine zweite Wahrheit.
+      href: "/dashboard/new/verschluss",
     } : null,
 
     offeneOrgasmusAnf: offeneOrgasmusAnf ? {

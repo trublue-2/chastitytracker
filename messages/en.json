@@ -389,7 +389,8 @@
     "cleaningPauseLabel": "Cleaning break – remaining",
     "cleaningPauseRelock": "Lock up again",
     "cleaningRelockWarn": "Lock up again by {time} — after that the relock counts as missed.",
-    "cleaningRelockWarnPassed": "The {time} deadline has passed — the relock counts as missed."
+    "cleaningRelockWarnPassed": "The {time} deadline has passed — the relock counts as missed.",
+    "lockNow": "Lock up now"
   },
   "newEntry": {
     "title": "New entry",
@@ -669,7 +670,8 @@
     "subTimePrefix": "sub",
     "instruction": "Instruction",
     "capture": "→ Submit now",
-    "help": "How does an inspection work?"
+    "help": "How does an inspection work?",
+    "autoMarkWarn": "Without proof by {time}, the device is booked as removed automatically."
   },
   "stats": {
     "title": "Statistics",
