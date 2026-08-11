@@ -1,24 +1,25 @@
 import { describe, it, expect, vi } from "vitest";
 
 /**
- * Die Träger-Sicht auf die Strafen (Issue #36). Zwei Zusagen tragen das ganze Feature:
+ * Das Strafbuch aus der Sicht des Trägers (Issue #36). Zwei Zusagen tragen das Feature:
  *
- *  1. Der Träger sieht NUR verhängte Urteile. Ein erkanntes, aber unbeurteiltes Vergehen und jedes
- *     verworfene Urteil bleiben unsichtbar — sonst läse er eine Anschuldigung, die die Keyholderin
- *     gerade abgewinkt hat.
+ *  1. Er sieht ALLES — erkannte, verworfene und bestrafte Vergehen, jedes mit seinem Zustand. Bis
+ *     v5.0.12 waren es nur die verhängten Strafen; die Begründung („sie soll still abwinken
+ *     können") ist bewusst aufgegeben, weil eine Zeile, die er gesehen hat und die dann wortlos
+ *     verschwindet, schlechter ist als beides.
  *  2. Vergehensart und Tatzeitpunkt kommen aus der abgeleiteten Vergehens-Liste, nicht aus dem
  *     gespeicherten `offenseType`: der ist nicht kanonisch (eine „KONTROLLANFORDERUNG" ist entweder
  *     `late_control` oder `rejected_control`) und trägt keinen Tatzeitpunkt.
  */
 
-// `selectSubPenalties` ist rein — die Mocks halten nur die Modulkette (strafbuch → prisma,
+// `selectSubOffenses` ist rein — die Mocks halten nur die Modulkette (strafbuch → prisma,
 // strafurteilService → notify/taskService) vom Laden ab.
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
-import { selectSubPenalties } from "./openPenalties";
+import { selectSubOffenses, openPenaltiesOf } from "./subOffenses";
 import { cleaningNotRelockedRef, type StrafbuchData } from "./strafbuch";
 
 type Judgment = StrafbuchData["strafeRecords"][number];
@@ -63,44 +64,32 @@ const opening = (id: string, startTime: Date) => ({
   id, startTime, note: null, sperrzeitEndetAt: null, sperrzeitIndefinite: false,
 });
 
-describe("selectSubPenalties — was der Träger sehen darf", () => {
-  it("zeigt verhängte Strafen", () => {
-    const sb = strafbuch({
-      unauthorizedOpenings: [opening("e1", new Date("2026-07-30T08:00:00Z"))],
-      strafeRecords: [judgment({ refId: "e1" })],
-    });
+describe("selectSubOffenses — Zustände", () => {
+  it("ein erkanntes, unbeurteiltes Vergehen ist offen — und sichtbar", () => {
+    const sb = strafbuch({ unauthorizedOpenings: [opening("e1", new Date("2026-07-30T08:00:00Z"))] });
 
-    const { open, done } = selectSubPenalties(sb);
-    expect(open).toHaveLength(1);
-    expect(done).toHaveLength(0);
-    expect(open[0]).toMatchObject({
+    expect(selectSubOffenses(sb)).toMatchObject([{
       refId: "e1",
       offenseType: "unauthorized_opening",
       offenseAt: new Date("2026-07-30T08:00:00Z"),
-      penaltyText: "20 Schläge",
-      judgedAt: new Date("2026-08-01T10:00:00Z"),
-      taskId: null,
-    });
+      state: "open",
+      text: null,
+      judgedAt: null,
+    }]);
   });
 
-  it("verschweigt verworfene Urteile", () => {
+  it("ein verworfenes Urteil VERSCHWINDET NICHT, es wird als verworfen ausgewiesen", () => {
+    // Der Kern der Entscheidung: hätte der Träger die Zeile erst gesehen und dann nicht mehr,
+    // könnte er „abgewunken" nicht von „kaputt" unterscheiden.
     const sb = strafbuch({
       unauthorizedOpenings: [opening("e1", new Date("2026-07-30T08:00:00Z"))],
       strafeRecords: [judgment({ refId: "e1", status: "DISMISSED", reason: "war abgesprochen" })],
     });
 
-    expect(selectSubPenalties(sb)).toEqual({ open: [], done: [] });
+    expect(selectSubOffenses(sb)).toMatchObject([{ state: "dismissed", text: "war abgesprochen" }]);
   });
 
-  it("verschweigt erkannte, aber unbeurteilte Vergehen", () => {
-    const sb = strafbuch({
-      unauthorizedOpenings: [opening("e1", new Date("2026-07-30T08:00:00Z"))],
-    });
-
-    expect(selectSubPenalties(sb)).toEqual({ open: [], done: [] });
-  });
-
-  it("trennt offen von erledigt", () => {
+  it("bestraft und erledigt sind zwei Zustände, nicht einer", () => {
     const sb = strafbuch({
       unauthorizedOpenings: [
         opening("e1", new Date("2026-07-30T08:00:00Z")),
@@ -112,14 +101,29 @@ describe("selectSubPenalties — was der Träger sehen darf", () => {
       ],
     });
 
-    const { open, done } = selectSubPenalties(sb);
-    expect(open.map((p) => p.refId)).toEqual(["e1"]);
-    expect(done.map((p) => p.refId)).toEqual(["e2"]);
-    expect(done[0]).toMatchObject({ doneAt: new Date("2026-08-02T12:00:00Z") });
+    const byRef = new Map(selectSubOffenses(sb).map((o) => [o.refId, o.state]));
+    expect(byRef.get("e1")).toBe("punished");
+    expect(byRef.get("e2")).toBe("done");
+  });
+
+  it("openPenaltiesOf liefert genau die offenen Strafen — das, was den Träger fordert", () => {
+    const sb = strafbuch({
+      unauthorizedOpenings: [
+        opening("a", new Date("2026-07-30T08:00:00Z")),
+        opening("b", new Date("2026-07-29T08:00:00Z")),
+        opening("c", new Date("2026-07-28T08:00:00Z")),
+      ],
+      strafeRecords: [
+        judgment({ refId: "b" }),
+        judgment({ refId: "c", status: "DISMISSED" }),
+      ],
+    });
+
+    expect(openPenaltiesOf(selectSubOffenses(sb)).map((o) => o.refId)).toEqual(["b"]);
   });
 });
 
-describe("selectSubPenalties — Auflösung und Reihenfolge", () => {
+describe("selectSubOffenses — Auflösung und Reihenfolge", () => {
   it("löst denselben gespeicherten Typ je nach Vergehens-Liste kanonisch auf", () => {
     const control = (id: string) => ({
       id, code: "12345", deadline: new Date("2026-07-20T10:00:00Z"),
@@ -132,7 +136,7 @@ describe("selectSubPenalties — Auflösung und Reihenfolge", () => {
       strafeRecords: [judgment({ refId: "k1" }), judgment({ refId: "k2" })],
     });
 
-    const types = new Map(selectSubPenalties(sb).open.map((p) => [p.refId, p.offenseType]));
+    const types = new Map(selectSubOffenses(sb).map((o) => [o.refId, o.offenseType]));
     expect(types.get("k1")).toBe("late_control");
     expect(types.get("k2")).toBe("rejected_control");
   });
@@ -149,7 +153,7 @@ describe("selectSubPenalties — Auflösung und Reihenfolge", () => {
       strafeRecords: [judgment({ refId: cleaningNotRelockedRef("e9") })],
     });
 
-    expect(selectSubPenalties(sb).open[0]).toMatchObject({
+    expect(selectSubOffenses(sb)[0]).toMatchObject({
       offenseType: "cleaning_not_relocked",
       offenseAt: new Date("2026-07-25T06:15:00Z"),
     });
@@ -158,9 +162,9 @@ describe("selectSubPenalties — Auflösung und Reihenfolge", () => {
   it("behält ein Urteil, dessen Vergehen nicht mehr abgeleitet wird — ohne Art und Tatzeit", () => {
     const sb = strafbuch({ strafeRecords: [judgment({ refId: "weg" })] });
 
-    expect(selectSubPenalties(sb).open[0]).toMatchObject({
-      refId: "weg", offenseType: null, offenseAt: null, penaltyText: "20 Schläge",
-    });
+    expect(selectSubOffenses(sb)).toMatchObject([{
+      refId: "weg", offenseType: null, offenseAt: null, state: "punished", text: "20 Schläge",
+    }]);
   });
 
   it("reicht die Strafaufgabe durch, damit die Anzeige sie nicht doppelt zeigt", () => {
@@ -169,28 +173,23 @@ describe("selectSubPenalties — Auflösung und Reihenfolge", () => {
       strafeRecords: [judgment({ refId: "e1", taskId: "t1", reason: "Wohnung staubsaugen" })],
     });
 
-    expect(selectSubPenalties(sb).open[0].taskId).toBe("t1");
+    expect(selectSubOffenses(sb)[0].taskId).toBe("t1");
   });
 
-  it("sortiert offene nach Urteil und erledigte nach Erledigung, je neueste zuerst", () => {
+  it("sortiert nach dem JÜNGSTEN Ereignis der Zeile, nicht nach der Tatzeit", () => {
+    // Sonst stünde ein heute beurteiltes Vergehen von letzter Woche unter einem gestern erkannten.
     const sb = strafbuch({
       unauthorizedOpenings: [
-        opening("a", new Date("2026-07-01T08:00:00Z")),
-        opening("b", new Date("2026-07-02T08:00:00Z")),
-        opening("c", new Date("2026-07-03T08:00:00Z")),
-        opening("d", new Date("2026-07-04T08:00:00Z")),
+        opening("alt-beurteilt", new Date("2026-07-01T08:00:00Z")),
+        opening("neu-erkannt", new Date("2026-08-03T08:00:00Z")),
+        opening("erledigt", new Date("2026-07-02T08:00:00Z")),
       ],
       strafeRecords: [
-        judgment({ refId: "a", bestraftDatum: new Date("2026-08-01T00:00:00Z") }),
-        judgment({ refId: "b", bestraftDatum: new Date("2026-08-03T00:00:00Z") }),
-        // Später geurteilt, aber früher erledigt: die Historie folgt der Erledigung.
-        judgment({ refId: "c", bestraftDatum: new Date("2026-08-02T00:00:00Z"), erledigtAt: new Date("2026-08-05T00:00:00Z") }),
-        judgment({ refId: "d", bestraftDatum: new Date("2026-08-04T00:00:00Z"), erledigtAt: new Date("2026-08-04T12:00:00Z") }),
+        judgment({ refId: "alt-beurteilt", bestraftDatum: new Date("2026-08-04T00:00:00Z") }),
+        judgment({ refId: "erledigt", bestraftDatum: new Date("2026-08-01T00:00:00Z"), erledigtAt: new Date("2026-08-06T00:00:00Z") }),
       ],
     });
 
-    const { open, done } = selectSubPenalties(sb);
-    expect(open.map((p) => p.refId)).toEqual(["b", "a"]);
-    expect(done.map((p) => p.refId)).toEqual(["c", "d"]);
+    expect(selectSubOffenses(sb).map((o) => o.refId)).toEqual(["erledigt", "alt-beurteilt", "neu-erkannt"]);
   });
 });

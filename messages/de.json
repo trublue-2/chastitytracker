@@ -275,7 +275,7 @@
     "adminDesign": "Admin",
     "menu": "Menü öffnen",
     "devices": "Meine Devices",
-    "penalties": "Strafen"
+    "penalties": "Strafbuch"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -1704,20 +1704,28 @@
     }
   },
   "penalties": {
-    "title": "Strafen",
-    "intro": "Verhängte Strafen. Als erledigt melden kann sie nur deine Keyholderin.",
+    "title": "Strafbuch",
+    "intro": "Alle Vergehen, die die App aus deinen Einträgen ableitet — mit dem Stand, ob darüber schon entschieden wurde.",
     "dashboardTitle": "Offene Strafen",
-    "openTitle": "Offen",
+    "openTitle": "Offene Strafen",
     "doneTitle": "Erledigt",
     "viewAll": "Alle ansehen",
     "offenseAt": "Vergehen vom {date}",
     "offenseUnknown": "Vergehen nicht mehr zuordenbar",
     "judgedAt": "Verhängt am {date}",
     "doneAt": "erledigt am {date}",
-    "badgeOpen": "Offen",
+    "badgeOpen": "Noch nicht beurteilt",
     "badgeDone": "Erledigt",
     "badgeTask": "Als Aufgabe gestellt",
-    "empty": "Keine Strafen",
-    "emptyHint": "Es wurde noch keine Strafe verhängt."
+    "empty": "Nichts im Strafbuch",
+    "emptyHint": "Hier steht, was die App als Vergehen erkennt — und was deine Keyholderin daraus macht.",
+    "derivedNote": "Die Liste wird bei jedem Aufruf neu berechnet — ein korrigierter Eintrag kann eine Zeile verschwinden lassen. Beurteilte Zeilen bleiben in jedem Fall stehen.",
+    "detectedTitle": "Noch nicht beurteilt",
+    "dismissedTitle": "Fallengelassen",
+    "badgeDismissed": "Fallengelassen",
+    "badgePunished": "Strafe offen",
+    "penaltyLabel": "Strafe",
+    "dismissReasonLabel": "Begründung",
+    "decidedAt": "Entschieden am {date}"
   }
 }

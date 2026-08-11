@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import PenaltyList from "@/app/components/PenaltyList";
+import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
-import { loadSubPenalties } from "@/lib/openPenalties";
+import { loadSubOffenses, openPenaltiesOf } from "@/lib/subOffenses";
 
 /** Wie viele Strafen im Dashboard ausliegen, bevor auf die Seite verwiesen wird. Kein Aufklapper wie
  *  beim Aufgaben-Stapel: „Alle ansehen" führt hier auf eine Seite, die es ohnehin gibt. */
@@ -11,6 +11,10 @@ const DASHBOARD_LIMIT = 3;
 
 /**
  * Der Strafen-Block des Sub-Dashboards — UNTER dem Aufgaben-Block.
+ *
+ * Zeigt NUR die offenen Strafen, nicht das ganze Strafbuch: die Übersicht beantwortet „was steht
+ * an?", nicht „was ist alles vorgefallen?". Erkannte, noch unbeurteilte Vergehen stehen auf der
+ * Strafbuch-Seite — als Mängelliste auf dem Dashboard wären sie eine Dauerbeschallung.
  *
  * Begründung der Platzierung: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand. Sie
  * gehört deshalb weder über die Fristen-Banner noch zwischen sie.
@@ -45,7 +49,7 @@ export default async function OpenPenalties({
   });
   if (openCount === 0) return null;
 
-  const { open } = await loadSubPenalties(userId, now);
+  const open = openPenaltiesOf(await loadSubOffenses(userId, now));
 
   // DOPPELUNG MIT DEM AUFGABEN-BLOCK: Ist die Strafe eine AUFGABE, die gerade darüber steht, dann
   // steht dort bereits alles — Titel (= der Straftext, siehe `punishWithTask`), Frist, Bedingungen,
@@ -77,7 +81,7 @@ export default async function OpenPenalties({
         </Link>
       </div>
 
-      <PenaltyList penalties={rows} tz={tz} />
+      <OffenseList offenses={rows} tz={tz} />
     </DashboardBlock>
   );
 }

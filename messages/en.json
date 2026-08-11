@@ -275,7 +275,7 @@
     "adminDesign": "Admin",
     "menu": "Open menu",
     "devices": "My Devices",
-    "penalties": "Penalties"
+    "penalties": "Offense record"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -1704,20 +1704,28 @@
     }
   },
   "penalties": {
-    "title": "Penalties",
-    "intro": "Penalties imposed on you. Only your keyholder can mark them as done.",
+    "title": "Offense record",
+    "intro": "Every offense the app derives from your entries — with whether it has been ruled on yet.",
     "dashboardTitle": "Open penalties",
-    "openTitle": "Open",
-    "doneTitle": "Done",
+    "openTitle": "Open penalties",
+    "doneTitle": "Completed",
     "viewAll": "View all",
     "offenseAt": "Offence on {date}",
     "offenseUnknown": "Offence no longer identifiable",
     "judgedAt": "Imposed on {date}",
     "doneAt": "done on {date}",
-    "badgeOpen": "Open",
-    "badgeDone": "Done",
+    "badgeOpen": "Not yet ruled on",
+    "badgeDone": "Completed",
     "badgeTask": "Set as a task",
-    "empty": "No penalties",
-    "emptyHint": "No penalty has been imposed yet."
+    "empty": "Nothing on record",
+    "emptyHint": "This is what the app detects as an offense — and what your keyholder makes of it.",
+    "derivedNote": "The list is recalculated on every visit — a corrected entry can make a row disappear. Rows already ruled on always stay.",
+    "detectedTitle": "Not yet ruled on",
+    "dismissedTitle": "Dropped",
+    "badgeDismissed": "Dropped",
+    "badgePunished": "Penalty open",
+    "penaltyLabel": "Penalty",
+    "dismissReasonLabel": "Reason",
+    "decidedAt": "Decided on {date}"
   }
 }

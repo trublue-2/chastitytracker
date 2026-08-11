@@ -2,71 +2,89 @@ import { redirect } from "next/navigation";
 import { Gavel } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import PenaltyList from "@/app/components/PenaltyList";
+import OffenseList from "@/app/components/OffenseList";
 import EmptyState from "@/app/components/EmptyState";
 import { APP_TZ } from "@/lib/utils";
 import { HISTORY_LIMIT } from "@/lib/taskIntervals";
-import { loadSubPenalties, type SubPenalty } from "@/lib/openPenalties";
-
-
-/** Wie viele erledigte Strafen der Verlauf zeigt. IMPORTIERT statt wiederholt: der Kommentar sagte
- *  „derselbe Deckel wie bei der Aufgaben-Historie", aber nichts erzwang das — die eine Zahl konnte
- *  wandern und die andere stehenbleiben. */
-const DONE_LIMIT = HISTORY_LIMIT;
+import { loadSubOffenses, type SubOffense, type SubOffenseState } from "@/lib/subOffenses";
 
 /**
- * Die Strafen des KG-Trägers (Issue #36) — bisher erfuhr er ihren Stand nur über die Keyholderin.
+ * Die Abschnitte der Seite, in dieser Reihenfolge — was ihn FORDERT zuerst.
  *
- * Heisst für ihn „Strafen" und nicht „Strafbuch": er sieht die gefällten Urteile, nicht das Buch, in
- * dem über Vergehen entschieden wird. Der Keyholder-Bereich behält „Strafbuch".
+ * `open` (erkannt, noch nicht beurteilt) steht bewusst NICHT zuoberst: eine offene Strafe ist eine
+ * Tatsache, ein unbeurteiltes Vergehen erst eine Feststellung.
  *
- * SICHERHEIT: die Strafen kommen ausschliesslich aus der SESSION, nie aus einem Pfad- oder
+ * ERLEDIGTE Strafen fehlen hier absichtlich: eine abgeschlossene Strafe fordert nichts mehr und
+ * gehört nicht in eine Liste, die sagt, woran man ist. Sie sind damit für den Träger weg — die
+ * Keyholderin sieht sie weiterhin im Admin-Strafbuch.
+ *
+ * FALLENGELASSENE bleiben dagegen stehen, und das ist kein Widerspruch: Sie sind die einzige
+ * Auflösung, die er sonst nirgends sieht. Verschwände die Zeile, könnte er „sie hat es
+ * fallengelassen" nicht von „die Ableitung hat sich geändert" unterscheiden — genau der Grund,
+ * warum diese Seite überhaupt vollständig ist.
+ */
+const SECTIONS: { state: SubOffenseState; titleKey: string; limit?: number }[] = [
+  { state: "punished", titleKey: "openTitle" },
+  { state: "open", titleKey: "detectedTitle" },
+  { state: "dismissed", titleKey: "dismissedTitle", limit: HISTORY_LIMIT },
+];
+
+/**
+ * Das Strafbuch des KG-Trägers (Issue #36).
+ *
+ * VOLLSTÄNDIG und ohne Zutun der Keyholderin: erkannte Vergehen erscheinen hier, sobald das System
+ * sie ableitet. Deshalb heisst die Seite auch „Strafbuch" und nicht mehr „Strafen" — sie zeigt
+ * dasselbe wie die Keyholder-Sicht, nur ohne Knöpfe. Warum das die Zusage „sie kann still abwinken"
+ * aufgibt und warum das ganz oder gar nicht geht, steht im Kopf von `subOffenses.ts`.
+ *
+ * SICHERHEIT: die Daten kommen ausschliesslich aus der SESSION, nie aus einem Pfad- oder
  * Query-Parameter — dieselbe Regel wie auf `/dashboard/messages` und dem Dashboard selbst. Eine
  * fremde Sicht gibt es unter `/admin/users/[id]/strafbuch`, hinter `assertKeyholderOrAdmin`.
  */
-export default async function PenaltiesPage() {
+export default async function StrafbuchPage() {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
-  // Dasselbe Tor wie im Dashboard-Block: gibt es kein einziges Urteil, braucht die Leer-Ansicht
-  // kein Strafbuch (~20 Abfragen). Eine indizierte Zählzeile beantwortet das.
-  const [judged, t] = await Promise.all([
-    prisma.strafeRecord.count({ where: { userId, status: "PUNISHED" } }),
-    getTranslations("penalties"),
-  ]);
-  const { open, done } = judged > 0 ? await loadSubPenalties(userId) : { open: [], done: [] };
-  // Die Zeitzone des Trägers — es sind seine Strafen, und diese Seite ist seine.
+  // Kein Zähl-Tor mehr davor wie bei der reinen Strafen-Sicht: unbeurteilte Vergehen stehen in
+  // keiner Tabelle, die sich billig zählen liesse — sie ENTSTEHEN erst beim Ableiten.
+  const [offenses, t] = await Promise.all([loadSubOffenses(userId), getTranslations("penalties")]);
+  // Die Zeitzone des Trägers — es ist sein Buch, und diese Seite ist seine.
   const tz = session.user.timezone ?? APP_TZ;
 
-  const section = (titleKey: string, penalties: SubPenalty[]) =>
-    penalties.length > 0 && (
-      <section className="mt-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">{t(titleKey)}</h2>
-        <PenaltyList penalties={penalties} tz={tz} />
-      </section>
-    );
+  const byState = (state: SubOffenseState) => offenses.filter((o) => o.state === state);
+  // „Nichts im Strafbuch" muss sich auf das beziehen, was die Seite ZEIGT — sonst stünde bei einem
+  // Träger mit ausschliesslich erledigten Strafen ein Leer-Zustand über einer Seite, die tatsächlich
+  // etwas kennt, es nur nicht zeigt.
+  const visible = SECTIONS.flatMap(({ state }) => byState(state));
 
   return (
     <DashboardBlock>
       <h1 className="text-lg font-semibold text-foreground mb-1">{t("title")}</h1>
-      {/* Warum hier kein Knopf steht: die Strafe schliesst die Keyholderin ab, nicht der Träger. Ohne
-          diesen Satz läse sich die Seite als Liste, an der etwas fehlt. */}
+      {/* Zwei Sätze, die zusammen die Seite erklären: was sie zeigt, und dass sie sich ändern kann,
+          ohne dass jemand etwas getan hat. Ohne den zweiten liest sich eine neu erschienene Zeile
+          als Willkür der Keyholderin — tatsächlich leitet die App sie aus den Einträgen ab. */}
       <p className="text-xs text-foreground-faint">{t("intro")}</p>
+      <p className="text-xs text-foreground-faint mt-1">{t("derivedNote")}</p>
 
-      {open.length === 0 && done.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="mt-6">
           <EmptyState icon={<Gavel size={40} strokeWidth={1.5} />} title={t("empty")} description={t("emptyHint")} />
         </div>
       ) : (
-        <>
-          {section("openTitle", open)}
-          {/* Der Verlauf wächst monoton — gedeckelt wie die Aufgaben-Historie (`TaskList`), sonst
-              rendert die Seite irgendwann jede je erledigte Strafe. */}
-          {section("doneTitle", done.slice(0, DONE_LIMIT))}
-        </>
+        SECTIONS.map(({ state, titleKey, limit }) => {
+          const rows: SubOffense[] = byState(state);
+          if (rows.length === 0) return null;
+          return (
+            <section key={state} className="mt-6">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">
+                {t(titleKey)}
+              </h2>
+              <OffenseList offenses={limit ? rows.slice(0, limit) : rows} tz={tz} />
+            </section>
+          );
+        })
       )}
     </DashboardBlock>
   );
