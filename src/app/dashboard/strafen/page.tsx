@@ -6,8 +6,14 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
 import EmptyState from "@/app/components/EmptyState";
 import { APP_TZ } from "@/lib/utils";
-import { HISTORY_LIMIT } from "@/lib/taskIntervals";
-import { loadSubOffenses, type SubOffense, type SubOffenseState } from "@/lib/subOffenses";
+import { loadSubOffenses, type SubOffenseState } from "@/lib/subOffenses";
+
+/** Deckel der fallengelassenen Vergehen. Nur DIESER Abschnitt ist gedeckelt: was den Träger fordert
+ *  (offene Strafen) und was noch beurteilt wird, muss er vollständig sehen — eine abgewunkene
+ *  Anschuldigung von vor einem Jahr dagegen nicht. Bewusst eine eigene Zahl statt der zufällig
+ *  gleichen Aufgaben-Grenze: die beiden Listen haben nichts miteinander zu tun, und ein Deckel, der
+ *  sich beim Ändern einer fremden Liste mitbewegt, ist keiner. */
+const DISMISSED_LIMIT = 25;
 
 /**
  * Die Abschnitte der Seite, in dieser Reihenfolge — was ihn FORDERT zuerst.
@@ -27,7 +33,7 @@ import { loadSubOffenses, type SubOffense, type SubOffenseState } from "@/lib/su
 const SECTIONS: { state: SubOffenseState; titleKey: string; limit?: number }[] = [
   { state: "punished", titleKey: "openTitle" },
   { state: "open", titleKey: "detectedTitle" },
-  { state: "dismissed", titleKey: "dismissedTitle", limit: HISTORY_LIMIT },
+  { state: "dismissed", titleKey: "dismissedTitle", limit: DISMISSED_LIMIT },
 ];
 
 /**
@@ -53,11 +59,15 @@ export default async function StrafbuchPage() {
   // Die Zeitzone des Trägers — es ist sein Buch, und diese Seite ist seine.
   const tz = session.user.timezone ?? APP_TZ;
 
-  const byState = (state: SubOffenseState) => offenses.filter((o) => o.state === state);
-  // „Nichts im Strafbuch" muss sich auf das beziehen, was die Seite ZEIGT — sonst stünde bei einem
-  // Träger mit ausschliesslich erledigten Strafen ein Leer-Zustand über einer Seite, die tatsächlich
-  // etwas kennt, es nur nicht zeigt.
-  const visible = SECTIONS.flatMap(({ state }) => byState(state));
+  // Die Abschnitte EINMAL fertig bauen, statt die Liste je Abschnitt neu zu filtern — und ohne die
+  // leeren. Damit bezieht sich „Nichts im Strafbuch" von selbst auf das, was die Seite ZEIGT: sonst
+  // stünde bei einem Träger mit ausschliesslich erledigten Strafen ein Leer-Zustand über einer
+  // Seite, die tatsächlich etwas kennt, es nur nicht zeigt.
+  const byState = Map.groupBy(offenses, (o) => o.state);
+  const sections = SECTIONS.flatMap(({ state, titleKey, limit }) => {
+    const rows = byState.get(state) ?? [];
+    return rows.length === 0 ? [] : [{ state, titleKey, rows: limit ? rows.slice(0, limit) : rows }];
+  });
 
   return (
     <DashboardBlock>
@@ -68,23 +78,19 @@ export default async function StrafbuchPage() {
       <p className="text-xs text-foreground-faint">{t("intro")}</p>
       <p className="text-xs text-foreground-faint mt-1">{t("derivedNote")}</p>
 
-      {visible.length === 0 ? (
+      {sections.length === 0 ? (
         <div className="mt-6">
           <EmptyState icon={<Gavel size={40} strokeWidth={1.5} />} title={t("empty")} description={t("emptyHint")} />
         </div>
       ) : (
-        SECTIONS.map(({ state, titleKey, limit }) => {
-          const rows: SubOffense[] = byState(state);
-          if (rows.length === 0) return null;
-          return (
-            <section key={state} className="mt-6">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">
-                {t(titleKey)}
-              </h2>
-              <OffenseList offenses={limit ? rows.slice(0, limit) : rows} tz={tz} />
-            </section>
-          );
-        })
+        sections.map(({ state, titleKey, rows }) => (
+          <section key={state} className="mt-6">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">
+              {t(titleKey)}
+            </h2>
+            <OffenseList offenses={rows} tz={tz} />
+          </section>
+        ))
       )}
     </DashboardBlock>
   );

@@ -163,20 +163,34 @@ const OFFENSE_RULE_CHANGE_SELECT = { offenseType: true, mode: true, effectiveFro
 /** Der Zeilentyp einer Vergehens-Liste in {@link StrafbuchData}. */
 type OffenseListRow<K extends keyof StrafbuchData> = StrafbuchData[K] extends (infer R)[] ? R : never;
 
+/** Der eigene ANLASS-Text einer Vergehens-Zeile, wo die Art einen trägt. */
+export interface OffenseDetail {
+  /** Der Anlass in einer Zeile — Titel des notierten Vergehens bzw. der Aufgabe. */
+  title: string | null;
+  /** Der ausführliche Text dazu, wo einer erfasst wurde. */
+  description: string | null;
+}
+
 /**
- * Wie aus einer Vergehens-Zeile ihre stabile `refId` und ihr Tatzeitpunkt werden — für JEDE Art,
- * an EINER Stelle.
+ * Wie aus einer Vergehens-Zeile ihre stabile `refId`, ihr Tatzeitpunkt und ihr Anlass-Text werden —
+ * für JEDE Art, an EINER Stelle.
  *
  * Vorher stand diese Zuordnung nur in `collectDetectedOffenses`. Sobald eine zweite Stelle sie
  * braucht — und die Regel-Filterung unten braucht sie — entsteht sonst eine handgeführte Kopie, und
  * genau daran ist das Strafbuch schon zweimal gescheitert (der KERN-BUG vom 11.07., dazu die fünf
  * Arten, die bis v5.0.3 in keiner Anzeige auftauchten). Wer die refs braucht, LEITET sie hier ab.
+ *
+ * `detail` fehlt bei den meisten Arten, und das ist die Aussage: „Kontrolle zu spät" sagt schon
+ * alles, ein Anlass wäre eine Wiederholung. Es steht hier statt beim Anzeiger, weil sonst DORT eine
+ * Aufzählung der Arten mit eigenem Titel entstünde — und eine dritte solche Art bekäme still
+ * `title: null`, ohne dass der Compiler oder ein Test sich meldet.
  */
 const spec = <K extends keyof StrafbuchData>(
   key: K,
   ref: (row: OffenseListRow<K>) => string,
   at: (row: OffenseListRow<K>) => Date | null,
-) => ({ key, ref, at });
+  detail?: (row: OffenseListRow<K>) => OffenseDetail,
+) => ({ key, ref, at, detail });
 
 export const OFFENSE_LISTS = {
   unauthorized_opening: spec("unauthorizedOpenings", (o) => o.id, (o) => o.startTime),
@@ -190,13 +204,20 @@ export const OFFENSE_LISTS = {
   cleaning_not_relocked: spec("cleaningNotRelocked", (c) => cleaningNotRelockedRef(c.entryId), (c) => c.relockAt ?? c.deadline),
   // refId = Task.id. Anders als bei den Reinigungs-Vergehen braucht es kein Präfix: die id gehört
   // keiner zweiten Vergehensart, und `StrafeRecord.refId` ist global eindeutig.
-  unfulfilled_task: spec("unfulfilledTasks", (t) => t.id, (t) => t.failedAt ?? t.holdUntil),
+  unfulfilled_task: spec("unfulfilledTasks", (t) => t.id, (t) => t.failedAt ?? t.holdUntil,
+    (t) => ({ title: t.title, description: null })),
   // refId ist die AdminPasswordChange-id: eigener Namensraum, kollidiert nicht mit Entry-/
   // Anforderungs-ids und bleibt stabil, auch wenn die Sperrzeit später zurückgezogen wird.
   admin_password_change: spec("adminPasswordChanges", (p) => p.id, (p) => p.at),
   unauthorized_orgasm: spec("unauthorizedOrgasms", (o) => o.id, (o) => o.startTime),
-  manual_offense: spec("manualOffenses", (m) => m.id, (m) => m.occurredAt),
-} satisfies Record<OffenseCanonicalType, { key: keyof StrafbuchData; ref: (row: never) => string; at: (row: never) => Date | null }>;
+  manual_offense: spec("manualOffenses", (m) => m.id, (m) => m.occurredAt,
+    (m) => ({ title: m.title, description: m.description })),
+} satisfies Record<OffenseCanonicalType, {
+  key: keyof StrafbuchData;
+  ref: (row: never) => string;
+  at: (row: never) => Date | null;
+  detail?: (row: never) => OffenseDetail;
+}>;
 
 /**
  * Die Vergehens-Listen eines Strafbuchs als einheitliche Sicht: je Art ihre Zeilen samt der beiden
@@ -215,6 +236,7 @@ export function offenseListViews(sb: StrafbuchData) {
     rows: lists[s.key],
     ref: s.ref as (row: unknown) => string,
     at: s.at as (row: unknown) => Date | null,
+    detail: s.detail as ((row: unknown) => OffenseDetail) | undefined,
   }));
 }
 

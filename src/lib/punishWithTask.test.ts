@@ -33,6 +33,7 @@ import { punishWithTask, judgeOffense } from "./strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { checkTask, writeTask } from "@/lib/taskService";
 import { notifyUser } from "@/lib/notify";
+import { emptyOffenseLists } from "@/test/strafbuchFixture";
 
 const strafbuch = buildStrafbuch as unknown as ReturnType<typeof vi.fn>;
 const check = checkTask as unknown as ReturnType<typeof vi.fn>;
@@ -41,13 +42,10 @@ const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
 
 /** Ein Strafbuch, das genau ein Vergehen kennt: eine nicht erfüllte Aufgabe mit `refId` „t-1". */
 function strafbuchWith(refId: string) {
-  const empty = {
-    unauthorizedOpenings: [], lateControls: [], rejectedControls: [], autoRemovedControls: [],
-    reinigungLimitViolations: [], wrongDeviceViolations: [], missedOrgasmInstructions: [],
-    lateLocks: [], cleaningNotRelocked: [], adminPasswordChanges: [],
-    unauthorizedOrgasms: [], manualOffenses: [],
+  return {
+    ...emptyOffenseLists(),
+    unfulfilledTasks: [{ id: refId, holdUntil: new Date("2026-08-01T10:00:00Z"), failedAt: null }],
   };
-  return { ...empty, unfulfilledTasks: [{ id: refId, holdUntil: new Date("2026-08-01T10:00:00Z"), failedAt: null }] };
 }
 
 const HOLD_UNTIL = new Date("2026-08-03T18:00:00Z");

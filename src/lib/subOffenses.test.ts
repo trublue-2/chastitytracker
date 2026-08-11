@@ -21,6 +21,7 @@ vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { selectSubOffenses, openPenaltiesOf } from "./subOffenses";
 import { cleaningNotRelockedRef, type StrafbuchData } from "./strafbuch";
+import { emptyOffenseLists } from "@/test/strafbuchFixture";
 
 type Judgment = StrafbuchData["strafeRecords"][number];
 
@@ -41,23 +42,7 @@ function judgment(p: Partial<Judgment> & { refId: string }): Judgment {
 /** Ein leeres Strafbuch, in das der Test genau die Listen füllt, die er braucht. Die Auflösung
  *  iteriert über ALLE Vergehens-Listen, deshalb müssen alle existieren. */
 function strafbuch(over: Partial<StrafbuchData> = {}): StrafbuchData {
-  return {
-    unauthorizedOpenings: [],
-    lateControls: [],
-    rejectedControls: [],
-    autoRemovedControls: [],
-    reinigungLimitViolations: [],
-    wrongDeviceViolations: [],
-    missedOrgasmInstructions: [],
-    lateLocks: [],
-    cleaningNotRelocked: [],
-    unfulfilledTasks: [],
-    adminPasswordChanges: [],
-    unauthorizedOrgasms: [],
-    manualOffenses: [],
-    strafeRecords: [],
-    ...over,
-  } as StrafbuchData;
+  return { ...emptyOffenseLists(), strafeRecords: [], ...over } as StrafbuchData;
 }
 
 const opening = (id: string, startTime: Date) => ({
@@ -73,7 +58,7 @@ describe("selectSubOffenses — Zustände", () => {
       offenseType: "unauthorized_opening",
       offenseAt: new Date("2026-07-30T08:00:00Z"),
       state: "open",
-      text: null,
+      judgmentText: null,
       judgedAt: null,
     }]);
   });
@@ -86,7 +71,7 @@ describe("selectSubOffenses — Zustände", () => {
       strafeRecords: [judgment({ refId: "e1", status: "DISMISSED", reason: "war abgesprochen" })],
     });
 
-    expect(selectSubOffenses(sb)).toMatchObject([{ state: "dismissed", text: "war abgesprochen" }]);
+    expect(selectSubOffenses(sb)).toMatchObject([{ state: "dismissed", judgmentText: "war abgesprochen" }]);
   });
 
   it("bestraft und erledigt sind zwei Zustände, nicht einer", () => {
@@ -159,11 +144,31 @@ describe("selectSubOffenses — Auflösung und Reihenfolge", () => {
     });
   });
 
+  it("nimmt den Anlass-Text aus der Vergehens-Tabelle, für jede Art, die einen führt", () => {
+    // Welche Arten einen eigenen Titel tragen, steht im `detail`-Zugriff von `OFFENSE_LISTS` — nicht
+    // als Aufzählung in der Auflösung. Eine dritte solche Art bekommt ihn damit von selbst.
+    const sb = strafbuch({
+      manualOffenses: [{
+        id: "n1", occurredAt: new Date("2026-08-05T09:00:00Z"),
+        title: "Abmachung gebrochen", description: "ohne Rückfrage geöffnet", createdBy: "admin",
+      }],
+      unfulfilledTasks: [{
+        id: "t1", title: "Wohnung staubsaugen",
+        holdUntil: new Date("2026-08-04T09:00:00Z"), failedAt: null,
+      }],
+    } as Partial<StrafbuchData>);
+
+    const byRef = new Map(selectSubOffenses(sb).map((o) => [o.refId, o]));
+    expect(byRef.get("n1")).toMatchObject({ title: "Abmachung gebrochen", description: "ohne Rückfrage geöffnet" });
+    // Eine Aufgabe trägt einen Titel, aber keine eigene Beschreibung.
+    expect(byRef.get("t1")).toMatchObject({ title: "Wohnung staubsaugen", description: null });
+  });
+
   it("behält ein Urteil, dessen Vergehen nicht mehr abgeleitet wird — ohne Art und Tatzeit", () => {
     const sb = strafbuch({ strafeRecords: [judgment({ refId: "weg" })] });
 
     expect(selectSubOffenses(sb)).toMatchObject([{
-      refId: "weg", offenseType: null, offenseAt: null, state: "punished", text: "20 Schläge",
+      refId: "weg", offenseType: null, offenseAt: null, state: "punished", judgmentText: "20 Schläge",
     }]);
   });
 

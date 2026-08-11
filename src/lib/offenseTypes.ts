@@ -81,10 +81,16 @@ export type OffenseState =
  *
  * Hier und nicht im Service, weil dieselbe Ableitung an mehreren Stellen gebraucht wird und die
  * meisten davon kein Prisma importieren dürfen: die Träger-Sicht, das MCP-Ledger und die
- * Admin-Strafbuch-Seite (Client-Komponente). Jede hat sie bisher von Hand aus `status` und
- * `erledigtAt` gelesen — und „offen" bedeutete dabei bereits dreierlei: unbeurteilt (Träger),
- * unbeurteilt ODER bestraft-nicht-erledigt (MCP), nicht-verworfen-und-nicht-erledigt (Admin). Ein
- * fünfter Zustand wäre an drei Orten zu finden, und die übersehene Stelle meldet sich nicht.
+ * Admin-Strafbuch-Seite (Client-Komponente). Jede liest sie von Hand aus `status` und `erledigtAt`
+ * — und „offen" bedeutet dabei bereits dreierlei: unbeurteilt (Träger), unbeurteilt ODER
+ * bestraft-nicht-erledigt (MCP), nicht-verworfen-und-nicht-erledigt (Admin). Ein fünfter Zustand
+ * wäre an drei Orten zu finden, und die übersehene Stelle meldet sich nicht.
+ *
+ * STAND: umgestellt ist bisher nur die TRÄGER-Sicht (`subOffenses.ts`). `mcp/ledger.ts` (`judge()`,
+ * `pendingPenalty`) und `StrafbuchClient.tsx` (`punishedIds`/`dismissedIds`/`closedIds`) leiten
+ * weiterhin von Hand ab — beim Ledger wäre es eine reine Ersetzung, der Admin-Client müsste erst
+ * seine Zeilenform angleichen (`done: boolean` statt `erledigtAt`). Bis dahin ist der Satz oben ein
+ * Vorsatz, keine Beschreibung.
  */
 export function offenseState(record: { status: string; erledigtAt: Date | null } | undefined): OffenseState {
   if (!record) return "open";

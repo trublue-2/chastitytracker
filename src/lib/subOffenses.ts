@@ -1,4 +1,4 @@
-import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
+import { buildStrafbuch, offenseListViews, type OffenseDetail, type StrafbuchData } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
 import { offenseState, type OffenseCanonicalType, type OffenseState } from "@/lib/offenseTypes";
 
@@ -41,22 +41,42 @@ export interface SubOffense {
   /** Tatzeitpunkt (nicht der Urteilszeitpunkt). Null wie bei `offenseType`. */
   offenseAt: Date | null;
   state: SubOffenseState;
-  /** Der ANLASS in Worten, wo das Vergehen einen eigenen trägt: der Titel des von Hand notierten
-   *  Vergehens bzw. der Aufgabe. Bei den übrigen elf Arten sagt die Art selbst schon alles
-   *  („Kontrolle zu spät"), und ein Anlass wäre eine Wiederholung. Ohne dieses Feld beantwortet die
-   *  Karte „was wird mir angelastet" nur mit einer Kategorie. */
-  detail: string | null;
+  /** Der ANLASS in Worten, wo das Vergehen einen eigenen trägt — welche Arten das sind, sagt der
+   *  `detail`-Zugriff in `OFFENSE_LISTS`. Wo die Art selbst schon alles sagt („Kontrolle zu spät"),
+   *  bleibt es leer; ein Anlass wäre dort eine Wiederholung. Ohne dieses Feld beantwortet die Karte
+   *  „was wird mir angelastet" nur mit einer Kategorie. */
+  title: string | null;
   /** Der ausführliche Text dazu, wo einer erfasst wurde (Beschreibung des notierten Vergehens). */
-  detailText: string | null;
+  description: string | null;
   /** Bei `punished`/`done` der Straftext (bei einer Strafaufgabe ihr Titel, siehe `punishWithTask`),
    *  bei `dismissed` die Begründung des Fallenlassens, sofern eine gegeben wurde. Beides ist
    *  derselbe Freitext (`StrafeRecord.reason`) — was er bedeutet, sagt der Zustand. */
-  text: string | null;
+  judgmentText: string | null;
   /** Wann geurteilt wurde. Null bei `open`. */
   judgedAt: Date | null;
   doneAt: Date | null;
   /** Gesetzt, wenn die Strafe eine gestellte Aufgabe IST. */
   taskId: string | null;
+}
+
+/**
+ * Was eine Zeile aus ihrem URTEIL erbt — die eine Stelle, an der `StrafeRecord` auf `SubOffense`
+ * abgebildet wird.
+ *
+ * Beide Zweige unten brauchen dieselbe Abbildung (das erkannte Vergehen mit Urteil, und das Urteil
+ * ohne Erkennung), und eine zweite Kopie davon würde bei einem neuen Feld genau einmal vergessen.
+ * `undefined` heisst „noch kein Urteil" — dann bleibt alles leer und der Zustand ist `open`.
+ */
+function fromJudgment(
+  r: StrafbuchData["strafeRecords"][number] | undefined,
+): Pick<SubOffense, "state" | "judgmentText" | "judgedAt" | "doneAt" | "taskId"> {
+  return {
+    state: offenseState(r),
+    judgmentText: r?.reason ?? null,
+    judgedAt: r?.bestraftDatum ?? null,
+    doneAt: r?.erledigtAt ?? null,
+    taskId: r?.taskId ?? null,
+  };
 }
 
 /** Wann ist an dieser Zeile zuletzt etwas passiert? Danach wird sortiert — sonst stünde ein heute
@@ -79,26 +99,24 @@ function lastEventAt(o: SubOffense): number {
  */
 export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
   const judgments = new Map(sb.strafeRecords.map((r) => [r.refId, r]));
-  // Nur die zwei Arten, die einen eigenen Anlass-Text tragen. Über die refId nachgeschlagen, damit
-  // die Zuordnung dieselbe bleibt wie in `OFFENSE_LISTS` — keine zweite Namenslogik.
-  const manualById = new Map(sb.manualOffenses.map((m) => [m.id, m]));
-  const taskById = new Map(sb.unfulfilledTasks.map((t) => [t.id, t]));
+  // WELCHE Arten einen eigenen Anlass-Text tragen, steht in `OFFENSE_LISTS` und nicht hier — sonst
+  // wäre das eine Aufzählung, die eine dritte solche Art still übergeht. Die Schleife läuft nur über
+  // die Listen, die einen `detail`-Zugriff mitbringen; alle anderen überspringt sie.
+  const details = new Map<string, OffenseDetail>();
+  for (const { rows, ref, detail } of offenseListViews(sb)) {
+    if (!detail) continue;
+    for (const row of rows) details.set(ref(row), detail(row));
+  }
 
   const detected = collectDetectedOffenses(sb).map((o): SubOffense => {
-    const r = judgments.get(o.refId);
-    const manual = manualById.get(o.refId);
-    const task = taskById.get(o.refId);
+    const detail = details.get(o.refId);
     return {
       refId: o.refId,
       offenseType: o.canonicalType,
       offenseAt: o.at,
-      state: offenseState(r),
-      detail: manual?.title ?? task?.title ?? null,
-      detailText: manual?.description ?? null,
-      text: r?.reason ?? null,
-      judgedAt: r?.bestraftDatum ?? null,
-      doneAt: r?.erledigtAt ?? null,
-      taskId: r?.taskId ?? null,
+      title: detail?.title ?? null,
+      description: detail?.description ?? null,
+      ...fromJudgment(judgments.get(o.refId)),
     };
   });
 
@@ -109,13 +127,9 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
       refId: r.refId,
       offenseType: null,
       offenseAt: null,
-      state: offenseState(r),
-      detail: null,
-      detailText: null,
-      text: r.reason,
-      judgedAt: r.bestraftDatum,
-      doneAt: r.erledigtAt,
-      taskId: r.taskId,
+      title: null,
+      description: null,
+      ...fromJudgment(r),
     }));
 
   return [...detected, ...orphaned].sort((a, b) => lastEventAt(b) - lastEventAt(a));

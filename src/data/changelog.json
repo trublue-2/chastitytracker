@@ -1,5 +1,39 @@
 [
   {
+    "version": "5.1.0",
+    "date": "2026-08-11",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Vergehen lassen sich jetzt von Hand notieren — auch das, was die App nicht sehen kann, etwa eine gebrochene Abmachung. Welche Vergehensarten überhaupt zählen, ist neu pro Person einstellbar.",
+          "en": "Offenses can now be recorded by hand — including things the app cannot see, such as a broken agreement. Which kinds of offense count at all is now set per person."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Ein Orgasmus ohne Erlaubnis lässt sich als Vergehen zählen: gar nicht, nur während einer Sperrzeit, oder immer.",
+          "en": "An orgasm without permission can now count as an offense: never, only during a lock period, or always."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Das eigene Strafbuch ist jetzt vollständig einsehbar: offene Strafen, noch nicht beurteilte Vergehen und fallengelassene — bisher waren nur die verhängten Strafen sichtbar.",
+          "en": "Your own penalty record is now fully visible: open penalties, offenses not yet judged, and dismissed ones — previously only imposed penalties were shown."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Posteingang hat Seiten, Filter und Mehrfachauswahl bekommen.",
+          "en": "The inbox now has pages, filters and multi-select."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.12",
     "date": "2026-08-09",
     "changes": [

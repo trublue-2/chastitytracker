@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import Badge, { type BadgeVariant } from "@/app/components/Badge";
 import IconTile from "@/app/components/IconTile";
+import DetailField from "@/app/components/DetailField";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { offenseNameKey } from "@/lib/offenseLabels";
 import type { SubOffense, SubOffenseState } from "@/lib/subOffenses";
@@ -34,6 +35,9 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
   const dl = toDateLocale(await getLocale());
   const at = (d: Date) => formatDateTime(d, dl, tz);
   const badge = STATE_BADGE[o.state];
+  // Das eine Bit, an dem die Karte zweimal hängt: bei einem fallengelassenen Vergehen trägt der
+  // Freitext die Begründung statt der Strafe, und „verhängt" wird zu „entschieden".
+  const dismissed = o.state === "dismissed";
   const offenseName = o.offenseType ? tOffenses(offenseNameKey(o.offenseType)) : t("offenseUnknown");
 
   return (
@@ -45,10 +49,10 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
             {/* Die ERSTE Frage der Karte: was wird mir angelastet. Wo das Vergehen einen eigenen
                 Anlass trägt (notiertes Vergehen, Aufgabe), ist DAS die Überschrift und die Art nur
                 die Einordnung darüber — „Notiertes Vergehen" allein sagt dem Träger nichts. */}
-            {o.detail ? (
+            {o.title ? (
               <>
                 <p className="text-xs text-foreground-faint">{offenseName}</p>
-                <p className="text-sm font-semibold text-foreground break-words">{o.detail}</p>
+                <p className="text-sm font-semibold text-foreground break-words">{o.title}</p>
               </>
             ) : (
               <p className="text-sm font-semibold text-foreground break-words">{offenseName}</p>
@@ -58,8 +62,8 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
             {o.offenseAt && (
               <p className="text-xs text-foreground-muted">{t("offenseAt", { date: at(o.offenseAt) })}</p>
             )}
-            {o.detailText && (
-              <p className="text-sm text-foreground-muted whitespace-pre-wrap break-words mt-1">{o.detailText}</p>
+            {o.description && (
+              <p className="text-sm text-foreground-muted whitespace-pre-wrap break-words mt-1">{o.description}</p>
             )}
           </div>
           <Badge variant={badge.variant} size="sm" label={t(badge.key)} className="shrink-0" />
@@ -69,14 +73,15 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
             der Straftext abgesetzt und nicht als weitere graue Zeile — er ist die Antwort, nicht ein
             Zusatz. Bei einem fallengelassenen Vergehen trägt dasselbe Feld die Begründung; damit es
             sich nicht wie eine Strafe liest, ist es beschriftet und bleibt ohne Rahmen. */}
-        {o.text && (o.state === "dismissed" ? (
+        {o.judgmentText && (dismissed ? (
           <p className="text-sm text-foreground-faint">
-            <span className="font-medium">{t("dismissReasonLabel")}:</span> {o.text}
+            <span className="font-medium">{t("dismissReasonLabel")}:</span> {o.judgmentText}
           </p>
         ) : (
           <div className="border-l-2 border-warn pl-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("penaltyLabel")}</p>
-            <p className="text-sm text-foreground whitespace-pre-wrap break-words">{o.text}</p>
+            <DetailField label={t("penaltyLabel")}>
+              <p className="text-sm text-foreground whitespace-pre-wrap break-words">{o.judgmentText}</p>
+            </DetailField>
           </div>
         ))}
 
@@ -86,9 +91,7 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
 
         {o.judgedAt && (
           <p className="text-xs text-foreground-faint">
-            {/* „Verhängt" stimmt nur für eine Strafe — ein fallengelassenes Vergehen wurde
-                entschieden, nicht verhängt. */}
-            {t(o.state === "dismissed" ? "decidedAt" : "judgedAt", { date: at(o.judgedAt) })}
+            {t(dismissed ? "decidedAt" : "judgedAt", { date: at(o.judgedAt) })}
             {o.doneAt && ` · ${t("doneAt", { date: at(o.doneAt) })}`}
           </p>
         )}
