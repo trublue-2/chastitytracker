@@ -108,6 +108,26 @@ export interface AdminPasswortRow {
   sperrzeitEndetAtStr: string | null;
 }
 
+/** Orgasmus ohne deckende Direktive. Die Sperrzeit-Angaben sind nur im Modus `lockedOnly` gesetzt —
+ *  im Modus `always` kann der KG offen gewesen sein, dann gibt es keine. */
+export interface UnerlaubterOrgasmusRow {
+  id: string;
+  startTimeStr: string;
+  orgasmusArt: string | null;
+  note: string | null;
+  sperrzetEndetAtStr: string | null;
+  sperrzetUnbefristet: boolean;
+}
+
+/** Von Hand notiertes Vergehen. */
+export interface ManuellesVergehenRow {
+  id: string;
+  occurredAtStr: string;
+  title: string;
+  description: string | null;
+  createdBy: string;
+}
+
 interface Labels {
   /** Generische Fehlermeldung, wenn die API keine eigene liefert (common.error). */
   errorFallback: string;
@@ -171,6 +191,11 @@ interface Labels {
   strafbuchAdminPasswort: string;
   strafbuchAdminPasswortAm: string;
   strafbuchAdminPasswortKonto: string;
+  strafbuchUnerlaubterOrgasmus: string;
+  strafbuchOrgasmusAm: string;
+  strafbuchOhneDirektive: string;
+  strafbuchManuelleVergehen: string;
+  strafbuchNotiertVon: string;
   deviceLabel: string;
 }
 
@@ -187,6 +212,8 @@ interface Props {
   orgasmusVersaeumt: OrgasmusVersaeumtRow[];
   falschesGeraet: FalschesGeraetRow[];
   adminPasswort: AdminPasswortRow[];
+  unerlaubteOrgasmen: UnerlaubterOrgasmusRow[];
+  manuelleVergehen: ManuellesVergehenRow[];
   strafeRecords: StrafeRecordData[];
   labels: Labels;
 }
@@ -211,7 +238,7 @@ function sec<C extends OffenseCanonicalType>(canonical: C, title: string, rows: 
 
 const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, strafeRecords, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, manuelleVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
@@ -644,6 +671,38 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             <>{labels.deviceLabel}: {v.deviceName ?? "–"}</>,
           )}
           {v.note && <span className={NOTE_CLS}>„{v.note}"</span>}
+        </>
+      ),
+    }))),
+
+    sec("unauthorized_orgasm", labels.strafbuchUnerlaubterOrgasmus, unerlaubteOrgasmen.map((o) => ({
+      refId: o.id,
+      anlass: `${labels.strafbuchOrgasmusAm} ${o.startTimeStr}`,
+      body: (judged) => (
+        <>
+          {titleLine(judged,
+            <>{labels.strafbuchOrgasmusAm} {o.startTimeStr}{o.orgasmusArt ? ` (${o.orgasmusArt})` : ""}</>,
+            // Lief eine Sperrzeit, ist SIE der schwerere Teil des Vorwurfs; sonst bleibt es beim
+            // fehlenden Fenster. Der Modus `always` ahndet ja auch bei offenem KG.
+            o.sperrzetUnbefristet
+              ? labels.strafbuchTrotzUnbefristet
+              : o.sperrzetEndetAtStr
+                ? `${labels.strafbuchSperreLiefBis} ${o.sperrzetEndetAtStr}`
+                : labels.strafbuchOhneDirektive,
+          )}
+          {o.note && <span className={NOTE_CLS}>„{o.note}"</span>}
+        </>
+      ),
+    }))),
+
+    sec("manual_offense", labels.strafbuchManuelleVergehen, manuelleVergehen.map((m) => ({
+      refId: m.id,
+      anlass: `${m.title} (${m.occurredAtStr})`,
+      body: (judged) => (
+        <>
+          {titleLine(judged, m.title, m.occurredAtStr)}
+          {m.description && <span className={NOTE_CLS}>{m.description}</span>}
+          <p className={FACT_CLS}>{labels.strafbuchNotiertVon}: {m.createdBy}</p>
         </>
       ),
     }))),

@@ -18,7 +18,13 @@ const tx = {
 vi.mock("@/lib/prisma", () => ({
   prisma: { $transaction: vi.fn(async (fn: (c: typeof tx) => Promise<unknown>) => fn(tx)) },
 }));
-vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn() }));
+// `collectDetectedOffenses` leitet die refs aus OFFENSE_LISTS ab — der Mock muss die Tabelle
+// mitliefern, sonst prüft der Test eine Auflösung, die es so nicht gibt. Die echte Tabelle ist
+// reine Daten (keine DB), also wird sie durchgereicht statt nachgebaut.
+vi.mock("@/lib/strafbuch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/strafbuch")>()),
+  buildStrafbuch: vi.fn(),
+}));
 vi.mock("@/lib/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
@@ -39,6 +45,7 @@ function strafbuchWith(refId: string) {
     unauthorizedOpenings: [], lateControls: [], rejectedControls: [], autoRemovedControls: [],
     reinigungLimitViolations: [], wrongDeviceViolations: [], missedOrgasmInstructions: [],
     lateLocks: [], cleaningNotRelocked: [], adminPasswordChanges: [],
+    unauthorizedOrgasms: [], manualOffenses: [],
   };
   return { ...empty, unfulfilledTasks: [{ id: refId, holdUntil: new Date("2026-08-01T10:00:00Z"), failedAt: null }] };
 }

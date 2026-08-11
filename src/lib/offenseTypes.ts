@@ -37,6 +37,12 @@ export const STORED_TYPE = {
   cleaning_not_relocked: "REINIGUNG_NICHT_VERSCHLOSSEN",
   unfulfilled_task: "AUFGABE",
   admin_password_change: "ADMIN_PASSWORT",
+  // Orgasmus ohne deckende Direktive. Ob und wann das zählt, entscheidet die Regel
+  // (`offenseRules.ts`) — dreistufig: aus / nur während einer Sperrzeit / immer.
+  unauthorized_orgasm: "UNAUTHORIZED_ORGASM",
+  // Von Hand notiert (`ManualOffense`), nicht abgeleitet. Die einzige Art ohne Regel-Schalter:
+  // ein ausdrücklich notiertes Vergehen abzuschalten hiesse, die Notiz zu ignorieren.
+  manual_offense: "MANUAL_OFFENSE",
 } as const;
 
 /**

@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildStrafbuch, type StrafbuchData } from "@/lib/strafbuch";
+import { buildStrafbuch, OFFENSE_LISTS, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { senderKindOf } from "@/lib/messageService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -30,40 +30,31 @@ export interface DetectedOffense {
   at: Date | null;
 }
 
-/** cleaning_not_relocked shares its underlying OEFFNEN entry with cleaning_limit (both can fire on
- *  the same REINIGUNG opening — over the daily quota AND not relocked in time). StrafeRecord.refId
- *  is globally `@unique`, so the two offenses need disjoint ref namespaces — prefixed here rather
- *  than using the bare entry id. Exported so the ledger's `judge()` call constructs the exact
- *  same ref (round-trips through judge_offense) and the admin route can reverse it for its IDOR check. */
-export function cleaningNotRelockedRef(entryId: string): string {
-  return `relock:${entryId}`;
-}
-export function entryIdFromCleaningNotRelockedRef(refId: string): string | null {
-  return refId.startsWith("relock:") ? refId.slice("relock:".length) : null;
-}
+/** Die ref-Bildung für cleaning_not_relocked liegt in `strafbuch.ts` — dort braucht sie die
+ *  OFFENSE_LISTS-Tabelle, und dieses Modul importiert jenes (andersherum gäbe es einen Zyklus).
+ *  Hier re-exportiert: der Ledger baut damit exakt dieselbe ref für seinen `judge()`-Aufruf, und die
+ *  Admin-Route dreht sie für ihren IDOR-Check wieder um. */
+export { cleaningNotRelockedRef, entryIdFromCleaningNotRelockedRef } from "@/lib/strafbuch";
 
 /** Flacht die buildStrafbuch-Listen zu einer einheitlichen Liste erkannter Vergehen mit stabiler ref.
- *  Dient der ref-Auflösung (judge_offense) und dem Zählen — keine Strafwertung. */
+ *  Dient der ref-Auflösung (judge_offense) und dem Zählen — keine Strafwertung.
+ *
+ *  ABGELEITET aus `OFFENSE_LISTS`, nicht abgeschrieben: die Zuordnung Art → Liste/refId/Zeitpunkt
+ *  steht dort einmal und wird hier nur ausgelesen. Eine handgeführte Kopie ist genau das, woran das
+ *  Strafbuch schon zweimal gescheitert ist — der KERN-BUG vom 11.07. (eine Art fehlte in der Kopie)
+ *  und die fünf Arten, die bis v5.0.3 in keiner Anzeige auftauchten. */
 export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
-  const mk = (canonicalType: OffenseCanonicalType, refId: string, at: Date | null): DetectedOffense =>
-    ({ canonicalType, offenseType: STORED_TYPE[canonicalType], refId, at });
-  return [
-    ...sb.unauthorizedOpenings.map((o) => mk("unauthorized_opening", o.id, o.startTime)),
-    ...sb.lateControls.map((k) => mk("late_control", k.id, k.entryStartTime ?? k.deadline)),
-    ...sb.rejectedControls.map((k) => mk("rejected_control", k.id, k.entryStartTime ?? k.deadline)),
-    ...sb.autoRemovedControls.map((k) => mk("auto_removed_control", k.id, k.entryStartTime ?? k.deadline)),
-    ...sb.reinigungLimitViolations.map((v) => mk("cleaning_limit", v.entryId, v.startTime)),
-    ...sb.wrongDeviceViolations.map((v) => mk("wrong_device", v.entryId, v.startTime)),
-    ...sb.missedOrgasmInstructions.map((m) => mk("missed_orgasm", m.id, m.endetAt)),
-    ...sb.lateLocks.map((a) => mk("late_lock", a.id, a.fulfilledAt ?? a.endetAt)),
-    ...sb.cleaningNotRelocked.map((c) => mk("cleaning_not_relocked", cleaningNotRelockedRef(c.entryId), c.relockAt ?? c.deadline)),
-    // refId = Task.id. Anders als bei den Reinigungs-Vergehen braucht es kein Präfix: die id gehört
-    // keiner zweiten Vergehensart, und `StrafeRecord.refId` ist global eindeutig.
-    ...sb.unfulfilledTasks.map((t) => mk("unfulfilled_task", t.id, t.failedAt ?? t.holdUntil)),
-    // refId ist die AdminPasswordChange-id: eigener Namensraum, kollidiert nicht mit Entry-/
-    // Anforderungs-ids und bleibt stabil, auch wenn die Sperrzeit später zurückgezogen wird.
-    ...sb.adminPasswordChanges.map((p) => mk("admin_password_change", p.id, p.at)),
-  ];
+  return Object.entries(OFFENSE_LISTS).flatMap(([type, s]) => {
+    const canonicalType = type as OffenseCanonicalType;
+    const ref = s.ref as (row: unknown) => string;
+    const at = s.at as (row: unknown) => Date | null;
+    return ((sb as unknown as Record<string, unknown[]>)[s.key]).map((row) => ({
+      canonicalType,
+      offenseType: STORED_TYPE[canonicalType],
+      refId: ref(row),
+      at: at(row),
+    }));
+  });
 }
 
 export interface JudgeOffenseParams {

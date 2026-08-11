@@ -6,7 +6,7 @@ import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/util
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow } from "./StrafbuchClient";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow } from "./StrafbuchClient";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -107,6 +107,23 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     sperrzeitEndetAtStr: p.sperrzeitEndetAt ? fmtDual(p.sperrzeitEndetAt) : null,
   }));
 
+  const unerlaubteOrgasmen: UnerlaubterOrgasmusRow[] = sb.unauthorizedOrgasms.map((o) => ({
+    id: o.id,
+    startTimeStr: fmtDual(o.startTime),
+    orgasmusArt: o.orgasmusArt,
+    note: o.note,
+    sperrzetEndetAtStr: o.sperrzeitEndetAt ? fmtDual(o.sperrzeitEndetAt) : null,
+    sperrzetUnbefristet: o.sperrzeitIndefinite,
+  }));
+
+  const manuelleVergehen: ManuellesVergehenRow[] = sb.manualOffenses.map((m) => ({
+    id: m.id,
+    occurredAtStr: fmtDual(m.occurredAt),
+    title: m.title,
+    description: m.description,
+    createdBy: m.createdBy,
+  }));
+
   const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
     status: r.status,
@@ -179,6 +196,11 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchAdminPasswort: t("strafbuchAdminPasswort"),
     strafbuchAdminPasswortAm: t("strafbuchAdminPasswortAm"),
     strafbuchAdminPasswortKonto: t("strafbuchAdminPasswortKonto"),
+    strafbuchUnerlaubterOrgasmus: t("strafbuchUnerlaubterOrgasmus"),
+    strafbuchOrgasmusAm: t("strafbuchOrgasmusAm"),
+    strafbuchOhneDirektive: t("strafbuchOhneDirektive"),
+    strafbuchManuelleVergehen: t("strafbuchManuelleVergehen"),
+    strafbuchNotiertVon: t("strafbuchNotiertVon"),
     deviceLabel: t("deviceLabel"),
   };
 
@@ -196,6 +218,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       orgasmusVersaeumt={orgasmusVersaeumt}
       falschesGeraet={falschesGeraet}
       adminPasswort={adminPasswort}
+      unerlaubteOrgasmen={unerlaubteOrgasmen}
+      manuelleVergehen={manuelleVergehen}
       strafeRecords={strafeRecords}
       labels={labels}
     />

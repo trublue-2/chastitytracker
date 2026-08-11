@@ -99,6 +99,63 @@ model User {
   appointments                   Appointment[]
   receivedMessages               Message[]
   messageReads                   MessageRead[]
+  manualOffenses                 ManualOffense[]
+  offenseRuleChanges             OffenseRuleChange[]
+}
+
+/// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.
+///
+/// Alle übrigen Arten entstehen live aus dem Bestand (eine Öffnung während einer Sperrzeit IST das
+/// Vergehen). Was der Keyholder ausserhalb der App beobachtet — eine gebrochene Absprache, eine
+/// Unhöflichkeit, irgendetwas ohne Eintrag — hat keine Quelle, aus der es abgeleitet werden könnte.
+/// Es braucht darum eine eigene Zeile. Vorbild ist `AdminPasswordChange`: festgeschrieben statt
+/// abgeleitet, aus demselben Grund.
+///
+/// Zurückgezogen wird über `withdrawnAt`, nicht gelöscht: ein Fehleintrag verschwindet aus dem
+/// Strafbuch, bleibt aber nachlesbar. Ein bereits gefälltes Urteil (`StrafeRecord.refId` = diese id)
+/// überlebt den Rückzug ohnehin — es ist die Aufzeichnung einer Entscheidung.
+model ManualOffense {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Wann es passiert ist (nicht wann es notiert wurde) — danach richtet sich die Einordnung im
+  /// Strafbuch UND welche Regel-Fassung gilt (siehe OffenseRuleChange).
+  occurredAt  DateTime
+  title       String
+  description String?
+  /// Username des Keyholders/Admins, der notiert hat. Wie `StrafeRecord.judgedBy` ein Audit-Feld.
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  withdrawnAt DateTime?
+
+  @@index([userId, occurredAt])
+}
+
+/// Eine Änderung an der Regel „zählt diese Vergehensart bei diesem Sub?" — append-only.
+///
+/// Warum eine HISTORIE und kein Schalter-Feld am User: Das Strafbuch ist eine Live-Ableitung. Ein
+/// einzelnes `enabled` würde beim Umlegen rückwirkend die ganze Vergangenheit umschreiben —
+/// Einschalten liesse Vergehen für Handlungen erscheinen, die zu ihrer Zeit erlaubt waren (genau der
+/// Fehler, gegen den `cleaningWindowEnforcedFrom` gebaut wurde), Ausschalten liesse bereits
+/// geahndete Vorfälle spurlos verschwinden. Mit der Historie wird jede Handlung nach der Fassung
+/// beurteilt, die zu IHREM Zeitpunkt galt: die geltende Regel für t ist die jüngste Zeile mit
+/// `effectiveFrom <= t`, sonst der Code-Default (= bisheriges Verhalten).
+///
+/// `mode` statt `enabled`, weil nicht jede Art binär ist: `unauthorized_orgasm` kennt zusätzlich
+/// „nur während einer Sperrzeit". Gültige Werte je Art stehen in `offenseRules.ts`.
+model OffenseRuleChange {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Kanonischer Vergehenstyp (Schlüssel aus STORED_TYPE, z.B. "unauthorized_opening").
+  offenseType   String
+  mode          String
+  effectiveFrom DateTime
+  /// Username dessen, der umgelegt hat.
+  changedBy     String
+  createdAt     DateTime @default(now())
+
+  @@index([userId, offenseType, effectiveFrom])
 }
 
 // Eine Nachricht im Posteingang. Das Gegenstück zu den Mail-/Push-Meldungen, die bisher nach dem
