@@ -12,7 +12,7 @@ import type { BadgeVariant } from "@/app/components/Badge";
  * ziehen.
  */
 /** Die Kategorien in Anzeige-Reihenfolge — Quelle für den Typ UND für die Filterleiste. */
-export const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "penalty", "task", "system"] as const;
+export const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "offense", "penalty", "task", "system"] as const;
 export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
 
 /**
@@ -23,9 +23,13 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   penaltyMessage: "penalty",
   penaltyMessageNoReason: "penalty",
   penaltyTaskMessage: "penalty",
-  offenseDetectedMessage: "penalty",
-  offenseDetectedMessageTitled: "penalty",
-  offenseDismissedMessage: "penalty",
+
+  // Eigene Kategorie, nicht `penalty`: ein festgestelltes Vergehen IST noch keine Strafe, und ein
+  // fallengelassenes wird nie eine. Beide unter „Strafe" zu führen hiesse, dem Träger eine
+  // Anschuldigung als Urteil zu verkaufen — und der Filter „Strafe" fände Zeilen, die nichts fordern.
+  offenseDetectedMessage: "offense",
+  offenseDetectedMessageTitled: "offense",
+  offenseDismissedMessage: "offense",
 
   inspectionRequestedMessage: "inspection",
   inspectionConfirmedMessage: "inspection",
@@ -97,12 +101,17 @@ export function messageCategory(bodyKey: string | null): MessageCategory {
  * Projekts: `size="sm"` ist `h-5 text-xs` und damit das, was in den Listen überall steht — `Pill` ist
  * mit `h-7 text-sm` + Entfernen-Kreuz ein Filter-Chip und würde die Metazeile dominieren.
  * Semantik: Kontrolle = inspect (Aufmerksamkeit), Sperre = sperrzeit, Orgasmus = orgasm,
- * Strafe = warn, System = neutral.
+ * Vergehen = unlock (Feststellung), Strafe = warn (Forderung), System = neutral.
  */
 export const MESSAGE_CATEGORY_PILLS: Record<MessageCategory, { labelKey: string; variant: BadgeVariant }> = {
   inspection: { labelKey: "catInspection", variant: "inspect" },
   lock:       { labelKey: "catLock",       variant: "sperrzeit" },
   orgasm:     { labelKey: "catOrgasm",     variant: "orgasm" },
+  // Nicht `warn`: die Warnfarbe gehört der Strafe, und beide können in der LISTE direkt untereinander
+  // stehen (in der Filterleiste steht nur der Text). `unlock` heisst app-weit sonst „geöffnet" — die
+  // Doppelbelegung ist bewusst in Kauf genommen, frei waren nur `lock`, `unlock` und `ok`, und die
+  // beiden grünen sagen bei einem Vergehen das Falsche.
+  offense:    { labelKey: "catOffense",    variant: "unlock" },
   penalty:    { labelKey: "catPenalty",    variant: "warn" },
   task:       { labelKey: "catTask",       variant: "request" },
   system:     { labelKey: "catSystem",     variant: "neutral" },
