@@ -1608,5 +1608,59 @@
     "proofReviewFor": "Nachweis {index}: {description}",
     "proofReviewNotePlaceholder": "Anmerkung (optional) — der Sub sieht sie",
     "actionTitlePenalty": "Strafaufgabe stellen"
+  },
+  "offenses": {
+    "unauthorizedOpening": {
+      "name": "Unerlaubte Öffnung",
+      "desc": "Der KG wurde während einer laufenden Sperrzeit geöffnet."
+    },
+    "lateControl": {
+      "name": "Kontrolle zu spät",
+      "desc": "Eine Kontrolle wurde erst nach Ablauf der Frist eingereicht."
+    },
+    "rejectedControl": {
+      "name": "Kontrolle abgelehnt",
+      "desc": "Das Foto einer Kontrolle wurde als Nachweis abgelehnt."
+    },
+    "autoRemovedControl": {
+      "name": "Gerät vermutlich abgenommen",
+      "desc": "Kontrolle und Mahnung blieben unbeantwortet; das System hat den KG als abgelegt vermerkt."
+    },
+    "cleaningLimit": {
+      "name": "Reinigung zu oft",
+      "desc": "Mehr Reinigungsöffnungen an einem Tag als erlaubt."
+    },
+    "wrongDevice": {
+      "name": "Falsches Gerät",
+      "desc": "Verschlossen wurde ein anderes Gerät als angefordert."
+    },
+    "missedOrgasm": {
+      "name": "Orgasmus-Anweisung versäumt",
+      "desc": "Ein Pflicht-Fenster lief ab, ohne dass der Orgasmus erfasst wurde."
+    },
+    "lateLock": {
+      "name": "Einschliessen versäumt",
+      "desc": "Die Frist einer Einschliess-Anforderung verstrich ohne Verschluss."
+    },
+    "cleaningNotRelocked": {
+      "name": "Nach Reinigung nicht verschlossen",
+      "desc": "Nach einer Reinigungspause blieb der Wiederverschluss aus oder kam zu spät."
+    },
+    "unfulfilledTask": {
+      "name": "Aufgabe nicht erfüllt",
+      "desc": "Eine Aufgabe wurde nicht oder nicht durchgehend erfüllt."
+    },
+    "adminPasswordChange": {
+      "name": "Passwort am Admin-Konto geändert",
+      "desc": "Während einer laufenden Sperrzeit wurde ein Admin-Passwort geändert."
+    },
+    "unauthorizedOrgasm": {
+      "name": "Unerlaubter Orgasmus",
+      "desc": "Ein Orgasmus ohne offene Direktive."
+    },
+    "manualOffense": {
+      "name": "Notiertes Vergehen",
+      "desc": "Von Hand eingetragen — nicht aus den Einträgen abgeleitet."
+    }
   }
 }

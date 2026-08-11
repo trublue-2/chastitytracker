@@ -1608,5 +1608,59 @@
     "proofReviewFor": "Proof {index}: {description}",
     "proofReviewNotePlaceholder": "Note (optional) — the user sees it",
     "actionTitlePenalty": "Assign penalty task"
+  },
+  "offenses": {
+    "unauthorizedOpening": {
+      "name": "Unauthorized opening",
+      "desc": "The device was opened during an active lock period."
+    },
+    "lateControl": {
+      "name": "Inspection late",
+      "desc": "An inspection was submitted after its deadline."
+    },
+    "rejectedControl": {
+      "name": "Inspection rejected",
+      "desc": "An inspection photo was rejected as proof."
+    },
+    "autoRemovedControl": {
+      "name": "Device presumed removed",
+      "desc": "Inspection and reminder went unanswered; the system marked the device as removed."
+    },
+    "cleaningLimit": {
+      "name": "Too many cleanings",
+      "desc": "More cleaning openings in one day than allowed."
+    },
+    "wrongDevice": {
+      "name": "Wrong device",
+      "desc": "A device other than the one requested was locked on."
+    },
+    "missedOrgasm": {
+      "name": "Missed orgasm directive",
+      "desc": "A mandatory window expired without the orgasm being logged."
+    },
+    "lateLock": {
+      "name": "Missed lock-up",
+      "desc": "A lock request deadline passed without a lock entry."
+    },
+    "cleaningNotRelocked": {
+      "name": "Not relocked after cleaning",
+      "desc": "The relock after a cleaning break was missing or late."
+    },
+    "unfulfilledTask": {
+      "name": "Task not completed",
+      "desc": "A task was not completed, or not held throughout."
+    },
+    "adminPasswordChange": {
+      "name": "Admin password changed",
+      "desc": "An admin password was changed during an active lock period."
+    },
+    "unauthorizedOrgasm": {
+      "name": "Unauthorized orgasm",
+      "desc": "An orgasm with no directive open."
+    },
+    "manualOffense": {
+      "name": "Recorded offense",
+      "desc": "Entered by hand — not derived from the log."
+    }
   }
 }
