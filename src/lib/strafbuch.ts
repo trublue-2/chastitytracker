@@ -155,6 +155,33 @@ export function entryIdFromCleaningNotRelockedRef(refId: string): string | null 
   return refId.startsWith("relock:") ? refId.slice("relock:".length) : null;
 }
 
+/**
+ * Die Spalten der VERSCHLUSS-/OEFFNEN-Historie, die das Strafbuch tatsächlich liest.
+ *
+ * Diese beiden Abfragen sind unbegrenzt — sie holen jede Öffnung und jeden Verschluss, den es je
+ * gab, weil die Reinigungs-Kontingent-Prüfung gegen den HEUTIGEN Wert über die ganze Historie
+ * zählt. Ohne `select` kam damit jede Zeile mit allen 24 Spalten, inklusive Bildpfad, EXIF-Zeit,
+ * Kontrollcode und Verifikations-Feldern — Daten, die hier niemand anfasst, aber bei einem
+ * langjährigen Nutzer den Löwenanteil der übertragenen Bytes ausmachen. `evaluateTasks` macht es
+ * für dieselben Zeilen längst richtig (`taskIntervals.ts`, der Fallback-Zweig von `kgEntries`).
+ *
+ * Wer hier ein Feld ergänzt, muss es auch brauchen — und wer eines wegnimmt, bekommt einen
+ * Compile-Fehler statt eines stillen Falschergebnisses: die Reinigungs-Helfer nehmen ihre Zeile
+ * strukturell entgegen (`{ oeffnenGrund, startTime }`), und `kgEntries` verlangt `KgEntry`.
+ *
+ * `note` und `source` liest nur der OEFFNEN-Zweig; sie stehen trotzdem in beiden Abfragen, weil die
+ * zwei Listen zusammengeworfen an `evaluateTasks` gehen und zwei verschiedene Zeilenformen dort nur
+ * eine Union erzeugen würden, die niemand braucht.
+ */
+const KG_ENTRY_SELECT = {
+  id: true,
+  type: true,
+  startTime: true,
+  oeffnenGrund: true,
+  note: true,
+  source: true,
+} as const;
+
 /** Nur die drei Felder, die `offenseRuleResolver` liest. Bewusst dieselben wie `CHANGE_SELECT` in
  *  `offenseRulesService.ts` — dort steht die Schreib-Seite; hier darf keine breitere Zeile geladen
  *  werden, nur weil es bequem ist. Kein `orderBy`: der Resolver sortiert je Art selbst. */
@@ -424,8 +451,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
-    prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
-    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" } }),
+    prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
+    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...activeVerschlussAnforderungWhere(now) } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...activeVerschlussAnforderungWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
@@ -517,7 +544,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const offenseEntries = offenseEntryIds.length > 0
     ? await prisma.entry.findMany({
         where: { id: { in: offenseEntryIds } },
-        include: { device: { select: { name: true } } },
+        // Drei Felder plus der Gerätename — genau das, was `wrongDeviceViolations` unten baut.
+        select: { id: true, startTime: true, note: true, device: { select: { name: true } } },
       })
     : [];
   const offenseEntryById = new Map(offenseEntries.map((e) => [e.id, e]));
