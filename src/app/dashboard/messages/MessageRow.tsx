@@ -60,10 +60,11 @@ export default function MessageRow({
   // Ein Bezug (Text oder Fehl-Hinweis) ist optional — viele Nachrichten haben bewusst keinen
   // (siehe orgasmusAnforderungService: Rückzug ohne refId).
   const hasRef = Boolean(m.refText) || m.refMissing;
-  // Gemessen wird nur im zugeklappten Zustand: offen ist der Text nicht mehr beschnitten, die
-  // Messung ergäbe „passt" und der Knopf verschwände unter dem Finger.
-  const [textRef, textClamped] = useIsClamped([m.text, open]);
-  const expandable = hasRef || Boolean(m.refHref) || textClamped || open;
+  // Gemessen wird nur im ZUGEKLAPPTEN Zustand — offen ist der Text nicht mehr beschnitten, die
+  // Messung ergäbe „passt", und die Zeile verlöre ihren Knopf unter dem Finger. Der Hook hält den
+  // letzten Messwert, solange nicht gemessen wird; ein `|| open` als Ausgleich braucht es nicht.
+  const [textRef, textClamped] = useIsClamped(!open);
+  const expandable = hasRef || Boolean(m.refHref) || textClamped;
 
   const title = (
     <span className="flex items-start gap-2">
@@ -112,8 +113,17 @@ export default function MessageRow({
     />
   );
 
-  const row = expandable ? (
-    <ExpandRow open={open} onToggle={onToggle} actions={selecting ? undefined : actions} label={title} subtitle={meta}>
+  const row = (
+    <ExpandRow
+      open={open}
+      // Kein `onToggle` = kein Aufklappen: `ExpandRow` lässt Knopf, Chevron und Panel weg und
+      // behält Geometrie und Aktions-Spalte. Ein Aufklapp-Knopf ist ein Versprechen — hier gäbe es
+      // nichts einzulösen.
+      onToggle={expandable ? onToggle : undefined}
+      actions={selecting ? undefined : actions}
+      label={title}
+      subtitle={meta}
+    >
       {/* Ohne Trennlinie: der Abstand setzt das Aufgeklappte ab. Der Inhalt beginnt bei pl-4 auf der
           Titelkante — nie links davon. */}
       <div className="pt-1 space-y-3">
@@ -144,16 +154,6 @@ export default function MessageRow({
         )}
       </div>
     </ExpandRow>
-  ) : (
-    // Ohne Aufklapp-Fläche: dieselbe Geometrie wie `ExpandRow`, aber kein Knopf und kein Chevron.
-    // Der Text ist vollständig zu sehen, es gibt nichts zu öffnen.
-    <div className="flex items-center transition hover:bg-surface-raised">
-      <div className="min-w-0 flex-1 px-5 py-4">
-        <span className="text-sm text-foreground">{title}</span>
-        <p className="text-xs text-foreground-faint mt-0.5">{meta}</p>
-      </div>
-      {!selecting && <div className="pr-2">{actions}</div>}
-    </div>
   );
 
   if (!selecting) return row;

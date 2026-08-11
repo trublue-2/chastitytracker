@@ -11,12 +11,9 @@ import type { BadgeVariant } from "@/app/components/Badge";
  * aus einer Client-Komponente erreichbar bleibt, ohne `prisma` oder `next/server` in den Browser zu
  * ziehen.
  */
-// Nur zur Typ-Ableitung — wer die Kategorien braucht, nimmt MESSAGE_CATEGORY_PILLS.
-const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "penalty", "task", "system"] as const;
+/** Die Kategorien in Anzeige-Reihenfolge — Quelle für den Typ UND für die Filterleiste. */
+export const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "penalty", "task", "system"] as const;
 export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
-
-/** Die Kategorien als Liste — für die Filterleiste, die alle anbieten muss. */
-export const MESSAGE_CATEGORY_LIST: readonly MessageCategory[] = MESSAGE_CATEGORIES;
 
 /**
  * Body-Key → Kategorie. Vollständig für alle `MESSAGE_BODY_KEYS`; `messageService.test.ts` erzwingt
@@ -137,4 +134,60 @@ export function bodyKeysOutsideSystem(): MessageBodyKey[] {
 /** True, wenn der Wert eine bekannte Kategorie ist — die Prüfung für den Query-Parameter. */
 export function isMessageCategory(value: string): value is MessageCategory {
   return (MESSAGE_CATEGORIES as readonly string[]).includes(value);
+}
+
+/**
+ * Die Absender-Arten. Liegen HIER und nicht in `messageService.ts`, obwohl sie dort gebraucht
+ * werden: die Filterleiste ist eine Client-Komponente, und ein Wert-Import aus dem Service zöge
+ * `prisma` in den Browser-Bundle — genau das, wovor der Kopf dieser Datei warnt. Der Service
+ * re-exportiert sie, damit seine Aufrufer unverändert bleiben.
+ */
+export const MESSAGE_SENDER_KINDS = ["system", "keyholder", "ai"] as const;
+export type MessageSenderKind = (typeof MESSAGE_SENDER_KINDS)[number];
+
+export function isMessageSenderKind(value: string): value is MessageSenderKind {
+  return (MESSAGE_SENDER_KINDS as readonly string[]).includes(value);
+}
+
+/** Die Sicht auf den Posteingang: welcher Ausschnitt gezeigt wird. */
+export interface MessageFilter {
+  /** Nur ungelesene. */
+  unreadOnly?: boolean;
+  category?: MessageCategory;
+  senderKind?: MessageSenderKind;
+}
+
+/**
+ * Filter ↔ Query-Parameter, beide Richtungen nebeneinander.
+ *
+ * Vorher stand das Schreiben im Client und das Lesen in der Route — dieselbe Abbildung, vierzig
+ * Zeilen und eine Modulgrenze auseinander, und beide Seiten scheitern STILL: ein vergessener
+ * Parameter fällt einfach weg, die Auswahl bleibt sichtbar und die Liste ignoriert sie. Nebeneinander
+ * kann eine neue Filter-Dimension nur noch in beiden oder in keiner fehlen.
+ */
+export function messageFilterToParams(filter: MessageFilter): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filter.unreadOnly) params.set("unread", "1");
+  if (filter.category) params.set("category", filter.category);
+  if (filter.senderKind) params.set("sender", filter.senderKind);
+  return params;
+}
+
+/** Unbekannte Werte fallen weg, statt den Aufruf abzuweisen: ein Filter ist eine ANSICHT, kein
+ *  Vorgang — ein veralteter Link mit einer Kategorie, die es nicht mehr gibt, soll den ungefilterten
+ *  Posteingang zeigen und keinen Fehler. */
+export function parseMessageFilter(params: URLSearchParams): MessageFilter {
+  const category = params.get("category");
+  const sender = params.get("sender");
+  return {
+    unreadOnly: params.get("unread") === "1",
+    ...(category && isMessageCategory(category) ? { category } : {}),
+    ...(sender && isMessageSenderKind(sender) ? { senderKind: sender } : {}),
+  };
+}
+
+/** Zeigt die Liste gerade einen Ausschnitt? Entscheidet den Leer-Text — „keine Nachrichten" wäre
+ *  falsch, wenn nur der Filter greift. */
+export function isMessageFiltered(filter: MessageFilter): boolean {
+  return Boolean(filter.unreadOnly || filter.category || filter.senderKind);
 }

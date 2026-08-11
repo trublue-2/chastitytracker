@@ -35,7 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminDesktopSidebar version={pkg.version} isGlobalAdmin={isGlobalAdmin} hideOwnTracker={hideOwnTracker} />
 
       {/* Content */}
-      <div className="lg:ml-64 min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <div className="lg:ml-64 min-h-screen pb-[var(--bottom-nav-space)] lg:pb-0">
         {children}
       </div>
 

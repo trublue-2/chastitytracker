@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 // Der Service liest Nachrichten + die vier Bezugsobjekte und schreibt Lese-Kennzeichen.
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    // Die Lese-Kennzeichen laufen seit v5.1 in EINER Transaktion statt in N Einzel-Upserts.
+    $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
     message: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
     messageRead: { upsert: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
     strafeRecord: { findMany: vi.fn() },
@@ -292,8 +294,10 @@ describe("Löschen ist an den Besitzer gebunden", () => {
   it("gelöscht wird genau die eigene Zeile — eingegrenzt auf subjectUserId UND audience", async () => {
     mock(prisma.message.deleteMany).mockResolvedValue({ count: 1 });
     expect(await deleteMessage("u1", "m1")).toBe(true);
+    // `deleteMessage` delegiert an `deleteMessages` — die id steht deshalb als Liste da. Der Scope
+    // (subjectUserId + audience) ist derselbe und genau das, was dieser Test festhält.
     expect(mock(prisma.message.deleteMany).mock.calls[0][0].where).toEqual({
-      id: "m1", subjectUserId: "u1", audience: "sub",
+      id: { in: ["m1"] }, subjectUserId: "u1", audience: "sub",
     });
   });
 

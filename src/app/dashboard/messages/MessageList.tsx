@@ -3,30 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowRight, Bot, CheckCheck, Inbox, ListChecks, Settings, Trash2, Undo2, UserRound, X } from "lucide-react";
-import Link from "next/link";
+import { CheckCheck, Inbox, ListChecks, Trash2, X } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
-import DetailField from "@/app/components/DetailField";
 import EmptyState from "@/app/components/EmptyState";
-import ExpandRow from "@/app/components/ExpandRow";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import FormError from "@/app/components/FormError";
-import Badge from "@/app/components/Badge";
-import RowActionsMenu from "@/app/components/RowActionsMenu";
-import Checkbox from "@/app/components/Checkbox";
 import ListPager from "@/app/components/ListPager";
 import MessageFilterBar from "./MessageFilterBar";
 import MessageRow from "./MessageRow";
-import useIsClamped from "@/app/hooks/useIsClamped";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
-import { formatDayMonth, formatTime, toDateLocale } from "@/lib/utils";
+import { toDateLocale } from "@/lib/utils";
 import type { PresentedMessage } from "@/lib/messagePresenter";
-import type { MessageFilter, MessageSenderKind } from "@/lib/messageService";
-import { MESSAGE_CATEGORY_PILLS } from "@/lib/messageCategories";
+import { isMessageFiltered, messageFilterToParams, type MessageFilter } from "@/lib/messageCategories";
 
-const SENDER_ICON: Record<MessageSenderKind, typeof Bot> = { ai: Bot, keyholder: UserRound, system: Settings };
 
 export default function MessageList({
   initial,
@@ -47,24 +38,30 @@ export default function MessageList({
   const router = useRouter();
 
   const [messages, setMessages] = useState(initial);
-  const [page, setPage] = useState(1);
+  // NULLBASIERT wie bei allen acht `ListPager`-Verwendungen; die Umrechnung auf die 1-basierte
+  // Zählung des Servers steht an genau einer Stelle: beim Bau der Anfrage in `load`.
+  const [page, setPage] = useState(0);
   const [pageCount, setPageCount] = useState(initialPageCount);
   const [filter, setFilter] = useState<MessageFilter>({});
   const [unread, setUnread] = useState(initialUnread);
-  // Die Auswahl als eigener Modus: Kreuzchen an jeder Zeile wären neben dem Ungelesen-Punkt eine
+  // EIN Zustand für „Auswahl-Modus" UND „was ist angekreuzt": `null` = kein Modus. Als zwei
+  // Variablen musste die Kopplung („Modus verlassen = Auswahl leeren") von Hand gehalten werden —
+  // ein zweiter Ausstiegspfad, der die zweite Zeile vergisst, liesse eine unsichtbare Auswahl
+  // liegen, mit der die Massen-Aktion weiterarbeitet.
+  //
+  // Kreuzchen erscheinen nur im Modus: an jeder Zeile wären sie neben dem Ungelesen-Punkt eine
   // zweite runde Marke links und würden die Zeile für den Normalfall verrauschen.
-  const [selecting, setSelecting] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [selected, setSelected] = useState<Set<string> | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Eigener Zustand: sonst zeigte ein laufendes Nachladen den Lösch-Knopf als beschäftigt.
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
-  // Die zu löschende Nachricht — hält gleichzeitig die Rückfrage offen (eine Quelle statt
-  // Flag + Id nebeneinander).
-  const [confirmDelete, setConfirmDelete] = useState<PresentedMessage | null>(null);
+  // Was gelöscht werden soll — hält gleichzeitig die Rückfrage offen (eine Quelle statt Flag + Id
+  // nebeneinander). `"bulk"` steht für die Auswahl; beide Fälle teilen sich einen Dialog, der sich
+  // nur in Text und Ziel unterscheidet.
+  const [confirmDelete, setConfirmDelete] = useState<PresentedMessage | "bulk" | null>(null);
 
   // Beim Öffnen des Posteingangs die Glocke im Header nachziehen — und nach jedem Lesevorgang
   // erneut. Der Header steht im geteilten Dashboard-Layout, und das rendert bei einer
@@ -148,33 +145,35 @@ export default function MessageList({
    * Seite). Die Auswahl fällt dabei weg — angekreuzt wurde auf der Seite, die man verlässt.
    */
   async function load(nextPage: number, nextFilter: MessageFilter = filter) {
+    // Zweimal schnell auf „Weiter" wären zwei vollständige Runden, deren Verlierer verworfen wird —
+    // und je nach Reihenfolge stünde am Ende die falsche Seite da.
+    if (saving) return;
     setSaving(true);
-    const params = new URLSearchParams({ page: String(nextPage) });
-    if (nextFilter.unreadOnly) params.set("unread", "1");
-    if (nextFilter.category) params.set("category", nextFilter.category);
-    if (nextFilter.senderKind) params.set("sender", nextFilter.senderKind);
+    // Serialisierung aus `messageCategories` — dieselbe Quelle, die die Route wieder einliest.
+    const params = messageFilterToParams(nextFilter);
+    params.set("page", String(nextPage + 1));
     const data = await request<{ messages: PresentedMessage[]; page: number; pageCount: number }>(
       `/api/messages?${params.toString()}`,
     );
     setSaving(false);
     if (!data) return;
     setMessages(data.messages);
-    setPage(data.page);
+    setPage(data.page - 1);
     setPageCount(data.pageCount);
-    setSelected(new Set());
+    setSelected((prev) => (prev === null ? null : new Set()));
     setOpenId(null);
   }
 
   function applyFilter(next: MessageFilter) {
     setFilter(next);
-    // Immer zurück auf Seite 1: ein Filter, der die Liste kürzt, liesse einen sonst auf einer Seite
-    // stehen, die es nicht mehr gibt.
-    void load(1, next);
+    // Immer zurück auf die erste Seite: ein Filter, der die Liste kürzt, liesse einen sonst auf
+    // einer Seite stehen, die es nicht mehr gibt.
+    void load(0, next);
   }
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev ?? []);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -185,19 +184,31 @@ export default function MessageList({
    *  alles Nachfolgende nach vorn, und der Gelesen-Zustand kann bei aktivem Ungelesen-Filter eine
    *  Zeile von der Seite nehmen. */
   async function bulk(action: "delete" | "read" | "unread") {
-    if (selected.size === 0) return;
+    const ids = selected ? [...selected] : [];
+    if (ids.length === 0) return;
     setDeleting(action === "delete");
     setSaving(true);
-    const res = await request<{ unread: number }>("/api/messages/bulk", "POST", { ids: [...selected], action });
-    setSaving(false);
+    const res = await request<{ unread: number }>("/api/messages/bulk", "POST", { ids, action });
     setDeleting(false);
-    setConfirmBulkDelete(false);
+    setSaving(false);
     if (!res) return;
+    // Erst nach der Fehlerprüfung schliessen — bei einem Fehler bleibt die Rückfrage stehen, sonst
+    // sähe der Nutzer eine unveränderte Liste und keinen Grund (dieselbe Regel wie beim Einzelnen).
+    setConfirmDelete(null);
     setUnread(res.unread);
-    await load(page);
+    // Nur Löschen (verschiebt alles Nachfolgende) und der Ungelesen-Filter (nimmt die Zeile von der
+    // Seite) brauchen die Liste frisch. Beim blossen Gelesen-Flag reicht der lokale Patch — genau
+    // das tut `markAllRead` ein paar Zeilen weiter oben schon.
+    if (action === "delete" || filter.unreadOnly) {
+      await load(page);
+      return;
+    }
+    const touched = new Set(ids);
+    setMessages((prev) => prev.map((m) => (touched.has(m.id) ? { ...m, read: action === "read" } : m)));
+    setSelected((prev) => (prev === null ? null : new Set()));
   }
 
-  const filtered = Boolean(filter.unreadOnly || filter.category || filter.senderKind);
+  const filtered = isMessageFiltered(filter);
   // Der Leer-Zustand darf nicht behaupten, es GEBE keine Nachrichten, wenn nur der Filter greift —
   // und er darf die Filterleiste nicht mitnehmen, sonst kommt man aus dem leeren Filter nicht heraus.
   const empty = messages.length === 0 && pageCount <= 1;
@@ -218,7 +229,7 @@ export default function MessageList({
         </Card>
       ) : (
       <Card padding="none">
-        {selecting && (
+        {selected !== null && (
           // Die Aktionsleiste steht ÜBER der Liste, nicht darunter: sie gehört zur Auswahl, und wer
           // in einer langen Liste ankreuzt, soll nicht ans Ende scrollen müssen, um sie zu finden.
           <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-border-subtle bg-surface-raised">
@@ -237,7 +248,7 @@ export default function MessageList({
               size="sm"
               icon={<Trash2 size={16} />}
               disabled={selected.size === 0 || saving}
-              onClick={() => setConfirmBulkDelete(true)}
+              onClick={() => setConfirmDelete("bulk")}
             >
               {tc("delete")}
             </Button>
@@ -250,8 +261,8 @@ export default function MessageList({
               <MessageRow
                 message={m}
                 open={openId === m.id}
-                selecting={selecting}
-                checked={selected.has(m.id)}
+                selecting={selected !== null}
+                checked={selected?.has(m.id) ?? false}
                 onCheck={() => toggleSelected(m.id)}
                 onToggle={() => toggle(m)}
                 onMarkUnread={() => markUnread(m)}
@@ -263,12 +274,12 @@ export default function MessageList({
           ))}
         </ul>
 
-        <ListPager page={page - 1} totalPages={pageCount} onPage={(p) => load(p + 1)} />
+        <ListPager page={page} totalPages={pageCount} onPage={load} />
       </Card>
       )}
 
       <div className="flex flex-wrap items-center gap-2 mt-4">
-        {unread > 0 && !selecting && (
+        {unread > 0 && selected === null && (
           <Button variant="secondary" size="sm" icon={<CheckCheck size={16} />} onClick={() => setConfirmAll(true)}>
             {t("markAllRead")}
           </Button>
@@ -277,27 +288,14 @@ export default function MessageList({
           <Button
             variant="ghost"
             size="sm"
-            icon={selecting ? <X size={16} /> : <ListChecks size={16} />}
-            onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }}
+            icon={selected !== null ? <X size={16} /> : <ListChecks size={16} />}
+            onClick={() => setSelected((prev) => (prev === null ? new Set() : null))}
           >
-            {selecting ? tc("cancel") : t("select")}
+            {selected !== null ? tc("cancel") : t("select")}
           </Button>
         )}
       </div>
 
-      {/* Massen-Löschen: dieselbe Rückfrage wie beim Einzelnen, nur mit der Zahl — endgültig bleibt
-          endgültig, auch wenn man zwölf Zeilen auf einmal meint. */}
-      <ConfirmDialog
-        open={confirmBulkDelete}
-        title={tc("delete")}
-        message={t("bulkDeleteConfirm", { count: selected.size })}
-        confirmLabel={tc("delete")}
-        danger
-        loading={deleting}
-        icon={<Trash2 size={20} style={{ color: "var(--color-warn)" }} />}
-        onConfirm={() => bulk("delete")}
-        onCancel={() => setConfirmBulkDelete(false)}
-      />
 
       {/* Rückfrage, weil „gelesen" hier eine Behauptung ist: zwölf Nachrichten stumm zu quittieren
           erzeugte eine, die hinterher niemand halten kann. */}
@@ -314,16 +312,20 @@ export default function MessageList({
 
       {/* Endgültig, deshalb mit Rückfrage — und mit dem Grund, warum sie hier mehr wiegt als beim
           Löschen eines Eintrags: das Strafbuch ist admin-only, für den Sub war die Nachricht der
-          einzige Ort, an dem der Straftext stand. Der Vorgang selbst bleibt in der Datenbank. */}
+          einzige Ort, an dem der Straftext stand. Der Vorgang selbst bleibt in der Datenbank.
+
+          EIN Dialog für die einzelne Zeile UND die Auswahl: zwei unterschieden sich in drei von
+          acht Eigenschaften — und waren beim ersten Mal schon auseinandergelaufen (der eine schloss
+          vor der Fehlerprüfung, der andere ausdrücklich danach). */}
       <ConfirmDialog
         open={confirmDelete !== null}
         title={tc("delete")}
-        message={t("deleteConfirm")}
+        message={confirmDelete === "bulk" ? t("bulkDeleteConfirm", { count: selected?.size ?? 0 }) : t("deleteConfirm")}
         confirmLabel={tc("delete")}
         danger
         loading={deleting}
         icon={<Trash2 size={20} style={{ color: "var(--color-warn)" }} />}
-        onConfirm={() => confirmDelete && deleteMessage(confirmDelete)}
+        onConfirm={() => (confirmDelete === "bulk" ? bulk("delete") : confirmDelete && deleteMessage(confirmDelete))}
         onCancel={() => setConfirmDelete(null)}
       />
     </>

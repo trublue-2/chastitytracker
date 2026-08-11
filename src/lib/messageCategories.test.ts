@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { MESSAGE_BODY_KEYS } from "./messageService";
-import { messageCategory, MESSAGE_CATEGORY_PILLS } from "./messageCategories";
+import { messageCategory, MESSAGE_CATEGORY_PILLS, MESSAGE_CATEGORIES, bodyKeysOfCategory, bodyKeysOutsideSystem } from "./messageCategories";
 
 describe("Kategorien", () => {
   // Ohne diesen Test rutscht ein neu hinzugefügter Body-Key stillschweigend in den Sammeltopf
@@ -36,5 +36,22 @@ describe("Kategorien", () => {
     for (const { labelKey } of Object.values(MESSAGE_CATEGORY_PILLS)) {
       for (const ns of namespaces) expect(ns[labelKey], labelKey).toBeTruthy();
     }
+  });
+});
+
+describe("Kategorie-Filter leitet vollständig ab", () => {
+  it("jede Kategorie ausser system hat mindestens einen Body-Key", () => {
+    // Sonst liefert `bodyKeysOfCategory` ein leeres Array, die Abfrage wird zu `bodyKey IN ()` und
+    // der Filter zeigt lautlos nichts an — der einzige stille Ausgang dieser Ableitung.
+    // `system` ist ausgenommen: es ist der Auffang-Topf und wird über die Umkehrung gefiltert.
+    for (const category of MESSAGE_CATEGORIES) {
+      if (category === "system") continue;
+      expect(bodyKeysOfCategory(category).length, category).toBeGreaterThan(0);
+    }
+  });
+
+  it("die Umkehrung für system lässt genau die system-Schlüssel übrig", () => {
+    const outside = new Set(bodyKeysOutsideSystem());
+    for (const key of bodyKeysOfCategory("system")) expect(outside.has(key)).toBe(false);
   });
 });

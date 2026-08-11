@@ -3,8 +3,9 @@
 import { useTranslations } from "next-intl";
 import SegmentedControl from "@/app/components/SegmentedControl";
 import Select from "@/app/components/Select";
-import { MESSAGE_CATEGORY_LIST, MESSAGE_CATEGORY_PILLS } from "@/lib/messageCategories";
-import { MESSAGE_SENDER_KINDS, type MessageFilter } from "@/lib/messageService";
+import {
+  MESSAGE_CATEGORIES, MESSAGE_CATEGORY_PILLS, MESSAGE_SENDER_KINDS, type MessageFilter,
+} from "@/lib/messageCategories";
 
 /** Der leere Wert der beiden Auswahlfelder — „egal", nicht „keine". Als Konstante, weil ihn die
  *  Zuordnung in beide Richtungen braucht. */
@@ -39,6 +40,7 @@ export default function MessageFilterBar({
       <div className="self-start sm:self-auto">
       <SegmentedControl
         size="md"
+        disabled={disabled}
         options={[
           { value: "all", label: t("filterAll") },
           { value: "unread", label: t("filterUnread") },
@@ -49,14 +51,14 @@ export default function MessageFilterBar({
       </div>
 
       <div className="flex gap-2 flex-1 min-w-0">
+      <div className="flex-1 min-w-0">
       <Select
-        wrapperClassName="flex-1 min-w-0"
         aria-label={t("filterCategoryLabel")}
         disabled={disabled}
         value={filter.category ?? ANY}
         options={[
           { value: ANY, label: t("filterAllCategories") },
-          ...MESSAGE_CATEGORY_LIST.map((c) => ({ value: c, label: t(MESSAGE_CATEGORY_PILLS[c].labelKey) })),
+          ...MESSAGE_CATEGORIES.map((c) => ({ value: c, label: t(MESSAGE_CATEGORY_PILLS[c].labelKey) })),
         ]}
         onChange={(e) =>
           onChange({
@@ -66,8 +68,9 @@ export default function MessageFilterBar({
         }
       />
 
+      </div>
+      <div className="flex-1 min-w-0">
       <Select
-        wrapperClassName="flex-1 min-w-0"
         aria-label={t("filterSenderLabel")}
         disabled={disabled}
         value={filter.senderKind ?? ANY}
@@ -82,6 +85,7 @@ export default function MessageFilterBar({
           })
         }
       />
+      </div>
       </div>
     </div>
   );

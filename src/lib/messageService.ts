@@ -1,7 +1,7 @@
 import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageCategory } from "@/lib/messageCategories";
+import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
 import { isSubVisibleJudgment } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
@@ -83,10 +83,10 @@ export interface MessageRef {
 
 /** Wer getippt hat. Zwei Achsen wie im Bestand (`StrafeRecord.judgedBy` / `KeyholderActionLog.source`):
  *  `kind` ist der Absender, nicht die Autorität. */
-/** Die Absender-Arten als Liste — die Filterleiste bietet alle an, die Route prüft gegen sie.
- *  Der Typ leitet daraus ab statt daneben zu stehen. */
-export const MESSAGE_SENDER_KINDS = ["system", "keyholder", "ai"] as const;
-export type MessageSenderKind = (typeof MESSAGE_SENDER_KINDS)[number];
+/** Absender-Arten und Filter liegen in `messageCategories.ts` — importfrei, damit die
+ *  Client-Filterleiste sie lesen kann, ohne `prisma` in den Browser zu ziehen. Hier re-exportiert,
+ *  damit die bestehenden Importeure unverändert bleiben. */
+export { MESSAGE_SENDER_KINDS, isMessageSenderKind, type MessageSenderKind, type MessageFilter } from "@/lib/messageCategories";
 
 /**
  * Autoritäts-Achse (`StrafeRecord.judgedBy`, `KeyholderActionLog.source`) → Absender-Achse.
@@ -323,20 +323,11 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
  * nicht ausgelösten Direktive verriete genau die Überraschung, die der Sinn der Terminierung ist —
  * und sie zu rendern und dann auszublenden hiesse, sie schon ausgeliefert zu haben.
  */
-export interface MessageFilter {
-  /** Nur ungelesene. */
-  unreadOnly?: boolean;
-  category?: MessageCategory;
-  senderKind?: MessageSenderKind;
-}
-
 export interface MessagePage {
   messages: InboxMessage[];
   /** 1-basiert. Liegt die angefragte Seite hinter dem Ende, wird auf die letzte geklemmt. */
   page: number;
   pageCount: number;
-  /** Gesamtzahl der Nachrichten im aktuellen Filter. */
-  total: number;
 }
 
 /**
@@ -386,7 +377,9 @@ export async function listMessagesFor(
   const pageCount = Math.max(1, Math.ceil(total / MESSAGE_PAGE_SIZE));
   // Klemmen statt leer ausliefern: löscht der Nutzer die letzte Zeile von Seite 4, soll er Seite 4
   // sehen — nicht eine leere Seite hinter dem Ende.
-  const page = Math.min(Math.max(Math.trunc(opts.page ?? 1), 1), pageCount);
+  // Die ganze Klemmung an EINER Stelle, inklusive NaN (`|| 1` fängt sowohl NaN als auch 0): ein
+  // zweiter Aufrufer soll die Regel nicht nachbauen müssen, um keine leere Seite zu bekommen.
+  const page = Math.min(Math.max(Math.trunc(opts.page ?? 1) || 1, 1), pageCount);
 
   const rows = await prisma.message.findMany({
     where,
@@ -430,7 +423,7 @@ export async function listMessagesFor(
       read: row.reads.length > 0,
     });
   }
-  return { messages, page, pageCount, total };
+  return { messages, page, pageCount };
 }
 
 /**
@@ -528,12 +521,7 @@ export async function setRead(subjectUserId: string, messageId: string, read: bo
   const message = await prisma.message.findFirst({ where: { id: messageId, subjectUserId, audience: "sub" }, select: { id: true } });
   if (!message) return false;
   if (read) {
-    // upsert statt create: zweimal auf dieselbe Zeile zu tippen ist kein Fehler.
-    await prisma.messageRead.upsert({
-      where: { messageId_userId: { messageId, userId: subjectUserId } },
-      create: { messageId, userId: subjectUserId },
-      update: {},
-    });
+    await markRowsRead(subjectUserId, [messageId]);
   } else {
     await prisma.messageRead.deleteMany({ where: { messageId, userId: subjectUserId } });
   }
@@ -578,20 +566,21 @@ export async function deleteMessages(subjectUserId: string, ids: string[]): Prom
   return count;
 }
 
-export async function setReadMany(subjectUserId: string, ids: string[], read: boolean): Promise<number> {
-  const own = await ownMessageIds(subjectUserId, ids);
-  if (own.length === 0) return 0;
-  if (!read) {
-    const { count } = await prisma.messageRead.deleteMany({
-      where: { messageId: { in: own }, userId: subjectUserId },
-    });
-    return count;
-  }
-  // Einzeln per upsert statt createMany — dieselbe Begründung wie in `markAllRead`: liest der Nutzer
-  // im zweiten Tab eine der Zeilen, liefe createMany in den Unique-Index und der ganze Aufruf
-  // schlüge fehl, obwohl der Zustand danach der gewünschte wäre. (SQLite kennt kein skipDuplicates.)
-  await Promise.all(
-    own.map((messageId) =>
+/**
+ * Setzt Lese-Kennzeichen für mehrere Nachrichten.
+ *
+ * EINE Transaktion statt N: der SQLite-Connector fährt mit `connection_limit=1`, ein `Promise.all`
+ * über einzelne `upsert` erzeugt also nur den ANSCHEIN von Nebenläufigkeit — tatsächlich waren es
+ * bei 100 Ids 100 eigene Schreib-Transaktionen mit 100 Commits.
+ *
+ * Einzelne `upsert` statt `createMany`: liest der Nutzer im zweiten Tab eine der Zeilen, liefe
+ * `createMany` in den Unique-Index und der ganze Aufruf schlüge fehl, obwohl der Zustand danach der
+ * gewünschte wäre. (SQLite kennt kein `skipDuplicates`.)
+ */
+async function markRowsRead(subjectUserId: string, messageIds: string[]): Promise<void> {
+  if (messageIds.length === 0) return;
+  await prisma.$transaction(
+    messageIds.map((messageId) =>
       prisma.messageRead.upsert({
         where: { messageId_userId: { messageId, userId: subjectUserId } },
         create: { messageId, userId: subjectUserId },
@@ -599,24 +588,25 @@ export async function setReadMany(subjectUserId: string, ids: string[], read: bo
       }),
     ),
   );
+}
+
+export async function setReadMany(subjectUserId: string, ids: string[], read: boolean): Promise<number> {
+  if (ids.length === 0) return 0;
+  if (!read) {
+    // Der Scope steht in der Where-Klausel statt in einer Vorabfrage — `messageRead` kennt keine
+    // `subjectUserId`, also führt der Weg über die Nachricht.
+    const { count } = await prisma.messageRead.deleteMany({
+      where: { userId: subjectUserId, messageId: { in: ids }, message: { subjectUserId, audience: "sub" } },
+    });
+    return count;
+  }
+  const own = await ownMessageIds(subjectUserId, ids);
+  await markRowsRead(subjectUserId, own);
   return own.length;
 }
 
 export async function deleteMessage(subjectUserId: string, messageId: string): Promise<boolean> {
-  // EIN `deleteMany` statt Suchen-dann-Löschen: atomar und idempotent. Bei zwei überlappenden
-  // Aufrufen (zweiter Tab, Wiederholung nach Netz-Hänger) käme der Verlierer eines Read-then-Write
-  // mit Prismas P2025 zurück — ein 500 mit leerem Body, obwohl der gewünschte Zustand längst
-  // erreicht ist. `count === 0` heisst hier sauber „gibt es nicht (mehr)" → 404.
-  //
-  // `audience` wie in jedem Lese-Pfad: ab Etappe 2 tragen auch Nachrichten AN DIE KEYHOLDER die
-  // `subjectUserId` des Subs — ohne diese Zeile könnte er sie dann löschen.
-  //
-  // Bekannte Grenze von „endgültig": das Löschen nimmt der `once`-Sperre (siehe RecordMessageParams)
-  // ihren Anker. Bricht ein Poller genau zwischen Versand und `benachrichtigtAt`-Stempel ab UND wird
-  // die Nachricht dazwischen gelöscht, legt der nächste Lauf sie neu an. Das Fenster ist ein
-  // Absturz/Deploy breit; ein Grabstein-Datensatz dafür wäre teurer als der Fall.
-  const { count } = await prisma.message.deleteMany({ where: { id: messageId, subjectUserId, audience: "sub" } });
-  return count > 0;
+  return (await deleteMessages(subjectUserId, [messageId])) > 0;
 }
 
 /**
@@ -626,19 +616,7 @@ export async function deleteMessage(subjectUserId: string, messageId: string): P
 export async function markAllRead(subjectUserId: string): Promise<number> {
   const unread = await visibleUnreadRows(subjectUserId);
   if (unread.length === 0) return 0;
-  // Je Zeile einzeln per upsert statt createMany: liest der Nutzer im zweiten Tab eine Nachricht,
-  // während die Rückfrage offen steht, liefe createMany in den Unique-Index und der ganze Aufruf
-  // schlüge fehl — obwohl der Zustand danach genau der gewünschte wäre. (SQLite kennt kein
-  // skipDuplicates.)
-  await Promise.all(
-    unread.map((m) =>
-      prisma.messageRead.upsert({
-        where: { messageId_userId: { messageId: m.id, userId: subjectUserId } },
-        create: { messageId: m.id, userId: subjectUserId },
-        update: {},
-      }),
-    ),
-  );
+  await markRowsRead(subjectUserId, unread.map((m) => m.id));
   // Frisch gezählt statt hart 0: sichtbare Nachrichten sind jetzt quittiert, aber der Zähler ist
   // die einzige ehrliche Quelle dafür — und bleibt es, wenn Etappe 2 weitere Leser einführt.
   return unreadCountFor(subjectUserId);

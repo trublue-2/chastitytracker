@@ -198,7 +198,10 @@ model Message {
 
   // Der EINE Index, den die Abfragen brauchen: Liste, Zähler und "alle als gelesen" filtern alle
   // auf (subjectUserId, audience) und sortieren nach createdAt.
-  @@index([subjectUserId, audience, createdAt])
+  /// `id` gehört mit in den Index: sortiert wird `createdAt DESC, id DESC` (createdAt allein ist
+  /// nicht eindeutig), und in SQLite steckt der TEXT-Primärschlüssel NICHT implizit im Index. Ohne
+  /// ihn schiebt SQLite einen temporären B-Baum für den letzten Sortier-Term dazwischen.
+  @@index([subjectUserId, audience, createdAt, id])
 }
 
 // Gelesen-Kennzeichen je Leser. Eigene Tabelle statt Flag an der Nachricht, weil eine Nachricht an
@@ -212,6 +215,10 @@ model MessageRead {
   readAt    DateTime @default(now())
 
   @@unique([messageId, userId])
+  /// Der Ungelesen-Filter fragt `WHERE userId = ?` — der Unique-Index oben hat `messageId` zuerst
+  /// und kann das nicht bedienen. Ohne diesen Index scannt JEDE Ungelesen-Abfrage die ganze Tabelle
+  /// über alle Nutzer, und die hängt an der Glocke im Header, also an jeder Dashboard-Seite.
+  @@index([userId, messageId])
 }
 
 // Gesundheits-Zurückhaltung (§8): ein Signal, dass aus Gesundheitsgründen (Migräne/Aura, Schlaf,

@@ -11,9 +11,6 @@ interface SelectOption {
 
 interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "children"> {
   label?: string;
-  /** Klassen für die HÜLLE, nicht das Feld — damit ein Aufrufer das Feld in seinem Layout mitwachsen
-   *  lassen kann (`flex-1`). `className` bleibt für das `<select>` selbst reserviert. */
-  wrapperClassName?: string;
   options: readonly SelectOption[];
   error?: string | null;
   hint?: string;
@@ -21,7 +18,7 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "chi
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, options, error, hint, placeholder, required, disabled, className = "", wrapperClassName = "", id: externalId, ...rest },
+  { label, options, error, hint, placeholder, required, disabled, className = "", id: externalId, ...rest },
   ref,
 ) {
   const autoId = useId();
@@ -30,7 +27,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
   const hintId = hint && !error ? `${id}-hint` : undefined;
 
   return (
-    <div className={`flex flex-col gap-1.5 ${wrapperClassName}`}>
+    <div className="flex flex-col gap-1.5">
       {label && (
         <label
           htmlFor={id}
