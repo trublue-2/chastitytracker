@@ -29,8 +29,16 @@ export default function MessageFilterBar({
   const t = useTranslations("messages");
 
   return (
-    <div className="flex flex-wrap items-center gap-2 mb-3">
+    /* Kein `flex-wrap`: der Umbruch liess das dritte Feld allein auf einer zweiten Zeile stehen, und
+       weil die Felder ihrer Beschriftung nach unterschiedlich breit waren, franste die Leiste aus.
+       Stattdessen zwei Gruppen — der Umschalter, und die beiden Auswahlfelder als Paar, das sich den
+       Rest teilt. Schmal untereinander, ab `sm` nebeneinander. */
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+      {/* `self-start`: als Flex-Kind einer Spalte zöge sich der Umschalter sonst über die volle
+          Breite und stünde mit leerem Raum rechts da. Er ist so breit wie seine zwei Wörter. */}
+      <div className="self-start sm:self-auto">
       <SegmentedControl
+        size="md"
         options={[
           { value: "all", label: t("filterAll") },
           { value: "unread", label: t("filterUnread") },
@@ -38,8 +46,11 @@ export default function MessageFilterBar({
         value={filter.unreadOnly ? "unread" : "all"}
         onChange={(v) => onChange({ ...filter, unreadOnly: v === "unread" })}
       />
+      </div>
 
+      <div className="flex gap-2 flex-1 min-w-0">
       <Select
+        wrapperClassName="flex-1 min-w-0"
         aria-label={t("filterCategoryLabel")}
         disabled={disabled}
         value={filter.category ?? ANY}
@@ -56,6 +67,7 @@ export default function MessageFilterBar({
       />
 
       <Select
+        wrapperClassName="flex-1 min-w-0"
         aria-label={t("filterSenderLabel")}
         disabled={disabled}
         value={filter.senderKind ?? ANY}
@@ -70,6 +82,7 @@ export default function MessageFilterBar({
           })
         }
       />
+      </div>
     </div>
   );
 }
