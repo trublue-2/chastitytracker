@@ -13,5 +13,10 @@ import { isEntryFormRoute } from "@/lib/entryFormRoute";
 export default function BottomNavSpacer() {
   const pathname = usePathname();
   if (isEntryFormRoute(pathname)) return null;
-  return <div className="h-[calc(5rem+env(safe-area-inset-bottom))] lg:hidden" aria-hidden />;
+  // Die tatsächliche Höhe der Nav, Summand für Summand: 4rem Reiter-Zeile (`h-16`) + 1.5rem
+  // Versions-Fusszeile (`h-6`) + 1px Oberkante (`border-t`). Vorher standen hier 5rem — neun Pixel
+  // zu wenig, und genau so viel vom untersten Element jeder Dashboard-Seite lag unter der Leiste.
+  // Bei einem Knopf heisst das: ein Teil der Tap-Fläche ist nicht erreichbar. Ändert sich die Nav,
+  // ändert sich diese Zeile mit.
+  return <div className="h-[calc(5.5rem+1px+env(safe-area-inset-bottom))] lg:hidden" aria-hidden />;
 }

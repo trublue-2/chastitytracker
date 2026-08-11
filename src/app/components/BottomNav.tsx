@@ -76,8 +76,12 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
           );
         })}
       </div>
+      {/* h-6 fixiert die Höhe dieser Zeile, statt sie aus Schriftgrösse und Polsterung entstehen zu
+          lassen: `BottomNavSpacer` reserviert am Ende des Seiteninhalts genau die Höhe dieser Nav
+          (4rem Reiter + 1.5rem hier = 5.5rem). Wächst sie hier unbemerkt, verschwindet unten auf
+          JEDER Dashboard-Seite ein Streifen unter der Leiste. */}
       {version && (
-        <div className="flex items-center justify-between px-4 pb-1">
+        <div className="flex items-center justify-between px-4 h-6">
           <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
             &copy; trublue {new Date().getFullYear()}
           </a>
