@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
 import { prisma } from "@/lib/prisma";
 import {
   formatDateTime, formatHours,
@@ -8,8 +9,8 @@ import {
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
   wearingHoursFromPairs, joinParts, APP_TZ,
-  type ReinigungSettings,
-} from "@/lib/utils";
+  formatTime,
+  type ReinigungSettings } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
@@ -117,6 +118,37 @@ export default async function DashboardPage() {
   // Box IST offen, und ein erzwungenes „verschlossen" bräche das Wiederverschluss-Formular und die
   // Entry-Guards.
   const cleaningPauseUntil = runningCleaningPauseUntil(latest, reinigung, now);
+
+  // Die STRAFFRIST daneben, und zwar nur, wenn sie FRÜHER liegt als der Countdown oben.
+  //
+  // Der Countdown beantwortet „bleibt das dieselbe Session?" und darf das auch weiter (Begründung
+  // oben). Aber die Frist, gegen die BESTRAFT wird, ist eine andere: bei konfiguriertem
+  // Reinigungsfenster reicht sie bis ans Fensterende, und der Kommentar an
+  // `cleaningInterruptionDeadline` nimmt an, das sei immer SPÄTER. Es kann früher sein — Öffnung
+  // 21:55, Fenster bis 22:00, Kontingent 15 Minuten: der Countdown lief bis 22:10, das Vergehen
+  // entstand um 22:00. Wer bei grünem Countdown um 22:05 verschloss, hatte ein Vergehen und keine
+  // Ahnung warum. Die strengere Frist gehört ihm gesagt, nicht die bequemere.
+  // Die Sperrzeit, die zur ÖFFNUNGSZEIT schon galt — nicht die, die jetzt gilt. Das Strafbuch nimmt
+  // ebenfalls die damalige (`findActiveSperrzeit` prüft `openTime >= s.createdAt`). Eine erst nach
+  // der Öffnung angelegte Sperrzeit ergäbe hier eine Drohung, der im Strafbuch nichts entspricht.
+  const sperreBeiOeffnung = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
+    ? activeSperrzeit
+    : null;
+  const cleaningRelockDeadline = latest && cleaningPauseUntil
+    ? cleaningRelockObligation(
+        latest,
+        sperreBeiOeffnung,
+        // Dieselben drei Felder, die `cleaningBlockReason` liest — `tz` ist die Zone des SUBS, denn
+        // die Fenster sind seine Wanduhrzeit.
+        { reinigungErlaubt: reinigung.erlaubt, reinigungsFenster: userSettings?.reinigungsFenster ?? null, timezone: tz },
+        reinigung.maxMinuten,
+        await cleaningWindowEnforcedFrom(now),
+      )
+    : null;
+  const cleaningRelockWarnUntil =
+    cleaningRelockDeadline && cleaningPauseUntil && cleaningRelockDeadline < cleaningPauseUntil
+      ? cleaningRelockDeadline
+      : null;
 
   // ── Build kontroll items for session events ──
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
@@ -240,6 +272,11 @@ export default async function DashboardPage() {
   const clientProps: DashboardProps = {
     currentStatus,
     cleaningPauseUntil: cleaningPauseUntil?.toISOString() ?? null,
+    // FERTIG formatiert und in der Zone des SUBS: die Frist ist ein Fensterende in seiner
+    // Wanduhrzeit. Im Client formatiert stünde dort die Gerätezone des Betrachters — und beim
+    // Server-Rendering die des Containers, was zusätzlich einen Hydration-Unterschied ergäbe.
+    cleaningRelockWarnTime: cleaningRelockWarnUntil ? formatTime(cleaningRelockWarnUntil, dl, tz) : null,
+    cleaningRelockWarnPassed: !!cleaningRelockWarnUntil && cleaningRelockWarnUntil < now,
     hasEntries: entries.length > 0,
 
     tagH,

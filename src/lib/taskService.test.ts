@@ -305,12 +305,38 @@ describe("completeTask — Selbstmeldung des Subs", () => {
 
     expect(res.ok).toBe(true);
     expect(taskUpdateMock.mock.calls[0][0].data.completedAt).toEqual(JETZT);
-    // Der offene Zustand steht in der Where-Klausel — dort steckt die Idempotenz.
-    expect(taskUpdateMock.mock.calls[0][0].where).toMatchObject({ id: "t1", userId: "u1", completedAt: null });
+    // Die Where-Klausel prüft BEWUSST nicht auf `completedAt: null` — siehe den Test darunter.
+    // Was sie prüft, ist der Rückzug: eine zurückgezogene Aufgabe nimmt keine Meldung mehr an.
+    expect(taskUpdateMock.mock.calls[0][0].where).toMatchObject({ id: "t1", userId: "u1", withdrawnAt: null });
+    expect(taskUpdateMock.mock.calls[0][0].where.completedAt).toBeUndefined();
   });
 
-  it("IDEMPOTENT: erneutes Melden ist ein Treffer auf null Zeilen und bleibt erfolgreich", async () => {
-    // Offline-Wiedereinspielung: die Where-Klausel greift nicht mehr, der Zeitstempel bleibt stehen.
+  it("eine ERNEUTE Meldung setzt den Zeitstempel neu — sonst gäbe es eine Sackgasse", async () => {
+    // `evaluateTask` verlangt `completedAt >= startedAt`, und `startedAt` ist abgeleitet: korrigiert
+    // die Keyholderin einen Eintrag, kann der Beginn hinter eine bereits abgegebene Meldung rutschen.
+    // Die Aufgabe fällt dann zurück auf „wartet auf Bestätigung" und der Knopf erscheint wieder.
+    // Griffe die Where-Klausel weiterhin nur auf `completedAt: null`, träfe er null Zeilen, meldete
+    // Erfolg und änderte nichts — beliebig oft.
+    taskUpdateMock.mockResolvedValue({ count: 1 });
+    expect((await completeTask("t1", "u1")).ok).toBe(true);
+    expect(taskUpdateMock.mock.calls[0][0].data.completedAt).toEqual(JETZT);
+  });
+
+  it("rückt den Zeitstempel NICHT vor, wo er eine rechtzeitige Meldung zum Vergehen machen würde", async () => {
+    // Eine Aufgabe OHNE Bedingungen misst `completedAt` gegen `holdUntil`, nicht gegen `startedAt`.
+    // Ein Vorrücken kippt dort `done` → `missed`. Genau das kann über die Offline-Warteschlange
+    // passieren: rechtzeitig gemeldet, Antwort verloren, beim Reconnect ein zweites Mal zugestellt.
+    // Die Where-Klausel lässt das Vorrücken deshalb nur zu, wo es nichts kaputt machen kann.
+    await completeTask("t1", "u1");
+
+    expect(taskUpdateMock.mock.calls[0][0].where.OR).toEqual([
+      { completedAt: null },
+      { requirements: { some: {} } },
+      { holdUntil: { gte: JETZT } },
+    ]);
+  });
+
+  it("zurückgezogen oder gelöscht → Treffer auf null Zeilen, aber kein Fehler", async () => {
     taskUpdateMock.mockResolvedValue({ count: 0 });
     taskCountMock.mockResolvedValue(1);
     expect((await completeTask("t1", "u1")).ok).toBe(true);

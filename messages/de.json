@@ -387,7 +387,9 @@
     "photoMain": "Eintrag",
     "photoBox": "Box",
     "cleaningPauseLabel": "Reinigungspause – noch",
-    "cleaningPauseRelock": "Wieder einschliessen"
+    "cleaningPauseRelock": "Wieder einschliessen",
+    "cleaningRelockWarn": "Wieder einschliessen bis {time} — danach gilt der Verschluss als versäumt.",
+    "cleaningRelockWarnPassed": "Die Frist um {time} ist verstrichen — der Wiederverschluss gilt als versäumt."
   },
   "newEntry": {
     "title": "Neu erfassen",

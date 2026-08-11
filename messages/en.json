@@ -387,7 +387,9 @@
     "photoMain": "Entry",
     "photoBox": "Box",
     "cleaningPauseLabel": "Cleaning break – remaining",
-    "cleaningPauseRelock": "Lock up again"
+    "cleaningPauseRelock": "Lock up again",
+    "cleaningRelockWarn": "Lock up again by {time} — after that the relock counts as missed.",
+    "cleaningRelockWarnPassed": "The {time} deadline has passed — the relock counts as missed."
   },
   "newEntry": {
     "title": "New entry",

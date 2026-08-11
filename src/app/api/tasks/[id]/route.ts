@@ -3,8 +3,10 @@ import { requireApi } from "@/lib/authGuards";
 import { completeTask } from "@/lib/taskService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
-/** Der Sub meldet seine eigene Aufgabe als erledigt. Idempotent — die Meldung darf über die
- *  Offline-Warteschlange laufen und mehrfach ankommen. */
+/** Der Sub meldet seine eigene Aufgabe als erledigt. Mehrfach-Zustellung ist eingeplant (die Meldung
+ *  läuft über die Offline-Warteschlange); ob eine Wiederholung den Zeitstempel vorrückt, entscheidet
+ *  `completeTask` — bei einer Aufgabe ohne Bedingungen würde das eine rechtzeitige Meldung
+ *  nachträglich zum Vergehen machen. */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;

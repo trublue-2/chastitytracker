@@ -444,8 +444,8 @@ export async function withdrawTask(id: string, userId: string): Promise<ServiceR
 /**
  * Der Sub meldet die Aufgabe als erledigt.
  *
- * Die Idempotenz steckt in der Where-Klausel (`completedAt: null`): ein Wiedereinspielen aus der
- * Offline-Warteschlange trifft null Zeilen und verschiebt den Zeitstempel nicht.
+ * Mehrfach-Zustellung ist eingeplant (Offline-Warteschlange), aber sie darf nicht schaden: die
+ * Where-Klausel unten entscheidet, wann ein Vorrücken des Zeitstempels heilt und wann es schadet.
  *
  * Bei Aufgaben MIT Bedingungen ist das die zweite Hälfte der Erfüllung — die erste (durchgehend
  * getragen) leitet `evaluateTask` aus den Einträgen ab. Der Textteil („ist die Wohnung sauber?") ist
@@ -461,12 +461,36 @@ export async function completeTask(
     return serviceFail(400, "TASK_DESCRIPTION_TOO_LONG");
   }
 
+  // Eine erneute Meldung darf den Zeitstempel neu setzen — aber nicht überall.
+  //
+  // Das ist kein Komfort, sondern die einzige Art, aus einer Sackgasse herauszukommen: `evaluateTask`
+  // verlangt `completedAt >= startedAt`, und `startedAt` ist ABGELEITET — es verschiebt sich, wenn
+  // die Keyholderin einen Eintrag korrigiert oder nachträgt (genau die Eigenschaft, die das
+  // Aufgaben-Modell auszeichnet). Rutscht der Beginn hinter eine bereits abgegebene Meldung, fällt
+  // die Aufgabe zurück auf „wartet auf Bestätigung", der Knopf erscheint wieder — und traf unter der
+  // alten Bedingung keine Zeile mehr. Der Sub drückte, bekam Erfolg gemeldet und die Karte blieb
+  // stehen. Beliebig oft.
+  //
+  // Den Zeitstempel vorzurücken ist dabei die richtige Antwort und nicht bloss die bequeme: er sagt
+  // „ich melde, dass es jetzt erfüllt ist", und genau das tut der Sub in diesem Moment erneut.
   const res = await prisma.task.updateMany({
-    where: { id, userId, withdrawnAt: null, completedAt: null },
+    where: {
+      id, userId, withdrawnAt: null,
+      // WO das Vorrücken heilen kann — und nur dort. Bei einer Aufgabe OHNE Bedingungen misst
+      // `evaluateTask` gegen `holdUntil` statt gegen `startedAt`: ein vorgerückter Zeitstempel kippt
+      // dort `done` → `missed`. Eine rechtzeitige Meldung, die über die Offline-Warteschlange ein
+      // zweites Mal ankommt, würde damit nachträglich zum Vergehen — genau der Grund, aus dem die
+      // Bedingung ursprünglich `completedAt: null` lautete.
+      OR: [
+        { completedAt: null },                 // erste Meldung
+        { requirements: { some: {} } },        // mit Bedingungen: gemessen wird gegen startedAt, Vorrücken ist harmlos
+        { holdUntil: { gte: new Date() } },    // Frist läuft noch: der neue Stempel bleibt darunter
+      ],
+    },
     data: { completedAt: new Date(), ...(trimmed ? { completionNote: trimmed } : {}) },
   });
   if (res.count === 0) {
-    // Entweder gibt es sie nicht (fremd/gelöscht) oder sie ist schon gemeldet/zurückgezogen.
+    // Entweder gibt es sie nicht (fremd/gelöscht) oder sie ist zurückgezogen.
     const exists = await prisma.task.count({ where: { id, userId } });
     return exists === 0 ? serviceFail(404, "TASK_NOT_FOUND") : { ok: true, data: { id } };
   }
