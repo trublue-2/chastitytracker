@@ -32,8 +32,8 @@ export interface UnerlaubteOeffnungRow {
   id: string;
   startTimeStr: string;
   note: string | null;
-  sperrzetEndetAtStr: string | null;
-  sperrzetUnbefristet: boolean;
+  sperrzeitEndetAtStr: string | null;
+  sperrzeitUnbefristet: boolean;
 }
 
 /** Eine nicht erfüllte Aufgabe. `state` unterscheidet „nie (rechtzeitig) begonnen" von
@@ -117,8 +117,8 @@ export interface UnerlaubterOrgasmusRow {
   startTimeStr: string;
   orgasmusArt: string | null;
   note: string | null;
-  sperrzetEndetAtStr: string | null;
-  sperrzetUnbefristet: boolean;
+  sperrzeitEndetAtStr: string | null;
+  sperrzeitUnbefristet: boolean;
 }
 
 /** Von Hand notiertes Vergehen. */
@@ -239,6 +239,15 @@ function sec<C extends OffenseCanonicalType>(canonical: C, title: string, rows: 
   return { canonical, title, rows };
 }
 
+/** Die Geometrie der kleinen Urteils-Knöpfe. Nur die FARBE unterscheidet sie — als vierte Kopie
+ *  der ganzen Klassenkette drifteten Polsterung und Radius beim nächsten Umbau auseinander. */
+const CHIP_CLS = "text-xs font-medium border transition px-2.5 py-1 rounded-lg flex items-center gap-1";
+
+/** Nebenangabe unter der Kopfzeile (Frist, Zeitpunkt). */
+const FACT_CLS = "text-xs text-foreground-faint";
+/** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
+const NOTE_CLS = "text-xs text-foreground-faint italic";
+
 const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
 /**
@@ -254,9 +263,8 @@ const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 p
  * übrigen sechs Unter-Komponenten dieser Datei) mit herauszuziehen — eine eigene Aufräum-Runde,
  * nicht Teil dieser Änderung. Der Rückzug ist idempotent, ein zweiter Klick ergibt einen 409.
  */
-function ZurueckziehenButton({ id, chipClass, label, networkError, resolveError, onDone }: {
+function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: {
   id: string;
-  chipClass: string;
   label: string;
   networkError: string;
   resolveError: (code: string | null) => string;
@@ -286,7 +294,7 @@ function ZurueckziehenButton({ id, chipClass, label, networkError, resolveError,
   return (
     <div className="mt-2">
       <button type="button" onClick={withdraw} disabled={saving}
-        className={`${chipClass} text-foreground-faint border-border hover:bg-surface-raised hover:text-foreground disabled:opacity-50`}>
+        className={`${CHIP_CLS} text-foreground-faint border-border hover:bg-surface-raised hover:text-foreground disabled:opacity-50`}>
         <Undo2 size={11} />
         {label}
       </button>
@@ -512,7 +520,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         <StrafaufgabeButton refId={refId} anlass={anlass} />
         <VerwerfenButton refId={refId} offenseType={offenseType} />
         {offenseType === STORED_TYPE.manual_offense && (
-          <ZurueckziehenButton id={refId} chipClass={CHIP_CLS} label={labels.strafbuchZurueckziehen}
+          <ZurueckziehenButton id={refId} label={labels.strafbuchZurueckziehen}
             networkError={labels.networkError} resolveError={apiError} onDone={() => router.refresh()} />
         )}
       </div>
@@ -555,14 +563,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  /** Die Geometrie der kleinen Urteils-Knöpfe. Nur die FARBE unterscheidet sie — als vierte Kopie
-   *  der ganzen Klassenkette drifteten Polsterung und Radius beim nächsten Umbau auseinander. */
-  const CHIP_CLS = "text-xs font-medium border transition px-2.5 py-1 rounded-lg flex items-center gap-1";
-
-  /** Nebenangabe unter der Kopfzeile (Frist, Zeitpunkt). */
-  const FACT_CLS = "text-xs text-foreground-faint";
-  /** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
-  const NOTE_CLS = "text-xs text-foreground-faint italic";
 
   /** Der Straf-Anlass einer Kontroll-Zeile: Code und Frist. Ohne den Code stünde bei zwei
    *  Kontrollen desselben Tages zweimal derselbe Anlass — und der Sub liest ihn an seiner Aufgabe.
@@ -604,16 +604,31 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
    * Abgeleitet wird nichts mehr von Hand: die Zähler, `hasAny` und die Vollständigkeits-Prüfung
    * unten lesen alle aus dieser Liste.
    */
+  /**
+   * „Und dabei lief eine Sperrzeit" — der Zusatz, der aus einer Handlung ein Vergehen macht.
+   *
+   * Drei Arten stellen dieselbe Frage (unerlaubte Öffnung, unerlaubter Orgasmus, Passwortwechsel am
+   * Admin-Konto) und hatten sie dreimal eigen zusammengesetzt, die dritte sogar mit vertauschten
+   * Zweigen und ohne den Null-Fall. `fallback` ist das, was dort steht, wo gar keine Sperrzeit lief:
+   * bei der Öffnung nichts (ohne Sperrzeit gäbe es das Vergehen nicht), beim Orgasmus der Hinweis
+   * auf das fehlende Fenster (Modus `always` ahndet auch bei offenem KG).
+   */
+  const sperrzeitQualifier = (
+    row: { sperrzeitEndetAtStr: string | null; sperrzeitUnbefristet: boolean },
+    fallback: string | null = null,
+  ): string | null =>
+    row.sperrzeitUnbefristet
+      ? labels.strafbuchTrotzUnbefristet
+      : row.sperrzeitEndetAtStr
+        ? `${labels.strafbuchSperreLiefBis} ${row.sperrzeitEndetAtStr}`
+        : fallback;
+
   const sections = [
     sec("unauthorized_opening", labels.strafbuchUnerlaubteOeffnungen, unerlaubteOeffnungen.map((o) => ({
       refId: o.id,
       anlass: `${labels.strafbuchGeoeffnetAm} ${o.startTimeStr}`,
       body: (judged) => {
-        const qualifier = o.sperrzetUnbefristet
-          ? labels.strafbuchTrotzUnbefristet
-          : o.sperrzetEndetAtStr
-            ? `${labels.strafbuchSperreLiefBis} ${o.sperrzetEndetAtStr}`
-            : null;
+        const qualifier = sperrzeitQualifier(o);
         return (
           <>
             <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
@@ -752,12 +767,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
           {titleLine(judged,
             <>{labels.strafbuchOrgasmusAm} {o.startTimeStr}{o.orgasmusArt ? ` (${o.orgasmusArt})` : ""}</>,
             // Lief eine Sperrzeit, ist SIE der schwerere Teil des Vorwurfs; sonst bleibt es beim
-            // fehlenden Fenster. Der Modus `always` ahndet ja auch bei offenem KG.
-            o.sperrzetUnbefristet
-              ? labels.strafbuchTrotzUnbefristet
-              : o.sperrzetEndetAtStr
-                ? `${labels.strafbuchSperreLiefBis} ${o.sperrzetEndetAtStr}`
-                : labels.strafbuchOhneDirektive,
+            // fehlenden Fenster.
+            sperrzeitQualifier(o, labels.strafbuchOhneDirektive),
           )}
           {o.note && <span className={NOTE_CLS}>„{o.note}"</span>}
         </>
@@ -782,9 +793,9 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchAdminPasswortAm} {p.atStr}</>,
-            p.sperrzeitEndetAtStr
-              ? <>{labels.strafbuchSperreLiefBis} {p.sperrzeitEndetAtStr}</>
-              : labels.strafbuchTrotzUnbefristet,
+            // `sperrzeitEndetAt: null` heisst hier unbefristet — die Zeile entsteht nur, wenn eine
+            // Sperrzeit lief (`AdminPasswordChange`), es gibt also keinen dritten Fall.
+            sperrzeitQualifier({ sperrzeitEndetAtStr: p.sperrzeitEndetAtStr, sperrzeitUnbefristet: p.sperrzeitEndetAtStr === null }),
           )}
           <p className={FACT_CLS}>
             {labels.strafbuchAdminPasswortKonto}: {p.adminUsername} · {p.via}

@@ -66,15 +66,6 @@ export type OffenseCanonicalType = keyof typeof STORED_TYPE;
 export type StoredOffenseType = (typeof STORED_TYPE)[OffenseCanonicalType];
 
 /**
- * Die Vollständigkeits-Zusage einer Anzeige als Typ: `true`, solange `Covered` jede kanonische Art
- * enthält — sonst ein Objekttyp, der die fehlende Art im Feldnamen trägt. Eine Anzeige hängt sich
- * mit `const _: AssertCoversAllOffenses<…> = true;` daran; fehlt eine Art, nennt der Compiler sie
- * beim Namen, statt dass die Zeile stumm aus der Oberfläche fällt.
- *
- * Hier statt beim Aufrufer, weil die Zusage der TABELLE gehört: sie ist die Stelle, an der eine
- * zwölfte Art entsteht, und die Stelle, die der nächste Autor liest.
- */
-/**
  * Darf der SUB dieses Urteil sehen? Genau dann, wenn es eine verhängte Strafe ist.
  *
  * Ein `DISMISSED` ist die Entscheidung der Keyholderin, eine Anschuldigung fallenzulassen — sie soll
@@ -93,6 +84,15 @@ export function isSubVisibleJudgment(record: { status: string }): boolean {
   return record.status === "PUNISHED";
 }
 
+/**
+ * Die Vollständigkeits-Zusage einer Anzeige als Typ: `true`, solange `Covered` jede kanonische Art
+ * enthält — sonst ein Objekttyp, der die fehlende Art im Feldnamen trägt. Eine Anzeige hängt sich
+ * mit `const _: AssertCoversAllOffenses<…> = true;` daran; fehlt eine Art, nennt der Compiler sie
+ * beim Namen, statt dass die Zeile stumm aus der Oberfläche fällt.
+ *
+ * Hier statt beim Aufrufer, weil die Zusage der TABELLE gehört: sie ist die Stelle, an der eine
+ * zwölfte Art entsteht, und die Stelle, die der nächste Autor liest.
+ */
 export type AssertCoversAllOffenses<Covered extends OffenseCanonicalType> =
   [Exclude<OffenseCanonicalType, Covered>] extends [never]
     ? true

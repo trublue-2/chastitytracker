@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { notifyUser } from "@/lib/notify";
-import { strafeVerhaengtNotice, STORED_TYPE, entryIdFromCleaningNotRelockedRef, judgmentStatus, checkPenaltyText, judgeOffense } from "@/lib/strafurteilService";
+import { strafeVerhaengtNotice, STORED_TYPE, judgmentStatus, checkPenaltyText, judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
 import { markLastAction } from "@/lib/appMeta";
 
 const VALID_OFFENSE_TYPES = new Set(Object.values(STORED_TYPE));
@@ -29,40 +29,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
 
-  // IDOR check: verify the referenced record belongs to userId
-  // AUTO_ENTFERNT's refId is a KontrollAnforderung.id too (see collectDetectedOffenses), not an
-  // Entry.id — same lookup as KONTROLLANFORDERUNG, else it would wrongly fall into the Entry branch.
-  if (offenseType === "KONTROLLANFORDERUNG" || offenseType === "AUTO_ENTFERNT") {
-    const ka = await prisma.kontrollAnforderung.findUnique({ where: { id: refId } });
-    if (!ka || ka.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } else if (offenseType === "VERSCHLUSS_ANFORDERUNG") {
-    const va = await prisma.verschlussAnforderung.findUnique({ where: { id: refId } });
-    if (!va || va.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } else if (offenseType === "ORGASMUS_ANWEISUNG") {
-    const oa = await prisma.orgasmusAnforderung.findUnique({ where: { id: refId } });
-    if (!oa || oa.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } else if (offenseType === "AUFGABE") {
-    const task = await prisma.task.findUnique({ where: { id: refId } });
-    if (!task || task.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } else if (offenseType === "ADMIN_PASSWORT") {
-    // refId ist eine AdminPasswordChange.id; der Sub steht dort als `subUserId` (das Vergehen
-    // gehört ihm, nicht dem Admin-Konto, dessen Passwort geändert wurde).
-    const pc = await prisma.adminPasswordChange.findUnique({ where: { id: refId } });
-    if (!pc || pc.subUserId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } else if (offenseType === "MANUAL_OFFENSE") {
-    // refId ist eine ManualOffense.id, KEINE Entry.id — ohne diesen Zweig fiele jedes von Hand
-    // notierte Vergehen in den Entry-Zweig unten und liesse sich grundsätzlich nicht beurteilen
-    // (404 auf „Wurde bestraft" und „Verwerfen"). Dieselbe Falle wie bei AUTO_ENTFERNT oben.
-    const mo = await prisma.manualOffense.findUnique({ where: { id: refId } });
-    if (!mo || mo.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } else if (offenseType === "REINIGUNG_NICHT_VERSCHLOSSEN") {
-    // refId is "relock:<entryId>" — shares its entry with REINIGUNG_LIMIT, see cleaningNotRelockedRef.
-    const entryId = entryIdFromCleaningNotRelockedRef(refId);
-    const entry = entryId ? await prisma.entry.findUnique({ where: { id: entryId } }) : null;
-    if (!entry || entry.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } else {
-    const entry = await prisma.entry.findUnique({ where: { id: refId } });
-    if (!entry || entry.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Die EINE Schranke statt einer Kette von Sonderfällen: `requireDetectedOffense` wertet das
+  // ganze Strafbuch aus und beantwortet „gehört diese refId zu einem aktuell ERKANNTEN Vergehen
+  // dieses Subs?" für alle Arten auf einmal — über `collectDetectedOffenses` → `OFFENSE_LISTS`.
+  //
+  // Vorher stand hier eine `else if`-Kette mit einer Abfrage je Art. Sie war schwächer (sie prüfte
+  // nur „Datensatz gehört dem User", nicht „ist überhaupt ein Vergehen") und musste bei JEDER neuen
+  // Art erweitert werden — wurde sie vergessen, fiel die Art in den Entry-Zweig und war im Browser
+  // grundsätzlich nicht beurteilbar (404 auf „Wurde bestraft" und „Verwerfen"), ohne dass ein
+  // Compiler oder Test etwas gesagt hätte. Genau das ist mit MANUAL_OFFENSE passiert. Der MCP-Weg
+  // (`judgeOffense`) und `punishWithTask` gingen immer schon hier durch; DELETE weiter unten auch.
+  const detected = await requireDetectedOffense(userId, refId, new Date());
+  if (!detected) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Die ART kommt jetzt aus der Erkennung, nicht aus dem Request: der Client kann sie nicht mehr
+  // danebenlegen, und `offenseType` im Body ist nur noch eine Behauptung, die geprüft wird.
+  if (detected.offenseType !== offenseType) {
+    return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
 
   // Rely on @unique constraint on refId — catch P2002 for clean error

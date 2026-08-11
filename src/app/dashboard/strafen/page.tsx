@@ -2,15 +2,19 @@ import { redirect } from "next/navigation";
 import { Gavel } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import PenaltyCard from "@/app/components/PenaltyCard";
+import PenaltyList from "@/app/components/PenaltyList";
 import EmptyState from "@/app/components/EmptyState";
 import { APP_TZ } from "@/lib/utils";
+import { HISTORY_LIMIT } from "@/lib/taskIntervals";
 import { loadSubPenalties, type SubPenalty } from "@/lib/openPenalties";
 
 
-/** Wie viele erledigte Strafen der Verlauf zeigt — derselbe Deckel wie bei der Aufgaben-Historie. */
-const DONE_LIMIT = 25;
+/** Wie viele erledigte Strafen der Verlauf zeigt. IMPORTIERT statt wiederholt: der Kommentar sagte
+ *  „derselbe Deckel wie bei der Aufgaben-Historie", aber nichts erzwang das — die eine Zahl konnte
+ *  wandern und die andere stehenbleiben. */
+const DONE_LIMIT = HISTORY_LIMIT;
 
 /**
  * Die Strafen des KG-Trägers (Issue #36) — bisher erfuhr er ihren Stand nur über die Keyholderin.
@@ -27,10 +31,13 @@ export default async function PenaltiesPage() {
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
-  const [{ open, done }, t] = await Promise.all([
-    loadSubPenalties(userId),
+  // Dasselbe Tor wie im Dashboard-Block: gibt es kein einziges Urteil, braucht die Leer-Ansicht
+  // kein Strafbuch (~20 Abfragen). Eine indizierte Zählzeile beantwortet das.
+  const [judged, t] = await Promise.all([
+    prisma.strafeRecord.count({ where: { userId, status: "PUNISHED" } }),
     getTranslations("penalties"),
   ]);
+  const { open, done } = judged > 0 ? await loadSubPenalties(userId) : { open: [], done: [] };
   // Die Zeitzone des Trägers — es sind seine Strafen, und diese Seite ist seine.
   const tz = session.user.timezone ?? APP_TZ;
 
@@ -38,13 +45,7 @@ export default async function PenaltiesPage() {
     penalties.length > 0 && (
       <section className="mt-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">{t(titleKey)}</h2>
-        <ul className="flex flex-col gap-2">
-          {penalties.map((p) => (
-            <li key={p.refId}>
-              <PenaltyCard penalty={p} tz={tz} />
-            </li>
-          ))}
-        </ul>
+        <PenaltyList penalties={penalties} tz={tz} />
       </section>
     );
 

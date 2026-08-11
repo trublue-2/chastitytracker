@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import PenaltyCard from "@/app/components/PenaltyCard";
+import PenaltyList from "@/app/components/PenaltyList";
 import { prisma } from "@/lib/prisma";
 import { loadSubPenalties } from "@/lib/openPenalties";
 
@@ -35,8 +35,13 @@ export default async function OpenPenalties({
   // (`StrafeRecord` hat `@@index([userId])`). Erst danach lohnt das Strafbuch, das ~20 Abfragen und
   // eine vollständige Aufgaben-Auswertung kostet. Ohne dieses Tor zahlte jeder Dashboard-Aufruf
   // diesen Preis — auch für die Mehrheit, die nie eine Strafe hat und für die der Block `null` ist.
+  // `OR` statt `NOT: { taskId: { in: … } }`: SQL-`NOT IN` liefert für `taskId IS NULL` „unknown"
+  // und verlöre damit ausgerechnet die Freitext-Strafen.
   const openCount = await prisma.strafeRecord.count({
-    where: { userId, status: "PUNISHED", erledigtAt: null },
+    where: {
+      userId, status: "PUNISHED", erledigtAt: null,
+      OR: [{ taskId: null }, { taskId: { notIn: [...dashboardTaskIds] } }],
+    },
   });
   if (openCount === 0) return null;
 
@@ -72,13 +77,7 @@ export default async function OpenPenalties({
         </Link>
       </div>
 
-      <ul className="flex flex-col gap-2">
-        {rows.map((p) => (
-          <li key={p.refId}>
-            <PenaltyCard penalty={p} tz={tz} />
-          </li>
-        ))}
-      </ul>
+      <PenaltyList penalties={rows} tz={tz} />
     </DashboardBlock>
   );
 }

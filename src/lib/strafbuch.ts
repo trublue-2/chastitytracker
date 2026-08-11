@@ -155,6 +155,11 @@ export function entryIdFromCleaningNotRelockedRef(refId: string): string | null 
   return refId.startsWith("relock:") ? refId.slice("relock:".length) : null;
 }
 
+/** Nur die drei Felder, die `offenseRuleResolver` liest. Bewusst dieselben wie `CHANGE_SELECT` in
+ *  `offenseRulesService.ts` — dort steht die Schreib-Seite; hier darf keine breitere Zeile geladen
+ *  werden, nur weil es bequem ist. Kein `orderBy`: der Resolver sortiert je Art selbst. */
+const OFFENSE_RULE_CHANGE_SELECT = { offenseType: true, mode: true, effectiveFrom: true } as const;
+
 /** Der Zeilentyp einer Vergehens-Liste in {@link StrafbuchData}. */
 type OffenseListRow<K extends keyof StrafbuchData> = StrafbuchData[K] extends (infer R)[] ? R : never;
 
@@ -194,6 +199,26 @@ export const OFFENSE_LISTS = {
 } satisfies Record<OffenseCanonicalType, { key: keyof StrafbuchData; ref: (row: never) => string; at: (row: never) => Date | null }>;
 
 /**
+ * Die Vergehens-Listen eines Strafbuchs als einheitliche Sicht: je Art ihre Zeilen samt der beiden
+ * Zugriffe aus {@link OFFENSE_LISTS}.
+ *
+ * Hier steht der Cast, den das Iterieren über eine je Art typisierte Tabelle unvermeidlich kostet —
+ * EINMAL. `applyOffenseRules` unten und `collectDetectedOffenses` in `strafurteilService.ts`
+ * brauchten ihn beide und hatten ihn beide ausgeschrieben; das ist genau die Sorte Kopie, gegen die
+ * die Tabelle gebaut wurde.
+ */
+export function offenseListViews(sb: StrafbuchData) {
+  const lists = sb as unknown as Record<string, unknown[]>;
+  return Object.entries(OFFENSE_LISTS).map(([type, s]) => ({
+    type: type as OffenseCanonicalType,
+    key: s.key,
+    rows: lists[s.key],
+    ref: s.ref as (row: unknown) => string,
+    at: s.at as (row: unknown) => Date | null,
+  }));
+}
+
+/**
  * Streicht aus einem rohen Strafbuch jede Zeile, deren Vergehensart zur TATZEIT abgeschaltet war.
  *
  * Läuft über {@link OFFENSE_LISTS} statt über eine eigene Aufzählung: eine neue Vergehensart ist
@@ -214,14 +239,14 @@ function applyOffenseRules(
   now: Date,
 ): void {
   const lists = sb as unknown as Record<string, unknown[]>;
-  for (const [type, s] of Object.entries(OFFENSE_LISTS)) {
+  for (const { type, key, rows, ref, at } of offenseListViews(sb)) {
     // manual_offense hat bewusst keinen Schalter (Begründung in `offenseRules.ts`).
     if (!isSwitchableOffenseType(type)) continue;
-    // Die Tabelle ist je Art typisiert; über sie zu ITERIEREN verliert den Zusammenhang zwangsläufig.
-    // Der Cast gilt genau hier — welche Liste zu welchem Zugriff gehört, sagt weiter die Tabelle.
-    const ref = s.ref as (row: unknown) => string;
-    const at = s.at as (row: unknown) => Date | null;
-    lists[s.key] = lists[s.key].filter(
+    // `unauthorized_orgasm` hat seine Regel schon beim Ableiten gelesen — sie sagt dort nicht nur
+    // ob, sondern WIE WEIT (nur bei Sperrzeit / immer), und das lässt sich hier nicht nachholen.
+    // Ein zweiter Durchgang wäre für diese Art ein No-Op.
+    if (type === "unauthorized_orgasm") continue;
+    lists[key] = rows.filter(
       (row) => judgedRefs.has(ref(row)) || resolve(type, at(row) ?? now) !== "off",
     );
   }
@@ -359,9 +384,22 @@ export function cleaningRelockObligation(
  *  rejected Kontrollen, REINIGUNG-limit violations, late locks, missed cleaning re-locks, plus
  *  the punished-marker records. Single source of truth shared by the admin Strafbuch page and the MCP tool. */
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
+  // Die Regel-Historie ZUERST, allein: sie ist winzig und indiziert, entscheidet aber, ob die
+  // Orgasmus-Historie unten überhaupt gebraucht wird. Der Default dieser Art ist `off` — ohne diese
+  // Vorabfrage lädt JEDES Strafbuch (Admin-Seite, get_offenses, jedes judge_offense) die
+  // vollständige Orgasmus-Historie eines Nutzers und wirft sie eine Zeile später weg.
+  const offenseRuleChanges = await prisma.offenseRuleChange.findMany({ where: { userId }, select: OFFENSE_RULE_CHANGE_SELECT });
+
+  // Ab wann war `unauthorized_orgasm` je scharf? `undefined` = nie — dann braucht es die Einträge
+  // gar nicht. Sonst reicht alles ab diesem Zeitpunkt: davor gilt zwingend der Default `off`, und
+  // die Ableitung unten verwirft diese Einträge ohnehin. Der Filter ist damit verlustfrei.
+  const orgasmRuleArmedFrom = offenseRuleChanges
+    .filter((c) => c.offenseType === "unauthorized_orgasm" && c.mode !== "off")
+    .reduce<Date | undefined>((min, c) => (!min || c.effectiveFrom < min ? c.effectiveFrom : min), undefined);
+
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, offenseRuleChanges] = await Promise.all([
+  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
@@ -379,11 +417,16 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     // Versäumnis des Subs, und darf nie zu einem Vergehen werden.
     prisma.task.findMany({ where: { userId, withdrawnAt: null }, include: TASK_INCLUDE }),
     prisma.adminPasswordChange.findMany({ where: { subUserId: userId }, orderBy: { createdAt: "desc" } }),
-    prisma.entry.findMany({ where: { userId, type: "ORGASMUS" }, orderBy: { startTime: "desc" } }),
+    orgasmRuleArmedFrom
+      ? prisma.entry.findMany({
+          where: { userId, type: "ORGASMUS", startTime: { gte: orgasmRuleArmedFrom } },
+          orderBy: { startTime: "desc" },
+          select: { id: true, startTime: true, orgasmusArt: true, note: true },
+        })
+      : Promise.resolve([]),
     // Zurückgezogene bleiben draussen — gleiche Begründung wie bei den Aufgaben: der Rückzug ist die
     // Korrektur des Keyholders an seiner eigenen Notiz.
     prisma.manualOffense.findMany({ where: { userId, withdrawnAt: null }, orderBy: { occurredAt: "desc" } }),
-    prisma.offenseRuleChange.findMany({ where: { userId }, orderBy: { effectiveFrom: "asc" } }),
   ]);
 
   // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —

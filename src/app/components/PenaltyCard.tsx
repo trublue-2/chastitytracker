@@ -1,23 +1,11 @@
 import { Gavel } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import Card from "@/app/components/Card";
+import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import IconTile from "@/app/components/IconTile";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { offenseNameKey } from "@/lib/offenseLabels";
 import type { SubPenalty } from "@/lib/openPenalties";
-
-/**
- * Der Anzeigename einer Vergehensart — aus `offenses`, der EINEN Tabelle für alle Oberflächen
- * (`offenseLabels.ts`), nie aus einer zweiten Liste daneben.
- *
- * Als Komponente statt als Funktion, weil beide Aufrufer Server-Komponenten sind und der Name sonst
- * an jeder Stelle dieselben zwei `getTranslations` samt Null-Fall nachbauen müsste.
- */
-export async function OffenseName({ type }: { type: SubPenalty["offenseType"] }) {
-  const [t, tOffenses] = await Promise.all([getTranslations("penalties"), getTranslations("offenses")]);
-  return <>{type ? tOffenses(offenseNameKey(type)) : t("offenseUnknown")}</>;
-}
 
 /**
  * Eine verhängte Strafe als Karte — geteilt vom Dashboard-Block und der Strafen-Seite.
@@ -41,7 +29,10 @@ export default async function PenaltyCard({
   /** Zeitzone des TRÄGERS — es sind seine Strafen, auch wenn ein Keyholder mitliest. */
   tz: string;
 }) {
-  const t = await getTranslations("penalties");
+  const [t, tOffenses] = await Promise.all([getTranslations("penalties"), getTranslations("offenses")]);
+  // Der Anzeigename kommt aus `offenses`, der EINEN Tabelle für alle Oberflächen
+  // (`offenseLabels.ts`) — nie aus einer zweiten Liste daneben.
+  const offenseName = penalty.offenseType ? tOffenses(offenseNameKey(penalty.offenseType)) : t("offenseUnknown");
   // Die Datums-Locale kommt aus dem Request, nicht als Prop: beide Aufrufer haben sie ohnehin nur
   // von hier, und `getLocale` ist `cache()`-gestützt (Muster von `LaufendeSessionCard`).
   const dl = toDateLocale(await getLocale());
@@ -50,15 +41,14 @@ export default async function PenaltyCard({
   // daneben könnte davon abweichen.
   const done = penalty.doneAt !== null;
 
-
   return (
     <Card padding="none">
-      <div className="flex flex-col gap-3 p-4 border-l-[3px] border-l-border-strong">
+      <div className={CARD_BODY_STRIPED}>
         <div className="flex items-start gap-3">
           <IconTile icon={<Gavel className="size-4" />} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground break-words">
-              <OffenseName type={penalty.offenseType} />
+              {offenseName}
             </p>
             {/* Wofür — der TATzeitpunkt, nicht der des Urteils. Beide stehen an der Karte, weil sie
                 verschiedene Fragen beantworten („was habe ich getan?" / „seit wann steht das?"). */}

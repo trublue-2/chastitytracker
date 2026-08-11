@@ -45,11 +45,6 @@ export interface SubPenalties {
   done: SubPenalty[];
 }
 
-/** Neueste zuerst. */
-function byNewest<T>(at: (v: T) => Date): (a: T, b: T) => number {
-  return (a, b) => at(b).getTime() - at(a).getTime();
-}
-
 /**
  * Die reine Auflösung: Urteile → Träger-Sicht. Ohne DB, damit sie testbar bleibt.
  *
@@ -80,8 +75,8 @@ export function selectSubPenalties(sb: StrafbuchData): SubPenalties {
     });
 
   return {
-    open: all.filter((p) => p.doneAt === null).sort(byNewest((p) => p.judgedAt)),
-    done: all.filter((p) => p.doneAt !== null).sort(byNewest((p) => p.doneAt ?? p.judgedAt)),
+    open: all.filter((p) => p.doneAt === null).sort((a, b) => b.judgedAt.getTime() - a.judgedAt.getTime()),
+    done: all.filter((p) => p.doneAt !== null).sort((a, b) => (b.doneAt ?? b.judgedAt).getTime() - (a.doneAt ?? a.judgedAt).getTime()),
   };
 }
 

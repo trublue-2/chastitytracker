@@ -4,7 +4,8 @@ import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/l
 import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
 import { getActiveSperrzeit, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
-import { currentOffenseRules, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
+import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
+import { getOffenseRules } from "@/lib/offenseRulesService";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
@@ -109,15 +110,16 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
     ...(apptTo ? { lte: apptTo } : {}),
   };
-  const [healthHold, recurring, appts, cleaningUsedToday, sperre, offenseRuleChanges] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedToday, sperre, offenseRules] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
     reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
     getActiveSperrzeit(userId),
-    // Die Regel-HISTORIE, nicht ein Zustand: `currentOffenseRules` löst daraus die für JETZT
-    // geltende Fassung auf — dieselbe Funktion, die auch die Admin-Oberfläche anzeigt.
-    prisma.offenseRuleChange.findMany({ where: { userId }, select: { offenseType: true, mode: true, effectiveFrom: true } }),
+    // Über den Service, nicht über eine eigene Abfrage: dort steht `CHANGE_SELECT` ausdrücklich,
+    // „damit die Lese- und die Schreib-Abfrage nicht getrennt voneinander veralten" — eine Kopie
+    // hier wäre genau die Trennung, die er verhindern soll.
+    getOffenseRules(userId, now),
   ]);
 
   // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
@@ -135,7 +137,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     healthHold,
     autoInspections: autoInspectionsView(auto),
     cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
-    offenseRules: currentOffenseRules(offenseRuleChanges, now),
+    offenseRules,
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => apptView(a, iso)),
   };

@@ -20,11 +20,11 @@ import {
 import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+  MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH,
   type NumberRange,
 } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
-import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
@@ -511,13 +511,16 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     // Wie bei Aufgaben immer id-gezielt: von Hand notierte Vergehen koexistieren beliebig, und ein
     // Rundumschlag über „alle" räumte auf einen Aufruf ein ganzes Strafbuch-Kapitel ab.
     if (!args.id) throw new Error("target manual_offense requires an id (from get_offenses.manualOffenses[].ref.id).");
-    const offense = await prisma.manualOffense.findUnique({
-      where: { id: args.id },
-      select: { userId: true, title: true, occurredAt: true, withdrawnAt: true },
-    });
+    // Beide Abfragen sind unabhängig — die Zeitzone hängt am Nutzer, die Notiz an ihrer id.
+    const [offense, offenseIso] = await Promise.all([
+      prisma.manualOffense.findUnique({
+        where: { id: args.id },
+        select: { userId: true, title: true, occurredAt: true, withdrawnAt: true },
+      }),
+      isoForUser(userId),
+    ]);
     if (!offense || offense.userId !== userId) throw new Error(`No manual offense with id ${args.id}.`);
     if (offense.withdrawnAt) throw new Error(`Manual offense ${args.id} was already withdrawn.`);
-    const offenseIso = await isoForUser(userId);
     if (args.dryRun) {
       return {
         dryRun: true, tool: "withdraw", wouldSucceed: true,
@@ -1436,19 +1439,19 @@ export interface RecordOffenseArgs {
   dryRun?: boolean;
 }
 
+/** Die Grenzen im Klartext — der Agent bekommt sie mit der Absage, statt sie zu erraten. */
+const MANUAL_OFFENSE_LIMITS_HINT =
+  `title <= ${MANUAL_OFFENSE_TITLE_MAX_LENGTH} chars and required, description <= ${MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH}, occurredAt not in the future`;
+
 /**
  * Notiert ein Vergehen von Hand (`ManualOffense`) — das EINZIGE, das nicht aus Einträgen abgeleitet
  * wird. Für alles, was der Tracker nicht sehen kann (eine gebrochene Abmachung, Unhöflichkeit) und
  * das darum keine Quelle hat, aus der es entstehen könnte.
  */
-/** Die Grenzen im Klartext — der Agent bekommt sie mit der Absage, statt sie zu erraten. */
-const MANUAL_OFFENSE_LIMITS_HINT =
-  `title <= ${MANUAL_OFFENSE_TITLE_MAX_LENGTH} chars and required, description <= ${MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH}, occurredAt not in the future`;
-
 export async function mcpRecordOffense(username: string, args: RecordOffenseArgs) {
   const userId = await resolveTargetUserId(username);
-  const iso = await isoForUser(userId);
-  // EINE Grenze für beide Ränder: der Service prüft, was auch das Admin-Formular prüft (Pflichttitel,
+  // Validieren, BEVOR die Zeitzone des Nutzers geholt wird: eine abgelehnte Eingabe soll keine
+  // Abfrage kosten. EINE Grenze für beide Ränder: der Service prüft, was auch das Admin-Formular prüft (Pflichttitel,
   // Längen, kein Zukunfts-Datum). Eine zweite Prüfung hier war stillschweigend die schwächere — sie
   // kannte die Längen gar nicht, und ein KI-Keyholder hätte einen Titel schreiben können, den die
   // Oberfläche nie zulässt.
@@ -1461,6 +1464,7 @@ export async function mcpRecordOffense(username: string, args: RecordOffenseArgs
   });
   if (!validated.ok) throw new Error(`record_offense rejected: ${validated.error} (${MANUAL_OFFENSE_LIMITS_HINT})`);
   const { occurredAt, title, description } = validated.data;
+  const iso = await isoForUser(userId);
   if (args.dryRun) {
     return dryRunPreview("record_offense", undefined, { title, occurredAt: iso(occurredAt)!, description, recordedBy: MCP_JUDGED_BY });
   }

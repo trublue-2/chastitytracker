@@ -25,10 +25,14 @@ export async function POST(req: Request) {
     });
     if (!input.ok) return serviceFailure(input);
 
-    // Ein globaler Admin kommt an JEDE userId — ohne diese Prüfung liefe eine unbekannte id in einen
-    // Fremdschlüssel-Fehler und damit in einen 500. Bei einem Keyholder ist sie schon durch.
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    if (!user) return errorResponse(404, "USER_NOT_FOUND");
+    // Nur für den globalen Admin: er kommt an JEDE userId, und eine unbekannte liefe sonst in einen
+    // Fremdschlüssel-Fehler und damit in einen 500. Ein Keyholder hat den Beweis schon erbracht —
+    // `requireKeyholderOrAdminActor` konnte seine Beziehung zu genau diesem Sub nur finden, wenn es
+    // die Zeile gibt. Der Kommentar sagte das bereits; die Abfrage lief trotzdem immer.
+    if (actor.user.role === "admin") {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+      if (!user) return errorResponse(404, "USER_NOT_FOUND");
+    }
 
     const created = await createManualOffense(input.data);
     return NextResponse.json({ ok: true, id: created.id }, { status: 201 });

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight, Hourglass } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import Card from "@/app/components/Card";
+import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import IconTile from "@/app/components/IconTile";
 import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
@@ -94,7 +94,7 @@ export default function TaskCard({
 
   return (
     <Card padding="none">
-      <div className="flex flex-col gap-3 p-4 border-l-[3px] border-l-border-strong">
+      <div className={CARD_BODY_STRIPED}>
         <div className="flex items-start gap-3">
           <IconTile icon={<ListChecks className="size-4" />} />
           <div className="min-w-0 flex-1">

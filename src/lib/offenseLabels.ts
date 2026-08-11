@@ -1,4 +1,4 @@
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import type { AssertCoversAllOffenses, OffenseCanonicalType } from "@/lib/offenseTypes";
 import type { OffenseMode } from "@/lib/offenseRules";
 
 /**
@@ -49,9 +49,19 @@ export const OFFENSE_MODE_I18N_KEYS: Record<OffenseMode, string> = {
   always: "offenseModeAlways",
 };
 
-/** Die Reihenfolge, in der Vergehensarten angezeigt werden — vom Alltäglichen zum Seltenen, die
- *  beiden neuen am Schluss. Damit stehen sie in jeder Oberfläche gleich. */
-export const OFFENSE_TYPE_ORDER: OffenseCanonicalType[] = [
+/**
+ * Die Reihenfolge, in der Vergehensarten AUFGEZÄHLT werden — vom Alltäglichen zum Seltenen.
+ *
+ * Gilt für die Oberflächen, die die Arten als LISTE zeigen (heute der Einstellungs-Abschnitt). Das
+ * Admin-Strafbuch ordnet seine Abschnitte weiter selbst: dort steht jede Art in ihrem eigenen
+ * Kontext, und die Reihenfolge folgt der Dringlichkeit, nicht dieser Aufzählung.
+ *
+ * `satisfies` + die Zusicherung darunter: Dies war die einzige Aufzählung der Arten ohne
+ * Vollständigkeits-Prüfung — und `OffenseRulesEditor` filtert seine Zeilen daraus. Eine fehlende Art
+ * hätte gezählt (ihr Default ist compile-erzwungen), wäre aber in der Oberfläche unsichtbar und
+ * damit nicht abschaltbar gewesen.
+ */
+export const OFFENSE_TYPE_ORDER = [
   "unauthorized_opening",
   "late_control",
   "rejected_control",
@@ -65,4 +75,7 @@ export const OFFENSE_TYPE_ORDER: OffenseCanonicalType[] = [
   "unauthorized_orgasm",
   "manual_offense",
   "admin_password_change",
-];
+] as const satisfies readonly OffenseCanonicalType[];
+
+const _orderCoversAll: AssertCoversAllOffenses<(typeof OFFENSE_TYPE_ORDER)[number]> = true;
+void _orderCoversAll;

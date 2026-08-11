@@ -12,9 +12,10 @@ import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH 
  * der Domäne, nicht dem MCP-Werkzeug. Die Admin-Oberfläche schreibt später durch dieselben zwei
  * Funktionen, statt eine zweite Schreibstelle auf dieselbe Tabelle zu eröffnen.
  *
- * Kein `ServiceResult`: beide Ausgänge sind ein Ja/Nein ohne Sonderfälle, und ein eigener
- * Fehler-Code-Satz (`serviceErrorCodes` plus beide `messages`-Dateien) wäre mehr Apparat als
- * Aussage. Wer eine übersetzte Absage braucht, formuliert sie an seinem Rand.
+ * Zwei Ebenen, bewusst getrennt: `validateManualOffenseInput` PRÜFT und liefert ein
+ * `ServiceResult` mit den Codes aus `MANUAL_OFFENSE_CODES` — dieselbe Grenze für das Admin-Formular
+ * und für `record_offense` über den MCP. Die beiden SCHREIB-Funktionen darunter prüfen nichts mehr
+ * und geben ein nacktes Ergebnis zurück; wer sie aufruft, hat validiert.
  */
 
 export interface CreateManualOffenseParams {

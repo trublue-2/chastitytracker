@@ -117,7 +117,7 @@ const RECENT_WINDOW_MS = 24 * 3600_000;
 /** Deckel der Aufgaben-Liste des Subs. Die Auswertung ist eine Rechnung je Aufgabe und jede Karte
  *  reist als Prop zum Client — beides steigt linear, also bleibt die Liste eine Liste. Was noch
  *  offen ist, hängt NICHT an diesem Deckel (siehe {@link getEvaluatedTaskHistory}). */
-const HISTORY_LIMIT = 25;
+export const HISTORY_LIMIT = 25;
 
 /** Deckel der relevanten Aufgaben. Der Extremfall vieler Versäumnisse, nicht der Normalfall. */
 const RELEVANT_LIMIT = 50;

@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildStrafbuch, OFFENSE_LISTS, type StrafbuchData } from "@/lib/strafbuch";
+import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { senderKindOf } from "@/lib/messageService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -44,17 +44,14 @@ export { cleaningNotRelockedRef, entryIdFromCleaningNotRelockedRef } from "@/lib
  *  Strafbuch schon zweimal gescheitert ist — der KERN-BUG vom 11.07. (eine Art fehlte in der Kopie)
  *  und die fünf Arten, die bis v5.0.3 in keiner Anzeige auftauchten. */
 export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
-  return Object.entries(OFFENSE_LISTS).flatMap(([type, s]) => {
-    const canonicalType = type as OffenseCanonicalType;
-    const ref = s.ref as (row: unknown) => string;
-    const at = s.at as (row: unknown) => Date | null;
-    return ((sb as unknown as Record<string, unknown[]>)[s.key]).map((row) => ({
-      canonicalType,
-      offenseType: STORED_TYPE[canonicalType],
+  return offenseListViews(sb).flatMap(({ type, rows, ref, at }) =>
+    rows.map((row) => ({
+      canonicalType: type,
+      offenseType: STORED_TYPE[type],
       refId: ref(row),
       at: at(row),
-    }));
-  });
+    })),
+  );
 }
 
 export interface JudgeOffenseParams {
