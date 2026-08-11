@@ -112,8 +112,9 @@ model User {
 /// abgeleitet, aus demselben Grund.
 ///
 /// Zurückgezogen wird über `withdrawnAt`, nicht gelöscht: ein Fehleintrag verschwindet aus dem
-/// Strafbuch, bleibt aber nachlesbar. Ein bereits gefälltes Urteil (`StrafeRecord.refId` = diese id)
-/// überlebt den Rückzug ohnehin — es ist die Aufzeichnung einer Entscheidung.
+/// Strafbuch, bleibt aber nachlesbar. Nur solange NICHT geurteilt wurde (`StrafeRecord.refId` =
+/// diese id): sonst bliebe eine Strafaufgabe beim Sub stehen, während ihr Anlass aus dem Strafbuch
+/// fällt. Der Weg zurück führt über die Rücknahme des Urteils — siehe `withdrawManualOffense`.
 model ManualOffense {
   id          String    @id @default(cuid())
   userId      String

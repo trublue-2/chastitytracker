@@ -130,6 +130,7 @@ export const MANUAL_OFFENSE_CODES = [
   "OFFENSE_TITLE_TOO_LONG",
   "OFFENSE_DESCRIPTION_TOO_LONG",
   "OFFENSE_ALREADY_WITHDRAWN",
+  "OFFENSE_ALREADY_JUDGED",
 ] as const;
 
 /** deviceReferenceService (curated device reference photos). */

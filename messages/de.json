@@ -132,7 +132,8 @@
     "OFFENSE_TITLE_REQUIRED": "Das Vergehen braucht einen Titel",
     "OFFENSE_TITLE_TOO_LONG": "Der Titel des Vergehens ist zu lang",
     "OFFENSE_DESCRIPTION_TOO_LONG": "Die Beschreibung des Vergehens ist zu lang",
-    "OFFENSE_ALREADY_WITHDRAWN": "Dieses Vergehen wurde bereits zurückgezogen"
+    "OFFENSE_ALREADY_WITHDRAWN": "Dieses Vergehen wurde bereits zurückgezogen",
+    "OFFENSE_ALREADY_JUDGED": "Über dieses Vergehen wurde bereits geurteilt. Nimm zuerst das Urteil zurück, dann lässt es sich zurückziehen."
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",

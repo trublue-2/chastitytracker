@@ -71,7 +71,11 @@ type ToolExtra = { authInfo?: { extra?: { userId?: string } } };
 /** Freitext-Felder der Write-Args — nur hier könnte ein Keyholder einen Code eintippen, also NUR
  *  diese redigieren. IDs (cuids), Zeitstempel und Zahlenwerte bleiben intakt, damit die Audit-Zeile
  *  nachvollziehbar bleibt (welcher Datensatz, welche Deadline). */
-const MCP_FREE_TEXT_KEYS = new Set(["message", "comment", "note", "kommentar", "reason"]);
+// `text` stand im Kommentar unten als Beispiel, fehlte aber in der Liste — ausgerechnet der
+// Straftext von `judge_offense`. `title`/`description` kamen mit `record_offense` dazu. Wer ein
+// neues Freitext-Feld einführt, trägt es hier ein: die Liste ist die einzige Stelle, an der ein
+// versehentlich hineingeratener Kontroll-Code noch abgefangen wird.
+const MCP_FREE_TEXT_KEYS = new Set(["message", "comment", "note", "kommentar", "reason", "text", "title", "description"]);
 
 /** Redigiert Ziffernfolgen NUR in Freitext-Feldern (redactDigits gegen versehentliches Code-Leak),
  *  nicht in IDs/Zeitstempeln — geteilt vom Container-Log (`serializeMcpArgs`) UND vom DB-Audit

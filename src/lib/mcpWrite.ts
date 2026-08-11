@@ -23,7 +23,8 @@ import {
   type NumberRange,
 } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
-import { createManualOffense, withdrawManualOffense } from "@/lib/manualOffenseService";
+import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
+import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
@@ -525,15 +526,19 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     }
     // Der Service setzt `withdrawnAt` (löscht nicht) und prüft den offenen Zustand nochmals in der
     // Where-Klausel — der Rückzug kann also nicht doppelt greifen, wenn zwischen dem Lesen oben und
-    // hier jemand schneller war. `false` heisst genau das: da war nichts mehr.
-    if (!await withdrawManualOffense(args.id, userId)) {
+    // hier jemand schneller war.
+    const result = await withdrawManualOffense(args.id, userId);
+    if (result === "judged") {
+      throw new Error(`Manual offense ${args.id} has already been judged. Reopen the judgment first (judge_offense action:"reopen"), then withdraw — otherwise a penalty task would stay with the sub while its offense left the Strafbuch.`);
+    }
+    if (result === "not_found") {
       throw new Error(`Manual offense ${args.id} was already withdrawn.`);
     }
     // Ein notiertes Vergehen hat kein Ende — `endsAt` bleibt null (der Tatzeitpunkt steht in der
     // Meldung und ohnehin in get_offenses).
     return singleWithdrawn(
       args.id, offense.title, null,
-      `Manual offense "${offense.title}" (${offenseIso(offense.occurredAt)}) withdrawn — it is out of the Strafbuch but stays on record. A judgment already passed on it is NOT undone (use judge_offense action:"reopen" for that). The user is not notified.`,
+      `Manual offense "${offense.title}" (${offenseIso(offense.occurredAt)}) withdrawn — it is out of the Strafbuch but stays on record. Only possible while unjudged: once judged, reopen the judgment first (judge_offense action:"reopen"). The user is not notified.`,
     );
   }
   if (args.id && args.target !== "lock_request" && args.target !== "lock_period") {
@@ -1436,23 +1441,30 @@ export interface RecordOffenseArgs {
  * wird. Für alles, was der Tracker nicht sehen kann (eine gebrochene Abmachung, Unhöflichkeit) und
  * das darum keine Quelle hat, aus der es entstehen könnte.
  */
+/** Die Grenzen im Klartext — der Agent bekommt sie mit der Absage, statt sie zu erraten. */
+const MANUAL_OFFENSE_LIMITS_HINT =
+  `title <= ${MANUAL_OFFENSE_TITLE_MAX_LENGTH} chars and required, description <= ${MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH}, occurredAt not in the future`;
+
 export async function mcpRecordOffense(username: string, args: RecordOffenseArgs) {
   const userId = await resolveTargetUserId(username);
   const iso = await isoForUser(userId);
-  const title = args.title?.trim();
-  if (!title) throw new Error("record_offense requires a non-empty title.");
-  const now = new Date();
-  const occurredAt = args.occurredAt ? parseIsoDate(args.occurredAt, "occurredAt") : now;
-  // Ein Vergehen in der Zukunft wäre keine Notiz, sondern eine Prognose — und das Strafbuch beurteilt
-  // jede Tat nach der Regel-Fassung IHRES Zeitpunkts (offenseRules), die es für morgen nicht gibt.
-  if (occurredAt > now) {
-    throw new Error(`occurredAt must not be in the future (got ${iso(occurredAt)}, now is ${iso(now)}).`);
-  }
-  const description = args.description?.trim() || null;
+  // EINE Grenze für beide Ränder: der Service prüft, was auch das Admin-Formular prüft (Pflichttitel,
+  // Längen, kein Zukunfts-Datum). Eine zweite Prüfung hier war stillschweigend die schwächere — sie
+  // kannte die Längen gar nicht, und ein KI-Keyholder hätte einen Titel schreiben können, den die
+  // Oberfläche nie zulässt.
+  const validated = validateManualOffenseInput({
+    userId,
+    occurredAt: args.occurredAt ?? new Date(),
+    title: args.title,
+    description: args.description,
+    createdBy: MCP_JUDGED_BY,
+  });
+  if (!validated.ok) throw new Error(`record_offense rejected: ${validated.error} (${MANUAL_OFFENSE_LIMITS_HINT})`);
+  const { occurredAt, title, description } = validated.data;
   if (args.dryRun) {
     return dryRunPreview("record_offense", undefined, { title, occurredAt: iso(occurredAt)!, description, recordedBy: MCP_JUDGED_BY });
   }
-  const created = await createManualOffense({ userId, occurredAt, title, description, createdBy: MCP_JUDGED_BY });
+  const created = await createManualOffense(validated.data);
   return {
     ok: true,
     id: created.id,

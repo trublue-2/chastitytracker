@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { manualOffense: { create: vi.fn(), updateMany: vi.fn() } },
+  prisma: { manualOffense: { create: vi.fn(), updateMany: vi.fn() }, strafeRecord: { findUnique: vi.fn() } },
 }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 
 const createMock = prisma.manualOffense.create as unknown as ReturnType<typeof vi.fn>;
 const updateManyMock = prisma.manualOffense.updateMany as unknown as ReturnType<typeof vi.fn>;
+const judgmentMock = prisma.strafeRecord.findUnique as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-08-11T12:00:00Z");
 const GESTERN = new Date("2026-08-10T12:00:00Z");
@@ -30,6 +31,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   createMock.mockReset().mockResolvedValue({ id: "neu" });
   updateManyMock.mockReset().mockResolvedValue({ count: 1 });
+  // Vorgabe: unbeurteilt. Der Rückzug-Pfad fragt das zuerst.
+  judgmentMock.mockReset().mockResolvedValue(null);
 });
 afterEach(() => vi.useRealTimers());
 
@@ -79,14 +82,23 @@ describe("createManualOffense / withdrawManualOffense", () => {
   });
 
   it("zieht über withdrawnAt zurück statt zu löschen, auf den eigenen Sub beschränkt", async () => {
-    expect(await withdrawManualOffense("o1", "u1")).toBe(true);
+    expect(await withdrawManualOffense("o1", "u1")).toBe("withdrawn");
     const call = updateManyMock.mock.calls[0][0];
     expect(call.where).toEqual({ id: "o1", userId: "u1", withdrawnAt: null });
     expect(call.data.withdrawnAt).toBeInstanceOf(Date);
   });
 
-  it("zweiter Rückzug trifft nichts mehr → false", async () => {
+  it("zweiter Rückzug trifft nichts mehr", async () => {
     updateManyMock.mockResolvedValue({ count: 0 });
-    expect(await withdrawManualOffense("o1", "u1")).toBe(false);
+    expect(await withdrawManualOffense("o1", "u1")).toBe("not_found");
+  });
+
+  it("ein BEURTEILTES Vergehen lässt sich nicht zurückziehen — sonst bliebe die Strafaufgabe stehen", async () => {
+    // Die Strafaufgabe hängt am Urteil, nicht an der Notiz: fiele der Anlass aus dem Strafbuch,
+    // liefe die Aufgabe beim Sub weiter und ihr Verstreichen wäre später ein neues Vergehen mit
+    // einer Kette, die ins Leere zeigt.
+    judgmentMock.mockResolvedValue({ id: "s1" });
+    expect(await withdrawManualOffense("o1", "u1")).toBe("judged");
+    expect(updateManyMock).not.toHaveBeenCalled();
   });
 });

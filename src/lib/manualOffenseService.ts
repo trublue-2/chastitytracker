@@ -77,20 +77,36 @@ export async function createManualOffense(p: CreateManualOffenseParams): Promise
   return { id: created.id };
 }
 
+/** Ausgang eines Rückzugs. `judged` ist kein Fehler des Aufrufers, sondern eine Reihenfolge:
+ *  erst das Urteil zurücknehmen, dann die Notiz. */
+export type WithdrawManualOffenseResult = "withdrawn" | "not_found" | "judged";
+
 /**
  * Zieht ein notiertes Vergehen zurück: `withdrawnAt` setzen, nicht löschen — der Fehleintrag fällt
- * aus dem Strafbuch, bleibt aber nachlesbar. Ein bereits gefälltes Urteil (`StrafeRecord` auf diese
- * id) überlebt ohnehin, es ist die Aufzeichnung einer Entscheidung.
+ * aus dem Strafbuch, bleibt aber nachlesbar.
  *
- * Ein Aufruf statt Lesen-dann-Schreiben: der offene Zustand steht in der Where-Klausel, ein zweiter
- * Rückzug trifft damit null Zeilen (Vorbild: `withdrawTask`). `false` heisst, es gab nichts (mehr)
- * zurückzuziehen — fremder Sub, unbekannte id oder schon zurückgezogen.
+ * NICHT MEHR, sobald darüber geurteilt wurde. Ein `StrafeRecord` überlebt den Rückzug (er ist die
+ * Aufzeichnung einer Entscheidung) — und genau deshalb darf sein Anlass nicht unter ihm
+ * verschwinden: Eine bestrafte Notiz zurückzuziehen liesse die STRAFAUFGABE beim Sub stehen, während
+ * ihr Vergehen aus dem Strafbuch fällt; verstreicht sie dann, entstünde daraus ein neues Vergehen
+ * mit einer Kette, die ins Leere zeigt. Dieselbe Linie, die `applyOffenseRules` zieht: ein gefälltes
+ * Urteil darf nicht durch einen Nebenweg entwertet werden. Der Weg zurück ist die Rücknahme des
+ * Urteils („Rückgängig" im Strafbuch, `judge_offense` mit `reopen`), danach greift der Rückzug.
+ *
+ * Ein Schreib-Aufruf statt Lesen-dann-Schreiben: der offene Zustand steht in der Where-Klausel, ein
+ * zweiter Rückzug trifft damit null Zeilen (Vorbild: `withdrawTask`). Die Urteils-Prüfung davor ist
+ * bewusst keine Transaktion — im Rennen zwischen Urteil und Rückzug gewinnt sonst zufällig eines,
+ * und das Ergebnis (zurückgezogen, Urteil bleibt) ist genau das, was der Rückzug ohnehin bedeutet.
  */
-export async function withdrawManualOffense(id: string, userId: string): Promise<boolean> {
+export async function withdrawManualOffense(id: string, userId: string): Promise<WithdrawManualOffenseResult> {
+  const judgment = await prisma.strafeRecord.findUnique({ where: { refId: id }, select: { id: true } });
+  if (judgment) return "judged";
+
   const { count } = await prisma.manualOffense.updateMany({
     where: { id, userId, withdrawnAt: null },
     data: { withdrawnAt: new Date() },
   });
-  if (count > 0) markLastAction();
-  return count > 0;
+  if (count === 0) return "not_found";
+  markLastAction();
+  return "withdrawn";
 }

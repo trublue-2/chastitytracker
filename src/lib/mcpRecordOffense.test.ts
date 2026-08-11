@@ -14,18 +14,21 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     manualOffense: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteMany: vi.fn() },
+    strafeRecord: { findUnique: vi.fn() },
   },
 }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 
 import { mcpRecordOffense, mcpWithdraw } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
+import { MANUAL_OFFENSE_TITLE_MAX_LENGTH } from "@/lib/constants";
 import { markLastAction } from "@/lib/appMeta";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const createMock = prisma.manualOffense.create as unknown as ReturnType<typeof vi.fn>;
 const findMock = prisma.manualOffense.findUnique as unknown as ReturnType<typeof vi.fn>;
 const updateManyMock = prisma.manualOffense.updateMany as unknown as ReturnType<typeof vi.fn>;
+const judgmentMock = prisma.strafeRecord.findUnique as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-08-11T12:00:00Z");
 const GESTERN = new Date("2026-08-10T18:00:00Z");
@@ -38,6 +41,7 @@ beforeEach(() => {
   // Eine Zeile für beide Zugriffe: resolveTargetUserId (per username) und tzOf (per id).
   userMock.mockResolvedValue({ id: "u1", timezone: "Europe/Zurich" });
   createMock.mockResolvedValue({ id: "m1" });
+  judgmentMock.mockResolvedValue(null); // unbeurteilt — der Rückzug fragt das zuerst
 });
 
 describe("record_offense legt an", () => {
@@ -80,20 +84,28 @@ describe("record_offense legt an", () => {
 });
 
 describe("record_offense weist Unmögliches ab, statt es anzulegen", () => {
+  // Die Absagen tragen die Fehler-CODES des Service: der MCP-Rand prüft seit v5.1 nicht mehr selbst,
+  // sondern durch `validateManualOffenseInput` — dieselbe Grenze wie das Admin-Formular.
   it("leerer/nur-Leerzeichen-Titel", async () => {
-    await expect(mcpRecordOffense("sub", { title: "   " })).rejects.toThrow(/non-empty title/);
+    await expect(mcpRecordOffense("sub", { title: "   " })).rejects.toThrow(/OFFENSE_TITLE_REQUIRED/);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("zu langer Titel — dieselbe Grenze wie im Formular, die der MCP vorher gar nicht kannte", async () => {
+    await expect(mcpRecordOffense("sub", { title: "x".repeat(MANUAL_OFFENSE_TITLE_MAX_LENGTH + 1) }))
+      .rejects.toThrow(/OFFENSE_TITLE_TOO_LONG/);
     expect(createMock).not.toHaveBeenCalled();
   });
 
   it("Zeitpunkt in der Zukunft — ein Vergehen von morgen wäre eine Prognose", async () => {
     await expect(mcpRecordOffense("sub", { title: "Wird schon", occurredAt: MORGEN.toISOString() }))
-      .rejects.toThrow(/must not be in the future/);
+      .rejects.toThrow(/TIME_IN_FUTURE/);
     expect(createMock).not.toHaveBeenCalled();
   });
 
   it("unparsbares occurredAt", async () => {
     await expect(mcpRecordOffense("sub", { title: "x", occurredAt: "gestern Abend" }))
-      .rejects.toThrow(/Invalid ISO date for occurredAt/);
+      .rejects.toThrow(/INVALID_DATETIME/);
     expect(createMock).not.toHaveBeenCalled();
   });
 });
@@ -113,7 +125,7 @@ describe("record_offense dryRun", () => {
 
   it("lehnt auch im dryRun ab, was der Commit ablehnen würde", async () => {
     await expect(mcpRecordOffense("sub", { dryRun: true, title: "x", occurredAt: MORGEN.toISOString() }))
-      .rejects.toThrow(/must not be in the future/);
+      .rejects.toThrow(/TIME_IN_FUTURE/);
   });
 });
 

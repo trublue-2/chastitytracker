@@ -54,9 +54,10 @@ export async function DELETE(req: Request) {
     const err = await requireKeyholderOrAdminApi(offense.userId);
     if (err) return err;
 
-    if (!await withdrawManualOffense(id, offense.userId)) {
-      return errorResponse(409, "OFFENSE_ALREADY_WITHDRAWN");
-    }
+    const result = await withdrawManualOffense(id, offense.userId);
+    // Beurteilt ist kein „schon zurückgezogen": der Weg zurück ist die Rücknahme des Urteils.
+    if (result === "judged") return errorResponse(409, "OFFENSE_ALREADY_JUDGED");
+    if (result === "not_found") return errorResponse(409, "OFFENSE_ALREADY_WITHDRAWN");
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[DELETE /api/admin/offense]", err);

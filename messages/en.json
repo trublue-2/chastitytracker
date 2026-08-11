@@ -132,7 +132,8 @@
     "OFFENSE_TITLE_REQUIRED": "The offense needs a title",
     "OFFENSE_TITLE_TOO_LONG": "The offense title is too long",
     "OFFENSE_DESCRIPTION_TOO_LONG": "The offense description is too long",
-    "OFFENSE_ALREADY_WITHDRAWN": "This offense has already been withdrawn"
+    "OFFENSE_ALREADY_WITHDRAWN": "This offense has already been withdrawn",
+    "OFFENSE_ALREADY_JUDGED": "This offense has already been judged. Undo the judgment first, then it can be withdrawn."
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
