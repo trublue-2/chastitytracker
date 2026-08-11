@@ -128,7 +128,11 @@
     "TASK_PROOF_NOT_FOUND": "This proof does not exist",
     "TASK_PROOF_ALREADY_SUBMITTED": "This proof has already been submitted",
     "TASK_PROOF_TOO_LATE": "The task deadline has passed — this proof no longer counts",
-    "TASK_PROOF_NOT_SUBMITTED": "This proof has not been submitted yet"
+    "TASK_PROOF_NOT_SUBMITTED": "This proof has not been submitted yet",
+    "OFFENSE_TITLE_REQUIRED": "The offense needs a title",
+    "OFFENSE_TITLE_TOO_LONG": "The offense title is too long",
+    "OFFENSE_DESCRIPTION_TOO_LONG": "The offense description is too long",
+    "OFFENSE_ALREADY_WITHDRAWN": "This offense has already been withdrawn"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -856,6 +860,15 @@
     "strafbuchOhneDirektive": "no directive open",
     "strafbuchManuelleVergehen": "Recorded offenses",
     "strafbuchNotiertVon": "recorded by",
+    "strafbuchZurueckziehen": "Withdraw",
+    "recordOffense": "Record offense",
+    "recordOffenseHint": "Add an offense to the ledger by hand",
+    "offenseOccurredAt": "Time",
+    "offenseOccurredAtHint": "When it happened — not when you record it",
+    "offenseTitle": "Title",
+    "offenseTitlePlaceholder": "What is this about?",
+    "offenseDescription": "Description",
+    "offenseDescriptionHint": "Optional — details for later",
     "editUser": "Edit",
     "deleteUser": "Delete",
     "deleteConfirm": "Really delete user «{name}»?",

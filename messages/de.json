@@ -128,7 +128,11 @@
     "TASK_PROOF_NOT_FOUND": "Diesen Nachweis gibt es nicht",
     "TASK_PROOF_ALREADY_SUBMITTED": "Dieser Nachweis wurde bereits eingereicht",
     "TASK_PROOF_TOO_LATE": "Die Frist der Aufgabe ist abgelaufen — dieser Nachweis zählt nicht mehr",
-    "TASK_PROOF_NOT_SUBMITTED": "Dieser Nachweis wurde noch nicht eingereicht"
+    "TASK_PROOF_NOT_SUBMITTED": "Dieser Nachweis wurde noch nicht eingereicht",
+    "OFFENSE_TITLE_REQUIRED": "Das Vergehen braucht einen Titel",
+    "OFFENSE_TITLE_TOO_LONG": "Der Titel des Vergehens ist zu lang",
+    "OFFENSE_DESCRIPTION_TOO_LONG": "Die Beschreibung des Vergehens ist zu lang",
+    "OFFENSE_ALREADY_WITHDRAWN": "Dieses Vergehen wurde bereits zurückgezogen"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -856,6 +860,15 @@
     "strafbuchOhneDirektive": "keine Direktive offen",
     "strafbuchManuelleVergehen": "Notierte Vergehen",
     "strafbuchNotiertVon": "notiert von",
+    "strafbuchZurueckziehen": "Zurückziehen",
+    "recordOffense": "Vergehen notieren",
+    "recordOffenseHint": "Ein Vergehen von Hand ins Strafbuch eintragen",
+    "offenseOccurredAt": "Zeitpunkt",
+    "offenseOccurredAtHint": "Wann es passiert ist — nicht wann du es notierst",
+    "offenseTitle": "Titel",
+    "offenseTitlePlaceholder": "Worum geht es?",
+    "offenseDescription": "Beschreibung",
+    "offenseDescriptionHint": "Optional — Einzelheiten für später",
     "editUser": "Bearbeiten",
     "deleteUser": "Löschen",
     "deleteConfirm": "Benutzer «{name}» wirklich löschen?",

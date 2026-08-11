@@ -49,6 +49,12 @@ export async function POST(req: Request) {
     // gehört ihm, nicht dem Admin-Konto, dessen Passwort geändert wurde).
     const pc = await prisma.adminPasswordChange.findUnique({ where: { id: refId } });
     if (!pc || pc.subUserId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } else if (offenseType === "MANUAL_OFFENSE") {
+    // refId ist eine ManualOffense.id, KEINE Entry.id — ohne diesen Zweig fiele jedes von Hand
+    // notierte Vergehen in den Entry-Zweig unten und liesse sich grundsätzlich nicht beurteilen
+    // (404 auf „Wurde bestraft" und „Verwerfen"). Dieselbe Falle wie bei AUTO_ENTFERNT oben.
+    const mo = await prisma.manualOffense.findUnique({ where: { id: refId } });
+    if (!mo || mo.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   } else if (offenseType === "REINIGUNG_NICHT_VERSCHLOSSEN") {
     // refId is "relock:<entryId>" — shares its entry with REINIGUNG_LIMIT, see cleaningNotRelockedRef.
     const entryId = entryIdFromCleaningNotRelockedRef(refId);
