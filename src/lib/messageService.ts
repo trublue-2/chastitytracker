@@ -581,7 +581,7 @@ export async function unreadCountFor(
 /**
  * Derselbe Zähler, aber pro Request memoisiert — für das RENDERN.
  *
- * Der Header steht im Dashboard-Layout und fragt den Wert auf jeder Seite; ruft die Seite selbst ihn
+ * Der Header steht im Dashboard- UND im Admin-Layout und fragt den Wert auf jeder Seite; ruft die Seite selbst ihn
  * auch (Posteingang), liefe er im selben Request zweimal. Bewusst NICHT für Aufrufe nach einem
  * Schreibvorgang: dort wäre die Memoisierung genau falsch und lieferte den Stand von vorher.
  */

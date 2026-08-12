@@ -25,3 +25,19 @@ export const inlineLabelCls = "text-xs text-foreground-faint";
  *  nebeneinander nicht auseinanderlaufen — sie stehen zeichengleich in derselben Flex-Zeile. */
 export const headerIconBtnCls =
   "p-2 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised transition";
+
+/**
+ * Die Kopfzeile selbst — aus demselben Grund eine Quelle wie der Knopf darin, nur eine Ebene höher:
+ * `Header` (Träger) und `AdminHeader` bauen dieselbe Leiste, und wer zwischen den Bereichen wechselt,
+ * sieht sie unmittelbar hintereinander. Driften Höhe, Rand oder `sticky` auseinander, springt beim
+ * Wechsel die ganze Seite — und zwar erst beim Wechsel, also genau dort, wo niemand hinschaut.
+ *
+ * Klassen statt einer Hüllen-Komponente: der Träger-Kopf rendert seine rechte Gruppe nur angemeldet,
+ * der Admin-Kopf immer. Eine gemeinsame Hülle müsste beide Fälle als Slots durchreichen und wäre
+ * mehr Gerüst als Ersparnis. Was drift-gefährdet ist, sind die Masse — die stehen jetzt hier.
+ */
+export const headerBarCls = "bg-header-bg border-b border-header-border sticky top-0 z-30 pt-safe";
+export const headerRowCls = "px-4 h-14 flex items-center justify-between gap-3";
+export const headerActionsCls = "flex items-center gap-2";
+export const headerBrandCls =
+  "font-bold text-header-text hover:opacity-80 transition text-lg tracking-tight flex items-baseline gap-2";
