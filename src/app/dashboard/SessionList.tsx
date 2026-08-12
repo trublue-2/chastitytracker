@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
+import type { VerifyFailure } from "@/lib/verifyReason";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { keyProofFor, NO_TELEMETRY_KEY_PROOF } from "@/lib/boxKeyProof";
 import { inspectionHref } from "@/lib/entryFormRoute";
@@ -17,6 +18,10 @@ interface KontrolleItem {
   note: string | null;
   anforderungStatus: string | null;
   verifikationStatus: string | null;
+  /** Siehe `KontrolleItem.verifikationFailure` in utils.ts — der Grund hinter „Nicht verifiziert".
+   *  Pflicht wie dort, und mit derselben Reichweite: es zwingt den WEITERGEBENDEN, nicht den
+   *  Ladenden. */
+  verifikationFailure: VerifyFailure | null;
   entryId: string | null;
   submittedAt: Date | null;
   /** Urteil der Schlüssel-Erkennung auf dem Box-Foto dieser Kontrolle (null = nicht geprüft). */
@@ -177,6 +182,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             kontrolleKommentar: k.kommentar,
             kombiniertePillLabel: pill?.label ?? null,
             kombiniertePillCls: pill?.cls ?? null,
+            verifyFailure: k.verifikationFailure,
             ...keyProofFor(k.entryId, k.keyDetected, k.boxImageUrl, telemetryKeyProof),
             boxImageUrl: k.boxImageUrl ?? null,
             orgasmusArt: null,

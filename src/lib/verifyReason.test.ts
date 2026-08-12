@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toVerifyFailure, formatVerifyReason } from "./verifyReason";
+import { buildKontrolleItems } from "./utils";
 
 describe("toVerifyFailure — der Grund gilt nur, solange kein Urteil daneben steht", () => {
   it("unverifiziert (status null) + Grund → der Grund wird gemeldet", () => {
@@ -49,5 +50,51 @@ describe("formatVerifyReason", () => {
 
   it("unbekannter Grund → null statt Absturz der ganzen Liste", () => {
     expect(formatVerifyReason("legacyValue" as never, null, t)).toBeNull();
+  });
+});
+
+describe("buildKontrolleItems — der Grund erreicht die Session-Liste des Trägers", () => {
+  // Warum das zählt: die Liste ist die EINZIGE Stelle, an der der Träger seine eigene Kontrolle
+  // wiederfindet. Reichte sie nur `verifikationStatus` durch, stünde dort eine graue „Nicht
+  // verifiziert"-Pille ohne Grund — er könnte weder nachbessern noch widersprechen, während der
+  // Keyholder den Grund in seiner Liste längst sieht.
+  const NOW = new Date("2026-08-12T12:00:00Z");
+  const entry = (over: Record<string, unknown> = {}) => ({
+    id: "e1", startTime: NOW, createdAt: NOW, imageUrl: null, note: null,
+    verifikationStatus: null as string | null, verifikationReason: "codeWrong" as string | null,
+    verifikationReasonDetected: "45678" as string | null, ...over,
+  });
+  const anforderung = (entryRow: ReturnType<typeof entry> | null) => ({
+    id: "k1", deadline: NOW, kommentar: null, code: "12345", categoryId: null,
+    fulfilledAt: NOW, createdAt: NOW, withdrawnAt: null, entryId: entryRow?.id ?? null,
+    autoMarkedRemovedAt: null, entry: entryRow,
+  });
+
+  it("beantwortete Anforderung: Grund und Gelesenes stehen am Item", () => {
+    const [item] = buildKontrolleItems([anforderung(entry())], [], NOW);
+    expect(item.verifikationFailure).toEqual({ reason: "codeWrong", detected: "45678" });
+  });
+
+  it("freistehende Prüfung ohne Anforderung ebenso — sie ist genauso eine Sackgasse", () => {
+    const [item] = buildKontrolleItems(
+      [],
+      [{ id: "e2", startTime: NOW, createdAt: NOW, imageUrl: null, note: null, kontrollCode: null,
+         verifikationStatus: null, verifikationReason: "sealMissing", verifikationReasonDetected: null }],
+      NOW,
+    );
+    expect(item.verifikationFailure).toEqual({ reason: "sealMissing", detected: null });
+  });
+
+  it("von Hand bestätigt → kein Grund mehr am Item", () => {
+    // Der gespeicherte Auto-Grund wird von einem späteren Urteil NICHT abgeräumt. Ohne die Schranke
+    // aus `toVerifyFailure` stünde in der Liste des Trägers „Manuell verifiziert" und darunter
+    // „Falscher Code sichtbar" — zwei Aussagen, von denen nur eine noch gilt.
+    const [item] = buildKontrolleItems([anforderung(entry({ verifikationStatus: "manual" }))], [], NOW);
+    expect(item.verifikationFailure).toBeNull();
+  });
+
+  it("offene Anforderung ohne Eintrag: nichts zu erklären", () => {
+    const [item] = buildKontrolleItems([anforderung(null)], [], NOW);
+    expect(item.verifikationFailure).toBeNull();
   });
 });

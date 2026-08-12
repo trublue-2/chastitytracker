@@ -6,11 +6,10 @@ import Toggle from "@/app/components/Toggle";
 import Select from "@/app/components/Select";
 import SettingLabel from "@/app/components/SettingLabel";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, OFFENSE_TYPE_ORDER } from "@/lib/offenseLabels";
 import {
-  OFFENSE_RULE_MODES, isSwitchableOffenseType,
-  type OffenseMode, type SwitchableOffenseType,
-} from "@/lib/offenseRules";
+  OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, SWITCHABLE_OFFENSE_TYPES_IN_ORDER,
+} from "@/lib/offenseLabels";
+import { OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 
 /**
  * Der Abschnitt, in dem die PARAMETER dieser Art stehen (Grenze, Frist, Fenster). Die Zeile hier
@@ -27,10 +26,6 @@ const PARAM_SECTION_KEY: Partial<Record<SwitchableOffenseType, string>> = {
   late_control: "sectionAutoKontrolle",
   auto_removed_control: "sectionInspectionEscalation",
 };
-
-/** Die schaltbaren Arten in der gemeinsamen Anzeige-Reihenfolge. `manual_offense` fällt dabei von
- *  selbst heraus (kein Eintrag in `OFFENSE_RULE_MODES`, Begründung dort). */
-const SWITCHABLE_IN_ORDER = OFFENSE_TYPE_ORDER.filter(isSwitchableOffenseType);
 
 /** Ein Schalter genügt nur, wenn der Vorrat GENAU `off`/`on` ist. An der Anzahl gemessen bekäme ein
  *  künftiges `["off", "lockedOnly"]` einen Schalter, der dauerhaft „aus" zeigt und beim Klick `on`
@@ -64,7 +59,7 @@ export default function OffenseRulesEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      {SWITCHABLE_IN_ORDER.map((type) => {
+      {SWITCHABLE_OFFENSE_TYPES_IN_ORDER.map((type) => {
         const key = OFFENSE_TYPE_I18N_KEYS[type];
         const name = tOffense(`${key}.name`);
         const sectionKey = PARAM_SECTION_KEY[type];

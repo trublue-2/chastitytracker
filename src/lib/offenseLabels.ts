@@ -1,5 +1,5 @@
 import type { AssertCoversAllOffenses, OffenseCanonicalType } from "@/lib/offenseTypes";
-import type { OffenseMode } from "@/lib/offenseRules";
+import { isSwitchableOffenseType, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 
 /**
  * Der i18n-Schlüssel je Vergehensart im Namensraum `offenses` — `<key>.name` benennt die Art,
@@ -79,3 +79,17 @@ export const OFFENSE_TYPE_ORDER = [
 
 const _orderCoversAll: AssertCoversAllOffenses<(typeof OFFENSE_TYPE_ORDER)[number]> = true;
 void _orderCoversAll;
+
+/**
+ * Die SCHALTBAREN Arten in derselben Anzeige-Reihenfolge — die Liste, über die Keyholder und Träger
+ * reden.
+ *
+ * Hier und nicht je Oberfläche: die Ableitung stand in `OffenseRulesEditor` (Keyholder stellt ein)
+ * und in `/dashboard/regeln` (Träger liest nach) wortgleich zweimal. Zwei Ableitungen können
+ * auseinanderlaufen — und dann zeigte die eine Seite eine Art, die die andere nicht kennt, obwohl
+ * beide dieselbe Regel meinen.
+ *
+ * `manual_offense` fällt von selbst heraus (kein Eintrag in `OFFENSE_RULE_MODES`, Begründung dort).
+ */
+export const SWITCHABLE_OFFENSE_TYPES_IN_ORDER: readonly SwitchableOffenseType[] =
+  OFFENSE_TYPE_ORDER.filter(isSwitchableOffenseType);

@@ -9,7 +9,7 @@ import TaskCard from "@/app/components/TaskCard";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { formatDateTimeDual, toDateLocale } from "@/lib/utils";
-import { TASK_STATE_COLOR } from "@/lib/constants";
+import { TASK_LIST_ANCHOR, TASK_STATE_COLOR } from "@/lib/constants";
 import { taskDeadlineKey, type TaskCardData } from "@/lib/taskView";
 
 const PAGE_SIZE = 5;
@@ -53,7 +53,10 @@ export default function TaskList({
   const dl = toDateLocale(locale);
 
   return (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+    // Sprungziel des Aufgaben-Badges an `OffenseCard` (Begründung an `TASK_LIST_ANCHOR`).
+    // `scroll-mt-20` hält den Listenkopf frei: der Dashboard-Header ist `sticky` und deckte die
+    // Überschrift sonst genau nach dem Sprung ab.
+    <div id={TASK_LIST_ANCHOR} className="scroll-mt-20 bg-surface rounded-2xl border border-border overflow-hidden">
       <div className="px-5 py-3 border-b border-border-subtle">
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
           {t("listTitle")}

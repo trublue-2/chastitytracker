@@ -1,4 +1,5 @@
 import type { NumberRange } from "@/lib/constants";
+import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
 
 /** Format hours as h:mm (e.g. 6:35h). No day splitting — pure hours:minutes. */
 export function formatHoursHM(h: number): string {
@@ -861,11 +862,17 @@ type KontrollAnforderungIn = {
   /** Pflichtfeld: unterscheidet ein Versäumnis von einem Rückzug (beide setzen `withdrawnAt`).
    *  Fehlte es im `select`, fiele jedes Versäumnis stillschweigend auf "withdrawn" zurück. */
   autoMarkedRemovedAt: Date | null;
-  entry: { id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null } | null;
+  entry: { id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null; verifikationStatus: string | null; verifikationReason?: string | null; verifikationReasonDetected?: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null } | null;
 };
 type PruefungEntryIn = {
   id: string; startTime: Date; createdAt: Date; imageUrl: string | null; note: string | null;
-  kontrollCode: string | null; verifikationStatus: string | null; keyDetected?: boolean | null;
+  kontrollCode: string | null; verifikationStatus: string | null;
+  /** Grund des gescheiterten Foto-Checks. Optional getippt: ein `select` ohne diese Spalten
+   *  kompiliert und liefert dann still `verifikationFailure: null` — die Grund-Zeile fehlt einfach.
+   *  Heute holen alle drei Aufrufer die vollen Zeilen; wer künftig auf `select` umstellt, muss die
+   *  beiden Spalten bewusst mitnehmen. */
+  verifikationReason?: string | null; verifikationReasonDetected?: string | null;
+  keyDetected?: boolean | null;
   boxImageUrl?: string | null;
   /** Gesetzt = das GEZEIGTE Gerät einer Trage-Kontrolle (v5.0.1); eine KG-Prüfung trägt keines
    *  (das verschlossene Gerät steht am VERSCHLUSS). Entscheidet die KG-Filterung unten. */
@@ -875,6 +882,17 @@ export type KontrolleItem = {
   id: string; time: Date; imageUrl: string | null; code: string | null;
   deadline: Date | null; kommentar: string | null; note: string | null;
   anforderungStatus: AnforderungStatus | null; verifikationStatus: VerifikationStatus | null;
+  /** WARUM der automatische Foto-Check nicht gematcht hat; `null` = gematcht, nie gelaufen oder
+   *  inzwischen von Hand beurteilt. Ohne dieses Feld sah der Träger in seiner Session-Liste nur die
+   *  graue „Nicht verifiziert"-Pille und konnte nicht wissen, ob der Code unlesbar war, falsche
+   *  Ziffern zeigte oder das Siegel fehlte — die Sackgasse, vor der `verifyReason.ts` warnt.
+   *  Immer über `toVerifyFailure()` gebaut: nur die trägt die Schranke „gilt nur ohne Urteil".
+   *
+   *  PFLICHT — aber nur für die WEITERGABE: wer aus einem `KontrolleItem` eine Anzeige-Zeile baut,
+   *  kann das Feld nicht vergessen, ohne einen Compile-Fehler zu bekommen. Dass der Grund auch
+   *  wirklich GELADEN wurde, garantiert das NICHT: die Eingangs-Felder oben sind optional, ein
+   *  `select` ohne die Spalten ergibt hier lautlos `null`. */
+  verifikationFailure: VerifyFailure | null;
   entryId: string | null; submittedAt: Date | null;
   /** Wann der Eintrag WIRKLICH entstand (`Entry.createdAt`), unabhängig von der eingetippten Zeit.
    *  `time` ist sub-deklariert und rückdatierbar; wo eine Aussage von der Aktualität einer externen
@@ -920,6 +938,11 @@ export function buildKontrolleItems(
       note: k.entry?.note ?? null,
       anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
+      // ROH-Status, nicht der gemappte: `mapVerifikationStatus` macht aus `null` bereits
+      // "unverified", und `toVerifyFailure` würde den Grund dann als überholt verwerfen.
+      verifikationFailure: k.entry
+        ? toVerifyFailure(k.entry.verifikationStatus, k.entry.verifikationReason, k.entry.verifikationReasonDetected)
+        : null,
       entryId: k.entry?.id ?? null,
       submittedAt: k.fulfilledAt ?? null,
       recordedAt: k.entry?.createdAt ?? k.createdAt,
@@ -938,6 +961,7 @@ export function buildKontrolleItems(
         note: e.note,
         anforderungStatus: null,
         verifikationStatus: mapVerifikationStatus(e.verifikationStatus),
+        verifikationFailure: toVerifyFailure(e.verifikationStatus, e.verifikationReason, e.verifikationReasonDetected),
         entryId: e.id,
         submittedAt: null as Date | null,
         recordedAt: e.createdAt,

@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
+import { messageFilterToParams } from "@/lib/messageCategories";
 import { loadSubOffenses, openPenaltiesOf } from "@/lib/subOffenses";
 
 /** Wie viele Strafen im Dashboard ausliegen, bevor auf den Posteingang verwiesen wird. Kein
@@ -76,9 +77,20 @@ export default async function OpenPenalties({
             der Live-Ableitung können die nicht mehr still verschwinden. (Vergehen von VOR dem
             Melde-Stichtag der Instanz sind dort nicht nachgetragen.) Dieser Block bleibt daneben
             stehen, weil er eine andere Frage beantwortet: nicht „was ist vorgefallen", sondern „was
-            fordert mich gerade". */}
+            fordert mich gerade".
+
+            MIT Kategorie-Filter, sonst landete „Alle ansehen" der offenen Strafen in der
+            Mischliste — der Nutzer müsste die Auswahl, die er mit dem Klick schon getroffen hat,
+            dort ein zweites Mal treffen. `offense` UND `penalty` sind zwei Kategorien
+            (`messageCategories.ts`: die Feststellung ist noch kein Urteil); dieser Block zeigt
+            offene STRAFEN, also führt er auf `penalty`.
+
+            Die Query kommt aus `messageFilterToParams`, nicht von Hand: das ist die Schreib-Seite
+            derselben Abbildung, die die Seite mit `parseMessageFilter` wieder einliest. Beide
+            scheitern STILL — ein von Hand getippter Parametername fiele einfach weg und führte
+            zurück in genau die Mischliste, aus der dieser Link herausführen soll. */}
         <Link
-          href="/dashboard/messages"
+          href={`/dashboard/messages?${messageFilterToParams({ category: "penalty" })}`}
           className="text-xs text-foreground-faint hover:text-foreground-muted transition-colors shrink-0"
         >
           {t("viewAll")} →

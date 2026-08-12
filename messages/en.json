@@ -275,7 +275,8 @@
     "userDesign": "User",
     "adminDesign": "Admin",
     "menu": "Open menu",
-    "devices": "My Devices"
+    "devices": "My Devices",
+    "rules": "My rules"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -1724,8 +1725,19 @@
     "badgeTask": "Set as a task",
     "badgeDismissed": "Dropped",
     "badgePunished": "Penalty open",
+    "punishedClosedByKeyholder": "Only the keyholder can close this penalty.",
     "penaltyLabel": "Penalty",
     "dismissReasonLabel": "Reason",
     "decidedAt": "Decided on {date}"
+  },
+  "rules": {
+    "title": "My rules",
+    "intro": "What you are judged by. For reference only — only your keyholder can change these rules.",
+    "cleaningDesc": "Whether, how often and how long you may briefly open for cleaning.",
+    "cleaningAllowedLabel": "Cleaning breaks allowed",
+    "unlimited": "Unlimited",
+    "autoInspectionsDesc": "Inspection requests the system sends you on its own.",
+    "autoInspectionsEnabledLabel": "Automatic inspections active",
+    "offensesDesc": "Which kinds of offence count for you. What does not count here is not held against you."
   }
 }

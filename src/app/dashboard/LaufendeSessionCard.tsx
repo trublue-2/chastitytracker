@@ -193,6 +193,7 @@ export default async function LaufendeSessionCard({
             kontrolleKommentar: ev.kontrolleKommentar ?? null,
             kombiniertePillLabel: kombiniertePill?.label ?? null,
             kombiniertePillCls: kombiniertePill?.cls ?? null,
+            verifyFailure: ev.kontrolleVerifikationFailure ?? null,
             orgasmusArt: ev.orgasmusArt ?? null,
             pauseDurationStr: ev.pauseDurationStr ?? null,
             timeCorrected: isTimeCorrected(ev.time, ev.submittedAt),

@@ -275,7 +275,8 @@
     "userDesign": "Benutzer",
     "adminDesign": "Admin",
     "menu": "Menü öffnen",
-    "devices": "Meine Devices"
+    "devices": "Meine Devices",
+    "rules": "Meine Regeln"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -1724,8 +1725,19 @@
     "badgeTask": "Als Aufgabe gestellt",
     "badgeDismissed": "Fallengelassen",
     "badgePunished": "Strafe offen",
+    "punishedClosedByKeyholder": "Abschliessen kann diese Strafe nur der Keyholder.",
     "penaltyLabel": "Strafe",
     "dismissReasonLabel": "Begründung",
     "decidedAt": "Entschieden am {date}"
+  },
+  "rules": {
+    "title": "Meine Regeln",
+    "intro": "Wonach du beurteilt wirst. Nur zum Nachlesen — ändern kann diese Regeln nur dein Keyholder.",
+    "cleaningDesc": "Ob, wie oft und wie lange du zum Reinigen kurz öffnen darfst.",
+    "cleaningAllowedLabel": "Reinigungspausen erlaubt",
+    "unlimited": "Unbegrenzt",
+    "autoInspectionsDesc": "Kontroll-Aufforderungen, die das System von sich aus an dich schickt.",
+    "autoInspectionsEnabledLabel": "Automatische Kontrollen aktiv",
+    "offensesDesc": "Welche Vergehensarten bei dir zählen. Was hier nicht zählt, wird dir auch nicht angelastet."
   }
 }

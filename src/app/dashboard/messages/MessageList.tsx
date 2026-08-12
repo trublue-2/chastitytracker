@@ -23,11 +23,16 @@ export default function MessageList({
   initial,
   initialPageCount,
   initialUnread,
+  initialFilter = {},
   tz,
 }: {
   initial: PresentedMessage[];
   initialPageCount: number;
   initialUnread: number;
+  /** Der Filter aus der Adresse (`?category=…`), mit dem die Seite schon serverseitig gefiltert
+   *  wurde. Muss hier als Startwert ankommen, sonst zeigte die Filterleiste „alle Kategorien" über
+   *  einer gefilterten Liste — und das erste Blättern hätte den Filter verloren. */
+  initialFilter?: MessageFilter;
   /** Zeitzone des Nutzers — Zeitstempel stehen überall in SEINER Zone, nicht in der des Servers. */
   tz: string;
 }) {
@@ -42,7 +47,7 @@ export default function MessageList({
   // Zählung des Servers steht an genau einer Stelle: beim Bau der Anfrage in `load`.
   const [page, setPage] = useState(0);
   const [pageCount, setPageCount] = useState(initialPageCount);
-  const [filter, setFilter] = useState<MessageFilter>({});
+  const [filter, setFilter] = useState<MessageFilter>(initialFilter);
   const [unread, setUnread] = useState(initialUnread);
   // EIN Zustand für „Auswahl-Modus" UND „was ist angekreuzt": `null` = kein Modus. Als zwei
   // Variablen musste die Kopplung („Modus verlassen = Auswahl leeren") von Hand gehalten werden —

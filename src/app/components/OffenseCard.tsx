@@ -1,10 +1,12 @@
-import { Gavel } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Gavel } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import Badge, { type BadgeVariant } from "@/app/components/Badge";
 import IconTile from "@/app/components/IconTile";
 import DetailField from "@/app/components/DetailField";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { TASK_LIST_ANCHOR } from "@/lib/constants";
 import { offenseNameKey } from "@/lib/offenseLabels";
 import type { SubOffense, SubOffenseState } from "@/lib/subOffenses";
 
@@ -89,9 +91,37 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
           </div>
         ))}
 
+        {/* Wie diese Strafe zugeht — die Frage, die „Strafe offen" allein offen lässt. Nur bei
+            `punished`: bei `done`/`dismissed` ist nichts mehr zu schliessen, bei `open` steht noch
+            gar kein Urteil.
+
+            KEINE zweite Variante für „schliesst sich mit der Aufgabe", obwohl es den Automatismus
+            gibt (`closePenaltyForFulfilledTask`) — das ist kein Versehen. Der Automatismus greift
+            NUR bei einer ERFÜLLTEN Aufgabe, und eine erfüllte schliesst die Strafe, womit die Karte
+            gar nicht mehr in `openPenaltiesOf` steht. Der einzige Renderpfad (`OpenPenalties`)
+            filtert zusätzlich jede Karte weg, deren Aufgabe noch im Aufgaben-Block lebt. Übrig
+            bleibt bei gesetzter `taskId` praktisch nur die TOTE Aufgabe (versäumt/abgebrochen) —
+            die wird nie mehr erfüllt, ihre Strafe also nie automatisch geschlossen. „Sobald die
+            Aufgabe erfüllt ist" hiesse dort, den Träger auf etwas warten zu lassen, das für seinen
+            Fall nicht mehr eintreten kann. Der eine Satz ist für diesen Pfad schlicht wahr. */}
+        {o.state === "punished" && (
+          <p className="text-xs text-foreground-faint">{t("punishedClosedByKeyholder")}</p>
+        )}
+
         {/* Die Strafe IST eine Aufgabe: das Badge sagt, wo der Rest steht (Bedingungen, Frist,
-            Nachweise) — die Karte hier wiederholt davon bewusst nichts. */}
-        {o.taskId && <div><Badge variant="neutral" size="sm" label={t("badgeTask")} /></div>}
+            Nachweise) — die Karte hier wiederholt davon bewusst nichts. Es FÜHRT auch dorthin
+            (Begründung an `TASK_LIST_ANCHOR`); `/dashboard` ist fix, weil `OffenseList` heute nur
+            in der Sub-Sicht steht — käme sie je in eine Keyholder-Seite, führte der Link ihn in
+            SEIN eigenes Dashboard (dieselbe Falle, die `SessionList.keyholderView` beschreibt). */}
+        {o.taskId && (
+          <div>
+            <Link href={`/dashboard#${TASK_LIST_ANCHOR}`} className="inline-flex hover:opacity-80 transition">
+              <Badge variant="neutral" size="sm" label={t("badgeTask")}>
+                <ChevronRight className="size-3 shrink-0" aria-hidden="true" />
+              </Badge>
+            </Link>
+          </div>
+        )}
 
         {o.judgedAt && (
           <p className="text-xs text-foreground-faint">

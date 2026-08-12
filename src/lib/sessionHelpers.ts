@@ -1,4 +1,5 @@
 import { formatDuration, buildLockPoints, wornDeviceNameAt } from "@/lib/utils";
+import type { VerifyFailure } from "@/lib/verifyReason";
 import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/boxKeyProof";
 
 export interface SessionEvent {
@@ -15,6 +16,10 @@ export interface SessionEvent {
   kontrolleCode?: string | null;
   kontrolleAnforderungStatus?: string | null;
   kontrolleVerifikationStatus?: string | null;
+  /** Grund hinter „Nicht verifiziert" (siehe `KontrolleItem.verifikationFailure`). Gerade in der
+   *  LAUFENDEN Session ist er das Dringende: dort steht die Kontrolle, die der Träger eben erst
+   *  eingereicht hat und die er noch nachbessern kann. */
+  kontrolleVerifikationFailure?: VerifyFailure | null;
   orgasmusArt?: string | null;
   pauseDurationStr?: string | null;
   submittedAt?: Date | null;
@@ -35,6 +40,9 @@ type ActivePair = {
     entryId: string | null; time: Date; recordedAt: Date; imageUrl: string | null; note: string | null;
     deadline: Date | null; kommentar: string | null; code: string | null;
     anforderungStatus: string | null; verifikationStatus: string | null; submittedAt: Date | null;
+    /** Pflicht wie an `KontrolleItem`, und mit derselben Reichweite: es zwingt den WEITERGEBENDEN,
+     *  nicht den Ladenden (Begründung dort). */
+    verifikationFailure: VerifyFailure | null;
     keyDetected?: boolean | null; boxImageUrl?: string | null;
   }[];
   interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null; keyDetected?: boolean | null; device?: LockRef | null } }[];
@@ -84,6 +92,7 @@ export function buildSessionEvents(
         kontrolleCode: k.code,
         kontrolleAnforderungStatus: k.anforderungStatus,
         kontrolleVerifikationStatus: k.verifikationStatus,
+        kontrolleVerifikationFailure: k.verifikationFailure,
         submittedAt: k.submittedAt,
         deviceName: wornDeviceNameAt(lockPoints, k.time),
         ...keyProofFor(k.entryId, k.keyDetected, k.boxImageUrl, telemetryKeyProof),

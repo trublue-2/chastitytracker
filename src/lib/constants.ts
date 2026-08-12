@@ -28,6 +28,21 @@ export function mcpHelpUrl(locale: string): string {
     : `${MARKETING_URL}/blog/ki-keyholder-mcp`;
 }
 
+/**
+ * Sprungmarke der Aufgaben-Historie auf dem Sub-Dashboard (`TaskList`).
+ *
+ * Ziel des Aufgaben-Badges an `OffenseCard`: eine Strafaufgabe, die den Aufgaben-Block oben schon
+ * verlassen hat (versäumt, abgebrochen, erledigt), steht NUR noch in dieser Liste — ohne den Sprung
+ * dorthin sagte das Badge „als Aufgabe gestellt" und liess den Träger stehen. Als Konstante, weil
+ * Sprungmarke und Link sonst in zwei Dateien liegen und ein Umbenennen die eine stumm ins Leere
+ * laufen liesse: ein fehlender Anker wirft nicht, er scrollt einfach nicht.
+ *
+ * BEKANNTE GRENZE: der Sprung führt an die Liste, nicht an die einzelne Aufgabe — die blättert zu
+ * fünft (`usePagedList`), und gerade die hier gemeinten (versäumt, abgebrochen) stehen selten auf
+ * Seite 1. Ein gezielter Deep-Link (Seite vorwählen + Sheet öffnen) wäre der nächste Schritt.
+ */
+export const TASK_LIST_ANCHOR = "tasks";
+
 export const LOCALES = [
   { value: "de", label: "DE" },
   { value: "en", label: "EN" },

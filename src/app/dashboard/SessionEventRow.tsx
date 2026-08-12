@@ -9,6 +9,7 @@ import DetailField from "@/app/components/DetailField";
 import SealedCodePhoto from "./SealedCodePhoto";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
+import { formatVerifyReason, type VerifyFailure } from "@/lib/verifyReason";
 import type { KeyProofSource } from "@/lib/boxKeyProof";
 
 export interface SessionEventData {
@@ -35,6 +36,15 @@ export interface SessionEventData {
   kontrolleKommentar: string | null;
   kombiniertePillLabel: string | null;
   kombiniertePillCls: string | null;
+  /** KONTROLLE: WARUM der automatische Foto-Check nicht gematcht hat. Steht direkt unter der Pille,
+   *  weil die sonst „Nicht verifiziert" sagt und nichts weiter — der Träger sah eine Ablehnung ohne
+   *  Grund und konnte weder nachbessern noch widersprechen.
+   *
+   *  ROH, nicht übersetzt: übersetzt wird unten in DIESER Komponente. Beide Aufrufer bauen dieselbe
+   *  Zeile, und ein fertiger String hiesse, dass jeder von ihnen den Übersetzer selbst holen und den
+   *  Aufruf richtig hinschreiben muss — wer es vergisst, bekommt keinen Fehler, sondern eine Zeile,
+   *  die stumm wieder verschwindet. */
+  verifyFailure?: VerifyFailure | null;
   orgasmusArt: string | null;
   pauseDurationStr?: string | null;
   timeCorrected?: boolean;
@@ -110,8 +120,12 @@ function CaptureButton({ href }: { href: string }) {
 export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; icon: React.ReactNode }) {
   const t = useTranslations("dashboard");
   const tc = useTranslations("common");
+  // Derselbe Namensraum, aus dem das Prüfungs-Formular schon VOR dem Absenden zitiert
+  // (`PruefungFormCore`) — der Träger liest hinterher wortgleich, was ihm der Check damals sagte.
+  const tReason = useTranslations("inspectionForm");
   const [open, setOpen] = useState(false);
   const photo = usePhotoChoice(ev.imageUrl, ev.boxImageUrl);
+  const verifyReasonStr = formatVerifyReason(ev.verifyFailure?.reason, ev.verifyFailure?.detected, tReason);
 
   // Grün = Schlüssel nachgewiesen, Warn-Optik = kein Schlüssel erkannt (siehe `keyDetected`). Der
   // grüne Fall nennt seine Quelle (`keyProofFor` in `lib/boxKeyProof.ts`).
@@ -300,6 +314,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               )}
             </div>
           </div>
+          {verifyReasonStr && <p className="text-xs text-warn mt-0.5">{verifyReasonStr}</p>}
           {ev.exifStr && <p className="text-xs text-[var(--color-warn)] mt-0.5">{tc("exifDate")}: {ev.exifStr}</p>}
           {ev.orgasmusArt && <p className="text-xs text-[var(--color-orgasm)] mt-0.5">{ev.orgasmusArt}</p>}
           {ev.kontrolleKommentar && <p className="text-xs text-[var(--color-warn)] mt-0.5 truncate">{ev.kontrolleKommentar}</p>}
