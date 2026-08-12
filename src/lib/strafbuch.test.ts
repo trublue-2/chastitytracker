@@ -389,3 +389,96 @@ describe("cleaningWindowEnforcedFrom — je Instanz, nicht je Code-Stand", () =>
     spy.mockRestore();
   });
 });
+
+/**
+ * Ein bereits BEURTEILTES Vergehen überlebt jede Regeländerung — die Zusage, die
+ * `applyOffenseRules` allen schaltbaren Arten gibt. `unauthorized_orgasm` liest ihre Regel schon
+ * beim Ableiten und überspringt den Regel-Durchgang; ohne eigenen Schutz fiele sie als einzige
+ * durch. Ausgelöst wird das durch eine von Hand ZURÜCKDATIERTE Regel-Zeile — der Weg, auf dem diese
+ * Regel überhaupt rückwirkend scharf gestellt wird.
+ */
+describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte Regel", () => {
+  const TAT = new Date("2026-08-05T20:00:00Z");
+  const NOW = new Date("2026-08-11T12:00:00Z");
+
+  const ruleChange = (mode: string, effectiveFrom: Date) => ({
+    offenseType: "unauthorized_orgasm", mode, effectiveFrom,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({
+      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
+      reinigungsFenster: null, timezone: "Europe/Zurich",
+    });
+    mockSperrzeiten([]);
+    mockStichtag("2026-07-01T00:00:00Z");
+    // Zurücksetzen, nicht dem Nachlass überlassen: `vi.clearAllMocks()` löscht die Aufrufe, nicht die
+    // Implementierungen (siehe die Warnung am Kopf dieser Datei).
+    db.orgasmusAnforderung.findMany.mockResolvedValue([]);
+    // Der ORGASMUS-Eintrag, um den es geht — `mockOeffnungen` deckt nur OEFFNEN ab.
+    db.entry.findMany.mockImplementation((args: { where?: { type?: string } }) =>
+      Promise.resolve(args?.where?.type === "ORGASMUS"
+        ? [{ id: "o1", startTime: TAT, orgasmusArt: null, note: null }]
+        : []),
+    );
+  });
+
+  it("ohne Urteil verschwindet er, wenn die Regel rückwirkend auf AUS steht", async () => {
+    db.offenseRuleChange.findMany.mockResolvedValue([
+      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
+      ruleChange("off", new Date("2026-08-04T00:00:00Z")),
+    ]);
+    db.strafeRecord.findMany.mockResolvedValue([]);
+
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+
+  it("MIT Urteil bleibt er stehen — sonst hinge das Urteil ohne Anlass in der Luft", async () => {
+    db.offenseRuleChange.findMany.mockResolvedValue([
+      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
+      ruleChange("off", new Date("2026-08-04T00:00:00Z")),
+    ]);
+    db.strafeRecord.findMany.mockResolvedValue([{
+      refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
+      bestraftDatum: NOW, notiz: null, reason: "20 Schläge", judgedBy: "admin",
+      erledigtAt: null, taskId: null,
+    }]);
+
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
+  });
+
+  it("hält auch gegen eine zurückdatierte lockedOnly-Regel ohne Sperrzeit", async () => {
+    // Die zweite Hälfte des Schutzes: `lockedOnly` streicht alles, was ohne laufende Sperrzeit
+    // passierte. Rückwirkend gesetzt träfe das ein bereits beurteiltes Vergehen genauso wie ein `off`.
+    db.offenseRuleChange.findMany.mockResolvedValue([
+      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
+      ruleChange("lockedOnly", new Date("2026-08-04T00:00:00Z")),
+    ]);
+    db.strafeRecord.findMany.mockResolvedValue([{
+      refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
+      bestraftDatum: NOW, notiz: null, reason: "20 Schläge", judgedBy: "admin",
+      erledigtAt: null, taskId: null,
+    }]);
+
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
+  });
+
+  it("eine deckende Direktive lässt ihn auch MIT Urteil verschwinden", async () => {
+    // Nur die REGEL wird überbrückt, nicht die Ableitung: deckt später eine Direktive den Orgasmus
+    // ab, verschwindet er wie bei jeder anderen Art auch.
+    db.offenseRuleChange.findMany.mockResolvedValue([ruleChange("always", new Date("2026-08-01T00:00:00Z"))]);
+    db.strafeRecord.findMany.mockResolvedValue([{
+      refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
+      bestraftDatum: NOW, notiz: null, reason: "20 Schläge", judgedBy: "admin",
+      erledigtAt: null, taskId: null,
+    }]);
+    db.orgasmusAnforderung.findMany.mockResolvedValue([{
+      id: "d1", art: "GELEGENHEIT", beginntAt: new Date("2026-08-05T00:00:00Z"),
+      endetAt: new Date("2026-08-06T00:00:00Z"), withdrawnAt: null, fulfilledAt: null,
+      nachricht: null, oeffnenErlaubt: false,
+    }]);
+
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+});

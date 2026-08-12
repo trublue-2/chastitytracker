@@ -294,7 +294,9 @@ function applyOffenseRules(
     if (!isSwitchableOffenseType(type)) continue;
     // `unauthorized_orgasm` hat seine Regel schon beim Ableiten gelesen — sie sagt dort nicht nur
     // ob, sondern WIE WEIT (nur bei Sperrzeit / immer), und das lässt sich hier nicht nachholen.
-    // Ein zweiter Durchgang wäre für diese Art ein No-Op.
+    // Ein zweiter Durchgang wäre für diese Art ein No-Op: was die Regel streichen würde, ist dort
+    // längst gestrichen — und den Schutz beurteilter Zeilen bringt die Ableitung selbst mit
+    // (`judgedRefs`, siehe dort).
     if (type === "unauthorized_orgasm") continue;
     lists[key] = rows.filter(
       (row) => judgedRefs.has(ref(row)) || resolve(type, at(row) ?? now) !== "off",
@@ -432,7 +434,10 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const offenseRuleChanges = await prisma.offenseRuleChange.findMany({ where: { userId }, select: OFFENSE_RULE_CHANGE_SELECT });
 
   // Ab wann war `unauthorized_orgasm` je scharf? `undefined` = nie — dann braucht es die Einträge
-  // gar nicht. Sonst reicht alles ab diesem Zeitpunkt: davor gilt zwingend der Default `off`, und
+  // gar nicht. Das ist zugleich die äussere Grenze des Urteils-Schutzes weiter unten: wer die
+  // scharfstellende Zeile von Hand aus der DB löscht, statt eine `off`-Zeile davorzusetzen, nimmt
+  // auch beurteilten Vergehen ihren Anlass. Über die App geht das nicht — `setOffenseRule` legt nur
+  // an. Sonst reicht alles ab diesem Zeitpunkt: davor gilt zwingend der Default `off`, und
   // die Ableitung unten verwirft diese Einträge ohnehin. Der Filter ist damit verlustfrei.
   const orgasmRuleArmedFrom = validOffenseRuleChanges(offenseRuleChanges)
     .filter((c) => c.offenseType === "unauthorized_orgasm" && c.mode !== "off")
@@ -591,6 +596,10 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       sperrzeitIndefinite: sperre!.endetAt === null,
     }));
 
+  // Die bereits beurteilten Vergehen — einmal gebaut, zweimal gebraucht: hier für die
+  // Orgasmus-Ableitung und unten für `applyOffenseRules`.
+  const judgedRefs = new Set(strafeRecordsRaw.map((r) => r.refId));
+
   // Orgasmus ohne deckende Direktive. Anders als alle übrigen Arten fragt diese die Regel schon
   // BEIM ABLEITEN, weil ihr Modus nicht nur ja/nein sagt, sondern die Reichweite bestimmt:
   // `lockedOnly` ahndet nur, was während einer laufenden Sperrzeit passierte, `always` jeden
@@ -602,10 +611,23 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // `missed_orgasm` ihr eigenes Vergehen; hier zählt allein, ob überhaupt eines offen stand.
   const unauthorizedOrgasms = orgasmusEintraege.flatMap((o) => {
     const mode = resolveRule("unauthorized_orgasm", o.startTime);
-    if (mode === "off") return [];
+    // Ein bereits BEURTEILTES Vergehen überlebt jede Regeländerung — dieselbe Zusage, die
+    // `applyOffenseRules` allen anderen schaltbaren Arten gibt. Sie muss hier stehen, weil diese Art
+    // ihre Regel schon beim Ableiten liest und den Regel-Durchgang deshalb überspringt.
+    //
+    // Ohne sie liesse eine zurückdatierte `off`-Zeile das Vergehen aus der Ableitung fallen, während
+    // sein Urteil bestehen bleibt: der Träger sähe „Vergehen unbekannt" ohne Art und ohne Tatzeit,
+    // die Keyholderin ein Urteil ohne Anlass. Regel-Zeilen von Hand zurückzudatieren ist kein
+    // theoretischer Fall — es ist der Weg, auf dem diese Regel rückwirkend scharf gestellt wird.
+    //
+    // Nur die REGEL wird überbrückt, nicht die Ableitung: deckt später eine Direktive den Orgasmus
+    // ab, verschwindet er wie bei jeder anderen Art auch. Genau diese Grenze zieht `applyOffenseRules`
+    // ebenfalls — sie filtert bereits abgeleitete Zeilen, nicht deren Anlass.
+    const judged = judgedRefs.has(o.id);
+    if (!judged && mode === "off") return [];
     if (orgasmusAnforderungen.some((w) => windowCovers(w, o.startTime))) return [];
     const sperre = findActiveSperrzeit(o.startTime, sperrzeiten);
-    if (mode === "lockedOnly" && !sperre) return [];
+    if (!judged && mode === "lockedOnly" && !sperre) return [];
     return [{
       id: o.id,
       startTime: o.startTime,
@@ -717,6 +739,6 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     })),
   };
 
-  applyOffenseRules(data, resolveRule, new Set(strafeRecordsRaw.map((r) => r.refId)), now);
+  applyOffenseRules(data, resolveRule, judgedRefs, now);
   return data;
 }

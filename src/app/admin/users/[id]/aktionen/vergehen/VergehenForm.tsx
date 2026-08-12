@@ -24,7 +24,11 @@ export default function VergehenForm({ userId, tz, nowDefault }: { userId: strin
   const tc = useTranslations("common");
   const apiError = useApiError();
   const router = useRouter();
-  const target = `/admin/users/${userId}/aktionen`;
+  // Zurück ins STRAFBUCH, nicht in den Aktionen-Hub: von dort kommt man, wenn man ein Vergehen
+  // notiert, und dort will man das Ergebnis sehen. Der Hub bleibt als zweiter Einstieg bestehen —
+  // er listet alle Aktionen, und diese gehört dazu. Der Zurück-Pfeil zeigt aufs selbe Ziel, sonst
+  // führte Speichern hierhin und Abbrechen woandershin.
+  const target = `/admin/users/${userId}/strafbuch`;
 
   const [occurredAt, setOccurredAt] = useState(nowDefault);
   const [title, setTitle] = useState("");
@@ -59,7 +63,8 @@ export default function VergehenForm({ userId, tz, nowDefault }: { userId: strin
   return (
     <AdminActionFormShell
       userId={userId}
-      backLabel={t("aktionen")}
+      backLabel={t("strafbuch")}
+      backHref={target}
       icon={<Gavel size={20} strokeWidth={2} />}
       iconBg="var(--color-warn-bg)"
       iconColor="var(--color-warn)"

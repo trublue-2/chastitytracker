@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, ChevronDown, ClipboardList, Undo2, XCircle } from "lucide-react";
+import Button from "@/app/components/Button";
+import { CheckCircle, ChevronDown, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
 import { parseApiError, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
@@ -143,6 +144,7 @@ interface Labels {
   strafbuchAutoEntfernt: string;
   strafbuchAutoEntferntAm: string;
   strafbuchNoEntries: string;
+  recordOffense: string;
   strafbuchWurdeBestraft: string;
   strafbuchStrafaufgabe: string;
   strafbuchAbbrechen: string;
@@ -815,6 +817,15 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
   return (
     <div className="flex flex-col gap-6">
+
+      {/* Der Einstieg gehört HIERHER: wer ein Vergehen notieren will, sitzt vor dem Buch, in dem es
+          landen soll. Bisher gab es ihn nur im Aktionen-Hub — man musste die Seite verlassen, um
+          etwas einzutragen, das man gerade vermisst. */}
+      <div className="flex justify-end">
+        <Link href={`/admin/users/${userId}/aktionen/vergehen`}>
+          <Button variant="primary" icon={<Plus size={16} />}>{labels.recordOffense}</Button>
+        </Link>
+      </div>
 
       {!hasAnyOpen && !showAll && hasAny && (
         <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
